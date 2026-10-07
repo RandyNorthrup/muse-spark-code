@@ -34,7 +34,8 @@ pinned Debian image. No host package manager installs these tools.
 
 Run from the repository root, using new build-context directories. Staging
 refuses an existing context, unpinned source/redirect, excess length or hash
-mismatch, and deletes only the fresh incomplete context on failure. It may
+mismatch, and deletes only the fresh incomplete context on failure, including
+failures copying the installer, build recipe or either bundled skill tree. It may
 also accept a third argument naming a downloaded cache; it copies and verifies
 every artifact before building. A cache never becomes a live build mount.
 
@@ -45,8 +46,12 @@ node scripts/stage-node-toolset.mjs arm64 temp/m110-b0/download-arm64
 
 The layer is built without network access. Artifacts are read-only bind mounts
 from a discarded stage; their compressed archives do not remain in shipped
-layers. The installer hashes the entire pack before dpkg or tar runs. Installed
-binaries, manifest and bundled assets are root-owned. Both targets finish as
+layers. Staging derives per-pack checksum inventories from `base.json` and
+copies them into the image outside the artifact mounts. The installer hashes
+every inventory entry before dpkg-deb, dpkg or tar runs, then installs only the
+named Debian packages, including the exact Python pair. Extra `.deb` files and
+changes to a pack's diagnostic `SHA256SUMS` cannot add an installable package.
+Installed binaries, manifest and bundled assets are root-owned. Both targets finish as
 UID/GID 10001; C supplies its named tools user and separate service identity.
 The `build` target includes all compilers; compilers belong in the sandbox,
 never in the OS host. The base and build targets retain all available package

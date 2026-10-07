@@ -1,25 +1,37 @@
 #!/bin/sh
-# B0: the entire pack is hashed BEFORE apt or tar may execute/read an artifact.
+# B0: the image-owned manifest pins are hashed BEFORE dpkg or tar sees an artifact.
 set -eu
 pack=$1
 case "$pack" in base|build) ;; *) exit 1 ;; esac
 cd /tmp/muse-toolset
-sha256sum --strict -c SHA256SUMS
+checksums=/usr/local/share/muse-toolset/checksums/$pack.sha256
+sha256sum --strict -c "$checksums"
 export DEBIAN_FRONTEND=noninteractive
 # Python's two meta packages have Pre-Depends, so configure their interpreter
 # before unpacking them. Everything still comes from this verified pack.
 set --
-for file in /tmp/muse-toolset/debs/*.deb; do
-  case "$(dpkg-deb -f "$file" Package)" in
-    python3|python3-minimal) ;;
-    *) set -- "$@" "$file" ;;
+python=
+python_minimal=
+while read -r _checksum file; do
+  case "$file" in
+    debs/*)
+      case "$(dpkg-deb -f "$file" Package)" in
+        python3) python=$file ;;
+        python3-minimal) python_minimal=$file ;;
+        *) set -- "$@" "$file" ;;
+      esac
+      ;;
   esac
-done
+done < "$checksums"
+if [ "$pack" = base ] && { [ -z "$python_minimal" ] || [ -z "$python" ]; }; then
+  printf '%s\n' 'Pinned Python packages missing from base toolset' >&2
+  exit 1
+fi
 dpkg --unpack "$@"
 dpkg --configure -a
 if [ "$pack" = base ]; then
-  dpkg --install /tmp/muse-toolset/debs/python3-minimal_*.deb
-  dpkg --install /tmp/muse-toolset/debs/python3_*.deb
+  dpkg --install "$python_minimal"
+  dpkg --install "$python"
 fi
 if [ "$pack" = base ]; then
   tar --no-same-owner --no-same-permissions -xzf node.tar.gz -C /usr/local --strip-components=1

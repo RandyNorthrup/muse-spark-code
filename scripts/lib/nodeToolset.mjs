@@ -1,7 +1,7 @@
 // B0: validate the release pins, stage exact verified bytes, and measure saved layers.
 import { createHash } from 'node:crypto'
 import { createReadStream } from 'node:fs'
-import { copyFile, mkdir, open, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { copyFile, cp, mkdir, open, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod/mini'
 
@@ -187,6 +187,7 @@ export async function stageToolset(manifest, architecture, destination, cache) {
   if (record === undefined) throw new Error('Unsupported toolset architecture')
   await mkdir(destination, { mode: PRIVATE_DIR })
   try {
+    await mkdir(path.join(destination, 'checksums'), { mode: PRIVATE_DIR })
     for (const pack of ['base', 'build']) {
       const folder = path.join(destination, 'artifacts', pack)
       await mkdir(path.join(folder, 'licenses'), { recursive: true, mode: PRIVATE_DIR })
@@ -207,9 +208,24 @@ export async function stageToolset(manifest, architecture, destination, cache) {
         }
         checksums.push(`${pin.sha256}  ${name}`)
       }
-      await writeFile(path.join(folder, 'SHA256SUMS'), `${checksums.join('\n')}\n`)
+      const inventory = `${checksums.join('\n')}\n`
+      await writeFile(path.join(folder, 'SHA256SUMS'), inventory)
+      // The image owns this manifest-derived inventory, separate from the artifact mount.
+      await writeFile(path.join(destination, 'checksums', `${pack}.sha256`), inventory)
     }
     await writeFile(path.join(destination, 'base.json'), `${JSON.stringify(manifest, null, 2)}\n`)
+    for (const file of ['Containerfile', 'install.sh'])
+      await copyFile(path.join('deploy/toolset', file), path.join(destination, file))
+
+    // Release asset gates verify these trees; runtime CLI copies also verify VENDOR hashes.
+    for (const folder of ['vendor', 'first-party-skills']) {
+      await cp(folder, path.join(destination, 'assets', folder), {
+        recursive: true,
+        dereference: false,
+        errorOnExist: true,
+        force: false,
+      })
+    }
     return record.artifacts.reduce((sum, pin) => sum + pin.bytes, 0)
   } catch (error) {
     await rm(destination, { recursive: true, force: true })

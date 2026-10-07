@@ -22730,6 +22730,15 @@ artifacts, installed-tool ownership, copy containment and supply chain.
 Final local verification follows the rig/common brief (scoped suites, default
 timeouts, no full quality run); the lead runs the complete quality gate.
 
+**M110-B0 review repair (RVM110B0, 2026-10-06).** Fix both P2 findings
+within B0: derive image-owned checksum inventories from the validated pinned
+manifest, verify them before installation and pass only their named Debian
+packages to dpkg (H17). Keep installer/build/skill asset copies inside the
+fresh-context cleanup scope so any staging failure aborts and permits a clean
+retry without deleting an existing context or cache (H09). Execute regression
+tests and byte-exact-restored red drills for both controls; no new dependency
+or wider lane scope. Record the results in the B0 certification.
+
 **The later phases' lanes:**
 
 | Lane                                             | Items                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Files it owns                                                                                                                                                                                    | Its regions in shared files                                                                                                                                                                                                                                                                                                                                                                      | Starts                                                               |
@@ -24232,6 +24241,16 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M110B0 pinned installer inventory (RVM110B0, H17/H09).** The validated
+  manifest generates image-owned checksum lists outside the artifact mounts;
+  every named artifact is hashed before use and only listed Debian paths reach
+  dpkg. Artifact-directory additions or checksum-list edits cannot extend that
+  inventory. All fresh-context copies share cleanup; existing contexts and
+  caches are preserved. Both review P2s are fixed, with regression/red-drill
+  evidence in the B0 certification and no new accepted review residual. C still
+  owns final image signing, SBOM, scans and native ARM64 qualification; this
+  control does not protect against host/root changing the whole image (H16).
 
 - **M110N-packed-replace-ref (RVM110NG P3).** The private Git snapshot
   rejects loose `refs/replace/*` but copies packed replacement refs as data.

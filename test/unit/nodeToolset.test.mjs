@@ -1,7 +1,7 @@
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
-import { rm } from 'node:fs/promises'
+import { copyFile, cp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -14,6 +14,10 @@ import {
 } from '../../scripts/lib/nodeToolset.mjs'
 
 const { Response, structuredClone } = globalThis
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const original = await importOriginal()
+  return { ...original, copyFile: vi.fn(original.copyFile), cp: vi.fn(original.cp) }
+})
 const shipped = JSON.parse(readFileSync('deploy/toolset/base.json', 'utf8'))
 const folders = []
 function folder() {
@@ -22,6 +26,8 @@ function folder() {
   return result
 }
 afterEach(async () => {
+  vi.mocked(copyFile).mockReset()
+  vi.mocked(cp).mockReset()
   await Promise.all(folders.splice(0).map((file) => rm(file, { recursive: true, force: true })))
 })
 const bytes = Buffer.from('abc')
@@ -42,9 +48,10 @@ describe('base toolset pins', () => {
     expect(file).toContain(`FROM ${shipped.baseImage} AS base`)
     expect(file).toContain('USER 10001:10001')
     expect(file).toContain('--mount=type=bind,from=artifacts')
+    expect(file).toContain('COPY checksums /usr/local/share/muse-toolset/checksums')
     const installer = readFileSync('deploy/toolset/install.sh', 'utf8')
-    expect(installer).toContain('sha256sum --strict -c SHA256SUMS')
-    expect(installer.indexOf('sha256sum --strict -c SHA256SUMS')).toBeLessThan(
+    expect(installer).toContain('sha256sum --strict -c "$checksums"')
+    expect(installer.indexOf('sha256sum --strict -c "$checksums"')).toBeLessThan(
       installer.indexOf('dpkg --unpack'),
     )
     expect(installer).not.toContain('apt-get update')
@@ -300,9 +307,14 @@ describe('offline staging', () => {
     const total = await stageToolset(manifest, 'amd64', destination, cache)
     expect(total).toBe(manifest.architectures.amd64.artifacts.length * bytes.length)
     for (const pack of ['base', 'build']) {
-      const lines = readFileSync(path.join(destination, 'artifacts', pack, 'SHA256SUMS'), 'utf8')
-        .trim()
-        .split('\n')
+      const inventory = readFileSync(
+        path.join(destination, 'artifacts', pack, 'SHA256SUMS'),
+        'utf8',
+      )
+      expect(readFileSync(path.join(destination, 'checksums', `${pack}.sha256`), 'utf8')).toBe(
+        inventory,
+      )
+      const lines = inventory.trim().split('\n')
       expect(lines).toHaveLength(
         manifest.architectures.amd64.artifacts.filter((pin) => pin.pack === pack).length,
       )
@@ -328,4 +340,41 @@ describe('offline staging', () => {
     expect(existsSync(destination)).toBe(false)
     expect(readFileSync(path.join(cache, first.file), 'utf8')).toBe('damaged')
   })
+  it.each(['Containerfile', 'install.sh', 'vendor', 'first-party-skills'])(
+    'cleans a failed %s copy and permits retry of the complete context',
+    async (asset) => {
+      const { manifest, cache } = cacheFixture()
+      const destination = path.join(folder(), 'new')
+      const original = await vi.importActual('node:fs/promises')
+      const copier = ['vendor', 'first-party-skills'].includes(asset) ? cp : copyFile
+      const realCopy = copier === cp ? original.cp : original.copyFile
+      let shouldFail = true
+      vi.mocked(copier).mockImplementation(async (source, target, options) => {
+        await realCopy(source, target, options)
+        if (!shouldFail || path.basename(target) !== asset) return
+        shouldFail = false
+        throw Object.assign(new Error(`ENOSPC copying ${asset}`), { code: 'ENOSPC' })
+      })
+      await expect(stageToolset(manifest, 'amd64', destination, cache)).rejects.toThrow('ENOSPC')
+      expect(existsSync(destination)).toBe(false)
+      expect(
+        readFileSync(path.join(cache, manifest.architectures.amd64.artifacts[0].file)),
+      ).toEqual(bytes)
+      await expect(stageToolset(manifest, 'amd64', destination, cache)).resolves.toBeGreaterThan(0)
+      for (const file of ['Containerfile', 'install.sh'])
+        expect(readFileSync(path.join(destination, file))).toEqual(
+          readFileSync(path.join('deploy/toolset', file)),
+        )
+      expect(
+        existsSync(
+          path.join(destination, 'assets', 'vendor', 'high-quality-projects-skill', 'VENDOR.json'),
+        ),
+      ).toBe(true)
+      expect(
+        existsSync(
+          path.join(destination, 'assets', 'first-party-skills', 'muse_gadgets', 'SKILL.md'),
+        ),
+      ).toBe(true)
+    },
+  )
 })

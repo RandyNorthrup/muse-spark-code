@@ -41,6 +41,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Offline toolset installation now verifies image-owned manifest pins and
+  installs only their named Debian packages. Failed installer or bundled-skill
+  staging removes the fresh incomplete build context so the command can retry.
+
 - The bundled workflow-skills installer is shared portable core logic for
   node and editor adapters. It verifies every staged file against the
   vendored release before replacing a working copy, and refuses unsafe or

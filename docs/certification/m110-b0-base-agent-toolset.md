@@ -271,3 +271,43 @@ real-image smoke passed after the ownership correction, and both refreshed
 compressed receipts pass their unchanged base/new measured pack budgets.
 Both local commits before this layer ran the repository's hooks and found
 no staged secrets; the toolset commit uses the same unmodified hooks.
+
+## RVM110B0 review repair
+
+FIXM110B0 on Kubuntu, 2026-10-06, starting at `962a870f6`. Both review
+findings are fixed; no P1 was reported and no P2/P3 review residual is left.
+The existing native ARM64, composed-image, signing/SBOM/scans and boot/help
+integration handoffs above still apply. No dependency, model call, credential
+read or machine setting change; no weakened guard, timeout, budget or hook.
+
+| Finding                                               | Result and threat binding                                                                                                                                                                                                                                      | Regression                                                                                                                                                                                                              | Red drill                                                                    |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| P2 unlisted Debian packages reach dpkg                | Fixed, H17: staging derives image-owned checksums from the pinned manifest, outside the artifact mounts. Hash every entry before any dpkg-deb/dpkg/tar call; dispatch only the listed Debian paths, including the exact Python pair, without package globs.    | `nodeToolsetInstall.test.mjs`: installs only manifest-named debs in base/build; keeps manifest pins when the artifact list is rewritten; refuses changed bytes before package inspection.                               | B0-RV-INSTALL-ORIGINAL, B0-RV-PIN-SOURCE, B0-RV-PIN-DISPATCH, B0-RV-PIN-HASH |
+| P2 late staging failures retain an incomplete context | Fixed, H09: the existing fresh-directory cleanup now covers Containerfile, installer and both skill trees. Errors propagate, the incomplete context is removed, and a retry builds the complete context. Existing contexts and cached inputs remain untouched. | `nodeToolset.test.mjs`: cleans a failed Containerfile/install.sh/vendor/first-party-skills copy and permits retry. Each fake performs the real copy before raising ENOSPC, proving cleanup of partially written assets. | B0-RV-STAGE-CLEANUP                                                          |
+
+Additional guard drills: B0-RV-PYTHON-PINS removes the required Python-pair
+check; B0-RV-PIN-PUBLISH omits the staged image inventory; B0-RV-PIN-IMAGE
+omits its Containerfile COPY. Each fails its corresponding named assertion.
+All **eight** complete-file red runs exit 1 at the repository's default
+timeout. Every mutated source is restored byte-exact and compared by SHA-256;
+commands, full failing test names and before/restoration hashes are in
+[`m110-b0-review-drills.json`](m110-b0-review-drills.json). The original
+installer itself was replayed and failed the new package-dispatch assertions.
+Before moving asset copies into the cleanup scope, all four new copy-failure
+regressions failed because staging reported success instead of the copy error.
+
+Final owned run, no skips, filters or timeout override:
+
+```sh
+npx vitest run test/unit/nodeToolset.test.mjs test/unit/nodeToolsetInstall.test.mjs test/unit/nodeToolsetSize.test.mjs --maxWorkers=3
+```
+
+**65 tests pass**. Scoped ESLint and installer ShellCheck pass. The staging
+CLI also successfully copied and reverified **294,982,776** amd64 bytes from
+the existing private verified cache into a fresh complete context; ARM64
+likewise reverified **272,742,885** bytes. Neither used network access
+(`temp/m110-b0-review-stage-amd64.log`, `temp/m110-b0-review-stage-arm64.log`).
+No host tools were installed. All five typecheck projects pass; localization
+still reports 14 tables and zero problems. The host-API gate reproduces exactly
+the eleven inherited J-owned stale Node-import counts documented above,
+with unchanged VS Code API/importing-file/theme counts (332/31/61).

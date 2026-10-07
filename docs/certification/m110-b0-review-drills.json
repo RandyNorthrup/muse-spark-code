@@ -1,0 +1,179 @@
+{
+  "rig": "kubuntu",
+  "date": "2026-10-06",
+  "defaultTestTimeout": true,
+  "modelAttempts": 0,
+  "drills": [
+    {
+      "id": "B0-RV-INSTALL-ORIGINAL",
+      "source": "deploy/toolset/install.sh",
+      "testFile": "test/unit/nodeToolsetInstall.test.mjs",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/nodeToolsetInstall.test.mjs",
+        "--maxWorkers=3",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/M110B0/temp/B0-RV-INSTALL-ORIGINAL.json"
+      ],
+      "exitCode": 1,
+      "failedTests": [
+        "pinned offline installer dispatch installs only manifest-named debs in the base pack",
+        "pinned offline installer dispatch installs only manifest-named debs in the build pack",
+        "pinned offline installer dispatch keeps manifest pins when an artifact pack rewrites its checksum list",
+        "pinned offline installer dispatch refuses an incomplete pinned Python pair before installing the base pack"
+      ],
+      "originalSha256": "9ded2f81b1bf0fbb2366a655ed3f7c4fa5eb9710bef9f8efb5f5026108078ae7",
+      "restoredSha256": "9ded2f81b1bf0fbb2366a655ed3f7c4fa5eb9710bef9f8efb5f5026108078ae7"
+    },
+    {
+      "id": "B0-RV-PIN-SOURCE",
+      "source": "deploy/toolset/install.sh",
+      "testFile": "test/unit/nodeToolsetInstall.test.mjs",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/nodeToolsetInstall.test.mjs",
+        "--maxWorkers=3",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/M110B0/temp/B0-RV-PIN-SOURCE.json"
+      ],
+      "exitCode": 1,
+      "failedTests": [
+        "pinned offline installer dispatch keeps manifest pins when an artifact pack rewrites its checksum list",
+        "pinned offline installer dispatch refuses an incomplete pinned Python pair before installing the base pack"
+      ],
+      "originalSha256": "9ded2f81b1bf0fbb2366a655ed3f7c4fa5eb9710bef9f8efb5f5026108078ae7",
+      "restoredSha256": "9ded2f81b1bf0fbb2366a655ed3f7c4fa5eb9710bef9f8efb5f5026108078ae7"
+    },
+    {
+      "id": "B0-RV-PIN-DISPATCH",
+      "source": "deploy/toolset/install.sh",
+      "testFile": "test/unit/nodeToolsetInstall.test.mjs",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/nodeToolsetInstall.test.mjs",
+        "--maxWorkers=3",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/M110B0/temp/B0-RV-PIN-DISPATCH.json"
+      ],
+      "exitCode": 1,
+      "failedTests": [
+        "pinned offline installer dispatch installs only manifest-named debs in the base pack",
+        "pinned offline installer dispatch installs only manifest-named debs in the build pack",
+        "pinned offline installer dispatch keeps manifest pins when an artifact pack rewrites its checksum list",
+        "pinned offline installer dispatch refuses an incomplete pinned Python pair before installing the base pack"
+      ],
+      "originalSha256": "9ded2f81b1bf0fbb2366a655ed3f7c4fa5eb9710bef9f8efb5f5026108078ae7",
+      "restoredSha256": "9ded2f81b1bf0fbb2366a655ed3f7c4fa5eb9710bef9f8efb5f5026108078ae7"
+    },
+    {
+      "id": "B0-RV-PIN-HASH",
+      "source": "deploy/toolset/install.sh",
+      "testFile": "test/unit/nodeToolsetInstall.test.mjs",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/nodeToolsetInstall.test.mjs",
+        "--maxWorkers=3",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/M110B0/temp/B0-RV-PIN-HASH.json"
+      ],
+      "exitCode": 1,
+      "failedTests": [
+        "pinned offline installer dispatch refuses changed pinned deb bytes before any package inspection or installation"
+      ],
+      "originalSha256": "9ded2f81b1bf0fbb2366a655ed3f7c4fa5eb9710bef9f8efb5f5026108078ae7",
+      "restoredSha256": "9ded2f81b1bf0fbb2366a655ed3f7c4fa5eb9710bef9f8efb5f5026108078ae7"
+    },
+    {
+      "id": "B0-RV-PYTHON-PINS",
+      "source": "deploy/toolset/install.sh",
+      "testFile": "test/unit/nodeToolsetInstall.test.mjs",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/nodeToolsetInstall.test.mjs",
+        "--maxWorkers=3",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/M110B0/temp/B0-RV-PYTHON-PINS.json"
+      ],
+      "exitCode": 1,
+      "failedTests": [
+        "pinned offline installer dispatch refuses an incomplete pinned Python pair before installing the base pack"
+      ],
+      "originalSha256": "9ded2f81b1bf0fbb2366a655ed3f7c4fa5eb9710bef9f8efb5f5026108078ae7",
+      "restoredSha256": "9ded2f81b1bf0fbb2366a655ed3f7c4fa5eb9710bef9f8efb5f5026108078ae7"
+    },
+    {
+      "id": "B0-RV-PIN-PUBLISH",
+      "source": "scripts/lib/nodeToolset.mjs",
+      "testFile": "test/unit/nodeToolset.test.mjs",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/nodeToolset.test.mjs",
+        "--maxWorkers=3",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/M110B0/temp/B0-RV-PIN-PUBLISH.json"
+      ],
+      "exitCode": 1,
+      "failedTests": [
+        "offline staging stages both packs with complete checksum lists and refuses to reuse an existing directory"
+      ],
+      "originalSha256": "ab17cb9c0d3d574e15cd89855270133399c51093c34729112c58d2ee65c8bcba",
+      "restoredSha256": "ab17cb9c0d3d574e15cd89855270133399c51093c34729112c58d2ee65c8bcba"
+    },
+    {
+      "id": "B0-RV-PIN-IMAGE",
+      "source": "deploy/toolset/Containerfile",
+      "testFile": "test/unit/nodeToolset.test.mjs",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/nodeToolset.test.mjs",
+        "--maxWorkers=3",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/M110B0/temp/B0-RV-PIN-IMAGE.json"
+      ],
+      "exitCode": 1,
+      "failedTests": [
+        "base toolset pins records both architectures, every required tool and the exact pinned container base"
+      ],
+      "originalSha256": "d7f8433bcd8333a874f5a3902863f84168ff219377fd08691c1b8cb7222a8304",
+      "restoredSha256": "d7f8433bcd8333a874f5a3902863f84168ff219377fd08691c1b8cb7222a8304"
+    },
+    {
+      "id": "B0-RV-STAGE-CLEANUP",
+      "source": "scripts/lib/nodeToolset.mjs",
+      "testFile": "test/unit/nodeToolset.test.mjs",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/nodeToolset.test.mjs",
+        "--maxWorkers=3",
+        "--reporter=json",
+        "--outputFile=/home/randy/lanes/M110B0/temp/B0-RV-STAGE-CLEANUP.json"
+      ],
+      "exitCode": 1,
+      "failedTests": [
+        "offline staging rejects a changed cache before building, removes only its new stage and preserves the cache",
+        "offline staging cleans a failed Containerfile copy and permits retry of the complete context",
+        "offline staging cleans a failed install.sh copy and permits retry of the complete context",
+        "offline staging cleans a failed vendor copy and permits retry of the complete context",
+        "offline staging cleans a failed first-party-skills copy and permits retry of the complete context"
+      ],
+      "originalSha256": "ab17cb9c0d3d574e15cd89855270133399c51093c34729112c58d2ee65c8bcba",
+      "restoredSha256": "ab17cb9c0d3d574e15cd89855270133399c51093c34729112c58d2ee65c8bcba"
+    }
+  ]
+}
