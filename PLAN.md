@@ -13473,6 +13473,39 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### REL0160 — Prepare the 0.16.0 release (2026-10-06)
+
+**Status: draft; release promotion waits on the lead's sync branches.**
+The authorized first join is `git merge --no-ff m107/w` at `e8b6d24ae`,
+recorded as `06904a410`, onto main `8c6351d73`. Preserve all M107 repairs,
+generate reference/host/schema artifacts with their own generators, and move
+its unreleased notes out of older dated release sections into the 0.16.0 draft.
+Prepare three Highlights covering strict tool contracts and loop limits/previews,
+CPU/memory throttling and eligible relocation, and free-disk floors. Keep every
+named M107 native/editor/storage qualification visible; component tests do not
+certify a missing production binding.
+
+The lead will supply `sync/m106-final` and tell this lane to merge it. Merge
+`sync/main-0160` when supplied with 0.14.4/0.15.0, then bump the manifest/lock
+and generated ACP package together to **0.16.0**. Preserve main's 0.15.0 notes
+as README's **Earlier in 0.15**. Until then the 0.16.0 changelog/README are
+explicit drafts and the manifest remains 0.14.3; absent M106 contributions
+are not invented in the feature catalog.
+
+Run directly on Kubuntu with `$HOME/.local/bin` in PATH: production build,
+VSIX/ACP packaging and size measurement, all five typecheck projects, full lint,
+format check, plain Knip, localization/reference/host/schema gates, every
+configured Vitest file in sequential batches of at most three files/workers
+with repository-default timeouts, and the full accessibility harness.
+The rig brief overrides common.md's older ban on the complete batched suite;
+aggregate `npm run quality`/coverage and hosted native OS gates remain the
+lead's qualification. The only authorized cap adjustment is the brief's VSIX
+measurement plus 5%, rounded upward to 25 KiB, if the existing cap is exceeded.
+No other gate is weakened. Record commands, failures, retries, package hashes
+and outstanding merges in `docs/certification/rel0160.md`. Commit finished
+pieces with hooks and explicit paths; no push, rebase, live/paid calls or tags.
+The lane is time-boxed to 120 minutes.
+
 ### REL0143F — Repair release PR #129 CI failures (2026-10-06)
 
 Continue `release/0.14.3` at `4122e1155` without another merge or push.
@@ -29682,6 +29715,15 @@ Authority: the rig brief and lead decisions, refining D92/M112 from
 
 ## 7. Gates
 
+**REL0160 gate ownership (2026-10-06).** The named shared lane rules prohibit
+aggregate `npm run quality`; the release rig brief explicitly authorizes the
+complete unit/e2e suite in default-timeout batches, plus the individual delivery
+and accessibility gates. This lane commits reviewable release drafts with those
+receipts and keeps full aggregate quality/coverage, hosted OS-native checks and
+universal publication-artifact validation assigned to the lead. None is waived
+or reported green without a receipt. Release promotion additionally waits on
+`sync/m106-final` and `sync/main-0160`; see `docs/certification/rel0160.md`.
+
 **REL0143F release CI repair (2026-10-06, Kubuntu).** The complete configured
 Vitest matrix passes at repository default timeouts (532 files, 11,430 passing
 tests, 72 existing platform/live skips). Required static checks, production build
@@ -32855,3 +32897,17 @@ deferral live, installed editors and screenshots, the lead's integrated full
 quality and hosted CI, remote badges and universal-package/platform checks.
 Evidence: `docs/certification/rel0143.md`. Release run, tag commit and channel
 results: pending.
+
+**0.16.0 preparation (2026-10-06, draft).** `release/0.16.0` joins the
+accepted M107 delivery head `e8b6d24ae` with merge `06904a410` onto
+`8c6351d73`. The 0.16.0 Highlights and README draft cover loop guarantees
+(M106, not yet joined) and M107's CPU/memory thresholds, eligible relocation
+and disk floors. Historical 0.14.2 notes are restored to main's published
+record; M107's additions are collected under the draft release. The existing
+resource feature, eight settings, runtime routes and generated Help are
+validated against this tree; M106 rows wait on its actual contributions.
+Version promotion is held until `sync/main-0160` carries 0.14.4/0.15.0, and
+M106 waits on the lead's explicit `sync/m106-final` handoff. All delivery and
+verification receipts, remaining qualifications and final candidate identity
+are in `docs/certification/rel0160.md`. This is preparation, not publication
+or a claim that unbound M107 surfaces are accepted.
