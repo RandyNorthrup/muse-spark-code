@@ -28814,6 +28814,7 @@ controls get byte-exact red drills in `docs/certification/m117-c-calibration.md`
 No new dependency, shared contract, command or surface; only C-owned code/tests
 and its plan, changelog and certification change. Full quality remains with
 W/the lead under the scoped rig brief; no merge, push or rebase.
+
 **S review repair (FIXM117S, 2026-10-06).** Fix all four RVM117S P2s:
 search feasible account allocations with deterministic, bounded selection;
 qualify only selected lanes with unknown required disk headroom and prefer
@@ -29513,6 +29514,7 @@ scoped lint/format, deadcode, duplication, localization, reference, host API
 and production build on Mac mini. W/lead retains the integrated full quality
 and cross-rig checks. No gate, timeout, threshold or cap is weakened; the
 existing generated host-API import-count refresh remains W-owned.
+
 **FIXM117S scoped rig certification (2026-10-06).** The explicit rig/shared
 brief prohibits aggregate `npm run quality`, full test runs and merges in
 this lane; W retains those integration gates. S runs full typecheck and
@@ -30984,6 +30986,7 @@ before a repaired one loads (2026-09-30).
   `M117-W-host-api-record` generated-import-count refresh and aggregate quality
   remain lead-owned handoffs, not accepted review findings. Evidence:
   `docs/certification/m117-c-calibration.md`.
+
 - **FIXM117S review outcome (2026-10-06).** All four RVM117S P2s are
   fixed; no review finding is deferred. Account-count search is exact up to
   the existing 512-allocation bound; larger products use a deterministic
@@ -31021,6 +31024,19 @@ before a repaired one loads (2026-09-30).
   remain the named integration handoffs in `docs/certification/m117-contracts.md`.
   Unknown quotas, resources and review data never imply unlimited capacity or
   zero demand. The lead owns aggregate quality and cross-rig certification.
+
+- **FIXM117U review outcome (2026-10-06).** Both RVM117U P2s are fixed, with
+  no deferred finding and no named residual. A lane completion received
+  before the first estimate result is treated as relevant and refreshes at
+  its timestamp; the superseded calculation's late result falls to the
+  generation check, keeping one serialized owner of the session. A replaced
+  panel adapter drops the previous request, forecast and activity in the old
+  subscription's cleanup, and a provisioning cycle tag keeps a late failure
+  off the new adapter, so no late update lands on it. Four regression tests
+  and three byte-exact red drills (U40–U42); receipts in
+  `docs/certification/m117-u-surfaces.md`. No new dependency, localization
+  key, gate change or shipped-bundle delta; the known W-owned host-API
+  record gap is unchanged.
 
 - **ENVFENCE-HELPREF (resolved in REL0142 integration, 2026-10-06).** Main's
   credential pass-through setting joins the Help permissions feature with its

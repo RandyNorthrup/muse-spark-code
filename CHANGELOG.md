@@ -119,10 +119,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Estimator surfaces keep a lane completion received during the first
+  estimate: it refreshes at the completion's timestamp instead of being
+  discarded, and replacing the Estimator panel's adapter drops the previous
+  request, forecast and activity so no late update lands on the new adapter.
+
 - Estimator history preparation refuses conflicting lane identities across
   duration bases, including concurrent appends. Versioned basis tags and
   reported skips keep unknown or mixed-basis records from blocking valid history;
   estimator surfaces remain pending integration.
+
 - Estimator scheduling considers feasible multi-account allocations, ignores
   unused disk measurements and quota accounts, and qualifies selected lanes
   when required disk headroom is unknown. Commands and surfaces await integration.

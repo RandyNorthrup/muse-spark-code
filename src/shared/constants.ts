@@ -4047,6 +4047,7 @@ export type SkillImportSource = (typeof SKILL_IMPORT_SOURCES)[number]
 // commands, not prose, so they read the same in every language.
 export const SLASH_COMMAND_NAMES = {
   help: 'help',
+  estimate: 'estimate',
   model: 'model',
   resume: 'resume',
   permissions: 'permissions',
