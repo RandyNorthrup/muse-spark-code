@@ -553,28 +553,72 @@ cancellation cases and one duplicate/out-of-phase case add 3 model tests:
 
 Each mutation ran complete owning files (at most two files),
 `--maxWorkers=3`, default repository timeouts and no test-name filters.
-All nine exited 1 at semantic assertions; both production files were restored
+All eleven exited 1 at semantic assertions; both production files were restored
 from saved bytes in `finally`, with matching SHA-256 after every run. Receipts
 and full failure names: `temp/m113n-redesign/drills.json`; individual JSON/log
 files are beside it. The release-once drill's initial selector matched two
 guards and was refused before mutation; an exact case-specific selector then
 ran the intended drill. No additional implementation fix was needed.
 
-| Drill                 | Removed guard                                       | Failed / passed tests                                                                |
-| --------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `body-cancellation`   | The shell's `cancelBody` effect                     | 2 / 136: first-microtask cleanup and the existing late-generation body cancellation. |
-| `generation-check`    | The reducer's current-generation comparison         | 54 / 33: obsolete completions corrupt a successor across model interleavings.        |
-| `handoff-cleanup`     | The query's unread-body cleanup scope               | 2 / 85: microtask abort depths 2 and 3.                                              |
-| `queued-cancellation` | Removal of an aborted/timed-out waiter              | 2 / 85: both queued cancellation cases.                                              |
-| `rate-floor`          | The reducer's admission floor check                 | 5 / 46: the unchanged rate, concurrency and Retry-After tests.                       |
-| `live-policy`         | The live policy input before transport dispatch     | 14 / 73: unchanged GitHub, network-off and terminal-consent cases.                   |
-| `dispatch-phase`      | The current response-phase acknowledgement check    | 1 / 86: duplicate/out-of-phase acknowledgements.                                     |
-| `release-once`        | The terminal-phase guard on repeated stops/failures | 13 / 74: repeated stops before release and phase replay.                             |
-| `duplicate-request`   | Deduplication of current/queued requested events    | 1 / 86: duplicate requests.                                                          |
+| Drill                      | Removed guard                                       | Failed / passed tests                                                                |
+| -------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `body-cancellation`        | The shell's `cancelBody` effect                     | 2 / 136: first-microtask cleanup and the existing late-generation body cancellation. |
+| `generation-check`         | The reducer's current-generation comparison         | 54 / 33: obsolete completions corrupt a successor across model interleavings.        |
+| `handoff-cleanup`          | The query's unread-body cleanup scope               | 2 / 85: microtask abort depths 2 and 3.                                              |
+| `queued-cancellation`      | Removal of an aborted/timed-out waiter              | 2 / 85: both queued cancellation cases.                                              |
+| `rate-floor`               | The reducer's admission floor check                 | 5 / 46: the unchanged rate, concurrency and Retry-After tests.                       |
+| `live-policy`              | The live policy input before transport dispatch     | 14 / 73: unchanged GitHub, network-off and terminal-consent cases.                   |
+| `dispatch-phase`           | The current response-phase acknowledgement check    | 1 / 86: duplicate/out-of-phase acknowledgements.                                     |
+| `release-once`             | The terminal-phase guard on repeated stops/failures | 13 / 74: repeated stops before release and phase replay.                             |
+| `duplicate-request`        | Deduplication of current/queued requested events    | 1 / 86: duplicate requests.                                                          |
+| `release-successor`        | Promotion of the next queued owner at release       | 73 / 14: all 72 interleavings and the duplicate/phase case.                          |
+| `body-reader-cancellation` | Cancellation by the existing locked-body reader     | 10 / 128: microtask depths 4–12 and the existing stalled-body deadline case.         |
+
+The union of failing test names across these receipts contains **all 87 new
+test cases** (87/87, no missing case). This proves every new case has been
+observed failing, including the traces ending after the successor's release
+and the abort schedules already past the unread-body handoff.
 
 Restored production SHA-256:
 
 - `cache.ts`: `1daa6eb74e263d8e5dd843f8486297ad63711f7d4ba49946e42851143ac0b9a2`
 - `admission.ts`: `6c1dc4be3919e48fa410e65f53e11f9108ca15f42705001db331969c89e1e777`
 
-Final scoped verification, sizes and enabled-hook results follow below.
+### RVM113N3 final verification (Kubuntu)
+
+The implementation is committed as `b25bcd501`; normal worktree hooks ran
+lint-staged's ESLint/Prettier and gitleaks successfully, with no leaks.
+Production bytes after hooks and every drill still match the hashes above.
+Commands, exits, timings and logs are in `temp/m113n-redesign/checks-final.json`
+and the named check logs. Each final check runs sequentially and directly
+here; no rig wrapper, test filter, timeout override, skip, gate weakening or
+aggregate quality run. After the two final coverage drills, both complete
+test batches run again on the restored bytes; their logs are
+`sources-restored-final.log` and `model-posting-restored-final.log`.
+
+| Check                                                     | Result                                                                                                                                                      |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`                                       | Exit 0, all five projects on the committed implementation.                                                                                                  |
+| ESLint `--max-warnings=0`, all ten owned TypeScript files | Exit 0.                                                                                                                                                     |
+| Prettier, all ten owned files, PLAN and certification     | Exit 0; this final documentation append is checked again before commit.                                                                                     |
+| `npm run deadcode` (plain knip, `JITI_FS_CACHE=0`)        | Exit 0; no cache writes under shared node_modules.                                                                                                          |
+| `npx --no-install jscpd`                                  | Exit 0, zero clones, unchanged zero threshold.                                                                                                              |
+| `npm run check:reference`                                 | Exit 0, generated reference current.                                                                                                                        |
+| `node scripts/check-l10n.mjs`                             | Exit 1, exactly the same seven unused report manifest keys; all 14 tables checked. Existing W manifest handoff, no new problem.                             |
+| `npm run check:host-api`                                  | Exit 1, the same generated-record mismatch: child_process 13→14, crypto 46→47, util 5→6. Existing W host API handoff; this redesign adds no importing file. |
+| `npm run build`                                           | Exit 0, including size/split, host-global and notice checks.                                                                                                |
+| Cache, GitHub and store suites (`--maxWorkers=3`)         | Exit 0, 101 tests; default timeout, unchanged existing tests.                                                                                               |
+| Reducer/ownership and posting suites (`--maxWorkers=3`)   | Exit 0, 118 tests; default timeout. **219 total tests: 132 existing, 87 new.**                                                                              |
+| Deliberate breaks                                         | Eleven expected red exits, exact restoration each time; 87/87 new cases observed failing.                                                                   |
+| `git diff --check`                                        | Exit 0.                                                                                                                                                     |
+
+Build receipts: extension **439.5/600 KiB**, Model API **446.9/475 KiB**,
+ACP **821.5/850 KiB**, checkpoint store **76.9/225 KiB**. W's future lazy
+reporting entry remains unbound on this base; these build receipts do not
+certify that future integrated bundle. Aggregate `npm run quality` stays
+with the lead under the explicit rig/shared rules. The two nonzero gates
+remain named W integration handoffs and are not claimed green.
+
+The final certification-only commit also uses enabled hooks and explicit
+paths. No live service, model attempt, paid call, dependency install, merge,
+rebase, push, credential access or machine-setting change occurred.
