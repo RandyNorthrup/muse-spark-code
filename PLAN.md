@@ -13961,6 +13961,32 @@ restored red drills for every fix in `docs/certification/m115-d.md`.
 No dependency, wire schema, authority, shipping registration or gate change.
 The rig brief reserves aggregate quality for the lead and forbids merges.
 
+### FIXM115E — Repair shared event burst and replay identities (2026-10-06)
+
+Repair all three RVM115E P2 findings within lane E, with no dependency or
+shipping feature added. The owner's decisions in the rig brief govern:
+
+- P2-1: replace host-local buffering/per-event admission with an injected
+  atomic shared claim transaction. One open burst per schedule holds the
+  scrubbed representative, owner, trailing window end and count; every unique
+  member joins that burst. Only its owner drains before the window plus a
+  lease (one debounce interval); after that any host can atomically take it.
+  Removal/claim precedes delivery and is permanent. S/W bind durable storage,
+  cross-process locking and a common clock; E supplies the transition logic.
+- P2-2: Git identity uses repository identity, ref, new OID and previous OID
+  only. Loose/packed storage and metadata never participate. Repeating the
+  same content transition deliberately reuses its identity.
+- P2-3: hash every raw key before scrubbing in the domain-separated `evk1:`
+  namespace using a length-prefixed UTF-8 encoding. Only scrubbed payloads
+  and safe identities reach shared state. Recognize existing legacy receipts
+  without issuing new receipts in their ambiguous namespace.
+
+Each fix has a regression and a byte-exact restored red drill in
+`docs/certification/m115-e.md`. The rig brief forbids aggregate quality,
+merges, pushes, rebases and live/paid calls; run owned suites (at most three
+files per run), static checks and the build directly on Kubuntu. Hooks stay
+on. Record any residual by name here in §9 and in the lane certification.
+
 ### FIXM115L0 — Freeze corrected schedule contracts (2026-10-06)
 
 Repair all six RVM115L0 P2 findings before M115's wave lanes bind the
@@ -31285,6 +31311,33 @@ before a repaired one loads (2026-09-30).
   full quality and live/platform receipts. These modules remain unshipped on
   this base; those implementing lanes must certify the bound behavior before
   release. Evidence is in `docs/certification/m115-d.md`.
+- **FIXM115E-SharedStoreBinding.** All three RVM115E P2 findings are fixed;
+  none is deferred. E's open/join/consume logic uses an injected atomic shared
+  transaction, with a window-plus-lease takeover and separate imported legacy
+  receipts. S/W still own durable cross-process locking, persisted-state
+  validation, a clock comparable across hosts, awaited drain/discard and the
+  final schedule-authority check for every editor/runtime. Safe for now: E is
+  unregistered/unshipped. Follow-up: real multi-process and crash/reopen receipts
+  before shipping; `docs/certification/m115-e.md` records fake-only proofs.
+
+- **FIXM115E-PostConsumeDelivery.** A crash after atomic burst consumption and
+  before delivery may lose the fire. Permanent member receipts prevent replay
+  and duplicate actions/charges. S/W own the delivery/settlement handoff and
+  catch-up/missed-fire policy; no replay of a consumed member is permitted.
+
+- **FIXM115E-LegacyIdentityAmbiguity.** An old unprefixed digest receipt
+  cannot identify whether its raw input was an account key or that digest.
+  Migration conservatively rejects both candidates, as its regression proves;
+  new `evk1:` receipts do not overlap. Safe for now: legacy event receipts were
+  internal/unshipped, and refusal prevents duplicate actions/charges. S/W may
+  normalize imported receipts only with a proven historical raw-key mapping;
+  otherwise retain the replay fence. A format redesign cannot recover absent
+  raw identity information, so no replay guard is weakened to guess it.
+
+- **FIXM115E-HostApiRecord.** The inherited inventory omits E's Git `execFile`
+  entry; this repair adds no VS Code API or shipping binding; the engine's
+  owner UUID increases the existing Node crypto source count by one.
+  W regenerates it when registering E's bundle, as the original lane certification requires.
 
 - **FIXM115L0 contract scope.** All six RVM115L0 findings are repaired;
   none is deferred. These are unshipped internal schedule contracts, not
