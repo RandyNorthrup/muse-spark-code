@@ -66,7 +66,7 @@ class PanelSurface(
     }
     val frame =
       json(
-        "mhp" to "1.2",
+        "mhp" to "1.3",
         "kind" to "panel",
         "surface" to id,
         "direction" to "toHost",
@@ -153,7 +153,7 @@ class PanelSurface(
     check(!closed) { "MHP_PANEL_UNKNOWN_SURFACE" }
     val frame =
       json(
-        "mhp" to "1.2",
+        "mhp" to "1.3",
         "kind" to "surface",
         "surface" to id,
         "sessionId" to sessionId,

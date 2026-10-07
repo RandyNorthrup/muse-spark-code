@@ -12,7 +12,7 @@ worker = subprocess.Popen(
 )
 Path(sys.argv[1]).write_text(str(worker.pid))
 print(json.dumps({"jsonrpc": "2.0", "id": initial["id"], "result": {
-    "protocolVersion": "mhp/1.2.0", "capabilities": ["lifecycle", "tab"]}}), flush=True)
+    "protocolVersion": "mhp/1.3.0", "capabilities": ["lifecycle", "tab"]}}), flush=True)
 request = json.loads(sys.stdin.readline())
 assert request["method"] == "tab/complete"
 os._exit(0)

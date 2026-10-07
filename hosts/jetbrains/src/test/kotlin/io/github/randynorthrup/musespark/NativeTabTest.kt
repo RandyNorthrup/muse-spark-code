@@ -51,7 +51,7 @@ class NativeTabTest : BasePlatformTestCase() {
       pipe.start()
       peer.initialize(
         fixtureMetadata().apply {
-          add("protocolRange", json("minimum" to "mhp/1.2.0", "maximumExclusive" to "mhp/1.3.0"))
+          add("protocolRange", json("minimum" to "mhp/1.3.0", "maximumExclusive" to "mhp/1.4.0"))
           add("capabilities", jsonValue(services.capabilities))
         },
       )

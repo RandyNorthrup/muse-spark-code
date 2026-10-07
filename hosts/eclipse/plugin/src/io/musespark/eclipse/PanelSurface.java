@@ -38,7 +38,7 @@ public final class PanelSurface {
         if (!ready) throw new IllegalArgumentException("MHP_PANEL_NOT_READY");
         contract.payload(kind, "toHost", payload);
         if (reloading && payload.isJsonObject() && stateRequest().isJsonObject() && payload.getAsJsonObject().get("type").equals(stateRequest().getAsJsonObject().get("type"))) { reloading = false; return; }
-        JsonObject frame = Json.object("mhp", "1.2", "kind", "panel", "surface", id, "direction", "toHost", "seq", outgoing, "payload", payload);
+        JsonObject frame = Json.object("mhp", "1.3", "kind", "panel", "surface", id, "direction", "toHost", "seq", outgoing, "payload", payload);
         admit(frame, "toHost", outgoing); send.accept(frame); outgoing++;
     }
     public synchronized JsonElement receive(JsonObject frame) {
@@ -71,7 +71,7 @@ public final class PanelSurface {
         return kind.equals("whatsNew") ? JsonNull.INSTANCE : Json.object("type", kind.equals("tasks") ? "tasksReady" : kind.equals("usage") ? "readUsage" : "ready");
     }
     private JsonObject lifecycle(String event) {
-        JsonObject frame = Json.object("mhp", "1.2", "kind", "surface", "surface", id, "sessionId", session, "surfaceKind", kind, "event", event);
+        JsonObject frame = Json.object("mhp", "1.3", "kind", "surface", "surface", id, "sessionId", session, "surfaceKind", kind, "event", event);
         if (!event.equals("closed") && !event.equals("reloaded")) contract.panel("lifecycle", frame);
         return frame;
     }

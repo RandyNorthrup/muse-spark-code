@@ -19,5 +19,5 @@
           (unless (eq (alist-get 'credential_variable_present receipt) :false)
             (error "Credential variable reached fake peer"))
           (when (eq (alist-get 'initialized receipt) :false)
-            (error "MHP_12_BOOTSTRAP_MISSING"))))
+            (error "MHP_13_BOOTSTRAP_MISSING"))))
     (muse-spark-stop)))

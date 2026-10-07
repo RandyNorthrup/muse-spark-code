@@ -52,7 +52,7 @@ class MhpConnectionTest {
     connection.initialize(
       json(
         "host" to json("id" to "jetbrains", "version" to "253"),
-        "protocolRange" to json("minimum" to "mhp/1.2.0", "maximumExclusive" to "mhp/1.3.0"),
+        "protocolRange" to json("minimum" to "mhp/1.3.0", "maximumExclusive" to "mhp/1.4.0"),
         "capabilities" to services.capabilities,
         "locale" to "en",
         "theme" to json("kind" to "dark", "tokens" to json()),
@@ -65,7 +65,7 @@ class MhpConnectionTest {
         "jsonrpc" to "2.0",
         "id" to sent.last()["id"],
         "result" to
-          json("protocolVersion" to "mhp/1.2.0", "capabilities" to services.capabilities),
+          json("protocolVersion" to "mhp/1.3.0", "capabilities" to services.capabilities),
       ),
     )
   }

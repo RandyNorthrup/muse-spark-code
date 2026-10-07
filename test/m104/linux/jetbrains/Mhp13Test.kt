@@ -20,7 +20,7 @@ fun fixtureMetadata(): JsonObject =
     "trusted" to false,
   )
 
-class Mhp12Test {
+class Mhp13Test {
   @Test
   fun unavailableAuxiliaryKindsCannotBecomeChatBindings() {
     val boundary = JsonBoundary()
@@ -72,7 +72,7 @@ class Mhp12Test {
       assertEquals(services.metadata["host"], params["host"])
       assertEquals("de", params["locale"].asString)
       assertEquals(false, params["trusted"].asBoolean)
-      assertEquals(json("minimum" to "mhp/1.2.0", "maximumExclusive" to "mhp/1.3.0"), params["protocolRange"])
+      assertEquals(json("minimum" to "mhp/1.3.0", "maximumExclusive" to "mhp/1.4.0"), params["protocolRange"])
       assertEquals(1L, initialized.count)
       val legacy =
         json(
@@ -83,11 +83,20 @@ class Mhp12Test {
         )
       assertThrows(Exception::class.java) { peer.receive(legacy) }
       assertEquals(1L, initialized.count)
+      val superseded =
+        legacy.deepCopy().apply {
+          add(
+            "result",
+            json("protocolVersion" to "mhp/1.2.0", "capabilities" to listOf("lifecycle", "settings", "storage")),
+          )
+        }
+      assertThrows(Exception::class.java) { peer.receive(superseded) }
+      assertEquals(1L, initialized.count)
       val unoffered =
         legacy.deepCopy().apply {
           add(
             "result",
-            json("protocolVersion" to "mhp/1.2.0", "capabilities" to listOf("lifecycle", "hostMetadata")),
+            json("protocolVersion" to "mhp/1.3.0", "capabilities" to listOf("lifecycle", "hostMetadata")),
           )
         }
       assertThrows(Exception::class.java) { peer.receive(unoffered) }
@@ -95,7 +104,7 @@ class Mhp12Test {
         legacy.deepCopy().apply {
           add(
             "result",
-            json("protocolVersion" to "mhp/1.2.0", "capabilities" to listOf("lifecycle", "settings", "storage")),
+            json("protocolVersion" to "mhp/1.3.0", "capabilities" to listOf("lifecycle", "settings", "storage")),
           )
         },
       )

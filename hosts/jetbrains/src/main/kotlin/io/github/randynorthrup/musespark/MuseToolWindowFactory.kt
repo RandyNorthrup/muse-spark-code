@@ -282,7 +282,7 @@ class JetBrainsPanelHost(
       val code = failure.message?.takeIf { it in PANEL_ERRORS } ?: "MHP_PANEL_INVALID_PAYLOAD"
       val error =
         json(
-          "mhp" to "1.2",
+          "mhp" to "1.3",
           "kind" to "panelError",
           "surface" to id,
           "seq" to frame["seq"],

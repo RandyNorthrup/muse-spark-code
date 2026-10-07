@@ -20,16 +20,16 @@ sys.stderr.write("fixture-only account/path text must never enter the host log\n
 sys.stderr.flush()
 initial = receive()
 assert initial["method"] == "initialize"
-assert initial["params"]["protocolRange"]["minimum"] == "mhp/1.2.0"
+assert initial["params"]["protocolRange"]["minimum"] == "mhp/1.3.0"
 send({"jsonrpc": "2.0", "id": initial["id"], "result": {
-    "protocolVersion": "mhp/1.2.0", "capabilities": ["lifecycle", "ui", "surfaces"]}})
+    "protocolVersion": "mhp/1.3.0", "capabilities": ["lifecycle", "ui", "surfaces"]}})
 opened = receive()
 assert opened["event"] == "opened"
 assert receive()["event"] == "ready"
 ready = receive()
 assert ready["seq"] == 1 and ready["payload"] == {"type": "ready"}
 send({
-    "mhp": "1.2", "kind": "panel", "surface": opened["surface"],
+    "mhp": "1.3", "kind": "panel", "surface": opened["surface"],
     "direction": "toPanel", "seq": 1, "payload": {"type": "attachmentsCleared"},
 })
 reloaded = receive()

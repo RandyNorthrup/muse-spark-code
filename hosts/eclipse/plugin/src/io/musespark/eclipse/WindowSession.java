@@ -132,7 +132,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
             });
         } catch (RuntimeException ex) {
             String code = ex.getMessage(); if (code == null || !code.startsWith("MHP_PANEL_")) code = "MHP_PANEL_INVALID_PAYLOAD";
-            JsonObject error = Json.object("mhp", "1.2", "kind", "panelError", "surface", frame.get("surface"), "seq", frame.get("seq"), "code", code);
+            JsonObject error = Json.object("mhp", "1.3", "kind", "panelError", "surface", frame.get("surface"), "seq", frame.get("seq"), "code", code);
             contract.panel("error", error); peer.send(error); MusePlugin.get().log(code);
         }
     }
@@ -150,7 +150,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
             }
             JsonObject error = null;
             try { delivery.view.deliverPayload(delivery.payload); } catch (RuntimeException ex) {
-                error = Json.object("mhp", "1.2", "kind", "panelError", "surface", delivery.view.binding().id, "seq", delivery.sequence, "code", "MHP_PANEL_NOT_READY");
+                error = Json.object("mhp", "1.3", "kind", "panelError", "surface", delivery.view.binding().id, "seq", delivery.sequence, "code", "MHP_PANEL_NOT_READY");
                 contract.panel("error", error); MusePlugin.get().log("MHP_PANEL_NOT_READY");
             }
             finally { peer.releaseBrowser(delivery.bytes); }
@@ -282,7 +282,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
         String version = platform == null ? Platform.getBundle("org.eclipse.ui").getVersion().toString() : platform.getVersion().toString();
         boolean dark = PlatformUI.getWorkbench().getThemeManager().getCurrentTheme().getId().toLowerCase(Locale.ROOT).contains("dark");
         String kind = Display.getDefault().getHighContrast() ? dark ? "highContrastDark" : "highContrastLight" : dark ? "dark" : "light";
-        return Json.object("host", Json.object("id", "eclipse", "version", version), "protocolRange", Json.object("minimum", "mhp/1.2.0", "maximumExclusive", "mhp/1.3.0"), "capabilities", Json.GSON.toJsonTree(CAPABILITIES), "locale", Assets.locale(Platform.getNL()), "theme", Json.object("kind", kind, "tokens", tokens()), "folders", folders(), "trusted", trusted);
+        return Json.object("host", Json.object("id", "eclipse", "version", version), "protocolRange", Json.object("minimum", "mhp/1.3.0", "maximumExclusive", "mhp/1.4.0"), "capabilities", Json.GSON.toJsonTree(CAPABILITIES), "locale", Assets.locale(Platform.getNL()), "theme", Json.object("kind", kind, "tokens", tokens()), "folders", folders(), "trusted", trusted);
     }
     public static JsonObject tokens() {
         RGB background = Display.getDefault().getSystemColor(SWT.COLOR_LIST_BACKGROUND).getRGB(); RGB foreground = Display.getDefault().getSystemColor(SWT.COLOR_LIST_FOREGROUND).getRGB();

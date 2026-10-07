@@ -163,10 +163,10 @@ public class SessionTest {
         PanelSurface binding = new PanelSurface(session.contract, "reload-test", "session", "chat", session.peer::send, session.peer::purge, code -> { });
         java.lang.reflect.Field field = MuseView.class.getDeclaredField("binding"); field.setAccessible(true); field.set(view, binding);
         binding.opened(); binding.ready(); session.add(view);
-        session.panel(Json.object("mhp", "1.2", "kind", "panel", "surface", binding.id, "direction", "toPanel", "seq", 1, "payload", Json.object("type", "conversationCleared")));
+        session.panel(Json.object("mhp", "1.3", "kind", "panel", "surface", binding.id, "direction", "toPanel", "seq", 1, "payload", Json.object("type", "conversationCleared")));
         binding.reload(); while (Display.getDefault().readAndDispatch()) { }
         assertEquals("reload must retain admitted messages and their byte reservations", 1, session.dropBrowser(binding.id));
-        binding.ready(); session.panel(Json.object("mhp", "1.2", "kind", "panel", "surface", binding.id, "direction", "toPanel", "seq", 2, "payload", Json.object("type", "conversationCleared")));
+        binding.ready(); session.panel(Json.object("mhp", "1.3", "kind", "panel", "surface", binding.id, "direction", "toPanel", "seq", 2, "payload", Json.object("type", "conversationCleared")));
         binding.reload(); while (Display.getDefault().readAndDispatch()) { } assertEquals(1, session.dropBrowser(binding.id)); binding.close(1); session.remove(view);
     }
     @Test public void browserReadyResumesRetainedDeliveriesAndFailuresAreReported() throws Exception {
@@ -178,10 +178,10 @@ public class SessionTest {
             shell.open(); browser.setText("<html><script>window.__museDeliver = payload => window.received = payload; window.testReady = true;</script></html>");
             pump(() -> { try { return Boolean.TRUE.equals(browser.evaluate("return window.testReady === true;")); } catch (RuntimeException ex) { return false; } });
             binding.opened(); binding.ready(); session.add(view);
-            session.panel(Json.object("mhp", "1.2", "kind", "panel", "surface", binding.id, "direction", "toPanel", "seq", 1, "payload", Json.object("type", "conversationCleared")));
+            session.panel(Json.object("mhp", "1.3", "kind", "panel", "surface", binding.id, "direction", "toPanel", "seq", 1, "payload", Json.object("type", "conversationCleared")));
             binding.reload(); while (Display.getDefault().readAndDispatch()) { } assertNull(browser.evaluate("return window.received;"));
             binding.ready(); session.browserReady(); pump(() -> "conversationCleared".equals(browser.evaluate("return window.received && window.received.type;"))); assertEquals(0, session.dropBrowser(binding.id));
-            browser.dispose(); session.panel(Json.object("mhp", "1.2", "kind", "panel", "surface", binding.id, "direction", "toPanel", "seq", 2, "payload", Json.object("type", "conversationCleared")));
+            browser.dispose(); session.panel(Json.object("mhp", "1.3", "kind", "panel", "surface", binding.id, "direction", "toPanel", "seq", 2, "payload", Json.object("type", "conversationCleared")));
             pump(() -> { try { return Files.readString(receipts).contains("\"seq\": 2, \"code\": \"MHP_PANEL_NOT_READY\""); } catch (IOException ex) { throw new java.io.UncheckedIOException(ex); } });
             assertTrue(Files.readString(receipts), Files.readString(receipts).lines().map(Json::parse).map(JsonElement::getAsJsonObject).anyMatch(frame -> frame.has("code") && frame.get("code").getAsString().equals("MHP_PANEL_NOT_READY") && frame.get("seq").getAsInt() == 2));
             binding.close(0); session.remove(view);
@@ -190,7 +190,7 @@ public class SessionTest {
     @Test public void aFullBrowserQueueCanStillReportFailedDelivery() throws Exception {
         MuseView view = new MuseView(); PanelSurface binding = new PanelSurface(session.contract, "full-queue-test", "session", "chat", session.peer::send, session.peer::purge, code -> { });
         java.lang.reflect.Field field = MuseView.class.getDeclaredField("binding"); field.setAccessible(true); field.set(view, binding); binding.opened(); binding.ready(); session.add(view); session.peer.drain();
-        for (int seq = 1; seq <= session.contract.queueMessages; seq++) session.panel(Json.object("mhp", "1.2", "kind", "panel", "surface", binding.id, "direction", "toPanel", "seq", seq, "payload", Json.object("type", "conversationCleared")));
+        for (int seq = 1; seq <= session.contract.queueMessages; seq++) session.panel(Json.object("mhp", "1.3", "kind", "panel", "surface", binding.id, "direction", "toPanel", "seq", seq, "payload", Json.object("type", "conversationCleared")));
         pump(() -> { try { return Files.readString(receipts).contains("\"seq\": " + session.contract.queueMessages + ", \"code\": \"MHP_PANEL_NOT_READY\""); } catch (IOException ex) { throw new java.io.UncheckedIOException(ex); } });
         assertFalse(session.isClosed()); assertEquals(0, session.dropBrowser(binding.id)); binding.close(0); session.remove(view);
     }

@@ -1,4 +1,4 @@
-"""Authored MHP 1.2 qualification peer: no backend, browser, key or paid dispatch."""
+"""Authored MHP 1.3 qualification peer: no backend, browser, key or paid dispatch."""
 import json
 import os
 import selectors
@@ -16,11 +16,11 @@ if line:
     initialized = (
         frame.get("method") == "initialize"
         and frame.get("params", {}).get("protocolRange", {}).get("minimum")
-        == "mhp/1.2.0"
+        == "mhp/1.3.0"
     )
     if initialized:
         print(json.dumps({"jsonrpc": "2.0", "id": frame["id"], "result": {
-            "protocolVersion": "mhp/1.2.0", "capabilities": ["lifecycle"]}}), flush=True)
+            "protocolVersion": "mhp/1.3.0", "capabilities": ["lifecycle"]}}), flush=True)
 receipt.write_text(json.dumps({"initialized": initialized, "credential_variable_present": any(
     name.upper().endswith("_API_KEY") or name.upper() in {
         "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",

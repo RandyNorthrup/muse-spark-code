@@ -302,10 +302,12 @@ class MhpConnection(
   }
 
   companion object {
-    const val PANEL_VERSION = "mhp/1.2.0"
+    // Frozen MHP 1.3 range: mirrors MHP.minimumVersion/maximumVersionExclusive
+    // in src/shared/constants.ts (lane A). Only the reviewed 1.3 contract is served.
+    const val PANEL_VERSION = "mhp/1.3.0"
     private const val METADATA_TIMEOUT_SECONDS = 2L
     private const val INITIALIZE_TIMEOUT_SECONDS = 100L
-    private const val MAXIMUM_VERSION = "mhp/1.3.0"
+    private const val MAXIMUM_VERSION = "mhp/1.4.0"
     private val ERRORS =
       setOf(
         "MHP_UNSUPPORTED_CAPABILITY",

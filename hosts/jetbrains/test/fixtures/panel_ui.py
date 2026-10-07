@@ -15,7 +15,7 @@ def send(value):
 
 def panel(surface, payload):
     sequence[surface] = sequence.get(surface, 0) + 1
-    send({"mhp": "1.2", "kind": "panel", "surface": surface,
+    send({"mhp": "1.3", "kind": "panel", "surface": surface,
           "direction": "toPanel", "seq": sequence[surface], "payload": payload})
 
 
@@ -32,7 +32,7 @@ def record(value):
 initial = json.loads(sys.stdin.readline())
 assert initial["method"] == "initialize"
 send({"jsonrpc": "2.0", "id": initial["id"], "result": {
-    "protocolVersion": "mhp/1.2.0", "capabilities": ["lifecycle", "ui", "surfaces"]}})
+    "protocolVersion": "mhp/1.3.0", "capabilities": ["lifecycle", "ui", "surfaces"]}})
 settings = {
     "preferredLocation": "panel", "initialPermissionMode": "manual", "autosave": False,
     "attachOpenFile": False, "useCtrlEnterToSend": False, "hideOnboarding": True,
