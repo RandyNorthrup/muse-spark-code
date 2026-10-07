@@ -31,6 +31,8 @@ const INSTALLED = process.env['MUSE_ACP_PACKAGE_DIR']
 const PACKAGE = INSTALLED ?? path.join(WORK, 'agent')
 const AGENT = path.join(PACKAGE, 'dist', 'acp.js')
 const PRELOAD = path.join(WORK, 'preload.cjs')
+const PACKAGE_PRELOAD = path.join(WORK, 'package-preload.cjs')
+const PACKAGE_IMAGES = path.join(WORK, 'package-images.jsonl')
 const KEY = 'LLM|123456|fabricated%legacy.key-for-m80d'
 const TIMEOUT = 30_000
 // The production build and pack before the built rows: about a minute on the
@@ -513,14 +515,63 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
         BUILD_TIMEOUT,
       )
       expect(built.status, built.stderr).toBe(0)
+      // Packaging runs the real badge validator in a child. Its HTTP boundary
+      // needs a fake too: a PR's screenshots do not exist on public main yet.
+      // Only this package process tree receives the preload; CI's independent
+      // public badge gate and the agent's own transport are unchanged.
+      writeFileSync(
+        PACKAGE_PRELOAD,
+        String.raw`
+          const { appendFileSync, readFileSync } = require('node:fs');
+          const path = require('node:path');
+          const root = ${JSON.stringify(ROOT)};
+          const images = ${JSON.stringify(PACKAGE_IMAGES)};
+          globalThis.fetch = async input => {
+            const url = new URL(String(input));
+            appendFileSync(images, JSON.stringify(url.href) + '\n');
+            if (url.origin === 'https://raw.githubusercontent.com' &&
+                url.pathname.startsWith('/RandyNorthrup/muse-spark-code/main/media/')) {
+              const file = path.join(root, url.pathname.split('/main/')[1]);
+              return new Response(readFileSync(file), { headers: { 'content-type': 'image/png' } });
+            }
+            if (!['img.shields.io', 'badgen.net', 'github.com'].includes(url.hostname)) {
+              throw new Error('Unexpected package image: ' + url.href);
+            }
+            const text = url.pathname.startsWith('/badge/')
+              ? decodeURIComponent(url.pathname.slice('/badge/'.length)).replace(/-[^-]+$/, '')
+              : 'test-owned badge';
+            return new Response('<svg xmlns="http://www.w3.org/2000/svg"><text>' + text + '</text></svg>', {
+              headers: { 'content-type': 'image/svg+xml' },
+            });
+          };
+        `,
+      )
       const packed = command(
         path.join(ROOT, 'scripts', 'package-acp.mjs'),
         ROOT,
         [],
-        {},
+        {
+          NODE_OPTIONS: `--require ${JSON.stringify(PACKAGE_PRELOAD)}`,
+          BADGE_CHECK_SKIP_NETWORK: undefined,
+        },
         BUILD_TIMEOUT,
       )
       expect(packed.status, packed.stderr).toBe(0)
+      const images: unknown[] = readFileSync(PACKAGE_IMAGES, 'utf8')
+        .trim()
+        .split('\n')
+        .map((line) => {
+          const image: unknown = JSON.parse(line)
+          return image
+        })
+      expect(images).toContain(
+        'https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/banner.png',
+      )
+      expect(images).toEqual(
+        expect.arrayContaining([
+          expect.stringMatching(/^https:\/\/img\.shields\.io\/badge\/npm-v/),
+        ]),
+      )
       cpSync(path.join(ROOT, 'dist', 'acp-package'), PACKAGE, { recursive: true })
     }
     await build({

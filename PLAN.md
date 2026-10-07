@@ -13453,6 +13453,32 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### PR132W — Diagnose the Windows built-exec failure (2026-10-06)
+
+On the Windows 11 rig, reproduce the complete `execStdio.e2e.test.ts` file
+at repository-default timeouts and compare with `sync/main-0170`. Isolate
+the expected pre-release external badge failure from any Windows process
+or encoding failure, fix the root cause without weakening a gate or skipping a row,
+and prove the regression fails before the fix. Package setup uses a test-owned
+transport for badge responses and reads screenshot bytes from this checkout;
+the real package badge validator still runs, including its CI skip prohibition.
+Require three complete green runs, scoped static/build checks and a receipt in
+`docs/certification/pr132w.md`.
+The rig/shared brief prohibits aggregate quality/full-unit runs, network
+requests, merges and pushes; integrated quality and external badges stay
+with the lead. Commit locally with the existing hooks and explicit paths.
+
+Completed: the unchanged candidate and main snapshot pass when the expected
+external badge failure is isolated. The package subprocess now uses local
+screenshots and test-owned badge responses while retaining the real validator.
+Three final-source `CI=true` runs pass 33 tests each with only the three existing
+Windows signal skips; all 32 badge-policy tests also pass. A fake HTTP 404 fails
+the real validator and restores SHA-256-exact source. Five compiler projects,
+final e2e typecheck, scoped lint/format, Knip, zero-clone duplication, reference,
+localization, host API and production size/split/host-global/notice gates pass.
+Evidence: `docs/certification/pr132w.md`. Full quality, hosted CI and external
+badges remain lead-owned; no Windows process/encoding defect was reproduced.
+
 ### INFRA015 — Integrate screenshot refresh and test infrastructure (2026-10-06)
 
 Completed on `linuxlt`: three ordered no-fast-forward merges preserve all
@@ -29451,6 +29477,15 @@ Authority: the rig brief and lead decisions, refining D92/M112 from
       Q/A/editor integration handoffs. No merge, push, dependency or gate widening.
 
 ## 7. Gates
+
+**PR132W scoped Windows certification (2026-10-06).** The rig/shared brief
+prohibits aggregate quality/full-unit runs and external requests. Run the
+complete built-exec file three times at repository-defined timeouts, prove
+the real package validator rejects a fake HTTP 404, compare the main snapshot,
+and run scoped static/build checks. The packager's public transport is fake
+only in this test process tree; production badge checks, including the CI
+skip prohibition, stay intact. Full quality, hosted CI and public pre-release
+badge checks remain lead-owned. Receipt: `docs/certification/pr132w.md`.
 
 **INFRA015 scoped integration certification (2026-10-06, linuxlt).** The rig
 brief authorizes the three named no-fast-forward merges and requires full

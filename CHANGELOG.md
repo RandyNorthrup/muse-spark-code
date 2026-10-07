@@ -23,6 +23,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Built-exec tests isolate package image requests with local screenshots and
+  test-owned badge responses, so unpublished PR assets cannot block the engine
+  tests. The real package badge validation and independent public-image gate
+  still run.
+
 - Test infrastructure warms deferred panel and row modules before behavior
   suites, keeping cold transforms outside the default UI query deadlines.
   A source check catches new deferred imports missing from warm-up.
