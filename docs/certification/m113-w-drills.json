@@ -1,0 +1,263 @@
+[
+  {
+    "name": "slash-loading-contract",
+    "file": "src/webview/components/Composer.tsx",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/Composer.test.tsx",
+      "--maxWorkers=3"
+    ],
+    "exit": 1,
+    "sha256": "a0d5d15a44494d7d5678d7aa624142089cfa2b1357a4752b422fa5f60979d288",
+    "restored": "a0d5d15a44494d7d5678d7aa624142089cfa2b1357a4752b422fa5f60979d288",
+    "equal": true
+  },
+  {
+    "name": "collector-clock",
+    "file": "src/core/reporting/collect/repository.ts",
+    "command": [
+      "npx",
+      "--no-install",
+      "eslint",
+      "src/core/reporting/collect/repository.ts",
+      "--max-warnings=0"
+    ],
+    "exit": 1,
+    "sha256": "8b36b4353a8197af648f34337fc603688763ce602c0a9b19bd19d9fe77a0bce3",
+    "restored": "8b36b4353a8197af648f34337fc603688763ce602c0a9b19bd19d9fe77a0bce3",
+    "equal": true
+  },
+  {
+    "name": "report-backend-guard",
+    "file": "scripts/lib/deferredBundles.mjs",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/deferredBundles.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 1,
+    "sha256": "06826a224f4400fa8281918b7e643a860e835008147a1fa104f73d45277ca875",
+    "restored": "06826a224f4400fa8281918b7e643a860e835008147a1fa104f73d45277ca875",
+    "equal": true
+  },
+  {
+    "name": "reserved-report-command",
+    "file": "src/shared/reportCommand.ts",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/reportCommandAck.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 1,
+    "sha256": "4b6be73043940d59c9683b74cb95939e5d70151f70f4aa78b703f027eedae579",
+    "restored": "4b6be73043940d59c9683b74cb95939e5d70151f70f4aa78b703f027eedae579",
+    "equal": true
+  },
+  {
+    "name": "history-hash-id",
+    "file": "src/runtime/reporting/reportsHost.ts",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/reportEngine.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 1,
+    "sha256": "23e3bdd91c0ff4107f63b73db90b5d590395d6e6b3eb3e1793b199e2801fa066",
+    "restored": "23e3bdd91c0ff4107f63b73db90b5d590395d6e6b3eb3e1793b199e2801fa066",
+    "equal": true
+  },
+  {
+    "name": "cache-instance-binding",
+    "file": "src/runtime/reporting/network.ts",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/reportNetworkBinding.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 1,
+    "sha256": "a893f17c29c741a6db70b4db15b11e042c1cbd357a960d8d328b9c2ee759bfe2",
+    "restored": "a893f17c29c741a6db70b4db15b11e042c1cbd357a960d8d328b9c2ee759bfe2",
+    "equal": true
+  },
+  {
+    "name": "historical-plan-evidence",
+    "file": "src/runtime/reporting/selections.ts",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/reportSelections.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 1,
+    "sha256": "e1fb1fe5c68b4795256c7118c8f2103a3d9d7025b382205ef243f6a34eaa0adf",
+    "restored": "e1fb1fe5c68b4795256c7118c8f2103a3d9d7025b382205ef243f6a34eaa0adf",
+    "equal": true
+  },
+  {
+    "name": "compressed-reference-equality",
+    "file": "src/runtime/reference.node.generated.ts",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/reportEngine.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 1,
+    "sha256": "d276e2a6c4d80d2a32e97b38ba573e59ba99ff3b788bfa8db5365f21c4f6cb8e",
+    "restored": "d276e2a6c4d80d2a32e97b38ba573e59ba99ff3b788bfa8db5365f21c4f6cb8e",
+    "equal": true
+  },
+  {
+    "name": "cache-cancellation-binding",
+    "file": "src/core/reporting/sources/cache.ts",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/reportNetworkBinding.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 1,
+    "sha256": "e907bf8249c7421ade0852c26eb467e834bc0d032314ac6b31286b37e37d2888",
+    "restored": "e907bf8249c7421ade0852c26eb467e834bc0d032314ac6b31286b37e37d2888",
+    "equal": true
+  },
+  {
+    "name": "ancestry-over-timestamps",
+    "file": "src/runtime/reporting/selections.ts",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/reportSelections.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 1,
+    "sha256": "e1fb1fe5c68b4795256c7118c8f2103a3d9d7025b382205ef243f6a34eaa0adf",
+    "restored": "e1fb1fe5c68b4795256c7118c8f2103a3d9d7025b382205ef243f6a34eaa0adf",
+    "equal": true
+  },
+  {
+    "name": "unknown-commit-partial",
+    "file": "src/runtime/reporting/selections.ts",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/reportSelections.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 1,
+    "sha256": "e1fb1fe5c68b4795256c7118c8f2103a3d9d7025b382205ef243f6a34eaa0adf",
+    "restored": "e1fb1fe5c68b4795256c7118c8f2103a3d9d7025b382205ef243f6a34eaa0adf",
+    "equal": true
+  },
+  {
+    "name": "comparison-union-bound",
+    "file": "src/shared/reportSchema.ts",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/reportDiff.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 1,
+    "sha256": "93e788badc46dadf60efc7d56207d55da6657f6b328cb5482a41c75df2ffd9b6",
+    "restored": "93e788badc46dadf60efc7d56207d55da6657f6b328cb5482a41c75df2ffd9b6",
+    "equal": true
+  },
+  {
+    "name": "network-size-budget",
+    "file": "dist/reportingNetwork.js",
+    "command": ["node", "scripts/check-bundle-size.mjs"],
+    "exit": 1,
+    "sha256": "b7ca51cf246b060fa5e372083474e8aba8f0ef612a7328bbaed355eb96e32a52",
+    "restored": "b7ca51cf246b060fa5e372083474e8aba8f0ef612a7328bbaed355eb96e32a52",
+    "equal": true
+  },
+  {
+    "name": "reporting-size-budget",
+    "file": "dist/reporting.js",
+    "command": ["node", "scripts/check-bundle-size.mjs"],
+    "exit": 1,
+    "sha256": "5345d21f728f8d172dc8e03634d6d29920055e4bd61d0d3570c0e6340f27d167",
+    "restored": "5345d21f728f8d172dc8e03634d6d29920055e4bd61d0d3570c0e6340f27d167",
+    "equal": true
+  },
+  {
+    "name": "reportingDestinations-size-budget",
+    "file": "dist/reportingDestinations.js",
+    "command": ["node", "scripts/check-bundle-size.mjs"],
+    "exit": 1,
+    "sha256": "abb198f5b08cb28a3a6c5721b2669456323a22ceaed44fc22a03ac1fa4a925b6",
+    "restored": "abb198f5b08cb28a3a6c5721b2669456323a22ceaed44fc22a03ac1fa4a925b6",
+    "equal": true
+  },
+  {
+    "name": "reportingPanel-size-budget",
+    "file": "dist/reportingPanel.js",
+    "command": ["node", "scripts/check-bundle-size.mjs"],
+    "exit": 1,
+    "sha256": "dacdc85a1312710fa99e6d55975d877846fe03233e6d20ac712eba3b7f485c91",
+    "restored": "dacdc85a1312710fa99e6d55975d877846fe03233e6d20ac712eba3b7f485c91",
+    "equal": true
+  },
+  {
+    "name": "report-ui-size-budget",
+    "file": "dist/webview/reportingPage.js",
+    "command": ["node", "scripts/check-bundle-size.mjs"],
+    "exit": 1,
+    "sha256": "64e226e25941520bcbedfa068cde93099105673c64712b7e55da2cce583be3eb",
+    "restored": "64e226e25941520bcbedfa068cde93099105673c64712b7e55da2cce583be3eb",
+    "equal": true
+  },
+  {
+    "name": "destination-ui-size-budget",
+    "file": "dist/webview/reportingDestinations.js",
+    "command": ["node", "scripts/check-bundle-size.mjs"],
+    "exit": 1,
+    "sha256": "dcb8222fba00407f0e62731696d4b984df5cbc45ae235c4de900daa4aa24df5d",
+    "restored": "dcb8222fba00407f0e62731696d4b984df5cbc45ae235c4de900daa4aa24df5d",
+    "equal": true
+  },
+  {
+    "name": "lane-declaration-identity",
+    "file": "src/core/reporting/collect/plan.ts",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/collect.project.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exit": 1,
+    "sha256": "f24671c8d161fdf77070ee6a9b4e4eff3169e65d9ec8d1a67ec9443aefdd4cd6",
+    "restored": "f24671c8d161fdf77070ee6a9b4e4eff3169e65d9ec8d1a67ec9443aefdd4cd6",
+    "equal": true
+  }
+]
