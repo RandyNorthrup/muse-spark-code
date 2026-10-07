@@ -31078,12 +31078,11 @@ before a repaired one loads (2026-09-30).
   remain lead-owned handoffs, not accepted review findings. Evidence:
   `docs/certification/m117-c-calibration.md`.
 
-- **FIXM117I retained P3 duration evidence (finding 17).** The DAG still
-  accepts numeric hours, without per-node duration-basis/uncertainty objects.
-  Section-level parameter disclosures do not fill this contract gap. Adding
-  and threading a new frozen lane/DAG/simulation evidence contract exceeds a
-  cheap integration repair; defer explicitly as `M117-G-node-duration-evidence`.
-  Bare node hours must not be described as calibrated evidence. No gate is waived.
+- **FIXM117I retained P3 duration evidence (finding 17): closed by FIXM117I2.**
+  DAG nodes and the sampled-duration map carry `EstimateDurationEvidence`
+  (unit, source, basis, samples); plan defaults are assumption/0, an
+  assumption with samples is refused, and a date claims calibration only when
+  its trial's samples are calibrated (RVF117I2, 2026-10-07). Nothing deferred.
 
 - **FIXM117S review outcome (2026-10-06).** All four RVM117S P2s are
   fixed; no review finding is deferred. Account-count search is exact up to
