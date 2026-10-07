@@ -1,3 +1,7 @@
+import type * as RuntimeContextBundle from './contextEntry'
+import type * as RuntimeBackendBundle from './backendEntry'
+import type * as RuntimeEnginesBundle from './engineEntry'
+import type * as RuntimePresentationBundle from '../../host/views/runtimePresentationEntry'
 import type * as RuntimePanelPortsBundle from './runtimeFeaturesEntry'
 import type * as RuntimePanelBundle from './panelEntry'
 import { lazyBundleLoader, type LazyBundleLoaderOptions } from '../../host/lazyBundle'
@@ -41,6 +45,105 @@ export function panelPortsLoader(
       'createRuntimePanelPorts' in value &&
       typeof value.createRuntimePanelPorts === 'function',
     label: 'runtime panel ports bundle',
+    unavailable: () => UI_TEXT.actionFailed,
+  })
+}
+
+/** Exact same-build factory signatures are trusted after callable guards (PLAN §8). */
+export function engineLoader(
+  deps: Pick<
+    LazyBundleLoaderOptions<typeof RuntimeEnginesBundle>,
+    'bundlePath' | 'log' | 'loadBundle'
+  >,
+): () => typeof RuntimeEnginesBundle {
+  return lazyBundleLoader({
+    ...deps,
+    isBundle: (value): value is typeof RuntimeEnginesBundle =>
+      typeof value === 'object' &&
+      value !== null &&
+      [
+        'createRuntimeEngineFactory',
+        'createRuntimeFactories',
+        'runtimeEditorContext',
+        'RuntimePresentationViews',
+      ].every((key) => typeof Reflect.get(value, key) === 'function'),
+    label: 'runtime engines bundle',
+    unavailable: () => UI_TEXT.actionFailed,
+  })
+}
+
+/** Exact same-build factory signatures are trusted after callable guards (PLAN §8). */
+export function presentationLoader(
+  deps: Pick<
+    LazyBundleLoaderOptions<typeof RuntimePresentationBundle>,
+    'bundlePath' | 'log' | 'loadBundle'
+  >,
+): () => typeof RuntimePresentationBundle {
+  return lazyBundleLoader({
+    ...deps,
+    isBundle: (value): value is typeof RuntimePresentationBundle =>
+      typeof value === 'object' &&
+      value !== null &&
+      'createRuntimePresentation' in value &&
+      typeof value.createRuntimePresentation === 'function' &&
+      'createRuntimePresentationFactory' in value &&
+      typeof value.createRuntimePresentationFactory === 'function',
+    label: 'runtime presentation bundle',
+    unavailable: () => UI_TEXT.actionFailed,
+  })
+}
+
+/** Exact same-build signatures are trusted after callable guards (PLAN §8). */
+export function backendLoader(
+  deps: Pick<
+    LazyBundleLoaderOptions<typeof RuntimeBackendBundle>,
+    'bundlePath' | 'log' | 'loadBundle'
+  >,
+): () => typeof RuntimeBackendBundle {
+  return lazyBundleLoader({
+    ...deps,
+    isBundle: (value): value is typeof RuntimeBackendBundle =>
+      typeof value === 'object' &&
+      value !== null &&
+      [
+        'createConfiguredPanelBackend',
+        'createPanelBackendOptions',
+        'createRuntimeCheckpoints',
+        'createRuntimeVerify',
+        'createRuntimeHooks',
+        'createRuntimeMcp',
+        'createRuntimeCodeIntel',
+        'createRuntimeWebFetch',
+        'createRuntimeBrowser',
+        'createRuntimeAutoReviewer',
+        'createRuntimePaidBudget',
+        'RuntimePaidUse',
+        'runtimePaidRequestAdmission',
+        'createRuntimeTab',
+        'createFileScheduleStore',
+        'createNativeGitHub',
+        'createNativeKeySignIn',
+      ].every((key) => typeof Reflect.get(value, key) === 'function'),
+    label: 'runtime backend services bundle',
+    unavailable: () => UI_TEXT.actionFailed,
+  })
+}
+
+/** The installed factory signature is trusted after the same-build callable guard (PLAN §8). */
+export function contextLoader(
+  deps: Pick<
+    LazyBundleLoaderOptions<typeof RuntimeContextBundle>,
+    'bundlePath' | 'log' | 'loadBundle'
+  >,
+): () => typeof RuntimeContextBundle {
+  return lazyBundleLoader({
+    ...deps,
+    isBundle: (value): value is typeof RuntimeContextBundle =>
+      typeof value === 'object' &&
+      value !== null &&
+      'createRuntimePlans' in value &&
+      typeof value.createRuntimePlans === 'function',
+    label: 'runtime context bundle',
     unavailable: () => UI_TEXT.actionFailed,
   })
 }

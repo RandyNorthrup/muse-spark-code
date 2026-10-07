@@ -233,7 +233,25 @@ export class PaidUsage {
   private tally: PaidTally = EMPTY_PAID_TALLY
   private readonly listeners = new Set<() => void>()
 
-  public constructor(private readonly log: CoreLogger) {}
+  public constructor(
+    private readonly log: CoreLogger,
+    /** Verified catalog cost for the actual request model; undefined refuses an unpriced receipt. */
+    private readonly costOf?: (modelId: string, usage: SubagentUsage) => number | undefined,
+  ) {}
+
+  private usageCost(modelId: string, usage: SubagentUsage, verifiedCostUsd?: number): number {
+    if (verifiedCostUsd === undefined && this.costOf === undefined)
+      return reviewerCost(modelId, usage)
+    if (
+      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
+      usage.cachedTokens > usage.inputTokens
+    )
+      throw new Error('Paid usage must be valid nonnegative token counts')
+    const cost = verifiedCostUsd ?? this.costOf?.(modelId, usage)
+    if (cost === undefined || !Number.isFinite(cost) || cost < 0)
+      throw new Error('Paid usage has no verified catalog cost')
+    return cost
+  }
 
   public get current(): PaidTally {
     return this.tally
@@ -317,8 +335,8 @@ export class PaidUsage {
   }
 
   /** One paid judge receipt, apart from main-thread tokens; unmatched receipts do nothing. */
-  public addJudgeUsage(modelId: string, usage: SubagentUsage): void {
-    const cost = reviewerCost(modelId, usage)
+  public addJudgeUsage(modelId: string, usage: SubagentUsage, verifiedCostUsd?: number): void {
+    const cost = this.usageCost(modelId, usage, verifiedCostUsd)
     const unknown = this.tally.judgeUnknownRequests ?? 0
     if (unknown === 0) return
     this.tally = {
@@ -332,7 +350,7 @@ export class PaidUsage {
 
   /** One Auto review's tokens and cost (M78), billed apart from the conversation. */
   public addReviewerUsage(modelId: string, usage: SubagentUsage): void {
-    const cost = reviewerCost(modelId, usage)
+    const cost = this.usageCost(modelId, usage)
     const { tally } = this
     const unknown = tally.autoReviewUnknownRequests ?? 0
     if (unknown === 0) return
@@ -349,9 +367,7 @@ export class PaidUsage {
 
   /** One admitted child attempt reported billable usage; never replayed from storage. */
   public addSubagentUsage(modelId: string, usage: SubagentUsage): void {
-    if (modelApiPaidTier(modelId) === undefined) {
-      throw new Error('Cannot estimate subagent use for an unpriced model')
-    }
+    const cost = this.usageCost(modelId, usage)
     if (Object.values(usage).some((value) => !Number.isFinite(value) || value < 0)) {
       throw new Error('Subagent usage must be finite and nonnegative')
     }
@@ -363,7 +379,7 @@ export class PaidUsage {
       ...tally,
       subagentUnknownRequests: (tally.subagentUnknownRequests ?? 0) - 1,
       subagentTokens: (tally.subagentTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      subagentCostUsd: (tally.subagentCostUsd ?? 0) + estimateCostUsd(usage, modelId),
+      subagentCostUsd: (tally.subagentCostUsd ?? 0) + cost,
     }
     for (const listener of this.listeners) {
       listener()
@@ -386,22 +402,14 @@ export class PaidUsage {
 
   /** One hook run's reported billable usage; never replayed from storage. */
   public addHookModelUsage(modelId: string, usage: SubagentUsage): void {
-    if (modelApiPaidTier(modelId) === undefined) {
-      throw new Error('Cannot estimate hook model use for an unpriced model')
-    }
-    if (
-      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
-      usage.cachedTokens > usage.inputTokens
-    ) {
-      throw new Error('Hook model usage must be valid nonnegative token counts')
-    }
+    const cost = this.usageCost(modelId, usage)
     const unknown = this.tally.hookModelUnknownRequests ?? 0
     if (unknown === 0) return
     this.tally = {
       ...this.tally,
       hookModelUnknownRequests: unknown - 1,
       hookModelTokens: (this.tally.hookModelTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      hookModelCostUsd: (this.tally.hookModelCostUsd ?? 0) + estimateCostUsd(usage, modelId),
+      hookModelCostUsd: (this.tally.hookModelCostUsd ?? 0) + cost,
     }
     for (const listener of this.listeners) listener()
   }
@@ -421,16 +429,8 @@ export class PaidUsage {
    * request model's rates, apart from every conversation. A request that
    * never reports keeps its unknown count, never a zero cost.
    */
-  public addTabUsage(modelId: string, usage: SubagentUsage): void {
-    if (modelApiPaidTier(modelId) === undefined) {
-      throw new Error('Cannot estimate Tab use for an unpriced model')
-    }
-    if (
-      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
-      usage.cachedTokens > usage.inputTokens
-    ) {
-      throw new Error('Tab usage must be valid nonnegative token counts')
-    }
+  public addTabUsage(modelId: string, usage: SubagentUsage, verifiedCostUsd?: number): void {
+    const cost = this.usageCost(modelId, usage, verifiedCostUsd)
     const unknown = this.tally.tabUnknownRequests ?? 0
     if (unknown === 0) return
     this.tally = {
@@ -438,29 +438,21 @@ export class PaidUsage {
       tabUnknownRequests: unknown - 1,
       tabTokens: (this.tally.tabTokens ?? 0) + usage.inputTokens + usage.outputTokens,
       tabCachedTokens: (this.tally.tabCachedTokens ?? 0) + usage.cachedTokens,
-      tabCostUsd: (this.tally.tabCostUsd ?? 0) + estimateCostUsd(usage, modelId),
+      tabCostUsd: (this.tally.tabCostUsd ?? 0) + cost,
     }
     for (const listener of this.listeners) listener()
   }
 
   /** One owned host's per-response delta, never a cumulative/replayed frame. */
   public addBestOfNUsage(modelId: string, usage: SubagentUsage): void {
-    if (modelApiPaidTier(modelId) === undefined) {
-      throw new Error('Cannot estimate best-of-N use for an unpriced model')
-    }
-    if (
-      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
-      usage.cachedTokens > usage.inputTokens
-    ) {
-      throw new Error('Best-of-N usage must be valid nonnegative token counts')
-    }
+    const cost = this.usageCost(modelId, usage)
     const unknown = this.tally.bestOfNUnknownRequests ?? 0
     if (unknown === 0) return
     this.tally = {
       ...this.tally,
       bestOfNUnknownRequests: unknown - 1,
       bestOfNTokens: (this.tally.bestOfNTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      bestOfNCostUsd: (this.tally.bestOfNCostUsd ?? 0) + estimateCostUsd(usage, modelId),
+      bestOfNCostUsd: (this.tally.bestOfNCostUsd ?? 0) + cost,
     }
     for (const listener of this.listeners) listener()
   }

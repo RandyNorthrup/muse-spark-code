@@ -1,4 +1,9 @@
 {
+  "paidProviderUseDetail": "{subject}\n\nBis zu {price} für diese Nutzung, abgerechnet über deinen {provider}-Schlüssel. Gemeinsames Tagesbudget: {budget}. Dein Abonnement bezahlt diese Nutzung nicht.",
+  "presentationRolesTitle": "Rollen",
+  "presentationTrafficTitle": "Nachrichtenverkehr",
+  "presentationRulesTitle": "Regeln",
+  "presentationAgentsTitle": "Benutzerdefinierte Agenten",
   "companionLaunchFailed": "Das Panel konnte nicht geöffnet werden. Kehren Sie zu Ihrem Editor zurück und öffnen Sie Muse Spark Code erneut, um einen neuen Startlink zu erhalten.",
   "untitledConversation": "Unbenannt",
   "crashTitle": "Im Panel ist ein Fehler aufgetreten",

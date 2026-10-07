@@ -1,4 +1,9 @@
 {
+  "paidProviderUseDetail": "{subject}\n\nAté {price} por este uso, cobrado na sua chave do {provider}. Orçamento diário compartilhado: {budget}. Sua assinatura não paga por este uso.",
+  "presentationRolesTitle": "Papéis",
+  "presentationTrafficTitle": "Tráfego de mensagens",
+  "presentationRulesTitle": "Regras",
+  "presentationAgentsTitle": "Agentes personalizados",
   "companionLaunchFailed": "Não foi possível abrir o painel. Volte ao seu editor e abra o Muse Spark Code novamente para obter um novo link de inicialização.",
   "untitledConversation": "Sem título",
   "crashTitle": "O painel encontrou um erro",

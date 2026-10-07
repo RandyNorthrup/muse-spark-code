@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { MhpParams } from '../../shared/hostApi/methods'
 import { UI_TEXT } from '../../shared/l10n/text'
 
@@ -14,15 +14,25 @@ function HunkReview({
   const [isBusy, setBusy] = useState(false)
   const [decision, setDecision] = useState<Decision>()
   const [hasError, setError] = useState(false)
+  const pending = useRef(false)
+  const completed = useRef(false)
+  const status = useRef<HTMLParagraphElement>(null)
+  useEffect(() => {
+    if (decision !== undefined) status.current?.focus()
+  }, [decision])
   async function submit(value: Decision): Promise<void> {
+    if (pending.current || completed.current) return
+    pending.current = true
     setBusy(true)
     setError(false)
     try {
       await decide(hunk.id, value)
+      completed.current = true
       setDecision(value)
     } catch {
       setError(true)
     } finally {
+      pending.current = false
       setBusy(false)
     }
   }
@@ -32,7 +42,7 @@ function HunkReview({
     cancel: UI_TEXT.goalEditCancel,
   }
   return (
-    <section className="fallback-diff" aria-label={hunk.uri}>
+    <section className="fallback-diff" aria-label={hunk.uri} aria-busy={isBusy}>
       <h2>{hunk.uri}</h2>
       <h3>{UI_TEXT.fallbackBefore}</h3>
       <pre tabIndex={0}>
@@ -74,7 +84,9 @@ function HunkReview({
           </button>
         </div>
       ) : (
-        <p role="status">{decisionText[decision]}</p>
+        <p ref={status} tabIndex={-1} role="status">
+          {decisionText[decision]}
+        </p>
       )}
     </section>
   )

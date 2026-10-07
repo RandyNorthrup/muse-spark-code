@@ -18,6 +18,7 @@
     "src/host/conversation/conversationEntry.ts",
     "src/shared/validationEntry.ts",
     "src/shared/wireEntry.ts",
+    "src/shared/hostApi/hostProtocolEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",
     // The Model API backend's own bundle (M57), required by path at runtime.
@@ -64,6 +65,7 @@
     "src/host/web/pageWorker.ts",
     "src/webview/main.tsx",
     "src/webview/portable.tsx",
+    "src/shared/browser/presentation.ts",
     "src/webview/whatsNew/portable.ts",
     "src/webview/bridges/select.ts",
     "src/webview/bridges/moduleLoader.ts",
@@ -72,7 +74,15 @@
     "src/runtime/main.ts",
     "src/runtime/panel/panelEntry.ts",
     "src/runtime/panel/runtimeFeaturesEntry.ts",
+    "src/runtime/panel/contextEntry.ts",
+    "src/runtime/panel/engineEntry.ts",
+    "src/runtime/panel/backendEntry.ts",
+    "src/host/views/runtimePresentationEntry.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
+    "test/m104/{runtime,engines,ui}/**/*.test.{ts,tsx,mjs}",
+    "test/m104/ui/vitest.config.mjs",
+    "test/harness/presentation.tsx",
+    "test/harness/whatsNew.ts",
     // Built by the fallback accessibility suite and loaded by its real browser.
     "test/unit/helpers/fallbackHarness.tsx",
     "test/e2e/**/*.test.ts",

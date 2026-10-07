@@ -66,13 +66,8 @@ import type {
   GitSurface,
   NewPullRequestRequest,
 } from '../conversation/conversationController'
-import {
-  GitUnavailableError,
-  openOwnedRepository,
-  type CaptureGitOwner,
-  type GitChange,
-  type GitRepository,
-} from '../vscode/git/gitExtension'
+import type { CaptureGitOwner, GitChange, GitRepository } from './repositoryPort'
+import { GitUnavailableError, openOwnedRepository } from './ownedRepository'
 import type { PullRequestLink, PullRequestLinks } from './pullRequestLinks'
 
 /** Preserve activation's error identities when this adapter is built into its own bundle. */
@@ -399,6 +394,7 @@ export class ConversationGit implements ConversationGitPort {
       this.window.repository,
       this.window.captureGitOwner,
       check,
+      this.errorTypes.GitUnavailableError,
     )
   }
 

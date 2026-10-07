@@ -1,5 +1,5 @@
 import * as z from 'zod/mini'
-import { MHP } from '../constants'
+import { MHP, MHP_PANEL, GITHUB_API_BASE_URL, HTTP_STATUS_MAX } from '../constants'
 import {
   type MhpCapability,
   type MhpFallback,
@@ -214,6 +214,18 @@ export const MHP_METHODS = {
     z.strictObject({ reviewId: idSchema, hunks: z.array(hunkSchema) }),
     z.null(),
   ),
+  'diff/decide': request(
+    'diff',
+    'react-diff',
+    z.strictObject({
+      reviewId: idSchema,
+      hunkId: idSchema,
+      uri: uriSchema,
+      expectedVersion: integerSchema,
+      decision: z.enum(['accept', 'reject', 'cancel']),
+    }),
+    z.null(),
+  ),
   'diff/didDecide': notification(
     'diff',
     'react-diff',
@@ -222,6 +234,36 @@ export const MHP_METHODS = {
       hunkId: idSchema,
       decision: z.enum(['accept', 'reject', 'cancel']),
     }),
+  ),
+  'diagnostics/settled': request(
+    'diagnostics',
+    'lsp-or-check-commands',
+    z.strictObject({ uri: uriSchema, expectedVersion: integerSchema }),
+    z.nullable(
+      z.strictObject({
+        uri: uriSchema,
+        version: integerSchema,
+        diagnostics: z.array(diagnosticSchema),
+      }),
+    ),
+  ),
+  'ui/openFile': request(
+    'ui',
+    'react-ui',
+    z.strictObject({ title: z.string() }),
+    z.nullable(uriSchema),
+  ),
+  'ui/saveText': request(
+    'ui',
+    'react-ui',
+    z.strictObject({ title: z.string(), suggestedName: z.string(), text: z.string() }),
+    z.boolean(),
+  ),
+  'surfaces/presentHtml': request(
+    'surfaces',
+    'companion-tabs',
+    z.strictObject({ surfaceId: idSchema, sessionId: idSchema, html: z.string() }),
+    z.null(),
   ),
   'diagnostics/get': request(
     'diagnostics',
@@ -324,7 +366,18 @@ export const MHP_METHODS = {
   'ui/pick': request(
     'ui',
     'react-ui',
-    z.strictObject({ title: z.string(), items: z.array(choice), multiple: z.boolean() }),
+    z.strictObject({
+      title: z.string(),
+      placeholder: z.optional(z.string()),
+      items: z.array(
+        z.strictObject({
+          ...choice.shape,
+          description: z.optional(z.string()),
+          detail: z.optional(z.string()),
+        }),
+      ),
+      multiple: z.boolean(),
+    }),
     z.nullable(z.array(idSchema)),
   ),
   'ui/input': request(
@@ -439,6 +492,13 @@ export const MHP_METHODS = {
     z.strictObject({ id: z.string(), title: z.string(), suggestedKey: z.optional(z.string()) }),
     z.null(),
   ),
+  'commands/run': request(
+    'commands',
+    'panel-palette',
+    z.strictObject({ id: z.string(), args: z.array(jsonValueSchema) }),
+    z.null(),
+  ),
+  'ui/showSetting': request('ui', 'react-ui', z.strictObject({ key: settingKeySchema }), z.null()),
   'commands/execute': notification('commands', 'panel-palette', z.strictObject({ id: z.string() })),
   'tab/register': request(
     'tab',
@@ -486,6 +546,58 @@ export const MHP_METHODS = {
     'gh-credential-store',
     z.strictObject({ scopes: z.array(z.string()), createIfNone: z.boolean() }),
     z.strictObject({ authenticated: z.boolean() }),
+  ),
+  // Native auth owns the terminal and OAuth credential. Only private owner-bound leases cross.
+  'auth/keySignIn': request(
+    'auth',
+    'gh-credential-store',
+    z.strictObject({
+      workspaceUri: uriSchema,
+      ownerId: z.string().check(z.uuid()),
+    }),
+    z.strictObject({ completed: z.boolean() }),
+  ),
+  'auth/githubLease': request(
+    'auth',
+    'gh-credential-store',
+    z.strictObject({
+      workspaceUri: uriSchema,
+      ownerId: z.string().check(z.uuid()),
+      mode: z.enum(['ask', 'silent']),
+    }),
+    z.strictObject({ leaseId: z.nullable(z.string().check(z.uuid())) }),
+  ),
+  'github/request': request(
+    'auth',
+    'gh-credential-store',
+    z.strictObject({
+      leaseId: z.string().check(z.uuid()),
+      ownerId: z.string().check(z.uuid()),
+      url: z.string().check(
+        z.url(),
+        z.refine((value) => {
+          let url: URL
+          try {
+            url = new URL(value)
+          } catch {
+            return false
+          }
+          return (
+            url.origin === GITHUB_API_BASE_URL &&
+            url.username === '' &&
+            url.password === '' &&
+            url.hash === '' &&
+            (url.pathname === '/user' || url.pathname.startsWith('/repos/'))
+          )
+        }),
+      ),
+      method: z.enum(['GET', 'POST']),
+      body: z.optional(jsonValueSchema),
+    }),
+    z.strictObject({
+      status: z.int().check(z.minimum(100), z.maximum(HTTP_STATUS_MAX)),
+      body: z.string().check(z.maxLength(MHP_PANEL.maximumEnvelopeBytes)),
+    }),
   ),
   'window/state': request(
     'window',

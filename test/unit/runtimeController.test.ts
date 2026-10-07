@@ -1018,3 +1018,35 @@ for (const kind of ['museCode', 'modelApi'] as const) {
     }
   })
 }
+
+it('queues crash recovery until the actual chat ready message', async () => {
+  const t = await setup()
+  vi.spyOn(t.host, 'readSession').mockResolvedValue(t.loaded.history)
+  try {
+    await t.conversation.prepare(
+      {
+        ...t.ports,
+        factories: {
+          presentation: (context) => {
+            context.queueAfterReady?.({ type: 'openReport' })
+            return Promise.resolve({ features: {} })
+          },
+        },
+      },
+      t.loaded,
+      t.bundle,
+      runtimeConversationDeps,
+    )
+    const controller = t.conversation.controller
+    if (controller === undefined) throw new Error('Missing prepared controller')
+    const report = vi.spyOn(controller, 'handle').mockResolvedValue()
+    expect(report).not.toHaveBeenCalled()
+    await t.conversation.handle({ type: 'ready', attachmentEpoch: 1 })
+    expect(report).toHaveBeenCalledExactlyOnceWith({ type: 'openReport' })
+    await t.conversation.handle({ type: 'ready', attachmentEpoch: 2 })
+    expect(report).toHaveBeenCalledOnce()
+  } finally {
+    await t.conversation.release()
+    await t.runtime.close()
+  }
+})

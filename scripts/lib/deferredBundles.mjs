@@ -34,6 +34,30 @@ export const PLUGIN_HOOKS_ONLY = [
 ]
 export const DEFERRED = [
   {
+    output: 'dist/runtimeBackendServices.js',
+    metafile: 'dist/meta/runtimeBackendServices.json',
+    use: 'portable backend tool recording and guarded services',
+    files: ['src/runtime/panel/backendEntry.ts'],
+  },
+  {
+    output: 'dist/runtimeContext.js',
+    metafile: 'dist/meta/runtimeContext.json',
+    use: 'portable confined plan context',
+    files: ['src/runtime/panel/contextEntry.ts'],
+  },
+  {
+    output: 'dist/runtimeEngines.js',
+    metafile: 'dist/meta/runtimeEngines.json',
+    use: 'portable guarded engine factories',
+    files: ['src/runtime/panel/engineEntry.ts'],
+  },
+  {
+    output: 'dist/runtimePresentation.js',
+    metafile: 'dist/meta/runtimePresentation.json',
+    use: 'portable auxiliary presentation',
+    files: ['src/host/views/runtimePresentationEntry.ts'],
+  },
+  {
     output: 'dist/runtimePanelPorts.js',
     metafile: 'dist/meta/runtimePanelPorts.json',
     use: 'runtime panel feature composition',
@@ -356,15 +380,38 @@ export const deferredCohort = {
 }
 
 const WIRE_SOURCES = new Set(
-  ['src/shared/protocol.ts', 'src/shared/agentEvents.ts'].map((file) => path.resolve(file)),
+  ['src/shared/protocol.ts', 'src/shared/agentEvents.ts', 'src/shared/presentationProtocol.ts'].map(
+    (file) => path.resolve(file),
+  ),
 )
 /** @type {import('esbuild').Plugin} */
 export const sharedWire = {
   name: 'shared-wire',
   setup(build) {
-    build.onResolve({ filter: /(?:^|\/)(?:protocol|agentEvents)(?:\.ts)?$/ }, (args) => {
+    build.onResolve(
+      { filter: /(?:^|\/)(?:protocol|agentEvents|presentationProtocol)(?:\.ts)?$/ },
+      (args) => {
+        const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
+        return WIRE_SOURCES.has(source) ? { path: './wire.js', external: true } : undefined
+      },
+    )
+  },
+}
+
+const HOST_PROTOCOL_SOURCES = new Set(
+  ['src/shared/hostApi/methods.ts', 'src/shared/hostApi/panel.ts'].map((file) =>
+    path.resolve(file),
+  ),
+)
+/** Share the validated native service vocabulary across Node carrier bundles. */
+export const sharedHostProtocol = {
+  name: 'shared-host-protocol',
+  setup(build) {
+    build.onResolve({ filter: /\/(?:methods|panel)(?:\.ts)?$/ }, (args) => {
       const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
-      return WIRE_SOURCES.has(source) ? { path: './wire.js', external: true } : undefined
+      return HOST_PROTOCOL_SOURCES.has(source)
+        ? { path: './hostProtocol.js', external: true }
+        : undefined
     })
   },
 }

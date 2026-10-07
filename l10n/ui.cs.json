@@ -1,4 +1,9 @@
 {
+  "paidProviderUseDetail": "{subject}\n\nAž {price} za toto použití, účtováno přes váš klíč {provider}. Sdílený denní rozpočet: {budget}. Vaše předplatné toto použití neplatí.",
+  "presentationRolesTitle": "Role",
+  "presentationTrafficTitle": "Výměna zpráv",
+  "presentationRulesTitle": "Pravidla",
+  "presentationAgentsTitle": "Vlastní agenti",
   "companionLaunchFailed": "Panel se nepodařilo otevřít. Vraťte se do editoru a znovu otevřete Muse Spark Code, abyste získali nový odkaz pro spuštění.",
   "untitledConversation": "Bez názvu",
   "crashTitle": "V panelu došlo k chybě",
