@@ -21,8 +21,9 @@ renderer/source inventory data, rather than new runtime machinery.
 
 ## Failing-base controls
 
-Initial runs were on the unmodified integration base, with repository
-timeouts and at most three files/workers. Logs remain in ignored
+Each owning implementation was still at the integration base when its
+regression was first observed to fail, with repository timeouts and at most
+three files/workers. Logs remain in ignored
 `temp/fixm114i/`:
 
 - `base-inventory.log`: m114Audit and visualMatrix inventory controls failed;
@@ -34,6 +35,12 @@ timeouts and at most three files/workers. Logs remain in ignored
   25,659-byte closure failure. 60 passed, 27 failed.
 - `base-manifest-guard.log`: a new current renderer can be omitted without
   error before the inventory guard; one failed, 11 passed.
+- `final-base-controls.log`: a detached worktree at the exact 2bd9e0f095
+  integration revision, with only the final inventory/provenance assertions,
+  their Git-reader helper and the new fixture-isolation assertion added.
+  The final current-inventory, immutable-receipt and menu-isolation regressions
+  all fail there, alongside the original 25 menu cases: 51 passed, 28 failed.
+  The repair worktree stays clean throughout this control.
 
 These failures exercise each finding before its repair. No timeout was raised
 and no test or coverage threshold was removed. The historical hash tests still
@@ -48,8 +55,10 @@ probe reproduced refusal for a 128 px viewport with both ordinary and
 persistent contexts. Normal panel screenshots work. Two attempted remedies
 (normal viewport plus the original crop; normal viewport plus full-height
 probe) failed in the complete driver and were reverted to HEAD byte-exact.
-The shared stop-after-two-fixes rule ends this browser path. No claimed golden
-or screenshot hash was generated, and the old golden remains intentionally
+The shared stop-after-two-fixes rule ends this browser path. The restored
+driver and the base blob both have SHA-256
+`fe3913f6a6622fc9f67936cdcaaa07c95480f4b19b2cc7fc5422e3f51fa0f9a0`.
+No claimed golden or screenshot hash was generated, and the old golden remains intentionally
 incompatible with the complete current inventory.
 
 Lead-owned commands on a functioning rendering rig, after committing inputs:
@@ -69,5 +78,56 @@ Full quality, integrated PNG certification and hosted CI are not claimed here.
 
 ## Fresh-clone CI verification
 
-Pending the committed-source clone and final receipts; this section will be
-completed with exact owning-suite repetitions and static gate results.
+Source commit: `63a438f92ae6ef1184d1389306953daf704f814f`. Fresh local clone:
+`temp/fixm114i/ci`, made with `git clone --no-hardlinks` and `npm ci`;
+`CI=true`, Node 24.21.0 on win11. The clone has its own installed dependencies
+and active Husky hook. Production build ran before capture tests to provide
+their required generated What's New payload, and again as the final build gate.
+
+All complete owning files ran three times, with the repository's five-second
+test deadline and no `--testTimeout`. Every invocation has at most three files
+and `--maxWorkers=3`:
+
+| Complete files                                      | Result in each of three repetitions                                                                                                                                         |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| manifest, fontCli, visualGate                       | 51 passed                                                                                                                                                                   |
+| m114Audit, visualMatrix, m114PanelEvidence          | 18 passed                                                                                                                                                                   |
+| m114Conversation, m114Panel                         | 101 passed                                                                                                                                                                  |
+| themeBridge, themeBridgeBrowser, themeBridgeFixture | 59 passed                                                                                                                                                                   |
+| acpRuntime, questionUiState                         | 48 passed                                                                                                                                                                   |
+| visualCapture, visualStability                      | Both setup hooks fail at the unchanged font-probe screenshot; their seven assertions do not run. No test is explicitly skipped or retimed. Lead-owned browser verification. |
+
+Total: 277 assertions across 13 files pass in every repetition (831 successful
+assertions); the same two capture suites fail during setup in all three.
+Receipts: `temp/fixm114i/ci-tests.json` and `ci-<repetition>-<group>.log`.
+
+Final static gates in that clone, with `CI=true`:
+
+- `npm run typecheck`: all five projects exit 0.
+- `npm run lint`: JavaScript/TypeScript, CSS and real Windows
+  PSScriptAnalyzer exit 0; zero PowerShell findings.
+- Prettier on all 24 changed paths: exit 0.
+- Plain `npx knip`: exit 0; no unused source/dependency findings.
+- `npm run duplication`: exit 0, zero clones.
+- `npm run build`: exit 0; tokens, unchanged size/split caps, host globals and
+  87 dependency/font notices pass.
+- `check:reference`: 53 features, 46 commands, 60 settings, 26 slash and
+  125 CLI rows, current. `check:l10n`: 14 tables, 169 manifest strings,
+  638 source files, zero problems.
+- `check:tokens`, `check:host-api` and `cycles`: exit 0, zero problems/cycles.
+- `check:visual`: exits 1 with `Missing component coverage:
+panel/agents-details/default/light/320`. This proves the preserved lane-era
+  golden cannot certify the new current inventory; the named integrated
+  recapture above is required. No hash-only baseline update is made.
+
+Measured production sizes: extension 441.6 / 600 KiB, Model API 447.4 /
+475 KiB, ACP 824.9 / 850 KiB, eager webview 733.8 / 900 KiB, original
+deferred webview 32.1 / 50 KiB and font installer 11.4 / 25 KiB. Companion
+lazy JavaScript is 25,594 / 25,600 bytes; its CSS also passes its separate
+unchanged cap. The integration review's earlier soft 4 KiB target miss is
+not recast as a hard-cap pass.
+
+Receipts: `temp/fixm114i/ci-gates.json` and `gate-<name>.log`. The source
+commit's normal hook ran ESLint, Prettier and gitleaks successfully, with no
+leaks. The following certification-only commit preserves the exact tested
+implementation. No push or merge was performed.
