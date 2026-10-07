@@ -192,6 +192,21 @@ function initialize(client: acp.ClientContext) {
   return client.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
 }
 
+/** A signed-out agent's answer to a client announcing these capabilities. */
+function initializeWith(
+  clientCapabilities?: acp.ClientCapabilities,
+): Promise<acp.InitializeResponse> {
+  return startAgent(signedOut).run((client) =>
+    client.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION, clientCapabilities }),
+  )
+}
+
+/** A terminal (or agent) sign-in is on offer, as the ACP Registry requires. */
+function hasTerminalSignIn(response: acp.InitializeResponse): boolean {
+  const methods: { id: string; type?: unknown }[] = response.authMethods ?? []
+  return methods.some((method) => method.type === 'terminal' || method.type === 'agent')
+}
+
 function text(updates: readonly acp.SessionUpdate[]): string {
   return updates
     .flatMap((update) =>
@@ -531,5 +546,22 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     } finally {
       await runtime.close()
     }
+  })
+})
+
+// The ACP Registry's release gate (lane ACPREG), also run against the packed
+// package in CI: a registry client announcing terminal support with
+// `auth.terminal`, and one using the older `_meta` `terminal-auth` flag, are
+// both offered a terminal (or agent) sign-in; a client announcing neither is not.
+describe('the ACP registry release gate', () => {
+  it('offers terminal sign-in for auth.terminal and for the older _meta flag, and to no one else', async () => {
+    const [modern, legacy, plain] = await Promise.all([
+      initializeWith({ auth: { terminal: true } }),
+      initializeWith({ _meta: { 'terminal-auth': true } }),
+      initializeWith(),
+    ])
+    expect(hasTerminalSignIn(modern)).toBe(true)
+    expect(hasTerminalSignIn(legacy)).toBe(true)
+    expect(hasTerminalSignIn(plain)).toBe(false)
   })
 })

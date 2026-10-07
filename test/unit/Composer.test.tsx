@@ -206,6 +206,28 @@ it('shows no prompt menu button when no prompt action is available', () => {
   expect(screen.queryByRole('button', { name: UI_TEXT.promptLibrary })).toBeNull()
 })
 
+it('returns focus to the input when the prompt button closes its menu', async () => {
+  const { textarea } = renderComposer({ draft: 'Text', onSavePrompt: vi.fn() })
+  const button = screen.getByRole('button', { name: UI_TEXT.promptLibrary })
+  fireEvent.click(button)
+  await screen.findByRole('menu', { name: UI_TEXT.promptLibrary })
+  expect(button).toHaveAttribute('aria-expanded', 'true')
+  fireEvent.click(button)
+  expect(screen.queryByRole('menu', { name: UI_TEXT.promptLibrary })).toBeNull()
+  expect(document.activeElement).toBe(textarea)
+})
+
+it('closes the attached slash list while the prompt menu is open', async () => {
+  const { props, view, textarea } = renderComposer({ onUseSavedPrompt: vi.fn() })
+  textarea.focus()
+  const typed = type(view, props, '/co')
+  expect(screen.getByRole('listbox', { name: 'Slash commands' })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.promptLibrary }))
+  await screen.findByRole('menu', { name: UI_TEXT.promptLibrary })
+  expect(screen.queryByRole('listbox', { name: 'Slash commands' })).toBeNull()
+  expect(typed).not.toHaveAttribute('aria-controls')
+})
+
 function pasteOrDropFile(
   gesture: 'paste' | 'drop',
   textarea: HTMLTextAreaElement,

@@ -504,6 +504,11 @@
     margin-inline-start: auto;
   }
 
+  /* With the prompt menu button: three icon controls before the pill. */
+  .composer-toolbar-group:first-child:has(> .prompt-menu-button) {
+    min-width: calc(3 * var(--ms-control-size) + var(--ms-pill-min-width) + 6px);
+  }
+
   .composer-toolbar .icon-button,
   .composer-toolbar .mode-button,
   .composer-toolbar .send-button {
