@@ -2681,6 +2681,16 @@
     "cliUsage": "Fiókok: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [rendezett azonosítók]. Hitelesítő adatok: {command} auth set --provider <id> --account <id> (csak szabványos bemenetről).",
     "slashDescription": "Fiókok listázása, küszöbértékek megtekintése vagy fiók kiválasztása.",
     "execHelp": "Fiókok interakció nélkül: {command} exec --account <id> [--account-pool]. A --key-stdin kapcsolót használó CI csak az alapértelmezett fiókot használja, és soha nem vált fiókot.",
-    "keyPrompt": "{provider} · {account} API-kulcs (gépelés közben rejtve): "
+    "keyPrompt": "{provider} · {account} API-kulcs (gépelés közben rejtve): ",
+    "usageLiability": "Lefoglalva: {reserved}; bizonytalan összeg: {uncertain}.",
+    "usageReached": "Küszöbérték elérve",
+    "usageReset": "Visszaállítás: {reset}.",
+    "usageResetUnknown": "A visszaállítás ideje ismeretlen.",
+    "usageSpread": "{provider} · {account}: {worker} munkavégző hozzárendelve.",
+    "usageStop": "{provider} · {account}: leállítva ennél a küszöbnél: {threshold}.",
+    "usageThreshold": "{metric} korlátja a következő időszakra: {period}: {threshold}",
+    "usageEvents": "Fiókesemények",
+    "usageRateTokens": "Tokenek",
+    "usageUnavailable": "Nincsenek aktuális használati adatok."
   }
 }

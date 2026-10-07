@@ -2875,6 +2875,16 @@
     "cliUsage": "Konta: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [uporządkowane identyfikatory]. Dane uwierzytelniające: {command} auth set --provider <id> --account <id> (tylko standardowe wejście).",
     "slashDescription": "Wyświetl konta, sprawdź progi lub wybierz konto.",
     "execHelp": "Konta bez interakcji: {command} exec --account <id> [--account-pool]. CI z --key-stdin używa tylko konta domyślnego i nigdy nie zmienia konta.",
-    "keyPrompt": "Klucz API dla {provider} · {account} (ukryty podczas wpisywania): "
+    "keyPrompt": "Klucz API dla {provider} · {account} (ukryty podczas wpisywania): ",
+    "usageLiability": "Zarezerwowano {reserved}; kwota niepewna {uncertain}.",
+    "usageReached": "Osiągnięto próg",
+    "usageReset": "Reset: {reset}.",
+    "usageResetUnknown": "Czas resetu jest nieznany.",
+    "usageSpread": "{provider} · {account}: przypisano pracownika {worker}.",
+    "usageStop": "{provider} · {account}: zatrzymano po osiągnięciu {threshold}.",
+    "usageThreshold": "Limit dla {metric} w okresie {period}: {threshold}",
+    "usageEvents": "Zdarzenia kont",
+    "usageRateTokens": "Tokeny",
+    "usageUnavailable": "Brak aktualnych danych o użyciu."
   }
 }

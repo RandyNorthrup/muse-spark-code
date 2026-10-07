@@ -2584,6 +2584,16 @@
     "cliUsage": "アカウント: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [順序付きID]。認証情報: {command} auth set --provider <id> --account <id>（標準入力のみ）。",
     "slashDescription": "アカウントを一覧表示し、しきい値を確認するか、アカウントを選択します。",
     "execHelp": "非対話型のアカウント: {command} exec --account <id> [--account-pool]。--key-stdin を使うCIは既定のアカウントのみを使用し、アカウントを切り替えません。",
-    "keyPrompt": "{provider} · {account} のAPIキー（入力中は表示されません）: "
+    "keyPrompt": "{provider} · {account} のAPIキー（入力中は表示されません）: ",
+    "usageLiability": "予約済み {reserved}、未確定 {uncertain}。",
+    "usageReached": "しきい値に到達",
+    "usageReset": "{reset} にリセット。",
+    "usageResetUnknown": "リセット時刻は不明です。",
+    "usageSpread": "{provider} · {account}: ワーカー {worker} を割り当てました。",
+    "usageStop": "{provider} · {account}: {threshold} に達したため停止しました。",
+    "usageThreshold": "{period} の {metric} の上限: {threshold}",
+    "usageEvents": "アカウントのイベント",
+    "usageRateTokens": "トークン",
+    "usageUnavailable": "現在の使用状況データはありません。"
   }
 }

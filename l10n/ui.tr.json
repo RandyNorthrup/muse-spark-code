@@ -2681,6 +2681,16 @@
     "cliUsage": "Hesaplar: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [sıralı kimlikler]. Kimlik bilgileri: {command} auth set --provider <id> --account <id> (yalnızca standart girdi).",
     "slashDescription": "Hesapları listeleyin, eşikleri görüntüleyin veya bir hesap seçin.",
     "execHelp": "Etkileşimsiz hesaplar: {command} exec --account <id> [--account-pool]. --key-stdin kullanan CI yalnızca varsayılan hesabı kullanır ve asla hesap değiştirmez.",
-    "keyPrompt": "{provider} · {account} API anahtarı (yazarken gizlenir): "
+    "keyPrompt": "{provider} · {account} API anahtarı (yazarken gizlenir): ",
+    "usageLiability": "Ayrılan tutar {reserved}; belirsiz tutar {uncertain}.",
+    "usageReached": "Eşiğe ulaşıldı",
+    "usageReset": "Sıfırlama: {reset}.",
+    "usageResetUnknown": "Sıfırlama zamanı bilinmiyor.",
+    "usageSpread": "{provider} · {account}: {worker} çalışanı atandı.",
+    "usageStop": "{provider} · {account}: {threshold} eşiğinde durduruldu.",
+    "usageThreshold": "{period} dönemi için {metric} sınırı: {threshold}",
+    "usageEvents": "Hesap olayları",
+    "usageRateTokens": "Token sayısı",
+    "usageUnavailable": "Güncel kullanım verisi yok."
   }
 }

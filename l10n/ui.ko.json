@@ -2584,6 +2584,16 @@
     "cliUsage": "계정: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [정렬된 ID]. 인증 정보: {command} auth set --provider <id> --account <id> (표준 입력만).",
     "slashDescription": "계정 목록을 표시하거나 임계값을 확인하거나 계정을 선택합니다.",
     "execHelp": "비대화형 계정: {command} exec --account <id> [--account-pool]. --key-stdin을 사용하는 CI는 기본 계정만 사용하며 계정을 전환하지 않습니다.",
-    "keyPrompt": "{provider} · {account} API 키 (입력 시 표시되지 않음): "
+    "keyPrompt": "{provider} · {account} API 키 (입력 시 표시되지 않음): ",
+    "usageLiability": "예약 금액 {reserved}, 미확정 금액 {uncertain}.",
+    "usageReached": "임계값 도달",
+    "usageReset": "{reset}에 초기화됩니다.",
+    "usageResetUnknown": "초기화 시간을 알 수 없습니다.",
+    "usageSpread": "{provider} · {account}: 작업자 {worker}이(가) 배정되었습니다.",
+    "usageStop": "{provider} · {account}: {threshold}에 도달하여 중지되었습니다.",
+    "usageThreshold": "{period}의 {metric} 한도: {threshold}",
+    "usageEvents": "계정 이벤트",
+    "usageRateTokens": "토큰",
+    "usageUnavailable": "현재 사용량 데이터가 없습니다."
   }
 }

@@ -2875,6 +2875,16 @@
     "cliUsage": "Учётные записи: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [упорядоченные идентификаторы]. Данные для входа: {command} auth set --provider <id> --account <id> (только стандартный ввод).",
     "slashDescription": "Показать учётные записи, посмотреть пороги или выбрать учётную запись.",
     "execHelp": "Учётные записи без взаимодействия: {command} exec --account <id> [--account-pool]. CI с --key-stdin использует только учётную запись по умолчанию и никогда не переключает её.",
-    "keyPrompt": "Ключ API для {provider} · {account} (скрыт при вводе): "
+    "keyPrompt": "Ключ API для {provider} · {account} (скрыт при вводе): ",
+    "usageLiability": "Зарезервировано {reserved}; неопределённая сумма {uncertain}.",
+    "usageReached": "Порог достигнут",
+    "usageReset": "Сброс: {reset}.",
+    "usageResetUnknown": "Время сброса неизвестно.",
+    "usageSpread": "{provider} · {account}: назначен исполнитель {worker}.",
+    "usageStop": "{provider} · {account}: остановлено при достижении {threshold}.",
+    "usageThreshold": "Лимит для {metric} за период {period}: {threshold}",
+    "usageEvents": "События аккаунтов",
+    "usageRateTokens": "Токены",
+    "usageUnavailable": "Нет актуальных данных об использовании."
   }
 }

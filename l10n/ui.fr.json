@@ -2778,6 +2778,16 @@
     "cliUsage": "Comptes : {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [identifiants ordonnés]. Identifiants : {command} auth set --provider <id> --account <id> (entrée standard uniquement).",
     "slashDescription": "Lister les comptes, consulter les seuils ou choisir un compte.",
     "execHelp": "Comptes sans interaction : {command} exec --account <id> [--account-pool]. CI avec --key-stdin utilise uniquement le compte par défaut et ne change jamais de compte.",
-    "keyPrompt": "Clé API pour {provider} · {account} (masquée pendant la saisie) : "
+    "keyPrompt": "Clé API pour {provider} · {account} (masquée pendant la saisie) : ",
+    "usageLiability": "Réservé : {reserved} ; montant incertain : {uncertain}.",
+    "usageReached": "Seuil atteint",
+    "usageReset": "Réinitialisation : {reset}.",
+    "usageResetUnknown": "Heure de réinitialisation inconnue.",
+    "usageSpread": "{provider} · {account} : agent de travail {worker} affecté.",
+    "usageStop": "{provider} · {account} : arrêt au seuil {threshold}.",
+    "usageThreshold": "Limite de {metric} pour {period} : {threshold}",
+    "usageEvents": "Événements des comptes",
+    "usageRateTokens": "Jetons",
+    "usageUnavailable": "Aucun relevé actuel d’utilisation."
   }
 }

@@ -2778,6 +2778,16 @@
     "cliUsage": "Contas: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [ids ordenados]. Credenciais: {command} auth set --provider <id> --account <id> (somente entrada padrão).",
     "slashDescription": "Listar contas, ver limites ou escolher uma conta.",
     "execHelp": "Contas sem interação: {command} exec --account <id> [--account-pool]. CI com --key-stdin usa apenas a conta padrão e nunca troca de conta.",
-    "keyPrompt": "Chave de API de {provider} · {account} (oculta ao digitar): "
+    "keyPrompt": "Chave de API de {provider} · {account} (oculta ao digitar): ",
+    "usageLiability": "Reservado {reserved}; valor incerto {uncertain}.",
+    "usageReached": "Limite atingido",
+    "usageReset": "Redefinição: {reset}.",
+    "usageResetUnknown": "O horário de redefinição é desconhecido.",
+    "usageSpread": "{provider} · {account}: trabalhador {worker} atribuído.",
+    "usageStop": "{provider} · {account}: interrompido ao atingir {threshold}.",
+    "usageThreshold": "Limite de {metric} para {period}: {threshold}",
+    "usageEvents": "Eventos das contas",
+    "usageRateTokens": "Tokens de uso",
+    "usageUnavailable": "Não há dados de uso atuais."
   }
 }

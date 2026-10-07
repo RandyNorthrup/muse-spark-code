@@ -2875,6 +2875,16 @@
     "cliUsage": "Účty: {command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [seřazená ID]. Přihlašovací údaje: {command} auth set --provider <id> --account <id> (pouze standardní vstup).",
     "slashDescription": "Vypsat účty, zobrazit prahové hodnoty nebo vybrat účet.",
     "execHelp": "Účty bez interakce: {command} exec --account <id> [--account-pool]. CI s --key-stdin používá pouze výchozí účet a nikdy účty nestřídá.",
-    "keyPrompt": "API klíč pro {provider} · {account} (při psaní se nezobrazuje): "
+    "keyPrompt": "API klíč pro {provider} · {account} (při psaní se nezobrazuje): ",
+    "usageLiability": "Rezervováno {reserved}; nejistá částka {uncertain}.",
+    "usageReached": "Prahová hodnota dosažena",
+    "usageReset": "Obnoví se {reset}.",
+    "usageResetUnknown": "Čas obnovení není znám.",
+    "usageSpread": "{provider} · {account}: pracovník {worker} byl přiřazen.",
+    "usageStop": "{provider} · {account}: zastaveno při dosažení {threshold}.",
+    "usageThreshold": "Limit pro {metric} za období {period}: {threshold}",
+    "usageEvents": "Události účtů",
+    "usageRateTokens": "Tokeny",
+    "usageUnavailable": "Aktuální údaje o využití nejsou k dispozici."
   }
 }

@@ -2584,6 +2584,16 @@
     "cliUsage": "帳戶：{command} providers accounts list|add|remove|order|thresholds --provider <id> [--account <id>] [--label <label>] [--limit-group <id>] [--thresholds <JSON>] [依序排列的ID]。憑證：{command} auth set --provider <id> --account <id>（僅限標準輸入）。",
     "slashDescription": "列出帳戶、查看閾值或選擇帳戶。",
     "execHelp": "非互動式帳戶：{command} exec --account <id> [--account-pool]。使用 --key-stdin 的CI僅使用預設帳戶，永不切換帳戶。",
-    "keyPrompt": "{provider} · {account} API金鑰（輸入時隱藏）："
+    "keyPrompt": "{provider} · {account} API金鑰（輸入時隱藏）：",
+    "usageLiability": "預留金額 {reserved}；未確定金額 {uncertain}。",
+    "usageReached": "已達到閾值",
+    "usageReset": "將於 {reset} 重設。",
+    "usageResetUnknown": "重設時間未知。",
+    "usageSpread": "{provider} · {account}：已指派工作代理 {worker}。",
+    "usageStop": "{provider} · {account}：達到 {threshold} 後已停止。",
+    "usageThreshold": "{period}的{metric}上限：{threshold}",
+    "usageEvents": "帳戶事件",
+    "usageRateTokens": "權杖數",
+    "usageUnavailable": "暫無目前使用情況資料。"
   }
 }
