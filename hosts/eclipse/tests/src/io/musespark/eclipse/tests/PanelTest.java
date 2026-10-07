@@ -54,5 +54,5 @@ public class PanelTest {
         surface.receive(inbound(1));
     }
     private static PanelSurface surface(String kind, List<JsonObject> sent) throws Exception { return new PanelSurface(new Contract(), "surface", "session", kind, sent::add, id -> 0, code -> fail(code)); }
-    private static JsonObject inbound(long seq) { return Json.object("mhp", "1.1", "kind", "panel", "surface", "surface", "direction", "toPanel", "seq", seq, "payload", Json.object("type", "conversationCleared")); }
+    private static JsonObject inbound(long seq) { return Json.object("mhp", "1.2", "kind", "panel", "surface", "surface", "direction", "toPanel", "seq", seq, "payload", Json.object("type", "conversationCleared")); }
 }

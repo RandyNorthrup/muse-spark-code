@@ -115,7 +115,17 @@ public class BrowserTest {
         try {
             Assets.extract(org.eclipse.core.runtime.Platform.getBundle("io.musespark.eclipse"), directory);
             assertTrue(Files.isRegularFile(directory.resolve("main.js"))); assertTrue(Files.isRegularFile(directory.resolve("main.css")));
-            try (var files = Files.walk(directory)) { assertTrue(files.anyMatch(path -> path.getFileName().toString().startsWith("chunk-"))); }
+            JsonObject manifest = Json.parse(Files.readString(directory.resolve("portable/modules.json"))).getAsJsonObject();
+            boolean hasDeferred = false;
+            for (JsonElement value : manifest.getAsJsonArray("modules")) {
+                JsonObject module = value.getAsJsonObject(); String name = module.get("path").getAsString();
+                assertTrue(name.startsWith("/assets/portable/"));
+                Path asset = directory.resolve("portable").resolve(name.substring("/assets/portable/".length()));
+                assertTrue("Missing packaged module " + name, Files.isRegularFile(asset));
+                assertEquals(module.get("bytes").getAsLong(), Files.size(asset));
+                for (JsonElement imported : module.getAsJsonArray("imports")) hasDeferred |= imported.getAsJsonObject().get("dynamic").getAsBoolean();
+            }
+            assertTrue("No deferred module in packaged portable graph", hasDeferred);
         } finally { try (var paths = Files.walk(directory)) { for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) Files.delete(path); } }
     }
     @Test public void realWebkitBrowserFunctionExchangesOrderedMessagesAndSavedState() throws Exception {

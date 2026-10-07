@@ -34,7 +34,7 @@ public final class Contract {
     public static void verifyVocabulary(JsonElement specification) {
         if (specification.isJsonPrimitive()) return;
         JsonObject node = specification.getAsJsonObject();
-        Set<String> supported = Set.of("$schema", "$defs", "$ref", "type", "properties", "required", "additionalProperties", "propertyNames", "items", "minItems", "uniqueItems", "contains", "const", "enum", "anyOf", "oneOf", "minimum", "maximum", "minLength", "maxLength", "pattern", "format", "not");
+        Set<String> supported = Set.of("$schema", "$defs", "$ref", "type", "properties", "required", "additionalProperties", "propertyNames", "items", "minItems", "maxItems", "uniqueItems", "contains", "const", "enum", "anyOf", "oneOf", "minimum", "maximum", "minLength", "maxLength", "pattern", "format", "not");
         for (String key : node.keySet()) if (!supported.contains(key)) throw new IllegalStateException("MHP_SCHEMA_UNSUPPORTED");
         for (String key : List.of("properties", "$defs")) if (node.has(key)) for (JsonElement child : node.getAsJsonObject(key).asMap().values()) verifyVocabulary(child);
         for (String key : List.of("anyOf", "oneOf")) if (node.has(key)) for (JsonElement child : node.getAsJsonArray(key)) verifyVocabulary(child);
@@ -81,16 +81,8 @@ public final class Contract {
         if (rule.has("const") && !rule.get("const").equals(value)) return false;
         if (rule.has("enum") && !rule.getAsJsonArray("enum").asList().contains(value)) return false;
         if (rule.has("type")) {
-            String type = rule.get("type").getAsString();
-            boolean valid = switch (type) {
-                case "object" -> value.isJsonObject();
-                case "array" -> value.isJsonArray();
-                case "null" -> value.isJsonNull();
-                case "string" -> value.isJsonPrimitive() && value.getAsJsonPrimitive().isString();
-                case "boolean" -> value.isJsonPrimitive() && value.getAsJsonPrimitive().isBoolean();
-                case "number", "integer" -> value.isJsonPrimitive() && value.getAsJsonPrimitive().isNumber() && (!type.equals("integer") || value.getAsBigDecimal().stripTrailingZeros().scale() <= 0);
-                default -> throw new IllegalStateException("MHP_SCHEMA_UNSUPPORTED");
-            };
+            JsonElement types = rule.get("type");
+            boolean valid = types.isJsonArray() ? types.getAsJsonArray().asList().stream().anyMatch(type -> hasType(type.getAsString(), value)) : hasType(types.getAsString(), value);
             if (!valid) return false;
         }
         if (value.isJsonObject()) {
@@ -106,6 +98,7 @@ public final class Contract {
         }
         if (value.isJsonArray()) {
             JsonArray array = value.getAsJsonArray();
+            if (rule.has("maxItems") && array.size() > rule.get("maxItems").getAsInt()) return false;
             if (rule.has("minItems") && array.size() < rule.get("minItems").getAsInt()) return false;
             if (rule.has("uniqueItems") && rule.get("uniqueItems").getAsBoolean() && new HashSet<>(array.asList()).size() != array.size()) return false;
             boolean contains = !rule.has("contains");
@@ -132,4 +125,16 @@ public final class Contract {
         }
         return true;
     }
+    private static boolean hasType(String type, JsonElement value) {
+        return switch (type) {
+            case "object" -> value.isJsonObject();
+            case "array" -> value.isJsonArray();
+            case "null" -> value.isJsonNull();
+            case "string" -> value.isJsonPrimitive() && value.getAsJsonPrimitive().isString();
+            case "boolean" -> value.isJsonPrimitive() && value.getAsJsonPrimitive().isBoolean();
+            case "number", "integer" -> value.isJsonPrimitive() && value.getAsJsonPrimitive().isNumber() && (!type.equals("integer") || value.getAsBigDecimal().stripTrailingZeros().scale() <= 0);
+            default -> throw new IllegalStateException("MHP_SCHEMA_UNSUPPORTED");
+        };
+    }
+
 }

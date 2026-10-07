@@ -46,3 +46,23 @@
    asset requests are exact manifest paths; SHA-256/import-offset validation and
    page-lifetime cleanup precede execution. `strict-dynamic` permits the
    nonce-initiated graph while network/navigation/frame restrictions remain.
+
+7. **A/F — owning shim parser/package seam.** Expose the existing
+   `parseMhpCall`, correlated `parseMhpResult`, `failureFrameSchema`,
+   `MHP_METHODS`, panel validators and `MHP`/`MHP_PANEL` limits in a documented
+   installed Node entry for native owning shim parents. These source exports
+   already exist, but no installed public entry/package contract exists here.
+   Include its exact inventory/hash and frozen 1.2 schema in shim distributions.
+   Validation: malformed/uncorrelated/direction-invalid frames fail before an
+   editor action; editor initiation reaches the exact runtime cwd; cancellation,
+   stalled output and parent-first death remain bounded. A separate unpinned
+   Python schema dependency or five guessed validators is not proposed.
+   A portable parent plus native service adapters exceeds the common rule's
+   approximately 300-line finding limit without this shared seam; resume that
+   path after the contract is supplied rather than silently growing an
+   unreviewed bridge.
+8. **F/A — reference gate prerequisite.** This base has neither
+   `npm run check:reference` nor `scripts/gen-reference.mjs`. Supply the
+   prescribed catalog/generator/check when moving the shared documentation.
+   Validation: the normal reference check reports native bootstrap, prompts
+   and the exact remaining editor/version limitations without support promotion.

@@ -13,13 +13,18 @@ public class PeerTest {
         int calls;
         volatile boolean stopped;
         final List<JsonObject> panels = new ArrayList<>();
-        @Override public JsonElement request(String method, JsonObject params, java.util.function.BooleanSupplier cancelled) { if (method.equals("initialize")) return Json.object("protocolVersion", "mhp/1.1.0", "capabilities", params.get("capabilities")); calls++; return method.equals("shutdown") ? JsonNull.INSTANCE : Json.object("trusted", false); }
+        @Override public JsonElement request(String method, JsonObject params, java.util.function.BooleanSupplier cancelled) { calls++; return method.equals("shutdown") ? JsonNull.INSTANCE : Json.object("trusted", false); }
         @Override public void panel(JsonObject frame) { panels.add(frame); }
         @Override public void shutdown() { stopped = true; }
     }
-    private static JsonObject initialize() { return Json.object("host", Json.object("id", "eclipse", "version", "4.38"), "protocolRange", Json.object("minimum", "mhp/1.0.0", "maximumExclusive", "mhp/1.2.0"), "capabilities", new String[] {"lifecycle", "workspace", "tab"}, "locale", "en", "theme", Json.object("kind", "dark", "tokens", new JsonObject()), "folders", new JsonArray(), "trusted", false); }
+    private static JsonObject initialize() { return Json.object("host", Json.object("id", "eclipse", "version", "4.38"), "protocolRange", Json.object("minimum", "mhp/1.2.0", "maximumExclusive", "mhp/1.3.0"), "capabilities", new String[] {"lifecycle", "workspace", "tab"}, "locale", "en", "theme", Json.object("kind", "dark", "tokens", new JsonObject()), "folders", new JsonArray(), "trusted", false); }
     private static JsonObject initialCall(JsonObject params) { return Json.object("jsonrpc", "2.0", "id", "runtime-init", "method", "initialize", "params", params); }
-    private static void negotiate(MhpPeer peer) throws Exception { peer.accept(initialCall(initialize()).toString()); peer.initialized().get(2, TimeUnit.SECONDS); }
+    private static JsonObject initialResult(String version, JsonElement capabilities) { return Json.object("jsonrpc", "2.0", "id", "eclipse-init", "result", Json.object("protocolVersion", version, "capabilities", capabilities)); }
+    private static void negotiate(MhpPeer peer) throws Exception {
+        peer.initialize(initialize());
+        peer.accept(initialResult("mhp/1.2.0", initialize().get("capabilities")).toString());
+        peer.initialized().get(2, TimeUnit.SECONDS);
+    }
     @Test public void closeReturnsWhileTheRuntimeDoesNotReadItsPipe() throws Exception {
         ProcessBuilder builder = new ProcessBuilder("python3", "-c", "import time; print('ready', flush=True); time.sleep(100)");
         Map<String, String> clean = Assets.environment(builder.environment()); builder.environment().clear(); builder.environment().putAll(clean);
@@ -86,34 +91,24 @@ public class PeerTest {
     @Test public void handshakeCorrelationDirectionAndResultValidation() throws Exception {
         Host host = new Host(); Contract contract = new Contract();
         try (MhpPeer peer = new MhpPeer(contract, new ByteArrayInputStream(new byte[0]), new ByteArrayOutputStream(), host, code -> fail(code))) {
-            String frame = Json.object("mhp", "1.1", "kind", "panel", "surface", "s", "direction", "toPanel", "seq", 1, "payload", Json.object("type", "conversationCleared")).toString();
+            String frame = Json.object("mhp", "1.2", "kind", "panel", "surface", "s", "direction", "toPanel", "seq", 1, "payload", Json.object("type", "conversationCleared")).toString();
             assertThrows(IllegalStateException.class, () -> peer.accept(frame));
             assertThrows(IllegalStateException.class, () -> peer.request("initialize", initialize()));
             negotiate(peer);
             assertThrows(IllegalArgumentException.class, () -> peer.accept(Json.object("jsonrpc", "2.0", "id", "unknown", "result", JsonNull.INSTANCE).toString()));
-            assertThrows(IllegalStateException.class, () -> peer.accept(initialCall(initialize()).toString()));
-            assertThrows(IllegalArgumentException.class, () -> peer.request("initialize", initialize()));
+            assertThrows(IllegalArgumentException.class, () -> peer.accept(initialCall(initialize()).toString()));
+            assertThrows(IllegalStateException.class, () -> peer.initialize(initialize()));
             peer.accept(frame); assertEquals(1, host.panels.size());
             assertThrows(IllegalArgumentException.class, () -> peer.accept(Json.object("jsonrpc", "2.0", "id", "x", "method", "tab/complete", "params", Json.object("uri", "file:///x", "version", 1, "position", Json.object("line", 0, "character", 0), "context", Json.object("prefix", "", "suffix", "", "trigger", "invoke"))).toString()));
             assertEquals(0, host.calls);
         }
     }
-    @Test public void unofferedCapabilitiesAndUnnegotiatedTrafficAreRefused() throws Exception {
-        Host invalid = new Host() {
-            @Override public JsonElement request(String method, JsonObject params, java.util.function.BooleanSupplier cancelled) { return Json.object("protocolVersion", "mhp/1.1.0", "capabilities", new String[] {"lifecycle", "ui"}); }
-        };
-        try (MhpPeer peer = new MhpPeer(new Contract(), new ByteArrayInputStream(new byte[0]), new ByteArrayOutputStream(), invalid, code -> fail(code))) {
-            peer.accept(initialCall(initialize()).toString()); assertThrows(ExecutionException.class, () -> peer.initialized().get(2, TimeUnit.SECONDS));
-        }
-        Host legacy = new Host() {
-            @Override public JsonElement request(String method, JsonObject params, java.util.function.BooleanSupplier cancelled) { return Json.object("protocolVersion", "mhp/1.0.0", "capabilities", params.get("capabilities")); }
-        };
-        try (MhpPeer peer = new MhpPeer(new Contract(), new ByteArrayInputStream(new byte[0]), new ByteArrayOutputStream(), legacy, code -> fail(code))) {
-            peer.accept(initialCall(initialize()).toString()); assertThrows(ExecutionException.class, () -> peer.initialized().get(2, TimeUnit.SECONDS));
-        }
+    @Test public void unnegotiatedTrafficAndUnsupportedRuntimeGroupsAreRefused() throws Exception {
         try (MhpPeer peer = new MhpPeer(new Contract(), new ByteArrayInputStream(new byte[0]), new ByteArrayOutputStream(), new Host(), code -> fail(code))) {
-            JsonObject params = initialize(); params.add("capabilities", Json.GSON.toJsonTree(new String[] {"lifecycle"}));
-            peer.accept(initialCall(params).toString()); peer.initialized().get(2, TimeUnit.SECONDS);
+            peer.initialize(initialize());
+            assertThrows(IllegalArgumentException.class, () -> peer.accept(initialResult("mhp/1.2.0", Json.GSON.toJsonTree(new String[] {"lifecycle", "hostMetadata"})).toString()));
+            peer.accept(initialResult("mhp/1.2.0", Json.GSON.toJsonTree(new String[] {"lifecycle", "settings", "storage"})).toString());
+            assertTrue(peer.initialized().isDone());
             assertThrows(IllegalStateException.class, () -> peer.request("tab/complete", Json.object("uri", "file:///x", "version", 1, "position", Json.object("line", 0, "character", 0), "context", Json.object("prefix", "", "suffix", "", "trigger", "invoke"))));
             assertThrows(IllegalStateException.class, () -> peer.notify("documents/didClose", Json.object("uri", "file:///x")));
         }
@@ -146,13 +141,12 @@ public class PeerTest {
         } finally { runtime.close(); }
     }
     @Test public void legacyNegotiationRefusesCarrier() throws Exception {
-        Host host = new Host();
-        for (String[] range : new String[][] {{"mhp/1.0.0", "mhp/2.0.0"}, {"mhp/1.0.0", "mhp/1.1.0"}, {"mhp/1.2.0", "mhp/1.3.0"}}) {
-            try (MhpPeer peer = new MhpPeer(new Contract(), new ByteArrayInputStream(new byte[0]), new ByteArrayOutputStream(), host, code -> fail(code))) {
-                JsonObject params = initialize(); params.add("protocolRange", Json.object("minimum", range[0], "maximumExclusive", range[1]));
-                peer.accept(initialCall(params).toString()); assertThrows(ExecutionException.class, () -> peer.initialized().get(2, TimeUnit.SECONDS));
-                assertThrows(IllegalStateException.class, () -> peer.notify("workspace/didGrantTrust", Json.object("trusted", true)));
-            }
+        try (MhpPeer peer = new MhpPeer(new Contract(), new ByteArrayInputStream(new byte[0]), new ByteArrayOutputStream(), new Host(), code -> fail(code))) {
+            peer.initialize(initialize());
+            for (String version : List.of("mhp/1.0.0", "mhp/1.1.0", "mhp/2.0.0"))
+                assertThrows(IllegalArgumentException.class, () -> peer.accept(initialResult(version, initialize().get("capabilities")).toString()));
+            assertFalse(peer.initialized().isDone());
+            assertThrows(IllegalStateException.class, () -> peer.notify("workspace/didGrantTrust", Json.object("trusted", true)));
         }
     }
     @Test public void queueCapsPurgeAndOversizedFrameNeverAllocate() throws Exception {
@@ -196,17 +190,17 @@ public class PeerTest {
     @Test public void fakeRuntimeMultiplexesFragmentedCrlfServiceAndCarrier() throws Exception {
         Contract contract = new Contract(); Host host = new Host(); PipedInputStream input = new PipedInputStream(); PipedOutputStream runtime = new PipedOutputStream(input); ByteArrayOutputStream output = new ByteArrayOutputStream(); List<String> logs = new ArrayList<>();
         try (MhpPeer peer = new MhpPeer(contract, input, output, host, logs::add)) {
-            var initialized = peer.initialized(); peer.start();
-            byte[] response = (initialCall(initialize()).toString() + "\r\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            var initialized = peer.initialize(initialize()); peer.start();
+            byte[] response = (initialResult("mhp/1.2.0", initialize().get("capabilities")).toString() + "\r\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
             runtime.write(response, 0, 2); runtime.flush(); runtime.write(response, 2, response.length - 2); runtime.flush(); initialized.get(2, TimeUnit.SECONDS);
             runtime.write((Json.object("jsonrpc", "2.0", "id", "runtime-1", "method", "workspace/trust", "params", new JsonObject()).toString() + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8)); runtime.flush();
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
             while (!output.toString(java.nio.charset.StandardCharsets.UTF_8).contains("runtime-1") && System.nanoTime() < deadline) Thread.onSpinWait();
             assertTrue(output.toString(java.nio.charset.StandardCharsets.UTF_8).contains("runtime-1")); assertEquals(1, host.calls); assertTrue(logs.isEmpty());
-            runtime.write((Json.object("jsonrpc", "2.0", "id", "runtime-stop", "method", "shutdown", "params", new JsonObject()).toString() + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8)); runtime.flush();
+            runtime.close();
             long stopDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
             while (!host.stopped && System.nanoTime() < stopDeadline) Thread.onSpinWait();
-            assertTrue(host.stopped); peer.drain(); assertTrue(output.toString(java.nio.charset.StandardCharsets.UTF_8).contains("runtime-stop"));
+            assertTrue(host.stopped);
             runtime.close();
         }
     }
