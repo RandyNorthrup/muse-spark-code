@@ -343,6 +343,62 @@ const CHECKPOINT_ONLY = [
   'src/host/checkpoints/writeRecorder.ts',
 ]
 const checkpointStore = inputsOf(CHECKPOINT_STORE)
+const HARDWARE_GUARD = { output: 'dist/hardwareGuard.js', metafile: 'dist/meta/hardwareGuard.json' }
+const hardwareGuard = inputsOf(HARDWARE_GUARD)
+const HARDWARE_SHELL = { output: 'dist/hardwareShell.js', metafile: 'dist/meta/hardwareShell.json' }
+const hardwareShell = inputsOf(HARDWARE_SHELL)
+const HOST_HARDWARE_TEXT = [
+  'approvalHardwareNote',
+  'hardwareShellNote',
+  'hardwareProgramWarning',
+  'hardwareConnectWarning',
+  'hardwareActuateWarning',
+  'hardwareRefused',
+  'hardwareUnattended',
+  'hardwareExpired',
+  'hardwareBypassNotice',
+]
+const browserFiles = readdirSync('src/webview', { recursive: true })
+for (const name of browserFiles) {
+  const file = `src/webview/${name}`
+  if (!/\.[cm]?[jt]sx?$/.test(file)) continue
+  const source = readFileSync(file, 'utf8')
+  if (HOST_HARDWARE_TEXT.some((key) => source.includes(key)))
+    problems.push(`${file} reads host-only hardware text omitted from browser fallback`)
+}
+for (const file of [
+  'src/core/maker/guardEntry.ts',
+  'src/core/maker/ports.ts',
+  'src/core/maker/sessionGuard.ts',
+  'src/core/maker/guardSecrets.ts',
+  'src/core/maker/guard/actionClass.ts',
+  'src/core/agent/approvalHardware.ts',
+  'src/core/agent/approvalRules.ts',
+  'src/core/agent/approvalSecrets.ts',
+]) {
+  if (!hardwareGuard.has(file)) problems.push(`${HARDWARE_GUARD.output} no longer carries ${file}`)
+  for (const [output, inputs] of [...loaders, [BUNDLES.modelApi.output, modelApi]]) {
+    if (inputs.has(file))
+      problems.push(
+        `${output} carries ${file}, which loads only on the first hardware classification`,
+      )
+  }
+}
+for (const file of [
+  'src/core/maker/shellEntry.ts',
+  'src/core/maker/guard/shellParse.ts',
+  'src/core/maker/guard/shellPolicy.ts',
+  'src/core/maker/guard/hardwareCommands.ts',
+  'src/core/maker/guard/httpCommands.ts',
+]) {
+  if (!hardwareShell.has(file)) problems.push(`${HARDWARE_SHELL.output} no longer carries ${file}`)
+  for (const [output, inputs] of [
+    ...loaders,
+    [BUNDLES.modelApi.output, modelApi],
+    [HARDWARE_GUARD.output, hardwareGuard],
+  ])
+    if (inputs.has(file)) problems.push(`${output} eagerly carries first-use shell module ${file}`)
+}
 const REVIEW = { output: 'dist/review.js', metafile: 'dist/meta/review.json' }
 // The English fallback is shared; installed-language state stays in each bundle.
 const UI_TEXT = { output: 'dist/uiText.js', metafile: 'dist/meta/uiText.json' }
@@ -467,6 +523,8 @@ for (const bundle of [
   BUNDLES.modelApi,
   BUNDLES.acp,
   CHECKPOINT_STORE,
+  HARDWARE_GUARD,
+  HARDWARE_SHELL,
   REVIEW,
   ...DEFERRED,
   AGENT_IMPORT,

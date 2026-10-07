@@ -37,6 +37,8 @@ const HOST_BUNDLES = [
   'dist/pluginHooks.js',
   'dist/planMarkdown.js',
   'dist/checkpointStore.js',
+  'dist/hardwareGuard.js',
+  'dist/hardwareShell.js',
   'dist/browserCheck.js',
   'dist/browserRuntime.js',
   'dist/agentImport.js',

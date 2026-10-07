@@ -15,6 +15,7 @@ import {
   HOOK_MAX_STOP_CONTINUATIONS,
   HOOK_ON_FAILURE_MAX_DEPTH,
   MAX_MODEL_API_TEXT_ATTACHMENT_BYTES,
+  MACHINE_APPROVAL_TTL_MS,
   MODEL_API_IMPORT_MAX_REPLAY_BYTES,
   MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_MAX_RETRIES,
@@ -130,6 +131,7 @@ import { memoryStoreOver, PERSONAL } from './helpers/fakeMemoryIo'
 import { CURRENT_SHAPE_KEYS } from './helpers/modelApiKeys'
 import { installGerman, restoreEnglish } from './helpers/germanTable'
 import { watchSessionTurns } from './helpers/sessionTurns'
+import { fakeModelApiHostDeps } from './helpers/modelApiHostDeps'
 
 const ROOT = '/ws'
 // Long enough for a turn that spawns the conversation's whole limit of children.
@@ -395,6 +397,8 @@ function setup(
     bundledSkills?: ModelApiHostDeps['bundledSkills']
     personalAgentsRoot?: string
     isTrusted?: boolean | (() => boolean)
+    isUnattended?: ModelApiHostDeps['isUnattended']
+    hardwareContext?: ModelApiHostDeps['hardwareContext']
     isConfidentialWorkspace?: boolean | (() => boolean)
     confirmContributorModel?: (modelId: string) => Promise<boolean>
     store?: SessionStore
@@ -523,6 +527,8 @@ function setup(
     personalSkillsRoot: options.personalSkillsRoot,
     bundledSkills: options.bundledSkills,
     personalAgentsRoot: options.personalAgentsRoot,
+    ...(options.isUnattended !== undefined && { isUnattended: options.isUnattended }),
+    ...(options.hardwareContext !== undefined && { hardwareContext: options.hardwareContext }),
     isWorkspaceTrusted: () =>
       typeof options.isTrusted === 'function' ? options.isTrusted() : (options.isTrusted ?? true),
     isConfidentialWorkspace: confidentialOf(options.isConfidentialWorkspace),
@@ -618,6 +624,435 @@ async function startSession(
   })) as ModelApiSession
   return { session, ...watchSessionTurns(session) }
 }
+
+describe('M103-G hardware dispatch boundary', () => {
+  it('R3F2: an unattended child inherits a latched parent after the marker signal disappears', async () => {
+    let isHardwareWorkspace = true
+    const t = setup({ hardwareContext: () => ({ isHardwareWorkspace }) })
+    const { session: parent } = await startSession(t, 'onRequest')
+    isHardwareWorkspace = false
+    const child = new ModelApiSession(
+      'child-id',
+      'muse-spark-1.3',
+      'onRequest',
+      {
+        ...fakeModelApiHostDeps({ client: t.client, workspaceRoot: ROOT, io: t.io, log: t.log }),
+        hardwareContext: () => ({ isHardwareWorkspace }),
+      },
+      () => undefined,
+      () => Promise.resolve(),
+      () => undefined,
+      () => false,
+      true,
+      parent,
+    )
+    const { events, turnDone } = watchSessionTurns(child)
+    child.onEvent((event) => {
+      if (event.type === 'approvalRequested')
+        void child.decideApproval({
+          approvalId: event.approvalId,
+          requirementId: event.requirementId,
+          choiceId: 'allow_once',
+        })
+    })
+    t.api.script({ calls: [shellCall('npm test')] }, { text: 'done' })
+    const completed = turnDone()
+    try {
+      await child.sendTurn([{ type: 'text', text: 'check' }])
+      await completed
+      expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+      expect(t.shellCalls).toHaveLength(0)
+    } finally {
+      child.dispose()
+    }
+  })
+
+  it('R3F2: gaining hardware during adapter preparation refuses an already admitted Bypass shell', async () => {
+    let isHardwareWorkspace = false
+    const prepared = preparingShell()
+    const t = setup({ io: prepared.io, hardwareContext: () => ({ isHardwareWorkspace }) })
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script({ calls: [shellCall('npm test')] }, { text: 'done' })
+    await session.sendTurn([{ type: 'text', text: 'check' }])
+    await prepared.entered.promise
+    isHardwareWorkspace = true
+    prepared.release.resolve(undefined)
+    await turnDone()
+    expect(prepared.held.shellCalls).toHaveLength(0)
+    expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+  })
+
+  it.each(['identity', 'unattended', 'unchanged'])(
+    'R3F3/F4: a hardware answer carries its binding through adapter preparation: %s',
+    async (change) => {
+      let usbSerial = 'board-one'
+      let isUnattended = false
+      const prepared = preparingShell()
+      const t = setup({
+        io: prepared.io,
+        hardwareContext: () => ({
+          targets: [{ address: 'COM5', vidPid: '303a:1001', usbSerial }],
+          isUnattended,
+        }),
+      })
+      const { session, events, turnDone } = await startSession(t, 'onRequest')
+      t.api.script({ calls: [shellCall('pio run -t upload')] }, { text: 'done' })
+      await session.sendTurn([{ type: 'text', text: 'upload' }])
+      const request = await approvalRequest(events, 0)
+      expect(request.note).toContain('COM5 (303a:1001, board-one)')
+      await answer(session, request, 'allow_once')
+      await prepared.entered.promise
+      if (change === 'identity') usbSerial = 'replacement-board'
+      else if (change === 'unattended') isUnattended = true
+      const completed = turnDone()
+      prepared.release.resolve(undefined)
+      await vi.waitFor(() => {
+        prepared.held.runs[0]?.finish({ stdout: 'fake upload', exitCode: 0 })
+        expect(events.some((event) => event.type === 'turnCompleted')).toBe(true)
+      })
+      await completed
+      expect(prepared.held.shellCalls).toHaveLength(change === 'unchanged' ? 1 : 0)
+    },
+  )
+
+  it('R3F4: becoming unattended while the hardware card waits refuses its answer', async () => {
+    let isUnattended = false
+    const t = setup({ hardwareContext: () => ({ isHardwareWorkspace: true, isUnattended }) })
+    const { session, events, turnDone } = await startSession(t, 'onRequest')
+    t.api.script({ calls: [shellCall('ls')] }, { text: 'done' })
+    await session.sendTurn([{ type: 'text', text: 'inspect' }])
+    const request = await approvalRequest(events, 0)
+    isUnattended = true
+    await answer(session, request, 'allow_once')
+    await turnDone()
+    expect(t.shellCalls).toHaveLength(0)
+  })
+
+  it('R3F5: registered canonical Stop bypasses the shell gate even when unattended', async () => {
+    const command = 'curl -X POST https://printer.local/printer/emergency_stop'
+    const t = setup({
+      hardwareContext: () => ({
+        isUnattended: true,
+        targets: [{ address: 'https://printer.local', stop: '/printer/emergency_stop' }],
+      }),
+    })
+    const { session, events, turnDone } = await startSession(t, 'onRequest')
+    t.api.script({ calls: [shellCall(command)] }, { text: 'done' })
+    await session.sendTurn([{ type: 'text', text: 'stop' }])
+    await turnDone()
+    expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+    expect(t.shellCalls.map((call) => call.command)).toEqual([command])
+  })
+
+  it('hardware workspace hooks never start a process or grant a model shell command', async () => {
+    const runHook = vi.fn(permitHook)
+    const t = setup({
+      hardwareContext: () => ({ isMakerEnabled: true }),
+      hooks: [...hooksFor('PreLLMCall', 'observe'), ...hooksFor('PermissionRequest', 'allow')],
+      runHook,
+    })
+    const { session, events, turnDone } = await startSession(t, 'onRequest')
+    t.api.script({ calls: [shellCall('npm test')] }, { text: 'done' })
+    await session.sendTurn([{ type: 'text', text: 'check' }])
+    const request = await approvalRequest(events, 0)
+    expect(request.availableChoices.map((choice) => choice.choiceId)).toEqual([
+      'allow_once',
+      'abort',
+    ])
+    await answer(session, request, 'abort')
+    await turnDone()
+    expect(runHook).not.toHaveBeenCalled()
+    expect(t.shellCalls).toEqual([])
+  })
+  it.each(['promptUnmatched', 'onRequest', 'denyUnmatched'])(
+    'third design: classifier misses ask separately for every command in %s',
+    async (mode) => {
+      const t = setup({ hardwareContext: () => ({ isHardwareWorkspace: true }) })
+      const { session, events, turnDone } = await startSession(t, mode)
+      const command = 'unknown-device-command --anything'
+      t.api.script(
+        { calls: [{ name: 'bash', arguments: JSON.stringify({ command }) }] },
+        { calls: [{ name: 'bash', arguments: JSON.stringify({ command }) }] },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'two commands' }])
+      for (const index of [0, 1]) {
+        const request = await approvalRequest(events, index)
+        expect(request.subject.command).toBe(command)
+        expect(request.availableChoices.map((choice) => choice.choiceId)).toEqual([
+          'allow_once',
+          'abort',
+        ])
+        expect(request.note).toContain(UI_TEXT.hardwareShellNote.split('{warning}', 1)[0]?.trim())
+        await session.decideApproval({
+          approvalId: request.approvalId,
+          requirementId: request.requirementId,
+          choiceId: 'allow_once',
+        })
+      }
+      await turnDone()
+      expect(t.shellCalls.map((call) => call.command)).toEqual([command, command])
+    },
+  )
+  it('hardware context gained while an ordinary card waits invalidates its standing grant', async () => {
+    let isHardwareWorkspace = false
+    const t = setup({ hardwareContext: () => ({ isHardwareWorkspace }) })
+    const { session, events, turnDone } = await startSession(t, 'onRequest')
+    t.api.script(
+      { calls: [{ name: 'bash', arguments: '{"command":"npm test"}' }] },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'check' }])
+    const request = await approvalRequest(events, 0)
+    expect(request.availableChoices.some((choice) => choice.choiceId === 'allow_session')).toBe(
+      true,
+    )
+    isHardwareWorkspace = true
+    await session.decideApproval({
+      approvalId: request.approvalId,
+      requirementId: request.requirementId,
+      choiceId: 'allow_session',
+    })
+    await turnDone()
+    expect(t.shellCalls).toEqual([])
+  })
+  it.each([false, true])(
+    'R2F7: every transfer binds its second identity, changed=%s',
+    async (changes) => {
+      let usbSerial = 'second-one'
+      const t = setup({
+        hardwareContext: () => ({
+          targets: [
+            { address: 'https://first.local', usbSerial: 'first-one' },
+            { address: 'https://second.local', usbSerial },
+          ],
+        }),
+      })
+      const { session, events, turnDone } = await startSession(t, 'onRequest')
+      t.api.script(
+        {
+          calls: [
+            shellCall(
+              'curl https://example.invalid --next --json "{}" https://first.local/api/job --next --json "{}" https://second.local/api/job',
+            ),
+          ],
+        },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'device request' }])
+      const request = await approvalRequest(events, 0)
+      if (changes) usbSerial = 'second-replacement'
+      await answer(session, request, 'allow_once')
+      await turnDone()
+      expect(t.shellCalls).toHaveLength(changes ? 0 : 1)
+    },
+  )
+  it.each([false, true])(
+    'R5: allow-once binds a registered target and rejects identity change=%s',
+    async (changes) => {
+      let usbSerial = 'machine-one'
+      const t = setup({
+        hardwareContext: () => ({ targets: [{ address: 'https://printer.local', usbSerial }] }),
+      })
+      const { session, events, turnDone } = await startSession(t, 'onRequest')
+      t.api.script(
+        {
+          calls: [shellCall('curl --json "{}" https://printer.local/api/job')],
+        },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'device request' }])
+      const request = await approvalRequest(events, 0)
+      if (changes) usbSerial = 'machine-two'
+      await answer(session, request, 'allow_once')
+      await turnDone()
+      expect(t.shellCalls).toHaveLength(changes ? 0 : 1)
+    },
+  )
+  it.each([
+    ['then_run', false],
+    ['verification', false],
+    ['then_run', true],
+    ['verification', true],
+  ] as const)(
+    'F6: %s inherits unattended origin before any shell dispatch, hardwareWorkspace=%s',
+    async (route, inHardwareWorkspace) => {
+      const command = inHardwareWorkspace ? 'npm test' : 'pio run -t upload'
+      const t = setup({
+        isUnattended: () => !inHardwareWorkspace,
+        hardwareContext: () => ({ isHardwareWorkspace: inHardwareWorkspace }),
+        verify: {
+          isDiagnosticsOn: () => false,
+          checkCommands: () => (route === 'verification' ? [{ name: 'upload', command }] : []),
+          isFormatOnEdit: () => false,
+          diagnosticsAfterEdit: () => Promise.resolve([]),
+          formatAfterEdit: () => Promise.resolve(undefined),
+        },
+      })
+      const { session, events, turnDone } = await startSession(t, 'onRequest')
+      session.onEvent((event) => {
+        if (event.type === 'approvalRequested')
+          void session.decideApproval({
+            approvalId: event.approvalId,
+            requirementId: event.requirementId,
+            choiceId: 'allow_once',
+          })
+      })
+      t.api.script(
+        {
+          calls: [
+            {
+              name: 'write_file',
+              arguments: JSON.stringify({
+                path: 'ordinary.ts',
+                content: 'export const value = 1',
+                ...(route === 'then_run' && { then_run: command }),
+              }),
+            },
+          ],
+        },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'edit then check' }])
+      await turnDone()
+      expect(t.files.get(`${ROOT}/ordinary.ts`)).toBe('export const value = 1')
+      expect(t.shellCalls).toHaveLength(0)
+      expect(events.filter((event) => event.type === 'approvalRequested')).toEqual([])
+    },
+  )
+
+  it('F1: a stop substitution is refused by the real Plan host before dispatch', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t, 'denyUnmatched')
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'bash',
+            arguments: JSON.stringify({
+              command:
+                'curl -X POST http://$(gpioset${IFS}gpiochip0${IFS}17=1)/printer/emergency_stop',
+            }),
+          },
+        ],
+      },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'stop' }])
+    await turnDone()
+    expect(t.shellCalls).toHaveLength(0)
+    expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+  })
+  const call = {
+    name: 'bash',
+    arguments: JSON.stringify({
+      command: 'pio run -t upload',
+      confirm: true,
+      token: 'model-chosen',
+    }),
+  }
+
+  it.each(['promptUnmatched', 'onRequest', 'allowAll'])(
+    'a hook allow never answers hardware in %s',
+    async (mode) => {
+      const t = setup({ hooks: hooksFor('PermissionRequest', 'allow'), runHook: permitHook })
+      const { session, events, turnDone } = await startSession(t, mode)
+      t.api.script({ calls: [call] }, { text: 'done' })
+      await session.sendTurn([{ type: 'text', text: 'flash' }])
+      const request = await approvalRequest(events, 0)
+      expect(request.availableChoices.map((choice) => choice.choiceId)).toEqual([
+        'allow_once',
+        'abort',
+      ])
+      expect(t.shellCalls).toHaveLength(0)
+      await session.decideApproval({
+        approvalId: request.approvalId,
+        requirementId: request.requirementId,
+        choiceId: 'abort',
+      })
+      await turnDone()
+      expect(t.shellCalls).toHaveLength(0)
+    },
+  )
+
+  it('refuses irreversible actions and unattended actions before asking or dispatching', async () => {
+    for (const isUnattended of [false, true]) {
+      const t = setup({ isUnattended: () => isUnattended })
+      const { session, events, turnDone } = await startSession(t, 'allowAll')
+      const failures: unknown[] = []
+      session.onEvent((event) => {
+        if (event.type === 'approvalRequested')
+          void session
+            .decideApproval({
+              approvalId: event.approvalId,
+              requirementId: event.requirementId,
+              choiceId: 'allow_once',
+            })
+            .catch((error: unknown) => {
+              failures.push(error)
+            })
+      })
+      t.api.script(
+        {
+          calls: [
+            {
+              name: 'bash',
+              arguments: JSON.stringify({
+                command: isUnattended ? 'pio run -t upload' : 'espefuse burn-key KEY0 key.bin',
+              }),
+            },
+          ],
+        },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'device action' }])
+      await turnDone()
+      expect(failures).toEqual([])
+      expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+      expect(t.shellCalls).toHaveLength(0)
+      expect(JSON.stringify(t.api.responseBodies())).toContain('Physical device operation refused')
+    }
+  })
+
+  it('rejects a late once answer and never dispatches', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script({ calls: [call] }, { text: 'done' })
+    await session.sendTurn([{ type: 'text', text: 'flash' }])
+    const request = await approvalRequest(events, 0)
+    t.advanceClock(MACHINE_APPROVAL_TTL_MS)
+    await session.decideApproval({
+      approvalId: request.approvalId,
+      requirementId: request.requirementId,
+      choiceId: 'allow_once',
+    })
+    await turnDone()
+    expect(t.shellCalls).toHaveLength(0)
+  })
+
+  it('requires a fresh once answer for each dispatch', async () => {
+    const t = setup()
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script({ calls: [call] }, { calls: [call] }, { text: 'done' })
+    await session.sendTurn([{ type: 'text', text: 'flash twice' }])
+    const first = await approvalRequest(events, 0)
+    await session.decideApproval({
+      approvalId: first.approvalId,
+      requirementId: first.requirementId,
+      choiceId: 'allow_once',
+    })
+    const second = await approvalRequest(events, 1)
+    expect(t.shellCalls).toHaveLength(1)
+    expect(second.approvalId).not.toBe(first.approvalId)
+    await session.decideApproval({
+      approvalId: second.approvalId,
+      requirementId: second.requirementId,
+      choiceId: 'abort',
+    })
+    await turnDone()
+    expect(t.shellCalls).toHaveLength(1)
+  })
+})
 
 /** Waits for the n-th approval request (0-based) and returns it. */
 async function approvalRequest(

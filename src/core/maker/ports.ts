@@ -2,7 +2,9 @@
 import { performance } from 'node:perf_hooks'
 import { createHash } from 'node:crypto'
 import { Buffer } from 'node:buffer'
-import { MAKER_PROTOCOL_VERSION } from '../../shared/constants'
+import * as z from 'zod/mini'
+import { MAKER_PROTOCOL_VERSION, MACHINE_APPROVAL_TTL_MS, UI_TEXT } from '../../shared/constants'
+import type { ActionClass } from './guard/actionClass'
 import {
   makerApprovalAnswerSchema,
   makerApprovalRequestSchema,
@@ -216,5 +218,86 @@ export class MakerApproval<Request extends ApprovalRequest = ApprovalRequest> {
   }
   get hasStarted(): boolean {
     return this.didStart
+  }
+}
+
+/** M103-G's always-on guard approval, beside the protocol approval above. */
+export interface TargetIdentity {
+  readonly address: string
+  readonly vidPid?: string
+  readonly usbSerial?: string
+}
+
+export interface HardwareApprovalRequest {
+  readonly id: string
+  readonly digest: string
+  readonly target: TargetIdentity
+  readonly targets: readonly TargetIdentity[]
+  readonly expiresAt: number
+  readonly action: ActionClass
+  readonly payload: string
+}
+
+const hardwareAnswerSchema = z.object({
+  id: z.string(),
+  digest: z.string(),
+  decision: z.enum(['sendOnce', 'reject']),
+})
+
+/** One engine-minted request, settled only by the injected host UI. */
+export class HardwareApproval {
+  private isSettled = false
+  public readonly request: HardwareApprovalRequest
+
+  public constructor(
+    id: string,
+    payload: string,
+    target: TargetIdentity | readonly TargetIdentity[],
+    action: ActionClass,
+    now: number,
+    parsedCommand?: string,
+  ) {
+    const targets = ('address' in target ? [target] : target).map((identity) =>
+      Object.freeze({ ...identity }),
+    )
+    const first = targets[0]
+    if (first === undefined) throw new Error(UI_TEXT.hardwareRefused)
+    this.request = Object.freeze({
+      id,
+      digest: createHash('sha256')
+        .update(parsedCommand === undefined ? payload : JSON.stringify({ payload, parsedCommand }))
+        .digest('hex'),
+      target: first,
+      targets: Object.freeze(targets),
+      expiresAt: now + MACHINE_APPROVAL_TTL_MS,
+      action,
+      payload,
+    })
+  }
+
+  /** Wrong, late, replayed or changed-target answers cannot widen this request. */
+  public accept(
+    answer: unknown,
+    target: TargetIdentity | readonly TargetIdentity[],
+    now: number,
+  ): boolean {
+    if (this.isSettled) return false
+    this.isSettled = true
+    const parsed = hardwareAnswerSchema.safeParse(answer)
+    const targets = 'address' in target ? [target] : target
+    return (
+      parsed.success &&
+      parsed.data.id === this.request.id &&
+      parsed.data.digest === this.request.digest &&
+      parsed.data.decision === 'sendOnce' &&
+      now < this.request.expiresAt &&
+      targets.length === this.request.targets.length &&
+      targets.every(
+        (identity, index) =>
+          identity.address === this.request.targets[index]?.address &&
+          identity.vidPid === this.request.targets[index].vidPid &&
+          identity.usbSerial === this.request.targets[index].usbSerial,
+      )
+    )
   }
 }

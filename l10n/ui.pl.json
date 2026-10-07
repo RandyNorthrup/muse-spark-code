@@ -2936,5 +2936,17 @@
     "few": "Wyświetlono pierwsze {shown} z {count} znaków wyszukiwania. Wyczyść, aby edytować; wyszukiwanie używa całego zapytania.",
     "many": "Wyświetlono pierwsze {shown} z {count} znaków wyszukiwania. Wyczyść, aby edytować; wyszukiwanie używa całego zapytania.",
     "other": "Wyświetlono pierwsze {shown} z {count} znaków wyszukiwania. Wyczyść, aby edytować; wyszukiwanie używa całego zapytania."
-  }
+  },
+  "approvalHardwareNote": "Działanie na urządzeniu fizycznym. Otwarcie portu szeregowego może zresetować płytkę. Sprawdź dokładne polecenie i cel; zgoda jest jednorazowa i wygasa po dwóch minutach.",
+  "hardwareRefused": "Ta operacja urządzenia jest zabroniona. Sprawdź polecenie i uruchom je samodzielnie we własnym terminalu.",
+  "hardwareUnattended": "Polecenia powłoki w obszarach roboczych sprzętu i działania na urządzeniach fizycznych są odrzucane przy uruchomieniach bez nadzoru.",
+  "hardwareExpired": "Zgoda na działanie urządzenia wygasła. Nic nie wysłano.",
+  "hardwareBypassNotice": "W obszarach roboczych ze sprzętem nie można pomijać uprawnień. Użyj trybu automatycznego lub ręcznego i zatwierdzaj każdą operację urządzenia osobno.",
+  "hardwareShellNote": "Obszar roboczy sprzętu: sprawdź dokładną treść tego polecenia powłoki. Zgoda obowiązuje jednorazowo i wygasa po dwóch minutach. Do działań na urządzeniach używaj narzędzi sprzętowych. {warning}",
+  "hardwareProgramWarning": "To polecenie wygląda na programowanie płytki.",
+  "hardwareConnectWarning": "To polecenie wygląda na otwieranie portu urządzenia; płytka może się zresetować.",
+  "hardwareActuateWarning": "To polecenie wygląda na zapis do portu lub wysłanie polecenia do maszyny.",
+  "hardwareIrreversibleWarning": "Wygląda to na nieodwracalny zapis bezpiecznika, eFuse lub bitu blokady.",
+  "hardwareTargetNote": "Powiązanie z celem: {targets}",
+  "hardwareBindingUnavailable": "Ten adapter urządzenia nie może zweryfikować zatwierdzonego celu przy uruchamianiu procesu. Nic nie wysłano."
 }

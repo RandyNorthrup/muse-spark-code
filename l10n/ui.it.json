@@ -2837,5 +2837,17 @@
     "one": "Sono mostrati i primi {shown} di {count} caratteri di ricerca. Cancella per modificare; la ricerca usa la query completa.",
     "many": "Sono mostrati i primi {shown} di {count} caratteri di ricerca. Cancella per modificare; la ricerca usa la query completa.",
     "other": "Sono mostrati i primi {shown} di {count} caratteri di ricerca. Cancella per modificare; la ricerca usa la query completa."
-  }
+  },
+  "approvalHardwareNote": "Azione su un dispositivo fisico. L’apertura di una porta seriale può riavviare la scheda. Controlla il comando esatto e la destinazione; l’autorizzazione vale una sola volta e scade dopo due minuti.",
+  "hardwareRefused": "Questa operazione sul dispositivo è rifiutata. Controlla il comando ed eseguilo personalmente nel tuo terminale.",
+  "hardwareUnattended": "I comandi shell nelle aree di lavoro hardware e le azioni sui dispositivi fisici vengono rifiutati nelle esecuzioni senza supervisione.",
+  "hardwareExpired": "L’autorizzazione del dispositivo è scaduta. Non è stato inviato nulla.",
+  "hardwareBypassNotice": "Negli spazi di lavoro hardware non è possibile ignorare le autorizzazioni. Usa Auto o Manuale e approva ogni azione del dispositivo una sola volta.",
+  "hardwareShellNote": "Area di lavoro hardware: verifica questo comando shell esatto. L’approvazione vale una volta e scade dopo due minuti. Usa gli strumenti hardware per le azioni sui dispositivi. {warning}",
+  "hardwareProgramWarning": "Questo comando sembra programmare una scheda.",
+  "hardwareConnectWarning": "Questo comando sembra aprire una porta del dispositivo; la scheda potrebbe riavviarsi.",
+  "hardwareActuateWarning": "Questo comando sembra scrivere su una porta o inviare un comando a una macchina.",
+  "hardwareIrreversibleWarning": "Sembra una scrittura irreversibile di fusibili, eFuse o bit di blocco.",
+  "hardwareTargetNote": "Vincolo al destinatario: {targets}",
+  "hardwareBindingUnavailable": "Questo adattatore del dispositivo non può verificare il destinatario approvato all’avvio del processo. Non è stato inviato nulla."
 }

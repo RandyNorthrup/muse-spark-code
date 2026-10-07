@@ -2936,5 +2936,17 @@
     "few": "Zobrazeno prvních {shown} z {count} znaků hledání. Pro úpravu vymažte; hledání používá celý dotaz.",
     "many": "Zobrazeno prvních {shown} z {count} znaku hledání. Pro úpravu vymažte; hledání používá celý dotaz.",
     "other": "Zobrazeno prvních {shown} z {count} znaků hledání. Pro úpravu vymažte; hledání používá celý dotaz."
-  }
+  },
+  "approvalHardwareNote": "Akce fyzického zařízení. Otevření sériového portu může resetovat desku. Zkontrolujte přesný příkaz a cíl; schválení platí jednou a vyprší za dvě minuty.",
+  "hardwareRefused": "Tato operace zařízení je odmítnuta. Zkontrolujte příkaz a spusťte jej sami ve vlastním terminálu.",
+  "hardwareUnattended": "Příkazy shellu v pracovních prostorech s hardwarem a akce fyzických zařízení jsou při bezobslužném spuštění odmítnuty.",
+  "hardwareExpired": "Schválení akce zařízení vypršelo. Nic nebylo odesláno.",
+  "hardwareBypassNotice": "V pracovních prostorech s hardwarem nelze obcházet oprávnění. Použijte automatický nebo ruční režim a každou akci zařízení schvalte jednotlivě.",
+  "hardwareShellNote": "Pracovní prostor s hardwarem: zkontrolujte přesný příkaz shellu. Schválení platí jednou a vyprší za dvě minuty. Pro akce zařízení použijte nástroje pro hardware. {warning}",
+  "hardwareProgramWarning": "Zdá se, že tento příkaz programuje desku.",
+  "hardwareConnectWarning": "Zdá se, že tento příkaz otevírá port zařízení; deska se může restartovat.",
+  "hardwareActuateWarning": "Zdá se, že tento příkaz zapisuje do portu nebo odesílá příkaz stroji.",
+  "hardwareIrreversibleWarning": "Vypadá to jako nevratný zápis pojistky, eFuse nebo zámkového bitu.",
+  "hardwareTargetNote": "Vazba cíle: {targets}",
+  "hardwareBindingUnavailable": "Tento adaptér zařízení nemůže při spuštění procesu ověřit schválený cíl. Nic nebylo odesláno."
 }

@@ -37,6 +37,8 @@ export async function stageVsix(root, stage) {
     throw new Error('Editor verification bundle excluded from VSIX')
   if (!files.includes('dist/validation.js'))
     throw new Error('Shared validation runtime excluded from VSIX')
+  for (const file of ['dist/hardwareGuard.js', 'dist/hardwareShell.js'])
+    if (!files.includes(file)) throw new Error(`Lazy hardware runtime excluded from VSIX: ${file}`)
   rmSync(stage, { recursive: true, force: true })
   mkdirSync(stage, { recursive: true })
   const tables = []

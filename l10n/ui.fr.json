@@ -2837,5 +2837,17 @@
     "one": "Affichage des {shown} premiers caractères sur {count}. Effacez pour modifier ; la recherche utilise la requête entière.",
     "many": "Affichage des {shown} premiers caractères sur {count}. Effacez pour modifier ; la recherche utilise la requête entière.",
     "other": "Affichage des {shown} premiers caractères sur {count}. Effacez pour modifier ; la recherche utilise la requête entière."
-  }
+  },
+  "approvalHardwareNote": "Action sur un appareil physique. Ouvrir un port série peut réinitialiser la carte. Vérifiez la commande exacte et la cible ; l’autorisation est valable une seule fois et expire après deux minutes.",
+  "hardwareRefused": "Cette opération sur l’appareil est refusée. Vérifiez la commande et exécutez-la vous-même dans votre propre terminal.",
+  "hardwareUnattended": "Les commandes shell dans les espaces de travail matériels et les actions sur les appareils physiques sont refusées lors des exécutions sans surveillance.",
+  "hardwareExpired": "L’autorisation de l’appareil a expiré. Rien n’a été envoyé.",
+  "hardwareBypassNotice": "Le contournement des autorisations est indisponible dans les espaces de travail matériels. Utilisez le mode automatique ou manuel et autorisez chaque action une seule fois.",
+  "hardwareShellNote": "Espace de travail matériel : vérifiez cette commande shell exacte. L’approbation vaut une fois et expire après deux minutes. Utilisez les outils matériels pour les actions sur les appareils. {warning}",
+  "hardwareProgramWarning": "Cette commande semble programmer une carte.",
+  "hardwareConnectWarning": "Cette commande semble ouvrir un port d’appareil ; la carte peut se réinitialiser.",
+  "hardwareActuateWarning": "Cette commande semble écrire sur un port ou envoyer une commande à une machine.",
+  "hardwareIrreversibleWarning": "Cela ressemble à une écriture irréversible de fusibles, d’eFuses ou de bits de verrouillage.",
+  "hardwareTargetNote": "Liaison à la cible : {targets}",
+  "hardwareBindingUnavailable": "Cet adaptateur ne peut pas vérifier la cible approuvée au démarrage du processus. Rien n’a été envoyé."
 }

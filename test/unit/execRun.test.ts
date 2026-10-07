@@ -25,7 +25,7 @@ import {
   type ExecEvent,
   type ExecResult,
 } from '../../src/runtime/exec/execProtocol'
-import { SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
+import { MODEL_API_MODEL_TEXT, SECRET_KEYS, UI_TEXT } from '../../src/shared/constants'
 import { paidGrantsFile, workspaceSessionsFolder } from '../../src/runtime/dataFolder'
 import { memorySecrets } from './helpers/fakes'
 import {
@@ -321,6 +321,41 @@ ${shouldBlockStderr ? "require('node:fs/promises').readFile = () => Promise.reje
 }
 
 describe('M80 real runtime → ACP → manager → client → tools', () => {
+  it.each(['plan', 'acceptEdits'])(
+    'M103-G refuses device commands in headless %s before shell dispatch',
+    async (mode) => {
+      const command =
+        process.platform === 'win32'
+          ? 'Set-Content -Path COM999999 -Value G28'
+          : "echo 'G28' > /dev/ttyM103G-does-not-exist"
+      const h = await harness(
+        ['--permission-mode', mode],
+        [
+          {
+            calls: [
+              {
+                name: process.platform === 'win32' ? 'powershell' : 'bash',
+                arguments: JSON.stringify({ command }),
+              },
+            ],
+          },
+          { text: 'done' },
+        ],
+      )
+      const native = vi.spyOn(childProcess, 'spawn')
+      try {
+        const r = await h.run()
+        expect(r.code).toBe(0)
+        expect(result(r).denials).toEqual([])
+        expect(native).not.toHaveBeenCalled()
+        expect(JSON.stringify(h.api.responseBodies())).toContain(
+          MODEL_API_MODEL_TEXT.shellRestrictedMode,
+        )
+      } finally {
+        native.mockRestore()
+      }
+    },
+  )
   it.each([false, true])('D29 4MiB stderr keeps bounded exit; drained=%s', async (isDrained) => {
     const r = await builtCommand(
       [

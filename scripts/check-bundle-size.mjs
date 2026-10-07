@@ -67,6 +67,8 @@ const BUDGETS = [
   // M72: real checkpoint store/legacy reader, 187.0 KiB when split out.
   // Measured size plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/checkpointStore.js', budgetKiB: 225 },
+  { path: 'dist/hardwareGuard.js', budgetKiB: 25 },
+  { path: 'dist/hardwareShell.js', budgetKiB: 20 },
   // M83: the import from other agents (the scan, the converters, the file
   // access, the flow and smol-toml), loaded on the first import: 100.0 KiB
   // when split out. Measured size plus 15%, rounded up to 25 KiB (PLAN.md D6).

@@ -79,6 +79,7 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   /** The managed personal agent root (M76). */
   readonly personalAgentsRoot: string | undefined
   readonly isWorkspaceTrusted: () => boolean
+  readonly isUnattended?: ModelApiHostDeps['isUnattended']
   /** `museSpark.confidentialWorkspace`: contributor-tier agent models are blocked. */
   readonly isConfidentialWorkspace: () => boolean
   /** One explicit yes before a contributor-tier agent model is used (M76). */
@@ -286,6 +287,8 @@ export class ModelApiBackendManager {
         bundledSkills: this.deps.bundledSkills,
         personalAgentsRoot: this.deps.personalAgentsRoot,
         isWorkspaceTrusted: this.deps.isWorkspaceTrusted,
+        isUnattended: () =>
+          this.deps.isUnattended?.() === true || variant.workspaceRoot !== this.deps.workspaceRoot,
         isConfidentialWorkspace: this.deps.isConfidentialWorkspace,
         confirmContributorModel: this.deps.confirmContributorModel,
         store: variant.store,

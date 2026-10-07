@@ -2837,5 +2837,17 @@
     "one": "Se muestran los primeros {shown} de {count} caracteres de búsqueda. Borra para editar; la búsqueda usa la consulta completa.",
     "many": "Se muestran los primeros {shown} de {count} caracteres de búsqueda. Borra para editar; la búsqueda usa la consulta completa.",
     "other": "Se muestran los primeros {shown} de {count} caracteres de búsqueda. Borra para editar; la búsqueda usa la consulta completa."
-  }
+  },
+  "approvalHardwareNote": "Acción sobre un dispositivo físico. Abrir un puerto serie puede reiniciar la placa. Revise el comando exacto y el destino; la autorización vale una sola vez y caduca en dos minutos.",
+  "hardwareRefused": "Se rechaza esta operación del dispositivo. Revise el comando y ejecútelo usted mismo en su propio terminal.",
+  "hardwareUnattended": "Se rechazan los comandos de shell en espacios de trabajo de hardware y las acciones de dispositivos físicos en ejecuciones sin supervisión.",
+  "hardwareExpired": "La autorización del dispositivo ha caducado. No se envió nada.",
+  "hardwareBypassNotice": "En los espacios de trabajo con hardware no se pueden omitir los permisos. Usa Automático o Manual y autoriza cada acción del dispositivo una sola vez.",
+  "hardwareShellNote": "Espacio de trabajo de hardware: revisa este comando exacto de shell. La aprobación vale una vez y caduca a los dos minutos. Usa las herramientas de hardware para las acciones de dispositivos. {warning}",
+  "hardwareProgramWarning": "Parece que este comando programa una placa.",
+  "hardwareConnectWarning": "Parece que este comando abre un puerto de dispositivo; la placa podría reiniciarse.",
+  "hardwareActuateWarning": "Parece que este comando escribe en un puerto o envía un comando a una máquina.",
+  "hardwareIrreversibleWarning": "Esto parece una escritura irreversible de fusibles, eFuses o bits de bloqueo.",
+  "hardwareTargetNote": "Vinculación del destino: {targets}",
+  "hardwareBindingUnavailable": "Este adaptador de dispositivo no puede verificar el destino aprobado al iniciar el proceso. No se envió nada."
 }

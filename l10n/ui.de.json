@@ -2738,5 +2738,17 @@
   "makerLongSearch": {
     "one": "Die ersten {shown} von {count} Suchzeichen werden angezeigt. Zum Bearbeiten löschen; gesucht wird mit der gesamten Abfrage.",
     "other": "Die ersten {shown} von {count} Suchzeichen werden angezeigt. Zum Bearbeiten löschen; gesucht wird mit der gesamten Abfrage."
-  }
+  },
+  "approvalHardwareNote": "Aktion an einem physischen Gerät. Das Öffnen eines seriellen Ports kann die Platine zurücksetzen. Prüfen Sie den genauen Befehl und das Ziel; die Genehmigung gilt einmal und läuft nach zwei Minuten ab.",
+  "hardwareRefused": "Dieser Gerätebefehl wird verweigert. Prüfen Sie den Befehl und führen Sie ihn selbst in Ihrem eigenen Terminal aus.",
+  "hardwareUnattended": "Shell-Befehle in Hardware-Arbeitsbereichen und Aktionen physischer Geräte werden bei unbeaufsichtigten Ausführungen abgelehnt.",
+  "hardwareExpired": "Die Gerätegenehmigung ist abgelaufen. Es wurde nichts gesendet.",
+  "hardwareBypassNotice": "In Hardware-Arbeitsbereichen können Berechtigungen nicht umgangen werden. Verwenden Sie Auto oder Manuell und genehmigen Sie jede Geräteaktion einzeln.",
+  "hardwareShellNote": "Hardware-Arbeitsbereich: Prüfen Sie diesen genauen Shell-Befehl. Die Genehmigung gilt einmal und läuft nach zwei Minuten ab. Verwenden Sie die Hardware-Werkzeuge für Geräteaktionen. {warning}",
+  "hardwareProgramWarning": "Dieser Befehl scheint eine Platine zu programmieren.",
+  "hardwareConnectWarning": "Dieser Befehl scheint einen Geräteport zu öffnen; die Platine kann zurückgesetzt werden.",
+  "hardwareActuateWarning": "Dieser Befehl scheint in einen Port zu schreiben oder einen Maschinenbefehl zu senden.",
+  "hardwareIrreversibleWarning": "Dies sieht nach einem irreversiblen Schreiben von Sicherungen, eFuses oder Sperrbits aus.",
+  "hardwareTargetNote": "Zielbindung: {targets}",
+  "hardwareBindingUnavailable": "Dieser Geräteadapter kann das genehmigte Ziel beim Prozessstart nicht überprüfen. Es wurde nichts gesendet."
 }

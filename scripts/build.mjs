@@ -69,6 +69,11 @@ import {
   sharedWire,
 } from './lib/deferredBundles.mjs'
 import {
+  hardwareGuardSplit,
+  hardwareShellSplit,
+  hardwareConstantTables,
+} from './lib/hardwareGuardSplit.mjs'
+import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
   writeWhatsNewContent,
 } from './lib/whatsNewContent.mjs'
@@ -126,6 +131,8 @@ const BUNDLED_SKILLS_ENTRY = 'src/host/skills/bundledSkillsEntry.ts'
 const BUNDLED_SKILLS_OUTFILE = 'dist/bundledSkills.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
 const CHECKPOINT_STORE_OUTFILE = 'dist/checkpointStore.js'
+const HARDWARE_GUARD_ENTRY = 'src/core/maker/guardEntry.ts'
+const HARDWARE_GUARD_OUTFILE = 'dist/hardwareGuard.js'
 // The browser check's own bundle (M81): the pipe, the run, the browser's processes.
 const BROWSER_CHECK_ENTRY = 'src/host/browser/browserCheckEntry.ts'
 const BROWSER_CHECK_OUTFILE = 'dist/browserCheck.js'
@@ -193,7 +200,7 @@ const common = {
 /** @type {import('esbuild').BuildOptions} */
 const hostOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, hardwareGuardSplit],
   entryPoints: [HOST_ENTRY],
   outfile: HOST_OUTFILE,
   platform: 'node',
@@ -233,7 +240,7 @@ const makerPreviewHostOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const modelApiOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, hardwareGuardSplit],
   entryPoints: [MODEL_API_ENTRY],
   outfile: MODEL_API_OUTFILE,
   platform: 'node',
@@ -453,6 +460,26 @@ const checkpointStoreOptions = {
   target: hostNodeTarget,
 }
 
+const hardwareGuardOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, hardwareShellSplit, hardwareConstantTables],
+  entryPoints: [HARDWARE_GUARD_ENTRY],
+  outfile: HARDWARE_GUARD_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+const hardwareShellOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, hardwareConstantTables],
+  entryPoints: ['src/core/maker/shellEntry.ts'],
+  outfile: 'dist/hardwareShell.js',
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
 /** @type {import('esbuild').BuildOptions} */
 const browserCheckOptions = {
   ...common,
@@ -478,7 +505,7 @@ const browserRuntimeOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const acpOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, hardwareGuardSplit],
   entryPoints: [ACP_ENTRY],
   outfile: ACP_OUTFILE,
   platform: 'node',
@@ -671,6 +698,8 @@ if (isWatch) {
     esbuild.context(pluginHooksOptions),
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
+    esbuild.context(hardwareGuardOptions),
+    esbuild.context(hardwareShellOptions),
     esbuild.context(agentImportOptions),
     esbuild.context(conversationGitOptions),
     esbuild.context(bundledSkillsOptions),
@@ -729,6 +758,8 @@ if (isWatch) {
     pluginHooks: esbuild.build(pluginHooksOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
+    hardwareGuard: esbuild.build(hardwareGuardOptions),
+    hardwareShell: esbuild.build(hardwareShellOptions),
     agentImport: esbuild.build(agentImportOptions),
     conversationGit: esbuild.build(conversationGitOptions),
     bundledSkills: esbuild.build(bundledSkillsOptions),

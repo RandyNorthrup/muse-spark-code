@@ -624,7 +624,7 @@ question open, even when interactive deferral is disabled.
 | **Edit automatically** | Approves plain file edits, asks before commands that no allow rule, session allowance or hook settles                                                                                                   | The same as Manual: under `muse serve` the CLI raises no file-edit approval to answer                                                                                      |
 | **Plan**               | Refuses edits and commands                                                                                                                                                                              | The CLI refuses protected writes and the commands its own allow rules do not cover, but its file tools still edit without asking ([Plan on Muse Code](#plan-on-muse-code)) |
 | **Auto**               | Runs edits (protected writes ask), asks before commands; the paid, off-by-default [Auto reviewer](#auto-rules-and-permission-profiles-model-api) may allow plain commands and MCP calls no rule settles | The CLI runs simple commands; [eligible approvals](#the-auto-reviewer-on-muse-code) are reviewed, with card fallbacks                                                      |
-| **Bypass**             | Only with `allowDangerouslySkipPermissions`; nothing asks except paid uses and a hook that demands a card                                                                                               | The same, except paid uses and [web fetch](#web-fetch), which the extension asks about before every call                                                                   |
+| **Bypass**             | Only with `allowDangerouslySkipPermissions`; ordinary tools run; paid uses and hook requests still ask; emitted device approvals remain one-time                                                        | Ordinary tools run; paid uses, [web fetch](#web-fetch) and detected device actions still require their own consent                                                         |
 
 A paid use asks in the paid-use popup in every mode, Bypass included, unless
 you allowed it always in this workspace; on the Model API backend, Plan
@@ -635,6 +635,38 @@ pass a safety check". It did not: `muse serve` has no approval judge (the
 CLI's LLM judge runs only in its interactive and `exec` commands), so Auto
 skipped only the commands the CLI classifies as simple, and every script
 asked (PLAN.md D69). The menu now says what each mode does on each backend.
+
+### Makers safety (Unreleased)
+
+> In a hardware session, every agent shell command asks for fresh host UI
+> approval of its exact text. There is no shell allowlist, Always allow choice,
+> reviewer decision or hook grant. This includes shell reads and offline help;
+> typed read/list/search inspection keeps its own policy. Classification only
+> adds warnings, including suspected irreversible fuse writes. Typed physical
+> adapters that cannot verify an approved target at dispatch are unavailable.
+>
+> Hardware mode latches on from project markers at session start or any
+> host-observed device. Removing a marker or disconnecting a device never turns
+> a running session off. An explicit host UI reset requires no command or
+> device session to be active; the guard provides that core operation, while
+> the maker UI and inventory adapters remain their own M103 lanes.
+> Bypass and unattended origins refuse shell commands, including verification,
+> then_run, workers and hooks. Registered canonical Stop is exempt first.
+> Ordinary workspaces retain their existing modes and grants.
+>
+> Model API shell approval binds frozen target identities, exact payload and
+> expiry. The adapter rechecks the live latch, unattended status and that
+> single-use binding immediately before native spawn, after preparation.
+> An identity change or expired approval starts nothing. A program you approve
+> can still reach a device; this is not an OS device sandbox.
+>
+> Muse Code uses fresh host cards and rechecks unattended status at the answer.
+> Its external CLI owns process start: MSP supplies no captured dispatch-binding
+> acknowledgement, so CLI standing rules, silent execution and the interval
+> after an allow frame remain qualification gaps. Physical MCP/IDE adapters
+> without an immutable binding contract are refused. This guard alone does
+> not certify safe hardware operation or the editor/hardware matrix. Keep the
+> machine's physical E-stop available; a software stop is not an emergency stop.
 
 ### The Auto reviewer on Muse Code
 
@@ -4269,6 +4301,8 @@ its own installed-language state. The webview is React 19 bundled to one IIFE wi
 its stylesheet; `zod/mini` validates every host ⇄ webview message; the voice
 helpers are Windows PowerShell and Swift with no dependencies.
 
+Hardware shell policy and approval handling load on first use from
+`dist/hardwareShell.js` and `dist/hardwareGuard.js`; both ship in VSIX and ACP.
 The session board and best-of-N implementation loads on its first action
 from `dist/sessionBoard.js`. Paid Auto reviewer execution loads only after
 consent from `dist/reviewer.js`, also shipped with the ACP agent. Ordinary

@@ -686,12 +686,6 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       const assembly = deps.platform === 'win32' ? await deps.shellJobAssembly?.() : undefined
       const job = assembly === undefined ? undefined : newShellJob(assembly)
       deps.assertWorkspaceCurrent?.()
-      try {
-        assertCanRun?.()
-      } catch {
-        // No workspace process has started; cancellation is proven at this boundary.
-        return refusedShellEntry()
-      }
       return await runCommand({
         file: interpreter,
         args: shellArguments(deps.platform, command, job),
@@ -707,9 +701,18 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         limit,
         tree: { platform: deps.platform, systemRoot: deps.systemRoot, log: deps.log },
         job,
+        assertCanStart: assertCanRun,
       })
     },
-    async runHook(command, payload, cwd, timeoutMs, signal, extraEnvNames) {
+    async runHook(
+      command,
+      payload,
+      cwd,
+      timeoutMs,
+      signal,
+      extraEnvNames,
+      assertCanStart?: () => void,
+    ) {
       // dispatchHooks enforces this too. Keep the adapter bounded when it is
       // called directly, before any hook subprocess starts.
       if (Buffer.byteLength(payload) > HOOK_STDIN_MAX_BYTES) {
@@ -743,6 +746,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         job,
         stdin: payload,
         maxOutputBytes: HOOK_OUTPUT_MAX_BYTES,
+        assertCanStart,
       })
     },
     async runHookHttp(url, payload, signal) {
@@ -811,6 +815,8 @@ export interface CommandRun {
   readonly stdin?: string | undefined
   /** Per-stream byte ceiling, killing the tree when crossed. */
   readonly maxOutputBytes?: number | undefined
+  /** Last synchronous fence, after args/env preparation and immediately before native spawn. */
+  readonly assertCanStart?: (() => void) | undefined
 }
 
 /** The spawned process, or the Error spawn threw before any process existed. */
@@ -850,6 +856,12 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
       return
     }
     const startedAt = Date.now()
+    try {
+      run.assertCanStart?.()
+    } catch {
+      resolve(refusedShellEntry())
+      return
+    }
     const child = startProcess(run)
     if (child instanceof Error) {
       // spawn itself threw (a command line past the operating system's limit,

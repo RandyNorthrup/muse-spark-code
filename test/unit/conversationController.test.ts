@@ -359,6 +359,7 @@ function setup(
     hasApprovalUi?: boolean
     initialPermissionMode?: ConversationDeps['initialPermissionMode']
     isBypassAllowed?: boolean
+    isHardwareWorkspace?: boolean
     /** A remote window and the answer to its Bypass confirmation (D24). */
     isRemoteWindow?: boolean
     confirmsRemoteBypass?: boolean
@@ -739,6 +740,7 @@ function setup(
         uri.startsWith('file:///ws/') ? uri.slice('file:///ws/'.length) : undefined,
     },
     isBypassAllowed: () => isBypassAllowed,
+    isHardwareWorkspace: () => options.isHardwareWorkspace === true,
     isRemoteWindow: options.isRemoteWindow ?? false,
     confirmRemoteBypass: () => {
       remoteBypassPrompts += 1
@@ -1536,6 +1538,24 @@ describe('ConversationController: composer controls', () => {
     }
   })
 
+  it('F10: only hardware workspaces cap Bypass start and mode changes', async () => {
+    const t = setup({
+      initialPermissionMode: 'bypassPermissions',
+      isBypassAllowed: true,
+      hasApprovalUi: true,
+      isHardwareWorkspace: true,
+    })
+    await t.send('hardware-start', 'hello')
+    expect(t.server.requestsFor('session/start')[0]?.params).toMatchObject({
+      approvalMode: 'onRequest',
+    })
+    await t.controller.handle({ type: 'setPermissionMode', mode: 'bypassPermissions' })
+    expect(t.server.requestsFor('session/setApprovalMode')).toHaveLength(0)
+    expect(t.surface.posted.findLast((message) => message.type === 'composerState')).toMatchObject({
+      permissionMode: 'auto',
+    })
+    t.controller.dispose()
+  })
   it('stores a model choice before a session and applies it live afterwards', async () => {
     const t = setup()
     await t.controller.handle({ type: 'setModel', modelId: 'muse-spark-1.2' })

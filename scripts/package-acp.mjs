@@ -36,6 +36,8 @@ const BUNDLES = [
   'questionNotes.js',
   'runtimeMaker.js',
   'modelApi.js',
+  'hardwareGuard.js',
+  'hardwareShell.js',
   'reviewer.js',
   'foreignHooks.js',
   'hookRuntime.js',

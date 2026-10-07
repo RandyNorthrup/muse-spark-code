@@ -153,7 +153,11 @@ import { backendLabel } from '../../shared/palette'
 import type { PaidUseRequest } from '../../shared/paid'
 import type { ScheduleCadence, ScheduledPrompt } from '../../shared/schedule'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
-import { approvalModeFor, untrustedStartMode } from '../../shared/permissionModes'
+import {
+  approvalModeFor,
+  availablePermissionModes,
+  untrustedStartMode,
+} from '../../shared/permissionModes'
 import type { MuseCodeReviewerPort } from '../review/museCodeReviewerBundle'
 import type { JudgeAdvisory, JudgeFence } from '../../core/judge/use'
 import type { ReviewedApprovals } from '../review/reviewedApprovals'
@@ -386,6 +390,7 @@ export interface ConversationDeps {
   readonly files: FileAccess
   /** The `allowDangerouslySkipPermissions` setting: whether Bypass is offered. */
   readonly isBypassAllowed: () => boolean
+  readonly isHardwareWorkspace?: () => boolean
   /**
    * A remote window (`vscode.env.remoteName`): a dev container's settings can
    * switch Bypass on there, so it needs one explicit yes (PLAN.md D24).
@@ -1318,6 +1323,10 @@ export class ConversationController {
       this.startupNotice = UI_TEXT.bypassRemoteStartedManual
     }
     this.attachments = new AttachmentStore(deps.newAttachmentId)
+    if (this.permissionMode === BYPASS_MODE && deps.isHardwareWorkspace?.()) {
+      this.permissionMode = 'auto'
+      this.startupNotice = UI_TEXT.hardwareBypassNotice
+    }
     this.checkpoints = new ConversationCheckpoints({
       backend: (sessionId) =>
         this.session !== undefined && this.session.sessionId === sessionId
@@ -1886,7 +1895,12 @@ export class ConversationController {
       this.session !== undefined &&
       sessionSurfaces.get(this.session)?.size === 1 &&
       port.isOn() &&
-      isReviewableApproval(event, this.permissionMode, this.activeTurnId)
+      isReviewableApproval(
+        event,
+        this.permissionMode,
+        this.activeTurnId,
+        this.deps.isHardwareWorkspace?.(),
+      )
     )
   }
 
@@ -5093,9 +5107,10 @@ export class ConversationController {
       return PLAN_MODE
     }
     const mode = this.deps.initialPermissionMode
+    const safeMode = mode === BYPASS_MODE && this.deps.isHardwareWorkspace?.() ? 'auto' : mode
     const isBypassRefused =
       mode === BYPASS_MODE && (!this.deps.isBypassAllowed() || this.deps.isRemoteWindow)
-    return mode === PLAN_MODE || isBypassRefused ? FALLBACK_MODE : mode
+    return mode === PLAN_MODE || isBypassRefused ? FALLBACK_MODE : safeMode
   }
 
   /**
@@ -6829,10 +6844,11 @@ export class ConversationController {
 
   /** The mode a review hands back: Bypass only while its setting still allows it (D24). */
   private restorableMode(mode: PermissionMode, bypassEpoch: number): PermissionMode {
+    const safeMode = mode === BYPASS_MODE && this.deps.isHardwareWorkspace?.() ? 'auto' : mode
     return mode === BYPASS_MODE &&
       (!this.deps.isBypassAllowed() || bypassEpoch !== this.bypassRevocationEpoch)
       ? FALLBACK_MODE
-      : mode
+      : safeMode
   }
 
   /** Called only after the failed mode request's live session/generation fence. */
@@ -7516,6 +7532,14 @@ export class ConversationController {
   private async setPermissionMode(mode: PermissionMode): Promise<void> {
     if (this.session !== undefined) this.deps.judge?.discardSession(this.session.sessionId)
     this.clearJudgeCards()
+    if (
+      this.deps.isHardwareWorkspace?.() &&
+      !availablePermissionModes(this.deps.isBypassAllowed(), true).includes(mode)
+    ) {
+      this.notice('info', UI_TEXT.hardwareBypassNotice)
+      this.postComposerState()
+      return
+    }
     if (mode !== 'plan' && this.isSideChat) {
       this.notice('info', UI_TEXT.sideChatPlanOnly)
       this.postComposerState()

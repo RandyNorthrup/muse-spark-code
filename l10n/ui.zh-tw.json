@@ -2639,5 +2639,17 @@
   "makerClearSearch": "清除搜尋",
   "makerLongSearch": {
     "other": "顯示搜尋文字共 {count} 個字元中的前 {shown} 個。清除後可編輯；搜尋使用完整查詢。"
-  }
+  },
+  "approvalHardwareNote": "實體裝置操作。開啟序列埠可能會重設開發板。請檢查完整命令與目標；核准僅限一次，並在兩分鐘後失效。",
+  "hardwareRefused": "此裝置操作已遭拒絕。請檢查命令，並在您自己的終端機中親自執行。",
+  "hardwareUnattended": "無人值守執行會拒絕硬體工作區中的 shell 命令和實體裝置操作。",
+  "hardwareExpired": "裝置操作核准已過期。未傳送任何內容。",
+  "hardwareBypassNotice": "硬體工作區不支援略過權限。請使用自動或手動模式，並逐次核准每項裝置操作。",
+  "hardwareShellNote": "硬體工作區：請核查此 shell 命令的確切內容。核准僅生效一次，並在兩分鐘後到期。裝置操作請使用硬體工具。{warning}",
+  "hardwareProgramWarning": "此命令似乎會將程式寫入開發板。",
+  "hardwareConnectWarning": "此命令似乎會開啟裝置連接埠；開發板可能會重設。",
+  "hardwareActuateWarning": "此命令似乎會向連接埠寫入資料或傳送機器命令。",
+  "hardwareIrreversibleWarning": "這看起來像是不可逆的熔絲、eFuse 或鎖定位元寫入。",
+  "hardwareTargetNote": "目標綁定：{targets}",
+  "hardwareBindingUnavailable": "此裝置介面卡無法在處理程序啟動時驗證已核准的目標。未傳送任何內容。"
 }

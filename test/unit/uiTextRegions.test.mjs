@@ -13,6 +13,8 @@ import {
   regionalUiText,
   uiTextProperties,
   compactBrowserEnglish,
+  bootstrapEnglish,
+  BOOTSTRAP_EXCLUDED_KEYS,
 } from '../../scripts/lib/uiTextRegions.mjs'
 
 import { removeFolder } from './helpers/temporaryFolders'
@@ -176,12 +178,7 @@ describe('regional Node English fallback', () => {
 })
 
 it('keeps bootstrap inline and completes every maker English key, value and plural losslessly', async () => {
-  const bootstrap = Object.fromEntries(
-    Object.entries(EN).filter(
-      ([key]) =>
-        !key.startsWith('maker') || ['makerStopAll', 'makerLoadFailed', 'makerRetry'].includes(key),
-    ),
-  )
+  const bootstrap = bootstrapEnglish(EN)
   const bundle = await import(
     `data:text/javascript;base64,${Buffer.from(built.browserSource).toString('base64')}`
   )
@@ -197,7 +194,10 @@ it('keeps bootstrap inline and completes every maker English key, value and plur
   )
   const completed = { ...bundle.EN }
   Object.defineProperties(completed, Object.getOwnPropertyDescriptors(maker.MAKER_EN))
-  expect(completed).toEqual(EN)
+  const browserComplete = Object.fromEntries(
+    Object.entries(EN).filter(([key]) => !BOOTSTRAP_EXCLUDED_KEYS.includes(key)),
+  )
+  expect(completed).toEqual(browserComplete)
   const serialized = JSON.stringify(completed)
-  expect(JSON.parse(serialized)).toEqual(EN)
+  expect(JSON.parse(serialized)).toEqual(browserComplete)
 })

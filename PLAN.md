@@ -306,6 +306,8 @@ properties, and retain all existing caps. No new artifact or dependency.
 | `dist/acp.js`                         | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
 | `dist/planMarkdown.js`                | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                                                                        |
 | `dist/checkpointStore.js`             | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                   |
+| `dist/hardwareGuard.js`               | ≤ 25 KiB (M103G: first-use shared command parser and approval guard; original caps and startup no-growth remain hard gates)                                                                                                                                                                                                                                                                            |
+| `dist/hardwareShell.js`               | ≤ 20 KiB (M103G: first-use shell parser, advisory classifier and strict read-only policy; the existing guard cap is unchanged)                                                                                                                                                                                                                                                                         |
 | `dist/uiText.js`                      | ≤ 125 KiB (original cap retained; ACTDIET regional core 116,791 bytes)                                                                                                                                                                                                                                                                                                                                 |
 | `dist/wire.js`                        | ≤ 50 KiB (TRAIN14B: shared existing Node protocol and agent-event schemas; 41,370 bytes plus 15%, rounded to 25 KiB; browser and integration parsers stay inline)                                                                                                                                                                                                                                      |
 | `dist/uiTextRuntime.js`               | ≤ 25 KiB (ACTDIET: ACP/headless English, 8,338 bytes plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                                                      |
@@ -12130,6 +12132,110 @@ it. These decisions keep every physical effect behind a person who sees
 exactly what will be sent. Physical approvals require OS user presence;
 terminal attendance is never authority.
 
+#### Guard redesign (REDM103G, 2026-10-05)
+
+**Fourth design (REDM103G3, lead ruling after RVM103G3).** Every agent shell
+command in a hardware session asks the host UI once for the exact command;
+there is no shell read allowlist, standing grant, reviewer grant or classifier
+grant. Bypass and unattended shell calls are refused at request, answer and
+process entry. Registered canonical Stop is matched first and remains exempt.
+Classification, including irreversible-operation detection, labels the card;
+it cannot grant execution. Typed read/list/search/serial-monitor inspection
+retains its own policy. Typed irreversible device operations remain refused.
+
+Hardware mode is a session latch: project markers are read at session start,
+and any host-observed registered device latches it on. Removing a marker or
+device never turns a running session off. Only an explicit host UI action,
+with no command or device session active, may reset it. Approval binds frozen
+target identities, payload and expiry; an approved single-use binding travels
+to the adapter and is revalidated synchronously immediately before spawn.
+Scope is the guard, session guard, approval hardware, hardware regions in the
+two dispatch paths, their tests and this certification record. Necessary
+permission-engine/session-construction/bundle wiring outside that explicit
+list was approved by the continuation brief: permissions.ts, tools.ts,
+MuseCodeHost.ts, guardEntry.ts, shellEntry.ts, hardwareGuardSplit.mjs, README.md,
+docs/acp.md and CHANGELOG.md. The lead explicitly accepts the measured
+717-byte activation increase (596065 to 596782 bytes): the shell-entry latch
+must be eager. This is a waiver of strict startup no-growth for this guard
+only; the unchanged 600 KiB activation cap and every other cap still apply.
+No paid/live/device operations or aggregate
+quality run are authorized on this rig. The editor matrix must distinguish
+shared-core evidence from actual editor and external CLI qualification.
+
+**Superseded third design (REDM103G2, owner ruling after RVM103G2).** Detection is
+advisory, never an execution exemption in a hardware workspace. A host-owned
+maker enablement/project-detection flag, connected board, mounted board root
+or registered machine makes a hardware workspace. Every model shell command
+there asks the host afresh with exact text and no standing/reviewer/hook grant;
+only a single fully parsed command matching the read-only argv table is exempt.
+Unattended origins (including verification/then_run) and Bypass deny all model
+shell commands there, even allowlisted reads. Canonical registered out-of-band
+Stop remains exempt. Literal irreversible operations remain refused. Muse Code
+hardware sessions select promptUnmatched before turns so onRequest cannot skip
+simple commands; CLI-side standing policies still require the lead's live
+qualification before any safety certification. Non-hardware permission policy
+stays unchanged. Approval binding snapshots every relevant host identity,
+including staged argv and typed-tool target fields, not just the first URL.
+Parser/classifier labels retain the prior fixes and add the round-two wrapper,
+global-option, destination, URL and offline-help cases. The read-only table and
+classifier remain first-use code; a separate lazy shell bundle is permitted
+if required to keep the existing guard budget. Evidence is named regressions
+for both reports, table mutations, hardware/non-hardware corpus parity,
+real-host denial/binding, byte-exact red drills and strict startup comparison.
+Both lazy bundles must ship in VSIX/ACP and participate in the notices and
+ACP release inventory; packaging must fail when either runtime is excluded.
+No live/paid/device calls or aggregate quality run are authorized on this rig.
+
+**Third-design focused receipts:** `docs/certification/m103-g2.md` records
+1,959 passing tests in eighteen full owning files, thirteen failed/restored
+mutation drills and passing type/lint/format/dead-code/duplication/l10n/API,
+production build, local package and offline release-inventory checks. Against
+an independently built `bfc27a28`, activation is 596018 versus 596065 bytes
+and eager browser JavaScript is 898341 versus 898355; both strict no-growth
+checks pass. The 300-pair corpus has zero new outside asks, thirteen read-only
+hardware exemptions and 287 fresh asks; all pairs deny unattended. This closes
+the guard lane's startup acceptance; full M103 and CLI/physical qualification
+still require the owning lanes and lead gates.
+
+**The following records the superseded second design and its receipts.**
+
+The RVM103G review invalidated textual safety allow-lists. Lane G now
+parses shell words, command boundaries, pipelines and redirection direction
+for bash/sh, PowerShell and cmd before classification. Unsupported syntax,
+expansions, interpreter strings, decoding and same-turn script execution
+remain unknown. Unknown plus a device tool/path, registered machine or
+host-owned hardware workspace means actuation: one exact-text host approval,
+or refusal in Plan/unattended execution. Literal interpreter bodies are
+additionally parsed to refuse known irreversible operations; that does not
+make the wrapper safe.
+
+Every HTTP transfer is judged independently, including method/body/upload
+flags, multiple URLs and curl --next. Config files and unresolved RPC bodies
+fail closed for machine targets. A stop exemption requires a single fully
+parsed canonical request to a host-registered stop target; a stop-looking
+request otherwise asks. The product's out-of-band Stop path remains ungated.
+Device writes include serial, board mounts and GPIO/sysfs; reads retain their
+existing connect/ordinary policy. Approval identity, exact parsed-command
+digest, expiry and consumption survive failed decisions and retries.
+Verification/then_run inherit unattended origin. Non-device Bypass and
+Best-of-N edits retain their existing policy. The parser/approval engine loads
+lazily; README, ACP guidance and the host API record move with this change.
+
+Evidence required: named regressions for all twelve review findings, all
+three shell families, fake-only real-shell probes, a zero-false-positive
+developer corpus and red/restored-green drills with SHA-256 restoration.
+No device/network probe or live/paid model call is authorized in this lane.
+REDM103G's exact base comparison leaves M103.17 open: activation is 15
+bytes smaller than `bfc27a28`, but browser startup is 6 bytes larger
+(898361 versus 898355). Removing redundant defaults and then changing the
+mode-list fast path did not satisfy strict no-growth. Under common.md's
+two-fix stop rule, this path is handed back to the lead; no size cap or
+acceptance threshold is weakened and no startup certification is claimed.
+Registry, hardware-switch and actual target re-read integration remain the
+owning maker lanes; the guard accepts only host-owned context, never model
+arguments or repository declarations. Full quality/live/editor/physical
+certification remains the lead's gate, not a focused-test claim.
+
 1. **Help with the work; the user's hand moves the machine.** The extension
    helps write, build, flash, simulate and read devices and machines. It is
    not a print host or a G-code sender: OctoPrint, Mainsail/Fluidd, CNCjs,
@@ -13502,7 +13608,20 @@ operation and release its runtime-owned session. Keep installed-runtime
 compatibility unclaimed until fake editor-to-runtime receipts land
 (M103T-WIRE-FREEZE, section 9).
 
-- **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
+- **M103 fourth-design scope resolved (2026-10-05, REDM103G3 continuation):**
+  the lead approved the nine pending permission/session/bundle/documentation
+  files named in D83. The saved 35-file candidate is applied after checking
+  its patch SHA-256 and every file against its manifest; verification now runs
+  directly against installed source. The lead accepts the measured 717-byte
+  activation increase for the eager shell-entry latch; caps remain unchanged.
+- **M103 external CLI dispatch contract:** the captured MSP frames provide
+  approval answers, not an immutable target-binding handoff or a final spawn
+  acknowledgement. What captured CLI contract can enforce dispatch-time
+  identity/unattended checks and prevent standing-rule or silent shell runs?
+  Default: make no safety-certification claim for this gap; do not invent a
+  wire field. Physical adapters without a binding contract remain unavailable.
+
+- **M80 accepted rulings (2026-10-02):**- **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
   flag/hard cap, required real Action receipt, and hosted-search refusal are
   settled. F1 uses micro-USD and upward rounding; F2 preserves observed stream
   metadata on failure. D-M6 correction: fake W spends $0 actual money;
@@ -30703,9 +30822,17 @@ panel (M104); M103's maker pages are built on the same server and bridge.
 (h) Publishing accounts (PyPI, ACP registry, Eclipse update site) are the
 owner's; release assets and install docs ship meanwhile.
 
-**Status 2026-10-05: planned.** Sub-milestones land in order a → f; a's
-guard ships first and alone if the others slip, because it closes H1–H5 for
-every user.
+**Status 2026-10-05: planned; guard fourth-design wiring authorized and applied
+(REDM103G3 continuation).**
+RVM103G3's six P1 findings invalidate the third-design safety certification.
+Fourth-design implementation and gate-fire receipts belong in
+`docs/certification/m103-g.md`; external CLI process-entry enforcement and
+the maker adapter/editor lanes require separate evidence before full safety
+certification. The applied candidate and continuation verification are recorded
+on the guard branch; the upstream spawn-contract request is drafted in
+`docs/upstream/muse-code-spawn-contract.md` for the lead to file. Sub-milestones
+land in order a → f. Guard a cannot be called complete or ship as a safety
+fix while these process-entry and qualification gaps remain open.
 
 Lane M review follow-up (FIXM103M): canonicalize G-code once for analysis,
 macro refusal and approved dispatch; move the last approval/access/state
@@ -31381,6 +31508,31 @@ has no `src/shared/featureCatalog.ts`, `scripts/gen-reference.mjs` or
 and updates both READMEs; the absent catalogue cannot be regenerated here. Reference generation remains the lead's
 integration check once that catalogue exists. Receipts and every red drill
 are in `docs/certification/m103-t.md`; no local gate is disabled.
+no local gate is disabled.
+
+**REDM103G3 continuation (2026-10-05, Windows 11 rig).** The lead approves
+the nine pending wiring/docs files and accepts the fourth-design guard's
+measured 717-byte activation increase (596065 to 596782 bytes) because its
+shell-entry latch must be eager. This limited strict-no-growth waiver changes
+no bundle cap: activation remains 600 KiB. The lane reruns the full nine-file
+1,276-test candidate set, eight behavioral mutations with byte-exact source
+hashes, all five typecheck projects, changed-file lint/format, localization,
+dead-code/duplication/host API and production bundle gates directly on the rig.
+Aggregate quality/coverage, actual editor/device and live CLI qualification
+remain lead gates; the external spawn contract is explicitly open. Applied
+receipts and per-backend P1 dispositions are in `docs/certification/m103-g.md`.
+
+**REDM103G2 (2026-10-05, Windows 11 rig).** The third-design lane brief
+requires focused owning files (at most three per run), byte-exact red drills,
+static/build/package checks and no merge. It explicitly forbids aggregate
+quality/full-unit/live/paid/device runs; those remain lead gates, not waived
+requirements. Existing startup budgets stay unchanged; the shell policy has
+its own first-use bundle and guarded cap. Receipts and remaining CLI/physical
+qualification are in `docs/certification/m103-g2.md`. The common rules also
+name `src/shared/featureCatalog.ts`, `scripts/gen-reference.mjs` and
+`check:reference`; none exists on this base. Do not invent a competing catalog:
+the lead must integrate the updated README/ACP/changelog feature description
+into the release train's reference infrastructure before release.
 
 **TRAIN13B (2026-10-05).** The owner authorizes recovering the two size
 failures and running the complete quality gate directly on Kubuntu within
@@ -32366,6 +32518,11 @@ weakened. Simulator receipts and byte-exact removal drills are in
 `docs/certification/m103-u.md`.
 
 ## 8. Escape hatches register
+
+| REDM103G location                                                      | Escape hatch                                                                        | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Date       |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `scripts/lib/hardwareGuardSplit.mjs`                                   | Same-build generated synchronous function/constructor proxies                       | The guard and shell entries, proxies and packages come from one build. Signatures are trusted only for these fixed local modules; missing/malformed exports throw before classification or approval can allow dispatch. Forwarding arrows keep the signatures/call behavior while avoiding startup growth. The split gate verifies each implementation is present only in its lazy bundle; built-bundle probes verify first-use loading and language transfer. No external shape or model input supplies a module path. | 2026-10-05 |
+| `scripts/lib/hardwareGuardSplit.mjs`, `src/core/maker/guardSecrets.ts` | Same-build secret-reader injection and pure constant-table construction annotations | The lazy guard calls the caller's original detector/redactor, with no second pattern list; missing readers throw. Only immutable Set declarations in the constants file are annotated for the guard build, so used tables remain and unused allocations can be omitted. Production probes check real secret detection/redaction and the hard 25 KiB cap.                                                                                                                                                                | 2026-10-05 |
 
 | Location                                                                                                            | Escape hatch                                                 | Reason                                                                                                                                                                                                                                                                                                   |
 | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -2837,5 +2837,17 @@
     "one": "Exibindo os primeiros {shown} de {count} caracteres da pesquisa. Limpe para editar; a pesquisa usa a consulta inteira.",
     "many": "Exibindo os primeiros {shown} de {count} caracteres da pesquisa. Limpe para editar; a pesquisa usa a consulta inteira.",
     "other": "Exibindo os primeiros {shown} de {count} caracteres da pesquisa. Limpe para editar; a pesquisa usa a consulta inteira."
-  }
+  },
+  "approvalHardwareNote": "Ação em um dispositivo físico. Abrir uma porta serial pode reiniciar a placa. Revise o comando exato e o destino; a autorização vale uma única vez e expira após dois minutos.",
+  "hardwareRefused": "Esta operação do dispositivo foi recusada. Revise o comando e execute-o você mesmo no seu próprio terminal.",
+  "hardwareUnattended": "Comandos de shell em espaços de trabalho de hardware e ações em dispositivos físicos são recusados em execuções sem supervisão.",
+  "hardwareExpired": "A autorização do dispositivo expirou. Nada foi enviado.",
+  "hardwareBypassNotice": "Em espaços de trabalho com hardware, não é possível ignorar permissões. Use Automático ou Manual e aprove cada ação do dispositivo uma única vez.",
+  "hardwareShellNote": "Espaço de trabalho de hardware: revise este comando exato do shell. A aprovação vale uma vez e expira após dois minutos. Use as ferramentas de hardware para ações em dispositivos. {warning}",
+  "hardwareProgramWarning": "Este comando parece programar uma placa.",
+  "hardwareConnectWarning": "Este comando parece abrir uma porta de dispositivo; a placa pode ser reiniciada.",
+  "hardwareActuateWarning": "Este comando parece escrever em uma porta ou enviar um comando a uma máquina.",
+  "hardwareIrreversibleWarning": "Isto parece uma gravação irreversível de fusível, eFuse ou bit de bloqueio.",
+  "hardwareTargetNote": "Vinculação ao destino: {targets}",
+  "hardwareBindingUnavailable": "Este adaptador de dispositivo não pode verificar o destino aprovado ao iniciar o processo. Nada foi enviado."
 }

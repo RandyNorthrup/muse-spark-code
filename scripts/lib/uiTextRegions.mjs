@@ -141,13 +141,28 @@ export function compressedEnglish(file, isProduction, compressionQuality) {
  * to the full table. Native DEFLATE decoding completes before dependent ESM
  * modules run (Chrome 128 and later).
  */
-// Maker keys excluded from the startup bootstrap; installed with the
-// maker closure before first maker use.
-function bootstrapEnglish(table) {
+// Keys the browser startup bootstrap keeps. Maker keys wait for the second
+// maker closure, which installs them before first maker use. Host-only
+// hardware guard text (M103-G) never enters any browser bundle; the split
+// gate rejects a webview source that reads one of these keys.
+export const BOOTSTRAP_MAKER_KEYS = ['makerStopAll', 'makerLoadFailed', 'makerRetry']
+export const BOOTSTRAP_EXCLUDED_KEYS = [
+  'approvalHardwareNote',
+  'hardwareShellNote',
+  'hardwareProgramWarning',
+  'hardwareConnectWarning',
+  'hardwareActuateWarning',
+  'hardwareRefused',
+  'hardwareUnattended',
+  'hardwareExpired',
+  'hardwareBypassNotice',
+]
+export function bootstrapEnglish(table) {
   return Object.fromEntries(
     Object.entries(table).filter(
       ([key]) =>
-        !key.startsWith('maker') || ['makerStopAll', 'makerLoadFailed', 'makerRetry'].includes(key),
+        (!key.startsWith('maker') || BOOTSTRAP_MAKER_KEYS.includes(key)) &&
+        !BOOTSTRAP_EXCLUDED_KEYS.includes(key),
     ),
   )
 }

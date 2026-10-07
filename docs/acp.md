@@ -323,6 +323,40 @@ MCP elicitation forms retain their separate five-minute deadline and cannot
 be answered late. Ordinary approvals and paid-use permission prompts retain
 their existing behavior and never enter the question clock.
 
+### Makers safety (Unreleased)
+
+The portable guard is shared with the extension and Model API backend.
+Detected connect, program and actuate calls offer allow-once/reject-once only;
+Typed device tools refuse Plan and unattended runs; irreversible operations
+are always refused. Unresolved
+shell syntax plus a device signal or host-designated hardware workspace asks
+once, including encoded/interpreter commands and HTTP config files. All
+HTTP transfers and device destinations are checked; reading a file from a
+board retains ordinary policy. Failed decisions cannot renew or replay an
+expired or consumed approval. Exact parsed command, original text and
+host-observed target are bound to its digest.
+
+Hardware mode is a session latch, initialized from maker project markers and
+set by host-observed devices. It never falls when a device or marker disappears.
+Every agent shell command in a hardware session asks the host UI for its exact
+text, with Allow once and Abort only. There is no shell read allowlist, hook
+grant or reviewer grant. Typed read/list/search tools keep their own policy.
+The classifier only annotates hardware shell cards, including suspected
+irreversible writes. Bypass and every unattended origin refuse shell commands;
+unattended status is checked again at the answer and Model API process entry.
+Registered canonical Stop bypasses the gate first, including unattended runs.
+
+Model API shell dispatch carries a frozen single-use identity/payload/expiry
+binding to the adapter, which verifies it after preparation immediately before
+spawn. Physical MCP/IDE adapters without that contract are unavailable. Muse
+Code owns its process start: the captured MSP protocol has no binding handoff
+or spawn acknowledgement. Fresh cards and answer-time checks cannot certify
+the interval after an allow frame, CLI standing rules or silent commands.
+Device registry notifications, actual USB identity acquisition, host UI latch
+reset and editor/hardware qualification remain the named maker lanes' work.
+These notes do not claim those tools or controls ship in the released ACP
+package. The guard does not sandbox an approved program.
+
 ## Paid features
 
 Web search ($2.50 per 1,000 searches) and image generation ($0.01 per

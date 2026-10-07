@@ -2738,5 +2738,17 @@
   "makerLongSearch": {
     "one": "A keresés első {shown} karaktere látható a(z) {count} karakterből. Szerkesztéshez törölje; a keresés a teljes lekérdezést használja.",
     "other": "A keresés első {shown} karaktere látható a(z) {count} karakterből. Szerkesztéshez törölje; a keresés a teljes lekérdezést használja."
-  }
+  },
+  "approvalHardwareNote": "Fizikai eszközművelet. A soros port megnyitása újraindíthatja a panelt. Ellenőrizze a pontos parancsot és a célt; a jóváhagyás egyszer használható, és két perc után lejár.",
+  "hardwareRefused": "Ez az eszközművelet tiltott. Ellenőrizze a parancsot, és futtassa saját maga a saját termináljában.",
+  "hardwareUnattended": "Felügyelet nélküli futtatásban a hardveres munkaterületek shellparancsai és a fizikai eszközműveletek tiltottak.",
+  "hardwareExpired": "Az eszközművelet jóváhagyása lejárt. Semmi nem lett elküldve.",
+  "hardwareBypassNotice": "Hardveres munkaterületeken az engedélyek nem kerülhetők meg. Használja az automatikus vagy kézi módot, és minden eszközműveletet egyszer engedélyezzen.",
+  "hardwareShellNote": "Hardveres munkaterület: ellenőrizze ezt a pontos shellparancsot. A jóváhagyás egyszer érvényes, és két perc múlva lejár. Az eszközműveletekhez használja a hardveres eszközöket. {warning}",
+  "hardwareProgramWarning": "Úgy tűnik, ez a parancs egy áramköri lapot programoz.",
+  "hardwareConnectWarning": "Úgy tűnik, ez a parancs eszközportot nyit meg; a lap újraindulhat.",
+  "hardwareActuateWarning": "Úgy tűnik, ez a parancs egy portra ír vagy gépi parancsot küld.",
+  "hardwareIrreversibleWarning": "Ez visszafordíthatatlan biztosíték-, eFuse- vagy zárolóbit-írásnak tűnik.",
+  "hardwareTargetNote": "Célhoz kötés: {targets}",
+  "hardwareBindingUnavailable": "Ez az eszközadapter nem tudja ellenőrizni a jóváhagyott célt a folyamat indításakor. Semmi sem lett elküldve."
 }

@@ -245,6 +245,8 @@ export interface ToolIo {
     timeoutMs: number,
     signal?: AbortSignal,
     extraEnvNames?: readonly string[],
+    /** The owner's final native-entry fence, after hook adapter preparation. */
+    assertCanStart?: () => void,
   ): Promise<ShellResult>
   /**
    * An M91 http hook's POST of its bounded JSON payload, through the host's

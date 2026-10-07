@@ -67,6 +67,7 @@ interface HarnessOptions {
   /** The client's form request fails instead of answering. */
   readonly isElicitationBroken?: boolean
   readonly canBypass?: boolean
+  readonly isHardwareWorkspace?: boolean
   readonly initialMode?: PermissionMode
   readonly allowsContributorModels?: boolean
   readonly kind?: 'museCode' | 'modelApi'
@@ -117,6 +118,7 @@ function harness(options: HarnessOptions = {}): Harness {
       command: 'muse-spark-code-acp login',
     },
     defaultCwd: CWD,
+    isHardwareWorkspace: () => options.isHardwareWorkspace === true,
     paid,
     log,
     questions: options.questionPolicy ?? fakeAcpQuestions,
@@ -527,6 +529,29 @@ async function runMcpForm(
 }
 
 describe('the ACP agent (M63)', () => {
+  it('F10: ACP caps Bypass only in host-designated hardware workspaces', async () => {
+    const h = harness({
+      canBypass: true,
+      initialMode: 'bypassPermissions',
+      isHardwareWorkspace: true,
+    })
+    await h.run(async (client) => {
+      const created = await start(client)
+      expect(created.modes?.currentModeId).toBe('auto')
+      expect(created.modes?.availableModes.map((mode) => mode.id)).not.toContain(
+        'bypassPermissions',
+      )
+      await expect(
+        client.request('session/set_mode', {
+          sessionId: created.sessionId,
+          modeId: 'bypassPermissions',
+        }),
+      ).rejects.toThrow()
+      expect(h.host.startSession).toHaveBeenCalledWith(
+        expect.objectContaining({ approvalMode: 'promptUnmatched' }),
+      )
+    })
+  })
   it('initializes with its capabilities, and a terminal sign-in only for a client that runs one', async () => {
     const h = harness()
     const [plain, terminal] = await h.run(async (client) => [

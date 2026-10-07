@@ -140,6 +140,9 @@ export const GLOBAL_STATE_KEYS = {
 } as const
 
 // VS Code `when`-clause context keys the extension maintains.
+/** M103-G: an unanswered physical-action question expires after two minutes. */
+export const MACHINE_APPROVAL_TTL_MS = 120_000
+
 export const CONTEXT_KEYS = {
   inputFocused: 'museSpark.inputFocused',
   /** True while a credential for the selected backend is present (the walkthrough's sign-in step). */
@@ -5210,6 +5213,8 @@ export const MODEL_API_MODEL_TEXT = {
   skillArguments: 'Arguments:',
   skillNoArguments: '(none)',
   toolRefusedByMode: 'refused by the permission mode',
+  hardwareRefused:
+    'Physical device operation refused. Do not retry or bypass it. The user must review and run the command in their own terminal.',
   shellRestrictedMode:
     'shell commands are disabled while the workspace is in Restricted Mode; trust the workspace to enable them',
   toolRejectedByUser: 'rejected by the user',
