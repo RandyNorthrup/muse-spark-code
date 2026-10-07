@@ -1,4 +1,4 @@
-import type { AcpAgentDeps, AcpAgentOptions } from '../../src/acp/agent'
+import type { AcpAgentDeps, AcpAgentOptions } from '../../../src/acp/agent'
 import type { FakeAgentHost } from './fakeAgent'
 
 type TestAgentBase = Pick<AcpAgentDeps, 'backend' | 'version' | 'options'>

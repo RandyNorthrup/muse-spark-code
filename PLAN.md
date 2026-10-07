@@ -32114,3 +32114,23 @@ deferral live, installed editors and screenshots, the lead's integrated full
 quality and hosted CI, remote badges and universal-package/platform checks.
 Evidence: `docs/certification/rel0143.md`. Release run, tag commit and channel
 results: pending.
+
+- **M117W-STARTUP — LEAD DECISION REQUESTED 2026-10-07 (not waived).**
+  M117's measured webview startup closure is 766,692 bytes (748.7 KiB)
+  against the FIXDIET1 regression baseline's 751,392 bytes (733.8 KiB):
+  15,300 bytes over, while the D6 900 KiB hard cap passes with margin.
+  The same assertion passes on the base (`8c6351d73`, measured 750,695),
+  so the growth is the milestone's. Minimization is done: submit dispatch
+  keeps a 63-byte prefix check with parser parity tests and the composer's
+  zod schemas load deferred (767,915 down to 766,692). The remainder is
+  architectural, not a leak: the frozen lane-0 contract schemas
+  (`src/shared/estimate.ts`, 9,115 bytes, required in the eager protocol
+  for boundary validation exactly like every other surface's schemas) and
+  the required English strings (2,245 bytes across the 14 l10n tables the
+  gates demand), plus ~1.5 KiB of dispatch, protocol, palette and settings
+  deltas. No boundary validation was weakened, no other feature was cut,
+  and the test was not loosened: `webviewBundle.test.mjs` stays red on this
+  branch until the lead either revisits the 733.8 baseline or waives it
+  with the M112 precedent recorded here. Full measurements, the per-file
+  attribution and the triaged suite are in
+  `docs/certification/m117.md`.
