@@ -21,6 +21,21 @@ happened, not what was planned; superseded entries are kept.
   with a fresh Windows Hello signature gate, capability facts and a
   cancellable screen-lock notification. These are prepared for broker wiring;
   they do not change existing credential storage or enable vault commands.
+
+- M109 lane T's provenance engine distinguishes per-request Model API taint
+  from Muse Code's session taint, retains the outside-content reasons and
+  carries them through derived summaries, replay, restore and compaction.
+  Hosted search and configured MCP outputs use host-owned routing facts;
+  old history without provenance is conservatively untrusted. Broker
+  integration remains pending.
+
+- M109 lane T's broker-backed scrub service and injected boundaries remove
+  known vault values and encodings before Model API sends, portable/Markdown
+  exports, report sealing and journal writes. Streams retain split values;
+  Lock and service failures refuse delivery. JSON exports and report exports
+  recheck after previews. Broker, feeder and host bindings remain pending;
+  these hooks do not enable the vault feature.
+
 - M109's credential-vault contracts, canonical use digest, translated panel
   labels and warnings, test-only broker and route harnesses, and threat and
   capture plan. This prepares the runtime lanes; it does not enable a vault

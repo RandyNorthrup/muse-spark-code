@@ -26321,6 +26321,20 @@ and startup DLL search to System32. Validate DPAPI wrap title/use before
 selecting the tier. Each finding receives regression tests and byte-exact
 red-drill receipts in `docs/certification/m109-pw.md`; no dependency, gate or
 shipped feature changes. No review finding is deferred.
+**Lane T implementation (2026-10-06, Mac mini).** Implement D89.7 provenance
+and sticky Muse Code session taint, plus D89.8's broker-memory Aho–Corasick
+scrubber, encoded forms, streaming overlap and disposal. Bind the Model API
+pre-send boundary, M84 portable/Markdown exports and M93's final draft through
+an injected scrub port; scrub failures refuse delivery. Provenance stays out
+of provider wire fields and survives replay, summaries and session restore.
+No broker, platform, exec or UI lane files change. The lead binds B's existing
+`scrub`/`taint` ports and the host transcript/log adapters; X consumes the
+streaming scrubber. M96 ledger/report and M102 journal owners are absent here:
+they bind the same shared port before storage or delivery (named handoffs in
+`docs/certification/m109-t-taint-and-scrub.md`). Certify V1/V3/V7/V9/V12 with
+generated canaries and byte-exact red drills; no paid/live calls, dependencies,
+cap changes, merges or aggregate quality run in this lane.
+
 **FIXM109B6 / RVM109B5 (2026-10-06).** Close both confirmed findings:
 make audit-session key erasure and reference clearing unconditional despite
 file-writer close failures, and report cleanup failure to Lock/Dispose callers;
@@ -29830,6 +29844,21 @@ local gate commands and native generated-material checks run directly here;
 the lead retains aggregate quality, the integrated host API record and hosted
 CI. This is a lane receipt, not a release certification; no gate is weakened.
 See `docs/certification/m109-p.md` for results and byte-exact red drills.
+**M109 lane T (2026-10-06, Mac mini).** Targeted default-timeout tests and
+byte-exact red drills certify the provenance engine and injected scrub
+boundaries; the lead owns aggregate quality and joined-tree binding. The
+host API gate reports inventory drift: `node:buffer` 39 → 40 from T, plus
+the six B/base totals (`child_process` 13 → 14, `crypto` 46 → 53, `fs` 33 → 36,
+`fs/promises` 47 → 49, `net` 7 → 10, `path` 84 → 89). The record is W-owned;
+`T-W-host-api` defers its regeneration/review to the joined source without
+weakening the gate. Performance initially measured 36.24 MB/s; two attempted
+fixes measured 39.80 and 32.70, then the path stopped under the shared rule.
+Later restored-source runs pass the unchanged 50 MB/s guard. Preserve that
+variability for the integrated rig check; no floor, timeout or cap is raised
+or lowered. B/host/X binding, absent M96/M102 owners and the unsafe opaque CLI
+log writer remain named handoffs, not implemented substitutes. Final evidence:
+`docs/certification/m109-t-taint-and-scrub.md` and `m109-t-drills.json`.
+
 **FIXM109B6 / RVM109B5 (2026-10-06, Mac mini).** Both findings are fixed;
 no review residual is accepted. Final restored-source verification passes all
 335 tests in all 19 vault files with default timeouts, at most three files and

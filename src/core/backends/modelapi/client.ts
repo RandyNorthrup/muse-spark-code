@@ -48,8 +48,11 @@ import {
 } from './schemas'
 import { parseSse } from './sse'
 import { estimateCostUsd } from '../../usage/insights'
+import { scrubSecrets, type SecretScrubPort } from '../../../shared/redact'
 
 export interface ModelApiClientDeps {
+  /** M109 T: broker-backed exact-value scrub, immediately before every send. */
+  readonly vaultScrub?: SecretScrubPort
   /** Interactive VS Code extras only; ACP/headless clients omit this port. */
   readonly reservePaidRequest?: (
     body: CreateResponseBody | CreateImageBody,
@@ -334,6 +337,17 @@ export class ModelApiClient {
     // How long the answer took, retries included, at trace level (M39).
     const startedAt = this.deps.now()
     for (let attempt = budget?.retriesUsed ?? 0; ; attempt += 1) {
+      // Rebuild on every retry: rotation may change the vault while we wait.
+      // Outside the transport retry catch: a scrub failure must never send.
+      const wireBody =
+        this.deps.vaultScrub === undefined || init.body === undefined
+          ? undefined
+          : await scrubSecrets(JSON.stringify(init.body), this.deps.vaultScrub)
+      if (wireBody !== undefined && this.deps.vaultScrub !== undefined) {
+        // Exact-value replacement must still leave valid JSON. No raw body
+        // can be sent if an unusual value matched protocol syntax.
+        JSON.parse(wireBody)
+      }
       let credentials: Awaited<ReturnType<ModelApiClient['headers']>>
       try {
         credentials = fixedHeaders ?? (await this.headers())
@@ -372,7 +386,7 @@ export class ModelApiClient {
       const requestInit: RequestInit = {
         method: init.method,
         headers,
-        ...(init.body !== undefined && { body: JSON.stringify(init.body) }),
+        ...(init.body !== undefined && { body: wireBody ?? JSON.stringify(init.body) }),
         ...(signal !== undefined && { signal }),
       }
       confirmed?.onRequestStarted()

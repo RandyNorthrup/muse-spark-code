@@ -1,3 +1,4 @@
+import type { SecretScrubPort } from '../../shared/redact'
 // The report-only message handler (M93, PLAN.md D72). It owns the preview
 // dialog's side of the conversation: opening, rebuilding and exporting the
 // sealed draft. The dialog shows only what the host builds here; the webview
@@ -16,8 +17,9 @@
 // from the current one on the webview's side.
 
 import {
-  buildProblemReportDraft,
+  buildVaultProblemReportDraft,
   isSealedDraftCurrent,
+  sealReportDraft,
   ReportBuildError,
   reportAge,
   selectProblemReportEvents,
@@ -66,6 +68,7 @@ export interface ReportDataSource {
 }
 
 export interface ReportProblemHandlerDeps {
+  readonly vaultScrub?: SecretScrubPort
   /** Posts to the surface that owns this dialog session. */
   readonly post: (message: HostToWebviewMessage) => void
   /** Says a build failure in the panel (the log already has the detail). */
@@ -144,17 +147,24 @@ function keptEvents(data: ReportData, choice: ReportChoice): readonly SelectedRe
  * One place builds the builder's input from a snapshot and a choice (open,
  * update, stale re-preview): the preview always matches the sealed draft.
  */
-function buildChoiceDraft(data: ReportData, choice: ReportChoice): SealedReportDraft {
-  return buildProblemReportDraft({
-    description: choice.description,
-    includeFacts: choice.isFactsIncluded,
-    includeEvents: choice.isEventsIncluded,
-    facts: data.facts,
-    events: keptEvents(data, choice).map((selected) => selected.event),
-    recordingUnavailable: data.isRecordingUnavailable,
-    nowMs: data.nowMs,
-    scrub: data.scrub,
-  })
+async function buildChoiceDraft(
+  data: ReportData,
+  choice: ReportChoice,
+  vaultScrub?: SecretScrubPort,
+): Promise<SealedReportDraft> {
+  return await buildVaultProblemReportDraft(
+    {
+      description: choice.description,
+      includeFacts: choice.isFactsIncluded,
+      includeEvents: choice.isEventsIncluded,
+      facts: data.facts,
+      events: keptEvents(data, choice).map((selected) => selected.event),
+      recordingUnavailable: data.isRecordingUnavailable,
+      nowMs: data.nowMs,
+      scrub: data.scrub,
+    },
+    vaultScrub,
+  )
 }
 
 /** An item's age in the installed language (the draft itself stays English, like its headings). */
@@ -255,6 +265,7 @@ export function createReportProblemHandler(deps: ReportProblemHandlerDeps): {
 } {
   let session: ReportSession | undefined
   let sessionCount = 0
+  let revisionCount = 0
 
   function buildFails(error: unknown): void {
     // ReportBuildError names the field and the reason, never the refused
@@ -268,9 +279,12 @@ export function createReportProblemHandler(deps: ReportProblemHandlerDeps): {
   }
 
   /** The sealed draft for a snapshot and a choice; undefined when the build refused. */
-  function rebuild(data: ReportData, choice: ReportChoice): SealedReportDraft | undefined {
+  async function rebuild(
+    data: ReportData,
+    choice: ReportChoice,
+  ): Promise<SealedReportDraft | undefined> {
     try {
-      return buildChoiceDraft(data, choice)
+      return await buildChoiceDraft(data, choice, deps.vaultScrub)
     } catch (error: unknown) {
       buildFails(error)
       return undefined
@@ -302,8 +316,8 @@ export function createReportProblemHandler(deps: ReportProblemHandlerDeps): {
       isEventsIncluded: true,
       removed: new Set(),
     }
-    const draft = rebuild(data, choice)
-    if (draft === undefined) {
+    const draft = await rebuild(data, choice)
+    if (draft === undefined || id !== sessionCount) {
       return
     }
     const current: ReportSession = { id, data, choice, draft }
@@ -311,7 +325,10 @@ export function createReportProblemHandler(deps: ReportProblemHandlerDeps): {
     deps.post(reportDraftMessage(current))
   }
 
-  function update(message: Extract<WebviewToHostMessage, { type: 'updateReport' }>): void {
+  async function update(
+    message: Extract<WebviewToHostMessage, { type: 'updateReport' }>,
+  ): Promise<void> {
+    const revision = ++revisionCount
     const current = session
     if (current === undefined) {
       deps.log.warn('Report preview updated with no open dialog')
@@ -325,8 +342,8 @@ export function createReportProblemHandler(deps: ReportProblemHandlerDeps): {
       removed: new Set(message.removedEventIndexes),
     }
     // The snapshot open built from, so this cannot refuse where open did not.
-    const draft = rebuild(current.data, choice)
-    if (draft === undefined) {
+    const draft = await rebuild(current.data, choice)
+    if (draft === undefined || session !== current || revision !== revisionCount) {
       return
     }
     const next: ReportSession = { ...current, choice, draft }
@@ -378,6 +395,24 @@ export function createReportProblemHandler(deps: ReportProblemHandlerDeps): {
       deps.post(exportedMessage(current, message.via, { ok: false, reason: 'stale' }))
       return
     }
+    if (deps.vaultScrub !== undefined) {
+      const revision = revisionCount
+      try {
+        const title = await deps.vaultScrub.scrub(current.draft.title)
+        const text = await deps.vaultScrub.scrub(current.draft.text)
+        if (session !== current || revision !== revisionCount) return
+        if (title !== current.draft.title || text !== current.draft.text) {
+          const next = { ...current, draft: sealReportDraft(title, text) }
+          session = next
+          deps.post(reportDraftMessage(next))
+          deps.post(exportedMessage(next, message.via, { ok: false, reason: 'stale' }))
+          return
+        }
+      } catch (error: unknown) {
+        buildFails(error)
+        return
+      }
+    }
     const answer = await run(message.via, current.draft)
     deps.post(exportedMessage(current, message.via, answer))
   }
@@ -390,7 +425,7 @@ export function createReportProblemHandler(deps: ReportProblemHandlerDeps): {
           break
         }
         case 'updateReport': {
-          update(message)
+          await update(message)
           break
         }
         case 'exportReport': {

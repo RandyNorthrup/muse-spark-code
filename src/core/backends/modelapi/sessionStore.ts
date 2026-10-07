@@ -5,6 +5,7 @@
 // its validation, and the store interface the host implements. Pure.
 
 import * as z from 'zod/mini'
+import { vaultTaintSchema, type VaultTaint } from '../../../shared/vault'
 import {
   type ItemSnapshot,
   itemSnapshotFields,
@@ -31,6 +32,8 @@ import {
 } from './schemas'
 
 export interface StoredReplayItem {
+  /** Host provenance, never serialized into the provider input item. */
+  readonly provenance?: VaultTaint | undefined
   readonly turnId: string
   readonly item: InputItem
   /** The transcript user card that supplied this exact replay message (M53). */
@@ -266,6 +269,7 @@ const storedSessionFields = {
   replay: z.array(
     z.object({
       turnId: z.string(),
+      provenance: z.optional(vaultTaintSchema),
       item: storedInputItemSchema,
       userMessageId: z.optional(z.string()),
       backgroundTaskId: z.optional(z.string()),
