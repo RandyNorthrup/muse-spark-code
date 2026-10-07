@@ -92,7 +92,29 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
   return ACP_PAID_FEATURES.filter((feature) => values[ACP_PAID_FLAGS[feature]] === true)
 }
 
-export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
+export function parseCommandLine<T>(
+  argv: readonly string[],
+  localSharing: (argv: readonly string[]) => T,
+): RuntimeCommand | T
+export function parseCommandLine(argv: readonly string[]): RuntimeCommand
+export function parseCommandLine<T>(
+  argv: readonly string[],
+  localSharing?: (argv: readonly string[]) => T,
+): RuntimeCommand | T {
+  // M118-X-CLI: main's owner injects the local parser/runner once P/C bind.
+  // Without that binding these reserved commands fail explicitly, never serve.
+  if (argv[0] === 'share' || argv[0] === 'prompts') {
+    if (localSharing === undefined) return invalid(argv[0])
+    try {
+      return localSharing(argv)
+    } catch (error: unknown) {
+      return {
+        command: 'invalid',
+        reason: error instanceof Error ? error.message : UI_TEXT.promptFileInvalid,
+        exitCode: 2,
+      }
+    }
+  }
   if (argv[0] === 'help') {
     return argv.length === 1 || (argv.length === 2 && argv[1] === '--all')
       ? { command: 'help', all: argv[1] === '--all' }

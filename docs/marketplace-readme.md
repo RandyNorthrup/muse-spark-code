@@ -22,10 +22,26 @@ Code” are Meta trademarks. You bring your own credentials.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0143) · [Get started](#get-started) ·
+**Contents:** [What's new](#whats-new-in-0144) · [Get started](#get-started) ·
 [Work in the panel](#work-in-the-panel)
 
-## What's new in 0.14.3
+## What's new in 0.14.4
+
+- **Save your prompts.** Right-click one of your own messages and choose
+  **Save**, or save from the composer or editor. Your personal prompt library
+  is available in every workspace; workspace prompts stay with their project.
+- **Reuse prepared text.** Search the library and fill its variables before
+  inserting a prompt. **Use** prepares the text; it does not submit a model
+  request.
+- **Share prompts and chats.** Choose a conversation-only or full export,
+  review the exact Markdown, HTML or JSON preview, then confirm copying,
+  saving or opening it in your browser. Confidential or unknown content is
+  refused with an explanation; detected secrets and private paths are scrubbed.
+- **ACP and terminal.** Use local `/prompt` and `/share chat` commands in ACP
+  editors, or `muse-spark-code-acp prompts` and `share chat` in the terminal.
+  Help & Reference lists the commands and the opt-in prompt sync setting.
+
+### Earlier in 0.14.3
 
 - **Questions never block.** A question Muse asks you is pinned in the
   attention dock above the composer and kept in the transcript. After a minute

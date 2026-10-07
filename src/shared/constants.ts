@@ -92,6 +92,12 @@ export const COMMAND_IDS = {
   // M99 (PLAN.md D79): the release notes of this version and the ones before it.
   showWhatsNew: 'museSpark.showWhatsNew',
   openHelp: 'museSpark.openHelp',
+  savePrompt: 'museSpark.savePrompt',
+  useSavedPrompt: 'museSpark.useSavedPrompt',
+  promptLibrary: 'museSpark.promptLibrary',
+  copyToMyPrompts: 'museSpark.copyToMyPrompts',
+  sharePrompt: 'museSpark.sharePrompt',
+  shareChat: 'museSpark.shareChat',
   // M112 (PLAN.md D92): cycle the focused chat's open question cards.
   nextOpenQuestion: 'museSpark.nextOpenQuestion',
   previousOpenQuestion: 'museSpark.previousOpenQuestion',
@@ -355,6 +361,7 @@ export const SETTING_DEFAULTS = {
   // M112 (PLAN.md D92): seconds before an unanswered question defers; the
   // host reads only the user's own value (questionStore.ts).
   'questions.deferAfterSeconds': 60,
+  syncPromptsAndBookmarks: false,
   shellSandbox: 'auto' as ShellSandboxMode,
   backend: 'auto' as BackendMode,
   // Claude Code's `enableNewConversationShortcut`: Ctrl+N starts a new
@@ -490,6 +497,8 @@ export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // so the manifest declares them `scope: machine` (user settings only). The
 // paid features are among them (D30): a repository cannot spend the key.
 export const MACHINE_SCOPED_SETTINGS = [
+  // Prompt/bookmark sync is each machine's privacy opt-in (D67, M118).
+  'syncPromptsAndBookmarks',
   'initialPermissionMode',
   'backend',
   'shellSandbox',
@@ -4086,6 +4095,43 @@ export const EXPORT_FILE_EXTENSIONS: Readonly<Record<ExportFormat, string>> = {
 // ends, with every known credential shape scrubbed. No hosted sharing.
 export const SESSION_EXPORT_FORMAT = 'muse-spark-session-export'
 export const SESSION_EXPORT_VERSION = 1
+// M118 lane 0: our portable prompt/share formats, never provider wire shapes.
+export const PROMPT_LIMITS = {
+  perScope: 200,
+  title: 80,
+  body: 10_000,
+  fileBytes: 128 * 1024,
+} as const
+export const PROMPT_SYNC_KEY = 'museSpark.savedPrompts.v1'
+export const PROMPT_SYNC_SETTING = 'syncPromptsAndBookmarks'
+export const PROMPT_FILE_MODE = 0o600
+export const PROMPT_FOLDER_MODE = 0o700
+export const PROMPT_BUNDLE_FILE = 'prompts.js'
+export const SHARE_PREFERENCES_KEY = 'museSpark.sharing.preferences.v1'
+export const PROMPT_STDIN_TIMEOUT_MS = 30_000
+export const PROMPT_SCHEMA_VERSION = 1
+export const PROMPT_FILE_EXTENSION = '.muse-prompt.md'
+export const PROMPT_USER_FOLDER = 'prompts'
+export const PROMPT_WORKSPACE_FOLDER = '.muse/prompts'
+export const PROMPT_COMMAND_IDS = {
+  shareChat: 'museSpark.shareChat',
+  sharePrompt: 'museSpark.sharePrompt',
+  library: 'museSpark.promptLibrary',
+  save: 'museSpark.savePrompt',
+  use: 'museSpark.useSavedPrompt',
+  copyToUser: 'museSpark.copyToMyPrompts',
+} as const
+export const SHARE_SCHEMA_VERSION = 1
+export const SHARE_DESTINATIONS = [
+  'copy',
+  'file',
+  'browser',
+  'gist',
+  'nodeLink',
+  'team',
+  'email',
+] as const
+export const SHARE_LOCAL_DESTINATIONS = ['copy', 'file', 'browser'] as const
 // A file is read whole and its transcript posted to the panel. It holds text
 // only (no image or PDF bytes), so 16 MiB is far past a long conversation;
 // an export over it is refused, so every file written can be read back.
@@ -4401,6 +4447,7 @@ export const REPORT_ERROR_CODES: ReadonlySet<string> = new Set([
 export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/extension.js',
   'dist/questionNotes.js',
+  'dist/prompts.js',
   'dist/uiText.js',
   'dist/modelApi.js',
   'dist/sessionBoard.js',

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeAll, describe, expect, it } from 'vitest'
 import type { WorkflowEntry } from '../../src/webview/state/uiState'
 import { renderTranscript, tool } from './helpers/transcriptFixtures'
@@ -164,7 +164,7 @@ describe('a workflow run’s card (M47)', () => {
     )
   })
 
-  it('shows the Workflow tool’s script and its launch in the row before the card', () => {
+  it('shows the Workflow tool’s script and its launch in the row before the card', async () => {
     renderTranscript([
       tool({
         id: WORKFLOW_TOOL_ITEM.itemId,
@@ -177,14 +177,16 @@ describe('a workflow run’s card (M47)', () => {
     fireEvent.click(toggle)
     const row = toggle.closest('li')
     expect(row).toHaveAttribute('data-entry-id', WORKFLOW_TOOL_ITEM.itemId)
-    expect(row).toHaveTextContent('export default async function workflow(host)')
+    await waitFor(() => {
+      expect(row).toHaveTextContent('export default async function workflow(host)')
+    })
     expect(row).toHaveTextContent(
       'Launched: it runs in the background and reports back to this conversation.',
     )
     expect(row).toHaveTextContent(`Script saved at ${WORKFLOW_SCRIPT_PATH}`)
   })
 
-  it('does not label an unobserved argument as a resume source', () => {
+  it('does not label an unobserved argument as a resume source', async () => {
     renderTranscript([
       tool({
         id: 'resume',
@@ -195,8 +197,10 @@ describe('a workflow run’s card (M47)', () => {
     ])
     fireEvent.click(screen.getByRole('button', { name: /Workflow/ }))
     const row = document.querySelector('[data-entry-id="resume"]')
+    await waitFor(() => {
+      expect(row).toHaveTextContent('workflows are disabled for this run')
+    })
     expect(row).not.toHaveTextContent('run.js')
-    expect(row).toHaveTextContent('workflows are disabled for this run')
     expect(row).not.toHaveTextContent('Launched')
   })
 })

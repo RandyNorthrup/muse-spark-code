@@ -54,6 +54,8 @@ import { canonicalPath } from './canonicalPath'
 import type { ConditionalWrite, StagedFile } from '../core/backends/modelapi/tools'
 
 export interface AtomicWriteOptions {
+  /** Private sharing artifacts use 0600 for both new and replaced files. */
+  readonly mode?: number
   /** A checkpoint's live admission, checked after awaits and before file mutations. */
   readonly beforeCommit?: () => void
   /** The owner's final word immediately before filesystem mutations/publication. */
@@ -378,7 +380,7 @@ async function writeAtomically(
     await assertBoundPath(temporary, temporary, options)
     options.beforeCommit?.()
     options.assertCanWrite?.()
-    const handle = await open(temporary, 'wx')
+    const handle = await open(temporary, 'wx', options.mode)
     try {
       const held = await handleIdentity(handle)
       // The content is written through this handle only after path and inode
@@ -396,13 +398,13 @@ async function writeAtomically(
       await (typeof content === 'string'
         ? handle.writeFile(content, 'utf8')
         : handle.writeFile(content))
-      const mode = destination.mode ?? Number(held.mode) & PERMISSION_BITS
+      const mode = options.mode ?? destination.mode ?? Number(held.mode) & PERMISSION_BITS
       options.beforeCommit?.()
       options.assertCanWrite?.()
       if (options.executable !== undefined && (options.platform ?? process.platform) !== 'win32') {
         await handle.chmod(withExecuteBits(mode, options.executable))
-      } else if (destination.mode !== undefined) {
-        await handle.chmod(destination.mode)
+      } else if (options.mode !== undefined || destination.mode !== undefined) {
+        await handle.chmod(mode)
       }
       if (options.staged !== undefined) {
         const staged = await handle.stat()

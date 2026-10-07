@@ -25,6 +25,8 @@ export interface HeaderProps {
   readonly runningTaskCount?: number
   readonly onOpenAgents?: (() => void) | undefined
   readonly onOpenSideChat?: (() => void) | undefined
+  /** M118: opens the lazy share dialog; the host supplies the current session. */
+  readonly onShare?: (() => void) | undefined
 }
 
 /** The pill's words: the agents, the running background tasks, or both (M14, M46). */
@@ -106,6 +108,7 @@ export function Header({
   runningTaskCount = 0,
   onOpenAgents,
   onOpenSideChat,
+  onShare,
 }: HeaderProps) {
   const isPillShown = agentCount > 0 || runningTaskCount > 0
   const isAnyRunning = runningAgentCount > 0 || runningTaskCount > 0
@@ -119,6 +122,11 @@ export function Header({
         <TitleEditor title={title} onRename={onRename} />
       )}
       <div className="header-actions">
+        {onShare === undefined ? null : (
+          <button type="button" className="button-secondary" onClick={onShare}>
+            {UI_TEXT.shareChat}
+          </button>
+        )}
         {isFocusView ? <span className="badge">{UI_TEXT.focusViewBadge}</span> : null}
         {isSideChat ? <span className="badge">{UI_TEXT.sideChatTitle}</span> : null}
         {onOpenSideChat === undefined ? null : (

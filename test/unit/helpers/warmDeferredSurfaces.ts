@@ -25,5 +25,12 @@ export async function warmDeferredSurfaces(): Promise<void> {
     import('../../../src/webview/components/ElicitationCard'),
     import('../../../src/webview/components/WorkflowRun'),
     import('../../../src/webview/components/HighlightedCode'),
+    import('../../../src/webview/components/EffortSlider'),
+    import('../../../src/webview/components/HistoryPromptRow'),
+    import('../../../src/webview/components/ReviewFindings'),
+    import('../../../src/webview/components/ToolBodies'),
+    import('../../../src/webview/prompts/PromptLibrary'),
+    import('../../../src/webview/prompts/PromptLibraryBridge'),
+    import('../../../src/webview/sharing/ChatShareBridge'),
   ])
 }

@@ -5,7 +5,6 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
-  readdirSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -22,8 +21,11 @@ const built = { outputs: {}, fixture: '' }
 beforeAll(() => {
   mkdirSync('dist/webview/chunks', { recursive: true })
   writeFileSync('dist/webview/chunks/stale.js', 'throw new Error("stale browser chunk")')
-  // Exercise the real production settings, including removal of stale chunks.
-  execFileSync(process.execPath, ['scripts/build.mjs', '--production'], { stdio: 'pipe' })
+  // Build every browser page and metafile the package assertion reads, even
+  // when dist is absent. Exercise production settings and stale-chunk removal.
+  execFileSync(process.execPath, ['scripts/build.mjs', '--production', '--webview-only'], {
+    stdio: 'pipe',
+  })
   const outputs = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')).outputs
   built.outputs = Object.fromEntries(
     Object.entries(outputs).map(([file, output]) => [
@@ -48,8 +50,10 @@ beforeAll(() => {
   built.fixture = mkdtempSync(path.resolve('temp/fix78w-size-'))
   mkdirSync(path.join(built.fixture, 'dist/meta'), { recursive: true })
   mkdirSync(path.join(built.fixture, 'dist/webview'), { recursive: true })
-  for (const file of readdirSync('dist')) {
-    if (file.endsWith('.js')) writeFileSync(path.join(built.fixture, 'dist', file), '')
+  for (const match of readFileSync(SIZE_GATE, 'utf8').matchAll(/path: '(dist\/[^']+\.js)'/g)) {
+    const file = path.join(built.fixture, match[1])
+    mkdirSync(path.dirname(file), { recursive: true })
+    writeFileSync(file, '')
   }
   writeFileSync(path.join(built.fixture, 'dist/whatsNew.json'), '{}')
   writeFileSync(path.join(built.fixture, 'dist/webview/whatsNew.js'), '')
@@ -128,6 +132,31 @@ describe('the production webview chunks (FIX78W)', () => {
     }
   })
 
+  it('defers the complete M118 prompt library and chat preview behind independent caps', () => {
+    const eager = initialOutputs()
+    for (const source of [
+      'src/webview/components/EffortSlider.tsx',
+      'src/webview/prompts/PromptLibraryBridge.tsx',
+      'src/webview/sharing/ChatShareBridge.tsx',
+    ]) {
+      const owners = Object.entries(built.outputs).filter(([, output]) =>
+        Object.hasOwn(output.inputs, source),
+      )
+      expect(owners).toHaveLength(1)
+      expect(eager.has(owners[0][0])).toBe(false)
+    }
+    for (const name of ['prompt library', 'chat sharing', 'HistoryPromptRow']) {
+      const group = webviewDeferredBudgetGroups({ outputs: built.outputs }).find(
+        (entry) => entry.name === name,
+      )
+      expect(group.budgetKiB).toBe(25)
+      expect(group.outputs.length).toBeGreaterThan(0)
+      expect(group.outputs.reduce((sum, file) => sum + statSync(file).size, 0)).toBeLessThanOrEqual(
+        group.budgetKiB * 1024,
+      )
+    }
+  })
+
   it('enforces the question closure cap independently of the full legacy deferred group', () => {
     const withinBudget = questionSizeFixture(25 * 1024)
     expect(withinBudget.status, withinBudget.stdout + withinBudget.stderr).toBe(0)
@@ -155,6 +184,9 @@ describe('the production webview chunks (FIX78W)', () => {
   })
 
   it.each([
+    'ToolBodies',
+    'ReviewFindings',
+    'HistoryPromptRow',
     'GitPanel',
     'UsageDialog',
     'SignIn',

@@ -56,6 +56,7 @@ import {
   UI_TEXT_REGIONS,
   regionalUiText,
   compressedEnglish,
+  compressedReference,
   compactBrowserEnglish,
 } from './lib/uiTextRegions.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
@@ -81,6 +82,10 @@ const CONVERSATION_ENTRY = 'src/host/conversation/conversationEntry.ts'
 const CONVERSATION_OUTFILE = 'dist/conversation.js'
 // One immutable English fallback shared by Node bundles; each keeps its own
 // mutable installed-language state. The browser keeps its fallback bundled.
+const SHARING_RUNTIME_ENTRY = 'src/runtime/sharing/sharingEntry.ts'
+const SHARING_RUNTIME_OUTFILE = 'dist/sharingRuntime.js'
+const PROMPTS_ENTRY = 'src/host/prompts/promptEntry.ts'
+const PROMPTS_OUTFILE = 'dist/prompts.js'
 const TAB_ENTRY = 'src/host/tab/tabEntry.ts'
 const TAB_OUTFILE = 'dist/tab.js'
 const UI_TEXT_ENTRY = 'src/shared/l10n/en.ts'
@@ -152,7 +157,6 @@ const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
 const ACP_ENTRY = 'src/runtime/main.ts'
 const ACP_OUTFILE = 'dist/acp.js'
-const ACP_METAFILE_DIR = 'dist/meta-acp'
 const ACP_QUESTIONS_ENTRY = 'src/acp/questionDeferralEntry.ts'
 const ACP_QUESTIONS_OUTFILE = 'dist/acpQuestions.js'
 const RUNTIME_QUESTIONS_ENTRY = 'src/runtime/questions/questionRegistryEntry.ts'
@@ -199,6 +203,20 @@ const conversationOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const sharingRuntimeOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [SHARING_RUNTIME_ENTRY],
+  outfile: SHARING_RUNTIME_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: AGENT_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const promptsOptions = { ...hostOptions, entryPoints: [PROMPTS_ENTRY], outfile: PROMPTS_OUTFILE }
+
+/** @type {import('esbuild').BuildOptions} */
 const modelApiOptions = {
   ...common,
   plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
@@ -213,6 +231,7 @@ const referenceOptions = {
   ...modelApiOptions,
   entryPoints: ['src/shared/reference/referenceEntry.ts'],
   outfile: 'dist/reference.js',
+  plugins: [...modelApiOptions.plugins, compressedReference(isProduction)],
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -600,11 +619,32 @@ console.log(
   `What's New: ${String(whatsNewContent.releases)} releases from CHANGELOG.md into ${WHATS_NEW_CONTENT_OUTFILE}`,
 )
 
+// The browser fixture exercises the real webview build without recompiling
+// every unrelated Node bundle inside Vitest's default setup deadline.
+if (process.argv.includes('--webview-only')) {
+  if (!isProduction || isWatch) throw new Error('--webview-only requires --production')
+  const pages = {
+    webview: webviewOptions,
+    referencePage: referencePageOptions,
+    whatsNewPage: whatsNewPageOptions,
+  }
+  mkdirSync(METAFILE_DIR, { recursive: true })
+  await Promise.all(
+    Object.entries(pages).map(async ([name, options]) => {
+      const { metafile } = await esbuild.build(options)
+      writeFileSync(path.join(METAFILE_DIR, `${name}.json`), JSON.stringify(metafile))
+    }),
+  )
+  process.exit(0)
+}
+
 if (isWatch) {
   const contexts = await Promise.all([
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
     esbuild.context(tabOptions),
+    esbuild.context(promptsOptions),
+    esbuild.context(sharingRuntimeOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
@@ -658,6 +698,8 @@ if (isWatch) {
     extension: esbuild.build(hostOptions),
     conversation: esbuild.build(conversationOptions),
     tab: esbuild.build(tabOptions),
+    prompts: esbuild.build(promptsOptions),
+    sharingRuntime: esbuild.build(sharingRuntimeOptions),
     modelApi: esbuild.build(modelApiOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
@@ -711,6 +753,7 @@ if (isWatch) {
       const { metafile } = await build
       writeFileSync(path.join(METAFILE_DIR, `${name}.json`), JSON.stringify(metafile))
     }
+    const ACP_METAFILE_DIR = 'dist/meta-acp'
     mkdirSync(ACP_METAFILE_DIR, { recursive: true })
     const { metafile } = await acp
     writeFileSync(path.join(ACP_METAFILE_DIR, 'acp.json'), JSON.stringify(metafile))
@@ -730,6 +773,8 @@ if (isWatch) {
   reportSize(HOST_OUTFILE)
   reportSize(CONVERSATION_OUTFILE)
   reportSize(TAB_OUTFILE)
+  reportSize(PROMPTS_OUTFILE)
+  reportSize(SHARING_RUNTIME_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
   reportSize(REVIEW_OUTFILE)
   reportSize(SESSION_BOARD_OUTFILE)

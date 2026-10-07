@@ -8,7 +8,6 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { runInNewContext } from 'node:vm'
-import { z } from 'zod'
 import { loadL10n } from './lib/l10nSource.mjs'
 
 const packageRoot = process.argv[2]
@@ -57,16 +56,19 @@ loadBundle(path.resolve('dist/review.js'), 'createReviewFeatures')
 loadBundle(path.resolve(packageRoot, 'dist/modelApi.js'), 'createModelApiHost')
 const agent = path.resolve(packageRoot, 'dist/acp.js')
 const table = createRequire(agent)('./uiText.js').EN
-const { ACP_AGENT_NAME, formatAcpUsage } = await loadL10n(process.cwd())
-const usageTable = z.object({ acpUsage: z.string(), helpReferenceTitle: z.string() })
+const { ACP_AGENT_NAME, EN, formatAcpUsage, tableProblems } = await loadL10n(process.cwd())
 // --help takes no backend or credential-store action. An English locale
 // variable, because with none the agent takes the runtime's own locale.
 function checkUsage(table, locale) {
+  // Validate the complete installed table without stripping the sharing
+  // labels and descriptions consumed by formatAcpUsage.
+  const tableLocale = locale.split(/[.@]/, 1)[0].replaceAll('_', '-')
+  assert.deepEqual(tableProblems(EN, table, { locale: tableLocale, isStrict: false }), [], locale)
   const help = execFileSync(process.execPath, [agent, '--help'], {
     encoding: 'utf8',
     env: { LC_ALL: locale },
   })
-  assert.equal(help.trim(), formatAcpUsage(usageTable.parse(table), ACP_AGENT_NAME).trim(), locale)
+  assert.equal(help.trim(), formatAcpUsage(table, ACP_AGENT_NAME).trim(), locale)
 }
 checkUsage(table, 'en_US.UTF-8')
 const tables = readdirSync(path.join(packageRoot, 'l10n'))

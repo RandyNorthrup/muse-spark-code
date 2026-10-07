@@ -56,8 +56,9 @@ afterEach(() => {
 
 describe('isWebFetchBundle', () => {
   it('accepts a module that exports the check and the fetch, and nothing else', () => {
-    const { checkWebPageUrl, fetchWebPageWith } = webFetchEntry
-    expect(isWebFetchBundle({ checkWebPageUrl, fetchWebPageWith })).toBe(true)
+    const { checkWebPageUrl, fetchWebPageWith, readRawPromptWith } = webFetchEntry
+    expect(isWebFetchBundle({ checkWebPageUrl, fetchWebPageWith, readRawPromptWith })).toBe(true)
+    expect(isWebFetchBundle({ checkWebPageUrl, fetchWebPageWith })).toBe(false)
     expect(isWebFetchBundle({ checkWebPageUrl })).toBe(false)
     expect(isWebFetchBundle({ fetchWebPageWith })).toBe(false)
     expect(isWebFetchBundle({ checkWebPageUrl, fetchWebPageWith: 'no' })).toBe(false)

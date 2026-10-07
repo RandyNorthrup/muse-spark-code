@@ -416,6 +416,30 @@ and a byte-exact restoration recorded before certification.
 The Windows release-shell fixtures use Git Bash's installed path when it
 exists, otherwise Bash from PATH. A missing Bash remains a test failure.
 
+## Portable prompts and sharing
+
+A `.muse-prompt.md` file starts with `---`, one JSON metadata object, and a
+closing `---` on its own line. The remaining body is preserved verbatim,
+including CRLF and trailing spaces. Use `serialisePromptFile` and
+`parsePromptFile` from `src/shared/prompts.ts`; do not implement another
+front-matter parser. Metadata includes schema version, id, title, scope,
+tags, variables, timestamps and the untrusted flag. The strict schema and
+128 KiB reader cap reject malformed or oversized files.
+
+Use the same `PromptStore` and agent data folder on every surface. Personal
+prompts are not keyed by workspace. Loading is insert-only and must never
+submit a model turn. Import requires a complete preview and explicit scope
+confirmation. `buildChatShare` owns the portable chat projection, scrub and
+formats; keep the conversation mode an allow-list. Destination adapters
+receive exact reviewed bytes and recheck policy at their real sinks.
+
+Update `src/shared/featureCatalog.ts` with sharing commands/settings and
+regenerate `docs/sharing-reference.md` using `node scripts/gen-reference.mjs`.
+Run `npm run check:reference`, the owning tests, localization, host API,
+bundle split/size and the sharing accessibility scenes. Certification must
+distinguish fake bridges from mounted editor receipts and name pending M104
+or TUI bindings.
+
 Every new command, setting or feature updates `src/shared/featureCatalog.ts`
 in the same PR (and the shared CLI table for runtime commands). Run
 `npm run reference:generate`, then `npm run check:reference`; the gate rejects

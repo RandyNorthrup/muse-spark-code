@@ -150,6 +150,9 @@ export interface TranscriptProps {
    * Edit on a queued card (M87, PLAN.md D66): the ids the host gave it, for
    * `withdrawQueued`. Absent while nothing can take a message back.
    */
+  /** M118-P-REACT-BRIDGE: same handler as the native Save prompt command. */
+  readonly onSharePrompt?: ((text: string) => void) | undefined
+  readonly onSavePrompt?: ((text: string) => void) | undefined
   readonly onEditQueued?: ((card: QueuedCardRef) => void) | undefined
   /**
    * Whether a steered message can still be taken back before a request reads
@@ -307,6 +310,8 @@ const UserCard = memo(function UserCard({
   restoreNote,
   conversationNote,
   quoteMenu,
+  onSharePrompt,
+  onSavePrompt,
   onEditQueued,
   canEditSteered,
 }: {
@@ -320,6 +325,8 @@ const UserCard = memo(function UserCard({
   readonly restoreNote: string | undefined
   readonly conversationNote: string | undefined
   readonly quoteMenu: ReactNode
+  readonly onSharePrompt: ((text: string) => void) | undefined
+  readonly onSavePrompt: ((text: string) => void) | undefined
   readonly onEditQueued: ((card: QueuedCardRef) => void) | undefined
   readonly canEditSteered: boolean
 }) {
@@ -432,6 +439,32 @@ const UserCard = memo(function UserCard({
       },
     ]
   }
+  if (onSavePrompt !== undefined)
+    items = [
+      ...items,
+      {
+        id: 'prompt.save.message',
+        label: UI_TEXT.promptSave,
+        icon: <ReplyIcon />,
+        onSelect: () => {
+          menu.close()
+          onSavePrompt(entry.text)
+        },
+      },
+    ]
+  if (onSharePrompt !== undefined)
+    items = [
+      ...items,
+      {
+        id: 'prompt.share.message',
+        label: UI_TEXT.sharePrompt,
+        icon: <ReplyIcon />,
+        onSelect: () => {
+          menu.close()
+          onSharePrompt(entry.text)
+        },
+      },
+    ]
   const menu = useRowMenu(
     items,
     hasQueuedMenu ? UI_TEXT.queuedMenuLabel : UI_TEXT.rewindMenuLabel,
@@ -442,6 +475,13 @@ const UserCard = memo(function UserCard({
       className={`message message-user message-${entry.status}`}
       data-entry-id={entry.id}
       data-role="user"
+      data-vscode-context={JSON.stringify({
+        'museSpark.promptSource': 'userMessage',
+        'museSpark.promptText': entry.text,
+        'museSpark.transcriptRole': 'user',
+        'museSpark.messageIsOwn': true,
+        'museSpark.chatAvailable': true,
+      })}
       {...menu.rowProps}
     >
       {hasChips ? (
@@ -1071,6 +1111,8 @@ function TranscriptList(props: TranscriptProps) {
     onQuote,
     onCopyQuote,
     onCloseQuoteMenu,
+    onSharePrompt,
+    onSavePrompt,
     onEditQueued,
     canEditSteered = false,
   } = props
@@ -1149,6 +1191,8 @@ function TranscriptList(props: TranscriptProps) {
             }
             conversationNote={conversationNote}
             quoteMenu={quoteMenuFor(entry.id)}
+            onSharePrompt={onSharePrompt}
+            onSavePrompt={onSavePrompt}
             onEditQueued={onEditQueued}
             canEditSteered={canEditSteered}
           />

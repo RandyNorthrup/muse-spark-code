@@ -57,17 +57,20 @@ describe('native command final owner admission', () => {
   it('D89.5 fences the RVENVFENCE credential names in a real unattended shell', async () => {
     const names = ['AZURE_DEVOPS_EXT_PAT', 'SYSTEM_ACCESSTOKEN', 'TF_TOKEN_app_terraform_io']
     for (const name of names) vi.stubEnv(name, `envfence-fake-${name}`)
-    vi.stubEnv('TOKENIZERS_PARALLELISM', 'envfence-harmless-tokenizers')
+    // Long permitted values must survive; a formatted table can abbreviate them.
+    const harmlessTokenizers = 'envfence-harmless-tokenizers'.repeat(8)
+    vi.stubEnv('TOKENIZERS_PARALLELISM', harmlessTokenizers)
     vi.stubEnv('KEY_PATH', 'envfence-harmless-path')
     try {
       const result = await localIo(names).runShell(
-        process.platform === 'win32' ? 'Get-ChildItem Env:' : 'env',
+        // Read raw values without PowerShell's table formatting/module discovery.
+        process.platform === 'win32' ? '[Environment]::GetEnvironmentVariables().Values' : 'env',
         rootDirectory(),
         REAL_SHELL_TIMEOUT_MS,
       )
       expect(result.exitCode).toBe(0)
       for (const name of names) expect(result.stdout.includes(`envfence-fake-${name}`)).toBe(false)
-      expect(result.stdout.includes('envfence-harmless-tokenizers')).toBe(true)
+      expect(result.stdout.includes(harmlessTokenizers)).toBe(true)
       expect(result.stdout.includes('envfence-harmless-path')).toBe(true)
     } finally {
       vi.unstubAllEnvs()
@@ -78,7 +81,8 @@ describe('native command final owner admission', () => {
     vi.stubEnv('OPENAI_API_KEY', 'envfence-fake-parent')
     try {
       const io = localIo(['OPENAI_API_KEY'])
-      const command = process.platform === 'win32' ? 'Get-ChildItem Env:' : 'env'
+      const command =
+        process.platform === 'win32' ? '[Environment]::GetEnvironmentVariables().Values' : 'env'
       for (const isInteractive of [false, true]) {
         const result = await io.runShell(
           command,

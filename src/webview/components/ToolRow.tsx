@@ -48,15 +48,34 @@ import type { ElicitationCardProps } from './ElicitationCard'
 import { deferred } from './DeferredSurface'
 
 import { Clipped, DiffTable } from './ToolBlocks'
-import {
-  GoalBody,
-  ImageBody,
-  MemoryBody,
-  ScheduleBody,
-  ToolImage,
-  WebBody,
-  WorkflowBody,
-} from './ToolBodies'
+const GoalBody = deferred(async () => {
+  const module = await import('./ToolBodies')
+  return { default: module.GoalBody }
+})
+const ImageBody = deferred(async () => {
+  const module = await import('./ToolBodies')
+  return { default: module.ImageBody }
+})
+const MemoryBody = deferred(async () => {
+  const module = await import('./ToolBodies')
+  return { default: module.MemoryBody }
+})
+const ScheduleBody = deferred(async () => {
+  const module = await import('./ToolBodies')
+  return { default: module.ScheduleBody }
+})
+const ToolImage = deferred(async () => {
+  const module = await import('./ToolBodies')
+  return { default: module.ToolImage }
+})
+const WebBody = deferred(async () => {
+  const module = await import('./ToolBodies')
+  return { default: module.WebBody }
+})
+const WorkflowBody = deferred(async () => {
+  const module = await import('./ToolBodies')
+  return { default: module.WorkflowBody }
+})
 import { verifySummaryText } from '../../shared/verifyText'
 import { ThenRunBlock, VerifyBody } from './VerifyParts'
 
