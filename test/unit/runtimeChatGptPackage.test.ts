@@ -147,10 +147,7 @@ function pack(dir: string) {
   return spawnSync(process.execPath, [path.join(dir, 'scripts/package-acp.mjs')], {
     cwd: dir,
     encoding: 'utf8',
-    env: {
-      ...withoutCredentials(process.env),
-      BADGE_CHECK_SKIP_NETWORK: 'Offline TRAIN15E packaging fixture',
-    },
+    env: withoutCredentials(process.env),
   })
 }
 

@@ -96,6 +96,46 @@ afterAll(async () => {
   await removeFolder(WORK)
 })
 
+beforeAll(() => {
+  // Packaging runs the real badge validator in a child. Its HTTP boundary
+  // needs a fake too: a PR's screenshots do not exist on public main yet.
+  // Only this package process tree receives the preload; CI's independent
+  // public badge gate and the agent's own transport are unchanged.
+  writeFileSync(
+    PACKAGE_PRELOAD,
+    String.raw`
+      const { appendFileSync, readFileSync, readdirSync } = require('node:fs');
+      const path = require('node:path');
+      const root = ${JSON.stringify(ROOT)};
+      const images = ${JSON.stringify(PACKAGE_IMAGES)};
+      globalThis.fetch = async input => {
+        const url = new URL(String(input));
+        appendFileSync(images, JSON.stringify(url.href) + '\n');
+        if (url.href === 'https://api.github.com/repos/RandyNorthrup/muse-spark-code/git/trees/main?recursive=1') {
+          const tree = readdirSync(path.join(root, 'media'), { recursive: true })
+            .filter(file => file.endsWith('.png'))
+            .map(file => ({ path: 'media/' + file.replaceAll('\\', '/'), type: 'blob' }));
+          return Response.json({ truncated: false, tree });
+        }
+        if (url.origin === 'https://raw.githubusercontent.com' &&
+            url.pathname.startsWith('/RandyNorthrup/muse-spark-code/main/media/')) {
+          const file = path.join(root, url.pathname.split('/main/')[1]);
+          return new Response(readFileSync(file), { headers: { 'content-type': 'image/png' } });
+        }
+        if (!['img.shields.io', 'badgen.net', 'github.com'].includes(url.hostname)) {
+          throw new Error('Unexpected package image: ' + url.href);
+        }
+        const text = url.pathname.startsWith('/badge/')
+          ? decodeURIComponent(url.pathname.slice('/badge/'.length)).replace(/-[^-]+$/, '')
+          : 'test-owned badge';
+        return new Response('<svg xmlns="http://www.w3.org/2000/svg"><text>' + text + '</text></svg>', {
+          headers: { 'content-type': 'image/svg+xml' },
+        });
+      };
+    `,
+  )
+})
+
 function command(
   file: string,
   cwd: string,
@@ -109,7 +149,10 @@ function command(
       ...process.env,
       LANG: 'en_US.UTF-8',
       LC_ALL: 'en_US.UTF-8',
-      BADGE_CHECK_SKIP_NETWORK: 'Offline TRAIN15E e2e packaging',
+      BADGE_CHECK_SKIP_NETWORK: undefined,
+      ...(path.basename(file) === 'package-acp.mjs' && {
+        NODE_OPTIONS: `--require ${JSON.stringify(PACKAGE_PRELOAD)}`,
+      }),
       ...env,
     },
     encoding: 'utf8',
@@ -839,43 +882,6 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
         BUILD_TIMEOUT,
       )
       expect(built.status, built.stderr).toBe(0)
-      // Packaging runs the real badge validator in a child. Its HTTP boundary
-      // needs a fake too: a PR's screenshots do not exist on public main yet.
-      // Only this package process tree receives the preload; CI's independent
-      // public badge gate and the agent's own transport are unchanged.
-      writeFileSync(
-        PACKAGE_PRELOAD,
-        String.raw`
-          const { appendFileSync, readFileSync, readdirSync } = require('node:fs');
-          const path = require('node:path');
-          const root = ${JSON.stringify(ROOT)};
-          const images = ${JSON.stringify(PACKAGE_IMAGES)};
-          globalThis.fetch = async input => {
-            const url = new URL(String(input));
-            appendFileSync(images, JSON.stringify(url.href) + '\n');
-            if (url.href === 'https://api.github.com/repos/RandyNorthrup/muse-spark-code/git/trees/main?recursive=1') {
-              const tree = readdirSync(path.join(root, 'media'), { recursive: true })
-                .filter(file => file.endsWith('.png'))
-                .map(file => ({ path: 'media/' + file.replaceAll('\\', '/'), type: 'blob' }));
-              return Response.json({ truncated: false, tree });
-            }
-            if (url.origin === 'https://raw.githubusercontent.com' &&
-                url.pathname.startsWith('/RandyNorthrup/muse-spark-code/main/media/')) {
-              const file = path.join(root, url.pathname.split('/main/')[1]);
-              return new Response(readFileSync(file), { headers: { 'content-type': 'image/png' } });
-            }
-            if (!['img.shields.io', 'badgen.net', 'github.com'].includes(url.hostname)) {
-              throw new Error('Unexpected package image: ' + url.href);
-            }
-            const text = url.pathname.startsWith('/badge/')
-              ? decodeURIComponent(url.pathname.slice('/badge/'.length)).replace(/-[^-]+$/, '')
-              : 'test-owned badge';
-            return new Response('<svg xmlns="http://www.w3.org/2000/svg"><text>' + text + '</text></svg>', {
-              headers: { 'content-type': 'image/svg+xml' },
-            });
-          };
-        `,
-      )
       const packed = command(
         path.join(BUILD_ROOT, 'scripts', 'package-acp.mjs'),
         BUILD_ROOT,

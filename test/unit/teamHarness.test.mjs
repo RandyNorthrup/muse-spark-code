@@ -9,6 +9,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
@@ -24,14 +25,39 @@ import { EN } from '../../src/shared/l10n/en'
 
 // Preparation builds production chunks and inventories the complete real VSIX.
 const REAL_HARNESS_PREPARE_TIMEOUT_MS = 60_000
-const rig = { browser: undefined, server: undefined, origin: '', packagedFiles: [] }
+const rig = {
+  browser: undefined,
+  server: undefined,
+  origin: '',
+  packagedFiles: [],
+  inventory: undefined,
+}
 beforeAll(async () => {
   execFileSync(process.execPath, ['scripts/build.mjs', '--production'], { stdio: 'pipe' })
   execFileSync(process.execPath, ['scripts/pseudo-l10n.mjs'], { stdio: 'pipe' })
+  mkdirSync('temp', { recursive: true })
+  rig.inventory = mkdtempSync(path.resolve('temp/team-inventory-'))
+  // VSCE traverses before filtering. Keep its unchanged policy over real
+  // publication roots, without walking other workers' changing fixture trees.
+  const roots = new Set(
+    readFileSync('.vscodeignore', 'utf8')
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith('!'))
+      .map((line) => line.slice(1).split('/', 1)[0]),
+  )
+  for (const entry of readdirSync('.')) {
+    if (
+      [...roots].some(
+        (root) => entry === root || (root.includes('*') && entry.startsWith(root.split('*', 1)[0])),
+      )
+    )
+      cpSync(entry, path.join(rig.inventory, entry), { recursive: true })
+  }
+  cpSync('.vscodeignore', path.join(rig.inventory, '.vscodeignore'))
   rig.packagedFiles = execFileSync(
     process.execPath,
-    ['node_modules/@vscode/vsce/vsce', 'ls', '--no-dependencies'],
-    { encoding: 'utf8' },
+    [path.resolve('node_modules/@vscode/vsce/vsce'), 'ls', '--no-dependencies'],
+    { cwd: rig.inventory, encoding: 'utf8' },
   ).split('\n')
   const serving = await serveRepo(process.cwd())
   rig.server = serving.server
@@ -51,6 +77,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await rig.browser?.close()
   if (rig.server !== undefined) await new Promise((resolve) => rig.server.close(resolve))
+  if (rig.inventory !== undefined) rmSync(rig.inventory, { recursive: true, force: true })
 })
 
 async function harness(scenario, theme, lang, run) {

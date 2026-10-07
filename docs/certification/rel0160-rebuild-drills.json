@@ -65,5 +65,15 @@
       "redExit": 1,
       "restoredSha256": "4a593df339873b6107907d592dfc9093acc0631383c514e1006a1e88c97b077f"
     }
-  ]
+  ],
+  "team-inventory": {
+    "name": "team-inventory-dist",
+    "file": "test/unit/teamHarness.test.mjs",
+    "redExit": 1,
+    "restoredSha256": "c493c56fd43e8e842658d48f1f2e3557457d9c6c84fff80b93ac4f886b4197f7",
+    "greenExit": 0,
+    "command": "CI=true npx vitest run test/unit/teamHarness.test.mjs --maxWorkers=3",
+    "existingSetupTimeoutMs": 60000,
+    "defaultAssertionTimeouts": true
+  }
 }

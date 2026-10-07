@@ -49105,6 +49105,17 @@ scan is now clean after archive refs moved outside this repository, and
 the shared install now contains the pinned source-map-js 1.2.2. Windows
 proof remains WINPUB on win11 for the lead's release batch.
 
+**REL0160B release qualification deferral (2026-10-07, macmini).** The cold
+ChatGPT ACP package fixture requires checkout `dist/acp.js`; hosted coverage
+shards have no static-job build artifacts. Two owned-build fixes fail on the
+integration inventory and provider catalog respectively. common.md's
+two-failed-fixes rule stops this path; the attempted changes are removed.
+Keep the existing test and all gates unchanged and report this release blocker
+explicitly. The badge override repair is separately verified with CI enabled.
+Independent job receipts and the cold failures are recorded in
+docs/certification/rel0160.md; a sequential warm-dist run cannot certify this
+dependency. No skip, timeout increase or gate exemption is added.
+
 ## 8. Escape hatches register
 
 | Location                                                        | Escape hatch                                                                                                   | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -52453,3 +52464,52 @@ probes pass; 17 README captures are compared and refreshed. Mutation drills
 fail and restore byte-exact. Commit the merged source with normal hooks, then
 qualify that commit in a fresh clone with the exact macOS workflow commands.
 See docs/certification/rel0160.md and its rebuild JSON receipts.
+
+**REL0160B committed-clone repair (2026-10-07).** The exact first coverage
+shard rejects the ChatGPT package fixture's offline badge override under
+`CI=true`, as the production gate requires. Remove the fixture override and
+run the actual public badge/image check while preserving CI and the existing
+shared setup deadline. Record the red shard, rerun the complete affected
+files and quality with CI enabled, commit with normal hooks, then restart
+committed-clone qualification. Do not weaken the badge gate or its CI policy.
+
+The same fixture also assumes another job has produced checkout `dist/`
+files. A cold complete-file probe fails with missing `dist/acp.js` before its
+assertions. Two owned-production-build repairs fail: the first lacks the
+integration-test inventory; adding that inventory then exposes provider
+catalog generation rooted at the builder module rather than the owned cwd.
+The shared lane rules require stopping after two failed fixes, so the attempted
+owned-build changes are removed. The cold-checkout dependency remains a release
+qualification blocker. Run replacement shards in independent fresh checkouts
+and finish independent jobs; record failures without skipping or weakening
+gates. The first aggregate rerun was stopped after static gates passed.
+
+**REL0160B headless fixture badge repair (2026-10-07).** The full CI-enabled
+aggregate then completes its suite with 29 headless package-guard failures;
+18,114 tests pass. Its command helper has the same forbidden offline badge
+override. Initialize the already existing package-only fake HTTP preload before
+all package guards and attach it to every production pack command, clearing
+the override while preserving CI and the real validator. Retain every guard,
+assertion and deadline. This repairs the independent badge seam; the cold
+checkout-bundle dependency remains deferred under the two-failed-fixes rule.
+
+**REL0160B Team harness preparation repair (2026-10-07).** The next full
+CI-enabled suite passes 18,121 tests but times out the Team harness's existing
+60-second setup, preventing its 22 assertions. Idle profiling measures 5.03 s
+for production build, 0.33 s for pseudo-localization and 9.60 s for inventory.
+Pinned VSCE scans the whole checkout before applying publication exclusions,
+including transient fixture trees created by other workers. Copy the real
+publication roots named by the unchanged `.vscodeignore` into one owned
+inventory tree and run the same VSCE command there. Preserve every emitted
+chunk, all package/budget/CSP assertions and all deadlines; add no ignore.
+
+**REL0160B retained CI repairs verified (2026-10-07, macmini).**
+`CI=true npm run quality` exits 0 in 2,050.73 s: 18,143 tests / 885 passing
+files, unchanged 92.22/87.47/93.33/92.94 coverage, 988 accessibility pages
+with no violations/undecided/missing results, no leaks across 2,280 commits,
+and pinned SAST's 533 rules / 2,258 targets / zero findings. The 85 affected
+packaging/badge tests and 22 Team tests also pass separately. Omitting `dist`
+from the owned publication inventory fires the membership assertion; restoration
+is byte-exact and all 22 pass again. Commit these retained repairs with normal
+hooks, then run each requested independent committed-clone job. Cold-checkout
+bundle coupling remains explicitly deferred under the lane's stop rule.

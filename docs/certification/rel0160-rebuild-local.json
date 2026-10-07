@@ -69,5 +69,38 @@
     "command": "npm run quality",
     "exit": 0,
     "seconds": 2011.74
+  },
+  "finalCiQuality": {
+    "command": "npm run quality",
+    "CI": true,
+    "exit": 0,
+    "seconds": 2050.73,
+    "node": "22.23.3",
+    "filesPassed": 885,
+    "testsPassed": 18143,
+    "existingSkippedFiles": 11,
+    "existingSkippedTests": 106,
+    "coverage": {
+      "statements": 92.22,
+      "branches": 87.47,
+      "functions": 93.33,
+      "lines": 92.94
+    },
+    "accessibility": {
+      "pages": 988,
+      "violations": 0,
+      "undecided": 0,
+      "missingResults": 0,
+      "existingExemptions": 4,
+      "offscreenUnmeasured": 2953,
+      "glyphUnmeasured": 84
+    },
+    "gitleaksCommits": 2280,
+    "sast": {
+      "version": "1.178.0",
+      "rules": 533,
+      "targets": 2258,
+      "findings": 0
+    }
   }
 }

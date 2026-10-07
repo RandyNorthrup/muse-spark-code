@@ -18,6 +18,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Run the actual badge/image gate in the ChatGPT package fixture under CI,
+  preserving the prohibition on offline badge overrides.
+- Reuse the headless tests' existing fake image transport for every package
+  guard, retaining CI and the real badge validator without an offline override.
+- Inspect the Team harness's real package inventory in an owned publication
+  tree, avoiding other test workers' temporary files within the same setup limit.
 - Compose exact money ports across the provider, team, usage and headless train;
   keep subscription Plan turns independent of API budget journals and validate
   output caps before clamping.
