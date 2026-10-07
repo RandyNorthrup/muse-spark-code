@@ -18417,6 +18417,20 @@ numbers. Research: `docs/certification/m97-research.md`.
 
 ## 3. Open questions (need the owner)
 
+- **Q-CI0150W-RESIDUALS (2026-10-07):** the scoped Windows repairs pass
+  in full committed-clone shards, but the complete job set remains red.
+  Linux owns the clean-artifact and packaged-stdio fixture failures under
+  the round-3 common brief. Integration cannot resolve Microsoft's release
+  endpoint within the upstream 15-second deadline. Two dedicated browser
+  checks refuse startup as `unrecognized`; a focused deadline control
+  captures a valid startup and passes, so the failing startup's precise
+  contract difference is still unknown. The installed native keyring loads
+  but both the agent and a separate nonexistent-fixture lookup report an
+  unavailable store. Further capture and an OS-store diagnosis are needed
+  before changing either security boundary. Preserve all refusals and
+  deadlines; do not claim browser, credential-store, hosted W or release
+  certification. Exact failures are in the round-3 Windows train record.
+
 - **M97:** No owner step or design answer blocks this plan. Default header
   policy is optional; the report chooses no license or owner on the user's
   behalf. Delivery must prove Muse Code explanation confinement, each registry
@@ -18865,6 +18879,54 @@ Verify complete owning files three times after the brief's clean checkout,
 with `CI=true`, at repository timeouts and at most three files per invocation.
 Run all five typecheck projects and the scoped static/build gates. No dependency,
 new feature, provider-wire shape, paid/live call, merge or push is authorized.
+
+### CI0150W — Round 3 Windows CI verification (2026-10-07, win11)
+
+Scope: reproduce every Windows pull-request job from committed fresh clones,
+using CI's Node 22, `CI=true`, four coverage shards and repository deadlines.
+The explicit round-3 whole-shard requirement applies to CI reproductions;
+targeted development runs retain the rig's three-file limit. Own the native
+team lifetime, hints/load, worker fence and Model API host timeouts. Remove
+repeated cold setup and launch-priority delays structurally, retaining native
+security checks, all assertions, deadlines and budgets. Record any failures
+owned by another OS lane without merging or editing its work. No paid/live
+model calls, global dependency installs, push, merge or rebase.
+
+The baseline clean Windows shard also exposed `teamRuntimePackage.test.mjs`
+building its private production bundles inside a five-second assertion. Move
+that invariant compilation into suite preparation while retaining every lazy
+factory and no-dispatch assertion. Clean-artifact package failures reported
+across OSes remain Linux-owned under the round-3 shared rules.
+
+The complete Windows shard 2 additionally reproduces `checkSlots.test.ts`'s
+six native failure scenarios sharing one five-second test, followed by cleanup
+while its timed-out loop still starts children. Prepare one immutable Git seed
+per suite and run each independent uncertainty/transport scenario as its own
+case at the unchanged default deadline. Keep every state and refusal assertion.
+
+Coverage also reproduces Windows held-launch cancellation issuing STOP again
+after the helper has already received STOP and closed its pipe. The second
+write raises EPIPE and masks the expected lifetime-disposed refusal. Retain
+the held cancellation's original write promise and await it during retirement;
+do not resend STOP for that held launch. Preserve ordinary retirement, native
+proof/uncertainty and the existing deadline. The real coverage-enabled native
+disposal case is the regression guard; no assertion or timeout is relaxed.
+Record this native cancellation pitfall as G33 in the orchestration register,
+covered by M96's held-launch disposal guard and Windows cancellation write.
+
+The dedicated pinned-browser job exposes two live startup-contract refusals
+and an unjoined observation rejection on Windows. Capture its actual pinned
+CDP startup frames to diagnose the refusals before any production change;
+preserve every version, command-line, blank-target, network-service, process,
+listener and cleanup assertion. No new retry, launch delay, timeout or skip.
+
+- [x] Attempt owned-failure reproductions and inspect round-2 Windows priority.
+- [x] Fix scoped causes, prove regression guards fire, and commit with hooks.
+- [x] Attempt every locally executable Windows job command in fresh committed
+      clones, including installed-package, pinned-browser and integration
+      checks; remove clones and record unavailable hosted W execution.
+- [x] Record each job's result under round 3 Windows in
+      `docs/certification/train-0.15.0.md` and report exact remaining failures.
 
 ### CI0150C — Clean-checkout platform and logic CI repairs (2026-10-07, macmini)
 
@@ -40841,6 +40903,23 @@ Aggregate release quality remains deferred to joined integration. Standalone
 secret scanning passes; the inherited SAST wrapper supplies duplicate `--jobs`
 options and is a shared failure, also deferred without changing its invocation.
 See this lane's round 3 section in `docs/certification/train-0.15.0.md`.
+
+**CI0150W round 3 certification.** Whole-shard and whole-job reproductions
+are explicitly required by `CI0150-os-common.md`; they run with unchanged
+default deadlines in fresh clones of local hooked commits. Targeted runs
+retain the three-file cap. Early scoped commits can precede aggregate
+`npm run quality` while the cross-platform failures assigned to the Linux
+lane remain; every failure and final Windows job result is recorded without
+weakening gates, assertions or deadlines. A complete quality claim requires
+the actual aggregate to exit zero.
+
+The final implementation run at `2548f459` passes the static CI job and all
+scoped test files in four complete shards. Aggregate quality stays deferred:
+clean/package fixtures remain red, integration has an external release-lookup
+timeout, and dedicated browser/credential-store checks have the exact residuals
+listed in §3 and the train record. Original coverage thresholds are exceeded;
+the merge command still fails because it replays failed package suite setup.
+No gate, refusal, assertion, timeout, retry or skip is weakened to claim green.
 
 **FIX0150R scoped certification.** The rig brief requires complete owning test
 files in batches of at most three, with three clean `CI=true` repetitions and

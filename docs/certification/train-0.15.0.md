@@ -2078,3 +2078,202 @@ and per-step logs):
 Every fresh clone, including earlier diagnostic clones, is deleted. No merge,
 rebase, push, live/paid model call, credential disclosure, test deadline change,
 retry, new skip or gate weakening occurs. Normal hooks run on every local commit.
+
+## Round 3 — Windows CI (CI0150W, 2026-10-07, win11)
+
+### Scope and setup
+
+Read the rig brief, `CI0150-os-common.md`, both round-2 failure reports,
+AGENTS.md and the applicable PLAN decisions/milestones. This lane starts at
+`f033583e2` on `fix/0150-ci-w`. No merge, rebase, push or paid/live model call.
+CI reproduction uses a checksum-verified portable Node **22.23.3**, Git Bash
+and `CI=true`; targeted runs use at most three files and the repository's
+unchanged test/hook deadlines. Full CI shards are explicitly required by the
+round-3 brief. Each final job starts in a newly cloned committed tree with
+`npm ci`, rather than pre-existing build outputs.
+
+### Windows fixture repairs and guard drills
+
+The round-2 priority edit (`577b6a56`) affects POSIX only. Windows' native job
+helper was unchanged. General lifetime/crash fixtures nevertheless requested
+below-normal scheduling for every helper/command. They now request normal
+priority; the dedicated native priority case explicitly requests below-normal
+and retains the OS-observed priority, journal identity and retirement asserts.
+Production launch priority is unchanged.
+
+Owner-only hint publication and the native Windows hint-security pair share
+suite preparation, retaining the same real ACL reads, replacement refusal and
+foreign-writer refusal. Native folders remain until suite cleanup; cleanup is
+safe if preparation fails. Worker rename attacks start with a real opened and
+identified handle and an admitted native root prepared once in `beforeAll`;
+the production confinement checks, real rename/junction attack and exact held/
+checkout-byte assertions remain. The finite-cap reviewer starts its real
+session journal in `beforeAll`; the tested turn still performs actual ordinary
+admission, reviewer admission and settlement before asserting its journal total.
+
+Initial Node 24 and CI-pinned Node 22 targeted baselines passed (74 native/team
+cases and 661 Model API host cases). These rig results do not reproduce the
+hosted resource contention or erase the supplied hosted failures. The fixes
+remove unnecessary contention and cold setup from the named failing cases.
+The first Node 22 repaired runs passed **74/74** and **661/661**, with no timeout
+flag; restored native/team verification passed **74/74**. Changed-source ESLint
+passed. Full fresh-clone job receipts follow after the scoped commit.
+
+Two intentional regressions fired at default deadlines and were restored:
+
+- Reopen the write target by name after the real junction swap instead of
+  writing through the checked handle: the held-file assertion failed,
+  `before` versus `checked handle` (exit 1).
+- Request normal priority in the dedicated below-normal case: the actual
+  priority assertion failed, **0 versus 10** (exit 1).
+
+The final committed-clone Windows results are below. Aggregate quality and
+release certification remain blocked by the failures recorded there.
+
+### Whole-shard baseline and additional Windows repair
+
+The unchanged baseline fresh clone (`f033583e2`, Node 22.23.3, `CI=true`,
+exact coverage shard 1/4 command) finished in **876.25 s**: **204 files passed,
+2 failed; 4,293 tests passed, 1 failed, 7 skipped**. Model API host's 661 cases
+and hints/load's 15 Windows cases passed. The failures were:
+
+- `runtimeChatGptPackage.test.ts`: absent clean-checkout `dist/acp.js` in suite
+  setup; the round-2 report confirms this on Linux/macOS as well, so Linux owns it.
+- `teamRuntimePackage.test.mjs`: invariant private production compilation inside
+  the five-second test. Its three build calls now run in `beforeAll`, with suite
+  cleanup in `afterAll`; every lazy-load, factory and no-dispatch assert remains.
+  The repaired complete file passes at repository deadlines. Eagerly loading its
+  scheduler before the initial cache assertion deliberately failed (exit 1);
+  restoring the exact line removal restored the pass.
+
+The first committed verification started before this extra repair was found.
+It is a reproduction run, not the final certification. The full Windows job set
+will start again from the next hooked commit and freshly cloned source.
+
+### Full-job discovery: slot deadlines and held cancellation
+
+The complete committed-clone run at `b31c41ef` reproduced shard 2's
+`checkSlots.test.ts` failure: six independent native uncertainty/transport
+scenarios occupied one five-second test, which then raced cleanup with the
+still-running loop (`EBUSY`). One immutable Git seed now prepares in
+`beforeAll`; each scenario gets fresh repositories and its own default-deadline
+case, preserving every failed-run, occupied/uncertain-state and second-admission
+refusal assertion. The complete repaired file passed **17/17** cases in
+**27.27 s**. Deliberately returning a positive descendant proof in the command
+uncertainty fixture made its rejection assertion fail (exit 1); the original
+uncertainty was restored.
+
+Shard 3 exposed a production Windows held-confirmation retirement race. A
+coverage-enabled native reproduction failed with `write EPIPE` instead of
+`TEAM_PROCESS_LIFETIME_DISPOSED`: lifecycle cancellation and subsequent
+retirement wrote STOP repeatedly after the native helper closed its control
+pipe. The Windows driver now retains the first held cancellation write and
+awaits it during retirement. It preserves the existing helper-close wait,
+retirement deadline and native descendant proof. The real native disposal
+guard and portable lifetime contract passed **32/32** cases with coverage
+enabled and repository deadlines after the repair. No production priority,
+assertion, timeout, retry or skip changed.
+
+The discovery run completed all four shards on its earlier immutable head.
+Its receipts do not certify these later repairs. The complete final job set
+below starts again from their hooked implementation commit.
+
+### Final committed-clone Windows results
+
+Implementation head: **`2548f459bea590d080ebec14889a71bb46d63b46`**.
+Earlier scoped commits: `2ef240bd2ddad91f3eec62d76b059bdc874e5cec` and
+`b31c41eff211a859b1daf7bfe461d1bc64eda438`. All commits ran lint-staged and
+gitleaks hooks. This result-record update changes documentation only.
+
+Each job used a newly cloned committed tree at
+`C:/lanes/_tmp/CI0150W-ci`, `npm ci`, Node 22.23.3 and `CI=true`.
+Every clone was removed after its job; the final clone path is absent.
+The same fresh path lets Vitest merge each shard's original absolute coverage
+paths. No previous clone's build output was retained. Receipts and logs are
+under `C:/lanes/_tmp/CI0150W-verified-reports/`; `steps.jsonl` records every
+step's exit, elapsed time and implementation head. The ACP installation used
+an isolated temporary npm global prefix, preserving the workflow's installed
+package command without installing into the user's global prefix.
+
+| Windows job                                 | Result                    | Evidence                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Build: static gates                         | **PASS**                  | Exact `npx run-s format:check lint typecheck check:badges check:l10n check:reference check:host-api deadcode cycles duplication build security:audit`; exit 0, 761.13 s gate / 835.05 s including clone and install, within the 15-minute job cap. Real pinned PSScriptAnalyzer, all five typechecks, all original build/split/size/notices gates and audit passed. |
+| Build: coverage shard 1/4                   | **FAIL — F1**             | 205 files passed, one suite file failed; 4,294 tests passed, 7 skipped. All 661 Model API host, 15 Windows hints/load and the packaged-team case passed. 805.14 s command.                                                                                                                                                                                          |
+| Build: coverage shard 2/4                   | **FAIL — F2**             | 202 files passed, one suite file failed, two files skipped; 3,607 tests passed, 59 skipped. All 52 worker-fence and 17 slot cases passed. 954.21 s command.                                                                                                                                                                                                         |
+| Build: coverage shard 3/4                   | **PASS**                  | 201 files passed, four skipped; 4,243 tests passed, 37 skipped. All seven real Windows lifetime cases passed, including held disposal, below-normal priority and hard host death. 850.70 s command.                                                                                                                                                                 |
+| Build: coverage shard 4/4                   | **PASS**                  | 204 files passed, one skipped; 4,375 tests passed, 40 skipped. 922.47 s command.                                                                                                                                                                                                                                                                                    |
+| Build: merged coverage                      | **FAIL — F1/F2 replayed** | All four nonempty blob files merged; 812 files passed, two failed, seven skipped; 16,519 tests passed, 143 skipped. Statements 92.39%, branches 87.31%, functions 93.60%, lines 93.03% exceed the unchanged 90/85/90/90 thresholds. No threshold failure; exit 1 retains the suite-setup failures.                                                                  |
+| Build: stable and floor VS Code integration | **FAIL — F3**             | Version-script and development build passed. The exact `npm run test:integration` command failed resolving VS Code before either editor's tests ran.                                                                                                                                                                                                                |
+| Action check: gate/apply/W rehearsal suites | **PASS**                  | Exact workflow commands: action gate 17/17, local bare-origin apply/Git 56/56, packed fake launcher and local W rehearsal 6/6. Review, text, image-withheld and low-budget fake controls remain covered.                                                                                                                                                            |
+| Browser check: pinned captures              | **FAIL — F4**             | Production build and forced network-service restart passed. Both R51 controls passed. Live/R51 batch: six passed, two failed, zero skipped, one unhandled observation rejection; the no-skips/no-failures check correctly exited 1.                                                                                                                                 |
+| Hosts: installed ACP agent package          | **FAIL — F5/F6/F7**       | Product build/pack and isolated install passed. Stdio: 12 passed, one failed. Installed headless suite: 12 passed, 29 failed, three skipped. Installed help/refusal/schema/fake-exec shell check passed. Credential Manager and stored-key checks failed.                                                                                                           |
+| Action check: hosted W (Windows)            | **NOT EXECUTED HERE**     | The composite Action needs a GitHub runner/event, eligible PR/API context and artifact service. This rig has no such hosted execution context. The local W rehearsal above passed; it is not a hosted W receipt.                                                                                                                                                    |
+
+The four shard commands were exactly
+`npx vitest run --coverage --shard=N/4 --reporter=default --reporter=blob --outputFile=blob-reports/shard-N.json`,
+with `FAST=false` and `SHARD=N`. Coverage used
+`npx vitest run --merge-reports=blob-reports --coverage` after checking all
+four blobs. Existing explicit paid/live-model opt-ins stayed off. No new test
+skip, retry, timeout flag, assertion relaxation or gate exception was added.
+
+### Exact remaining failures and diagnostic limits
+
+- **F1, Linux-owned under the shared brief:**
+  `runtimeChatGptPackage.test.ts` suite setup copies absent clean-checkout
+  `dist/acp.js` (`ENOENT`). No body assertions execute in that suite.
+- **F2, Linux-owned clean/package fixture work:**
+  `execStdio.e2e.test.ts`, `M80 D package guards`, copies absent `dist/acp.js`;
+  `M80 E1-E7 built exec` private packaging fails because
+  `media/readme/banner.png` is absent from its private build fixture.
+- **F3, release-resolution failure:** `@vscode/test-electron` reports
+  `request timeout out after 15000ms` at Microsoft's stable-release lookup.
+  A separate PowerShell request to the same official release endpoint also
+  timed out at 15 seconds. Both stable and floor integration runs remain
+  unexecuted. No dependency deadline or network policy was changed.
+- **F4, additional browser startup failures:** `browserCheckLive.test.ts`
+  refuses `talks over the pipe with no TCP listener, in a fresh folder under
+the extension’s storage it removes` with `{ kind: 'unrecognized' }`.
+  `kills the browser at its deadline and when stopped, leaving no process and
+no folder` expects `timedOut`, but receives `unrecognized`. The first case
+  exits before joining its probe; that probe subsequently rejects because no
+  live matching process was observed. The final committed full job has two
+  failed tests and one unhandled rejection. Production's exact version,
+  command-line, single blank target and network-service contract stays intact;
+  the specific failing startup field has not been captured.
+- **F5, reported packaged-stdio fixture failure:** the installed ACP test
+  `prints the complete translated usage and reference hint from the installed
+table` reads absent installed `l10n/ui.de.json` (`ENOENT`). The package carries
+  its runtime localization archive; the fixture's direct-file assumption is
+  platform independent and belongs to the shared package work.
+- **F6, installed headless package fixture:** all 29 failed `M80 D package
+guards` cases share a failed private production-fixture preparation:
+  `Badge network skip is forbidden in CI`. Do not permit that skip or weaken
+  the badge gate. The installed fake transport's other 12 cases passed.
+- **F7, credential-store failures:** `keystore.sh` reports
+  `store-unavailable` and fails `auth set`; `exec.sh --store` refuses before
+  its stored-key run because auth status does not report an absent key.
+  The installed Windows native keyring binding loads successfully. A separate
+  lookup of a fresh random account in a distinct noncredential fixture service
+  also rejects with `GenericFailure`, including without Linux-only options.
+  No value, raw native error/account text or actual credential was printed,
+  copied or stored by that diagnostic. This confirms the failure outside the
+  archive loader but does not establish its OS/library cause; no store bypass
+  or file/environment credential fallback was introduced.
+
+For F4, a temporary raw CDP collector ran only the focused deadline/stop
+control in `C:/lanes/CI0150W`: **1/1 passed**, with five cases filtered by the
+exploratory name selection. Capture:
+`C:/lanes/_tmp/CI0150W-tools/browser-startup-capture.bin` (Chrome pin
+154.0.8037.92, **zero model attempts**). It records a valid single blank target
+and the network-service process for that successful control; it cannot explain
+the failed full-job startups. The collector was restored byte for byte from
+its saved test source and is not committed. That focused pass does not replace
+the red committed full browser-job receipt.
+
+**Final status:** the scoped Windows fixture and held-lifetime repairs pass
+at repository deadlines in full committed-clone shards. **All Windows CI jobs
+do not pass:** shards 1/2, merged coverage, integration, browser captures and
+the installed agent-package job have the exact failures above; hosted W has
+no receipt here. `npm run quality` is not certified green (PLAN §7 scoped
+deferral). No merge, rebase, push or paid/live model call occurred. M80's
+required hosted W and live L/LA/LR receipts remain release work.

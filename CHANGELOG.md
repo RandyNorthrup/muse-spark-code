@@ -17,6 +17,14 @@ happened, not what was planned; superseded entries are kept.
   descendant or transport-failure scenario at its own unchanged test deadline.
 - Start the browser restart capture's discovery window after its verified
   runtime is ready, so a cold download cannot consume the discovery budget.
+- Reuse Windows held-launch cancellation during retirement so a second STOP
+  write cannot hide the disposal refusal with a closed-pipe error. Prepare
+  immutable check-slot Git seeds once and verify each native failure scenario
+  at the unchanged repository deadline.
+- Prepare native Windows ACL, worker-handle and reviewer-journal fixtures before
+  their assertions, and reserve background process priority for its dedicated
+  lifetime test. Build the packaged team's invariant fixtures in suite setup.
+  Native security checks and repository deadlines stay unchanged.
 - Make provider, headless, deferred-bundle and VSIX tests independent of stale
   build outputs in clean CI shards. Reuse VSCE collection and reject oversized
   runtime members before parsing; existing budgets and test deadlines stay fixed.
