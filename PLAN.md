@@ -11406,8 +11406,11 @@ Needs: <items>.`).
 
 8. **Redaction on every renderer.** Every string from a source passes the
    export's scrub (credential shapes, the key digest, account ids, local
-   roots shown as `~` or the workspace's name) once when the snapshot is
-   taken, and each renderer's output passes it again. Paths are
+   workspace paths shown relative, outside paths redacted) once when the snapshot is
+   taken. Decoded report strings and object keys pass it again before
+   canonical serialization and hashing; saved input is decoded and re-walked
+   before verification. Text/Markdown/HTML output passes it again, but the
+   text scrub never runs on canonical JSON bytes (RVM113R, 2026-10-06). Paths are
    workspace-relative. Commit subjects, pull request titles and changelog
    lines are data: shown verbatim after the scrub, and escaped for each
    format (Markdown table pipes, HTML entities).
@@ -28000,6 +28003,29 @@ milestone. It lands in three deliveries:
   (M108), security (M109), fleet's devices and nodes (M100, M110a), the TUI
   (M110a0's lane T), Muse Desktop (M111b).
 
+**Lane R review corrections (RVM113R, 2026-10-06).** Fix the P1 and both
+P2 findings by scrubbing decoded report strings and object keys before
+canonical serialization and hashing, and re-walking decoded saved input
+during verification. Never apply the text scrubber to canonical JSON bytes;
+only `/header/contentHash` is exempt, and hashing still excludes that path
+and `/header/asOf`. Normalize known workspace paths before the shared scrub,
+with Windows case-insensitive root matching and portable relative separators.
+Fix P3 terminal widths using a generated Unicode East Asian Width W/F table
+with its source version, preserving graphemes and emoji width. No dependency
+or guard change. Every finding gets a default-timeout regression and a
+byte-exact red drill in the lane R certification; W retains the existing
+product-documentation and integration-gate handoffs.
+
+**Lane R second review correction (RVM113R2, 2026-10-06).** Fix the
+remaining P2 by recognizing the known workspace prefix in decoded strings
+and consuming the whole relative path, including directory and filename
+spaces, through a quote, field end or invalid path character. Normalize
+every retained separator, including doubled JSON backslashes, with
+case-insensitive Windows roots. Prove equivalent documents, hashes and
+text/JSON/HTML output, saved-JSON round trips and outside-workspace
+redaction with default-timeout tests and a byte-exact red drill. Keep the
+shape-only scrub contract and the existing W integration handoffs explicit.
+
 Lanes P, S, R and V start once lane 0's contracts freeze, which can be as
 soon as M112's lane 0 has published the registry's types (for the session
 kind). The usage kind waits for M102, the native-host rows for M104b–d.
@@ -28116,7 +28142,8 @@ M110, and fake providers for every adapter.
     them. CI is a list of runs scoped to HEAD, default branch or release tag,
     each naming its ref, SHA, workflow, conclusion and URL. MHP 1.2 remains
     host-initiated; saved-id `reports/get` and two-id `reports/compare` share
-    history's workspace authorization. Scrub canonical output before hashing;
+    history's workspace authorization. Scrub decoded values before canonical
+    serialization and hashing (RVM113R, 2026-10-06);
     only the schema path `/header/contentHash` is exempt from scrubbing, and
     hashing excludes `/header/asOf` and `/header/contentHash`. Add token and
     current/lagging labels in all 14 languages. R owns the actual renderer;
@@ -29185,6 +29212,27 @@ anywhere joined it).
 ### FIXM112U — RVM112U surface repairs (2026-10-06)
 
 **Status 2026-10-06: built.** Status evidence: `docs/certification/m112-u.md`.
+
+**M113-R-RVM113R bounded rig certification (2026-10-06).** The lane brief
+reserves full `npm run quality` to the lead and confines changes to R's
+files. Default-timeout regressions, byte-exact drills, all-project
+typechecking, scoped lint/format, schema/reference freshness, dead code,
+zero-clone duplication and production size/split/host-global/notices gates
+run directly on win11. The seven pre-existing unused report manifest keys
+and the existing `node:crypto` inventory mismatch (46 to 47) remain named
+W integration handoffs in `docs/certification/m113-r-renderers,-redaction,-determinism.md`;
+neither gate is weakened or claimed green. W's complete integration gate
+must pass before the milestone ships. RVM113R has no deferred finding.
+RVM113R2 uses the same bounded certification: complete default-timeout
+owning files and scoped checks run on win11, with exact-restoration drills;
+the single P2 is fixed and neither existing integration handoff is hidden.
+
+**M113-L0-RVM113L02 bounded rig certification (2026-10-06).** The brief
+reserves aggregate quality for the lead. Run complete owned unit files with
+default timeouts and the scoped static/build checks directly on Kubuntu;
+record exact-restoration drills in lane 0's certification. The seven existing
+unused manifest keys remain W's wiring handoff; no gate is weakened. Full
+integrated quality and native-host implementation remain the lead's work.
 
 Authority: the rig brief and lead decisions, refining D92/M112 from
 `plan/m105-m107`. No producer, wire contract or paid-call change.
@@ -30864,6 +30912,38 @@ before a repaired one loads (2026-09-30).
   M113-K-host-api-record (node:crypto 46 → 47) remain W's gate handoffs;
   W wires the manifest and regenerates the inventory before full quality.
   No threshold, ignore, dependency, wire shape or startup budget is changed.
+
+- **M113-R-review-RVM113R2 (2026-10-06).** The single P2 is fixed;
+  no review finding is deferred. Known workspace paths consume the full
+  relative suffix, including spaces, through quotes, field ends or invalid
+  path characters, and normalize all separators before the shared scrub.
+  Ordinary, doubled and mixed Windows separators yield identical documents
+  and hashes. Text/JSON/HTML boundaries, saved-JSON round trips, outside
+  paths and three byte-exact red drills are recorded in the lane R
+  certification and `docs/certification/m113-r-review-drills.json`.
+- **M113-R-shape-only-source-prose (existing D93 limit, clarified by
+  RVM113R2, 2026-10-06).** The scrub recognizes registered shapes after
+  decoding the outer saved document. It does not recursively decode inner
+  JSON with Unicode-escaped credential keys, twice-escaped credential
+  fields, percent/base64-encoded keys or credentials split across text-list
+  entries. This remains accepted under the existing shape-only export
+  contract: saved-input verification proves known-shape compliance, not
+  absence of arbitrary secrets in source prose. Follow-up: the shared-export
+  scrub owner must design bounded decoding if that contract expands.
+
+- **M113-R-review-RVM113R (2026-10-06).** The P1, both P2 findings and P3
+  are fixed with no review residuals. Report strings and object keys are
+  scrubbed as structured values, then serialized and hashed; saved input is
+  re-walked after decoding. Only `/header/contentHash` is exempt. Known
+  workspace paths retain normalized relative filenames, with Windows
+  case-insensitive root matching; paths outside the workspace remain
+  redacted. Terminal width uses a generated Unicode 16.0.0 W/F table and
+  emoji properties, preserving graphemes. Default-timeout tests and five
+  byte-exact red drills are recorded in
+  `docs/certification/m113-r-renderers,-redaction,-determinism.md` and
+  `docs/certification/m113-r-review-drills.json`. The existing shape-only
+  scrub limit and W's shipping, product-doc and integration-gate handoffs
+  remain; this lane adds no secret-free-prose claim or shipped command.
 
 - **M113-L0-review-RVM113L02 (2026-10-06).** The P2 comparison-capacity
   finding is fixed with no review residuals. Capacity is derived from the
