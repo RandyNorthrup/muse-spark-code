@@ -63,6 +63,7 @@ import {
 import { readCredentialFile } from '../auth/cliAccount'
 import type { Logger } from '../logger'
 import { systemPath } from './memoryIo'
+import { vaultFenceEnvironment, type VaultFenceOptions } from '../../core/vault/exec/fence'
 
 /** VS Code's proxy settings (`http.proxy`, `http.noProxy`), handed to the CLI when its environment has none. */
 export interface ProxySettings {
@@ -98,6 +99,10 @@ export interface BackendManagerDeps {
   readonly extensionVersion: string
   readonly getConfiguredBinaryPath: () => string
   readonly getEnvironmentVariables: () => readonly EnvironmentVariable[]
+  /** Main conversation only; every worker remains fenced. */
+  readonly getAgentFence?: () => boolean
+  /** S binds this host's own requester socket, never the user's ambient socket. */
+  readonly getVaultFence?: () => VaultFenceOptions
   readonly workspaceRoot: string | undefined
   /** `museSpark.shellSandbox`; read at each spawn (a host keeps its posture). */
   readonly getShellSandbox: () => ShellSandboxMode
@@ -379,7 +384,7 @@ export class MuseCodeBackendManager {
    * bypasses it so Muse Code reaches the extension's `ide` server (M56).
    */
   public childEnvironment(): NodeJS.ProcessEnv {
-    return withLoopbackBypass(
+    const env = withLoopbackBypass(
       buildChildEnvironment({
         platform: process.platform,
         baseEnv: process.env,
@@ -389,6 +394,9 @@ export class MuseCodeBackendManager {
       }),
       process.platform,
     )
+    return this.deps.getAgentFence?.() === false
+      ? env
+      : vaultFenceEnvironment(env, { ...this.deps.getVaultFence?.(), museCode: true })
   }
 
   /**

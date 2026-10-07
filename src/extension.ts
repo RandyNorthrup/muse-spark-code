@@ -1721,6 +1721,9 @@ async function activateWindow(
     // they do to VS Code's terminal (PLAN.md D25).
     env: shellEnvironmentOf,
     passEnvironmentVariables: () => currentSettings()['shell.passEnvironmentVariables'],
+    agentFence: () =>
+      vscode.workspace.getConfiguration('museSpark').inspect<boolean>('vault.agentFence')
+        ?.globalValue ?? true,
     searchWorkerPath: vscode.Uri.joinPath(context.extensionUri, 'dist', SEARCH_WORKER_FILE).fsPath,
     log: (message) => {
       log.warn(message)

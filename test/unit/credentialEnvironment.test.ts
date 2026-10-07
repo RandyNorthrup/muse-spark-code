@@ -111,7 +111,7 @@ describe('D89.5 shared credential fence', () => {
       expect(isCredentialVariable(spelling)).toBe(false)
       const env = { [spelling]: 'envfence-harmless' }
       expect(withoutCredentials(env)).toEqual(env)
-      expect(shellEnvironment(env, 'linux', undefined)).toEqual(env)
+      expect(shellEnvironment(env, 'linux', undefined, [], false)).toEqual(env)
       expect(hookEnvironment(env, 'linux', [spelling])).toEqual(env)
       expect(takeCredentials(env)).toEqual([])
       expect(env[spelling]).toBe('envfence-harmless')
@@ -145,12 +145,14 @@ describe('D89.5 shared credential fence', () => {
       'linux',
       '/ws',
     )
-    expect(shellEnvironment(overridden, 'linux', undefined)).toEqual(SAFE)
-    expect(shellEnvironment(overridden, 'linux', undefined, ['OPENAI_API_KEY'])).toEqual({
+    expect(shellEnvironment(overridden, 'linux', undefined, [], false)).toEqual(SAFE)
+    expect(shellEnvironment(overridden, 'linux', undefined, ['OPENAI_API_KEY'], false)).toEqual({
       ...SAFE,
       OPENAI_API_KEY: 'terminal-fake',
     })
-    expect(shellEnvironment(overridden, 'linux', undefined, ['openai_api_key'])).toEqual(SAFE)
+    expect(shellEnvironment(overridden, 'linux', undefined, ['openai_api_key'], false)).toEqual(
+      SAFE,
+    )
     expect(
       withoutCredentials({ Path: '/bin', openai_api_key: 'fake' }, ['OPENAI_API_KEY'], 'win32'),
     ).toEqual({ Path: '/bin', openai_api_key: 'fake' })

@@ -11,6 +11,7 @@
 // extension adds `museSpark.environmentVariables` to them.
 
 import { isCredentialVariable } from '../core/credentialEnvironment'
+import { vaultFenceEnvironment } from '../core/vault/exec/fence'
 export { withoutCredentials } from '../core/credentialEnvironment'
 import { EXEC_CHILD_ENV_DROP, type EnvironmentVariable } from '../shared/constants'
 
@@ -37,5 +38,5 @@ export function withoutKeyringRoutes(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv 
   for (const name of Object.keys(copy)) {
     if (names.includes(name.toUpperCase())) Reflect.deleteProperty(copy, name)
   }
-  return copy
+  return vaultFenceEnvironment(copy)
 }

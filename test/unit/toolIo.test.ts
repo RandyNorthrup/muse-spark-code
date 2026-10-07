@@ -158,6 +158,8 @@ describe('shellEnvironment', () => {
       },
       'linux',
       undefined,
+      [],
+      false,
     )
     expect(env).toEqual({
       PATH: '/usr/bin',
@@ -167,11 +169,48 @@ describe('shellEnvironment', () => {
     })
   })
 
+  it('keeps an interactive pass-through name through the vault fence, nothing else credentialed', () => {
+    const env = shellEnvironment(
+      {
+        PATH: '/usr/bin',
+        OPENAI_API_KEY: 'pass-through',
+        META_API_KEY: 'withheld',
+        SSH_AUTH_SOCK: '/ambient/agent',
+      },
+      'linux',
+      undefined,
+      ['OPENAI_API_KEY'],
+      true,
+      {},
+    )
+    expect(env['OPENAI_API_KEY']).toBe('pass-through')
+    expect(env['META_API_KEY']).toBeUndefined()
+    expect(env['SSH_AUTH_SOCK']).toBeUndefined()
+  })
+
+  it('leaves routes alone when the vault fence is off, while credentials stay stripped', () => {
+    const env = shellEnvironment(
+      {
+        PATH: '/usr/bin',
+        META_API_KEY: 'withheld',
+        SSH_AUTH_SOCK: '/ambient/agent',
+      },
+      'linux',
+      undefined,
+      [],
+      false,
+    )
+    expect(env['META_API_KEY']).toBeUndefined()
+    expect(env['SSH_AUTH_SOCK']).toBe('/ambient/agent')
+  })
+
   it('points Windows PowerShell at its own modules, whatever spelling was inherited', () => {
     const env = shellEnvironment(
       { PSMODULEPATH: String.raw`C:\pwsh7\Modules`, ProgramFiles: String.raw`C:\Program Files` },
       'win32',
       String.raw`C:\Windows`,
+      [],
+      false,
     )
     expect(env).toEqual({
       ProgramFiles: String.raw`C:\Program Files`,
