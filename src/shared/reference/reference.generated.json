@@ -2216,7 +2216,7 @@
     {
       "id": "museSpark.modelApiScheduledPrompts",
       "name": "museSpark.modelApiScheduledPrompts",
-      "description": "Explicit scheduled Model API runs at the selected model’s token prices. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.",
+      "description": "Explicit scheduled Model API runs at the selected model’s token prices. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it. Shared daily budget setting: museSpark.paidDailyBudgetUsd.",
       "descriptionKey": "config.modelApiScheduledPrompts.description",
       "type": "boolean",
       "default": true,
@@ -3255,6 +3255,11 @@
       "text": { "ui": "referenceScanSecrets" }
     },
     {
+      "route": "schedule",
+      "name": "schedule",
+      "description": "Usage: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]. Exit codes: 0 success, 1 refusal, 2 usage, 3 cleanup warning."
+    },
+    {
       "route": "report",
       "name": "report",
       "description": "Usage:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Prints the scrubbed problem report to stdout, or writes it to <file> with --out.\n  Starts no backend, signs in nowhere, and opens no browser.\nOptions:\n  --out <file>         Write the report to a file instead of stdout\n  --description <text>  What was happening, in your own words\n  --no-facts           Leave the support facts out\n  --no-events          Leave the recent events out",
@@ -3378,6 +3383,28 @@
       "description": "Print the installed agent version.",
       "text": { "cli": "version" },
       "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "serve",
+      "name": "serve: --scheduled-prompts",
+      "description": "--scheduled-prompts              Offer paid scheduled prompts (Model API backend; its price is asked first)",
+      "text": { "cli": "scheduled-prompts" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "serve",
+      "name": "serve: --max-budget-usd <value>",
+      "description": "Set the hard spending limit in USD for this run.",
+      "text": { "cli": "max-budget-usd" },
+      "contract": {
+        "type": "string",
+        "repeatable": false,
+        "exclusiveMinimum": 0,
+        "maximum": 20,
+        "decimals": 6,
+        "required": "modelApi",
+        "unit": "USD"
+      }
     },
     {
       "route": "login",

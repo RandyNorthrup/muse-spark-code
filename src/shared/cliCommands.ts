@@ -52,6 +52,11 @@ export function cliCommands() {
       text: { ui: 'referenceScanSecrets' },
     },
     {
+      route: 'schedule',
+      name: 'schedule',
+      description: UI_TEXT.scheduleV2.runtime.usage,
+    },
+    {
       route: 'report',
       name: 'report',
       description: UI_TEXT.reportUsage,

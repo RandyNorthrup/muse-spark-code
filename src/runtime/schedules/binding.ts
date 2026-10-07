@@ -5,7 +5,7 @@ import { lazyBundleLoader } from '../../host/lazyBundle'
 import { UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import type { ScheduleCommandOptions } from './args'
-import type { ScheduleCommandResult } from './command'
+import type { ScheduleCommandResult } from './settle'
 import type { AcpSchedulePort } from '../../acp/schedules'
 
 export interface RuntimeSchedulesBinding extends AcpSchedulePort {

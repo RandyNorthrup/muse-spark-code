@@ -66,7 +66,7 @@ import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { uiLocale } from '../shared/l10n/text'
 import { runtimeSchedulesBinding } from './schedules/binding'
-import { settleScheduleCommand } from './schedules/command'
+import { settleScheduleCommand } from './schedules/settle'
 
 const EXIT_FAILED = 1
 // The Model API key variable Muse Code reads; the report says only whether it was set.

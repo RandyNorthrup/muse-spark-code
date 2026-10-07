@@ -21,16 +21,7 @@ export function unsafeScheduleLauncher(file: string): Error {
   return new UnsafeScheduleLauncherError(file)
 }
 
-export function scheduleLauncherReason(value: unknown): string | undefined {
-  return typeof value === 'object' &&
-    value !== null &&
-    'name' in value &&
-    value.name === 'UnsafeScheduleLauncherError' &&
-    'message' in value &&
-    typeof value.message === 'string'
-    ? value.message
-    : undefined
-}
+export { scheduleLauncherReason } from './settle'
 
 export interface BackgroundRegistrationInput {
   readonly platform: NodeJS.Platform

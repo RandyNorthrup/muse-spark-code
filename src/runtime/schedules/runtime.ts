@@ -1,12 +1,8 @@
 import { UI_TEXT } from '../../shared/constants'
 import { workspaceKey } from '../dataFolder'
 import { acpSchedules, type AcpScheduleContext } from '../../acp/schedules'
-import {
-  runScheduleCommand,
-  settleScheduleCommand,
-  type ScheduleControlPort,
-  type ScheduleCommandResult,
-} from './command'
+import { runScheduleCommand, type ScheduleControlPort } from './command'
+import { settleScheduleCommand, type ScheduleCommandResult } from './settle'
 import type { ScheduleCommandOptions, ScheduleCallerContext } from './args'
 import type { RuntimeSchedulesBinding } from './binding'
 import type { RuntimeScheduleHost } from './host'
