@@ -11,7 +11,8 @@ import {
   symlink,
   writeFile,
 } from 'node:fs/promises'
-import type * as fsPromises from 'node:fs/promises'
+import * as fsPromises from 'node:fs/promises'
+import { realpathSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -88,7 +89,7 @@ async function hintFixture(isNative = false) {
   const question = vi.fn((): Promise<'continue' | 'wait' | 'openWindow'> =>
     Promise.resolve('continue'),
   )
-  const make = () => {
+  const make = (overrides: Partial<Parameters<typeof createWindowHints>[0]> = {}) => {
     const id = createWindowIdentity(now).instanceId
     const hints = createWindowHints({
       directory,
@@ -101,6 +102,7 @@ async function hintFixture(isNative = false) {
       disabled,
       question,
       overlap: (mine, theirs) => mine.filter((p) => theirs.includes(p)),
+      ...overrides,
     })
     return { id, hints }
   }
@@ -141,6 +143,64 @@ async function publishedHintFixture() {
 }
 
 describe('M96 K advisory hints', () => {
+  it('accepts a native short temp spelling but refuses links and different resolved folders', async () => {
+    const f = await hintFixture()
+    const actual = await vi.importActual<typeof fsPromises>('node:fs/promises')
+    const short = path.join(f.directory, 'RUNNER~1')
+    await mkdir(short)
+    const long = path.join(f.directory, 'runneradmin')
+    const expand = (given: string) => given.replace(short, () => long)
+    vi.spyOn(fsPromises, 'realpath').mockImplementation(async (given) =>
+      expand(await actual.realpath(given)),
+    )
+    const native = realpathSync.native
+    const nativePath = vi
+      .spyOn(realpathSync, 'native')
+      .mockImplementation((given) => expand(native(given)))
+    const policy = { directory: short, secureWindowsDirectory: () => Promise.resolve() }
+    const { hints } = f.make(policy)
+    expect(await hints.advisory()).toEqual({
+      windows: 0,
+      workers: 0,
+      processWorkers: 0,
+      heavyCommands: 0,
+    })
+    expect(f.disabled).not.toHaveBeenCalled()
+    await hints.dispose()
+    const alias = path.join(f.directory, 'junction')
+    const linkedFolder = path.join(f.directory, 'other')
+    await mkdir(linkedFolder)
+    await symlink(linkedFolder, alias, process.platform === 'win32' ? 'junction' : 'dir')
+    const linked = f.make({ ...policy, directory: alias })
+    await linked.hints.advisory()
+    expect(f.disabled).toHaveBeenCalledTimes(1)
+    await linked.hints.dispose()
+    nativePath.mockReturnValue(f.directory)
+    const different = f.make(policy)
+    await different.hints.advisory()
+    expect(f.disabled).toHaveBeenCalledTimes(2)
+    await different.hints.dispose()
+  })
+
+  it('secures, publishes and reads Windows hints without broad module discovery', async () => {
+    const f = await hintFixture()
+    vi.stubEnv('SystemRoot', String.raw`C:\Windows`)
+    const helper = vi.spyOn(processTree, 'runProgram').mockImplementation(async (_file, args) => {
+      const script = args.at(-1) ?? ''
+      if (/(?:^|[;=]\s*)\b(?:New-Object|Add-Type)\b/.test(script))
+        throw new Error('hosted module discovery exceeded the unchanged deadline')
+      const read = /\[MuseTeamHintReader\]::Read\('((?:''|[^'])*)', (\d+)\)/.exec(script)
+      if (read !== null) return await readFile(read[1]!.replaceAll("''", "'"), 'utf8')
+      return script.includes('DirectorySecurity') ? 'secured' : ''
+    })
+    const { hints } = f.make({ platform: 'win32' })
+    await hints.publish(hintState)
+    expect(f.disabled).not.toHaveBeenCalled()
+    expect(await hints.advisory()).toMatchObject({ windows: 1, workers: hintState.workers })
+    expect(helper).toHaveBeenCalled()
+    await hints.dispose()
+  })
+
   describe('native owner-only folder', () => {
     let f: Awaited<ReturnType<typeof hintFixture>>
     let hints: ReturnType<typeof createWindowHints> | undefined
@@ -160,7 +220,7 @@ describe('M96 K advisory hints', () => {
         question: () => Promise.resolve('continue'),
         overlap: () => [],
       })
-      await hints.publish(hintState)
+      await hints.advisory()
     })
     afterAll(async () => {
       await hints?.dispose()

@@ -1,4 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process'
+import * as childProcess from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, rm, symlink, writeFile, readFile, rename, rmdir } from 'node:fs/promises'
 import { fakeWorkerIdentity, fakeWorkerFiles } from './helpers/workerIdentity'
@@ -38,6 +39,10 @@ const ROLE: WorkerRolePolicy = {
   toolGroups: ['read', 'write', 'shell', 'report'],
   reportShape: 'summary',
 }
+vi.mock('node:child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof childProcess>()
+  return { ...actual, spawn: vi.fn(actual.spawn) }
+})
 const fixtureState = { fixture: '', checkout: '', copy: '' }
 const openedHandles: WorkerFileHandle[] = []
 beforeAll(async () => {
@@ -92,6 +97,56 @@ function task(folder: string): WorkerTask {
 }
 
 describe('W-F1 native identities', () => {
+  it('admits a disjoint Windows short temp name by its resolved native identity', async () => {
+    const short = String.raw`C:\Users\RUNNER~1\AppData\Local\Temp\worker`
+    const long = String.raw`C:\Users\runneradmin\AppData\Local\Temp\worker`
+    const io = {
+      realPath: (given: string) => Promise.resolve(given === short ? long : given),
+      pathIdentity: fakeWorkerIdentity,
+    }
+    const policy = {
+      folder: short,
+      workspaceRoot: String.raw`D:\a\checkout`,
+      platform: 'win32' as const,
+      io,
+    }
+    const grant = await assertWorkerRoot(policy)
+    expect(grant.absolute).toBe(long)
+    expect(await recheckWorkerRoot(policy, grant)).toBe(long)
+    await expect(
+      recheckWorkerRoot({ ...policy, folder: `${long}-different` }, grant),
+    ).rejects.toThrow()
+  })
+
+  it('identifies the held Windows handle without broad PowerShell module discovery', async () => {
+    const nativeOpen = WORKER_NATIVE_IO.openFile
+    if (nativeOpen === undefined) throw new Error('Missing native handle port')
+    const target = path.join(fixtureState.copy, 'inside.txt')
+    const handle = await nativeOpen(target, false)
+    const actual = await vi.importActual<typeof childProcess>('node:child_process')
+    const child = actual.spawn(
+      process.execPath,
+      ['-e', `process.stdout.write(${JSON.stringify(JSON.stringify(target))})`],
+      { stdio: ['pipe', 'pipe', 'pipe'] },
+    )
+    const spawn = vi.spyOn(childProcess, 'spawn').mockReturnValue(child)
+    const platform = Object.getOwnPropertyDescriptor(process, 'platform')
+    if (platform === undefined) throw new Error('Missing platform descriptor')
+    vi.stubEnv('SystemRoot', String.raw`C:\Windows`)
+    Object.defineProperty(process, 'platform', { value: 'win32' })
+    try {
+      expect(await handle.identify()).toMatchObject({ absolute: target })
+      const script = spawn.mock.calls[0]?.[1]?.at(-1) ?? ''
+      expect(script).toContain(String.raw`Microsoft.PowerShell.Utility\Add-Type`)
+      expect(script).not.toMatch(/(?:^|[=|]\s*)\b(?:New-Object|Add-Type|ConvertTo-Json)\b/m)
+    } finally {
+      Object.defineProperty(process, 'platform', platform)
+      spawn.mockRestore()
+      vi.unstubAllEnvs()
+      await handle.close()
+    }
+  })
+
   it('admits disjoint copies, refuses both ancestor directions and unresolvable paths', async () => {
     const grant = await assertWorkerRoot(input())
     expect(grant.absolute).toBe(fixtureState.copy)

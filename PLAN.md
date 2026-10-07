@@ -29839,6 +29839,21 @@ live) and the controller filters its id as well.
 
 ### M96 — Agent roles and the team (D75)
 
+**WINTEAM hosted Windows repair (2026-10-07, kubuntu).** Own the native
+lifetime, window hints/load and worker-fence suites, with the minimal product
+changes and Windows-control regressions they need. Resolve short/long native
+path spellings without admitting links or replacement roots. Avoid unqualified
+PowerShell module discovery in bounded native helpers. Retire and await the
+owned helper even before its control pipe connects; no folder or assembly may
+be removed while it still holds them. Reduce native hint hook preparation to
+the operations its assertions need. Prove short-path, locked-helper and slow
+module-discovery regressions red/green and restore deliberate drills byte-exact.
+Run complete owning files three times at repository deadlines on Linux, plus
+the five typechecks and scoped/static gates. Hosted windows-latest and full
+quality remain the lead's gates under the shared lane brief. No merge, push,
+live/paid call, dependency or weakened gate is authorized. Receipts:
+`docs/certification/winteam.md`.
+
 **M96INT round 3d (2026-10-05, macmini).** Merge `main-0.14.0`
 (`2d4d72bd`) with `--no-ff`, retaining the release fixes and M96's runtime,
 team UI and package diet. Reconcile generated inventories by their scripts.

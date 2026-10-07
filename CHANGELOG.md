@@ -15,6 +15,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Accept Windows short temp-path spellings for team hints while refusing linked
+  folders; avoid broad PowerShell module discovery in team native helpers and
+  await unconfirmed helper closure before cleaning up its files.
+
 - Pass one serial worker limit to the local Semgrep launcher so aggregate
   quality runs reach the scan with the pinned CLI.
 
