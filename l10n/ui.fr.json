@@ -4096,6 +4096,7 @@
   "promptSave": "Enregistrer le prompt",
   "promptUseSaved": "Utiliser un prompt enregistré…",
   "promptLibrary": "Bibliothèque de prompts",
+  "referencePromptMenu": "Barre du message ou clic droit : Enregistrer, Partager, Utiliser un prompt enregistré. Hors de VS Code, Maj et clic droit conservent le menu du presse-papiers de l’hôte. Les prompts sont en texte brut ; n’enregistrez aucun secret.",
   "promptCopyToUser": "Copier dans mes prompts",
   "promptTitle": "Titre",
   "promptBody": "Texte du prompt",

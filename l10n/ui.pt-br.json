@@ -4096,6 +4096,7 @@
   "promptSave": "Salvar prompt",
   "promptUseSaved": "Usar prompt salvo…",
   "promptLibrary": "Biblioteca de prompts",
+  "referencePromptMenu": "Barra da mensagem ou clique direito: Salvar, Compartilhar, Usar salvo. Fora do VS Code, Shift e clique direito mantém as ações da área de transferência do editor. Os prompts são texto simples; não salve segredos.",
   "promptCopyToUser": "Copiar para meus prompts",
   "promptTitle": "Título",
   "promptBody": "Texto do prompt",

@@ -4096,6 +4096,7 @@
   "promptSave": "Salva prompt",
   "promptUseSaved": "Usa prompt salvato…",
   "promptLibrary": "Libreria di prompt",
+  "referencePromptMenu": "Barra del messaggio o clic destro: Salva, Condividi, Usa salvato. Fuori da VS Code, Maiusc e clic destro mantengono le azioni degli appunti dell’host. I prompt sono testo in chiaro; non salvare segreti.",
   "promptCopyToUser": "Copia nei miei prompt",
   "promptTitle": "Titolo",
   "promptBody": "Testo del prompt",

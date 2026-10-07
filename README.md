@@ -4481,6 +4481,14 @@ user message first. **Prompt library** offers search, tags, edit, delete,
 duplicate, import, share, and insertion. Scope labels distinguish **My prompts**
 from workspace prompts; **Copy to my prompts** makes a personal copy.
 
+The composer's compact **Prompt library** toolbar menu offers **Save prompt**,
+**Share prompt** and **Use saved prompt…**. Right-click the input for the same
+actions: VS Code uses its native menu; other shared-panel hosts open the compact
+menu at the pointer. Save and Share appear only with nonblank text. Escape closes
+the compact menu and returns focus to the input. Outside VS Code,
+**Shift-right-click** retains the host's own clipboard menu; clipboard keyboard
+shortcuts also remain available. Native/companion panel mounting still awaits M104.
+
 Personal prompts live in the agent data folder, shared across workspaces and
 editors on this machine. Workspace prompts live in `.muse/prompts/` and may
 be committed to git. A saved personal prompt can be loaded in a fresh empty

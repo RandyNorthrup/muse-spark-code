@@ -2485,7 +2485,31 @@
         columnFixture()
         whenFound('.approval-choices > button', columnGeometry)
       }
+      const promptMenuScene = (isToolbar = false) => {
+        document.documentElement.style.width = '100%'
+        document.body.style.width = '100%'
+        setDraft('Review this draft before saving or sharing.')
+        later(300, () => {
+          if (isToolbar) {
+            document.querySelector('.composer button[aria-haspopup="dialog"]').click()
+          } else {
+            const input = textarea()
+            const rect = input.getBoundingClientRect()
+            input.dispatchEvent(
+              new MouseEvent('contextmenu', {
+                bubbles: true,
+                cancelable: true,
+                clientX: rect.left + rect.width / 2,
+                clientY: rect.top + rect.height / 2,
+              }),
+            )
+          }
+        })
+      }
       const steps = {
+        'prompt-menu': () => promptMenuScene(),
+        'prompt-menu-narrow': () => promptMenuScene(),
+        'prompt-menu-toolbar': () => promptMenuScene(true),
         'prompt-library': () => {
           send({ type: 'openSharing', surface: 'prompts' })
         },
@@ -6186,6 +6210,10 @@
       const FRAME_FALLBACK_MS = 50
       const SCENARIO_READY = {
         jump: () => document.querySelector('.jump-latest') !== null,
+        'prompt-menu': () => document.querySelector('.popover-pointer [role="menuitem"]') !== null,
+        'prompt-menu-narrow': () =>
+          document.querySelector('.popover-pointer [role="menuitem"]') !== null,
+        'prompt-menu-toolbar': () => document.querySelector('.popover [role="menuitem"]') !== null,
         'prompt-library': () => document.querySelector('.prompt-library li') !== null,
         'prompt-library-narrow': () => document.querySelector('.prompt-library li') !== null,
         'chat-sharing': () => document.querySelector('.chat-share-preview') !== null,

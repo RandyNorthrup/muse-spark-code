@@ -4096,6 +4096,7 @@
   "promptSave": "Guardar prompt",
   "promptUseSaved": "Usar prompt guardado…",
   "promptLibrary": "Biblioteca de prompts",
+  "referencePromptMenu": "Barra del mensaje o clic derecho: Guardar, Compartir, Usar guardado. Fuera de VS Code, Mayús y clic derecho conserva las acciones del portapapeles del editor. Los prompts son texto sin cifrar; no guarde secretos.",
   "promptCopyToUser": "Copiar a mis prompts",
   "promptTitle": "Título",
   "promptBody": "Texto del prompt",

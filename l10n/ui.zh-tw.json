@@ -3808,6 +3808,7 @@
   "promptSave": "儲存提示詞",
   "promptUseSaved": "使用已儲存的提示詞…",
   "promptLibrary": "提示詞庫",
+  "referencePromptMenu": "輸入框工具列或右鍵選單：儲存、分享、使用已儲存的提示詞。在 VS Code 以外，按住 Shift 按滑鼠右鍵可使用宿主的剪貼簿選單。提示詞以明文儲存，請勿儲存機密資訊。",
   "promptCopyToUser": "複製到我的提示詞",
   "promptTitle": "標題",
   "promptBody": "提示詞文字",

@@ -234,7 +234,7 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'prompt-library',
       { ui: 'promptLibrary' },
-      { ui: 'promptSecretsNote' },
+      { ui: 'referencePromptMenu' },
       ['savePrompt', 'useSavedPrompt', 'promptLibrary', 'copyToMyPrompts'],
       ['syncPromptsAndBookmarks'],
       'sharing',

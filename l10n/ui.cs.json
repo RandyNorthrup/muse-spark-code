@@ -4240,6 +4240,7 @@
   "promptSave": "Uložit prompt",
   "promptUseSaved": "Použít uložený prompt…",
   "promptLibrary": "Knihovna promptů",
+  "referencePromptMenu": "Panel nástrojů nebo pravé kliknutí v poli zprávy: Uložit, Sdílet, Použít uložený. Mimo VS Code zachová Shift a pravé kliknutí nabídku schránky hostitele. Prompty jsou prostý text; neukládejte tajné údaje.",
   "promptCopyToUser": "Zkopírovat do mých promptů",
   "promptTitle": "Název",
   "promptBody": "Text promptu",

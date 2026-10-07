@@ -344,6 +344,7 @@ function slashMenuOf(draft: string, caret: number): 'palette' | 'commands' | und
 export function Composer(props: ComposerProps) {
   const [isPromptLibraryOpen, setPromptLibraryOpen] = useState(false)
   const [isPromptMenuOpen, setPromptMenuOpen] = useState(false)
+  const [promptMenuAnchor, setPromptMenuAnchor] = useState<{ x: number; y: number }>()
   const {
     draft,
     placeholder,
@@ -971,6 +972,7 @@ export function Composer(props: ComposerProps) {
   ]
   const closePromptMenu = () => {
     setPromptMenuOpen(false)
+    setPromptMenuAnchor(undefined)
     textareaRef.current?.focus()
   }
   const runPromptAction = (id: string) => {
@@ -1076,6 +1078,20 @@ export function Composer(props: ComposerProps) {
         onKeyDown={handleKeyDown}
         onKeyUp={handleKeyUp}
         onClick={syncCaret}
+        onContextMenu={(event) => {
+          // VS Code contributes these actions natively. Other panel hosts
+          // share this popover; Shift preserves their own clipboard menu.
+          if (document.body.dataset['nativeContextMenu'] === 'true' || event.shiftKey) {
+            setPromptMenuOpen(false)
+            return
+          }
+          if (promptEntries.length === 0) {
+            return
+          }
+          event.preventDefault()
+          setPromptMenuAnchor({ x: event.clientX, y: event.clientY })
+          setPromptMenuOpen(true)
+        }}
         onPaste={handlePaste}
         onFocus={() => {
           onFocusChange(true)
@@ -1097,6 +1113,7 @@ export function Composer(props: ComposerProps) {
           label={UI_TEXT.promptLibrary}
           entries={promptEntries}
           align="left"
+          {...(promptMenuAnchor !== undefined && { anchor: promptMenuAnchor })}
           onSelect={(id) => {
             closePromptMenu()
             runPromptAction(id)
@@ -1139,6 +1156,7 @@ export function Composer(props: ComposerProps) {
                 if (isPromptMenuOpen) {
                   closePromptMenu()
                 } else {
+                  setPromptMenuAnchor(undefined)
                   setPromptMenuOpen(true)
                 }
               }}

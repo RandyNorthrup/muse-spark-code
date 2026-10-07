@@ -7,67 +7,6 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-- Windows remote runners start PowerShell without a visible window and publish
-  their native job exit marker reliably.
-- Provider-specific retry-table binding remains pending for non-Meta transports;
-  per-format classifier data is implemented, but does not certify endpoint quota refusal.
-
-- Integrate prompt/chat sharing and compact composer actions into the 0.15.0
-  provider, team and usage release train; preserve both sets of local commands.
-
-### Fixed
-
-- Legal keyboard and zoom checks wait for scripted scenario actions before
-  native input, preserving focus assertions without racing preview setup.
-- History rows load correctly in production builds and keep their Archive
-  shortcut when optional keyboard contexts are deferred.
-- ACP Registry and stdio release tests share their real-agent fixture build
-  and cleanup, preserving installed-package coverage without copied setup.
-- Translated ACP help retains provider and legal commands alongside sharing,
-  and names the automatic compaction opt-out in every installed language.
-- Agent map harness scenes select their titled pill when Side chat is also
-  available. Package and localization fixtures include the merged sharing graph;
-  shutdown coverage waits for prompt storage before backend and usage cleanup.
-- Checkpoint disposal tests retire the captured owner after filter-free Git
-  discovery exits 1, so the cancellation assertion exercises disposal reliably.
-- Windows shell credential regressions await the matching background completion
-  before cleanup and probe raw environment values within the default test deadline.
-- Prompt host shutdown awaits mirror merges and other admitted operations
-  before releasing storage, preventing Windows cleanup from racing a sync write.
-- Browser package tests build the chat, Help and What's New pages themselves,
-  so a clean CI shard needs no artifacts from an earlier production build.
-- The installed ACP help check validates its complete localization table,
-  retaining prompt and sharing labels in its exact output comparison.
-- Chat-share HTML encodes markup delimiters in one pass. Privacy regexes have
-  literal-metacharacter controls and documented, specific audit exceptions
-  for their escaped workspace, home and username fragments.
-- Built-exec tests isolate package image requests with local screenshots and
-  test-owned badge responses, so unpublished PR assets cannot block the engine
-  tests. The real package badge validation and independent public-image gate
-  still run.
-- Test infrastructure warms deferred panel and row modules before behavior
-  suites, keeping cold transforms outside the default UI query deadlines.
-  A source check catches new deferred imports missing from warm-up.
-- Test infrastructure: harness scenes wait for the controls they touch,
-  including lazy panels, and finish startup and control waits before
-  accessibility scans. The scrolling scene waits for its rendered reply and
-  New messages control. A source guard catches unexplained fixed-delay
-  interactions; screenshots use the same readiness checks.
-
-### Documentation
-
-- The npm landing page carries the same quiet GitHub star link as the other
-  landing pages, with a regression check for its exact sentence and placement.
-
-- A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
-  what went wrong while a fleet of agents built this project. For each one it
-  gives the rule that prevents it and the milestone that will enforce that
-  rule in the app's own orchestrator (D100).
-
-- README screenshots refreshed for the question dock, Git actions, slash
-  commands and paid usage; added open-question and Help & Reference
-  views, with matching captions on both landing pages.
-
 ## [0.15.0] - 2026-10-06
 
 ### Highlights
@@ -135,7 +74,6 @@ happened, not what was planned; superseded entries are kept.
 - Preserve safe Windows team storage aliases, publish private
   hints with the current user's verified ownership, and admit bounded native
   process confirmations containing long executable paths.
-
 - Keep team settlement durable, retain worker labels in the combined attention
   dock, and preserve queued late answers alongside local ACP commands.
 - Restore legal-export focus after a cancelled native save dialog and keep
@@ -147,6 +85,43 @@ happened, not what was planned; superseded entries are kept.
 - Make package, browser and process fixtures deterministic at the repository's
   default test deadline. Accessibility scenarios wait for their actual lazy
   controls and loaded content before scanning.
+- Legal keyboard and zoom checks wait for scripted scenario actions before
+  native input, preserving focus assertions without racing preview setup.
+- History rows load correctly in production builds and keep their Archive
+  shortcut when optional keyboard contexts are deferred.
+- ACP Registry and stdio release tests share their real-agent fixture build
+  and cleanup, preserving installed-package coverage without copied setup.
+- Translated ACP help retains provider and legal commands alongside sharing,
+  and names the automatic compaction opt-out in every installed language.
+- Agent map harness scenes select their titled pill when Side chat is also
+  available. Package and localization fixtures include the merged sharing graph;
+  shutdown coverage waits for prompt storage before backend and usage cleanup.
+- Checkpoint disposal tests retire the captured owner after filter-free Git
+  discovery exits 1, so the cancellation assertion exercises disposal reliably.
+- Built-exec tests isolate package image requests with local screenshots and
+  test-owned badge responses, so unpublished PR assets cannot block the engine
+  tests. The real package badge validation and independent public-image gate
+  still run.
+- Test infrastructure warms deferred panel and row modules before behavior
+  suites, keeping cold transforms outside the default UI query deadlines.
+  A source check catches new deferred imports missing from warm-up.
+- Test infrastructure: harness scenes wait for the controls they touch,
+  including lazy panels, and finish startup and control waits before
+  accessibility scans. The scrolling scene waits for its rendered reply and
+  New messages control. A source guard catches unexplained fixed-delay
+  interactions; screenshots use the same readiness checks.
+- Shared-panel hosts without VS Code's native context menu open the compact
+  Prompt library menu at the pointer when right-clicking the composer input.
+  Save, Share and Use saved keep the toolbar's conditions and exact draft;
+  Escape returns focus. Shift-right-click preserves the host's clipboard menu.
+
+### Documentation
+
+- The npm landing page carries the same quiet GitHub star link as the other
+  landing pages, with a regression check for its exact sentence and placement.
+- README screenshots refreshed for the question dock, Git actions, slash
+  commands and paid usage; added open-question and Help & Reference
+  views, with matching captions on both landing pages.
 
 ## [0.14.5] - 2026-10-06
 

@@ -3808,6 +3808,7 @@
   "promptSave": "プロンプトを保存",
   "promptUseSaved": "保存したプロンプトを使用…",
   "promptLibrary": "プロンプトライブラリ",
+  "referencePromptMenu": "入力欄のツールバーまたは右クリックから、保存・共有・保存済みプロンプトの使用ができます。VS Code 以外では Shift キーを押しながら右クリックするとホストのクリップボード操作を使えます。プロンプトは平文です。機密情報を保存しないでください。",
   "promptCopyToUser": "自分のプロンプトにコピー",
   "promptTitle": "タイトル",
   "promptBody": "プロンプトのテキスト",

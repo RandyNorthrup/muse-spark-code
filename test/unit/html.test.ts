@@ -66,8 +66,8 @@ describe('buildWebviewHtml', () => {
 
   it('marks only the read-only tasks document and keeps its CSP', () => {
     const tasks = buildWebviewHtml({ ...options, surface: 'tasks' })
-    expect(tasks).toContain('<body data-surface="tasks">')
-    expect(html).toContain('<body>')
+    expect(tasks).toContain('<body data-native-context-menu="true" data-surface="tasks">')
+    expect(html).toContain('<body data-native-context-menu="true">')
     expect(tasks).toContain("script-src 'nonce-NONCE123'")
     expect(tasks).not.toContain('unsafe-inline')
   })
