@@ -139,7 +139,7 @@ describe('shell previews (M87)', () => {
 })
 
 describe('memory rows (M43)', () => {
-  it('shows the note saved, where it lives, and the path beside the label', () => {
+  it('shows the note saved, where it lives, and the path beside the label', async () => {
     renderTranscript([
       tool({
         tool: 'add_memory',
@@ -150,7 +150,7 @@ describe('memory rows (M43)', () => {
     ])
     expect(screen.getByText('palette.md')).toBeTruthy()
     const row = openRow('Save memory')
-    expect(within(row).getByText('Your memory for this project')).toBeTruthy()
+    expect(await within(row).findByText('Your memory for this project')).toBeTruthy()
     expect(within(row).getByText('The favourite colour is teal.')).toBeTruthy()
     expect(within(row).queryByText(/memory note written/)).toBeNull()
   })
@@ -187,7 +187,7 @@ describe('memory rows (M43)', () => {
 })
 
 describe('goal rows (M43)', () => {
-  it('shows the goal, its status, progress, current and next work, and the tokens', () => {
+  it('shows the goal, its status, progress, current and next work, and the tokens', async () => {
     renderTranscript([
       tool({
         tool: 'report_progress',
@@ -197,7 +197,7 @@ describe('goal rows (M43)', () => {
     ])
     expect(screen.getAllByText('Saying hello')).toHaveLength(1)
     const row = openRow('Goal progress')
-    expect(within(row).getByText('Say hello in one word')).toBeTruthy()
+    expect(await within(row).findByText('Say hello in one word')).toBeTruthy()
     expect(within(row).getByText('Active · 50% done')).toBeTruthy()
     const bar = within(row).getByRole('progressbar', { name: 'Goal progress' })
     expect(bar.getAttribute('value')).toBe('50')
@@ -235,7 +235,7 @@ describe('goal rows (M43)', () => {
 })
 
 describe('schedule rows (M43)', () => {
-  it('shows the prompt, its schedule and that it runs once', () => {
+  it('shows the prompt, its schedule and that it runs once', async () => {
     renderTranscript([
       tool({
         tool: 'cron_create',
@@ -244,8 +244,9 @@ describe('schedule rows (M43)', () => {
       }),
     ])
     const row = openRow('Schedule prompt')
-    expect(within(row).getAllByText('say hi').length).toBeGreaterThan(0)
-    expect(within(row).getByText('59 23 31 12 * · Once')).toBeTruthy()
+    const prompts = await within(row).findAllByText('say hi')
+    expect(prompts.length).toBeGreaterThan(0)
+    expect(await within(row).findByText('59 23 31 12 * · Once')).toBeTruthy()
     expect(within(row).getByText('Scheduled 2ef46218 (59 23 31 12 *, once)')).toBeTruthy()
   })
 
@@ -289,7 +290,7 @@ describe('schedule rows (M43)', () => {
 })
 
 describe('web search rows (M43)', () => {
-  it('lists the results as links that open in the browser, with their snippets', () => {
+  it('lists the results as links that open in the browser, with their snippets', async () => {
     const props = renderTranscript([
       tool({
         tool: 'web_search',
@@ -299,7 +300,7 @@ describe('web search rows (M43)', () => {
     ])
     expect(screen.getByText('Keep a Changelog 1.1.0')).toBeTruthy()
     const row = openRow('Web search')
-    fireEvent.click(within(row).getByRole('link', { name: 'Keep a Changelog' }))
+    fireEvent.click(await within(row).findByRole('link', { name: 'Keep a Changelog' }))
     expect(props.onOpenLink).toHaveBeenCalledWith('https://keepachangelog.com/en/1.1.0/')
     expect(within(row).getByText(/dump git logs/)).toBeTruthy()
     expect(within(row).queryByText(/page_last_modified/)).toBeNull()

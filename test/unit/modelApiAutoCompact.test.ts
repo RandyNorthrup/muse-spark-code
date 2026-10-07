@@ -55,7 +55,7 @@ async function setup(
     : api
   const log = new FakeLogOutputChannel()
   const client = fakeModelApiClient(clientApi, log)
-  const io = memoryToolIo({}, '/ws')
+  const io = changes.io ?? memoryToolIo({}, '/ws')
   const model = { window: 100_000 }
   const settled: (Usage | undefined)[] = []
   const settlements: string[] = []
@@ -505,7 +505,13 @@ describe('automatic compaction in the shared Model API loop', () => {
         entered.resolve(undefined)
         return held.promise
       }
+      const io = memoryToolIo({}, '/ws')
+      io.runHook = async () => {
+        if (isCompacting) await hold()
+        return { stdout: '{}', stderr: '', exitCode: 0, isCancelled: false, isTimedOut: false }
+      }
       const t = await setup({
+        io,
         admitAutoCompaction: () => {
           isCompacting = true
           return Promise.resolve({ guard: () => undefined, settle: () => undefined })
@@ -525,10 +531,6 @@ describe('automatic compaction in the shared Model API loop', () => {
             ).hooks,
           ),
       })
-      t.io.runHook = async () => {
-        if (isCompacting) await hold()
-        return { stdout: '{}', stderr: '', exitCode: 0, isCancelled: false, isTimedOut: false }
-      }
       const originalStream = t.client.streamResponse.bind(t.client)
       if (dependency === 'summary EOF') {
         vi.spyOn(t.client, 'streamResponse').mockImplementation(async function* (...args) {
@@ -556,7 +558,17 @@ describe('automatic compaction in the shared Model API loop', () => {
     async (boundary) => {
       const files = new Map<string, string>()
       const { store } = memoryStoreOver(files)
+      const io = memoryToolIo({}, '/ws')
+      io.runHook = () =>
+        Promise.resolve({
+          exitCode: 0,
+          stdout: JSON.stringify({ continue: false, stopReason: 'stop memory flush' }),
+          stderr: '',
+          isTimedOut: false,
+          isCancelled: false,
+        })
       const t = await setup({
+        io,
         memory: store,
         loadHooks: () =>
           Promise.resolve(
@@ -573,14 +585,6 @@ describe('automatic compaction in the shared Model API loop', () => {
             ).hooks,
           ),
       })
-      t.io.runHook = () =>
-        Promise.resolve({
-          exitCode: 0,
-          stdout: JSON.stringify({ continue: false, stopReason: 'stop memory flush' }),
-          stderr: '',
-          isTimedOut: false,
-          isCancelled: false,
-        })
       await t.seed()
       if (boundary === 'boundary') t.nearWindow()
       t.api.script(

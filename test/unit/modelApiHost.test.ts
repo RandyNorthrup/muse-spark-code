@@ -17494,7 +17494,11 @@ describe('M101 C1 compaction', () => {
       compactionModel: () => smallCompactionModel({ reasoningReplay: 'none' }),
     })
     const { session, turnDone } = await preparedCompaction(t)
-    t.api.script({ text: 'long'.repeat(2000), reasoning: 'not replayable' })
+    t.api.script({
+      text: 'long'.repeat(2000),
+      isSingleTextDelta: true,
+      reasoning: 'not replayable',
+    })
     await session.sendTurn([{ type: 'text', text: 'oversized turn' }])
     await turnDone()
     t.api.script({ text: 'summary' })
@@ -17786,7 +17790,11 @@ describe('FIXM101C1 review regressions', () => {
           : { ...smallCompactionModel(), contextTokens: 200_000 },
     })
     const { session, turnDone } = await preparedCompaction(t)
-    t.api.script({ text: 'long'.repeat(2000), reasoning: 'old-model-reasoning' })
+    t.api.script({
+      text: 'long'.repeat(2000),
+      isSingleTextDelta: true,
+      reasoning: 'old-model-reasoning',
+    })
     await session.sendTurn([{ type: 'text', text: 'oversized recent turn' }])
     await turnDone()
     isHolding = true

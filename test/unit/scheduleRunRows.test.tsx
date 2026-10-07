@@ -32,7 +32,7 @@ function fire(outcome: 'ran' | 'refused' | 'missed') {
 describe('schedule settlement transcript rows', () => {
   it.each(['ran', 'refused', 'missed'] as const)(
     'shows %s in the collapsed transcript row',
-    (outcome) => {
+    async (outcome) => {
       renderTranscript([
         tool({
           tool: 'scheduled_prompt',
@@ -40,7 +40,7 @@ describe('schedule settlement transcript rows', () => {
         }),
       ])
       const labels = { ran: 'Sent on schedule', refused: 'Refused', missed: 'Missed' }
-      const toggle = screen.getByRole('button', { name: new RegExp(labels[outcome]) })
+      const toggle = await screen.findByRole('button', { name: new RegExp(labels[outcome]) })
       expect(toggle.getAttribute('aria-expanded')).toBe('false')
       expect(toggle.querySelector('.tool-dot')?.classList.contains('tool-dot-ok')).toBe(
         outcome === 'ran',
@@ -70,13 +70,13 @@ describe('schedule settlement transcript rows', () => {
     },
   )
 
-  it('keeps existing M52 output and rejects a malformed internal settlement', () => {
-    const { container, rerender } = render(
+  it('keeps existing M52 output and rejects a malformed internal settlement', async () => {
+    const { rerender } = render(
       <ScheduleRunBody
         entry={tool({ tool: 'scheduled_prompt', output: 'Scheduled prompt sent.' })}
       />,
     )
-    expect(container.textContent).toContain('Scheduled prompt sent.')
+    expect(await screen.findByText('Scheduled prompt sent.')).toBeTruthy()
     rerender(
       <ScheduleRunBody
         entry={tool({

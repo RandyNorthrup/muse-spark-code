@@ -19450,6 +19450,12 @@ as required by the rig brief; do not run full quality or merge in this lane.
 
 ### INT0170B — Complete 0.17.0 integration certification (2026-10-07)
 
+Linux certification repair scope also includes the fake host's complete validated init settings, native-clock readiness, original translation insertion order after the key union, shared CLI help, complete archived package membership and cold row/crash fixtures. The theme bridge retains zod boundary validation of every original key and string value with one custom predicate, removing duplicated record plumbing to keep its unchanged 25 KiB budget.
+
+Journal performance: the exact 10,000-fire coverage case reached its unchanged 240 s deadline. Cache one validated snapshot by its exact serialized bytes, while still reading the snapshot and every delta from storage, validating changed bytes, checking ownership and cloning before applying deltas. Never trust a mutable pointer or cached file metadata.
+
+Fresh Linux fixture repairs: row assertions wait for the actual lazy body; a provider invalidation hook is installed before the session captures its guarded IO ports, matching production adapter lifetime. No reader/process guard is weakened. Cold usage-package membership will be reconciled with the retained solid runtime archive after its exact failure is inspected.
+
 SAST/duplication repair: use the existing single-pass text encoder for schedule XML; match package-task globs with Node’s maintained POSIX matcher after swapping colon/slash as the captured runner does. Keep escaped report-root matching with a precise rule suppression and literal-metacharacter tests. Reuse question-command fixtures and combine equivalent reporting import drills. Bound Linux coverage workers to the rig’s authorized maximum of three, retaining all assertions, deadlines and thresholds.
 
 CSS repair: usage and report pages import the generated palettes. Usage chart colours gain explicit source roles with UI contrast pairs; no raw fallback survives in hand-edited CSS. Native host variables retain precedence; standalone pages use the Muse fallback.
@@ -43997,6 +44003,10 @@ lane A's first step.
 ## 7. Gates
 
 **INT0170B remaining scope stops (2026-10-07).** The current design inventory has 221 files against 112 recorded inputs; 81 current renderers need new scene/selector mappings, theme capture and reviewed PNGs. This complete expansion exceeds common.md’s approximately 300-new-lines-per-finding limit, so no hashes or manifest are rewritten to claim an uncaptured review. Exact Linux replay will still run and retain its failures. The M115 Model API review ratchet also remains red: its private fixture lacked the production text-compression plugin; fixing that makes the legal scanner guard green and measures 483,191 bytes against 474,100. The actual production 475 KiB cap remains intact. Extracting the required additional behavior from the integrated 219 KiB session implementation exceeds that same scope limit; its retained provider/schedule semantics require a separately scoped diet.
+
+**INT0170B browser test stop (2026-10-07).** The first repair waited for native mount and closed failed pages but retained 61 failures. A second repair supplied the required `settings.schedules` fake-host field: the panel and capture files pass, while six conversation-review cases still inspect `.tool-toggle` before deferred rows appear. The common two-failed-fixes stop applies to those six cases; no additional timing rewrite or deadline change is attempted.
+
+**INT0170B render-cost fixture stop (2026-10-07).** Awaiting the deferred row failed while the group remained folded; explicitly opening that group still failed the fixture's `/Read t3.ts/` accessible-name lookup. The common two-failed-fixes stop applies; the original row-count and highlight assertions and default deadline remain. This isolated fixture needs a reviewed follow-up, not a performance pass claim.
 
 **INT0170B startup ratchet stop (2026-10-07).** The shared stop rule applies after two unsuccessful repairs of the merged first-paint ratchet: lazy tool rows recover about 13 KiB; first-use schedule channel recovers another KiB. The owning regression still sees 751,494 bytes against 751,411.2 (733.8 KiB), and the legacy deferred inventory is 32.9 KiB against its 32.1 KiB review ratchet because diff.ts is newly deferred and shared with ReviewPane. The 900/50 KiB hard build caps pass. Neither ratchet is relaxed; this path remains blocked for owner review while other requested repairs continue.
 

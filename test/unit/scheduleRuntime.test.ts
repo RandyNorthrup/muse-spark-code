@@ -4,7 +4,7 @@ import { RuntimeScheduleHost } from '../../src/runtime/schedules/host'
 import { ScheduleSurface } from '../../src/runtime/schedules/surface'
 import { ScheduleBackgroundCoordinator } from '../../src/runtime/schedules/background'
 import { workspaceKey } from '../../src/runtime/dataFolder'
-import { UI_TEXT } from '../../src/shared/constants'
+import { SCHEDULE_CLEANUP_EXIT_CODE, UI_TEXT } from '../../src/shared/constants'
 import { FakeScheduleBackground } from './helpers/schedules/background'
 import type { ScheduleWakeAuthorization } from '../../src/runtime/schedules/registration'
 import { NativeScheduleBackground } from '../../src/runtime/schedules/nativeBackground'
@@ -42,7 +42,9 @@ function setup(platform?: NodeJS.Platform, overrides: Partial<ScheduleRuntimeDep
       return Promise.resolve(unwatch)
     })
   const controlFor = vi.fn().mockResolvedValue(control),
-    dueWorkspaces = vi.fn<() => Promise<readonly string[]>>().mockResolvedValue(['/one', '/two'])
+    dueWorkspaces = vi
+      .fn<() => Promise<readonly string[]>>()
+      .mockResolvedValue([workspaceKey('/one'), workspaceKey('/two')])
   const verifyWake = vi
     .fn<(id?: string) => Promise<ScheduleWakeAuthorization>>()
     .mockResolvedValue({ scheduledPrompts: false })
@@ -289,6 +291,9 @@ describe('schedule runtime lifecycle', () => {
   )
   it('hosts persisted due workspaces before firing, settles, closes resources and removes a spent wake', async () => {
     const { runtime, control, host, unwatch, close, reconcile } = setup()
+    // Global run-due takes persisted keys; existing session watches close too.
+    await runtime.holdWorkspace('/one')
+    await runtime.holdWorkspace('/two')
     vi.mocked(control.runDue).mockImplementation(() => {
       expect(host.holds(workspaceKey('/one'))).toBe(true)
       expect(host.holds(workspaceKey('/two'))).toBe(true)
@@ -310,6 +315,9 @@ describe('schedule runtime lifecycle', () => {
   })
   it('releases every due-workspace lease and engine even when a run fails', async () => {
     const { runtime, control, host, unwatch, close } = setup()
+    // Global run-due takes persisted keys; existing session watches close too.
+    await runtime.holdWorkspace('/one')
+    await runtime.holdWorkspace('/two')
     vi.mocked(control.runDue).mockRejectedValue(new Error('Engine failed'))
     const result = await runtime.command({ operation: 'run-due', isJson: true }, '/launcher')
     expect(result.exitCode).toBe(1)
@@ -319,11 +327,16 @@ describe('schedule runtime lifecycle', () => {
   })
   it('reports failed due-workspace teardown after attempting every release', async () => {
     const { runtime, unwatch, close } = setup()
+    // Global run-due takes persisted keys; existing session watches close too.
+    await runtime.holdWorkspace('/one')
+    await runtime.holdWorkspace('/two')
     unwatch.mockRejectedValueOnce(new Error('Watcher failed'))
     expect(
       await runtime.command({ operation: 'run-due', isJson: true }, '/launcher'),
     ).toMatchObject({
-      exitCode: 1,
+      exitCode: SCHEDULE_CLEANUP_EXIT_CODE,
+      output: '{"kind":"accepted"}',
+      warning: UI_TEXT.scheduleV2.runtime.cleanupFailed,
     })
     expect(unwatch).toHaveBeenCalledTimes(2)
     expect(close).toHaveBeenCalledOnce()

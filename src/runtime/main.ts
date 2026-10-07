@@ -1315,7 +1315,6 @@ async function main(): Promise<number> {
         writeLine(process.stdout, reference.all(nls))
       } else {
         writeLine(process.stdout, formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
-        writeLine(process.stdout, UI_TEXT.scheduleV2.runtime.usage)
       }
       return 0
     }

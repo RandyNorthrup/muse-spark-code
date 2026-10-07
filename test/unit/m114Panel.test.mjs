@@ -109,7 +109,11 @@ async function openHarness(theme, scene) {
     globalThis.document.documentElement.style.width = '100%'
     globalThis.document.body.style.width = '100%'
   })
+  await page.waitForSelector('textarea,.gate,.todo-surface,.schedule-v2-surface,[role=alert]', {
+    state: 'attached',
+  })
   await page.clock.runFor(6500)
+  if (scene === 'history-archived') await page.locator('.history-archive').first().waitFor()
   return page
 }
 

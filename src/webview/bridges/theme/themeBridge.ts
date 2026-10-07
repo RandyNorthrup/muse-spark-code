@@ -20,19 +20,14 @@ export interface ThemeBridgeOptions {
 
 const snapshotSchema = z.strictObject({
   mode: z.enum(['light', 'dark', 'hc-light', 'hc-dark']),
-  // Check original keys before record parsing can discard __proto__.
-  roles: z.pipe(
-    z
-      .unknown()
-      .check(
-        z.refine(
-          (roles) =>
-            typeof roles === 'object' &&
-            roles !== null &&
-            Object.keys(roles).every((role) => Object.hasOwn(hostRoles, role)),
-        ),
+  // Validate every original key before a record parser can discard __proto__.
+  roles: z.custom<Record<string, string>>(
+    (roles: unknown) =>
+      typeof roles === 'object' &&
+      roles !== null &&
+      Object.entries(roles).every(
+        ([role, value]) => Object.hasOwn(hostRoles, role) && typeof value === 'string',
       ),
-    z.record(z.string(), z.string()),
   ),
 })
 

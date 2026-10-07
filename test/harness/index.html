@@ -205,6 +205,7 @@
         allowDangerouslySkipPermissions: false,
         archiveInactiveSessions: 14,
         modelApiReplyUsage: false,
+        schedules: true,
         museCodeAutoReviewer: true,
       }
       const models = [
@@ -3246,7 +3247,7 @@
           }
           event({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' })
           whenFound('.steps-toggle', (summary) => summary.click())
-          later(300, () => {
+          whenFound('.tool-toggle[aria-expanded="false"]', () => {
             for (const toggle of document.querySelectorAll('.tool-toggle[aria-expanded="false"]')) {
               toggle.click()
             }

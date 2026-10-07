@@ -100,78 +100,90 @@ async function pageFor(theme, scene, forcedColors = 'none') {
     viewport: { width: 320, height: 760 },
     reducedMotion: 'reduce',
   })
-  await page.emulateMedia({
-    forcedColors,
-    ...(forcedColors === 'active' && {
-      colorScheme: theme.includes('light') ? 'light' : 'dark',
-    }),
-  })
-  await page.route('**/*', (route) => {
-    const url = new URL(route.request().url())
-    if (scene === 'jump' && url.pathname === '/test/harness/index.html')
-      return route.fulfill({
-        // Bound the fake host's markdown volume; retain its real scroll and
-        // captured events so Jump settles inside the repository's test deadline.
-        body: runtime.harness.replace('.repeat(120)', '.repeat(4)'),
-        contentType: 'text/html',
-      })
-    const output = runtime.outputs.get(url.pathname)
-    if (output !== undefined)
-      return route.fulfill({
-        body: output,
-        contentType: url.pathname.endsWith('.css') ? 'text/css' : 'text/javascript',
-      })
-    return url.hostname === '127.0.0.1' ? route.continue() : route.abort()
-  })
-  if (scene !== 'jump') await page.clock.install({ time: new Date('2026-10-06T12:00:00Z') })
-  if (scene === undefined)
-    await page.setContent(
-      `<!doctype html><html lang="en"><title>Review fixture</title><style>${runtime.css}</style><main id="root"></main></html>`,
-    )
-  else
-    await page.goto(
-      `http://127.0.0.1:${runtime.port}/test/harness/index.html?scenario=${scene}&theme=${theme}`,
-    )
-  await page.evaluate((fixture) => {
-    globalThis.document.documentElement.style.width = '320px'
-    globalThis.document.body.style.width = '320px'
-    for (const [name, value] of Object.entries(fixture.variables))
-      globalThis.document.documentElement.style.setProperty(name, value)
-    for (const name of fixture.unset)
-      if (!name.includes('font'))
-        globalThis.document.documentElement.style.setProperty(name, 'initial')
-    globalThis.document.documentElement.style.setProperty('--vscode-font-family', 'sans-serif')
-    globalThis.document.documentElement.style.setProperty('--vscode-font-size', '13px')
-    globalThis.document.body.className = fixture.bodyClass
-  }, runtime.themes.get(theme))
-  if (scene === undefined) await page.addScriptTag({ content: runtime.fixture })
-  if (scene === 'jump') {
-    await page
-      .getByText('One more thing: the folder also holds a hidden .git directory.', {
-        exact: true,
-      })
-      .waitFor({ state: 'attached' })
-    await page.locator('main').evaluate((el) => {
-      el.scrollTop = 0
-      el.dispatchEvent(new globalThis.Event('scroll'))
+  try {
+    await page.emulateMedia({
+      forcedColors,
+      ...(forcedColors === 'active' && {
+        colorScheme: theme.includes('light') ? 'light' : 'dark',
+      }),
     })
-    await page.evaluate(
-      () =>
-        new Promise((resolve) =>
-          globalThis.requestAnimationFrame(() => globalThis.requestAnimationFrame(resolve)),
+    await page.route('**/*', (route) => {
+      const url = new URL(route.request().url())
+      if (scene === 'jump' && url.pathname === '/test/harness/index.html')
+        return route.fulfill({
+          // Bound the fake host's markdown volume; retain its real scroll and
+          // captured events so Jump settles inside the repository's test deadline.
+          body: runtime.harness.replace('.repeat(120)', '.repeat(4)'),
+          contentType: 'text/html',
+        })
+      const output = runtime.outputs.get(url.pathname)
+      if (output !== undefined)
+        return route.fulfill({
+          body: output,
+          contentType: url.pathname.endsWith('.css') ? 'text/css' : 'text/javascript',
+        })
+      return url.hostname === '127.0.0.1' ? route.continue() : route.abort()
+    })
+    if (scene !== 'jump') await page.clock.install({ time: new Date('2026-10-06T12:00:00Z') })
+    if (scene === undefined)
+      await page.setContent(
+        `<!doctype html><html lang="en"><title>Review fixture</title><style>${runtime.css}</style><main id="root"></main></html>`,
+      )
+    else
+      await page.goto(
+        `http://127.0.0.1:${runtime.port}/test/harness/index.html?scenario=${scene}&theme=${theme}`,
+      )
+    await page.evaluate((fixture) => {
+      globalThis.document.documentElement.style.width = '320px'
+      globalThis.document.body.style.width = '320px'
+      for (const [name, value] of Object.entries(fixture.variables))
+        globalThis.document.documentElement.style.setProperty(name, value)
+      for (const name of fixture.unset)
+        if (!name.includes('font'))
+          globalThis.document.documentElement.style.setProperty(name, 'initial')
+      globalThis.document.documentElement.style.setProperty('--vscode-font-family', 'sans-serif')
+      globalThis.document.documentElement.style.setProperty('--vscode-font-size', '13px')
+      globalThis.document.body.className = fixture.bodyClass
+    }, runtime.themes.get(theme))
+    if (scene === undefined) await page.addScriptTag({ content: runtime.fixture })
+    if (scene === 'jump') {
+      await page
+        .getByText('One more thing: the folder also holds a hidden .git directory.', {
+          exact: true,
+        })
+        .waitFor({ state: 'attached' })
+      await page.locator('main').evaluate((el) => {
+        el.scrollTop = 0
+        el.dispatchEvent(new globalThis.Event('scroll'))
+      })
+      await page.evaluate(
+        () =>
+          new Promise((resolve) =>
+            globalThis.requestAnimationFrame(() => globalThis.requestAnimationFrame(resolve)),
+          ),
+      )
+      await page.evaluate(() =>
+        globalThis.postMessage(
+          {
+            type: 'agentEvent',
+            event: { type: 'textDelta', itemId: 'more', field: 'text', delta: ' More details.' },
+          },
+          '*',
         ),
-    )
-    await page.evaluate(() =>
-      globalThis.postMessage(
-        {
-          type: 'agentEvent',
-          event: { type: 'textDelta', itemId: 'more', field: 'text', delta: ' More details.' },
-        },
-        '*',
-      ),
-    )
-  } else await page.clock.runFor(6500)
-  return page
+      )
+    } else {
+      if (scene !== undefined)
+        await page
+          .locator('textarea, .gate, .todo-surface, .schedule-v2-surface, [role="alert"]')
+          .first()
+          .waitFor({ state: 'attached' })
+      await page.clock.runFor(6500)
+    }
+    return page
+  } catch (error) {
+    await page.close()
+    throw error
+  }
 }
 
 async function styles(page, selector) {

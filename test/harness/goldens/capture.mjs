@@ -46,7 +46,9 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
   // Scenario timers must start after React's initial layout effects commit;
   // advancing a frozen clock before mount races the composer's row fitting.
   if (!fixtureScenes.has(scene) && !scene.startsWith('whats-new'))
-    await page.waitForSelector('#root > *', { state: 'attached' })
+    await page.waitForSelector('textarea,.gate,.todo-surface,.schedule-v2-surface,[role=alert]', {
+      state: 'attached',
+    })
   const fixture = JSON.parse(
     await readFile(path.join(root, `test/harness/themes/${theme}.json`), 'utf8'),
   )

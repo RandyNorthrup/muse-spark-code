@@ -1,15 +1,12 @@
 import path from 'node:path'
 import { ESLint } from 'eslint'
 import stylelint from 'stylelint'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
+import tseslint from 'typescript-eslint'
 
-const eslint = new ESLint()
-// Warm the real type-aware program once; every paint assertion still runs.
-beforeAll(async () => {
-  await eslint.lintText('export const value = 0', {
-    filePath: path.resolve('src/webview/components/icons.tsx'),
-  })
-})
+// The colour selectors are syntax rules. Keep the real config and its path
+// overrides while avoiding a whole-project type program for synthetic snippets.
+const eslint = new ESLint({ overrideConfig: tseslint.configs.disableTypeChecked })
 const colourMessage = 'Raw colours belong in design/tokens/muse.tokens.json; read a --ms-* token.'
 
 async function colourErrors(code, file) {

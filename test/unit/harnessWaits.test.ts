@@ -334,7 +334,10 @@ describe('harness scenario event readiness', () => {
 
 describe('harness scenes wait for the controls they touch', () => {
   it.each([
-    { harnessBundle: 'main', surface: 'textarea, .gate, .todo-surface, [role="alert"]' },
+    {
+      harnessBundle: 'main',
+      surface: 'textarea, .gate, .todo-surface, .schedule-v2-surface, [role="alert"]',
+    },
     { harnessBundle: 'models', surface: '.models-panel section' },
   ])('starts $harnessBundle after loading, exactly once', ({ harnessBundle, surface }) => {
     const html = readFileSync(new URL('../harness/index.html', import.meta.url), 'utf8')
