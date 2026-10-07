@@ -123,7 +123,7 @@ describe('M98 production window wiring', () => {
     judge.dispose()
   })
 
-  it('projects actual status for usage and refuses a replaced model or mode', async () => {
+  it('projects actual status for usage and refuses a replaced owner, model or mode', async () => {
     const rig = setup()
     const judge = createWindowJudge(rig.deps, UI_TEXT, 'en')
     expect(judge.readPanelSnapshot()).toBeUndefined()
@@ -135,6 +135,13 @@ describe('M98 production window wiring', () => {
     expect(snapshot?.showSubscriptionNote).toBe(true)
     expect(snapshot?.askFirstCharge).toBe(false)
     expect(snapshot?.reservedUsd).toBeUndefined()
+    const readContext = rig.deps.context
+    const changedOwner = vi.spyOn(rig.deps, 'context').mockImplementation((action) => {
+      const context = readContext(action)
+      return context === undefined ? undefined : { ...context, ownerId: 'replacement-owner' }
+    })
+    expect(judge.readPanelSnapshot()?.effectiveSource).toBe('none')
+    changedOwner.mockRestore()
     rig.setModel('another-model')
     expect(judge.readPanelSnapshot()?.effectiveSource).toBe('none')
     expect(judge.readPanelSnapshot()?.reason).toBe('source-unavailable')

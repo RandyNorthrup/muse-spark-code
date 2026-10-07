@@ -43,19 +43,19 @@ export function createWindowJudge(
   const cache = new JudgeResultCache()
   const sideSessions = new Set<string>()
   const uses = new Map<string, { action: JudgeEntryParts; use: JudgeUse }>()
-  let panel: { action: JudgeEntryParts; status: JudgeStatus } | undefined
+  let panel: { action: JudgeEntryParts; status: JudgeStatus; identity: string } | undefined
   const readPanelFacts = (): JudgePanelFacts | undefined => {
     if (panel === undefined) return
     const current = deps.context(panel.action)
     const status = panel.status
     const engine = deps.engine()
-    const isBound = current?.modelId === status.modelId && current.backend === panel.action.backend
+    const isBound = JSON.stringify(current) === panel.identity
     const price = status.billing === 'modelApi' ? judgePriceOf(status.modelId) : undefined
     const canUseSame = engine === 'auto' || engine === 'same'
-    let reason: JudgePanelFacts['reason'] = status.reason
+    let reason: JudgePanelFacts['reason'] =
+      status.reason === 'auto-same' || status.reason === 'explicit-same' ? undefined : status.reason
     if (engine === 'off') reason = 'explicit-off'
     else if (!isBound || !canUseSame) reason = 'source-unavailable'
-    else if (status.reason === 'auto-same' || status.reason === 'explicit-same') reason = undefined
     let consent: JudgePanelFacts['consent'] = 'needed'
     if (status.billing === 'subscription') consent = 'not-required'
     else if (status.reason === 'consent-declined') consent = 'declined'
@@ -178,7 +178,7 @@ export function createWindowJudge(
           onError,
           onFence: deps.onFence,
           onStatus: (status) => {
-            panel = { action, status }
+            panel = { action, status, identity }
             deps.status(action, status)
           },
           notice: (text) => {

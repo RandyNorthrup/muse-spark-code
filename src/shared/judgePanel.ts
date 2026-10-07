@@ -11,7 +11,6 @@ import { MODEL_API_PRICE_DECIMALS, PROVIDER_PRICE_MAX_DECIMALS, UI_TEXT } from '
 import { fill, formatUsd } from './l10n/text'
 
 export const JUDGE_PANEL_ENGINES = ['auto', 'same', 'separate', 'both', 'off'] as const
-export type JudgePanelEngine = (typeof JUDGE_PANEL_ENGINES)[number]
 
 export const JUDGE_PANEL_SOURCES = ['same', 'separate', 'both', 'none'] as const
 export type JudgePanelSource = (typeof JUDGE_PANEL_SOURCES)[number]
