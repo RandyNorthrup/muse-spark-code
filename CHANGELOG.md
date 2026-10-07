@@ -14,6 +14,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Estimator scheduling considers feasible multi-account allocations, ignores
+  unused disk measurements and quota accounts, and qualifies selected lanes
+  when required disk headroom is unknown. Commands and surfaces await integration.
+
 - Estimator preparation rejects malformed goals and validates quota renewal,
   per-volume disk capacity, numeric calibration disclosures and module-level
   review history. The revised contracts and labels are covered in all fourteen
@@ -32,6 +36,10 @@ happened, not what was planned; superseded entries are kept.
   stdio checks include the localized Help reference hint.
 
 ### Performance
+
+- Estimator simulation reuses prepared resource data and indexed reservations;
+  forty-lane chain, independent and fan-out regressions enforce the existing
+  two-second budget for 2,000 trials and paired bottleneck comparisons.
 
 - Reference tests share unchanged setup and keyboard analysis, keeping
   catalogue mutation checks within the normal test timeout.

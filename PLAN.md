@@ -28434,6 +28434,18 @@ regression and a deliberate failure with byte-exact SHA-256 restoration in
 surface is added; W retains shipping, product documentation and reference
 bindings.
 
+**S review repair (FIXM117S, 2026-10-06).** Fix all four RVM117S P2s:
+search feasible account allocations with deterministic, bounded selection;
+qualify only selected lanes with unknown required disk headroom and prefer
+measured placements on equal finish times; search renewals only on accounts
+usable by remaining lanes; precompute resource data and avoid repeated work
+so forty-lane chain, independent and fan-out simulations plus paired
+bottleneck comparisons meet the unchanged two-second operation budget.
+Each fix has an owning regression and a byte-exact red drill in
+`docs/certification/m117-s-schedule-and-simulation.md`. No dependency,
+resource guard, bundle cap or CLI timeout is changed. The rig brief forbids
+aggregate quality and merges; W retains those integration checks.
+
 **Lane-0 review repair (FIXM117L0, 2026-10-06).** RVM117L0's four P2 and
 two P3 findings are all in scope before freezing the contracts. Goals consume
 the documented grammar, including the colon for named kinds. Account windows
@@ -28722,6 +28734,16 @@ recommendation, price and exact-money tests with the default timeout, red
 drills, all five typechecks, scoped lint/format, deadcode, duplication,
 localization, reference, host API and production build directly on Mac mini.
 Keep hooks on; no merge, rebase, push or weakened gate is authorized.
+
+**FIXM117S scoped rig certification (2026-10-06).** The explicit rig/shared
+brief prohibits aggregate `npm run quality`, full test runs and merges in
+this lane; W retains those integration gates. S runs full typecheck and
+scoped ESLint/Prettier, deadcode, duplication, localization, host API,
+reference, production size/split/global/notices checks, and its three owning
+unit files directly on Mac mini, one heavy command at a time. Each reviewed
+fix and new admission proof has a named byte-exact red drill, followed by
+green verification. All gate levels, caps and the 2,000 ms benchmark bound
+are unchanged. Receipts: `docs/certification/m117-s-schedule-and-simulation.md`.
 
 **FIXM117L0 scoped rig certification (2026-10-06).** The lane/shared brief
 prohibits aggregate `npm run quality` and assigns it to the lead. This repair
@@ -30099,6 +30121,29 @@ before a repaired one loads (2026-09-30).
   and W shipping/product-doc bindings remain explicit in
   `docs/certification/m117-r-recommendations.md`. This lane makes no live,
   paid or public-network call and introduces no reachable product surface.
+
+- **FIXM117S review outcome (2026-10-06).** All four RVM117S P2s are
+  fixed; no review finding is deferred. Account-count search is exact up to
+  the existing 512-allocation bound; larger products use a deterministic
+  greedy fallback, explicitly qualified on selected lanes, or report
+  `account-selection-limit` if it cannot establish placement. This remains
+  list scheduling, with no optimality claim. Unknown required disk headroom
+  qualifies only selected lanes; it never certifies capacity. Unused disk
+  volumes and unreachable account quotas do not invalidate the forecast.
+  Upper-bound co-fit proofs and per-run reservation/window state retain hard
+  measured constraints. Forty-lane chain, independent and fan-out benchmarks
+  cover the unchanged two-second operation bound and all 2,000 trials with
+  paired bottleneck comparisons. Mac mini scoped receipts and byte-exact
+  drills are in `docs/certification/m117-s-schedule-and-simulation.md`.
+  **M117-S-cross-rig-and-W-bindings** remains an integration handoff: the
+  lead must run aggregate quality and benchmarks on other rigs, wire C's
+  evidence and U/W's disclosures/all-editor surfaces, and measure W's shipped
+  lazy chunk. S has no shipped entry on this base, so these library receipts
+  make no product-support or absent-bundle claim.
+  An unchanged shared-rig run exceeded the timing bound (2.28–2.55 seconds),
+  followed by a standalone pass and a complete unchanged 70/70 green run;
+  the certificate retains all samples without claiming calibrated timing or
+  its cause. The named handoff includes aggregate/cross-rig performance acceptance.
 
 - **FIXM117L0 contract review.** All six RVM117L0 findings are fixed
   before the lane-0 freeze, with regression tests and byte-exact red drills;

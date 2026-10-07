@@ -263,3 +263,175 @@ All three source SHA-256 values above match after the hooks; runtime code is
 byte-identical to final verification. The final worktree is clean after the
 certificate-receipt commit. No source change or further test rewrite followed
 that verified implementation.
+
+## FIXM117S review repair — admission (2026-10-06)
+
+All four RVM117S P2s are in scope; no P1/P3 was reported. The rig and shared
+briefs were read in full. PLAN's M117 repair record preceded code changes.
+The first three findings are fixed here; performance is the next piece.
+
+- **F1 account combinations:** deterministic account-count enumeration covers
+  the exhausted-account-1 / usable-accounts-2-and-3 two-slot case. Physical
+  slots on an account are admission-equivalent. After 512 allocations a
+  bounded greedy priority fallback explicitly qualifies its selected lane
+  with `account-selection-approximate`; failure at this bound reports
+  `account-selection-limit`, never a false assertion of infeasibility.
+- **F2 disk measurement relevance:** only volumes serving a lane's declared
+  disk roles participate. An unknown required volume admits a conditional
+  forecast and qualifies that selected lane with `lane:disk:machine:volume`.
+  Equal finish times prefer measured placement; unused alternatives/volumes
+  add no disk qualification. Missing roles, known disk bounds and unknown
+  admission demand retain their guards. Qualification state is per run.
+- **F3 quota relevance:** only accounts reachable through an eligible role,
+  compatible machine and nonmerged lane participate in renewal search.
+  The unused 60-second quota no longer exhausts the 512-renewal guard while
+  scheduling a ten-hour lane and its one-hour dependent.
+
+Before the fixes the account-pair and both disk regressions failed. The first
+quota fixture exceeded its machine's declared slot cap and was rejected by
+Zod; it was corrected to a valid slot on an incompatible role. F3's red drill
+then reproduced `quota-horizon` against that valid snapshot. After the fixes,
+49/49 schedule and bottleneck tests passed (40 + 9, Mac mini, default timeout).
+The explicit fallback regression also passed: 50/50 (41 schedule + 9 bottleneck).
+Host typecheck passed; scoped lint found naming/control-flow style issues,
+which were fixed before the unchanged hooks rechecked staged source.
+
+| Drill                   | Deliberate regression                     | Required observed failure                                                                                | Result |
+| ----------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------ |
+| F1-account-combinations | Restore one-account-first slot-ID filling | finds the feasible two-account combination beyond an exhausted first account                             | Exit 1 |
+| F2-disk-selection       | Throw immediately on unknown disk volumes | ignores unknown disk headroom on unused alternatives and volumes; selected-lane qualification also fails | Exit 1 |
+| F3-usable-accounts      | Enumerate every fleet account again       | ignores quota renewals on accounts no remaining lane can use (`quota-horizon`)                           | Exit 1 |
+
+Each drill ran the complete `estimatorSchedule.test.ts` file with
+`--maxWorkers=3`, no CLI timeout override, no filter/skip. Python `finally`
+restored saved bytes and compared SHA-256:
+`a04e657c858efe9dbb65104853a809465c02ba5d4df8bf05bf882107eaf4be0c`.
+No drill mutation remains. No dependency or resource-admission gate changed.
+
+## FIXM117S review repair — performance and final proof
+
+Admission commit `f6084430` ran the unchanged pre-commit hook: lint-staged
+checked/formatted the two staged TypeScript files and three Markdown files;
+gitleaks scanned 13.61 KB and reported no leaks. The hook's own automatic
+backup is the allowed lint-staged behavior; no manual stash was run.
+
+**F4 is fixed.** Profiling the forty-independent-lane operation placed most
+CPU time in placement retries and recursive allocation, with garbage
+collection behind them. The engine now caches eligible slots, required
+volumes and numeric rates; keeps per-account reachable users and per-run
+potentially binding windows; uses conservative whole-lane demand bounds to
+prove when rates/CI cannot bind; and indexes reservations by slot. Slot
+search jumps to the first interval with enough slots, preserving gaps and
+all subsequent admission checks. The ready queue follows the same sampled
+critical-path priority and stable ID ties without rescanning every lane.
+Assigned-lane lookup and reservation event points are reused. No measured
+constraint, optimality claim, dependency, resource limit or gate was widened.
+
+The benchmark now covers chain, independent and fan-out DAGs, each with
+40 lanes, 2,000 lognormal trials and paired bottleneck comparisons. Its named
+15-second per-test timeout lets the deliberately regressed synchronous
+operation complete and report the actual two-second assertion failure;
+the operation bound stays **2,000 ms** and no CLI timeout override was used.
+Every other test uses the repository timeout. Existing PRNG/quantile/date
+and cross-process determinism goldens remain unchanged. A new reuse test
+runs short, quota-limited and short sampled durations through the same
+prepared engine, proving quota/slot state is recomputed for each run.
+
+Observed performance on this shared Mac mini, not a calibrated forecast:
+
+| Forty-lane shape | Before optimizations: operation ms | Verified test duration ms | Separate final operation ms |
+| ---------------- | ---------------------------------: | ------------------------: | --------------------------: |
+| Chain            |                            2,343.3 |                   1,761.1 |                     1,668.9 |
+| Independent      |                           13,068.0 |                   1,503.5 |                     1,426.7 |
+| Fan-out          |                           13,072.9 |                   1,680.4 |                     1,233.0 |
+
+Test duration includes fixture/assertion overhead; the separate operation
+starts after fixture preparation and ends after the paired comparison.
+The temporary probe bundled code once with esbuild `write: false` before
+measurement, then ran the local bundle with the same fixture helpers,
+models and seed. Build/startup time is excluded. Each number is one observed
+sample; repeatability and cross-rig uncertainty are unknown. The first
+co-fit/cache-only optimization still failed independent/fan-out budgets;
+profiling identified slot retries, and the next indexed-placement/ready-queue
+implementation passed. No third performance rewrite was attempted.
+
+### Final byte-exact drills
+
+These repeat F1–F3 against the final optimized engine and prove F4 plus the
+rate/CI proof paths, bounded-search honesty and measured-headroom ties.
+Every row ran its complete owning file, default CLI timeout,
+`--maxWorkers=3`, no filter or skip, and exited 1 with its intended regression. Saved source bytes were restored in Python `finally`; every
+SHA-256 comparison matched `7418d3b16148f72a0033e0d2dfce992f58353bea6b024fe20a79af2b2d362c0b`.
+Subsequent formatting left that source hash unchanged.
+
+| Drill                   | Deliberate bypass                                                             | Required observed regression                                                                             |
+| ----------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| F1-account-combinations | Restore one-account-first slot-ID filling                                     | finds the feasible two-account combination beyond an exhausted first account                             |
+| F2-disk-selection       | Throw on any required unknown disk before selecting placement                 | ignores unknown disk headroom on unused alternatives and volumes; selected-lane qualification also fails |
+| F3-usable-accounts      | Restore eager renewal traversal of every fleet account                        | ignores quota renewals on accounts no remaining lane can use (`quota-horizon`)                           |
+| F4-parallel-budget      | Temporarily restore the admission-only scheduler from the first hooked commit | forty-lane independent and fan-out budget assertions fail                                                |
+| F5-rate-proof           | Pretend no account rate can bind                                              | shares request and token rates across every slot using the same account                                  |
+| F6-ci-proof             | Pretend no CI concurrency can bind                                            | reserves CI jobs including occupied jobs and refuses an exhausted minutes budget                         |
+| F7-search-limit         | Return no placement when bounded exact/greedy search fails                    | labels bounded account-selection fallback instead of claiming exact search                               |
+| F8-measured-tie         | Restore pruning at equal best finish                                          | prefers measured headroom when a waiting alternative finishes at the same time                           |
+
+Final inspection found that the old best-finish pruning discarded an
+alternative at an equal finish before the measured-headroom tie preference.
+The regression pinned a busy Mac finishing B at the same instant as an
+unknown Linux placement, failed with Linux selected, then passed after the
+search preserved equal-finish candidates. F8 restores the premature prune
+and reproduces that exact failure. The fallback test also rejects a false
+`unschedulable` claim when the bounded search cannot establish placement;
+F7 replaces the explicit search-limit error and makes that assertion fail.
+
+All four reviewed P2s are fixed; **no review finding is a residual**.
+PLAN §9 records bounded-search approximation and the existing named
+`M117-S-cross-rig-and-W-bindings` integration handoff. W retains aggregate
+quality, other rigs, C's calibration evidence, U/W's complete disclosures and
+all-editor surfaces, and the shipped lazy estimator chunk/budget proof.
+All code remains in the shared pure core and its owning unit suites; PLAN and
+CHANGELOG contain the required repair/acceptance metadata. No new command,
+setting, separately reachable feature or catalog entry is introduced.
+
+Final gate and post-drill green-test receipts follow. No live/paid call,
+network request, credential read, new dependency, escape hatch, cap or global tool/config change occurred.
+
+### Completed scoped certification
+
+All checks ran directly on Mac mini, sequentially, against the final source.
+After the drills an unchanged three-file verification observed **67/70**:
+the operation assertions measured chain **2,454.9 ms**, independent
+**2,278.8 ms**, and fan-out **2,554.1 ms** on the shared rig. The immediately
+following standalone operation probe passed all shapes (table above).
+One unchanged complete three-file verification then passed **70/70**, with
+its actual benchmark test durations retained in the table. This is timing
+variability, not a calibrated claim about its cause. No third performance
+rewrite, raised assertion bound, CLI timeout override or skip followed the
+failed sample. Both receipts remain recorded here; W owns cross-rig and
+aggregate acceptance. The final source SHA-256 matches all eight drills.
+
+| Check                                                                                                                                                                       | Final result                                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npx vitest run test/unit/estimatorSchedule.test.ts test/unit/estimatorSimulate.test.ts test/unit/estimatorBottleneck.test.ts --maxWorkers=3` (JSON reporter for durations) | Exit 0; **70/70**: 43 schedule, 18 simulation, 9 bottleneck; repository timeout except the three documented named benchmark timeouts; no CLI override, skips or name filters |
+| `npm run typecheck`                                                                                                                                                         | Exit 0; all five projects, including the final affinity/tie regression                                                                                                       |
+| Scoped `npx eslint --max-warnings=0`                                                                                                                                        | Exit 0; all three changed TypeScript files; no warning/suppression                                                                                                           |
+| Scoped `npx prettier --check`                                                                                                                                               | Exit 0; all six changed paths. An earlier appended certificate needed formatting; it was formatted and rechecked                                                             |
+| `npm run deadcode`                                                                                                                                                          | Exit 0; existing vendor/axe-core hints only                                                                                                                                  |
+| `npx jscpd`                                                                                                                                                                 | Exit 0; zero clones across 1,199 files                                                                                                                                       |
+| `node scripts/check-l10n.mjs`                                                                                                                                               | Exit 0; 14 tables, 166 manifest strings, 612 sources, zero problems                                                                                                          |
+| `npm run check:host-api`                                                                                                                                                    | Exit 0; 332 APIs, 31 VS Code import files, 25 Node built-ins, 61 theme variables, zero problems                                                                              |
+| `npm run check:reference`                                                                                                                                                   | Exit 0; 53 features, 44 commands, 59 settings, 26 slash commands, 116 CLI entries; current                                                                                   |
+| `npm run build`                                                                                                                                                             | Exit 0; size, split, host globals and third-party notices pass                                                                                                               |
+| `git diff --check`                                                                                                                                                          | Exit 0                                                                                                                                                                       |
+
+Production build measurements (one sample, rounded to 0.1 KiB): extension
+**439.5/600 KiB**, Model API **446.9/475 KiB**, checkpoint store
+**76.9/225 KiB**, webview startup **797.1/900 KiB**, deferred webview JS
+**50.0/50 KiB**. Caps remain unchanged. There is no shipped S entry here;
+these sizes do not certify W's future estimator chunk.
+
+No reviewed finding is deferred. The final hooked performance/verification
+commit includes the tie correction and the explicit search-limit assertion.
+The worktree retains only S's six specified implementation/test/metadata
+paths; no push, merge, rebase, dependency, gate or shared configuration change
+was performed. Aggregate quality is expressly assigned to W in PLAN §7.
