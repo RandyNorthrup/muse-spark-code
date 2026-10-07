@@ -22,6 +22,54 @@ afterEach(async () => {
   for (const fixture of fixtures.splice(0)) await fixture.fleet.dispose()
 })
 describe('M109 R fleet identity and role ceilings', () => {
+  it.each(['ended', 'registrationFailure'] as const)(
+    'W-R1 %s frees a successfully closed socket reservation',
+    async (boundary) => {
+      const f = setup()
+      const route = { socket: String.raw`\\.\pipe\reused`, handoff: vi.fn(), close: vi.fn() }
+      f.ports.routes.open = vi.fn(() => Promise.resolve(route))
+      if (boundary === 'ended') await f.fleet.end(await f.fleet.open(f.launch()))
+      else {
+        vi.mocked(f.ports.broker.register).mockRejectedValueOnce(new Error('registration refused'))
+        await expect(f.fleet.open(f.launch())).rejects.toThrow()
+      }
+      await expect(f.fleet.open(f.launch())).resolves.toMatchObject({ socket: route.socket })
+    },
+  )
+  it('W-R2 external parent invalidation ends descendant broker authority and retains failed-close ownership', async () => {
+    const f = setup()
+    const parent = await f.fleet.open(f.launch())
+    const child = await f.fleet.open(f.launch('subagent'), parent)
+    const route = f.routes[1]
+    if (!route) throw new Error('missing child route')
+    const close = vi.fn().mockImplementationOnce(() => {
+      throw new Error('close refused')
+    })
+    route.close = close
+    try {
+      f.invalidate(parent.requester.id)
+    } catch {
+      /* Cleanup failure is surfaced but authority must still end. */
+    }
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(f.ended).toContain(child.requester.id)
+    await expect(f.fleet.request(child, fleetProposal())).rejects.toThrow()
+    await f.fleet.dispose()
+    expect(close).toHaveBeenCalledTimes(2)
+  })
+  it('W-R3 successful handoff returns only a value-free sent receipt', async () => {
+    const f = setup()
+    const worker = await f.fleet.open(f.launch())
+    f.ports.broker.request = vi.fn<typeof f.ports.broker.request>((who, _handle, actual) =>
+      Promise.resolve(f.authorize(who, actual)),
+    )
+    const result = await f.fleet.request(worker, fleetProposal())
+    expect(result).toEqual({ kind: 'sent' })
+    expect(f.routes[0]?.handoff).toHaveBeenCalledOnce()
+    expect(JSON.stringify(result)).not.toContain('nonce')
+  })
+
   it.each(['digest', 'expiry'] as const)(
     'V11 V13: changed ticket %s never reaches inherited pipe',
     async (change) => {
@@ -83,7 +131,7 @@ describe('M109 R fleet identity and role ceilings', () => {
           reason: 'unattended',
         })
         grant.unattendedAllowed = true
-        expect(await f.fleet.request(worker, proposal)).toMatchObject({ kind: 'ticket' })
+        expect(await f.fleet.request(worker, proposal)).toMatchObject({ kind: 'sent' })
         grant.uses = 0
         grant.unattendedAllowed = false
         f.ports.taint = () => ({ tainted: true, reasons: [{ source: 'web', label: 'page' }] })
@@ -303,7 +351,7 @@ describe('M109 R fleet identity and role ceilings', () => {
     const independent = await f.fleet.open(f.launch())
     const first = f.routes[0]
     if (!first) throw new Error('missing route')
-    first.close = vi.fn(() => {
+    first.close = vi.fn().mockImplementationOnce(() => {
       throw new Error('close failed')
     })
     await expect(f.fleet.end(parent)).rejects.toThrow()

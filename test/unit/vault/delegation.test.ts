@@ -44,7 +44,7 @@ describe('M109 R task-bound delegation', () => {
     expect(pipe.checks.map((canWrite) => canWrite())).toEqual([true, false])
     pipe.release()
     const results = await Promise.all(pending)
-    expect(results.filter((result) => result.kind === 'ticket')).toHaveLength(1)
+    expect(results.filter((result) => result.kind === 'sent')).toHaveLength(1)
   })
   it('V1 V11: narrowing after admission prevents delayed private release', async () => {
     const { f, worker } = await delegated()
@@ -89,7 +89,7 @@ describe('M109 R task-bound delegation', () => {
         return Promise.resolve(f.authorize(who, input.use))
       },
     )
-    expect(await f.fleet.request(worker, proposal())).toMatchObject({ kind: 'ticket' })
+    expect(await f.fleet.request(worker, proposal())).toMatchObject({ kind: 'sent' })
   })
   it('V1 V11: narrowing while admission waits invalidates original scope', async () => {
     const f = setup(),
@@ -150,8 +150,8 @@ describe('M109 R task-bound delegation', () => {
     expect(f.cards[0]?.requester.taskId).toBe('task')
     expect(f.cards[0]?.requester.role).toEqual({ kind: 'role', name: 'engineer' })
     expect(f.cards[0]?.scopes).toEqual(scopes())
-    expect(await f.fleet.request(worker, proposal())).toMatchObject({ kind: 'ticket' })
-    expect(await f.fleet.request(worker, proposal())).toMatchObject({ kind: 'ticket' })
+    expect(await f.fleet.request(worker, proposal())).toMatchObject({ kind: 'sent' })
+    expect(await f.fleet.request(worker, proposal())).toMatchObject({ kind: 'sent' })
     expect(await f.fleet.request(worker, proposal())).toMatchObject({ kind: 'approval' })
     expect(f.ports.delegation.approve).toHaveBeenCalledOnce()
     expect(f.routes[0]?.handoff).toHaveBeenCalledTimes(2)
@@ -231,7 +231,7 @@ describe('M109 R task-bound delegation', () => {
     go.resolve(undefined)
     const results = await Promise.all([first, second])
     expect(admissions).toEqual([true, false])
-    expect(results.filter((result) => result.kind === 'ticket')).toHaveLength(1)
+    expect(results.filter((result) => result.kind === 'sent')).toHaveLength(1)
     expect(f.routes[0]?.handoff).toHaveBeenCalledOnce()
   })
   it('V1: narrowing may reduce counts/remove scopes; model cannot widen or renew authority', async () => {

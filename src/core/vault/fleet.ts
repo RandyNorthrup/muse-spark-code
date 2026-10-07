@@ -178,6 +178,8 @@ export class VaultFleet {
   private readonly sockets = new Set<string>()
   private generation = 0
   private disposed = false
+  private readonly cleanup = new Set<Promise<void>>()
+  private cleanupFailed = false
   private readonly opening = new Set<AbortController>()
   private readonly unsubscribe: () => void
   constructor(private readonly ports: VaultFleetPorts) {
@@ -188,12 +190,23 @@ export class VaultFleet {
       }
       let hasFailed = false
       for (const [access, worker] of this.workers)
-        if (id === null || id === worker.requester.id)
+        if (id === null || (id === worker.requester.id && !worker.controller.signal.aborted)) {
+          const ids = this.requesterIds(access)
           try {
             this.retire(access)
           } catch {
             hasFailed = true
           }
+          const task = this.endRequesters(ids)
+          this.cleanup.add(task)
+          void task
+            .catch(() => {
+              this.cleanupFailed = true
+            })
+            .finally(() => {
+              this.cleanup.delete(task)
+            })
+        }
       if (hasFailed) throw new Error(UI_TEXT.vault.noAccess)
     })
   }
@@ -211,24 +224,38 @@ export class VaultFleet {
       if (worker.parent && retired.has(worker.parent)) retired.add(candidate)
     return retired
   }
+  private requesterIds(access: VaultWorkerAccess): string[] {
+    return Array.from(
+      this.descendants(access),
+      (candidate) => this.workers.get(candidate)?.requester.id,
+    ).filter((id) => id !== undefined)
+  }
+  private async endRequesters(ids: readonly string[]): Promise<void> {
+    const results = await Promise.allSettled(ids.map((id) => this.ports.broker.endRequester(id)))
+    if (results.some((result) => result.status === 'rejected'))
+      throw new Error(UI_TEXT.vault.noAccess)
+  }
   private retire(access: VaultWorkerAccess): void {
     const retired = this.descendants(access)
-    const routes: VaultWorkerRoute[] = []
+    // Revoke every capability before any route close can call back into the fleet.
+    for (const candidate of retired) {
+      const worker = this.workers.get(candidate)
+      worker?.controller.abort()
+      if (worker) delete worker.delegation
+    }
+    let hasFailed = false
     for (const candidate of retired) {
       const worker = this.workers.get(candidate)
       if (!worker) continue
-      this.workers.delete(candidate)
-      worker.controller.abort()
-      delete worker.delegation
-      if (worker.route) routes.push(worker.route)
-    }
-    let hasFailed = false
-    for (const route of routes)
       try {
-        route.close()
+        worker.route?.close()
+        if (worker.route) this.sockets.delete(socketKey(worker.route.socket))
+        this.workers.delete(candidate)
       } catch {
+        // Retain the aborted route and its reservation so Dispose can retry cleanup.
         hasFailed = true
       }
+    }
     if (hasFailed) throw new Error(UI_TEXT.vault.noAccess)
   }
   async open(launch: VaultWorkerLaunch, parent?: VaultWorkerAccess): Promise<VaultWorkerAccess> {
@@ -310,9 +337,12 @@ export class VaultFleet {
       return access
     } catch (error: unknown) {
       worker.controller.abort()
-      if (access) this.workers.delete(access)
       try {
         route.close()
+        if (access) {
+          this.workers.delete(access)
+          this.sockets.delete(socketKey(route.socket))
+        }
       } finally {
         await this.ports.broker.endRequester(requester.id)
       }
@@ -382,7 +412,10 @@ export class VaultFleet {
       throw new Error(UI_TEXT.vault.noAccess)
     delegation.scopes = next
   }
-  async request(access: VaultWorkerAccess, input: unknown): Promise<VaultAuthorizationResult> {
+  async request(
+    access: VaultWorkerAccess,
+    input: unknown,
+  ): Promise<Exclude<VaultAuthorizationResult, { kind: 'ticket' }> | { kind: 'sent' }> {
     const worker = this.worker(access)
     const proposal = vaultUseProposalSchema.parse(input)
     if (!isCeilingCovered(worker.ceiling, proposal.handle))
@@ -466,16 +499,13 @@ export class VaultFleet {
       if (!canSend()) return { kind: 'denied', reason: 'digest' }
       if (!worker.route) throw new Error(UI_TEXT.vault.noAccess)
       await worker.route.handoff(result.ticket, proposal.use, canSend)
-      if (!canSend()) return { kind: 'denied', reason: 'peer' }
+      return canSend() ? { kind: 'sent' } : { kind: 'denied', reason: 'peer' }
     }
     return result
   }
   async end(access: VaultWorkerAccess): Promise<void> {
     this.worker(access)
-    const ids = Array.from(
-      this.descendants(access),
-      (candidate) => this.workers.get(candidate)?.requester.id,
-    )
+    const ids = this.requesterIds(access)
     let hasCleanupFailed: boolean
     try {
       this.retire(access)
@@ -509,6 +539,7 @@ export class VaultFleet {
       const results = await Promise.allSettled(ids.map((id) => this.ports.broker.endRequester(id)))
       hasFailed ||= results.some((result) => result.status === 'rejected')
     }
-    if (hasFailed) throw new Error(UI_TEXT.vault.noAccess)
+    await Promise.allSettled(this.cleanup)
+    if (hasFailed || this.cleanupFailed) throw new Error(UI_TEXT.vault.noAccess)
   }
 }
