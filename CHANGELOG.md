@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Windows shell credential regressions await the matching background completion
+  before cleanup and probe raw environment values within the default test deadline.
 - Prompt host shutdown awaits mirror merges and other admitted operations
   before releasing storage, preventing Windows cleanup from racing a sync write.
 - Browser package tests build the chat, Help and What's New pages themselves,

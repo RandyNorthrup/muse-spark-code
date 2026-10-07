@@ -29119,6 +29119,16 @@ including startup/configuration mirror merges. Extension deactivation and
 Windows test cleanup await that owner before storage is removed. Prove the
 drain and admission guards with paused-write regressions and restored red
 drills; run the M118 prompt/sharing files three times at repository defaults.
+**FIX0144W D89.5 continuation (2026-10-06).** Compare three complete native
+origin/admission runs on release `555a95158` and main `8c6351d73` before
+editing. The unchanged origin regression fails on both at its one-second
+polling deadline. Await the matching shell-completion event before assertions
+and cleanup, preserving the repository's five-second test deadline. Read raw
+native environment values in the real-shell probes instead of PowerShell's
+display table. Retain every positive/negative credential assertion, deliberately
+break the production fence once, restore byte-exact, and rerun both files
+three times plus the prompt/sharing regressions. Record bounded Windows checks
+and the baseline comparison in `docs/certification/envfence.md`; no paid calls.
 The shared React/VS Code and CLI/ACP bindings are implemented. Native/companion
 MHP mounting waits for M104; the TUI waits for M110a0 lane T. Installed-editor
 parity and the hosted full gate remain unclaimed. About 34 lane-hours. No model call is needed.
@@ -29490,11 +29500,13 @@ Authority: the rig brief and lead decisions, refining D92/M112 from
 ## 7. Gates
 
 **FIX0144W bounded Windows repair (2026-10-06).** The rig/shared brief
-prohibits aggregate quality and unlisted merges. Scoped default-timeout M118
+prohibits aggregate quality and unlisted merges. Scoped default-timeout M118/D89.5
 tests, typecheck, changed-file lint/format and individual static/build checks
 certify this local commit; the lead retains full hosted quality and release
 publication. No timeout, retry, threshold, rule or cap is widened. See
 `docs/certification/m118.md` for the lifetime regression and drill receipts.
+The continuation's unchanged release/main comparison, completion-event wait,
+raw environment probes and restored controls are in `docs/certification/envfence.md`.
 
 **REL0144 bounded release verification (2026-10-06, Kubuntu).** The rig brief
 requires the complete configured Vitest suite in at-most-three-file batches
