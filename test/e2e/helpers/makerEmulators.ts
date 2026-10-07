@@ -148,13 +148,21 @@ export async function sessionDependencies(
     canUseHardware: () => true,
     // P's injection seam only; G's classifier is absent on the lane P base.
     classify: (input) => Promise.resolve(input.operation === 'read' ? 'connect' : 'actuate'),
-    confirm: (request) =>
-      Promise.resolve({
+    confirm: (request, review) => {
+      review({
+        v: 1,
+        type: 'makerPayloadReviewed',
+        id: request.id,
+        digest: request.digest,
+        isComplete: true,
+      })
+      return Promise.resolve({
         id: request.id,
         digest: request.digest,
         target: request.target,
         decision: 'allow_once',
-      }),
+      })
+    },
     identityNow: () => Promise.resolve(identity),
     isPortBusy: () => Promise.resolve(false),
     log: () => Promise.resolve(),

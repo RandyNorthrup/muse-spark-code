@@ -109,7 +109,10 @@ async function isApproved(
         { once: true, signal: listening.signal },
       )
     })
-    const answer = await Promise.race([deps.confirm(request), pending])
+    const answer = await Promise.race([
+      deps.confirm(request, (raw) => approval.review(raw)),
+      pending,
+    ])
     return !deps.signal.aborted && approval.answer(answer) !== undefined
   } finally {
     clearTimeout(timer)

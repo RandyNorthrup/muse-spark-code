@@ -57,6 +57,8 @@ describe('bundled What’s New content budget', () => {
     ['GooeyMenuContent', 25, 'src/webview/components/GooeyMenuContent.tsx'],
     ['UsageDialogContent', 25, 'src/webview/components/UsageDialogContent.tsx'],
     ['AgentMapContent', 25, 'src/webview/components/AgentMapContent.tsx'],
+    ['maker surfaces', 25, 'src/webview/maker/MakerSurface.tsx'],
+    ['maker review', 75, 'src/webview/maker/reviewEntry.ts'],
   ])(
     'enforces the %s cap without widening the original deferred allowance',
     async (name, cap, entryPoint) => {
@@ -82,6 +84,12 @@ describe('bundled What’s New content budget', () => {
   it('rejects a verification bundle over its new 25 KiB cap', async () => {
     statSync.mockImplementation((file) => ({
       size: file === 'dist/verifyEditor.js' ? 25 * 1024 + 1 : 0,
+    }))
+    await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
+  })
+  it('rejects the standalone STL page over its 25 KiB cap', async () => {
+    statSync.mockImplementation((file) => ({
+      size: file === 'dist/webview/makerPreview.js' ? 25 * 1024 + 1 : 0,
     }))
     await expect(import('../../scripts/check-bundle-size.mjs')).rejects.toThrow('exit 1')
   })

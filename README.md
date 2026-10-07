@@ -2361,6 +2361,16 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   know, as untrusted data. The row shows the counts and the entries in your
   language; on Muse Code the row shows the tool's English text.
 
+## Makers
+
+Boards, printers and machines stay behind your approval: nothing moves, heats or sends without you.
+
+- **Enable hardware per workspace.** Makers lists devices and machines; enabling hardware asks why, and every physical payload needs your explicit Send once on its exact rendered bytes. A changed preview withdraws the approval.
+- **Stop is never gated.** The status-bar Stop and `stop-machine` work in untrusted, disabled and unattended contexts. A software stop does not replace the machine's physical emergency stop.
+- **Exact-payload review.** Each approval binds the SHA-256 digest of the outgoing bytes; control bytes are shown visibly and dangerous commands need a separate acknowledgement. See [maker payload review](docs/help/maker-payload-review.md).
+- **Serial and machines.** Serial reads and writes go to the identified target only; machine keys stay in the OS store or SecretStorage. Machine registration confirms the target and warns about plain HTTP on the LAN.
+- **Headless.** The agent CLI serves `hardware enable|disable|status`, `machines add|list|remove`, `stop-machine` and `panel`. Hardware tools need `--hardware` plus the workspace grant; physical actions additionally need your OS sign-in and never run unattended.
+
 ## The panel
 
 **Composer.**
@@ -4430,9 +4440,78 @@ machine sessions await P/W, and PrusaLink digest transport awaits integration.
 [host](docs/schemas/maker-host-v1.schema.json) and
 [surface](docs/schemas/maker-surface-v1.schema.json) JSON Schemas;
 `node scripts/maker-schema.mjs --check` checks for drift. The schemas describe
-the contract for the forthcoming maker surfaces; they do not enable hardware.
+the contract for the shared maker surfaces; they do not enable hardware.
 The adapter handoff and remaining qualification are in
 [the integration record](docs/certification/m103-int.md).
+
+The shared maker UI in `src/webview/maker/` is loaded only after a maker host
+message. It provides exact Send once / Reject approvals, device and serial
+controls, a machine wizard and the local device log. Stop controls remain
+available inside every dialog and when hardware, trust or attended admission
+is off. Machine keys are entered through the host's credential UI, never
+through the shared panel. These views await the V/R adapters and W's final
+command/tool wiring; this lane does not claim installed-editor qualification.
+VS Code uses its native approval modal; ACP uses its editor's permission
+prompt; clients without one and native plugins use the same shared dialog
+through the companion page or their HostBridge. All use the same engine's
+single-use target binding.
+
+The person approves this exact outgoing payload by its SHA-256 digest, after
+seeing a faithful canonical rendering and structured summary. Control pictures
+expose CR, LF, TAB, NUL and ESC; byte escapes expose invalid or hidden text.
+The fixed-width rendering wraps to the measured container and mounts only
+visible rows. At most 200 rendered rows require scrolling the real payload
+container to its end once. Larger payloads require summary/digest confirmation;
+highlighted dangers always need an additional acknowledgement. Search and
+Next highlight reach unmounted material. UTF-8 BOMs are escaped wherever they
+occur; safety-sensitive commands including every M302 spelling need additional
+acknowledgement. Approval does not prove that the person
+looked at every byte. Reject and Send once have equal styling and sizing.
+
+Completed review posts `makerPayloadReviewed {id, digest, isComplete}`. The
+portable host independently rehashes the exact frozen outgoing bytes and
+refuses a mismatch. Read-only/native preview paint cannot authorize a send;
+V/R still own installed-editor routing. Stop all occupies a bounded viewport
+region with an internally scrolling per-machine list, including short panes
+and serial-only sessions. Stop uses its own event path and terminates the search Web Worker. Long
+queries stay outside React state and show a bounded prefix with a character
+count and Clear control; search retains the entire query. Unparseable heater values and unknown
+commands/macros need danger acknowledgement, including serial text and hex
+payloads without host analysis.
+Retry saves chat UI position and a maker-open marker, then reloads the document,
+refetching static dependencies too; Close restores chat. Every new approval-panel document
+posts `makerReady` when its listener is installed. Hosts replay current admission,
+previews and pending approvals through `MakerApproval.reopen`, which revokes
+previous review readiness. The static shell shows Stop before storage access
+and keeps it functional immediately after reload, before replay even when
+storage is denied. Payloads and consent never live in browser storage. The review, English
+fallback and validation load in their own second maker chunk.
+
+The [maker review Help reference](docs/reference.md) describes summaries,
+unknown firmware metadata and adapter qualification. Its source entry is in
+`src/shared/featureCatalog.ts`; `node scripts/gen-reference.mjs` regenerates
+it and `npm run check:reference` verifies it.
+
+The separate `dist/webview/makerPreview.js` / `.css` page has a 25 KiB script
+cap. Its host-rendered HTML supplies localized buttons with `data-maker-view`
+values `left`, `right`, `in`, `out` and `reset`, a labelled `#maker-canvas`,
+an initially hidden localized `#maker-preview-unavailable` alert, and the
+host-owned artifact UUID in `body.dataset.artifactId`. After `makerReady`,
+the host sends `makerMesh` with that UUID and bounded triangle positions
+from an inspected STL. No URL, path, key or hardware command reaches the
+viewer. Runtime/native hosts can supply their own HostBridge to
+`wireMakerPreview`; the VS Code page entry supplies its standard bridge.
+While machines are registered, the host also renders Stop buttons with
+`data-maker-stop="<machine id>"` (an empty value stops all). These work before
+geometry arrives and after a WebGL failure, without approval or admission.
+Stop all stays in a bounded fixed viewport region; individual Stop buttons
+scroll inside that region with separate hit areas. Stop all posts the intent for every registered machine.
+Invalid matching geometry clears
+the old view and shows the unavailable alert. Array size is checked before
+validation; accepted geometry is validated in bounded chunks with a deadline,
+and Stop cancels pending validation.
+The shared-view receipts and editor equivalence matrix are in
+[the UI certification](docs/certification/m103-u.md).
 
 **Tests.** Unit tests (`test/unit/**`) run under vitest with `vscode` aliased
 to `test/unit/mocks/vscode.ts` and webview components under jsdom; the fakes

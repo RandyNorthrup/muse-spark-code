@@ -217,6 +217,7 @@ describe('the production webview chunks (FIX78W)', () => {
 
   it('packages every emitted browser script, with no stale browser chunks', async () => {
     const files = await listFiles({ cwd: built.fixture, dependencies: false })
+    expect(files).toContain('dist/webview/makerPreview.css')
     const listed = files
       .map((file) => file.replaceAll('\\', '/'))
       .filter((file) => file.startsWith('dist/webview/') && file.endsWith('.js'))
@@ -226,10 +227,51 @@ describe('the production webview chunks (FIX78W)', () => {
         ...Object.keys(built.outputs),
         ...Object.keys(JSON.parse(readFileSync('dist/meta/whatsNewPage.json', 'utf8')).outputs),
         ...Object.keys(JSON.parse(readFileSync('dist/meta/referencePage.json', 'utf8')).outputs),
+        ...Object.keys(JSON.parse(readFileSync('dist/meta/makerPreview.json', 'utf8')).outputs),
       ]
         .map((file) => file.replaceAll('\\', '/'))
         .filter((file) => file.endsWith('.js'))
         .toSorted((a, b) => a.localeCompare(b, 'en')),
+    )
+  })
+
+  it.each([
+    'MakerSurface',
+    'ApprovalDialog',
+    'PayloadReview',
+    'StopChip',
+    'DevicePanel',
+    'MachineWizard',
+    'DeviceLog',
+  ])('keeps maker %s outside the startup closure', (name) => {
+    const source = `src/webview/maker/${name}.tsx`
+    const owners = Object.entries(built.outputs).filter(([, output]) =>
+      Object.hasOwn(output.inputs, source),
+    )
+    expect(owners).toHaveLength(1)
+    expect(initialOutputs().has(owners[0][0])).toBe(false)
+    const surfaceEntry = ['StopChip', 'DeviceLog'].includes(name)
+      ? 'src/webview/maker/MakerSurface.tsx'
+      : source
+    const entry = ['ApprovalDialog', 'PayloadReview', 'MachineWizard'].includes(name)
+      ? 'src/webview/maker/reviewEntry.ts'
+      : surfaceEntry
+    expect(built.outputs[owners[0][0]].entryPoint).toBe(entry)
+  })
+  it('builds a separate STL page without React, English or Node inputs', () => {
+    const preview = JSON.parse(readFileSync('dist/meta/makerPreview.json', 'utf8'))
+    expect(statSync('dist/webview/makerPreview.js').size).toBeLessThanOrEqual(25 * 1024)
+    expect(
+      Object.keys(preview.inputs).filter(
+        (source) =>
+          source.startsWith('node_modules/react') ||
+          source.startsWith('src/shared/l10n/') ||
+          source.startsWith('src/core/') ||
+          source.startsWith('src/host/'),
+      ),
+    ).toEqual([])
+    expect(preview.outputs['dist/webview/makerPreview.js'].entryPoint).toBe(
+      'src/webview/maker/previewMain.ts',
     )
   })
 

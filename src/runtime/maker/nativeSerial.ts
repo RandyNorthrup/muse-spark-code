@@ -137,7 +137,7 @@ export function nativeSerial(deps: NativeSerialDeps) {
         classify:
           deps.classify ??
           ((action) => Promise.resolve(action.operation === 'read' ? 'connect' : 'refused')),
-        confirm: (request) => deps.host.confirm(request),
+        confirm: (request, didReview) => deps.host.confirm(request, didReview),
         identityNow: async (port) => {
           const discovered = await ports()
           await deps.refreshAdmission()

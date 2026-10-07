@@ -1,0 +1,87 @@
+
+ RUN  v5.0.2 C:/lanes/M103U
+
+ ❯ test/unit/makerPreview.test.ts (20 tests | 4 failed) 928ms
+   ❯ bounded host-owned STL preview (20)
+     × invalid matching geometry clears the preview (replacement=false) 9ms
+     × invalid matching geometry clears the preview (replacement=true) 5ms
+     × validation has a deadline and refuses late work 5ms
+     × disposes replaced and closed geometry and removes listeners 2ms
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 16 passed (20)
+   Start at  09:32:35
+   Duration  3.20s (environment 39%, tests 31%, transform 12%, import 11%, setup 7%)
+
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (vitest.config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/unit/makerPreview.test.ts > bounded host-owned STL preview > invalid matching geometry clears the preview (replacement=false)
+AssertionError: expected undefined to be 'false' // Object.is equality
+
+- Expected:
+"false"
+
++ Received:
+undefined
+
+ ❯ test/unit/makerPreview.test.ts:114:69
+    112|       if (replacement) emit(mesh)
+    113|       emit({ ...mesh, positions: [0] })
+    114|       expect(document.querySelector('canvas')?.dataset['rendered']).to…
+       |                                                                     ^
+    115|       expect(document.querySelector<HTMLElement>('#maker-preview-unava…
+    116|       if (replacement) expect(renderer.dispose).toHaveBeenCalledOnce()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  test/unit/makerPreview.test.ts > bounded host-owned STL preview > invalid matching geometry clears the preview (replacement=true)
+AssertionError: expected 'true' to be 'false' // Object.is equality
+
+Expected: "false"
+Received: "true"
+
+ ❯ test/unit/makerPreview.test.ts:114:69
+    112|       if (replacement) emit(mesh)
+    113|       emit({ ...mesh, positions: [0] })
+    114|       expect(document.querySelector('canvas')?.dataset['rendered']).to…
+       |                                                                     ^
+    115|       expect(document.querySelector<HTMLElement>('#maker-preview-unava…
+    116|       if (replacement) expect(renderer.dispose).toHaveBeenCalledOnce()
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  test/unit/makerPreview.test.ts > bounded host-owned STL preview > validation has a deadline and refuses late work
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ test/unit/makerPreview.test.ts:157:87
+    155|     emit(mesh)
+    156|     expect(createMeshRenderer).not.toHaveBeenCalled()
+    157|     expect(document.querySelector<HTMLElement>('#maker-preview-unavail…
+       |                                                                                       ^
+    158|     clock.mockRestore()
+    159|   })
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  test/unit/makerPreview.test.ts > bounded host-owned STL preview > disposes replaced and closed geometry and removes listeners
+AssertionError: expected "vi.fn()" to be called once, but got 0 times
+ ❯ test/unit/makerPreview.test.ts:164:30
+    162|     emit(mesh)
+    163|     emit(mesh)
+    164|     expect(renderer.dispose).toHaveBeenCalledOnce()
+       |                              ^
+    165|     lifetime.dispose()
+    166|     lifetime.dispose = undefined
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+

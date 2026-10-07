@@ -13,6 +13,14 @@ export const HARNESS_PATH = 'test/harness/index.html'
 export const PAGE_TIMEOUT_MS = 120_000
 // Every `?scenario=` test/harness/index.html plays.
 export const SCENARIOS = [
+  'maker-approval',
+  'maker-approval-narrow',
+  'maker-serial-approval',
+  'maker-devices',
+  'maker-hardware-off',
+  'maker-wizard',
+  'maker-log',
+  'maker-preview',
   'empty',
   'signin',
   'signin-nocli',
@@ -251,6 +259,7 @@ export const SIZED_SCENARIOS = {
   'questions-expired-narrow': { width: 320, ready: '.attention-dock, .question' },
   help: { width: 1000, ready: '#reference-search' },
   'help-narrow': { width: 320, ready: '#reference-search' },
+  'maker-approval-narrow': { width: 320, ready: '#maker-approval-title' },
   'judge-narrow': { width: 320, ready: '.judge-status' },
   judge: { width: 690, ready: '.judge-status' },
   'judge-slow': { width: 690, ready: '.judge-status' },

@@ -15,13 +15,20 @@ import {
   MAKER_PROTOCOL_VERSION,
 } from './constants'
 import { checkCommandSchema } from './checkCommandSchema'
+import { makerMeshMessageSchema } from './makerProtocolPreview'
+export { makerMeshMessageSchema } from './makerProtocolPreview'
 
-const nonnegative = z.number().check(z.gte(0))
-export const makerPointSchema = z.object({ x: z.number(), y: z.number(), z: z.number() })
+const uuid = z.uuid()
+const boolean = z.boolean()
+const number = z.number()
+const string = z.string()
+const nonnegative = number.check(z.gte(0))
+export const makerPointSchema = z.object({ x: number, y: number, z: number })
+const strictPoint = z.strictObject(makerPointSchema.shape)
 export const makerLimitsSchema = z
   .strictObject({
     travel: z.optional(z.object({ min: makerPointSchema, max: makerPointSchema })),
-    feedMmMin: z.optional(z.number().check(z.positive())),
+    feedMmMin: z.optional(number.check(z.positive())),
     extruder: z.optional(nonnegative),
     bed: z.optional(nonnegative),
   })
@@ -36,9 +43,9 @@ export const makerLimitsSchema = z
   )
 
 const kindSchema = z.enum(MAKER_PROJECT_KINDS)
-const labelSchema = z.string().check(z.minLength(1), z.maxLength(CHECK_NAME_MAX_CHARS))
-const idSchema = z.string().check(z.minLength(1), z.maxLength(CHECK_COMMAND_MAX_CHARS))
-export const relativePathSchema = z.string().check(
+const labelSchema = string.check(z.minLength(1), z.maxLength(CHECK_NAME_MAX_CHARS))
+const idSchema = string.check(z.minLength(1), z.maxLength(CHECK_COMMAND_MAX_CHARS))
+export const relativePathSchema = string.check(
   z.minLength(1),
   z.maxLength(CHECK_COMMAND_MAX_CHARS),
   z.refine(
@@ -57,7 +64,7 @@ export const presetSchema = z.discriminatedUnion('type', [
     id: idSchema,
     kind: kindSchema,
     check: z.strictObject(checkCommandSchema.shape),
-    cloud: z.boolean(),
+    cloud: boolean,
   }),
   // The analyser is offline and a portable engine operation, not a guessed CLI command.
   z.strictObject({
@@ -72,21 +79,21 @@ export const presetSchema = z.discriminatedUnion('type', [
 /** The same detection event on every maker surface. */
 export const presetsOfferedSchema = z.strictObject({
   type: z.literal('presetsOffered'),
-  title: z.string().check(z.minLength(1), z.maxLength(CHECK_COMMAND_MAX_CHARS)),
+  title: string.check(z.minLength(1), z.maxLength(CHECK_COMMAND_MAX_CHARS)),
   kinds: z.array(kindSchema).check(z.maxLength(MAKER_PROJECT_KINDS.length)),
   skillIds: z
-    .array(z.string().check(z.maxLength(CHECK_NAME_MAX_CHARS), z.regex(/^maker_[a-z0-9_]+$/)))
+    .array(string.check(z.maxLength(CHECK_NAME_MAX_CHARS), z.regex(/^maker_[a-z0-9_]+$/)))
     .check(z.maxLength(MAKER_DETECT_MAX_FILES)),
   presets: z.array(presetSchema).check(z.maxLength(MAKER_PRESETS_MAX)),
   notices: z
-    .array(z.string().check(z.minLength(1), z.maxLength(CHECK_COMMAND_MAX_CHARS)))
+    .array(string.check(z.minLength(1), z.maxLength(CHECK_COMMAND_MAX_CHARS)))
     .check(z.maxLength(MAKER_PROJECT_KINDS.length)),
-  isCircuitPyRoot: z.boolean(),
-  hasMachineConfig: z.boolean(),
+  isCircuitPyRoot: boolean,
+  hasMachineConfig: boolean,
   pi: z.optional(
     z.strictObject({
-      model: z.string().check(z.minLength(1), z.maxLength(MAKER_DETECT_MAX_BYTES)),
-      temperatureCelsius: z.optional(z.number()),
+      model: string.check(z.minLength(1), z.maxLength(MAKER_DETECT_MAX_BYTES)),
+      temperatureCelsius: z.optional(number),
       throttled: z.optional(z.int().check(z.gte(0))),
     }),
   ),
@@ -94,14 +101,15 @@ export const presetsOfferedSchema = z.strictObject({
 export type MakerPresetsOffered = z.infer<typeof presetsOfferedSchema>
 export type MakerCheckPreset = MakerPresetsOffered['presets'][number]
 
-const name = z.string().check(z.minLength(1), z.maxLength(MAKER_PROTOCOL_MAX_ID_CHARS))
-const text = z.string().check(z.maxLength(MAKER_PROTOCOL_MAX_TEXT_CHARS))
+const name = string.check(z.minLength(1), z.maxLength(MAKER_PROTOCOL_MAX_ID_CHARS))
+const optionalName = z.optional(name)
+const text = string.check(z.maxLength(MAKER_PROTOCOL_MAX_TEXT_CHARS))
 const timestamp = z.int().check(z.gte(0))
-const digest = z.string().check(z.regex(/^[a-f0-9]{64}$/))
+const digest = string.check(z.regex(/^[a-f0-9]{64}$/))
 const positive = z.int().check(z.positive())
 const family = z.enum(['esp32', 'rp2040', 'rp2350', 'rp2', 'avr'])
 const action = z.enum(['connect', 'program', 'actuate'])
-const usbId = z.string().check(z.regex(/^[a-f0-9]{4}$/))
+const usbId = string.check(z.regex(/^[a-f0-9]{4}$/))
 type Immutable<T> = T extends object ? { readonly [K in keyof T]: Immutable<T[K]> } : T
 
 export const makerSerialTargetSchema = z.strictObject({
@@ -109,13 +117,13 @@ export const makerSerialTargetSchema = z.strictObject({
   port: name,
   vid: z.optional(usbId),
   pid: z.optional(usbId),
-  serialNumber: z.optional(name),
+  serialNumber: optionalName,
   description: z.optional(text),
-  stablePath: z.optional(name),
+  stablePath: optionalName,
 })
 export const makerMachineTargetSchema = z.strictObject({
   kind: z.literal('machine'),
-  registrationId: z.uuid(),
+  registrationId: uuid,
   id: name,
   name,
   endpoint: name,
@@ -129,21 +137,21 @@ export const makerTargetSchema = z.discriminatedUnion('kind', [
 export type MakerTarget = Immutable<z.infer<typeof makerTargetSchema>>
 
 const bounds = z.strictObject({
-  min: z.strictObject(makerPointSchema.shape),
-  max: z.strictObject(makerPointSchema.shape),
+  min: strictPoint,
+  max: strictPoint,
 })
 const analysis = z.strictObject({
   classes: z
     .array(z.enum(['offline', 'observe', 'actuate', 'refused']))
     .check(z.maxLength(MAKER_PROTOCOL_MAX_ITEMS)),
   bounds: z.optional(bounds),
-  maxFeedMmMin: z.number().check(z.gte(0)),
-  temperatures: z.strictObject({ extruder: z.optional(z.number()), bed: z.optional(z.number()) }),
+  maxFeedMmMin: number.check(z.gte(0)),
+  temperatures: z.strictObject({ extruder: z.optional(number), bed: z.optional(number) }),
   unknown: z.array(name).check(z.maxLength(MAKER_PROTOCOL_MAX_ITEMS)),
   refused: z.array(name).check(z.maxLength(MAKER_PROTOCOL_MAX_ITEMS)),
-  hasMotion: z.boolean(),
+  hasMotion: boolean,
 })
-const approvalFields = { id: z.uuid(), digest, expiresAt: timestamp }
+const approvalFields = { id: uuid, digest, expiresAt: timestamp }
 export const makerApprovalRequestSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     ...approvalFields,
@@ -161,14 +169,14 @@ export const makerApprovalRequestSchema = z.discriminatedUnion('kind', [
     ]),
     baud: positive,
     durationMs: positive,
-    dtr: z.boolean(),
-    rts: z.boolean(),
+    dtr: boolean,
+    rts: boolean,
     warnsAboutReset: z.literal(true),
     projectTarget: z.optional(
       z.strictObject({
-        platformioBoard: z.optional(name),
-        idfTarget: z.optional(name),
-        fqbn: z.optional(name),
+        platformioBoard: optionalName,
+        idfTarget: optionalName,
+        fqbn: optionalName,
         family: z.optional(family),
       }),
     ),
@@ -201,7 +209,7 @@ export type MachineApprovalRequest = Extract<ApprovalRequest, { kind: 'machine' 
 // Echo the complete immutable target, including its registration generation.
 // Neither standing choices nor tool-supplied confirm/token fields are accepted.
 export const makerApprovalAnswerSchema = z.strictObject({
-  id: z.uuid(),
+  id: uuid,
   digest,
   target: makerTargetSchema,
   decision: z.enum(['allow_once', 'reject_once']),
@@ -209,7 +217,7 @@ export const makerApprovalAnswerSchema = z.strictObject({
 export type ApprovalAnswer = z.infer<typeof makerApprovalAnswerSchema>
 
 export const makerMachineSummarySchema = z.strictObject({
-  registrationId: z.uuid(),
+  registrationId: uuid,
   id: name,
   name,
   kind: z.enum(['moonraker', 'octoprint', 'prusalink', 'grbl', 'fluidnc', 'marlin']),
@@ -240,11 +248,17 @@ export const makerNoticeSchema = z.union([
 export type MakerNotice = z.infer<typeof makerNoticeSchema>
 
 export const makerPreviewSchema = z.discriminatedUnion('kind', [
-  z.strictObject({ kind: z.literal('payload'), title: name, content: text }),
+  z.strictObject({
+    kind: z.literal('payload'),
+    id: z.optional(uuid),
+    encoding: z.optional(z.enum(['text', 'hex'])),
+    title: name,
+    content: text,
+  }),
   // An opaque host-owned artifact id. No surface can ask the host to open an arbitrary path.
   z.strictObject({
     kind: z.literal('stl'),
-    artifactId: z.uuid(),
+    artifactId: uuid,
     title: name,
     triangles: positive,
     bounds,
@@ -253,49 +267,48 @@ export const makerPreviewSchema = z.discriminatedUnion('kind', [
 export type MakerPreview = z.infer<typeof makerPreviewSchema>
 
 const envelope = { v: z.literal(MAKER_PROTOCOL_VERSION) }
-export const makerHostMessageSchema = z.discriminatedUnion('type', [
-  z.strictObject({
-    ...envelope,
-    type: z.literal('makerApproval'),
+// Share repeated envelope construction to keep the safety surfaces inside their cap.
+function frame<const Type extends string, Shape extends Record<string, z.ZodMiniType>>(
+  type: Type,
+  shape: Shape,
+) {
+  return z.strictObject({ ...envelope, type: z.literal(type), ...shape })
+}
+const makerUiMessages = [
+  frame('makerApproval', {
     request: makerApprovalRequestSchema,
   }),
-  z.strictObject({ ...envelope, type: z.literal('makerApprovalClosed'), id: z.uuid() }),
-  z.strictObject({ ...envelope, type: z.literal('makerNotice'), notice: makerNoticeSchema }),
-  z.strictObject({ ...envelope, type: z.literal('makerPresets'), event: presetsOfferedSchema }),
-  z.strictObject({ ...envelope, type: z.literal('makerPreview'), preview: makerPreviewSchema }),
-  z.strictObject({
-    ...envelope,
-    type: z.literal('makerStatus'),
+  frame('makerApprovalClosed', { id: uuid }),
+  frame('makerNotice', { notice: makerNoticeSchema }),
+  frame('makerPresets', { event: presetsOfferedSchema }),
+  frame('makerPreview', { preview: makerPreviewSchema }),
+  frame('makerStatus', {
     machineId: name,
     status: z.strictObject({
       identity: name,
       state: name,
-      isHomed: z.boolean(),
+      isHomed: boolean,
       limits: makerLimitsSchema,
       gcode: z.optional(
         z.strictObject({
-          position: z.strictObject(makerPointSchema.shape),
-          absolute: z.boolean(),
+          position: strictPoint,
+          absolute: boolean,
           unit: z.enum(['mm', 'inch']),
-          feedMmMin: z.number(),
+          feedMmMin: number,
         }),
       ),
       blockedCommands: z.array(name).check(z.maxLength(MAKER_PROTOCOL_MAX_ITEMS)),
       warnings: z.array(makerWarningSchema).check(z.maxLength(MAKER_PROTOCOL_MAX_ITEMS)),
     }),
   }),
-  z.strictObject({
-    ...envelope,
-    type: z.literal('makerState'),
-    isTrusted: z.boolean(),
-    hardwareEnabled: z.boolean(),
-    isInteractive: z.boolean(),
+  frame('makerState', {
+    isTrusted: boolean,
+    hardwareEnabled: boolean,
+    isInteractive: boolean,
     machines: z.array(makerMachineSummarySchema).check(z.maxLength(MAKER_PROTOCOL_MAX_ITEMS)),
     ports: z.array(makerSerialTargetSchema).check(z.maxLength(MAKER_PROTOCOL_MAX_ITEMS)),
   }),
-  z.strictObject({
-    ...envelope,
-    type: z.literal('makerDeviceLog'),
+  frame('makerDeviceLog', {
     // Only user-requested, already scrubbed entries; never a model/export feed.
     entries: z
       .array(
@@ -305,7 +318,7 @@ export const makerHostMessageSchema = z.discriminatedUnion('type', [
           action: z.enum(['observe', 'connect', 'program', 'actuate', 'stop']),
           payload: text,
           digest,
-          approval: z.nullable(z.uuid()),
+          approval: z.nullable(uuid),
           outcome: z.enum([
             'attempt',
             'sent',
@@ -318,10 +331,8 @@ export const makerHostMessageSchema = z.discriminatedUnion('type', [
       )
       .check(z.maxLength(MAKER_PROTOCOL_MAX_ITEMS)),
   }),
-  z.strictObject({
-    ...envelope,
-    type: z.literal('makerResult'),
-    id: z.uuid(),
+  frame('makerResult', {
+    id: uuid,
     outcome: z.enum([
       'sent',
       'sentWithUnrecordedAudit',
@@ -332,65 +343,63 @@ export const makerHostMessageSchema = z.discriminatedUnion('type', [
     ]),
     message: text,
   }),
-])
+] as const
+export const makerUiHostMessageSchema = z.discriminatedUnion('type', makerUiMessages)
+// Geometry is consumed only by the separately bounded standalone page.
+export const makerHostMessageSchema = /* @__PURE__ */ (() =>
+  z.discriminatedUnion('type', [makerMeshMessageSchema, ...makerUiMessages]))()
 export type MakerHostMessage = Immutable<z.infer<typeof makerHostMessageSchema>>
 
 export const makerSurfaceMessageSchema = z.discriminatedUnion('type', [
-  z.strictObject({ ...envelope, type: z.literal('makerReady') }),
-  z.strictObject({
-    ...envelope,
-    type: z.literal('makerAnswer'),
+  frame('makerPayloadReviewed', { id: uuid, digest, isComplete: boolean }),
+  frame('makerPreviewRendered', { id: uuid, digest }),
+  frame('makerReady', {}),
+  frame('makerAnswer', {
     answer: makerApprovalAnswerSchema,
   }),
   // Stop is its own message, without an approval or hardware-enabled condition.
-  z.strictObject({ ...envelope, type: z.literal('makerStop'), machineId: z.optional(name) }),
-  z
-    .strictObject({
-      ...envelope,
-      type: z.literal('makerHardware'),
-      enabled: z.boolean(),
-      reason: z.optional(
-        z.string().check(z.trim(), z.minLength(1), z.maxLength(MAKER_PROTOCOL_MAX_ID_CHARS)),
-      ),
-    })
-    .check(z.refine((message) => !message.enabled || message.reason !== undefined)),
-  z.strictObject({ ...envelope, type: z.literal('makerStatus'), machineId: name }),
+  frame('makerStop', { machineId: optionalName }),
+  frame('makerHardware', {
+    enabled: boolean,
+    reason: z.optional(
+      string.check(z.trim(), z.minLength(1), z.maxLength(MAKER_PROTOCOL_MAX_ID_CHARS)),
+    ),
+  }).check(z.refine((message) => !message.enabled || message.reason !== undefined)),
+  frame('makerStatus', { machineId: name }),
   // These are action requests only. The engine independently classifies and asks its host.
-  z.strictObject({
-    ...envelope,
-    type: z.literal('makerSend'),
-    id: z.uuid(),
+  frame('makerSend', {
+    id: uuid,
     machineId: name,
     payload: text,
   }),
-  z.strictObject({
-    ...envelope,
-    type: z.literal('makerSerial'),
-    id: z.uuid(),
+  frame('makerSerial', {
+    id: uuid,
     operation: z.enum(['read', 'write']),
     target: makerSerialTargetSchema,
     baud: positive,
     durationMs: positive,
-    dtr: z.boolean(),
-    rts: z.boolean(),
+    dtr: boolean,
+    rts: boolean,
     payloadHex: z
       .string()
       .check(z.maxLength(MAKER_PROTOCOL_MAX_TEXT_CHARS), z.regex(/^(?:[a-f0-9]{2})*$/)),
   }),
-  z.strictObject({ ...envelope, type: z.literal('makerOpenLog') }),
-  z.strictObject({
-    ...envelope,
-    type: z.literal('makerAddMachine'),
+  frame('makerOpenLog', {}),
+  frame('makerAddMachine', {
     machine: machineRegistrationSchema,
-    allowPlainHttp: z.boolean(),
+    allowPlainHttp: boolean,
   }),
-  z.strictObject({
-    ...envelope,
-    type: z.literal('makerRemoveMachine'),
-    registrationId: z.uuid(),
+  frame('makerRemoveMachine', {
+    registrationId: uuid,
     machineId: name,
   }),
-  z.strictObject({ ...envelope, type: z.literal('makerChoosePreset'), presetId: name }),
-  z.strictObject({ ...envelope, type: z.literal('makerOpenPreview'), artifactId: z.uuid() }),
+  frame('makerChoosePreset', { presetId: name }),
+  frame('makerOpenPreview', { artifactId: uuid }),
 ])
 export type MakerSurfaceMessage = z.infer<typeof makerSurfaceMessageSchema>
+
+/** Worker results carry row positions only, never hardware authority. */
+export const makerSearchResultSchema = z.strictObject({
+  match: z.number().check(z.int(), z.minimum(-1)),
+  jump: z.number().check(z.int(), z.minimum(-1)),
+})

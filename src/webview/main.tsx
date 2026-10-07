@@ -8,13 +8,15 @@
 
 import { createRoot } from 'react-dom/client'
 import { lazy, Suspense, useSyncExternalStore } from 'react'
-import { UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID } from '../shared/constants'
+import { UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID, PANEL_RELOAD_EVENT } from '../shared/constants'
 import type { WebviewToHostMessage } from '../shared/protocol'
+import type { MakerSurfaceMessage } from '../shared/makerProtocol'
 import { App } from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { type ErrorReporter, reportWebviewErrorMessage, webviewErrorReport } from './errorReport'
 import { vsCodeHostBridge } from './hostBridge'
+import { listenForMaker } from './makerEntry'
 import { installEmbeddedTable } from './installTable'
 import { installSurfaceRetry, retrySurface } from './surfaceRetry'
 import { restoredUiState } from './state/snapshot'
@@ -107,7 +109,8 @@ function mountTasks(element: Element): void {
 }
 
 function mountChat(element: Element): void {
-  const host = vsCodeHostBridge(window)
+  const host = vsCodeHostBridge<WebviewToHostMessage | MakerSurfaceMessage>(window)
+  listenForMaker(host)
   // What throws here reaches the host's log (M39): a render the boundary
   // caught, an error or a rejected promise nothing handled, a host message.
   // Window errors, rejected promises and boundary failures also post the
@@ -148,6 +151,9 @@ function mountChat(element: Element): void {
   )
   // The document goes away (a reload, the panel closing): save what is shown.
   window.addEventListener('pagehide', () => {
+    persister.flush(store.hasRendered())
+  })
+  window.addEventListener(PANEL_RELOAD_EVENT, () => {
     persister.flush(store.hasRendered())
   })
   const postMessage = (message: WebviewToHostMessage) => {

@@ -1,0 +1,90 @@
+[
+  {
+    "scenario": "approval-30",
+    "digest": "3e53b97c849d6f216e53050958141b3e632f3967e570f4609a750c2882263c20",
+    "unreviewedEnterAnswers": 0,
+    "allLinesGate": true,
+    "equalChoices": [
+      {
+        "rect": {
+          "width": 136,
+          "height": 29,
+          "y": 673.21875
+        },
+        "color": "rgb(59, 59, 59)",
+        "background": "rgb(229, 229, 229)"
+      },
+      {
+        "rect": {
+          "width": 136,
+          "height": 29,
+          "y": 673.21875
+        },
+        "color": "rgb(59, 59, 59)",
+        "background": "rgb(229, 229, 229)"
+      }
+    ]
+  },
+  {
+    "scenario": "approval-6000",
+    "digest": "98fe2b828778a261eacd17f812e02b40fcf96224e790a078d3cbe54161aaac14",
+    "unreviewedEnterAnswers": 0,
+    "allLinesGate": true,
+    "equalChoices": [
+      {
+        "rect": {
+          "width": 136,
+          "height": 29,
+          "y": 673.21875
+        },
+        "color": "rgb(59, 59, 59)",
+        "background": "rgb(229, 229, 229)"
+      },
+      {
+        "rect": {
+          "width": 136,
+          "height": 29,
+          "y": 673.21875
+        },
+        "color": "rgb(59, 59, 59)",
+        "background": "rgb(229, 229, 229)"
+      }
+    ]
+  },
+  {
+    "scenario": "serial-and-rejected-chunk",
+    "stopSurvives": true,
+    "retryVisible": true
+  },
+  {
+    "scenario": "preview-stop",
+    "size": {
+      "width": 690,
+      "height": 400
+    },
+    "bounds": {
+      "x": 562.78125,
+      "y": 364,
+      "width": 119.21875,
+      "height": 28
+    }
+  },
+  {
+    "scenario": "preview-stop",
+    "size": {
+      "width": 320,
+      "height": 200
+    },
+    "bounds": {
+      "x": 192.78125,
+      "y": 164,
+      "width": 119.21875,
+      "height": 28
+    }
+  },
+  {
+    "scenario": "oversized-stop",
+    "latencyMs": 52.90000009536743,
+    "boundMs": 250
+  }
+]

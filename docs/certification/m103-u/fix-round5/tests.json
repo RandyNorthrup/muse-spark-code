@@ -1,0 +1,76 @@
+[
+  {
+    "files": [
+      "test/unit/makerPayloadReview.test.tsx",
+      "test/unit/makerApproval.test.ts",
+      "test/unit/makerReload.test.ts"
+    ],
+    "exit": 0,
+    "results": [
+      " Test Files  3 passed (3)",
+      "      Tests  95 passed (95)",
+      "   Duration  4.03s (tests 38%, environment 34%, transform 13%, import 7%, setup 7%)"
+    ]
+  },
+  {
+    "files": [
+      "test/unit/makerEntryLoading.test.ts",
+      "test/unit/makerFailures.test.tsx",
+      "test/unit/makerStopLoading.test.tsx"
+    ],
+    "exit": 0,
+    "results": [
+      " Test Files  3 passed (3)",
+      "      Tests  4 passed (4)",
+      "   Duration  2.53s (environment 44%, tests 22%, transform 17%, import 9%, setup 7%)"
+    ]
+  },
+  {
+    "files": [
+      "test/unit/makerUiStore.test.ts",
+      "test/unit/makerUi.test.tsx",
+      "test/unit/makerPreview.test.ts"
+    ],
+    "exit": 0,
+    "results": [
+      " Test Files  3 passed (3)",
+      "      Tests  46 passed (46)",
+      "   Duration  3.65s (tests 36%, environment 34%, transform 18%, import 7%, setup 6%)"
+    ]
+  },
+  {
+    "files": [
+      "test/unit/makerProtocol.test.ts",
+      "test/unit/Modal.test.tsx",
+      "test/unit/bundleSize.test.mjs"
+    ],
+    "exit": 0,
+    "results": [
+      " Test Files  3 passed (3)",
+      "      Tests  50 passed (50)",
+      "   Duration  1.64s (tests 29%, environment 28%, transform 19%, setup 15%, import 9%, worker 1%)"
+    ]
+  },
+  {
+    "files": [
+      "test/unit/webviewBundles.test.mjs",
+      "test/unit/webviewBundle.test.mjs",
+      "test/unit/uiTextRegions.test.mjs"
+    ],
+    "exit": 0,
+    "results": [
+      " Test Files  3 passed (3)",
+      "      Tests  29 passed (29)",
+      "   Duration  5.30s (tests 82%, import 7%, transform 5%, setup 5%)"
+    ]
+  },
+  {
+    "files": ["test/unit/makerReviewBrowser.test.mjs"],
+    "exit": 0,
+    "results": [
+      " Test Files  1 passed (1)",
+      "      Tests  14 passed (14)",
+      "   Duration  26.31s (tests 95%, import 3%, transform 1%, setup 1%)"
+    ]
+  }
+]

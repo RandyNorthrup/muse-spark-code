@@ -66,6 +66,17 @@ export function listenToHost(
   report: ErrorReporter,
 ): () => void {
   const onMessage = (event: MessageEvent<unknown>) => {
+    // M103 U: makerEntry routes this namespace to its own lazy schema/store.
+    // Chat must not load those schemas or report valid maker traffic as a fault.
+    const raw = event.data
+    if (
+      typeof raw === 'object' &&
+      raw !== null &&
+      'type' in raw &&
+      typeof raw.type === 'string' &&
+      raw.type.startsWith('maker')
+    )
+      return
     const parsed = parseHostToWebviewMessage(event.data)
     if (!parsed.ok) {
       const reason = `Dropped malformed host message: ${parsed.error}`

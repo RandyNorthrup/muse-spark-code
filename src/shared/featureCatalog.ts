@@ -285,6 +285,17 @@ export function featureCatalog(): readonly Feature[] {
       'web-fetch',
     ),
     feature(
+      'makers',
+      { ui: 'makerTitle' },
+      { ui: 'referenceMakers' },
+      [],
+      [],
+      'makers',
+      undefined,
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
       'code-intelligence',
       { ui: 'referenceCodeIntelTitle' },
       { ui: 'referenceCodeIntelDetail' },

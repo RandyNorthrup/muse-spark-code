@@ -308,6 +308,14 @@ Surfaces: vscode:museCode, vscode:modelApi, acp:modelApi. Paid: no extra feature
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#web-fetch)
 
+### Makers
+
+Review the exact payload behind one SHA-256 digest, then Send once or Reject. Enabling hardware needs the OS account check; Stop never does.
+
+Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#makers)
+
 ### Code intelligence
 
 Use editor language services for definitions, references, symbols, calls and safe renames.

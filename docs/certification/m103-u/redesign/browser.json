@@ -1,0 +1,164 @@
+[
+  {
+    "probe": "long-token",
+    "client": 121,
+    "scroll": 121,
+    "fits": true
+  },
+  {
+    "probe": "shared-stop",
+    "count": 5,
+    "height": 120,
+    "visible": true,
+    "top": 42,
+    "bottom": 71
+  },
+  {
+    "probe": "shared-stop-list",
+    "count": 5,
+    "height": 120,
+    "scrollHeight": 148,
+    "clientHeight": 17,
+    "buttons": 5
+  },
+  {
+    "probe": "shared-stop",
+    "count": 5,
+    "height": 160,
+    "visible": true,
+    "top": 42,
+    "bottom": 71
+  },
+  {
+    "probe": "shared-stop-list",
+    "count": 5,
+    "height": 160,
+    "scrollHeight": 148,
+    "clientHeight": 33,
+    "buttons": 5
+  },
+  {
+    "probe": "shared-stop",
+    "count": 5,
+    "height": 400,
+    "visible": true,
+    "top": 54,
+    "bottom": 83
+  },
+  {
+    "probe": "shared-stop-list",
+    "count": 5,
+    "height": 400,
+    "scrollHeight": 148,
+    "clientHeight": 89,
+    "buttons": 5
+  },
+  {
+    "probe": "shared-stop",
+    "count": 5,
+    "height": 760,
+    "visible": true,
+    "top": 54,
+    "bottom": 83
+  },
+  {
+    "probe": "shared-stop-list",
+    "count": 5,
+    "height": 760,
+    "scrollHeight": 148,
+    "clientHeight": 89,
+    "buttons": 5
+  },
+  {
+    "probe": "shared-stop",
+    "count": 10,
+    "height": 120,
+    "visible": true,
+    "top": 42,
+    "bottom": 71
+  },
+  {
+    "probe": "shared-stop-list",
+    "count": 10,
+    "height": 120,
+    "scrollHeight": 298,
+    "clientHeight": 17,
+    "buttons": 10
+  },
+  {
+    "probe": "shared-stop",
+    "count": 10,
+    "height": 160,
+    "visible": true,
+    "top": 42,
+    "bottom": 71
+  },
+  {
+    "probe": "shared-stop-list",
+    "count": 10,
+    "height": 160,
+    "scrollHeight": 298,
+    "clientHeight": 33,
+    "buttons": 10
+  },
+  {
+    "probe": "shared-stop",
+    "count": 10,
+    "height": 400,
+    "visible": true,
+    "top": 54,
+    "bottom": 83
+  },
+  {
+    "probe": "shared-stop-list",
+    "count": 10,
+    "height": 400,
+    "scrollHeight": 298,
+    "clientHeight": 89,
+    "buttons": 10
+  },
+  {
+    "probe": "shared-stop",
+    "count": 10,
+    "height": 760,
+    "visible": true,
+    "top": 54,
+    "bottom": 83
+  },
+  {
+    "probe": "shared-stop-list",
+    "count": 10,
+    "height": 760,
+    "scrollHeight": 298,
+    "clientHeight": 89,
+    "buttons": 10
+  },
+  {
+    "probe": "standalone-stop",
+    "count": 10,
+    "height": 120,
+    "visible": true,
+    "top": 64,
+    "bottom": 92
+  },
+  {
+    "probe": "standalone-stop",
+    "count": 10,
+    "height": 400,
+    "visible": true,
+    "top": 272,
+    "bottom": 300
+  },
+  {
+    "probe": "large-payload",
+    "latency": 19.40000009536743,
+    "rows": 19,
+    "height": 2000000,
+    "stops": 137
+  },
+  {
+    "probe": "static-dependency-reload",
+    "refetches": 2,
+    "restoredMachines": 10
+  }
+]

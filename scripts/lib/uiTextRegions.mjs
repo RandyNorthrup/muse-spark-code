@@ -133,41 +133,73 @@ export function compressedEnglish(file, isProduction, compressionQuality) {
   }
 }
 
-/** The browser carries complete English in an inline native-DEFLATE payload. */
+/**
+ * Startup carries only the bootstrap in an inline native-DEFLATE payload:
+ * every key except maker keys (three Stop/retry labels stay for the static
+ * Stop shell). The second maker closure carries the complete maker table and
+ * installs it before first maker use; its test completes the bootstrap back
+ * to the full table. Native DEFLATE decoding completes before dependent ESM
+ * modules run (Chrome 128 and later).
+ */
+// Maker keys excluded from the startup bootstrap; installed with the
+// maker closure before first maker use.
+function bootstrapEnglish(table) {
+  return Object.fromEntries(
+    Object.entries(table).filter(
+      ([key]) =>
+        !key.startsWith('maker') || ['makerStopAll', 'makerLoadFailed', 'makerRetry'].includes(key),
+    ),
+  )
+}
+// Lossless native-DEFLATE packing shared by the bootstrap and the maker
+// closure; both decode to `EN` entries in the source key order.
+function packEnglish(table, level) {
+  const alphabet =
+    '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+,-./:;<=>?@[]^'
+  const compressed = deflateSync(
+    JSON.stringify([Object.keys(table).join('|'), Object.values(table)]),
+    {
+      level,
+    },
+  )
+  let packed = ''
+  for (let offset = 0; offset < compressed.length; offset += 4) {
+    let word = 0
+    for (let byte = 0; byte < 4; byte++) word = word * 256 + (compressed[offset + byte] ?? 0)
+    let digits = ''
+    for (let digit = 0; digit < 5; digit++) {
+      digits = alphabet[word % 85] + digits
+      word = Math.floor(word / 85)
+    }
+    packed += digits
+  }
+  return `const alphabet=${JSON.stringify(alphabet)},packed=${JSON.stringify(packed)};
+const bytes=new Uint8Array(${compressed.length});
+for(let offset=0;offset<packed.length;offset+=5){let word=0;for(let digit=0;digit<5;digit++)word=word*85+alphabet.indexOf(packed[offset+digit]);for(let byte=3;byte>=0;byte--){bytes[offset/5*4+byte]=word%256;word=Math.floor(word/256)}}
+const [keys,values]=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'))).json();
+export const EN=Object.fromEntries(keys.split('|').map((key,index)=>[key,values[index]]));`
+}
 export const compactBrowserEnglish = {
   name: 'compact-browser-english',
   setup(build) {
     build.onLoad({ filter: /[/\\]l10n[/\\]en\.ts$/ }, async (args) => {
       if (path.resolve(args.path) !== path.resolve(TABLE)) return
       const { EN, L10N_BROWSER_COMPRESSION_LEVEL } = await loadL10n(process.cwd())
-      // DIET1: the complete fallback stays inline. Native DEFLATE decoding
-      // completes before dependent ESM modules run (Chrome 128 and later).
-      const alphabet =
-        '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+,-./:;<=>?@[]^'
-      const compressed = deflateSync(
-        JSON.stringify([Object.keys(EN).join('|'), Object.values(EN)]),
-        { level: L10N_BROWSER_COMPRESSION_LEVEL },
-      )
-      let packed = ''
-      for (let offset = 0; offset < compressed.length; offset += 4) {
-        let word = 0
-        for (let byte = 0; byte < 4; byte++) word = word * 256 + (compressed[offset + byte] ?? 0)
-        let digits = ''
-        for (let digit = 0; digit < 5; digit++) {
-          digits = alphabet[word % 85] + digits
-          word = Math.floor(word / 85)
-        }
-        packed += digits
-      }
-      const contents = `const alphabet=${JSON.stringify(alphabet)},packed=${JSON.stringify(packed)};
-const bytes=new Uint8Array(${compressed.length});
-for(let offset=0;offset<packed.length;offset+=5){let word=0;for(let digit=0;digit<5;digit++)word=word*85+alphabet.indexOf(packed[offset+digit]);for(let byte=3;byte>=0;byte--){bytes[offset/5*4+byte]=word%256;word=Math.floor(word/256)}}
-const [keys,values]=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'))).json();
-export const EN=Object.fromEntries(keys.split('|').map((key,index)=>[key,values[index]]));`
       return {
-        contents,
+        contents: packEnglish(bootstrapEnglish(EN), L10N_BROWSER_COMPRESSION_LEVEL),
         loader: 'js',
         watchFiles: [args.path, 'src/shared/constants.ts'],
+      }
+    })
+    build.onLoad({ filter: /[/\\]l10n[/\\]makerEnglish\.ts$/ }, async (args) => {
+      const { EN, L10N_BROWSER_COMPRESSION_LEVEL } = await loadL10n(process.cwd())
+      return {
+        contents: packEnglish(
+          Object.fromEntries(Object.entries(EN).filter(([key]) => key.startsWith('maker'))),
+          L10N_BROWSER_COMPRESSION_LEVEL,
+        ).replace('export const EN=', 'export const MAKER_EN='),
+        loader: 'js',
+        watchFiles: [args.path, TABLE],
       }
     })
   },

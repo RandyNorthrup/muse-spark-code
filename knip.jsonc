@@ -25,6 +25,8 @@
     "src/shared/reference/referenceEntry.ts",
     "src/shared/reference/referenceSource.ts",
     "src/shared/wireEntry.ts",
+    // Build-only Help catalogue read by scripts/gen-reference.mjs through esbuild.
+    "src/shared/featureCatalog.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",
     // The Model API backend's own bundle (M57), required by path at runtime.
@@ -70,6 +72,8 @@
     // Web fetch's page converter (M69), a worker bundle started by path.
     "src/host/web/pageWorker.ts",
     "src/webview/main.tsx",
+    // M103 U: separate host-rendered STL preview page, built by path.
+    "src/webview/maker/previewMain.ts",
     "src/runtime/main.ts",
     // M112 A: same-build ACP question factory, loaded by path on first use.
     "src/acp/questionDeferralEntry.ts",

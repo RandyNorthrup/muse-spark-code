@@ -58,6 +58,7 @@ import {
   compressedEnglish,
   compactBrowserEnglish,
 } from './lib/uiTextRegions.mjs'
+import { isolateMakerValidation } from './lib/makerValidation.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
 import { buildProfile } from './lib/arduinoBuild.mjs'
@@ -566,6 +567,7 @@ const webviewOptions = {
   ...common,
   plugins: [
     ...(isProduction ? [compactBrowserEnglish] : []),
+    isolateMakerValidation,
     {
       name: 'reference-page',
       setup(build) {
@@ -609,6 +611,13 @@ const whatsNewPageOptions = {
   format: 'iife',
   splitting: false,
   entryPoints: { [WHATS_NEW_PAGE_NAME]: WHATS_NEW_PAGE_ENTRY },
+}
+
+// M103 U: the host-rendered STL page has its own entry, never a chat import.
+const makerPreviewOptions = {
+  ...webviewOptions,
+  splitting: false,
+  entryPoints: { makerPreview: 'src/webview/maker/previewMain.ts' },
 }
 
 function listIntegrationTests() {
@@ -693,6 +702,7 @@ if (isWatch) {
     esbuild.context(webviewOptions),
     esbuild.context(referencePageOptions),
     esbuild.context(whatsNewPageOptions),
+    esbuild.context(makerPreviewOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -748,6 +758,7 @@ if (isWatch) {
     webview: esbuild.build(webviewOptions),
     referencePage: esbuild.build(referencePageOptions),
     whatsNewPage: esbuild.build(whatsNewPageOptions),
+    makerPreview: esbuild.build(makerPreviewOptions),
   }
   const acp = esbuild.build(acpOptions)
   const acpQuestions = esbuild.build(acpQuestionsOptions)

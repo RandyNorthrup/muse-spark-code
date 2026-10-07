@@ -1,0 +1,80 @@
+[
+  {
+    "finding": "P1-1",
+    "scenario": "wrapped hex, focus, resize and full segment traversal",
+    "segments": 167,
+    "digest": "84283fcbcce328785e94b3cc06441fc28a2579cb96e98a9af89c513545932f0a",
+    "firstFocusApproval": false,
+    "resizeApproval": false,
+    "completeTraversalApproval": true
+  },
+  {
+    "finding": "P1-2",
+    "scenario": "native 6000-line first paint and scroll",
+    "readinessFrames": 0
+  },
+  {
+    "finding": "P2-4",
+    "height": 120,
+    "rect": {
+      "x": 9,
+      "y": 43,
+      "width": 128.625,
+      "height": 29
+    },
+    "postedStop": true
+  },
+  {
+    "finding": "P2-4",
+    "height": 160,
+    "rect": {
+      "x": 9,
+      "y": 43,
+      "width": 128.625,
+      "height": 29
+    },
+    "postedStop": true
+  },
+  {
+    "finding": "P2-6 retry",
+    "requests": [
+      "/dist/webview/chunks/DLLO4EGK.js?makerRetry=1",
+      "/dist/webview/chunks/DLLO4EGK.js?makerRetry=2"
+    ],
+    "recovered": true
+  },
+  {
+    "finding": "P2-6 dismiss",
+    "chatClickable": true
+  },
+  {
+    "finding": "P2-5",
+    "rectangles": [
+      {
+        "x": 606.484375,
+        "y": 268,
+        "width": 75.515625,
+        "height": 28
+      },
+      {
+        "x": 606.484375,
+        "y": 300,
+        "width": 75.515625,
+        "height": 28
+      },
+      {
+        "x": 606.484375,
+        "y": 332,
+        "width": 75.515625,
+        "height": 28
+      },
+      {
+        "x": 606.484375,
+        "y": 364,
+        "width": 75.515625,
+        "height": 28
+      }
+    ],
+    "stopAllTargets": ["one", "two", "three"]
+  }
+]

@@ -122,8 +122,11 @@ export function formatBytes(bytes: number): string {
 
 export type DurationUnit = 'second' | 'minute' | 'hour' | 'day'
 
-/** A short amount of time in one unit: 3s / 3 Sek. / 3秒. */
-export function formatUnit(value: number, unit: DurationUnit): string {
+/** A localized amount in one unit, using the locale's short unit label. */
+export function formatUnit(
+  value: number,
+  unit: DurationUnit | 'celsius' | 'meter-per-minute',
+): string {
   return numberFormat(`unit:${unit}`, {
     style: 'unit',
     unit,

@@ -11,13 +11,28 @@ import {
   serialLeaseResource,
 } from '../../src/core/maker/lease'
 import {
-  runSerialAction,
+  runSerialAction as engineRunSerialAction,
   type SerialActionInput,
   type SerialSessionDependencies,
 } from '../../src/core/maker/serial/session'
 import type { SerialCapture, SerialProcess } from '../../src/core/maker/serial/process'
 import { makerLeaseDeps } from './helpers/makerSerial'
 
+function runSerialAction(input: unknown, deps: SerialSessionDependencies) {
+  return engineRunSerialAction(input, {
+    ...deps,
+    confirm: (request, review) => {
+      review({
+        v: 1,
+        type: 'makerPayloadReviewed',
+        id: request.id,
+        digest: request.digest,
+        isComplete: true,
+      })
+      return deps.confirm(request, review)
+    },
+  })
+}
 const directories: string[] = []
 afterEach(async () => {
   for (const directory of directories.splice(0))

@@ -41,6 +41,12 @@ happened, not what was planned; superseded entries are kept.
   extension and passed 21 of 34 tests; 13 host compatibility failures remain
   recorded, so Arduino qualification is incomplete.
 
+- Shared lazy maker views for exact per-action approval, independent Stop,
+  device/serial controls, secretless machine registration and the local device
+  log, plus a separate bounded WebGL STL preview page. All surfaces use the
+  portable maker protocol and include real translations in fourteen languages.
+  Final command/tool, host adapter and package wiring remains in M103 W/V/R.
+
 ### Fixed
 
 - Maker preview approval receipts now latch a decision or withdrawal. Changed
@@ -251,6 +257,50 @@ happened, not what was planned; superseded entries are kept.
   from a deferred bundle capped at 125 KiB; existing caps are unchanged.
   Shared maker UI, package wiring, G4 and physical/cross-OS
   qualification remain integration work, as recorded in M103R certification.
+
+- Maker danger acknowledgement now includes unparseable heater expressions,
+  variables and unknown macros, including serial payloads without analysis,
+  M42 and Klipper offset/carriage safety equivalents. Search runs in a
+  cancellable Web Worker, searching the complete query while bounding its
+  displayed prefix. The static Stop
+  shell is present before storage access and remains functional immediately
+  after reload while host replay is pending, including denied storage.
+
+- Maker search now uses cancellable elapsed-time slices and linear matching,
+  preserving responsive Stop during long queries on 100,000-line payloads.
+  Reload re-fetches pending approvals from the host, revokes previous review
+  readiness and restores maker controls without saving large payloads.
+
+- Maker canonical review preserves and visibly escapes BOM bytes everywhere,
+  with randomized exact-byte round-trip coverage. Every M302 spelling and
+  conservative power, protection, soft-limit and firmware-equivalent highlights
+  require the extra danger acknowledgement.
+
+- Maker summary highlights now follow CR-only line endings and padded numeric
+  command codes. Compound blocks disclose unknown effects. Summary preparation
+  avoids allocating heater maps and irrelevant parameter scans per motion line.
+- Maker approval now binds the exact outgoing-byte digest to a canonical,
+  virtualised rendering and structured summary. Control bytes are visible;
+  small payloads require reaching the scroll end, and large ones require
+  summary/digest confirmation. Highlighted dangers need acknowledgement.
+  Bounded Stop all and scrollable machine lists remain usable during long
+  rendering and failures. Retry reloads the panel to recover failed static
+  dependencies, preserving state and clearing review confirmations. Maker
+  review, fallback and validation have their own lazy budget.
+
+- Hardware approval now counts only fully visible hard-split segments, resets
+  progress on resize and requires host-owned completed review against the exact
+  outgoing bytes. Read-only/native preview paint cannot authorize a send.
+  Stop sits outside dialog scrolling and standalone controls form a stack.
+  Failed optional views retry a fresh chunk URL or close to restore chat.
+  The maker unit-test project now typechecks.
+
+- Maker approval now requires review of every payload line before Send once,
+  with paged and keyboard review, rendered-byte receipts and equally sized
+  choices. Serial-only Stop, failed-view recovery and short-pane preview Stop
+  stay available. Invalid meshes clear the old preview; oversized meshes are
+  rejected before component validation and accepted validation yields to Stop.
+  Machine categories now have translated display labels.
 
 ## [0.14.3] - 2026-10-06
 

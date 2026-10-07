@@ -19,7 +19,10 @@ function target(): MakerTarget {
     stablePath: '/dev/serial/by-id/board-one',
   }
 }
-function request(selected: MakerTarget = target(), now = Date.now()): ApprovalRequest {
+function request(
+  selected: MakerTarget = target(),
+  now = Date.now(),
+): Extract<ApprovalRequest, { kind: 'command' }> {
   const payload = 'approved firmware bytes'
   return {
     kind: 'command',
@@ -35,6 +38,84 @@ function answer(input: ApprovalRequest): ApprovalAnswer {
   return { id: input.id, digest: input.digest, target: input.target, decision: 'allow_once' }
 }
 
+function reviewedApproval(...args: ConstructorParameters<typeof MakerApproval>) {
+  const approval = new MakerApproval(...args)
+  approval.review({
+    v: 1,
+    type: 'makerPayloadReviewed',
+    id: approval.request.id,
+    digest: approval.request.digest,
+    isComplete: true,
+  })
+  return approval
+}
+
+it('native first-paint receipts cannot make the host approval ready', () => {
+  const approval = new MakerApproval(request(), () => true)
+  expect(
+    approval.review({
+      v: 1,
+      type: 'makerPreviewRendered',
+      id: approval.request.id,
+      digest: approval.request.digest,
+    }),
+  ).toBe(false)
+  expect(approval.answer(answer(approval.request))).toBeUndefined()
+  expect(approval.start(target())).toBe(false)
+})
+it('host replay preserves exact large bytes and revokes readiness from the previous document', () => {
+  const input = request()
+  const payload = '\0'.repeat(400_000)
+  const approval = reviewedApproval(
+    { ...input, payload, digest: createHash('sha256').update(payload).digest('hex') },
+    () => true,
+  )
+  const replay = approval.reopen({ v: 1, type: 'makerReady' })
+  expect(replay?.request).toBe(approval.request)
+  expect(replay?.request).toMatchObject({
+    payload,
+    digest: createHash('sha256').update(payload).digest('hex'),
+  })
+  expect(approval.answer(answer(approval.request))).toBeUndefined()
+})
+it('host replay requires a validated ready message and a current unanswered approval', () => {
+  const input = request()
+  const approval = reviewedApproval(input, () => true)
+  expect(approval.reopen({ v: 2, type: 'makerReady' })).toBeUndefined()
+  expect(approval.reopen({ v: 1, type: 'makerStop' })).toBeUndefined()
+  expect(approval.answer(answer(input))).toBeDefined()
+  expect(approval.reopen({ v: 1, type: 'makerReady' })).toBeUndefined()
+  const expired = new MakerApproval({ ...input, expiresAt: Date.now() - 1 }, () => true)
+  expect(expired.reopen({ v: 1, type: 'makerReady' })).toBeUndefined()
+  const forged = new MakerApproval({ ...input, digest: 'a'.repeat(64) }, () => true)
+  expect(forged.reopen({ v: 1, type: 'makerReady' })).toBeUndefined()
+})
+it('completed review recomputes outgoing bytes and resets on a mismatched digest', () => {
+  const input = request()
+  const approval = new MakerApproval({ ...input, digest: 'a'.repeat(64) }, () => true)
+  expect(
+    approval.review({
+      v: 1,
+      type: 'makerPayloadReviewed',
+      id: input.id,
+      digest: 'a'.repeat(64),
+      isComplete: true,
+    }),
+  ).toBe(false)
+  expect(approval.answer(answer(approval.request))).toBeUndefined()
+  const valid = reviewedApproval(input, () => true)
+  expect(
+    valid.review({
+      v: 1,
+      type: 'makerPayloadReviewed',
+      id: input.id,
+      digest: 'b'.repeat(64),
+      isComplete: true,
+    }),
+  ).toBe(false)
+  expect(valid.answer(answer(input))).toBeUndefined()
+})
+
 describe('one target-bound maker approval', () => {
   it.each(['id', 'digest', 'expiresAt', 'confirm'])(
     'rejects malformed engine request %s',
@@ -47,11 +128,11 @@ describe('one target-bound maker approval', () => {
         confirm: true,
       }
       Reflect.set(input, field, values[field])
-      expect(() => new MakerApproval(input, () => true)).toThrow()
+      expect(() => reviewedApproval(input, () => true)).toThrow()
     },
   )
   it('accepts only once and consumes only once at the live target', () => {
-    const approval = new MakerApproval(request(), () => true)
+    const approval = reviewedApproval(request(), () => true)
     const binding = approval.answer(answer(approval.request))
     expect(binding).toBeDefined()
     if (binding === undefined) throw new Error('missing test binding')
@@ -63,7 +144,7 @@ describe('one target-bound maker approval', () => {
   it.each(['id', 'digest', 'target', 'decision', 'expiry', 'confirm', 'token'])(
     'rejects mismatched or extra %s and burns the answer slot',
     (field) => {
-      const approval = new MakerApproval(request(), () => true)
+      const approval = reviewedApproval(request(), () => true)
       const values: Record<string, unknown> = {
         id: randomUUID(),
         digest: 'b'.repeat(64),
@@ -83,21 +164,21 @@ describe('one target-bound maker approval', () => {
   it.each([undefined, null, {}, { decision: 'allow_once' }])(
     'rejects malformed answer %j',
     (raw) => {
-      const approval = new MakerApproval(request(), () => true)
+      const approval = reviewedApproval(request(), () => true)
       expect(approval.answer(raw)).toBeUndefined()
       expect(approval.start(target())).toBe(false)
     },
   )
   it('rejects closing or denying the card', () => {
-    const approval = new MakerApproval(request(), () => true)
+    const approval = reviewedApproval(request(), () => true)
     expect(
       approval.answer({ ...answer(approval.request), decision: 'reject_once' }),
     ).toBeUndefined()
     expect(approval.start(target())).toBe(false)
   })
   it('rejects an answer from another request and a copied binding', () => {
-    const first = new MakerApproval(request(), () => true)
-    const second = new MakerApproval(request(), () => true)
+    const first = reviewedApproval(request(), () => true)
+    const second = reviewedApproval(request(), () => true)
     expect(second.answer(answer(first.request))).toBeUndefined()
     const binding = first.answer(answer(first.request))
     if (binding === undefined) throw new Error('missing test binding')
@@ -107,8 +188,8 @@ describe('one target-bound maker approval', () => {
   })
   it('rejects the other engine instance’s token even with identical request bytes', () => {
     const input = request()
-    const first = new MakerApproval(input, () => true)
-    const second = new MakerApproval(input, () => true)
+    const first = reviewedApproval(input, () => true)
+    const second = reviewedApproval(input, () => true)
     const binding = first.answer(answer(input))
     expect(second.answer(answer(input))).toBeDefined()
     if (binding === undefined) throw new Error('missing test binding')
@@ -117,7 +198,7 @@ describe('one target-bound maker approval', () => {
   it.each(['port', 'vid', 'pid', 'serialNumber', 'stablePath'])(
     'refuses a live serial %s swap at start',
     (field) => {
-      const approval = new MakerApproval(request(), () => true)
+      const approval = reviewedApproval(request(), () => true)
       expect(approval.answer(answer(approval.request))).toBeDefined()
       const values: Record<string, string> = {
         port: '/dev/ttyACM1',
@@ -140,7 +221,7 @@ describe('one target-bound maker approval', () => {
         endpoint: 'http://192.168.1.5',
         identity: 'virtual-printer',
       } as const
-      const approval = new MakerApproval(request(machine), () => true)
+      const approval = reviewedApproval(request(machine), () => true)
       expect(approval.answer(answer(approval.request))).toBeDefined()
       const value = field === 'registrationId' ? randomUUID() : 'different'
       expect(approval.start({ ...machine, [field]: value })).toBe(false)
@@ -150,14 +231,14 @@ describe('one target-bound maker approval', () => {
     const workspace = { kind: 'workspace', workspace: '/work/maker' } as const
     expect(isSameMakerTarget(workspace, { ...workspace, workspace: '/work/other' })).toBe(false)
     expect(isSameMakerTarget(workspace, target())).toBe(false)
-    const approval = new MakerApproval(request(workspace), () => true)
+    const approval = reviewedApproval(request(workspace), () => true)
     expect(approval.answer(answer(approval.request))).toBeDefined()
     expect(approval.start(workspace)).toBe(true)
   })
   it('freezes a detached request and binding including nested target identity', () => {
     const selected = target()
     const input = request(selected)
-    const approval = new MakerApproval(input, () => true)
+    const approval = reviewedApproval(input, () => true)
     expect(Reflect.set(selected, 'port', '/dev/ttyACM9')).toBe(true)
     expect(approval.request.target).toMatchObject({ port: '/dev/ttyACM0' })
     expect(Object.isFrozen(approval.request)).toBe(true)
@@ -170,7 +251,7 @@ describe('one target-bound maker approval', () => {
   it.each(['answer', 'start'])('rechecks expiry at %s including the exact boundary', (stage) => {
     let now = 1000
     const input = request(target(), now)
-    const approval = new MakerApproval(
+    const approval = reviewedApproval(
       input,
       () => true,
       () => now,
@@ -183,7 +264,7 @@ describe('one target-bound maker approval', () => {
   it('does not extend expiry when the wall clock moves backwards', async () => {
     let now = 1000
     const input = { ...request(target(), now), expiresAt: now + 10 }
-    const approval = new MakerApproval(
+    const approval = reviewedApproval(
       input,
       () => true,
       () => now,
@@ -195,7 +276,7 @@ describe('one target-bound maker approval', () => {
   it.each(['request', 'answer', 'start'])('refuses inadmissible hardware at %s', (stage) => {
     let isAdmitted = stage !== 'request'
     const input = request()
-    const approval = new MakerApproval(input, () => isAdmitted)
+    const approval = reviewedApproval(input, () => isAdmitted)
     if (stage === 'request') isAdmitted = true
     else if (stage === 'start') expect(approval.answer(answer(input))).toBeDefined()
     if (stage !== 'request') isAdmitted = false

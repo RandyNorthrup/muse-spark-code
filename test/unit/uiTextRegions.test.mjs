@@ -17,16 +17,25 @@ import {
 
 import { removeFolder } from './helpers/temporaryFolders'
 
-const built = { textSource: '', folder: '', browserSource: '' }
+const built = { textSource: '', folder: '', browserSource: '', makerSource: '' }
 beforeAll(async () => {
   built.folder = mkdtempSync(path.join(tmpdir(), 'muse-regional-english-'))
   // One parallel batch: these builds are independent, and running them one
   // after another made the suite slow enough to time out under a loaded
   // full run. The browser build feeds the inline round-trip test below.
   const regions = [{ name: undefined, output: 'dist/uiText.js' }, ...UI_TEXT_REGIONS]
-  const [browser] = await Promise.all([
+  const [browser, maker] = await Promise.all([
     build({
       entryPoints: ['src/shared/l10n/en.ts'],
+      bundle: true,
+      write: false,
+      minify: true,
+      platform: 'browser',
+      format: 'esm',
+      plugins: [compactBrowserEnglish],
+    }),
+    build({
+      entryPoints: ['src/shared/l10n/makerEnglish.ts'],
       bundle: true,
       write: false,
       minify: true,
@@ -48,6 +57,7 @@ beforeAll(async () => {
     ),
   ])
   built.browserSource = browser.outputFiles[0].text
+  built.makerSource = maker.outputFiles[0].text
   const result = await build({
     entryPoints: ['src/shared/l10n/text.ts'],
     bundle: true,
@@ -165,12 +175,29 @@ describe('regional Node English fallback', () => {
   })
 })
 
-it('round-trips every browser English key, value and plural form inline', async () => {
+it('keeps bootstrap inline and completes every maker English key, value and plural losslessly', async () => {
+  const bootstrap = Object.fromEntries(
+    Object.entries(EN).filter(
+      ([key]) =>
+        !key.startsWith('maker') || ['makerStopAll', 'makerLoadFailed', 'makerRetry'].includes(key),
+    ),
+  )
   const bundle = await import(
     `data:text/javascript;base64,${Buffer.from(built.browserSource).toString('base64')}`
   )
-  expect(bundle.EN).toEqual(EN)
-  expect(JSON.stringify(bundle.EN)).toBe(JSON.stringify(EN))
+  expect(bundle.EN).toEqual(bootstrap)
+  expect(JSON.stringify(bundle.EN)).toBe(JSON.stringify(bootstrap))
   expect(built.browserSource).toContain('DecompressionStream')
   expect(built.browserSource).not.toContain('import(')
+  const maker = await import(
+    `data:text/javascript;base64,${Buffer.from(built.makerSource).toString('base64')}`
+  )
+  expect(maker.MAKER_EN).toEqual(
+    Object.fromEntries(Object.entries(EN).filter(([key]) => key.startsWith('maker'))),
+  )
+  const completed = { ...bundle.EN }
+  Object.defineProperties(completed, Object.getOwnPropertyDescriptors(maker.MAKER_EN))
+  expect(completed).toEqual(EN)
+  const serialized = JSON.stringify(completed)
+  expect(JSON.parse(serialized)).toEqual(EN)
 })

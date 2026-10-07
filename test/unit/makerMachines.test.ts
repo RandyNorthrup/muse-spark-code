@@ -67,7 +67,16 @@ function dependencies() {
       isTrusted: () => true,
       hardwareEnabled: () => true,
       isInteractive: () => true,
-      confirm,
+      confirm: (request, review) => {
+        review({
+          v: 1,
+          type: 'makerPayloadReviewed',
+          id: request.id,
+          digest: request.digest,
+          isComplete: true,
+        })
+        return confirm(request)
+      },
       notify,
     },
     policy: {

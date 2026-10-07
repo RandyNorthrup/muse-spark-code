@@ -5,6 +5,26 @@
       "type": "object",
       "properties": {
         "v": { "type": "number", "const": 1 },
+        "type": { "type": "string", "const": "makerMesh" },
+        "artifactId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+        },
+        "positions": {
+          "minItems": 9,
+          "maxItems": 900000,
+          "type": "array",
+          "items": { "type": "number", "minimum": -1000000, "maximum": 1000000 }
+        }
+      },
+      "required": ["v", "type", "artifactId", "positions"],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "v": { "type": "number", "const": 1 },
         "type": { "type": "string", "const": "makerApproval" },
         "request": {
           "oneOf": [
@@ -636,6 +656,12 @@
               "type": "object",
               "properties": {
                 "kind": { "type": "string", "const": "payload" },
+                "id": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                },
+                "encoding": { "type": "string", "enum": ["text", "hex"] },
                 "title": { "type": "string", "minLength": 1, "maxLength": 256 },
                 "content": { "type": "string", "maxLength": 1048576 }
               },
@@ -965,6 +991,7 @@
     "Enabling hardware requires a nonblank user reason. Disabling hardware needs no reason.",
     "New machine registration input cannot supply the engine-owned generation UUID. Host summaries, approval targets and stale removals retain it.",
     "Stop is dispatched independently of approval, trust, hardware enablement, active turns and ordinary queues.",
-    "Device log entries are user-requested and scrubbed before crossing the surface boundary; keys never cross this protocol."
+    "Device log entries are user-requested and scrubbed before crossing the surface boundary; keys never cross this protocol.",
+    "Maker preview geometry is bounded by coordinate and triangle count, has complete triangles, and is rendered only by the page for its matching host-owned artifact UUID. It has no file, URL or hardware loader."
   ]
 }

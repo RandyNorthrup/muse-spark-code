@@ -295,7 +295,19 @@ export const MAKER_PI_COMMAND_TIMEOUT_MS = 2000
 export const MAKER_PRESET_TIMEOUT_SECONDS = 120
 export const MAKER_PRESETS_MAX = 32
 // M103 I: shared surface bounds and per-action approval defaults.
-export const MAKER_PROTOCOL_VERSION = 1
+export {
+  MAKER_PROTOCOL_VERSION,
+  MAKER_PREVIEW_MAX_TRIANGLES,
+  MAKER_PREVIEW_MAX_COORDINATE,
+  MAKER_VERTEX_COMPONENTS,
+  MAKER_TRIANGLE_COMPONENTS,
+  MAKER_PREVIEW_CANVAS_SIZE,
+  MAKER_PREVIEW_ROTATION_STEP,
+  MAKER_PREVIEW_ZOOM_STEP,
+  MAKER_PREVIEW_MIN_ZOOM,
+  MAKER_PREVIEW_MAX_ZOOM,
+  MAKER_PREVIEW_FRAME_SCALE,
+} from './makerPreviewConstants'
 export const MAKER_PROTOCOL_MAX_TEXT_CHARS = 1024 * 1024
 export const MAKER_PROTOCOL_MAX_ID_CHARS = 256
 export const MAKER_PROTOCOL_MAX_ITEMS = 256
@@ -334,6 +346,37 @@ export const MAKER_HOST_MODEL_TEXT = {
   machineStop:
     'Immediately invoke the registered machine’s fixed Stop independently of hardware admission, approval and the running turn. No arbitrary stop payload is accepted.',
 } as const
+export const MAKER_REVIEW_SMALL_ROWS = 200
+export const MAKER_REVIEW_BATCH_MS = 8
+export const MAKER_REVIEW_CANCEL_EVENT = 'maker-cancel-search'
+export const MAKER_REVIEW_YIELD_BYTES = 2048
+export const MAKER_REVIEW_ROW_HEIGHT = 20
+export const MAKER_REVIEW_OVERSCAN_ROWS = 2
+export const MAKER_REVIEW_DEFAULT_WIDTH = 240
+export const MAKER_REVIEW_DEFAULT_CHAR_WIDTH = 8
+export const MAKER_REVIEW_QUERY_VISIBLE_CHARS = 512
+export const MAKER_REVIEW_SUMMARY_LINE_CHARS = 2048
+export const MAKER_REVIEW_TEMPERATURE_VALUES = 8
+export const MAKER_REVIEW_BYTE_MAX = 255
+export const MAKER_REVIEW_CONTROL_BASE = 0x24_00
+export const MAKER_REVIEW_CONTROL_END = 0x20
+export const MAKER_REVIEW_LF_BYTE = 0x0a
+export const MAKER_REVIEW_ASCII_END = 0x7f
+export const MAKER_REVIEW_UTF8_TWO = 0xc0
+export const MAKER_REVIEW_UTF8_THREE = 0xe0
+export const MAKER_REVIEW_UTF8_FOUR = 0xf0
+export const MAKER_REVIEW_ELF_ENTRY_OFFSET = 24
+export const MAKER_REVIEW_ELF_HEADER_BYTES = 32
+export const MAKER_REVIEW_ELF_CLASS_OFFSET = 4
+export const MAKER_REVIEW_ELF_ENDIAN_OFFSET = 5
+export const PANEL_RELOAD_EVENT = 'muse-panel-reload'
+export const MAKER_STOP_SHELL_ID = 'maker-stop-shell'
+export const MAKER_RELOAD_STATE_KEY = 'maker-panel-reload'
+export const MAKER_DIGEST_RADIX = 16
+// M103 U: bounded preview geometry and UI defaults; no device opens at startup.
+export const MAKER_SERIAL_DEFAULT_BAUD = 115_200
+export const MAKER_SERIAL_DEFAULT_DURATION_MS = 1000
+export const MILLIMETERS_PER_METER = 1000
 export const MAKER_SIMULATION_TIMEOUT_MS = 60_000
 export const MAKER_GAZEBO_ITERATIONS = 1000
 export const MAKER_PROJECT_KINDS = [

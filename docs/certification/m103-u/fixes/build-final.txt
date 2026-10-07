@@ -1,0 +1,325 @@
+
+> muse-spark-code@0.14.1 build
+> node scripts/build.mjs --production && node scripts/check-bundle-size.mjs && node scripts/check-bundle-split.mjs && node scripts/check-host-globals.mjs && node scripts/third-party-notices.mjs
+
+What's New: 2 releases from CHANGELOG.md into dist/whatsNew.json
+
+  dist\searchWorker.js  4.9kb
+
+Done in 57ms
+
+  dist\whatsNew.js  18.8kb
+
+Done in 297ms
+
+  dist\uiText.js  129.9kb
+
+Done in 316ms
+
+  dist\uiTextSurfaces.js  5.8kb
+
+Done in 366ms
+
+  dist\uiTextHooks.js  12.1kb
+
+Done in 451ms
+
+  dist\validation.js  39.8kb
+
+Done in 481ms
+
+  dist\museCodeReviewer.js  23.1kb
+
+Done in 478ms
+
+  dist\wire.js  40.5kb
+
+Done in 637ms
+
+  dist\webview\makerPreview.js   22.6kb
+  dist\webview\makerPreview.css   727b 
+
+Done in 624ms
+
+  dist\webFetch.js  37.4kb
+
+Done in 642ms
+
+  dist\webview\whatsNew.css  2.5kb
+  dist\webview\whatsNew.js   708b 
+
+Done in 643ms
+
+  dist\browserCheck.js  42.5kb
+
+Done in 668ms
+
+  dist\voice.js  19.8kb
+
+Done in 674ms
+
+  dist\checkpointStore.js  77.0kb
+
+Done in 728ms
+
+  dist\review.js  29.0kb
+
+Done in 754ms
+
+  dist\recorder.js  24.2kb
+
+Done in 758ms
+
+  dist\planMarkdown.js  144.1kb
+
+Done in 741ms
+
+  dist\report.js  21.6kb
+
+Done in 749ms
+
+  dist\pageWorker.js  188.6kb
+
+Done in 745ms
+
+  dist\codeIntel.js  39.1kb
+
+Done in 779ms
+
+  dist\judge.js  47.1kb
+
+Done in 2583ms
+
+  dist\conversationGit.js  72.4kb
+
+Done in 2575ms
+
+  dist\sessionBoard.js  45.1kb
+
+Done in 2638ms
+
+  dist\reviewer.js  22.6kb
+
+Done in 2661ms
+
+  dist\bundledSkills.js  16.6kb
+
+Done in 2665ms
+
+  dist\foreignHooks.js  69.3kb
+
+Done in 2737ms
+
+  dist\verifyEditor.js  22.3kb
+
+Done in 2759ms
+
+  dist\extensionHooks.js  35.9kb
+
+Done in 2756ms
+
+  dist\agentImport.js  115.6kb
+
+Done in 2734ms
+
+  dist\tab.js  49.6kb
+
+Done in 2764ms
+
+  dist\acp.js  818.2kb
+
+Done in 2759ms
+
+  dist\extension.js  434.0kb
+
+Done in 2772ms
+
+  dist\browserRuntime.js  19.3kb
+
+Done in 2832ms
+
+  dist\conversation.js  193.2kb
+
+Done in 2857ms
+
+  dist\pluginHooks.js  34.7kb
+
+Done in 2849ms
+
+  dist\hookRuntime.js  43.0kb
+
+Done in 2853ms
+
+  dist\uiTextRuntime.js  8.1kb
+
+Done in 2921ms
+
+  dist\modelApi.js  447.1kb
+
+Done in 3111ms
+
+  dist\webview\chunks\DITE3ZAO.js  208.8kb
+  dist\webview\chunks\UDOEEC62.js  159.5kb
+  dist\webview\main.js             146.7kb
+  dist\webview\chunks\JI2JD4CI.js  126.9kb
+  dist\webview\chunks\BFLAA6JG.js   93.1kb
+  ...and 43 more output files...
+
+Done in 3262ms
+bundle sizes:
+  dist/extension.js  434.0 KiB
+  dist/conversation.js  193.2 KiB
+  dist/tab.js  49.6 KiB
+  dist/modelApi.js  447.1 KiB
+  dist/review.js  29.0 KiB
+  dist/sessionBoard.js  45.1 KiB
+  dist/reviewer.js  22.6 KiB
+  dist/foreignHooks.js  69.3 KiB
+  dist/hookRuntime.js  43.0 KiB
+  dist/planMarkdown.js  144.1 KiB
+  dist/checkpointStore.js  77.0 KiB
+  dist/agentImport.js  115.6 KiB
+  dist/conversationGit.js  72.4 KiB
+  dist/bundledSkills.js  16.6 KiB
+  dist/codeIntel.js  39.1 KiB
+  dist/voice.js  19.8 KiB
+  dist/webFetch.js  37.4 KiB
+  dist/museCodeReviewer.js  23.1 KiB
+  dist/extensionHooks.js  35.9 KiB
+  dist/report.js  21.6 KiB
+  dist/recorder.js  24.2 KiB
+  dist/whatsNew.js  18.8 KiB
+  dist/whatsNew.json  28.2 KiB
+  dist/judge.js  47.1 KiB
+  dist/uiText.js  49.6 KiB
+  dist/uiTextRuntime.js  3.5 KiB
+  dist/uiTextHooks.js  4.6 KiB
+  dist/uiTextSurfaces.js  2.5 KiB
+  dist/validation.js  39.8 KiB
+  dist/browserCheck.js  42.5 KiB
+  dist/browserRuntime.js  19.3 KiB
+  dist/searchWorker.js  4.9 KiB
+  dist/pageWorker.js  188.6 KiB
+  dist\webview\main.js  146.7 KiB
+  dist\webview\main.css  56.0 KiB
+  dist\webview\whatsNew.js  0.7 KiB
+  dist\webview\whatsNew.css  2.5 KiB
+  dist/acp.js  818.2 KiB
+ok   dist/extension.js: 434.0 KiB (budget 600 KiB)
+ok   dist/conversation.js: 193.2 KiB (budget 250 KiB)
+ok   dist/tab.js: 49.6 KiB (budget 75 KiB)
+ok   dist/verifyEditor.js: 22.3 KiB (budget 25 KiB)
+ok   dist/modelApi.js: 447.1 KiB (budget 475 KiB)
+ok   dist/review.js: 29.0 KiB (budget 50 KiB)
+ok   dist/sessionBoard.js: 45.1 KiB (budget 75 KiB)
+ok   dist/reviewer.js: 22.6 KiB (budget 75 KiB)
+ok   dist/foreignHooks.js: 69.3 KiB (budget 100 KiB)
+ok   dist/hookRuntime.js: 43.0 KiB (budget 50 KiB)
+ok   dist/pluginHooks.js: 34.7 KiB (budget 50 KiB)
+ok   dist/planMarkdown.js: 144.1 KiB (budget 150 KiB)
+ok   dist/checkpointStore.js: 77.0 KiB (budget 225 KiB)
+ok   dist/agentImport.js: 115.6 KiB (budget 125 KiB)
+ok   dist/browserCheck.js: 42.5 KiB (budget 75 KiB)
+ok   dist/browserRuntime.js: 19.3 KiB (budget 50 KiB)
+ok   dist/conversationGit.js: 72.4 KiB (budget 150 KiB)
+ok   dist/bundledSkills.js: 16.6 KiB (budget 50 KiB)
+ok   dist/codeIntel.js: 39.1 KiB (budget 100 KiB)
+ok   dist/voice.js: 19.8 KiB (budget 50 KiB)
+ok   dist/webFetch.js: 37.4 KiB (budget 75 KiB)
+ok   dist/museCodeReviewer.js: 23.1 KiB (budget 75 KiB)
+ok   dist/extensionHooks.js: 35.9 KiB (budget 75 KiB)
+ok   dist/report.js: 21.6 KiB (budget 75 KiB)
+ok   dist/recorder.js: 24.2 KiB (budget 75 KiB)
+ok   dist/whatsNew.js: 18.8 KiB (budget 50 KiB)
+ok   dist/whatsNew.json: 28.2 KiB (budget 40 KiB)
+ok   dist/judge.js: 47.1 KiB (budget 100 KiB)
+ok   dist/uiText.js: 49.6 KiB (budget 125 KiB)
+ok   dist/uiTextRuntime.js: 3.5 KiB (budget 25 KiB)
+ok   dist/uiTextHooks.js: 4.6 KiB (budget 25 KiB)
+ok   dist/uiTextSurfaces.js: 2.5 KiB (budget 25 KiB)
+ok   dist/validation.js: 39.8 KiB (budget 50 KiB)
+ok   dist/wire.js: 40.5 KiB (budget 50 KiB)
+ok   dist/searchWorker.js: 4.9 KiB (budget 50 KiB)
+ok   dist/pageWorker.js: 188.6 KiB (budget 300 KiB)
+ok   dist/webview/main.js + static imports: 799.5 KiB (budget 900 KiB)
+ok   dist/webview/whatsNew.js: 0.7 KiB (budget 25 KiB)
+ok   dist/webview/makerPreview.js: 22.6 KiB (budget 25 KiB)
+ok   dist/acp.js: 818.2 KiB (budget 850 KiB)
+ok   dist/webview deferred JS: 49.7 KiB (budget 50 KiB)
+ok   dist/webview maker surfaces: 25.0 KiB (budget 25 KiB)
+ok   dist/webview code highlighting: 93.1 KiB (budget 125 KiB)
+ok   dist/webview action dialogs: 9.1 KiB (budget 25 KiB)
+ok   dist/webview tasks tab: 1.3 KiB (budget 25 KiB)
+ok   dist/extension.js: 6 of the backend's 65 files (14.7 KiB), all on the allowed list
+       goalRecord.ts 0.4 KiB: a stored session's goal (D14, M45)
+       imageGeneration.ts 3.5 KiB: the IDE server's image tools on Muse Code (M44)
+       imageToolDefinitions.ts 1.0 KiB: the IDE server's image tools on Muse Code (M44)
+       schedules.ts 1.3 KiB: the schedule store's next occurrence (M52)
+       schemas.ts 3.5 KiB: shared boundary schemas used by activation and ACP
+       sessionStore.ts 5.1 KiB: the stored-session format the window's session store reads (D14)
+ok   dist/acp.js: 4 of the backend's files, all on the allowed list
+ok   dist/modelApi.js: carries the 37 files that load only with the backend, and no English table
+ok   dist/planMarkdown.js: carries the plan reader; dist/extension.js carries none of its parser
+ok   dist/pageWorker.js: the page converter (parse5 and its parts) loads only there, never at activation
+ok   dist/checkpointStore.js: carries the checkpoint implementation; activation keeps the port and synchronous loader
+ok   dist/browserCheck.js: carries the browser check's pipe, run, proxy, canaries and processes; activation keeps the loaders and the tool
+ok   dist/browserRuntime.js: carries the runtime's acquisition (pin, download, ZIP reader, store); no other bundle does
+ok   dist/review.js: carries the review and edit review; dist/extension.js keeps the loader
+ok   dist/agentImport.js: carries the import (scan, converters, file access, smol-toml); dist/extension.js carries none of it
+ok   model text: CONVERSATION_MODEL_TEXT, TAB_MODEL_TEXT, HOOK_MODEL_TEXT, MODEL_API_MODEL_TEXT, CODE_INTEL_MODEL_TEXT, CHECKPOINT_MODEL_TEXT, AGENT_IMPORT_MODEL_TEXT, GIT_MODEL_TEXT, REVIEW_MODEL_TEXT, REVIEW_COMMENT_MODEL_TEXT, WEB_FETCH_MODEL_TEXT, EXEC_MODEL_TEXT, AUTO_REVIEWER_MODEL_TEXT, JUDGE_MODEL_TEXT each in its readers and in no other of the 84 shipped bundles; FILE_REFUSAL_MODEL_TEXT pinned to 2 keys; 87 MODEL_TEXT keys, each read at activation
+ok   dist/uiText.js: Node bundles share the English fallback
+ok   webview: optional surfaces and highlighting load only in guarded deferred chunks
+ok   dist/conversationGit.js: carries the Git adapter and the window's 13 git and pull request files; activation keeps its checked loader
+ok   dist/sessionBoard.js: loads only on its first action
+ok   dist/reviewer.js: loads only on its first action
+ok   dist/foreignHooks.js: loads only on its first action
+ok   dist/hookRuntime.js: loads only on its first action
+ok   dist/pluginHooks.js: loads only on its first action
+ok   dist/verifyEditor.js: loads only on the first diagnostics or formatting request, never at activation
+ok   dist/conversation.js: loads only on the first chat surface, never at activation
+ok   dist/judge.js: loads only on the first eligible Judge approval, never at activation
+ok   dist/tab.js: loads only on the first Tab request or menu, never at activation
+ok   dist/codeIntel.js: loads only on the first code intelligence call, never at activation
+ok   dist/voice.js: loads only on the first recording, never at activation
+ok   dist/webFetch.js: loads only on the first web fetch, never at activation
+ok   dist/museCodeReviewer.js: loads only on the first review, never at activation
+ok   dist/report.js: loads only on the first report dialog, never at activation
+ok   dist/recorder.js: loads only on the journal, just after activation, never at activation
+ok   dist/whatsNew.js: loads only on the first What’s New page or notice, never at activation
+ok   dist/webview/whatsNew.js: the page script alone, no package and no display table
+ok   dist/validation.js: 0 reference(s) to navigator
+ok   dist/wire.js: 0 reference(s) to navigator
+ok   dist/uiText.js: 0 reference(s) to navigator
+ok   dist/uiTextRuntime.js: 0 reference(s) to navigator
+ok   dist/uiTextHooks.js: 0 reference(s) to navigator
+ok   dist/uiTextSurfaces.js: 0 reference(s) to navigator
+ok   dist/extension.js: 0 reference(s) to navigator
+ok   dist/conversation.js: 0 reference(s) to navigator
+ok   dist/tab.js: 0 reference(s) to navigator
+ok   dist/verifyEditor.js: 0 reference(s) to navigator
+ok   dist/modelApi.js: 0 reference(s) to navigator
+ok   dist/review.js: 0 reference(s) to navigator
+ok   dist/sessionBoard.js: 0 reference(s) to navigator
+ok   dist/reviewer.js: 0 reference(s) to navigator
+ok   dist/foreignHooks.js: 0 reference(s) to navigator
+ok   dist/hookRuntime.js: 0 reference(s) to navigator
+ok   dist/extensionHooks.js: 0 reference(s) to navigator
+ok   dist/pluginHooks.js: 0 reference(s) to navigator
+ok   dist/planMarkdown.js: 0 reference(s) to navigator
+ok   dist/checkpointStore.js: 0 reference(s) to navigator
+ok   dist/browserCheck.js: 0 reference(s) to navigator
+ok   dist/browserRuntime.js: 0 reference(s) to navigator
+ok   dist/agentImport.js: 0 reference(s) to navigator
+ok   dist/conversationGit.js: 0 reference(s) to navigator
+ok   dist/bundledSkills.js: 0 reference(s) to navigator
+ok   dist/codeIntel.js: 0 reference(s) to navigator
+ok   dist/voice.js: 0 reference(s) to navigator
+ok   dist/webFetch.js: 0 reference(s) to navigator
+ok   dist/museCodeReviewer.js: 0 reference(s) to navigator
+ok   dist/report.js: 0 reference(s) to navigator
+ok   dist/recorder.js: 0 reference(s) to navigator
+ok   dist/whatsNew.js: 0 reference(s) to navigator
+ok   dist/judge.js: 0 reference(s) to navigator
+ok   dist/searchWorker.js: 0 reference(s) to navigator
+ok   dist/pageWorker.js: 0 reference(s) to navigator
+ok   THIRD_PARTY_NOTICES.txt: 83 bundled packages

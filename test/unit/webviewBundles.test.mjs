@@ -141,4 +141,17 @@ describe('webview import budgets', () => {
     Reflect.deleteProperty(meta.outputs, CORE)
     expect(() => webviewStartupOutputs(meta)).toThrow(`Missing webview output: ${CORE}`)
   })
+  it('counts the complete maker review closure with Windows source separators', () => {
+    const meta = metafile()
+    const review = 'dist/webview/chunks/maker-review.js'
+    const validation = 'dist/webview/chunks/maker-validation.js'
+    meta.outputs[review] = output([edge(validation)], String.raw`src\webview\maker\reviewEntry.ts`)
+    meta.outputs[validation] = output()
+    expect(
+      webviewDeferredBudgetGroups(meta).find(({ name }) => name === 'maker review'),
+    ).toMatchObject({
+      budgetKiB: 75,
+      outputs: [review, validation],
+    })
+  })
 })

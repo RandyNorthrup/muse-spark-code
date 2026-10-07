@@ -57,6 +57,22 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     budgetKiB: 25,
   },
   {
+    name: 'maker surfaces',
+    entries: [
+      'src/webview/maker/MakerSurface.tsx',
+      'src/webview/maker/StopChip.tsx',
+      'src/webview/maker/DevicePanel.tsx',
+      'src/webview/maker/DeviceLog.tsx',
+    ],
+    budgetKiB: 25,
+  },
+  {
+    name: 'maker review',
+    entries: ['src/webview/maker/reviewEntry.ts'],
+    // REDM103U: separate review closure; measure plus 15%, rounded up to 25 KiB.
+    budgetKiB: 75,
+  },
+  {
     name: 'code highlighting',
     entries: ['src/webview/components/HighlightedCode.tsx'],
     budgetKiB: 125,
