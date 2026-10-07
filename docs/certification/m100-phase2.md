@@ -67,3 +67,11 @@ case (no table on base). On the fixed tree the same file is 35 passed.
 - `npm run check:reference`: current (53 features, Devices reference
   18 entries). `node scripts/check-l10n.mjs`: 14 tables, 0 problems.
   `node scripts/check-host-api.mjs`: 0 problems.
+
+## Lane 0 re-review (RVM100P2L0B): the byte cap counts UTF-8 bytes
+
+The re-review confirmed the six fixes and found one P2: `deviceCapabilitySchema` compared `JSON.stringify(value).length` (UTF-16 code units) with `capabilityBytes`, so an advertisement of 64 tool names padded with U+4F60 was 5,893 code units but 15,801 UTF-8 bytes and parsed. The refine now measures `new TextEncoder().encode(JSON.stringify(value)).byteLength`, as `tableArchive.ts` does.
+
+- Test: "counts the byte cap in UTF-8 bytes, not string length" (string length under the cap, UTF-8 bytes over it, parse refused); the existing fixture check now measures UTF-8 bytes.
+- Drill: with the previous schema the new test fails (1 failed, 35 passed); with the fix 36 passed. `devicePhase2Contracts` and `devices` together: 130 passed.
+- ESLint (`--max-warnings=0`), Prettier and `tsc -p tsconfig.json` clean on the host, 2026-10-07.

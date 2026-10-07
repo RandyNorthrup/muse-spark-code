@@ -626,7 +626,9 @@ export const deviceCapabilitySchema = z
         // field-valid advertisement that serializes past capabilityBytes
         // refuses to parse, so lane V can treat parse success as proof of
         // the cap and lane C never has to drop what the schema called valid.
-        JSON.stringify(value).length <= DEVICE_LIMITS.capabilityBytes,
+        // Bytes on the wire are UTF-8, not UTF-16 code units: one CJK
+        // character is one code unit and three bytes.
+        new TextEncoder().encode(JSON.stringify(value)).byteLength <= DEVICE_LIMITS.capabilityBytes,
     ),
   )
 export type DeviceCapability = z.infer<typeof deviceCapabilitySchema>
