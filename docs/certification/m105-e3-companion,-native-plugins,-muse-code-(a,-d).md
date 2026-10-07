@@ -30,9 +30,9 @@ no manifest entries, settings, commands or language tables added by E3.
 ## Controls, native bridge and Muse Code delivered
 
 The companion controls and approved tool-video player each have a React lazy
-entry. Picker/drop/paste pass the original File directly to an XHR body; the
-page does not read or encode bytes and never carries a provider key. Progress
-and Stop share one upload owner. Strict HTTP response validation checks the
+entry. Picker/drop/paste pass the original File directly to a Fetch body with credentials omitted; the
+page does not read or encode bytes and never carries a provider key. Honest start/completion progress
+and Stop share one upload owner; Fetch has no native upload byte-progress events. Strict HTTP response validation checks the
 exact response URL, status, request id, name, size and metadata-only token.
 The required attachment epoch remount cancels stale uploads and recordings.
 The recording port has no production fake: R3 supplies capture. Audio choices
@@ -293,3 +293,106 @@ upload bytes are deleted, and Contributor/storage consent remains required.
 Docs must not claim U16, installed native IDEs or real browser capture certified
 from E3’s fakes. Commands/settings are other lanes’ W payloads, not new E3
 manifest changes.
+
+## FIXM105E3 — RVM105E3C corrections (Kubuntu, 2026-10-07)
+
+All four P2 findings are repaired; no P1/P3 finding was reported. No paid/live
+model calls, credentials, dependencies, pushes, merges or cap changes.
+
+| Finding                           | Structural repair                                                                                                                                                                                                                                    | Regression                                                                                                                                                                                             |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1: Unicode header names           | Percent-encode JSON metadata in transport; decode before strict route validation. File bytes remain the original raw Blob body.                                                                                                                      | Real Chromium filenames `録画.mp4`, `запись.mp4`, `café 100% 🎥.mp4`; transport round-trip; route Unicode/percent-name decoding and malformed encoded input.                                           |
+| 2: unrelated same-origin cookies  | Fetch with `credentials: omit`, `mode: cors`, `redirect: error` and the caller's abort signal. Every existing route guard remains, including no cookies. Progress reports only dispatch and validated completion, never invented intermediate bytes. | Real Chromium with a synthetic HttpOnly `127.0.0.1` cookie: original bytes consumed and cookie absent; transport abort, late response, failure, correlation and credential options.                    |
+| 3: late startup after unmount     | Cancel a late-started run and continue awaiting its result through the existing catch/dispose path.                                                                                                                                                  | Deferred `recorder.start` resolves after unmount: cancellation rejection observed, late preview disposed exactly once, no object URL or attachment.                                                    |
+| 4: clean-checkout browser scratch | OS `tmpdir()` owns the suite's temporary build/upload root; no ignored checkout directory is required.                                                                                                                                               | Browser suite asserts OS scratch ownership, normalizing Windows separators. W already added parent creation for the reviewed ENOENT before this fix lane; OS scratch removes that dependency entirely. |
+
+### Baseline regression receipts
+
+The brief's `refs/rigs/linuxlt/m105/w` ref is unavailable on this rig. The lane
+started at integration commit `95fb707f3f3eaeee6ca44bb2229485fb18b9f8c1`; that
+exact committed baseline was cloned under ignored scratch with its unchanged
+production source. Only the new UI/browser regressions were copied into it.
+`CI=true npx --no-install vitest run test/unit/companionMedia.test.tsx
+ test/unit/companionMediaBrowser.test.mjs --maxWorkers=3` used repository
+(default 5-second) timeouts: exit 1, six named assertion failures and one
+unhandled cancellation rejection; 19 tests passed. Failures: three Unicode
+filenames never consumed, synthetic cookie sent, late preview not disposed,
+and scratch root still under the checkout. The already-integrated `mkdir`
+means the original reviewed ENOENT is not reproduced at this newer baseline;
+the scratch ownership assertion proves the replacement removes that dependency.
+No test timeout was raised, no filtered cases or skipped tests.
+
+### Verification status
+
+Committed implementation: `5b124aa7a06bbc281ebdbfd482d08fcea38ae5b4`.
+A fresh `git clone --no-hardlinks` of this worktree, followed by `CI=true npm ci`,
+installed 898 packages from the unchanged lockfile. Every final command below
+ran directly in that clean clone with `CI=true`, serially on Kubuntu. The
+clone's tracked files remained clean after all checks.
+
+All seven complete owning suites ran three times, in batches of at most three
+files with `npx --no-install vitest run <files> --maxWorkers=3`. Every run used
+repository-default timeouts, with no filters, skips or timeout overrides:
+
+| Whole file                      | Run 1   | Run 2   | Run 3   |
+| ------------------------------- | ------- | ------- | ------- |
+| companionMedia.test.tsx         | 14/14   | 14/14   | 14/14   |
+| companionMediaTransport.test.ts | 18/18   | 18/18   | 18/18   |
+| companionMediaBrowser.test.mjs  | 11/11   | 11/11   | 11/11   |
+| companionUpload.test.ts         | 48/48   | 48/48   | 48/48   |
+| nativeAttachments.test.ts       | 23/23   | 23/23   | 23/23   |
+| museCodeMedia.test.ts           | 9/9     | 9/9     | 9/9     |
+| toolVideo.test.tsx              | 3/3     | 3/3     | 3/3     |
+| Total                           | 126/126 | 126/126 | 126/126 |
+
+378 passing test executions; no unhandled errors. Browser runs include raw
+File bytes through the guarded loopback route, Unicode header round-trips,
+HttpOnly cookie omission, eventual private-file cleanup, OS scratch ownership,
+four-theme WCAG scans at 320 px and keyboard Discard.
+
+| Gate                                                      | Final result                                                                                         |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| npm run typecheck                                         | All five projects pass: host, webview, unit, e2e, integration.                                       |
+| npm run lint                                              | Full JS/TS and CSS pass. PowerShell analyzer uses its unchanged Windows-only skip on Linux.          |
+| npx --no-install prettier --check <all ten changed files> | Pass.                                                                                                |
+| npx --no-install knip                                     | Pass, plain mode; two inherited configuration hints only.                                            |
+| npm run duplication                                       | Pass: zero clones across 1,325 files.                                                                |
+| npm run build                                             | Pass: production compilation, every original size cap, split guards, host globals and notices.       |
+| npm run check:reference                                   | Pass: 53 features, 49 commands, 64 settings, 26 slash commands, 124 CLI entries; current.            |
+| npm run check:l10n                                        | Pass: 14 tables, 176 manifest strings, 678 source files; zero problems.                              |
+| npm run check:host-api                                    | Pass: 332 VS Code APIs, 33 VS Code-importing files, 25 built-ins, 61 theme variables; zero problems. |
+
+Measured KiB/cap: extension 458.2/600; Model API 459.0/475;
+ACP 842.2/850; browser startup 726.6/900; original deferred JS 32.1/50;
+media host bundle 21.3/25; screen recorder 28.7/50; browser media 3.7/25;
+reference 89.3/100. No cap or split classification changed in this lane.
+The actual M104 companion entry/budget remains a named integration handoff.
+
+Local implementation commit ran the original hooks: lint-staged (ESLint and
+Prettier) and staged gitleaks passed. The certification-only follow-up uses the
+same hooks. Aggregate quality/full coverage, Windows native checks and live
+bindings remain lead-owned under PLAN §7 and the rig brief; none was claimed
+here. `npm ci`'s audit output reported 12 existing dependency findings (two low,
+ten high); this lane changes no dependency and runs no separate network audit.
+
+Existing named provider, M104/editor/capture and Windows ACL integration
+handoffs remain open; these fake-only fixes do not certify those bindings.
+
+### Repair red drills
+
+Each mutation ran the entire owning file(s) at default timeouts and exited 1
+on an assertion; late-start cancellation also produced the expected unhandled
+rejection. The receipts precede lint-equivalent condition inversion and Fetch
+parameter-signature cleanup; each SHA identifies that drill batch's exact input,
+then the committed implementation above passed all three final repetitions. Every source was restored byte-exact in `finally`, comparing bytes
+and SHA-256. All seven drills fired:
+
+| Mutation              | Named regression                                                                    | Source before/after SHA-256                                        |
+| --------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| transport-failure     | network and invalid JSON errors stay localized; Stop keeps its cancellation message | `42f39bc3df80d29588cc45c26427c71fb82045eecd9bef4696b20d0fd6c3516e` |
+| metadata-encoding     | Unicode ASCII-safe round-trip and three real-browser filenames                      | `42f39bc3df80d29588cc45c26427c71fb82045eecd9bef4696b20d0fd6c3516e` |
+| metadata-decoding     | Unicode/percent metadata decodes before intake                                      | `4f43a6984adf93c4691fa4f5ca96c1e7f5acdf1de5bd01f89dbfb509e0ee316d` |
+| cookies-omitted       | real HttpOnly cookie upload and explicit omit transport options                     | `42f39bc3df80d29588cc45c26427c71fb82045eecd9bef4696b20d0fd6c3516e` |
+| late-start-settlement | late preview disposal and observed cancellation rejection                           | `12b678ae3fadf695d68d3509d8e8f590d6aa569f5a9f60e388a53bec7e800919` |
+| os-scratch            | OS scratch ownership                                                                | `986864569a3fcacfe61c731aa29b5ce7ec9f0340b0b3f092b0e9ddbfa2065721` |
+| metadata-validation   | malformed encoded headers never reach admission or consumption                      | `4f43a6984adf93c4691fa4f5ca96c1e7f5acdf1de5bd01f89dbfb509e0ee316d` |

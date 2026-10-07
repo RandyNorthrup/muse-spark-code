@@ -1,5 +1,5 @@
 // Browser-owned File/Blob objects go straight to HTTP. No FileReader,
-// arrayBuffer, base64, bytes in postMessage, or provider credential exists here.
+// arrayBuffer, base64 file bytes, postMessage bytes, or provider credential exists here.
 import * as z from 'zod/mini'
 import { HTTP_STATUS, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
@@ -28,88 +28,68 @@ const failureSchema = z.strictObject({ reason: z.string() })
 /** M104 C supplies its current per-window bearer after the one-use launch exchange. */
 export function companionMediaTransport(
   credentials: () => CompanionUploadCredentials,
-  newRequest: () => XMLHttpRequest = () => new XMLHttpRequest(),
+  sendRequest: typeof fetch = (input, init) => fetch(input, init),
 ): MediaUploadPort {
   return {
-    upload: (file, name, isScreenRecording, signal, progress) =>
-      new Promise((resolve, reject) => {
-        signal.throwIfAborted()
-        const access = credentials()
-        const endpoint = new URL(access.endpoint)
-        if (
-          endpoint.origin !== access.origin ||
-          endpoint.protocol !== 'http:' ||
-          !['127.0.0.1', '[::1]'].includes(endpoint.hostname) ||
-          endpoint.username !== '' ||
-          endpoint.password !== '' ||
-          access.bearer.length === 0
+    upload: async (file, name, isScreenRecording, signal, progress) => {
+      signal.throwIfAborted()
+      const access = credentials()
+      const endpoint = new URL(access.endpoint)
+      if (
+        endpoint.origin !== access.origin ||
+        endpoint.protocol !== 'http:' ||
+        !['127.0.0.1', '[::1]'].includes(endpoint.hostname) ||
+        endpoint.username !== '' ||
+        endpoint.password !== '' ||
+        access.bearer.length === 0
+      )
+        throw new Error(UI_TEXT.attachmentUnreadable)
+      const requestId = crypto.randomUUID()
+      // Fetch omits even same-origin cookies. Its Blob body has no native byte-progress events.
+      progress(0, file.size)
+      let response: Response
+      let body: unknown
+      try {
+        response = await sendRequest(endpoint.href, {
+          method: 'POST',
+          mode: 'cors',
+          credentials: 'omit',
+          redirect: 'error',
+          signal,
+          headers: {
+            Authorization: `Bearer ${access.bearer}`,
+            [access.customHeader.name]: access.customHeader.value,
+            // Encode only JSON metadata: headers require ASCII-safe strings; file bytes stay raw.
+            [access.metadataHeader]: encodeURIComponent(
+              JSON.stringify({ requestId, name, isScreenRecording }),
+            ),
+            'Content-Type': 'application/octet-stream',
+          },
+          body: file,
+        })
+        body = await response.json()
+      } catch {
+        throw new Error(signal.aborted ? UI_TEXT.media.uploadStop : UI_TEXT.attachmentUnreadable)
+      }
+      if (signal.aborted) throw new Error(UI_TEXT.media.uploadStop)
+      const parsed = companionMediaUploadSchema.safeParse(body)
+      if (
+        response.status !== HTTP_STATUS.ok ||
+        response.url !== endpoint.href ||
+        !parsed.success ||
+        parsed.data.requestId !== requestId ||
+        parsed.data.name !== name ||
+        parsed.data.info.sizeBytes !== file.size
+      ) {
+        const failure = failureSchema.safeParse(body)
+        throw new Error(
+          failure.success
+            ? fill(UI_TEXT.media.uploadFailed, { reason: failure.data.reason })
+            : UI_TEXT.attachmentUnreadable,
         )
-          throw new Error(UI_TEXT.attachmentUnreadable)
-        const requestId = crypto.randomUUID()
-        const xhr = newRequest()
-        const abort = () => {
-          xhr.abort()
-        }
-        const cleanup = () => {
-          signal.removeEventListener('abort', abort)
-        }
-        xhr.open('POST', endpoint.href)
-        xhr.withCredentials = false
-        xhr.responseType = 'json'
-        xhr.setRequestHeader('Authorization', `Bearer ${access.bearer}`)
-        xhr.setRequestHeader(access.customHeader.name, access.customHeader.value)
-        xhr.setRequestHeader(
-          access.metadataHeader,
-          JSON.stringify({ requestId, name, isScreenRecording }),
-        )
-        xhr.setRequestHeader('Content-Type', 'application/octet-stream')
-        xhr.upload.addEventListener('progress', (event) => {
-          progress(Math.min(file.size, event.loaded), file.size)
-        })
-        xhr.addEventListener('load', () => {
-          cleanup()
-          if (signal.aborted) {
-            reject(new Error(UI_TEXT.media.uploadStop))
-            return
-          }
-          const body: unknown = xhr.response
-          const parsed = companionMediaUploadSchema.safeParse(body)
-          if (
-            xhr.status !== HTTP_STATUS.ok ||
-            xhr.responseURL !== endpoint.href ||
-            !parsed.success ||
-            parsed.data.requestId !== requestId ||
-            parsed.data.name !== name ||
-            parsed.data.info.sizeBytes !== file.size
-          ) {
-            const failure = failureSchema.safeParse(body)
-            reject(
-              new Error(
-                failure.success
-                  ? fill(UI_TEXT.media.uploadFailed, { reason: failure.data.reason })
-                  : UI_TEXT.attachmentUnreadable,
-              ),
-            )
-            return
-          }
-          progress(file.size, file.size)
-          resolve(parsed.data)
-        })
-        xhr.addEventListener('error', () => {
-          cleanup()
-          reject(new Error(UI_TEXT.attachmentUnreadable))
-        })
-        xhr.addEventListener('abort', () => {
-          cleanup()
-          reject(new Error(UI_TEXT.media.uploadStop))
-        })
-        signal.addEventListener('abort', abort, { once: true })
-        if (signal.aborted) {
-          cleanup()
-          reject(new Error(UI_TEXT.media.uploadStop))
-          return
-        }
-        xhr.send(file)
-      }),
+      }
+      progress(file.size, file.size)
+      return parsed.data
+    },
   }
 }

@@ -18127,10 +18127,10 @@ test that fails without the rule:
 12. **M117 (estimator, 2026-10-07):** G39 a bottleneck card for
     done-unprocessed lanes with their ages (test
     `bottleneckCardShowsUnprocessedAges`).
-13. **M105 (multimodal integration):** G50 a producer→consumer delivery test
+13. **M105 (multimodal integration):** G55 a producer→consumer delivery test
     through the real port before a handoff closes (named test:
     modelApiMedia 'delivers a read_file video through replay as its
-    file-id', which fails with the consumer stashed); G51 budget findings
+    file-id', which fails with the consumer stashed); G56 budget findings
     quote the repository gate's command and numbers, re-measured on the
     integration tree (the startup gate `node scripts/check-bundle-size.mjs`
     itself is the enforcing test).
@@ -19050,7 +19050,11 @@ regenerate inventories, keep version 0.15.0 and new notes under Unreleased.
 Do not take the still-reviewed M108 D/X delta. No push, rebase, model calls or
 fabricated native artifacts.
 
-- [~] Merge the three named inputs in order with hooks enabled.
+- [x] Merge `main-0150`; retain all package inputs and isolated builds. Owning
+      package/ACP suites pass 59 tests on Node 22 at repository deadlines.
+- [x] Merge `m105/e3-fix`; union Unreleased notes. Companion suites pass
+      91 tests, including real browser transport, at repository deadlines.
+- [ ] Merge `m117/w-fix3`; preserve integration boundaries and release behavior.
 - [ ] Repair every remaining test, vault-default and SAST failure by cause;
       add failing-before/passing-after regressions and byte-exact guard drills.
 - [ ] Recover startup through first-use chunks and deduplication, retaining
@@ -37182,6 +37186,23 @@ binding and doc handoff.
 - [x] Byte-exact red drills, scoped default-timeout verification, local
       hook-on commits and certification; no paid/live calls or branch merges.
 
+**FIXM105E3 review corrections (RVM105E3C, 2026-10-07).** Repair all four P2
+findings in E3: percent-encode JSON header metadata and decode before strict
+validation; send the original File through Fetch with credentials omitted,
+redirects refused and honest start/completion progress; observe late-start
+recording results after cancellation and dispose late previews; use the OS
+temporary directory for the browser suite. W already creates the ignored
+temporary parent on this integration; OS scratch removes that checkout
+dependency entirely. Add real Chromium Unicode/cookie regressions and deferred-
+start lifecycle tests, prove them against the lane baseline, and repeat the
+whole owning suites three times in a fresh CI clone at default timeouts. Keep
+every security guard, cap and binding handoff unchanged. No paid/live calls,
+dependencies, merges or pushes. Complete: all four findings repaired; seven
+byte-exact red drills fire, 126 owning tests pass three times in a fresh CI
+clone, and every requested static/build/reference/localization gate passes.
+The certification records the unavailable named ref, exact lane baseline and
+W's earlier temporary-parent repair.
+
 **M2 review corrections (RVM105M2, 2026-10-06).** Fix all three P2 findings
 within the existing media gate/replay/host regions. Select the actual inline
 or Files route before checking its byte limit, including replay promotions.
@@ -43075,6 +43096,14 @@ commits use scoped owning tests, deliberate red drills and available static/buil
 checks. The lead retains the integrated quality/coverage/release gate. No gate
 or budget is weakened; the exact evidence is recorded in
 `docs/certification/help-reference.md`.
+
+**FIXM105E3 gate scope (Kubuntu, 2026-10-07).** The rig brief/common rules
+forbid aggregate quality and full unit commands; run owning files in batches of
+at most three, followed by the five typecheck projects, lint, changed-file
+formatting, plain knip, duplication, unchanged-cap production build, reference
+and localization. Run final verification from a fresh clone of the committed
+repair with npm ci and CI=true. Hooks remain active; no external network except
+npm ci.
 
 **M105 W final gate scope (linuxlt, 2026-10-07).** The rig brief overrides
 bounded lane test scope with all configured files in batches of at most three,

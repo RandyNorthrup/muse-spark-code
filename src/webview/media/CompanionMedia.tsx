@@ -157,12 +157,10 @@ function MediaControls({
             }),
           )
       })
-      if (!isLive()) {
-        started.cancel()
-        return
-      }
-      run.current = started
-      setCanStopRecording(true)
+      if (isLive()) {
+        run.current = started
+        setCanStopRecording(true)
+      } else started.cancel()
       const result = await started.result
       if (!isLive()) {
         result.dispose()

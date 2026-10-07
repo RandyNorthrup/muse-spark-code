@@ -6,6 +6,7 @@ import { CompanionMedia } from '../../src/webview/media/entry'
 import type {
   BrowserRecorderPort,
   BrowserRecordingPreview,
+  BrowserRecordingRun,
 } from '../../src/webview/media/recordingPort'
 import type { MediaUploadPort } from '../../src/webview/media/transport'
 import { UI_TEXT } from '../../src/shared/constants'
@@ -80,6 +81,29 @@ async function setup(maxBytes?: number) {
 }
 
 describe('lazy companion media UI', () => {
+  it.each(['preview', 'rejection'])(
+    'settles a late recorder start after unmount: %s',
+    async (outcome) => {
+      const rig = await setup()
+      const starting = Promise.withResolvers<BrowserRecordingRun>()
+      vi.mocked(rig.record.start).mockReturnValue(starting.promise)
+      rig.cancel.mockImplementation(() => {
+        if (outcome === 'rejection') rig.preview.reject(new Error('Fake capture cancelled'))
+        else rig.finish()
+      })
+      fireEvent.click(screen.getByRole('button', { name: UI_TEXT.media.recordingStart }))
+      rig.view.unmount()
+      await act(async () => {
+        starting.resolve({ stop: rig.stop, cancel: rig.cancel, result: rig.preview.promise })
+        await starting.promise
+      })
+      expect(rig.cancel).toHaveBeenCalledOnce()
+      if (outcome === 'preview') expect(rig.dispose).toHaveBeenCalledOnce()
+      expect(URL.createObjectURL).not.toHaveBeenCalled()
+      expect(rig.upload).not.toHaveBeenCalled()
+      expect(rig.attached).not.toHaveBeenCalled()
+    },
+  )
   it('picker passes the File directly to upload; attaching reports only token/metadata', async () => {
     const rig = await setup()
     fireEvent.change(rig.picker, { target: { files: [rig.file] } })
