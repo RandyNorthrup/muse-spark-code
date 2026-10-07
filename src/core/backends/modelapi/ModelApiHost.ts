@@ -373,6 +373,8 @@ import type {
   ContextOverflowEvent,
   ContextOverflowKind,
 } from '../../providers/overflow'
+import type { MediaReplayPort } from '../../media/replayMedia'
+import type { UploadedMediaRef } from '../../../shared/media'
 import { mcpFunctionDefinition, mcpFunctionName } from './mcp/functions'
 import {
   ALLOW_ELICITATION_SEAM,
@@ -442,6 +444,7 @@ import {
   type FormatTarget,
   executeTool,
   parseQuestions,
+  type ReadMediaFile,
   readSkillArgs,
   webFetchArgs,
   type ShellResult,
@@ -547,7 +550,16 @@ export interface ModelApiPaidHooks {
 }
 
 export interface ModelApiHostDeps extends ModelApiPaidHooks {
-  /** M98: same-model paid source. */
+  /** M105-A: M2 binds the attachment choices to the portable sound router in
+   * dist/media.js. Absent until that lane is integrated; no eager media load. */
+  readonly prepareAudioMessage?: (request: {
+    readonly sessionId: string
+    readonly turnId: string
+    readonly modelId: string
+    readonly parts: readonly TurnPart[]
+    readonly signal: AbortSignal
+  }) => Promise<PreparedAudioMessage | undefined>
+  /** M98: injected same-model source; all paid dispatch admitted by lane A. */
   readonly judge?: JudgeAdvisory | undefined
   readonly client: ProviderClient
   readonly models?: ModelResolver | undefined
@@ -670,6 +682,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   readonly shellSidecarDir?: string | undefined
   /** A smaller replay cap for focused media-budget verification. */
   readonly mediaBudgetMaxEncodedChars?: number
+  /** W installs the portable lazy media implementation; absent preserves existing request bytes. */
+  readonly createMediaReplay?: (sessionId: string) => MediaReplayPort
   /** Extension-owned, workspace-local schedules; absent without workspace storage. */
   readonly scheduleStore?: ScheduleStore | undefined
   /** SHA-256 digest of the current SecretStorage key, never its plaintext. */
@@ -962,9 +976,18 @@ const GOAL_REFUSAL_REASONS: Readonly<Record<GoalRefusal, string>> = {
 // The verbs that wake the agent when they leave the goal active (MSP's wake gate).
 const GOAL_WAKING_VERBS: ReadonlySet<GoalCommandVerb> = new Set(['set', 'edit', 'resume'])
 
+interface PreparedAudioMessage {
+  readonly parts: readonly TurnPart[]
+  readonly modelId: string
+  /** Owner, key, capabilities, mode, trust, source and contributor consent. */
+  readonly assertCurrent: () => void
+}
+
 interface ActiveTurn {
   readonly turnId: string
   readonly abort: AbortController
+  /** In-memory request choice, never the session's persisted model setting. */
+  audioMessage?: PreparedAudioMessage
   readonly confirmedRequest?: ConfirmedModelRequest
   /** Steered input, appended before the next model call. */
   readonly steered: { readonly parts: readonly TurnPart[]; readonly userMessageId: string }[]
@@ -2280,6 +2303,8 @@ export class ModelApiSession implements AgentSession {
   private hookTokensAdded = 0
   /** Keeps each request within the page and encoded-media budgets (M54, PLAN.md D47). */
   private readonly budget: MediaBudget
+  private readonly media: MediaReplayPort | undefined
+  private restoredFileRefs: readonly UploadedMediaRef[] = []
   /** Packed tool outputs and the savings ledger (M73): undefined unless packing is on. */
   private readonly packing: ObservationPack | undefined
   /**
@@ -2295,6 +2320,12 @@ export class ModelApiSession implements AgentSession {
    * round's outputs in a user message, where Meta reads them.
    */
   private readonly readFiles: VisibleFile[] = []
+  /**
+   * The videos and audio `read_file` read this round (M105 E2): their
+   * file-ids follow the round's outputs through M2 replay, where Meta
+   * reads media only in user messages.
+   */
+  private readonly readMediaFiles: NonNullable<ToolOutcome['mediaFile']>[] = []
   /** Synthetic tool-read media still waiting for a completed model request. */
   private readonly readFileMessages = new WeakMap<ReplayItem, readonly PendingReadFile[]>()
   /** Function-output images awaiting their first completed model request. */
@@ -2419,6 +2450,7 @@ export class ModelApiSession implements AgentSession {
       deps.platform,
     )
     this.budget = new MediaBudget(deps.mediaBudgetMaxEncodedChars)
+    this.media = deps.createMediaReplay?.(sessionId)
     if (agent !== undefined) {
       this.effort = agent.effort
     }
@@ -3124,7 +3156,10 @@ export class ModelApiSession implements AgentSession {
     if (capUsd <= 0 && this.budgetJournal() === undefined) {
       return body
     }
-    const estimate = estimateInput(requestParts(body), this.budgetBase)
+    const estimate = estimateInput(
+      requestParts(body),
+      body.model === this.modelId ? this.budgetBase : undefined,
+    )
     const maxOutputTokens = body.max_output_tokens
     const selected = this.selectedModel(body.model)
     const reservation =
@@ -3580,8 +3615,11 @@ export class ModelApiSession implements AgentSession {
   }
 
   private body(): CreateResponseBody {
+    this.active?.audioMessage?.assertCurrent()
     this.drainChildResults()
-    const fitted = this.budget.fit(this.requestReplay().map((entry) => entry.item))
+    const replay = this.requestReplay().map((entry) => entry.item)
+    const mediaProjected = this.media?.project(replay, this.modelId, this.budget) ?? replay
+    const fitted = this.budget.fit(mediaProjected, undefined, this.media?.pending(mediaProjected))
     // Packing projects per request only: the replay keeps the originals, so
     // a later request (or a restore) packs from the full outputs again.
     // Reviewer tools cannot recall packed output: retain the full observations.
@@ -3601,7 +3639,7 @@ export class ModelApiSession implements AgentSession {
       })
     }
     return this.keyed({
-      model: this.modelId,
+      model: this.active?.audioMessage?.modelId ?? this.modelId,
       input,
       ...this.promptAndTools(this.promptDate),
       tool_choice: 'auto',
@@ -3641,7 +3679,10 @@ export class ModelApiSession implements AgentSession {
       if (currentIndex === -1) {
         continue
       }
-      this.replay[currentIndex] = { ...entry, item: fitted }
+      this.replay[currentIndex] = {
+        ...entry,
+        item: this.media?.retain(entry.item, fitted) ?? fitted,
+      }
       // Any tracked media not sent was replaced by budget text, so it has no
       // bytes left for a later Stop to scrub from this replay entry.
       this.readFileMessages.delete(entry)
@@ -3907,6 +3948,7 @@ export class ModelApiSession implements AgentSession {
       ) {
         throw new Error(UI_TEXT.scheduleConfirmationExpired)
       }
+      this.active?.audioMessage?.assertCurrent()
       if (this.isHostClosing() || this.isDisposed) {
         this.active?.abort.abort()
         this.compacting?.abort()
@@ -4106,9 +4148,11 @@ export class ModelApiSession implements AgentSession {
     this.replay.push({
       turnId,
       userMessageId: itemId,
-      item: { type: 'message', role: 'user', content: await this.contentParts(parts) },
+      item: { type: 'message', role: 'user', content: await this.preparedContentParts(parts) },
     })
-    const text = displayText ?? typedText(parts)
+    const text = [displayText ?? typedText(parts), ...(this.media?.transcriptMetadata(parts) ?? [])]
+      .filter((line) => line.length > 0)
+      .join('\n')
     this.firstPrompt ??= text
     const attachments = attachmentsOf(parts)
     this.recordTranscript(turnId, {
@@ -4704,6 +4748,8 @@ export class ModelApiSession implements AgentSession {
   ): Promise<StreamedCall> {
     const modelRevision = this.modelRevision
     const budget: RetryBudget = { retriesUsed: 0 }
+    let hasRecoveredMedia = false
+    this.media?.beginRequest()
     for (;;) {
       if (this.modelRevision !== modelRevision) throw new AbortedError()
       const open = new Map<string, OpenItem>()
@@ -4714,6 +4760,22 @@ export class ModelApiSession implements AgentSession {
         // too (the review of PR #28); a Stop is the turn's own business.
         if (!signal.aborted) {
           this.settleCutShort(open, turnId)
+        }
+        if (
+          !hasRecoveredMedia &&
+          !signal.aborted &&
+          this.media !== undefined &&
+          budget.retriesUsed < MODEL_API_MAX_RETRIES &&
+          (await this.media.recover(
+            error,
+            this.replay.map((entry) => entry.item),
+            this.modelId,
+            signal,
+          ))
+        ) {
+          hasRecoveredMedia = true
+          budget.retriesUsed += 1
+          continue
         }
         if (
           !(error instanceof RetryableStreamError) ||
@@ -4759,6 +4821,11 @@ export class ModelApiSession implements AgentSession {
     // nor shown to the hooks; the body sent is reserved afresh below, since
     // what it carries can change while the hooks run.
     await this.refreshBudgetSpend()
+    await this.media?.prepare(
+      this.replay.map((entry) => entry.item),
+      this.modelId,
+      signal,
+    )
     this.assertContextFits(this.body())
     await this.beforeModelCall(turnId, this.budgeted(this.body()), requestId, attempt, step, signal)
     const requiredAfterPreHook = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
@@ -4785,6 +4852,11 @@ export class ModelApiSession implements AgentSession {
     if (this.modelRevision !== revision || this.modelId !== resolved.ref || !resolved.isCurrent()) {
       throw new AbortedError()
     }
+    await this.media?.prepare(
+      this.replay.map((entry) => entry.item),
+      this.modelId,
+      signal,
+    )
     const body = this.budgeted(this.body())
     this.lastJudgeBody = body
     const reservation = this.sending(body)
@@ -4838,6 +4910,7 @@ export class ModelApiSession implements AgentSession {
         throw new ContextOverflowError(overflow, body.model, model?.contextTokens)
       }
       this.markReadFileMediaDelivered(turnId, body.input)
+      this.media?.delivered(body.input)
       wasFitted = this.commitFittedReplay(requestReplay, body.input.slice(0, requestReplay.length))
       this.markOutputMediaDelivered(requestReplay, body.input)
       calls = this.adoptOutput(turnId, final, open, chargedGoalId)
@@ -5917,7 +5990,7 @@ export class ModelApiSession implements AgentSession {
     )
   }
 
-  private async contentParts(parts: readonly TurnPart[]): Promise<InputContentPart[]> {
+  private async preparedContentParts(parts: readonly TurnPart[]): Promise<InputContentPart[]> {
     const capabilities = this.deps.modelFacts?.(this.modelId)?.capabilities
     const prepared: TurnPart[] = []
     for (const part of parts) {
@@ -5946,7 +6019,18 @@ export class ModelApiSession implements AgentSession {
       if (info === undefined) throw new Error('image_resize_invalid_output')
       prepared.push({ ...part, ...info, base64Data: Buffer.from(bytes).toString('base64') })
     }
-    const content = contentPartsFor(prepared, (selector) => this.context.skill(selector))
+    return this.contentParts(prepared)
+  }
+
+  private contentParts(parts: readonly TurnPart[]): InputContentPart[] {
+    const content = contentPartsFor(parts, (selector) => this.context.skill(selector)).map(
+      (inline, index) => {
+        const part = parts[index]
+        return part === undefined
+          ? inline
+          : (this.media?.content(part, inline, this.modelId, this.budget) ?? inline)
+      },
+    )
     // The budget learns each PDF's pages from its attachment, not its bytes (M54).
     for (const [index, part] of parts.entries()) {
       const sent = content[index]
@@ -5954,6 +6038,7 @@ export class ModelApiSession implements AgentSession {
         this.budget.note(sent, part.pageCount)
       }
     }
+    this.media?.assertPendingFits(content, this.budget)
     return content
   }
 
@@ -5963,6 +6048,19 @@ export class ModelApiSession implements AgentSession {
    * user messages (image-understanding), and a message there between two
    * of a response's outputs would split them.
    */
+  /** Queues one user message after the round's outputs and tracks its media. */
+  private queueReadFileReplay(
+    turnId: string,
+    content: InputContentPart[],
+    pending: readonly PendingReadFile[],
+  ): void {
+    const replay: ReplayItem = { turnId, item: { type: 'message', role: 'user', content } }
+    this.replay.push(replay)
+    if (pending.length > 0) {
+      this.readFileMessages.set(replay, pending)
+    }
+  }
+
   private async appendReadFiles(turnId: string, isRoundComplete: boolean): Promise<void> {
     const files = this.readFiles.splice(0)
     if (files.length === 0) {
@@ -5975,7 +6073,7 @@ export class ModelApiSession implements AgentSession {
         content.push({ type: 'input_text', text: file.notDelivered })
         continue
       }
-      const [sent] = await this.contentParts([file.part])
+      const [sent] = await this.preparedContentParts([file.part])
       if (sent === undefined) {
         continue
       }
@@ -5994,6 +6092,60 @@ export class ModelApiSession implements AgentSession {
     if (pending.length > 0) {
       this.readFileMessages.set(replay, pending)
     }
+  }
+
+  /**
+   * The videos and audio `read_file` read this round, in one user message
+   * after the round's outputs: the tool's file-ids enter M2 replay here, so
+   * the success claim the model already read ("the file follows") actually
+   * delivers (M105 E2 review). A file the gate refuses, or a round that
+   * never completed, is named as not delivered instead.
+   */
+  private appendReadMediaFiles(turnId: string, isRoundComplete: boolean): void {
+    const files = this.readMediaFiles.splice(0)
+    if (files.length === 0) {
+      return
+    }
+    const media = this.media
+    if (!isRoundComplete || media === undefined) {
+      const replay: ReplayItem = {
+        turnId,
+        item: {
+          type: 'message',
+          role: 'user',
+          content: files.map((file): InputContentPart => ({
+            type: 'input_text',
+            text: file.notDelivered,
+          })),
+        },
+      }
+      this.replay.push(replay)
+      return
+    }
+    const pending: PendingReadFile[] = []
+    const content = files.flatMap((file): InputContentPart[] => {
+      let adopted: InputContentPart
+      try {
+        adopted = media.adopt(
+          { name: file.name, info: file.info, sha256: file.file.sha256, file: file.file },
+          this.modelId,
+          this.budget,
+        )
+      } catch {
+        return [{ type: 'input_text', text: file.notDelivered }]
+      }
+      const lead: InputContentPart = { type: 'input_text', text: file.lead }
+      // A file-id reference carries no bytes and one media slot.
+      pending.push({
+        notDelivered: file.notDelivered,
+        lead,
+        media: adopted,
+        encodedChars: 0,
+        slots: 1,
+      })
+      return [lead, adopted]
+    })
+    this.queueReadFileReplay(turnId, content, pending)
   }
 
   /** Only media present in a completed request has reached the model. */
@@ -6096,15 +6248,21 @@ export class ModelApiSession implements AgentSession {
 
   /** Media awaiting the next request: tool outputs, read files and accepted steering. */
   private queuedMediaUsage(): { readonly chars: number; readonly slots: number } {
-    let chars = 0
-    let slots = 0
+    const pending = this.media?.pending(this.replay.map((entry) => entry.item)) ?? []
+    const managed = new Set(pending)
+    const usage = this.budget.usage(pending)
+    let chars = usage.chars
+    let slots = usage.slots
     for (const file of this.readFiles) {
       chars += turnMediaEncodedChars(file.part)
       slots += turnMediaSlots(file.part)
     }
+    // Queued file-id media carries no bytes and one media slot each.
+    slots += this.readMediaFiles.length
     for (const replay of this.replay) {
       const pending = this.readFileMessages.get(replay) ?? []
       for (const file of pending) {
+        if (managed.has(file.media)) continue
         chars += file.encodedChars
         slots += file.slots
       }
@@ -6117,6 +6275,12 @@ export class ModelApiSession implements AgentSession {
     }
     const steers = this.active?.steered ?? []
     for (const steer of steers) {
+      if (this.media !== undefined) {
+        const usage = this.budget.usage(this.contentParts(steer.parts))
+        chars += usage.chars
+        slots += usage.slots
+        continue
+      }
       for (const part of steer.parts) {
         if (part.type !== 'image' && part.type !== 'file') {
           continue
@@ -6147,6 +6311,10 @@ export class ModelApiSession implements AgentSession {
   }
 
   private canQueueSteeredMedia(parts: readonly TurnPart[]): boolean {
+    if (this.media !== undefined) {
+      this.media.assertPendingFits(this.contentParts(parts), this.budget, this.queuedMediaUsage())
+      return true
+    }
     let chars = 0
     let slots = 0
     for (const part of parts) {
@@ -6764,6 +6932,11 @@ export class ModelApiSession implements AgentSession {
 
   /** One read-only tool call of a hook's agent turn; any other name is refused. */
   private fileToolContext(signal: AbortSignal) {
+    // read_file's media reserve runs through the session replay port: the
+    // gate and authorization bind before any upload, and finishCall adopts
+    // the returned file-id after the round (M105 E2 review). No port, no
+    // prepare: the tool fails closed instead.
+    const media = this.media
     return {
       workspaceRoot: this.deps.workspaceRoot,
       platform: this.deps.platform,
@@ -6771,6 +6944,21 @@ export class ModelApiSession implements AgentSession {
       signal,
       seen: this.seenFiles,
       files: this.policy().files,
+      ...(media !== undefined && {
+        media: {
+          prepare: (file: ReadMediaFile, toolSignal?: AbortSignal) =>
+            media.upload(
+              {
+                name: file.source.name,
+                info: file.info,
+                sha256: file.sha256,
+                source: file.source,
+              },
+              this.modelId,
+              toolSignal ?? signal,
+            ),
+        },
+      }),
     }
   }
 
@@ -10182,6 +10370,9 @@ export class ModelApiSession implements AgentSession {
     if (outcome.visibleFile !== undefined) {
       this.readFiles.push(outcome.visibleFile)
     }
+    if (outcome.mediaFile !== undefined) {
+      this.readMediaFiles.push(outcome.mediaFile)
+    }
     return replay
   }
 
@@ -10235,12 +10426,17 @@ export class ModelApiSession implements AgentSession {
       this.replay.splice(index)
     }
     this.pendingOutputMedia.delete(replay)
-    if (outcome.visibleFile === undefined) {
-      return
+    if (outcome.visibleFile !== undefined) {
+      const queued = this.readFiles.lastIndexOf(outcome.visibleFile)
+      if (queued !== -1) {
+        this.readFiles.splice(queued, 1)
+      }
     }
-    const queued = this.readFiles.lastIndexOf(outcome.visibleFile)
-    if (queued !== -1) {
-      this.readFiles.splice(queued, 1)
+    const mediaFile = outcome.mediaFile
+    if (mediaFile === undefined) return
+    const queuedMedia = this.readMediaFiles.lastIndexOf(mediaFile)
+    if (queuedMedia !== -1) {
+      this.readMediaFiles.splice(queuedMedia, 1)
     }
   }
 
@@ -10716,7 +10912,9 @@ export class ModelApiSession implements AgentSession {
       if (!this.isSubagent) {
         this.ledger.resetForSteer()
       }
-      const text = typedText(parts)
+      const text = [typedText(parts), ...(this.media?.transcriptMetadata(parts) ?? [])]
+        .filter((line) => line.length > 0)
+        .join('\n')
       const replayStart = this.replay.length
       this.replay.push({
         turnId: turn.turnId,
@@ -10726,7 +10924,7 @@ export class ModelApiSession implements AgentSession {
           role: 'user',
           content: [
             { type: 'input_text', text: MODEL_API_MODEL_TEXT.steeredPrefix },
-            ...(await this.contentParts(parts)),
+            ...(await this.preparedContentParts(parts)),
           ],
         },
       })
@@ -11216,6 +11414,7 @@ export class ModelApiSession implements AgentSession {
         // A stopped or failed round names its read files without replaying
         // bytes that no model request saw (M54).
         await this.appendReadFiles(turn.turnId, isRoundComplete && !isAbortRequested(signal))
+        this.appendReadMediaFiles(turn.turnId, isRoundComplete && !isAbortRequested(signal))
       }
       const afterBatch = await this.runHooks(
         'PostToolBatch',
@@ -11410,21 +11609,59 @@ export class ModelApiSession implements AgentSession {
         )
       }
       this.drainChildResults()
+      let parts = queued.parts
+      if (
+        !queued.isGoalWake &&
+        queued.isHookContinuation !== true &&
+        queued.isReview !== true &&
+        queued.confirmedRequest === undefined &&
+        !this.isSubagent &&
+        this.deps.prepareAudioMessage !== undefined
+      ) {
+        const revision = this.modelRevision
+        const prepared = await this.deps.prepareAudioMessage({
+          sessionId: this.sessionId,
+          turnId: turn.turnId,
+          modelId: this.modelId,
+          parts,
+          signal: turn.abort.signal,
+        })
+        turn.abort.signal.throwIfAborted()
+        if (revision !== this.modelRevision) throw new AbortedError()
+        if (prepared !== undefined) {
+          prepared.assertCurrent()
+          const acceptedBytes =
+            textAttachmentBytes(prepared.parts) +
+            turn.steered.reduce((bytes, steer) => bytes + textAttachmentBytes(steer.parts), 0)
+          const error = textAttachmentBudgetError(acceptedBytes)
+          if (error !== undefined) throw error
+          turn.audioMessage = {
+            ...prepared,
+            assertCurrent: () => {
+              if (revision !== this.modelRevision) throw new AbortedError()
+              prepared.assertCurrent()
+            },
+          }
+          parts = prepared.parts
+          turn.acceptedTextAttachmentBytes = acceptedBytes
+          if (prepared.modelId !== this.modelId)
+            this.emit({
+              type: 'backendNotice',
+              level: 'info',
+              text: fill(UI_TEXT.media.useSoundtrackModel, { model: prepared.modelId }),
+            })
+        }
+      }
       if (queued.isGoalWake) {
-        this.appendGoalWake(turn.turnId, queued.parts)
+        this.appendGoalWake(turn.turnId, parts)
       } else if (queued.isHookContinuation === true) {
-        this.appendHookContexts(turn.turnId, [typedText(queued.parts)])
+        this.appendHookContexts(turn.turnId, [typedText(parts)])
       } else {
         const replayStart = this.replay.length
-        await this.appendUserMessage(
-          turn.turnId,
-          queued.parts,
-          queued.displayText,
-          queued.userMessageId,
-        )
+        await this.appendUserMessage(turn.turnId, parts, queued.displayText, queued.userMessageId)
         await this.expandSkillsForHooks(
           turn.turnId,
-          queued.parts,
+          parts,
           replayStart,
           turn.abort.signal,
           queued.displayText,
@@ -11436,7 +11673,7 @@ export class ModelApiSession implements AgentSession {
         const submitted = await this.runHooks(
           'UserPromptSubmit',
           turn.turnId,
-          { prompt: typedText(queued.parts) },
+          { prompt: typedText(parts) },
           undefined,
           turn.abort.signal,
         )
@@ -12168,6 +12405,7 @@ export class ModelApiSession implements AgentSession {
       tail = this.compactionTail(windowTokens).filter(
         (entry) => canReplayReasoning || !isReasoningItem(entry.item),
       )
+      tail = [...new Set([...tail, ...(this.media?.tail(this.replay) ?? [])])]
       const tailTurns = new Set(tail.map((entry) => entry.turnId)).size
       snapshot = `${MODEL_API_MODEL_TEXT.compactionFiles}\n${JSON.stringify({ ...this.compactionFiles(), keptEntries: tail.filter((entry) => entry.turnId !== COMPACTION_TURN_ID).length })}\n\n${MODEL_API_MODEL_TEXT.compactionTodos}\n${JSON.stringify(this.todos.filter((todo) => todo.status !== 'completed'))}`
       const isUpdate = this.replay[0]?.turnId === COMPACTION_TURN_ID
@@ -12205,7 +12443,9 @@ export class ModelApiSession implements AgentSession {
           instructions: cached.instructions,
         }),
         input: this.budget.fit([
-          ...current.input.filter((item) => canReplayReasoning || !isReasoningItem(item)),
+          ...(this.media?.summaryInput(current.input) ?? current.input).filter(
+            (item) => canReplayReasoning || !isReasoningItem(item),
+          ),
           append,
         ]),
         tools: canReuse ? (cached?.tools ?? current.tools) : [],
@@ -12884,8 +13124,14 @@ export class ModelApiSession implements AgentSession {
     if (textBudgetError !== undefined) {
       return Promise.reject(new SteerRefusedError(textBudgetError.message))
     }
-    if (!this.canQueueSteeredMedia(parts)) {
-      return Promise.reject(new SteerRefusedError(UI_TEXT.mediaTotalTooLarge))
+    try {
+      if (!this.canQueueSteeredMedia(parts)) {
+        return Promise.reject(new SteerRefusedError(UI_TEXT.mediaTotalTooLarge))
+      }
+    } catch (error) {
+      return Promise.reject(
+        new SteerRefusedError(error instanceof Error ? error.message : UI_TEXT.mediaTotalTooLarge),
+      )
     }
     const userMessageId = this.deps.newId()
     this.active.acceptedTextAttachmentBytes += addedTextBytes
@@ -13412,6 +13658,7 @@ export class ModelApiSession implements AgentSession {
       return undefined
     }
     return entry.item.content.flatMap((part) => {
+      if (this.media?.isUploaded(part) === true) return []
       const parsed = part.type === 'input_image' ? DATA_URL.exec(part.image_url) : null
       const [, mediaType, base64Data] = parsed ?? []
       return mediaType === undefined || base64Data === undefined ? [] : [{ mediaType, base64Data }]
@@ -13541,6 +13788,13 @@ export class ModelApiSession implements AgentSession {
 
   /** Everything a window needs to bring this session back (D14). */
   public snapshot(): StoredSession {
+    const replay = this.media?.snapshot(this.replay) ?? [...this.replay]
+    const mediaRefs = this.media?.references(this.replay) ?? []
+    const mapped = new Set(mediaRefs.map((file) => `${file.provider}:${file.sha256}`))
+    this.restoredFileRefs = this.restoredFileRefs.filter(
+      (file) => !mapped.has(`${file.provider}:${file.sha256}`),
+    )
+    const fileRefs = [...this.restoredFileRefs, ...mediaRefs]
     const budgetSpentUsd =
       this.budgetSpentUsd +
       (this.openReservation?.isReserved === true ? this.openReservation.costUsd : 0)
@@ -13597,7 +13851,8 @@ export class ModelApiSession implements AgentSession {
       ...(this.firstPrompt !== undefined && { firstPrompt: this.firstPrompt }),
       todos: [...this.todos],
       ...(this.goal !== undefined && { goal: this.goal }),
-      replay: [...this.replay],
+      replay,
+      ...(fileRefs.length > 0 && { fileRefs }),
       transcript: [...this.transcript],
       outputs: Object.fromEntries(this.outputs),
       usage: { ...this.usage },
@@ -13643,6 +13898,21 @@ export class ModelApiSession implements AgentSession {
 
   /** Fills a fresh session from its stored form; the session is idle afterwards. */
   public adopt(stored: StoredSession): void {
+    if (this.media === undefined && stored.replay.some((entry) => (entry.media?.length ?? 0) > 0))
+      throw new Error(fill(UI_TEXT.media.attachmentUnknownType, { type: 'media replay' }))
+    this.media?.restore(stored.replay)
+    const mapped = new Set(
+      stored.replay.flatMap((entry) =>
+        (entry.media ?? []).flatMap(({ media }) =>
+          [...(media.files ?? []), ...(media.file === undefined ? [] : [media.file])].map(
+            (file) => `${file.provider}:${file.sha256}`,
+          ),
+        ),
+      ),
+    )
+    this.restoredFileRefs = (stored.fileRefs ?? []).filter(
+      (file) => !mapped.has(`${file.provider}:${file.sha256}`),
+    )
     this.replay.push(
       ...stored.replay.map((entry) =>
         entry.producer === undefined && !stored.modelId.includes('/')
@@ -13786,7 +14056,11 @@ export class ModelApiSession implements AgentSession {
     }
     const kept = new Set(completed.slice(0, cut + 1))
     kept.add(COMPACTION_TURN_ID)
-    target.replay.push(...this.replay.filter((entry) => kept.has(entry.turnId)))
+    const replay = this.replay.filter((entry) => kept.has(entry.turnId))
+    const copied = this.media?.snapshot(replay) ?? replay
+    target.media?.restore(copied)
+    target.restoredFileRefs = [...this.restoredFileRefs]
+    target.replay.push(...copied)
     const packedIds = this.packing?.packedCallIds() ?? this.restoredPackedCallIds ?? []
     const keptOutputIds = new Set(
       target.replay.flatMap(({ item }) =>

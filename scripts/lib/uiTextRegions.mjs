@@ -13,6 +13,7 @@ import { browserStartupSources } from './browserKeybindings.mjs'
 
 const TABLE = 'src/shared/l10n/en.ts'
 export const UI_TEXT_REGIONS = [
+  { name: 'media', output: 'dist/uiTextMedia.js', keys: /^media$/ },
   {
     name: 'runtime',
     output: 'dist/uiTextRuntime.js',
@@ -321,7 +322,11 @@ export const compactBrowserUiText = {
       path: 'browser-table-contract',
       namespace: 'browser-table-contract',
     }))
-    for (const namespace of ['browser-table-contract', 'browser-surface-english']) {
+    for (const namespace of [
+      'browser-table-contract',
+      'browser-surface-english',
+      'browser-reference-english',
+    ]) {
       build.onResolve({ filter: /.*/, namespace }, (args) => {
         if (args.path === path.resolve(TABLE).replaceAll('\\', '/'))
           return { path: path.resolve(TABLE), namespace: 'file' }
@@ -345,9 +350,17 @@ export const compactBrowserUiText = {
       path: 'browser-surface-english',
       namespace: 'browser-surface-english',
     }))
+    build.onResolve({ filter: /^browser-reference-english$/ }, () => ({
+      path: 'browser-reference-english',
+      namespace: 'browser-reference-english',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-reference-english' }, () => ({
+      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';\n${inlineBrowserTable(Object.fromEntries(data.deferredKeys.filter((key) => /^reference|^(?:acpUsage|reportUsage)$/.test(key)).map((key) => [key, data.EN[key]])), data.level)}\ninstallSurfaceEnglish(EN);`,
+      loader: 'js',
+    }))
     build.onLoad({ filter: /.*/, namespace: 'browser-surface-english' }, () => ({
       contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
-${inlineBrowserTable(Object.fromEntries(data.deferredKeys.map((key) => [key, data.EN[key]])), data.level)}
+${inlineBrowserTable(Object.fromEntries(data.deferredKeys.filter((key) => !/^reference|^(?:acpUsage|reportUsage)$/.test(key)).map((key) => [key, data.EN[key]])), data.level)}
 installSurfaceEnglish(EN);`,
       loader: 'js',
     }))
@@ -374,7 +387,7 @@ installSurfaceEnglish(EN);`,
           edits.push({
             start: argument.getStart(tree),
             end: argument.end,
-            source: `async () => { await import('browser-surface-english'); return await (${argument.getText(tree)})() }`,
+            source: `async () => { await Promise.all([import('browser-surface-english'), import('browser-reference-english')]); return await (${argument.getText(tree)})() }`,
           })
         }
         ts.forEachChild(node, visit)

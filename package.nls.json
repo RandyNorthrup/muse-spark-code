@@ -195,5 +195,12 @@
   "command.savePrompt.title": "Save prompt",
   "command.useSavedPrompt.title": "Use saved prompt…",
   "command.copyToMyPrompts.title": "Copy to my prompts",
-  "config.syncPromptsAndBookmarks.description": "Mirror prompts for all workspaces into Settings Sync. Workspace prompts stay local."
+  "config.syncPromptsAndBookmarks.description": "Mirror prompts for all workspaces into Settings Sync. Workspace prompts stay local.",
+  "command.attachScreenRecording.title": "Attach screen recording…",
+  "command.attachLatestScreenRecording.title": "Attach latest screen recording",
+  "command.deleteUploadedFiles.title": "Delete uploaded files…",
+  "config.mediaMaxUploadMiB.description": "Largest media file the extension opens for attach or recording, in MiB. 200 by default; maximum 1,024. Larger files are refused before any read. Only this machine’s setting is used.",
+  "config.mediaUploadExpiryDays.description": "Days a provider upload stays listed before cleanup is offered. 7 by default; 1–30. Expiry is decided by the provider; an upload another session still references is never deleted. Only this machine’s setting is used.",
+  "config.screenRecordingMaxSeconds.description": "Longest screen recording the extension captures, in seconds. 120 by default; 10–600. The recorder stops at the limit and keeps what it captured. Only this machine’s setting is used.",
+  "config.mediaAudioAction.description": "`transcribe` turns attached audio into text before sending; `sendAudio` sends the audio where the model takes it. Transcribe by default. Transcription bills the paid voice rate, always with consent first. Only this machine’s setting is used."
 }

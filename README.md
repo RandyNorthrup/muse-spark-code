@@ -2543,6 +2543,34 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   gets a failed tool result before its bytes are retained. PDF and image
   tool rows use the installed panel language and number format; the model
   receives its English result.
+- **Multimodal integration status (M105).** The picker recognizes video and
+  audio; paste/drop sends approved host URI tokens without reading their bytes
+  in the browser. A bytes-only audio/video paste is refused. Production video
+  and audio delivery remains unavailable until the selected-model capability,
+  Files storage billing and ownership, consent and exact-budget bindings land.
+  `mediaAudioAction` selects the intended audio route; it does not enable an
+  unbound transcription adapter. Muse Spark 1.3 ignores a video's soundtrack;
+  1.2 hears it, according to the recorded captures. Standalone Meta audio is
+  refused because the capture found it silently ignored.
+  **Attach screen recording…** and ACP `/record` require an installed recorder
+  binding and otherwise explain that recording is unavailable. **Attach latest
+  screen recording** can inspect an existing Linux recording, but admission
+  still requires the media bindings. Remote windows need the companion route,
+  whose server is pending M104. The Windows VM has no working direct-capture
+  receipt. Configured future uploads have a `mediaMaxUploadMiB` cap and
+  `mediaUploadExpiryDays` expiry; **Delete uploaded files…** requires the real
+  account ledger. These commands do not establish provider/editor certification.
+
+  | Backend/model                                | Images and PDFs                                 | Video                                                | Standalone audio                                     |
+  | -------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------- |
+  | Model API, current production binding        | Existing inline path                            | Off: capability/Files/consent/budget binding pending | Off: captured batch adapter and paid binding pending |
+  | Muse Code                                    | Existing image path; established document rules | Off: U16/MSP capture pending                         | Off: needs captured Model API route                  |
+  | Gemini / OpenAI-compatible and other vendors | Their future captured capability record         | Off: lane V and vendor captures pending              | Off: captured capability/codec pending               |
+
+  Portable core and editor adapters have fake-based tests. Installed-editor,
+  native recording and live provider receipts remain open in
+  [M105 certification](docs/certification/m105.md).
+
 - A path with a space, `#` or `"` is written in quotes,
   `@"my notes/a b.md"#5-10`, and the menu searches what you type after `@"`.
 - The model pill reads `model effort` (effort tiers Minimal to Max, each
@@ -3827,15 +3855,19 @@ remain planned; this reference does not claim those hosts implement the page.
 | Muse Spark: Start with Your Own Model               | —                                                                                                | Open the setup wizard at "Pick a provider"; keys stay in the host draft until Save, failures restore prior provider/default/secret state, and setup confirmation requires the composer's model receipt. Cancel writes nothing |
 | Muse Spark: Models & Agents                         | —                                                                                                | Open the Models & Agents panel: providers with key state, model scans with diffs, removal with Undo, import and export                                                                                                        |
 | Muse Spark: Add Model Provider…                     | —                                                                                                | The quick-pick fast path without the panel: pick a provider, enter or connect the key, test it, pick models and confirm                                                                                                       |
+| Muse Spark: Attach screen recording…                | —                                                                                                | Record the screen (10 s to 10 min) and attach the clip to the conversation in view                                                                                                                                            |
+| Muse Spark: Attach latest screen recording          | —                                                                                                | Attach the newest recording the OS already saved to the conversation in view                                                                                                                                                  |
+| Muse Spark: Delete uploaded files…                  | —                                                                                                | Delete this conversation's uploaded media before its expiry                                                                                                                                                                   |
 
 Windows keeps `Ctrl+Esc` for Start and `Ctrl+Shift+Esc` for Task Manager,
-which is why its two shortcuts add `Alt`. Twelve commands appear in the
+which is why its two shortcuts add `Alt`. Fifteen commands appear in the
 Command Palette only where they can act: Insert @-Mention with an editor
-open, Toggle Thinking, Export Conversation, Import Session, Open Share File
-and Stop Background Tasks with a Muse panel in view, Move Running Commands
-to Background while one runs, Set Up Shell Sandbox on Windows (or in a
-remote window), Create AGENTS.md, the two worktree commands and Open a Pull
-Request in a Conversation with a folder open.
+open, Toggle Thinking, Export Conversation, Import Session, Open Share File,
+Stop Background Tasks, Attach screen recording, Attach latest screen
+recording and Delete uploaded files with a Muse panel in view, Move Running
+Commands to Background while one runs, Set Up Shell Sandbox on Windows (or
+in a remote window), Create AGENTS.md, the two worktree commands and Open a
+Pull Request in a Conversation with a folder open.
 
 ## Settings
 
@@ -3914,6 +3946,10 @@ Bypass at once.
 | `modelApiAutoCompaction`          | `true`      | Automatic Model API compaction; awaiting evaluation and inactive until the M75 pair and shared paid admission are certified. Set false to opt out. Machine-scoped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
 | `modelApiTeamWorkers` | `true` | [Paid](#paid-features): team tasks billed to your Model API key (M96 agent roles, lane A): on with one price question before the first charge; the first delegate call that starts key tasks asks once with each model's prices, each task's ceiling and the shared daily budget. Machine-scoped |
+| `mediaMaxUploadMiB` | `200` | Uploaded media cap in MiB, 1–1024; machine-scoped. An attachment over it is refused before it is read |
+| `mediaUploadExpiryDays` | `7` | Uploaded media expiry in days, 1–30; machine-scoped. **Delete uploaded files…** removes them early |
+| `screenRecordingMaxSeconds` | `120` | Screen recording length cap in seconds, 10–600; machine-scoped. Shorter bounds are clamped, not refused |
+| `mediaAudioAction` | `"transcribe"` | What pasted or dropped audio becomes: `transcribe` (free text the model reads) or `sendAudio` (a playable clip); machine-scoped |
 
 The Model API backend's shell tool applies `terminal.integrated.env.*` the
 way VS Code's terminal does. A restart of Muse Code, for a setting, trust
@@ -4604,6 +4640,21 @@ npm ci          # also installs the pre-commit hook (lint-staged + gitleaks)
 Press **F5** to launch the Extension Development Host with a fresh build.
 [CONTRIBUTING.md](CONTRIBUTING.md) has the rules for a pull request;
 [SECURITY.md](SECURITY.md) the way to report a vulnerability.
+
+The macOS screen-recorder implementation can be checked without screen or
+microphone access. These commands build the signed, localized screen-helper
+bundle and exercise synthetic H.264/AAC media, bounds, sleep events,
+signature rejection, native localization and the responsibility relay:
+
+```bash
+bash native/darwin/build.sh
+bash test/native/darwin/run-screen-record.sh
+bash test/native/darwin/check-screen-resources.sh
+bash native/darwin/check-disclaim.sh --screen-only
+```
+
+Recorder entry points and packaging remain under M105 integration; the
+certification record lists the outstanding real-capture/editor checks.
 
 **Bundled workflow package (M89).** `vendor/high-quality-projects-skill/`
 contains the pinned v0.7.0 workflow assets and their MIT licence. To refresh

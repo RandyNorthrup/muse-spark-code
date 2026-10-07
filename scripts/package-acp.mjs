@@ -51,6 +51,7 @@ const BUNDLES = [
   'configuredProviders.js',
   'providerCatalog.json',
   'providerCatalog.js',
+  'media.js',
   'reviewer.js',
   'team.js',
   'teamRunners.js',
@@ -63,6 +64,7 @@ const BUNDLES = [
   'uiTextRuntime.js',
   'uiTextHooks.js',
   'uiTextSurfaces.js',
+  'uiTextMedia.js',
   'extensionHooks.js',
   'validation.js',
   'wire.js',
@@ -80,6 +82,7 @@ const BUNDLES = [
 const JOB_SOURCES = [
   path.join('native', 'windows', 'MuseSparkJob.cs'),
   path.join('native', 'windows', 'MuseSparkMcpJob.cs'),
+  path.join('native', 'windows', 'MuseSparkScreenRecord.cs'),
 ]
 const NATIVE_DEPENDENCY = '@napi-rs/keyring'
 const PACKAGE_NAME = 'muse-spark-code-acp'
@@ -180,6 +183,12 @@ for (const source of pageAssets) {
 for (const source of JOB_SOURCES) {
   mkdirSync(path.join(STAGE, path.dirname(source)), { recursive: true })
   copyFileSync(source, path.join(STAGE, source))
+}
+// Keep every signed resource and executable mode when macOS CI supplied it.
+// Linux-only packages retain the runtime's honest missing-helper refusal.
+const screenBundle = path.join('native', 'darwin', 'muse-dictate-screen.app')
+if (existsSync(screenBundle)) {
+  cpSync(screenBundle, path.join(STAGE, screenBundle), { recursive: true })
 }
 cpSync('native/runner', path.join(STAGE, 'native/runner'), { recursive: true })
 const tables = readdirSync('l10n')

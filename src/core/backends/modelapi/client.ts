@@ -63,7 +63,7 @@ import { parseSse } from './sse'
 /** Public transport contract shared by Meta, plan clients and host adapters. */
 export type ProviderClient = Pick<
   ModelApiClient,
-  Exclude<keyof ModelApiClient, 'provider' | 'capabilities'>
+  Exclude<keyof ModelApiClient, 'provider' | 'capabilities' | 'requestFile'>
 > & {
   readonly provider?: TransportProviderClient['provider']
   readonly models?: ModelResolver
@@ -173,6 +173,12 @@ export class ModelApiClient implements TransportProviderClient {
     return await this.transport.currentKeyDigest()
   }
 
+  public async requestFile(
+    ...args: Parameters<RequestTransport['requestFile']>
+  ): Promise<Response> {
+    return await this.transport.requestFile(...args)
+  }
+
   /** The wait before retry number `attempt` (0-based): the same backoff and jitter as a request's. */
   public retryDelayMs(attempt: number): number {
     return this.transport.backoffMs(attempt, undefined)
@@ -248,6 +254,7 @@ export class ModelApiClient implements TransportProviderClient {
       confirmed !== undefined &&
       (body.model !== confirmed.modelId || !confirmed.isStillAllowed())
     ) {
+      await admitAttempt?.mediaAccounting?.finish()
       throw new Error(UI_TEXT.scheduleConfirmationExpired)
     }
     let feature = admitAttempt?.paidFeature
@@ -257,17 +264,24 @@ export class ModelApiClient implements TransportProviderClient {
     if (feature === undefined && body.tools.some((tool) => tool.type === 'web_search')) {
       feature = 'webSearch'
     }
-    const claim =
-      feature === undefined
-        ? undefined
-        : await this.deps.reservePaidRequest?.(
-            body,
-            feature,
-            admitAttempt?.paidEstimatedInputTokens,
-            signal,
-          )
-    const paid = claim === undefined ? undefined : { claim, isSent: false }
+    let paid: { claim: SessionBudgetClaim; isSent: boolean } | undefined
     try {
+      const media = admitAttempt?.mediaAccounting
+      if (
+        media !== undefined &&
+        (body.model !== media.modelId || body.max_output_tokens > media.maxOutputTokens)
+      )
+        throw new Error('Media reservation does not match this request')
+      const claim =
+        feature === undefined || media !== undefined
+          ? undefined
+          : await this.deps.reservePaidRequest?.(
+              body,
+              feature,
+              admitAttempt?.paidEstimatedInputTokens,
+              signal,
+            )
+      paid = claim === undefined ? undefined : { claim, isSent: false }
       const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
         '/responses',
         { body, accept: EVENT_STREAM_MEDIA_TYPE, ...(paid !== undefined && { paid }) },
@@ -315,7 +329,7 @@ export class ModelApiClient implements TransportProviderClient {
             eventParsed(known.data)
             const event = redactStreamDiagnostics(known.data, redact)
             if (
-              claim !== undefined &&
+              (claim !== undefined || admitAttempt?.mediaAccounting !== undefined) &&
               ['response.completed', 'response.incomplete', 'response.failed'].includes(
                 known.data.type,
               ) &&
@@ -334,7 +348,8 @@ export class ModelApiClient implements TransportProviderClient {
                 cached >= 0 &&
                 cached <= usage.input_tokens
               ) {
-                await claim.settle(
+                await admitAttempt?.mediaAccounting?.settle(usage)
+                await claim?.settle(
                   estimateCostUsd(
                     {
                       inputTokens: usage.input_tokens,
@@ -376,8 +391,10 @@ export class ModelApiClient implements TransportProviderClient {
         void frames.return(undefined).catch(ignoreClosingError)
       }
     } finally {
-      if (paid?.isSent === false) {
-        await paid.claim.settle(0)
+      try {
+        if (paid?.isSent === false) await paid.claim.settle(0)
+      } finally {
+        await admitAttempt?.mediaAccounting?.finish()
       }
     }
   }

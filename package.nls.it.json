@@ -195,5 +195,12 @@
   "command.savePrompt.title": "Salva prompt",
   "command.useSavedPrompt.title": "Usa prompt salvato…",
   "command.copyToMyPrompts.title": "Copia nei miei prompt",
-  "config.syncPromptsAndBookmarks.description": "Copia i prompt per tutti gli spazi di lavoro nella sincronizzazione delle impostazioni. I prompt dello spazio restano locali."
+  "config.syncPromptsAndBookmarks.description": "Copia i prompt per tutti gli spazi di lavoro nella sincronizzazione delle impostazioni. I prompt dello spazio restano locali.",
+  "command.attachScreenRecording.title": "Allega registrazione schermo…",
+  "command.attachLatestScreenRecording.title": "Allega l’ultima registrazione schermo",
+  "command.deleteUploadedFiles.title": "Elimina file caricati…",
+  "config.mediaMaxUploadMiB.description": "File multimediale più grande che l’estensione apre, in MiB. 200 per impostazione; massimo 1.024. I file più grandi sono rifiutati prima della lettura. Vale solo l’impostazione di questa macchina.",
+  "config.mediaUploadExpiryDays.description": "Giorni in cui un caricamento resta elencato prima che ne venga proposta la pulizia. 7 per impostazione; 1–30. La scadenza è decisa dal provider; un caricamento ancora referenziato da un’altra sessione non viene mai eliminato. Vale solo l’impostazione di questa macchina.",
+  "config.screenRecordingMaxSeconds.description": "Registrazione schermo più lunga dell’estensione, in secondi. 120 per impostazione; 10–600. La registrazione si ferma al limite e conserva quanto acquisito. Vale solo l’impostazione di questa macchina.",
+  "config.mediaAudioAction.description": "`transcribe` converte l’audio allegato in testo prima dell’invio; `sendAudio` invia l’audio dove il modello lo accetta. Trascrizione per impostazione. La trascrizione addebita la tariffa vocale a pagamento, sempre previo consenso. Vale solo l’impostazione di questa macchina."
 }

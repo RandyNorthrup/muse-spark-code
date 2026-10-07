@@ -12,6 +12,7 @@ import {
   PROVIDER_HTTP_BODY_MAX_BYTES,
   MODEL_API_STREAM_IDLE_MS,
 } from '../../../shared/constants'
+import type { MediaRequestAccounting } from '../../media/mediaCost'
 import type { PaidFeature } from '../../../shared/constants'
 import type { SessionBudgetClaim } from './sessionBudget'
 import { fill } from '../../../shared/l10n/text'
@@ -340,6 +341,7 @@ export function rateLimitHeaders(headers: Headers): UsageHeaders {
 }
 
 export interface ResponseAttemptGuard {
+  readonly mediaAccounting?: MediaRequestAccounting
   /** Durable admission before the synchronous credential/gate fence. */
   readonly prepare?: () => Promise<void>
   readonly paidFeature?: PaidFeature
@@ -416,6 +418,39 @@ export class RequestTransport {
   }
 
   /** The retry delay, cut short by the turn's Stop. */
+  /** Files share this client's configured endpoint and key; uploads are never retried ambiguously. */
+  public async requestFile(
+    route: string,
+    method: 'GET' | 'POST' | 'DELETE',
+    signal: AbortSignal,
+    multipart?: { readonly body: ReadableStream<Uint8Array>; readonly contentType: string },
+    expectedAccountId?: string,
+  ): Promise<Response> {
+    if (!/^\/files(?:\?after=file-[A-Za-z0-9_-]+|\/file-[A-Za-z0-9_-]+)?$/u.test(route))
+      throw new Error('Invalid Files route')
+    const credentials = await this.headers(this.deps.baseUrl)
+    signal.throwIfAborted()
+    if (expectedAccountId !== undefined && credentials.keyDigest !== expectedAccountId)
+      throw new Error(UI_TEXT.media.filesReadOnly)
+    const init: RequestInit & { readonly duplex?: 'half' } = {
+      method,
+      headers: {
+        Authorization: credentials.values['Authorization'] ?? '',
+        Accept: JSON_MEDIA_TYPE,
+        ...(multipart !== undefined && { 'Content-Type': multipart.contentType }),
+      },
+      redirect: 'error',
+      signal,
+      ...(multipart !== undefined && { body: multipart.body, duplex: 'half' }),
+    }
+    await this.deps.verifyEndpoint?.(`${this.deps.baseUrl}${route}`)
+    signal.throwIfAborted()
+    const response = await this.deps.fetch(`${this.deps.baseUrl}${route}`, init)
+    if (!response.ok)
+      throw await describeFailure(response, this.deps.parseError, credentials.redact)
+    return response
+  }
+
   public async pause(ms: number, signal: AbortSignal | undefined): Promise<void> {
     if (signal === undefined) {
       await this.deps.sleep(ms)
@@ -603,7 +638,10 @@ export class RequestTransport {
     admitAttempt?: ResponseAttemptGuard,
     confirmed?: ConfirmedModelRequest,
   ): Promise<TransportResponse> {
-    const isRateLimitOnly = init.retries === 'rateLimitOnly' || init.paid !== undefined
+    const isRateLimitOnly =
+      init.retries === 'rateLimitOnly' ||
+      init.paid !== undefined ||
+      admitAttempt?.mediaAccounting !== undefined
     const url = `${this.deps.baseUrl}${path}`
     if (!path.startsWith('/') || new URL(url).origin !== new URL(this.deps.baseUrl).origin) {
       throw new ModelApiError(
@@ -665,6 +703,7 @@ export class RequestTransport {
         }
         init.paid.claim.check(0)
       }
+      admitAttempt?.mediaAccounting?.check()
       admitAttempt?.(credentials.keyDigest)
       if (isAborted(signal)) {
         throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
@@ -704,6 +743,7 @@ export class RequestTransport {
       if (init.paid !== undefined) {
         init.paid.isSent = true
       }
+      admitAttempt?.mediaAccounting?.started()
       let response: Response
       try {
         response = await this.deps.fetch(url, requestInit)
@@ -759,6 +799,8 @@ export class RequestTransport {
         }
       }
       const failure = await describeFailure(response, this.deps.parseError, credentials.redact)
+      if (response.status === HTTP_TOO_MANY_REQUESTS || response.status === HTTP_STATUS.badRequest)
+        admitAttempt?.mediaAccounting?.refused()
       if (
         init.paid !== undefined &&
         (response.status === HTTP_TOO_MANY_REQUESTS || response.status === HTTP_STATUS.badRequest)

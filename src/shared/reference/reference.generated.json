@@ -324,8 +324,17 @@
       "name": { "ui": "attachmentsLabel" },
       "summary": { "ui": "referenceAttachments" },
       "description": { "ui": "referenceAttachments" },
-      "commands": [],
-      "settings": [],
+      "commands": [
+        "museSpark.attachScreenRecording",
+        "museSpark.attachLatestScreenRecording",
+        "museSpark.deleteUploadedFiles"
+      ],
+      "settings": [
+        "museSpark.mediaMaxUploadMiB",
+        "museSpark.mediaUploadExpiryDays",
+        "museSpark.screenRecordingMaxSeconds",
+        "museSpark.mediaAudioAction"
+      ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#the-panel",
       "backends": ["museCode", "modelApi"],
       "paid": false,
@@ -2160,6 +2169,39 @@
       "description": "Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.",
       "text": { "ui": "shareReviewPrivacy" },
       "canRun": false
+    },
+    {
+      "id": "museSpark.attachScreenRecording",
+      "name": "Attach screen recording…",
+      "nameKey": "command.attachScreenRecording.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Record the screen, preview the clip, then attach or discard it. Needs a local window; remote windows refuse. The clip attaches as video and follows the media limits. Requires native recorder support and verified video upload support.",
+      "text": { "ui": "referenceScreenRecording" },
+      "enablement": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible",
+      "canRun": false
+    },
+    {
+      "id": "museSpark.attachLatestScreenRecording",
+      "name": "Attach latest screen recording",
+      "nameKey": "command.attachLatestScreenRecording.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Attach the most recent screen recording again without recording a new one. Requires a readable recording and verified video upload support.",
+      "text": { "ui": "referenceLatestRecording" },
+      "enablement": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible",
+      "canRun": false
+    },
+    {
+      "id": "museSpark.deleteUploadedFiles",
+      "name": "Delete uploaded files…",
+      "nameKey": "command.deleteUploadedFiles.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "List the files uploaded for this conversation and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.",
+      "text": { "ui": "referenceUploadedFiles" },
+      "enablement": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible",
+      "canRun": false
     }
   ],
   "settings": [
@@ -3380,6 +3422,51 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "boolean", "default": false }
+    },
+    {
+      "id": "museSpark.mediaMaxUploadMiB",
+      "name": "museSpark.mediaMaxUploadMiB",
+      "description": "Largest media file the extension opens for attach or recording, in MiB. 200 by default; maximum 1,024. Larger files are refused before any read. Only this machine’s setting is used.",
+      "descriptionKey": "config.mediaMaxUploadMiB.description",
+      "type": "integer",
+      "default": 200,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "integer", "default": 200, "minimum": 1, "maximum": 1024 }
+    },
+    {
+      "id": "museSpark.mediaUploadExpiryDays",
+      "name": "museSpark.mediaUploadExpiryDays",
+      "description": "Days a provider upload stays listed before cleanup is offered. 7 by default; 1–30. Expiry is decided by the provider; an upload another session still references is never deleted. Only this machine’s setting is used.",
+      "descriptionKey": "config.mediaUploadExpiryDays.description",
+      "type": "integer",
+      "default": 7,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "integer", "default": 7, "minimum": 1, "maximum": 30 }
+    },
+    {
+      "id": "museSpark.screenRecordingMaxSeconds",
+      "name": "museSpark.screenRecordingMaxSeconds",
+      "description": "Longest screen recording the extension captures, in seconds. 120 by default; 10–600. The recorder stops at the limit and keeps what it captured. Only this machine’s setting is used.",
+      "descriptionKey": "config.screenRecordingMaxSeconds.description",
+      "type": "integer",
+      "default": 120,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "integer", "default": 120, "minimum": 10, "maximum": 600 }
+    },
+    {
+      "id": "museSpark.mediaAudioAction",
+      "name": "museSpark.mediaAudioAction",
+      "description": "`transcribe` turns attached audio into text before sending; `sendAudio` sends the audio where the model takes it. Transcribe by default. Transcription bills the paid voice rate, always with consent first. Only this machine’s setting is used.",
+      "descriptionKey": "config.mediaAudioAction.description",
+      "type": "string",
+      "default": "transcribe",
+      "enum": ["transcribe", "sendAudio"],
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "string", "enum": ["transcribe", "sendAudio"], "default": "transcribe" }
     }
   ],
   "slash": [
@@ -5501,6 +5588,20 @@
         "totalMaxBytes": 2097152,
         "purpose": "untrustedFiles"
       }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --attach <value>",
+      "description": "Attach this media file; repeat the option for more files.",
+      "text": { "cli": "attach" },
+      "contract": { "type": "string", "repeatable": true, "purpose": "attach" }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --record",
+      "description": "Refused for headless runs: nobody is there to preview a recording.",
+      "text": { "cli": "record" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false, "purpose": "record" }
     },
     {
       "route": "exec",

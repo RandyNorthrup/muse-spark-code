@@ -195,5 +195,12 @@
   "command.savePrompt.title": "İstemi kaydet",
   "command.useSavedPrompt.title": "Kayıtlı istemi kullan…",
   "command.copyToMyPrompts.title": "İstemlerime kopyala",
-  "config.syncPromptsAndBookmarks.description": "Tüm çalışma alanlarının istemlerini ayar eşitlemesine yansıtın. Çalışma alanı istemleri yerel kalır."
+  "config.syncPromptsAndBookmarks.description": "Tüm çalışma alanlarının istemlerini ayar eşitlemesine yansıtın. Çalışma alanı istemleri yerel kalır.",
+  "command.attachScreenRecording.title": "Ekran kaydını ekle…",
+  "command.attachLatestScreenRecording.title": "En son ekran kaydını ekle",
+  "command.deleteUploadedFiles.title": "Yüklenen dosyaları sil…",
+  "config.mediaMaxUploadMiB.description": "Uzantının açtığı en büyük medya dosyası, MiB cinsinden. Varsayılan 200; en fazla 1.024. Daha büyük dosyalar okunmadan reddedilir. Yalnızca bu bilgisayarın ayarı kullanılır.",
+  "config.mediaUploadExpiryDays.description": "Sağlayıcı yüklemesinin listede kalıp temizlik önerilmeden geçireceği gün sayısı. Varsayılan 7; 1–30. Süre bitimine sağlayıcı karar verir; başka bir oturumun başvurduğu yükleme asla silinmez. Yalnızca bu bilgisayarın ayarı kullanılır.",
+  "config.screenRecordingMaxSeconds.description": "Uzantının yakalayacağı en uzun ekran kaydı, saniye cinsinden. Varsayılan 120; 10–600. Kayıt sınırda durur ve yakaladığını korur. Yalnızca bu bilgisayarın ayarı kullanılır.",
+  "config.mediaAudioAction.description": "`transcribe` ekli sesi göndermeden önce metne dönüştürür; `sendAudio` sesi modelin kabul ettiği yere gönderir. Varsayılan, metne dönüştürmedir. Dönüştürme, ücretli ses tarifesini faturalandırır ve her zaman önce onay alınır. Yalnızca bu bilgisayarın ayarı kullanılır."
 }

@@ -3,13 +3,15 @@
 // row and run_checks with their summary line, an edit's then_run as the
 // call's second result, the reducer keeping both, and the Markdown export.
 import { fireEvent, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import type { ItemSnapshot } from '../../src/shared/agentEvents'
 import { renderTranscriptMarkdown } from '../../src/core/export/transcriptMarkdown'
 import { describeTool } from '../../src/webview/toolPresentation'
 import { thenRunOutcomeText, verifySummaryText } from '../../src/shared/verifyText'
 import { initialUiState, type UiState, uiReducer } from '../../src/webview/state/uiState'
-import { renderTranscript, tool } from './helpers/transcriptFixtures'
+import { renderTranscript, tool, warmRowMenus } from './helpers/transcriptFixtures'
+
+beforeAll(warmRowMenus)
 
 function withEvent(
   state: UiState,

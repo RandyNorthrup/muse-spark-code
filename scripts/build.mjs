@@ -160,6 +160,14 @@ const BUNDLED_SKILLS_ENTRY = 'src/host/skills/bundledSkillsEntry.ts'
 const BUNDLED_SKILLS_OUTFILE = 'dist/bundledSkills.js'
 const CHECKPOINT_STORE_ENTRY = 'src/host/checkpoints/checkpointStoreEntry.ts'
 const CHECKPOINT_STORE_OUTFILE = 'dist/checkpointStore.js'
+// M105 lane W: the attachment path (attach port with the portable sniffers,
+// limits and modality gate), loaded on first use.
+const MEDIA_ENTRY = 'src/host/media/mediaEntry.ts'
+const MEDIA_OUTFILE = 'dist/media.js'
+// M105 lane W: the screen-recording command with the R1-R3 platform drivers,
+// loaded the first time a recording command runs.
+const SCREEN_RECORD_ENTRY = 'src/host/media/screenRecordEntry.ts'
+const SCREEN_RECORD_OUTFILE = 'dist/screenRecord.js'
 // The browser check's own bundle (M81): the pipe, the run, the browser's processes.
 const BROWSER_CHECK_ENTRY = 'src/host/browser/browserCheckEntry.ts'
 const BROWSER_CHECK_OUTFILE = 'dist/browserCheck.js'
@@ -598,6 +606,29 @@ const checkpointStoreOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const mediaOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [MEDIA_ENTRY],
+  outfile: MEDIA_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const screenRecordOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [SCREEN_RECORD_ENTRY],
+  outfile: SCREEN_RECORD_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const browserCheckOptions = {
   ...common,
   plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
@@ -694,7 +725,7 @@ const validationOptions = {
 
 const wireOptions = {
   ...modelApiOptions,
-  plugins: [sharedUiText, sharedValidation, deferredTeamView],
+  plugins: [sharedUiText, sharedValidation, deferredTeamView, sharedModelApiBoundaries],
   entryPoints: ['src/shared/wireEntry.ts'],
   outfile: 'dist/wire.js',
 }
@@ -883,6 +914,8 @@ if (isWatch) {
     esbuild.context(pluginHooksOptions),
     esbuild.context(planMarkdownOptions),
     esbuild.context(checkpointStoreOptions),
+    esbuild.context(mediaOptions),
+    esbuild.context(screenRecordOptions),
     esbuild.context(agentImportOptions),
     esbuild.context(conversationGitOptions),
     esbuild.context(bundledSkillsOptions),
@@ -975,6 +1008,8 @@ if (isWatch) {
     pluginHooks: esbuild.build(pluginHooksOptions),
     planMarkdown: esbuild.build(planMarkdownOptions),
     checkpointStore: esbuild.build(checkpointStoreOptions),
+    media: esbuild.build(mediaOptions),
+    screenRecord: esbuild.build(screenRecordOptions),
     agentImport: esbuild.build(agentImportOptions),
     conversationGit: esbuild.build(conversationGitOptions),
     bundledSkills: esbuild.build(bundledSkillsOptions),
@@ -1065,6 +1100,8 @@ if (isWatch) {
   reportSize(HOOK_RUNTIME_OUTFILE)
   reportSize(PLAN_MARKDOWN_OUTFILE)
   reportSize(CHECKPOINT_STORE_OUTFILE)
+  reportSize(MEDIA_OUTFILE)
+  reportSize(SCREEN_RECORD_OUTFILE)
   reportSize(AGENT_IMPORT_OUTFILE)
   reportSize(CONVERSATION_GIT_OUTFILE)
   reportSize(BUNDLED_SKILLS_OUTFILE)

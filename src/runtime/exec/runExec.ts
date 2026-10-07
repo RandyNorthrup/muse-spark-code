@@ -10,6 +10,7 @@ import type * as acp from '@agentclientprotocol/sdk'
 import { stat } from 'node:fs/promises'
 import path from 'node:path'
 import type { Readable } from 'node:stream'
+import type { AcpMediaFactory } from '../../acp/media'
 import { isValidModelApiKey, type SecretStore } from '../../host/auth/credentialStore'
 import type { Logger } from '../../host/logger'
 import type { AgentEvent } from '../../shared/agentEvents'
@@ -29,6 +30,7 @@ import {
   EXEC_USD_UNITS,
   HTTP_STATUS,
   HTTP_UNAUTHORIZED,
+  JSON_RPC_ERRORS,
   MILLISECONDS_PER_SECOND,
   MODEL_API_MAX_OUTPUT_TOKENS,
   NO_COMPACTABLE_HISTORY,
@@ -42,7 +44,8 @@ import { effortLevelsFor } from '../../shared/effort'
 import { fill, formatUsd, plural } from '../../shared/l10n/text'
 import { modelApiPaidTier } from '../../shared/paid'
 import type { RuntimeBackend } from '../backends'
-import { type ExecOptions, serveOptionsFor } from './execArgs'
+import { serveOptionsFor } from './execArgs'
+import { execAttachmentBlocks, type ExecAttachmentOptions as ExecOptions } from './attachArgs'
 import { execFetch, type ExecTransport } from './execFetch'
 import { statusForStop, type Lifecycle, type StopCause } from './execLimits'
 import { createExecLogger, createExecSink, type ExecSink } from './execOutput'
@@ -91,6 +94,8 @@ export interface ExecDeps {
   log: Logger
   /** Optional test runner; production uses the ordinary ACP engine and shared transport. */
   runProvider?: ProviderExecRunner | undefined
+  /** W binds headless-safe capability, upload/replay and exact budget admission. */
+  media?: AcpMediaFactory
 }
 
 /** What the provider turn receives: the lifecycle, the run's deps and the assembly. */
@@ -164,6 +169,7 @@ function relativePaths(cwd: string, paths: readonly string[]): string[] {
 
 export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<number> {
   const { options } = deps
+  const mediaFactory = deps.media
   const cwd = path.resolve(deps.processCwd, options.cwd ?? deps.processCwd)
   const literals: string[] = []
   let isFinished = false
@@ -448,7 +454,12 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             text: resource.text,
           },
         })),
+        ...(await lifecycle.race(
+          execAttachmentBlocks(options.attachFiles ?? [], cwd, lifecycle.signal, deps.platform),
+        )),
       ]
+      if ((options.attachFiles?.length ?? 0) > 0 && deps.media === undefined)
+        throw new Error(UI_TEXT.media.uploadStorageUnknown)
       let secrets = providerRun?.secrets ?? deps.storeSecrets
       if (providerRun === undefined && options.keyFromStdin) {
         const key = await lifecycle.race(readKeyLine(deps.stdin, lifecycle.signal))
@@ -602,6 +613,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           canBypass: false,
           allowsContributorModels: options.allowsContributorModels,
           initialMode: options.mode,
+          isHeadless: true,
         },
         signIn: {
           id: 'headless',
@@ -613,6 +625,20 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         defaultCwd: cwd,
         paid: runtime.paid,
         log,
+        ...(mediaFactory !== undefined && {
+          media: (context) =>
+            mediaFactory({
+              ...context,
+              onAttachment: ({ name, info }) => {
+                inputs.push({
+                  name: name.replaceAll(/[\\/:]/gu, '_'),
+                  bytes: info.sizeBytes,
+                  chunks: 0,
+                  complete: true,
+                })
+              },
+            }),
+        }),
       })
       const client = createExecClient({
         sink,
@@ -752,6 +778,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
               stopReason = answer.stopReason
             } catch (error_: unknown) {
               error = error_ instanceof Error ? error_.message : String(error_)
+              if (
+                error_ instanceof engine.RequestError &&
+                error_.code === JSON_RPC_ERRORS.invalidParams &&
+                ((options.attachFiles?.length ?? 0) > 0 ||
+                  prompt.trim() === '/record' ||
+                  /^\/attach(?:\s|$)/u.test(prompt.trim()))
+              )
+                setup.isUsageError = true
             }
             await lifecycle.race(transport?.whenSettled() ?? Promise.resolve())
           } finally {

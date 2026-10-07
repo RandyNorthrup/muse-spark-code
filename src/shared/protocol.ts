@@ -53,6 +53,12 @@ import {
   pullRequestFormSchema,
 } from './git'
 import { judgeStatusSchema } from './judge'
+import {
+  mediaAttachmentActionSchema,
+  mediaAttachmentRequestSchema,
+  mediaChipSchema,
+  mediaContributorChoiceSchema,
+} from './media'
 import { paidStateSchema } from './paid'
 import { patchHunkSchema } from './patchDocument'
 import { reviewRequestSchema } from './reviewCommand'
@@ -297,8 +303,8 @@ const skillOptionSchema = z.object({
 })
 export type SkillOption = z.infer<typeof skillOptionSchema>
 
-// An image, or (M54, PLAN.md D47) a PDF: no pixel size, and its page count
-// when the page tree could be read.
+// Existing image/PDF/text summaries retain their shape. M105's optional
+// region carries media metadata and upload progress, never file bytes.
 const attachmentSchema = z.object({
   id: stringSchema,
   name: stringSchema,
@@ -307,6 +313,7 @@ const attachmentSchema = z.object({
   height: z.optional(numberSchema),
   sizeBytes: numberSchema,
   pageCount: z.optional(numberSchema),
+  media: z.optional(mediaChipSchema),
 })
 export type AttachmentSummary = z.infer<typeof attachmentSchema>
 
@@ -535,6 +542,9 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // "+" / "Attach file…": native open dialog; images (and, on the Model API
   // backend, PDFs: M54) become attachments, other files `@path` mentions.
   z.object({ type: z.literal('pickFile') }),
+  mediaAttachmentRequestSchema,
+  mediaAttachmentActionSchema,
+  mediaContributorChoiceSchema,
   // "Mention file from this project…": QuickPick over the workspace index.
   z.object({ type: z.literal('pickMentionFile') }),
   // An image pasted or dropped into the composer, or (M54) a PDF: the name

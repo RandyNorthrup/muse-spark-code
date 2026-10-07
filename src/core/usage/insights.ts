@@ -204,7 +204,7 @@ export function estimateCostUsd(usage: BillableUsage, modelId: string): number {
 const CENTS_DECIMALS = 2
 const SMALL_DECIMALS = 4
 
-/** "$0.0123" under a dollar, "$1.23" from there, as the display language writes money. */
+/** Round estimates upward: four decimals under a dollar, two from there. */
 export function formatUsd(amount: number): string {
-  return formatMoney(amount, amount < 1 ? SMALL_DECIMALS : CENTS_DECIMALS)
+  return formatMoney(amount, amount < 1 ? SMALL_DECIMALS : CENTS_DECIMALS, 'ceil')
 }

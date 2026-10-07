@@ -226,6 +226,20 @@ export const ON_FIRST_USE = [
     ],
   },
   {
+    output: 'dist/media.js',
+    metafile: 'dist/meta/media.json',
+    use: 'the first media attachment or trusted media read',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/core/media/inspectEntry.ts',
+      'src/core/media/limits.ts',
+      'src/core/media/sniff/isoBmff.ts',
+      'src/core/media/sniff/ebml.ts',
+      'src/core/media/sniff/riff.ts',
+      'src/core/media/sniff/mp3.ts',
+    ],
+  },
+  {
     output: 'dist/questionNotes.js',
     metafile: 'dist/meta/questionNotes.json',
     use: 'the first backend question deferral',
@@ -583,6 +597,7 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/host/backend/subscriptionsEntry.ts'), 'dist/subscriptions.js'],
   [path.resolve('src/host/backend/configuredProvidersEntry.ts'), 'dist/configuredProviders.js'],
   [path.resolve('src/runtime/chatGptProviderCommands.ts'), 'dist/subscriptions.js'],
+  [path.resolve('src/core/media/inspectEntry.ts'), 'dist/media.js'],
   [path.resolve('src/core/questions/deferralEntry.ts'), 'dist/questionNotes.js'],
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
@@ -618,7 +633,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry)(?:\.[jt]s)?$/,
+          /\/(?:runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|inspectEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

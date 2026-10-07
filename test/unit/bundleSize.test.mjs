@@ -202,6 +202,7 @@ describe('bundled What’s New content budget', () => {
     ['LegalReport', 25, 'src/webview/components/LegalReport.tsx'],
     ['ReviewCommentForm', 25, 'src/webview/components/ReviewCommentForm.tsx'],
     ['surface English', 25, 'browser-surface-english:browser-surface-english'],
+    ['help reference', 50, 'browser-reference-english:browser-reference-english'],
   ])(
     'enforces the %s cap without widening the original deferred allowance',
     async (name, cap, entryPoint) => {

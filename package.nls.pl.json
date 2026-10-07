@@ -195,5 +195,12 @@
   "command.savePrompt.title": "Zapisz prompt",
   "command.useSavedPrompt.title": "Użyj zapisanego promptu…",
   "command.copyToMyPrompts.title": "Kopiuj do moich promptów",
-  "config.syncPromptsAndBookmarks.description": "Kopiuj prompty dla wszystkich obszarów roboczych do synchronizacji ustawień. Prompty obszaru pozostają lokalne."
+  "config.syncPromptsAndBookmarks.description": "Kopiuj prompty dla wszystkich obszarów roboczych do synchronizacji ustawień. Prompty obszaru pozostają lokalne.",
+  "command.attachScreenRecording.title": "Załącz nagranie ekranu…",
+  "command.attachLatestScreenRecording.title": "Załącz najnowsze nagranie ekranu",
+  "command.deleteUploadedFiles.title": "Usuń przekazane pliki…",
+  "config.mediaMaxUploadMiB.description": "Największy plik multimedialny otwierany przez rozszerzenie, w MiB. Domyślnie 200; maksimum 1 024. Większe pliki są odrzucane przed odczytem. Obowiązuje tylko ustawienie tego komputera.",
+  "config.mediaUploadExpiryDays.description": "Liczba dni, przez które przekazany plik pozostaje na liście przed zaproponowaniem czyszczenia. Domyślnie 7; 1–30. O wygaśnięciu decyduje dostawca; plik, do którego odwołuje się inna sesja, nigdy nie jest usuwany. Obowiązuje tylko ustawienie tego komputera.",
+  "config.screenRecordingMaxSeconds.description": "Najdłuższe nagranie ekranu rozszerzenia, w sekundach. Domyślnie 120; 10–600. Nagrywanie zatrzymuje się na limicie i zachowuje to, co utrwalono. Obowiązuje tylko ustawienie tego komputera.",
+  "config.mediaAudioAction.description": "`transcribe` zamienia załączony dźwięk na tekst przed wysłaniem; `sendAudio` wysyła dźwięk tam, gdzie model go przyjmuje. Domyślnie transkrypcja. Transkrypcja nalicza płatną stawkę głosową, zawsze po uprzedniej zgodzie. Obowiązuje tylko ustawienie tego komputera."
 }

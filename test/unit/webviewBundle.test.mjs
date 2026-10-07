@@ -204,6 +204,16 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(bytes).toBeLessThanOrEqual(900 * 1024)
   })
 
+  it('loads exact USD arithmetic and display only with lazy media pricing', () => {
+    for (const source of ['src/shared/usd.ts', 'src/shared/l10n/exactUsd.ts']) {
+      const owners = Object.entries(built.outputs).filter(([, output]) =>
+        Object.hasOwn(output.inputs, source),
+      )
+      expect(owners).toHaveLength(1)
+      expect(initialOutputs().has(owners[0][0])).toBe(false)
+    }
+  })
+
   it('keeps FIXDIET1 startup and original deferred bytes within their review baseline', () => {
     const bytes = [...initialOutputs()].reduce((sum, output) => sum + statSync(output).size, 0)
     expect(bytes).toBeLessThanOrEqual(733.8 * 1024)
@@ -217,6 +227,7 @@ describe('the production webview chunks (FIX78W)', () => {
   })
 
   it.each([
+    'ToolRow',
     'ToolBodies',
     'ReviewFindings',
     'HistoryPromptRow',

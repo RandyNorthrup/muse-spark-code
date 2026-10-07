@@ -18,11 +18,17 @@ import {
   type JudgeEngine,
   LEGAL_HEADER_POLICIES,
   type LegalHeaderPolicy,
+  MEDIA_AUDIO_ACTION_OPTIONS,
+  MEDIA_MAX_UPLOAD_MIB,
+  MEDIA_UPLOAD_EXPIRY_MAX_DAYS,
+  MEDIA_UPLOAD_EXPIRY_MIN_DAYS,
   PROMPT_CACHE_RETENTIONS,
   QUESTION_DEFER_MAX_SECONDS,
   type PromptCacheRetention,
   SANDBOX_NETWORK_MODES,
   type SandboxNetworkMode,
+  SCREEN_RECORDING_MAX_SECONDS,
+  SCREEN_RECORDING_MIN_SECONDS,
   SETTING_DEFAULTS,
   PAID_DAILY_BUDGET,
   SETTINGS_SECTION,
@@ -145,6 +151,11 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly legalRegistryLookups: boolean
   readonly legalExplanation: boolean
   readonly legalHeaderPolicy: LegalHeaderPolicy
+  /** M105 (PLAN.md D85): multimodal input caps; machine scoped, billed on the key. */
+  readonly mediaMaxUploadMiB: number
+  readonly mediaUploadExpiryDays: number
+  readonly screenRecordingMaxSeconds: number
+  readonly mediaAudioAction: (typeof MEDIA_AUDIO_ACTION_OPTIONS)[number]
 }
 
 /**
@@ -231,6 +242,14 @@ const settingSchemas = {
   usageHistoryDays: z
     .int()
     .check(z.minimum(USAGE_HISTORY_DAYS_MIN), z.maximum(USAGE_HISTORY_DAYS_MAX)),
+  mediaMaxUploadMiB: z.int().check(z.gte(1), z.lte(MEDIA_MAX_UPLOAD_MIB)),
+  mediaUploadExpiryDays: z
+    .int()
+    .check(z.gte(MEDIA_UPLOAD_EXPIRY_MIN_DAYS), z.lte(MEDIA_UPLOAD_EXPIRY_MAX_DAYS)),
+  screenRecordingMaxSeconds: z
+    .int()
+    .check(z.gte(SCREEN_RECORDING_MIN_SECONDS), z.lte(SCREEN_RECORDING_MAX_SECONDS)),
+  mediaAudioAction: z.enum(MEDIA_AUDIO_ACTION_OPTIONS),
 } as const
 
 type SettingKey = keyof typeof settingSchemas
@@ -342,6 +361,10 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     legalRegistryLookups: readSetting(config, 'legalRegistryLookups', log),
     legalExplanation: readSetting(config, 'legalExplanation', log),
     legalHeaderPolicy: readSetting(config, 'legalHeaderPolicy', log),
+    mediaMaxUploadMiB: readSetting(config, 'mediaMaxUploadMiB', log),
+    mediaUploadExpiryDays: readSetting(config, 'mediaUploadExpiryDays', log),
+    screenRecordingMaxSeconds: readSetting(config, 'screenRecordingMaxSeconds', log),
+    mediaAudioAction: readSetting(config, 'mediaAudioAction', log),
   }
 }
 

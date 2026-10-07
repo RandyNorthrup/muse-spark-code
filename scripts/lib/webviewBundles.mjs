@@ -83,7 +83,14 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     // TRAIN15H: 21,695 bytes +15%, rounded up to 25 KiB.
     budgetKiB: 25,
   },
-  { name: 'help reference', entries: ['src/webview/components/ReferencePage.tsx'], budgetKiB: 50 },
+  {
+    name: 'help reference',
+    entries: [
+      'src/webview/components/ReferencePage.tsx',
+      'browser-reference-english:browser-reference-english',
+    ],
+    budgetKiB: 50,
+  },
   {
     // TRAIN15C: 4,018 bytes +15%, rounded up to 25 KiB (D6).
     name: 'paid usage',
@@ -165,6 +172,19 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
   {
     name: 'tasks tab',
     entries: ['src/webview/TasksApp.tsx'],
+    budgetKiB: 25,
+  },
+  // M105 lane W: the attachment chip's lazy cost/metadata surface, loaded
+  // with the first media attachment: 1.2 KiB when split out. Measured size
+  // plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  {
+    name: 'tool rows',
+    entries: ['src/webview/components/ToolRow.tsx'],
+    budgetKiB: 25,
+  },
+  {
+    name: 'media',
+    entries: ['src/webview/components/AttachmentMediaCost.tsx'],
     budgetKiB: 25,
   },
 ]

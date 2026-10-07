@@ -22,7 +22,7 @@ import { modelRef } from '../host/backend/providerPolicyEntry'
 const { isProviderId } = modelRef
 import type { OpenRouterPrivacy } from '../core/providers/presets'
 import { fill } from '../shared/l10n/text'
-import { parseExec, type ExecOptions } from './exec/execArgs'
+import { parseExec } from './exec/execArgs'
 import { parseLegalArgs, type LegalOptions } from './legal/legalArgs'
 import type { UsageQuery } from '../shared/usagePage'
 import type { UsageSection } from './usage/usageAdapter'
@@ -38,6 +38,7 @@ export type UsageCommand =
     }
 import type { ChatGptProviderAction } from './chatGptProviderCommands'
 import { questionDeferSeconds } from '../shared/questionDeadline'
+import { parseAttachArgs, type ExecAttachmentOptions } from './exec/attachArgs'
 
 export interface ServeOptions {
   readonly usageHistory?: boolean
@@ -94,7 +95,7 @@ export type RuntimeCommand =
   | { readonly command: 'usage'; readonly options: UsageCommand }
   | { readonly command: 'setup'; readonly options: ServeOptions; readonly maintenance: boolean }
   | { readonly command: 'chatGptProvider'; readonly action: ChatGptProviderAction }
-  | { readonly command: 'exec'; readonly options: ExecOptions }
+  | { readonly command: 'exec'; readonly options: ExecAttachmentOptions }
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
   | { readonly command: 'report'; readonly options: ReportOptions }
   | { readonly command: 'legal'; readonly options: LegalOptions }
@@ -525,17 +526,14 @@ function parseUsage(argv: readonly string[]): RuntimeCommand {
 
 function parseHeadless(argv: readonly string[]): RuntimeCommand {
   try {
-    const isScan = argv[0] === 'scan-secrets'
-    const { values, positionals } = parseArgs({
-      args: argv.slice(1),
-      allowPositionals: true,
-      strict: true,
-      options: isScan
-        ? CLI_OPTION_REGISTRY['scan-secrets'].options
-        : CLI_OPTION_REGISTRY.exec.options,
-    })
-    if (values.help === true) return { command: 'help', all: true }
-    if (isScan)
+    if (argv[0] === 'scan-secrets') {
+      const { values, positionals } = parseArgs({
+        args: argv.slice(1),
+        allowPositionals: true,
+        strict: true,
+        options: CLI_OPTION_REGISTRY['scan-secrets'].options,
+      })
+      if (values.help === true) return { command: 'help', all: true }
       return positionals.length === 1 && positionals[0] !== undefined
         ? {
             command: 'scan-secrets',
@@ -543,8 +541,29 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
             keyFromStdin: values['key-stdin'] === true,
           }
         : { command: 'invalid', reason: UI_TEXT.execScanUsage, exitCode: 2 }
-    const { help: _help, ...options } = values
-    return execOutcome(parseExec(options, positionals))
+    }
+    const { values, positionals } = parseArgs({
+      args: argv.slice(1),
+      allowPositionals: true,
+      strict: true,
+      options: CLI_OPTION_REGISTRY.exec.options,
+    })
+    if (values.help === true) return { command: 'help', all: true }
+    const { help: _help, attach, record, ...options } = values
+    if (record === true)
+      return { command: 'invalid', reason: UI_TEXT.media.recordingUserOnly, exitCode: 2 }
+    const attachments = parseAttachArgs(attach)
+    if (!attachments.ok) return { command: 'invalid', reason: attachments.reason, exitCode: 2 }
+    const parsed = parseExec(options, positionals)
+    return parsed.ok
+      ? {
+          command: 'exec',
+          options: {
+            ...parsed.options,
+            ...(attachments.files.length > 0 && { attachFiles: attachments.files }),
+          },
+        }
+      : { command: 'invalid', reason: parsed.reason, exitCode: 2 }
   } catch (error: unknown) {
     return invalidHeadlessCause(error)
   }
@@ -558,12 +577,6 @@ function invalidHeadlessReason(reason: string): RuntimeCommand {
 /** A `parseArgs` throw as a headless usage refusal (never a prompt). */
 function invalidHeadlessCause(error: unknown): RuntimeCommand {
   return invalidHeadlessReason(error instanceof Error ? error.message : String(error))
-}
-
-function execOutcome(parsed: ReturnType<typeof parseExec>): RuntimeCommand {
-  return parsed.ok
-    ? { command: 'exec', options: parsed.options }
-    : invalidHeadlessReason(parsed.reason)
 }
 
 function legalOutcome(parsed: ReturnType<typeof parseLegalArgs>): RuntimeCommand {

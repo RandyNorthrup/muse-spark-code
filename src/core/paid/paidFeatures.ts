@@ -16,12 +16,8 @@ import { PAID_USE_REGISTRY } from '../../shared/paid'
 // No `vscode` here: the host injects the settings, the store, the modal and
 // the window focus.
 
-import {
-  MODEL_API_IMAGE_MODEL,
-  MUSE_VOICE_MODEL,
-  PAID_FEATURES,
-  type PaidFeature,
-} from '../../shared/constants'
+import { MODEL_API_IMAGE_MODEL, MUSE_VOICE_MODEL } from '../../shared/constants'
+import { PAID_FEATURES, UI_TEXT, type PaidFeature } from '../../shared/constants'
 import {
   EMPTY_PAID_TALLY,
   modelApiPaidTier,
@@ -390,6 +386,15 @@ export class PaidUsage {
     return () => {
       this.listeners.delete(listener)
     }
+  }
+
+  /** Batch transcription keeps fractional seconds. An uncertain attempt uses
+   * its admitted duration bound in this estimate, never a made-up zero bill. */
+  public addVoiceBatch(seconds: number): void {
+    if (!Number.isFinite(seconds) || seconds < 0) {
+      throw new Error(UI_TEXT.media.durationUnknown)
+    }
+    this.add('voice', seconds)
   }
 
   /** Counts `units` uses: searches, images, or whole seconds of audio. */

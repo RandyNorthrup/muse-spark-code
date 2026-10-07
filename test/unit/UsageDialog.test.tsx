@@ -14,6 +14,23 @@ const HOUR = 60 * 60 * 1000
 const DAY = 24 * HOUR
 const NOW = new Date(2026, 8, 22, 15, 30).getTime()
 
+const uploadedFiles: NonNullable<UsageDialogProps['uploadedFiles']> = {
+  provider: 'meta',
+  isReadOnly: false,
+  poolBytes: 1000,
+  usedBytes: 10,
+  files: [
+    {
+      fileId: 'file-one',
+      name: 'ours.pdf',
+      bytes: 10,
+      expiresAt: Math.floor(NOW / 1000) + 3600,
+      ours: true,
+      sessions: [],
+    },
+  ],
+}
+
 const subscription = {
   observedAtMs: NOW - 5 * 60 * 1000,
   tier: 'muse-pro',
@@ -138,6 +155,84 @@ describe('UsageDialog', () => {
     expect(onOpenUsagePage).toHaveBeenCalledOnce()
   })
 
+  it('shows all uploaded files, session ownership, expiry, pool use and unused-file cleanup actions', async () => {
+    const onDeleteUploadedFile = vi.fn()
+    const onDeleteAllUploadedFiles = vi.fn()
+    await renderDialog({
+      paid: { features: [], tally: EMPTY_PAID_TALLY, isKeyStored: true, alwaysAllowed: [] },
+      uploadedFiles: {
+        provider: 'meta',
+        isReadOnly: false,
+        poolBytes: 1000,
+        usedBytes: 30,
+        files: [
+          {
+            fileId: 'file-shared',
+            name: 'clip.mp4',
+            bytes: 10,
+            expiresAt: Math.floor(NOW / 1000) + 3600,
+            ours: true,
+            sessions: ['session-one'],
+          },
+          {
+            fileId: 'file-unused',
+            name: 'ours.pdf',
+            bytes: 10,
+            expiresAt: Math.floor(NOW / 1000) + 3600,
+            ours: true,
+            sessions: [],
+          },
+          { fileId: 'file-foreign', name: 'other.pdf', bytes: 10, ours: false, sessions: [] },
+        ],
+      },
+      onDeleteUploadedFile,
+      onDeleteAllUploadedFiles,
+    })
+    const section = screen.getByRole('region', { name: 'Uploaded files' })
+    expect(section).toHaveTextContent('30 byte of 1 kB stored')
+    expect(section).toHaveTextContent('Sessions: session-one')
+    expect(section).toHaveTextContent('From another app')
+    expect(section).toHaveTextContent('No expiry set')
+    expect(section).toHaveTextContent('Expires')
+    expect(screen.getByRole('button', { name: 'Delete: clip.mp4' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete: other.pdf' }))
+    expect(onDeleteUploadedFile).toHaveBeenCalledWith('file-foreign')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete all ours' }))
+    expect(onDeleteAllUploadedFiles).toHaveBeenCalledOnce()
+  })
+
+  it('retains the uploaded list after key removal and disables every delete action', async () => {
+    await renderDialog({
+      uploadedFiles: { ...uploadedFiles, isReadOnly: true },
+    })
+    expect(screen.getByRole('region', { name: 'Uploaded files' })).toHaveTextContent(
+      'read-only until their expiry',
+    )
+    expect(screen.getByRole('button', { name: 'Delete: ours.pdf' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Delete all ours' })).toBeDisabled()
+  })
+
+  it.each([
+    {
+      name: 'disables a stale writable report immediately when the UI no longer has a key',
+      isReadOnly: false,
+      isKeyStored: false,
+    },
+    {
+      name: 'honors a read-only account report even when another key is still stored',
+      isReadOnly: true,
+      isKeyStored: true,
+    },
+  ])('$name', async ({ isReadOnly, isKeyStored }) => {
+    await renderDialog({
+      paid: { features: [], tally: EMPTY_PAID_TALLY, isKeyStored, alwaysAllowed: [] },
+      uploadedFiles: { ...uploadedFiles, isReadOnly },
+      onDeleteUploadedFile: vi.fn(),
+      onDeleteAllUploadedFiles: vi.fn(),
+    })
+    expect(screen.getByRole('button', { name: 'Delete: ours.pdf' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Delete all ours' })).toBeDisabled()
+  })
   it('shows hook additions separately without subtracting them from packing savings', async () => {
     await renderDialog({
       usage: {

@@ -195,5 +195,12 @@
   "command.savePrompt.title": "프롬프트 저장",
   "command.useSavedPrompt.title": "저장된 프롬프트 사용…",
   "command.copyToMyPrompts.title": "내 프롬프트로 복사",
-  "config.syncPromptsAndBookmarks.description": "모든 작업 공간용 프롬프트를 설정 동기화에 반영합니다. 작업 공간 프롬프트는 로컬에 유지됩니다."
+  "config.syncPromptsAndBookmarks.description": "모든 작업 공간용 프롬프트를 설정 동기화에 반영합니다. 작업 공간 프롬프트는 로컬에 유지됩니다.",
+  "command.attachScreenRecording.title": "화면 녹화 첨부…",
+  "command.attachLatestScreenRecording.title": "최신 화면 녹화 첨부",
+  "command.deleteUploadedFiles.title": "업로드한 파일 삭제…",
+  "config.mediaMaxUploadMiB.description": "확장이 여는 가장 큰 미디어 파일(MiB). 기본값 200, 최대 1,024. 더 큰 파일은 읽기 전에 거부됩니다. 이 컴퓨터의 설정만 사용됩니다.",
+  "config.mediaUploadExpiryDays.description": "정리를 제안하기 전에 제공업체 업로드가 목록에 남아 있는 일수. 기본값 7, 1–30. 만료는 제공업체가 결정하며, 다른 세션이 참조 중인 업로드는 삭제되지 않습니다. 이 컴퓨터의 설정만 사용됩니다.",
+  "config.screenRecordingMaxSeconds.description": "확장이 캡처하는 가장 긴 화면 녹화(초). 기본값 120, 10–600. 녹화는 제한에서 중지되고 캡처한 내용을 유지합니다. 이 컴퓨터의 설정만 사용됩니다.",
+  "config.mediaAudioAction.description": "`transcribe`는 첨부된 오디오를 보내기 전에 텍스트로 변환하고, `sendAudio`는 모델이 받는 경우 오디오를 보냅니다. 기본값은 전사입니다. 전사에는 유료 음성 요금이 청구되며, 항상 사전 동의 후에만 진행됩니다. 이 컴퓨터의 설정만 사용됩니다."
 }

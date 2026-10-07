@@ -195,5 +195,12 @@
   "command.savePrompt.title": "Salvar prompt",
   "command.useSavedPrompt.title": "Usar prompt salvo…",
   "command.copyToMyPrompts.title": "Copiar para meus prompts",
-  "config.syncPromptsAndBookmarks.description": "Espelhar prompts de todos os espaços de trabalho na sincronização de configurações. Os prompts do espaço permanecem locais."
+  "config.syncPromptsAndBookmarks.description": "Espelhar prompts de todos os espaços de trabalho na sincronização de configurações. Os prompts do espaço permanecem locais.",
+  "command.attachScreenRecording.title": "Anexar gravação de tela…",
+  "command.attachLatestScreenRecording.title": "Anexar a gravação de tela mais recente",
+  "command.deleteUploadedFiles.title": "Excluir arquivos enviados…",
+  "config.mediaMaxUploadMiB.description": "Maior arquivo de mídia que a extensão abre, em MiB. 200 por padrão; máximo 1.024. Arquivos maiores são recusados antes da leitura. Só vale a configuração desta máquina.",
+  "config.mediaUploadExpiryDays.description": "Dias que um envio permanece listado antes que a limpeza seja oferecida. 7 por padrão; 1–30. A expiração é decidida pelo provedor; um envio que outra sessão ainda referencia nunca é excluído. Só vale a configuração desta máquina.",
+  "config.screenRecordingMaxSeconds.description": "Gravação de tela mais longa da extensão, em segundos. 120 por padrão; 10–600. A gravação para no limite e mantém o capturado. Só vale a configuração desta máquina.",
+  "config.mediaAudioAction.description": "`transcribe` converte o áudio anexado em texto antes de enviar; `sendAudio` envia o áudio onde o modelo o aceita. Transcrever por padrão. A transcrição cobra a tarifa de voz paga, sempre com consentimento prévio. Só vale a configuração desta máquina."
 }

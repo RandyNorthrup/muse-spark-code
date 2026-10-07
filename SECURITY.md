@@ -594,3 +594,15 @@ proposal before maintainer approval**. Passing tests are information, not approv
 POSIX signal e2e is skipped on Windows; argv/injected-env hashes do not establish
 full environment-block audit. Full boundaries, bounds and pending receipts are
 in [docs/ci.md](docs/ci.md) and [m80.md](docs/certification/m80.md).
+
+## Multimodal adapter boundary (M105)
+
+Companion media upload is an unmounted M104 integration adapter, not a new
+listener. Its tested contract requires exact loopback Host and Origin,
+per-window bearer, custom header, Fetch Metadata and no cookies; streamed
+bytes are capped, sniffed and kept in an exclusively created private temporary
+file. Cancellation, session-epoch changes and completion remove that source.
+Native attachment bridge frames carry metadata/tokens, never file bytes or
+credentials. Production mounting waits for M104's guarded launch exchange and
+private storage; provider consumption waits for captured capability, consent,
+exact budget and Files ledger bindings. Missing ports refuse explicitly.

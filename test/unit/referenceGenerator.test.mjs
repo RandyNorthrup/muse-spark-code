@@ -1092,6 +1092,7 @@ describe('RVHELPREF2 runtime truth regressions', () => {
       cwd: '/tmp',
       'prompt-file': '/tmp/prompt',
       'untrusted-file': '/tmp/data',
+      attach: '/tmp/clip.mp4',
       'permission-mode': 'acceptEdits',
       model: 'muse-spark-1.3',
       effort: 'high',

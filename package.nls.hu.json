@@ -195,5 +195,12 @@
   "command.savePrompt.title": "Prompt mentése",
   "command.useSavedPrompt.title": "Mentett prompt használata…",
   "command.copyToMyPrompts.title": "Másolás a saját promptjaimba",
-  "config.syncPromptsAndBookmarks.description": "Az összes munkaterület promptjainak tükrözése a beállítások szinkronizálásába. A munkaterületi promptok helyben maradnak."
+  "config.syncPromptsAndBookmarks.description": "Az összes munkaterület promptjainak tükrözése a beállítások szinkronizálásába. A munkaterületi promptok helyben maradnak.",
+  "command.attachScreenRecording.title": "Képernyőfelvétel csatolása…",
+  "command.attachLatestScreenRecording.title": "Legújabb képernyőfelvétel csatolása",
+  "command.deleteUploadedFiles.title": "Feltöltött fájlok törlése…",
+  "config.mediaMaxUploadMiB.description": "A bővítmény által megnyitott legnagyobb médiafájl MiB-ban. Alapértelmezett 200; maximum 1 024. A nagyobb fájlokat olvasás előtt elutasítja. Csak ennek a gépnek a beállítása érvényes.",
+  "config.mediaUploadExpiryDays.description": "Hány napig marad egy feltöltés listázva, mielőtt a törlés felajánlásra kerül. Alapértelmezett 7; 1–30. A lejáratról a szolgáltató dönt; egy másik munkamenet által hivatkozott feltöltés sosem törlődik. Csak ennek a gépnek a beállítása érvényes.",
+  "config.screenRecordingMaxSeconds.description": "A bővítmény által készített leghosszabb képernyőfelvétel másodpercben. Alapértelmezett 120; 10–600. A felvétel a korlátnál leáll, és megtartja, amit rögzített. Csak ennek a gépnek a beállítása érvényes.",
+  "config.mediaAudioAction.description": "A `transcribe` a csatolt hangot küldés előtt szöveggé alakítja; a `sendAudio` a hangot oda küldi, ahol a modell fogadja. Alapértelmezett az átírás. Az átírás a fizetős hangdíjat számolja, mindig csak előzetes beleegyezéssel. Csak ennek a gépnek a beállítása érvényes."
 }

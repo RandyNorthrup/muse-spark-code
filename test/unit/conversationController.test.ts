@@ -3,7 +3,11 @@ import { FakeQuestionClock } from './helpers/questions/clock'
 import { FakeQuestionStore } from './helpers/questions/store'
 import { questionFixture } from './helpers/questions/fixtures'
 import { QUESTION_CLARIFIED } from './helpers/m46Capture'
+import { SCREEN_RECORDING_DEFAULT_MAX_SECONDS } from '../../src/shared/constants'
 import { MspError } from '@muse-code/sdk'
+import { createMediaAttachments } from '../../src/host/media/mediaAttach'
+import { videoFixture, wavFixture, ebmlFixture } from './helpers/media/fixtures'
+import { mediaModel } from './helpers/media/replay'
 import { Buffer } from 'node:buffer'
 import { createHash, randomUUID } from 'node:crypto'
 import {
@@ -115,7 +119,12 @@ import {
   eventLogFault,
 } from './helpers/cliRecoveryCapture'
 import { judgeUseRig } from './helpers/judgeUseRig'
-import { FakeLogOutputChannel, type FakeSurface, fakeSurface } from './helpers/fakes'
+import {
+  FakeLogOutputChannel,
+  type FakeSurface,
+  fakeSurface,
+  fakeHostContext,
+} from './helpers/fakes'
 import { change, type FakeGitWindowOptions, fakeGitWindow, fakeRepository } from './helpers/fakeGit'
 import { ConversationGit } from '../../src/host/git/conversationGit'
 import {
@@ -468,6 +477,7 @@ function setup(
     legalScan?: ConversationDeps['legalScan']
     /** The Plan-mode hold a live Muse Code conversation takes for a scan (M97). */
     createLegalHold?: ConversationDeps['createLegalHold']
+    uploadedFiles?: ConversationDeps['uploadedFiles']
   } = {},
 ) {
   const planFiles = fakePlanFiles()
@@ -714,6 +724,7 @@ function setup(
       ),
     usageInsights: () => Promise.resolve(options.usageInsights),
     ...(options.usageRecording !== undefined && { usageRecording: options.usageRecording }),
+    ...(options.uploadedFiles !== undefined && { uploadedFiles: options.uploadedFiles }),
     ensureHost: async () => {
       await options.beforeEnsureHost?.()
       const gate = options.hostGate?.current
@@ -4561,6 +4572,80 @@ describe('ConversationController: account & usage (M8)', () => {
     const report = t.surface.posted.findLast((message) => message.type === 'usageReport')
     expect(report?.type === 'usageReport' && report.providers?.[0]?.costUsd).toBeUndefined()
     expect(report?.type === 'usageReport' && report.providers?.[2]?.costUsd).toBeUndefined()
+  })
+
+  it('reads uploaded account files independently of sign-in and delegates explicit cleanup with confirmation', async () => {
+    const report = {
+      provider: 'meta',
+      isReadOnly: true,
+      poolBytes: 100,
+      usedBytes: 3,
+      files: [
+        {
+          fileId: 'file-one',
+          name: 'clip.mp4',
+          bytes: 3,
+          expiresAt: 1_800_000_000,
+          ours: true,
+          sessions: ['s1'],
+        },
+      ],
+    }
+    const port = {
+      read: vi.fn(() => Promise.resolve(report)),
+      post: vi.fn(),
+      deleteFile: vi.fn(async (_id: string, isConfirmed: (name: string) => Promise<boolean>) => {
+        await isConfirmed('other.pdf')
+      }),
+      deleteAllOurs: vi.fn(() => Promise.resolve()),
+      confirmForeign: vi.fn(() => Promise.resolve(false)),
+    }
+    const t = setup({ status: 'signedOut', uploadedFiles: port })
+    await t.controller.readUploadedFiles()
+    expect(port.post).toHaveBeenCalledWith(report)
+    await t.controller.deleteUploadedFiles('file-other')
+    expect(port.confirmForeign).toHaveBeenCalledWith(
+      'Another app may still use other.pdf. Delete it anyway?',
+    )
+    await t.controller.deleteUploadedFiles()
+    expect(port.deleteAllOurs).toHaveBeenCalledOnce()
+  })
+
+  it('refuses byte-bearing uploaded-file reports and does not post after disposal', async () => {
+    const port = {
+      read: vi.fn(() =>
+        Promise.resolve({
+          provider: 'meta',
+          isReadOnly: false,
+          poolBytes: 100,
+          usedBytes: 3,
+          files: [
+            {
+              fileId: 'file-one',
+              name: 'clip.mp4',
+              bytes: 3,
+              ours: true,
+              sessions: [],
+              file_data: 'data:CANARY',
+            },
+          ],
+        }),
+      ),
+      post: vi.fn(),
+      deleteFile: vi.fn(() => Promise.resolve()),
+      deleteAllOurs: vi.fn(() => Promise.resolve()),
+      confirmForeign: vi.fn(() => Promise.resolve(false)),
+    }
+    const t = setup({ uploadedFiles: port })
+    await t.controller.handle({ type: 'readUsage' })
+    expect(port.post).not.toHaveBeenCalled()
+    expect(
+      t.surface.posted.some((message) => message.type === 'notice' && message.level === 'error'),
+    ).toBe(true)
+    t.controller.dispose()
+    port.read.mockClear()
+    await t.controller.readUploadedFiles()
+    expect(port.read).not.toHaveBeenCalled()
   })
 
   it('reports a host failure as a notice', async () => {
@@ -16861,4 +16946,409 @@ it('requires current sign-in for open answers and dismissals before marking or s
   const saved = await t.questionStore.load('s1')
   expect(saved[0]?.state).toBe('open')
   await t.host.close()
+})
+function syntheticMediaPart() {
+  return { type: 'text' as const, text: 'synthetic media part' }
+}
+function bindSyntheticMediaPart() {
+  return syntheticMediaPart
+}
+function mediaRig(bytes = videoFixture(), backendKind: 'museCode' | 'modelApi' = 'modelApi') {
+  const t = setup({ backendKind })
+  const read = vi.fn((offset: number, length: number) =>
+    Promise.resolve(bytes.subarray(offset, offset + length)),
+  )
+  const close = vi.fn(() => Promise.resolve())
+  const bind = vi.fn(bindSyntheticMediaPart)
+  let token = 0
+  const port = createMediaAttachments({
+    newToken: () => `host-token-${String(++token)}`,
+    open: () => Promise.resolve({ source: { sizeBytes: bytes.length, read }, close }),
+    capabilities: mediaModel,
+    limits: () => ({}),
+    bind,
+  })
+  const load = vi.fn(() => Promise.resolve(port))
+  const files = {
+    ...t.deps.files,
+    canonicalRelativePath: (file: string) =>
+      t.deps.files.canonicalRelativePath(file.replaceAll('\\', '/')),
+  }
+  const controller = new ConversationController({ ...t.deps, files, mediaAttachments: load })
+  return { ...t, controller, files, port, load, read, close, bind }
+}
+
+function recordingPort() {
+  return {
+    l10n: fakeHostContext().l10n,
+    log: new FakeLogOutputChannel(),
+    isRemote: false,
+    maxSeconds: SCREEN_RECORDING_DEFAULT_MAX_SECONDS,
+    attach: vi.fn(() => Promise.resolve(false)),
+  }
+}
+
+describe('M105 E1 attachment handler', () => {
+  it('adds a picked movie using host metadata and asks the picker for every media kind', async () => {
+    const t = mediaRig(videoFixture({ brand: 'qt  ' }))
+    t.setPicked([{ name: 'clip.mov', fsPath: '/ws/clip.mov', relativePath: 'clip.mov' }])
+    const picker = vi.spyOn(t.files, 'showOpenDialog')
+    await t.controller.handle({ type: 'pickFile' })
+    expect(picker.mock.calls[0]?.[0]?.[UI_TEXT.attachTitle]).toEqual(
+      expect.arrayContaining(['mp4', 'mov', 'webm', 'mkv', 'mp3', 'wav', 'm4a']),
+    )
+    const added = t.surface.posted.find((message) => message.type === 'attachmentAdded')
+    expect(added).toMatchObject({
+      type: 'attachmentAdded',
+      attachment: {
+        name: 'clip.mov',
+        media: { info: { kind: 'video', mediaType: 'video/quicktime', hasSoundtrack: true } },
+      },
+    })
+    expect(t.read).toHaveBeenCalled()
+    expect(t.close).toHaveBeenCalledOnce()
+    expect(JSON.stringify(added)).not.toContain('/ws')
+    expect(JSON.stringify(added)).not.toContain('base64')
+    t.controller.dispose()
+  })
+
+  it('routes a confined dropped movie through admission and leaves ordinary text as a mention', async () => {
+    const t = mediaRig()
+    await t.controller.handle({
+      type: 'droppedUris',
+      uris: ['file:///ws/clip.mp4', 'file:///ws/a.ts'],
+    })
+    expect(t.surface.posted).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'attachmentAdded',
+          attachment: expect.objectContaining({ name: 'clip.mp4' }),
+        }),
+        { type: 'insertText', text: '@a.ts ' },
+      ]),
+    )
+    expect(t.bind).toHaveBeenCalledWith(
+      expect.objectContaining({ fsPath: '/ws/clip.mp4' }),
+      expect.objectContaining({ kind: 'video' }),
+    )
+    t.controller.dispose()
+  })
+
+  it('names mov, WebM, audio and Muse Code refusals rather than silently inserting mentions', async () => {
+    for (const [name, bytes, backend] of [
+      ['clip.mov', new Uint8Array([1]), 'modelApi'],
+      ['clip.webm', ebmlFixture(), 'modelApi'],
+      ['sound.wav', wavFixture(), 'modelApi'],
+      ['clip.mp4', videoFixture(), 'museCode'],
+    ] as const) {
+      const t = mediaRig(bytes, backend)
+      t.setPicked([{ name, fsPath: `/ws/${name}`, relativePath: name }])
+      await t.controller.handle({ type: 'pickFile' })
+      expect(t.surface.posted).toEqual(
+        expect.arrayContaining([expect.objectContaining({ type: 'attachmentRejected', name })]),
+      )
+      expect(t.surface.posted.some((message) => message.type === 'insertText')).toBe(false)
+      expect(t.bind).not.toHaveBeenCalled()
+      if (backend === 'museCode') expect(t.load).not.toHaveBeenCalled()
+      t.controller.dispose()
+    }
+  })
+
+  it('rejects outside/protected media URIs before reading and invalidates tokens on conversation changes', async () => {
+    const t = mediaRig()
+    await t.controller.handle({
+      type: 'droppedUris',
+      uris: ['file:///elsewhere/clip.mov', 'file:///ws/.git/clip.mp4'],
+    })
+    expect(t.read).not.toHaveBeenCalled()
+    expect(
+      t.surface.posted.filter((message) => message.type === 'attachmentRejected'),
+    ).toHaveLength(2)
+    const token = t.port.issue({
+      name: 'clip.mov',
+      fsPath: '/ws/clip.mov',
+      relativePath: 'clip.mov',
+    })
+    await t.controller.handle({ type: 'attachMedia', requestId: 'accepted', pathToken: token })
+    expect(t.surface.posted).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'attachmentAdded', requestId: 'accepted' }),
+      ]),
+    )
+    const stale = t.port.issue({
+      name: 'clip.mov',
+      fsPath: '/ws/clip.mov',
+      relativePath: 'clip.mov',
+    })
+    await t.controller.handle({ type: 'clearConversation' })
+    const reads = t.read.mock.calls.length
+    await t.controller.handle({ type: 'attachMedia', requestId: 'stale', pathToken: stale })
+    expect(t.read).toHaveBeenCalledTimes(reads)
+    expect(t.surface.posted).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'attachmentRejected', requestId: 'stale' }),
+      ]),
+    )
+    t.controller.dispose()
+  })
+
+  it('does not add media after a pending preparation loses its conversation', async () => {
+    const t = mediaRig()
+    const { promise: gate, resolve: release } = Promise.withResolvers<undefined>()
+    t.read.mockImplementation(async () => {
+      await gate
+      return videoFixture()
+    })
+    t.setPicked([{ name: 'clip.mp4', fsPath: '/ws/clip.mp4', relativePath: 'clip.mp4' }])
+    const picking = t.controller.handle({ type: 'pickFile' })
+    await vi.waitFor(() => {
+      expect(t.read).toHaveBeenCalled()
+    })
+    await t.controller.handle({ type: 'clearConversation' })
+    release(undefined)
+    await picking
+    expect(t.surface.posted.some((message) => message.type === 'attachmentAdded')).toBe(false)
+    expect(t.bind).not.toHaveBeenCalled()
+    expect(t.close).toHaveBeenCalledOnce()
+    t.controller.dispose()
+  })
+
+  it('rejects a stale epoch before loading and refuses a late successful port after a clear', async () => {
+    const t = mediaRig()
+    t.controller.surfaceReady(5)
+    await t.controller.handle({
+      type: 'attachMedia',
+      requestId: 'old-epoch',
+      pathToken: 'unused',
+      attachmentEpoch: 4,
+    })
+    expect(t.load).not.toHaveBeenCalled()
+    const file = { name: 'clip.mp4', fsPath: '/ws/clip.mp4', relativePath: 'clip.mp4' }
+    const prepared = await t.port.prepare(t.port.issue(file), 'modelApi', t.deps.modelId)
+    const { promise, resolve } = Promise.withResolvers<typeof prepared>()
+    const prepare = vi.spyOn(t.port, 'prepare').mockReturnValue(promise)
+    const adding = t.controller.handle({
+      type: 'attachMedia',
+      requestId: 'late',
+      pathToken: 'held',
+      attachmentEpoch: 5,
+    })
+    await vi.waitFor(() => {
+      expect(prepare).toHaveBeenCalled()
+    })
+    await t.controller.handle({ type: 'clearConversation' })
+    resolve(prepared)
+    await adding
+    expect(t.surface.posted.some((message) => message.type === 'attachmentAdded')).toBe(false)
+    t.controller.dispose()
+  })
+
+  it('refuses an unbound media host without inventing model capability claims', async () => {
+    for (const name of ['clip.mp4', 'sound.wav']) {
+      const t = mediaRig()
+      const controller = new ConversationController(t.deps)
+      t.setPicked([{ name, fsPath: `/ws/${name}`, relativePath: name }])
+      await controller.handle({ type: 'pickFile' })
+      // Unbound is an unavailable pipeline, not an unreadable file (M105 E1 review).
+      expect(t.surface.posted).toContainEqual({
+        type: 'attachmentRejected',
+        name,
+        reason: UI_TEXT.media.uploadStorageUnknown,
+      })
+      expect(t.read).not.toHaveBeenCalled()
+      controller.dispose()
+      t.controller.dispose()
+    }
+  })
+
+  it('banners failed URI confinement reads and suppresses failures after a clear', async () => {
+    const t = mediaRig()
+    const checked = vi
+      .spyOn(t.files, 'canonicalRelativePath')
+      .mockRejectedValue(new Error('unreadable'))
+    await t.controller.handle({ type: 'droppedUris', uris: ['file:///ws/clip.mp4'] })
+    // A confinement check that throws refuses; nothing was read (M105 E1 review).
+    expect(t.surface.posted).toContainEqual({
+      type: 'attachmentRejected',
+      name: 'clip.mp4',
+      reason: UI_TEXT.textFilePrivate,
+    })
+    const { promise, reject } =
+      Promise.withResolvers<Awaited<ReturnType<typeof t.files.canonicalRelativePath>>>()
+    checked.mockReturnValue(promise)
+    const dropping = t.controller.handle({ type: 'droppedUris', uris: ['file:///ws/clip.mp4'] })
+    await vi.waitFor(() => {
+      expect(checked).toHaveBeenCalledTimes(2)
+    })
+    await t.controller.handle({ type: 'clearConversation' })
+    const before = t.surface.posted.length
+    reject(new Error('late failure'))
+    await dropping
+    expect(t.surface.posted).toHaveLength(before)
+    expect(t.read).not.toHaveBeenCalled()
+    t.controller.dispose()
+  })
+
+  it('keeps recording command dependencies within the current live conversation', async () => {
+    const t = mediaRig()
+    expect(await t.controller.recordingCommandDeps()).toBeUndefined()
+    const recording = recordingPort()
+    const { promise, resolve } = Promise.withResolvers<typeof recording>()
+    const load = vi.fn(() => promise)
+    const controller = new ConversationController({ ...t.deps, recordingCommandDeps: load })
+    const pending = controller.recordingCommandDeps()
+    expect(load).toHaveBeenCalledOnce()
+    await controller.handle({ type: 'clearConversation' })
+    resolve(recording)
+    expect(await pending).toBeUndefined()
+    // The seam binds the run to its conversation: liveness, cancel tracking
+    // and Attach admission close over it (M105 E1 review).
+    const bound = await controller.recordingCommandDeps()
+    expect(bound).toMatchObject({
+      isRemote: false,
+      maxSeconds: SCREEN_RECORDING_DEFAULT_MAX_SECONDS,
+    })
+    expect(bound?.isLive?.()).toBe(true)
+    expect(typeof bound?.trackRun).toBe('function')
+    expect(bound?.attach).not.toBe(recording.attach)
+    // Clearing the conversation ends liveness; dispose ends the seam.
+    await controller.handle({ type: 'clearConversation' })
+    expect(bound?.isLive?.()).toBe(false)
+    expect(await controller.recordingCommandDeps()).not.toBe(recording)
+    controller.dispose()
+    expect(await controller.recordingCommandDeps()).toBeUndefined()
+    expect(load).toHaveBeenCalledTimes(3)
+    t.controller.dispose()
+  })
+
+  it('cancels a tracked recording when its conversation clears or closes', async () => {
+    for (const end of ['clear', 'dispose'] as const) {
+      const t = mediaRig()
+      const recording = recordingPort()
+      const controller = new ConversationController({
+        ...t.deps,
+        recordingCommandDeps: () => Promise.resolve(recording),
+      })
+      const bound = await controller.recordingCommandDeps()
+      const cancel = vi.fn(() => Promise.resolve())
+      const untrack = bound?.trackRun?.(cancel)
+      expect(typeof untrack).toBe('function')
+      if (end === 'clear') await controller.handle({ type: 'clearConversation' })
+      else controller.dispose()
+      expect(cancel).toHaveBeenCalledOnce()
+      expect(bound?.isLive?.()).toBe(false)
+      untrack?.()
+      controller.dispose()
+      t.controller.dispose()
+    }
+  })
+
+  it('admits a recording preview as a flagged chip and drops its temp file with the chip', async () => {
+    const t = mediaRig(videoFixture({ brand: 'qt  ' }))
+    const recording = recordingPort()
+    const controller = new ConversationController({
+      ...t.deps,
+      files: t.files,
+      mediaAttachments: t.load,
+      recordingCommandDeps: () => Promise.resolve(recording),
+    })
+    const bound = await controller.recordingCommandDeps()
+    if (bound?.attach === undefined) throw new Error('expected bound attach')
+    const dispose = vi.fn(() => Promise.resolve())
+    const isAdmitted = await bound.attach(
+      {
+        path: '/private/recording/clip.mp4',
+        info: {
+          kind: 'video',
+          mediaType: 'video/mp4',
+          sizeBytes: 512,
+          durationSeconds: 10,
+          hasSoundtrack: false,
+        },
+        dispose,
+      },
+      true,
+    )
+    expect(isAdmitted).toBe(true)
+    const added = t.surface.posted.find((message) => message.type === 'attachmentAdded')
+    expect(added).toMatchObject({
+      attachment: { media: { info: { kind: 'video' }, isScreenRecording: true } },
+    })
+    // The host attach (unwrapped) is never the admission path.
+    expect(recording.attach).not.toHaveBeenCalled()
+    const id = added?.type === 'attachmentAdded' ? added.attachment.id : 'missing'
+    await controller.handle({ type: 'removeAttachment', id })
+    expect(dispose).toHaveBeenCalledOnce()
+    controller.dispose()
+    t.controller.dispose()
+  })
+
+  it('shares one in-flight media loader across simultaneous tokens and caches it', async () => {
+    const t = mediaRig()
+    const { promise, resolve } = Promise.withResolvers<typeof t.port>()
+    const load = vi.fn(() => promise)
+    const controller = new ConversationController({ ...t.deps, mediaAttachments: load })
+    const file = { name: 'clip.mp4', fsPath: '/ws/clip.mp4', relativePath: 'clip.mp4' }
+    const first = controller.handle({
+      type: 'attachMedia',
+      requestId: 'first',
+      pathToken: t.port.issue(file),
+    })
+    const second = controller.handle({
+      type: 'attachMedia',
+      requestId: 'second',
+      pathToken: t.port.issue(file),
+    })
+    await vi.waitFor(() => {
+      expect(load).toHaveBeenCalledOnce()
+    })
+    resolve(t.port)
+    await Promise.all([first, second])
+    await controller.handle({
+      type: 'attachMedia',
+      requestId: 'third',
+      pathToken: t.port.issue(file),
+    })
+    expect(load).toHaveBeenCalledOnce()
+    expect(t.surface.posted.filter((message) => message.type === 'attachmentAdded')).toHaveLength(3)
+    controller.dispose()
+    t.controller.dispose()
+  })
+
+  it('confines picked media like drops: outside the workspace or protected is refused unread', async () => {
+    for (const picked of [
+      { name: 'clip.mov', fsPath: '/elsewhere/clip.mov', relativePath: undefined },
+      { name: 'clip.mp4', fsPath: '/ws/.git/clip.mp4', relativePath: '.git/clip.mp4' },
+    ]) {
+      const t = mediaRig()
+      const issue = vi.spyOn(t.port, 'issue')
+      t.setPicked([picked])
+      await t.controller.handle({ type: 'pickFile' })
+      expect(t.surface.posted).toContainEqual({
+        type: 'attachmentRejected',
+        name: picked.name,
+        reason: UI_TEXT.textFilePrivate,
+      })
+      expect(issue).not.toHaveBeenCalled()
+      expect(t.read).not.toHaveBeenCalled()
+      t.controller.dispose()
+    }
+  })
+
+  it('says the soundtrack warning the chip cannot, next to the admitted video', async () => {
+    const t = mediaRig(videoFixture({ brand: 'qt  ' }))
+    t.setPicked([{ name: 'clip.mov', fsPath: '/ws/clip.mov', relativePath: 'clip.mov' }])
+    await t.controller.handle({ type: 'pickFile' })
+    expect(t.surface.posted).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: 'attachmentAdded' }),
+        expect.objectContaining({
+          type: 'notice',
+          level: 'warning',
+          text: expect.stringContaining('sound'),
+        }),
+      ]),
+    )
+    t.controller.dispose()
+  })
 })

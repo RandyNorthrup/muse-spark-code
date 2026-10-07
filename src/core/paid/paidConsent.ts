@@ -28,6 +28,7 @@ import {
   subagentTaskPrice,
 } from '../../shared/paid'
 import type { CoreLogger } from '../logging'
+import { unlessAborted } from '../timeouts'
 
 async function paidTeamRuntime() {
   const entry = await import('../team/teamEntry')
@@ -335,7 +336,18 @@ export class PaidUseConsent {
    * ordinary uses that arrive while its question is open wait for that
    * answer; a use that requires asking still gets its own question.
    */
-  public async allows(request: PaidUseRequest, requiresAsking = false): Promise<boolean> {
+  public async allows(
+    request: PaidUseRequest,
+    requiresAsking = false,
+    signal?: AbortSignal,
+  ): Promise<boolean> {
+    if (signal !== undefined) {
+      // Stop ends this caller's wait; the shared popup still owns its answer.
+      signal.throwIfAborted()
+      const allowed = await unlessAborted(this.allows(request, requiresAsking), signal)
+      signal.throwIfAborted()
+      return allowed ?? false
+    }
     const { feature } = request
     if (!this.isEnabled(feature)) {
       return false

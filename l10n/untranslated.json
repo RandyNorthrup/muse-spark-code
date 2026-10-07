@@ -65,7 +65,10 @@
       "teamJsonRefused",
       "teamSwitchRow",
       "legalScanItem",
-      "legalUsage"
+      "legalUsage",
+      "referenceScreenRecording",
+      "referenceLatestRecording",
+      "referenceUploadedFiles"
     ],
     "cs": [
       "groupModel",

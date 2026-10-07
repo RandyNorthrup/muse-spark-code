@@ -7,6 +7,46 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- M105 integration verification: keep exact media currency arithmetic and
+  ceiling display outside chat startup; preserve existing tariff text. Load
+  tool rows on first use with accessible loading, failure and retry. Share
+  patch projections with the existing schema and retain every bundle cap.
+  Correct the headless `--record` reference contract and document the remaining
+  capture, provider, accounting, recorder and companion bindings explicitly.
+  Preserve signed recorder resources and media bundles in packages, add
+  permission-free macOS CI checks, retain upward usage-estimate rounding and
+  close a reserved file descriptor after a refused fill. Keep trusted media
+  inspection in the first-use bundle across ACP and VS Code, share generated
+  reference values directly, and restore inherited ACP/reference cap increases
+  to the original 850/100 KiB limits. Both attachment and portable inspection
+  factories install the caller's language before displaying a refusal.
+
+- M105 ACP and headless entry points: `/attach <path>` and `/record` between
+  turns, audio blocks gated on the model record, `resource_link` reads under
+  the workspace confinement, and blob routing for PDF, video, audio, image
+  and unknown types. Headless `exec --attach <path>` repeats; `--record` is
+  refused; `read_file` reads mp4, mp3 and wav under the media budget.
+- M105 Files API transport: stream approved media with progress, Stop,
+  SHA-256 and mandatory expiry; validate provider receipts and reject
+  redirects and ambiguous upload retries. Storage admission and lazy
+  media bindings remain with the integrating lanes.
+- M105 upload ownership: persist metadata and reference counts, share uploads
+  across sessions, clean up after deletion/retention purge, and verify the source
+  before replacing a missing upload. Account & usage gains the file-list section
+  and cleanup callbacks, with expiry and read-only retained metadata; integration
+  binds these ports across editors.
+- M105 integration: media (`dist/media.js`) and screen recording
+  (`dist/screenRecord.js`) load lazily on first use with their own budgets and
+  split guards; startup stays near 733 KiB. Three commands (Attach screen
+  recording, Attach latest screen recording, Delete uploaded files) and four
+  settings (`mediaMaxUploadMiB`, `mediaUploadExpiryDays`,
+  `screenRecordingMaxSeconds`, `mediaAudioAction`). Recordings attach to the
+  conversation that started them; picked media is confined like dropped media
+  and refusals name the reason (private file, unknown storage, unavailable
+  recorder). Audio pastes transcribe by default. Gemini/OpenAI-compatible video
+  stays explicitly unsupported.
 ### Fixed
 
 - Search usage-journal newlines in native byte arrays so cold scans retain their
@@ -276,6 +316,34 @@ happened, not what was planned; superseded entries are kept.
   remounting. The chunk has its own 25 KiB budget; existing caps are unchanged.
 
 ### Fixed
+
+- Linux encoder exits and automatic Stop failures now show the translated
+  recording-failure guidance; only requested cancellation uses the cancelled
+  result. Failed recordings still close the portal and delete private output.
+
+- Windows screen-recording preparation now observes host shutdown before
+  asynchronous work, and private-preview deletion retries temporary locks
+  with a bound while allowing later cleanup to retry an exhausted failure.
+- The Windows recorder helper now preserves concurrent cancellation, cancels
+  pending transcoder preparation, and watches its owner during capture and
+  latest-file import. File access denial has its own translated refusal.
+
+- The macOS screen-recorder implementation keeps size and duration bounds
+  active through conversion, verifies the installed helper and its pinned
+  signature before each launch, and finalizes on sleep. Its read-only probe
+  reports permissions and encoders, and the signed screen-helper bundle has
+  permission descriptions in all 14 languages. Editor binding and packaging
+  remain part of M105 integration.
+
+- M105 batch audio preparation now finishes a stopped turn while its paid
+  consent popup is unanswered.
+  Valid batch bills settle once even for rejected transcript text or a failed
+  usage tally; admission and settlement preserve exact USD amounts.
+
+- M105 conversion waits for pending and final resource samples after encoder
+  close and refuses unavailable RSS instead of treating it as zero. Media
+  sniffing rejects duplicate unique ISO-BMFF boxes and unreadable top-level
+  boundaries, so a conflicting movie cannot bypass audio/video admission.
 
 - Problem reports retain frames from the shipped question deferral bundle.
 - Release checks cover crash recovery through the shared reload helper, await

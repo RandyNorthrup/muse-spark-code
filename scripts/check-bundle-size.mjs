@@ -22,6 +22,8 @@ const QUESTION_UI_BUDGET_KIB = 25
 const BUDGETS = [
   // M112 A: question forms, commands and late-answer admission, loaded on first use.
   { path: 'dist/acpQuestions.js', budgetKiB: 25 },
+  // Exact media money no longer enters the registry through locale helpers.
+  // Keep M112's original cap; M105's inherited temporary increase is removed.
   { path: 'dist/runtimeQuestions.js', budgetKiB: 25 },
   { path: 'dist/questionNotes.js', budgetKiB: 25 },
   { path: 'dist/extension.js', budgetKiB: 600 },
@@ -102,6 +104,14 @@ const BUDGETS = [
   // M72: real checkpoint store/legacy reader, 187.0 KiB when split out.
   // Measured size plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/checkpointStore.js', budgetKiB: 225 },
+  // M105 lane W: the attachment path (attach port with the portable
+  // sniffers, limits and modality gate), loaded on first attach: 21.0 KiB
+  // after the USD split. Measured size plus 15%, rounded up to 25 KiB.
+  { path: 'dist/media.js', budgetKiB: 25 },
+  // M105 lane W: the screen-recording command with the R1-R3 platform
+  // drivers, loaded on the first recording command: 30.2 KiB when split
+  // out. Measured size plus 15%, rounded up to 25 KiB.
+  { path: 'dist/screenRecord.js', budgetKiB: 50 },
   // M83: the import from other agents (the scan, the converters, the file
   // access, the flow and smol-toml), loaded on the first import: 100.0 KiB
   // when split out. Measured size plus 15%, rounded up to 25 KiB (PLAN.md D6).
@@ -174,6 +184,8 @@ const BUDGETS = [
   { path: 'dist/uiTextRuntime.js', budgetKiB: 25 },
   { path: 'dist/uiTextHooks.js', budgetKiB: 25 },
   { path: 'dist/uiTextSurfaces.js', budgetKiB: 25 },
+  // M105: media English on first use; measured region +15%, rounded to 25 KiB.
+  { path: 'dist/uiTextMedia.js', budgetKiB: 25 },
   // TRAIN13B: used Node mini-parser API, 39.5 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/validation.js', budgetKiB: 50 },
   // Shared existing Node boundary schemas: 41.3 KB plus 15%, rounded to 25 KiB.
@@ -190,12 +202,14 @@ const BUDGETS = [
   { path: 'dist/webview/whatsNew.js', budgetKiB: 25 },
   // HELPREF: an independent lazy page, sharing the caller's React and text.
   { path: 'dist/webview/referencePage.js', budgetKiB: 50 },
+  // HELPREF: retain the original cap through shared generated values.
   { path: 'dist/reference.js', budgetKiB: 100 },
   // The ACP agent (M63, PLAN.md D62), a process of its own installed once,
   // never loaded by VS Code: the engine without the webview or the Model API
   // backend (dist/modelApi.js, M57), plus the ACP SDK and the classic zod it
   // imports (445.2 of 713.2 KiB when set, 257.6 of them zod's locales). The
   // measured size plus about 15 %, rounded up to 50 KiB (D6 amendment).
+  // M105's trusted media inspector stays in its first-use media bundle.
   { path: 'dist/acp.js', budgetKiB: 850 },
   // TRAIN15E: headless preflight before the lazy engine; 77.9 KiB +15%.
   { path: 'dist/headless.js', budgetKiB: 100 },

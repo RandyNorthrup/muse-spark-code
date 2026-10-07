@@ -633,6 +633,14 @@ are recorded in [BADGEFIX](certification/badgefix.md).
 
 ## Evidence and troubleshooting
 
+M105 parses repeatable `exec --attach <path>` flags and confines each source
+before credential handling. Production video/audio dispatch remains refused
+until captured capabilities, Files storage/ownership and exact per-attempt
+media liability are bound. Receipts carry name/size and completion metadata,
+never file bytes. Headless `--record`, `/record` and `/attach` are usage errors
+(exit 2); there is no unattended screen recorder or implicit paid transcription.
+These flags do not change M80's pending live/hosted certification.
+
 `.github/workflows/action-check.yml` runs W with the composite Action on the
 three hosted runners against the fake-only test package, whose bin
 (`test/action/exec-test-launcher.ts`) answers only Meta's origin with a scripted

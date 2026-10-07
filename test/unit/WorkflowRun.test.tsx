@@ -2,7 +2,7 @@
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { beforeAll, describe, expect, it } from 'vitest'
 import type { WorkflowEntry } from '../../src/webview/state/uiState'
-import { renderTranscript, tool } from './helpers/transcriptFixtures'
+import { renderTranscript, tool, warmRowMenus } from './helpers/transcriptFixtures'
 import {
   WORKFLOW_CHILD_ID,
   WORKFLOW_ITEM_ID,
@@ -53,6 +53,7 @@ const runningRun: WorkflowEntry = {
 
 // Repeated behavior checks share first use; bundle tests cover the cold split.
 beforeAll(async () => {
+  await warmRowMenus()
   renderTranscript([completedRun])
   await screen.findByRole('list', { name: 'Workflow agents' })
   cleanup()

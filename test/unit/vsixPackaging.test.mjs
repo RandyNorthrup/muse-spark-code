@@ -93,6 +93,9 @@ beforeAll(async () => {
   for (const file of [
     'dist/extension.js',
     'dist/validation.js',
+    'dist/media.js',
+    'dist/screenRecord.js',
+    'dist/uiTextMedia.js',
     'dist/webview/main.js',
     'dist/webview/main.css',
     'dist/webview/models.js',
@@ -105,6 +108,10 @@ beforeAll(async () => {
     'dist/webview/referencePage.css',
     'dist/webview/chunks/UsageDialog-test.js',
     'native/darwin/muse-dictate',
+    'native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate',
+    'native/darwin/muse-dictate-screen.app/Contents/Resources/de.lproj/InfoPlist.strings',
+    'native/darwin/muse-dictate-screen.app/Contents/_CodeSignature/CodeResources',
+    'native/windows/MuseSparkScreenRecord.cs',
     'l10n/ui.de.json.br',
   ]) {
     mkdirSync(path.dirname(path.join(fixture.root, file)), { recursive: true })
@@ -281,8 +288,15 @@ describe('VSIX packaging', () => {
     expect(packaged).toEqual(
       expect.arrayContaining([
         'dist/validation.js',
+        'dist/media.js',
+        'dist/screenRecord.js',
+        'dist/uiTextMedia.js',
         'dist/webview/chunks/UsageDialog-test.js',
         'native/darwin/muse-dictate',
+        'native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate',
+        'native/darwin/muse-dictate-screen.app/Contents/Resources/de.lproj/InfoPlist.strings',
+        'native/darwin/muse-dictate-screen.app/Contents/_CodeSignature/CodeResources',
+        'native/windows/MuseSparkScreenRecord.cs',
         'l10n/ui.tables.json.br',
         'dist/runtime.bundles.json.br',
       ]),

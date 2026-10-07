@@ -110,6 +110,17 @@ function fallback() {
 }
 
 describe('regional Node English fallback', () => {
+  it('loads media English only on first media use and installs the caller language', () => {
+    const { text, loaded } = fallback()
+    expect(loaded).toEqual([])
+    expect(text.UI_TEXT.media.recordingFailed).toBe(EN.media.recordingFailed)
+    expect(loaded).toEqual(['./uiTextMedia.js'])
+    const german = JSON.parse(readFileSync('l10n/ui.de.json', 'utf8'))
+    text.setUiText(german, 'de')
+    expect(text.UI_TEXT.media.recordingFailed).toBe(german.media.recordingFailed)
+    expect(loaded).toEqual(['./uiTextMedia.js'])
+  })
+
   it('enumerates every key and creates localization state without loading a region', () => {
     const { bundle, text, loaded } = fallback()
     expect(Object.keys(bundle.EN).toSorted((a, b) => a.localeCompare(b, 'en'))).toEqual(

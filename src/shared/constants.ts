@@ -116,6 +116,11 @@ export const COMMAND_IDS = {
   tabMenu: 'museSpark.tabMenu',
   tabLanguages: 'museSpark.tabLanguages',
   legalScan: 'museSpark.legalScan',
+  // M105 (PLAN.md D85): multimodal input; screen recordings preview before
+  // they attach, and uploaded files can be listed and deleted.
+  attachScreenRecording: 'museSpark.attachScreenRecording',
+  attachLatestScreenRecording: 'museSpark.attachLatestScreenRecording',
+  deleteUploadedFiles: 'museSpark.deleteUploadedFiles',
 } as const
 
 // M95 lane K (PLAN.md D74): the Models & Agents panel host. The panel's host
@@ -504,6 +509,13 @@ export const SETTING_DEFAULTS = {
   // (M82): 0 is no cap. Kept by reservation (sessionBudget.ts); machine
   // scoped, since a repository must not set what is billed.
   modelApiSessionBudgetUsd: 0,
+  // M105 (PLAN.md D85): multimodal input caps (literals: this map runs
+  // before the media block below); machine scoped, since a repository must
+  // not set what is uploaded, kept or billed on the key.
+  mediaMaxUploadMiB: 200,
+  mediaUploadExpiryDays: 7,
+  screenRecordingMaxSeconds: 120,
+  mediaAudioAction: 'transcribe',
   // The Auto reviewer on Muse Code (M90, PLAN.md D69): in Auto on the Muse
   // Code backend, an approval Muse Code raises goes to one short turn of a
   // hidden side session before the user. On until turned off; machine scoped,
@@ -618,6 +630,12 @@ export const MACHINE_SCOPED_SETTINGS = [
   'tabWithCopilot',
   'judge.engine',
   'legalExplanation',
+  // M105 (PLAN.md D85): upload bytes, provider retention, recording length
+  // and the audio action are billed on the key, so a repository sets none.
+  'mediaMaxUploadMiB',
+  'mediaUploadExpiryDays',
+  'screenRecordingMaxSeconds',
+  'mediaAudioAction',
 ] as const
 
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).
@@ -1055,6 +1073,68 @@ export const PIXELS_PER_MEGAPIXEL = 1_000_000
 export const ANTHROPIC_MAX_IMAGE_BYTES = 10_000_000
 // Images and PDFs together (M54).
 export const MAX_ATTACHMENTS_PER_MESSAGE = 20
+
+// M105 / D85: portable media contracts. These are our bounds and defaults,
+// not evidence that a model supports a modality or that storage is free.
+export const MEDIA_FILE_ID_MIN_BYTES = 1024 * 1024
+export const MEDIA_SNIFF_MAX_BYTES = 1024 * 1024
+export const MEDIA_CONVERTER_PROBE_TIMEOUT_MS = 2000
+export const MEDIA_CONVERTER_PROBE_MAX_BYTES = 16 * 1024
+export const MEDIA_CONVERSION_MAX_RSS_BYTES = 512 * 1024 * 1024
+export const MEDIA_CONVERSION_WATCHDOG_INTERVAL_MS = 25
+export const MEDIA_CONVERSION_SAMPLE_TIMEOUT_MS = 100
+export const MEDIA_PROC_RSS_UNIT_BYTES = 1024
+export const MEDIA_PROC_RSS_PATTERN = /^VmRSS:\s+(\d+)\s+kB$/mu
+export const MEDIA_PROC_EXITED_PATTERN = /^State:\s+[ZX]\b/mu
+// Release-version banners only; development/unknown versions refuse conversion.
+export const MEDIA_FFMPEG_VERSION_PATTERN =
+  /^ffmpeg version (\d+\.\d+(?:\.\d+)?(?:-[\w.+-]+)?) Copyright \(c\) \d{4}(?:-\d{4})? the FFmpeg developers$/u
+export const MEDIA_AVCONVERT_VERSION_PATTERN = /^avconvert version (\d+\.\d+(?:\.\d+)?)$/u
+export const MEDIA_CONVERTER_INSTALL_PATHS = {
+  linux: ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg'],
+  darwin: ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg'],
+  win32: ['C:/Program Files/ffmpeg/bin/ffmpeg.exe'],
+} as const
+export const MEDIA_FILE_EXPIRY_MIN_S = 3600
+export const MEDIA_FILE_EXPIRY_MAX_S = 2_592_000
+export const MEDIA_FILE_EXPIRY_DEFAULT_S = 604_800
+export const MEDIA_MAX_UPLOAD_DEFAULT_MIB = 200
+export const MEDIA_CONVERSION_DEFAULT_OUTPUT_BYTES = MEDIA_MAX_UPLOAD_DEFAULT_MIB * 1024 * 1024
+export const MEDIA_MAX_UPLOAD_MIB = 1024
+export const MEDIA_NAME_MAX_CHARS = 256
+export const MEDIA_ID_MAX_CHARS = 256
+export const MEDIA_PATH_TOKEN_MAX_CHARS = 4096
+export const MEDIA_SHA256_PATTERN = /^[a-f0-9]{64}$/u
+export const MEDIA_KINDS = ['image', 'document', 'text', 'video', 'audio'] as const
+export const MEDIA_AUDIO_ACTIONS = [
+  'transcribe',
+  'useSoundtrackModel',
+  'sendWithoutSound',
+  'wrapAsVideo',
+  'sendAudio',
+] as const
+export const MEDIA_CONTRIBUTOR_CHOICES = ['send', 'useStandard', 'remove'] as const
+export const MEDIA_UPLOAD_EXPIRY_SETTING = 'museSpark.mediaUploadExpiryDays'
+export const MEDIA_MAX_UPLOAD_SETTING = 'museSpark.mediaMaxUploadMiB'
+export const MEDIA_AUDIO_ACTION_SETTING = 'museSpark.mediaAudioAction'
+export const SCREEN_RECORDING_MAX_SECONDS_SETTING = 'museSpark.screenRecordingMaxSeconds'
+/** Days a provider keeps an uploaded file (M105): the manifest allows 1–30. */
+export const MEDIA_UPLOAD_EXPIRY_MIN_DAYS = 1
+export const MEDIA_UPLOAD_EXPIRY_MAX_DAYS = 30
+export const MEDIA_UPLOAD_EXPIRY_DEFAULT_DAYS = 7
+/**
+ * What the attach flow offers for audio (M105): the manifest exposes only
+ * these two; the wider MEDIA_AUDIO_ACTIONS stay lane-internal until lane V
+ * verifies them against live captures.
+ */
+export const MEDIA_AUDIO_ACTION_OPTIONS = ['transcribe', 'sendAudio'] as const
+export const MEDIA_AUDIO_ACTION_DEFAULT = 'transcribe'
+export const SCREEN_RECORDING_DEFAULT_MAX_SECONDS = 120
+export const SCREEN_RECORDING_MIN_SECONDS = 10
+export const SCREEN_RECORDING_MAX_SECONDS = 600
+export const SCREEN_RECORDING_RECENT_MAX_AGE_MS = 10 * 60 * 1000
+export const SCREEN_RECORDING_REMOVE_ATTEMPTS = 3
+export const SCREEN_RECORDING_REMOVE_RETRY_MS = 200
 
 // PDFs as input (M54, PLAN.md D47): the one document type Meta's Responses
 // API reads for inference (dev.meta.ai/docs/file-handling, read
@@ -4991,6 +5071,9 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/reference.js',
   'dist/report.js',
   'dist/recorder.js',
+  'dist/media.js',
+  'dist/screenRecord.js',
+  'dist/uiTextMedia.js',
   'dist/browserCheck.js',
   'dist/browserRuntime.js',
   'dist/validation.js',

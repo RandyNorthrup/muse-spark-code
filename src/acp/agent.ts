@@ -63,13 +63,15 @@ import {
   DEFAULT_EFFORT,
   type EffortLevel,
   MSP_REQUESTED_CAPABILITIES,
+  MAX_ATTACHMENTS_PER_MESSAGE,
   type PermissionMode,
   QUESTION_DEFER_DEFAULT_SECONDS,
   UI_TEXT,
   SLASH_COMMAND_NAMES,
 } from '../shared/constants'
 import { effortForThinking, effortLabel, effortLevelsFor, isEffortLevel } from '../shared/effort'
-import { fill, uiLocale } from '../shared/l10n/text'
+import { fill, formatBytes, formatUnit, uiLocale } from '../shared/l10n/text'
+import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from './media'
 import { parseSkillInvocation } from '../shared/mentions'
 import type { PaidUseRequest } from '../shared/paid'
 import {
@@ -93,6 +95,7 @@ import type { QuestionClock } from '../shared/questions'
 import {
   approvalToolCall,
   decidedChoice,
+  isMediaLink,
   mcpServersFrom,
   permissionOptions,
   permissionResponse,
@@ -127,6 +130,8 @@ export interface AcpAgentOptions {
   readonly allowsContributorModels: boolean
   readonly initialMode: PermissionMode
   readonly questionsDeferAfterSeconds?: number
+  /** Headless exec cannot invoke user entry points, even through a prompt. */
+  readonly isHeadless?: boolean
 }
 
 /** How the user signs in to the chosen backend (D61, D62). */
@@ -172,6 +177,8 @@ export interface AcpAgentDeps {
   readonly questionClock?: QuestionClock
   /** Same-build factory loader; tests inject the source factory. */
   readonly questionBundle?: () => AcpQuestionBundle
+  /** W's lazy runtime binding; absent media entry points refuse before dispatch. */
+  readonly media?: AcpMediaFactory
   /**
    * Report a problem (M93 lane A, PLAN.md D72): facts-only error observation
    * for the standalone report's journal. The runtime wires this to its local
@@ -259,6 +266,8 @@ class AcpSession {
   private readonly questionRegistry: AcpQuestionRegistry | undefined
   private questions: AcpQuestionDeferral | undefined
   private readonly questionBundle: () => AcpQuestionBundle
+  private media: Promise<AcpMediaPort> | undefined
+  private readonly attachments: AcpAttachment[] = []
   private readonly translator: UpdateTranslator
   private unsubscribe: (() => void) | undefined
   private readonly approvals = new Map<string, ApprovalRequest>()
@@ -430,13 +439,25 @@ class AcpSession {
                 input: null,
               },
             ]),
+        ...(this.deps.media === undefined || this.deps.options.isHeadless === true
+          ? []
+          : [
+              {
+                name: 'attach',
+                description: UI_TEXT.paletteTips.attachFile,
+                input: { hint: '<path>' },
+              },
+              { name: 'record', description: UI_TEXT.media.attachRecording, input: null },
+            ]),
         ...this.skills
           .filter(
             (skill) =>
               skill.selector !== SLASH_COMMAND_NAMES.help &&
               skill.selector !== ACP_COMPACT_COMMAND &&
               skill.selector !== 'legal' &&
-              !['answer', 'questions', 'share', 'prompt'].includes(skill.selector) &&
+              !['answer', 'questions', 'share', 'prompt', 'attach', 'record'].includes(
+                skill.selector,
+              ) &&
               (this.deps.usage === undefined || skill.selector !== 'usage'),
           )
           .map((skill) => ({
@@ -452,6 +473,83 @@ class AcpSession {
             ]),
       ],
     })
+  }
+
+  private mediaPort(): Promise<AcpMediaPort> {
+    const factory = this.deps.media
+    if (factory === undefined)
+      throw RequestError.invalidParams(undefined, UI_TEXT.media.uploadStorageUnknown)
+    this.media ??= factory({
+      cwd: this.cwd,
+      sessionId: this.sessionId,
+      backend: this.deps.backend.kind,
+      modelId: () => this.modelId,
+      interactive: this.deps.options.isHeadless !== true,
+    })
+    return this.media
+  }
+
+  private async mediaCommand(
+    blocks: readonly ContentBlock[],
+    signal: AbortSignal,
+  ): Promise<boolean> {
+    const [first] = blocks
+    if (blocks.length !== 1 || first?.type !== 'text') return false
+    const text = first.text.trim()
+    const attach = /^\/attach(?:\s+(.+))?$/su.exec(text)
+    const isRecord = text === '/record'
+    if (attach === null && !isRecord) return false
+    if (this.deps.options.isHeadless === true) {
+      // A queued headless attachment never sends: no second turn carries
+      // it. /record is refused the same way (M105 E2 review).
+      if (isRecord) throw RequestError.invalidParams(undefined, UI_TEXT.media.recordingUserOnly)
+      throw RequestError.invalidParams(undefined, UI_TEXT.media.attachHeadless)
+    }
+    if (this.attachments.length >= MAX_ATTACHMENTS_PER_MESSAGE)
+      throw RequestError.invalidParams(undefined, UI_TEXT.attachmentLimit)
+    const given = attach?.[1]?.trim()
+    if (!isRecord && (given === undefined || given === ''))
+      throw RequestError.invalidParams(undefined, UI_TEXT.attachmentUnreadable)
+    const port = await this.mediaPort()
+    signal.throwIfAborted()
+    let attachment: AcpAttachment | undefined
+    try {
+      attachment = isRecord ? await port.record(signal) : await port.attach(given ?? '', signal)
+    } catch (error: unknown) {
+      if (signal.aborted) throw error
+      throw RequestError.invalidParams(
+        undefined,
+        error instanceof Error ? error.message : UI_TEXT.attachmentUnreadable,
+      )
+    }
+    if (attachment === undefined) return true
+    if (signal.aborted || this.isDisposed) {
+      await attachment.dispose?.()
+      signal.throwIfAborted()
+      throw RequestError.resourceNotFound(this.sessionId)
+    }
+    this.attachments.push(attachment)
+    // Only video and audio have a duration; other kinds ack without one
+    // (M105 E2 review).
+    const metadata =
+      'durationSeconds' in attachment.info
+        ? fill(UI_TEXT.media.replayMetadata, {
+            name: attachment.name,
+            duration:
+              attachment.info.durationSeconds === null
+                ? UI_TEXT.media.durationUnknown
+                : formatUnit(attachment.info.durationSeconds, 'second'),
+            size: formatBytes(attachment.info.sizeBytes),
+          })
+        : fill(UI_TEXT.media.replayMetadataNoDuration, {
+            name: attachment.name,
+            size: formatBytes(attachment.info.sizeBytes),
+          })
+    this.send({
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: metadata },
+    })
+    return true
   }
 
   private onEvent(event: AgentEvent): void {
@@ -1057,62 +1155,80 @@ class AcpSession {
     if (this.pending !== undefined || this.preparing !== undefined) {
       throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
     }
-    const parsed = promptParts(blocks, this.cwd)
-    if (!parsed.ok) {
-      throw RequestError.invalidParams(undefined, parsed.reason)
-    }
-    if (
-      ['/legal', '/legal --offline'].includes(parsed.displayText.trim()) &&
-      this.deps.legalScan !== undefined &&
-      parsed.parts.every((part) => part.type === 'text')
-    )
-      return await this.runLegalScan(this.deps.legalScan, parsed.displayText.trim() === '/legal')
-    if (
-      parsed.parts.length === 1 &&
-      parsed.parts[0]?.type === 'text' &&
-      parsed.parts[0].text.trim() === `/${SLASH_COMMAND_NAMES.help}`
-    ) {
-      const preparing: PreparingPrompt = { isCancelled: false, abort: new AbortController() }
-      this.preparing = preparing
-      try {
-        await this.announceCommands()
-      } finally {
-        this.preparing = undefined
-      }
-      if ('error' in preparing) throw preparing.error
-      if (preparing.isCancelled) {
-        await this.outbox
-        return 'cancelled'
-      }
-      this.send({
-        sessionUpdate: 'agent_message_chunk',
-        content: {
-          type: 'text',
-          text: compactReference([
-            ACP_COMPACT_COMMAND,
-            ...(this.deps.legalScan === undefined ? [] : ['legal']),
-            ...(this.deps.usage === undefined ? [] : ['usage']),
-            ...this.skills
-              .map((skill) => skill.selector)
-              .filter((name) => !['answer', 'questions', 'share', 'prompt'].includes(name)),
-            ...(this.questionRegistry === undefined ? [] : ['questions', 'answer']),
-            ...(this.deps.sharing?.commands().map((command) => command.name) ?? []),
-          ]),
-        },
-      })
-      await this.outbox
-      return 'end_turn'
-    }
     const preparing: PreparingPrompt = { isCancelled: false, abort: new AbortController() }
     this.preparing = preparing
-    const [part] = parsed.parts
-    const isCompact =
-      parsed.parts.length === 1 &&
-      part?.type === 'text' &&
-      part.text.trim() === `/${ACP_COMPACT_COMMAND}`
-    let isUsage: boolean
+    let parsed: Awaited<ReturnType<typeof promptParts>>
     let queued: readonly TurnPart[]
+    let isCompact: boolean
+    let isUsage: boolean
     try {
+      if (await this.mediaCommand(blocks, preparing.abort.signal)) {
+        await this.announceCommands()
+        await this.outbox
+        return preparing.isCancelled ? 'cancelled' : 'end_turn'
+      }
+      // Only media links need the port: ordinary links stay mentions even
+      // when the factory binds (M105 E2 review).
+      const isNeedsMedia = blocks.some(
+        (block) =>
+          block.type === 'audio' ||
+          (block.type === 'resource_link' && isMediaLink(block)) ||
+          (block.type === 'resource' &&
+            'blob' in block.resource &&
+            !/^(?:image\/|application\/pdf$)/u.test(block.resource.mimeType ?? '')),
+      )
+      const media =
+        isNeedsMedia && this.deps.media !== undefined ? await this.mediaPort() : undefined
+      parsed = await promptParts(
+        blocks,
+        this.cwd,
+        media,
+        this.deps.backend.kind === 'modelApi',
+        preparing.abort.signal,
+      )
+      if (!parsed.ok) throw RequestError.invalidParams(undefined, parsed.reason)
+      if (
+        ['/legal', '/legal --offline'].includes(parsed.displayText.trim()) &&
+        this.deps.legalScan !== undefined &&
+        parsed.parts.every((part) => part.type === 'text')
+      )
+        return await this.runLegalScan(this.deps.legalScan, parsed.displayText.trim() === '/legal')
+      const [part] = parsed.parts
+      isCompact =
+        parsed.parts.length === 1 &&
+        part?.type === 'text' &&
+        part.text.trim() === `/${ACP_COMPACT_COMMAND}`
+      if (
+        parsed.parts.length === 1 &&
+        part?.type === 'text' &&
+        part.text.trim() === `/${SLASH_COMMAND_NAMES.help}`
+      ) {
+        await this.announceCommands()
+        this.send({
+          sessionUpdate: 'agent_message_chunk',
+          content: {
+            type: 'text',
+            text: compactReference([
+              ACP_COMPACT_COMMAND,
+              ...(this.deps.legalScan === undefined ? [] : ['legal']),
+              ...(this.deps.usage === undefined ? [] : ['usage']),
+              ...(this.deps.media === undefined || this.deps.options.isHeadless === true
+                ? []
+                : ['attach', 'record']),
+              ...this.skills
+                .map((skill) => skill.selector)
+                .filter(
+                  (name) =>
+                    !['answer', 'questions', 'share', 'prompt', 'attach', 'record'].includes(name),
+                ),
+              ...(this.questionRegistry === undefined ? [] : ['questions', 'answer']),
+              ...(this.deps.sharing?.commands().map((command) => command.name) ?? []),
+            ]),
+          },
+        })
+        await this.outbox
+        return preparing.isCancelled ? 'cancelled' : 'end_turn'
+      }
       await this.announceCommands()
       // Reserved local commands never become a skill or a model turn, even when
       // their runtime bridge has not been bound yet or their syntax is invalid.
@@ -1153,6 +1269,12 @@ class AcpSession {
       }
       isUsage = await this.usageReply(blocks, preparing)
       queued = isUsage || isCompact ? [] : ((await this.questionRegistry?.queuedParts()) ?? [])
+    } catch (error: unknown) {
+      if ('error' in preparing) throw preparing.error
+      if (!preparing.isCancelled) throw error
+      await this.questionRegistry?.acknowledgeQueued('notTaken')
+      await this.outbox
+      return 'cancelled'
     } finally {
       if (this.preparing === preparing) this.preparing = undefined
     }
@@ -1190,12 +1312,31 @@ class AcpSession {
         const outcome = await this.session.compact()
         this.finishCompaction(outcome.status)
       } else {
+        const mediaQueued = [...this.attachments]
         const starting = this.session.sendTurn(
-          [...queued, ...this.withSkill(parsed.parts)],
+          [
+            ...queued,
+            ...this.withSkill([
+              ...parsed.parts,
+              ...mediaQueued.map((attachment) => attachment.part),
+            ]),
+          ],
           parsed.displayText,
         )
         this.starting = starting
         const submission = await starting
+        this.attachments.splice(0, mediaQueued.length)
+        void finished
+          .then(async () => {
+            await Promise.all(
+              mediaQueued.flatMap((attachment) =>
+                attachment.dispose === undefined ? [] : [attachment.dispose()],
+              ),
+            )
+          })
+          .catch((error: unknown) => {
+            this.deps.log.warn(`ACP media cleanup: ${failureForLog(error)}`)
+          })
         this.noteTurnId(submission.turnId)
         try {
           await this.questionRegistry?.acknowledgeQueued('taken')
@@ -1317,6 +1458,11 @@ class AcpSession {
       await this.cancelTurn()
     }
     this.session.dispose()
+    await Promise.all(
+      this.attachments
+        .splice(0)
+        .flatMap((attachment) => (attachment.dispose === undefined ? [] : [attachment.dispose()])),
+    )
   }
 }
 
@@ -1548,7 +1694,7 @@ class AgentState {
       protocolVersion: PROTOCOL_VERSION,
       agentCapabilities: {
         loadSession: true,
-        promptCapabilities: { image: true, audio: false, embeddedContext: true },
+        promptCapabilities: { image: true, audio: true, embeddedContext: true },
         // Stdio servers every agent takes; HTTP ones Muse Code runs too (M63c).
         mcpCapabilities: { http: this.deps.backend.kind === 'museCode', sse: false },
         sessionCapabilities: { list: {}, resume: {}, close: {} },

@@ -141,7 +141,7 @@ describe('cost estimate', () => {
   })
 
   it('formats dollars with four decimals under a dollar, two above, and whole percents', () => {
-    expect(formatUsd(0.01234)).toBe('$0.0123')
+    expect(formatUsd(0.01234)).toBe('$0.0124')
     expect(formatUsd(1.456)).toBe('$1.46')
     expect(percentOf(30, 31)).toBe(97)
     expect(percentOf(0, 0)).toBe(0)

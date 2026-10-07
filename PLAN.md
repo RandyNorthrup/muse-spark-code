@@ -11064,14 +11064,18 @@ The owner's standing rulings apply:
    - WebM and Matroska (EBML), which U5 shows Meta refuses at upload and
      inline, and m4a (not captured) are refused with a conversion hint;
    - wav (RIFF `WAVE`) and mp3 (ID3 or frame sync) are audio;
-   - a file whose `moov` is not found within the window is "duration
-     unknown", allowed unless the model's record sets a maximum duration (and
-     refused in a capped session, decision 6).
+   - `vide` and `soun` track handlers establish the kind, independently of
+     the brand. Audio-only MP4 is audio. A file whose tracks cannot be read
+     within the bounded windows is refused, since the metadata contract has
+     no unknown-kind state. Unknown duration with known tracks remains allowed
+     unless the model sets a maximum or the session is capped (decision 6).
 
    **Convert to mp4** is offered only when a converter is already on the
-   machine (`avconvert`, which macOS ships, or an `ffmpeg` on PATH, found by
-   absolute path and run with an argument array into an owner-only temporary
-   file). Nothing is bundled or installed.
+   machine at an explicit configured path or a documented install location.
+   Each probe and launch requires the shared trusted-path verifier, and a
+   bounded probe must yield a strictly parsed release version. Unversioned
+   converters refuse. Conversion runs with an argument array into an owner-only
+   temporary file. Nothing is bundled or installed.
 
 5. **Sound, routed to where it is heard.**
    - **A video with a soundtrack, on a model that does not hear it** (Muse
@@ -17964,6 +17968,13 @@ test that fails without the rule:
    release; G31 UI condition targets distinguish controls that share a style
    class, with the harness's two-pill regression as the concrete example.
 8. **M117 (estimator):** G4 base age as a schedule risk.
+9. **M105 (multimodal integration):** G28 a producer→consumer delivery test
+   through the real port before a handoff closes (named test:
+   modelApiMedia 'delivers a read_file video through replay as its
+   file-id', which fails with the consumer stashed); G29 budget findings
+   quote the repository gate's command and numbers, re-measured on the
+   integration tree (the startup gate `node scripts/check-bundle-size.mjs`
+   itself is the enforcing test).
 
 Rows marked **covered** keep their existing decision as the owner: D87.14,
 D90.25, D96, D88 and D97.
@@ -18843,10 +18854,19 @@ regenerate the Help reference and host API inventory. Keep the release version
 and README What's new unchanged. Startup remains at most 751,411 bytes;
 recover any excess through the newest features' existing lazy boundaries.
 
-- [~] Merge M105 media; resolve by meaning, regenerate and check.
+- [x] Merge M105 media; resolve by meaning, regenerate and check.
 - [ ] Merge M108 accounts; resolve by meaning, regenerate and check.
 - [ ] Merge M109 vault and its fix round; regenerate and check.
 - [ ] Merge M117 estimator; regenerate and check.
+      M105's first combined build exposed wire (51.1/50 KiB), headless
+      (576.9/100 KiB) and optional English (25.1/25 KiB) overflows. Recover through
+      existing shared Model API boundary schemas, the already-lazy runtime engine's
+      RequestError export, and Help English behind its existing measured reference closure before lazy UI
+      factories resolve. The deferred-bundle fixture uses the same production model-text
+      compression. Header-only history refuses uploaded sessions without their ownership
+      ledger, preserving durable cleanup. Both repairs have regression tests. Media text has first-paint readers, so moving it alone does
+      not recover optional English. No schema, behavior or existing cap changes.
+
 - [ ] Repair integration failures with failing-before/passing-after tests and
       byte-exact restored guard drills; no increased caps or timeouts.
 - [ ] Fresh-clone committed source, `npm ci`, `CI=true`: exact Linux static
@@ -36722,6 +36742,258 @@ as required by the rig brief; do not run full quality or merge in this lane.
 
 ### M105 — Multimodal input: video, audio, documents, screen recordings and the Files API (D85)
 
+**W final integration status (linuxlt, 2026-10-07).** All twelve lane merges
+are present in brief order and all completed-report P1/P2 corrections remain
+integrated. Executable fixes are committed as `a441b557` and `c2ee30b8`, with
+hooks on. All requested local static/build/package/browser gates pass; the
+complete default-timeout Vitest sweep passes **576 files, 192 batches,
+12,265 tests, zero failures, 112 existing skips, zero todo**. Accessibility
+passes **716 pages with zero violations**. All 15 deliberate red controls
+restore source/bundles byte-exact. Local VSIX is **2,376,296/2,457,600 bytes**.
+
+W's local integration and documentation scope is complete. Every named
+production handoff is individually closed, partial or blocked in
+`docs/certification/m105.md`. Remaining owners must supply M95/M102/M104
+services, raw capture/workspace/attempt/billing receipts (U6c storage still
+unknown), account/codec/paid/native/companion factories, independent E3 review
+and hosted/installed/native/universal-package certification. V remains
+unmerged and unsupported; Windows VM direct capture stays unavailable.
+Shared rules prohibit aggregate quality and external network here; those
+exact lead-owned commands remain in §7 and the certification. No live/paid
+calls, extra merges, pushes, timeout increases, cap raises or weakened gates.
+
+Final base-cap audit found inherited ACP 850→1000 KiB and reference 100→125 KiB
+increases; both originals are restored. The trusted inspector's dynamic import
+remains external to the media bundle shipped in ACP, with first-use ownership
+guarded. Dependency-ordered shared values and field layouts replace the reference
+expansion tree while preserving the exact expanded model and zod boundary.
+Both original caps and split guards were seen to fail before byte-exact restore.
+Actual attachment and portable-inspector factories install the caller's checked
+table/locale. Real emitted German refusals pass; removing installation fails.
+
+W startup correction: boundary USD normalization is a schema leaf; arithmetic
+and ceiling currency display load only with media pricing. Preserve the legacy
+tariff formatter. Tool-row rendering also loads on its first row, behind the
+existing accessible loading/failure/retry surface, with its own measured D6
+budget. A small status-class leaf keeps user-shell rows from importing the
+tool renderer. Existing startup and deferred caps and tests stay unchanged.
+Media English has its own first-read Node region and ACP package entry.
+The inherited W-only runtimeQuestions increase is removed: 24.4 KiB now fits
+the original 25 KiB cap. Shared patch projection keeps the original deferred
+baseline intact. No cap is raised. Production-only binding blockers are
+listed by name in `docs/certification/m105.md`; fake receipts cannot close them.
+The final base-cap audit also removes inherited ACP/reference increases:
+trusted inspection loads from media on first use; dependency-ordered shared
+reference values retain the entire zod-validated model. ACP is 842.2/850 KiB,
+reference 89.3/100 KiB, and media 21.3/25 KiB. Existing round-trip and corrupted
+prefix tests remain unchanged; the real media bundle's exports are exercised.
+Shared field layouts keep generated output at zero clones. Actual attachment,
+trusted-read and latest-recording consumers install the caller language;
+German output is proved from emitted factories, with red installation drills.
+W packaging correction: explicitly include the media/screen recorder/English
+bundles, Windows recorder source and all signed macOS app resources in VSIX.
+Transfer the app through a tar archive to retain modes; macOS CI runs R1
+permission-free encoder, signature/localization and disclaimed probes. ACP
+keeps supplied native resources, but its portable media factory remains unbound.
+The full sweep also exposed package-frame vocabulary drift and synchronous
+row fixtures. Cold tool-row loading/failure must remain a transcript list
+item and preserve composer focus/keys; add a whole-file regression before
+binding the shared deferred list fallback. Register shipped Node bundles in the existing flight
+recorder whitelist and warm first use without changing assertions. Preserve
+upward rounding for usage estimates separately from tariff display. Close a
+failed reserved-file fill in finally; its confinement regression must prove
+the descriptor is closed even if the caller makes no release call. Correct
+headless package fixtures for media English and Windows recorder resources.
+Describe required native/video-upload/provider-account support for the three
+unbound commands in every translated reference description; regenerate
+artifacts. The reference gate rejects current-session state assertions, so
+current availability remains in README and certification.
+The local package budget is verified separately from the still-owed universal
+macOS-artifact package and exact-package signature receipt.
+
+**M1 second review corrections (RVM105M12, 2026-10-06).** Resolve both P2
+findings inside the media core. Encoding close waits for a bounded in-flight
+resource check, then a final output/RSS sample; failures still count after
+close, and unavailable RSS cannot become zero or successful conversion.
+ISO-BMFF rejects duplicate unique structural boxes before classifying from
+one movie, and refuses a top-level header outside the bounded windows rather
+than assuming the rest contains no conflicting movie. Regression tests cover
+close races, unavailable/stalled/final readings, duplicate movies in both
+orders, other unique boxes and valid single-movie controls. Each guard gets
+a byte-exact red drill in `docs/certification/m105-m1-media-core-(a).md`.
+Existing localized refusal templates are retained. No new dependency, editor
+binding, gate change, branch merge or live/paid call is in scope.
+
+**E1 implementation plan (M105E1, 2026-10-06).** Work only in E1's
+attachment, composer, chip and command-loader regions, new host media modules,
+and their tests/certification. First implement bounded host-token admission
+against M1/M2's injected source/capability/part ports; then route picker and
+URI paste/drop without reading new media bytes in the browser; then implement
+the preview tab and interactive recorder command port. Preserve legacy image,
+PDF, text and ordinary mention behavior. Verify each new guard with a named
+regression and byte-exact red drill. Lane W owns bundle/manifest/reference/docs
+bindings and unchanged failing integrated gates; C/A own estimates and sound
+actions, and R1–R3 own driver implementations. Record all missing bindings by
+name in `docs/certification/m105-e1-vs-code-(a).md`. Zero live or paid calls.
+
+E1 progress: host-token admission, picker filters passed through `FileAccess`,
+confined URI paste/drop, media metadata chips, the recording preview and lazy
+command registrations are implemented. 690 owning regressions and 59
+byte-exact guard drills pass, as do scoped checks and four-theme/320px/960px
+UI receipts. No recorder, provider record, upload ownership or build
+configuration is guessed: their injected bindings are named W handoffs.
+Browser startup is 921659 bytes against 921600: E1 leaves a 59-byte excess
+for W's lazy-entry integration after two local reductions failed to meet the
+cap. The common-rule two-fix stop applies; no cap or gate is changed.
+
+**E2 implementation complete, integration pending (2026-10-06, MacBook rig).** ACP dispatches
+embedded blobs by declared MIME and sniffed bytes, advertises audio, and
+queues `/attach` and preview-approved `/record` between turns. Headless
+`exec --attach` repeats, confines local paths and rejects recording. Media
+`read_file` uses a bounded, identity-checked stream. E2 consumes the M1
+sniffers and M2 replay contracts through injected ports: W binds the selected
+capability record, metadata carrier/replay source, upload ledger, consent and
+exact media reservation; recorder lanes supply the user options/preview
+adapter. Missing bindings refuse before dispatch. No provider shape is
+guessed, no live/paid call is made, and no other lane's implementation is
+changed. The generic IO reader leaves format policy to the selected model;
+headless receipts contain metadata only. All 47 named red drills failed as
+intended and restored exact SHA-256 preimages. Certification and the six
+runtime/tool/recording/bundle/docs/editor handoffs are in
+[E2 certification](<docs/certification/m105-e2-acp,-headless-and-`read_file`-(a).md>).
+
+**E3 execution plan (linuxlt, 2026-10-06).** The `m105/e3` base has
+lane-0 media contracts and M1/M2, but no M104 companion server, MHP schemas,
+feature catalog, R3 browser recorder or U16/MSP video capture. Build against
+required injected ports; do not create replacement servers or wire guesses.
+Controls remount on the host attachment epoch, cancelling stale uploads and
+recordings on session changes. Only E3-owned modules and shared-file regions
+change. W owns shipped docs,
+reference entries, build entries and budgets; the certification names each
+binding and doc handoff.
+
+- [x] Guarded streamed companion upload: exact loopback Host/Origin, bearer,
+      custom header, Fetch Metadata, no cookies, byte cap, private temporary
+      file, sniffed metadata, cancellation and cleanup; fake HTTP regressions.
+- [x] Lazy accessible picker/drop/paste, upload Stop and recording preview UI;
+      browser recording uses R3's injected port, with explicit audio choices.
+- [x] Native `attachments/*` adapter behind a validated injected MHP port;
+      JCEF, WebView2 and SWT fake bridges, with no bytes in bridge frames.
+- [x] Muse Code refuses video/audio pending U16; prepare safe lazy video
+      presentation from approved resources without inventing MSP content.
+- [x] Byte-exact red drills, scoped default-timeout verification, local
+      hook-on commits and certification; no paid/live calls or branch merges.
+
+**M2 review corrections (RVM105M2, 2026-10-06).** Fix all three P2 findings
+within the existing media gate/replay/host regions. Select the actual inline
+or Files route before checking its byte limit, including replay promotions.
+Restore inline-only image/PDF bytes from the approved private source after
+authorization, validating size and digest; absent bytes become an explicit
+reattach refusal part and never enter the inline encoder as metadata.
+Admission and fitting account for all undelivered media across messages and
+steering, refusing an overfull pending turn before accepted media can be
+silently omitted. Preserve the no-media request goldens. Each fix has a
+regression and a byte-exact red drill in
+`docs/certification/m105-m2-wire,-gate-and-replay-(a).md`. Existing captured
+codec/source/consent/editor bindings and W's gates remain integration handoffs.
+
+**M1 review corrections (RVM105M1, 2026-10-06).** Resolve all three findings:
+discover converters only at explicit configured paths or documented installation
+locations, require the shared StrictModes/safe_path verifier before each version
+probe and encoding launch, and strictly parse a bounded version probe. The
+verifier is a required integration port while REDM104L3's `trustedPath.ts` is
+absent; an absent binding refuses conversion. Enforce the output-byte cap,
+RSS watchdog and deadline during encoding, with a portable RSS/governor binding
+required where the Linux kernel sampler is unavailable. Classify ISO-BMFF from
+`vide`/`soun` track handlers; unknown tracks refuse rather than claim video,
+and audio-only output cannot satisfy a video conversion. Lane A still owns
+wrapping audio with a still frame. Tests and byte-exact red drills are recorded
+in `docs/certification/m105-m1-media-core-(a).md`; no new dependency or wider
+guard. W owns the shipped docs, reference and host/bundle binding updates.
+
+**Lane F review corrections (RVM105F, 2026-10-05).** Serialize each session's
+saves and removals, check save generations before releasing references, and
+hold the account storage lock across ownership and session publication. Persist
+metadata-only recovery intents before save/delete mutations; listing retries
+interrupted saves and deletes idempotently, releasing ownership durably before
+removing a session. Combine caller cancellation with the Files request deadline
+for retrieve/list/delete. Always retrieve an existing upload before replacing it:
+local expiry timestamps alone cannot prove unavailability under provider clock
+skew. Each of the four findings gets a regression and byte-exact red drill in
+`docs/certification/m105-f.md`; existing lane W integration blockers remain.
+
+**FIXM105C review repair (2026-10-06).** Fix all four P2 findings and P3
+from `RVM105C`: canonical exact USD for media admission, bills and chips;
+one token reservation per request when a paid feature also applies;
+ceiling currency display with at least two significant sub-cent digits;
+calibration-cache write failures warn without replacing successful replies;
+and concurrent settlement/finalization shares one selected bill and one
+in-flight write, with retries limited to failed ledger writes. Add regressions,
+property checks and byte-exact red drills in
+`docs/certification/m105-c-cost-(b).md`. The absent shared USD helper is
+copied with the identical API from `m106/h` for the M106H/M108T handoff.
+No dependency, guard threshold, provider wire or paid/live call is added.
+The existing W-owned bundle and binding handoffs remain release blockers.
+
+**FIXM105A (RVM105A, 2026-10-06).** Repair the audio integration ports only:
+Stop cancels an unanswered consent wait (pass the turn signal into consent
+and race the wait); a validated billing receipt settles exactly once even
+when transcript text is rejected; admission and settlement preserve exact
+`Usd` through `src/shared/usd.ts`, which is absent on this base and will be
+restored from the local repository history (`5fd85846d`, nano-USD with
+liabilities rounded upward and caps downward), with tunables in constants.
+Billing is captured before text rejection; tally failure cannot skip the
+claim's one settlement. Extend the shared consent signature compatibly
+for the supplied signal. Regression tests and byte-restored red drills live
+in `docs/certification/m105-a-audio-(b).md`. Existing captured-adapter,
+converter, UI-budget and production-ledger bindings remain with their named
+integration owners. No guard, cap, paid default or credential path changes.
+
+**R1 review corrections (2026-10-06, FIXM105R1).** Fix all five
+RVM105R1 findings inside R1: keep one size/duration monitor alive through
+capture, writer close, soundtrack export and avconvert, killing owned work
+before refusal; require REDM104L3's trusted installed-path port and a pinned
+code-signature requirement before every helper launch (absent binding
+refuses); stop/finalize on native workspace sleep/display-sleep and injected
+host suspend; probe screen/microphone authorization and usable encoders
+without requesting permission; build localized InfoPlist.strings resources
+for all fourteen languages into the screen helper's signed application
+bundle. E1/E2/E3/W bind the trusted path, release signature requirement,
+host suspend and bundle packaging at integration. Each correction gets a
+regression and byte-exact restored red drill in
+`docs/certification/m105-r1-macos-recorder-(c).md`. No privacy changes,
+dependency, model call, guard widening, merge or push. Full quality belongs
+to the integrating lead under the lane rules; this rig runs owned checks.
+
+**R2 review corrections (RVM105R2, 2026-10-06).** Fix all six Windows
+findings in the owned helper/driver: atomic Stop/Cancel state, cancellation
+of every pending WinRT preparation operation, enforced native owner-PID
+lifetime for capture and latest import, shutdown admission before async
+driver preparation, bounded retryable private-preview deletion, and a
+translated file-access-denied refusal. Each gets a regression and a
+byte-exact red drill in `docs/certification/m105-r2-windows-recorder-(c).md`.
+No live/paid capture is authorized; this VM's direct capture stays explicitly
+unavailable, with the working-desktop/encoder receipt owed to the lead.
+
+**R3 final review repair, 2026-10-06 (RVM105R3B).** Fix the remaining P2:
+an unsuccessful encoder exit uses `media.recordingFailed`, already translated
+in all 14 tables, unless cancellation was requested. Stop and the duration
+limit do not imply cancellation; an encoder stop failure must terminate the
+writer without setting the cancellation flag. Regressions cover spontaneous,
+Stop and duration-limit failures alongside genuine cancellation, with
+byte-exact restored red drills in the R3 certification. Scope and the named
+native/editor and host API count handoffs remain unchanged.
+
+**R3 review repair, 2026-10-06 (RVM105R3).** Fix all five P2 findings in
+the owned Linux/companion recorder files: defer preview publication until
+portal closure and the final cancellation check; dispose on close failure;
+release setup busy state and owner listeners even when cleanup rejects;
+consume sound opt-ins for each recording; distinguish genuine permission
+denials from storage, encoder and preview failures with translated text.
+Each finding gets a failing-before regression and a byte-exact restored red
+drill in `docs/certification/m105-r3-linux-and-companion-recorders-(c).md`.
+No new dependency, guard widening or other lane implementation changes.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/meta-coverage-2026-10-05.md` §2. The work lands in four
 deliveries, in order:
@@ -41793,6 +42065,156 @@ checks. The lead retains the integrated quality/coverage/release gate. No gate
 or budget is weakened; the exact evidence is recorded in
 `docs/certification/help-reference.md`.
 
+**M105 W final gate scope (linuxlt, 2026-10-07).** The rig brief overrides
+bounded lane test scope with all configured files in batches of at most three,
+repository timeouts and three workers. Shared rules still forbid the aggregate
+quality command and external network. Run requested static/build/test/browser
+gates separately and serially. Local VSIX/ACP packaging uses the badge gate's
+existing named network deferral, only in those commands (never in hooks):
+`BADGE_CHECK_SKIP_NETWORK='M105W lane forbids external network; badge fetch
+remains lead-owned' npm run package` (and `npm run package:acp`). Validate
+staged text/version/l10n/listing and size; do not claim HTTP badge verification.
+Fresh audit, Semgrep auto-registry, downloaded VS Code integration, native
+OS, universal macOS-artifact packaging and hosted coverage remain lead-owned.
+Browser gates are attempted unchanged, with exact failures recorded if this
+rig cannot launch Chrome. No cap, threshold, hook or test is weakened.
+
+**M105-M1 second follow-up gate scope (RVM105M12, 2026-10-06).** The
+same rig override applies to these two P2 corrections: direct focused suites
+at default timeouts, no full quality/full unit run or branch merge. The eight
+resource/structure red drills restore source byte-exact. W's existing host
+record, browser-size and split-classification failures remain enforced and
+are reported in the lane certification; the lead owns the integrated gates.
+
+**M105-E1 bounded-lane gate scope (2026-10-06).** The rig brief forbids a
+full quality/full unit run and reserves manifest, generated reference/host
+records and bundle registration for W. Run owning files at the repository's
+default timeout, scoped lint/format, typecheck, dead-code, duplication,
+localization and production build directly on linuxlt. Keep inherited size
+and split gates enforced. Hook-on commits remain unmerged lane work; full
+quality is required on the integrated tree. Record receipts and handoffs in
+`docs/certification/m105-e1-vs-code-(a).md`. E1 also leaves a measured
+59-byte browser-startup excess (900.1/900 KiB) for W's lazy build integration
+after two failed local reductions, and the new preview's generated host-API
+inventory update. These are failures, not gate exemptions; the integrated
+quality gate must pass before proposing a product commit.
+
+**M105-E2 gate scope (2026-10-06).** The rig brief forbids aggregate quality
+and full-unit runs, merges and browser runs on this Chrome-free MacBook.
+E2 runs complete focused files with the repository default timeout, plus
+typecheck, scoped lint/format, localization, deadcode, duplication, host API
+and production build checks. W retains the enforced inherited bundle/split
+and generated importer-record failures and the full integrated gate. No cap,
+ignore, timeout or rule is weakened. Receipts and required bindings are in
+[E2 certification](<docs/certification/m105-e2-acp,-headless-and-`read_file`-(a).md>).
+The broader IO batch on Node 26 additionally exposed the unchanged reservation
+handle left open by the existing retargeted-fill test. Lead/IO-write owner
+must close that path and rerun the complete file; E2 does not edit reservation
+regions outside its media-read ownership. Production compilation succeeds:
+ACP 844.8/850 KiB, Model API 454.9/475 KiB; deferred browser stays 51.1/50 KiB.
+
+**M105-E3 gate scope (2026-10-06).** The rig brief forbids full quality
+and full unit runs, and reserves integration for the lead. Run focused tests
+with repository-default timeouts and all named lane checks directly on linuxlt.
+Keep inherited W-owned bundle/split/host-record failures enforced; add no cap,
+ignore or weakened rule. New lazy browser/runtime entries await W binding.
+Scoped E3 and existing regressions pass (113 + 143 tests); 63 guards have
+named red failures and byte-exact restoration. Production compilation passes,
+but the deferred-browser gate remains 51.1/50 KiB, `files.ts` and
+`codecs/responses.ts` still lack split classifications, and the generated host
+importer/style inventory is stale. E3's standalone split media graph measures
+194.5 KiB including shared dependencies; W must bind its own companion-page
+budget and include R3, without raising a cap. Full quality and installed-editor,
+Windows private-ACL and real browser-capture receipts remain lead handoffs.
+Receipts and doc/reference handoffs:
+`docs/certification/m105-e3-companion,-native-plugins,-muse-code-(a,-d).md`.
+
+**M105-M2 follow-up gate scope (RVM105M2, 2026-10-06).** The rig brief
+reserves full quality/full-unit and integrated cross-platform certification
+for the lead. Scoped regression files, typecheck, lint/format, dead-code,
+duplication, cycles, localization and production compilation run directly on
+Kubuntu. The enforced W handoffs remain red: deferred browser JS 51.1/50 KiB;
+`files.ts` and `codecs/responses.ts` missing from the backend split lists; and
+the generated host importer inventory (buffer 39→45, crypto 46→49, plus the
+inherited child_process/fs/fs-promises/os/path drift). W must repair them
+before integration. No cap, ignore, timeout or rule is weakened. The Model
+API bundle is 453.9/475 KiB. All three review findings are fixed; §9 records
+the named integration handoffs and why the unbound ports remain safe.
+Receipts: `docs/certification/m105-m2-wire,-gate-and-replay-(a).md`.
+
+**M105-M1 follow-up gate scope (RVM105M1, 2026-10-06).** The rig brief
+requires direct focused suites and forbids full quality/full unit runs and
+merging another branch. Full quality and cross-platform gates remain the
+lead's integrated-tree responsibility. Keep the existing W-owned host-record,
+deferred-browser-size and `files.ts` split blockers enforced; this lane fixes
+the three media-core findings with regressions and red drills, without
+changing a gate or cap. Results and exact commands are in
+`docs/certification/m105-m1-media-core-(a).md`.
+
+**M105-F gate deferral (RVM105F corrections, 2026-10-05).** The lane brief
+reserves full quality and integration for the lead. Required local checks are
+recorded in `docs/certification/m105-f.md`; the unchanged lane W blockers
+remain red: deferred browser JS 51.1/50 KiB, Files backend classification in
+the bundle-split check, and the generated Node crypto importer count 46 → 48.
+No gate, ignore or budget is changed. W must close these before integration;
+§9 records the named residuals and why this unmerged lane remains safe.
+
+**FIXM105C rig lane (2026-10-06).** The fix brief/common rules reserve the
+full quality/coverage/accessibility run for the lead; this lane runs all
+five typecheck projects, changed-file lint/format checks, owned whole-file
+tests at default timeouts, localization/host-API/deadcode/duplication and a
+production build. The pre-existing W-owned deferred-webview size and
+unlisted lazy chip split failures remain explicit integration deferrals;
+no cap, check, ignore or timeout is weakened. Exact money also introduces
+the shared USD helper used by M106H/M108T. The final production build reports
+903.1/900 KiB browser startup and 50.6/50 KiB deferred JS; the helper adds
+about 3.8 KiB to startup on this pre-diet base. W's existing diet and lazy
+surface registration are required before release. Final sizes, gate results and red
+drills are in `docs/certification/m105-c-cost-(b).md`.
+
+**FIXM105R1 gate ownership (2026-10-06).** The rig brief/common rules
+reserve full `npm run quality`, coverage and integration/package certification
+for the integrating lead and prohibit running that aggregate in this lane.
+R1 runs the five typecheck projects, changed-file lint/format, its entire
+owned unit file at the repository timeout, native permission-free suites,
+localization, deadcode, duplication, host API and the production build.
+The pre-existing generated host API record drift from R1's four Node imports
+remains W-owned; refresh it at integration, without weakening the gate.
+See `docs/certification/m105-r1-macos-recorder-(c).md` for exact receipts.
+
+**M105 R2 review-fix gate delegation (2026-10-06).** The lane brief and
+shared common rules prohibit aggregate `npm run quality` on this shared rig.
+Run the complete owned test files at the repository timeout, changed-file
+lint/format, typecheck, localization, deadcode, duplication, host API and
+production build directly on Win11. The lead owes full quality/coverage and
+the hosted matrix before integration; no gate or cap is weakened.
+The unchanged W-owned host API record still fails its previously recorded
+`node:path` importer count (84 → 85); portable-boundary checks pass. W must
+regenerate/review that record with the integrated recorder factory.
+
+**FIXM105R3 bounded repair certification (2026-10-06).** The rig brief and
+shared lane rules prohibit aggregate `npm run quality` and the full test
+suite. The repair runs all four owned test files with the default timeout,
+the 11 byte-exact restored red drills, all-project typecheck, changed-file
+lint/format, dead-code, duplication, localization and production build here.
+The lead retains integrated full quality/coverage/native/editor gates.
+No gate, threshold, test filter, timeout or hook is changed.
+
+**FIXM105R3B final repair certification (2026-10-06).** The same bounded
+gate scope applies. The remaining encoder-exit P2 has regressions for
+spontaneous, Stop and duration-limit exits, including failed automatic Stop,
+and two byte-exact restored red drills. Existing genuine cancellation
+assertions now check the exact reason. The existing failure message is used
+at runtime and retains its translations in all 14 tables. No review finding
+is deferred; the two named integration/gate residuals below remain.
+
+**M105-R3-host-api-count deferral.** `npm run check:host-api` exits 1 on
+the same pre-existing generated count as the original R3 receipt:
+`node:path` importers 84 → 85. The repair adds no imports or host API calls.
+W owns `docs/ide-compatibility/host-api.md`, outside the repair's scope, and
+must regenerate/review that row on the integrated source. The check is not
+weakened or claimed green; see §9 and the R3 certification.
+
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
 scoped tests. Typecheck, changed-file lint/format, localization (source and staged),
@@ -46822,9 +47244,14 @@ proof remains WINPUB on win11 for the lead's release batch.
 | -------------------------------------- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/host/models/modelsPanelBundle.ts` | `value is ModelsPanelBundle` | Both callable factories come from one typed build/package; missing exports fail closed, and real factories are exercised with fake services. | 2026-10-05 |
 
-| M95 K repair file                     | Construct                                                    | Reason                                                                                                                                                    | Added      |
-| ------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/models/modelsPanelEntry.ts` | `eslint-disable-next-line @typescript-eslint/unbound-method` | Capture the exact surface method for restoration and invoke it with its original receiver through `call`; the receipt test covers forwarding and refusal. | 2026-10-05 |
+| M95 K repair file                                    | Construct                                                    | Reason                                                                                                                                                    | Added      |
+| ---------------------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/models/modelsPanelEntry.ts`                | `eslint-disable-next-line @typescript-eslint/unbound-method` | Capture the exact surface method for restoration and invoke it with its original receiver through `call`; the receipt test covers forwarding and refusal. | 2026-10-05 |
+| M105 E1 adds one trusted in-process signature guard: |
+
+| Location                                                    | Escape hatch                                    | Reason                                                                                                                                                                                             |
+| ----------------------------------------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/host/media/screenRecordBundle.ts:isScreenRecordBundle` | Function signature after export-shape narrowing | Loader and recorder/preview factory ship from the same source/build; runtime checks object/export type, owning tests prove malformed exports refuse and retry. No cast, `any` or lint suppression. |
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
@@ -47580,6 +48007,210 @@ before a repaired one loads (2026-09-30).
   claim ships. Follow-up: integrate and certify actual native/phone adapters
   under the IDE compatibility milestones. RVHELPREF 1–23 retain no false-claim
   residual; this boundary is recorded explicitly for finding 16.
+
+- **M105-E2-runtime-and-tool-bindings (W/M95/M2/F/C/A/recorders).** E2's
+  adapters, metadata receipts, blob dispatch and checked streams are covered
+  by focused SDK/filesystem tests and 47 byte-exact red drills. The default
+  runtime has no media factory or tool preparation port on this base: media
+  refuses before dispatch. W must bind the capability record, source/carrier
+  replay, provider/account ownership, Contributor/soundtrack consent and exact
+  headless liability accounting, and consume `ToolOutcome.mediaFile` through
+  the shared media budget before enabling it. Recorder callbacks are available
+  only to interactive user commands after options and Attach/Discard preview;
+  headless recording is refused. W owns lazy bundle exports, shipped docs/help,
+  reference/editor records and visual gates. The unchanged importer/split and
+  51.1/50 KiB browser-budget failures remain enforced. The separate inherited
+  Node 26 reservation-handle failure belongs to the lead/IO-write owner; its
+  reservation region is byte-identical to the base. No live/paid call, cap
+  increase, new dependency or full-quality claim is made. Receipts:
+  [E2 certification](<docs/certification/m105-e2-acp,-headless-and-`read_file`-(a).md>).
+
+- **M105-E3-bindings (M104 C/0/b–d, F/M2/A/C, R3, W and lead).** The base
+  lacks the companion server, outer MHP envelope/native bridges, real browser
+  recorder and U16/MSP video capture. Required injected ports keep unavailable
+  bindings explicit; E3 opens no listener, uploads to no provider by default
+  and refuses uncaptured Muse Code media. Bind the guarded route only after
+  the launch exchange, with captured session epochs and abort-on-replacement;
+  mount controls with the host attachment epoch. Admission must enforce the
+  selected model, formats/limits, Contributor/storage consent and paid rules;
+  consumption must finish reading before temporary deletion and release
+  cancelled/stale provider references. Native bridges own confinement and
+  interactive-user provenance; recordings always preview before Attach.
+  Windows needs private user ACL verification. W binds lazy entries, budgets,
+  resource resolution, docs/reference and repairs the enforced inherited
+  gates. Actual capture and installed-IDE receipts remain required; no product
+  availability is claimed by these fakes. Each handoff is named in
+  `docs/certification/m105-e3-companion,-native-plugins,-muse-code-(a,-d).md`.
+
+- **M105-M2-review-and-bindings (RVM105M2, W/V/E1/E2/C/A).** All three P2
+  findings are fixed with regressions and byte-exact red drills in
+  `docs/certification/m105-m2-wire,-gate-and-replay-(a).md`; no review finding
+  is deferred. The existing integration handoffs still require captured
+  provider codecs and capability records, approved private source adapters,
+  provider/account ledgers, and price/Contributor/soundtrack admission across
+  editors. The lazy host adapter must forward `pending` and
+  `assertPendingFits`; the captured codec's new `source` omission must state
+  that the attachment is unavailable and needs reattachment. Inline image/PDF
+  restore checks authorization, size and SHA-256 before encoding; other
+  unavailable inline formats refuse explicitly. Overfull pending turns use
+  existing localized `removeAttachmentNamed` hints. W owns shipped
+  README/CHANGELOG/reference updates because these ports remain unbound here.
+- **M105-M2-W-gate-handoff (W).** The inherited deferred browser JavaScript
+  size overage, generated host API importer counts and backend split-list
+  registration remain W responsibilities. The inline restore adds Node buffer
+  and crypto imports to the portable replay module, which the generated host
+  inventory must include. No gate is weakened, no full quality or live/paid
+  certification is claimed, and these ports remain unavailable without their
+  required bindings. W must repair the gates within their current budgets
+  before integrating or enabling the feature.
+
+- **M105-M1-resource-monitor-binding (M107/W/E1/E2).** RVM105M1's encoding
+  resource finding is fixed by the growing-output watcher, hard RSS watchdog
+  and encoding/sample deadlines. On this base M107's process ticket is absent;
+  Linux uses its kernel RSS sampler and other platforms require the native
+  sampler port. Without it encoding refuses. Integration binds the governor
+  ticket where available and provides equivalent monitoring in every editor.
+  The alternate process port must enforce the same limits and await close,
+  settle any in-flight sample and supply a final output/RSS sample before
+  success (RVM105M12). A reaped Linux PID whose `/proc` reading is unavailable
+  refuses; it is never substituted with zero. Integration must retain a
+  verifiable final reading through the governor/native sampler to enable
+  successful conversion after reaping. This safe refusal is part of the
+  existing monitor binding handoff, not a deferred review finding.
+  Certification: `docs/certification/m105-m1-media-core-(a).md`. No review
+  finding is deferred.
+- **M105-M1-trusted-converter-binding (REDM104L3/W/E1/E2).** All RVM105M1
+  converter-trust guards consume the shared `TrustedPathVerifier` seam. This
+  base lacks `src/runtime/trustedPath.ts`; without a verified binding discovery
+  and conversion refuse. Integration binds its canonical-path/component
+  owner/mode/symlink checks for every editor, before each probe and encoding
+  launch. Unversioned avconvert is unavailable until a real version probe is
+  captured and supported; verified ffmpeg remains the alternative. Tests and
+  drills: `docs/certification/m105-m1-media-core-(a).md`. No review finding is
+  deferred and no gate is weakened.
+
+- **M105-F-integration-gates (RVM105F corrections).** All four review findings
+  are fixed with regressions and red drills (`docs/certification/m105-f.md`).
+  The existing lane W handoffs remain: deferred browser JS exceeds 50 KiB,
+  `files.ts` lacks bundle-split classification, and the generated host record
+  still counts 46 rather than 48 Node crypto importers. Safe for this unmerged
+  lane because these gates continue to reject integration/release. Follow-up:
+  W binds the media/account page, classifies the module and regenerates the
+  host record; the lead runs full quality on the integrated tree. No cap or
+  gate is weakened here.
+- **M105-F-binding-and-capture-evidence.** Provider/account storage and its
+  cross-process lock, U6c storage admission, replay/export and editor bridges
+  remain required injected bindings; the capture workspace and round-2 raw
+  expiry/Date/retrieval evidence are not available to this lane. Safe for now:
+  uploads require explicit storage admission, ownership requires durable
+  storage, and existing uploads are retrieved rather than expired by the local
+  clock. Follow-up: W/M2/E2/E3 bind the documented ports across editors, and the
+  lead supplies the capture provenance and billing decision before enabling
+  M105. No live Meta expiry claim follows from the synthetic skew regression.
+
+- **FIXM105C-W-integration (2026-10-06).** The four RVM105C P2 findings
+  and P3 are repaired in lane C; release still waits on W's existing lazy
+  surface registration/bundle fitting, real calibration/tariff/store and
+  editor bindings. Money now crosses media ledger and chip ports as
+  canonical decimal strings with the identical M106H/M108T `Usd` API.
+  Follow-up: W binds exact authoritative journal amounts and independently
+  admitted hosted fees, fits the unchanged bundle caps, runs the full gate
+  and captures the remaining receipts. Safe for now: this base constructs
+  media accounting only in tests and does not enable paid uploads, hosted
+  fees, headless media or a new production dispatch. These are explicit
+  integration handoffs, not accepted unfixed review defects. Certification:
+  `docs/certification/m105-c-cost-(b).md`.
+
+- **M105-A-PAID-EXACT-BINDING (FIXM105A).** RVM105A's three findings are
+  fixed in the portable batch ports and consent wait. The production batch
+  HTTP adapter and D78/M82 ledger binding are still absent, as recorded in
+  `docs/certification/m105-a-audio-(b).md` (A-U18-BATCH, A-PAID-DAILY).
+  Safe for now: these ports have no production caller, so no batch money is
+  admitted into the legacy numeric journals. Follow-up: W/paid owner must
+  carry the exact `Usd` amounts through durable admission, accumulation,
+  cap comparison and one settlement; a number conversion for display
+  cannot become a new arithmetic boundary. Repeat the $0.50 / 1000-bill
+  regression through the real ledger when binding it. Captures and existing
+  converter/UI/editor handoffs remain required; this repair claims none.
+
+- **M105-R1-integration (FIXM105R1, 2026-10-06).** No RVM105R1 P2/P3
+  finding is accepted unfixed. R1's portable driver requires the trusted-root
+  verifier from REDM104L3, trusted release code-signature requirements for
+  the entire helper bundle, and the host suspend subscription. It refuses
+  recording when a binding is absent. W/E1/E2/E3 must bind these ports,
+  package `native/darwin/muse-dictate-screen.app` with all signed resources,
+  and use its `Contents/MacOS/muse-dictate` path. The existing bare dictation
+  helper is retained for existing dictation bindings. With today's ad-hoc
+  universal build, trusted release metadata must pin **both** architecture
+  CDHashes in the designated requirement; a future Team ID requirement
+  must name the expected team and identifier. A requirement derived from
+  the file under test is not a trust anchor. Safe for now: no recorder entry
+  point or unverified helper can launch from this lane. Follow-up: W's
+  exact-package tests and all editor bindings before recorder reachability.
+- **M105-R1-live-validation (FIXM105R1, 2026-10-06).** Actual capture,
+  permission prompts, sleep/wake and macOS 12.0–12.2 remain uncertified on
+  this permission-free rig. These are validation residuals, not findings
+  left unfixed. Safe for now: native and portable guards have injected-event
+  and synthetic-encoder regressions; integration keeps recording unreachable
+  until the named live/editor/package receipts pass. Follow-up: W completes
+  the live cases in `docs/certification/m105-r1-macos-recorder-(c).md` on
+  authorized rigs without changing this rig's privacy settings.
+
+- **M105-R2-direct-runtime-receipt (RVM105R2 / 6).** The pending-operation
+  cancellation gap is fixed and exercised with fake pending WinRT operations.
+  A genuinely hung encoder, direct H.264/AAC recording, sound synchronization,
+  native Stop/close/suspend and permission recovery still lack working-desktop
+  receipts; this VM has no WGC. Safe for this unmerged lane because direct
+  recording is explicitly unavailable here and is not certified or advertised.
+  Follow-up: lead runs the generated encoder smoke and M105 acceptance 14 on
+  GPU hardware before enabling direct capture.
+- **M105-R2-forced-exit-preview.** Owner death cancels the helper and an
+  independent native watchdog forces exit if work does not settle within two
+  seconds. Cooperative latest-copy cancellation deletes its partial preview.
+  A forced exit or a persistent filesystem lock can leave a private preview;
+  bounded driver cleanup reports exhaustion and later calls can retry. Safe
+  for now: the protected owner-only DACL remains, nothing attaches/uploads
+  automatically, and the helper cannot keep running after owner death.
+  Follow-up W/E1/E2: bind confined removal and orphan-preview purge and prove
+  them with a crash/locked-file integration receipt before claiming support.
+- **M105-R2-latest-provenance.** Latest import uses the file's modification
+  time, as the existing contract does; a refreshed old file can win over a
+  newer recording. Folder membership and age do not prove capture provenance.
+  Safe for now: the copied file is sniffed, bounded and previewed, and only
+  explicit Attach sends it. Follow-up: lead settles the timestamp policy and
+  keeps the UI's provenance claim limited to a recent file in that folder.
+- **M105-R2-host-api-record.** The existing generated host record still has
+  84 `node:path` importers while the source has 85, as recorded before RVM105R2.
+  Safe only as an unmerged lane: the unchanged gate continues to reject the
+  stale record, and the portable driver has no `vscode` dependency. Follow-up
+  W: regenerate/review the owned record at integration; do not call full
+  quality green until then.
+
+- **M105-R3-host-api-count (gate/documentation residual, 2026-10-06).**
+  The source's existing `node:path` importer count is 85, but the generated
+  host API record says 84. Safe for now: this affects the count only; the
+  repair adds no host API/import surface and the 332 VS Code APIs are
+  unchanged. Follow-up: R3-W regenerates the host API record with
+  `npm run check:host-api -- --write` and reruns the check after integration.
+  This is not a deferred RVM105R3 finding.
+
+- **M105-R3-native-bindings (RVM105R3 repair, 2026-10-06).** All five
+  reviewed P2 findings are fixed with failing-before regressions and restored
+  red drills; none is deferred. Native portal/encoder permission receipts,
+  private-file OS deletion guarantees and companion upload/editor wiring
+  remain the existing R3-PORTAL, R3-TRUSTED-LAUNCH, R3-PRIVATE-PREVIEW and
+  R3-COMPANION-E3/R3-W handoffs. Safe for now: these ports/modules are not
+  exposed by this base's shipped entry points; every failure refuses a
+  preview and cleanup is attempted before releasing ownership. Follow-up:
+  integration binds owner-only storage and orphan cleanup, translates only
+  genuine portal denials to NotAllowedError, and certifies every editor's
+  shared driver/companion path. Removal can fail at the OS; the fake cleanup
+  regressions certify attempts and busy/listener release, not guaranteed
+  physical deletion. See the R3 certification record for the 11 repair drills.
+  RVM105R3B's remaining encoder-exit P2 is also fixed: failed exits and
+  internal Stop failures return the translated failure guidance, while the
+  explicit cancellation/lifecycle flag determines cancellation. Two further
+  red drills prove that distinction; no RVM105R3B finding is deferred.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

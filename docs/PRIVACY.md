@@ -987,3 +987,17 @@ In the ACP runtime, sharing refreshes its already-known credential-variable
 values and the stored key of an active Model API backend. A key that becomes
 known after preview invalidates release if it appears anywhere in the portable
 document, including JSON strings. Standalone save/list/use never read a key.
+
+## Multimodal integration boundary (M105)
+
+Video/audio provider delivery and native recording are not yet enabled by the
+production bindings. Their portable adapters are tested with fakes. Once
+bound, uploads send file bytes to the selected provider and persist until the
+configured expiry or successful deletion; session deletion releases ownership
+before deleting an unshared upload. Metadata alone is retained in history and
+exports; exports omit provider file IDs. Contributor models may train on the
+inputs. A screen recording includes visible screen content; microphone and
+system sound require separate opt-ins, and Attach follows a private preview.
+Discard deletes local temporary bytes. Unknown storage billing refuses upload;
+batch transcription requires price/budget consent before any paid request.
+See [M105 certification](certification/m105.md) for the missing bindings.

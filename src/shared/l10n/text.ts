@@ -90,8 +90,11 @@ export function formatPercent(percent: number): string {
 export function formatUsd(
   amount: number,
   fractionDigits: number,
-  maximumFractionDigits = fractionDigits,
+  digitsOrRounding: number | 'halfExpand' | 'ceil' = fractionDigits,
 ): string {
+  const maximumFractionDigits =
+    typeof digitsOrRounding === 'number' ? digitsOrRounding : fractionDigits
+  const roundingMode = typeof digitsOrRounding === 'number' ? 'halfExpand' : digitsOrRounding
   const notation =
     maximumFractionDigits > fractionDigits &&
     amount > 0 &&
@@ -99,13 +102,14 @@ export function formatUsd(
       ? 'scientific'
       : 'standard'
   return numberFormat(
-    `usd:${String(fractionDigits)}:${String(maximumFractionDigits)}:${notation}`,
+    `usd:${String(fractionDigits)}:${String(maximumFractionDigits)}:${notation}:${roundingMode}`,
     {
       style: 'currency',
       currency: 'USD',
       minimumFractionDigits: fractionDigits,
       maximumFractionDigits,
       notation,
+      roundingMode,
     },
   ).format(amount)
 }

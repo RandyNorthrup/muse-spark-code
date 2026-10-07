@@ -55,6 +55,30 @@ describe('PaidUseConsent (M58)', () => {
     expect(log.info).toHaveBeenLastCalledWith('Paid use of webSearch: allowed once')
   })
 
+  it('ends a signaled wait on Stop while preserving the shared unanswered popup', async () => {
+    const answer = Promise.withResolvers<PaidUseAnswer>()
+    const t = consentWith({ answer: () => answer.promise })
+    const stop = new AbortController()
+    const remove = vi.spyOn(stop.signal, 'removeEventListener')
+    const waiting = t.consent.allows(SEARCH, false, stop.signal)
+    const failed = expect(waiting).rejects.toThrow('stopped')
+    stop.abort(new Error('stopped'))
+    await failed
+    expect(remove).toHaveBeenCalledWith('abort', expect.any(Function))
+    expect(t.writes).toEqual([])
+    answer.resolve('always')
+    await expect(t.consent.allows(SEARCH)).resolves.toBe(true)
+    expect(t.grants()).toEqual(new Set(['webSearch']))
+  })
+
+  it('does not open a popup for an already stopped caller', async () => {
+    const t = consentWith()
+    const stop = new AbortController()
+    stop.abort(new Error('already stopped'))
+    await expect(t.consent.allows(SEARCH, false, stop.signal)).rejects.toThrow('already stopped')
+    expect(t.ask).not.toHaveBeenCalled()
+  })
+
   it('refuses a feature that is off without asking', async () => {
     const t = consentWith({ on: [] })
     await expect(t.consent.allows(SEARCH)).resolves.toBe(false)

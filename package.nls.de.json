@@ -195,5 +195,12 @@
   "command.savePrompt.title": "Prompt speichern",
   "command.useSavedPrompt.title": "Gespeicherten Prompt verwenden…",
   "command.copyToMyPrompts.title": "In meine Prompts kopieren",
-  "config.syncPromptsAndBookmarks.description": "Prompts für alle Arbeitsbereiche in die Einstellungssynchronisierung spiegeln. Arbeitsbereich-Prompts bleiben lokal."
+  "config.syncPromptsAndBookmarks.description": "Prompts für alle Arbeitsbereiche in die Einstellungssynchronisierung spiegeln. Arbeitsbereich-Prompts bleiben lokal.",
+  "command.attachScreenRecording.title": "Bildschirmaufnahme anhängen…",
+  "command.attachLatestScreenRecording.title": "Neueste Bildschirmaufnahme anhängen",
+  "command.deleteUploadedFiles.title": "Hochgeladene Dateien löschen…",
+  "config.mediaMaxUploadMiB.description": "Größte Mediendatei in MiB, die die Erweiterung öffnet. Standard 200; Maximum 1.024. Größere Dateien werden vor dem Lesen abgelehnt. Es gilt nur die Einstellung dieses Computers.",
+  "config.mediaUploadExpiryDays.description": "Tage, die ein Upload beim Anbieter gelistet bleibt, bevor eine Bereinigung angeboten wird. Standard 7; 1–30. Über den Ablauf entscheidet der Anbieter; ein Upload, auf den eine andere Sitzung verweist, wird nie gelöscht. Es gilt nur die Einstellung dieses Computers.",
+  "config.screenRecordingMaxSeconds.description": "Längste Bildschirmaufnahme der Erweiterung, in Sekunden. Standard 120; 10–600. Die Aufnahme stoppt am Limit und behält das Aufgenommene. Es gilt nur die Einstellung dieses Computers.",
+  "config.mediaAudioAction.description": "`transcribe` wandelt angehängtes Audio vor dem Senden in Text um; `sendAudio` sendet das Audio, wo das Modell es annimmt. Standard ist Transkription. Die Transkription berechnet den kostenpflichtigen Voicetarif, immer erst nach Zustimmung. Es gilt nur die Einstellung dieses Computers."
 }

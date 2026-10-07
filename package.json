@@ -378,6 +378,21 @@
         "command": "museSpark.shareChat",
         "title": "%command.shareChat.title%",
         "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.attachScreenRecording",
+        "title": "%command.attachScreenRecording.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.attachLatestScreenRecording",
+        "title": "%command.attachLatestScreenRecording.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.deleteUploadedFiles",
+        "title": "%command.deleteUploadedFiles.title%",
+        "category": "%command.category%"
       }
     ],
     "keybindings": [
@@ -498,6 +513,18 @@
         },
         {
           "command": "museSpark.legalScan",
+          "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
+        },
+        {
+          "command": "museSpark.attachScreenRecording",
+          "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
+        },
+        {
+          "command": "museSpark.attachLatestScreenRecording",
+          "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
+        },
+        {
+          "command": "museSpark.deleteUploadedFiles",
           "when": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible"
         }
       ],
@@ -1328,6 +1355,40 @@
           "scope": "machine",
           "default": false,
           "description": "%config.syncPromptsAndBookmarks.description%"
+        },
+        "museSpark.mediaMaxUploadMiB": {
+          "type": "integer",
+          "default": 200,
+          "minimum": 1,
+          "maximum": 1024,
+          "description": "%config.mediaMaxUploadMiB.description%",
+          "scope": "machine"
+        },
+        "museSpark.mediaUploadExpiryDays": {
+          "type": "integer",
+          "default": 7,
+          "minimum": 1,
+          "maximum": 30,
+          "description": "%config.mediaUploadExpiryDays.description%",
+          "scope": "machine"
+        },
+        "museSpark.screenRecordingMaxSeconds": {
+          "type": "integer",
+          "default": 120,
+          "minimum": 10,
+          "maximum": 600,
+          "description": "%config.screenRecordingMaxSeconds.description%",
+          "scope": "machine"
+        },
+        "museSpark.mediaAudioAction": {
+          "type": "string",
+          "enum": [
+            "transcribe",
+            "sendAudio"
+          ],
+          "default": "transcribe",
+          "description": "%config.mediaAudioAction.description%",
+          "scope": "machine"
         }
       }
     },
@@ -1421,7 +1482,7 @@
     "typecheck:e2e": "tsc -p test/e2e/tsconfig.json --noEmit",
     "typecheck:integration": "tsc -p test/integration/tsconfig.json --noEmit",
     "deadcode": "knip",
-    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/runtime/runtimeEngineEntry.ts src/host/backend/providerPolicyEntry.ts src/runtime/runtimeAccountingEntry.ts src/core/backends/modelapi/modelApiHooksEntry.ts src/core/backends/modelapi/modelApiMcpEntry.ts src/shared/wireEntry.ts src/shared/modelApiBoundariesEntry.ts src/extension.ts src/host/conversation/conversationEntry.ts src/host/judge/judgeEntry.ts src/host/tab/tabEntry.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/core/backends/modelapi/foreignHooksEntry.ts src/core/backends/modelapi/pluginHooksEntry.ts src/core/backends/modelapi/hookRuntimeEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts src/host/browser/browserCheckEntry.ts src/host/browser/browserRuntimeEntry.ts src/host/whatsNew/whatsNewEntry.ts src/webview/whatsNew/main.ts src/host/git/conversationGitEntry.ts src/host/backend/providersEntry.ts src/shared/validationEntry.ts src/host/models/modelsPanelEntry.ts src/webview/models/models.tsx src/host/teamViewBundle.ts src/core/team/teamEntry.ts src/core/team/teamSchedulerEntry.ts src/host/runners/teamRunnersEntry.ts src/core/legal/entry.ts src/runtime/usage/usageServiceEntry.ts src/runtime/usage/usageCompanionEntry.ts src/host/usage/usagePanelEntry.ts src/webview/usage/usage.tsx src/host/backend/subscriptionsEntry.ts src/host/backend/configuredProvidersEntry.ts src/runtime/exec/runExec.ts src/acp/questionDeferralEntry.ts src/runtime/questions/questionRegistryEntry.ts src/host/prompts/promptEntry.ts src/runtime/sharing/sharingEntry.ts",
+    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/runtime/runtimeEngineEntry.ts src/host/backend/providerPolicyEntry.ts src/runtime/runtimeAccountingEntry.ts src/core/backends/modelapi/modelApiHooksEntry.ts src/core/backends/modelapi/modelApiMcpEntry.ts src/shared/wireEntry.ts src/shared/modelApiBoundariesEntry.ts src/extension.ts src/host/conversation/conversationEntry.ts src/host/judge/judgeEntry.ts src/host/tab/tabEntry.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/core/backends/modelapi/foreignHooksEntry.ts src/core/backends/modelapi/pluginHooksEntry.ts src/core/backends/modelapi/hookRuntimeEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts src/host/browser/browserCheckEntry.ts src/host/browser/browserRuntimeEntry.ts src/host/whatsNew/whatsNewEntry.ts src/webview/whatsNew/main.ts src/host/git/conversationGitEntry.ts src/host/backend/providersEntry.ts src/shared/validationEntry.ts src/host/models/modelsPanelEntry.ts src/webview/models/models.tsx src/host/teamViewBundle.ts src/core/team/teamEntry.ts src/core/team/teamSchedulerEntry.ts src/host/runners/teamRunnersEntry.ts src/core/legal/entry.ts src/runtime/usage/usageServiceEntry.ts src/runtime/usage/usageCompanionEntry.ts src/host/usage/usagePanelEntry.ts src/webview/usage/usage.tsx src/host/backend/subscriptionsEntry.ts src/host/backend/configuredProvidersEntry.ts src/runtime/exec/runExec.ts src/acp/questionDeferralEntry.ts src/runtime/questions/questionRegistryEntry.ts src/host/prompts/promptEntry.ts src/runtime/sharing/sharingEntry.ts src/host/media/mediaEntry.ts src/host/media/screenRecordEntry.ts",
     "duplication": "jscpd",
     "test": "run-s test:unit test:integration",
     "test:unit": "vitest run --coverage",

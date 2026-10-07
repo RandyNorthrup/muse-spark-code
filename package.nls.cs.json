@@ -195,5 +195,12 @@
   "command.savePrompt.title": "Uložit prompt",
   "command.useSavedPrompt.title": "Použít uložený prompt…",
   "command.copyToMyPrompts.title": "Zkopírovat do mých promptů",
-  "config.syncPromptsAndBookmarks.description": "Zrcadlit prompty pro všechny pracovní prostory do synchronizace nastavení. Prompty pracovního prostoru zůstávají místní."
+  "config.syncPromptsAndBookmarks.description": "Zrcadlit prompty pro všechny pracovní prostory do synchronizace nastavení. Prompty pracovního prostoru zůstávají místní.",
+  "command.attachScreenRecording.title": "Přiložit záznam obrazovky…",
+  "command.attachLatestScreenRecording.title": "Přiložit nejnovější záznam obrazovky",
+  "command.deleteUploadedFiles.title": "Odstranit nahrané soubory…",
+  "config.mediaMaxUploadMiB.description": "Největší mediální soubor, který rozšíření otevře, v MiB. Výchozí 200; maximum 1 024. Větší soubory jsou odmítnuty před čtením. Použije se jen nastavení tohoto počítače.",
+  "config.mediaUploadExpiryDays.description": "Počet dní, po které zůstane nahrání u poskytovatele v seznamu, než se nabídne úklid. Výchozí 7; 1–30. O expiraci rozhoduje poskytovatel; nahrání, na které odkazuje jiná relace, se nikdy neodstraní. Použije se jen nastavení tohoto počítače.",
+  "config.screenRecordingMaxSeconds.description": "Nejdelší záznam obrazovky, který rozšíření pořídí, v sekundách. Výchozí 120; 10–600. Záznam se na limitu zastaví a zachová, co pořídil. Použije se jen nastavení tohoto počítače.",
+  "config.mediaAudioAction.description": "`transcribe` převede připojený zvuk na text před odesláním; `sendAudio` odešle zvuk tam, kde ho model přijímá. Výchozí je přepis. Přepis účtuje placenou hlasovou sazbu, vždy až po souhlasu. Použije se jen nastavení tohoto počítače."
 }
