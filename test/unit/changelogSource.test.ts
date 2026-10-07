@@ -5,7 +5,7 @@ import path from 'node:path'
 import * as fileSystem from 'node:fs/promises'
 import { changelogSource } from '../../src/core/reporting/sources/changelog'
 import { certificationSource } from '../../src/core/reporting/sources/certification'
-import { packageSource } from '../../src/core/reporting/sources/package'
+import { matchTaskNames, packageSource } from '../../src/core/reporting/sources/package'
 import { LocalSourceError, type LocalFileIo } from '../../src/core/reporting/sources/local'
 import { reportFileIo } from '../../src/runtime/reporting/sources'
 import { reportOptions, REPORT_FIXTURE_AS_OF } from './helpers/reporting/snapshot'
@@ -150,6 +150,104 @@ describe('local report files', () => {
       'typecheck:host',
     ])
     expect(JSON.stringify(result)).not.toContain('private-note')
+  })
+  it('matches run-s globs like the runner instead of prefix-matching them', async () => {
+    const result = await packageSource(
+      files(
+        JSON.stringify({
+          scripts: {
+            quality: 'run-s lint:*:ci lint:**',
+            'lint:a:ci': 'eslint a',
+            'lint:a:dev': 'eslint a-dev',
+            'lint:a:b:ci': 'eslint a-b',
+          },
+        }),
+      ),
+      (value) => value,
+    ).read(context())
+    // `lint:*:ci` selects only the single-segment name; `lint:**` selects all three.
+    expect(result.data?.qualityScripts.map((row) => row.name)).toEqual([
+      'lint:a:b:ci',
+      'lint:a:ci',
+      'lint:a:dev',
+      'quality',
+    ])
+    const single = await packageSource(
+      files(
+        JSON.stringify({
+          scripts: {
+            quality: 'run-s lint:*:ci',
+            'lint:a:ci': 'eslint a',
+            'lint:a:dev': 'eslint a-dev',
+            'lint:a:b:ci': 'eslint a-b',
+          },
+        }),
+      ),
+      (value) => value,
+    ).read(context())
+    expect(single.data?.qualityScripts.map((row) => row.name)).toEqual(['lint:a:ci', 'quality'])
+  })
+  it('matches every task-pattern shape exactly like the installed runner', () => {
+    const names = [
+      'lint',
+      'lint:a',
+      'lint:a:ci',
+      'lint:a:dev',
+      'lint:a:b:ci',
+      'lint:ab:ci',
+      'quality',
+      'typecheck:host',
+      'a:b:c',
+      'ab',
+      'A:B',
+      'x-y:z',
+      'a:b:c:d',
+    ]
+    const cases: readonly (readonly [string, readonly string[]])[] = [
+      ['lint', ['lint']],
+      ['lint:*', ['lint:a']],
+      ['lint:*:ci', ['lint:a:ci', 'lint:ab:ci']],
+      ['lint:**', ['lint:a', 'lint:a:ci', 'lint:a:dev', 'lint:a:b:ci', 'lint:ab:ci']],
+      ['lint:a:**:ci', ['lint:a:ci', 'lint:a:b:ci']],
+      ['**:ci', ['lint:a:ci', 'lint:a:b:ci', 'lint:ab:ci']],
+      ['*', ['lint', 'quality', 'ab']],
+      ['*:b', []],
+      ['a:?', []],
+      ['a:[bc]', []],
+      ['a:[!b]x', []],
+      ['a:{b,c}:d', []],
+      ['{a:b,a:c}', []],
+      ['lint:{a,ab}:ci', ['lint:a:ci', 'lint:ab:ci']],
+      ['A:*', ['A:B']],
+      ['x-*:z', ['x-y:z']],
+      ['a:{b}', []],
+      ['a:[', []],
+      ['a:{b,c', []],
+      ['nomatchhere', []],
+      ['a:b:c:*', ['a:b:c:d']],
+      [
+        '**',
+        [
+          'lint',
+          'lint:a',
+          'lint:a:ci',
+          'lint:a:dev',
+          'lint:a:b:ci',
+          'lint:ab:ci',
+          'quality',
+          'typecheck:host',
+          'a:b:c',
+          'ab',
+          'A:B',
+          'x-y:z',
+          'a:b:c:d',
+        ],
+      ],
+      ['?', []],
+      ['[ab]*', ['ab']],
+    ]
+    for (const [token, expected] of cases)
+      expect(matchTaskNames(names, token), token).toEqual(expected)
   })
   it('refuses private names, traversal and Windows separators before reading', async () => {
     const io = reportFileIo(root, process.platform)
