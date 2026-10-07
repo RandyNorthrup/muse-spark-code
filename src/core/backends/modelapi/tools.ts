@@ -24,6 +24,8 @@ import {
   LIST_FILES_DEFAULT_LIMIT,
   MAX_DOCUMENT_BYTES,
   MAX_IMAGE_BYTES,
+  BYTES_PER_MIB,
+  MEDIA_MAX_UPLOAD_DEFAULT_MIB,
   MODEL_API_MODEL_TEXT,
   MODEL_API_SUBAGENT_TOOLS,
   MODEL_API_TOOLS,
@@ -46,7 +48,10 @@ import {
   VERIFY_TOOLS,
 } from '../../../shared/constants'
 import { ADD_MARKER, type PatchFile, REMOVE_MARKER } from '../../../shared/patchDocument'
-import { fill, formatNumber, plural } from '../../../shared/l10n/text'
+import { fill, formatBytes, formatNumber, formatUnit, plural } from '../../../shared/l10n/text'
+import { uploadedMediaRefSchema, type UploadedMediaRef } from '../../../shared/media'
+import type { MediaFileInfo } from '../../media/limits'
+import type { UploadSource } from './files'
 import type { DocumentPart, ImagePart } from '../../agent/agentBackend'
 import type { Owner } from '../../checkpoints/toolWrites'
 import { changeHunk } from '../../codeIntel/codeText'
@@ -151,6 +156,17 @@ export type SearchWorkerMessage =
 
 /** What the host lends the tools: files, a matcher it can stop, and a shell. */
 export interface ToolIo {
+  /** Lazy M105 read: bounded sniff/hash on one checked handle; upload reopens and checks it again. */
+  readonly readMedia?: (
+    absolutePath: string,
+    maxBytes: number,
+    expectedCanonicalPath: string,
+    signal?: AbortSignal,
+  ) => Promise<
+    | ReadMediaFile
+    | { readonly kind: 'other'; readonly reason: string; readonly isPdf?: boolean }
+    | undefined
+  >
   /**
    * The file's text, a UTF-8 BOM kept; undefined when it does not exist.
    * Rejects for a file that is not UTF-8 text (binary, UTF-16, Latin-1…):
@@ -328,6 +344,10 @@ export interface TurnEnd {
 
 export interface ToolContext {
   readonly isInteractiveShell?: boolean
+  /** W binds selected-model admission, consent, exact reservation and the session upload ledger. */
+  readonly media?: {
+    readonly prepare: (file: ReadMediaFile, signal?: AbortSignal) => Promise<UploadedMediaRef>
+  }
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   /**
@@ -404,6 +424,13 @@ export interface VisibleFile {
   readonly part: ImagePart | DocumentPart
 }
 
+/** Private approved source, never serialized with a tool outcome. */
+export interface ReadMediaFile {
+  readonly info: MediaFileInfo
+  readonly sha256: string
+  readonly source: UploadSource
+}
+
 /**
  * The workspace files a call touched (M78), for the dispatcher's live policy
  * fence: the policy as it stands when the outcome is built must still allow
@@ -441,6 +468,13 @@ export interface ToolOutcome {
   readonly patch?: { readonly document: string; readonly summary: PatchSummary }
   /** `read_file` of a PDF or an image: the file itself, sent after the round's outputs. */
   readonly visibleFile?: VisibleFile
+  /** Metadata only. W feeds this file-id into M2 replay and its shared media budget after the round. */
+  readonly mediaFile?: {
+    readonly info: MediaFileInfo
+    readonly file: UploadedMediaRef
+    readonly lead: string
+    readonly notDelivered: string
+  }
   /** `run_checks` (M68): what the row sums up. */
   readonly verifySummary?: VerifySummary
   /** An edit's `then_run` (M68): the command's result beside the edit's. */
@@ -994,11 +1028,58 @@ function patchOutcome(
 
 /** What `read_file` sends whole by the path's name (M54): a PDF, an image, or neither. */
 function visualKindOf(relative: string): 'pdf' | 'image' | undefined {
-  const extension = path.extname(relative).toLowerCase()
+  const extension = path.posix.extname(relative.replaceAll('\\', '/')).toLowerCase()
   if (extension === PDF_EXTENSION) {
     return 'pdf'
   }
   return Object.hasOwn(IMAGE_EXTENSIONS, extension) ? 'image' : undefined
+}
+
+async function readMediaFile(
+  file: { readonly relative: string; readonly checkedAbsolute: string },
+  context: ToolContext,
+): Promise<ToolOutcome> {
+  if (context.io.readMedia === undefined || context.media === undefined)
+    return failure(UI_TEXT.media.uploadStorageUnknown)
+  try {
+    context.signal?.throwIfAborted()
+    const read = await context.io.readMedia(
+      file.checkedAbsolute,
+      MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB,
+      file.checkedAbsolute,
+      context.signal,
+    )
+    if (read === undefined)
+      return failure(
+        `file not found: ${file.relative}`,
+        fill(UI_TEXT.toolVisualFileMissing, { path: file.relative }),
+      )
+    if ('kind' in read) return failure(read.reason)
+    const uploaded = uploadedMediaRefSchema.parse(await context.media.prepare(read, context.signal))
+    context.signal?.throwIfAborted()
+    if (
+      uploaded.sha256 !== read.sha256 ||
+      uploaded.bytes !== read.info.sizeBytes ||
+      uploaded.mime !== read.info.mediaType
+    )
+      throw new Error(fill(UI_TEXT.media.sourceChanged, { name: uploaded.name }))
+    const visibleOutput = fill(UI_TEXT.media.replayMetadata, {
+      name: uploaded.name,
+      duration:
+        read.info.durationSeconds === null
+          ? UI_TEXT.media.durationUnknown
+          : formatUnit(read.info.durationSeconds, 'second'),
+      size: formatBytes(read.info.sizeBytes),
+    })
+    return {
+      output: fill(MODEL_API_MODEL_TEXT.toolFileFollows, { path: file.relative }),
+      visibleOutput,
+      mediaFile: { ...readFileLines(file.relative), info: read.info, file: uploaded },
+    }
+  } catch (error: unknown) {
+    if (context.signal?.aborted === true) throw error
+    return failure(error instanceof Error ? error.message : String(error))
+  }
 }
 
 /** The model's lines around a file `read_file` read (M54). */
@@ -1180,6 +1261,8 @@ async function readFile(
     ...(resolved.extraRoot !== undefined && { extraRoot: resolved.extraRoot }),
   }
   const visual = visualKindOf(resolved.relative)
+  if (/\.(?:mp4|mov|mp3|wav|webm|mkv|m4a)$/iu.test(resolved.relative.replaceAll('\\', '/')))
+    return { ...(await readMediaFile(resolved, context)), touched }
   if (visual !== undefined) {
     return { ...(await readVisual(resolved, visual, context)), touched }
   }

@@ -2571,6 +2571,8 @@
     "cwd": "Bu dizini çalışma alanı olarak kullanın.",
     "prompt-file": "İstemi bu dosyadan okuyun.",
     "untrusted-file": "Bu dosyayı güvenilmeyen veri olarak ekleyin; diğer dosyalar için seçeneği tekrarlayın.",
+    "attach": "Bu medya dosyasını ekleyin; daha fazla dosya için seçeneği yineleyin.",
+    "record": "Headless çalıştırmalarda reddedilir: kaydı önizleyecek kimse yok.",
     "permission-mode": "Muse'un harekete geçmeden önce nasıl soracağını seçin.",
     "model": "Bu çalıştırmanın modelini seçin.",
     "effort": "Muse'un her yanıta ayırdığı çabayı seçin.",

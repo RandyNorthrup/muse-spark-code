@@ -61,6 +61,8 @@ export const EN = {
     cwd: 'Use this directory as the workspace.',
     'prompt-file': 'Read the prompt from this file.',
     'untrusted-file': 'Attach this file as untrusted data; repeat the option for more files.',
+    attach: 'Attach this media file; repeat the option for more files.',
+    record: 'Refused for headless runs: nobody is there to preview a recording.',
     'permission-mode': 'Choose how Muse asks before it acts.',
     model: 'Choose the model for this run.',
     effort: 'Choose how much effort Muse puts into each reply.',

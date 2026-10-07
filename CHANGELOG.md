@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- M105 ACP and headless entry points: `/attach <path>` and `/record` between
+  turns, audio blocks gated on the model record, `resource_link` reads under
+  the workspace confinement, and blob routing for PDF, video, audio, image
+  and unknown types. Headless `exec --attach <path>` repeats; `--record` is
+  refused; `read_file` reads mp4, mp3 and wav under the media budget.
 - M105 Files API transport: stream approved media with progress, Stop,
   SHA-256 and mandatory expiry; validate provider receipts and reject
   redirects and ambiguous upload retries. Storage admission and lazy

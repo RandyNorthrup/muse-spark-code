@@ -2763,6 +2763,8 @@
     "cwd": "Użyj tego katalogu jako obszaru roboczego.",
     "prompt-file": "Odczytaj polecenie z tego pliku.",
     "untrusted-file": "Dołącz ten plik jako niezaufane dane; powtórz opcję dla kolejnych plików.",
+    "attach": "Załącz ten plik multimedialny; dla kolejnych plików powtórz opcję.",
+    "record": "Odmowa w trybach headless: nie ma nikogo, kto obejrzałby nagranie.",
     "permission-mode": "Wybierz, jak Muse pyta, zanim zacznie działać.",
     "model": "Wybierz model dla tego uruchomienia.",
     "effort": "Wybierz, ile wysiłku Muse wkłada w każdą odpowiedź.",

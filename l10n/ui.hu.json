@@ -2571,6 +2571,8 @@
     "cwd": "Ezt a könyvtárat használja munkaterületként.",
     "prompt-file": "Az utasítás beolvasása ebből a fájlból.",
     "untrusted-file": "A fájl csatolása nem megbízható adatként; további fájlokhoz ismételje meg az opciót.",
+    "attach": "Csatolja ezt a médiafájlt; további fájlokhoz ismételje meg a kapcsolót.",
+    "record": "Fej nélküli futtatáskor elutasítva: nincs, aki megnézze a felvételt.",
     "permission-mode": "Válassza ki, hogyan kérdezzen a Muse, mielőtt cselekszik.",
     "model": "A futtatás modelljének kiválasztása.",
     "effort": "Válassza ki, mennyi erőfeszítést tegyen a Muse az egyes válaszokba.",

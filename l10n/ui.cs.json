@@ -2763,6 +2763,8 @@
     "cwd": "Použít tento adresář jako pracovní prostor.",
     "prompt-file": "Načíst zadání z tohoto souboru.",
     "untrusted-file": "Připojit soubor jako nedůvěryhodná data; pro další soubory volbu opakujte.",
+    "attach": "Přiložte tento mediální soubor; pro další soubory volbu opakujte.",
+    "record": "Pro bezobslužná spuštění odmítnuto: záznam nemá kdo prohlédnout.",
     "permission-mode": "Zvolte, jak se Muse ptá, než začne jednat.",
     "model": "Vybrat model pro tento běh.",
     "effort": "Zvolte, kolik úsilí Muse věnuje každé odpovědi.",

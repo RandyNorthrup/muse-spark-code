@@ -8,6 +8,7 @@
 // terminal would give, with credential variables fenced (D89.5).
 
 import { spawn } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { existsSync, type BigIntStats } from 'node:fs'
 import { type FileHandle, lstat, mkdir, open, rm } from 'node:fs/promises'
 import path from 'node:path'
@@ -50,6 +51,8 @@ import {
   HOOK_OUTPUT_MAX_BYTES,
   HOOK_STDIN_MAX_BYTES,
   MAX_DOCUMENT_BYTES,
+  MEDIA_MAX_UPLOAD_MIB,
+  UI_TEXT,
   MODEL_TEXT,
   PDF_HEADER_WINDOW_BYTES,
   SEARCH_TIMEOUT_MS,
@@ -61,6 +64,7 @@ import {
   WINDOWS_POWERSHELL_RELATIVE_PATH,
   WINDOWS_POWERSHELL_UTF8_PREAMBLE,
 } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import { canonicalPath } from '../canonicalPath'
 import { foldersMade, writeFileAtomically, writeFileIfUnchanged } from '../fsAtomic'
 import { killTree, type ProcessTreeDeps, type ShellJob, treeSpawnOptions } from '../processTree'
@@ -510,6 +514,119 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
   const configuredHookShell = deps.env()['SHELL']
   const hookProgram = hookProgramFor(deps, configuredHookShell)
   return {
+    async readMedia(absolutePath, maxBytes, expectedCanonicalPath, signal) {
+      if (
+        !Number.isSafeInteger(maxBytes) ||
+        maxBytes <= 0 ||
+        maxBytes > MEDIA_MAX_UPLOAD_MIB * BYTES_PER_MIB
+      )
+        throw new RangeError('Invalid media read limit')
+      signal?.throwIfAborted()
+      const media = await import('../../core/media/limits')
+      let file: FileHandle
+      try {
+        file = await open(absolutePath, 'r')
+      } catch (error: unknown) {
+        if (isMissingFile(error)) return
+        throw error
+      }
+      try {
+        const identity = await checkedOpenedFile(
+          absolutePath,
+          file,
+          expectedCanonicalPath,
+          deps.platform,
+        )
+        const metadata = await file.stat()
+        const { size } = metadata
+        if (!Number.isSafeInteger(size) || size <= 0 || size > maxBytes)
+          throw new Error(UI_TEXT.execFileTooLarge)
+        let isPdfFile = false
+        const sniffed = await media.sniffMedia({
+          sizeBytes: size,
+          read: async (offset, length) => {
+            signal?.throwIfAborted()
+            const chunk = Buffer.alloc(length)
+            const { bytesRead } = await file.read(chunk, 0, length, offset)
+            if (offset === 0) isPdfFile = isPdf(chunk.subarray(0, bytesRead))
+            return chunk.subarray(0, bytesRead)
+          },
+        })
+        signal?.throwIfAborted()
+        if (!sniffed.ok) return { kind: 'other', reason: sniffed.reason, isPdf: isPdfFile }
+        const admission = media.checkMediaLimits(sniffed.info, {
+          maxUploadBytes: maxBytes,
+          acceptedMediaTypes: [sniffed.info.mediaType],
+        })
+        if (!admission.ok) throw new Error(admission.reason)
+        const name = path.basename(absolutePath)
+        const changed = () => new Error(fill(UI_TEXT.media.sourceChanged, { name }))
+        async function* chunks(handle: FileHandle, active?: AbortSignal) {
+          let offset = 0
+          for (;;) {
+            active?.throwIfAborted()
+            const chunk = Buffer.allocUnsafe(
+              Math.min(BOUNDED_FILE_READ_CHUNK_BYTES, size + 1 - offset),
+            )
+            const { bytesRead } = await handle.read(chunk, 0, chunk.length, offset)
+            if (bytesRead === 0) break
+            offset += bytesRead
+            if (offset > size) throw changed()
+            yield chunk.subarray(0, bytesRead)
+          }
+          if (offset !== size) throw changed()
+          const after = await handle.stat()
+          if (
+            after.size !== size ||
+            after.mtimeMs !== metadata.mtimeMs ||
+            after.ctimeMs !== metadata.ctimeMs
+          )
+            throw changed()
+          const current = await checkedOpenedFile(
+            absolutePath,
+            handle,
+            expectedCanonicalPath,
+            deps.platform,
+          )
+          if (!sameFile(identity, current)) throw changed()
+        }
+        const hash = createHash('sha256')
+        for await (const chunk of chunks(file, signal)) hash.update(chunk)
+        const sha256 = hash.digest('hex')
+        return {
+          info: sniffed.info,
+          sha256,
+          source: {
+            name,
+            mime: sniffed.info.mediaType,
+            bytes: size,
+            open: async function* (active) {
+              active.throwIfAborted()
+              const held = await open(absolutePath, 'r')
+              try {
+                const current = await checkedOpenedFile(
+                  absolutePath,
+                  held,
+                  expectedCanonicalPath,
+                  deps.platform,
+                )
+                if (!sameFile(identity, current)) throw changed()
+                const digest = createHash('sha256')
+                for await (const chunk of chunks(held, active)) {
+                  digest.update(chunk)
+                  yield chunk
+                }
+                if (digest.digest('hex') !== sha256) throw changed()
+              } finally {
+                await held.close()
+              }
+            },
+          },
+        }
+      } finally {
+        await file.close()
+      }
+    },
     async readFile(absolutePath, expectedCanonicalPath) {
       let bytes: Uint8Array
       try {

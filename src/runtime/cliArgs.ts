@@ -18,8 +18,9 @@ import {
   UI_TEXT,
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
-import { parseExec, type ExecOptions } from './exec/execArgs'
+import { parseExec } from './exec/execArgs'
 import { questionDeferSeconds } from '../shared/questionDeadline'
+import { parseAttachArgs, type ExecAttachmentOptions } from './exec/attachArgs'
 
 export interface ServeOptions {
   /** Which account pays; chosen here, never guessed (D62). */
@@ -52,7 +53,7 @@ export interface ReportOptions {
 
 export type RuntimeCommand =
   | { readonly command: 'setup'; readonly options: ServeOptions; readonly maintenance: boolean }
-  | { readonly command: 'exec'; readonly options: ExecOptions }
+  | { readonly command: 'exec'; readonly options: ExecAttachmentOptions }
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
   | { readonly command: 'report'; readonly options: ReportOptions }
   | { readonly command: 'serve'; readonly options: ServeOptions }
@@ -167,17 +168,14 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
 
 function parseHeadless(argv: readonly string[]): RuntimeCommand {
   try {
-    const isScan = argv[0] === 'scan-secrets'
-    const { values, positionals } = parseArgs({
-      args: argv.slice(1),
-      allowPositionals: true,
-      strict: true,
-      options: isScan
-        ? CLI_OPTION_REGISTRY['scan-secrets'].options
-        : CLI_OPTION_REGISTRY.exec.options,
-    })
-    if (values.help === true) return { command: 'help', all: true }
-    if (isScan)
+    if (argv[0] === 'scan-secrets') {
+      const { values, positionals } = parseArgs({
+        args: argv.slice(1),
+        allowPositionals: true,
+        strict: true,
+        options: CLI_OPTION_REGISTRY['scan-secrets'].options,
+      })
+      if (values.help === true) return { command: 'help', all: true }
       return positionals.length === 1 && positionals[0] !== undefined
         ? {
             command: 'scan-secrets',
@@ -185,10 +183,28 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
             keyFromStdin: values['key-stdin'] === true,
           }
         : { command: 'invalid', reason: UI_TEXT.execScanUsage, exitCode: 2 }
-    const { help: _help, ...options } = values
+    }
+    const { values, positionals } = parseArgs({
+      args: argv.slice(1),
+      allowPositionals: true,
+      strict: true,
+      options: CLI_OPTION_REGISTRY.exec.options,
+    })
+    if (values.help === true) return { command: 'help', all: true }
+    const { help: _help, attach, record, ...options } = values
+    if (record === true)
+      return { command: 'invalid', reason: UI_TEXT.media.recordingUserOnly, exitCode: 2 }
+    const attachments = parseAttachArgs(attach)
+    if (!attachments.ok) return { command: 'invalid', reason: attachments.reason, exitCode: 2 }
     const parsed = parseExec(options, positionals)
     return parsed.ok
-      ? { command: 'exec', options: parsed.options }
+      ? {
+          command: 'exec',
+          options: {
+            ...parsed.options,
+            ...(attachments.files.length > 0 && { attachFiles: attachments.files }),
+          },
+        }
       : { command: 'invalid', reason: parsed.reason, exitCode: 2 }
   } catch (error: unknown) {
     return {

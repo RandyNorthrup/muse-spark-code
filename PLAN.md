@@ -25252,6 +25252,22 @@ Browser startup is 921659 bytes against 921600: E1 leaves a 59-byte excess
 for W's lazy-entry integration after two local reductions failed to meet the
 cap. The common-rule two-fix stop applies; no cap or gate is changed.
 
+**E2 implementation complete, integration pending (2026-10-06, MacBook rig).** ACP dispatches
+embedded blobs by declared MIME and sniffed bytes, advertises audio, and
+queues `/attach` and preview-approved `/record` between turns. Headless
+`exec --attach` repeats, confines local paths and rejects recording. Media
+`read_file` uses a bounded, identity-checked stream. E2 consumes the M1
+sniffers and M2 replay contracts through injected ports: W binds the selected
+capability record, metadata carrier/replay source, upload ledger, consent and
+exact media reservation; recorder lanes supply the user options/preview
+adapter. Missing bindings refuse before dispatch. No provider shape is
+guessed, no live/paid call is made, and no other lane's implementation is
+changed. The generic IO reader leaves format policy to the selected model;
+headless receipts contain metadata only. All 47 named red drills failed as
+intended and restored exact SHA-256 preimages. Certification and the six
+runtime/tool/recording/bundle/docs/editor handoffs are in
+[E2 certification](<docs/certification/m105-e2-acp,-headless-and-`read_file`-(a).md>).
+
 **M2 review corrections (RVM105M2, 2026-10-06).** Fix all three P2 findings
 within the existing media gate/replay/host regions. Select the actual inline
 or Files route before checking its byte limit, including replay promotions.
@@ -29790,6 +29806,20 @@ after two failed local reductions, and the new preview's generated host-API
 inventory update. These are failures, not gate exemptions; the integrated
 quality gate must pass before proposing a product commit.
 
+**M105-E2 gate scope (2026-10-06).** The rig brief forbids aggregate quality
+and full-unit runs, merges and browser runs on this Chrome-free MacBook.
+E2 runs complete focused files with the repository default timeout, plus
+typecheck, scoped lint/format, localization, deadcode, duplication, host API
+and production build checks. W retains the enforced inherited bundle/split
+and generated importer-record failures and the full integrated gate. No cap,
+ignore, timeout or rule is weakened. Receipts and required bindings are in
+[E2 certification](<docs/certification/m105-e2-acp,-headless-and-`read_file`-(a).md>).
+The broader IO batch on Node 26 additionally exposed the unchanged reservation
+handle left open by the existing retargeted-fill test. Lead/IO-write owner
+must close that path and rerun the complete file; E2 does not edit reservation
+regions outside its media-read ownership. Production compilation succeeds:
+ACP 844.8/850 KiB, Model API 454.9/475 KiB; deferred browser stays 51.1/50 KiB.
+
 **M105-M2 follow-up gate scope (RVM105M2, 2026-10-06).** The rig brief
 reserves full quality/full-unit and integrated cross-platform certification
 for the lead. Scoped regression files, typecheck, lint/format, dead-code,
@@ -31187,6 +31217,23 @@ before a repaired one loads (2026-09-30).
   claim ships. Follow-up: integrate and certify actual native/phone adapters
   under the IDE compatibility milestones. RVHELPREF 1–23 retain no false-claim
   residual; this boundary is recorded explicitly for finding 16.
+
+- **M105-E2-runtime-and-tool-bindings (W/M95/M2/F/C/A/recorders).** E2's
+  adapters, metadata receipts, blob dispatch and checked streams are covered
+  by focused SDK/filesystem tests and 47 byte-exact red drills. The default
+  runtime has no media factory or tool preparation port on this base: media
+  refuses before dispatch. W must bind the capability record, source/carrier
+  replay, provider/account ownership, Contributor/soundtrack consent and exact
+  headless liability accounting, and consume `ToolOutcome.mediaFile` through
+  the shared media budget before enabling it. Recorder callbacks are available
+  only to interactive user commands after options and Attach/Discard preview;
+  headless recording is refused. W owns lazy bundle exports, shipped docs/help,
+  reference/editor records and visual gates. The unchanged importer/split and
+  51.1/50 KiB browser-budget failures remain enforced. The separate inherited
+  Node 26 reservation-handle failure belongs to the lead/IO-write owner; its
+  reservation region is byte-identical to the base. No live/paid call, cap
+  increase, new dependency or full-quality claim is made. Receipts:
+  [E2 certification](<docs/certification/m105-e2-acp,-headless-and-`read_file`-(a).md>).
 
 - **M105-M2-review-and-bindings (RVM105M2, W/V/E1/E2/C/A).** All three P2
   findings are fixed with regressions and byte-exact red drills in

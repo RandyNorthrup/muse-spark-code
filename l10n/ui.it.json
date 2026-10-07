@@ -2667,6 +2667,8 @@
     "cwd": "Usare questa cartella come area di lavoro.",
     "prompt-file": "Leggere la richiesta da questo file.",
     "untrusted-file": "Allegare questo file come dati non attendibili; ripetere l’opzione per altri file.",
+    "attach": "Allega questo file multimediale; ripeti l’opzione per altri file.",
+    "record": "Rifiutato nelle esecuzioni headless: nessuno può visualizzare in anteprima la registrazione.",
     "permission-mode": "Scegli come Muse chiede prima di agire.",
     "model": "Scegliere il modello per questa esecuzione.",
     "effort": "Scegli quanto impegno Muse dedica a ogni risposta.",

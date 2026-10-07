@@ -60,13 +60,15 @@ import {
   DEFAULT_EFFORT,
   type EffortLevel,
   MSP_REQUESTED_CAPABILITIES,
+  MAX_ATTACHMENTS_PER_MESSAGE,
   type PermissionMode,
   QUESTION_DEFER_DEFAULT_SECONDS,
   UI_TEXT,
   SLASH_COMMAND_NAMES,
 } from '../shared/constants'
 import { effortForThinking, effortLabel, effortLevelsFor, isEffortLevel } from '../shared/effort'
-import { fill, uiLocale } from '../shared/l10n/text'
+import { fill, formatBytes, formatUnit, uiLocale } from '../shared/l10n/text'
+import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from './media'
 import { parseSkillInvocation } from '../shared/mentions'
 import type { PaidUseRequest } from '../shared/paid'
 import {
@@ -123,6 +125,8 @@ export interface AcpAgentOptions {
   readonly allowsContributorModels: boolean
   readonly initialMode: PermissionMode
   readonly questionsDeferAfterSeconds?: number
+  /** Headless exec cannot invoke user entry points, even through a prompt. */
+  readonly isHeadless?: boolean
 }
 
 /** How the user signs in to the chosen backend (D61, D62). */
@@ -151,6 +155,8 @@ export interface AcpAgentDeps {
   readonly questionClock?: QuestionClock
   /** Same-build factory loader; tests inject the source factory. */
   readonly questionBundle?: () => AcpQuestionBundle
+  /** W's lazy runtime binding; absent media entry points refuse before dispatch. */
+  readonly media?: AcpMediaFactory
   /**
    * Report a problem (M93 lane A, PLAN.md D72): facts-only error observation
    * for the standalone report's journal. The runtime wires this to its local
@@ -199,6 +205,7 @@ type PromptOutcome = { readonly reason: StopReason } | { readonly error: unknown
 
 interface PreparingPrompt {
   isCancelled: boolean
+  readonly controller: AbortController
   error?: unknown
 }
 
@@ -236,6 +243,8 @@ class AcpSession {
   private readonly questionRegistry: AcpQuestionRegistry | undefined
   private questions: AcpQuestionDeferral | undefined
   private readonly questionBundle: () => AcpQuestionBundle
+  private media: Promise<AcpMediaPort> | undefined
+  private readonly attachments: AcpAttachment[] = []
   private readonly translator: UpdateTranslator
   private unsubscribe: (() => void) | undefined
   private readonly approvals = new Map<string, ApprovalRequest>()
@@ -390,9 +399,22 @@ class AcpSession {
       sessionUpdate: 'available_commands_update',
       availableCommands: [
         { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
+        ...(this.deps.media === undefined || this.deps.options.isHeadless === true
+          ? []
+          : [
+              {
+                name: 'attach',
+                description: UI_TEXT.paletteTips.attachFile,
+                input: { hint: '<path>' },
+              },
+              { name: 'record', description: UI_TEXT.media.attachRecording, input: null },
+            ]),
         ...this.skills
           .filter(
-            (skill) => ![SLASH_COMMAND_NAMES.help, 'answer', 'questions'].includes(skill.selector),
+            (skill) =>
+              ![SLASH_COMMAND_NAMES.help, 'answer', 'questions', 'attach', 'record'].includes(
+                skill.selector,
+              ),
           )
           .map((skill) => ({
             name: skill.selector,
@@ -407,6 +429,73 @@ class AcpSession {
             ]),
       ],
     })
+  }
+
+  private mediaPort(): Promise<AcpMediaPort> {
+    const factory = this.deps.media
+    if (factory === undefined)
+      throw RequestError.invalidParams(undefined, UI_TEXT.media.uploadStorageUnknown)
+    this.media ??= factory({
+      cwd: this.cwd,
+      sessionId: this.sessionId,
+      backend: this.deps.backend.kind,
+      modelId: () => this.modelId,
+      interactive: this.deps.options.isHeadless !== true,
+    })
+    return this.media
+  }
+
+  private async mediaCommand(
+    blocks: readonly ContentBlock[],
+    signal: AbortSignal,
+  ): Promise<boolean> {
+    const [first] = blocks
+    if (blocks.length !== 1 || first?.type !== 'text') return false
+    const text = first.text.trim()
+    const attach = /^\/attach(?:\s+(.+))?$/su.exec(text)
+    const isRecord = text === '/record'
+    if (attach === null && !isRecord) return false
+    if (isRecord && this.deps.options.isHeadless === true)
+      throw RequestError.invalidParams(undefined, UI_TEXT.media.recordingUserOnly)
+    if (this.attachments.length >= MAX_ATTACHMENTS_PER_MESSAGE)
+      throw RequestError.invalidParams(undefined, UI_TEXT.attachmentLimit)
+    const given = attach?.[1]?.trim()
+    if (!isRecord && (given === undefined || given === ''))
+      throw RequestError.invalidParams(undefined, UI_TEXT.attachmentUnreadable)
+    const port = await this.mediaPort()
+    signal.throwIfAborted()
+    let attachment: AcpAttachment | undefined
+    try {
+      attachment = isRecord ? await port.record(signal) : await port.attach(given ?? '', signal)
+    } catch (error: unknown) {
+      if (signal.aborted) throw error
+      throw RequestError.invalidParams(
+        undefined,
+        error instanceof Error ? error.message : UI_TEXT.attachmentUnreadable,
+      )
+    }
+    if (attachment === undefined) return true
+    if (signal.aborted || this.isDisposed) {
+      await attachment.dispose?.()
+      signal.throwIfAborted()
+      throw RequestError.resourceNotFound(this.sessionId)
+    }
+    this.attachments.push(attachment)
+    this.send({
+      sessionUpdate: 'agent_message_chunk',
+      content: {
+        type: 'text',
+        text: fill(UI_TEXT.media.replayMetadata, {
+          name: attachment.name,
+          duration:
+            'durationSeconds' in attachment.info && attachment.info.durationSeconds !== null
+              ? formatUnit(attachment.info.durationSeconds, 'second')
+              : UI_TEXT.media.durationUnknown,
+          size: formatBytes(attachment.info.sizeBytes),
+        }),
+      },
+    })
+    return true
   }
 
   private onEvent(event: AgentEvent): void {
@@ -920,48 +1009,63 @@ class AcpSession {
     if (this.pending !== undefined || this.preparing !== undefined) {
       throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
     }
-    const parsed = promptParts(blocks, this.cwd)
-    if (!parsed.ok) {
-      throw RequestError.invalidParams(undefined, parsed.reason)
-    }
-    if (
-      parsed.parts.length === 1 &&
-      parsed.parts[0]?.type === 'text' &&
-      parsed.parts[0].text.trim() === `/${SLASH_COMMAND_NAMES.help}`
-    ) {
-      const preparing: PreparingPrompt = { isCancelled: false }
-      this.preparing = preparing
-      try {
-        await this.announceCommands()
-      } finally {
-        this.preparing = undefined
-      }
-      if ('error' in preparing) throw preparing.error
-      if (preparing.isCancelled) {
-        await this.outbox
-        return 'cancelled'
-      }
-      this.send({
-        sessionUpdate: 'agent_message_chunk',
-        content: {
-          type: 'text',
-          text: compactReference([
-            ...this.skills
-              .map((skill) => skill.selector)
-              .filter((name) => !['answer', 'questions'].includes(name)),
-            ...(this.questionRegistry === undefined ? [] : ['questions', 'answer']),
-          ]),
-        },
-      })
-      await this.outbox
-      return 'end_turn'
-    }
-    const preparing: PreparingPrompt = { isCancelled: false }
+    const preparing: PreparingPrompt = { isCancelled: false, controller: new AbortController() }
     this.preparing = preparing
-    let queued: readonly TurnPart[]
+    let parsed: Awaited<ReturnType<typeof promptParts>>
+    let questionQueued: readonly TurnPart[]
     try {
+      if (await this.mediaCommand(blocks, preparing.controller.signal)) {
+        await this.announceCommands()
+        await this.outbox
+        return preparing.isCancelled ? 'cancelled' : 'end_turn'
+      }
+      const isNeedsMedia = blocks.some(
+        (block) =>
+          block.type === 'audio' ||
+          block.type === 'resource_link' ||
+          (block.type === 'resource' &&
+            'blob' in block.resource &&
+            !/^(?:image\/|application\/pdf$)/u.test(block.resource.mimeType ?? '')),
+      )
+      const media =
+        isNeedsMedia && this.deps.media !== undefined ? await this.mediaPort() : undefined
+      parsed = await promptParts(
+        blocks,
+        this.cwd,
+        media,
+        this.deps.backend.kind === 'modelApi',
+        preparing.controller.signal,
+      )
+      if (!parsed.ok) throw RequestError.invalidParams(undefined, parsed.reason)
+      if (
+        parsed.parts.length === 1 &&
+        parsed.parts[0]?.type === 'text' &&
+        parsed.parts[0].text.trim() === `/${SLASH_COMMAND_NAMES.help}`
+      ) {
+        await this.announceCommands()
+        this.send({
+          sessionUpdate: 'agent_message_chunk',
+          content: {
+            type: 'text',
+            text: compactReference([
+              ...this.skills
+                .map((skill) => skill.selector)
+                .filter((name) => !['answer', 'questions'].includes(name)),
+              ...(this.questionRegistry === undefined ? [] : ['questions', 'answer']),
+            ]),
+          },
+        })
+        await this.outbox
+        return 'end_turn'
+      }
       await this.announceCommands()
-      queued = (await this.questionRegistry?.queuedParts()) ?? []
+      questionQueued = (await this.questionRegistry?.queuedParts()) ?? []
+    } catch (error: unknown) {
+      if ('error' in preparing) throw preparing.error
+      if (!preparing.isCancelled) throw error
+      await this.questionRegistry?.acknowledgeQueued('notTaken')
+      await this.outbox
+      return 'cancelled'
     } finally {
       this.preparing = undefined
     }
@@ -989,16 +1093,32 @@ class AcpSession {
       }
     })
     try {
+      const mediaQueued = [...this.attachments]
       const starting = this.session.sendTurn(
-        [...queued, ...this.withSkill(parsed.parts)],
+        [
+          ...questionQueued,
+          ...this.withSkill([...parsed.parts, ...mediaQueued.map((attachment) => attachment.part)]),
+        ],
         parsed.displayText,
       )
       this.starting = starting
       const submission = await starting
+      this.attachments.splice(0, mediaQueued.length)
+      void finished
+        .then(async () => {
+          await Promise.all(
+            mediaQueued.flatMap((attachment) =>
+              attachment.dispose === undefined ? [] : [attachment.dispose()],
+            ),
+          )
+        })
+        .catch((error: unknown) => {
+          this.deps.log.warn(`ACP media cleanup: ${failureForLog(error)}`)
+        })
       this.noteTurnId(submission.turnId)
       try {
         await this.questionRegistry?.acknowledgeQueued('taken')
-        if (queued.length > 0) this.getQuestions().sentQueued()
+        if (questionQueued.length > 0) this.getQuestions().sentQueued()
       } catch {
         throw RequestError.internalError(undefined, UI_TEXT.questionAnswerUncertain)
       }
@@ -1032,6 +1152,7 @@ class AcpSession {
   public async cancel(): Promise<void> {
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
+      this.preparing.controller.abort()
       this.deps.log.info(`ACP session ${this.sessionId}: cancelled before its turn started`)
       return
     }
@@ -1089,6 +1210,7 @@ class AcpSession {
     if (this.questions === undefined) this.questionRegistry?.dispose()
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
+      this.preparing.controller.abort()
     }
     const wasRunning = this.pending !== undefined || this.activeTurnId !== undefined
     this.pending?.resolve('cancelled')
@@ -1105,6 +1227,11 @@ class AcpSession {
       await this.cancelTurn()
     }
     this.session.dispose()
+    await Promise.all(
+      this.attachments
+        .splice(0)
+        .flatMap((attachment) => (attachment.dispose === undefined ? [] : [attachment.dispose()])),
+    )
   }
 }
 
@@ -1330,7 +1457,7 @@ class AgentState {
       protocolVersion: PROTOCOL_VERSION,
       agentCapabilities: {
         loadSession: true,
-        promptCapabilities: { image: true, audio: false, embeddedContext: true },
+        promptCapabilities: { image: true, audio: true, embeddedContext: true },
         // Stdio servers every agent takes; HTTP ones Muse Code runs too (M63c).
         mcpCapabilities: { http: this.deps.backend.kind === 'museCode', sse: false },
         sessionCapabilities: { list: {}, resume: {}, close: {} },

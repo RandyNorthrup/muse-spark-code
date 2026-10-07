@@ -2667,6 +2667,8 @@
     "cwd": "Utiliser ce répertoire comme espace de travail.",
     "prompt-file": "Lire la consigne dans ce fichier.",
     "untrusted-file": "Joindre ce fichier comme données non fiables ; répéter l’option pour d’autres fichiers.",
+    "attach": "Joindre ce fichier multimédia ; répétez l’option pour d’autres fichiers.",
+    "record": "Refusé en mode headless : personne n’est là pour prévisualiser l’enregistrement.",
     "permission-mode": "Choisissez comment Muse demande avant d’agir.",
     "model": "Choisir le modèle pour cette exécution.",
     "effort": "Choisissez l’effort que Muse consacre à chaque réponse.",

@@ -2571,6 +2571,8 @@
     "cwd": "Dieses Verzeichnis als Arbeitsbereich verwenden.",
     "prompt-file": "Die Eingabe aus dieser Datei lesen.",
     "untrusted-file": "Diese Datei als nicht vertrauenswürdige Daten anhängen; für weitere Dateien die Option wiederholen.",
+    "attach": "Diese Mediendatei anhängen; für weitere Dateien die Option wiederholen.",
+    "record": "Für Headless-Läufe abgelehnt: Niemand ist da, um eine Aufnahme zu prüfen.",
     "permission-mode": "Wählen, wie Muse fragt, bevor es handelt.",
     "model": "Das Modell für diesen Lauf wählen.",
     "effort": "Wählen, wie viel Mühe Muse in jede Antwort steckt.",

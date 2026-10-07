@@ -2667,6 +2667,8 @@
     "cwd": "Usar este directorio como espacio de trabajo.",
     "prompt-file": "Leer la instrucción de este archivo.",
     "untrusted-file": "Adjuntar este archivo como datos no confiables; repetir la opción para más archivos.",
+    "attach": "Adjunte este archivo multimedia; repita la opción para más archivos.",
+    "record": "Rechazado en ejecuciones headless: nadie puede previsualizar la grabación.",
     "permission-mode": "Elige cómo pregunta Muse antes de actuar.",
     "model": "Elegir el modelo de esta ejecución.",
     "effort": "Elige cuánto esfuerzo dedica Muse a cada respuesta.",
