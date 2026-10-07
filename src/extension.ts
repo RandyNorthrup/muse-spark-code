@@ -195,8 +195,16 @@ import { loadUiTable, readUiTableFile } from './host/l10n'
 import { createInsightsReader } from './host/usage/traceLogs'
 import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
 import { voiceLoader } from './host/voice/voiceBundle'
-import { dialogFiltersOption } from './host/media/mediaProviders'
+import {
+  createMediaAttachDeps,
+  createMediaSourceOpen,
+  dialogFiltersOption,
+} from './host/media/mediaProviders'
+import { mediaBundleLoader } from './host/media/mediaBundle'
 import { RECORDING_COMMAND_IDS, screenRecordLoader } from './host/media/screenRecordBundle'
+import { createLinuxLatestPort } from './host/media/recordingLatest'
+import { latestLinuxRecording } from './core/media/record/linux'
+import type { ScreenRecordingPreview } from './core/media/record/driver'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
 import { isActivationPaidSettingOn } from './host/paid/paidActivation'
@@ -2818,6 +2826,22 @@ async function activateWindow(
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', CONVERSATION_BUNDLE_FILE).fsPath,
     log,
   })
+  // M105 W: the lazy media bindings. Activation carries only these loaders;
+  // dist/media.js (attach port) and dist/screenRecord.js (recording command)
+  // load on first use. Recorder-produced files live under recordingTempRoot,
+  // the one directory the media open hook exempts from workspace confinement.
+  const loadMedia = mediaBundleLoader(path.join(context.extensionPath, 'dist', 'media.js'), log)
+  const recordingTempRoot = path.join(context.globalStorageUri.fsPath, 'muse-screen')
+  const mediaOpen = createMediaSourceOpen({
+    canonicalRelativePath: (fsPath) => files.canonicalRelativePath(fsPath),
+    recordingTempRoot,
+  })
+  const linuxLatestPort = createLinuxLatestPort({ tempRoot: recordingTempRoot })
+  const latestScreenRecording = async (): Promise<ScreenRecordingPreview | undefined> => {
+    if (process.platform !== 'linux') return undefined
+    const result = await latestLinuxRecording(linuxLatestPort)
+    return result.ok ? result.preview : undefined
+  }
   const controllerFor = (surface: ChatSurface): ConversationController => {
     let controller = controllers.get(surface.id)
     if (controller === undefined) {
@@ -2871,6 +2895,37 @@ async function activateWindow(
             contains: (relativePath) => mentions.contains(relativePath),
           },
           files,
+          // M105 W (E1-media-host-binding): the lazy attach port. Settings
+          // supply limits, the selected model its capabilities; the M2 bind
+          // refuses until the upload lifecycle lands (U6c, lead-owned).
+          mediaAttachments: () =>
+            Promise.resolve(
+              loadMedia().createMediaAttachments(
+                createMediaAttachDeps(
+                  () => ({
+                    mediaMaxUploadMiB: currentSettings().mediaMaxUploadMiB,
+                    screenRecordingMaxSeconds: currentSettings().screenRecordingMaxSeconds,
+                  }),
+                  mediaOpen,
+                ),
+              ),
+            ),
+          // M105 W (E1-recording-host-binding): the recording command's deps.
+          // No native driver binds in this round: macOS needs its signed
+          // helper, Windows direct capture is unavailable here, and Linux
+          // needs a D-Bus portal transport (lead-owned; see m105.md). The
+          // absent driver refuses explicitly; latest-file discovery works
+          // on Linux. The conversation overrides attach with admission.
+          recordingCommandDeps: () =>
+            Promise.resolve({
+              l10n: { table: UI_TEXT, locale: uiLocale() },
+              log,
+              isRemote: vscode.env.remoteName !== undefined,
+              // No driver key: unbound this round (see above); absence refuses.
+              maxSeconds: currentSettings().screenRecordingMaxSeconds,
+              latest: latestScreenRecording,
+              attach: () => Promise.resolve(false),
+            }),
           isBypassAllowed: () => currentSettings().allowDangerouslySkipPermissions,
           isRemoteWindow: vscode.env.remoteName !== undefined,
           confirmRemoteBypass: async () =>
@@ -3508,9 +3563,11 @@ async function activateWindow(
             await vscode.window.showInformationMessage(UI_TEXT.media.recordingRemote)
             return
           }
+          // The factory is bound above, so undefined means the conversation
+          // went away mid-flight: nothing to attach to, said silently (M105
+          // E1 review). A bundle that cannot load says its own failure.
           const deps = await controller.recordingCommandDeps()
           if (deps === undefined) {
-            await vscode.window.showInformationMessage(UI_TEXT.media.recordingUserOnly)
             return
           }
           const load = screenRecordLoader(
@@ -3520,6 +3577,15 @@ async function activateWindow(
           await load().runScreenRecordingCommand(deps, kind === 'latest')
         }),
       ),
+    ),
+    // M105 W: the uploaded-files deletion. The E3/F ledger binding is
+    // lead-owned; until it lands the controller refuses explicitly.
+    registerLoggedCommand(
+      log,
+      COMMAND_IDS.deleteUploadedFiles,
+      forActiveConversation(async (controller) => {
+        await controller.deleteUploadedFiles()
+      }),
     ),
     registerLoggedCommand(log, COMMAND_IDS.newConversation, async () => {
       const surface = registry.active

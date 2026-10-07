@@ -4,11 +4,16 @@
 // Images and documents keep their established pipeline; video and audio
 // refuse with the named upload-binding reason until U6c and the paid
 // admission land.
+import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
+import { lstat, open, type FileHandle } from 'node:fs/promises'
 import { BYTES_PER_MIB, MAX_DOCUMENT_BYTES, MAX_IMAGE_BYTES, UI_TEXT } from '../../shared/constants'
 import type { MediaModelCapabilities } from '../../core/media/modalityGate'
 import type { MediaLimits } from '../../core/media/limits'
+import { isProtectedPath } from '../../core/protectedPaths'
+import { isPrivateFileName } from '../../shared/privateFiles'
 import type { MediaAttachDeps } from './mediaAttach'
+import { isRecordingTempPath } from './recordingLatest'
 
 export interface MediaHostSettings {
   readonly mediaMaxUploadMiB: number
@@ -93,5 +98,75 @@ export function createMediaAttachDeps(
     bind: () => {
       throw new Error(UI_TEXT.media.uploadStorageUnknown)
     },
+  }
+}
+
+export interface MediaSourceOpenDeps {
+  /** Workspace confinement; undefined or a throw refuses the file. */
+  readonly canonicalRelativePath: (
+    fsPath: string,
+  ) => Promise<{ readonly canonical: string; readonly checkedAbsolute: string } | undefined>
+  /**
+   * The host's recording temp root. Recorder-produced files under it skip
+   * workspace confinement (the driver made them); everything else is
+   * confined. Windows separators normalize before the prefix check.
+   */
+  readonly recordingTempRoot: string
+}
+
+/**
+ * The attach port's source opener: confinement, protected/private recheck
+ * and file identity on every open. No handle is a refusal; an IO failure
+ * throws the read failure. The fd pins the file between the sniff reads.
+ */
+export function createMediaSourceOpen(deps: MediaSourceOpenDeps): MediaAttachDeps['open'] {
+  return async (file) => {
+    let absolute: string
+    if (isRecordingTempPath(deps.recordingTempRoot, file.fsPath)) {
+      absolute = file.fsPath
+    } else {
+      let checked: Awaited<ReturnType<MediaSourceOpenDeps['canonicalRelativePath']>>
+      try {
+        checked = await deps.canonicalRelativePath(file.fsPath)
+      } catch {
+        return
+      }
+      if (
+        checked === undefined ||
+        isProtectedPath(checked.canonical) ||
+        isPrivateFileName(checked.canonical)
+      ) {
+        return
+      }
+      absolute = checked.checkedAbsolute
+    }
+    // A link, a directory or a file that is already gone refuses before any
+    // handle exists; only a handle that later fails reads as unreadable.
+    let meta: Awaited<ReturnType<typeof lstat>>
+    try {
+      meta = await lstat(absolute)
+    } catch {
+      return
+    }
+    if (!meta.isFile() || meta.isSymbolicLink()) return
+    const handle = await open(absolute, 'r')
+    let stat: Awaited<ReturnType<FileHandle['stat']>>
+    try {
+      stat = await handle.stat()
+    } catch (error: unknown) {
+      await handle.close()
+      throw error
+    }
+    return {
+      source: {
+        sizeBytes: stat.size,
+        read: async (offset, length) => {
+          const chunk = Buffer.alloc(length)
+          const { bytesRead } = await handle.read(chunk, 0, length, offset)
+          return chunk.subarray(0, bytesRead)
+        },
+      },
+      close: () => handle.close(),
+    }
   }
 }
