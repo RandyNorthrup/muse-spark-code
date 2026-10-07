@@ -84,7 +84,3 @@ export class FileAccountsMetadata implements AccountsMetadataPort {
 export function fileAccountsMetadata(dataDir: string): FileAccountsMetadata {
   return new FileAccountsMetadata(runtimeProvidersFile(dataDir))
 }
-
-export function hasProvidersFile(dataDir: string): boolean {
-  return existsSync(runtimeProvidersFile(dataDir))
-}
