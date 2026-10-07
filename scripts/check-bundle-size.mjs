@@ -149,7 +149,8 @@ const BUDGETS = [
   // backend (dist/modelApi.js, M57), plus the ACP SDK and the classic zod it
   // imports (445.2 of 713.2 KiB when set, 257.6 of them zod's locales). The
   // measured size plus about 15 %, rounded up to 50 KiB (D6 amendment).
-  { path: 'dist/acp.js', budgetKiB: 850 },
+  // M116: /playbook's journal-backed surface joins the agent's command set.
+  { path: 'dist/acp.js', budgetKiB: 1050 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus
