@@ -635,4 +635,48 @@ describe('M100 phase-2 D100 amendments (lane 0 adds first)', () => {
     ])
       expect(model).toContain(obligation)
   })
+  it('keeps the D101 reconcile vocabulary typed', () => {
+    for (const reason of ['owner-mismatch', 'grant-revoked'] as const) {
+      expect(
+        deviceGrantRefusalSchema.parse({
+          version: 1,
+          pairId: ID,
+          ownerId: ID,
+          reason,
+          retryable: false,
+        }).reason,
+      ).toBe(reason)
+    }
+  })
+  it('names every threat with its owning lane and planned test', () => {
+    const model = readFileSync(
+      new URL('../../docs/certification/m100-threat-model.md', import.meta.url),
+      'utf8',
+    )
+    const [, afterHeading = ''] = model.split('## Threat table', 2)
+    const [table = ''] = afterHeading.split('## ', 2)
+    const rows = table.split('\n').filter((line) => line.startsWith('| '))
+    const threats = [
+      'stolen pair key',
+      'malicious paired device',
+      'replay',
+      'downgrade',
+      'resource exhaustion',
+      'd101 reconcile',
+    ]
+    expect(rows.length).toBeGreaterThanOrEqual(threats.length + 2)
+    for (const threat of threats) {
+      const row = rows.find((line) => line.toLowerCase().includes(threat))
+      expect(row).toBeDefined()
+      if (row === undefined) continue
+      const cells = row
+        .split('|')
+        .map((cell) => cell.trim())
+        .filter((cell) => cell !== '')
+      expect(cells.length).toBeGreaterThanOrEqual(4)
+      expect(cells[2]).toMatch(/\blane\s+(0|[A-Z])\b/i)
+      expect(cells[3]).toContain('.test.ts')
+      expect(cells[3]).toContain('›')
+    }
+  })
 })

@@ -103,7 +103,22 @@ touches pairing or transport, lane 0 reconciles its scope: the versioned
 envelopes above carry the protocol version precisely so a D101 wire change
 fails closed at parse time, and the `owner-mismatch` / `grant-revoked`
 refusals give D101's reconcile a typed vocabulary for re-binding pairs and
-grants without inventing a new channel.
+grants without inventing a new channel. The threat table below names its
+mitigation, owning lane and planned test.
+
+## Threat table (each row names its mitigation, owning lane and planned test)
+
+Later lanes code against these rows; the owning contract test parses this
+table and requires every threat to carry a lane and a test name.
+
+| Threat                  | Mitigation                                                                                                                                                                                                                 | Owning lane | Planned test                                                                                |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------- |
+| Stolen pair key         | Revocation checked on every request; a valid key for the wrong owner fails owner-mismatch, never admission; Windows keys rest under OS store protection                                                                    | lane K      | test/unit/ownerBind.test.ts › refuses a revoked pair key on every envelope                  |
+| Malicious paired device | Least-privilege time-bounded revocable grants with per-message authorization under an explicit receiver-side grant; no secrets in the clear, brokered uses go through the vault                                            | lane A      | test/unit/actionGrants.test.ts › refuses admission past the receiver intersection           |
+| Replay                  | Bounded invitation, grant and step-up windows; results acknowledged once per epoch with late results quarantined, never applied; a replayed grant past its bound refuses to parse                                          | lane K      | test/unit/ownerBind.test.ts › refuses a replayed grant past its validity bound              |
+| Downgrade               | Protocol version literal on every envelope fails closed at parse; no offline throttle state; unknown fields refused, never dropped                                                                                         | lane 0      | test/unit/devicePhase2Contracts.test.ts › refuses a wrong version on every channel envelope |
+| Resource exhaustion     | Byte cap on every envelope enforced by a schema parse before use; queue caps on handshakes, owners, grants and result acks; jittered backoff capped at ten minutes; journal and artifact caps stop work instead of growing | lane C      | test/unit/channel.test.ts › queues a handshake burst past pendingHandshakes under backoff   |
+| D101 reconcile          | Versioned envelopes fail closed at parse on a D101 wire change; owner-mismatch and grant-revoked give the reconcile a typed vocabulary for re-binding pairs and grants without a new channel                               | lane 0      | test/unit/devicePhase2Contracts.test.ts › keeps the D101 reconcile vocabulary typed         |
 
 ## Phase-2 dependency choices (lane D installs, lane W notices)
 

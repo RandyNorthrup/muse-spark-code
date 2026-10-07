@@ -26,6 +26,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Enforce the unshipped Devices phase-2 contracts from the shared contract
+  alone: the capability schema refuses advertisements past the byte cap,
+  owner/grant/result-ack queue caps ship as callable guards, a grant ceiling
+  check refuses widened grants with typed `scope-denied`, the handshake
+  backoff jitters from an injected source within a stated bound, and result
+  acknowledgements bind to their epoch. The threat model names each threat
+  with its owning lane and planned test.
 - Coalesce unshipped Devices background snapshots to one running and one pending
   capture. Data frames retain the channel's capacity backpressure while Stop
   stays independent; a flood cannot build an unlimited snapshot queue.
