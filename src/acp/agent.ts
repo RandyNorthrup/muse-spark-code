@@ -1044,7 +1044,7 @@ class AcpSession {
           this.getQuestions().sentQueued()
         }
       } catch {
-        throw RequestError.internalError(undefined, UI_TEXT.questionAnswerUncertain)
+        throw RequestError.internalError(undefined, UI_TEXT.questionQueueCommitFailed)
       }
     } catch (error: unknown) {
       try {

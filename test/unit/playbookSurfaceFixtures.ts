@@ -34,6 +34,20 @@ export function surfacePriorityNotes(): PlaybookWhyNote[] {
     { rule: 'neverAround', code: 'classifierBlocked', at: 2, needsUser: true },
   ]
 }
+export function surfaceUnboundAcceptance(): PlaybookRecord {
+  return {
+    kind: 'residual',
+    value: {
+      milestoneId: 'M116',
+      name: 'legacy-follow-up',
+      status: 'accepted',
+      actor: 'owner',
+      reason: 'Legacy decision',
+      at: 100,
+    },
+  }
+}
+
 export function surfaceRound(
   round = 3,
   findingClass?: 'concurrency',

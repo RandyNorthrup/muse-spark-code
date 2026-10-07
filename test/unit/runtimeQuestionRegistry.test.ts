@@ -214,12 +214,12 @@ describe('real ACP question registry binding', () => {
     await h.registry.releaseQueued(first.value.token)
     const second = (await h.registry.peekQueued())!
     await expect(h.registry.commitQueued(first.value.token)).rejects.toThrow(
-      UI_TEXT.questionAnswerUncertain,
+      UI_TEXT.questionQueueLeaseFailed,
     )
     await expect(h.registry.releaseQueued(first.value.token)).rejects.toThrow(
-      UI_TEXT.questionAnswerUncertain,
+      UI_TEXT.questionQueueLeaseFailed,
     )
-    await expect(h.registry.peekQueued()).rejects.toThrow(UI_TEXT.questionAnswerUncertain)
+    await expect(h.registry.peekQueued()).rejects.toThrow(UI_TEXT.questionQueueLeaseFailed)
     await h.registry.commitQueued(second.token)
     expect(await h.registry.peekQueued()).toBeUndefined()
     h.registry.dispose()

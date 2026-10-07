@@ -661,7 +661,7 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'orchestrator-playbook',
       { ui: 'playbookTitle' },
-      { ui: 'playbookHelpDescription' },
+      { ui: 'playbookRecordHelp' },
       [],
       [],
       'orchestrator-playbook-policy-m116',

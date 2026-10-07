@@ -325,7 +325,11 @@ session's workspace, with no model turn. The same surface answers the
 standalone `playbook` command. Rule changes need a reason and record the
 owner; turning a rule off and naming the fallback reviewer for
 classifier-blocked reviews need a real user decision, and residuals stay
-open per milestone until a lead or owner accepts them. Panel enforcement
+open per milestone until a lead or owner accepts them. Record views show
+unbound legacy acceptances and why they cover no residual. Local commands
+leave queued late answers untouched; only a successfully submitted model
+prompt removes its leased prefix. A restart before that commit retains the
+answers, and failed sends release without writing. Panel enforcement
 (leases, outcome receipts, dispatch gating) is not installed here; see
 [the milestone certification](certification/m116.md) for what is bound and
 what waits for M96's planner.

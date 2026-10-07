@@ -234,6 +234,11 @@ export const EN = {
   playbookFallbackReviewer: 'Fallback reviewer for classifier-blocked reviews: {reviewer}',
   playbookFallbackNone: 'No fallback reviewer named',
   playbookResidualAccepted: 'Residual accepted',
+  playbookRecordHelp:
+    'Show review strikes, design decisions, safety refusals, settings and unbound acceptance reasons.',
+  playbookResidualUnbound: 'Unbound residual acceptance',
+  playbookResidualUnboundReason:
+    'No earlier residual matches this acceptance’s time and evidence. It covers no residual.',
   playbookLeaseRecord: 'Patch lease {status}: {module} ({lane})',
   playbookWorkRecord: 'Work {id} on {module}: {commits} baseline commits',
   playbookVerificationRecord: 'Hook verification {result} for {commit} ({scope})',
@@ -1606,6 +1611,10 @@ export const EN = {
   questionNoOpen: 'No open questions.',
   questionAnswerFailed: 'Your answer could not be sent. Try again.',
   questionAnswerUncertain: 'Your answer may have reached Muse. It will not be sent again.',
+  questionQueueLeaseFailed:
+    'Queued-answer ownership changed. Retry after the current prompt finishes.',
+  questionQueueCommitFailed:
+    'The prompt was sent, but its answers could not be saved as delivered. They remain queued and may be repeated.',
   questionDismissFailed: 'The question could not be dismissed.',
   acpOpenQuestionAsked:
     'Muse has a question; this editor cannot show a form. You can answer later with /answer.',

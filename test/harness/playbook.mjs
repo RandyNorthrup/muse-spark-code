@@ -14,7 +14,12 @@ import {
   playbookRequestSchema,
   playbookResponseSchema,
 } from '../../src/webview/playbook/bridge'
-import { surfacePort, surfacePriorityNotes, surfaceSnapshot } from '../unit/playbookSurfaceFixtures'
+import {
+  surfacePort,
+  surfacePriorityNotes,
+  surfaceSnapshot,
+  surfaceUnboundAcceptance,
+} from '../unit/playbookSurfaceFixtures'
 
 const query = new globalThis.URLSearchParams(globalThis.location.search)
 const locale = query.get('lang') ?? 'en'
@@ -25,6 +30,7 @@ snapshot.records.unshift(
   ...surfacePriorityNotes()
     .filter((note) => note.code === 'checksPassed')
     .map((value) => ({ kind: 'note', value })),
+  surfaceUnboundAcceptance(),
 )
 snapshot.settings.rules.offload = {
   enabled: false,

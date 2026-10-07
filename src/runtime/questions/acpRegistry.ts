@@ -142,7 +142,7 @@ export function createRuntimeQuestionRegistry(
       }),
     peekQueued: () =>
       write(() => {
-        if (lease !== undefined) throw new Error(UI_TEXT.questionAnswerUncertain)
+        if (lease !== undefined) throw new Error(UI_TEXT.questionQueueLeaseFailed)
         if (queued.length === 0) return
         lease = {
           token: Symbol(),
@@ -152,7 +152,7 @@ export function createRuntimeQuestionRegistry(
       }),
     commitQueued: (token) =>
       write(async () => {
-        if (lease?.token !== token) throw new Error(UI_TEXT.questionAnswerUncertain)
+        if (lease?.token !== token) throw new Error(UI_TEXT.questionQueueLeaseFailed)
         const remaining = queued.slice(lease.parts.length)
         try {
           await queueStore.save(session.sessionId, remaining)
@@ -164,7 +164,7 @@ export function createRuntimeQuestionRegistry(
       }),
     releaseQueued: (token) =>
       write(() => {
-        if (lease?.token !== token) throw new Error(UI_TEXT.questionAnswerUncertain)
+        if (lease?.token !== token) throw new Error(UI_TEXT.questionQueueLeaseFailed)
         lease = undefined
       }),
     dispose() {

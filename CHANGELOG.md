@@ -40,6 +40,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Show an unbound legacy residual acceptance with its no-match reason in
+  CLI, ACP and shared React playbook records, preserving the original
+  decision details. Identical bound/unbound entries are distinguished by
+  journal position. All fourteen languages include the new labels/reasons;
+  queued-answer commit failures explicitly warn that retained answers may
+  repeat on the next prompt.
+
 - Redesign ACP's queued late-answer delivery as a non-destructive token lease.
   Local `/playbook` commands never lease; only successful model submission
   persists removal. Failed sends release without writing, and restart before

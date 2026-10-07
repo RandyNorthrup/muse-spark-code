@@ -901,7 +901,7 @@ describe('M112 through the pinned ACP SDK client', () => {
         displayText: undefined,
       })
       h.registries[0]?.commitQueued.mockRejectedValue(new Error('PRIVATE-QUEUE-CANARY'))
-      await expect(h.prompt(client, 'work')).rejects.toThrow(UI_TEXT.questionAnswerUncertain)
+      await expect(h.prompt(client, 'work')).rejects.toThrow(UI_TEXT.questionQueueCommitFailed)
       await client.notify('session/cancel', { sessionId: h.session.sessionId })
       await until(() => h.session.cancel.mock.calls.length === 1)
       expect(h.registries[0]?.commitQueued).toHaveBeenCalledTimes(1)

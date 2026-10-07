@@ -14,6 +14,7 @@ import {
   surfacePriorityNotes,
   surfaceRound,
   surfaceSnapshot,
+  surfaceUnboundAcceptance,
 } from './playbookSurfaceFixtures'
 import { playbookNoteText } from '../../src/runtime/playbook/text'
 import { ToolRow } from '../../src/webview/components/ToolRow'
@@ -56,6 +57,20 @@ function offloadForm(reason: string) {
 }
 
 describe('M116 shared playbook surfaces', () => {
+  it('record view shows an unbound legacy acceptance with its reason', async () => {
+    const snapshot = surfaceSnapshot()
+    snapshot.records.unshift(surfaceUnboundAcceptance())
+    render(<PlaybookPanel port={surfacePort(snapshot)} />)
+    await screen.findByText(/workspace-panel/u)
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.playbookRecord }))
+    const record = document.querySelector('.playbook-record')
+    expect(record).toHaveTextContent(`${UI_TEXT.playbookResidualUnbound}: M116 · legacy-follow-up`)
+    expect(record).toHaveTextContent(UI_TEXT.playbookResidualUnboundReason)
+    expect(record).not.toHaveTextContent(
+      `${UI_TEXT.playbookResidualAccepted}: M116 · legacy-follow-up`,
+    )
+  })
+
   it('renders the policy note in the tool transcript row through its lazy slot', async () => {
     const notes = surfaceSnapshot().records.flatMap((record) =>
       record.kind === 'note' ? [record.value] : [],

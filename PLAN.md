@@ -28757,7 +28757,11 @@ prompts. Shared CLI/ACP/React record text consumes the residual register's
 unbound disposition and explains why a legacy acceptance covers nothing,
 with translations in all fourteen tables. Certify both regressions against
 `f2f55ad85`, then run scoped CI checks in a fresh committed clone. Existing
-planner/editor integration handoffs remain open.
+planner/editor integration handoffs remain open. Both review findings now
+have scoped passing regressions and observed historical failures; fresh-clone
+CI parity is the remaining lane certification step. Next integration slice:
+M96/panel installation, then lead-owned installed-editor/accessibility checks
+and the existing M107/M110/M115w/M113/headless bindings.
 
 **U second-review repair (RVM116U2, 2026-10-06).** Fix the one P2:
 a successful rule save reconciles every changed settings field with the
