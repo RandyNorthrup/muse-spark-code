@@ -11,6 +11,7 @@ import {
 } from '../../shared/constants'
 import type { UsageFs, UsageFileStat, UsageLock } from '../../core/usage/journalStore'
 import { createFileExclusively, isNameTaken, writeFileAtomically } from '../../host/fsAtomic'
+import { canonicalPath } from '../../host/canonicalPath'
 
 function errorCode(error: unknown): string | undefined {
   return error instanceof Error && 'code' in error && typeof error.code === 'string'
@@ -18,14 +19,17 @@ function errorCode(error: unknown): string | undefined {
     : undefined
 }
 export class NodeUsageFs implements UsageFs {
-  private readonly root: string
+  private root: Promise<string> | undefined
   public constructor(
-    dataFolder: string,
+    private readonly dataFolder: string,
     private readonly now: () => number = Date.now,
-  ) {
-    this.root = path.resolve(dataFolder)
+  ) {}
+  private trustedRoot(): Promise<string> {
+    // Resolve trusted ancestors once (e.g. macOS /var → /private/var), before
+    // checking each component inside the store for links on every operation.
+    return (this.root ??= canonicalPath(this.dataFolder))
   }
-  private resolve(relative: string): string {
+  private async resolve(relative: string): Promise<string> {
     const parts = relative.split('/')
     if (
       parts[0] !== USAGE_FOLDER ||
@@ -33,12 +37,13 @@ export class NodeUsageFs implements UsageFs {
     ) {
       throw new Error('invalidUsagePath')
     }
-    return path.join(this.root, ...parts)
+    return path.join(await this.trustedRoot(), ...parts)
   }
   /** Refuse linked ancestors, including on reads, so another folder is never consulted. */
   private async checkPath(file: string): Promise<void> {
-    let current = this.root
-    for (const part of ['', ...path.relative(this.root, file).split(path.sep)]) {
+    const root = await this.trustedRoot()
+    let current = root
+    for (const part of ['', ...path.relative(root, file).split(path.sep)]) {
       current = path.join(current, part)
       try {
         const stat = await lstat(current)
@@ -55,7 +60,7 @@ export class NodeUsageFs implements UsageFs {
   }
   private async lockState(relative: string) {
     const folder = relative.slice(0, relative.lastIndexOf('/'))
-    const content = await readFile(this.resolve(`${relative}.epoch`), 'utf8')
+    const content = await readFile(await this.resolve(`${relative}.epoch`), 'utf8')
     const epoch = content.trim()
     if (!/^[\w-]+$/.test(epoch)) throw new Error('invalidUsageLock')
     const name = `${path.basename(relative)}.${epoch}`
@@ -76,7 +81,7 @@ export class NodeUsageFs implements UsageFs {
     }
   }
   public async list(folder: string): Promise<readonly string[]> {
-    const file = this.resolve(folder)
+    const file = await this.resolve(folder)
     await this.checkPath(file)
     try {
       const entries = await readdir(file, { withFileTypes: true })
@@ -90,7 +95,7 @@ export class NodeUsageFs implements UsageFs {
     }
   }
   public async stat(relative: string): Promise<UsageFileStat | undefined> {
-    const file = this.resolve(relative)
+    const file = await this.resolve(relative)
     await this.checkPath(file)
     try {
       const stat = await lstat(file)
@@ -102,7 +107,7 @@ export class NodeUsageFs implements UsageFs {
     }
   }
   public async read(relative: string, offset: number, length?: number): Promise<Uint8Array> {
-    const file = this.resolve(relative)
+    const file = await this.resolve(relative)
     await this.checkPath(file)
     const handle = await open(
       file,
@@ -123,7 +128,7 @@ export class NodeUsageFs implements UsageFs {
     }
   }
   public async append(relative: string, line: string): Promise<void> {
-    const file = this.resolve(relative)
+    const file = await this.resolve(relative)
     await this.prepare(file)
     const handle = await open(
       file,
@@ -140,7 +145,7 @@ export class NodeUsageFs implements UsageFs {
     }
   }
   public async writeFileAtomically(relative: string, text: string): Promise<void> {
-    const file = this.resolve(relative)
+    const file = await this.resolve(relative)
     await this.prepare(file)
     await writeFileAtomically(file, text, {
       sleep: delay,
@@ -163,20 +168,20 @@ export class NodeUsageFs implements UsageFs {
     })
   }
   public async remove(relative: string): Promise<void> {
-    const file = this.resolve(relative)
+    const file = await this.resolve(relative)
     await this.checkPath(file)
     await rm(file, { recursive: true, force: true })
   }
   public async acquireLock(relative: string, staleMs: number): Promise<UsageLock | undefined> {
-    await this.prepare(this.resolve(relative))
+    await this.prepare(await this.resolve(relative))
     const anchor = `${relative}.epoch`
     if ((await this.stat(anchor)) === undefined) {
       const legacy = await this.stat(relative)
       if (legacy !== undefined && this.now() - legacy.mtimeMs <= staleMs) return undefined
       try {
-        await createFileExclusively(this.resolve(anchor), randomUUID(), {
+        await createFileExclusively(await this.resolve(anchor), randomUUID(), {
           mode: CHECKPOINT_JOURNAL_FILE_MODE,
-          expectedDirectory: path.dirname(this.resolve(relative)),
+          expectedDirectory: path.dirname(await this.resolve(relative)),
           warn: (_file, _isPublished, error) => {
             throw error
           },
@@ -190,7 +195,7 @@ export class NodeUsageFs implements UsageFs {
     if (stat !== undefined) {
       let previousToken: string
       try {
-        const content = await readFile(this.resolve(previous.claim), 'utf8')
+        const content = await readFile(await this.resolve(previous.claim), 'utf8')
         previousToken = content.trim()
       } catch (error) {
         if (errorCode(error) === 'ENOENT') return undefined
@@ -205,7 +210,7 @@ export class NodeUsageFs implements UsageFs {
     }
     const generation = previous.generation + 1
     const claim = `${relative}.${previous.epoch}.${String(generation)}`
-    const file = this.resolve(claim)
+    const file = await this.resolve(claim)
     const token = randomUUID()
     try {
       const handle = await open(file, 'wx', CHECKPOINT_JOURNAL_FILE_MODE)

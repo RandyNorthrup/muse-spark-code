@@ -3,7 +3,8 @@
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { chromium } from 'playwright-core'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
@@ -26,7 +27,17 @@ beforeAll(async () => {
   const serving = await serveRepo(process.cwd())
   rig.server = serving.server
   rig.origin = `http://127.0.0.1:${String(serving.port)}`
-  rig.browser = await chromium.launch({ executablePath: findChrome(), headless: true })
+  const browser = existsSync(chromium.executablePath()) ? chromium.executablePath() : findChrome()
+  // Playwright needs an absolute executable; findChrome's Linux fallback is
+  // a PATH name for execFile-based renderers.
+  const executablePath =
+    browser === undefined || path.isAbsolute(browser)
+      ? browser
+      : execFileSync('which', [browser], { encoding: 'utf8' }).trim()
+  rig.browser = await chromium.launch({
+    executablePath,
+    headless: true,
+  })
 }, REAL_HARNESS_PREPARE_TIMEOUT_MS)
 afterAll(async () => {
   await rig.browser?.close()

@@ -4576,7 +4576,10 @@ Marketplace/Open VSX and npm package READMEs receive static version badges from
 `npm run check:badges` checks all three pages' HTTPS image targets, the pinned
 vsce SVG trust policy, exact package versions and public SVG responses (including
 error badges). Screenshots remain PNG images. Both packagers also check the
-exact staged README. CI always performs network checks; an offline local run
+exact staged README. Repository screenshots must exist in the checkout, and
+PNG bytes must decode. The check reads public main's file inventory: newly added
+screenshots are verified locally until main contains them; existing images still
+require successful public HTTPS responses. CI always performs network checks; an offline local run
 can set `BADGE_CHECK_SKIP_NETWORK` to a nonempty reason, which is printed and
 skips only requests, for example:
 

@@ -2489,22 +2489,25 @@
         document.documentElement.style.width = '100%'
         document.body.style.width = '100%'
         setDraft('Review this draft before saving or sharing.')
-        later(300, () => {
-          if (isToolbar) {
-            document.querySelector('.composer button[aria-haspopup="dialog"]').click()
-          } else {
-            const input = textarea()
-            const rect = input.getBoundingClientRect()
-            input.dispatchEvent(
-              new MouseEvent('contextmenu', {
-                bubbles: true,
-                cancelable: true,
-                clientX: rect.left + rect.width / 2,
-                clientY: rect.top + rect.height / 2,
-              }),
-            )
-          }
-        })
+        whenFound(
+          isToolbar ? '.composer button[aria-haspopup="dialog"]' : 'textarea',
+          (control) => {
+            if (isToolbar) {
+              control.click()
+            } else {
+              const input = control
+              const rect = input.getBoundingClientRect()
+              input.dispatchEvent(
+                new MouseEvent('contextmenu', {
+                  bubbles: true,
+                  cancelable: true,
+                  clientX: rect.left + rect.width / 2,
+                  clientY: rect.top + rect.height / 2,
+                }),
+              )
+            }
+          },
+        )
       }
       const steps = {
         'prompt-menu': () => promptMenuScene(),

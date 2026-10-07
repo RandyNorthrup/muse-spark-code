@@ -567,6 +567,7 @@ describe('createRuntimeBackend', () => {
     distDir = dist.folder,
     fetch: typeof globalThis.fetch = fakeModelApi().fetch,
     exec?: ExecRuntimeOptions | UsageRecording,
+    homeDir = folder(),
   ) {
     return createRuntimeBackend({
       options: { ...DEFAULTS, ...options },
@@ -575,7 +576,7 @@ describe('createRuntimeBackend', () => {
       distDir,
       platform: process.platform,
       env,
-      homeDir: folder(),
+      homeDir,
       secrets,
       runGit: () => Promise.reject(new Error('no git')),
       fetch,
@@ -953,6 +954,8 @@ describe('createRuntimeBackend', () => {
       env,
       dist.folder,
       api.fetch,
+      undefined,
+      home,
     )
     try {
       const root = folder()

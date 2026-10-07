@@ -77,6 +77,31 @@ async function rig() {
 }
 
 describe('usage journal store and Node filesystem', () => {
+  it('canonicalises the trusted ancestor once and still refuses links inside the store', async () => {
+    const { root } = await rig()
+    const alias = path.join(root, 'trusted-alias')
+    const data = path.join(root, 'data')
+    await mkdir(data)
+    await symlink(data, alias, process.platform === 'win32' ? 'junction' : 'dir')
+    const fs = new NodeUsageFs(path.join(alias, 'new-data'))
+    const file = `${USAGE_JOURNAL_ROOT}/rollups/2026-09.json`
+    await fs.writeFileAtomically(file, 'complete rollup')
+    expect(await readFile(path.join(data, 'new-data', file), 'utf8')).toBe('complete rollup')
+    const lock = await fs.acquireLock(
+      `${USAGE_JOURNAL_ROOT}/rollup.lock`,
+      USAGE_ROLLUP_LOCK_STALE_MS,
+    )
+    expect(await lock?.isHeld()).toBe(true)
+    await lock?.release()
+    await symlink(
+      root,
+      path.join(data, 'new-data', USAGE_JOURNAL_ROOT, 'linked'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    )
+    await expect(
+      fs.append(`${USAGE_JOURNAL_ROOT}/linked/outside.jsonl`, 'private'),
+    ).rejects.toThrow('linkedUsagePath')
+  })
   it('queues one private file per writer/day and reads limit snapshots too', async () => {
     const { root, store, record, file } = await rig()
     store.append(record)
