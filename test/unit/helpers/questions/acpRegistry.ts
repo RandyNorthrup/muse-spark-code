@@ -2,6 +2,7 @@
 // not the registry's disk adapter, normalization, coalescing or security.
 import { vi } from 'vitest'
 import type {
+  AcpQueuedAnswerLease,
   AcpQuestionRegistry,
   AcpQuestionRegistryFactory,
 } from '../../../../src/acp/questionDeferral'
@@ -16,6 +17,7 @@ function resolved(): Promise<void> {
 }
 
 export class FakeAcpQuestionRegistry implements AcpQuestionRegistry {
+  private lease: AcpQueuedAnswerLease | undefined
   public readonly records = new Map<string, OpenQuestion>()
   public readonly queued: QuestionDelivery[] = []
   public readonly load = vi.fn(resolved)
@@ -73,11 +75,24 @@ export class FakeAcpQuestionRegistry implements AcpQuestionRegistry {
     this.queued.push(message)
     return Promise.resolve('taken')
   })
-  public readonly queuedParts = vi.fn<AcpQuestionRegistry['queuedParts']>(() =>
-    Promise.resolve(this.queued.map((message) => ({ type: 'text', text: message.text }))),
-  )
-  public readonly acknowledgeQueued = vi.fn<AcpQuestionRegistry['acknowledgeQueued']>((outcome) => {
-    if (outcome !== 'notTaken') this.queued.length = 0
+  public readonly peekQueued = vi.fn<AcpQuestionRegistry['peekQueued']>(() => {
+    if (this.lease !== undefined) return Promise.reject(new Error('Outstanding queue lease'))
+    if (this.queued.length === 0) return Promise.resolve(undefined)
+    this.lease = {
+      token: Symbol(),
+      parts: this.queued.map((message) => ({ type: 'text', text: message.text })),
+    }
+    return Promise.resolve(this.lease)
+  })
+  public readonly commitQueued = vi.fn<AcpQuestionRegistry['commitQueued']>((token) => {
+    if (this.lease?.token !== token) return Promise.reject(new Error('Invalid queue lease'))
+    this.queued.splice(0, this.lease.parts.length)
+    this.lease = undefined
+    return Promise.resolve()
+  })
+  public readonly releaseQueued = vi.fn<AcpQuestionRegistry['releaseQueued']>((token) => {
+    if (this.lease?.token !== token) return Promise.reject(new Error('Invalid queue lease'))
+    this.lease = undefined
     return Promise.resolve()
   })
   public readonly turnEnded = vi.fn<AcpQuestionRegistry['turnEnded']>((isCancelled) => {

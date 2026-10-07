@@ -40,6 +40,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Redesign ACP's queued late-answer delivery as a non-destructive token lease.
+  Local `/playbook` commands never lease; only successful model submission
+  persists removal. Failed sends release without writing, and restart before
+  commit retains answers. Failed commit writes keep the durable prefix and
+  release ownership, so future prompts cannot strand it.
+
 - Bind the panel's own orchestration to the shared orchestrator playbook:
   subagent, delegate and best-of-N dispatches and the `/review` loop run
   under the policy, with a redesign offered to Plan at the third round.

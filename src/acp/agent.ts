@@ -978,7 +978,7 @@ class AcpSession {
     }
     const preparing: PreparingPrompt = { isCancelled: false }
     this.preparing = preparing
-    let queued: readonly TurnPart[]
+    let lease: Awaited<ReturnType<AcpQuestionRegistry['peekQueued']>>
     let local: Awaited<ReturnType<typeof acpPlaybook>>
     try {
       local = await acpPlaybook(
@@ -990,25 +990,23 @@ class AcpSession {
           return bundle
         },
       )
-      if (local === undefined) await this.announceCommands()
-      queued = (await this.questionRegistry?.queuedParts()) ?? []
+      if (local === undefined) {
+        await this.announceCommands()
+        lease = await this.questionRegistry?.peekQueued()
+      }
     } finally {
       this.preparing = undefined
     }
     if ('error' in preparing) {
-      await this.questionRegistry?.acknowledgeQueued('notTaken')
+      if (lease !== undefined) await this.questionRegistry?.releaseQueued(lease.token)
       throw preparing.error
     }
     if (preparing.isCancelled) {
-      await this.questionRegistry?.acknowledgeQueued('notTaken')
+      if (lease !== undefined) await this.questionRegistry?.releaseQueued(lease.token)
       await this.outbox
       return 'cancelled'
     }
     if (local !== undefined) {
-      // The local command consumed no model turn, so the leased answers are
-      // restored: the next prompt re-leases them instead of failing on the
-      // outstanding lease (and a restart keeps them durable).
-      await this.questionRegistry?.acknowledgeQueued('notTaken')
       this.send({
         sessionUpdate: 'agent_message_chunk',
         content: { type: 'text', text: local.text },
@@ -1032,21 +1030,25 @@ class AcpSession {
     })
     try {
       const starting = this.session.sendTurn(
-        [...queued, ...this.withSkill(parsed.parts)],
+        [...(lease?.parts ?? []), ...this.withSkill(parsed.parts)],
         parsed.displayText,
       )
       this.starting = starting
       const submission = await starting
       this.noteTurnId(submission.turnId)
       try {
-        await this.questionRegistry?.acknowledgeQueued('taken')
-        if (queued.length > 0) this.getQuestions().sentQueued()
+        if (lease !== undefined) {
+          const token = lease.token
+          lease = undefined
+          await this.questionRegistry?.commitQueued(token)
+          this.getQuestions().sentQueued()
+        }
       } catch {
         throw RequestError.internalError(undefined, UI_TEXT.questionAnswerUncertain)
       }
     } catch (error: unknown) {
       try {
-        await this.questionRegistry?.acknowledgeQueued('uncertain')
+        if (lease !== undefined) await this.questionRegistry?.releaseQueued(lease.token)
       } catch {
         this.questionStateNotSaved()
       }

@@ -28745,6 +28745,20 @@ Total: about 100 lane-hours.
 
 ### M116 — The orchestrator playbook (D96)
 
+**Round-three redesign (FIXM116I3, 2026-10-07).** Replace the destructive
+ACP queued-answer read with an exclusive, non-destructive token lease.
+Local commands never acquire it. Only successful model submission commits
+and persists removal; cancellation/send failure releases in memory, and a
+restart before commit retains the durable prefix. A failed commit leaves the
+prefix durable and releases ownership so later prompts cannot strand it;
+unknown admission can repeat an answer rather than silently lose it. Test
+local commands, send success/failure, restart, stale tokens and concurrent
+prompts. Shared CLI/ACP/React record text consumes the residual register's
+unbound disposition and explains why a legacy acceptance covers nothing,
+with translations in all fourteen tables. Certify both regressions against
+`f2f55ad85`, then run scoped CI checks in a fresh committed clone. Existing
+planner/editor integration handoffs remain open.
+
 **U second-review repair (RVM116U2, 2026-10-06).** Fix the one P2:
 a successful rule save reconciles every changed settings field with the
 returned authoritative record, including an unedited round-limit selector.

@@ -18,6 +18,12 @@ import { formAnswers, questionCommand, questionForm, questionsText } from './que
 
 type QuestionRequest = Extract<AgentEvent, { type: 'questionRequested' }>
 
+/** In-memory ownership only; durable answers remain queued until commit. */
+export interface AcpQueuedAnswerLease {
+  readonly token: symbol
+  readonly parts: readonly TurnPart[]
+}
+
 /** Q/runtime integration: required, with no production substitute on the lane-0 base. */
 export interface AcpQuestionRegistry {
   load(): Promise<void>
@@ -43,9 +49,12 @@ export interface AcpQuestionRegistry {
   turnEnded(isCancelled: boolean): Promise<void>
   /** Persist idle answers before acknowledging them. Return taken only after the write. */
   queue(message: QuestionDelivery): Promise<QuestionDeliveryOutcome>
-  /** Durable queued answers stay until a submission was taken or became uncertain. */
-  queuedParts(): Promise<readonly TurnPart[]>
-  acknowledgeQueued(outcome: QuestionDeliveryOutcome): Promise<void>
+  /** Exclusive non-destructive peek; an empty queue needs no lease. */
+  peekQueued(): Promise<AcpQueuedAnswerLease | undefined>
+  /** Persist removal only after successful model submission. */
+  commitQueued(token: symbol): Promise<void>
+  /** Release ownership without writing or removing answers. */
+  releaseQueued(token: symbol): Promise<void>
   dispose(): void
 }
 

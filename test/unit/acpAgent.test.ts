@@ -3,12 +3,17 @@ import type { PlaybookSurfacePort } from '../../src/runtime/playbook/command'
 import { surfacePort } from './playbookSurfaceFixtures'
 import * as acp from '@agentclientprotocol/sdk'
 import { MspError } from '@muse-code/sdk'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { type AcpAgentDeps, type BackendReadiness, createAcpAgent } from '../../src/acp/agent'
 import * as questionFactories from '../../src/acp/questionDeferralEntry'
 import { AcpPaidUse } from '../../src/acp/paid'
 import type { AcpQuestionRegistryFactory } from '../../src/acp/questionDeferral'
-import type { QuestionDelivery } from '../../src/shared/questions'
+import { mkdtemp } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import * as questionStores from '../../src/runtime/questions/questionStore'
+import { createRuntimeQuestionRegistry } from '../../src/runtime/questions/acpRegistry'
+import { removeFolder } from './helpers/temporaryFolders'
 import { parsePlaybookCommand, runPlaybookCommand } from '../../src/runtime/playbook/command'
 import type { AgentHost, AgentSession, ModelSummary } from '../../src/core/agent/agentBackend'
 import type {
@@ -24,7 +29,7 @@ import { FAKE_MODELS, FakeAgentHost, type FakeAgentSession } from './helpers/fak
 import { memoryPaidGrants } from './helpers/paidGrants'
 import { commandApproval, until } from './helpers/acpWaits'
 import { acpMspHost, acpResumeEnvelope, answerMsp } from './helpers/acpMsp'
-import { FakeAcpQuestionRegistry, fakeAcpQuestions } from './helpers/questions/acpRegistry'
+import { fakeAcpQuestions } from './helpers/questions/acpRegistry'
 import { expectedQuestionCommandsUpdate } from './helpers/questions/fixtures'
 
 // M63 (PLAN.md D62): the agent driven by the ACP SDK's own client, in
@@ -719,55 +724,46 @@ describe('the ACP agent (M63)', () => {
     })
   })
 
-  it('restores a leased late answer across a local /playbook command', async () => {
-    // The runtime registry leases durable queued answers into exactly one
-    // prompt: a second lease while one is outstanding rejects, and the lease
-    // is restored only by acknowledging it `notTaken`. A local /playbook
-    // command starts no model turn, so it must restore the lease it took.
-    let registry: FakeAcpQuestionRegistry | undefined
-    let held: QuestionDelivery[] = []
+  it('local /playbook never leases or writes queued answers; the next model prompt takes them', async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'm116-local-'))
+    onTestFinished(() => removeFolder(directory))
+    const store = questionStores.createQuestionQueueStore(path.join(directory, 'queued'))
+    const save = vi.spyOn(store, 'save')
+    const factory = vi.spyOn(questionStores, 'createQuestionQueueStore').mockReturnValue(store)
+    onTestFinished(() => {
+      factory.mockRestore()
+    })
+    let registry: ReturnType<typeof createRuntimeQuestionRegistry> | undefined
     const h = harness({
       playbookFor: () => surfacePort(),
       questions: (input) => {
-        const inner = fakeAcpQuestions(input)
-        if (!(inner instanceof FakeAcpQuestionRegistry))
-          throw new Error('Expected the fake registry')
-        inner.queuedParts.mockImplementation(() => {
-          if (held.length > 0) return Promise.reject(new Error(UI_TEXT.questionAnswerUncertain))
-          held = [...inner.queued]
-          inner.queued.length = 0
-          return Promise.resolve(
-            held.map((message) => ({ type: 'text' as const, text: message.text })),
-          )
-        })
-        inner.acknowledgeQueued.mockImplementation((outcome) => {
-          if (outcome === 'notTaken') inner.queued.unshift(...held)
-          held = []
-          return Promise.resolve()
-        })
-        registry = inner
+        registry = createRuntimeQuestionRegistry(input, directory, 'museCode', vi.fn())
         return registry
       },
     })
     await h.run(async (client) => {
       const { sessionId } = await start(client)
-      expect(
-        await registry!.queue({
-          sessionId,
-          userInputId: 'q-1',
-          text: 'late: blue',
-          displayText: undefined,
-        }),
-      ).toBe('taken')
+      await registry!.queue({
+        sessionId,
+        userInputId: 'q-1',
+        text: 'late: blue',
+        displayText: undefined,
+      })
+      save.mockClear()
       expect(await prompt(client, sessionId, '/playbook status')).toEqual({
         stopReason: 'end_turn',
       })
       expect(h.host.sessions.at(-1)?.sendTurn).not.toHaveBeenCalled()
-      // The answer survived the local command: the next prompt leases it again.
+      expect(save).not.toHaveBeenCalled()
+      expect(await store.load(sessionId)).toMatchObject([{ text: 'late: blue' }])
       await turn(h, client, sessionId, () => undefined)
-      const parts = h.host.sessions.at(-1)?.sendTurn.mock.calls.at(-1)?.[0]
-      expect(parts).toContainEqual({ type: 'text', text: 'late: blue' })
+      expect(h.host.sessions.at(-1)?.sendTurn.mock.calls.at(-1)?.[0]).toContainEqual({
+        type: 'text',
+        text: 'late: blue',
+      })
+      expect(await store.load(sessionId)).toEqual([])
     })
+    await registry?.flush()
   })
 
   it('refuses unbound /playbook rather than sending the command to a model', async () => {
