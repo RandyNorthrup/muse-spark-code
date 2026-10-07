@@ -8,8 +8,8 @@ happened, not what was planned; superseded entries are kept.
 ## [Unreleased]
 
 - Preserve failed turns for cut-short tool replies when output continuation is
-  off, including normal and attempt sessions; await the lazy Goal body's first
-  content in its row regression.
+  off, including normal and attempt sessions; await the lazy Goal body and
+  question-card controls in their row and Transcript regressions.
 
 - Keep atomic edit declarations compatible with multi-edit calls; normalize
   inherited provider-panel and codec USD amounts through the shared exact-money

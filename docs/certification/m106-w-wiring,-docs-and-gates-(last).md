@@ -186,3 +186,91 @@ and each mutated file was restored byte-exact (SHA-256 below). Logs are
 | manager-forwarding | `src/host/backend/modelApiBackendManager.ts` | Both normal/attempt continuation-off cases | `f95787907252f5aa56e4f5f43c1a871a5cafdf58c060bf1d5d6821c61e3497ae` |
 | session-snapshot   | `src/core/backends/modelapi/ModelApiHost.ts` | Both normal/attempt continuation-off cases | `4d3d766e1187421f01b625dea5e802219527b244f5cd529b8076f022dd29c2cb` |
 | goal-first-body    | `test/unit/toolRows.test.tsx`                | Goal first-body assertion                  | `e10901d4549fd67cbe81380413b56c5c398175db8ff322b896966c9707514bf4` |
+
+The explicitly required Transcript run exposed two more instances of the same
+first-use timing problem: the Focus-view waiting question and the locked
+answered/cancelled question both queried the radio synchronously. Their first
+radio now uses `findByRole`; every folding/disabled assertion is unchanged.
+The production lazy question card is unchanged. Initial App/Transcript/toolRows
+verification had **247 passed, 2 failed**; after the awaits it has **249 passed**.
+Reverting both awaits deliberately reproduces exactly those two failures
+(**61 passed, 2 failed**), followed by byte-exact restoration:
+
+| Drill                     | File                            | Failing cases                                  | Restored SHA-256                                                   |
+| ------------------------- | ------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------ |
+| transcript-first-controls | `test/unit/Transcript.test.tsx` | Focus-view question and locked question radios | `fb82c058d485f4f0a320104c3aba057c1a0727ab30458ea04675158109c193c6` |
+
+This brings the continuation to **five** observed failing drills, with all
+restoration hashes still matching after the fix commit
+`79908628b` and the final checks.
+
+### Final scoped test matrix
+
+Each command is `npx vitest run <files> --maxWorkers=3`, at most three files,
+with the repository default timeout (no `--testTimeout` in any run). This is
+the union of the prior scoped/final/restored M106 groups plus Transcript.
+The final evidence for the UI row replaces the initial failed group; no failed
+case is counted as passed until its complete file passed. No golden fixture was
+regenerated or changed, and snapshot fixture bytes match the worktree.
+
+| Full files (`test/unit/` prefix omitted)                                                   | Passed | Log                         |
+| ------------------------------------------------------------------------------------------ | -----: | --------------------------- |
+| `modelApiHost.test.ts`, `m106Wiring.test.ts`, `modelApiLoopGuarantees.test.ts`             |    711 | `continuation-final-01.log` |
+| `modelApiGoldenRequests.test.ts`, `modelApiPrefix.test.ts`, `modelApiAutoCompact.test.ts`  |     93 | `continuation-final-02.log` |
+| `App.test.tsx`, `Transcript.test.tsx`, `toolRows.test.tsx`                                 |    249 | `continuation-ui-final.log` |
+| `HistoryDialog.test.tsx`, `bundleSize.test.mjs`, `conversationController.test.ts`          |    630 | `continuation-final-04.log` |
+| `credentialEnvironment.test.ts`, `deferredBundles.test.ts`, `execOutput.test.ts`           |    161 | `continuation-final-05.log` |
+| `execRun.test.ts`, `execSchema.test.ts`, `gitText.test.ts`                                 |    115 | `continuation-final-06.log` |
+| `judgeSameModelApi.test.ts`, `m106Build.test.mjs`, `modelApiBackendManager.test.ts`        |     34 | `continuation-final-07.log` |
+| `modelApiBundle.test.ts`, `modelApiClient.test.ts`, `modelApiCodeIntel.test.ts`            |    108 | `continuation-final-08.log` |
+| `modelApiMcpServers.test.ts`, `modelApiSchemas.test.ts`, `modelApiTools.test.ts`           |     80 | `continuation-final-09.log` |
+| `modelapiChatCodec.test.ts`, `modelsApp.test.tsx`, `modelsComponents.test.tsx`             |    108 | `continuation-final-10.log` |
+| `modelsPanelSchemas.test.ts`, `modelsPanelSections.test.tsx`, `notify.test.ts`             |     33 | `continuation-final-11.log` |
+| `paidAuthority.test.ts`, `paidHost.test.ts`, `paidMoneyPorts.test.ts`                      |     65 | `continuation-final-12.log` |
+| `providersFlow.test.ts`, `providersL10n.test.ts`, `providersThreats.test.ts`               |    109 | `continuation-final-13.log` |
+| `readFileBudget.test.ts`, `referenceGenerator.test.mjs`, `referenceKeyboardTruth.test.tsx` |     59 | `continuation-final-14.log` |
+| `responsesCodec.test.ts`, `sessionBudget.test.ts`, `sessionStore.test.ts`                  |     97 | `continuation-final-15.log` |
+| `settings.test.ts`, `structuredOutput.test.ts`, `supportReport.test.ts`                    |     43 | `continuation-final-16.log` |
+| `webviewBundle.test.mjs`, `webviewBundles.test.mjs`                                        |     30 | `continuation-final-17.log` |
+
+**Final total: 2,725 passed across 50 complete files; zero failures.**
+All logs are under `temp/m106-w/`; checks ran directly on macmini in this
+worktree or its exact-lock ignored snapshot. Source, tests and scripts were
+verified byte-identical before the production build and full matrix.
+
+### Continuation build and static gates
+
+`npm run build` exits 0 through size, split, host-globals and bundled notices
+(`continuation-build.log`, repeated as `continuation-build-final.log` after the
+changelog update); no existing cap changed. The only production change is the
+continuation-off guard; subsequent changes are test awaits and records.
+
+| Artifact                    |   KiB | Cap, KiB |
+| --------------------------- | ----: | -------: |
+| extension                   | 474.8 |      600 |
+| Model API                   | 468.1 |      475 |
+| ACP                         | 822.3 |      850 |
+| browser startup closure     | 732.5 |      900 |
+| original deferred group     |  31.6 |       50 |
+| exec                        | 820.9 |      950 |
+| Model API code intelligence |  69.7 |      100 |
+| MCP pool                    |  58.6 |       75 |
+| shared schema conversion    |  22.3 |       50 |
+| History row                 |   3.1 |       25 |
+
+All five projects pass `npm run typecheck`; `typecheck:unit` was rerun after the
+Transcript awaits and passes. Changed-file ESLint has zero warnings and Prettier
+checks pass. Plain `knip` passes with the same two informational configuration
+hints. jscpd analyzes **1,351 files, 457,568 lines** with **zero clones** and the
+unchanged zero threshold. Localization reports **14 tables, 0 problems**;
+reference generation is current; host API reports **334 APIs, 35 importing
+files, 25 Node built-ins, 61 theme variables, 0 problems**. These logs all use
+the `continuation-` prefix in `temp/m106-w/`.
+
+Commits use explicit paths and the ordinary lint-staged/format/gitleaks hooks.
+No push, rebase, merge, paid/live request or credential-store access occurred.
+No rule, ignore, cap, dependency or timeout changed. The two stopped tests and
+the two newly exposed Transcript awaits are closed. The inherited absent
+capture/provider handoffs, aggregate quality/coverage/accessibility, hosted
+matrix and live/M75/release receipts remain the lead's recorded qualification
+work, as the brief requires.

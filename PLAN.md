@@ -27533,6 +27533,11 @@ Re-run the prior scoped M106 files plus App/Transcript/toolRows, with the
 repository timeout and unchanged build/size gates; aggregate certification
 and live receipts remain the lead's responsibility.
 
+The required Transcript run also exposed two existing first-use question-card
+assertions before the lazy radio rendered. Apply the same control-based await
+to the Focus-view and answered/cancelled-card tests, preserving their assertions
+and the production lazy boundary; rerun the full App/Transcript/toolRows group.
+
 **FIXM106T review corrections (2026-10-06, macmini).** Address RVM106T's
 three P2 findings with regressions and byte-restored red drills: share private
 strict-tool metadata across independently built bundles, preserve each Chat
