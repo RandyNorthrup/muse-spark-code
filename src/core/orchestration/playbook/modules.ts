@@ -113,6 +113,8 @@ export const PLAYBOOK_IDENTITY_NOTE = 'playbook-file-identity'
 export const PLAYBOOK_LEASE_NOTE = 'playbook-patch-lease'
 export const PLAYBOOK_RELEASE_NOTE = 'playbook-patch-release'
 export const PLAYBOOK_USER_NOTE = 'playbook-redesign-user-decision'
+/** G3: the rendered dispatch brief and its hash, recorded before dispatch. */
+export const PLAYBOOK_BRIEF_NOTE = 'playbook-dispatch-brief'
 
 export function fileIdentities(
   workspace: string,

@@ -2810,6 +2810,12 @@
   "playbookPatchRoundsLabel": "Rundy poprawek przed przeprojektowaniem",
   "playbookPatchRoundsHelp": "Limit można obniżyć. Po jego osiągnięciu zapisz decyzję projektową i uruchom gałąź przeprojektowania.",
   "playbookPatchRoundsInvalid": "Wybierz jedną lub dwie rundy poprawek; nie można podnieść limitu.",
+  "playbookFallbackReviewer": "Recenzent zastępczy dla recenzji zablokowanych przez klasyfikator: {reviewer}",
+  "playbookFallbackNone": "Nie wyznaczono recenzenta zastępczego",
+  "playbookResidualAccepted": "Punkt szczątkowy zaakceptowany",
+  "playbookLeaseRecord": "Dzierżawa poprawki {status}: {module} ({lane})",
+  "playbookWorkRecord": "Praca {id} nad {module}: bazowych commitów: {commits}",
+  "playbookVerificationRecord": "Weryfikacja hooków {result} dla {commit} ({scope})",
   "playbookPlanRedesign": "Zaplanuj przeprojektowanie",
   "playbookDesignDecision": "Decyzja projektowa",
   "playbookCoverageLabel": "Zakres przeglądu",
@@ -2879,7 +2885,11 @@
     "lineageRequired": "Podręcznik: {module} wymaga zapisanego pochodzenia modułu lub wyjątku zatwierdzonego przez lidera bądź właściciela.",
     "reviewerConflict": "Podręcznik: {module} wymaga recenzenta z innym identyfikatorem agenta i inną sesją.",
     "hookVerificationFailed": "Potrzebna Twoja interwencja: weryfikacja hooków repozytorium nie powiodła się. Wysyłanie i zakończenie są zablokowane.",
-    "unverifiedCommit": "Kontrola bezpieczeństwa: każdy nowy commit wymaga potwierdzenia poprawnej weryfikacji hooków przed wysłaniem lub zakończeniem."
+    "unverifiedCommit": "Kontrola bezpieczeństwa: każdy nowy commit wymaga potwierdzenia poprawnej weryfikacji hooków przed wysłaniem lub zakończeniem.",
+    "briefRecorded": "Przewodnik: opis dla {module} zapisany ({reason}).",
+    "configDrift": "Potrzebna Twoja decyzja: współdzielona konfiguracja repozytorium zmieniła się dla {module} ({reason}).",
+    "fallbackReviewer": "Przewodnik: {actor} sprawdza {module} jako zapisany recenzent zastępczy ({reason}).",
+    "residualOpen": "Potrzebna Twoja decyzja: {lane} ma otwarte punkty szczątkowe: {missing}."
   },
   "playbookStrikeBadge": {
     "one": "{count} runda przeglądu",

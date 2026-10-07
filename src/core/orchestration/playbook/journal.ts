@@ -27,6 +27,7 @@ import {
 } from '../../../shared/playbook'
 import { redactSecrets } from '../../../shared/redact'
 import {
+  PLAYBOOK_BRIEF_NOTE,
   PLAYBOOK_IDENTITY_NOTE,
   PLAYBOOK_LEASE_NOTE,
   PLAYBOOK_RELEASE_NOTE,
@@ -96,6 +97,7 @@ export function retainRecords(records: readonly PlaybookRecord[]): PlaybookRecor
     if (
       record.kind === 'note' &&
       [
+        PLAYBOOK_BRIEF_NOTE,
         PLAYBOOK_IDENTITY_NOTE,
         PLAYBOOK_LEASE_NOTE,
         PLAYBOOK_RELEASE_NOTE,

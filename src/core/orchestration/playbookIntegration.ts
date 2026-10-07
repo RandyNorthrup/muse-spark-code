@@ -80,6 +80,9 @@ export class PlaybookIntegration {
 
   start(work: PlaybookWork): ManagedPlaybookWork {
     if (!work.id.trim() || this.active.has(work.id)) throw new Error(UI_TEXT.playbookUnavailable)
+    // G3: the brief renders structurally and its hash records before any
+    // admission, for every orchestrator (panel, M96, M110, M115w alike).
+    this.require(this.policy.recordBrief(work.module, work.brief), work.module)
     let decision: PlaybookDecision
     if (work.lane) {
       const board = this.plan.readBoard()
@@ -128,6 +131,14 @@ export class PlaybookIntegration {
   merge(identity: NonNullable<PlaybookWork['lane']>, effect: () => void): void {
     const lane = this.lane(identity, this.plan.readBoard().lanes)
     this.require(this.policy.beforeMerge(lane), lane.module)
+    effect()
+  }
+
+  /** G24: the milestone's residual register must be empty or accepted before
+   * the release effect runs. The merge queue calls this, not the lanes. */
+  release(milestoneId: string, effect: () => void): void {
+    const board = this.plan.readBoard()
+    this.require(this.policy.releaseReady(milestoneId, board.lanes))
     effect()
   }
 

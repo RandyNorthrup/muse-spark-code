@@ -2618,6 +2618,12 @@
   "playbookPatchRoundsLabel": "Korrekturrunden vor dem Neuentwurf",
   "playbookPatchRoundsHelp": "Die Grenze kann gesenkt werden. Sobald sie erreicht ist, schreiben Sie eine Entwurfsentscheidung und starten Sie einen Neuentwurfszweig.",
   "playbookPatchRoundsInvalid": "Wählen Sie eine oder zwei Korrekturrunden; die Obergrenze kann nicht erhöht werden.",
+  "playbookFallbackReviewer": "Ersatzprüfung für vom Klassifikator blockierte Prüfungen: {reviewer}",
+  "playbookFallbackNone": "Keine Ersatzprüfung benannt",
+  "playbookResidualAccepted": "Restpunkt akzeptiert",
+  "playbookLeaseRecord": "Patch-Lease {status}: {module} ({lane})",
+  "playbookWorkRecord": "Arbeit {id} an {module}: {commits} Basis-Commits",
+  "playbookVerificationRecord": "Hook-Prüfung {result} für {commit} ({scope})",
   "playbookPlanRedesign": "Neuentwurf planen",
   "playbookDesignDecision": "Entwurfsentscheidung",
   "playbookCoverageLabel": "Prüfungsabdeckung",
@@ -2687,7 +2693,11 @@
     "lineageRequired": "Leitfaden: {module} benötigt eine dokumentierte Modulherkunft oder eine Ausnahme durch die Leitung oder den Eigentümer.",
     "reviewerConflict": "Leitfaden: {module} benötigt einen Prüfer mit einer anderen Agenten-ID und Sitzung.",
     "hookVerificationFailed": "Ihre Hilfe wird benötigt: Die Hook-Prüfung des Repositorys ist fehlgeschlagen. Push und Abschluss sind gesperrt.",
-    "unverifiedCommit": "Sicherheitsprüfung: Jeder neue Commit benötigt vor Push oder Abschluss einen Nachweis bestandener Hook-Prüfungen."
+    "unverifiedCommit": "Sicherheitsprüfung: Jeder neue Commit benötigt vor Push oder Abschluss einen Nachweis bestandener Hook-Prüfungen.",
+    "briefRecorded": "Leitfaden: Auftragsbeschreibung für {module} aufgezeichnet ({reason}).",
+    "configDrift": "Ihre Entscheidung ist nötig: Die gemeinsam genutzte Repository-Konfiguration hat sich für {module} geändert ({reason}).",
+    "fallbackReviewer": "Leitfaden: {actor} prüft {module} als aufgezeichnete Ersatzprüfung ({reason}).",
+    "residualOpen": "Ihre Entscheidung ist nötig: {lane} hat offene Restpunkte: {missing}."
   },
   "playbookStrikeBadge": {
     "one": "{count} Prüfrunde",

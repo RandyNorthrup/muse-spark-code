@@ -2714,6 +2714,12 @@
   "playbookPatchRoundsLabel": "Cycles de correction avant refonte",
   "playbookPatchRoundsHelp": "La limite peut être abaissée. Une fois atteinte, rédigez une décision de conception et lancez une branche de refonte.",
   "playbookPatchRoundsInvalid": "Choisissez un ou deux cycles de correction ; le plafond ne peut pas être relevé.",
+  "playbookFallbackReviewer": "Examinateur de repli pour les examens bloqués par le classificateur : {reviewer}",
+  "playbookFallbackNone": "Aucun examinateur de repli désigné",
+  "playbookResidualAccepted": "Point résiduel accepté",
+  "playbookLeaseRecord": "Bail de correctif {status} : {module} ({lane})",
+  "playbookWorkRecord": "Travail {id} sur {module} : {commits} commits de base",
+  "playbookVerificationRecord": "Vérification des hooks {result} pour {commit} ({scope})",
   "playbookPlanRedesign": "Planifier une refonte",
   "playbookDesignDecision": "Décision de conception",
   "playbookCoverageLabel": "Couverture de la revue",
@@ -2783,7 +2789,11 @@
     "lineageRequired": "Guide : {module} nécessite une filiation de module enregistrée ou une dérogation du responsable ou propriétaire.",
     "reviewerConflict": "Guide : {module} nécessite un réviseur avec un identifiant d’agent et une session différents.",
     "hookVerificationFailed": "Votre intervention est nécessaire : la vérification des hooks du dépôt a échoué. L’envoi et la clôture sont bloqués.",
-    "unverifiedCommit": "Contrôle de sécurité : chaque nouveau commit doit avoir un justificatif de réussite des hooks avant l’envoi ou la clôture."
+    "unverifiedCommit": "Contrôle de sécurité : chaque nouveau commit doit avoir un justificatif de réussite des hooks avant l’envoi ou la clôture.",
+    "briefRecorded": "Guide : dossier pour {module} enregistré ({reason}).",
+    "configDrift": "Votre intervention est requise : la configuration partagée du dépôt a changé pour {module} ({reason}).",
+    "fallbackReviewer": "Guide : {actor} examine {module} comme examinateur de repli enregistré ({reason}).",
+    "residualOpen": "Votre intervention est requise : {lane} comporte des points résiduels ouverts : {missing}."
   },
   "playbookStrikeBadge": {
     "one": "{count} cycle de revue",

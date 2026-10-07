@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import { redactSecrets } from '../../../shared/redact'
-import { PLAYBOOK_LAUNDER_WINDOW_MS } from '../../../shared/constants'
+import {
+  PLAYBOOK_DRIFT_NAMES_MAX,
+  PLAYBOOK_LAUNDER_WINDOW_MS,
+  REVIEW_FINDING_TEXT_MAX_CHARS,
+} from '../../../shared/constants'
 import {
   defaultPlaybookSettings,
   playbookDesignDecisionSchema,
@@ -10,6 +14,7 @@ import {
   playbookWhyNoteSchema,
   type PlaybookAction,
   type PlaybookBoard,
+  type PlaybookBrief,
   type PlaybookCheck,
   type PlaybookCheckDecision,
   type PlaybookCommand,
@@ -43,6 +48,7 @@ import {
   fileIdentities,
   renamedFiles,
   hasSimilarContent,
+  PLAYBOOK_BRIEF_NOTE,
   PLAYBOOK_IDENTITY_NOTE,
   PLAYBOOK_USER_NOTE,
   moduleStates,
@@ -74,6 +80,8 @@ import {
   hookVerificationDigest,
   type PlaybookHookAdmission,
 } from './outcomes'
+import { renderPlaybookBrief } from '../playbookBrief'
+import { collectResidualRegister } from '../playbookReports'
 
 export interface PlaybookPolicyOptions {
   readonly journal: PlaybookJournal
@@ -406,13 +414,52 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
       : undefined
   }
 
+  /** G17: shared configuration drift is a durable owner item, never silent.
+   * The digest mismatch still refuses below; this names what changed. */
+  private reportConfigDrift(
+    work: Extract<PlaybookRecord, { kind: 'work' }>['value'],
+    outcomes: PlaybookOutcomes,
+  ): void {
+    let reason: string | undefined
+    try {
+      const before = work.config
+      const after = outcomes.configSnapshot()
+      if (before !== undefined) {
+        const details: string[] = []
+        if (before.hooksPath !== after.hooksPath)
+          details.push(
+            `hooksPath: ${before.hooksPath || '(unset)'} -> ${after.hooksPath || '(unset)'}`,
+          )
+        const gone = before.files.filter((name) => !after.files.includes(name))
+        const added = after.files.filter((name) => !before.files.includes(name))
+        for (const file of gone.slice(0, PLAYBOOK_DRIFT_NAMES_MAX)) details.push(`removed: ${file}`)
+        for (const file of added.slice(0, PLAYBOOK_DRIFT_NAMES_MAX)) details.push(`added: ${file}`)
+        const text = details.join('; ') || 'hook file contents changed'
+        reason = text.slice(0, REVIEW_FINDING_TEXT_MAX_CHARS).trimEnd() || undefined
+      }
+    } catch {
+      reason = undefined
+    }
+    this.decide(
+      'refuse',
+      'neverAround',
+      'configDrift',
+      reason === undefined
+        ? { module: work.moduleId, needsUser: true }
+        : { module: work.moduleId, reason, needsUser: true },
+    )
+  }
+
   private verificationContext(
     work: Extract<PlaybookRecord, { kind: 'work' }>['value'],
     range?: PlaybookPushRange,
   ) {
     const outcomes = new PlaybookOutcomes(this.options.workspaceFolder, this.options.hookAdmission)
     const base = outcomes.digest()
-    if (base !== work.hookDigest) throw new Error(UI_TEXT.playbookUnavailable)
+    if (base !== work.hookDigest) {
+      this.reportConfigDrift(work, outcomes)
+      throw new Error(UI_TEXT.playbookUnavailable)
+    }
     const firstWork = this.records.find((record) => record.kind === 'work')
     return {
       outcomes,
@@ -525,6 +572,26 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
           missing: ['userDecision'],
         })
       parsed.rules.threeStrikes = { enabled: false, ...decision }
+    }
+    if (
+      JSON.stringify(parsed.fallbackReviewer ?? null) !==
+      JSON.stringify(this.settings.fallbackReviewer ?? null)
+    ) {
+      // G20: naming or clearing the fallback reviewer is a user decision, like
+      // an opt-out. An agent-supplied actor never grants it.
+      const evidence: Parameters<OverrideAuthority>[0] = {
+        actor: 'owner',
+        reason: parsed.fallbackReviewer?.reason ?? 'remove fallback reviewer',
+        at: this.options.now(),
+      }
+      if (!this.options.authorizeOverride(evidence, `playbook.fallbackReviewer:${parsed.teamId}`))
+        return this.decide('refuse', 'neverAround', 'prerequisiteMissing', {
+          needsUser: true,
+          missing: ['userDecision'],
+        })
+      parsed.fallbackReviewer = parsed.fallbackReviewer
+        ? { reviewerId: parsed.fallbackReviewer.reviewerId, ...evidence }
+        : undefined
     }
     this.publish([{ kind: 'settings', value: parsed }])
     return this.decide('allow', 'threeStrikes')
@@ -730,6 +797,65 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
     })
   }
 
+  /** G24: accept a named open residual with a real user decision. Unknown
+   * names fail closed: acceptance must name something the register holds. */
+  acceptResidual(
+    milestoneId: string,
+    name: string,
+    reason: string,
+    lanes: readonly PlaybookLane[],
+  ): PlaybookDecision {
+    this.refresh()
+    if (!milestoneId.trim() || !name.trim() || !reason.trim())
+      throw new Error(UI_TEXT.playbookUnavailable)
+    const register = collectResidualRegister(this.records, lanes, milestoneId)
+    if (register.open.every((entry) => entry.name !== name))
+      throw new Error(UI_TEXT.playbookUnavailable)
+    const evidence: Parameters<OverrideAuthority>[0] = {
+      actor: 'owner',
+      reason,
+      at: this.options.now(),
+    }
+    if (!this.options.authorizeOverride(evidence, `residual:${milestoneId}:${name}`))
+      return this.decide('refuse', 'continuousIntegration', 'prerequisiteMissing', {
+        laneId: milestoneId,
+        needsUser: true,
+        missing: ['userDecision'],
+      })
+    const acceptance = reason.slice(0, REVIEW_FINDING_TEXT_MAX_CHARS).trimEnd()
+    if (!acceptance) throw new Error(UI_TEXT.playbookUnavailable)
+    this.publish([
+      {
+        kind: 'residual',
+        value: {
+          milestoneId,
+          name,
+          status: 'accepted',
+          actor: 'owner',
+          reason: acceptance,
+          at: evidence.at,
+        },
+      },
+    ])
+    return this.decide('allow', 'continuousIntegration', 'checksPassed', { laneId: milestoneId })
+  }
+
+  /** G24: the per-milestone residual register must be empty or accepted
+   * before release. Open entries refuse with their names, first for the user. */
+  releaseReady(milestoneId: string, lanes: readonly PlaybookLane[]): PlaybookDecision {
+    this.refresh()
+    const register = collectResidualRegister(this.records, lanes, milestoneId)
+    if (register.open.length === 0)
+      return this.decide('allow', 'continuousIntegration', 'checksPassed', {
+        laneId: milestoneId,
+      })
+    return this.decide('refuse', 'continuousIntegration', 'residualOpen', {
+      laneId: milestoneId,
+      missing: register.open.map((entry) => entry.name),
+      needsUser: true,
+    })
+  }
+
   beforeDispatch(lane: PlaybookLane, board: PlaybookBoard): PlaybookDecision {
     this.refresh()
     if (this.on('contractsFirst') && lane.kind !== 'contracts' && !hasReadyContracts(lane, board))
@@ -786,6 +912,31 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
       : this.decide('refuse', 'onePassReview', 'answersPending', { module: lane.module.key })
   }
 
+  /** G3: render the dispatch brief structurally and record its hash before
+   * any effect. A malformed brief or an unfilled template fails closed here,
+   * never on the worker. An unchanged brief reuses its recorded note. */
+  recordBrief(module: PlaybookModule, brief: PlaybookBrief): PlaybookDecision {
+    this.refresh()
+    const state = this.state(module)
+    if ('kind' in state) return state
+    const rendered = renderPlaybookBrief(brief)
+    const reason = `base ${rendered.baseCommit}, sha256 ${rendered.sha256}`
+    const recorded = this.records.find(
+      (record) =>
+        record.kind === 'note' &&
+        record.value.code === 'briefRecorded' &&
+        record.value.laneId === PLAYBOOK_BRIEF_NOTE &&
+        record.value.module === module.key &&
+        record.value.reason === reason,
+    )
+    if (recorded?.kind === 'note') return { kind: 'allow', note: recorded.value }
+    return this.decide('allow', 'contractsFirst', 'briefRecorded', {
+      laneId: PLAYBOOK_BRIEF_NOTE,
+      module: module.key,
+      reason,
+    })
+  }
+
   /** Trusted adapters call this before work begins and retain the returned id. */
   beginWork(module: PlaybookModule, refs: readonly string[]): string {
     this.refresh()
@@ -803,6 +954,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
           refs: [...refs],
           baseline: outcomes.snapshot(),
           hookDigest: outcomes.digest(),
+          config: outcomes.configSnapshot(),
           at: this.options.now(),
         },
       },
@@ -906,6 +1058,38 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
       source === 'classifier' ? 'classifierBlocked' : 'permissionLaundering',
       { module: actionIdentity(action), actor: requester.agentId, needsUser: true },
     )
+  }
+
+  /** G20: the user's pre-named fallback reviewer for a classifier-blocked
+   * action. Applies only with a recorded block for that exact action, a
+   * recorded fallback, and no reviewer conflict with the implementer. The
+   * blocked action is never retried or rerouted; rule 9 stands. Otherwise the
+   * suggested agents return unchanged and the user decides each time. */
+  applyFallbackReviewer(
+    module: PlaybookModule,
+    agents: PlaybookReviewAgents,
+    action: PlaybookAction,
+  ): { readonly agents: PlaybookReviewAgents; readonly note: PlaybookWhyNote | undefined } {
+    this.refresh()
+    const fallback = this.settings.fallbackReviewer
+    if (fallback === undefined) return { agents, note: undefined }
+    const hasBlock = this.records.some(
+      (record) =>
+        record.kind === 'note' &&
+        record.value.code === 'classifierBlocked' &&
+        record.value.module === actionIdentity(action),
+    )
+    if (!hasBlock) return { agents, note: undefined }
+    const assigned: PlaybookReviewAgents = { ...agents, reviewerId: fallback.reviewerId }
+    if (hasReviewConflict(assigned)) return { agents, note: undefined }
+    const decision = this.decide('allow', 'neverAround', 'fallbackReviewer', {
+      module: module.key,
+      actor: fallback.reviewerId,
+      reason: fallback.reason,
+    })
+    return decision.kind === 'allow'
+      ? { agents: assigned, note: decision.note }
+      : { agents, note: undefined }
   }
 
   beforeCheck(

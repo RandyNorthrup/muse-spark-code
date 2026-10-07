@@ -87,7 +87,8 @@ function playbookNotePriority(note: PlaybookWhyNote): number {
     case 'localCheck':
     case 'ciGate':
     case 'ownerFirst':
-    case 'ruleDisabled': {
+    case 'ruleDisabled':
+    case 'briefRecorded': {
       return 2
     }
     default: {
@@ -133,6 +134,46 @@ export function playbookRecordText(entry: PlaybookRecord): string {
       ]
         .filter(Boolean)
         .join('\n')
+    }
+    case 'residual': {
+      const residual = entry.value
+      return [
+        `${UI_TEXT.playbookResidualAccepted}: ${residual.milestoneId} · ${residual.name}`,
+        `${residual.actor} · ${formatDateTime(residual.at)} · ${residual.reason}`,
+      ].join('\n')
+    }
+    case 'lease': {
+      const lease = entry.value
+      return [
+        fill(UI_TEXT.playbookLeaseRecord, {
+          status: lease.status,
+          module: lease.moduleId,
+          lane: lease.laneId,
+        }),
+        formatDateTime(lease.at),
+      ].join('\n')
+    }
+    case 'work': {
+      const work = entry.value
+      return [
+        fill(UI_TEXT.playbookWorkRecord, {
+          id: work.id,
+          module: work.moduleId,
+          commits: formatNumber(work.baseline.length),
+        }),
+        formatDateTime(work.at),
+      ].join('\n')
+    }
+    case 'verification': {
+      const verification = entry.value
+      return [
+        fill(UI_TEXT.playbookVerificationRecord, {
+          result: verification.result,
+          commit: verification.commit,
+          scope: verification.scope,
+        }),
+        formatDateTime(verification.at),
+      ].join('\n')
     }
     case 'design': {
       const design = entry.value
@@ -199,6 +240,11 @@ function settingsText(settings: PlaybookSettings): string {
     }),
     `${UI_TEXT.playbookRules.neverAround}: ${UI_TEXT.playbookSafetyAlwaysOn}`,
     `${UI_TEXT.playbookPatchRoundsLabel}: ${formatNumber(settings.patchRoundsMax)}`,
+    settings.fallbackReviewer === undefined
+      ? UI_TEXT.playbookFallbackNone
+      : fill(UI_TEXT.playbookFallbackReviewer, {
+          reviewer: `${settings.fallbackReviewer.reviewerId} · ${settings.fallbackReviewer.actor} · ${formatDateTime(settings.fallbackReviewer.at)} · ${settings.fallbackReviewer.reason}`,
+        }),
   ].join('\n')
 }
 

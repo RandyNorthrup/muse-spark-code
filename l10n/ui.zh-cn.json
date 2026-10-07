@@ -2522,6 +2522,12 @@
   "playbookPatchRoundsLabel": "重新设计前的修复轮数",
   "playbookPatchRoundsHelp": "可以降低上限。达到上限后，请记录设计决策并启动重新设计工作分支。",
   "playbookPatchRoundsInvalid": "请选择一轮或两轮修复；不能提高上限。",
+  "playbookFallbackReviewer": "分类器阻止的评审的备选评审人：{reviewer}",
+  "playbookFallbackNone": "未指定备选评审人",
+  "playbookResidualAccepted": "遗留事项已接受",
+  "playbookLeaseRecord": "补丁租约 {status}：{module} ({lane})",
+  "playbookWorkRecord": "{module} 上的工作 {id}：{commits} 个基线提交",
+  "playbookVerificationRecord": "{commit} 的钩子验证 {result} ({scope})",
   "playbookPlanRedesign": "规划重新设计",
   "playbookDesignDecision": "设计决策",
   "playbookCoverageLabel": "审查覆盖范围",
@@ -2591,7 +2597,11 @@
     "lineageRequired": "工作准则：{module} 需要已记录的模块沿革，或负责人或所有者批准的例外。",
     "reviewerConflict": "工作准则：{module} 需要代理 ID 和会话均不同的审查者。",
     "hookVerificationFailed": "需要你处理：仓库钩子验证失败。推送和完成已被阻止。",
-    "unverifiedCommit": "安全检查：每个新提交都需要通过钩子验证的凭据，才能推送或完成。"
+    "unverifiedCommit": "安全检查：每个新提交都需要通过钩子验证的凭据，才能推送或完成。",
+    "briefRecorded": " playbook：已记录 {module} 的任务简报 ({reason})。",
+    "configDrift": "需要您处理：{module} 的共享仓库配置已更改 ({reason})。",
+    "fallbackReviewer": " playbook：{actor} 作为已记录的备选评审人复查 {module} ({reason})。",
+    "residualOpen": "需要您处理：{lane} 存在未关闭的遗留事项：{missing}。"
   },
   "playbookStrikeBadge": {
     "other": "{count} 轮审查"

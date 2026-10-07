@@ -2714,6 +2714,12 @@
   "playbookPatchRoundsLabel": "Rondas de corrección antes del rediseño",
   "playbookPatchRoundsHelp": "El límite puede reducirse. Al alcanzarlo, escribe una decisión de diseño y lanza una rama de rediseño.",
   "playbookPatchRoundsInvalid": "Elige una o dos rondas de corrección; no se puede aumentar el máximo.",
+  "playbookFallbackReviewer": "Revisor suplente para revisiones bloqueadas por el clasificador: {reviewer}",
+  "playbookFallbackNone": "Ningún revisor suplente designado",
+  "playbookResidualAccepted": "Asunto pendiente aceptado",
+  "playbookLeaseRecord": "Concesión de parche {status}: {module} ({lane})",
+  "playbookWorkRecord": "Trabajo {id} en {module}: {commits} commits base",
+  "playbookVerificationRecord": "Verificación de hooks {result} para {commit} ({scope})",
   "playbookPlanRedesign": "Planificar un rediseño",
   "playbookDesignDecision": "Decisión de diseño",
   "playbookCoverageLabel": "Cobertura de la revisión",
@@ -2783,7 +2789,11 @@
     "lineageRequired": "Guía: {module} necesita un registro del origen del módulo o una excepción del responsable o propietario.",
     "reviewerConflict": "Guía: {module} necesita un revisor con un identificador de agente y una sesión distintos.",
     "hookVerificationFailed": "Se necesita tu intervención: falló la verificación de hooks del repositorio. El envío y la finalización están bloqueados.",
-    "unverifiedCommit": "Comprobación de seguridad: cada commit nuevo necesita un recibo de hooks aprobados antes del envío o la finalización."
+    "unverifiedCommit": "Comprobación de seguridad: cada commit nuevo necesita un recibo de hooks aprobados antes del envío o la finalización.",
+    "briefRecorded": "Guía: informe para {module} registrado ({reason}).",
+    "configDrift": "Se necesita tu decisión: la configuración compartida del repositorio cambió para {module} ({reason}).",
+    "fallbackReviewer": "Guía: {actor} revisa {module} como revisor suplente registrado ({reason}).",
+    "residualOpen": "Se necesita tu decisión: {lane} tiene asuntos pendientes abiertos: {missing}."
   },
   "playbookStrikeBadge": {
     "one": "{count} ronda de revisión",

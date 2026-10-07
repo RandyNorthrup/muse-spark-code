@@ -2522,6 +2522,12 @@
   "playbookPatchRoundsLabel": "再設計までの修正ラウンド数",
   "playbookPatchRoundsHelp": "上限は引き下げられます。上限に達したら設計判断を記録し、再設計レーンを開始してください。",
   "playbookPatchRoundsInvalid": "修正ラウンドは一回または二回を選んでください。上限は引き上げられません。",
+  "playbookFallbackReviewer": "分類器によりブロックされたレビューの代替担当: {reviewer}",
+  "playbookFallbackNone": "代替レビュー担当は未指定です",
+  "playbookResidualAccepted": "残存事項を承認しました",
+  "playbookLeaseRecord": "パッチリース {status}: {module} ({lane})",
+  "playbookWorkRecord": "{module} の作業 {id}: 基準コミット {commits} 件",
+  "playbookVerificationRecord": "{commit} のフック検証 {result} ({scope})",
   "playbookPlanRedesign": "再設計を計画",
   "playbookDesignDecision": "設計判断",
   "playbookCoverageLabel": "レビューの網羅範囲",
@@ -2591,7 +2597,11 @@
     "lineageRequired": "手引き: {module} には、記録されたモジュールの系譜、または責任者か所有者による例外承認が必要です。",
     "reviewerConflict": "手引き: {module} には、エージェント ID とセッションが異なるレビュアーが必要です。",
     "hookVerificationFailed": "対応が必要です：リポジトリのフック検証に失敗しました。プッシュと完了はブロックされています。",
-    "unverifiedCommit": "安全確認：新しい各コミットは、プッシュまたは完了の前にフック検証の合格記録が必要です。"
+    "unverifiedCommit": "安全確認：新しい各コミットは、プッシュまたは完了の前にフック検証の合格記録が必要です。",
+    "briefRecorded": "手引き: {module} の作業指示を記録しました ({reason})。",
+    "configDrift": "判断が必要です: {module} の共有リポジトリ設定が変更されました ({reason})。",
+    "fallbackReviewer": "手引き: {actor} が記録済みの代替レビュー担当として {module} を確認します ({reason})。",
+    "residualOpen": "判断が必要です: {lane} に未解決の残存事項があります: {missing}。"
   },
   "playbookStrikeBadge": {
     "other": "レビュー {count} ラウンド"

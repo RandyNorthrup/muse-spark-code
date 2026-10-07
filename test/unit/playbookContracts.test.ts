@@ -31,9 +31,11 @@ import {
   type PlaybookFindingClass,
   type PlaybookOrderDecision,
   type PlaybookLane,
+  type PlaybookModule,
   type PlaybookPolicy,
   type PlaybookRecord,
   type PlaybookReportItem,
+  type PlaybookReviewAgents,
   type PlaybookRound,
   type PlaybookRule,
   type PlaybookSettings,
@@ -127,6 +129,13 @@ function policySpies(): PlaybookPolicy {
     recordDesignDecision: vi.fn(() => ALLOW),
     resolveRedesign: vi.fn(() => ALLOW),
     recordRefusal: vi.fn(),
+    recordBrief: vi.fn(() => ALLOW),
+    applyFallbackReviewer: vi.fn((_module: PlaybookModule, agents: PlaybookReviewAgents) => ({
+      agents,
+      note: undefined,
+    })),
+    acceptResidual: vi.fn(() => ALLOW),
+    releaseReady: vi.fn(() => ALLOW),
   }
 }
 

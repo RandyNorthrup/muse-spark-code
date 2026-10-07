@@ -1360,6 +1360,8 @@ export const PLAYBOOK_CONTENT_SIMILARITY_PERCENT = 50
 export const PLAYBOOK_FILE_FINGERPRINT_MAX = 256
 export const PLAYBOOK_LINE_HASH_CHARS = 8
 export const PLAYBOOK_HOOK_NAMES = ['pre-commit', 'commit-msg', 'pre-push'] as const
+// G17 names at most this many added/removed hook files in a drift report.
+export const PLAYBOOK_DRIFT_NAMES_MAX = 5
 export const PLAYBOOK_RECORD_FOLDER = 'playbook/v1'
 export const PLAYBOOK_ID_MAX_CHARS = 128
 // 128 random bits fence each postMessage bridge lifetime, plus its request counter.

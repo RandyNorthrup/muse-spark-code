@@ -30,11 +30,23 @@ const ruleSetting = z.discriminatedUnion('enabled', [
   z.strictObject({ enabled: z.literal(false), reason, actor: id, at: timestamp }),
 ])
 
+const override = z.strictObject({ actor: z.enum(['lead', 'owner']), reason, at: timestamp })
+
+/** G20: the user's pre-named reviewer for classifier-blocked reviews. Setting
+ * or clearing it needs a real user decision through authorizeOverride; an
+ * agent-supplied actor never grants it. Shown in settings and in every use. */
+export const playbookFallbackReviewerSchema = z.strictObject({
+  reviewerId: id,
+  ...override.shape,
+})
+export type PlaybookFallbackReviewer = z.infer<typeof playbookFallbackReviewerSchema>
+
 /** Strict keys deliberately reject a safety-rule switch and an increased ceiling. */
 export const playbookSettingsSchema = z.strictObject({
   teamId: id,
   rules: z.record(z.enum(PLAYBOOK_CONFIGURABLE_RULES), ruleSetting),
   patchRoundsMax: z.int().check(z.gte(1), z.lte(PLAYBOOK_PATCH_ROUNDS_MAX)),
+  fallbackReviewer: z.optional(playbookFallbackReviewerSchema),
 })
 export type PlaybookSettings = z.infer<typeof playbookSettingsSchema>
 
@@ -74,7 +86,6 @@ export const playbookModuleSchema = z.strictObject({
 })
 export type PlaybookModule = z.infer<typeof playbookModuleSchema>
 
-const override = z.strictObject({ actor: z.enum(['lead', 'owner']), reason, at: timestamp })
 const reviewAgents = z.strictObject({
   implementerId: id,
   reviewerId: id,
@@ -84,6 +95,27 @@ const reviewAgents = z.strictObject({
 /** Supplied by the harness from its lane registry, never from model metadata.
  * P refuses equal agent ids or shared sessions before consuming the review. */
 export type PlaybookReviewAgents = z.infer<typeof reviewAgents>
+
+const briefSection = z.string().check(z.trim(), z.minLength(1))
+/** G3: the dispatch brief envelope. Rendered structurally (never by text
+ * substitution), checked for required sections and placeholders, and hashed
+ * before dispatch. M96's planner renders through the same envelope. */
+export const playbookBriefSchema = z.strictObject({
+  objective: briefSection,
+  scope: z.array(briefSection).check(z.minLength(1)),
+  acceptance: z.array(briefSection).check(z.minLength(1)),
+  baseCommit: briefSection.check(z.regex(/^[a-f\d]+$/u)),
+})
+export type PlaybookBrief = z.infer<typeof playbookBriefSchema>
+
+/** G17: what the orchestrator saw of the shared repository configuration
+ * before a job: the effective hooks directory source and its file list.
+ * Compared after the job; any difference is reported as config drift. */
+export const playbookConfigSnapshotSchema = z.strictObject({
+  hooksPath: z.string().check(z.maxLength(REVIEW_FINDING_PATH_MAX_CHARS)),
+  files: z.array(file).check(z.maxLength(REVIEW_FINDINGS_MAX)),
+})
+export type PlaybookConfigSnapshot = z.infer<typeof playbookConfigSnapshotSchema>
 
 /** Harness-issued identity; a release never makes an old generation valid. */
 const leaseToken = z.strictObject({ moduleId: id, laneId: id, ownerId: id, generation: id })
@@ -175,6 +207,10 @@ export const playbookWhyNoteSchema = z.strictObject({
     'permissionLaundering',
     'classifierBlocked',
     'ruleDisabled',
+    'briefRecorded',
+    'configDrift',
+    'fallbackReviewer',
+    'residualOpen',
   ]),
   module: z.optional(file),
   laneId: z.optional(id),
@@ -224,6 +260,8 @@ export const playbookRecordSchema = z.discriminatedUnion('kind', [
       refs: z.array(file).check(z.minLength(1)),
       baseline: z.array(id),
       hookDigest: id,
+      /** G17: the shared-config snapshot at dispatch; drift is reported, never silent. */
+      config: z.optional(playbookConfigSnapshotSchema),
       at: timestamp,
     }),
   }),
@@ -236,6 +274,17 @@ export const playbookRecordSchema = z.discriminatedUnion('kind', [
       hookDigest: id,
       scope: z.enum(['commit', 'push']),
       result: z.enum(['pass', 'fail']),
+      at: timestamp,
+    }),
+  }),
+  z.strictObject({
+    kind: z.literal('residual'),
+    value: z.strictObject({
+      milestoneId: id,
+      name: id,
+      status: z.literal('accepted'),
+      actor: z.enum(['lead', 'owner']),
+      reason,
       at: timestamp,
     }),
   }),
@@ -387,4 +436,25 @@ export interface PlaybookPolicy {
     requester: PlaybookRequester,
     source: 'permission' | 'classifier',
   ): void
+  /** G3: render and record the dispatch brief before any effect. */
+  recordBrief(module: PlaybookModule, brief: PlaybookBrief): PlaybookDecision
+  /** G20: the user's pre-named fallback reviewer for the classifier-blocked
+   * action, or the suggested agents unchanged (with no note) when no recorded
+   * block, no named fallback, or a reviewer conflict applies. The blocked
+   * action itself is never retried or rerouted; rule 9 stands. */
+  applyFallbackReviewer(
+    module: PlaybookModule,
+    agents: PlaybookReviewAgents,
+    action: PlaybookAction,
+  ): { readonly agents: PlaybookReviewAgents; readonly note: PlaybookWhyNote | undefined }
+  /** G24: accept a named residual with a real user decision. */
+  acceptResidual(
+    milestoneId: string,
+    name: string,
+    reason: string,
+    lanes: readonly PlaybookLane[],
+  ): PlaybookDecision
+  /** G24: refuse while the milestone's residual register has open entries.
+   * Lanes carry the module-to-milestone facts; the register derives the rest. */
+  releaseReady(milestoneId: string, lanes: readonly PlaybookLane[]): PlaybookDecision
 }

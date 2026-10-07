@@ -2714,6 +2714,12 @@
   "playbookPatchRoundsLabel": "Cicli di correzione prima della riprogettazione",
   "playbookPatchRoundsHelp": "Il limite può essere abbassato. Una volta raggiunto, scrivi una decisione progettuale e avvia un ramo di riprogettazione.",
   "playbookPatchRoundsInvalid": "Scegli uno o due cicli di correzione; il limite massimo non può essere alzato.",
+  "playbookFallbackReviewer": "Revisore supplente per revisioni bloccate dal classificatore: {reviewer}",
+  "playbookFallbackNone": "Nessun revisore supplente designato",
+  "playbookResidualAccepted": "Punto residuo accettato",
+  "playbookLeaseRecord": "Lease di patch {status}: {module} ({lane})",
+  "playbookWorkRecord": "Lavoro {id} su {module}: {commits} commit di base",
+  "playbookVerificationRecord": "Verifica hook {result} per {commit} ({scope})",
   "playbookPlanRedesign": "Pianifica una riprogettazione",
   "playbookDesignDecision": "Decisione progettuale",
   "playbookCoverageLabel": "Copertura della revisione",
@@ -2783,7 +2789,11 @@
     "lineageRequired": "Guida: {module} richiede una provenienza del modulo registrata o una deroga del responsabile o proprietario.",
     "reviewerConflict": "Guida: {module} richiede un revisore con un identificativo agente e una sessione diversi.",
     "hookVerificationFailed": "Serve il tuo intervento: la verifica degli hook del repository è fallita. Invio e completamento sono bloccati.",
-    "unverifiedCommit": "Controllo di sicurezza: ogni nuovo commit richiede una ricevuta di verifica degli hook riuscita prima di invio o completamento."
+    "unverifiedCommit": "Controllo di sicurezza: ogni nuovo commit richiede una ricevuta di verifica degli hook riuscita prima di invio o completamento.",
+    "briefRecorded": "Guida: scheda per {module} registrata ({reason}).",
+    "configDrift": "Serve il tuo intervento: la configurazione condivisa del repository è cambiata per {module} ({reason}).",
+    "fallbackReviewer": "Guida: {actor} esamina {module} come revisore supplente registrato ({reason}).",
+    "residualOpen": "Serve il tuo intervento: {lane} ha punti residui aperti: {missing}."
   },
   "playbookStrikeBadge": {
     "one": "{count} ciclo di revisione",

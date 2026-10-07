@@ -2810,6 +2810,12 @@
   "playbookPatchRoundsLabel": "Kola oprav před přepracováním návrhu",
   "playbookPatchRoundsHelp": "Limit lze snížit. Po jeho dosažení zapište rozhodnutí o návrhu a spusťte větev přepracování.",
   "playbookPatchRoundsInvalid": "Zvolte jedno nebo dvě kola oprav; horní limit nelze zvýšit.",
+  "playbookFallbackReviewer": "Náhradní kontrolor pro kontroly blokované klasifikátorem: {reviewer}",
+  "playbookFallbackNone": "Není určen žádný náhradní kontrolor",
+  "playbookResidualAccepted": "Zbytkový problém přijat",
+  "playbookLeaseRecord": "Patch-lease {status}: {module} ({lane})",
+  "playbookWorkRecord": "Práce {id} na {module}: výchozích commitů: {commits}",
+  "playbookVerificationRecord": "Ověření hooků {result} pro {commit} ({scope})",
   "playbookPlanRedesign": "Naplánovat přepracování návrhu",
   "playbookDesignDecision": "Rozhodnutí o návrhu",
   "playbookCoverageLabel": "Pokrytí kontroly",
@@ -2879,7 +2885,11 @@
     "lineageRequired": "Příručka: {module} vyžaduje zaznamenaný původ modulu nebo výjimku schválenou vedoucím či vlastníkem.",
     "reviewerConflict": "Příručka: {module} vyžaduje kontrolora s jiným ID agenta a jinou relací.",
     "hookVerificationFailed": "Potřebujeme vás: ověření hooků repozitáře selhalo. Odeslání a dokončení jsou blokovány.",
-    "unverifiedCommit": "Bezpečnostní kontrola: každý nový commit potřebuje před odesláním nebo dokončením potvrzení úspěšného ověření hooků."
+    "unverifiedCommit": "Bezpečnostní kontrola: každý nový commit potřebuje před odesláním nebo dokončením potvrzení úspěšného ověření hooků.",
+    "briefRecorded": "Playbook: stručný popis pro {module} zaznamenán ({reason}).",
+    "configDrift": "Je třeba vás: sdílená konfigurace úložiště se pro {module} změnila ({reason}).",
+    "fallbackReviewer": "Playbook: {actor} kontroluje {module} jako zaznamenaný náhradní kontrolor ({reason}).",
+    "residualOpen": "Je třeba vás: {lane} má otevřené zbytkové problémy: {missing}."
   },
   "playbookStrikeBadge": {
     "one": "{count} kolo kontroly",

@@ -17,7 +17,12 @@ import {
   PLAYBOOK_HOOK_NAMES,
 } from '../../../shared/constants'
 import { UI_TEXT } from '../../../shared/l10n/text'
-import type { PlaybookRecord, PlaybookPushRange } from '../../../shared/playbook'
+import {
+  playbookConfigSnapshotSchema,
+  type PlaybookConfigSnapshot,
+  type PlaybookRecord,
+  type PlaybookPushRange,
+} from '../../../shared/playbook'
 import { redactSecrets } from '../../../shared/redact'
 import { withoutCredentials } from '../../credentialEnvironment'
 import { runTreeSync } from '../../../host/processTree'
@@ -204,6 +209,36 @@ export class PlaybookOutcomes {
       .split('\n')
       .filter((commit) => commit && !initial.has(commit))
     return [...new Set([...commits, ...introduced])]
+  }
+
+  /** G17: the shared-config facts the hook digest covers, for drift reports.
+   * The effective hooks-path source line plus the sorted hook file list. */
+  configSnapshot(): PlaybookConfigSnapshot {
+    const hookDir = this.git(['rev-parse', '--path-format=absolute', '--git-path', 'hooks'])
+    const hooksPath = this.run(
+      {
+        kind: 'git',
+        cwd: this.workspace,
+        command: 'git',
+        args: ['config', '--get', '--show-origin', 'core.hooksPath'],
+      },
+      true,
+    ).trimEnd()
+    const files: string[] = []
+    const visit = (entry: string): void => {
+      if (!existsSync(entry)) return
+      const stat = lstatSync(entry)
+      if (stat.isSymbolicLink()) return
+      if (stat.isDirectory()) {
+        const children = readdirSync(entry).toSorted((a, b) => a.localeCompare(b))
+        for (const child of children) visit(path.join(entry, child))
+      } else files.push(path.relative(hookDir, entry).replaceAll('\\', '/'))
+    }
+    visit(hookDir.replaceAll('\\', '/').endsWith('/_') ? path.dirname(hookDir) : hookDir)
+    return playbookConfigSnapshotSchema.parse({
+      hooksPath,
+      files: files.toSorted((a, b) => a.localeCompare(b)),
+    })
   }
 
   /** Bind receipts to the exact configured hook bytes and exact push range.

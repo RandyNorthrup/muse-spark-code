@@ -2618,6 +2618,12 @@
   "playbookPatchRoundsLabel": "Yeniden tasarımdan önceki düzeltme turları",
   "playbookPatchRoundsHelp": "Sınır düşürülebilir. Sınıra ulaşıldığında bir tasarım kararı yazın ve yeniden tasarım dalı başlatın.",
   "playbookPatchRoundsInvalid": "Bir veya iki düzeltme turu seçin; üst sınır artırılamaz.",
+  "playbookFallbackReviewer": "Sınıflandırıcı tarafından engellenen incelemeler için yedek inceleyici: {reviewer}",
+  "playbookFallbackNone": "Adlandırılmış yedek inceleyici yok",
+  "playbookResidualAccepted": "Artık madde kabul edildi",
+  "playbookLeaseRecord": "Yama kirası {status}: {module} ({lane})",
+  "playbookWorkRecord": "{module} üzerinde çalışma {id}: {commits} temel commit",
+  "playbookVerificationRecord": "{commit} için kanca doğrulaması {result} ({scope})",
   "playbookPlanRedesign": "Yeniden tasarım planla",
   "playbookDesignDecision": "Tasarım kararı",
   "playbookCoverageLabel": "İnceleme kapsamı",
@@ -2687,7 +2693,11 @@
     "lineageRequired": "Kılavuz: {module} için kayıtlı modül kökeni veya lider ya da sahip istisnası gerekir.",
     "reviewerConflict": "Kılavuz: {module} için farklı bir ajan kimliğine ve oturuma sahip bir inceleyici gerekir.",
     "hookVerificationFailed": "Müdahaleniz gerekiyor: depo kancalarının doğrulanması başarısız oldu. Gönderim ve tamamlama engellendi.",
-    "unverifiedCommit": "Güvenlik denetimi: her yeni commit, gönderim veya tamamlamadan önce başarılı kanca doğrulama kaydı gerektirir."
+    "unverifiedCommit": "Güvenlik denetimi: her yeni commit, gönderim veya tamamlamadan önce başarılı kanca doğrulama kaydı gerektirir.",
+    "briefRecorded": "Kılavuz: {module} için görev özeti kaydedildi ({reason}).",
+    "configDrift": "Kararınız gerekli: {module} için paylaşılan depo yapılandırması değişti ({reason}).",
+    "fallbackReviewer": "Kılavuz: {actor}, kaydedilmiş yedek inceleyici olarak {module} öğesini inceliyor ({reason}).",
+    "residualOpen": "Kararınız gerekli: {lane} içinde açık kalan artık maddeler var: {missing}."
   },
   "playbookStrikeBadge": {
     "one": "{count} inceleme turu",

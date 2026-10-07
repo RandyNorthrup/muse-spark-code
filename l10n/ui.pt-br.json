@@ -2714,6 +2714,12 @@
   "playbookPatchRoundsLabel": "Rodadas de correção antes do redesenho",
   "playbookPatchRoundsHelp": "O limite pode ser reduzido. Ao atingi-lo, escreva uma decisão de projeto e inicie uma ramificação de redesenho.",
   "playbookPatchRoundsInvalid": "Escolha uma ou duas rodadas de correção; o limite máximo não pode ser aumentado.",
+  "playbookFallbackReviewer": "Revisor suplente para revisões bloqueadas pelo classificador: {reviewer}",
+  "playbookFallbackNone": "Nenhum revisor suplente designado",
+  "playbookResidualAccepted": "Item residual aceito",
+  "playbookLeaseRecord": "Concessão de patch {status}: {module} ({lane})",
+  "playbookWorkRecord": "Trabalho {id} em {module}: {commits} commits de base",
+  "playbookVerificationRecord": "Verificação de hooks {result} para {commit} ({scope})",
   "playbookPlanRedesign": "Planejar um redesenho",
   "playbookDesignDecision": "Decisão de projeto",
   "playbookCoverageLabel": "Cobertura da revisão",
@@ -2783,7 +2789,11 @@
     "lineageRequired": "Manual: {module} precisa de uma linhagem de módulo registrada ou de uma exceção do responsável ou proprietário.",
     "reviewerConflict": "Manual: {module} precisa de um revisor com um identificador de agente e uma sessão diferentes.",
     "hookVerificationFailed": "Sua intervenção é necessária: a verificação dos hooks do repositório falhou. O envio e a conclusão estão bloqueados.",
-    "unverifiedCommit": "Verificação de segurança: cada novo commit precisa de um comprovante de aprovação dos hooks antes do envio ou da conclusão."
+    "unverifiedCommit": "Verificação de segurança: cada novo commit precisa de um comprovante de aprovação dos hooks antes do envio ou da conclusão.",
+    "briefRecorded": "Guia: resumo para {module} registrado ({reason}).",
+    "configDrift": "Sua decisão é necessária: a configuração compartilhada do repositório mudou para {module} ({reason}).",
+    "fallbackReviewer": "Guia: {actor} revisa {module} como revisor suplente registrado ({reason}).",
+    "residualOpen": "Sua decisão é necessária: {lane} tem itens residuais abertos: {missing}."
   },
   "playbookStrikeBadge": {
     "one": "{count} rodada de revisão",

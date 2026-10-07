@@ -229,6 +229,12 @@ export const EN = {
   playbookPatchRoundsHelp:
     'The limit can be lowered. After it is reached, write a design decision and dispatch a redesign lane.',
   playbookPatchRoundsInvalid: 'Choose one or two fix rounds; the ceiling cannot be raised.',
+  playbookFallbackReviewer: 'Fallback reviewer for classifier-blocked reviews: {reviewer}',
+  playbookFallbackNone: 'No fallback reviewer named',
+  playbookResidualAccepted: 'Residual accepted',
+  playbookLeaseRecord: 'Patch lease {status}: {module} ({lane})',
+  playbookWorkRecord: 'Work {id} on {module}: {commits} baseline commits',
+  playbookVerificationRecord: 'Hook verification {result} for {commit} ({scope})',
   playbookPlanRedesign: 'Plan a redesign',
   playbookDesignDecision: 'Design decision',
   playbookDesignPending: 'Awaiting redesign review',
@@ -318,6 +324,11 @@ export const EN = {
     classifierBlocked:
       'Needs you: a safety classifier blocked this action; it cannot be retried or rerouted.',
     ruleDisabled: 'Playbook: {rule} was turned off by {actor}: {reason}',
+    briefRecorded: 'Playbook: brief for {module} recorded ({reason}).',
+    configDrift: 'Needs you: shared repository configuration drifted for {module} ({reason}).',
+    fallbackReviewer:
+      'Playbook: {actor} reviews {module} as the recorded fallback reviewer ({reason}).',
+    residualOpen: 'Needs you: {lane} has open residuals: {missing}.',
   },
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',

@@ -2522,6 +2522,12 @@
   "playbookPatchRoundsLabel": "重新設計前的修正輪數",
   "playbookPatchRoundsHelp": "可以降低上限。達到上限後，請記錄設計決策並啟動重新設計工作分支。",
   "playbookPatchRoundsInvalid": "請選擇一輪或兩輪修正；無法提高上限。",
+  "playbookFallbackReviewer": "分類器阻擋的審查的備選審查人：{reviewer}",
+  "playbookFallbackNone": "未指定備選審查人",
+  "playbookResidualAccepted": "遺留事項已接受",
+  "playbookLeaseRecord": "修補程式租約 {status}：{module} ({lane})",
+  "playbookWorkRecord": "{module} 上的工作 {id}：{commits} 個基線提交",
+  "playbookVerificationRecord": "{commit} 的掛鉤驗證 {result} ({scope})",
   "playbookPlanRedesign": "規劃重新設計",
   "playbookDesignDecision": "設計決策",
   "playbookCoverageLabel": "審查涵蓋範圍",
@@ -2591,7 +2597,11 @@
     "lineageRequired": "工作準則：{module} 需要已記錄的模組沿革，或負責人或擁有者核准的例外。",
     "reviewerConflict": "工作準則：{module} 需要代理 ID 和工作階段皆不同的審查者。",
     "hookVerificationFailed": "需要你處理：儲存庫掛鉤驗證失敗。推送和完成已被阻止。",
-    "unverifiedCommit": "安全檢查：每個新提交都需要通過掛鉤驗證的憑據，才能推送或完成。"
+    "unverifiedCommit": "安全檢查：每個新提交都需要通過掛鉤驗證的憑據，才能推送或完成。",
+    "briefRecorded": " playbook：已記錄 {module} 的任務簡報 ({reason})。",
+    "configDrift": "需要您處理：{module} 的共用存放庫組態已變更 ({reason})。",
+    "fallbackReviewer": " playbook：{actor} 以已記錄的備選審查人身分複查 {module} ({reason})。",
+    "residualOpen": "需要您處理：{lane} 有未關閉的遺留事項：{missing}。"
   },
   "playbookStrikeBadge": {
     "other": "{count} 輪審查"

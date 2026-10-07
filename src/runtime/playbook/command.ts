@@ -3,6 +3,7 @@
 import * as z from 'zod/mini'
 import {
   PLAYBOOK_CONFIGURABLE_RULES,
+  PLAYBOOK_ID_MAX_CHARS,
   PLAYBOOK_PATCH_ROUNDS_MAX,
   PLAYBOOK_RECORD_MAX,
   REVIEW_FINDING_TEXT_MAX_CHARS,
@@ -24,10 +25,13 @@ export type PlaybookSnapshot = z.infer<typeof playbookSnapshotSchema>
 const reason = z
   .string()
   .check(z.trim(), z.minLength(1), z.maxLength(REVIEW_FINDING_TEXT_MAX_CHARS))
+const reviewerId = z.string().check(z.trim(), z.minLength(1), z.maxLength(PLAYBOOK_ID_MAX_CHARS))
 export const playbookChangeSchema = z.union([
   z.strictObject({ rule: z.enum(PLAYBOOK_CONFIGURABLE_RULES), enabled: z.literal(true) }),
   z.strictObject({ rule: z.enum(PLAYBOOK_CONFIGURABLE_RULES), enabled: z.literal(false), reason }),
   z.strictObject({ patchRoundsMax: z.int().check(z.gte(1), z.lte(PLAYBOOK_PATCH_ROUNDS_MAX)) }),
+  z.strictObject({ fallbackReviewer: reviewerId, reason }),
+  z.strictObject({ fallbackReviewer: z.literal('off') }),
 ])
 export type PlaybookChange = z.infer<typeof playbookChangeSchema>
 
@@ -52,6 +56,19 @@ export function changedPlaybookSettings(
   const change = playbookChangeSchema.parse(request)
   if ('patchRoundsMax' in change)
     return playbookSettingsSchema.parse({ ...settings, patchRoundsMax: change.patchRoundsMax })
+  if ('fallbackReviewer' in change) {
+    if (!('reason' in change))
+      return playbookSettingsSchema.parse({ ...settings, fallbackReviewer: undefined })
+    return playbookSettingsSchema.parse({
+      ...settings,
+      fallbackReviewer: {
+        reviewerId: change.fallbackReviewer,
+        actor,
+        reason: change.reason,
+        at,
+      },
+    })
+  }
   const setting = change.enabled
     ? { enabled: true }
     : { enabled: false, reason: change.reason, actor, at }
@@ -66,7 +83,8 @@ export type PlaybookCommand =
   | { readonly view: 'settings'; readonly change: PlaybookChange }
 
 /** Shared CLI and ACP grammar. Technical rule ids are stable across locales.
- * settings <rule> on|off [<reason...>]; settings patchRoundsMax 1|2. */
+ * settings <rule> on|off [<reason...>]; settings patchRoundsMax 1|2;
+ * settings fallbackReviewer <reviewer-id> [<reason...>]; settings fallbackReviewer off. */
 export function parsePlaybookCommand(argv: readonly string[]): PlaybookCommand | undefined {
   const [view = 'status', rule, value, ...words] = argv
   if (view !== 'status' && view !== 'record' && view !== 'settings') return undefined
@@ -74,9 +92,15 @@ export function parsePlaybookCommand(argv: readonly string[]): PlaybookCommand |
   if (view !== 'settings') return undefined
   let candidate: unknown
   if (rule === 'patchRoundsMax') candidate = { patchRoundsMax: Number(value) }
+  else if (rule === 'fallbackReviewer' && value !== undefined && value !== 'on')
+    candidate =
+      value === 'off'
+        ? { fallbackReviewer: 'off' }
+        : { fallbackReviewer: value, reason: words.join(' ') }
   else if (value === 'on') candidate = { rule, enabled: true }
   else if (value === 'off') candidate = { rule, enabled: false, reason: words.join(' ') }
   if ((rule === 'patchRoundsMax' || value === 'on') && words.length > 0) return undefined
+  if (rule === 'fallbackReviewer' && value === 'off' && words.length > 0) return undefined
   const parsed = playbookChangeSchema.safeParse(candidate)
   return parsed.success ? { view, change: parsed.data } : undefined
 }

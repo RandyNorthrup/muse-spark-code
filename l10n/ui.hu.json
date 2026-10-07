@@ -2618,6 +2618,12 @@
   "playbookPatchRoundsLabel": "Javítási körök az újratervezés előtt",
   "playbookPatchRoundsHelp": "A korlát csökkenthető. Elérésekor írjon tervezési döntést, és indítson újratervezési ágat.",
   "playbookPatchRoundsInvalid": "Válasszon egy vagy két javítási kört; a felső határ nem emelhető.",
+  "playbookFallbackReviewer": "Tartalék felülvizsgáló az osztályozó által blokkolt felülvizsgálatokhoz: {reviewer}",
+  "playbookFallbackNone": "Nincs megnevezett tartalék felülvizsgáló",
+  "playbookResidualAccepted": "Maradványpont elfogadva",
+  "playbookLeaseRecord": "Javítási bérlet {status}: {module} ({lane})",
+  "playbookWorkRecord": "{id} munka ezen: {module}: {commits} alapcommit",
+  "playbookVerificationRecord": "Hook-ellenőrzés {result} ehhez: {commit} ({scope})",
   "playbookPlanRedesign": "Újratervezés megtervezése",
   "playbookDesignDecision": "Tervezési döntés",
   "playbookCoverageLabel": "Felülvizsgálati lefedettség",
@@ -2687,7 +2693,11 @@
     "lineageRequired": "Kézikönyv: a(z) {module} modulhoz rögzített moduleredet vagy vezetői vagy tulajdonosi kivétel szükséges.",
     "reviewerConflict": "Kézikönyv: a(z) {module} modulhoz eltérő ügynökazonosítóval és munkamenettel rendelkező ellenőr szükséges.",
     "hookVerificationFailed": "Beavatkozás szükséges: a tároló hookjainak ellenőrzése sikertelen. A feltöltés és a befejezés blokkolva van.",
-    "unverifiedCommit": "Biztonsági ellenőrzés: minden új commithoz sikeres hookellenőrzési igazolás kell a feltöltés vagy befejezés előtt."
+    "unverifiedCommit": "Biztonsági ellenőrzés: minden új commithoz sikeres hookellenőrzési igazolás kell a feltöltés vagy befejezés előtt.",
+    "briefRecorded": "Útmutató: a {module} feladatkijelölése rögzítve ({reason}).",
+    "configDrift": "Döntés kell: a megosztott tárolóbeállítás megváltozott ennél: {module} ({reason}).",
+    "fallbackReviewer": "Útmutató: {actor} vizsgálja felül a következőt: {module}, mint rögzített tartalék felülvizsgáló ({reason}).",
+    "residualOpen": "Döntés kell: {lane} nyitott maradványpontokat tartalmaz: {missing}."
   },
   "playbookStrikeBadge": {
     "one": "{count} felülvizsgálati kör",
