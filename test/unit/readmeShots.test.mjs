@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { SCENARIOS } from '../../scripts/lib/harnessServer.mjs'
@@ -10,6 +11,15 @@ import {
   readmeImageRefs,
   shotUrl,
 } from '../../scripts/readme-shots.mjs'
+
+function fingerprint(files) {
+  const hash = createHash('sha256')
+  for (const file of files) {
+    hash.update(`${file}\0`)
+    hash.update(readFileSync(file))
+  }
+  return hash.digest('hex')
+}
 
 const list = parseShotList(readFileSync('scripts/readme-shots.json', 'utf8'))
 const readme = readFileSync('README.md', 'utf8')
@@ -138,5 +148,31 @@ describe('readme-shots list validation', () => {
     expect(unreferenced).toEqual([])
     const swapped = checkCoverage({ shots: [], excluded: [] }, ['media/readme/turn.png'])
     expect(swapped.missingEntries).toEqual(['media/readme/turn.png'])
+  })
+})
+
+describe('README shot pixel inputs', () => {
+  // Grok M114W P2: check:visual never renders the README scenes and the
+  // budget test only sums bytes, so a token, stylesheet, or harness change
+  // could silently stale the published PNGs. This fingerprint trips on any
+  // change to those global pixel inputs; per-component drift stays with
+  // check:visual's scene pixel gate. When it trips legitimately, recapture
+  // with `npm run harness:shots` and refresh README_INPUTS_DIGEST below.
+  // The digest hashes raw bytes; .gitattributes pins eol=lf, so it is
+  // identical on Windows checkouts.
+  const README_PIXEL_INPUTS = [
+    'design/tokens/generated/host-roles.css',
+    'design/tokens/muse.tokens.json',
+    'scripts/lib/harnessServer.mjs',
+    'scripts/readme-shots.json',
+    'src/webview/bridges/theme/themeSurface.css',
+    'src/webview/styles.css',
+    'src/webview/tokens.css',
+    'test/harness/index.html',
+  ]
+  const README_INPUTS_DIGEST = '1f018f7e02ccf9b6a40b5d3c870c12285008a717251fe9238244df02b18c8b13'
+
+  it('fails when a pixel-determining input changes without a recapture', () => {
+    expect(fingerprint(README_PIXEL_INPUTS)).toBe(README_INPUTS_DIGEST)
   })
 })
