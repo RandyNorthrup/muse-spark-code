@@ -2,7 +2,7 @@
 // Each drill changes its own metafile copy, never shared dist/ files.
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createRequire } from 'node:module'
@@ -57,6 +57,7 @@ const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'muse-deferred-bundles-'))
 const bundleTexts = new Map<string, string>()
 const inputMaps = new Map<string, ReadonlyMap<string, number>>()
 const supportModules = new Map<string, unknown>()
+const gatePrograms = new Map<string, string>()
 const parserSchema = z.object({
   object: z.custom<typeof validation.object>((value) => typeof value === 'function'),
   string: z.custom<typeof validation.string>((value) => typeof value === 'function'),
@@ -221,6 +222,27 @@ beforeAll(async () => {
   expect(checkDeferredBundles(bundleInputs)).toEqual([])
 })
 
+beforeAll(async () => {
+  mkdirSync(path.join(fixtureRoot, 'dist'), { recursive: true })
+  for (const [name, text] of bundleTexts) writeFileSync(bundleFile(name), text)
+  writeFileSync(path.join(fixtureRoot, 'package.json'), readFileSync('package.json'))
+  await Promise.all(
+    ['check-bundle-size', 'check-host-globals'].map(async (name) => {
+      const built = await build({
+        entryPoints: [`scripts/${name}.mjs`],
+        bundle: true,
+        write: false,
+        platform: 'node',
+        format: 'cjs',
+        logLevel: 'silent',
+      })
+      const output = built.outputFiles[0]
+      if (output === undefined) throw new Error(`Missing gate program: ${name}`)
+      gatePrograms.set(name, output.text)
+    }),
+  )
+})
+
 afterAll(() => {
   for (const { bytes, meta } of fixtures.values()) {
     expect(createHash('sha256').update(JSON.stringify(meta)).digest('hex')).toBe(
@@ -232,7 +254,7 @@ afterAll(() => {
 afterAll(() => removeFolder(fixtureRoot))
 
 function bundleFile(name: string) {
-  return path.join(fixtureRoot, `${name}.js`)
+  return path.join(fixtureRoot, 'dist', `${name}.js`)
 }
 
 function loadSupportBundle(name: string): unknown {
@@ -257,6 +279,65 @@ function loadSupportBundle(name: string): unknown {
   ])
   supportModules.set(name, module.exports)
   return module.exports
+}
+
+// Run the unchanged CLI gates against the private real scanner. Other Node
+// entries use the production builds above; unrelated browser outputs are fakes
+// (their closure budgets have a dedicated bundleSize suite).
+function runLegalGate(name: string) {
+  const program = gatePrograms.get(name)
+  if (program === undefined) throw new Error(`Missing gate program: ${name}`)
+  const scanner = readFileSync(bundleFile('legalScan'), 'utf8')
+  const textOf = (file: string) =>
+    file.replaceAll('\\', '/') === 'dist/legalScan.js'
+      ? scanner
+      : (bundleTexts.get(path.basename(file.replaceAll('\\', '/'), '.js')) ?? '')
+  const meta = {
+    outputs: {
+      ...Object.fromEntries(
+        ['main', 'models', 'usage', 'whatsNew'].map((page) => [
+          `dist/webview/${page}.js`,
+          { imports: [] },
+        ]),
+      ),
+      'dist/webview/models-body.js': {
+        imports: [],
+        entryPoint: 'src/webview/models/panel.tsx',
+      },
+      'dist/webview/usage-body.js': {
+        imports: [],
+        entryPoint: 'src/webview/usage/UsageApp.tsx',
+      },
+    },
+  }
+  let status = 0
+  const stdout: string[] = []
+  const stderr: string[] = []
+  vm.runInNewContext(program, {
+    require: (file: string): unknown => {
+      if (file !== 'node:fs') throw new Error(`Unexpected gate dependency: ${file}`)
+      return {
+        existsSync: () => true,
+        readFileSync: (file: string) =>
+          file.endsWith('.json') ? JSON.stringify(meta) : textOf(file),
+        statSync: (file: string) => ({ size: Buffer.byteLength(textOf(file)) }),
+      }
+    },
+    process: {
+      exit: (code: number) => {
+        status = code
+      },
+    },
+    console: {
+      log: (line: string) => {
+        stdout.push(line)
+      },
+      error: (line: string) => {
+        stderr.push(line)
+      },
+    },
+  })
+  return { status, stdout: stdout.join('\n'), stderr: stderr.join('\n') }
 }
 
 function bundleText(name: string) {
@@ -522,7 +603,7 @@ describe('deferred cohort bundles', () => {
     )
   })
   it('runs the production headless scanner with pure JSON and no network, backend or keyring', () => {
-    const entry = path.resolve('dist/acp.js')
+    const entry = bundleFile('acp')
     const wrapper = `
       const entry = process.argv[1];
       const denied = (surface) => { process.stderr.write('unexpected ' + surface); throw new Error(surface); };
@@ -554,44 +635,36 @@ describe('deferred cohort bundles', () => {
   })
 
   it('fires the legal scanner cap and restores the artifact byte-exact', () => {
-    const file = 'dist/legalScan.js'
+    const file = bundleFile('legalScan')
     const original = readFileSync(file)
     const hash = createHash('sha256').update(original).digest('hex')
     try {
       writeFileSync(file, Buffer.alloc(150 * 1024 + 1))
-      const red = spawnSync(process.execPath, ['scripts/check-bundle-size.mjs'], {
-        encoding: 'utf8',
-      })
+      const red = runLegalGate('check-bundle-size')
       expect(red.status).toBe(1)
       expect(red.stdout).toContain('OVER dist/legalScan.js')
     } finally {
       writeFileSync(file, original)
     }
     expect(createHash('sha256').update(readFileSync(file)).digest('hex')).toBe(hash)
-    const green = spawnSync(process.execPath, ['scripts/check-bundle-size.mjs'], {
-      encoding: 'utf8',
-    })
+    const green = runLegalGate('check-bundle-size')
     expect(green.status, green.stderr).toBe(0)
   })
 
   it('fires the legal scanner host-global guard and restores the artifact byte-exact', () => {
-    const file = 'dist/legalScan.js'
+    const file = bundleFile('legalScan')
     const original = readFileSync(file)
     const hash = createHash('sha256').update(original).digest('hex')
     try {
       writeFileSync(file, Buffer.concat([original, Buffer.from('\nvoid navigator;\n')]))
-      const red = spawnSync(process.execPath, ['scripts/check-host-globals.mjs'], {
-        encoding: 'utf8',
-      })
+      const red = runLegalGate('check-host-globals')
       expect(red.status).toBe(1)
       expect(red.stdout).toContain('FAIL dist/legalScan.js')
     } finally {
       writeFileSync(file, original)
     }
     expect(createHash('sha256').update(readFileSync(file)).digest('hex')).toBe(hash)
-    const green = spawnSync(process.execPath, ['scripts/check-host-globals.mjs'], {
-      encoding: 'utf8',
-    })
+    const green = runLegalGate('check-host-globals')
     expect(green.status, green.stderr).toBe(0)
   })
 

@@ -37,7 +37,14 @@ const STAGE_TIMEOUT_MS = 60_000
 
 const ROOT = process.cwd()
 const hash = (text) => createHash('sha256').update(text).digest('hex')
-const fixture = { root: '', stage: '', files: [], before: undefined, after: undefined }
+const fixture = {
+  root: '',
+  stage: '',
+  files: [],
+  packagedFiles: [],
+  before: undefined,
+  after: undefined,
+}
 const excluded = [
   'PLAN.md',
   'AGENTS.md',
@@ -178,6 +185,7 @@ beforeAll(async () => {
 
 beforeAll(async () => {
   fixture.files = await stageVsix(fixture.root, fixture.stage)
+  fixture.packagedFiles = await listFiles({ cwd: fixture.stage, dependencies: false })
 }, STAGE_TIMEOUT_MS)
 
 beforeAll(async () => {
@@ -262,16 +270,14 @@ describe('VSIX packaging', () => {
       expect(await readUsageTableFile(fixture.stage, ['l10n', file])).toBe(
         JSON.stringify(JSON.parse(readFileSync(path.join(fixture.root, 'l10n', file), 'utf8'))),
       )
-      expect(await listFiles({ cwd: fixture.stage, dependencies: false })).not.toContain(
-        `l10n/${file}`,
-      )
+      expect(fixture.packagedFiles).not.toContain(`l10n/${file}`)
     },
   )
   it.each(excluded)('excludes %s from actual VSCE collection', (file) => {
     expect(fixture.files).not.toContain(file)
   })
   it('ships the helper, shared runtime and deferred chunks', async () => {
-    const packaged = await listFiles({ cwd: fixture.stage, dependencies: false })
+    const packaged = fixture.packagedFiles
     expect(packaged).toEqual(
       expect.arrayContaining([
         'dist/validation.js',
@@ -346,7 +352,7 @@ describe('VSIX packaging', () => {
     expect(archive.bundles['providerCatalog.js']).toBe(
       readFileSync(path.join(fixture.root, 'dist/providerCatalog.js'), 'utf8'),
     )
-    const packaged = await listFiles({ cwd: fixture.stage, dependencies: false })
+    const packaged = fixture.packagedFiles
     expect(packaged).not.toContain('dist/providerCatalog.json')
     const stage = path.join(fixture.root, 'catalog-tampered')
     cpSync(fixture.stage, stage, { recursive: true })

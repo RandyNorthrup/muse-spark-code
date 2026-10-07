@@ -36,6 +36,7 @@ export async function packRuntimeArchive(root, stage, files, tables) {
     USAGE_TABLE_ARCHIVE_FILE,
     TABLE_LOCALES,
   } = await loadL10n(SOURCE_ROOT)
+  const maxOutputLength = L10N_TABLE_MAX_BYTES * TABLE_LOCALES.length
   const keys = Object.keys(orderedTables[0]?.[1] ?? {})
   if (
     orderedTables.some(([, table]) => JSON.stringify(Object.keys(table)) !== JSON.stringify(keys))
@@ -60,6 +61,10 @@ export async function packRuntimeArchive(root, stage, files, tables) {
     )
       continue
     const source = readFileSync(path.join(root, file), 'utf8')
+    // Refuse an oversized member before parsing its executable source or staging it.
+    // The complete serialized archive is still checked below for aggregate overhead.
+    if (Buffer.byteLength(source) > maxOutputLength)
+      throw new Error('Runtime archive exceeds decoded bound')
     // Native import discovers CommonJS names before _compile runs. Retain the
     // build's inert export annotation, plus direct exports in plain CJS inputs.
     // Parse statements so text inside strings/comments cannot declare exports.
@@ -99,7 +104,6 @@ export async function packRuntimeArchive(root, stage, files, tables) {
       `try{exports.EN=JSON.parse((require('./uiText.js'),require.cache[require.resolve('./uiText.js')].readPackedRuntime('english','${region.name}','${digest(english)}')));}catch{\n${source}\n}\n`,
     )
   }
-  const maxOutputLength = L10N_TABLE_MAX_BYTES * TABLE_LOCALES.length
   const text = JSON.stringify(archive)
   // Group larger members first for the solid compressor; source bytes and
   // digests remain identical, with a name tie-break for deterministic staging.

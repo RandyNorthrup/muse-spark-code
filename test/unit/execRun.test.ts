@@ -117,6 +117,10 @@ const dist = folder()
 const builtMain = path.join(folder(), 'dist', 'acp.js')
 beforeAll(async () => {
   await buildModelApiBundle(dist)
+  writeFileSync(
+    path.join(dist, 'providerCatalog.json'),
+    readFileSync('vendor/models-dev/snapshot.json'),
+  )
   mkdirSync(path.dirname(builtMain), { recursive: true })
   buildSync({
     entryPoints: ['src/runtime/main.ts'],
@@ -1207,10 +1211,6 @@ it.each(['1', '0.000001'])(
           },
         ],
       }),
-    )
-    writeFileSync(
-      path.join(dist, 'providerCatalog.json'),
-      readFileSync('dist/providerCatalog.json'),
     )
     await h.store.delete(SECRET_KEYS.modelApiKey)
     await h.store.store(

@@ -1,0 +1,273 @@
+{
+  "lane": "CI0150A",
+  "date": "2026-10-07",
+  "rig": "linuxlt",
+  "branch": "fix/0150-ci-a",
+  "base": "a150d92718589f09d35199ab6dd7455cfcd8a1f0",
+  "environment": {
+    "CI": "true",
+    "preRunClean": "git clean -xdf -e node_modules",
+    "maxWorkers": 3,
+    "timeoutOverride": null,
+    "timeoutsChanged": false
+  },
+  "cleanRuns": [
+    {
+      "repetition": 1,
+      "batch": "providers",
+      "passed": 85,
+      "failed": 0,
+      "files": [
+        {
+          "file": "test/unit/configuredProviders.test.ts",
+          "passed": 24,
+          "failed": 0,
+          "longestCaseMs": 254.718
+        },
+        {
+          "file": "test/unit/execRun.test.ts",
+          "passed": 60,
+          "failed": 0,
+          "longestCaseMs": 1104.115
+        },
+        {
+          "file": "test/unit/teamWorkerCertification.test.ts",
+          "passed": 1,
+          "failed": 0,
+          "longestCaseMs": 37.751
+        }
+      ]
+    },
+    {
+      "repetition": 1,
+      "batch": "bundles",
+      "passed": 150,
+      "failed": 0,
+      "files": [
+        {
+          "file": "test/unit/deferredBundles.test.ts",
+          "passed": 76,
+          "failed": 0,
+          "longestCaseMs": 286.19
+        },
+        {
+          "file": "test/unit/vsixCompression.test.mjs",
+          "passed": 2,
+          "failed": 0,
+          "longestCaseMs": 527.158
+        },
+        {
+          "file": "test/unit/vsixPackaging.test.mjs",
+          "passed": 72,
+          "failed": 0,
+          "longestCaseMs": 4043.247
+        }
+      ]
+    },
+    {
+      "repetition": 2,
+      "batch": "providers",
+      "passed": 85,
+      "failed": 0,
+      "files": [
+        {
+          "file": "test/unit/configuredProviders.test.ts",
+          "passed": 24,
+          "failed": 0,
+          "longestCaseMs": 196.767
+        },
+        {
+          "file": "test/unit/execRun.test.ts",
+          "passed": 60,
+          "failed": 0,
+          "longestCaseMs": 912.33
+        },
+        {
+          "file": "test/unit/teamWorkerCertification.test.ts",
+          "passed": 1,
+          "failed": 0,
+          "longestCaseMs": 38.627
+        }
+      ]
+    },
+    {
+      "repetition": 2,
+      "batch": "bundles",
+      "passed": 150,
+      "failed": 0,
+      "files": [
+        {
+          "file": "test/unit/deferredBundles.test.ts",
+          "passed": 76,
+          "failed": 0,
+          "longestCaseMs": 310.447
+        },
+        {
+          "file": "test/unit/vsixCompression.test.mjs",
+          "passed": 2,
+          "failed": 0,
+          "longestCaseMs": 461.592
+        },
+        {
+          "file": "test/unit/vsixPackaging.test.mjs",
+          "passed": 72,
+          "failed": 0,
+          "longestCaseMs": 3555.812
+        }
+      ]
+    },
+    {
+      "repetition": 3,
+      "batch": "providers",
+      "passed": 85,
+      "failed": 0,
+      "files": [
+        {
+          "file": "test/unit/configuredProviders.test.ts",
+          "passed": 24,
+          "failed": 0,
+          "longestCaseMs": 208.697
+        },
+        {
+          "file": "test/unit/execRun.test.ts",
+          "passed": 60,
+          "failed": 0,
+          "longestCaseMs": 928.675
+        },
+        {
+          "file": "test/unit/teamWorkerCertification.test.ts",
+          "passed": 1,
+          "failed": 0,
+          "longestCaseMs": 46.669
+        }
+      ]
+    },
+    {
+      "repetition": 3,
+      "batch": "bundles",
+      "passed": 150,
+      "failed": 0,
+      "files": [
+        {
+          "file": "test/unit/deferredBundles.test.ts",
+          "passed": 76,
+          "failed": 0,
+          "longestCaseMs": 276.474
+        },
+        {
+          "file": "test/unit/vsixCompression.test.mjs",
+          "passed": 2,
+          "failed": 0,
+          "longestCaseMs": 467.526
+        },
+        {
+          "file": "test/unit/vsixPackaging.test.mjs",
+          "passed": 72,
+          "failed": 0,
+          "longestCaseMs": 3474.03
+        }
+      ]
+    }
+  ],
+  "workerAfterComparatorScopeFix": [
+    {
+      "repetition": 1,
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "repetition": 2,
+      "passed": 1,
+      "failed": 0
+    },
+    {
+      "repetition": 3,
+      "passed": 1,
+      "failed": 0
+    }
+  ],
+  "fileSha256": {
+    "test/unit/configuredProviders.test.ts": "c622d6ee606696fc98093f32b75d71087feb1cb10331d90b73bcb364aa858e27",
+    "test/unit/execRun.test.ts": "0b56455ab6f2beacb8962ab954eb4fba22595db98792e224bedb9bd3afa09f79",
+    "test/unit/deferredBundles.test.ts": "d3ebf09664383ba2bd27bad2074ff808f43a95fdcc5aac66336536af01b91419",
+    "test/unit/vsixPackaging.test.mjs": "cfba20a3ed0b88f19d5a279d35fd5da9764b099a82946932ed5f3c7027e63a1d",
+    "test/unit/vsixCompression.test.mjs": "290f2da67cca4c5e2075c6de24452a341f3298d7c29b8c8b0c08dee0ea94e1b0",
+    "test/unit/teamWorkerCertification.test.ts": "f01971472fb8db270f03e527f75e7c647165598458016c501d9f5605e265d880",
+    "scripts/lib/packageArchive.mjs": "41673a428cde5e1b933ab2c8f37abb07646888ed5dd0b6bd1cc6ab6d66014080",
+    "test/fixtures/team-worker-certified/sources.json": "ef698662a5ccfe4f280e2d3cf6ed00ff26b2c2093c24a5220983897c6d6a7e21"
+  },
+  "drills": [
+    {
+      "behavior": "certified worker bytes",
+      "redExit": 1,
+      "restoredExit": 0,
+      "restoredFile": "test/fixtures/team-worker-certified/sources.json",
+      "restoredSha256": "ef698662a5ccfe4f280e2d3cf6ed00ff26b2c2093c24a5220983897c6d6a7e21"
+    },
+    {
+      "behavior": "private English artifact required; decoder failure must be specific",
+      "redExit": 1,
+      "failedCases": 2,
+      "restoredExit": 0,
+      "restoredFile": "test/unit/vsixCompression.test.mjs",
+      "restoredSha256": "290f2da67cca4c5e2075c6de24452a341f3298d7c29b8c8b0c08dee0ea94e1b0"
+    },
+    {
+      "behavior": "legal scanner 150 KiB cap and navigator ban",
+      "execution": "built into every complete deferredBundles repetition",
+      "byteExactRestore": true
+    }
+  ],
+  "gates": [
+    {
+      "command": "npm run typecheck",
+      "exit": 0
+    },
+    {
+      "command": "npm run typecheck:unit",
+      "exit": 0
+    },
+    {
+      "command": "npm run lint",
+      "exit": 0,
+      "note": "Full ESLint and stylelint passed; existing PowerShell lint runs on Windows only."
+    },
+    {
+      "command": "npx prettier --check <changed paths>",
+      "exit": 0
+    },
+    {
+      "command": "npx knip",
+      "exit": 0
+    },
+    {
+      "command": "npm run duplication",
+      "exit": 0
+    },
+    {
+      "command": "npm run cycles",
+      "exit": 0
+    },
+    {
+      "command": "node scripts/check-l10n.mjs",
+      "exit": 0
+    },
+    {
+      "command": "npm run check:reference",
+      "exit": 0
+    },
+    {
+      "command": "npm run check:host-api",
+      "exit": 0
+    },
+    {
+      "command": "npm run build",
+      "exit": 0
+    }
+  ],
+  "newModelCalls": 0,
+  "pushed": false,
+  "aggregateQuality": "deferred to integration under scoped lane certification; never reported as passed",
+  "hostedOsMatrix": "pending lead integration",
+  "localBlockers": []
+}

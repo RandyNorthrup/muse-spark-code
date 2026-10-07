@@ -101,7 +101,7 @@ async function fixture() {
     secrets,
     values,
     configFile,
-    catalogFile: path.resolve('dist/providerCatalog.json'),
+    catalogFile: path.resolve('vendor/models-dev/snapshot.json'),
   }
 }
 const body = (): CreateResponseBody => ({

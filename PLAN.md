@@ -40705,7 +40705,33 @@ pages. No version bump or README What’s New changes; no paid/live calls.
       restoration, full accessibility, static gates and actual VSIX measurements
       in `docs/certification/train-0.15.0.md` and its TRAIN15H receipt.
 
+### CI0150A — Clean-shard artifacts and portable certification (2026-10-07)
+
+Scope: six owning suites in the CI0150A brief. Clean hosted shards have no
+`dist/`; tests must own their required source-derived artifacts and avoid
+rig-only Git objects. No production budget, timeout, retry, skip or assertion
+is relaxed. No live or paid calls, push, rebase or merge.
+
+- [x] Reproduce clean `CI=true` failures for configured providers, headless BYO,
+      deferred bundles, VSIX packaging/compression and worker certification.
+- [x] Use the pinned provider snapshot and private production-plugin bundles;
+      isolate scanner/gate drills and compression inputs from shared `dist/`.
+- [x] Remove repeated expensive packaging setup and bind historical worker
+      receipts to checked-in certified bytes, preserving their original hashes.
+- [x] Run each complete owning file three times after
+      `git clean -xdf -e node_modules`, with default Vitest test timeouts;
+      run five typechecks, lint, changed-file formatting, plain knip and duplication.
+- [~] Deliberately regress one fixed behavior, observe failure, restore exact
+  bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
+
 ## 7. Gates
+
+**CI0150A scoped certification.** CI0150-common.md requires three clean
+repetitions of complete owning files and individual static gates; the rig note
+caps each test run at three files. Aggregate `npm run quality` includes an
+unbounded whole-repository test/coverage run, so it is deferred to integration
+under this scoped repair. Hosted OS/release checks also include CI0150B/C work
+and are not certified here. This justified deferral changes no gate or threshold.
 
 **TRAIN15H scoped certification.** The lead's rig brief and shared common.md
 reserve aggregate quality for the lead. This lane runs complete owning files

@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Make provider, headless, deferred-bundle and VSIX tests independent of stale
+  build outputs in clean CI shards. Reuse VSCE collection and reject oversized
+  runtime members before parsing; existing budgets and test deadlines stay fixed.
+- Bind historical worker certification to checked-in, byte-exact source fixtures
+  so fresh clones need no rig-only Git objects.
+
 ## [0.15.0] - 2026-10-06
 
 ### Highlights

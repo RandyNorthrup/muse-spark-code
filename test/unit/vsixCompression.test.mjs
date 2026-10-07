@@ -1,8 +1,37 @@
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { build } from 'esbuild'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { unpackUiTable } from '../../src/shared/l10n/packed'
+
+const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'muse-vsix-compression-'))
+const compressor = path.join(fixtureRoot, 'scripts/compress-vsix.mjs')
+
+beforeAll(async () => {
+  // Run the real CLI beside only the English artifact it needs, never shared dist/.
+  for (const file of [
+    'scripts/compress-vsix.mjs',
+    'scripts/compress-vsix.py',
+    'scripts/lib/packedL10n.mjs',
+    'package.json',
+  ]) {
+    const target = path.join(fixtureRoot, file)
+    mkdirSync(path.dirname(target), { recursive: true })
+    cpSync(file, target)
+  }
+  await build({
+    entryPoints: ['src/shared/l10n/en.ts'],
+    outfile: path.join(fixtureRoot, 'dist/uiText.js'),
+    bundle: true,
+    platform: 'node',
+    format: 'cjs',
+    target: 'node20.18',
+    logLevel: 'silent',
+  })
+})
+afterAll(() => rmSync(fixtureRoot, { recursive: true, force: true }))
 
 const PYTHON = ['python3', 'python', 'py'].find(
   (candidate) => spawnSync(candidate, ['--version']).status === 0,
@@ -15,8 +44,7 @@ function python(args) {
 
 describe('VSIX maximum compression', () => {
   it('preserves archive metadata, ordinary bytes and every translated value', () => {
-    mkdirSync(path.resolve('temp'), { recursive: true })
-    const dir = mkdtempSync(path.resolve('temp/m97-vsix-'))
+    const dir = mkdtempSync(path.join(fixtureRoot, 'archive-'))
     const archive = path.join(dir, 'fixture.vsix')
     // Indexed packaging requires every English leaf, including whole plural
     // objects. Use a complete real table rather than the old three-key stub.
@@ -43,8 +71,9 @@ with ZipFile(sys.argv[1], 'w', compression=ZIP_DEFLATED) as z:
         translatedFile,
       ])
       expect(made.status, made.stderr).toBe(0)
-      const run = spawnSync(process.execPath, ['scripts/compress-vsix.mjs', archive], {
+      const run = spawnSync(process.execPath, [compressor, archive], {
         encoding: 'utf8',
+        cwd: fixtureRoot,
       })
       expect(run.status, run.stderr).toBe(0)
       const checked = python([
@@ -82,8 +111,7 @@ with ZipFile(sys.argv[1]) as z:
     }
   })
   it('refuses malformed translated JSON without replacing the original archive', () => {
-    mkdirSync(path.resolve('temp'), { recursive: true })
-    const dir = mkdtempSync(path.resolve('temp/m97-vsix-'))
+    const dir = mkdtempSync(path.join(fixtureRoot, 'archive-'))
     const archive = path.join(dir, 'fixture.vsix')
     try {
       const made = python([
@@ -93,10 +121,12 @@ with ZipFile(sys.argv[1]) as z:
       ])
       expect(made.status, made.stderr).toBe(0)
       const before = readFileSync(archive)
-      const run = spawnSync(process.execPath, ['scripts/compress-vsix.mjs', archive], {
+      const run = spawnSync(process.execPath, [compressor, archive], {
         encoding: 'utf8',
+        cwd: fixtureRoot,
       })
       expect(run.status).not.toBe(0)
+      expect(run.stderr).toContain('JSONDecodeError')
       expect(readFileSync(archive)).toEqual(before)
     } finally {
       rmSync(dir, { recursive: true, force: true })
