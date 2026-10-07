@@ -1,10 +1,31 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import { PLAYBOOK_FINDING_CLASSES, PLAYBOOK_LAUNDER_WINDOW_MS } from '../../src/shared/constants'
-import type { ReviewBlock } from '../../src/shared/reviewFindings'
+import type { ReviewBlock, ReviewResolution } from '../../src/shared/reviewFindings'
+import type { PanelPlaybookReview } from '../../src/core/orchestration/panelPlaybook'
 import { PlaybookRefusedError } from '../../src/core/orchestration/playbookIntegration'
 import { integrationFixture } from './helpers/playbookIntegration'
 import { answerAll, design, latestRound, reviewBlock } from './playbookPolicyFixture'
+
+function observeRedesign(
+  ticket: PanelPlaybookReview,
+  policy: ReturnType<typeof integrationFixture>['policy'],
+  outcome: ReviewResolution['outcome'],
+  reason: string,
+): void {
+  ticket.bind('redesign')
+  ticket.observe(
+    reply('redesign', {
+      findings: [],
+      coverage: [...PLAYBOOK_FINDING_CLASSES],
+      resolution: latestRound(policy).findings.map((finding) => ({
+        findingId: finding.id,
+        outcome,
+        reason,
+      })),
+    }),
+  )
+}
 
 function reply(turnId: string, block: ReviewBlock): AgentEvent {
   return {
@@ -61,18 +82,7 @@ describe('M116 panel review integration', () => {
       expect.any(Object),
       expect.objectContaining({ round: 3, findings: latestRound(f.policy).findings }),
     )
-    ticket.bind('redesign')
-    ticket.observe(
-      reply('redesign', {
-        findings: [],
-        coverage: [...PLAYBOOK_FINDING_CLASSES],
-        resolution: latestRound(f.policy).findings.map((finding) => ({
-          findingId: finding.id,
-          outcome: 'impossible',
-          reason: 'One atomic claim removes the race.',
-        })),
-      }),
-    )
+    observeRedesign(ticket, f.policy, 'impossible', 'One atomic claim removes the race.')
     ticket.observe({ type: 'turnCompleted', turnId: 'redesign', terminal: 'completed' })
     expect(f.policy.beforeFixRound(f.work.module).kind).toBe('allow')
   })
@@ -110,18 +120,7 @@ describe('M116 panel review integration', () => {
       }
       f.policy.recordDesignDecision(design())
       const ticket = f.panel.review('s1', f.work.module.files)
-      ticket.bind('redesign')
-      ticket.observe(
-        reply('redesign', {
-          findings: [],
-          coverage: [...PLAYBOOK_FINDING_CLASSES],
-          resolution: latestRound(f.policy).findings.map((finding) => ({
-            findingId: finding.id,
-            outcome,
-            reason: 'The original multi-step claim remains.',
-          })),
-        }),
-      )
+      observeRedesign(ticket, f.policy, outcome, 'The original multi-step claim remains.')
       ticket.observe({ type: 'turnCompleted', turnId: 'redesign', terminal: 'completed' })
       expect(f.events.note.mock.calls.some(([note]) => note.needsUser)).toBe(true)
       expect(f.policy.beforeFixRound(f.work.module).kind).toBe('refuse')

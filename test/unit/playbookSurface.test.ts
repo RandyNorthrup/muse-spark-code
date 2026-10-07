@@ -92,8 +92,11 @@ describe('M116 playbook surface adapter (W)', () => {
 
   it('rejects invalid changes without persisting them', async () => {
     const port = surface()
+    // Hostile wire value: no typed test can spell a rule outside
+    // PLAYBOOK_CONFIGURABLE_RULES, so the cast feeds one in; the surface
+    // re-parses every change through the zod schema before persisting.
     await expect(
-      port.change({ rule: 'neverAround', enabled: false, reason: 'No.' }),
+      port.change({ rule: 'neverAround', enabled: false, reason: 'No.' } as never),
     ).rejects.toThrow()
     const reread = (await port.read()) as {
       settings: { rules: Record<string, { enabled: boolean }> }
