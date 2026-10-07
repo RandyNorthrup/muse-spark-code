@@ -4,7 +4,12 @@ import { AcpAccounts, companionAccountsPanel, type AccountsPanelPort } from '../
 import { createAcpAgent, type AcpAgentDeps } from '../../src/acp/agent'
 import { AcpPaidUse } from '../../src/acp/paid'
 import { ACP_CONFIG_IDS, UI_TEXT } from '../../src/shared/constants'
-import { accountSwap, forgedState, sessionAccountsRig } from './helpers/runtimeAccounts'
+import {
+  accountSwap,
+  commandAccountsRig,
+  forgedState,
+  sessionAccountsRig,
+} from './helpers/runtimeAccounts'
 import { FakeAgentHost } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
 import { until } from './helpers/acpWaits'
@@ -59,6 +64,16 @@ function connectedAccounts(isBound = true) {
     })
   }
   return { ...h, host, updates, run }
+}
+
+function holdAccountRead(h: ReturnType<typeof sessionAccountsRig>) {
+  const ready = Promise.withResolvers<undefined>()
+  const release = Promise.withResolvers<ReturnType<typeof h.state>>()
+  h.port.read = () => {
+    ready.resolve(undefined)
+    return release.promise
+  }
+  return { ready, release }
 }
 
 describe('M108 ACP accounts', () => {
@@ -168,7 +183,7 @@ describe('M108 ACP accounts', () => {
       ]) {
         await expect(
           client.request('session/prompt', { sessionId: id, prompt: [{ type: 'text', text }] }),
-        ).rejects.toThrow()
+        ).rejects.toThrow(UI_TEXT.accounts.invalidAccount)
       }
       await expect(
         client.request('session/prompt', {
@@ -178,14 +193,14 @@ describe('M108 ACP accounts', () => {
             { type: 'text', text: 'also send a turn' },
           ],
         }),
-      ).rejects.toThrow()
+      ).rejects.toThrow(UI_TEXT.accounts.invalidAccount)
       await expect(
         client.request('session/set_config_option', {
           sessionId: id,
           configId: 'account',
           value: 'missing',
         }),
-      ).rejects.toThrow()
+      ).rejects.toThrow(UI_TEXT.accounts.invalidAccount)
       expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
       expect(h.port.use).not.toHaveBeenCalled()
     })
@@ -270,6 +285,311 @@ describe('M108 ACP accounts', () => {
     expect(controller.option()[0]?.currentValue).toBe('work')
     controller.dispose()
   })
+
+  it('invalidates backend adoption when a newer swap commits during a held selection', async () => {
+    const h = sessionAccountsRig()
+    h.rows.push({ id: 'personal', label: 'Personal', order: 2, thresholds: {} })
+    const controller = new AcpAccounts('session', h.port, vi.fn(), vi.fn())
+    await controller.start()
+    const ready = Promise.withResolvers<() => boolean>()
+    const release = Promise.withResolvers<undefined>()
+    let backendAccount = 'default'
+    expect(controller.option()[0]?.currentValue).toBe(backendAccount)
+    h.port.use = async (_session, account, canCommit) => {
+      ready.resolve(canCommit)
+      await release.promise
+      if (canCommit()) backendAccount = account
+      return { ...h.state(), currentAccount: account }
+    }
+    const using = controller.use('work', () => true)
+    const failure = expect(using).rejects.toThrow(UI_TEXT.accounts.unavailable)
+    const fence = await ready.promise
+    backendAccount = 'personal'
+    h.emit({ ...accountSwap(), account: 'personal' })
+    const isAdoptable = fence()
+    release.resolve(undefined)
+    await failure
+    expect(backendAccount).toBe('personal')
+    expect(isAdoptable).toBe(false)
+    expect(controller.option()[0]?.currentValue).toBe(backendAccount)
+    controller.dispose()
+  })
+
+  it.each([true, false])(
+    'accepts the selected account and fences its committed selection (swap published: %s)',
+    async (isPublished) => {
+      const h = sessionAccountsRig()
+      const controller = new AcpAccounts('session', h.port, vi.fn(), vi.fn())
+      await controller.start()
+      const fence = Promise.withResolvers<() => boolean>()
+      h.port.use = (_session, _account, canCommit) => {
+        expect(canCommit()).toBe(true)
+        fence.resolve(canCommit)
+        if (isPublished) {
+          h.emit(accountSwap())
+          expect(canCommit()).toBe(false)
+        }
+        return Promise.resolve({ ...h.state(), currentAccount: 'work' })
+      }
+      await controller.use('work', () => true)
+      expect(controller.option()[0]?.currentValue).toBe('work')
+      expect((await fence.promise)()).toBe(false)
+      controller.dispose()
+    },
+  )
+
+  it('refuses selections already queued or refreshing when a newer swap commits', async () => {
+    const h = sessionAccountsRig()
+    const controller = new AcpAccounts('session', h.port, vi.fn(), vi.fn())
+    await controller.start()
+    const { ready, release } = holdAccountRead(h)
+    const didSelect = async () => {
+      try {
+        await controller.use('default', () => true)
+        return true
+      } catch {
+        return false
+      }
+    }
+    const refreshing = didSelect()
+    await Promise.race([ready.promise, refreshing])
+    expect(h.port.use).not.toHaveBeenCalled()
+    const queued = didSelect()
+    h.emit(accountSwap())
+    release.resolve(h.state())
+    expect(await refreshing).toBe(false)
+    expect(await queued).toBe(false)
+    expect(h.port.use).not.toHaveBeenCalled()
+    expect(controller.option()[0]?.currentValue).toBe('work')
+    controller.dispose()
+  })
+
+  it('refreshes live store membership and thresholds for commands, the picker and selection', async () => {
+    const h = connectedAccounts()
+    await h.run(async (client, id) => {
+      h.rows[0] = {
+        id: 'default',
+        label: 'Renamed',
+        order: 0,
+        thresholds: { spendUsd: { day: 50 } },
+      }
+      h.rows.push({ id: 'personal', label: 'Personal', order: 2, thresholds: {} })
+      h.changed()
+      for (const text of [
+        '/accounts list',
+        '/accounts thresholds default',
+        '/accounts use personal',
+      ]) {
+        await client.request('session/prompt', { sessionId: id, prompt: [{ type: 'text', text }] })
+      }
+      const text = JSON.stringify(h.updates)
+      expect(text).toContain('Personal')
+      expect(text).toContain(String.raw`\"day\":50`)
+      expect(h.updates).toContainEqual(
+        expect.objectContaining({
+          sessionUpdate: 'config_option_update',
+          configOptions: expect.arrayContaining([
+            expect.objectContaining({
+              id: 'account',
+              options: expect.arrayContaining([{ value: 'personal', name: 'meta · Personal' }]),
+            }),
+          ]),
+        }),
+      )
+      expect(h.port.use).toHaveBeenCalledWith(id, 'personal', expect.any(Function))
+      expect(h.port.read).toHaveBeenCalledTimes(4)
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    })
+  })
+
+  it('reads the live store before validating a selection and reporting thresholds', async () => {
+    const h = sessionAccountsRig()
+    const owner = commandAccountsRig()
+    let currentAccount = 'default'
+    owner.configure({ accounts: h.rows })
+    h.port.read = vi.fn(async () => ({
+      ...h.state(),
+      accounts: await owner.accounts.list('meta'),
+      currentAccount,
+    }))
+    const controller = new AcpAccounts('session', h.port, vi.fn(), vi.fn())
+    await controller.start()
+    await owner.accounts.add('meta', {
+      id: 'personal',
+      label: 'Personal',
+      order: 2,
+      thresholds: {},
+    })
+    h.port.use = vi.fn<typeof h.port.use>(async (_session, account, canCommit) => {
+      const accounts = await owner.accounts.list('meta')
+      expect(canCommit()).toBe(true)
+      currentAccount = account
+      return { ...h.state(), accounts, currentAccount }
+    })
+    await controller.use('personal', () => true)
+    expect(controller.option()[0]?.currentValue).toBe(currentAccount)
+    await owner.accounts.thresholds('meta', 'default', { spendUsd: { day: 50 } })
+    expect(await controller.command('/accounts thresholds default', () => true)).toBe(
+      JSON.stringify([{ id: 'default', thresholds: { spendUsd: { day: 50 } } }]),
+    )
+    expect(h.port.read).toHaveBeenCalledTimes(3)
+    await owner.accounts.remove('meta', 'work')
+    await expect(controller.use('work', () => true)).rejects.toThrow(
+      UI_TEXT.accounts.invalidAccount,
+    )
+    expect(h.port.use).toHaveBeenCalledOnce()
+    controller.dispose()
+    owner.dispose()
+  })
+
+  it('updates the picker from validated store notifications before any command or newly added account swap', async () => {
+    const h = sessionAccountsRig(),
+      change = vi.fn(),
+      notice = vi.fn()
+    const controller = new AcpAccounts('session', h.port, change, notice)
+    await controller.start()
+    h.rows.push({ id: 'personal', label: 'Personal', order: 2, thresholds: {} })
+    h.rows[0] = { id: 'default', label: 'Renamed', order: 0, thresholds: { spendUsd: { day: 50 } } }
+    for (const listener of h.listeners) {
+      listener({ ...h.state(), provider: 'other' })
+      listener(forgedState())
+    }
+    expect(change).not.toHaveBeenCalled()
+    expect(controller.option()[0]).toEqual(
+      expect.objectContaining({
+        options: [
+          { value: 'default', name: 'meta · Default' },
+          { value: 'work', name: 'meta · Work' },
+        ],
+      }),
+    )
+    h.changed()
+    expect(controller.option()[0]).toEqual(
+      expect.objectContaining({
+        options: [
+          { value: 'default', name: 'meta · Renamed' },
+          { value: 'work', name: 'meta · Work' },
+          { value: 'personal', name: 'meta · Personal' },
+        ],
+      }),
+    )
+    expect(change).toHaveBeenCalledOnce()
+    expect(h.port.read).toHaveBeenCalledOnce()
+    h.emit({ ...accountSwap(), account: 'personal' })
+    expect(controller.option()[0]?.currentValue).toBe('personal')
+    expect(notice).toHaveBeenCalledWith(
+      expect.stringContaining('Personal'),
+      expect.objectContaining({ account: 'personal' }),
+    )
+    controller.dispose()
+    h.changed()
+    expect(change).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps a newer store notification authoritative over a held live read', async () => {
+    const h = sessionAccountsRig()
+    const controller = new AcpAccounts('session', h.port, vi.fn(), vi.fn())
+    await controller.start()
+    const stale = structuredClone(h.state())
+    const { ready, release } = holdAccountRead(h)
+    const reading = controller.command('/accounts thresholds default', () => true)
+    await Promise.race([ready.promise, reading])
+    h.rows[0] = { id: 'default', label: 'Default', order: 0, thresholds: { spendUsd: { day: 50 } } }
+    h.changed()
+    release.resolve(stale)
+    expect(await reading).toBe(
+      JSON.stringify([{ id: 'default', thresholds: { spendUsd: { day: 50 } } }]),
+    )
+    controller.dispose()
+  })
+
+  it('invalidates a held selection when the live store removes its target account', async () => {
+    const h = sessionAccountsRig()
+    const controller = new AcpAccounts('session', h.port, vi.fn(), vi.fn())
+    await controller.start()
+    const ready = Promise.withResolvers<() => boolean>(),
+      release = Promise.withResolvers<undefined>()
+    let isAdopted = false
+    h.port.use = async (_session, _account, canCommit) => {
+      ready.resolve(canCommit)
+      await release.promise
+      isAdopted = canCommit()
+      return h.state()
+    }
+    const using = controller.use('work', () => true)
+    const failure = expect(using).rejects.toThrow(UI_TEXT.accounts.unavailable)
+    const fence = await ready.promise
+    h.rows.splice(1, 1)
+    h.changed()
+    release.resolve(undefined)
+    await failure
+    expect(fence()).toBe(false)
+    expect(isAdopted).toBe(false)
+    expect(controller.option()[0]).toEqual(
+      expect.objectContaining({ options: [{ value: 'default', name: 'meta · Default' }] }),
+    )
+    controller.dispose()
+  })
+
+  it.each(['dispose', 'foreign', 'malformed'])(
+    'refuses a %s live refresh without updating the picker',
+    async (reason) => {
+      const h = sessionAccountsRig(),
+        change = vi.fn()
+      const controller = new AcpAccounts('session', h.port, change, vi.fn())
+      await controller.start()
+      const { ready, release } = holdAccountRead(h)
+      const reading = controller.command('/accounts list', () => true)
+      await Promise.race([ready.promise, reading])
+      h.rows.splice(1, 1)
+      if (reason === 'dispose') controller.dispose()
+      let state = h.state()
+      if (reason === 'foreign') state = { ...state, provider: 'other' }
+      else if (reason === 'malformed') state = forgedState()
+      release.resolve(state)
+      await expect(reading).rejects.toThrow(UI_TEXT.accounts.unavailable)
+      expect(change).not.toHaveBeenCalled()
+      controller.dispose()
+    },
+  )
+
+  it.each(['command', 'option'])(
+    'reports unavailable selections through the ACP %s route without raw errors',
+    async (route) => {
+      const h = connectedAccounts()
+      await h.run(async (client, id) => {
+        const read = h.port.read,
+          use = h.port.use
+        for (const operation of ['read', 'use']) {
+          h.port.read = read
+          h.port.use = use
+          for (const reason of [
+            UI_TEXT.accounts.unavailable,
+            'account-secret-canary',
+            UI_TEXT.accounts.invalidAccount,
+          ]) {
+            const refuse = () => Promise.reject(new Error(reason))
+            if (operation === 'read') h.port.read = refuse
+            else h.port.use = refuse
+            const request =
+              route === 'command'
+                ? client.request('session/prompt', {
+                    sessionId: id,
+                    prompt: [{ type: 'text', text: '/accounts use work' }],
+                  })
+                : client.request('session/set_config_option', {
+                    sessionId: id,
+                    configId: 'account',
+                    value: 'work',
+                  })
+            await expect(request).rejects.toThrow(UI_TEXT.accounts.unavailable)
+          }
+        }
+        expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+        expect(JSON.stringify(h.updates)).not.toContain('account-secret-canary')
+      })
+    },
+  )
 
   it('discards a held read and held selection after disposal, including its adoption fence', async () => {
     const h = sessionAccountsRig()
@@ -375,6 +695,9 @@ describe('M108 ACP accounts', () => {
     await expect(controller.command('/accounts', () => true)).rejects.toThrow(
       UI_TEXT.accounts.unavailable,
     )
+    await expect(controller.use('work', () => true)).rejects.toThrow(UI_TEXT.accounts.unavailable)
+    expect(h.port.read).not.toHaveBeenCalled()
+    expect(h.port.use).not.toHaveBeenCalled()
     h.port.read = () => Promise.resolve({ ...h.state(), currentAccount: null })
     await controller.start()
     expect(controller.option()).toEqual([])
@@ -385,9 +708,7 @@ describe('M108 ACP accounts', () => {
     h.port.use = use
     for (const state of [h.state(), { ...h.state(), currentAccount: 'work', provider: 'other' }]) {
       use.mockResolvedValue(state)
-      await expect(controller.use('work', () => true)).rejects.toThrow(
-        UI_TEXT.accounts.invalidAccount,
-      )
+      await expect(controller.use('work', () => true)).rejects.toThrow(UI_TEXT.accounts.unavailable)
       expect(controller.option()).toEqual([])
     }
     controller.dispose()

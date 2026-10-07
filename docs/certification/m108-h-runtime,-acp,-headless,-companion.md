@@ -248,3 +248,83 @@ captures and hosted Action receipts remain W/lead work under the explicit
 rig brief. Installed multi-account dispatch requires the named registry,
 profile broker and session/panel bindings above. No dependency was installed,
 no live request ran, and no cap or policy default was weakened.
+
+## FIXM108H — RVM108H repair (2026-10-06)
+
+Worktree `/home/randy/lanes/M108H`, Kubuntu, branch `m108/h`, repair base
+`7e30493c5`. Read the complete rig brief, shared `codex/common.md` and
+RVM108H report, repository rules and relevant PLAN D88/M108/gates/residuals.
+The explicit rig rules override older merge, full-quality and remote-run
+instructions. No merge, push, rebase, dependency install, credential read,
+network or live/paid call; all verification runs directly in this worktree.
+
+All three review findings are fixed; none is deferred. The named existing
+integration handoffs above remain prerequisites, recorded again as
+FIXM108H-INTEGRATION in PLAN §9. In particular, H-P-SESSION's subscription
+now publishes strict `accounts/state` snapshots from the live account store
+on metadata changes alongside committed account events. It is the same
+profile service that reads membership/thresholds and selects the next
+backend account. No vendor wire shape or credential route is added.
+
+| Finding                                               | Repair                                                                                                                                                                                                                                                                                        | Regression                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RVM108H-1, P2 backend adoption after a newer swap     | The account selection revision is part of `canAdopt`. A committed swap advances that generation before publication, so a service obeying the immediate-commit check cannot adopt the stale account. Its own atomic swap publication may complete successfully without replacing newer state.  | `invalidates backend adoption when a newer swap commits during a held selection`; `accepts the selected account and fences its committed selection (swap published: true/false)`; `refuses selections already queued or refreshing when a newer swap commits`                                                                                                                                                                                                                      |
+| RVM108H-2, P2 frozen membership/thresholds            | Serialized commands/selections read live store state before use; validated metadata notifications update the picker immediately and invalidate pending adoption. Held reads never overwrite newer notifications. Newly added accounts' swaps are accepted; removed targets cannot be adopted. | `refreshes live store membership and thresholds for commands, the picker and selection`; `reads the live store before validating a selection and reporting thresholds` (real AccountStore with fake metadata/vault); `updates the picker from validated store notifications before any command or newly added account swap`; `keeps a newer store notification authoritative over a held live read`; `invalidates a held selection when the live store removes its target account` |
+| RVM108H-3, P3 unavailable service reported as invalid | Both real ACP routes map only the fixed locally validated input error to invalid-account text. Service rejection/malformed state becomes fixed unavailable text before reaching the router; raw errors and service-supplied invalid-account wording cannot override the classification.       | `reports unavailable selections through the ACP command route without raw errors`; `reports unavailable selections through the ACP option route without raw errors`; existing invalid-input checks now assert the fixed invalid-account reason                                                                                                                                                                                                                                     |
+
+The original implementation failed six new assertions before repair (exit 1,
+13 existing tests passed): wrong backend `work` instead of `personal`, live
+threshold 1 instead of 50, added account rejected, unchanged adoption fence,
+and unavailable selections misclassified on both ACP routes. After repair,
+all account tests passed. Refresh initially sent redundant unchanged-state
+updates; comparison of validated state suppresses them, retaining the
+existing disposal test's no-update guarantee. No test timeout was raised.
+
+W's additional Unreleased changelog handoff: ACP account selection keeps
+backend/display agreement across swaps, refreshes membership and thresholds
+while sessions stay open, and reports service unavailability with fixed text.
+README/reference publication and installed editor composition remain W-owned;
+this repair changes no command syntax, setting or manifest contribution.
+
+### Repair guard drills
+
+Each final drill ran the complete `test/unit/acpAccounts.test.ts` with
+`--maxWorkers=3`, the repository default timeout and no name filter. All
+17 mutations exited 1 with direct assertion failures, no test timeout and
+no unhandled error. The source was restored in `finally` and compared
+byte-for-byte and by SHA-256 after every drill. Initial drill runs also
+failed, but deleting a read left two signal-wait tests waiting until the
+default timeout. Their waits now race the operation's result; repeated
+final drills fail explicit state/dispatch assertions instead. The live-store
+test selects the added account before any command refresh, then changes the
+threshold before reading it, proving both independent live-read paths.
+
+| Mutation                            | Named failing test                                                                                        | Final result                      |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| `F1-adoption-generation`            | `invalidates backend adoption when a newer swap commits during a held selection`                          | Exit 1; 4 failed / 23 passed (27) |
+| `F1-pending-and-queued-generation`  | `refuses selections already queued or refreshing when a newer swap commits`                               | Exit 1; 1 failed / 26 passed (27) |
+| `F1-capture-request-generation`     | `refuses selections already queued or refreshing when a newer swap commits`                               | Exit 1; 1 failed / 26 passed (27) |
+| `F1-committed-selection-generation` | `accepts the selected account and fences its committed selection (swap published: false)`                 | Exit 1; 1 failed / 26 passed (27) |
+| `F2-store-subscription`             | `updates the picker from validated store notifications before any command or newly added account swap`    | Exit 1; 3 failed / 24 passed (27) |
+| `F2-store-snapshot-validation`      | `updates the picker from validated store notifications before any command or newly added account swap`    | Exit 1; 1 failed / 26 passed (27) |
+| `F2-live-selection-read`            | `refuses selections already queued or refreshing when a newer swap commits`                               | Exit 1; 5 failed / 22 passed (27) |
+| `F2-live-command-read`              | `refreshes live store membership and thresholds for commands, the picker and selection`                   | Exit 1; 6 failed / 21 passed (27) |
+| `F2-held-read-revision`             | `keeps a newer store notification authoritative over a held live read`                                    | Exit 1; 1 failed / 26 passed (27) |
+| `F2-refresh-disposal`               | `refuses a dispose live refresh without updating the picker`                                              | Exit 1; 1 failed / 26 passed (27) |
+| `F2-refresh-provider`               | `refuses a foreign live refresh without updating the picker`                                              | Exit 1; 1 failed / 26 passed (27) |
+| `F2-uninitialized-selection`        | `rejects uninitialized, disposed and null selections and service results for another provider or account` | Exit 1; 1 failed / 26 passed (27) |
+| `F3-service-classification`         | `reports unavailable selections through the ACP command route without raw errors`                         | Exit 1; 2 failed / 25 passed (27) |
+| `F3-read-classification`            | `reports unavailable selections through the ACP command route without raw errors`                         | Exit 1; 2 failed / 25 passed (27) |
+| `F3-result-classification`          | `invalidates a held selection when the live store removes its target account`                             | Exit 1; 2 failed / 25 passed (27) |
+| `F3-option-router`                  | `reports unavailable selections through the ACP option route without raw errors`                          | Exit 1; 1 failed / 26 passed (27) |
+| `F3-command-router`                 | `reports unavailable selections through the ACP command route without raw errors`                         | Exit 1; 1 failed / 26 passed (27) |
+
+| Restored source       | SHA-256                                                            |
+| --------------------- | ------------------------------------------------------------------ |
+| `src/acp/accounts.ts` | `00b5d07e0b562dde2a2e051036d2d11cfdcca5f7cc53ddf21f7824afb33ab3c4` |
+| `src/acp/agent.ts`    | `029fa5e250c3fac6fb55377718b6a0381389d8c59fdc9676b8f726fbafc573f4` |
+
+The duplication check initially identified two repeated test setup/fixture
+blocks. A small local held-read fixture now shares setup, and the independent
+metadata edits use their natural ordering. The unchanged zero-duplication gate
+then passed. No ignore, lint suppression, cast, test skip or threshold change.

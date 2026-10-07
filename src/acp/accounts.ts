@@ -20,7 +20,15 @@ export interface AccountsSessionPort {
   /** Check canCommit immediately before the owner's synchronous selection
    * transaction. Never adopt after a session release or a newer operation. */
   use(sessionId: string, account: string, canCommit: () => boolean): Promise<AccountsState>
-  subscribe(sessionId: string, listener: (event: AccountEvent) => void): () => void
+  /** Publish a fresh state from the live account store on metadata changes,
+   * as well as notices from the same owner's committed adoption transaction. */
+  subscribe(sessionId: string, listener: (event: AccountEvent | AccountsState) => void): () => void
+}
+
+export function accountErrorText(error: unknown): string {
+  return error instanceof Error && error.message === UI_TEXT.accounts.invalidAccount
+    ? UI_TEXT.accounts.invalidAccount
+    : UI_TEXT.accounts.unavailable
 }
 
 export function accountUsageUrl(port: AccountsSessionPort, provider: string): string {
@@ -91,7 +99,8 @@ function parseState(value: unknown): AccountsState {
  * notices and selection results without touching another session's state. */
 export class AcpAccounts {
   private state: AccountsState | undefined
-  private readonly earlyNotices: AccountEvent[] = []
+  private readonly earlyNotices: (AccountEvent | AccountsState)[] = []
+  // The account authority's generation fences pending backend adoption.
   private noticeRevision = 0
   private generation = 0
   private isDisposed = false
@@ -149,17 +158,44 @@ export class AcpAccounts {
     return `${UI_TEXT.accounts.current}: ${state.provider} · ${this.label(state.currentAccount)}`
   }
 
+  private async refresh(isCurrent: () => boolean): Promise<void> {
+    const revision = this.noticeRevision
+    let state: AccountsState
+    try {
+      state = parseState(await this.port.read(this.sessionId))
+    } catch {
+      throw new Error(UI_TEXT.accounts.unavailable)
+    }
+    if (!isCurrent() || (this.state !== undefined && state.provider !== this.state.provider))
+      throw new Error(UI_TEXT.accounts.unavailable)
+    // A notification committed while the read was held is newer authority.
+    if (revision !== this.noticeRevision) return
+    const isChanged =
+      this.state !== undefined && JSON.stringify(this.state) !== JSON.stringify(state)
+    this.state = state
+    if (isChanged) this.onChange()
+  }
+
   public async start(): Promise<void> {
-    const receive = (event: AccountEvent) => {
+    const receive = (event: AccountEvent | AccountsState) => {
       if (this.isDisposed) return
       const parsed = accountEventSchema.safeParse(event)
-      if (!parsed.success) return
-      const notice = parsed.data
+      const snapshot = accountsReplySchema.safeParse(event)
+      let notice: AccountEvent | AccountsState | undefined
+      if (parsed.success) notice = parsed.data
+      else if (snapshot.success && snapshot.data.type === 'accounts/state') notice = snapshot.data
+      if (notice === undefined) return
       if (this.state === undefined) {
         this.earlyNotices.push(notice)
         return
       }
       if (this.state.provider !== notice.provider) return
+      if (notice.type === 'accounts/state') {
+        this.noticeRevision += 1
+        this.state = notice
+        this.onChange()
+        return
+      }
       const isKnown = this.state.accounts.some((row) => row.id === notice.account)
       if (!isKnown) return
       if (
@@ -184,12 +220,7 @@ export class AcpAccounts {
     try {
       this.unsubscribe = this.port.subscribe(this.sessionId, receive)
       await this.own(async (isCurrent) => {
-        const state = parseState(await this.port.read(this.sessionId))
-        if (!isCurrent()) {
-          return
-        }
-
-        this.state = state
+        await this.refresh(isCurrent)
         for (const notice of this.earlyNotices.splice(0)) receive(notice)
       })
     } catch {
@@ -215,22 +246,31 @@ export class AcpAccounts {
   }
 
   public async use(account: string, canCommit: () => boolean): Promise<void> {
+    const revision = this.noticeRevision
     await this.own(async (isCurrent) => {
-      if (
-        !accountIdSchema.safeParse(account).success ||
-        !this.state?.accounts.some((row) => row.id === account)
-      )
+      if (this.state === undefined) throw new Error(UI_TEXT.accounts.unavailable)
+      if (revision !== this.noticeRevision) throw new Error(UI_TEXT.accounts.unavailable)
+      if (!accountIdSchema.safeParse(account).success)
         throw new Error(UI_TEXT.accounts.invalidAccount)
-      const revision = this.noticeRevision
-      const canAdopt = () => isCurrent() && canCommit()
-      const state = parseState(await this.port.use(this.sessionId, account, canAdopt))
-      if (!canAdopt()) throw new Error(UI_TEXT.accounts.unavailable)
+      await this.refresh(isCurrent)
+      if (revision !== this.noticeRevision) throw new Error(UI_TEXT.accounts.unavailable)
+      if (this.state.accounts.every((row) => row.id !== account))
+        throw new Error(UI_TEXT.accounts.invalidAccount)
+      const canAdopt = () => isCurrent() && revision === this.noticeRevision && canCommit()
+      let state: AccountsState
+      try {
+        state = parseState(await this.port.use(this.sessionId, account, canAdopt))
+      } catch {
+        throw new Error(UI_TEXT.accounts.unavailable)
+      }
+      if (!isCurrent() || !canCommit()) throw new Error(UI_TEXT.accounts.unavailable)
       if (state.provider !== this.state.provider || state.currentAccount !== account)
-        throw new Error(UI_TEXT.accounts.invalidAccount)
+        throw new Error(UI_TEXT.accounts.unavailable)
       if (revision !== this.noticeRevision) {
         if (this.state.currentAccount !== account) throw new Error(UI_TEXT.accounts.unavailable)
         return
       }
+      this.noticeRevision += 1
       this.state = state
       this.onChange()
     })
@@ -245,6 +285,11 @@ export class AcpAccounts {
       await this.use(account, canCommit)
       return this.current()
     }
+    if (action !== 'thresholds' && (account !== undefined || !['list', 'current'].includes(action)))
+      throw new Error(UI_TEXT.accounts.invalidAccount)
+    await this.own(async (isCurrent) => {
+      await this.refresh(isCurrent)
+    })
     if (action === 'current' && account === undefined) return this.current()
     if (action === 'list' && account === undefined) return JSON.stringify(this.state.accounts)
     if (action === 'thresholds') {

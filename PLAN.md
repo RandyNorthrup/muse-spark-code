@@ -19833,6 +19833,20 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
+**FIXM108H (2026-10-06):** fix all three RVM108H findings within H's
+ACP session owner and router. A committed swap advances the selection
+revision and invalidates any pending backend-adoption fence. The profile
+service's subscription publishes validated account-state snapshots on store
+changes; local commands and selection read live membership and thresholds
+through that same owner. Serialize refreshes with selection and keep newer
+notifications authoritative over held reads/results, including disposal.
+Report valid selections refused by unavailable services with the fixed
+unavailable reason, while retaining invalid-account errors for invalid input
+and suppressing raw service text. Add backend-adoption, live-store and real
+ACP-router regressions and byte-exact red/restoration drills for every
+finding. No dependency, timeout, threshold, credential, budget or gate changes;
+H-P-SESSION still requires the shared profile owner before installed support.
+
 **FIXM108P (2026-10-06):** fix all five RVM108P P2 findings inside P's
 owned core/paid ports. Serialize confirmation read/question/write ownership
 before starting I/O, discard stale reads/results by generation, and refresh
@@ -20077,6 +20091,14 @@ No dependency, endpoint guard, paid default or budget changes. See
         full gate green
 
 ## 7. Gates
+
+**FIXM108H bounded-lane certification (2026-10-06).** The explicit rig
+brief and shared lane rules prohibit the full quality run and merges here;
+W/the lead runs the full gate before integration. H runs the named complete
+owned test files with repository-default timeouts, typecheck, changed-file
+lint/format, deadcode, duplication, l10n, host-API and build checks directly
+on Kubuntu. Per-finding regressions and deliberate mutations are recorded in
+`docs/certification/m108-h-runtime,-acp,-headless,-companion.md`.
 
 **FIXM108P bounded-lane certification (2026-10-06).** The rig brief and
 shared rules prohibit aggregate quality/full unit runs, merges and network
@@ -21270,6 +21292,22 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM108H-INTEGRATION (H-P-SESSION / H-W-PROFILE / W / M109).**
+  No RVM108H finding remains in the injected ACP account owner/router.
+  Installed composition still requires one profile-owned account service:
+  its `AccountsSessionPort.read` reads live store membership and thresholds,
+  its subscription publishes validated `accounts/state` snapshots whenever
+  metadata changes, and its synchronous selection transaction checks
+  `canCommit` immediately before adoption/publication. A metadata notification
+  or committed swap advances the pending adoption fence; an older read/result
+  cannot replace that authority. Safe for now: additional-account installed
+  surfaces remain unavailable without the named bindings; only fake
+  compositions are certified here. Follow-up: P/W/M109 certify the same
+  store notifications and backend/display agreement across installed clients.
+  W also publishes the H-W-DOCS-HELP README/reference/changelog handoff and
+  regenerates the pre-existing H-W-HOSTAPI inventory difference at integration;
+  no W-owned output is edited in H's bounded repair.
 
 - **FIXM108P-PROFILE-OWNER (P-W-POLICY-STORE / M109 / W).** Compose one
   profile-owned pool and confirmation authority, and one account/tariff paid

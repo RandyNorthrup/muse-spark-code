@@ -59,7 +59,7 @@ export function sessionAccountsRig() {
     { id: 'work', label: 'Work', order: 1, thresholds: { requests: { day: 2 } } },
   ]
   let current = 'default'
-  const listeners = new Set<(event: AccountEvent) => void>()
+  const listeners = new Set<Parameters<AccountsSessionPort['subscribe']>[1]>()
   const state = (): Extract<AccountsReply, { type: 'accounts/state' }> => ({
     type: 'accounts/state',
     provider: 'meta',
@@ -88,6 +88,9 @@ export function sessionAccountsRig() {
     state,
     port,
     listeners,
+    changed: () => {
+      for (const listener of listeners) listener(state())
+    },
     emit: (event: AccountEvent) => {
       if (event.type === 'swap') current = event.account
       for (const listener of listeners) listener(event)

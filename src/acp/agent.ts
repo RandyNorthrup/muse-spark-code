@@ -72,7 +72,7 @@ import {
   untrustedStartMode,
 } from '../shared/permissionModes'
 import { type AcpPaidUse, paidUseAnswer, paidUseOptions } from './paid'
-import { AcpAccounts, type AccountsSessionPort } from './accounts'
+import { AcpAccounts, accountErrorText, type AccountsSessionPort } from './accounts'
 import {
   elicitationSchema,
   elicitationText,
@@ -826,8 +826,8 @@ class AcpSession {
           value,
           () => !this.isDisposed && this.pending === undefined && this.preparing === undefined,
         )
-      } catch {
-        throw RequestError.invalidParams(undefined, UI_TEXT.accounts.invalidAccount)
+      } catch (error) {
+        throw RequestError.invalidParams(undefined, accountErrorText(error))
       }
       return
     }
@@ -893,8 +893,8 @@ class AcpSession {
             first.text,
             () => !this.isDisposed && !preparing.isCancelled && !('error' in preparing),
           )
-        } catch {
-          throw RequestError.invalidParams(undefined, UI_TEXT.accounts.invalidAccount)
+        } catch (error) {
+          throw RequestError.invalidParams(undefined, accountErrorText(error))
         }
         if (preparing.isCancelled || this.isDisposed) return 'cancelled'
         if (text !== undefined)
