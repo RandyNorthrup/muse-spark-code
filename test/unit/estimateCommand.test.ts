@@ -174,6 +174,22 @@ describe('M117 estimate command', () => {
     }
   })
 
+  it('rejects an adapter that mutates the requested goal before returning its reply', async () => {
+    await expect(
+      collectEstimate(
+        options,
+        context,
+        {
+          estimate: (request) => {
+            request.goal = { kind: 'milestone', milestoneId: 'M118' }
+            return Promise.resolve(result(request))
+          },
+        },
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow('request-mismatch')
+  })
+
   it('aborts before dispatch and discards a result returned after cancellation', async () => {
     const aborted = new AbortController()
     aborted.abort()
@@ -212,6 +228,7 @@ describe('M117 estimate command', () => {
       const output: unknown = write.mock.calls[0]?.[0]
       expect(output).toEqual(expect.stringContaining('linux-x64-builder'))
       expect(output).toEqual(expect.stringContaining('disclosures'))
+      expect(output).toEqual(expect.stringContaining('uncalibratedPrior'))
       if (format === 'json' && typeof output === 'string')
         expect(estimateSectionSchema.safeParse(JSON.parse(output)).success).toBe(true)
       else expect(output).toEqual(expect.stringContaining(UI_TEXT.estimatePrior))
@@ -275,6 +292,11 @@ describe('M117 estimate command', () => {
       signal: new AbortController().signal,
     }
     expect(await runEstimateCommand(['--help'], deps)).toBe(0)
+    expect(deps.write).toHaveBeenCalledWith(
+      expect.stringContaining('muse-spark-code-acp estimate <goal>'),
+    )
+    expect(deps.write).toHaveBeenCalledWith(expect.stringContaining('[--format md|html|json|text]'))
+    expect(deps.write).toHaveBeenCalledWith(expect.stringContaining('[--seed <seed>]'))
     expect(await runEstimateCommand(['bad'], deps)).toBe(2)
     expect(deps.context).not.toHaveBeenCalled()
     expect(deps.runner.estimate).not.toHaveBeenCalled()
@@ -328,6 +350,12 @@ describe('M117 re-estimation and TUI', () => {
     expect(publish.mock.calls[1]?.[0]).toMatchObject({ drift: { previousAsOf: context.asOf } })
     event({ laneId, asOf: 'not-a-time' })
     expect(error).toHaveBeenCalledTimes(1)
+    await view.refresh('not-a-time')
+    await view.refresh(context.asOf)
+    expect(error).toHaveBeenCalledTimes(3)
+    expect(error).toHaveBeenNthCalledWith(2, expect.stringContaining('invalid-snapshot'))
+    expect(error).toHaveBeenNthCalledWith(3, expect.stringContaining('invalid-snapshot'))
+    expect(port.estimate).toHaveBeenCalledTimes(2)
     view.dispose()
     view.dispose()
     event({ laneId, asOf: '2026-10-06T12:40:00.000Z' })

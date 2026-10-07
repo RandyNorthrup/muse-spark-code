@@ -7,6 +7,7 @@ import {
   type EstimateSection,
 } from '../../shared/estimate'
 import {
+  ACP_AGENT_NAME,
   MILLISECONDS_PER_SECOND,
   MINUTES_PER_HOUR,
   SECONDS_PER_MINUTE,
@@ -132,10 +133,11 @@ export async function collectEstimate(
     ...(options.deadline && { deadline: options.deadline }),
     ...(options.seed && { seed: options.seed }),
   })
+  const expectedRequest = JSON.stringify(request)
   signal.throwIfAborted()
   const section = estimateSectionSchema.parse(await port.estimate(request, signal))
   signal.throwIfAborted()
-  if (JSON.stringify(section.inputs.request) !== JSON.stringify(request))
+  if (JSON.stringify(section.inputs.request) !== expectedRequest)
     throw new Error(fill(UI_TEXT.estimateFailed, { detail: 'request-mismatch' }))
   return section
 }
@@ -164,11 +166,12 @@ export function estimateDrift(next: EstimateSection, previous: EstimateSection):
 
 /** UTC makes terminal/report bytes independent of the process TZ. */
 function date(value: string): string {
-  return new Intl.DateTimeFormat(uiLocale(), {
+  const options: Intl.DateTimeFormatOptions = {
     dateStyle: 'medium',
-    timeStyle: 'short',
     timeZone: 'UTC',
-  }).format(Date.parse(value))
+  }
+  if (value.includes('T')) options.timeStyle = 'short'
+  return new Intl.DateTimeFormat(uiLocale(), options).format(Date.parse(value))
 }
 function setupLabel(kind: EstimateSection['setups'][number]['kind']): string {
   switch (kind) {
@@ -250,7 +253,7 @@ export function renderEstimate(
       [setupLabel(setup.kind), `${date(setup.p50)} → ${date(setup.p90)}`],
       ...setup.machines.map((machine) => [
         machine.classId,
-        `${UI_TEXT.estimateMachines}: ${formatNumber(machine.count)}; ${UI_TEXT.estimateSlots}: ${formatNumber(machine.slots)}; ${UI_TEXT.estimateAccounts}: ${formatNumber(machine.accounts)}; ${UI_TEXT.estimateMarginal}: ${formatUnit(machine.marginalP50Hours, 'hour')} / ${formatUnit(machine.marginalP90Hours, 'hour')}; ${machine.price === undefined ? UI_TEXT.estimateNoPrice : `${UI_TEXT.estimateHourly}: ${money.price(machine.price)}; ${fill(UI_TEXT.estimateCatalog, { date: machine.price.catalogDate })} ${machine.price.catalogUrl}`}`,
+        `${UI_TEXT.estimateMachines}: ${formatNumber(machine.count)}; ${UI_TEXT.estimateSlots}: ${formatNumber(machine.slots)}; ${UI_TEXT.estimateAccounts}: ${formatNumber(machine.accounts)}; ${UI_TEXT.estimateMarginal}: ${formatUnit(machine.marginalP50Hours, 'hour')} / ${formatUnit(machine.marginalP90Hours, 'hour')}; ${machine.price === undefined ? UI_TEXT.estimateNoPrice : `${UI_TEXT.estimateHourly}: ${money.price(machine.price)}; ${fill(UI_TEXT.estimateCatalog, { date: date(machine.price.catalogDate) })} ${machine.price.catalogUrl}`}`,
       ]),
       ...(setup.provisioning === 'adviceOnly'
         ? [[UI_TEXT.estimateSpinUp, UI_TEXT.estimateAdvice]]
@@ -265,11 +268,7 @@ export function renderEstimate(
           ],
         ]),
   ]
-  const evidence = JSON.stringify(
-    { inputs: section.inputs, disclosures: section.disclosures },
-    null,
-    2,
-  )
+  const evidence = JSON.stringify(section, null, 2)
   const critical =
     section.limitingResource.kind === 'criticalPath' ? UI_TEXT.estimateCriticalBound : ''
   if (format === 'html')
@@ -294,12 +293,13 @@ export async function runEstimateCommand(
   },
 ): Promise<number> {
   const parsed = parseEstimateOptions(argv)
+  const usage = `${UI_TEXT.estimateUsage.replace('/estimate', () => `${ACP_AGENT_NAME} estimate`)} [--format md|html|json|text] [--seed <seed>]`
   if (parsed.kind === 'invalid') {
-    deps.error(parsed.reason)
+    deps.error(usage)
     return 2
   }
   if (parsed.kind === 'help') {
-    deps.write(`${UI_TEXT.estimateUsage}\n${UI_TEXT.estimateCliHelp}\n`)
+    deps.write(`${usage}\n${UI_TEXT.estimateCliHelp}\n`)
     return 0
   }
   try {

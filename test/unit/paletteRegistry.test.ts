@@ -137,7 +137,27 @@ function backendRow(base: PaletteContext, backend: PaletteContext['backend']) {
     ?.items.find((item) => item.id === 'backend')
 }
 
+function estimateRow(isAvailable?: boolean) {
+  return buildPalette({
+    ...context,
+    ...(isAvailable !== undefined && { estimateAvailable: isAvailable }),
+  })
+    .flatMap((group) => group.items)
+    .find((item) => item.id === 'estimate')
+}
+
 describe('buildPalette', () => {
+  it('offers estimate only after the local composer binding is available', () => {
+    expect(estimateRow()).toBeUndefined()
+    expect(estimateRow(false)).toBeUndefined()
+    expect(estimateRow(true)).toMatchObject({
+      slashName: 'estimate',
+      label: EN.estimateTitle,
+      detail: EN.estimateUsage,
+      action: { type: 'insertSkill', selector: 'estimate' },
+    })
+  })
+
   it('lays out the seven Claude Code groups in order, with git and pull requests (M71), Review (M70) before Support', () => {
     expect(buildPalette(context).map((group) => group.title)).toEqual([
       'Context',

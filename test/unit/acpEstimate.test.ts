@@ -54,13 +54,11 @@ function prompt(client: acp.ClientContext, sessionId: string, text: string) {
   return client.request('session/prompt', { sessionId, prompt: [{ type: 'text', text }] })
 }
 function messages(updates: acp.SessionUpdate[]): string {
-  return updates
-    .flatMap((update) =>
-      update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text'
-        ? [update.content.text]
-        : [],
-    )
-    .join('')
+  let text = ''
+  for (const update of updates)
+    if (update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text')
+      text += update.content.text
+  return text
 }
 
 describe('M117 ACP estimate', () => {
