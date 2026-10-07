@@ -143,6 +143,8 @@ describe('the production webview chunks (FIX78W)', () => {
     'GooeyMenuContent',
     'UsageDialogContent',
     'AgentMapContent',
+    'LegalReport',
+    'ReviewCommentForm',
   ])('loads %s only through its dynamic import', (name) => {
     const source = `src/webview/components/${name}.tsx`
     const owners = Object.entries(built.outputs).filter(([, output]) =>

@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Restore the inherited startup size ratchet by loading the legal report,
+  review comment form, optional English text and optional keyboard contexts
+  on demand. Keep complete translation validation, first-paint controls,
+  accessible loading and retry, and existing bundle caps.
+
 - Share chat, Models and Usage browser dependencies in one emitted graph;
   load the optional panel bodies on demand with separate measured budgets.
   Preserve the pages' specific failures and Models' host error reports.

@@ -246,6 +246,31 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**TRAIN15H (2026-10-06, win11; lead startup decision).** Compare the train's
+production startup inputs against main `61d8647c2`, recording emitted bytes
+and milestone owners. Move optional train UI behind the existing deferred
+surface loader with accessible loading, failure/retry and focus handling.
+Each new closure receives measured bytes +15%, rounded up to 25 KiB and a
+registered budget. Target startup at most 745 KiB; retain 900/50-KiB caps.
+Only unavoidable first-paint additions may justify a measured ratchet update,
+with their individual bytes and reasons cited in certification. No new merge,
+dependencies, wire shapes, live calls, version or released-note changes.
+The browser's inline fallback carries its first-paint text. Optional surfaces'
+complete English travels in one measured lazy chunk, installed before any
+deferred or React.lazy factory resolves. Host/runtime-only English prose has
+no browser reader. Replace that unused prose with a compact
+canonical validation contract (keys, groups, plural forms and template slots)
+for the browser's non-strict installed-table check; retain equivalent checks
+for every full translated table. Node/integration and source English remain
+complete. Prove all browser fallback values and all full-table refusals against
+the canonical English; fail builds for an unregistered dynamic text reader.
+The canonical keyboard dispatcher also travels with its readers: startup keeps
+the composer, row, approval/modal and loading gestures; optional provider, team,
+usage, palette and menu contexts ship with their existing lazy bodies. Generate
+these subsets from the same typed table, retaining exactly its dispatch behavior
+and complete generated Help inventory, rather than carrying optional gestures
+in the first-paint registry.
+
 **TRAIN15G (2026-10-06, win11).** Chat, Models and Usage share the existing
 ESM graph and one emitted React/shared UI owner. Their static startup totals
 count that shared chunk per page, not duplicated package files. Main’s native
@@ -9603,6 +9628,10 @@ have equivalent functionality even if we need to develop it ourselves".
   VSIX formula. Does the lead want an additional startup diet, or a separately
   reviewed train measurement expectation? Keep the existing assertion enabled
   and unchanged pending that decision; the scoped result is in section 7.
+
+  **Resolved by TRAIN15H:** the lead requires startup compaction, keeping the
+  diet ratchet by default. Only certified first-paint additions can justify
+  a measured baseline update after reaching the 745-KiB target.
 
 - **Q-TRAIN15E-D78 (2026-10-06):** the train's immutable Meta golden requests
   declare `recall_output` from the first packing-enabled request; M102's D78
@@ -39795,16 +39824,41 @@ increase. Run complete owning files under default test timeouts, goldens,
 static/build/reference gates, VSIX/ACP packaging and affected accessibility
 pages. No version bump or README What’s New changes; no paid/live calls.
 
+### TRAIN15H — Restore the inherited startup ratchet (2026-10-06, win11)
+
+- [x] Compare emitted startup input bytes against main `61d8647c2` and train
+      `fe3c3fe16`; retain the complete module measurement with milestone owners.
+- [x] Defer LegalReport and the review comment form through `deferred()`,
+      preserving dismissal, focus and fresh arrivals. Harness actions use
+      `whenFound` for the newly lazy form.
+- [x] Keep only first-paint English values in startup, with a complete
+      canonical structure/slot contract for all installed languages. Load optional
+      English before each lazy surface; preserve installed language state. Keep
+      canonical keyboard matching with optional contexts beside their surfaces.
+- [x] Register independent 25-KiB budgets from measured closures plus 15%,
+      rounded up to 25 KiB. Keep the 900/50-KiB caps and 733.8/32.1-KiB ratchets.
+- [ ] Certify complete owning suites, deliberate failures and byte-exact
+      restoration, full accessibility, static gates and actual VSIX measurements
+      in `docs/certification/train-0.15.0.md` and its TRAIN15H receipt.
+
 ## 7. Gates
 
-**TRAIN15G inherited DIET1 measurement hold (2026-10-06, win11).** Main adds
+**TRAIN15H scoped certification.** The lead's rig brief and shared common.md
+reserve aggregate quality for the lead. This lane runs complete owning files
+under default deadlines and individual gates, including every accessibility
+page. No baseline increase, new feature, command, setting or escape hatch.
+
+**TRAIN15G inherited DIET1 measurement hold (resolved by TRAIN15H).** Main adds
 a regression assertion for its own 733.8-KiB startup and 32.1-KiB deferred
 measurement. The integrated train measures 815,775 startup bytes (796.7 KiB)
 and about 32.5 KiB deferred, within unchanged 900/50-KiB production caps.
 The assertion remains enabled and unchanged. Shared ownership, deferred
 loads, and package membership assertions pass. The brief authorizes only
 the universal VSIX cap formula; an additional startup diet or revision of
-this main-only measurement expectation needs a lead decision.
+this main-only measurement expectation needed a lead decision. TRAIN15H's
+lead decision requires compaction; the restored production graph passes both
+inherited assertions. The final receipt records exact bytes and all new
+closure budgets. No startup baseline or existing cap is raised.
 
 **TRAIN15G scoped certification.** The rig brief and shared common.md prohibit
 aggregate quality here. Run owning default-timeout suites and individual gates;

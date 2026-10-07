@@ -197,6 +197,9 @@ describe('bundled What’s New content budget', () => {
     ['GooeyMenuContent', 25, 'src/webview/components/GooeyMenuContent.tsx'],
     ['UsageDialogContent', 25, 'src/webview/components/UsageDialogContent.tsx'],
     ['AgentMapContent', 25, 'src/webview/components/AgentMapContent.tsx'],
+    ['LegalReport', 25, 'src/webview/components/LegalReport.tsx'],
+    ['ReviewCommentForm', 25, 'src/webview/components/ReviewCommentForm.tsx'],
+    ['surface English', 25, 'browser-surface-english:browser-surface-english'],
   ])(
     'enforces the %s cap without widening the original deferred allowance',
     async (name, cap, entryPoint) => {

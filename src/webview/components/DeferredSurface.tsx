@@ -17,6 +17,7 @@ interface SurfaceProps {
   readonly onClose?: (() => void) | undefined
   readonly isModal?: boolean
   readonly keepFocus?: boolean | undefined
+  readonly className?: string | undefined
 }
 
 export function DeferredSurface({
@@ -33,6 +34,7 @@ function UnavailableSurface({
   keepFocus = false,
   failed = false,
   opener,
+  className = 'palette history',
 }: SurfaceProps & { readonly failed?: boolean; readonly opener?: Element | null }) {
   const container = useRef<HTMLDivElement>(null)
   const closeButton = useRef<HTMLButtonElement>(null)
@@ -90,7 +92,7 @@ function UnavailableSurface({
     )
   }
   return (
-    <div ref={container} className="palette history">
+    <div ref={container} className={className}>
       {row}
       {onClose === undefined ? null : (
         <button ref={closeButton} type="button" className="button-secondary" onClick={close}>
@@ -117,7 +119,12 @@ export function deferred<P extends object>(
             setIntent((current) => ({ ...current, active: false }))
             props.onClose?.()
           }
-    const surfaceProps = { onClose, isModal: props.isModal ?? isModal, keepFocus: props.keepFocus }
+    const surfaceProps = {
+      onClose,
+      isModal: props.isModal ?? isModal,
+      keepFocus: props.keepFocus,
+      className: props.className,
+    }
     return (
       <SurfaceBoundary {...surfaceProps} opener={intent.opener}>
         <DeferredSurface {...surfaceProps}>

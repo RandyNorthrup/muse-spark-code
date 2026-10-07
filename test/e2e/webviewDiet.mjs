@@ -17,6 +17,8 @@ const surfaces = [
   ['GooeyMenuContent', 'chat-menu', '[role="menu"]'],
   ['UsageDialogContent', 'usage', '.usage-facts'],
   ['AgentMapContent', 'agents', '.agent-tree'],
+  ['LegalReport', 'legal', '.legal-finding'],
+  ['ReviewCommentForm', 'review-comment', '.review-comment textarea'],
 ]
 const outputs = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')).outputs
 const chunks = new Map(
@@ -31,6 +33,12 @@ const chunks = new Map(
   ]),
 )
 for (const [name, chunk] of chunks) assert.ok(chunk, `Missing ${name} chunk`)
+const surfaceEnglish = Object.entries(outputs)
+  .find(
+    ([, output]) => output.entryPoint === 'browser-surface-english:browser-surface-english',
+  )?.[0]
+  .replaceAll('\\', '/')
+assert.ok(surfaceEnglish, 'Missing surface English chunk')
 const { server, port } = await serveRepo(process.cwd())
 const origin = `http://127.0.0.1:${port}`
 const chrome = findChrome()
@@ -77,6 +85,7 @@ try {
   await startup.page.getByLabel('Message Muse', { exact: true }).waitFor()
   for (const [name, chunk] of chunks)
     assert.ok(!startup.requests.includes(chunk), `${name} requested at startup`)
+  assert.ok(!startup.requests.includes(surfaceEnglish), 'Surface English requested at startup')
   assert.deepEqual(startup.errors, [])
   await startup.page.close()
   const dependency = Object.entries(outputs)
@@ -153,6 +162,7 @@ try {
     try {
       await page.locator(selector).first().waitFor()
       assert.ok(requests.includes(chunks.get(name)), `${name} not requested on first use`)
+      assert.ok(requests.includes(surfaceEnglish), `${name} did not load its English`)
       assert.equal(await page.locator('[data-deferred-loading]').count(), 0)
       assert.deepEqual(errors, [])
       console.log(`PASS ${name}: startup absent; first use loads under CSP`)
@@ -161,9 +171,10 @@ try {
     }
   }
   // Fail each real import, then retry in a fresh document with persisted state.
-  for (const [name, scenario, selector] of surfaces) {
+  const failures = [...surfaces, ['surface English', 'legal', '.legal-finding', surfaceEnglish]]
+  for (const [name, scenario, selector, chunk = chunks.get(name)] of failures) {
     let shouldReject = true
-    const failure = await pageFor(scenario, chunks.get(name), () => shouldReject)
+    const failure = await pageFor(scenario, chunk, () => shouldReject)
     try {
       await failure.page
         .getByRole('alert')

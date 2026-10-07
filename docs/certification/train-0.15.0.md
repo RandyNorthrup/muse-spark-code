@@ -1127,3 +1127,111 @@ Final actual archives are helperless **2,609,228 bytes**, SHA-256 bc03297914bd4c
 Full accessibility passes: a11y: 864 pages (216 scenarios × 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 0 exempt, 0 pages without a result.
 
 Full aggregate quality and the hosted/native/live release matrices remain with the lead under the rig’s scoped-check rule. No public network, credentials or paid/live model calls; no push or Git configuration changes.
+
+## TRAIN15H startup compaction and inherited ratchet (2026-10-06, win11)
+
+The lead requires compaction against main `61d8647c2`; this lane continues
+`fe3c3fe16` without a merge. Main is rebuilt in a private archived snapshot
+inside this worktree with the existing installed toolchain. The esbuild diff
+counts emitted `bytesInOutput` for every statically reachable startup input,
+normalizing Windows paths and the snapshot's node_modules prefix. Whole-file
+bytes include emitted import glue; individual inputs need not sum to that total.
+The receipt retains every input, including small library/minifier deltas.
+
+| Production graph     |    Main | Train before | Train after |
+| -------------------- | ------: | -----------: | ----------: |
+| Startup JS           | 750,942 |      815,782 | **751,257** |
+| Original deferred JS |  32,835 |       33,326 |  **32,541** |
+
+Startup is **733.6 KiB**, saving 64,525 bytes.
+Original deferred JS is **31.8 KiB**. Both inherited
+733.8/32.1-KiB ratchets pass unchanged, below the 745-KiB startup target.
+The 900/50-KiB production caps are unchanged. **No first-paint baseline
+exception or ratchet increase.** Retained additions and their reasons follow.
+
+| Startup input                             | Owner / milestone         | Main bytes | Before bytes | After bytes | Treatment / first-paint reason                                                                               |
+| ----------------------------------------- | ------------------------- | ---------: | -----------: | ----------: | ------------------------------------------------------------------------------------------------------------ |
+| src/shared/l10n/en.ts                     | M95/M96/M97/M101/M102; D6 |     61,471 |       88,516 |      36,211 | First-paint English and the complete validation contract; optional English is deferred.                      |
+| src/webview/components/LegalReport.tsx    | M97                       |          0 |        8,759 |           0 | Deferred legal report body and its fix helpers.                                                              |
+| src/webview/App.tsx                       | M95/M96/M97/M101/M102     |     34,907 |       38,405 |      38,471 | Composer/host bridge wiring, validated state, and first-turn command handling; optional bodies are deferred. |
+| src/webview/state/teamEntries.ts          | M96                       |          0 |        2,593 |       2,593 | Transcript worker events and the first-paint running-status pill.                                            |
+| src/webview/state/uiState.ts              | M95/M96/M97/M101/M102     |     44,051 |       46,328 |      46,313 | Composer/host bridge wiring, validated state, and first-turn command handling; optional bodies are deferred. |
+| src/shared/constants.ts                   | M95/M96/M97/M101/M102     |      9,815 |       12,080 |      12,070 | Composer/host bridge wiring, validated state, and first-turn command handling; optional bodies are deferred. |
+| src/shared/paidBoundary.ts                | M95/M96/M97               |          0 |        1,969 |       1,969 | Validate and render first-paint paid/approval metadata.                                                      |
+| src/shared/redact.ts                      | M95; M101                 |      4,292 |        6,122 |       6,122 | Redact streamed transcript text and preserve packed-text slice boundaries.                                   |
+| src/shared/teamView.ts                    | M96                       |          0 |        1,753 |       1,753 | Transcript worker events and the first-paint running-status pill.                                            |
+| src/shared/keybindings.ts                 | D6; M95/M96/M97/M102      |      4,416 |        6,070 |           0 | Canonical first-paint gestures; optional context tables are deferred.                                        |
+| src/core/legalFix.ts                      | M97                       |          0 |        1,285 |           0 | Deferred legal report body and its fix helpers.                                                              |
+| src/shared/legalFix.ts                    | M97                       |          0 |        1,053 |       1,018 | Validate incoming legal/fix messages before saving their state.                                              |
+| src/shared/legal.ts                       | M97                       |          0 |          897 |         864 | Validate incoming legal/fix messages before saving their state.                                              |
+| src/shared/protocol.ts                    | M95/M96/M97/M101/M102     |     11,597 |       12,376 |      12,367 | Composer/host bridge wiring, validated state, and first-turn command handling; optional bodies are deferred. |
+| src/webview/agentFormat.ts                | M96                       |        206 |          917 |         917 | Transcript worker events and the first-paint running-status pill.                                            |
+| src/shared/palette.ts                     | M95/M96/M97/M101/M102     |      8,546 |        9,039 |       9,039 | Composer/host bridge wiring, validated state, and first-turn command handling; optional bodies are deferred. |
+| src/shared/usage.ts                       | M95/M96/M102              |        870 |        1,357 |       1,357 | First-paint status-line and transcript usage/pricing data.                                                   |
+| src/shared/legalCommand.ts                | M97                       |          0 |          377 |         378 | The composer must recognize /legal on its first turn.                                                        |
+| src/webview/state/transcriptEntries.ts    | M96/M101/M102             |      3,002 |        3,361 |       3,356 | Required first-paint transcript rows and streamed state.                                                     |
+| src/webview/components/Transcript.tsx     | M96/M101/M102             |     13,853 |       14,163 |      14,208 | Required first-paint transcript rows and streamed state.                                                     |
+| src/shared/slashCommands.ts               | M95/M96/M97/M101/M102     |      4,191 |        4,453 |       4,453 | Composer/host bridge wiring, validated state, and first-turn command handling; optional bodies are deferred. |
+| src/webview/components/ApprovalCard.tsx   | M95/M96/M97               |      3,056 |        3,248 |       3,305 | Validate and render first-paint paid/approval metadata.                                                      |
+| src/webview/hostBridge.ts                 | M95                       |        143 |          325 |         325 | Acquire the document host bridge and validate provider setup state.                                          |
+| src/webview/components/ToolRow.tsx        | M96/M101/M102             |      8,074 |        8,252 |       8,336 | Required first-paint transcript rows and streamed state.                                                     |
+| src/webview/components/Header.tsx         | M96                       |      2,407 |        2,530 |       2,530 | Transcript worker events and the first-paint running-status pill.                                            |
+| src/webview/state/snapshot.ts             | M95/M96/M97/M101/M102     |      2,369 |        2,477 |       2,477 | Composer/host bridge wiring, validated state, and first-turn command handling; optional bodies are deferred. |
+| src/webview/components/DiffTally.tsx      | TRAIN15F accessibility    |        738 |          844 |         844 | Transcript edit totals retain visible prefixes for contrast measurement.                                     |
+| src/shared/l10n/text.ts                   | M95/M102                  |      2,377 |        2,471 |       2,471 | Format first-paint provider prices and usage with Intl.                                                      |
+| src/shared/providerSetup.ts               | M95                       |          0 |           59 |          59 | Acquire the document host bridge and validate provider setup state.                                          |
+| src/shared/effort.ts                      | DIET1/train shared graph  |        261 |          301 |         301 | Existing first-paint dependency; emitted symbol/glue changes are measured.                                   |
+| src/core/usage/insights.ts                | M95/M96/M102              |        283 |          315 |         315 | First-paint status-line and transcript usage/pricing data.                                                   |
+| src/webview/components/ApprovalDock.tsx   | M95/M96/M97               |      1,062 |        1,082 |       1,082 | Validate and render first-paint paid/approval metadata.                                                      |
+| src/webview/components/ToolBlocks.tsx     | M96/M101/M102             |      1,400 |        1,403 |       1,400 | Required first-paint transcript rows and streamed state.                                                     |
+| src/webview/components/HeartbeatTrace.tsx | DIET1; train integration  |      2,134 |        2,136 |       2,136 | Required first-paint question, approval or status control.                                                   |
+| src/webview/components/QuestionCard.tsx   | DIET1; train integration  |      4,463 |        4,465 |       4,439 | Required first-paint question, approval or status control.                                                   |
+| src/webview/installTable.ts               | D33; D6                   |        647 |          648 |         648 | Validate the full installed-language table before rendering.                                                 |
+| generated first-paint keyboard contexts   | D6; M95/M96/M97/M102      |          0 |            0 |       2,219 | Canonical first-paint gestures; optional context tables are deferred.                                        |
+| browser-keyboard-matcher:matcher          | D6; M95/M96/M97/M102      |          0 |            0 |         400 | Canonical first-paint gestures; optional context tables are deferred.                                        |
+
+LegalReport and ReviewCommentForm use the existing deferred factory. Optional
+English is installed before any lazy browser factory resolves; full installed
+translations retain their language. The browser contract retains every canonical
+key, nested group, plural form and template slot, with equivalent non-strict
+validation against all 14 full tables and malformed tables. Node, integration
+and source fallback remain complete. Canonical keyboard subsets reuse one
+matcher; exhaustive gestures, all modifiers, phases, printable text and send
+settings agree with the canonical dispatcher. Complete generated Help stays current.
+
+New closure caps use measured bytes ×1.15, rounded up to 25,600 bytes:
+
+- surface English: 21,695 bytes; 25,600-byte cap.
+- LegalReport: 10,405 bytes; 25,600-byte cap.
+- ReviewCommentForm: 2,117 bytes; 25,600-byte cap.
+
+Cold legal arrivals retain latest reports, composer inertness, Escape/dismissal
+and focus restoration; a cancelled import never mounts later. Harness scenarios
+use whenFound for legal controls and the comment textarea, replacing the
+comment trigger's fixed delay. Production CSP smoke initially exposes an
+off-viewport Retry in the generic menu placeholder: the form now supplies its
+inline class to loading/failure states. Entry and English fetch failures retry
+through the existing saved-state document reload.
+
+Six deliberate regressions fail their intended owning assertion and restore
+byte-exact by SHA-256: remove canonical template slots, accept an unregistered
+computed reader, alter primary-key matching, lower the new legal budget by
+1 KiB, eagerly import the legal report, and restore the menu-positioned inline
+fallback. A first attempted physical-budget increase remains green because
+the independent closure cap still rejects overflow; the exact-boundary
+mutation then proves the boundary assertion fires. No gate is weakened.
+
+All final owning files run in batches of at most three at the repository's
+default test deadline. The receipt records complete command results and
+expected mutation failures separately from restored checks. Typecheck (all
+five projects), scoped lint, plain knip, duplication, localization, host API
+and reference pass. Aggregate quality remains the lead's check, as explicitly
+required by the rig brief/common.md and recorded in PLAN section 7.
+
+Actual helperless VSIX: **2,589,075 bytes**; universal: **2,668,623 bytes**. Both retain the 2,841,600-byte cap. The certified macOS helper is restored byte-exact; inventories and hashes are in the receipt.
+
+Accessibility: Full 864-page run pending; no result claimed yet.
+
+Exact per-input owners/bytes, commands, deliberate failures, restored hashes
+and package inventories: [TRAIN15H receipt](train-0.15.0-train15h.json).
+No push, rebase, merge, manual stash, Git configuration write or paid/live call.

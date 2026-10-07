@@ -65,9 +65,10 @@ import {
   UI_TEXT_REGIONS,
   regionalUiText,
   compressedEnglish,
-  compactBrowserEnglish,
+  compactBrowserUiText,
 } from './lib/uiTextRegions.mjs'
 import { webviewEntryMetafile } from './lib/webviewBundles.mjs'
+import { lazyBrowserKeybindings } from './lib/browserKeybindings.mjs'
 import { compressedModelText } from './lib/compressedModelText.mjs'
 import { loadL10n } from './lib/l10nSource.mjs'
 import * as esbuild from 'esbuild'
@@ -673,7 +674,7 @@ const pageWorkerOptions = {
   target: HOST_NODE_TARGET,
 }
 
-// The canonical comment template must stay with ReviewPane when other pages
+// The canonical comment template must stay with ReviewCommentForm when other pages
 // share constants. Build a reader-only module from its exact source declaration.
 const browserReviewComment = {
   name: 'browser-review-comment',
@@ -688,7 +689,7 @@ const browserReviewComment = {
       if (!declaration) throw new Error('Missing canonical review comment text')
       return { contents: declaration, loader: 'ts', watchFiles: ['src/shared/constants.ts'] }
     })
-    build.onLoad({ filter: /[/\\]components[/\\]ReviewPane\.tsx$/ }, (args) => ({
+    build.onLoad({ filter: /[/\\]components[/\\]ReviewCommentForm\.tsx$/ }, (args) => ({
       contents: `import { REVIEW_COMMENT_MODEL_TEXT } from '${name}';\n${readFileSync(args.path, 'utf8').replace('  REVIEW_COMMENT_MODEL_TEXT,\n', '')}`,
       loader: 'tsx',
       resolveDir: path.dirname(args.path),
@@ -702,7 +703,8 @@ const webviewOptions = {
   ...common,
   plugins: [
     sharedHighlightGrammar,
-    ...(isProduction ? [compactBrowserEnglish] : []),
+    ...(isProduction ? [compactBrowserUiText] : []),
+    ...(isProduction ? [lazyBrowserKeybindings] : []),
     browserReviewComment,
     {
       name: 'reference-caller-react',

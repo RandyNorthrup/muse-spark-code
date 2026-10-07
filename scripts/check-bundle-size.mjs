@@ -194,6 +194,10 @@ const BUDGETS = [
 // DIET1: independently emitted optional surfaces, measured on main, each plus
 // 15%, rounded up to 25 KiB. Closure caps also charge their shared imports.
 const WEBVIEW_SURFACE_BUDGETS = [
+  // TRAIN15H: legal report's full non-startup closure, measured +15%, rounded to 25 KiB.
+  { entry: 'LegalReport', budgetKiB: 25 },
+  // TRAIN15H: review comment form, measured +15%, rounded to 25 KiB.
+  { entry: 'ReviewCommentForm', budgetKiB: 25 },
   // Sign-in: 3.9 KiB + 15%, rounded to 25 KiB.
   { entry: 'SignIn', budgetKiB: 25 },
   // Goal panel: 3.2 KiB by the same rule.
@@ -242,6 +246,8 @@ for (const { path, budgetKiB } of BUDGETS) {
 // scripts/lib/webviewBundles.mjs records and enforces that independent cap.
 // Each new lazy closure has its own cap; old surfaces and unclassified
 // deferred helpers stay under TRAIN13B's unchanged aggregate 50 KiB cap.
+// TRAIN15H: optional surfaces' English has its own measured closure cap in
+// webviewBundles.mjs, following measured +15%, rounded up to 25 KiB.
 const webview = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
 for (const { name, source, budgetKiB } of [
   // TRAIN15G: full lazy closure 56.3 KiB +15%, rounded up to 25 KiB.

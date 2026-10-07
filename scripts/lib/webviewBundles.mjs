@@ -77,6 +77,12 @@ export function webviewEntryMetafile(meta, entry) {
 // Additional lazy closures have measured caps. The original optional surfaces
 // and every unclassified deferred output retain the existing 50 KiB total cap.
 export const ADDITIONAL_WEBVIEW_BUDGETS = [
+  {
+    name: 'surface English',
+    entries: ['browser-surface-english:browser-surface-english'],
+    // TRAIN15H: 21,695 bytes +15%, rounded up to 25 KiB.
+    budgetKiB: 25,
+  },
   { name: 'help reference', entries: ['src/webview/components/ReferencePage.tsx'], budgetKiB: 50 },
   {
     // TRAIN15C: 4,018 bytes +15%, rounded up to 25 KiB (D6).
@@ -98,6 +104,8 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     'GooeyMenuContent',
     'UsageDialogContent',
     'AgentMapContent',
+    'LegalReport',
+    'ReviewCommentForm',
   ].map((name) => ({
     name,
     entries: [`src/webview/components/${name}.tsx`],

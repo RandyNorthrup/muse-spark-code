@@ -108,10 +108,13 @@ function renderReady() {
   return postMessage
 }
 
-function openReport() {
+async function openReport() {
   const postMessage = renderReady()
   deliver({ type: 'legalScanReport', requestId: 'r1', result: RESULT })
-  return { postMessage, dialog: screen.getByRole('dialog', { name: UI_TEXT.legalScanTitle }) }
+  return {
+    postMessage,
+    dialog: await screen.findByRole('dialog', { name: UI_TEXT.legalScanTitle }),
+  }
 }
 
 const posted = (postMessage: ReturnType<typeof renderReady>, type: WebviewToHostMessage['type']) =>
@@ -162,8 +165,8 @@ function expectSelection(
 }
 
 describe('the legal report (M97 lane W)', () => {
-  it('restores the export button when its native dialog returns focus to the window', () => {
-    const { dialog } = openReport()
+  it('restores the export button when its native dialog returns focus to the window', async () => {
+    const { dialog } = await openReport()
     const button = within(dialog).getByRole('button', { name: UI_TEXT.legalExportMarkdown })
     button.focus()
     fireEvent.click(button)
@@ -197,8 +200,8 @@ describe('the legal report (M97 lane W)', () => {
     expect(posted(postMessage, 'listSkills')).toEqual([{ type: 'listSkills' }])
   })
 
-  it('opens on the host report with the disclaimer, evidence and fixability', () => {
-    const { postMessage, dialog } = openReport()
+  it('opens on the host report with the disclaimer, evidence and fixability', async () => {
+    const { postMessage, dialog } = await openReport()
     expect(within(dialog).getByText(UI_TEXT.legalScanDisclaimer)).toBeDefined()
     expect(within(dialog).getByText('Distribution: source checkout, undistributed')).toBeDefined()
     expect(within(dialog).getByText('Excluded: dist/generated.js')).toBeDefined()
@@ -221,30 +224,30 @@ describe('the legal report (M97 lane W)', () => {
     ])
   })
 
-  it('leaves what the scanner marked unfixable unselectable', () => {
-    const { dialog } = openReport()
+  it('leaves what the scanner marked unfixable unselectable', async () => {
+    const { dialog } = await openReport()
     const blocked = within(dialog).getByLabelText<HTMLInputElement>('Fix dep/1/1')
     expect(blocked.disabled).toBe(true)
     expect(within(dialog).getByLabelText<HTMLInputElement>('Fix header/1/1').disabled).toBe(false)
   })
 
-  it('asks for a selection before previewing, even with nothing pre-authorized', () => {
-    const { postMessage, dialog } = openReport()
+  it('asks for a selection before previewing, even with nothing pre-authorized', async () => {
+    const { postMessage, dialog } = await openReport()
     fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalPreviewFixes }))
     expect(posted(postMessage, 'requestLegalFix')).toEqual([])
     expect(within(dialog).getByText(UI_TEXT.legalFixNothingSelected)).toBeDefined()
   })
 
-  it('previews exactly the checked findings with the scan versions', () => {
-    const { postMessage, dialog } = openReport()
+  it('previews exactly the checked findings with the scan versions', async () => {
+    const { postMessage, dialog } = await openReport()
     fireEvent.click(within(dialog).getByLabelText('Fix header/1/1'))
     expect(within(dialog).getByText('1 selected')).toBeDefined()
     fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalPreviewFixes }))
     expectSelection(postMessage, [HEADER])
   })
 
-  it('fixes all safe ones without the unfixable or the project license', () => {
-    const { postMessage, dialog } = openReport()
+  it('fixes all safe ones without the unfixable or the project license', async () => {
+    const { postMessage, dialog } = await openReport()
     fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalFixAllSafe }))
     const [request] = posted(postMessage, 'requestLegalFix')
     expect(request).toEqual({
@@ -258,16 +261,16 @@ describe('the legal report (M97 lane W)', () => {
     })
   })
 
-  it('asks the project license separately, and only then includes it', () => {
-    const { postMessage, dialog } = openReport()
+  it('asks the project license separately, and only then includes it', async () => {
+    const { postMessage, dialog } = await openReport()
     fireEvent.click(within(dialog).getByLabelText('Fix license/1/1'))
     expect(within(dialog).getByLabelText(UI_TEXT.legalFixSeparateConfirm)).toBeDefined()
     fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalPreviewFixes }))
     expectSelection(postMessage, [LICENSE_PROJECT])
   })
 
-  it('shows the host preview with its files and exclusions, and confirms exactly it', () => {
-    const { postMessage, dialog } = openReport()
+  it('shows the host preview with its files and exclusions, and confirms exactly it', async () => {
+    const { postMessage, dialog } = await openReport()
     selectHeader(dialog)
     showPreview({
       excluded: [{ id: 'dep/1/1', reason: 'notFixable' }],
@@ -281,8 +284,8 @@ describe('the legal report (M97 lane W)', () => {
     ])
   })
 
-  it('shows a refused preview in words', () => {
-    const { dialog } = openReport()
+  it('shows a refused preview in words', async () => {
+    const { dialog } = await openReport()
     selectHeader(dialog)
     showPreview({
       eligible: [],
@@ -292,8 +295,8 @@ describe('the legal report (M97 lane W)', () => {
     expect(within(dialog).getByText(UI_TEXT.legalFixRefusedTrust)).toBeDefined()
   })
 
-  it('shows a stale outcome after confirming the preview, with a rescan hint', () => {
-    const { dialog } = openReport()
+  it('shows a stale outcome after confirming the preview, with a rescan hint', async () => {
+    const { dialog } = await openReport()
     selectHeader(dialog)
     showPreview({})
     fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalFixApply }))
@@ -310,21 +313,21 @@ describe('the legal report (M97 lane W)', () => {
     expect(within(dialog).getByText(UI_TEXT.legalFixRescanHint)).toBeDefined()
   })
 
-  it('says an empty scan found nothing and offers another scan', () => {
+  it('says an empty scan found nothing and offers another scan', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'legalScanReport',
       requestId: 'r1',
       result: { ...RESULT, findings: [], incompleteChecks: [] },
     })
-    const dialog = screen.getByRole('dialog', { name: UI_TEXT.legalScanTitle })
+    const dialog = await screen.findByRole('dialog', { name: UI_TEXT.legalScanTitle })
     expect(within(dialog).getByText(UI_TEXT.legalScanEmpty)).toBeDefined()
     expect(within(dialog).queryByRole('button', { name: UI_TEXT.legalFixAllSafe })).toBeNull()
     fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.legalScanAgain }))
     expect(posted(postMessage, 'requestLegalScan')).toEqual([{ type: 'requestLegalScan' }])
   })
 
-  it('refuses fixes upfront in Plan mode, and closes on ×', () => {
+  it('refuses fixes upfront in Plan mode, and closes on ×', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'composerState',
@@ -333,7 +336,7 @@ describe('the legal report (M97 lane W)', () => {
       permissionMode: 'plan',
     })
     deliver({ type: 'legalScanReport', requestId: 'r1', result: RESULT })
-    const dialog = screen.getByRole('dialog', { name: UI_TEXT.legalScanTitle })
+    const dialog = await screen.findByRole('dialog', { name: UI_TEXT.legalScanTitle })
     expect(within(dialog).getByText(UI_TEXT.legalFixRefusedPlan)).toBeDefined()
     expect(within(dialog).getByLabelText<HTMLInputElement>('Fix header/1/1').disabled).toBe(true)
     expect(within(dialog).queryByRole('button', { name: UI_TEXT.legalFixAllSafe })).toBeNull()
@@ -342,13 +345,13 @@ describe('the legal report (M97 lane W)', () => {
     expect(screen.queryByRole('dialog', { name: UI_TEXT.legalScanTitle })).toBeNull()
   })
 
-  it('drops a stale preview when a new scan answers', () => {
-    const { dialog } = openReport()
+  it('drops a stale preview when a new scan answers', async () => {
+    const { dialog } = await openReport()
     selectHeader(dialog)
     showPreview({})
     expect(within(dialog).getByText(UI_TEXT.legalFixPreviewTitle)).toBeDefined()
     deliver({ type: 'legalScanReport', requestId: 'r2', result: RESULT })
-    const again = screen.getByRole('dialog', { name: UI_TEXT.legalScanTitle })
+    const again = await screen.findByRole('dialog', { name: UI_TEXT.legalScanTitle })
     expect(within(again).queryByText(UI_TEXT.legalFixPreviewTitle)).toBeNull()
   })
 })
@@ -400,13 +403,14 @@ describe('the legal report state', () => {
 })
 
 describe('RVM97SW report regressions', () => {
-  it('F9 renders package coordinates, license and scan assumptions', () => {
+  it('F9 renders package coordinates, license and scan assumptions', async () => {
     const postMessage = renderReady()
     deliver({
       type: 'legalScanReport',
       requestId: 'r1',
       result: { ...RESULT, scope: 'src', exclusions: ['generated/a.ts'] },
     })
+    await screen.findByRole('dialog', { name: UI_TEXT.legalScanTitle })
     expect(screen.getByText('leftpad@1.0.0')).toBeDefined()
     expect(screen.getByText('GPL-3.0-only')).toBeDefined()
     expect(screen.getByText('src')).toBeDefined()
@@ -415,11 +419,12 @@ describe('RVM97SW report regressions', () => {
     expect(posted(postMessage, 'confirmLegalFix')).toEqual([])
   })
 
-  it('F8 closing the report returns keyboard focus to the composer', () => {
+  it('F8 closing the report returns keyboard focus to the composer', async () => {
     renderReady()
     const composer = screen.getByLabelText('Message Muse')
     composer.focus()
     deliver({ type: 'legalScanReport', requestId: 'r1', result: RESULT })
+    await screen.findByRole('dialog', { name: UI_TEXT.legalScanTitle })
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.questionCancel }))
     expect(document.activeElement).toBe(composer)
   })
@@ -439,8 +444,8 @@ describe('RVM97SW report regressions', () => {
     expect(document.querySelectorAll('[aria-modal="true"]')).toHaveLength(1)
   })
 
-  it('F6 selection changes and pending previews cannot confirm old work', () => {
-    const { postMessage, dialog } = openReport()
+  it('F6 selection changes and pending previews cannot confirm old work', async () => {
+    const { postMessage, dialog } = await openReport()
     selectHeader(dialog)
     showPreview({
       requestId: 'local-1',
@@ -459,8 +464,8 @@ describe('RVM97SW report regressions', () => {
     expect(posted(postMessage, 'confirmLegalFix')).toEqual([])
   })
 
-  it('F4 apply becomes unavailable immediately after the first confirmation', () => {
-    const { postMessage, dialog } = openReport()
+  it('F4 apply becomes unavailable immediately after the first confirmation', async () => {
+    const { postMessage, dialog } = await openReport()
     selectHeader(dialog)
     showPreview({
       requestId: 'local-1',

@@ -73,7 +73,6 @@ import { EffortSlider } from './components/EffortSlider'
 import { EmptyState } from './components/EmptyState'
 import { Header } from './components/Header'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
-import { LegalReport } from './components/LegalReport'
 import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
 import type { PaletteKeys, PaletteView } from './components/Palette'
@@ -109,6 +108,11 @@ import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
 import { Modal } from './components/Modal'
 import { deferred } from './components/DeferredSurface'
+
+const LegalReport = deferred(async () => {
+  const module = await import('./components/LegalReport')
+  return { default: module.LegalReport }
+}, true)
 
 const SignIn = deferred(async () => {
   const module = await import('./components/SignIn')

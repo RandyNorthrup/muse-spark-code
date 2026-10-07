@@ -4368,6 +4368,10 @@ surfaces in Chrome against a fake host: no startup requests, first-use loading
 under the shared CSP, and recovery from actual failed entry/static-dependency
 fetches. Retry reloads the panel with its saved conversation and draft. Cold
 menus remain dismissible and cannot take focus after dismissal.
+The legal report and review comment form use the same loading and retry path.
+Optional surfaces also load their shared English text on first use; startup
+keeps first-paint text and the complete translated-table validation contract.
+Surface and keyboard budgets follow the emitted production graph.
 
 After every complete four-channel release, the workflow runs
 `scripts/refresh-badges.mjs` to refresh these README badges and purge GitHub's
