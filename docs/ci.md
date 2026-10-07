@@ -111,13 +111,14 @@ result is not published: the run step reports status unknown, as for a missing
 result, and publishes nothing.
 
 Stdout contains only the chosen format: text finalMessage, one JSON result, or
-JSONL envelopes `{v:1,seq,time,type,...payload}` (seq starts at 1; time is ISO).
+JSONL envelopes `{v:2,seq,time,type,...payload}` (seq starts at 1; time is ISO).
 Stderr holds redacted diagnostics and status/requests/settled/uncertain/image
 summary. No cwd or raw tool text appears in the result. Changed/denied paths are
 relative with forward slashes; input names are basenames.
 
 The complete machine contracts are [result v1](schemas/exec-result-v1.schema.json)
-and [event v1](schemas/exec-event-v1.schema.json), shipped in npm `schemas/`.
+and [event v2](schemas/exec-event-v2.schema.json), shipped in npm `schemas/`
+beside the frozen [event v1](schemas/exec-event-v1.schema.json).
 Required fields and numeric/status invariants are validated by the runtime;
 `x-runtime-invariants` records arithmetic/sequencing that JSON Schema alone
 cannot express. `npm run schema:exec -- --check` checks deterministic bytes.
@@ -701,10 +702,10 @@ The package ships `schemas/exec-event-v2.schema.json` beside frozen
 `exec-event-v1.schema.json` and `exec-result-v1.schema.json`. The resource sink
 uses event envelope version 2 with a `resource` variant; nested results remain
 version 1. It validates the entire union, keeps the existing update-egress
-restrictions, monotonic sequence and output backpressure. The current M80
-runner still uses its v1 sink: H must bind the resource sink and active spawn
-lease before headless runs can claim those events or resource enforcement.
-Stderr resource summaries and the run ledger require the same binding.
+restrictions, monotonic sequence and output backpressure. The M80 runner uses this v2 sink; the Action accepts both event versions,
+validates each resource variant and preserves the nested v1 result invariants.
+Active runtime spawn leases and complete resource enforcement remain a named
+integration binding; event validation alone does not certify that enforcement.
 
 Resource events contain levels, reason codes, aggregate counts and numeric
 readings, never PID/birth identity, commands, paths, names or environment.

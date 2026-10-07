@@ -29072,6 +29072,21 @@ Regression tests and byte-exact red drills certify each fix. Keep startup at mos
 733.8 KiB, the original deferred group at most 32.1 KiB and each moved
 surface within 25 KiB. No dependency, gate relaxation, model call or merge.
 
+**M107-W complete-suite compatibility repairs (2026-10-06).** The first
+complete run exposes M80 package fixtures missing resource artifacts/event v2
+and the Action extractor rejecting H's v2 event envelopes. Keep frozen v1
+schemas and result payloads, accept both strictly validated event versions in
+the Action with resource variants mirrored from the existing zod contract,
+and prove parity/refusal with malformed/private-field cases. Restore metadata
+Git's empty-filter handling for its new typed exit error; include the four
+resource artifacts in the verified report-frame vocabulary. Keep manifest
+coverage exact using both runtime default tables and await admitted voice
+launch failures before asserting credential-free native environments. Refresh production
+and fake-only package fixtures, require the new artifacts/schema in the test
+packer, and retain existing missing-artifact guards. Existing built exec rows
+validate the writer's actual v2 envelope. Record before-fix failures and
+byte-exact guard mutations; no new command, dependency, timeout or cap.
+
 **M107-W continuation qualification (2026-10-06).** The new rig brief
 explicitly authorizes the final DK no-fast-forward merge and a complete
 unit/e2e suite in batches of at most three files, `--maxWorkers=3`, with the

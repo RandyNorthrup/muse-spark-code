@@ -4483,6 +4483,10 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/uiTextHooks.js',
   'dist/uiTextSurfaces.js',
   'dist/wire.js',
+  'dist/resourceGovernor.js',
+  'dist/resourceAdmission.js',
+  'dist/webview/resourceSurface.js',
+  'dist/webview/resourceHistory.js',
 ])
 // One window journals at most this many failures in REPORT_RECORD_WINDOW_MS
 // (M93): a render or reconnect loop cannot turn every frame into a disk

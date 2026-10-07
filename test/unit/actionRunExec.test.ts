@@ -36,13 +36,18 @@ import {
   statusFor,
   takeModelApiKey,
 } from '../../action/lib/run-exec.mjs'
-import { execEventSchema, validateResult } from '../../src/runtime/exec/execProtocol'
+import {
+  execEventSchema,
+  execEventV2Schema,
+  validateResult,
+} from '../../src/runtime/exec/execProtocol'
 import {
   EXEC_PROHIBITED_UPDATE_PATTERN,
   EXEC_RAW_TOOL_FIELDS,
   EXEC_STOP_GRACE_MS,
   MODEL_API_KEY_PATTERN as SOURCE_KEY_PATTERN,
 } from '../../src/shared/constants'
+import { resourceKindSchema, resourceLevelSchema } from '../../src/shared/resources'
 import { resultRecord } from './helpers/execContract'
 import {
   ACTION_DIR,
@@ -386,19 +391,92 @@ describe('G21 result extraction', () => {
       time: '2026-10-02T00:00:00.000Z',
       ...body,
     })
-    for (const [index, body] of valid.entries()) {
-      expect(execEventSchema.safeParse(event(body)).success, `valid ${String(index)}`).toBe(true)
-      expect(isExecEvent(event(body)), `valid ${String(index)}`).toBe(true)
-    }
-    for (const [index, body] of invalid.entries()) {
-      expect(execEventSchema.safeParse(event(body)).success, `invalid ${String(index)}`).toBe(false)
-      expect(isExecEvent(event(body)), `invalid ${String(index)}`).toBe(false)
+    for (const v of [1, 2]) {
+      const schema = v === 1 ? execEventSchema : execEventV2Schema
+      for (const [index, body] of valid.entries()) {
+        const record = { ...event(body), v }
+        expect(schema.safeParse(record).success, `v${String(v)} valid ${String(index)}`).toBe(true)
+        expect(isExecEvent(record), `v${String(v)} valid ${String(index)}`).toBe(true)
+      }
+      for (const [index, body] of invalid.entries()) {
+        const record = { ...event(body), v }
+        expect(schema.safeParse(record).success, `v${String(v)} invalid ${String(index)}`).toBe(
+          false,
+        )
+        expect(isExecEvent(record), `v${String(v)} invalid ${String(index)}`).toBe(false)
+      }
     }
     expect(isExecEvent({ ...event(valid[3]!), seq: 0 })).toBe(false)
+    expect(isExecEvent({ ...event(valid[3]!), v: 3 })).toBe(false)
     expect(PROHIBITED_UPDATE.source).toBe(EXEC_PROHIBITED_UPDATE_PATTERN)
     expect(RAW_TOOL_FIELDS).toEqual(EXEC_RAW_TOOL_FIELDS)
     const leaked = envelope(1, { type: 'tool', rawOutput: 'UNVALIDATED TOOL CONTENT' })
     expect(parseEventsText(`${leaked}\n${resultLine(2)}\n`)).toBeUndefined()
+  })
+
+  it('validates every v2 resource variant and rejects private fields and v1 resource events', () => {
+    const valid: Record<string, unknown>[] = [{ type: 'override', atMs: 0, untilMs: 1 }]
+    for (const kind of resourceKindSchema.options) {
+      valid.push({ type: 'paused', atMs: 0, kind })
+      for (const className of ['foreground', 'background'])
+        valid.push({ type: 'deferred', atMs: 0, kind, class: className })
+    }
+    for (const level of resourceLevelSchema.options) {
+      for (const kind of ['worker', 'check'])
+        valid.push({ type: 'relocated', atMs: 0, kind, level, reason: 'machineBusy' })
+      for (const reason of [
+        'cpu',
+        'memoryUsed',
+        'memoryFree',
+        'gpu',
+        'disk',
+        'recovery',
+        'critical',
+        'override',
+        'disabled',
+      ])
+        valid.push({ type: 'levelChanged', atMs: 0, from: level, to: level, reason })
+    }
+    const event = (body: Record<string, unknown>) => ({
+      v: 2,
+      seq: 1,
+      time: '2026-10-06T00:00:00.000Z',
+      type: 'resource',
+      event: body,
+    })
+    const invalid: Record<string, unknown>[] = [
+      { type: 'unknown', atMs: 0 },
+      { type: 'paused', atMs: 0, kind: 'userProcess' },
+      { type: 'deferred', atMs: 0, kind: 'check', class: 'user' },
+      { type: 'relocated', atMs: 0, kind: 'toolShell', level: 'normal', reason: 'machineBusy' },
+      { type: 'relocated', atMs: 0, kind: 'check', level: 'normal', reason: 'unknown' },
+      { type: 'relocated', atMs: 0, kind: 'check', level: 'unknown', reason: 'machineBusy' },
+      { type: 'levelChanged', atMs: 0, from: 'normal', to: 'pause', reason: 'unknown' },
+      { type: 'levelChanged', atMs: 0, from: 'unknown', to: 'pause', reason: 'cpu' },
+      { type: 'override', atMs: 0, untilMs: -1 },
+    ]
+    for (const body of valid) {
+      expect(execEventV2Schema.safeParse(event(body)).success).toBe(true)
+      expect(isExecEvent(event(body))).toBe(true)
+      expect(isExecEvent({ ...event(body), v: 1 })).toBe(false)
+      for (const extra of [{ pid: 1 }, { path: '/private' }, { command: 'private' }])
+        invalid.push({ ...body, ...extra })
+      invalid.push({ ...body, atMs: -1 }, { ...body, atMs: 0.5 })
+    }
+    for (const body of invalid) {
+      expect(execEventV2Schema.safeParse(event(body)).success).toBe(false)
+      expect(isExecEvent(event(body))).toBe(false)
+    }
+    expect(isExecEvent({ ...event(valid[0]!), pid: 1 })).toBe(false)
+    expect(isExecEvent({ ...event(valid[0]!), v: 3 })).toBe(false)
+    const result = resultRecord()
+    const final = { v: 2, seq: 2, time: event(valid[0]!).time, type: 'result', result }
+    expect(
+      parseEventsText(`${JSON.stringify(event(valid[0]!))}\n${JSON.stringify(final)}\n`),
+    ).toEqual(result)
+    expect(
+      parseEventsText(`${JSON.stringify(event(invalid[0]!))}\n${JSON.stringify(final)}\n`),
+    ).toBeUndefined()
   })
 
   describe('extractResult', PROCESS_SUITE, () => {

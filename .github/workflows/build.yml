@@ -369,11 +369,12 @@ jobs:
           for entry in package/package.json package/dist/uiTextRuntime.js package/dist/uiTextHooks.js package/dist/uiTextSurfaces.js \
             package/dist/acp.js package/dist/modelApi.js package/dist/uiText.js package/dist/validation.js package/dist/wire.js package/dist/reviewer.js \
             package/dist/foreignHooks.js package/dist/hookRuntime.js package/dist/extensionHooks.js \
-            package/dist/recorder.js \
+            package/dist/recorder.js package/dist/resourceGovernor.js package/dist/resourceAdmission.js \
             package/dist/searchWorker.js package/dist/pageWorker.js \
             package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \
             package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md \
-            package/schemas/exec-result-v1.schema.json package/schemas/exec-event-v1.schema.json; do
+            package/schemas/exec-result-v1.schema.json package/schemas/exec-event-v1.schema.json \
+            package/schemas/exec-event-v2.schema.json; do
             if ! grep -Fxq -- "$entry" <<< "$listing"; then
               echo "::error::$entry is missing from the agent's package" >&2
               exit 1

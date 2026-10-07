@@ -3979,7 +3979,7 @@ Disk-heavy launches wait below the floor; critical-volume writes refuse with a
 reason. The temporary-root registry confines cleanup to recorded harness roots,
 requires fresh exit and ownership proof, and retains failed-run roots for 24
 hours. Native cleanup and all-volume watch bindings still need qualification;
-the integration record names the outstanding disk review repairs.
+the integration record names the remaining native delivery and storage qualifications.
 
 The CLI accepts `muse-spark-code-acp resources status --json` and
 `muse-spark-code-acp resources resume --json`. Status describes that command

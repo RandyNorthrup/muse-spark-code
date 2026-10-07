@@ -22,6 +22,7 @@ import {
   WHATS_NEW_CHANGELOG_URL,
   WHATS_NEW_README_URL,
 } from '../../src/shared/constants'
+import { resourceSettingsSchema } from '../../src/shared/resources'
 import { findBash } from './helpers/shellParsers'
 
 const byText = (a: string, b: string) => a.localeCompare(b)
@@ -119,14 +120,26 @@ describe('package.json manifest', () => {
     }
   })
 
-  it('declares every setting with the default constants.ts uses', () => {
+  it('declares every setting with its runtime default', () => {
     const properties = manifest.contributes.configuration.properties as Record<
       string,
       { default: unknown }
     >
     const declared = Object.keys(properties).map((key) => key.replace(`${SETTINGS_SECTION}.`, ''))
-    expect(new Set(declared)).toEqual(new Set(Object.keys(SETTING_DEFAULTS)))
-    for (const [key, value] of Object.entries(SETTING_DEFAULTS)) {
+    const resource = resourceSettingsSchema.parse({})
+    const defaults = {
+      ...SETTING_DEFAULTS,
+      resourceGovernor: resource.enabled,
+      resourceCpuMaxPercent: resource.cpuMaxPercent,
+      resourceMemoryMaxPercent: resource.memoryMaxPercent,
+      resourceMemoryMinFreeGiB: resource.memoryMinFreeGiB,
+      resourceGpuMaxPercent: resource.gpuMaxPercent,
+      resourceDiskBusyMaxPercent: resource.diskBusyMaxPercent,
+      resourceDiskMinFreeGiB: resource.diskMinFreeGiB,
+      resourceRelocate: resource.relocate,
+    }
+    expect(new Set(declared)).toEqual(new Set(Object.keys(defaults)))
+    for (const [key, value] of Object.entries(defaults)) {
       expect(properties[`${SETTINGS_SECTION}.${key}`]?.default, key).toEqual(value)
     }
   })

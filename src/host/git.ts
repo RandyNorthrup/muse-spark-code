@@ -94,7 +94,13 @@ export async function metadataGit(
     names = await runGit([...GIT_METADATA_OPTIONS, ...GIT_FILTER_NAMES_ARGS], cwd)
   } catch (error: unknown) {
     // `config --get-regexp` exits 1 when no filter is configured.
-    if (typeof error !== 'object' || error === null || !('code' in error) || error.code !== 1) {
+    let code: unknown
+    if (isGitExitError(error)) {
+      code = error.exitCode
+    } else if (typeof error === 'object' && error !== null && 'code' in error) {
+      code = error.code
+    }
+    if (code !== 1) {
       throw error
     }
     names = ''

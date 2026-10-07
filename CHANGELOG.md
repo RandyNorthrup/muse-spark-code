@@ -22,6 +22,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Complete M107 verification restores session-board change counts when Git has
+  no filters, keeps resource bundle frames in scrubbed reports, and validates
+  exec v2 resource events in the Action while preserving v1 results. Production
+  and fake-only package checks cover the resource artifacts and all three schemas.
+
 - M107's deferred resource parser preserves the startup size regression;
   lossless English-key and Node reference packing retain complete content
   under existing caps. Notices resolve deferred parser package paths on

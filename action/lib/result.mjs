@@ -1,7 +1,7 @@
 // Result extraction (M80, SPEC §6.5): after the exec child closes, and before
 // any patch is considered, its JSONL is checked whole: every line a valid
-// v1 event (envelope and body, each variant against a structural mirror of
-// execEventSchema, including the update egress rule; RVM80CD P2-3) with
+// v1/v2 event (envelope and body, each variant against a structural mirror of
+// the exec schemas, including the update egress rule; RVM80CD P2-3) with
 // consecutive sequence numbers, exactly one result and that result last,
 // the result valid against a mirror of the execResultSchema invariants (both
 // parity-tested against lane A's zod schemas), and its exit code equal to
@@ -58,6 +58,33 @@ const LIMIT_KINDS = new Set([
   'accounting',
 ])
 const PAID_PHASES = new Set(['admitted', 'returned', 'refunded', 'uncertain', 'refused'])
+// Structural projections of shared/resources.ts, parity-tested against event v2.
+const RESOURCE_LEVELS = new Set(['normal', 'throttle', 'relocate', 'pause'])
+const RESOURCE_KINDS = new Set([
+  'toolShell',
+  'backgroundTask',
+  'check',
+  'mcpServer',
+  'worker',
+  'subagent',
+  'bestOfN',
+  'schedule',
+  'browserCheck',
+  'hook',
+  'museServe',
+  'other',
+])
+const RESOURCE_REASONS = new Set([
+  'cpu',
+  'memoryUsed',
+  'memoryFree',
+  'gpu',
+  'disk',
+  'recovery',
+  'critical',
+  'override',
+  'disabled',
+])
 // Projections of src/shared/constants.ts EXEC_PROHIBITED_UPDATE_PATTERN and
 // EXEC_RAW_TOOL_FIELDS (parity-tested).
 export const PROHIBITED_UPDATE = /^(?:agent_(?:message|thought)_chunk|tool)/
@@ -391,6 +418,44 @@ function isSafeUpdate(value) {
 
 const isTextFields = (value, keys) => keys.every((key) => typeof value[key] === 'string')
 
+function isResourceEvent(value) {
+  if (typeof value !== 'object' || value === null || !isCounter(value.atMs)) return false
+  switch (value.type) {
+    case 'levelChanged': {
+      return (
+        isObject(value, ['type', 'atMs', 'from', 'to', 'reason']) &&
+        RESOURCE_LEVELS.has(value.from) &&
+        RESOURCE_LEVELS.has(value.to) &&
+        RESOURCE_REASONS.has(value.reason)
+      )
+    }
+    case 'deferred': {
+      return (
+        isObject(value, ['type', 'atMs', 'kind', 'class']) &&
+        RESOURCE_KINDS.has(value.kind) &&
+        (value.class === 'foreground' || value.class === 'background')
+      )
+    }
+    case 'relocated': {
+      return (
+        isObject(value, ['type', 'atMs', 'kind', 'level', 'reason']) &&
+        (value.kind === 'worker' || value.kind === 'check') &&
+        RESOURCE_LEVELS.has(value.level) &&
+        value.reason === 'machineBusy'
+      )
+    }
+    case 'paused': {
+      return isObject(value, ['type', 'atMs', 'kind']) && RESOURCE_KINDS.has(value.kind)
+    }
+    case 'override': {
+      return isObject(value, ['type', 'atMs', 'untilMs']) && isCounter(value.untilMs)
+    }
+    default: {
+      return false
+    }
+  }
+}
+
 /** One event body by its type, field for field against execEventSchema (SPEC §5.1). */
 const EVENT_BODIES = Object.freeze({
   start: (value) =>
@@ -471,14 +536,16 @@ const EVENT_BODIES = Object.freeze({
     isObject(value, ['type', 'signal']) &&
     (value.signal === 'SIGINT' || value.signal === 'SIGTERM'),
   result: (value) => isObject(value, ['type', 'result']) && isExecResult(value.result),
+  resource: (value) => isObject(value, ['type', 'event']) && isResourceEvent(value.event),
 })
 
-/** One exec event: the v1 envelope and its body (SPEC §2.2, §5.1). */
+/** One exec event: frozen v1 or resource-aware v2, with a v1 result payload. */
 export function isExecEvent(value) {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
   const { v, seq, time, ...body } = value
   return (
-    v === 1 &&
+    (v === 1 || v === 2) &&
+    (body.type !== 'resource' || v === 2) &&
     isCounter(seq) &&
     seq >= 1 &&
     typeof time === 'string' &&
@@ -532,7 +599,7 @@ export function isExecResult(value) {
 
 /**
  * The single result in exec's JSONL text, or undefined when any line is not a
- * valid v1 event with the next sequence number, the text is cut mid-line,
+ * valid v1/v2 event with the next sequence number, the text is cut mid-line,
  * there is no result, more than one, a line after it, or the result is
  * invalid.
  */

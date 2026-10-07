@@ -33,9 +33,11 @@ for (const file of [
     'uiTextSurfaces.js',
     'validation.js',
     'wire.js',
+    'resourceGovernor.js',
+    'resourceAdmission.js',
   ].map((name) => path.join(SOURCE, 'dist', name)),
-  ...['exec-result-v1.schema.json', 'exec-event-v1.schema.json'].map((name) =>
-    path.join(SOURCE, 'schemas', name),
+  ...['exec-result-v1.schema.json', 'exec-event-v1.schema.json', 'exec-event-v2.schema.json'].map(
+    (name) => path.join(SOURCE, 'schemas', name),
   ),
 ]) {
   if (!statSync(file).isFile()) {
