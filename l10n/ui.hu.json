@@ -2494,6 +2494,7 @@
   "referenceRules": "AGENTS.md létrehozása vagy megnyitása a munkaterület gyökerében.",
   "referenceWalkthrough": "Az első lépések útmutató megnyitása.",
   "referenceRetry": "A Windows-feladat előkészítésének újrapróbálása a bővítményhookokhoz.",
+  "referencePlaybookCommand": "Az orchestrátor-útmutató megjelenítése vagy módosítása ehhez a munkaterülethez (nem indít backendet).",
   "helpReferenceTitle": "Súgó és referencia",
   "referenceWebFetchTitle": "Weboldalak lekérése",
   "referenceWebFetchDetail": "Nyilvános weboldalak lekérése olvasható szövegként, jogosultság- és hálózatellenőrzéssel.",

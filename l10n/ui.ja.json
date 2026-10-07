@@ -2398,6 +2398,7 @@
   "referenceRules": "ワークスペースのルートに AGENTS.md を作成または開きます。",
   "referenceWalkthrough": "入門ガイドを開きます。",
   "referenceRetry": "プラグインフック用の Windows ジョブの準備を再試行します。",
+  "referencePlaybookCommand": "このワークスペースのオーケストレーター手引きを表示・変更する (バックエンドは起動しない)。",
   "helpReferenceTitle": "ヘルプとリファレンス",
   "referenceWebFetchTitle": "ウェブ取得",
   "referenceWebFetchDetail": "権限とネットワークを確認し、公開ウェブページを読みやすいテキストとして取得します。",

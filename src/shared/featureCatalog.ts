@@ -659,6 +659,17 @@ export function featureCatalog(): readonly Feature[] {
       ['vscode'],
     ),
     feature(
+      'orchestrator-playbook',
+      { ui: 'playbookTitle' },
+      { ui: 'playbookHelpDescription' },
+      [],
+      [],
+      'orchestrator-playbook-policy-m116',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
       'support',
       { ui: 'groupSupport' },
       { tip: 'issue' },

@@ -212,6 +212,8 @@ export const EN = {
   referenceRules: 'Create or open AGENTS.md in the workspace root.',
   referenceWalkthrough: 'Open the Getting Started walkthrough.',
   referenceRetry: 'Retry preparation of the Windows job for plugin hooks.',
+  referencePlaybookCommand:
+    'Show or change the orchestrator playbook journal for this workspace (starts no backend).',
 
   // M116 / D96: shared panel, Agent map, ACP, CLI and report wording.
   playbookTitle: 'Orchestrator playbook',

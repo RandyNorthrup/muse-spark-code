@@ -2686,6 +2686,7 @@
   "referenceRules": "Utwórz lub otwórz AGENTS.md w katalogu głównym obszaru roboczego.",
   "referenceWalkthrough": "Otwórz przewodnik wprowadzający.",
   "referenceRetry": "Ponów przygotowanie zadania Windows dla hooków wtyczek.",
+  "referencePlaybookCommand": "Pokaż lub zmień playbook orkiestratora dla tego obszaru roboczego (nie uruchamia backendu).",
   "helpReferenceTitle": "Pomoc i informacje",
   "referenceWebFetchTitle": "Pobieranie stron",
   "referenceWebFetchDetail": "Pobieraj publiczne strony jako czytelny tekst, z kontrolą uprawnień i sieci.",

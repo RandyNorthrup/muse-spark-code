@@ -2494,6 +2494,7 @@
   "referenceRules": "AGENTS.md im Arbeitsbereich erstellen oder öffnen.",
   "referenceWalkthrough": "Einführungsanleitung öffnen.",
   "referenceRetry": "Vorbereitung des Windows-Jobs für Plugin-Hooks erneut versuchen.",
+  "referencePlaybookCommand": "Den Orchestrator-Leitfaden für diesen Arbeitsbereich anzeigen oder ändern (startet kein Backend).",
   "helpReferenceTitle": "Hilfe und Referenz",
   "referenceWebFetchTitle": "Webseiten abrufen",
   "referenceWebFetchDetail": "Öffentliche Webseiten als lesbaren Text abrufen, mit Berechtigungs- und Netzwerkprüfungen.",

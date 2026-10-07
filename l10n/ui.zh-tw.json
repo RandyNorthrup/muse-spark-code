@@ -2398,6 +2398,7 @@
   "referenceRules": "在工作區根目錄建立或開啟 AGENTS.md。",
   "referenceWalkthrough": "開啟入門指南。",
   "referenceRetry": "重試準備外掛掛鉤的 Windows 作業。",
+  "referencePlaybookCommand": "顯示或修改此工作區的 orchestrator playbook（不啟動後端）。",
   "helpReferenceTitle": "說明與參考",
   "referenceWebFetchTitle": "網頁擷取",
   "referenceWebFetchDetail": "將公開網頁擷取為可讀文字，並檢查權限和網路。",

@@ -2590,6 +2590,7 @@
   "referenceRules": "Crear o abrir AGENTS.md en la raíz del espacio de trabajo.",
   "referenceWalkthrough": "Abrir la guía de primeros pasos.",
   "referenceRetry": "Reintentar la preparación del trabajo de Windows para hooks de plugins.",
+  "referencePlaybookCommand": "Mostrar o cambiar la guía del orquestador para esta área de trabajo (no inicia ningún backend).",
   "helpReferenceTitle": "Ayuda y referencia",
   "referenceWebFetchTitle": "Lectura web",
   "referenceWebFetchDetail": "Obtener páginas web públicas como texto legible, con comprobaciones de permisos y red.",

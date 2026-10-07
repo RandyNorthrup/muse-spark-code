@@ -2686,6 +2686,7 @@
   "referenceRules": "Создать или открыть AGENTS.md в корне рабочей области.",
   "referenceWalkthrough": "Открыть руководство по началу работы.",
   "referenceRetry": "Повторить подготовку задания Windows для хуков плагинов.",
+  "referencePlaybookCommand": "Показать или изменить руководство оркестратора для этой рабочей области (backend не запускается).",
   "helpReferenceTitle": "Справка и справочник",
   "referenceWebFetchTitle": "Загрузка веб-страниц",
   "referenceWebFetchDetail": "Получать публичные веб-страницы как читаемый текст с проверкой разрешений и сети.",

@@ -2494,6 +2494,7 @@
   "referenceRules": "Çalışma alanı kökünde AGENTS.md oluştur veya aç.",
   "referenceWalkthrough": "Başlangıç kılavuzunu aç.",
   "referenceRetry": "Eklenti kancaları için Windows işinin hazırlanmasını yeniden dene.",
+  "referencePlaybookCommand": "Bu çalışma alanı için düzenleyici kılavuzunu göster veya değiştir (arka uç başlatmaz).",
   "helpReferenceTitle": "Yardım ve başvuru",
   "referenceWebFetchTitle": "Web sayfası alma",
   "referenceWebFetchDetail": "İzin ve ağ kontrolleriyle herkese açık web sayfalarını okunabilir metin olarak alın.",

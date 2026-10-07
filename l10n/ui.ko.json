@@ -2398,6 +2398,7 @@
   "referenceRules": "작업 공간 루트에 AGENTS.md를 만들거나 엽니다.",
   "referenceWalkthrough": "시작 가이드를 엽니다.",
   "referenceRetry": "플러그인 훅을 위한 Windows 작업 준비를 다시 시도합니다.",
+  "referencePlaybookCommand": "이 작업 영역의 오케스트레이터 플레이북을 보거나 변경 (백엔드를 시작하지 않음).",
   "helpReferenceTitle": "도움말 및 참조",
   "referenceWebFetchTitle": "웹 가져오기",
   "referenceWebFetchDetail": "권한과 네트워크를 확인하여 공개 웹 페이지를 읽기 쉬운 텍스트로 가져옵니다.",

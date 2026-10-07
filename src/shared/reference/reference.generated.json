@@ -594,7 +594,13 @@
         "resumeAvailability": "installedMuseCodeSkills",
         "bundled": {
           "museCode": ["feature_delivery", "project_setup", "quality_retrofit"],
-          "modelApi": ["feature_delivery", "project_setup", "quality_retrofit", "muse_gadgets"]
+          "modelApi": [
+            "feature_delivery",
+            "project_setup",
+            "quality_retrofit",
+            "muse_gadgets",
+            "orchestrator_playbook"
+          ]
         }
       },
       "editors": ["vscode"]
@@ -1322,6 +1328,21 @@
       "details": [],
       "facts": {},
       "editors": ["vscode"]
+    },
+    {
+      "id": "orchestrator-playbook",
+      "name": { "ui": "playbookTitle" },
+      "summary": { "ui": "playbookHelpDescription" },
+      "description": { "ui": "playbookHelpDescription" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#orchestrator-playbook-policy-m116",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
     },
     {
       "id": "support",
@@ -2451,7 +2472,7 @@
       },
       "id": "museSpark.bundledSkills",
       "name": "museSpark.bundledSkills",
-      "description": "On by default: the skills that come with Muse Spark (project_setup, feature_delivery and quality_retrofit, from the high-quality-projects package) are available on the Model API backend, after any project or personal skill with the same name. Muse Code reads only its own folders, so for it they are installed with Muse Spark: Install Bundled Skills for Muse Code, which a Muse Code conversation offers once per window until you install them or choose Not now. Their delivery helpers need Python 3.12 or newer.",
+      "description": "On by default: bundled project quality workflows and first-party skills are available on the Model API backend, after any project or personal skill with the same name. Muse Code reads only its own folders, so install them with Muse Spark: Install Bundled Skills for Muse Code, offered once per window until you install them or choose Not now. The project quality workflows’ delivery helpers need Python 3.12 or newer.",
       "descriptionKey": "config.bundledSkills.description",
       "type": "boolean",
       "default": true,
@@ -4389,6 +4410,12 @@
       "name": "scan-secrets <file> [--key-stdin]",
       "description": "auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.",
       "text": { "ui": "referenceKeyStdin" }
+    },
+    {
+      "route": "playbook",
+      "name": "playbook <status|record|settings ...>",
+      "description": "Show or change the orchestrator playbook journal for this workspace (starts no backend).",
+      "text": { "ui": "referencePlaybookCommand" }
     }
   ],
   "executable": "muse-spark-code-acp",

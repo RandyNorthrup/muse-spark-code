@@ -2686,6 +2686,7 @@
   "referenceRules": "Vytvořit nebo otevřít AGENTS.md v kořenu pracovního prostoru.",
   "referenceWalkthrough": "Otevřít průvodce prvními kroky.",
   "referenceRetry": "Znovu připravit úlohu Windows pro hooky pluginů.",
+  "referencePlaybookCommand": "Zobrazit nebo změnit playbook orchestrátoru pro tento pracovní prostor (nespouští žádný backend).",
   "helpReferenceTitle": "Nápověda a reference",
   "referenceWebFetchTitle": "Načítání webu",
   "referenceWebFetchDetail": "Načítejte veřejné webové stránky jako čitelný text s kontrolou oprávnění a sítě.",
