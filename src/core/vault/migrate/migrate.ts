@@ -296,9 +296,14 @@ export class VaultMigration {
             old?.retainLegacy ?? legacy !== null,
             old?.startedRelease ?? this.currentRelease(),
           )
+          if ((old?.phase === 'active' || old?.phase === 'retired') && old.digest !== null)
+            row.previous = { phase: old.phase, digest: old.digest }
           await this.persistCopy(row, item, lease)
           if (row.retainLegacy) await this.mirror(entry, row, lease)
-          await this.save({ ...row, phase: row.retainLegacy ? 'active' : 'retired' }, lease)
+          await this.save(
+            { ...row, previous: undefined, phase: row.retainLegacy ? 'active' : 'retired' },
+            lease,
+          )
         } finally {
           eraseItem(item)
           legacy?.fill(0)
@@ -337,6 +342,11 @@ export class VaultMigration {
     const entry = this.credential(key)
     return await this.run(async (lease) => {
       const row = await this.record(entry, lease)
+      if (row?.phase === 'retired' && row.retirementNoticePending) {
+        this.deps.onRetired(key)
+        await this.save({ ...row, retirementNoticePending: false }, lease)
+        return true
+      }
       if (
         row?.phase !== 'active' ||
         !row.retainLegacy ||
@@ -345,8 +355,15 @@ export class VaultMigration {
         return false
       await this.verifyLegacy(entry, row, lease)
       await this.removeLegacy(key, lease)
-      await this.save({ ...row, retainLegacy: false, phase: 'retired' }, lease)
+      await this.save(
+        { ...row, retainLegacy: false, phase: 'retired', retirementNoticePending: true },
+        lease,
+      )
       this.deps.onRetired(key)
+      await this.save(
+        { ...row, retainLegacy: false, phase: 'retired', retirementNoticePending: false },
+        lease,
+      )
       return true
     })
   }
@@ -355,7 +372,8 @@ export class VaultMigration {
     await this.run(async (lease) => {
       const row = await this.record(entry, lease)
       if (!row) throw new VaultMigrationFault('invalid')
-      await this.save({ ...row, phase: 'deleting' }, lease)
+      if (row.phase === 'deleted') return
+      await this.save({ ...row, previous: undefined, phase: 'deleting' }, lease)
       lease.assertCurrent()
       await this.deps.vault.remove(entry.itemId, () => {
         lease.assertCurrent()
@@ -384,9 +402,26 @@ export class VaultMigration {
     await this.run(async (lease) => {
       const row = await this.record(entry, lease)
       if (row?.phase !== 'writing') return
-      await this.verified(row, lease)
+      let copied: VaultItem | undefined
+      try {
+        copied = await this.deps.vault.read(row.itemId)
+        lease.assertCurrent()
+        validateMigrationItem(copied, row.itemId)
+        const digest = itemDigest(copied)
+        if (digest !== row.digest) {
+          if (digest !== row.previous?.digest) throw new VaultMigrationFault('verification')
+          // Atomic vault write did not commit. Restore the previous usable journal row.
+          await this.save({ ...row, ...row.previous, previous: undefined }, lease)
+          return
+        }
+      } finally {
+        eraseItem(copied)
+      }
       if (row.retainLegacy) await this.mirror(entry, row, lease)
-      await this.save({ ...row, phase: row.retainLegacy ? 'active' : 'retired' }, lease)
+      await this.save(
+        { ...row, previous: undefined, phase: row.retainLegacy ? 'active' : 'retired' },
+        lease,
+      )
     })
   }
 }

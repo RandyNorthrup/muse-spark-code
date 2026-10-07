@@ -14,10 +14,18 @@ export const migrationRecordSchema = z
     retainLegacy: z.boolean(),
     phase: z.enum(['copying', 'active', 'writing', 'deleting', 'deleted', 'undone', 'retired']),
     digest: z.nullable(z.string().check(z.regex(/^[a-f0-9]{64}$/u))),
+    previous: z.optional(
+      z.strictObject({
+        phase: z.enum(['active', 'retired']),
+        digest: z.string().check(z.regex(/^[a-f0-9]{64}$/u)),
+      }),
+    ),
+    retirementNoticePending: z.optional(z.boolean()),
   })
   .check(
     z.refine((row) => (row.phase === 'deleted') === (row.digest === null)),
     z.refine((row) => row.phase !== 'retired' || !row.retainLegacy),
+    z.refine((row) => row.previous === undefined || row.phase === 'writing'),
   )
 export type MigrationRecord = z.infer<typeof migrationRecordSchema>
 

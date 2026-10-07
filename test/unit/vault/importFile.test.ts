@@ -29,14 +29,33 @@ async function root(): Promise<string> {
 }
 function fixture() {
   const f = migrationFixture()
+  const receipts = new Map<string, unknown>()
   const vault: VaultFileImportPort = {
     list: () => f.vault.list(),
     read: f.deps.vault.read,
-    writeBatch: vi.fn<VaultFileImportPort['writeBatch']>(async (items, authorize) => {
+    writeBatch: vi.fn<VaultFileImportPort['writeBatch']>(
+      async (items, receipt, verify, authorize) => {
+        await verify((id) => {
+          const item = items.find((item) => item.metadata.id === id)
+          if (!item) throw new Error('missing staged item')
+          const copy = structuredClone(item)
+          for (const field of Object.values(copy.material))
+            if (field instanceof Uint8Array) f.owned.push(field)
+          return Promise.resolve(copy)
+        })
+        authorize()
+        for (const item of items) await f.vault.write(item)
+        receipts.set(receipt.id, structuredClone(receipt.record))
+      },
+    ),
+    readReceipt: (id) => Promise.resolve(structuredClone(receipts.get(id) ?? null)),
+    forgetReceipt: (id, authorize) => {
       authorize()
-      for (const item of items) await f.vault.write(item)
-    }),
+      receipts.delete(id)
+      return Promise.resolve()
+    },
   }
+
   let input: Uint8Array | undefined
   let prepared: VaultItem | undefined
   const prepare = vi.fn((_kind: string, bytes: Uint8Array) => {
@@ -77,6 +96,17 @@ async function cancelledPreparation(cancel: (f: ReturnType<typeof fixture>) => v
 }
 
 describe('D89.5 ambient discovery and explicit import', () => {
+  it('W-M7 a reloaded importer can delete its verified source using the persisted receipt', async () => {
+    const f = fixture()
+    const path = nodePath.join(await root(), '.npmrc')
+    await writeFile(path, randomBytes(32))
+    const result = await f.importer.import({ path, kind: 'npm' }, f.prepare, () => undefined)
+    f.importer.dispose()
+    const reloaded = new VaultFileImporter(f.writer, f.deps.owner)
+    await reloaded.deleteSource(result.receipt, () => undefined)
+    await expect(readFile(path)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
   it('never overwrites an existing item name or id on import', async () => {
     const f = fixture()
     const home = await root()
@@ -103,13 +133,15 @@ describe('D89.5 ambient discovery and explicit import', () => {
       other.prepare,
       () => undefined,
     )
+    let keeping: Promise<void> | undefined
     const read = other.writer.read
     other.writer.read = vi.fn<VaultFileImportPort['read']>(async (id) => {
       const item = await read(id)
-      other.importer.keep(result.receipt)
+      keeping = other.importer.keep(result.receipt)
       return item
     })
     await expect(other.importer.deleteSource(result.receipt, () => undefined)).rejects.toThrow()
+    await keeping
     expect(await readFile(path)).toHaveLength(32)
   })
   it('bounds the source before reading or preparing an empty or oversized file', async () => {
@@ -181,7 +213,7 @@ describe('D89.5 ambient discovery and explicit import', () => {
         .every((field) => field.every((byte) => byte === 0)),
     ).toBe(true)
     expect(f.owned.every((bytes) => bytes.every((byte) => byte === 0))).toBe(true)
-    f.importer.keep(result.receipt)
+    await f.importer.keep(result.receipt)
     expect(await readFile(path)).toEqual(value)
     await expect(f.importer.deleteSource(result.receipt, authorize)).rejects.toThrow()
   })
@@ -230,21 +262,27 @@ describe('D89.5 ambient discovery and explicit import', () => {
     await expect(f.importer.deleteSource(result.receipt, () => undefined)).rejects.toThrow()
     expect(await readFile(path)).toHaveLength(100)
   })
-  it('never grants Delete after a corrupted copy; rejects symlinks, duplicate items and denied Imports', async () => {
+  it('W-M3 never publishes or grants Delete after a corrupted copy; rejects symlinks, duplicate items and denied Imports', async () => {
     const f = fixture()
     const home = await root()
     const path = nodePath.join(home, '.npmrc')
     await writeFile(path, randomBytes(32))
-    f.writer.writeBatch = vi.fn<VaultFileImportPort['writeBatch']>(async (items, authorize) => {
-      authorize()
-      const item = structuredClone(items[0]!)
-      if (item.material.kind === 'secret') item.material.value[0] = item.material.value[0]! ^ 1
-      await f.vault.write(item)
-      eraseItem(item)
-    })
+    f.writer.writeBatch = vi.fn<VaultFileImportPort['writeBatch']>(
+      async (items, _receipt, verify, _authorize) => {
+        const item = structuredClone(items[0]!)
+        try {
+          if (item.material.kind === 'secret') item.material.value[0] = item.material.value[0]! ^ 1
+          await verify(() => Promise.resolve(structuredClone(item)))
+          throw new Error('corruption should never verify')
+        } finally {
+          eraseItem(item)
+        }
+      },
+    )
     await expect(
       f.importer.import({ path, kind: 'npm' }, f.prepare, () => undefined),
-    ).rejects.toThrow()
+    ).rejects.toMatchObject({ code: 'verification' })
+    expect(await f.vault.list()).toEqual([])
     expect(await readFile(path)).toHaveLength(32)
     expect(f.source()?.every((byte) => byte === 0)).toBe(true)
     expect(f.owned.every((bytes) => bytes.every((byte) => byte === 0))).toBe(true)

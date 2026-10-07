@@ -12,6 +12,39 @@ const columns: LoginCsvColumns = {
 }
 
 describe('explicit credential-file decoders', () => {
+  it('W-M2 Git URL userinfo is decoded exactly once, including literal percent escapes', () => {
+    const username = `${randomBytes(16).toString('hex')}%2F`
+    for (const value of [
+      `${randomBytes(16).toString('hex')}%2Fb`,
+      `${randomBytes(16).toString('hex')}100%`,
+    ]) {
+      const encoded = `https://${encodeURIComponent(username)}:${encodeURIComponent(value)}@example.test/repo`
+      expect(new URL(encoded).password).toBe(encodeURIComponent(value))
+      const drafts = parseAmbientCredentials('git', Buffer.from(encoded))
+      expect(drafts).toHaveLength(1)
+      const material = drafts[0]?.material
+      if (material?.kind !== 'password') throw new Error('expected password')
+      expect(Buffer.from(material.username).toString()).toBe(username)
+      expect(Buffer.from(material.password).toString()).toBe(value)
+      material.username.fill(0)
+      material.password.fill(0)
+    }
+  })
+  it('W-M5 preserves the legacy AWS session-token spelling', () => {
+    const value = randomBytes(32).toString('hex')
+    const drafts = parseAmbientCredentials(
+      'aws',
+      Buffer.from(
+        `[profile]\naws_access_key_id=id\naws_secret_access_key=${value}\naws_security_token=${value}`,
+      ),
+    )
+    expect(drafts.map((draft) => draft.target)).toContain('profile:aws_security_token')
+    expect(drafts).toHaveLength(3)
+    for (const draft of drafts)
+      for (const bytes of Object.values(draft.material))
+        if (bytes instanceof Uint8Array) bytes.fill(0)
+  })
+
   it('refuses TOTP imports without L decoder instead of storing an encoded string as a seed', () => {
     const value = randomBytes(32).toString('hex')
     expect(() =>

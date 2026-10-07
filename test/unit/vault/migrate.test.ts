@@ -15,6 +15,48 @@ async function readyToRetire() {
 }
 
 describe('D89.14 credential migration', () => {
+  it('W-M1 resumes a rotation interrupted after journal commit but before vault write', async () => {
+    const f = migrationFixture()
+    const old = generatedKey()
+    f.legacy.set(f.credential.key, old)
+    await f.service.migrate(f.credential.key)
+    vi.mocked(f.deps.vault.write).mockRejectedValueOnce(new Error('precommit interruption'))
+    await expect(f.service.store(f.credential.key, generatedKey())).rejects.toMatchObject({
+      code: 'storage',
+    })
+    const resumed = new VaultMigration(f.deps, [f.credential])
+    await resumed.resume(f.credential.key)
+    expect(await resumed.resolve(f.credential.key)).not.toBeNull()
+    expect(f.journal.get(f.credential.key)?.phase).toBe('active')
+    const item = await f.vault.read(f.credential.itemId)
+    const value = f.credential.encode(item)
+    expect([...value]).toEqual([...old])
+    value.fill(0)
+    eraseItem(item)
+  })
+  it('W-M4 retries a pending retirement notice after the delete committed', async () => {
+    const f = await readyToRetire()
+    vi.mocked(f.deps.onRetired).mockImplementationOnce(() => {
+      throw new Error('notice unavailable')
+    })
+    await expect(f.service.retire(f.credential.key)).rejects.toMatchObject({ code: 'storage' })
+    expect(f.legacy.has(f.credential.key)).toBe(false)
+    const resumed = new VaultMigration(f.deps, [f.credential])
+    expect(await resumed.retire(f.credential.key)).toBe(true)
+    expect(f.deps.onRetired).toHaveBeenCalledTimes(2)
+    expect(await resumed.retire(f.credential.key)).toBe(false)
+  })
+  it('W-M6 concurrent editors can both resume the same deleting journal row', async () => {
+    const f = migrationFixture()
+    await f.service.store(f.credential.key, generatedKey())
+    vi.mocked(f.deps.vault.remove).mockRejectedValueOnce(new Error('interrupted delete'))
+    await expect(f.service.delete(f.credential.key)).rejects.toThrow()
+    const second = new VaultMigration(f.deps, [f.credential])
+    await Promise.all([f.service.resume(f.credential.key), second.resume(f.credential.key)])
+    expect(f.journal.get(f.credential.key)?.phase).toBe('deleted')
+    expect(await f.vault.list()).toEqual([])
+  })
+
   it('never claims retirement or logout when the native legacy store did not delete its value', async () => {
     const f = await readyToRetire()
     const remove = f.deps.legacy.remove

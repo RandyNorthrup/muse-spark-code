@@ -90,7 +90,12 @@ function ini(kind: 'npm' | 'aws', text: string, result: AmbientCredential[]): vo
     const key = trimmed.slice(0, equals).trim()
     if (
       kind === 'aws' &&
-      !['aws_access_key_id', 'aws_secret_access_key', 'aws_session_token'].includes(key)
+      ![
+        'aws_access_key_id',
+        'aws_secret_access_key',
+        'aws_session_token',
+        'aws_security_token',
+      ].includes(key)
     )
       continue
     if (kind === 'npm' && !/(?:^|:)(?:_authToken|_auth|_password)$/u.test(key)) continue

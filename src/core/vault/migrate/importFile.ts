@@ -1,11 +1,13 @@
 import { constants, unlinkSync } from 'node:fs'
 import { open } from 'node:fs/promises'
 import { createHash, randomUUID } from 'node:crypto'
+import * as z from 'zod/mini'
 import {
   lstatIdentity,
   lstatIdentitySync,
   handleIdentity,
   sameFile,
+  identityOf,
   type FileIdentity,
 } from '../../fs/fileIdentity'
 import { vaultItemSchema, type VaultItem, type VaultItemMetadata } from '../../../shared/vault'
@@ -14,23 +16,38 @@ import { type AmbientFile } from './ambient'
 import { eraseItem, itemDigest } from './material'
 import { type MigrationOwnerPort, type MigrationLease, VaultMigrationFault } from './ports'
 
+const digestSchema = z.string().check(z.regex(/^[a-f0-9]{64}$/u))
+const receiptSchema = z.strictObject({
+  path: z.string().check(z.minLength(1), z.maxLength(VAULT_LIMITS.text)),
+  identity: z.strictObject({ dev: z.bigint(), ino: z.bigint() }),
+  digest: digestSchema,
+  items: z
+    .array(
+      z.strictObject({ id: z.string().check(z.regex(/^[a-f0-9]{32}$/u)), digest: digestSchema }),
+    )
+    .check(z.minLength(1), z.maxLength(VAULT_LIMITS.items)),
+})
+type ImportReceipt = z.infer<typeof receiptSchema>
 export interface VaultFileImportPort {
   list(): Promise<readonly VaultItemMetadata[]>
   read(id: string): Promise<VaultItem>
-  /** C commits the batch atomically under the same writer used for migration. */
-  writeBatch(items: readonly VaultItem[], authorize: () => void): Promise<void>
-}
-interface ImportReceipt {
-  path: string
-  identity: FileIdentity
-  digest: string
-  items: readonly { id: string; digest: string }[]
+  /** C verifies staged decrypted items, then atomically publishes the batch AND its encrypted
+   * receipt under the migration writer. Verification failure publishes neither. Calls authorize
+   * at physical commit. Receipts persist across processes; no plaintext journal is permitted. */
+  writeBatch(
+    items: readonly VaultItem[],
+    receipt: { id: string; record: ImportReceipt },
+    verify: (read: VaultFileImportPort['read']) => Promise<void>,
+    authorize: () => void,
+  ): Promise<void>
+  readReceipt(id: string): Promise<unknown>
+  forgetReceipt(id: string, authorize: () => void): Promise<void>
 }
 
 /** U/H call only from a user's Import/Keep/Delete action; neither agent tools nor models own this port. */
 export class VaultFileImporter {
   private isDisposed = false
-  private readonly receipts = new Map<string, ImportReceipt>()
+  private readonly cancelledReceipts = new Set<string>()
   constructor(
     private readonly vault: VaultFileImportPort,
     private readonly owner: MigrationOwnerPort,
@@ -122,31 +139,38 @@ export class VaultFileImporter {
         if (existing.some((item) => ids.has(item.id) || names.has(item.name)))
           throw new VaultMigrationFault('conflict')
         const digests = items.map((item) => ({ id: item.metadata.id, digest: itemDigest(item) }))
-        await this.vault.writeBatch(items, () => {
-          this.assertActive(lease)
-          assertUserAction()
-        })
-        this.assertActive(lease)
-        for (const expected of digests) {
-          let copied: VaultItem | undefined
-          try {
-            copied = await this.vault.read(expected.id)
-            this.assertActive(lease)
-            if (itemDigest(copied) !== expected.digest)
-              throw new VaultMigrationFault('verification')
-          } finally {
-            eraseItem(copied)
-          }
-        }
         const receipt = randomUUID()
-        this.receipts.set(receipt, {
+        const record = receiptSchema.parse({
           path: selection.path,
-          identity: read.identity,
+          identity: identityOf(read.identity),
           digest: sourceDigest,
           items: digests,
         })
+        await this.vault.writeBatch(
+          items,
+          { id: receipt, record },
+          async (readStaged) => {
+            for (const expected of digests) {
+              let copied: VaultItem | undefined
+              try {
+                copied = await readStaged(expected.id)
+                this.assertActive(lease)
+                if (itemDigest(copied) !== expected.digest)
+                  throw new VaultMigrationFault('verification')
+              } finally {
+                eraseItem(copied)
+              }
+            }
+          },
+          () => {
+            this.assertActive(lease)
+            assertUserAction()
+          },
+        )
+        this.assertActive(lease)
         return { items: structuredClone(metadata), receipt }
-      } catch {
+      } catch (error: unknown) {
+        if (error instanceof VaultMigrationFault) throw error
         throw new VaultMigrationFault('storage')
       } finally {
         for (const item of items) eraseItem(item)
@@ -155,16 +179,26 @@ export class VaultFileImporter {
     })
   }
 
-  keep(receipt: string): void {
-    if (!this.receipts.delete(receipt)) throw new VaultMigrationFault('invalid')
+  async keep(receipt: string): Promise<void> {
+    // Cancel this window's in-flight Delete synchronously, before waiting on the writer.
+    this.cancelledReceipts.add(receipt)
+    await this.owner.run(async (lease) => {
+      this.assertActive(lease)
+      if (!receiptSchema.safeParse(await this.vault.readReceipt(receipt)).success)
+        throw new VaultMigrationFault('invalid')
+      await this.vault.forgetReceipt(receipt, () => {
+        this.assertActive(lease)
+      })
+    })
   }
   async deleteSource(receipt: string, assertUserAction: () => void): Promise<void> {
     await this.owner.run(async (lease) => {
-      const saved = this.receipts.get(receipt)
-      if (!saved) throw new VaultMigrationFault('invalid')
+      const parsed = receiptSchema.safeParse(await this.vault.readReceipt(receipt))
+      if (!parsed.success) throw new VaultMigrationFault('invalid')
+      const saved = parsed.data
       const assertReceipt = () => {
         this.assertActive(lease)
-        if (this.receipts.get(receipt) !== saved) throw new VaultMigrationFault('invalid')
+        if (this.cancelledReceipts.has(receipt)) throw new VaultMigrationFault('invalid')
       }
       let source: Buffer | undefined
       try {
@@ -202,8 +236,11 @@ export class VaultFileImporter {
         assertReceipt()
         unlinkSync(saved.path)
         assertReceipt()
-        this.receipts.delete(receipt)
-      } catch {
+        await this.vault.forgetReceipt(receipt, () => {
+          this.assertActive(lease)
+        })
+      } catch (error: unknown) {
+        if (error instanceof VaultMigrationFault) throw error
         throw new VaultMigrationFault('storage')
       } finally {
         source?.fill(0)
@@ -212,6 +249,6 @@ export class VaultFileImporter {
   }
   dispose(): void {
     this.isDisposed = true
-    this.receipts.clear()
+    this.cancelledReceipts.clear()
   }
 }
