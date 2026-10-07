@@ -272,6 +272,10 @@ Module._load = function(name, ...rest) { if(name === '@napi-rs/keyring') throw n
 ${shouldHangTable ? "require('node:fs/promises').readFile = () => new Promise(() => {});" : ''}
 ${shouldBlockStderr ? "require('node:fs/promises').readFile = () => Promise.reject(new Error('x'.repeat(4 * 1024 * 1024))); setTimeout(() => { mark('SIGINT'); process.emit('SIGINT'); setTimeout(() => { mark('SIGTERM'); process.emit('SIGTERM'); }, 10); }, 100);" : ''}`,
   )
+  // A home directory the test owns: the child never touches the runner's
+  // real one, and home lookup cannot fail where the user database is
+  // unavailable.
+  const home = folder()
   const child = childProcess.spawn(process.execPath, ['--require', bootstrap, builtMain, ...args], {
     cwd: path.dirname(bootstrap),
     env: {
@@ -280,6 +284,10 @@ ${shouldBlockStderr ? "require('node:fs/promises').readFile = () => Promise.reje
       LANG: shouldHangTable || shouldBlockStderr ? 'de_DE.UTF-8' : 'en_US.UTF-8',
       NODE_OPTIONS: '',
       NODE_PATH: '',
+      HOME: home,
+      USERPROFILE: home,
+      XDG_CONFIG_HOME: home,
+      XDG_DATA_HOME: home,
     },
     stdio: 'pipe',
   })
