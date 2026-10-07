@@ -170,6 +170,8 @@ export const EN = {
     ephemeral: 'Keep the session in memory without saving it.',
     'key-stdin':
       'auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.',
+    vault:
+      '--vault                          Allow headless exec to use vault items covered by unattended grants',
     out: '--out <file>         Write the report to a file instead of stdout',
     description: '--description <text>  What was happening, in your own words',
     'no-facts': '--no-facts           Leave the support facts out',
@@ -177,6 +179,12 @@ export const EN = {
   },
   referenceScanSecrets:
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
+  referenceVault:
+    'Work with the per-user credential vault from a terminal: status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.',
+  referenceVaultHelp: 'Show the per-user credential vault command usage.',
+  referenceVaultPanel:
+    'Open the per-user credential vault. Values never print; the broker holds them.',
+  referenceVaultLock: 'Lock the per-user credential vault now, ending every use in every window.',
   referenceAuthClear: 'Remove the stored Model API key.',
   referenceAuthStatus: 'Check whether a Model API key is stored.',
   referenceAccountsTitle: 'Several accounts per provider',
@@ -2137,6 +2145,10 @@ export const EN = {
   // A session whose Muse Code event log failed (a CLI fault) takes no new message.
   sessionLogDamaged:
     'This conversation’s Muse Code log is damaged (a fault in Muse Code), so it cannot take new messages. Start a new conversation; this one stays in History.',
+  // The vault scrubber is locked (or its build refused): the turn reason and
+  // the export notice name the outage instead of failing silently (RVM109T 7).
+  vaultScrubUnavailable: 'Vault scrub service is unavailable',
+  vaultSessionLogUnavailable: 'Vault-safe session log export is unavailable',
   turnUnqueued: 'Not sent: the queued message was withdrawn',
   turnRetracted:
     'Another Muse Code client withdrew a message from this conversation; reopen it from History to see it as stored.',
@@ -5174,7 +5186,187 @@ export const EN = {
     commandUsage:
       'Usage: developer [status|enable|disable|reset|add <provider> <account>|remove <profile>]',
   },
+  // M109: read each key through UI_TEXT.vault at use time.
+  vault: {
+    title: 'Vault',
+    locked: 'Locked',
+    unlocked: 'Unlocked',
+    empty: 'No vault items yet.',
+    add: 'Add to vault',
+    edit: 'Edit item',
+    remove: 'Remove item',
+    grant: 'Create grant',
+    revoke: 'Revoke grant',
+    audit: 'Audit',
+    lock: 'Lock vault now',
+    unlock: 'Unlock vault',
+    allowSession: 'Allow for this session',
+    manage: 'Manage in vault',
+    requirePresence: 'Require presence for each use',
+    unattended: 'Unattended allowed',
+    hidden: 'Hidden from agents',
+    firstParty: 'First-party only',
+    askEveryTime: 'Ask every time',
+    askOncePerSession: 'Ask once per session',
+    alwaysAllow: 'Always allow',
+    never: 'Never',
+    name: 'Name',
+    label: 'Label',
+    kind: 'Kind',
+    value: 'Value',
+    username: 'Username',
+    password: 'Password',
+    seed: 'One-time code seed',
+    roles: 'Roles',
+    workspaces: 'Workspaces',
+    target: 'Target',
+    command: 'Command',
+    cwd: 'Working folder',
+    environmentNames: 'Environment variable names',
+    useCount: 'Use count',
+    expires: 'Expires',
+    timeWindow: 'Time window',
+    days: 'Days',
+    hours: 'Hours',
+    remoteUser: 'Remote user',
+    hostKey: 'Host key',
+    origin: 'Origin',
+    resource: 'Resource',
+    requester: 'Requester',
+    outcome: 'Outcome',
+    tier: 'Protection tier',
+    publicKey: 'Public key',
+    fingerprint: 'Fingerprint',
+    signInYourself: 'Sign in yourself',
+    moveToVault: 'Move to vault',
+    undoMigration: 'Undo migration',
+    importFile: 'Import file',
+    keepFile: 'Keep file',
+    deleteFile: 'Delete the file',
+    rotate: 'Rotate credential',
+    recoveryCode: 'Recovery code',
+    apiKey: 'API key',
+    oauth: 'OAuth tokens',
+    sshKey: 'SSH key',
+    webLogin: 'Web login',
+    totp: 'One-time code',
+    session: 'Session cookies',
+    secret: 'Named secret',
+    devicePair: 'Device pairing',
+    internal: 'Internal record',
+    labelWarning: 'Agents see names and labels. Keep secrets out of them.',
+    processWarning:
+      'This program and its children will see the credential and can send it elsewhere.',
+    disclosureWarning:
+      'Only you will see this value, after confirming your presence. A released value cannot be recalled; rotate it afterwards.',
+    taintWarning:
+      'This request follows untrusted content: {content}. Approval is required despite existing grants.',
+    presenceWarning: 'Your operating system will ask you to confirm this exact use.',
+    noDestination: 'Destination not proven. An any-host grant is required.',
+    rollback: 'This vault is older than its recorded generation. Restore a current backup.',
+    basicText:
+      'The basic_text backend provides no secure encryption and cannot protect a vault slot.',
+    brokerBlocked:
+      'The broker cannot start. First-party keys still work; agent uses are refused. Repair the broker installation.',
+    noUnattended:
+      '{item} needs an unattended grant for {use}. Add one in the vault or run interactively.',
+    nopasswd:
+      'NOPASSWD sudo is available. Any approved command may become root; the vault adds no protection here.',
+    fenceOff:
+      'Turning off the fence exposes your environment and credential routes to the main conversation. Workers stay fenced.',
+    ambientWarning:
+      'An approved command can read files you can read. Importing credentials does not hide other files.',
+    deleteWarning:
+      'Deleting this file may stop other programs from authenticating. Review their vault route first.',
+    passkeys:
+      'Passkeys stay with your authenticator. Sign in yourself; the vault stores session cookies only.',
+    recoveryWarning:
+      'Keep the recovery code somewhere safe. It is shown only once and unlocks the vault.',
+    remoteWarning:
+      'Only a signature or a one-time code may be requested from another device. Its user must approve each use there.',
+    approvalExpired: 'This approval expired. Request the use again.',
+    useChanged: 'The use changed after approval. Request approval for the new use.',
+    osStoreWarning:
+      'Protected by your operating system’s credential store. Programs running as you may unlock it too.',
+    unknownTierWarning:
+      'The protection tier is unknown because the vault is locked. Unlock to see how it is protected.',
+    hardwareWarning:
+      'Protected by this device’s hardware. It unlocks silently, so programs running as you can unlock it too.',
+    presenceTierWarning:
+      'Every use needs your touch, PIN or passphrase. Unattended use is refused.',
+    sshUse: 'SSH authentication',
+    sshSignUse: 'Sign with an SSH key',
+    sudoUse: 'Run sudo',
+    askpassUse: 'Script askpass',
+    gitUse: 'HTTPS for Git',
+    environmentUse: 'Inject environment variables',
+    stdinUse: 'Write to standard input',
+    mcpUse: 'Start an MCP server',
+    headerUse: 'Send an HTTP header',
+    fillUse: 'Fill a login field',
+    disclosureUse: 'Show to you',
+    forwarding: 'Allow forwarding',
+    anyHost: 'Any host',
+    noAccess: 'No access',
+    ask: 'Ask for access',
+    status: 'Vault status',
+    watch: 'Watch pending requests',
+    grantCeiling: 'Worker access ceiling',
+    hardware: 'Hardware protection',
+    presence: 'User presence',
+    osStore: 'OS credential store',
+    secretStorage: 'Editor secret storage',
+    passphrase: 'Passphrase protection',
+    recovery: 'Recovery protection',
+    autoProtection: 'Automatic protection',
+    approval: '{requester} requests {use} with {item} for {target}.',
+    paidWarning: 'Vault grants do not approve paid requests.',
+    windowsElevation: 'Windows elevation uses UAC and cannot be brokered.',
+    seUnavailable: 'Secure Enclave protection is unavailable. Use a passphrase for presence.',
+    passphraseWarning:
+      'A passphrase is required to unlock. It protects a copied disk and prevents silent unlock by programs running as you.',
+    operationFailed: 'The vault operation failed. Unlock the vault and try again.',
+    invalidFields: 'Check the grant fields and its target.',
+    grantHelp:
+      'Every scope below limits this grant. Empty count, expiry or time window means no limit.',
+    metadataOnly: 'Edit settings only',
+    replaceValue: 'Replace credential',
+    presenceAdvice: 'Presence is recommended for sudo, SSH keys and web logins.',
+    passwordEntry:
+      'Enter credentials in the editor’s password box. Existing values are never shown.',
+    auditInvalid: 'The audit could not be verified. Restore a current backup.',
+    slotUnavailable: 'No usable protection slot is available.',
+    any: 'Any',
+    unlimited: 'Unlimited',
+    localTime: 'Local time',
+    created: 'Created',
+    lastUsed: 'Last used',
+    policy: 'Agent policy',
+    item: 'Item',
+    sessionScope: 'Session',
+    taskScope: 'Task',
+    ceiling: 'Access ceiling',
+    enabledDescription: 'Enable the per-user credential vault shared by editors.',
+    protectionDescription:
+      'Choose vault key protection. Automatic uses available hardware plus the operating system store.',
+    fenceDescription:
+      'Fence agent processes from ambient credential routes. Workers remain fenced when this is off.',
+    idleDescription: 'Lock the vault after this many idle minutes.',
+    screenDescription: 'Lock the vault when the operating system reports a screen lock.',
+    legacyNotice: forms({
+      one: 'Old entries remain mirrored for {count} minor release. Undo migration is available until removal.',
+      other:
+        'Old entries remain mirrored for {count} minor releases. Undo migration is available until removal.',
+    }),
+    itemsCount: forms({ one: '{count} item', other: '{count} items' }),
+    grantsCount: forms({ one: '{count} grant', other: '{count} grants' }),
+  },
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */
 export type UiText = typeof EN
+
+/** Browser lazy-region installer; Node consumers already have the canonical vault group. */
+export function setVaultEnglish(english: UiText['vault']): void {
+  EN.vault = english
+}

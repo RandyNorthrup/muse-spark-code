@@ -114,7 +114,12 @@ describe('M80 command and process boundaries', () => {
         ]),
       ),
     }
-    expect(withoutKeyringRoutes(withoutCredentials(source))).toEqual({ PATH: '/safe/bin' })
+    const fenced = withoutKeyringRoutes(withoutCredentials(source))
+    expect(fenced['PATH']).toBe('/safe/bin')
+    expect(fenced['GIT_CONFIG_VALUE_0']).toBe('')
+    expect(fenced['GIT_TERMINAL_PROMPT']).toBe('0')
+    expect(Object.values(fenced)).not.toContain('fake')
+    expect(Object.values(fenced)).not.toContain('route')
     expect(Object.keys(source).length).toBeGreaterThan(20)
   })
 })

@@ -1,0 +1,45 @@
+[
+  {
+    "id": "T01",
+    "guard": "RFC counter increment",
+    "exitCode": 1,
+    "tests": [
+      "FAIL  test/unit/vault/totp.test.ts > vault RFC 6238 codes > matches every RFC 6238 Appendix B vector for sha1, including >32-bit time",
+      "FAIL  test/unit/vault/totp.test.ts > vault RFC 6238 codes > matches every RFC 6238 Appendix B vector for sha256, including >32-bit time",
+      "FAIL  test/unit/vault/totp.test.ts > vault RFC 6238 codes > matches every RFC 6238 Appendix B vector for sha512, including >32-bit time",
+      "FAIL  test/unit/vault/totp.test.ts > vault RFC 6238 codes > preserves leading zeroes, changes on the boundary and never returns the seed"
+    ],
+    "sha256": "4d66fce952bab3ce89f8b12c3e68551e075d7ddecbaaac85a2bf27fdd6dbfc65",
+    "restoredByteExact": true
+  },
+  {
+    "id": "T02",
+    "guard": "time validation",
+    "exitCode": 1,
+    "tests": [
+      "FAIL  test/unit/vault/totp.test.ts > vault RFC 6238 codes > rejects empty seeds, invalid times, periods, digits and algorithms"
+    ],
+    "sha256": "4d66fce952bab3ce89f8b12c3e68551e075d7ddecbaaac85a2bf27fdd6dbfc65",
+    "restoredByteExact": true
+  },
+  {
+    "id": "T03",
+    "guard": "base32 trailing bits",
+    "exitCode": 1,
+    "tests": [
+      "FAIL  test/unit/vault/totp.test.ts > vault RFC 6238 codes > decodes canonical base32, lowercase and padding while rejecting ambiguous encodings"
+    ],
+    "sha256": "4d66fce952bab3ce89f8b12c3e68551e075d7ddecbaaac85a2bf27fdd6dbfc65",
+    "restoredByteExact": true
+  },
+  {
+    "id": "T04",
+    "guard": "base32 padding",
+    "exitCode": 1,
+    "tests": [
+      "FAIL  test/unit/vault/totp.test.ts > vault RFC 6238 codes > decodes canonical base32, lowercase and padding while rejecting ambiguous encodings"
+    ],
+    "sha256": "4d66fce952bab3ce89f8b12c3e68551e075d7ddecbaaac85a2bf27fdd6dbfc65",
+    "restoredByteExact": true
+  }
+]

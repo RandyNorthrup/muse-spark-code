@@ -330,6 +330,134 @@ happened, not what was planned; superseded entries are kept.
   gives the rule that prevents it and the milestone that will enforce that
   rule in the app's own orchestrator (D100).
 
+### Added
+
+- M109 lane W's wiring: the `Vault` and `Lock vault now` commands
+  (`museSpark.vault`, `museSpark.lockVault`, Ctrl+Alt+Shift+L), the five
+  machine-scoped vault settings, and the lazy `dist/vault.js` bundle (50 KiB
+  budget) carrying the panel host and the native editor on the first vault
+  command. Until the broker-backed service lands, both commands report the
+  missing broker installation and refuse access instead of opening an empty
+  vault. The Secure Enclave hardware and presence slots are offered where
+  `SecureEnclave.isAvailable` after the owner's Touch ID capture; the
+  Keychain-biometry path stays off until an Apple Developer entitlement
+  exists. Bundle budgets follow the measured rule: `dist/reference.js`
+  100 to 125 KiB with the vault rows, `dist/acp.js` 850 to 1000 KiB with
+  lane H's vault handlers, new `dist/vault.js` at 50 KiB.
+
+- M109's Windows vault platform adapter and native helper: current-user DPAPI,
+  non-exportable PCP RSA wrapping with OAEP-SHA-256, forced-protection keys
+  with a fresh Windows Hello signature gate, capability facts and a
+  cancellable screen-lock notification. These are prepared for broker wiring;
+  they do not change existing credential storage or enable vault commands.
+
+- M109 lane T's provenance engine distinguishes per-request Model API taint
+  from Muse Code's session taint, retains the outside-content reasons and
+  carries them through derived summaries, replay, restore and compaction.
+  Hosted search and configured MCP outputs use host-owned routing facts;
+  old history without provenance is conservatively untrusted. Broker
+  integration remains pending.
+
+- M109 lane T's broker-backed scrub service and injected boundaries remove
+  known vault values and encodings before Model API sends, portable/Markdown
+  exports, report sealing and journal writes. Streams retain split values;
+  Lock and service failures refuse delivery. JSON exports and report exports
+  recheck after previews. Broker, feeder and host bindings remain pending;
+  these hooks do not enable the vault feature.
+- M109's private credential migration service and SecretStorage/OS-store
+  adapters: verified copies, downgrade mirrors, undo, interrupted-work recovery
+  and guarded retirement. Private file import discovers known names without
+  reading contents, verifies user-selected copies and binds Keep/Delete to
+  source identity; plaintext git/netrc/npm/AWS/Docker drafts and mapped CSV
+  logins are supported. Wiring into the vault remains an integration task.
+- M109 H's terminal vault handlers, bound watch answers, ACP `/vault` and
+  session-only permissions, local headless `--vault` denial policy, and shared
+  value-free panel routing. These consume injected broker/panel ports; the
+  installed runtime factory and native/companion bindings remain integration
+  handoffs. Missing bindings fail explicitly; CI remains vault-free.
+- M109's fleet and device core: validated role ceilings, task-bound delegation,
+  private worker ticket handoffs, automatic unattended marking, and restricted
+  remote signature/code approval and delivery. Runtime/UI adapters remain
+  named integration handoffs; no shipped command or credential storage changes.
+
+- M109's credential-vault contracts, canonical use digest, translated panel
+  labels and warnings, test-only broker and route harnesses, and threat and
+  capture plan. This prepares the runtime lanes; it does not enable a vault
+  command or change credential storage yet.
+
+### Fixed
+
+- Vault refusals preserve their reason; TOTP approvals state that the command
+  sees the code. ACP withdraws stale permission dialogs, settles their cards
+  and excludes hidden credential audit rows from agent replies.
+- Fleet teardown retires descendant authority, retries failed route closure
+  and releases closed socket reservations. Ticket receipts expose no bearer.
+- Interrupted credential rotations recover the prior usable item. Imports
+  verify staged copies before the atomic batch/receipt commit; durable private
+  receipts survive reload. Retirement notices retry after callback failure,
+  repeated deletes are idempotent and legacy AWS session tokens are imported.
+- Fence-off applies only to interactive shells. Workers and hooks keep Git
+  helpers and common password variables fenced; approved environment names
+  cannot restore loader or startup variables.
+- MCP OAuth preserves refresh tokens cancelled before dispatch, refuses queued
+  reuse after uncertain dispatch and closes the callback before committing
+  sign-in. Credentialed HTTP checks workspace admission and live trust.
+- Cancelled browser fill/restore closes the route even when already aborted;
+  web certificate observations must be the boolean `true`.
+- Vault English loads with its lazy surface and validates the installed
+  language before rendering. Chat avoids retaining the full settings object,
+  bringing startup below its unchanged regression cap.
+
+- M109's Windows vault helper now rejects null DACLs, maps generic file rights
+  and respects deny/allow ACE order through native handle-based ACL checks.
+  File and ancestor handles prevent path replacement across process creation;
+  cancelling the launcher also terminates its supervised native child.
+
+- M109's Windows vault seam authenticates cached helper contents and ACLs on
+  every launch, holds the verified file against replacement during execution,
+  and rebuilds refused caches into fresh private storage without deleting
+  suspect files. Native DLL search is restricted to System32, and DPAPI wrap
+  validates title and use before acting.
+- Private vault terminal input now restores echo and erases owned bytes even
+  when a stream cleanup callback throws; late input cannot refill a finished
+  reader.
+- Vault panel review repairs: metadata changes retire older native editors so
+  a stale draft cannot restore a changed policy; approval cards publish
+  promptly instead of waiting behind native credential entry; the native mode
+  picker preserves the edited item's policy by default; an unobserved
+  protection tier renders as unknown rather than OS-store protection; session
+  consent is hidden and refused for remote requests, whose cards state their
+  real scope; late completions after disposal report no error.
+
+- Rebuilt vault authorization around synchronous state transitions and tagged
+  effects. Connections retain their registration incarnation, private reads
+  stay broker-owned through transport release, and obsolete audit or unlock
+  work cleans up only its own resources.
+- M109's preparation contracts now accept complete HTTPS OAuth issuer
+  identifiers, including tenant paths and trailing slashes, while preserving
+  exact issuer identity in grants, token material and use digests.
+- M109's broker port now returns auditable approval, ticket or denial results,
+  including tickets after UI approval. Pending test approvals own their input
+  snapshots, so caller mutation cannot change their host or resolved use.
+- ACP help and argument errors now use one complete localized usage table,
+  including the Setup hooks command, so the installed package passes the
+  release job's strict English fallback check.
+- Windows shell directory tracking now uses the native long workspace path
+  when starting or resetting a command, so 8.3 aliases keep the correct cwd
+  and workspace-relative directory tail.
+- Production bundle regression tests now build their own compressed English and
+  shared wire fixtures, so macOS CI's test job works without a prior build.
+- Windows CI hook fixtures now use the platform their captured paths describe;
+  Cline discovery exercises both POSIX and Windows path handling on every OS.
+  Deferred-bundle checks load their in-memory builds without requiring stale
+  or pre-existing files in `dist`.
+- Cline hook quoting is checked through native PowerShell on Windows and the
+  POSIX shell on Unix, without requiring a Windows Bash installation.
+- Fake-only headless tests recognize MinGit's verified GNU Bash `sh.exe`, and
+  missing-browser-chunk checks accept Windows filesystem error paths.
+- Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
+  Windows while retaining native-platform parsing and containment checks.
+
 ## [0.14.3] - 2026-10-06
 
 ### Added

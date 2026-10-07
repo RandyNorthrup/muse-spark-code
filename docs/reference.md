@@ -1413,6 +1413,14 @@ Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model
 
 Commands: `museSpark.showLogs`, `museSpark.diagnostics`, `museSpark.reportProblem`, `museSpark.openWalkthrough`, `museSpark.showWhatsNew`, `museSpark.openHelp`. Settings: `museSpark.showWhatsNewOnUpdate`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#help-and-reference)
 
+### Vault
+
+Open the per-user credential vault. Values never print; the broker holds them.
+
+Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: `museSpark.vault`, `museSpark.lockVault`. Settings: `museSpark.vault`, `museSpark.vault.protection`, `museSpark.vault.agentFence`, `museSpark.vault.lockAfterIdleMinutes`, `museSpark.vault.lockOnScreenLock`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-vault)
+
 ## Slash commands
 
 Availability depends on the backend. Installed skills also add their own slash commands.
@@ -1729,6 +1737,14 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 `museSpark.deleteUploadedFiles` — List the files uploaded for this conversation and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.
 
 Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible`.
+
+### Muse Spark: Vault
+
+`museSpark.vault` — Open the per-user credential vault. Values never print; the broker holds them.
+
+### Muse Spark: Lock vault now
+
+`museSpark.lockVault` — Lock the per-user credential vault now, ending every use in every window.
 
 ## Settings
 
@@ -3032,6 +3048,78 @@ Type: `"boolean"`. Default: `false`. Scope: `machine`.
 }
 ```
 
+### museSpark.vault
+
+Enable the per-user credential vault shared by editors.
+
+Type: `"boolean"`. Default: `true`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": true
+}
+```
+
+### museSpark.vault.protection
+
+Choose vault key protection. Automatic uses available hardware plus the operating system store.
+
+Type: `"string"`. Default: `"auto"`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "enum": ["auto", "osStore", "hardware", "passphrase"],
+  "default": "auto"
+}
+```
+
+- `"auto"`: Automatic protection
+- `"osStore"`: OS credential store
+- `"hardware"`: Hardware protection
+- `"passphrase"`: Passphrase protection
+
+### museSpark.vault.agentFence
+
+shellOrigin=interactive&agentFence: Fence agent processes from ambient credential routes. Workers remain fenced when this is off.
+
+Type: `"boolean"`. Default: `true`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": true
+}
+```
+
+### museSpark.vault.lockAfterIdleMinutes
+
+Lock the vault after this many idle minutes.
+
+Type: `"integer"`. Default: `240`. Scope: `machine`.
+
+```json
+{
+  "type": "integer",
+  "minimum": 0,
+  "default": 240
+}
+```
+
+### museSpark.vault.lockOnScreenLock
+
+screenLock: Lock the vault when the operating system reports a screen lock.
+
+Type: `"boolean"`. Default: `true`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": true
+}
+```
+
 ## Keyboard shortcuts
 
 These are defaults; editor customizations take precedence.
@@ -3046,6 +3134,7 @@ These are defaults; editor customizations take precedence.
 - `editor.action.inlineSuggest.trigger`: `alt+\`; when `editorTextFocus && museSpark.tabOn`
 - `museSpark.nextOpenQuestion`: `ctrl+alt+j` (macOS: `cmd+alt+j`); when `activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'`
 - `museSpark.previousOpenQuestion`: `ctrl+alt+shift+j` (macOS: `cmd+alt+shift+j`); when `activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'`
+- `museSpark.lockVault`: `ctrl+alt+shift+l` (macOS: `cmd+alt+shift+l`)
 - `team.tree`: `ArrowDown / ArrowUp / Home / End / ArrowRight / ArrowLeft / F2 / Escape / Character`; when `team.tree`; Use arrow keys to move. F2 focuses actions; Left and Right choose an action; Escape returns to the item.
 - `models.table`: `ArrowDown / ArrowUp / Home / End / Enter / Escape`; when `models.table`; Navigate items, choose or complete a selection, or close the list.
 - `models.select`: `ArrowDown / ArrowUp / Enter / Escape`; when `models.select`; Navigate items, choose or complete a selection, or close the list.
@@ -3111,6 +3200,8 @@ These are defaults; editor customizations take precedence.
 - `/prompt save|list|use|share`: Review variables and insert
 - `/share chat [--mode full|conversation] [--format md|html|json]`: Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
 - `--version / -v`: Print the installed agent version.
+- `vault`: Work with the per-user credential vault from a terminal: status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.
+- `vault --help`: Show the per-user credential vault command usage.
 - `providersAdd: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false}`
 - `providersAdd: --as <value>`: --as: Provider `{"type":"string","repeatable":false}`
 - `providersAdd: --address <value>`: --address: Address `{"type":"string","repeatable":false}`
@@ -3297,6 +3388,7 @@ These are defaults; editor customizations take precedence.
 - `exec: --fail-on-denial`: permission=denied: Stop the run when a permission request is denied. `{"type":"boolean","repeatable":false,"default":false,"purpose":"failOnDenial"}`
 - `exec: --ephemeral`: Keep the session in memory without saving it. `{"type":"boolean","repeatable":false,"default":false,"purpose":"ephemeral"}`
 - `exec: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"default":false,"purpose":"keyFromStdin"}`
+- `exec: --vault`: --vault Allow headless exec to use vault items covered by unattended grants `{"type":"boolean","repeatable":false,"default":false,"purpose":"vault"}`
 - `exec: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false,"purpose":"verbose"}`
 - `exec: --trust-workspace`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"trust-workspace"}`
 - `exec: --allow-dangerously-skip-permissions`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"allow-dangerously-skip-permissions"}`

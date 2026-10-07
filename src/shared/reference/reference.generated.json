@@ -1578,6 +1578,27 @@
       "details": [{ "ui": "referenceAcp" }],
       "facts": {},
       "editors": ["vscode"]
+    },
+    {
+      "id": "vault",
+      "name": { "command": "museSpark.vault" },
+      "summary": { "ui": "referenceVaultPanel" },
+      "description": { "ui": "referenceVaultPanel" },
+      "commands": ["museSpark.vault", "museSpark.lockVault"],
+      "settings": [
+        "museSpark.vault",
+        "museSpark.vault.protection",
+        "museSpark.vault.agentFence",
+        "museSpark.vault.lockAfterIdleMinutes",
+        "museSpark.vault.lockOnScreenLock"
+      ],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#the-vault",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
     }
   ],
   "commands": [
@@ -2220,6 +2241,26 @@
       "description": "List the files uploaded for this conversation and delete them before they expire. Deleting a file another app also uses asks first. Requires provider/account upload storage integration.",
       "text": { "ui": "referenceUploadedFiles" },
       "enablement": "activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark.chatView.visible",
+      "canRun": false
+    },
+    {
+      "id": "museSpark.vault",
+      "name": "Vault",
+      "nameKey": "command.vault.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Open the per-user credential vault. Values never print; the broker holds them.",
+      "text": { "ui": "referenceVaultPanel" },
+      "canRun": false
+    },
+    {
+      "id": "museSpark.lockVault",
+      "name": "Lock vault now",
+      "nameKey": "command.lockVault.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Lock the per-user credential vault now, ending every use in every window.",
+      "text": { "ui": "referenceVaultLock" },
       "canRun": false
     }
   ],
@@ -3519,6 +3560,90 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "boolean", "default": false }
+    },
+    {
+      "id": "museSpark.vault",
+      "name": "museSpark.vault",
+      "description": "Enable the per-user credential vault shared by editors.",
+      "descriptionKey": "config.vault.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.vault.protection",
+      "name": "museSpark.vault.protection",
+      "description": "Choose vault key protection. Automatic uses available hardware plus the operating system store.",
+      "descriptionKey": "config.vault.protection.description",
+      "type": "string",
+      "default": "auto",
+      "enum": ["auto", "osStore", "hardware", "passphrase"],
+      "enumDescriptions": [
+        "Automatic protection",
+        "OS credential store",
+        "Hardware protection",
+        "Passphrase protection"
+      ],
+      "enumDescriptionKeys": [
+        "config.vault.protection.enumDescriptions.auto",
+        "config.vault.protection.enumDescriptions.osStore",
+        "config.vault.protection.enumDescriptions.hardware",
+        "config.vault.protection.enumDescriptions.passphrase"
+      ],
+      "enumTexts": {},
+      "scope": "machine",
+      "refinements": [],
+      "schema": {
+        "type": "string",
+        "enum": ["auto", "osStore", "hardware", "passphrase"],
+        "default": "auto"
+      }
+    },
+    {
+      "text": {
+        "conditions": [
+          {
+            "when": "shellOrigin=interactive&agentFence",
+            "text": { "setting": "vault.agentFence" }
+          }
+        ]
+      },
+      "id": "museSpark.vault.agentFence",
+      "name": "museSpark.vault.agentFence",
+      "description": "Fence agent processes from ambient credential routes. Workers remain fenced when this is off.",
+      "descriptionKey": "config.vault.agentFence.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.vault.lockAfterIdleMinutes",
+      "name": "museSpark.vault.lockAfterIdleMinutes",
+      "description": "Lock the vault after this many idle minutes.",
+      "descriptionKey": "config.vault.lockAfterIdleMinutes.description",
+      "type": "integer",
+      "default": 240,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "integer", "minimum": 0, "default": 240 }
+    },
+    {
+      "text": {
+        "conditions": [{ "when": "screenLock", "text": { "setting": "vault.lockOnScreenLock" } }]
+      },
+      "id": "museSpark.vault.lockOnScreenLock",
+      "name": "museSpark.vault.lockOnScreenLock",
+      "description": "Lock the vault when the operating system reports a screen lock.",
+      "descriptionKey": "config.vault.lockOnScreenLock.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
     }
   ],
   "slash": [
@@ -3988,6 +4113,18 @@
       "name": "--version / -v",
       "description": "Print the installed agent version.",
       "text": { "ui": "referenceVersion" }
+    },
+    {
+      "route": "vault",
+      "name": "vault",
+      "description": "Work with the per-user credential vault from a terminal: status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.",
+      "text": { "ui": "referenceVault" }
+    },
+    {
+      "route": "vaultHelp",
+      "name": "vault --help",
+      "description": "Show the per-user credential vault command usage.",
+      "text": { "ui": "referenceVaultHelp" }
     },
     {
       "route": "providersAdd",
@@ -5832,6 +5969,13 @@
     },
     {
       "route": "exec",
+      "name": "exec: --vault",
+      "description": "--vault                          Allow headless exec to use vault items covered by unattended grants",
+      "text": { "cli": "vault" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false, "purpose": "vault" }
+    },
+    {
+      "route": "exec",
       "name": "exec: --verbose",
       "description": "--verbose                        Log every detail on stderr",
       "text": { "cli": "verbose" },
@@ -6007,6 +6151,7 @@
       "mac": "cmd+alt+shift+j",
       "when": "activeWebviewPanelId == 'museSpark.chatPanel' || focusedView == 'museSpark.chatView'"
     },
+    { "command": "museSpark.lockVault", "key": "ctrl+alt+shift+l", "mac": "cmd+alt+shift+l" },
     {
       "command": "team.tree",
       "key": "ArrowDown / ArrowUp / Home / End / ArrowRight / ArrowLeft / F2 / Escape / Character",

@@ -110,3 +110,21 @@ fi
 echo "embedded ${VERSION_KEY}: ${EMBEDDED}"
 lipo -info "$OUTPUT"
 ls -l "$OUTPUT"
+
+# M109 P: this helper has no provisioned data-protection-keychain entitlement.
+# The SE path stays disabled under Q-M109. dist/ keeps native outputs untracked;
+# lane W binds the artifact into VSIX/ACP packages with the lazy vault bundle.
+VAULT_OUTPUT=../../dist/native/darwin/muse-vault
+mkdir -p "$(dirname "$VAULT_OUTPUT")"
+for arch in "${ARCHES[@]}"; do
+  swiftc -parse-as-library -Osize \
+    -target "${arch}-apple-macos${MIN_MACOS}" \
+    -Xlinker -dead_strip \
+    -o "${VAULT_OUTPUT}-${arch}" VaultKey.swift
+  strip -x "${VAULT_OUTPUT}-${arch}"
+done
+lipo -create -output "$VAULT_OUTPUT" "${VAULT_OUTPUT}-arm64" "${VAULT_OUTPUT}-x86_64"
+rm -f "${VAULT_OUTPUT}-arm64" "${VAULT_OUTPUT}-x86_64"
+codesign --force --sign - --identifier com.musespark.vault "$VAULT_OUTPUT"
+codesign --verify --strict "$VAULT_OUTPUT"
+lipo -info "$VAULT_OUTPUT"

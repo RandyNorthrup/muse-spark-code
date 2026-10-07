@@ -205,5 +205,16 @@
   "config.mediaAudioAction.description": "`transcribe` 在发送前将附加的音频转成文本；`sendAudio` 在模型接受时发送音频。默认为转录。转录按付费语音费率计费，且必先征得同意。仅使用本机的设置。",
   "config.accountSwap.description": "达到阈值时在下一个请求边界切换到有余量的下一个账号。每个账号保留各自的限额。默认开启；仅使用本机的设置。",
   "config.accountParallel.description": "按余量将后台工作分散到各账号；每个工作器固定在其账号上。默认开启；仅使用本机的设置。",
-  "config.accounts.severalOnThisDevice.description": "允许同一提供商的多个账号在本机上用于测试，每个账号运行在各自独立的本地配置文件中。开启时先请求确认该提供商的条款。默认关闭；仅使用本机的设置。"
+  "config.accounts.severalOnThisDevice.description": "允许同一提供商的多个账号在本机上用于测试，每个账号运行在各自独立的本地配置文件中。开启时先请求确认该提供商的条款。默认关闭；仅使用本机的设置。",
+  "command.vault.title": "凭据库",
+  "command.lockVault.title": "立即锁定凭据库",
+  "config.vault.description": "启用由各编辑器共享的用户凭据库。",
+  "config.vault.protection.description": "选择凭据库密钥保护方式。自动模式使用可用硬件及操作系统存储。",
+  "config.vault.agentFence.description": "隔离代理进程与现有凭据获取途径。关闭此项时工作代理仍保持隔离。",
+  "config.vault.lockAfterIdleMinutes.description": "空闲达到此分钟数后锁定凭据库。",
+  "config.vault.lockOnScreenLock.description": "操作系统报告锁屏时锁定凭据库。",
+  "config.vault.protection.enumDescriptions.auto": "自动保护",
+  "config.vault.protection.enumDescriptions.osStore": "操作系统凭据存储",
+  "config.vault.protection.enumDescriptions.passphrase": "口令保护",
+  "config.vault.protection.enumDescriptions.hardware": "硬件保护"
 }

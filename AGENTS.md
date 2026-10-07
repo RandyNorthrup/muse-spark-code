@@ -211,6 +211,11 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       the first attach or recording action; M105) and screen
                       recording (dist/screenRecord.js: the recorder command,
                       loaded on the first recording; M105),
+                      the vault's window (vault/: the panel host and the
+                      native editor in dist/vault.js, loaded on the first
+                      vault command; only the command shim stays at
+                      activation, and both commands refuse closed until the
+                      broker-backed service lands),
                       commands, auth, settings, mentions,
                       editor tracking, usage trace logs, voice, the IDE tool
                       MCP server (diagnostics, code intelligence, images, web

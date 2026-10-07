@@ -71,8 +71,11 @@ export type ProviderClient = Pick<
   readonly isPlanModel?: (model: string) => boolean
   readonly readPlanUsage?: () => readonly PlanUsageRow[]
 }
+import type { SecretScrubPort } from '../../../shared/redact'
 
 export interface ModelApiClientDeps {
+  /** M109 T: broker-backed exact-value scrub, immediately before every send. */
+  readonly vaultScrub?: SecretScrubPort
   /** Interactive VS Code extras only; ACP/headless clients omit this port. */
   readonly reservePaidRequest?: (
     body: CreateResponseBody | CreateImageBody,

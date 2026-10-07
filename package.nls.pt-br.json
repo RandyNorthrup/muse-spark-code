@@ -205,5 +205,16 @@
   "config.mediaAudioAction.description": "`transcribe` converte o áudio anexado em texto antes de enviar; `sendAudio` envia o áudio onde o modelo o aceita. Transcrever por padrão. A transcrição cobra a tarifa de voz paga, sempre com consentimento prévio. Só vale a configuração desta máquina.",
   "config.accountSwap.description": "Troca para a próxima conta com capacidade quando uma atinge um limite, no limite da próxima solicitação. Cada conta mantém seus próprios limites. Ativado por padrão; somente a configuração desta máquina é usada.",
   "config.accountParallel.description": "Distribui o trabalho em segundo plano entre as contas pela capacidade disponível; cada worker permanece em sua conta. Ativado por padrão; somente a configuração desta máquina é usada.",
-  "config.accounts.severalOnThisDevice.description": "Permite várias contas de um provedor neste PC para testes, cada uma em seu próprio perfil local isolado. Ativar pede primeiro a confirmação dos termos do provedor. Desativado por padrão; somente a configuração desta máquina é usada."
+  "config.accounts.severalOnThisDevice.description": "Permite várias contas de um provedor neste PC para testes, cada uma em seu próprio perfil local isolado. Ativar pede primeiro a confirmação dos termos do provedor. Desativado por padrão; somente a configuração desta máquina é usada.",
+  "command.vault.title": "Cofre",
+  "command.lockVault.title": "Bloquear o cofre agora",
+  "config.vault.description": "Ativar o cofre de credenciais por usuário compartilhado entre editores.",
+  "config.vault.protection.description": "Escolher a proteção da chave. Automática usa o hardware disponível e o armazenamento do sistema.",
+  "config.vault.agentFence.description": "Isolar processos de agentes das rotas de credenciais existentes. Trabalhadores continuam isolados quando desativado.",
+  "config.vault.lockAfterIdleMinutes.description": "Bloquear o cofre após este número de minutos ociosos.",
+  "config.vault.lockOnScreenLock.description": "Bloquear o cofre quando o sistema informar um bloqueio de tela.",
+  "config.vault.protection.enumDescriptions.auto": "Proteção automática",
+  "config.vault.protection.enumDescriptions.osStore": "Armazenamento de credenciais do sistema",
+  "config.vault.protection.enumDescriptions.passphrase": "Proteção por frase secreta",
+  "config.vault.protection.enumDescriptions.hardware": "Proteção por hardware"
 }

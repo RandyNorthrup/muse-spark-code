@@ -27,7 +27,7 @@ export const UI_TEXT_REGIONS = [
   {
     name: 'surfaces',
     output: 'dist/uiTextSurfaces.js',
-    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew)/,
+    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew|vault$)/,
   },
 ]
 
@@ -161,11 +161,12 @@ const [names,values,readers]=await new Response(new Blob([bytes]).stream().pipeT
 const keys=names.split('|');
 ${
   readers === undefined
-    ? 'export const EN=Object.fromEntries(keys.map((key,index)=>[key,values[index]]));'
+    ? 'export const EN=Object.fromEntries(keys.map((key,index)=>[key,values[index]]));export function setVaultEnglish(english){EN.vault=english}'
     : `export const EN_SHAPE=Object.fromEntries(keys.map((key,index)=>[key,values[index]]));
 export const EN=Object.fromEntries(keys.flatMap((key,index)=>readers[index]==='1'?[[key,EN_SHAPE[key]]]:[]));
 const lazyValues={};
 export function installSurfaceEnglish(table){Object.assign(lazyValues,table)}
+export function setVaultEnglish(english){installSurfaceEnglish({vault:english})}
 keys.forEach((key,index)=>{if(readers[index]==='2')Object.defineProperty(EN,key,{enumerable:true,configurable:true,get(){if(!Object.hasOwn(lazyValues,key))throw new Error('English surface is not loaded: '+key);return lazyValues[key]}})});`
 }`
 }
@@ -289,7 +290,7 @@ export const compactBrowserUiText = {
       const { EN, L10N_BROWSER_COMPRESSION_LEVEL } = await loadL10n(process.cwd())
       const entries = Object.values(build.initialOptions.entryPoints)
       const roots = entries.filter((entry) => {
-        const normal = entry.replaceAll('\\', '/')
+        const normal = path.resolve(entry).replaceAll('\\', '/')
         return !normal.endsWith('/ReferencePage.tsx') && !normal.includes('/temp/')
       })
       const eagerSources = browserStartupSources(roots).files
@@ -316,6 +317,21 @@ export const compactBrowserUiText = {
         deferredKeys,
         contract,
         level: L10N_BROWSER_COMPRESSION_LEVEL,
+      }
+    })
+    build.onLoad({ filter: /[/\\]l10n[/\\]vaultEnglish\.ts$/ }, (args) => {
+      const property = uiTextProperties().find((property) => property.key === 'vault')
+      if (property === undefined) throw new Error('Missing canonical vault English')
+      return {
+        contents:
+          "import { forms } from './forms';\n" +
+          readFileSync(args.path, 'utf8').replace(
+            'const english = EN.vault',
+            () => `const english = ${property.source.slice('vault:'.length)}`,
+          ),
+        loader: 'ts',
+        resolveDir: path.dirname(args.path),
+        watchFiles: [TABLE, args.path],
       }
     })
     build.onResolve({ filter: /^browser-table-contract$/ }, () => ({

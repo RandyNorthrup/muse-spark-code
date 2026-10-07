@@ -1,6 +1,8 @@
 import { recordPaidUse } from '../../paid/paidFeatures'
 import type { RecordedCall, UsageRecording } from '../../usage/recording'
 import type { UsageBudgetRead } from '../../usage/usageService'
+import { VaultTaintSession, vaultProvenance } from '../../vault/taint'
+import type { VaultTaint } from '../../../shared/vault'
 import { redactDiagnosticEvent } from '../../redact'
 import type { PlanUsageRow } from '../../../shared/usage'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
@@ -559,6 +561,10 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
     readonly parts: readonly TurnPart[]
     readonly signal: AbortSignal
   }) => Promise<PreparedAudioMessage | undefined>
+  /** Trusted context adapters (issues, external agents, devices), never tool trust claims. */
+  readonly vaultContextProvenance?: (sessionId: string) => VaultTaint
+  /** B's channel consults this host-owned snapshot, not a proposal's taint field. */
+  readonly noteVaultTaint?: (sessionId: string, taint: VaultTaint) => void
   /** M98: injected same-model source; all paid dispatch admitted by lane A. */
   readonly judge?: JudgeAdvisory | undefined
   readonly client: ProviderClient
@@ -832,6 +838,7 @@ type UnkeyedBody = Omit<CreateResponseBody, 'prompt_cache_key' | 'prompt_cache_r
 
 interface ReplayItem {
   readonly producer?: ReplayProducer | undefined
+  readonly provenance?: VaultTaint | undefined
   readonly turnId: string
   readonly item: InputItem
   readonly userMessageId?: string
@@ -2124,6 +2131,7 @@ export class ModelApiSession implements AgentSession {
   private lastJudgeBody: CreateResponseBody | undefined
   private readonly listeners = new Set<SessionEventListener>()
   private readonly replay: ReplayItem[] = []
+  private readonly vaultTaint = new VaultTaintSession('modelApi')
   private readonly transcript: TranscriptItem[] = []
   private readonly turnIds: string[] = []
   /** The real last turn summarized by an accepted compaction, not inferred from replay gaps. */
@@ -3112,6 +3120,38 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  /** Only a dispatched conversation/summary request changes the broker's context. */
+  private noteVaultRequest(request: Pick<CreateResponseBody, 'input'>): void {
+    const context = this.replay
+      // Media projection and summaries replace wire parts; retain the logical
+      // provenance conservatively when identity cannot identify their source.
+      .filter(
+        (entry) =>
+          this.media !== undefined ||
+          this.isSendingCompaction ||
+          request.input.some((actual) => {
+            if (actual === entry.item) return true
+            if (
+              actual.type === 'function_call_output' &&
+              entry.item.type === 'function_call_output'
+            )
+              return actual.call_id === entry.item.call_id
+            if (actual.type === 'message' && entry.item.type === 'message') {
+              const content = entry.item.content
+              return actual.content.some((part) => content.includes(part))
+            }
+            return false
+          }),
+      )
+      .flatMap((entry) => (entry.provenance === undefined ? [] : [entry.provenance]))
+    const external = this.deps.vaultContextProvenance?.(this.sessionId)
+    const taint = this.vaultTaint.beginRequest(
+      [...context, ...(external === undefined ? [] : [external])],
+      this.deps.isWorkspaceTrusted(),
+    )
+    this.deps.noteVaultTaint?.(this.sessionId, taint)
+  }
+
   /**
    * Completed children's results into the replay, each only while the file
    * policy is still the revision its child was spawned under (M78, the RV78g
@@ -3125,6 +3165,7 @@ export class ModelApiSession implements AgentSession {
         : `${MODEL_API_MODEL_TEXT.subagentResult}\n${pending.childId}: ${MODEL_API_MODEL_TEXT.subagentResultWithheld}`
       this.replay.push({
         turnId: this.turnIds.at(-1) ?? this.sessionId,
+        provenance: this.vaultTaint.derived(vaultProvenance('agent', pending.childId)),
         item: { type: 'message', role: 'user', content: [{ type: 'input_text', text }] },
       })
     }
@@ -4064,6 +4105,7 @@ export class ModelApiSession implements AgentSession {
       ...(paidFeature !== undefined && { paidFeature }),
       ...(paidEstimatedInputTokens !== undefined && { paidEstimatedInputTokens }),
       onRequestStarted: () => {
+        this.noteVaultRequest(body)
         if (!isCompaction && directBudget === undefined) {
           const turnIds = this.replay.map((entry) => entry.turnId)
           // Request-only goal progress belongs to the retained owning turn.
@@ -4145,9 +4187,16 @@ export class ModelApiSession implements AgentSession {
     reservedUserMessageId?: string,
   ): Promise<void> {
     const itemId = reservedUserMessageId ?? this.deps.newId()
+    // The turn's externally supplied context (an adapter's issue provenance)
+    // travels in this message: stamp the replay entry so the taint survives
+    // the request that introduced it, even when that request fails before any
+    // derived reply retains it (RVM109T 4). The combiner dedupes, so this
+    // never double-counts the request taint's own read of the same source.
+    const external = this.deps.vaultContextProvenance?.(this.sessionId)
     this.replay.push({
       turnId,
       userMessageId: itemId,
+      ...(external !== undefined && { provenance: external }),
       item: { type: 'message', role: 'user', content: await this.preparedContentParts(parts) },
     })
     const text = [displayText ?? typedText(parts), ...(this.media?.transcriptMetadata(parts) ?? [])]
@@ -5046,6 +5095,12 @@ export class ModelApiSession implements AgentSession {
     chargedGoalId: string | undefined,
   ): readonly FunctionCallItem[] {
     const calls: FunctionCallItem[] = []
+    const searches = response.output.filter(isWebSearchCallItem)
+    const provenance = this.vaultTaint.derived(
+      searches.length === 0 ? undefined : vaultProvenance('search', 'web_search_call'),
+    )
+    this.vaultTaint.beginRequest([provenance], this.deps.isWorkspaceTrusted())
+    this.deps.noteVaultTaint?.(this.sessionId, this.vaultTaint.current())
     // A reasoning item must be followed by a message or a call before the
     // next user message, or the next request is a 400 (protocols/responses).
     let isReasoningLast = false
@@ -5057,6 +5112,7 @@ export class ModelApiSession implements AgentSession {
         this.replay.push({
           turnId,
           producer,
+          provenance,
           item: {
             type: 'message',
             role: 'assistant',
@@ -5075,6 +5131,7 @@ export class ModelApiSession implements AgentSession {
         this.replay.push({
           turnId,
           producer,
+          provenance,
           item: {
             type: 'web_search_call',
             ...(item.id !== undefined && { id: item.id }),
@@ -5090,12 +5147,17 @@ export class ModelApiSession implements AgentSession {
         // Only replayable with its encrypted content; a bare summary is
         // dropped. Replayed, it needs its summary, empty or not (the docs).
         if (typeof item.encrypted_content === 'string') {
-          this.replay.push({ turnId, producer, item: { ...item, summary: item.summary ?? [] } })
+          this.replay.push({
+            turnId,
+            producer,
+            provenance,
+            item: { ...item, summary: item.summary ?? [] },
+          })
           isReasoningLast = true
         }
       } else if (isFunctionCallItem(item)) {
         isReasoningLast = false
-        this.replay.push({ turnId, producer, item })
+        this.replay.push({ turnId, producer, provenance, item })
         // A cut-short reply refuses every call, including items marked
         // completed. All codecs map their output-limit stop to incomplete.
         if (response.status === 'incomplete') {
@@ -10321,6 +10383,22 @@ export class ModelApiSession implements AgentSession {
     )
   }
 
+  /** Trusted tool routing facts, independent of whatever its returned text claims. */
+  private toolProvenance(name: string): VaultTaint | undefined {
+    const external = this.externalTool(name)
+    if (
+      name === MODEL_API_TOOLS.webFetch ||
+      (external?.kind === 'ide' && external.tool.name === 'webFetch')
+    )
+      return vaultProvenance('web', name)
+    if (
+      name === MODEL_API_TOOLS.browserCheck ||
+      (external?.kind === 'ide' && external.tool.name === 'browserCheck')
+    )
+      return vaultProvenance('browser', name)
+    return external?.kind === 'mcp' ? vaultProvenance('mcp', external.ref.server) : undefined
+  }
+
   /**
    * The row and the replay entry of a finished call. Every function call the
    * model made gets its output here, whatever happened (PLAN.md D26): a call
@@ -10354,8 +10432,10 @@ export class ModelApiSession implements AgentSession {
     }
     this.emit({ type: 'itemCompleted', item: completed })
     this.rerecordTranscript(completed)
+    const source = this.toolProvenance(call.name)
     const replay: ReplayItem = {
       turnId,
+      provenance: this.vaultTaint.derived(source),
       item: {
         type: 'function_call_output',
         call_id: call.call_id,
@@ -12481,6 +12561,7 @@ export class ModelApiSession implements AgentSession {
       this.replay.length,
       {
         turnId: COMPACTION_TURN_ID,
+        provenance: this.vaultTaint.derived(),
         item: {
           type: 'message',
           role: 'user',
@@ -13896,7 +13977,12 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
-  /** Fills a fresh session from its stored form; the session is idle afterwards. */
+  /**
+   * Fills a fresh session from its stored form; the session is idle
+   * afterwards. Every entry without provenance is tagged, not just replays
+   * without any: one clean tagged entry must not launder an untagged entry
+   * that actually carries external content (RVM109T 4).
+   */
   public adopt(stored: StoredSession): void {
     if (this.media === undefined && stored.replay.some((entry) => (entry.media?.length ?? 0) > 0))
       throw new Error(fill(UI_TEXT.media.attachmentUnknownType, { type: 'media replay' }))
@@ -13914,11 +14000,12 @@ export class ModelApiSession implements AgentSession {
       (file) => !mapped.has(`${file.provider}:${file.sha256}`),
     )
     this.replay.push(
-      ...stored.replay.map((entry) =>
-        entry.producer === undefined && !stored.modelId.includes('/')
-          ? { ...entry, producer: replayProducer(stored.modelId) }
-          : entry,
-      ),
+      ...stored.replay.map((entry) => ({
+        ...entry,
+        ...(entry.producer === undefined &&
+          !stored.modelId.includes('/') && { producer: replayProducer(stored.modelId) }),
+        provenance: entry.provenance ?? vaultProvenance('agent', stored.sessionId),
+      })),
     )
     this.transcript.push(...withoutRunning(stored.transcript))
     this.turnIds.push(...stored.turnIds)

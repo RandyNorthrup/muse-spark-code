@@ -205,5 +205,16 @@
   "config.mediaAudioAction.description": "`transcribe` convierte el audio adjunto en texto antes de enviarlo; `sendAudio` envía el audio donde el modelo lo acepta. Transcribir por defecto. La transcripción factura la tarifa de voz de pago, siempre con consentimiento previo. Solo se usa el ajuste de esta máquina.",
   "config.accountSwap.description": "Cambiar a la siguiente cuenta con capacidad cuando una alcance un umbral, en el límite de la siguiente solicitud. Cada cuenta conserva sus propios límites. Activado por defecto; solo se usa el ajuste de esta máquina.",
   "config.accountParallel.description": "Distribuir el trabajo en segundo plano entre las cuentas según la capacidad disponible; cada trabajador permanece en su cuenta. Activado por defecto; solo se usa el ajuste de esta máquina.",
-  "config.accounts.severalOnThisDevice.description": "Permitir varias cuentas de un proveedor en este PC para pruebas, cada una en su propio perfil local aislado. Activarlo pide primero la confirmación de los términos del proveedor. Desactivado por defecto; solo se usa el ajuste de esta máquina."
+  "config.accounts.severalOnThisDevice.description": "Permitir varias cuentas de un proveedor en este PC para pruebas, cada una en su propio perfil local aislado. Activarlo pide primero la confirmación de los términos del proveedor. Desactivado por defecto; solo se usa el ajuste de esta máquina.",
+  "command.vault.title": "Bóveda",
+  "command.lockVault.title": "Bloquear la bóveda ahora",
+  "config.vault.description": "Activar la bóveda de credenciales por usuario compartida entre editores.",
+  "config.vault.protection.description": "Elegir la protección de la clave. Automática usa el hardware disponible y el almacén del sistema.",
+  "config.vault.agentFence.description": "Aislar los procesos de agentes de las vías de credenciales existentes. Los trabajadores siguen aislados cuando está desactivado.",
+  "config.vault.lockAfterIdleMinutes.description": "Bloquear la bóveda tras este número de minutos de inactividad.",
+  "config.vault.lockOnScreenLock.description": "Bloquear la bóveda cuando el sistema informe que se bloqueó la pantalla.",
+  "config.vault.protection.enumDescriptions.auto": "Protección automática",
+  "config.vault.protection.enumDescriptions.osStore": "Almacén de credenciales del sistema",
+  "config.vault.protection.enumDescriptions.passphrase": "Protección con frase de contraseña",
+  "config.vault.protection.enumDescriptions.hardware": "Protección por hardware"
 }

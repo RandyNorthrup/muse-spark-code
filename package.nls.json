@@ -205,5 +205,16 @@
   "config.mediaAudioAction.description": "`transcribe` turns attached audio into text before sending; `sendAudio` sends the audio where the model takes it. Transcribe by default. Transcription bills the paid voice rate, always with consent first. Only this machine’s setting is used.",
   "config.accountSwap.description": "Swap to the next account with room at the next request boundary after a threshold trip. Each account keeps its own limits. On by default; only this machine’s setting is used.",
   "config.accountParallel.description": "Spread background work across accounts by headroom; each worker sticks to its account. On by default; only this machine’s setting is used.",
-  "config.accounts.severalOnThisDevice.description": "Allow several accounts of one provider on this PC for testing, each in its own isolated local profile. Turning it on asks the provider’s vendor-terms confirmation first. Off by default; only this machine’s setting is used."
+  "config.accounts.severalOnThisDevice.description": "Allow several accounts of one provider on this PC for testing, each in its own isolated local profile. Turning it on asks the provider’s vendor-terms confirmation first. Off by default; only this machine’s setting is used.",
+  "command.vault.title": "Vault",
+  "command.lockVault.title": "Lock vault now",
+  "config.vault.description": "Enable the per-user credential vault shared by editors.",
+  "config.vault.protection.description": "Choose vault key protection. Automatic uses available hardware plus the operating system store.",
+  "config.vault.agentFence.description": "Fence agent processes from ambient credential routes. Workers remain fenced when this is off.",
+  "config.vault.lockAfterIdleMinutes.description": "Lock the vault after this many idle minutes.",
+  "config.vault.lockOnScreenLock.description": "Lock the vault when the operating system reports a screen lock.",
+  "config.vault.protection.enumDescriptions.auto": "Automatic protection",
+  "config.vault.protection.enumDescriptions.osStore": "OS credential store",
+  "config.vault.protection.enumDescriptions.passphrase": "Passphrase protection",
+  "config.vault.protection.enumDescriptions.hardware": "Hardware protection"
 }

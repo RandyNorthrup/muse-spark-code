@@ -66,6 +66,8 @@ export interface ExecOptions {
   readonly failOnDenial: boolean
   readonly ephemeral: boolean
   readonly keyFromStdin: boolean
+  /** Local unattended vault grants only; CI's stdin-key lane remains vault-free. */
+  readonly vault: boolean
   readonly museBinary: string
   readonly shellSandbox: ShellSandboxMode
   readonly isVerbose: boolean
@@ -79,6 +81,7 @@ const BOOLEAN_OPTIONS = new Set([
   'fail-on-denial',
   'ephemeral',
   'key-stdin',
+  'vault',
   'verbose',
   'trust-workspace',
   'allow-dangerously-skip-permissions',
@@ -188,6 +191,8 @@ export function parseExec(
       (values['account'] !== undefined && values['account'] !== ACCOUNT_DEFAULT_ID))
   )
     return invalid(UI_TEXT.accounts.credentialHelp)
+  if (values['vault'] === true && values['key-stdin'] === true)
+    return invalid(`${UI_TEXT.vault.noAccess}: --vault / --key-stdin`)
   const mode = enumValue(EXEC_MODES, values['permission-mode'] ?? EXEC_DEFAULT_MODE)
   if (mode === undefined) return invalid(UI_TEXT.execModeRefused)
   const backend = enumValue(ACP_BACKENDS, values['backend'] ?? ACP_DEFAULT_BACKEND)
@@ -301,6 +306,7 @@ export function parseExec(
       failOnDenial: values['fail-on-denial'] === true,
       ephemeral: values['ephemeral'] === true,
       keyFromStdin: values['key-stdin'] === true,
+      vault: values['vault'] === true,
       museBinary: stringValue('muse-binary') ?? SETTING_DEFAULTS.museBinaryPath,
       shellSandbox,
       isVerbose: values['verbose'] === true,

@@ -205,5 +205,16 @@
   "config.mediaAudioAction.description": "A `transcribe` a csatolt hangot küldés előtt szöveggé alakítja; a `sendAudio` a hangot oda küldi, ahol a modell fogadja. Alapértelmezett az átírás. Az átírás a fizetős hangdíjat számolja, mindig csak előzetes beleegyezéssel. Csak ennek a gépnek a beállítása érvényes.",
   "config.accountSwap.description": "Küszöbérték elérésekor a következő, szabad kapacitású fiókra vált a következő kérés határán. Minden fiók megtartja saját limitjeit. Alapértelmezés szerint bekapcsolva; csak ennek a gépnek a beállítása érvényes.",
   "config.accountParallel.description": "A háttérmunkát szabad kapacitás szerint osztja el a fiókok között; minden worker a saját fiókján marad. Alapértelmezés szerint bekapcsolva; csak ennek a gépnek a beállítása érvényes.",
-  "config.accounts.severalOnThisDevice.description": "Teszteléshez több fiók engedélyezése egy szolgáltatótól ezen a PC-n, mindegyik saját elkülönített helyi profilban. A bekapcsolás először a szolgáltató feltételeinek megerősítését kéri. Alapértelmezés szerint kikapcsolva; csak ennek a gépnek a beállítása érvényes."
+  "config.accounts.severalOnThisDevice.description": "Teszteléshez több fiók engedélyezése egy szolgáltatótól ezen a PC-n, mindegyik saját elkülönített helyi profilban. A bekapcsolás először a szolgáltató feltételeinek megerősítését kéri. Alapértelmezés szerint kikapcsolva; csak ennek a gépnek a beállítása érvényes.",
+  "command.vault.title": "Tároló",
+  "command.lockVault.title": "Tároló zárolása most",
+  "config.vault.description": "A szerkesztők közös, felhasználónkénti hitelesítőadat-tárolójának engedélyezése.",
+  "config.vault.protection.description": "A tárolókulcs védelmének kiválasztása. Az automatikus mód az elérhető hardvert és az operációs rendszer tárolóját használja.",
+  "config.vault.agentFence.description": "Az ügynökfolyamatok elzárása a meglévő hitelesítési útvonalaktól. A dolgozók kikapcsoláskor is elzárva maradnak.",
+  "config.vault.lockAfterIdleMinutes.description": "A tároló zárolása ennyi tétlen perc után.",
+  "config.vault.lockOnScreenLock.description": "A tároló zárolása, amikor az operációs rendszer képernyőzárat jelez.",
+  "config.vault.protection.enumDescriptions.auto": "Automatikus védelem",
+  "config.vault.protection.enumDescriptions.osStore": "Az operációs rendszer hitelesítőadat-tárolója",
+  "config.vault.protection.enumDescriptions.passphrase": "Jelmondatos védelem",
+  "config.vault.protection.enumDescriptions.hardware": "Hardveres védelem"
 }

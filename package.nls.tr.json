@@ -205,5 +205,16 @@
   "config.mediaAudioAction.description": "`transcribe` ekli sesi göndermeden önce metne dönüştürür; `sendAudio` sesi modelin kabul ettiği yere gönderir. Varsayılan, metne dönüştürmedir. Dönüştürme, ücretli ses tarifesini faturalandırır ve her zaman önce onay alınır. Yalnızca bu bilgisayarın ayarı kullanılır.",
   "config.accountSwap.description": "Bir eşik aşıldığında sonraki istek sınırında boş kapasiteli sonraki hesaba geçer. Her hesap kendi limitlerini korur. Varsayılan olarak açıktır; yalnızca bu bilgisayarın ayarı kullanılır.",
   "config.accountParallel.description": "Arka plan işlerini boş kapasiteye göre hesaplara dağıtır; her çalışan kendi hesabında kalır. Varsayılan olarak açıktır; yalnızca bu bilgisayarın ayarı kullanılır.",
-  "config.accounts.severalOnThisDevice.description": "Test için bir sağlayıcının birden çok hesabına bu bilgisayarda izin verir, her biri kendi yalıtılmış yerel profilinde çalışır. Açmak önce sağlayıcının koşullarının onayını ister. Varsayılan olarak kapalıdır; yalnızca bu bilgisayarın ayarı kullanılır."
+  "config.accounts.severalOnThisDevice.description": "Test için bir sağlayıcının birden çok hesabına bu bilgisayarda izin verir, her biri kendi yalıtılmış yerel profilinde çalışır. Açmak önce sağlayıcının koşullarının onayını ister. Varsayılan olarak kapalıdır; yalnızca bu bilgisayarın ayarı kullanılır.",
+  "command.vault.title": "Kasa",
+  "command.lockVault.title": "Kasayı şimdi kilitle",
+  "config.vault.description": "Düzenleyicilerin paylaştığı kullanıcıya ait kimlik bilgisi kasasını etkinleştirin.",
+  "config.vault.protection.description": "Kasa anahtarının korumasını seçin. Otomatik, kullanılabilir donanımı ve işletim sistemi deposunu kullanır.",
+  "config.vault.agentFence.description": "Ajan süreçlerini mevcut kimlik bilgisi yollarından yalıtın. Kapalıyken de çalışanlar yalıtılır.",
+  "config.vault.lockAfterIdleMinutes.description": "Bu kadar boşta geçen dakikadan sonra kasayı kilitleyin.",
+  "config.vault.lockOnScreenLock.description": "İşletim sistemi ekran kilidi bildirdiğinde kasayı kilitleyin.",
+  "config.vault.protection.enumDescriptions.auto": "Otomatik koruma",
+  "config.vault.protection.enumDescriptions.osStore": "İşletim sistemi kimlik bilgisi deposu",
+  "config.vault.protection.enumDescriptions.passphrase": "Parola koruması",
+  "config.vault.protection.enumDescriptions.hardware": "Donanım koruması"
 }

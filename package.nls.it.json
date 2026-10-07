@@ -205,5 +205,16 @@
   "config.mediaAudioAction.description": "`transcribe` converte l’audio allegato in testo prima dell’invio; `sendAudio` invia l’audio dove il modello lo accetta. Trascrizione per impostazione. La trascrizione addebita la tariffa vocale a pagamento, sempre previo consenso. Vale solo l’impostazione di questa macchina.",
   "config.accountSwap.description": "Passa all’account successivo con capacità quando uno raggiunge una soglia, al limite della richiesta successiva. Ogni account mantiene i propri limiti. Attivo per impostazione predefinita; viene usata solo l’impostazione di questa macchina.",
   "config.accountParallel.description": "Distribuisce il lavoro in background tra gli account in base alla capacità; ogni worker resta sul proprio account. Attivo per impostazione predefinita; viene usata solo l’impostazione di questa macchina.",
-  "config.accounts.severalOnThisDevice.description": "Consenti più account di un provider su questo PC per i test, ciascuno nel proprio profilo locale isolato. L’attivazione chiede prima la conferma dei termini del provider. Disattivo per impostazione predefinita; viene usata solo l’impostazione di questa macchina."
+  "config.accounts.severalOnThisDevice.description": "Consenti più account di un provider su questo PC per i test, ciascuno nel proprio profilo locale isolato. L’attivazione chiede prima la conferma dei termini del provider. Disattivo per impostazione predefinita; viene usata solo l’impostazione di questa macchina.",
+  "command.vault.title": "Cassaforte",
+  "command.lockVault.title": "Blocca la cassaforte ora",
+  "config.vault.description": "Abilitare la cassaforte di credenziali per utente condivisa dagli editor.",
+  "config.vault.protection.description": "Scegliere la protezione della chiave. Automatica usa l’hardware disponibile e l’archivio del sistema.",
+  "config.vault.agentFence.description": "Isolare i processi degli agenti dai percorsi di credenziali esistenti. I lavoratori restano isolati se disattivato.",
+  "config.vault.lockAfterIdleMinutes.description": "Bloccare la cassaforte dopo questo numero di minuti di inattività.",
+  "config.vault.lockOnScreenLock.description": "Bloccare la cassaforte quando il sistema segnala il blocco dello schermo.",
+  "config.vault.protection.enumDescriptions.auto": "Protezione automatica",
+  "config.vault.protection.enumDescriptions.osStore": "Archivio credenziali del sistema",
+  "config.vault.protection.enumDescriptions.passphrase": "Protezione con frase segreta",
+  "config.vault.protection.enumDescriptions.hardware": "Protezione hardware"
 }

@@ -189,6 +189,12 @@ const USAGE_COMPANION_ENTRY = 'src/runtime/usage/usageCompanionEntry.ts'
 const USAGE_PANEL_ENTRY = 'src/host/usage/usagePanelEntry.ts'
 const EXTENSION_HOOKS_ENTRY = 'src/host/extensionHooksEntry.ts'
 const EXTENSION_HOOKS_OUTFILE = 'dist/extensionHooks.js'
+// M109 lane W: the vault's window (the panel host and the native editor),
+// loaded on the first vault command. `vscode` stays external, provided by
+// the host, as for the import. The broker client joins it once the
+// broker-backed service lands (docs/certification/m109.md).
+const VAULT_ENTRY = 'src/host/vault/vaultPanelEntry.ts'
+const VAULT_OUTFILE = 'dist/vault.js'
 const WHATS_NEW_ENTRY = 'src/host/whatsNew/whatsNewEntry.ts'
 const WHATS_NEW_OUTFILE = 'dist/whatsNew.js'
 const JUDGE_ENTRY = 'src/host/judge/judgeEntry.ts'
@@ -548,6 +554,18 @@ const agentImportOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const vaultOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedModelApiBoundaries],
+  entryPoints: [VAULT_ENTRY],
+  outfile: VAULT_OUTFILE,
+  platform: 'node',
+  external: ['vscode'],
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
 const tabOptions = {
   ...agentImportOptions,
   entryPoints: [TAB_ENTRY],
@@ -729,6 +747,13 @@ const validationOptions = {
   plugins: [],
   entryPoints: [VALIDATION_ENTRY],
   outfile: VALIDATION_OUTFILE,
+}
+
+const vaultBoundariesOptions = {
+  ...modelApiOptions,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: ['src/shared/vaultBoundariesEntry.ts'],
+  outfile: 'dist/vaultBoundaries.js',
 }
 
 const wireOptions = {
@@ -938,6 +963,7 @@ if (isWatch) {
     esbuild.context(usageCompanionOptions),
     esbuild.context(usagePanelOptions),
     esbuild.context(extensionHooksOptions),
+    esbuild.context(vaultOptions),
     esbuild.context(reportOptions),
     esbuild.context(recorderOptions),
     esbuild.context(whatsNewOptions),
@@ -946,6 +972,7 @@ if (isWatch) {
     ...uiTextRegionOptions.map((options) => esbuild.context(options)),
     esbuild.context(validationOptions),
     esbuild.context(wireOptions),
+    esbuild.context(vaultBoundariesOptions),
     esbuild.context(modelApiBoundariesOptions),
     esbuild.context(acpQuestionsOptions),
     esbuild.context({
@@ -1031,6 +1058,7 @@ if (isWatch) {
     usageCompanion: esbuild.build(usageCompanionOptions),
     usagePanel: esbuild.build(usagePanelOptions),
     extensionHooks: esbuild.build(extensionHooksOptions),
+    vault: esbuild.build(vaultOptions),
     report: esbuild.build(reportOptions),
     recorder: esbuild.build(recorderOptions),
     whatsNew: esbuild.build(whatsNewOptions),
@@ -1044,6 +1072,7 @@ if (isWatch) {
     ),
     validation: esbuild.build(validationOptions),
     wire: esbuild.build(wireOptions),
+    vaultBoundaries: esbuild.build(vaultBoundariesOptions),
     modelApiBoundaries: esbuild.build(modelApiBoundariesOptions),
     browserCheck: esbuild.build(browserCheckOptions),
     browserRuntime: esbuild.build(browserRuntimeOptions),
@@ -1136,6 +1165,7 @@ if (isWatch) {
   reportSize('dist/usageCompanion.js')
   reportSize('dist/usagePanel.js')
   reportSize(EXTENSION_HOOKS_OUTFILE)
+  reportSize(VAULT_OUTFILE)
   reportSize(REPORT_OUTFILE)
   reportSize(RECORDER_OUTFILE)
   reportSize(WHATS_NEW_OUTFILE)

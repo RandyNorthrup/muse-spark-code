@@ -716,3 +716,22 @@ journal and checked page totals as the interactive page. It makes no model
 request. Headless executions record settled calls through the shared writer;
 usage files contain no prompts, paths, keys or key digests. This does not change
 M80's pending hosted/live certification or paid admission policy.
+
+## Local headless vault integration (M109 H)
+
+`exec --vault` opts a local run into pre-existing unattended grants. It never
+prompts. H requires authenticated headless registration, a workspace and
+conversation, then accepts only an unexpired grant ticket for the exact use
+digest and requester. Taint, an approval request, an ordinary mode ticket,
+presence denial, or missing/malformed runtime binding fail closed.
+
+Any vault refusal stops the run with status `denied` and exit 7 even without
+`--fail-on-denial`. The result uses the existing version-1 event/result schemas;
+the flag is an admission change, not a new wire shape. Setup, cancellation and
+final cleanup close the vault session, including setup that arrives late.
+
+CI stays vault-free. `--vault` with `--key-stdin` is a usage error; a CI process
+with `--vault` fails closed before backend startup. The composite Action and
+stdin-key exception are unchanged. Runs without the flag never open a vault
+binding. The installed B/C/P/X factory remains an integration handoff on this
+branch; only fake-only runtime flows are certified here.

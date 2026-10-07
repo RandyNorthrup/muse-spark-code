@@ -68,6 +68,10 @@ const SETTING_CONDITIONS: Readonly<Partial<Record<keyof typeof SETTING_DEFAULTS,
   'shell.passEnvironmentVariables': 'backend=modelApi&shellOrigin=interactive',
   modelApiVoice: 'voiceAdmission',
   bundledSkills: 'backend&skillInstallation',
+  // M109: the fence description names the off state (workers stay fenced),
+  // and the screen-lock description the reported-lock state.
+  'vault.agentFence': 'shellOrigin=interactive&agentFence',
+  'vault.lockOnScreenLock': 'screenLock',
 }
 
 /** The generator uses these explicit selectors on every description surface. */
@@ -186,6 +190,8 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   deleteUploadedFiles: { description: { ui: 'referenceUploadedFiles' }, canRun: false },
   nextOpenQuestion: { description: { ui: 'questionNextOpen' }, canRun: false },
   previousOpenQuestion: { description: { ui: 'questionPreviousOpen' }, canRun: false },
+  vault: { description: { ui: 'referenceVaultPanel' }, canRun: false },
+  lockVault: { description: { ui: 'referenceVaultLock' }, canRun: false },
 }
 
 function feature(
@@ -813,6 +819,23 @@ export function featureCatalog(): readonly Feature[] {
       ['showLogs', 'diagnostics', 'reportProblem', 'openWalkthrough', 'showWhatsNew', 'openHelp'],
       ['showWhatsNewOnUpdate'],
       'help-and-reference',
+    ),
+    feature(
+      'vault',
+      { command: COMMAND_IDS.vault },
+      { ui: 'referenceVaultPanel' },
+      ['vault', 'lockVault'],
+      [
+        'vault',
+        'vault.protection',
+        'vault.agentFence',
+        'vault.lockAfterIdleMinutes',
+        'vault.lockOnScreenLock',
+      ],
+      'the-vault',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
     ),
   ].map((entry) => {
     const surfaces = REFERENCE_SURFACES[entry.id] ?? entry.surfaces

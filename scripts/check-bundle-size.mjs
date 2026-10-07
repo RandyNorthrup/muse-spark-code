@@ -158,6 +158,12 @@ const BUDGETS = [
   { path: 'dist/museCodeReviewer.js', budgetKiB: 75 },
   // M91 E: both-backend hooks, 45.4 KiB + 15%, rounded up to 25 KiB.
   { path: 'dist/extensionHooks.js', budgetKiB: 75 },
+  // M109 lane W: the vault's window (the panel host and the native editor),
+  // loaded on the first vault command: 32.4 KiB when split out. Measured
+  // size plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/vault.js', budgetKiB: 50 },
+  // INT0180: shared vault boundary closure; measured plus D6 headroom.
+  { path: 'dist/vaultBoundaries.js', budgetKiB: 50 },
   // The report dialog (M93): the builder, its second scrub, the export paths
   // and the handler, loaded on the first open. 63.6 KiB when split out (its
   // own zod), plus 15%, rounded up to 25 KiB (PLAN.md D6).

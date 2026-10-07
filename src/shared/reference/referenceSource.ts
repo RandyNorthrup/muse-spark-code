@@ -127,6 +127,9 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['questions', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   // M108/W: several accounts per provider on Settings, the CLI and ACP alike.
   ['accounts', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // M109: the vault panel and lock in VS Code, /vault and permission mapping
+  // in ACP, on either backend; values never reach either surface.
+  ['vault', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ...['web-fetch', 'images'].map((id): [string, readonly string[]] => [
     id,
     ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],

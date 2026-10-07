@@ -83,6 +83,7 @@ beforeAll(async () => {
   } as const
   const builds = await Promise.all([
     ...Object.entries({
+      vaultBoundaries: 'src/shared/vaultBoundariesEntry.ts',
       media: 'src/host/media/mediaEntry.ts',
       runtimeAccounts: 'src/runtime/providers/accountsEntry.ts',
       questionNotes: 'src/core/questions/deferralEntry.ts',
@@ -910,6 +911,8 @@ describe('deferred cohort bundles', () => {
   })
 
   it.each([
+    ['vaultBoundaries', 'src/shared/vault.ts', 'missing'],
+    ['modelApi', 'src/shared/vault.ts', 'on its first action'],
     ['providerPolicy', 'src/host/backend/providerPolicyEntry.ts', 'missing'],
     ['providerPolicy', 'src/core/backends/modelapi/codecs/chat.ts', 'in dist/providers.js'],
     ['modelApiHooks', 'src/core/backends/modelapi/hookHandlers.ts', 'missing'],

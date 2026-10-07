@@ -119,6 +119,52 @@ describe('readSettings', () => {
     expect(SETTING_DEFAULTS.modelApiObservationPacking).toBe(true)
   })
 
+  it('reads the vault settings, all on and machine-scoped by default (M109)', () => {
+    const log = new FakeLogOutputChannel()
+    const defaults = readSettings(fakeSettingsSource({}), log)
+    expect(defaults.vault).toBe(true)
+    expect(defaults['vault.protection']).toBe('auto')
+    expect(defaults['vault.agentFence']).toBe(true)
+    expect(defaults['vault.lockAfterIdleMinutes']).toBe(240)
+    expect(defaults['vault.lockOnScreenLock']).toBe(true)
+    expect(log.warn).not.toHaveBeenCalled()
+    const configured = readSettings(
+      fakeSettingsSource({
+        vault: false,
+        'vault.protection': 'hardware',
+        'vault.agentFence': false,
+        'vault.lockAfterIdleMinutes': 30,
+        'vault.lockOnScreenLock': false,
+      }),
+      log,
+    )
+    expect(configured.vault).toBe(false)
+    expect(configured['vault.protection']).toBe('hardware')
+    expect(configured['vault.agentFence']).toBe(false)
+    expect(configured['vault.lockAfterIdleMinutes']).toBe(30)
+    expect(configured['vault.lockOnScreenLock']).toBe(false)
+  })
+
+  it('falls back to the vault defaults for an invalid protection, idle time or flag (M109)', () => {
+    const log = new FakeLogOutputChannel()
+    const settings = readSettings(
+      fakeSettingsSource({
+        vault: 'yes',
+        'vault.protection': 'keychain-biometry',
+        'vault.agentFence': 1,
+        'vault.lockAfterIdleMinutes': -5,
+        'vault.lockOnScreenLock': 'always',
+      }),
+      log,
+    )
+    expect(settings.vault).toBe(true)
+    expect(settings['vault.protection']).toBe('auto')
+    expect(settings['vault.agentFence']).toBe(true)
+    expect(settings['vault.lockAfterIdleMinutes']).toBe(240)
+    expect(settings['vault.lockOnScreenLock']).toBe(true)
+    expect(log.warn).toHaveBeenCalledTimes(5)
+  })
+
   it('reads the retention period as a whole number of days, 0 keeping for ever (D26)', () => {
     expect(retentionOf(undefined)).toBe(30)
     expect(retentionOf(0)).toBe(0)

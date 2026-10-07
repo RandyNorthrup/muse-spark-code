@@ -46,6 +46,7 @@ import {
   type AccountsCommand,
   type AccountTarget,
 } from './providers/accountArgs'
+import { parseVaultCommand, vaultUsage, type VaultCommandOptions } from './vault/vaultCommand'
 
 export interface ServeOptions {
   readonly usageHistory?: boolean
@@ -100,6 +101,7 @@ export interface ProvidersAddOptions {
 
 export type RuntimeCommand =
   | { readonly command: 'usage'; readonly options: UsageCommand }
+  | { readonly command: 'vault'; readonly options: VaultCommandOptions }
   | { readonly command: 'setup'; readonly options: ServeOptions; readonly maintenance: boolean }
   | { readonly command: 'chatGptProvider'; readonly action: ChatGptProviderAction }
   | { readonly command: 'exec'; readonly options: ExecAttachmentOptions }
@@ -125,6 +127,7 @@ export type RuntimeCommand =
   | { readonly command: 'developer'; readonly args: readonly string[] }
   | { readonly command: 'help'; readonly all?: boolean }
   | { readonly command: 'version' }
+  | { readonly command: 'vaultHelp' }
   | { readonly command: 'invalid'; readonly reason: string; readonly exitCode?: number }
 
 /** The commands that own their process with no backend and no sign-in. */
@@ -255,6 +258,14 @@ export function parseCommandLine<T>(
   // The developer words stay raw here: the strict parser would reject them,
   // and the terminal owner validates them (X-D4, lane X's strict table).
   if (argv[0] === 'developer') return { command: 'developer', args: argv }
+  if (argv[0] === 'vault') {
+    if (argv.length === 1 || (argv.length === 2 && (argv[1] === '--help' || argv[1] === 'help')))
+      return { command: 'vaultHelp' }
+    const options = parseVaultCommand(argv.slice(1))
+    return options === undefined
+      ? { command: 'invalid', reason: vaultUsage(), exitCode: 2 }
+      : { command: 'vault', options }
+  }
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   if (argv[0] === 'report') return parseReport(argv.slice(1))
   if (argv[0] === 'legal') return parseLegalCommand(argv)

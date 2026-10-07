@@ -99,6 +99,13 @@
     "src/acp/questionDeferralEntry.ts",
     "src/runtime/questions/questionRegistryEntry.ts",
     "src/core/questions/deferralEntry.ts",
+    // The vault's window (M109 W), required by path on the first vault command.
+    "src/host/vault/vaultPanelEntry.ts",
+    // The vault harness page and its runner (M109 U): the page is the harness
+    // build's esbuild entry, which knip does not read, and the runner is run
+    // by path for the panel scenes and axe (`node test/harness/vault/run.mjs`).
+    "test/harness/vault/main.tsx",
+    "test/harness/vault/run.mjs",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     // Standalone browser checks invoked by path; usageHost is bundled by them.
     "test/harness/usage-check.mjs",

@@ -26,6 +26,7 @@ import {
 } from './helpers/media/replay'
 import type { MediaModelCapabilities } from '../../src/core/media/modalityGate'
 import { buildSessionExport } from '../../src/core/export/sessionTransfer'
+import { vaultProvenance } from '../../src/core/vault/taint'
 import { MEDIA_FILE_ID_MIN_BYTES } from '../../src/shared/constants'
 
 function isTestMissingFile(error: unknown): boolean {
@@ -356,6 +357,29 @@ describe('Model API media integration through injected ports', () => {
       await unbound.close()
     }
   })
+  it('preserves external media provenance in a compaction summary', async () => {
+    const h = await setup()
+    try {
+      await sendMediaTurn(h)
+      const snapshot = h.session.snapshot()
+      h.session.adopt({
+        ...snapshot,
+        replay: snapshot.replay.map((entry) => ({
+          ...entry,
+          provenance:
+            entry.media === undefined
+              ? { tainted: false, reasons: [] }
+              : vaultProvenance('issue', 'external-media'),
+        })),
+      })
+      expect(await h.session.compact()).toMatchObject({ status: 'accepted' })
+      const summary = h.session.snapshot().replay.find((entry) => entry.turnId === 'compaction')
+      expect(summary?.provenance?.tainted).toBe(true)
+    } finally {
+      await h.host.close()
+    }
+  })
+
   it.each([1, 2_000_000])(
     'compacts an image of %i bytes as metadata and preserves its uploaded tail on continuation',
     async (sizeBytes) => {

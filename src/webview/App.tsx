@@ -28,7 +28,7 @@ import {
   type GoalCommandVerb,
   MUSE_DELEGATION_ENABLED,
   REVIEW_SLASH_COMMAND,
-  SETTING_DEFAULTS,
+  IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT,
   type SubagentAction,
   UI_TEXT,
   SLASH_COMMAND_NAMES,
@@ -227,6 +227,8 @@ export interface AppProps {
     readonly transcript: ReactNode
   }
   readonly postMessage: (message: WebviewToHostMessage) => void
+  /** U/M95: already-validated, lazy Vault cards; values never enter this slot or UI state. */
+  readonly vaultApprovals?: ReactNode
   /**
    * The UI store. main.tsx owns one that outlives a crashed tree and keeps
    * reducing host messages under the crash screen (M25); without one the
@@ -454,6 +456,7 @@ function promptStartFor(action: PaletteAction): string | undefined {
 export function App({
   postMessage,
   accounts,
+  vaultApprovals,
   store: externalStore,
   newLocalId = defaultLocalId,
   now = defaultNow,
@@ -514,7 +517,7 @@ export function App({
   // The Auto reviewer on Muse Code (M90), as its setting says, and the paid
   // one on the Model API (M78), on with its price accepted.
   const hasMuseCodeReviewer =
-    state.settings?.museCodeAutoReviewer ?? SETTING_DEFAULTS.museCodeAutoReviewer
+    state.settings?.museCodeAutoReviewer ?? IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT
   const hasModelApiReviewer = state.paid.features.includes('autoReviewer')
 
   // The transcript follows new entries while the reader is at its end; once
@@ -2756,6 +2759,7 @@ export function App({
         >
           {body}
           {accounts?.transcript}
+          {vaultApprovals}
           {hasNewBelow ? (
             <button
               type="button"

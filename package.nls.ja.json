@@ -205,5 +205,16 @@
   "config.mediaAudioAction.description": "`transcribe` は添付音声を送信前にテキスト化する。`sendAudio` はモデルが受け付ける場合に音声を送信する。既定は文字起こし。文字起こしは有料の音声料金を請求し、必ず事前の同意を得る。このマシンの設定のみが使われる。",
   "config.accountSwap.description": "しきい値に達したら次のリクエスト境界で空きのある次のアカウントに切り替えます。各アカウントは独自の制限を保持します。既定でオン。このコンピューターの設定のみを使用します。",
   "config.accountParallel.description": "空き容量に応じてバックグラウンド作業をアカウント間で分散します。各ワーカーは割り当てられたアカウントに留まります。既定でオン。このコンピューターの設定のみを使用します。",
-  "config.accounts.severalOnThisDevice.description": "テスト用に 1 つのプロバイダーの複数アカウントをこの PC で許可し、各アカウントは専用の分離されたローカルプロファイルで実行します。有効化時は最初にプロバイダーの利用規約の確認を求めます。既定でオフ。このコンピューターの設定のみを使用します。"
+  "config.accounts.severalOnThisDevice.description": "テスト用に 1 つのプロバイダーの複数アカウントをこの PC で許可し、各アカウントは専用の分離されたローカルプロファイルで実行します。有効化時は最初にプロバイダーの利用規約の確認を求めます。既定でオフ。このコンピューターの設定のみを使用します。",
+  "command.vault.title": "保管庫",
+  "command.lockVault.title": "今すぐ保管庫をロック",
+  "config.vault.description": "エディター間で共有するユーザーごとの認証情報保管庫を有効にします。",
+  "config.vault.protection.description": "保管庫のキー保護を選択します。自動は利用可能なハードウェアと OS のストアを使用します。",
+  "config.vault.agentFence.description": "エージェントのプロセスを既存の認証情報経路から隔離します。無効でもワーカーは隔離されます。",
+  "config.vault.lockAfterIdleMinutes.description": "指定した非操作時間（分）が過ぎたら保管庫をロックします。",
+  "config.vault.lockOnScreenLock.description": "OS が画面ロックを報告したら保管庫をロックします。",
+  "config.vault.protection.enumDescriptions.auto": "自動保護",
+  "config.vault.protection.enumDescriptions.osStore": "OS の認証情報ストア",
+  "config.vault.protection.enumDescriptions.passphrase": "パスフレーズによる保護",
+  "config.vault.protection.enumDescriptions.hardware": "ハードウェアによる保護"
 }

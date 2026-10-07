@@ -42,6 +42,27 @@
 
 import { REDACTED_MARK, REDACT_HEX_RADIX, REDACT_JSON_UNICODE_DIGITS } from './constants'
 
+/** T's broker-backed service. Hosts inject it at each outgoing/storage boundary. */
+export interface SecretScrubPort {
+  scrub(text: string): Promise<string>
+  /**
+   * Rotation counter the sender reads around awaits: when it moves between
+   * the scrub and the dispatch, the body is rebuilt from current values. A
+   * Lock in the same window fails the rebuild, so it never sends either.
+   * Absent for foreign ports, which the sender treats as unchanging.
+   */
+  readonly generation?: number | undefined
+}
+
+/** Scrub exact vault values before patterns; service failures never fall back to delivery. */
+export async function scrubSecrets(
+  text: string,
+  service?: SecretScrubPort,
+  literals: readonly string[] = [],
+): Promise<string> {
+  return redactSecrets(service === undefined ? text : await service.scrub(text), literals)
+}
+
 /** The mark alone, in place of the whole match. */
 function mark(): string {
   return REDACTED_MARK

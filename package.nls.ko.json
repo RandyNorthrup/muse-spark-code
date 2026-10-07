@@ -205,5 +205,16 @@
   "config.mediaAudioAction.description": "`transcribe`는 첨부된 오디오를 보내기 전에 텍스트로 변환하고, `sendAudio`는 모델이 받는 경우 오디오를 보냅니다. 기본값은 전사입니다. 전사에는 유료 음성 요금이 청구되며, 항상 사전 동의 후에만 진행됩니다. 이 컴퓨터의 설정만 사용됩니다.",
   "config.accountSwap.description": "임계값에 도달하면 다음 요청 경계에서 여유가 있는 다음 계정으로 전환합니다. 각 계정은 자체 한도를 유지합니다. 기본적으로 켜짐. 이 컴퓨터의 설정만 사용됩니다.",
   "config.accountParallel.description": "백그라운드 작업을 여유 용량에 따라 계정에 분산합니다. 각 워커는 할당된 계정에 유지됩니다. 기본적으로 켜짐. 이 컴퓨터의 설정만 사용됩니다.",
-  "config.accounts.severalOnThisDevice.description": "테스트를 위해 한 제공자의 여러 계정을 이 PC에서 허용하며, 각 계정은 자체 격리된 로컬 프로필에서 실행됩니다. 켜면 먼저 제공자 이용약관 확인을 요청합니다. 기본적으로 꺼짐. 이 컴퓨터의 설정만 사용됩니다."
+  "config.accounts.severalOnThisDevice.description": "테스트를 위해 한 제공자의 여러 계정을 이 PC에서 허용하며, 각 계정은 자체 격리된 로컬 프로필에서 실행됩니다. 켜면 먼저 제공자 이용약관 확인을 요청합니다. 기본적으로 꺼짐. 이 컴퓨터의 설정만 사용됩니다.",
+  "command.vault.title": "보관함",
+  "command.lockVault.title": "지금 보관함 잠그기",
+  "config.vault.description": "편집기들이 공유하는 사용자별 자격 증명 보관함을 켭니다.",
+  "config.vault.protection.description": "보관함 키 보호를 선택합니다. 자동은 사용 가능한 하드웨어와 운영체제 저장소를 사용합니다.",
+  "config.vault.agentFence.description": "에이전트 프로세스를 기존 자격 증명 경로에서 격리합니다. 이 설정이 꺼져도 작업자는 격리됩니다.",
+  "config.vault.lockAfterIdleMinutes.description": "지정한 유휴 시간(분)이 지나면 보관함을 잠급니다.",
+  "config.vault.lockOnScreenLock.description": "운영체제가 화면 잠금을 보고하면 보관함을 잠급니다.",
+  "config.vault.protection.enumDescriptions.auto": "자동 보호",
+  "config.vault.protection.enumDescriptions.osStore": "운영체제 자격 증명 저장소",
+  "config.vault.protection.enumDescriptions.passphrase": "암호문 보호",
+  "config.vault.protection.enumDescriptions.hardware": "하드웨어 보호"
 }

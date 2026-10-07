@@ -81,6 +81,20 @@ export const DEFERRED = [
     ],
   },
   {
+    output: 'dist/vaultBoundaries.js',
+    metafile: 'dist/meta/vaultBoundaries.json',
+    files: [
+      'src/shared/vaultBoundariesEntry.ts',
+      'src/shared/redact.ts',
+      'src/shared/vault.ts',
+      'src/shared/vaultProtocol.ts',
+      'src/shared/vaultPanel.ts',
+      'src/core/vault/taint.ts',
+      'src/core/vault/exec/schema.ts',
+      'src/core/vault/exec/toolSchema.ts',
+    ],
+  },
+  {
     output: 'dist/modelApiBoundaries.js',
     metafile: 'dist/meta/modelApiBoundaries.json',
     files: [
@@ -699,9 +713,28 @@ export const sharedModelApiBoundaries = {
   name: 'shared-model-api-boundaries',
   setup(build) {
     build.onResolve(
-      { filter: /\/(?:schemas|teamConversation|paidBoundary|legal|legalScanTool)(?:\.[jt]s)?$/ },
+      {
+        filter:
+          /\/(?:schemas|teamConversation|paidBoundary|legal|legalScanTool|vault|vaultProtocol|vaultPanel|taint|schema|toolSchema|redact)(?:\.[jt]s)?$/,
+      },
       (args) => {
         const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+        if (
+          [
+            'src/shared/redact.ts',
+            'src/shared/vault.ts',
+            'src/shared/vaultProtocol.ts',
+            'src/shared/vaultPanel.ts',
+            'src/core/vault/taint.ts',
+            'src/core/vault/exec/schema.ts',
+            'src/core/vault/exec/toolSchema.ts',
+          ].some((file) => source === path.resolve(file))
+        ) {
+          return path.resolve(build.initialOptions.outfile ?? '') ===
+            path.resolve('dist/vaultBoundaries.js')
+            ? undefined
+            : { path: './vaultBoundaries.js', external: true }
+        }
         return [
           'src/core/backends/modelapi/schemas.ts',
           'src/shared/teamConversation.ts',

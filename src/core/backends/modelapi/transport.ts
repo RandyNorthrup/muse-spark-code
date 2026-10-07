@@ -24,6 +24,7 @@ import {
   networkFailureMessage,
 } from '../../networkFailure'
 import { redactSecrets } from '../../redact'
+import { scrubSecrets, type SecretScrubPort } from '../../../shared/redact'
 export { redactSecrets } from '../../redact'
 import { errorBodySchema } from './schemas'
 import type { StreamEvent } from './schemas'
@@ -36,6 +37,7 @@ import type { AuthHeaders, AuthSource } from './authSource'
 import { DeadlineError, withDeadline } from '../../timeouts'
 
 export interface TransportDeps {
+  readonly vaultScrub?: SecretScrubPort
   readonly fetch: typeof fetch
   readonly baseUrl: string
   readonly apiKey?: () => Promise<string | undefined>
@@ -667,6 +669,18 @@ export class RequestTransport {
     // How long the answer took, retries included, at trace level (M39).
     const startedAt = this.deps.now()
     for (let attempt = budget?.retriesUsed ?? 0; ; attempt += 1) {
+      // Rebuild on every retry: rotation may change the vault while we wait.
+      // Outside the transport retry catch: a scrub failure must never send.
+      const scrubGeneration = this.deps.vaultScrub?.generation
+      const wireBody =
+        this.deps.vaultScrub === undefined || init.body === undefined
+          ? undefined
+          : await scrubSecrets(JSON.stringify(init.body), this.deps.vaultScrub)
+      if (wireBody !== undefined && this.deps.vaultScrub !== undefined) {
+        // Exact-value replacement must still leave valid JSON. No raw body
+        // can be sent if an unusual value matched protocol syntax.
+        JSON.parse(wireBody)
+      }
       let credentials: Awaited<ReturnType<RequestTransport['headers']>>
       try {
         credentials = await this.headers(url)
@@ -711,6 +725,16 @@ export class RequestTransport {
       if (confirmed !== undefined && !confirmed.isStillAllowed()) {
         throw new Error(UI_TEXT.scheduleConfirmationExpired)
       }
+      if (
+        wireBody !== undefined &&
+        scrubGeneration !== undefined &&
+        this.deps.vaultScrub?.generation !== scrubGeneration
+      ) {
+        // The vault rotated during admission: the scrubbed body is
+        // older than the values, so rebuild it instead of sending. A Lock in
+        // the same window fails the rebuild, which never sends either.
+        continue
+      }
       const metadata = Object.fromEntries(
         Object.entries(init.headers ?? {}).filter(
           ([name]) =>
@@ -735,7 +759,7 @@ export class RequestTransport {
         method: init.method,
         redirect: 'error',
         headers,
-        ...(init.body !== undefined && { body: JSON.stringify(init.body) }),
+        ...(init.body !== undefined && { body: wireBody ?? JSON.stringify(init.body) }),
         ...(signal !== undefined && { signal }),
       }
       confirmed?.onRequestStarted()

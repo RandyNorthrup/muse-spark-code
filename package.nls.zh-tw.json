@@ -205,5 +205,16 @@
   "config.mediaAudioAction.description": "`transcribe` 在傳送前將附加的音訊轉成文字；`sendAudio` 在模型接受時傳送音訊。預設為轉錄。轉錄按付費語音費率計費，且必先徵得同意。僅使用本機的設定。",
   "config.accountSwap.description": "達到閾值時在下一個請求邊界切換到有餘量的下一個帳號。每個帳號保留各自的限額。預設開啟；僅使用本機的設定。",
   "config.accountParallel.description": "按餘量將背景工作分散到各帳號；每個工作器固定在其帳號上。預設開啟；僅使用本機的設定。",
-  "config.accounts.severalOnThisDevice.description": "允許同一提供者的多個帳號在本機上用於測試，每個帳號執行在各自獨立的本機設定檔中。開啟時先請求確認該提供者的條款。預設關閉；僅使用本機的設定。"
+  "config.accounts.severalOnThisDevice.description": "允許同一提供者的多個帳號在本機上用於測試，每個帳號執行在各自獨立的本機設定檔中。開啟時先請求確認該提供者的條款。預設關閉；僅使用本機的設定。",
+  "command.vault.title": "憑證庫",
+  "command.lockVault.title": "立即鎖定憑證庫",
+  "config.vault.description": "啟用由各編輯器共用的使用者憑證庫。",
+  "config.vault.protection.description": "選擇憑證庫金鑰保護方式。自動模式使用可用硬體及作業系統儲存。",
+  "config.vault.agentFence.description": "隔離代理處理程序與現有憑證取得途徑。關閉此項時工作代理仍保持隔離。",
+  "config.vault.lockAfterIdleMinutes.description": "閒置達到此分鐘數後鎖定憑證庫。",
+  "config.vault.lockOnScreenLock.description": "作業系統回報螢幕鎖定時鎖定憑證庫。",
+  "config.vault.protection.enumDescriptions.auto": "自動保護",
+  "config.vault.protection.enumDescriptions.osStore": "作業系統憑證儲存",
+  "config.vault.protection.enumDescriptions.passphrase": "通關片語保護",
+  "config.vault.protection.enumDescriptions.hardware": "硬體保護"
 }

@@ -8,6 +8,7 @@ import * as z from 'zod/mini'
 import { uploadedMediaRefSchema, type UploadedMediaRef } from '../../../shared/media'
 import { storedReplayMediaSchema } from '../../../shared/media'
 import type { StoredMediaPart } from '../../media/replayMedia'
+import { vaultTaintSchema, type VaultTaint } from '../../../shared/vault'
 import {
   type ItemSnapshot,
   itemSnapshotFields,
@@ -37,6 +38,8 @@ import {
 import type { ReplayProducer } from './modelPolicy'
 
 export interface StoredReplayItem {
+  /** Host provenance, never serialized into the provider input item. */
+  readonly provenance?: VaultTaint | undefined
   readonly turnId: string
   readonly item: InputItem
   readonly producer?: ReplayProducer | undefined
@@ -294,6 +297,7 @@ const storedSessionFields = {
     z
       .object({
         turnId: z.string(),
+        provenance: z.optional(vaultTaintSchema),
         producer: z.optional(z.object({ provider: z.string(), model: z.string() })),
         item: storedInputItemSchema,
         userMessageId: z.optional(z.string()),

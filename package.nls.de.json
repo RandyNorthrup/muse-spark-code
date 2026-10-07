@@ -205,5 +205,16 @@
   "config.mediaAudioAction.description": "`transcribe` wandelt angehängtes Audio vor dem Senden in Text um; `sendAudio` sendet das Audio, wo das Modell es annimmt. Standard ist Transkription. Die Transkription berechnet den kostenpflichtigen Voicetarif, immer erst nach Zustimmung. Es gilt nur die Einstellung dieses Computers.",
   "config.accountSwap.description": "Bei Erreichen eines Schwellenwerts vor der nächsten Anfrage zum nächsten Konto mit freier Kapazität wechseln. Jedes Konto behält seine eigenen Limits. Standardmäßig ein; nur die Einstellung dieses Computers wird verwendet.",
   "config.accountParallel.description": "Hintergrundaufgaben nach freier Kapazität auf Konten verteilen; jeder Worker bleibt auf seinem Konto. Standardmäßig ein; nur die Einstellung dieses Computers wird verwendet.",
-  "config.accounts.severalOnThisDevice.description": "Mehrere Konten eines Anbieters auf diesem PC zu Testzwecken zulassen, jedes in einem eigenen isolierten lokalen Profil. Das Einschalten fragt zuerst die Anbieterbedingungen zur Bestätigung ab. Standardmäßig aus; nur die Einstellung dieses Computers wird verwendet."
+  "config.accounts.severalOnThisDevice.description": "Mehrere Konten eines Anbieters auf diesem PC zu Testzwecken zulassen, jedes in einem eigenen isolierten lokalen Profil. Das Einschalten fragt zuerst die Anbieterbedingungen zur Bestätigung ab. Standardmäßig aus; nur die Einstellung dieses Computers wird verwendet.",
+  "command.vault.title": "Tresor",
+  "command.lockVault.title": "Tresor jetzt sperren",
+  "config.vault.description": "Den benutzerweiten Anmeldedatentresor für alle Editoren aktivieren.",
+  "config.vault.protection.description": "Schutz des Tresorschlüssels wählen. Automatisch verwendet verfügbare Hardware und den Betriebssystemspeicher.",
+  "config.vault.agentFence.description": "Agentenprozesse von vorhandenen Anmeldedatenwegen isolieren. Arbeiter bleiben auch bei ausgeschalteter Option isoliert.",
+  "config.vault.lockAfterIdleMinutes.description": "Den Tresor nach dieser Anzahl inaktiver Minuten sperren.",
+  "config.vault.lockOnScreenLock.description": "Den Tresor sperren, wenn das Betriebssystem eine Bildschirmsperre meldet.",
+  "config.vault.protection.enumDescriptions.auto": "Automatischer Schutz",
+  "config.vault.protection.enumDescriptions.osStore": "Anmeldedatenspeicher des Betriebssystems",
+  "config.vault.protection.enumDescriptions.passphrase": "Schutz durch Passphrase",
+  "config.vault.protection.enumDescriptions.hardware": "Hardwareschutz"
 }

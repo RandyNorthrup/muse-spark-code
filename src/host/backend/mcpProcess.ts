@@ -17,17 +17,19 @@
 //   the entire process tree; the Windows helper exits on Stop or owner death.
 
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process'
-import { statSync } from 'node:fs'
+import { realpathSync, statSync } from 'node:fs'
 import path from 'node:path'
 import type { Readable, Writable } from 'node:stream'
 import { environmentValue, setEnvironmentVariable } from '../../core/backends/musecode/launch'
 import type { McpStdioLaunch } from '../../core/backends/modelapi/mcp/servers'
 import type { McpChildProcess } from '../../core/backends/modelapi/mcp/stdio'
+import { mcpSecretReferences } from '../../core/vault/mcpReferences'
 import { absolutePathEntries } from '../../core/executables'
 import { redactSecrets } from '../../core/redact'
-import { MCP_STDIO_ENV_ALLOWLIST, TREE_EXIT_WAIT_MS } from '../../shared/constants'
+import { MCP_STDIO_ENV_ALLOWLIST, TREE_EXIT_WAIT_MS, UI_TEXT } from '../../shared/constants'
 import { killTree, sweepExitedTree, type TreeRoot, treeSpawnOptions } from '../processTree'
 import { spawnMcpJob } from './mcpJobLaunch'
+import type { vaultCommandSchema } from '../../shared/vault'
 
 export interface McpSpawnDeps {
   readonly platform: NodeJS.Platform
@@ -156,6 +158,18 @@ export function resolveServerCommand(
       ? `its command ${name} does not exist`
       : `its command ${name} was not found on the absolute entries of PATH`,
   )
+}
+
+/** O's trusted resolution port: canonical paths before the broker hashes the stdio use. */
+export function resolveMcpVaultCommand(
+  launch: McpStdioLaunch,
+  cwd: string,
+  deps: McpSpawnDeps,
+): ReturnType<typeof vaultCommandSchema.parse> {
+  mcpSecretReferences(launch)
+  const env = mcpServerEnvironment(deps.env(), launch.env, deps.platform)
+  const file = resolveServerCommand(launch.command, cwd, env, deps)
+  return { executable: realpathSync(file), argv: [...launch.args], cwd: realpathSync(cwd) }
 }
 
 /** One part of a cmd.exe line: quoted, with the backslashes before the closing quote doubled. */
@@ -348,6 +362,9 @@ export function mcpServerSpawner(
   deps: McpSpawnDeps,
 ): (launch: McpStdioLaunch, cwd: string) => McpChildProcess {
   return (launch, cwd) => {
+    if (mcpSecretReferences(launch).size > 0) {
+      throw new Error(UI_TEXT.vault.noAccess)
+    }
     if (!deps.isExistingDirectory(cwd)) {
       throw new Error(`its working directory ${cwd} does not exist`)
     }

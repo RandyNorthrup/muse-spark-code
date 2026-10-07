@@ -4643,6 +4643,83 @@ page wait for M104's bridge. The TUI waits for M110a0 lane T. The
 [certification](docs/certification/m118.md) names each pending binding; shared
 logic and fake adapter tests do not establish installed-editor parity.
 
+## The vault
+
+One encrypted vault per user holds API keys, OAuth tokens, SSH keys, sudo and
+other passwords, website logins with their TOTP seeds, session cookies and any
+named secret. Agents get handles and approved, scoped, logged uses, never
+values. Every approval names the exact use and binds to it. One click locks
+everything. It works the same in every editor; see
+[the M109 record](docs/certification/m109.md) for the lanes, the captures and
+what is still open.
+
+The `Vault` command (`museSpark.vault`) opens the vault panel and `Lock vault
+now` (`museSpark.lockVault`, Ctrl+Alt+Shift+L / Cmd+Alt+Shift+L) ends every
+use in every window. The panel host and the native editor ship in
+`dist/vault.js`, loaded on the first vault command; activation reads no vault
+and starts no broker. Until the broker-backed service lands
+([the M109 record](docs/certification/m109.md)), both commands report that the
+broker installation is missing and refuse access instead of opening an empty
+vault. No value is ever logged, and no handle is substituted into a command,
+a file or the model's text.
+
+Settings (all machine-scoped, so no workspace can change them):
+`museSpark.vault` (on), `museSpark.vault.protection` (`auto` is available
+hardware plus the OS store, with the recovery code offered at setup),
+`museSpark.vault.agentFence` (on), `museSpark.vault.lockAfterIdleMinutes`
+(240) and `museSpark.vault.lockOnScreenLock` (on). The Secure Enclave
+hardware and presence slots are offered where `SecureEnclave.isAvailable`,
+after the owner's Touch ID capture; the Keychain-biometry path stays off
+until an Apple Developer entitlement exists.
+
+The terminal/ACP/headless handlers are implemented against the shared vault
+contracts. This branch still needs the installed broker factory and panel
+bindings from M109 W/U/M104. It does not claim a working packaged vault:
+missing bindings report the broker installation failure and refuse access.
+No activation read or broker start is added.
+
+The terminal grammar is `muse-spark-code-acp vault` followed by `status`,
+`unlock [slot-id]`, `lock`, `list`, `add <metadata-json>`, `remove <item-id>`,
+`grant <grant-json>`, `revoke <grant-id>`, `audit`, `import <path>`,
+`public-key <item-id>` or `watch`. Every handler was run successfully against
+an injected fake-only local port in the H certification; installed-command
+success remains the integration check. `audit` accepts `--item`, `--requester`,
+`--kind` and `--outcome`. IDs, metadata and grant JSON use the shared schemas.
+Keep secrets out of names, labels and command arguments.
+
+`add` reads private material as one bounded JSON line from standard input,
+with byte fields encoded as base64. Terminal echo stays off while reading;
+base64 is only an input encoding, not encryption. Values never come from an
+argument, environment variable or file. An explicit `import <path>` delegates
+only the chosen credential file to the import owner. `grant` displays every
+scope field and requires explicit terminal confirmation. `watch` displays
+exact requester/use details, asks through the terminal, and answers only the
+same unexpired request id and digest. Pipes cannot approve grants or uses.
+
+ACP `/vault` supports `status` (the default), `list`, `lock` and `audit` locally,
+without sending the command to a model. Vault permissions offer Allow once,
+Allow for this session where permitted, and Deny; ACP's `allow_always` means
+that session choice only. Bypass does not grant a secret. Lock can interrupt
+an active turn or permission question.
+
+Lock, cancel and expiry withdraw a pending vault permission and settle its
+card. Command-bound TOTP consent says that the process sees the code. Agent
+audit replies include only currently visible items. Headless refusals retain
+their reason; only a missing unattended grant recommends creating one.
+
+Turning `museSpark.vault.agentFence` off applies only to an interactive shell.
+Workers, schedules, checks and hooks retain the credential and Git-helper
+fence. Approved environment injection cannot restore loader or startup
+variables.
+
+Local headless `exec --vault` requires existing unattended grants and never
+prompts. Missing grants, presence, taint, unavailable bindings or a failed
+vault use end the run with `denied` (exit 7), independently of
+`--fail-on-denial`. `--key-stdin` and CI cannot enable the vault. Ordinary
+headless behavior without the flag is unchanged. Companion and native panel
+routes carry only public state and bound answers; add/edit opens the host's
+local terminal and never sends a value through the bridge.
+
 ## Development
 
 `npm run schema:exec -- --check` checks the exec and sharing JSON schemas
@@ -4753,6 +4830,21 @@ require the shared English fallback (`dist/uiText.js`), and each keeps
 its own installed-language state. The webview is React 19 bundled to one IIFE with
 its stylesheet; `zod/mini` validates every host ⇄ webview message; the voice
 helpers are Windows PowerShell and Swift with no dependencies.
+
+M109's Windows vault helper is prepared for integration with the shared broker.
+It wraps the vault key with current-user DPAPI or a non-exportable TPM RSA key;
+presence uses a forced-protection key plus a fresh Windows Hello signature in
+the helper's own window. Missing TPM or Hello support refuses those slots.
+Each launch checks the EXE's compiled SHA-256, its file and directory ACLs,
+and every ancestor for unsafe permissions or reparse points. The system
+PowerShell process holds a handle denying writes and deletion while running
+the verified managed entry point; private input follows its readiness signal.
+A refused cache is left intact and rebuilt in a fresh private directory.
+Only this process's completed builds are reused; native DLL imports and the
+helper's startup search are restricted to System32.
+Existing credential storage is unchanged until the broker and migration lanes
+are integrated. The [Windows certification](docs/certification/m109-pw.md)
+records the generated-material captures and the remaining hardware checks.
 
 The session board and best-of-N implementation loads on its first action
 from `dist/sessionBoard.js`. Paid Auto reviewer execution loads only after

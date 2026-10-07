@@ -498,6 +498,39 @@ reference rows remain unchanged. Startup measures 750,625 B and original
 deferred JS 32,867 B, within the unchanged 733.8/32.1 KiB review baselines;
 Node help measures 45,734 B against 100 KiB. No existing cap rises.
 Certification and deliberate failure/restoration receipts: `docs/certification/m108.md`.
+**FIXM109W (2026-10-07): lazy vault English.** The vault's canonical English
+and all translated tables retain every key. Browser startup packs only chat
+English; an enumerable vault accessor refuses use until the vault surface
+loads its canonical group. Startup validates the chat groups, then the lazy
+surface validates the installed vault group before rendering and uses English
+if that group is damaged. Integration builds retain the complete inline table;
+Node places vault English in the existing optional-surface region. App reads a
+scalar reviewer default rather than retaining the whole settings object and
+its vault constants in chat startup. This amends DIET1's complete-inline
+browser rule for the vault only. No budget increases or new shipped bundle.
+Measure and prove cold English, installed-language preservation, damaged-group
+fallback and unchanged startup/deferred regression caps in the M109 record.
+
+**DIET1 (2026-10-06, main `e56b795a`).** The production baseline is
+813,180 B (794.1 KiB) for chat startup and 51,157 B (49.96 KiB) for the original
+deferred aggregate. After DIET1, startup is 751,392 B (733.8 KiB), down
+61,788 B (60.3 KiB), and the original deferred aggregate is 32,875 B
+(32.1 KiB). Optional sign-in, goal/schedule panels, palette/popover and
+radial menus now load on use. Account & usage and Agent map retain their public
+entrypoints and load independently budgeted content chunks. Each new surface
+has a 25 KiB physical and import-closure cap: measured size plus 15%, rounded
+up to 25 KiB. Legacy/shared/unclassified deferred bytes keep their original
+50 KiB cap, and startup keeps 900 KiB. The complete browser English fallback
+stays inline, encoded losslessly as DEFLATE/base85 and decoded by the native
+DecompressionStream before dependent ESM modules run; Node and integration
+fallbacks and all table checks remain unchanged. FIXDIET1 replaces dynamic-root
+query retries with the existing host document rebuild after a synchronous state
+flush: the browser refetches failed static dependencies too. React.lazy caches
+successes and shared static dependencies retain canonical URLs.
+All editor shells use the shared CSP/asset-origin path. Receipts and final
+before/after sizes: `docs/certification/diet1.md`. FIXDIET1 holds startup
+at 750,942 B (733.3 KiB) and the original deferred group at 32,835 B
+(32.1 KiB), within the review baseline targets.
 
 **REL0143M (2026-10-06).** Questions retain their eager arrival and draft
 context while controls and MCP form fields use the shared local retry boundary.
@@ -12126,14 +12159,14 @@ It builds on:
    - **Keyslots.** The vault key is wrapped in one or more slots, like a LUKS
      header. Any slot unlocks, and adding one needs an unlocked vault.
 
-     | Slot          | Windows                                                                                                                                                                              | macOS                                                                                                                                                                                              | Linux                                                                                                                                             |
-     | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-     | Hardware      | A non-exportable RSA-2048 decrypt key on the TPM through CNG's Platform Crypto Provider; OAEP over the vault key; ECC only where probed                                              | A Secure Enclave P-256 key-agreement key: ECDH with an ephemeral key, HKDF, AES-GCM over the vault key. Only where `SecureEnclave.isAvailable` (Touch ID or Apple silicon), after Q-M109's capture | A TPM2 sealed object (32 bytes of the 128 allowed) through `systemd-creds --user` (systemd 256 or later) or tpm2-tools, where `/dev/tpmrm0` opens |
-     | Presence      | A Platform Crypto Provider key made with forced high protection (the OS prompt, cached per broker process), or a fresh Windows Hello signature over the broker's challenge as a gate | The Secure Enclave key with `userPresence`: Touch ID or the password at each unwrap, the prompt naming the use                                                                                     | A TPM2 PIN (with the TPM's dictionary-attack lockout) or the passphrase                                                                           |
-     | OS store      | DPAPI for the current user; Credential Manager holds at most 2,560 bytes, so only the wrapped key, and a DPAPI file in network logons (SSH)                                          | The login Keychain (the file-based keychain), as D61 and VS Code use today                                                                                                                         | The Secret Service, which any process in the session can read: labelled so                                                                        |
-     | SecretStorage | Each VS Code-family install's own; refused where safeStorage reports `basic_text`                                                                                                    | as Windows                                                                                                                                                                                         | as Windows                                                                                                                                        |
-     | Passphrase    | Argon2id with RFC 9106's second option (t=3, p=4, 64 MiB) where the host's Node has `crypto.argon2`, else scrypt (N=2^17, r=8, p=1)                                                  | as Windows                                                                                                                                                                                         | as Windows                                                                                                                                        |
-     | Recovery code | 160 random bits, shown once at setup, for a reset TPM or a new machine                                                                                                               | as Windows                                                                                                                                                                                         | as Windows                                                                                                                                        |
+     | Slot          | Windows                                                                                                                                                                                        | macOS                                                                                                                                                                                              | Linux                                                                                                                                             |
+     | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+     | Hardware      | A non-exportable RSA-2048 decrypt key on the TPM through CNG's Platform Crypto Provider; OAEP over the vault key; ECC only where probed                                                        | A Secure Enclave P-256 key-agreement key: ECDH with an ephemeral key, HKDF, AES-GCM over the vault key. Only where `SecureEnclave.isAvailable` (Touch ID or Apple silicon), after Q-M109's capture | A TPM2 sealed object (32 bytes of the 128 allowed) through `systemd-creds --user` (systemd 256 or later) or tpm2-tools, where `/dev/tpmrm0` opens |
+     | Presence      | A Platform Crypto Provider key made with forced high protection (OS prompt; per-use cache behavior must be captured), or a fresh Windows Hello signature over the broker's challenge as a gate | The Secure Enclave key with `userPresence`: Touch ID or the password at each unwrap, the prompt naming the use                                                                                     | A TPM2 PIN (with the TPM's dictionary-attack lockout) or the passphrase                                                                           |
+     | OS store      | DPAPI for the current user; Credential Manager holds at most 2,560 bytes, so only the wrapped key, and a DPAPI file in network logons (SSH)                                                    | The login Keychain (the file-based keychain), as D61 and VS Code use today                                                                                                                         | The Secret Service, which any process in the session can read: labelled so                                                                        |
+     | SecretStorage | Each VS Code-family install's own; refused where safeStorage reports `basic_text`                                                                                                              | as Windows                                                                                                                                                                                         | as Windows                                                                                                                                        |
+     | Passphrase    | Argon2id with RFC 9106's second option (t=3, p=4, 64 MiB) where the host's Node has `crypto.argon2`, else scrypt (N=2^17, r=8, p=1)                                                            | as Windows                                                                                                                                                                                         | as Windows                                                                                                                                        |
+     | Recovery code | 160 random bits, shown once at setup, for a reset TPM or a new machine                                                                                                                         | as Windows                                                                                                                                                                                         | as Windows                                                                                                                                        |
 
    - **Defaults** (`museSpark.vault.protection: auto`): the hardware slot
      where it works, plus the OS-store slot, so a reset TPM or a replaced
@@ -12142,6 +12175,11 @@ It builds on:
      use, which a key the extension reads per request (the Model API key)
      cannot bear. The add dialog recommends it for sudo, SSH keys and web
      logins.
+   - **Presence correction (lane 0, 2026-10-05).** The CNG research's
+     once-per-process cache quote is about `NCRYPT_PIN_PROPERTY`; it does not
+     prove forced-high-protection PCP cache behavior. `requirePresence` must
+     still obtain fresh per-use presence, using the captured mechanism or a
+     fresh Hello challenge, never assuming a cached prompt satisfies it.
    - **What each tier stops** (research §5). Every slot stops other users;
      hardware, passphrase and recovery slots stop a copied disk; only presence
      and the passphrase stop a process running as the user, which can ask
@@ -12149,18 +12187,30 @@ It builds on:
      the broker does. The panel names the tier in force in those words, for
      example "Protected by this PC's TPM. It unlocks silently when you sign in,
      so programs running as you can unlock it too."
-   - **Rollback.** The slot records hold the last generation. A vault file
-     older than that is refused, and the panel says so.
+   - **Rollback (FIXM109C, 2026-10-05).** The slot document MAC binds the
+     generation, canonical ciphertext document digest and previous committed
+     state's keyed digest. The independently protected anchor holds that exact
+     MAC as `stateDigest` with the generation and audit state, and advances
+     only after an atomic comparison of its complete prior state. Older files,
+     same-generation forks and reordered ciphertext entries are refused.
+     Restore requires the user's explicit confirmation, publishes a fresh
+     generation and admits only the exact existing anchor or a new device
+     without history; a different backup cannot revive revoked policies or
+     removed material. Its authenticated write-ahead intent binds the exact
+     prior anchor and source digest, so a prepared restore jump can recover
+     before advancement and retry without advancing twice.
    - **Platform limits, said plainly:**
-     - The Secure Enclave holds only P-256 keys and imports none, so
-       passwords and Ed25519 keys are vault items under an SE-wrapped vault
-       key, never SE keys.
-     - Keychain items with SE-backed access control or biometry need the
-       data protection keychain, whose entitlement must come from a
-       provisioning profile and is "not for command-line tools" (TN3137). They
-       wait for Q-M109.
-     - Windows Hello only signs, with randomized RSA-PSS, so it is a gate in
-       the broker, never a key.
+     - This slot uses the documented P-256 signing/key-agreement API, which
+       imports no raw private key. Passwords and Ed25519 keys are vault items
+       under an SE-wrapped vault key, never imported SE keys. This does not
+       claim every modern CryptoKit SecureEnclave type is P-256.
+     - Apple's data-protection keychain sample needs provisioning and an
+       app-like arrangement (TN3137 permits a wrapped command-line tool).
+       A CryptoKit file-blob helper's actual creation, reload and presence
+       behavior remain Q-M109 captures; the sample is not proof for it.
+     - Windows Hello signs; the API reference says RSA-PSS while its guide
+       sample verifies PKCS#1. Capture the actual padding. It is a fresh
+       presence gate in the broker, never input for a deterministic wrap key.
      - The Secret Service isolates nothing within a session.
      - Windows elevation is UAC on the secure desktop, which no program can
        answer.
@@ -12257,11 +12307,14 @@ It builds on:
      - **Headers.** For remote MCP servers and M95's custom headers, the
        extension's own transport adds the item's header for its bound origin
        only (D74's origin check), as it does for first-party keys.
-     - **Disclosure.** The value goes back to the requester, so the model
-       and its provider see it. Only for an item whose `allowDisclosure` the
-       user set; asked every time, whatever the mode; logged loudly; shown as
-       a disclosure row in the transcript. A disclosed value cannot be
-       recalled, so the row offers **Rotate**.
+     - **Disclosure (owner correction, 2026-10-06).** A value never reaches
+       a model, provider or agent context. Disclosure is only to the person,
+       shown by the authenticated host UI after fresh presence. Destination
+       processes use the named command-bound routes above. The recipient
+       schema expresses only `person`; arbitrary recipients are refused.
+       `allowDisclosure` remains explicit, every use asks regardless of mode,
+       and the audit names disclosure. An already released value cannot be
+       recalled; the UI offers **Rotate**.
    - **The feeder** (`dist/vaultExec.js`) is the one way a brokered value
      reaches a child process.
      - The host starts it in place of the command, inside the command's own
@@ -12475,7 +12528,9 @@ It builds on:
        imported while CXP is a draft, since a CXF passkey carries its private
        key.
    - **Third-party browser automation** (an MCP server such as the user's
-     Chrome Control) never gets a fill. It gets a value only by disclosure.
+     Chrome Control) never gets a fill. Only the named, command-bound MCP
+     environment or origin-bound header routes can supply a value; no value
+     returns to a model or agent context (owner correction, 2026-10-06).
 
 10. **Unattended work gets only what was granted for it.**
     - **Unattended requesters:** headless `exec`, schedules (M52), timed
@@ -15772,10 +15827,20 @@ model.
 - **Versioned, checked schemas** live in `docs/schemas/**`, with
   `npm run schema:exec -- --check` (M80).
 - **PLAN.md drifts, and a reader must say so.** At `4c7b064b5`, `## 7.
-Gates` appears twice (lines 24216 and 24793) with M98's entry inside the
-  first; 110 `### M…` headings carry 95 status lines, in free prose ("built
-  and certified", "merged as PR #36 at `4694803`", "planned, documentation
-  only").
+
+INT0180 deferral (2026-10-07): the incoming vault startup getter fixture in
+`test/unit/uiTextRegions.test.mjs` remains failing. Release browser collection
+includes the vault command name as an eager text key; the standalone source
+branch expected a deferred getter. Normalizing fixture startup-root exclusion
+and changing its synthetic import to a relative path each left the assertion
+failing. Stop that path under the assigned shared two-fix rule; preserve the
+test, caps and deadlines. Final CI reports the failure; lead must resolve the
+English-reader contract before release.
+
+Gates`appears twice (lines 24216 and 24793) with M98's entry inside the
+  first; 110`### M…`headings carry 95 status lines, in free prose ("built
+  and certified", "merged as PR #36 at`4694803`", "planned, documentation
+only").
 
 1. **Deterministic means four things.**
    - **No model call anywhere in generation.** The reporting bundle may not
@@ -17950,6 +18015,19 @@ prompts into a chat in any workspace".
    the next patch release after 0.14.3; phase 2 (gists) the one after;
    phase 3 with M110, M96, M113 and M115.
 
+### D99 — Broker state transitions (M109 B, 2026-10-06)
+
+Broker core = synchronous reducer + tagged effects. Registration capabilities
+bind authentication, requests and connection cleanup to one incarnation.
+Each completion carries its operation, connection, incarnation and unlock
+generation; stale completions dispose only their own resources. Plaintext is
+broker-owned through the final synchronous transport write. Lock advances the
+generation and wipes owned buffers before any asynchronous settlement. Audit
+writers are isolated resources, with cancellable pending rows and terminal
+outcomes that supersede pending work. Audit UI reads capture the installed
+writer through a tagged effect, rather than an implicit factory-global reader.
+The runner performs I/O; the reducer alone changes broker state. No await-and-recheck implementation remains.
+
 ### D100 — Orchestration gotchas become product rules (2026-10-06)
 
 The owner, 2026-10-06: "make sure that anything you find in your efforts to
@@ -18241,11 +18319,23 @@ owner and validated bridge, with terminal/ACP adapters and shared React UI.
   - **Item 9:** no audio at all: no voice input, no speech and no sounds.
   - **Items 8 and 10:** the defaults stand.
 
+- **Q-M109-Windows-DPAPI (2026-10-06, P Windows rig).** Current-user DPAPI
+  initially roundtripped generated material on Win11, then Windows itself
+  returned `0x80070005` in the rig's NTLM logon context, including outside
+  our helper. A fresh 17:03 UTC probe reports current-user protection
+  available again: this is intermittent, not a permanent OS limitation.
+  Local-machine protection works but is never a substitute.
+  The helper reports DPAPI availability in the current session; C/B must
+  offer passphrase/recovery where both hardware and the OS store refuse.
+  Re-capture DPAPI in a stable interactive and an independent SSH logon
+  before claiming network-logon support. No credential or setting is changed
+  to force availability. See `docs/certification/m109-pw.md`.
 - **Q-M109 — A Mac for the Secure Enclave slot (2026-10-05).** D89.2's
   Secure Enclave slot needs a Mac where `SecureEnclave.isAvailable`: Apple
-  silicon, or an Intel Mac with Touch ID. The Mac mini rig is Intel without
-  Touch ID, so it cannot run the capture that shows our ad hoc signed helper
-  may create the key and keep its blob in a file (research §7). Keychain
+  silicon, or a capable Intel Mac. The Intel Mac mini rig's T2 chip reports
+  `SecureEnclave.isAvailable=true` and has exercised a generated-key blob
+  roundtrip; it does not certify per-use presence or helper-only real-item
+  access. The owner's Touch ID Mac capture remains pending. Keychain
   items with SE-backed access control or biometry need more: a provisioned
   entitlement, so a helper `.app` signed under an Apple Developer Program
   team, which only the owner can join. **Default:** macOS uses the login
@@ -18912,14 +19002,23 @@ recover any excess through the newest features' existing lazy boundaries.
 
 - [x] Merge M105 media; resolve by meaning, regenerate and check.
 - [x] Merge M108 accounts; resolve by meaning, regenerate and check.
-- [ ] Merge M109 vault and its fix round; regenerate and check.
-- [ ] Merge M117 estimator; regenerate and check.
-      M108's colliding local nano-USD, credential binding and account-usage text
-      contracts retain separate modules beside the release contracts. Both implementations
-      and their regression suites remain; provider envelopes, media and lazy runtime stay.
-      Account argument parsing separates from credential-bearing command runners; runners
-      load through runtimeAccounts. Its three new provider-account sources have exact
-      first-use ownership, and shared account schemas avoid eager provider-envelope code.
+- [x] Merge M109 vault and its fix round; regenerated; one fixture deferred below.
+- [~] Merge M117 estimator; regenerate and check.
+  M108's colliding local nano-USD, credential binding and account-usage text
+  contracts retain separate modules beside the release contracts. Both implementations
+  and their regression suites remain; provider envelopes, media and lazy runtime stay.
+  Account argument parsing separates from credential-bearing command runners; runners
+  load through runtimeAccounts. Its three new provider-account sources have exact
+  first-use ownership, and shared account schemas avoid eager provider-envelope code.
+
+M109 vault scrubbing belongs in the shared transport, including token counting
+and every retry. Recheck its generation after durable/media admission; summaries
+and restored replay retain producer, media and provenance together. Startup and
+existing ACP/reference caps stay unchanged; vault English uses first-use loading.
+Vault validators and taint helpers share `dist/vaultBoundaries.js` across Node
+consumers, loaded with their first vault-capable surface/backend. Its own 50 KiB
+D6 budget covers the measured 36.2 KiB closure plus 15% headroom, rounded up; all existing caps remain.
+Media projection and summaries conservatively preserve logical replay provenance.
 
 M105's first combined build exposed wire (51.1/50 KiB), headless
 (576.9/100 KiB) and optional English (25.1/25 KiB) overflows. Recover through
@@ -38246,17 +38345,256 @@ No dependency, endpoint guard, paid default or budget changes. See
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**FIXM109W integrated review repair (2026-10-07, Mac mini).** Verify every
+P1/P2 in `_ctx/codex/M109-findings.md` against integration `a1d2b73e7`,
+including already repaired U findings and the L certificate observation.
+Close remaining H/R/M/X/O defects with structural fixes and baseline-failing
+regressions; record disproved findings with executable evidence. Move vault
+English fallback and browser constants behind the existing lazy surface so
+the 751,411-byte startup regression cap remains unchanged. Commit finished
+pieces with hooks. In a fresh clone of the committed tree, install with
+`CI=true npm ci`, run complete owning files three times at default timeouts
+(maximum three files per run), then all five typechecks, lint, prettier,
+plain knip, duplication, capped build, reference and localization checks.
+No paid/live calls, pushes, merges, dependencies or aggregate quality run;
+the lane brief and shared rules assign the full quality gate to the lead.
+Map each finding, baseline failure, guard drill and final gate to
+`docs/certification/m109.md`; update CHANGELOG with the repaired behavior.
+
+**FIXM109C2 review repair (2026-10-06, Mac mini).** RVM109C2's remaining
+P2 is accepted before code: a confirmed backup that matches the independent
+anchor must repair a damaged or unreadable destination document without
+authenticating that replaceable document. Authenticate the backup and its
+complete anchored history, retain slot/destination identity admission, and
+quarantine the displaced ciphertext before atomic replacement. The Node file
+port retains the original inode with an exclusive owner-only hard link, so
+quarantine needs no document read and leaves the old path visible until rename.
+All backup items authenticate before quarantine or publication; a quarantine
+failure refuses without advancing the anchor. The mandatory file-port method
+and generated-only fake stay in C-owned files. Regression/red-drill receipts
+go into the existing C certification without replacing prior KATs or drills.
+No dependency, new surface, history bypass or gate change is authorized.
+
+**FIXM109C review repair (2026-10-05, Mac mini).** Before code, the lane
+accepts all five RVM109C findings: bind the independent anchor to a keyed
+committed-state digest chained to the previous digest; authenticate a
+write-ahead intent with its exact prior anchor for deterministic recovery of
+confirmed restore jumps; sign validated canonical JSON (sorted object keys,
+JSON-normalized numbers); erase owned keys when RNG throws; and give native
+tests their own temporary parent. Restore requires explicit caller confirmation
+and a fresh generation. An existing anchor admits only its exact current
+snapshot, even for a newer backup, so a fork or revoked policy/material cannot
+return through restore. A new device without history may import a confirmed
+backup. All logic remains shared core for every editor; B/W must bind confirmation
+only to the user's trusted surface. Regression tests and byte-exact red drills
+belong in `docs/certification/m109-c.md`; the lane introduces no dependency,
+command or surface. The rig brief reserves aggregate quality for the lead and
+prohibits merges, pushes and live/paid calls.
+**FIXM109PW3 / RVM109PW2G (2026-10-06).** Replace the PowerShell ACL
+scan with the trusted native guard's handle-based `GetSecurityInfo` check:
+refuse null DACLs, map file generic rights before ordered deny/allow
+evaluation, and test Everyone, Users, Authenticated Users and other untrusted
+principals. Hold the verified file and lexical ancestor handles against
+replacement across `CreateProcess`; supervise the child with a kill-on-close
+job before releasing private stdin. Regressions cover null/generic ACLs,
+deny/allow order, safe controls and the launch handles, with byte-exact red
+drills. No dependency, gate or other lane changes.
+
+**FIXM109PW / RVM109PW Windows repair (2026-10-06).** Authenticate each
+cached EXE by its build SHA-256 through a handle denying write/delete sharing,
+check file/directory ownership and ACLs and ancestor ACLs/reparse points,
+retain the handle during execution, and rebuild into fresh private storage
+on refusal without deleting the suspect cache. Restrict every native import
+and startup DLL search to System32. Validate DPAPI wrap title/use before
+selecting the tier. Each finding receives regression tests and byte-exact
+red-drill receipts in `docs/certification/m109-pw.md`; no dependency, gate or
+shipped feature changes. No review finding is deferred.
+**Lane T implementation (2026-10-06, Mac mini).** Implement D89.7 provenance
+and sticky Muse Code session taint, plus D89.8's broker-memory Aho–Corasick
+scrubber, encoded forms, streaming overlap and disposal. Bind the Model API
+pre-send boundary, M84 portable/Markdown exports and M93's final draft through
+an injected scrub port; scrub failures refuse delivery. Provenance stays out
+of provider wire fields and survives replay, summaries and session restore.
+No broker, platform, exec or UI lane files change. The lead binds B's existing
+`scrub`/`taint` ports and the host transcript/log adapters; X consumes the
+streaming scrubber. M96 ledger/report and M102 journal owners are absent here:
+they bind the same shared port before storage or delivery (named handoffs in
+`docs/certification/m109-t-taint-and-scrub.md`). Certify V1/V3/V7/V9/V12 with
+generated canaries and byte-exact red drills; no paid/live calls, dependencies,
+cap changes, merges or aggregate quality run in this lane.
+**Lane O core certified (2026-10-06, MacBook rig).** Implements only D89.4's
+MCP environment/header routes and D89.14's MCP OAuth and reviewable migration.
+References remain handles through the host: the injected X feeder starts stdio
+servers against resolved command/argv/cwd; the trusted remote transport resolves
+origin-bound headers per request. OAuth runs in the broker with discovered
+RFC 9728/8414 metadata, S256 PKCE, exact issuer/resource binding, a reused injected
+M95b loopback port, serialized refresh rotation and guarded encrypted commits.
+No token-returning API or passthrough. Move to vault imports only the selected
+literal and returns a digest-bound proposed settings edit; it never saves the
+settings. Missing X/M95b/M96/W bindings are named handoffs, never production
+fakes. No activation or visual change, dependencies, paid/live calls or cap rise.
+Focused tests and byte-exact drills map to V3, V7, V9, V11, V13 and V14 in
+`docs/certification/m109-o-mcp-and-oauth.md`; lead owns joined-tree quality.
+**M109-R implementation slice (2026-10-06, MacBook rig).** Implement D89.6,
+D89.10 and D89.13 in the lane-owned `src/core/vault/fleet.ts` and `remote.ts`.
+Role `secrets` ceilings validate `none`, `ask` or unique handles; research,
+design and marketing default to none. Trusted launch facts mark schedules,
+timed sends, goals, headless and relocation unattended, including scheduler
+admission. Each worker gets its own socket and private inherited-pipe ticket
+handoff, revoked synchronously on retirement/lock. Task delegation binds the
+user's answer to role, task, targets, counts and digest; only narrowing is
+allowed and use reservations belong to one serialized owner. Uses outside an
+approved task card force a fresh broker approval, including when an ordinary
+Always grant would cover them; no fabricated taint is used for this. Remote frames
+admit signatures/codes only, using authenticated channel identity, local item
+selection and fresh owner-side approval; stale effects erase their own bytes.
+
+M96, M96c, M100 S/E, M107 R and vault S/X are absent from this base.
+Implement against injected route, task-authorization and paired-channel ports;
+record each binding as a named integration handoff, with no production fake or
+changes to another lane's files. Existing broker policy remains authoritative.
+No new UI, command, setting, dependency or activation import in this slice.
+Feature-reference entries and delegation-card visual checks follow actual UI
+integration; no Chrome/browser suite on this rig. Lane certification and red
+drills: `docs/certification/m109-r-roles,-fleets-and-devices.md`. Aggregate
+quality and joined-tree platform/editor checks remain lead-owned, per rig brief.
+
+**M109-R certification (2026-10-06).** Core slice complete against its injected
+ports: 59 focused tests at default timeout, 63 named red drills with byte-exact
+restoration, all five typecheck projects, lint/format, localization, deadcode,
+zero duplication, cycles and production build passed. Test helpers were checked
+again after deduplication. Host API record regeneration remains W-owned (B's
+existing drift plus R's two crypto imports). M109 stays integration-open: next
+bind R-task-authority/R-routes with M96/B/S/X, then M100 S/E and M107 R, shared
+editor/UI surfaces, reference entries and the joined-tree full gate. Evidence:
+`docs/certification/m109-r-roles,-fleets-and-devices.md` and `m109-r-drills.json`.
+
+**FIXM109B6 / RVM109B5 (2026-10-06).** Close both confirmed findings:
+make audit-session key erasure and reference clearing unconditional despite
+file-writer close failures, and report cleanup failure to Lock/Dispose callers;
+audit every B-owned key/plaintext byte owner for unconditional cleanup or
+explicit successful ownership transfer. Guard each invalidation subscriber
+independently and always run the revocation notice afterward. Each new guard
+gets a generated/fake regression and named byte-exact red drill. Keep the lane
+boundary, default timeouts and all gates; no dependency, merge or live call.
+
+**FIXM109B5 / RVM109B4 (2026-10-06).** Keep D99's reducer architecture and
+close all five findings: wipe plaintext synchronously in the reducer before
+removing ownership; isolate every runner effect from callback exceptions;
+revoke admission and lifetime in the failed redemption-audit step; invalidate
+in-flight material on Finish and require active admission at final release;
+record terminal outcomes in state without self-dependent audit settlement;
+retire cancelled automatic unlocks from the serialized queue immediately,
+disposing late results by tag. Each scenario gets a regression, exhaustive
+scheduler coverage and byte-exact red drill. No dependencies, guard widening,
+merge, live calls or aggregate quality run; integration remains lead-owned.
+
+**REDM109B redesign (2026-10-06).** Replace the broker's async authorization
+owner and re-validation helper with D99's synchronous reducer and tagged effect
+runner. Close all RVM109B3 probes by construction; retain named regressions from
+all three rounds. Add deterministic exhaustive and seeded effect-order tests,
+with invariant checks after every event, and three byte-exact mutation drills.
+Certification records coverage, resource ownership and writer commit semantics.
+This rig lane runs targeted checks directly, without merges or aggregate quality;
+the lead retains the joined-tree quality and platform checks.
+
+**FIXM109B2 review repair (2026-10-06).** Close all four RVM109B2 findings:
+bind each continuation to the requester's fresh registration incarnation and
+the broker generation, including channel provenance loading before broker entry;
+own authorization/audit and cancellation cleanup tasks
+through bounded Lock draining and terminal audit settlement; serialize every
+management operation and revalidate after I/O; generate the authorization JSON
+schema from its source and check drift. Add fake-only regression tests and
+byte-exact red drills, then inventory every broker await and its boundary.
+No dependencies, live calls, integration merge or aggregate quality run in this
+rig lane; the lead retains the joined-tree gates.
+
+**FIXM109B review repair (2026-10-06).** All nine RVM109B findings are in
+scope: forbid model disclosure; serialize authorization state with immediate
+lock/revoke/cancellation barriers and a local generation; use one validation
+helper after asynchronous boundaries for epoch, deadline, item expiry,
+registration and live grant coverage; cache session consent only after a
+successful ticket; own temporary unlock resources from acquisition; cancel
+private reads on socket close; limit revocation to the affected item; and audit
+terminal denials for pending approvals and unused tickets. Generated fakes
+only, no dependencies or live calls. Certification: `docs/certification/m109-b.md`.
+
+**M109 H wave 1 (2026-10-06, implemented against injected ports).** Implemented terminal vault commands and bound
+watch answers, ACP permission mapping and local `/vault` commands, local
+headless `--vault` admission and unconditional denied exit, and value-free
+companion/native panel routing. Consume lane-0 schemas and injected B/U/M104
+ports; absent bindings fail explicitly. B's management/watch transport and
+W's installed `vault.js` runtime factory, U's panel and M104's authenticated
+bridges are named integration handoffs, not production fakes. CI's stdin-key
+lane stays vault-free. Each H guard gets a named fake regression and byte-exact
+red drill in `docs/certification/m109-h-runtime,-acp,-headless,-companion.md`.
+No UI styling, dependencies, model calls, merges, pushes or aggregate quality.
+H records 106 focused tests and 75 named byte-exact red drills; the installed
+bindings, native process-stop proof and editor visual matrix remain open.
+The full M109 checklist stays open for W's joined-tree certification.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/credential-vault-2026-10-05.md`.
 
+**P-mac review repair (FIXM109PM, 2026-10-06).** RVM109PM P2 preserves
+validated fixed native failures across exit 1 and parser cleanup, with a named
+error and recovery action for cancelled, unavailable, keychainLocked,
+itemMissing, authentication and invalidRequest. Missing items and a locked
+Keychain get distinct native codes. P3 installs erasure before private reads,
+including partial EOF, read failures and trailing input. Each repair gets a
+failing regression and a byte-exact restored red drill in `m109-p.md`. No
+credential item or paid/live call is needed. The broker's display belongs to B
+(the broker is absent on this lane base); P supplies the failure/action pair.
+Production SE certification stays false until the owner's real-item capture
+also proves a second executable cannot read the item silently. This Intel Mac
+mini's T2 reports `SecureEnclave.isAvailable=true`; that probe is not presence
+or helper-only-access certification.
+
 - **Lanes 0, C, P, B and U** need nothing unmerged.
+- **U implementation contract (2026-10-06).** The shared Vault section and
+  approval cards consume the lane-0 value-free state/messages. Native password
+  entry is private to the host. `VaultPanelService` binds C/B/P/M management
+  and snapshots through an injected port; its mutation callback must run at
+  the physical commit. Lock/revoke/dispose and broker lock/revoke notifications invalidate queued
+  and in-flight effects.
+  M95's Models & Agents host, M104's authenticated bridge, and W's build,
+  manifest and budget registrations are named integration handoffs, since
+  those files are absent or owned by those lanes. U never supplies a fake
+  production service. See `docs/certification/m109-u-panel-and-vs-code.md`.
 - **S, X, T, O and M** follow B; **L** also needs M81's lane A1.
 - **H** follows B and U.
 - **R** waits for M96; its device part for M100's lanes S and E and M107's
   lane R.
 - **M** moves each store as its owner milestone merges (D89.14).
+- **M lane implementation (2026-10-06, MacBook):** the private migration
+  service and the SecretStorage/runtime adapters copy and SHA-256-verify,
+  retain and mirror rotations, undo, resume interrupted work and retire after
+  two minor-release ordinals (patches do not advance the ordinal). C binds the
+  encrypted journal and physical-commit checks to its serialized writer;
+  B/P/W bind generation/epoch ownership and lazy startup. Only the already
+  merged Model API key format is built in. Each unmerged store owner supplies
+  its exact codec, binding and original storage key as it lands; no guessed
+  credentials or activation changes. Ambient discovery/import, fixed plaintext
+  credential decoders and mapped login CSV are implemented behind private user
+  action and atomic batch ports; S supplies SSH decoding and L supplies TOTP
+  export decoding. Next slice is W's C/P/B/U/H wiring and the later owner
+  codecs. Receipts and integration obligations are in
+  `docs/certification/m109-m-migration-and-import.md`.
 - Every lane certifies on fakes. The rig captures need no model call. The
   Secure Enclave capture waits for the owner (Q-M109) and blocks no lane.
+- **P Windows binding (m109/pw).** The shared runtime adapter implements
+  `VaultSlotPort` with C-supplied slot identity/generation metadata and an
+  injected trusted helper transport, matching P's macOS adapter. DPAPI wraps
+  only the vault key, bound to the slot identity. TPM wrapping uses a
+  non-exportable current-user RSA-2048 key and OAEP-SHA-256. Presence requires
+  both a forced-high-protection PCP key and a fresh Hello signature of a
+  challenge bound to the slot and named use, in the helper's own window.
+  Hello padding is verified from the returned signature rather than assumed.
+  Unavailable hardware/Hello fails closed. Named integration handoffs to B/W:
+  bind the transport/compiler lazily, retain slot metadata in C, consume the
+  screen-lock port, ship the native sources in both packages, and include
+  the adapter in the vault bundle. No credential migration or activation
+  wiring is made by this platform-only lane.
 
 - **Goal.** One encrypted vault per user holds API keys, OAuth tokens, SSH
   keys, sudo and other passwords, website logins with their TOTP seeds,
@@ -43332,6 +43670,211 @@ rules prohibit aggregate quality/full test runs, merges and network calls.
 Hook-on local commits use complete owning test files, mutation/restoration
 drills and scoped static/build checks. The lead retains integrated quality,
 coverage and editor/live certification; no gate is weakened.
+**FIXM109C2 review repair (2026-10-06, Mac mini).** The remaining RVM109C2
+P2 is fixed: exact-anchor backups repair damaged/unreadable destination
+documents without authenticating them, retaining owner-only diagnostic
+ciphertext before atomic replacement. Backup authentication, complete-state
+history admission, destination identity and single-advance pending recovery
+remain enforced. All five owned suites pass 71 tests, including the existing
+RFC/NIST KATs; focused coverage meets unchanged thresholds. Eight distinct
+red mutations fail their named regressions and restore the source byte-exact.
+All 79 prior drill receipts remain, with eight appended in the C record.
+Test-only fixture consolidation fixes two new duplication-gate findings;
+the zero-clone threshold stays unchanged. Records: `docs/certification/m109-c.md`
+and `m109-c-drills.json`. Aggregate quality stays lead-owned under the rig
+brief; the existing W-owned generated host-API count deferral is unchanged
+(crypto 46 → 50, fs 33 → 34, fs/promises 47 → 48, path 84 → 85). The mandatory
+native quarantine/diagnostic integration binding is named in §9. No review
+finding, gate threshold or file-security guard is deferred or weakened.
+
+**FIXM109C review repair (2026-10-05, Mac mini).** All five RVM109C findings
+are fixed: exact committed-state/hash-chain anchoring, explicitly confirmed
+restore with revocation-preserving admission, authenticated write-ahead restore
+intent and idempotent recovery, canonical validated MAC serialization, RNG
+failure erasure and independent native fixture parents. The five complete
+owned suites pass 61 tests and focused coverage meets unchanged thresholds;
+20 red executions of 15 distinct mutations fail their named regressions and
+restore sources byte-exact. Records: `docs/certification/m109-c.md` and its
+existing drills JSON. The rig brief reserves aggregate quality for the lead.
+The W-owned host API record remains an explicit deferral: crypto imports
+46 → 50, fs 33 → 34, fs/promises 47 → 48, path 84 → 85. No host API or built-in
+is added; W must regenerate after integration. No review finding is deferred;
+P/B's protected complete-state anchor and W's trusted confirmation bindings
+are mandatory before this unwired core ships (named in §9).
+**FIXM109PM review repair (2026-10-06, Mac mini).** The rig brief and common
+lane rules prohibit `npm run quality` and any merge/push/rebase. Focused tests,
+local gate commands and native generated-material checks run directly here;
+the lead retains aggregate quality, the integrated host API record and hosted
+CI. This is a lane receipt, not a release certification; no gate is weakened.
+See `docs/certification/m109-p.md` for results and byte-exact red drills.
+**M109 lane T (2026-10-06, Mac mini).** Targeted default-timeout tests and
+byte-exact red drills certify the provenance engine and injected scrub
+boundaries; the lead owns aggregate quality and joined-tree binding. The
+host API gate reports inventory drift: `node:buffer` 39 → 40 from T, plus
+the six B/base totals (`child_process` 13 → 14, `crypto` 46 → 53, `fs` 33 → 36,
+`fs/promises` 47 → 49, `net` 7 → 10, `path` 84 → 89). The record is W-owned;
+`T-W-host-api` defers its regeneration/review to the joined source without
+weakening the gate. Performance initially measured 36.24 MB/s; two attempted
+fixes measured 39.80 and 32.70, then the path stopped under the shared rule.
+Later restored-source runs pass the unchanged 50 MB/s guard. Preserve that
+variability for the integrated rig check; no floor, timeout or cap is raised
+or lowered. B/host/X binding, absent M96/M102 owners and the unsafe opaque CLI
+log writer remain named handoffs, not implemented substitutes. Final evidence:
+`docs/certification/m109-t-taint-and-scrub.md` and `m109-t-drills.json`.
+**M109 O (2026-10-06, MacBook rig).** O's core and pool seams are certified
+on generated fakes; 52 named red drills restore byte-exact. Typechecks,
+changed-file lint/format, plain Knip, zero-clone jscpd, localization and the
+production build pass without budget or gate changes. **O-W-host-api** is the
+owned handoff: B's existing six Node-import count differences remain, with O
+adding two `node:crypto` readers (53 to 55); the 332 VS Code APIs, 31 adapters,
+25 Node built-ins and 61 theme variables are unchanged. W regenerates the
+joined record; `docs/certification/m109-o-host-api.patch` projects this base's
+complete count change. No W-owned record, README/CHANGELOG, bundle script,
+manifest or help catalog was edited. The cert supplies documentation text and
+O-X/O-C/O-BH/O-T/O-95b/O-96/O-U/H bindings. Full quality, browser/editor checks
+and integrated M109 acceptance stay lead-owned; no live/paid calls or dependency.
+**M109 M (2026-10-06, MacBook).** The migration/import implementation uses
+the brief's focused rig checks, default test timeouts and injected C/P/B/S/L
+ports. `check:host-api` reports generated inventory drift from the lane-0/B
+base plus M's built-in imports: VS Code API/files and theme counts are unchanged.
+W owns `docs/ide-compatibility/host-api.md` and regenerates it on the joined
+tree; M does not edit that lane's file or weaken the check. The aggregate
+quality/browser/editor certification stays with W/the lead under the rig
+brief. Tests, mutation receipts, exact gate results and named bindings are in
+`docs/certification/m109-m-migration-and-import.md`.
+**M109 H gate handoffs (2026-10-06).** The rig brief assigns aggregate
+quality to the lead. `check:host-api` reports inherited B plus H Node import
+count drift; VS Code APIs (332), adapter files (31), Node built-ins (25) and
+theme variables (61) are unchanged. W owns the generated record and must
+regenerate/review it in the joined tree. No ignore, cap, rule or threshold
+changed; no release/full-quality claim is made by H.
+
+**M109 H verification deferral (2026-10-06).** H58 proves unconditional
+`denied` exit and vault-session close. An additional new assertion against
+`FakeAgentHost.cancel` failed after two fixture fixes (first prevent immediate
+completion, then hold the fake turn open). Under the lane stop rule, do not
+keep rewriting that spy path. It is removed from H58 with this explicit
+record; no production cancellation or existing gate is changed. Verify actual
+engine/command-tree stop through B/X's installed session/lifetime binding at
+integration, and run the existing exec lifecycle regressions. H does not claim
+that native process-stop proof from its injected session fake.
+**M109 U bounded-lane receipt (2026-10-06, Mac mini).** The rig brief
+prohibits aggregate quality/full-suite runs and gives W the joined build,
+manifest, help/docs and generated record registrations. U's owning
+panel/native/controller tests, contracts and lazy graph/budgets pass at the
+repository default timeout; typecheck, localization, duplication and the
+existing production build pass. Forty-six guards were deliberately broken,
+observed red and restored byte-exact; 160 accessibility scenes pass across
+four themes and two widths. `npm run deadcode` exits 1 for the two genuine
+standalone harness entrypoints that W must register; `check:host-api` exits 1
+for the generated record that W must refresh. These are named integration
+deferrals, not ignored files, rule changes or raised caps. Full quality,
+installed-host matrix and real C/B/P/M/S plus M95/M104 binding remain with
+the lead/owning lanes. See `docs/certification/m109-u-panel-and-vs-code.md`.
+
+**FIXM109B6 / RVM109B5 (2026-10-06, Mac mini).** Both findings are fixed;
+no review residual is accepted. Final restored-source verification passes all
+335 tests in all 19 vault files with default timeouts, at most three files and
+three workers per invocation. Twenty-five named red drills restore byte-exact;
+current production/test hashes match their receipts. All five typechecks,
+changed-file ESLint/Prettier, plain Knip, zero-clone jscpd, localization, schema
+drift and production build pass without changing budgets or gates. The existing
+six Node totals remain the named `B-W-host-api` integration deferral, and the
+existing patch still applies cleanly. Aggregate quality, Windows/editor checks,
+C/P/T/route/W binding, broker bundling and integrated latency remain lead-owned
+under the lane brief. Evidence: `docs/certification/m109-b.md` and
+`m109-b-round5-drills.json`.
+
+**FIXM109B5 / RVM109B4 (2026-10-06, Mac mini).** All five findings are fixed;
+no review residual is accepted. The final restored source passes 313 tests in
+all 18 vault files at the repository-default timeout, at most three files and
+three workers per invocation. Exhaustive and seeded coverage is 518 + 1,600
+schedules, 67,368 invariant steps, seed 109003. Seeded cases run 100 rounds
+per scenario in separate tests after the combined case hit the five-second
+limit; all rounds and invariants remain. Ten named red mutations restore
+byte-exact and their source/test hashes match current files. All five typechecks,
+changed-file ESLint/Prettier, plain Knip, zero-clone jscpd, localization, schema
+drift and production build pass without changing any budget. `B-W-host-api`
+remains the same six generated Node import totals; the existing W-owned patch
+passes apply checking. Aggregate quality is prohibited in this lane by the
+brief and remains lead-owned, as do joined native/editor checks and wiring.
+Evidence: `docs/certification/m109-b.md` and `m109-b-round4-drills.json`.
+
+**REDM109B / D99 (2026-10-06, Mac mini).** The broker core is a synchronous
+reducer with tagged effects; the old queue and async re-validation implementation
+are deleted. All three review reports have named regressions. The final restored
+source passes 282 vault tests at repository-default timeout, at most three files
+and three workers per invocation; the deterministic scheduler covers 505
+exhaustive and 900 seeded schedules (seed 109003), 40,025 invariant steps.
+The three required generation/incarnation/unowned-cleanup mutations each fail
+its named test and restore byte-exact with current-source SHA-256 receipts.
+All five typechecks, changed-file ESLint/Prettier, plain knip, zero-clone jscpd,
+localization, schema drift and production build pass; every bundle cap is unchanged.
+The only required targeted gate deferral is the same six pre-existing Node
+import counts in W's generated host API record; the existing B-W patch still
+applies cleanly. Aggregate `npm run quality` is prohibited by the brief and is
+lead-owned, as are the joined native/editor matrix and bundle registration.
+No dependencies, suppressions, casts or weakened gates were added. This record
+supersedes the historical FIXM109B/FIXM109B2 await inventories and ownership
+claims; current evidence is `docs/certification/m109-b.md` and
+`m109-b-redesign-drills.json`.
+
+**FIXM109B2 / RVM109B2 (2026-10-06, Mac mini).** All four findings are
+fixed with fake-only regressions and byte-exact red drills. Direct default-timeout
+vault suites pass 259 tests; all five typechecks, changed-file static checks,
+schema drift and production build pass. Seventeen red drills and the reviewed
+source baseline restore byte-exact; all 279 awaits have recorded boundaries. Aggregate
+`npm run quality` is prohibited by the rig/shared brief and remains lead-owned;
+no threshold, timeout or ignore is weakened. The existing six Node-total
+`B-W-host-api` differences and its W-owned applicable patch remain the sole
+inventory deferral. Evidence: `docs/certification/m109-b.md` and its round-2
+receipts/await inventory. The grant writer's commit callback and value-free
+audit failure notification are named C/W integration bindings.
+
+**FIXM109B review repair (2026-10-06, Mac mini).** RVM109B's five P1 and
+four P2 findings have regression tests and failing/restored red drills; no
+finding is deferred. B's targeted gates run directly with hooks enabled and
+no gate weakened. Aggregate quality remains prohibited in this lane and
+required at W/lead integration. The host API record is the existing named
+**B-W-host-api** deferral: its W-owned generated Node totals still need
+child_process 13 → 14, crypto 46 → 53, fs 33 → 36, fs/promises 47 → 49,
+net 7 → 10 and path 84 → 89. This repair adds no Node import or host API;
+`docs/certification/m109-b-host-api.patch` still applies cleanly. Evidence and
+restored-source check results: `docs/certification/m109-b.md`.
+
+**FIXM109L0 review repair (2026-10-05, Mac mini).** RVM109L0's two P2
+contract findings and its P3 fake ownership finding are fixed. A distinct
+HTTPS issuer identifier schema allows paths and preserves exact spelling,
+without query, fragment or credentials. The broker port and wire share
+approval/ticket/denial results, with ticket handoff and audit authority; fake
+approvals own their snapshots before an asynchronous boundary. Committed
+issuer/authorization JSON Schemas and the wave-1 handoff accompany 100 focused
+tests and 21 failed, byte-exact red drills (including two compiler drills).
+Typecheck, changed-file lint/format, localization, deadcode, duplication,
+cycles, exec schema and production build checks pass. The host API failure
+is unchanged: node:crypto imports 46 → 47, still W-owned as below. No review
+finding is left as a residual; no runtime, dependency or gate is changed.
+Receipts: `docs/certification/m109-l0.md`. The rig brief prohibits aggregate
+quality and merges; focused gates run directly and hooks remain enabled.
+
+**M109 lane 0 contract slice (2026-10-05, Kubuntu).** The item/material,
+binding, policy, grant, requester, approval, ticket, audit, slot and broker
+contracts, canonical use digest and test-only fakes are supplied by lane 0.
+The isolated Models & Agents vault state and value-free host messages await
+M95/M104/U binding on integration. Lane 0 does not implement OS slots,
+policy enforcement, feeders or migration. Research corrections and the
+V1–V16 runtime proof owners are recorded in
+`docs/certification/m109-threat-model.md`; focused validation and deliberate
+failures are in `docs/certification/m109-0.md`. Manifest registration, bundle
+readers and the feature reference stay with their owning integration lanes.
+Lane 0 records 91 focused tests and 144 byte-exact red drills, all fifteen
+changed TypeScript files lint clean, and the typecheck, localization,
+deadcode, duplication, cycles and production build checks pass. The host
+API check is a named W deferral: its generated record needs node:crypto
+imports 46 → 47 for useDigest.ts, with no new host API or built-in. W owns
+that file; lane 0 leaves it untouched and records the regeneration command
+in its certification. The full M109 checklist remains open until those
+lanes and captures pass.
 
 **CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
 tarball passes the unchanged strict English fallback check and 382 distinct
@@ -46401,6 +46944,39 @@ mini reproduction and red drills run directly here with hooks enabled.
 shell tests and required static/build checks, leaving full quality, merged
 coverage and hosted cross-platform certification to the lead. No gate is
 weakened and no integrated-green claim is made by this lane.
+**FIXM109PW3 bounded-lane verification (2026-10-06).** The rig brief reserves
+full quality/coverage for the lead. Direct Win11 checks pass typecheck, changed
+file ESLint/Prettier, deadcode, zero-clone duplication, localization, production
+build and the 96 owned tests at repository default deadlines. The host-API
+mismatch remains exactly W's five import-count changes recorded below; no
+new VS Code API or generated snapshot change belongs to this repair. Sixteen
+byte-exact red controls are in `docs/certification/m109-pw3-drills.json`.
+
+**M109 P Windows bounded-lane gates and capture deferral (2026-10-06).**
+The Windows rig brief and shared lane rules prohibit full quality and the
+full test suite here. Hook-on commits use the three owned test files,
+guard-fire receipts, scoped lint/format and typecheck; final certification
+also runs dead-code, duplication, localization, host API and production build.
+The lead owns full integrated quality and coverage. This VM has no TPM or
+Hello; current-user DPAPI later refused even outside the helper in its NTLM
+logon context. Real PCP/Hello prompts, stable DPAPI isolation/network-logon
+captures and a screen-lock event need the named Windows-capable integration
+rigs. No threshold, rule, scope or OS protection setting is weakened.
+See `docs/certification/m109-pw.md` and Q-M109-Windows-DPAPI in §3.
+
+**M109 P Windows host-API snapshot deferral (2026-10-06).**
+`npm run check:host-api` exited 1 only for this lane's Node import counts:
+`node:child_process` 13 → 15, `node:crypto` 46 → 49,
+`node:fs/promises` 47 → 48, `node:path` 84 → 86. All portable-module
+checks passed; no VS Code API was added. M109's ownership table assigns
+`docs/ide-compatibility/**` and the host-API record to W, so P leaves that
+file untouched. W regenerates it with `npm run check:host-api -- --write`
+on the integrated tree and runs the unmodified check before certification.
+
+FIXM109PW's final check also has `node:crypto` **46 → 50** and `node:os`
+**9 → 10**, from the trusted build digest and protected temporary-directory
+fallback. The other counts above are unchanged. W owns this same generated
+snapshot handoff; the portable-module check and all build checks pass.
 
 **FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
 shared lane rules prohibit a full `npm run quality` or full test suite in
@@ -47519,9 +48095,15 @@ proof remains WINPUB on win11 for the lead's release batch.
 | `src/acp/questionDeferralBundle.ts` (FIXM112A)                                                                      | `isAcpQuestionBundle` trusts the checked factory signature | The entry, loader and ACP package come from the same build; the export is checked as a function and loader tests reject missing/malformed modules. The factory installs the caller's language table before constructing a session's question controller. |
 | `src/runtime/questions/questionRegistryBundle.ts`, `src/host/conversation/conversationBundle.ts` (M112 integration) | Checked same-build function signatures                     | Loader guards validate each required export as a function; entries and callers ship from the same build. Registry and host store factories install or inherit the caller's language before use; loader and real-disk tests exercise their signatures.    |
 
-| Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
-| ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
+| Location                                                           | Escape hatch                                                          | Reason                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/l10n/text.ts` (ACTDIET)                                | `as UiText` on the descriptor clone                                   | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement.                            |
+| `native/windows/MuseSparkVault.cs` (FIXM109PW3, supervisor job)    | Job handle deliberately retained until OS process exit                | Joining the supervisor before CreateProcess makes child job membership atomic. The non-inheritable kill-on-close handle stays in its OS handle table for this one-launch process; closing it at Launch return would terminate the supervisor before it reports its exit code. |
+| `native/windows/MuseSparkVault.cs` (FIXM109PW3)                    | `unchecked((uint)ace.AccessMask)` and checked OS exit-code conversion | CommonAce stores native unsigned masks in signed integers; preserving all bits is required for GENERIC_WRITE/ALL. The checked exit conversion refuses values outside the managed entry's int range.                                                                           |
+| `test/unit/helpers/vault/windowsVaultGuardCapture.cs` (FIXM109PW3) | `unchecked((int)mask)`                                                | Test-only CommonAce fixtures preserve the native generic-rights bit patterns in their signed storage, with an inline reason.                                                                                                                                                  |
+| `test/unit/helpers/vault/windowsVaultGuardCapture.cs` (FIXM109PW)  | `(int)` on the reflected native entry result                          | The test-only protocol entry invokes the declared `int Main(string[])`; no wire value is coerced. Its valid baseline and invalid DPAPI text regressions execute that entry.                                                                                                   |
+| `src/runtime/vault/vaultRuntime.ts` (M109 H)                       | `as Partial<RuntimeVaultModule>`                                      | The installed `dist/vault.js` factory is W/H's typed build contract. Runtime checks refuse absent exports and malformed binding methods; fake module tests prove fail-closed loading. No caller-supplied path or private wire format.                                         |
+| `test/unit/vault/vaultPanelBundle.test.ts` (M109 W)                | `as unknown as` the bundle factory's return type (two fakes)          | The factory is the same-build `dist/vault.js` contract, shape-checked by `isVaultBundle` before use. The tests observe only loader identity and refusal, never the panel, so no real host is built. Each cast carries its inline reason.                                      |
 
 ## 8. Escape hatches register
 
@@ -48658,6 +49240,169 @@ before a repaired one loads (2026-09-30).
   internal Stop failures return the translated failure guidance, while the
   explicit cancellation/lifecycle flag determines cancellation. Two further
   red drills prove that distinction; no RVM105R3B finding is deferred.
+
+- **M109C-quarantine-binding (FIXM109C2, unmerged integration contract).**
+  RVM109C2's damaged-destination restore finding is repaired in shared core.
+  Every file adapter must durably retain a displaced document without reading
+  it or removing its current path before atomic replacement, and refuse when
+  retention fails. Node uses a unique hard link in the same owner-only vault
+  directory, verifies both file identities/security, and syncs the directory.
+  Diagnostic copies remain ciphertext, are never opened as current state,
+  and are retained rather than automatically pruned. Safe for now: this core
+  is unwired, the port is mandatory, and unsupported linking fails explicitly.
+  Follow-up: P/B bind and certify retention on Windows/Linux; W exposes the
+  diagnostic location and explicit cleanup when it wires restore. No RVM109C2
+  finding is deferred.
+- **M109C-anchor-binding (FIXM109C, unmerged integration contract).** RVM109C's
+  five findings are repaired in shared core. P/B must persist generation,
+  audit state and `stateDigest` independently of the replaceable vault files,
+  and atomically compare the complete prior state on every advance. Restoring
+  that protected anchor with all files is D89 V11's existing limit. Safe for
+  now: this core remains unwired and the adapter is mandatory, with no silent
+  fallback. Follow-up: P/B prove durable anchor binding before W ships it.
+- **M109C-restore-history (FIXM109C, deliberate admission policy).** Confirmed
+  restore imports onto a new device without history, or restores the exact
+  snapshot matching an existing device's complete anchor. A different or
+  newer fork is refused even after user confirmation: no backup can revive
+  that device's revoked policy or removed material. Safe for now: no
+  cross-history merge or rollback is admitted. Follow-up: W binds the trusted
+  confirmation action in every editor; any future cross-history import needs
+  separately designed revocation proof, never a weaker generation guard.
+  No RVM109C finding is deferred.
+- **P-mac/B-error-surface (FIXM109PM, 2026-10-06).** The macOS native
+  helper and slot port now preserve six fixed named failures with distinct
+  recovery-action identifiers. The broker does not exist on this lane base;
+  B owns translating and displaying them. Safe for now: P is not bound into
+  shipped vault bundles and every failure refuses access. Follow-up: B's
+  integration must test each native code through its broker/client UI, rather
+  than collapse it to No access. See `docs/certification/m109-p.md`.
+
+- **P-mac/owner-certification (FIXM109PM, 2026-10-06).** This Intel Mac mini
+  has a T2 chip and reports `SecureEnclave.isAvailable=true`; availability is
+  not production certification. Real-item access, per-use presence and stale
+  authorization remain unproved. Safe for now: the native certification flag
+  stays false and neither SE mode is offered. Follow-up: the owner's Touch ID
+  Mac capture after 17:00 must also prove a second executable cannot read the
+  real item silently. No helper-only ACL guarantee is asserted meanwhile.
+- **FIXM109PW3 / RVM109PW2G (2026-10-06).** The one P2 is repaired with
+  no review residual. The trusted native guard reads owner/DACL information
+  from held handles, refuses null DACLs, maps generic file rights and respects
+  deny/allow order for outsider principals. Verified file and ancestor handles
+  deny replacement across CreateProcess; a kill-on-close job supervises the
+  suspended child before private input is admitted. Guard source comes only
+  from the packaged reader, never the mutable cache. The native child's only
+  environment entry is the CLR-required SystemRoot; no credential is inherited.
+  Same-user/privileged principals and the original hardware/live captures
+  retain D89's existing scope. See `docs/certification/m109-pw.md` and the
+  byte-exact `m109-pw3-drills.json` receipts.
+
+- **FIXM109PW / RVM109PW (2026-10-06).** Both P1s (cached helper identity,
+  DLL search order) and P3 (DPAPI title/use validation) are repaired with no
+  finding residual. A build supplies its EXE digest in memory; no mutable
+  sidecar or file name authenticates a prior process's cache. Each launch
+  verifies content through a deny-write/delete read handle, file/directory
+  ownership and ACLs, and ancestor ACLs/reparse points. The absolute system
+  PowerShell now loads the trusted native guard, which starts the verified
+  helper while retaining file/ancestor handles; private input follows readiness. A refusal reports a fixed error
+  and rebuilds fresh private storage without removing the suspect path.
+  An unsafe storage parent selects the user's protected temporary tree.
+  Current user, SYSTEM and Administrators remain trusted, as the owner
+  explicitly decided; this does not claim same-user debugger isolation.
+  Native startup and every P/Invoke restrict DLL search to System32.
+  Existing TPM/Hello, screen-lock and stable DPAPI live-capture handoffs
+  remain the original integration requirements, not residual review findings.
+  See `docs/certification/m109-pw.md` for regression and red-drill evidence.
+- **FIXM109U / RVM109U (2026-10-07).** All six findings (five P2, one P3)
+  are fixed; none is accepted as residual risk. `changed` notifications join
+  the host generation barrier so older native drafts cannot commit after
+  another window's metadata change; approval notifications publish promptly
+  outside the queue so a held password box cannot starve an expiring card;
+  the native mode picker leads with the edited item's current policy; an
+  unobserved (`null`) protection tier renders a new honest
+  `vault.unknownTierWarning` (English plus all 14 tables) instead of claiming
+  OS-store protection; session consent is hidden and refused for remote
+  (`deviceId !== null`) requesters while the card states its real scope with
+  the existing `remoteWarning`; late completions after disposal report no
+  window UI through one `shouldReport` predicate. No guard was widened, no
+  dependency was added, and the C/B/P/M/S service binding handoffs stand
+  unchanged. Evidence, regressions and byte-exact drills:
+  `docs/certification/m109-u-panel-and-vs-code.md`.
+
+- **FIXM109B6 / RVM109B5 (2026-10-06).** Both findings (one P1, one P2)
+  are fixed; none is accepted as residual risk. Audit-session key erasure and
+  reference clearing run in `finally` despite descriptor close failure; facade
+  and Dispose references clear on failure too. Cleanup errors reach Lock/Dispose
+  callers while remaining effects continue. Every B-owned key/plaintext array
+  owner was inventoried for unconditional cleanup or successful ownership
+  transfer. Each invalidation subscriber is guarded independently, followed by
+  the revocation notice, so another subscriber cannot skip channel destruction.
+  Owned-array wiping does not claim immutable-string/native-memory zeroization
+  or OS close success after failure. Evidence, regressions and byte-exact drills:
+  `docs/certification/m109-b.md` and `m109-b-round5-drills.json`. Existing
+  C/P/T/route/W bindings, Windows/editor checks, generated host API totals and
+  joined-tree quality remain integration work; no review finding is deferred.
+
+- **FIXM109B5 / RVM109B4 (2026-10-06).** All five findings (one P1, four P2)
+  are fixed; none is accepted as residual risk. Plaintext erasure runs inside
+  the synchronous reducer before ownership disappears. Fallible cleanup,
+  lifetime-close and host callbacks are isolated per effect. Redemption does
+  not authorize material before successful audit settlement; failed audit
+  removes the admission and closes its lifetime. Finish retires material
+  operations immediately, and final release requires the current admission.
+  Terminal outcomes are recorded in state and survive expiry while cleanup
+  settles; terminal operations cannot become their own audit dependency.
+  Cancelled automatic unlocks settle and leave the serialized queue immediately;
+  late results dispose only their tagged resources. Evidence and finite scheduler
+  limits: `docs/certification/m109-b.md` and `m109-b-round4-drills.json`.
+  Existing C/P/T/route/W bindings, Windows/editor certification, the W-owned
+  generated host API counts and joined-tree full quality remain integration
+  work. No model attempt, paid call, dependency or guard relaxation is added.
+
+- **REDM109B / D99 (2026-10-06).** The synchronous reducer and capability-bound
+  effects supersede the earlier FIXM109B/FIXM109B2 authorization/cleanup claims.
+  The RVM109B3 stale hello/close, private transport release, pending audit/reopen
+  and obsolete unlock/epoch paths now depend on immutable incarnation/generation
+  ownership. None of those findings is accepted as residual risk. C/P/W must bind
+  isolated audit writers, synchronous private-file commit/close, and the epoch
+  and grant authorization callbacks at their exact physical commit boundary.
+  Committed audit rows settle their authenticated anchor under C's transaction;
+  actual anchor failure still fails closed and requires verified repair. B claims
+  no power-loss atomicity, memory zeroization, enabled product feature or joined
+  Windows/editor certification. Existing C/P/T/route/W/full-quality handoffs and
+  the W-owned host API record remain integration work. Current proof and limits:
+  `docs/certification/m109-b.md`; the old await inventory is historical only.
+
+- **FIXM109B2 / RVM109B2 (2026-10-06).** All four review findings are fixed;
+  no P1/P2/P3 is accepted as a residual. Every request retains its registration
+  incarnation and broker generation, including the channel's provenance await.
+  Lock owns audit/cleanup tasks from their start, bounds settlement, writes
+  terminal outcomes and surfaces writer failure rather than reporting success.
+  All management mutations use the same owner and post-await validator; C must
+  invoke the supplied grant authorization callback at its exact commit boundary.
+  The authorization schema is generated and drift-checked from source.
+  B's existing unbound C/P/T/route, Windows, all-editor and W/full-quality
+  handoffs remain open. The new `B-C-save-authorization` and
+  `B-W-audit-failure` bindings are mandatory before integration; no shipped
+  support or real-platform certification is implied. Evidence and every await's
+  boundary: `docs/certification/m109-b.md` and `m109-b-round2-awaits.md`.
+
+- **FIXM109B / RVM109B (2026-10-06).** All five P1 and four P2 findings
+  are fixed; none is deferred as an accepted residual. Disclosure recipients
+  are person-only and require fresh presence; processes retain only D89.4's
+  named bound routes. The broker's queued authorization and immediate
+  invalidation barriers use a local generation in addition to the shared
+  epoch, so a failed epoch write cannot resurrect an old unlock. Deadline,
+  item expiry, live grant coverage and requester registration are rechecked
+  after awaits before caching consent or releasing bytes. Revocation wipes
+  every affected active use before termination/audit I/O, and cancellation
+  and lock audit terminal denials for approvals and unused tickets. Private
+  connection closure cancels reads and erases pending/late material; failed
+  unlocks erase temporary keys and lock opened stores. Tests and byte-exact
+  red receipts: `docs/certification/m109-b.md`. B's existing C/P/T/route,
+  Windows, all-editor, audit-contract and W/full-gate handoffs remain open;
+  this unbound lane enables no product feature and claims no new platform
+  certification. A failed shared epoch write still reports failure rather
+  than claiming the other broker versions received it.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

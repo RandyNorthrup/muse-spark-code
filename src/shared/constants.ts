@@ -117,6 +117,9 @@ export const COMMAND_IDS = {
   copyToMyPrompts: 'museSpark.copyToMyPrompts',
   sharePrompt: 'museSpark.sharePrompt',
   shareChat: 'museSpark.shareChat',
+  // M109 (PLAN.md D89): the per-user credential vault panel and its lock.
+  vault: 'museSpark.vault',
+  lockVault: 'museSpark.lockVault',
   // M112 (PLAN.md D92): cycle the focused chat's open question cards.
   nextOpenQuestion: 'museSpark.nextOpenQuestion',
   previousOpenQuestion: 'museSpark.previousOpenQuestion',
@@ -288,6 +291,10 @@ export interface CheckCommandSetting {
 // directly as the user, gated by the approval cards, as Claude Code does.
 export const SHELL_SANDBOX_MODES = ['auto', 'muse', 'off'] as const
 export type ShellSandboxMode = (typeof SHELL_SANDBOX_MODES)[number]
+// M109 (PLAN.md D89.2): how the vault key is protected. `auto` is available
+// hardware plus the OS store, with the recovery code offered at setup.
+export const VAULT_PROTECTION_MODES = ['auto', 'osStore', 'hardware', 'passphrase'] as const
+export type VaultProtectionMode = (typeof VAULT_PROTECTION_MODES)[number]
 export const SHELL_SANDBOX_SETTING = 'museSpark.shellSandbox'
 // The shell sandbox's network, `muse serve --sandbox-network <mode>` (M56,
 // PLAN.md D43; `muse serve --help` and dev.meta.ai/docs/muse-code/permissions,
@@ -397,6 +404,9 @@ export const TERMINAL_ENV_KEYS = { windows: 'windows', osx: 'osx', linux: 'linux
 export const BACKEND_MODES = ['auto', 'museCode', 'modelApi'] as const
 export type BackendMode = (typeof BACKEND_MODES)[number]
 export const BACKEND_SETTING = 'museSpark.backend'
+
+// The composer reads this scalar without carrying the optional settings table.
+export const IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT = true
 
 export const SETTING_DEFAULTS = {
   preferredLocation: 'panel' as PreferredLocation,
@@ -572,6 +582,13 @@ export const SETTING_DEFAULTS = {
   legalHeaderPolicy: 'optional' as LegalHeaderPolicy,
   legalRegistryLookups: true,
   legalExplanation: true,
+  // M109 (PLAN.md D89): the per-user credential vault, shared by every
+  // editor. All five are machine-scoped, so no workspace can change them.
+  vault: true,
+  'vault.protection': 'auto' as VaultProtectionMode,
+  'vault.agentFence': true,
+  'vault.lockAfterIdleMinutes': 240,
+  'vault.lockOnScreenLock': true,
 } as const
 export const PAID_DAILY_BUDGET = {
   minimumUsd: 0.5,
@@ -660,6 +677,13 @@ export const MACHINE_SCOPED_SETTINGS = [
   'mediaUploadExpiryDays',
   'screenRecordingMaxSeconds',
   'mediaAudioAction',
+  // M109 (PLAN.md D89): the vault's protection, fence and locks, all
+  // machine-scoped, so no workspace can change them.
+  'vault',
+  'vault.protection',
+  'vault.agentFence',
+  'vault.lockAfterIdleMinutes',
+  'vault.lockOnScreenLock',
 ] as const
 
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).
@@ -759,6 +783,9 @@ export const CREDENTIAL_ENV_EXACT_NAMES: ReadonlySet<string> = new Set([
   'SYSTEM_ACCESSTOKEN',
   'DOCKER_AUTH_CONFIG',
   'AZURE_STORAGE_SAS',
+  'PGPASSWORD',
+  'MYSQL_PWD',
+  'REDISCLI_AUTH',
 ])
 // M91 lane W (PLAN.md D70): the formats lane P's adapters translate, Cline's
 // v1 scripts among them (lane X's contract). A spark-hooks.json group names one
@@ -3491,6 +3518,9 @@ export const MUSE_CODE_REVIEWER_BUNDLE_FILE = 'museCodeReviewer.js'
 // window's hook runner, loaded the first time a both-backend hook event
 // fires (a watched file, a folder, Run Setup Hooks, Run Hook).
 export const EXTENSION_HOOKS_BUNDLE_FILE = 'extensionHooks.js'
+// The vault's window (M109 lane W, PLAN.md D6): the panel host, the native
+// editor and the broker client, loaded on the first vault command.
+export const VAULT_BUNDLE_FILE = 'vault.js'
 // The empty folder under the extension's global storage the reviewer's side
 // session runs in: outside every workspace, so no History lists it, and
 // with no rules, skills or files of the user's to read.
@@ -6995,3 +7025,69 @@ export const DEVELOPER_COMMAND_ID = 'museSpark.developerOptions'
 // developer first option, without the developer badge or expiry.
 export const DEVELOPER_SETTING_ID = 'museSpark.accounts.severalOnThisDevice'
 export const DEVELOPER_FILES = { state: 'developer.json', audit: 'developer-audit.jsonl' } as const
+// M109 lane 0: vault format, limits and budgets (D89).
+export const VAULT_FORMAT_VERSION = 1
+export const VAULT_PROTOCOL_VERSION = 1
+export const VAULT_APPROVAL_TTL_MS = 120_000
+// Lock wipes synchronously; audit and process cleanup get this bounded settlement window.
+export const VAULT_LOCK_DRAIN_MS = 1000
+export const VAULT_ASKPASS_USES = 3
+export const VAULT_ASKPASS_TTL_MS = 600_000
+export const VAULT_SESSION_MAX_DAYS = 30
+export const VAULT_AUDIT_MAX_BYTES = 8 * 1024 * 1024
+export const VAULT_LEGACY_RETAIN_RELEASES = 2
+export const VAULT_FIRST_SEND_SLACK_MS = 25
+export const VAULT_SIGN_P95_MS = 20
+export const VAULT_FEEDER_START_MS = 200
+export const VAULT_SCRUB_MIN_MBPS = 50
+export const VAULT_IDLE_MINUTES = 240
+export const VAULT_KEY_BYTES = 32
+export const VAULT_NONCE_BYTES = 12
+export const VAULT_TAG_BYTES = 16
+export const VAULT_RECOVERY_BYTES = 20
+export const VAULT_KDF = {
+  argon2: { memoryKiB: 65_536, iterations: 3, parallelism: 4 },
+  scrypt: { N: 131_072, r: 8, p: 1 },
+  saltBytes: 16,
+}
+export const VAULT_LIMITS = {
+  name: 48,
+  label: 256,
+  text: 4096,
+  valueBytes: 1024 * 1024,
+  items: 10_000,
+  grants: 10_000,
+  argv: 256,
+  names: 128,
+  cookies: 1000,
+  reasons: 128,
+  frameBytes: 4 * 1024 * 1024,
+  day: 6,
+  hour: 24,
+  idBytes: 16,
+  sha256Hex: 64,
+}
+export const VAULT_DEFAULTS = {
+  enabled: true,
+  protection: 'auto',
+  agentFence: true,
+  lockOnScreenLock: true,
+} as const
+
+export const VAULT_TOTP_DIGITS = { standard: 6, extended: 8 } as const
+export const VAULT_BASE64_GROUP_CHARS = 4
+
+// M109 O: bounded OAuth metadata/token bodies, PKCE entropy and flow lifetime.
+export const MCP_OAUTH_LIMITS = {
+  responseBytes: 64 * 1024,
+  randomBytes: 32,
+  flowMs: 120_000,
+  refreshSlackMs: 30_000,
+  maxExpiresSeconds: 365 * 24 * 60 * 60,
+}
+// U's independent lazy surfaces; W registers these new caps without changing existing caps.
+export const VAULT_PANEL_BUDGET_KIB = 75
+export const VAULT_HOST_BUDGET_KIB = 50
+export const VAULT_UI_TICK_MS = 1000
+export const VAULT_ID_BYTES = 16
+export const VAULT_TOTP_PERIOD_SECONDS = 30

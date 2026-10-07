@@ -205,5 +205,16 @@
   "config.mediaAudioAction.description": "`transcribe` convertit l’audio joint en texte avant envoi ; `sendAudio` envoie l’audio là où le modèle l’accepte. Transcription par défaut. La transcription facture le tarif vocal payant, toujours avec consentement préalable. Seul le réglage de cette machine est utilisé.",
   "config.accountSwap.description": "Passer au compte suivant avec de la capacité quand un compte atteint un seuil, à la limite de la requête suivante. Chaque compte garde ses propres limites. Activé par défaut ; seul le réglage de cette machine est utilisé.",
   "config.accountParallel.description": "Répartir le travail en arrière-plan entre les comptes selon la capacité ; chaque worker reste sur son compte. Activé par défaut ; seul le réglage de cette machine est utilisé.",
-  "config.accounts.severalOnThisDevice.description": "Autoriser plusieurs comptes d’un fournisseur sur ce PC pour les tests, chacun dans son propre profil local isolé. L’activer demande d’abord la confirmation des conditions du fournisseur. Désactivé par défaut ; seul le réglage de cette machine est utilisé."
+  "config.accounts.severalOnThisDevice.description": "Autoriser plusieurs comptes d’un fournisseur sur ce PC pour les tests, chacun dans son propre profil local isolé. L’activer demande d’abord la confirmation des conditions du fournisseur. Désactivé par défaut ; seul le réglage de cette machine est utilisé.",
+  "command.vault.title": "Coffre-fort",
+  "command.lockVault.title": "Verrouiller le coffre-fort maintenant",
+  "config.vault.description": "Activer le coffre d’identifiants par utilisateur partagé entre les éditeurs.",
+  "config.vault.protection.description": "Choisir la protection de la clé. Le mode automatique utilise le matériel disponible et le stockage du système.",
+  "config.vault.agentFence.description": "Isoler les processus d’agent des accès ambiants aux identifiants. Les travailleurs restent isolés si cette option est désactivée.",
+  "config.vault.lockAfterIdleMinutes.description": "Verrouiller le coffre après ce nombre de minutes d’inactivité.",
+  "config.vault.lockOnScreenLock.description": "Verrouiller le coffre lorsque le système signale un verrouillage de l’écran.",
+  "config.vault.protection.enumDescriptions.auto": "Protection automatique",
+  "config.vault.protection.enumDescriptions.osStore": "Stockage des identifiants du système",
+  "config.vault.protection.enumDescriptions.passphrase": "Protection par phrase secrète",
+  "config.vault.protection.enumDescriptions.hardware": "Protection matérielle"
 }
