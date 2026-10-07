@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Resolve installed browser paths before legal accessibility checks launch
+  Playwright, including PATH-only Linux installs and explicit overrides.
+
 - Prepare the large usage-journal benchmark before timing its warm read,
   retaining its 300 ms and no-reread checks with the normal test deadline.
 

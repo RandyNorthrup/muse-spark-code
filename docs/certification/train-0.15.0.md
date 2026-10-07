@@ -1965,6 +1965,27 @@ push, rebase, merge, credential output or disabled hook.
   deliberately fails the no-reread assertion (expected 0 reads, actual 1);
   the file is restored byte-exact.
 
+- The complete aggregate at `a878af4e7` passes 16,611 tests, all coverage
+  thresholds and 988 WCAG pages, then legal accessibility refuses the bare
+  `google-chrome` executable path. The shared finder now resolves existing
+  files through PATH or an authoritative explicit override to absolute paths;
+  missing/empty overrides and directories refuse. The team harness uses the
+  same resolver without its duplicate `which` subprocess. Six new finder
+  cases and the existing capture/team suites pass together. Returning the
+  original candidate deliberately fails four finder cases (two pass), then
+  the helper is restored byte-exact. A fresh production build passes the real
+  legal gate: 96 keyboard/zoom checks and 24 English/pseudo WCAG pages.
+  A stale worktree build's earlier readiness failure is not accepted evidence.
+- All four shards at `c781c06c6` and their fresh coverage merge pass 16,611
+  tests, with statements/branches/functions/lines 92.60/87.61/93.65/93.23%.
+  Static, universal packages, pinned Semgrep, integration, installed agent and
+  Secret Service, all host/fork entries, Action suites, installed W rehearsal,
+  pinned browser captures and the Action's exact gitleaks arguments pass.
+  The mixed-job accessibility scan takes 951.5 seconds, above its 15-minute
+  workflow budget; it and the legal executable failure are not a green job.
+  Final verification gives the accessibility job four CPUs to itself after
+  other jobs finish, and reruns the complete job set after this repair.
+
 ### Fresh-clone job verification
 
 The first committed repair (`02fd30fe9`) passes all four Linux shards, the

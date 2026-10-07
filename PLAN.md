@@ -40811,6 +40811,14 @@ warm test. Prepare and assert that cold snapshot once in the default-bounded
 setup; keep the five-second test, 300 ms warm bound, full record count and
 no-reread assertions. Clean failed setup roots at file teardown too.
 
+The complete Linux aggregate passes 988 WCAG pages, then legal accessibility
+refuses Playwright's bare `google-chrome` executable path. Resolve installed
+browser candidates and explicit overrides to existing absolute paths through
+the shared finder, keeping overrides authoritative and refusing missing
+installs. Remove the test harness's duplicate PATH resolver. Certify PATH
+selection and override refusals, the real legal keyboard/zoom/WCAG gate, then
+repeat the complete committed Linux job set. No browser or job timer changes.
+
 ### CI0150A — Clean-shard artifacts and portable certification (2026-10-07)
 
 Scope: six owning suites in the CI0150A brief. Clean hosted shards have no
