@@ -157,6 +157,8 @@ const ACP_QUESTIONS_ENTRY = 'src/acp/questionDeferralEntry.ts'
 const ACP_QUESTIONS_OUTFILE = 'dist/acpQuestions.js'
 const RUNTIME_QUESTIONS_ENTRY = 'src/runtime/questions/questionRegistryEntry.ts'
 const RUNTIME_QUESTIONS_OUTFILE = 'dist/runtimeQuestions.js'
+const RUNTIME_ACCOUNTS_ENTRY = 'src/runtime/providers/accountsEntry.ts'
+const RUNTIME_ACCOUNTS_OUTFILE = 'dist/runtimeAccounts.js'
 const INTEGRATION_TEST_DIR = 'test/integration'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 // The extension host of the oldest VS Code the manifest accepts: 1.99 runs
@@ -468,6 +470,11 @@ const runtimeQuestionsOptions = {
   entryPoints: [RUNTIME_QUESTIONS_ENTRY],
   outfile: RUNTIME_QUESTIONS_OUTFILE,
 }
+const runtimeAccountsOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [RUNTIME_ACCOUNTS_ENTRY],
+  outfile: RUNTIME_ACCOUNTS_OUTFILE,
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -700,7 +707,8 @@ if (isWatch) {
   const acp = esbuild.build(acpOptions)
   const acpQuestions = esbuild.build(acpQuestionsOptions)
   const runtimeQuestions = esbuild.build(runtimeQuestionsOptions)
-  const builds = [...Object.values(shipped), acp, acpQuestions, runtimeQuestions]
+  const runtimeAccounts = esbuild.build(runtimeAccountsOptions)
+  const builds = [...Object.values(shipped), acp, acpQuestions, runtimeQuestions, runtimeAccounts]
   if (!isProduction) {
     builds.push(esbuild.build(integrationTestOptions))
   }
@@ -716,9 +724,14 @@ if (isWatch) {
     writeFileSync(path.join(ACP_METAFILE_DIR, 'acp.json'), JSON.stringify(metafile))
     const { metafile: questionsMetafile } = await acpQuestions
     const { metafile: runtimeQuestionsMetafile } = await runtimeQuestions
+    const { metafile: runtimeAccountsMetafile } = await runtimeAccounts
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'runtimeQuestions.json'),
       JSON.stringify(runtimeQuestionsMetafile, null, 2),
+    )
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'runtimeAccounts.json'),
+      JSON.stringify(runtimeAccountsMetafile, null, 2),
     )
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'acpQuestions.json'),

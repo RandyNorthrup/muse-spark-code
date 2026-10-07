@@ -20,6 +20,7 @@ import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {
   ACP_AGENT_NAME,
   RUNTIME_QUESTIONS_BUNDLE_FILE,
+  RUNTIME_ACCOUNTS_BUNDLE_FILE,
   ACP_AUTH_METHODS,
   EXEC_EXIT,
   EXEC_SCAN_TIMEOUT_MS,
@@ -66,13 +67,13 @@ import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { uiLocale } from '../shared/l10n/text'
 import { runAccountsCommand, runAccountAuthSet } from './providers/accountsCommand'
+import { execAccountSelection } from './exec/execAccounts'
 import { ACCOUNT_DEFAULT_ID } from '../shared/constants'
-import {
-  createRuntimeAccountServices,
-  type RuntimeAccountServices,
+import { runtimeAccountsLoader, type RuntimeAccountsBundle } from './providers/accountsBundle'
+import type {
+  RuntimeAccountServices,
+  RuntimeAccountServicesInput,
 } from './providers/runtimeServices'
-import { runDeveloperCommand } from './developer/developerCommand'
-import { developerStatusText } from '../core/developer/surfaces'
 
 const EXIT_FAILED = 1
 // The Model API key variable Muse Code reads; the report says only whether it was set.
@@ -360,7 +361,7 @@ async function setupHooks(
 async function serve(
   options: ServeOptions,
   log: Logger,
-  accounts: RuntimeAccountServices,
+  loadAccounts: () => RuntimeAccountServices,
 ): Promise<number> {
   const directory = path.join(
     agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
@@ -395,7 +396,7 @@ async function serve(
   const agent = createAcpAgent({
     // The Model API backend serves Meta's key; Muse Code accounts stay off
     // without a live capture (M108 acceptance 9, lane M's Q-M108 wait).
-    ...(options.backend === 'modelApi' && { accounts: accounts.sessions('meta') }),
+    ...(options.backend === 'modelApi' && { accounts: loadAccounts().sessions('meta') }),
     backend: runtime.backend,
     version: packageVersion(),
     options: {
@@ -455,19 +456,37 @@ function logLevel(command: ReturnType<typeof parseCommandLine>): LogLevel {
 }
 
 async function main(): Promise<number> {
-  // The runtime's parent-owned account service (M108/W): the CLI commands,
-  // ACP sessions and headless runs share one store over the runtime's
-  // providers file and the OS credential store. Building it reads nothing;
-  // the keyring loads only when a credential is touched.
-  const accounts = createRuntimeAccountServices({
+  // Parsing never loads the account services (M108/W): the CLI commands,
+  // ACP sessions and keyed headless runs share one store over the runtime's
+  // providers file and the OS credential store, loaded on the first command
+  // that needs it. Building it reads nothing; the keyring loads only when a
+  // credential is touched.
+  const command = parseCommandLine(process.argv.slice(2))
+  const servicesInput: RuntimeAccountServicesInput = {
     dataDir: agentDataFolder({
       platform: process.platform,
       env: process.env,
       homeDir: homedir(),
     }),
     openEntry: openKeyringEntry,
-  })
-  const command = parseCommandLine(process.argv.slice(2))
+  }
+  let cachedBundle: RuntimeAccountsBundle | undefined
+  const loadAccountsBundle = (log: Logger): RuntimeAccountsBundle => {
+    cachedBundle ??= runtimeAccountsLoader({
+      bundlePath: path.join(distDir, RUNTIME_ACCOUNTS_BUNDLE_FILE),
+      log,
+    })()
+    return cachedBundle
+  }
+  let cachedAccounts: RuntimeAccountServices | undefined
+  const loadAccounts = (log: Logger): RuntimeAccountServices => {
+    cachedAccounts ??= loadAccountsBundle(log).createRuntimeAccountServicesForLocale(
+      UI_TEXT,
+      uiLocale(),
+      servicesInput,
+    )
+    return cachedAccounts
+  }
   if (command.command === 'invalid' && command.exitCode === EXEC_EXIT.usage) {
     const stderr = createFdWriter(process.stderr.fd, () => {
       /* A usage error already owns exit 2; a closed pipe cannot turn it into success. */
@@ -544,7 +563,10 @@ async function main(): Promise<number> {
         }
       }
       headlessCode = await runExec(lifecycle, {
-        accounts: accounts.exec,
+        ...((command.options.accountPool === true ||
+          execAccountSelection(command.options).account !== ACCOUNT_DEFAULT_ID) && {
+          accounts: loadAccounts(log).exec,
+        }),
         options: command.options,
         version: packageVersion(),
         distDir,
@@ -598,7 +620,7 @@ async function main(): Promise<number> {
       return await setupHooks(command.options, command.maintenance, log)
     }
     case 'serve': {
-      return await serve(command.options, log, accounts)
+      return await serve(command.options, log, () => loadAccounts(log))
     }
     case 'login': {
       const { museCode } = runtimeFor(command.options, log)
@@ -618,11 +640,11 @@ async function main(): Promise<number> {
       if (target === undefined) return await authSet(authDeps())
       return target.provider === 'meta' && target.account === ACCOUNT_DEFAULT_ID
         ? await authSet(authDeps())
-        : await runAccountAuthSet(target, { ...accounts.commands, ...authDeps() })
+        : await runAccountAuthSet(target, { ...loadAccounts(log).commands, ...authDeps() })
     }
     case 'accounts': {
       return await runAccountsCommand(command.options, {
-        ...accounts.commands,
+        ...loadAccounts(log).commands,
         print: (line) => {
           writeLine(process.stdout, line)
         },
@@ -632,19 +654,21 @@ async function main(): Promise<number> {
       })
     }
     case 'developer': {
-      const owner = await accounts.developer({
-        readLine: (prompt) => readSecretLine(prompt, process.stdin, process.stderr),
-        print: (line) => {
-          writeLine(process.stdout, line)
+      const result = await loadAccountsBundle(log).runTerminalDeveloperCommand(
+        UI_TEXT,
+        uiLocale(),
+        servicesInput,
+        {
+          readLine: (prompt) => readSecretLine(prompt, process.stdin, process.stderr),
+          print: (line) => {
+            writeLine(process.stdout, line)
+          },
         },
-      })
-      const reply = await runDeveloperCommand(owner, command.args, 'terminal')
-      if (reply.type === 'developer/error') {
-        writeLine(process.stderr, UI_TEXT.developer[reply.code])
-        return EXIT_FAILED
-      }
-      writeLine(process.stdout, developerStatusText(reply))
-      return 0
+        command.args,
+        'terminal',
+      )
+      writeLine(result.exitCode === 0 ? process.stdout : process.stderr, result.text)
+      return result.exitCode
     }
     case 'authStatus': {
       return await authStatus(authDeps())

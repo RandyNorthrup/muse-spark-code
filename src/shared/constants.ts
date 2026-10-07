@@ -3239,6 +3239,7 @@ export const QUESTION_OUTCOME_DEFERRED = 'deferred'
 export const QUESTION_DEFER_DEFAULT_SECONDS = 60
 export const ACP_QUESTIONS_BUNDLE_FILE = 'acpQuestions.js'
 export const RUNTIME_QUESTIONS_BUNDLE_FILE = 'runtimeQuestions.js'
+export const RUNTIME_ACCOUNTS_BUNDLE_FILE = 'runtimeAccounts.js'
 export const QUESTION_DEFER_MIN_SECONDS = 10
 export const QUESTION_DEFER_MAX_SECONDS = 3600
 export const QUESTION_DEFER_SETTING = 'questions.deferAfterSeconds'
