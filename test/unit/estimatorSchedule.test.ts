@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { EstimateSchedulingError, prepareEstimateSchedule } from '../../src/core/estimator/schedule'
-import { estimateLaneSchema } from '../../src/shared/estimate'
+import { estimateLaneSchema, type FleetSnapshot } from '../../src/shared/estimate'
 import { ESTIMATE_MAX_ITEMS } from '../../src/shared/constants'
 import dags from '../fixtures/estimator/dags.json'
 import repository from '../fixtures/estimator/repository-history.json'
@@ -17,6 +17,38 @@ function runSample(duration: number, lane = scheduleLane('A')) {
   return prepareEstimateSchedule([lane], scheduleFleet()).run(
     new Map([['A', new Map([['linux-x64-builder', planHours(duration)]])]]),
   )
+}
+
+/** A single-slot fleet whose only account quota expired long ago. */
+function expiredQuotaFleet(): FleetSnapshot {
+  const fleet = scheduleFleet(1)
+  fleet.accounts[0]!.usageLimits = [
+    {
+      id: 'old',
+      kind: 'rolling',
+      periodSeconds: 3600,
+      unit: 'requests',
+      remaining: 0,
+      allowance: 1,
+      resetsAt: '2026-01-01T00:00:00.000Z',
+      timeZone: 'UTC',
+    },
+  ]
+  return fleet
+}
+
+/** Seventeen slots across twelve accounts where only the last admits work. */
+function crowdedAccountsFleet(): FleetSnapshot {
+  const fleet = scheduleFleet(17)
+  const account = fleet.accounts[0]!
+  fleet.accounts = Array.from({ length: 12 }, (_, index) => ({
+    ...structuredClone(account),
+    id: `account-${String(index).padStart(2, '0')}`,
+    requestsPerMinute: index === 11 ? account.requestsPerMinute : 0,
+  }))
+  for (const [index, slot] of fleet.slots.entries())
+    slot.accountId = fleet.accounts[Math.min(index, 11)]!.id
+  return fleet
 }
 
 describe('M117 resource list scheduling', () => {
@@ -123,15 +155,7 @@ describe('M117 resource list scheduling', () => {
   })
 
   it('labels bounded account-selection fallback instead of claiming exact search', () => {
-    const fleet = scheduleFleet(17)
-    const account = fleet.accounts[0]!
-    fleet.accounts = Array.from({ length: 12 }, (_, index) => ({
-      ...structuredClone(account),
-      id: `account-${String(index).padStart(2, '0')}`,
-      requestsPerMinute: index === 11 ? account.requestsPerMinute : 0,
-    }))
-    for (const [index, slot] of fleet.slots.entries())
-      slot.accountId = fleet.accounts[Math.min(index, 11)]!.id
+    const fleet = crowdedAccountsFleet()
     const lane = scheduleLane('A')
     lane.resources.slots = amount(6)
     const result = prepareEstimateSchedule([lane], fleet).run()
@@ -614,49 +638,17 @@ describe('M117 resource list scheduling', () => {
   })
 
   it('bounds an expired quota recurrence rather than freezing the estimator', () => {
-    const fleet = scheduleFleet(1)
-    fleet.accounts[0]!.usageLimits = [
-      {
-        id: 'old',
-        kind: 'rolling',
-        periodSeconds: 3600,
-        unit: 'requests',
-        remaining: 0,
-        allowance: 1,
-        resetsAt: '2026-01-01T00:00:00.000Z',
-        timeZone: 'UTC',
-      },
-    ]
+    const fleet = expiredQuotaFleet()
     expect(() => prepareEstimateSchedule([scheduleLane('A')], fleet).run()).toThrow('quota-horizon')
   })
 
   it('reports placement refusals as scheduling errors so R can rank other candidates', () => {
-    const quota = scheduleFleet(1)
-    quota.accounts[0]!.usageLimits = [
-      {
-        id: 'old',
-        kind: 'rolling',
-        periodSeconds: 3600,
-        unit: 'requests',
-        remaining: 0,
-        allowance: 1,
-        resetsAt: '2026-01-01T00:00:00.000Z',
-        timeZone: 'UTC',
-      },
-    ]
+    const quota = expiredQuotaFleet()
     expect(() => prepareEstimateSchedule([scheduleLane('A')], quota).run()).toThrow(
       EstimateSchedulingError,
     )
     expect(() => runSample(Number.MAX_VALUE)).toThrow(EstimateSchedulingError)
-    const crowded = scheduleFleet(17)
-    const account = crowded.accounts[0]!
-    crowded.accounts = Array.from({ length: 12 }, (_, index) => ({
-      ...structuredClone(account),
-      id: `account-${String(index).padStart(2, '0')}`,
-      requestsPerMinute: index === 11 ? account.requestsPerMinute : 0,
-    }))
-    for (const [index, slot] of crowded.slots.entries())
-      slot.accountId = crowded.accounts[Math.min(index, 11)]!.id
+    const crowded = crowdedAccountsFleet()
     const lane = scheduleLane('A')
     lane.resources.slots = amount(6)
     crowded.accounts.at(-1)!.requestsPerMinute = 0
