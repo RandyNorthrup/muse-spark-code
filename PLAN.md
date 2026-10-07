@@ -24681,6 +24681,151 @@ implemented or certified by this record.
   delivered slice. None describes future behavior as supported. Single-device
   requests, gates, secrets and Meta's unofficial product name stay unchanged.
 
+### M100 phase 2 — bound owners, discovery, hardened hosts, per-action control (D80, planned)
+
+**Status 2026-10-07: documentation only on `plan/m100-phase2`.** Phase 1 is
+integrated (`m100/int`, accepted). No pairing, listener, discovery or remote
+execution beyond phase 1 is implemented or certified by this record.
+
+- **Goal.** Harden the paired-device pool into something the owner can run
+  every day across his four devices: pairs bound to their owners with
+  least-privilege per-action control, QR and optional mDNS discovery on the
+  same trust contract as manual entry, Windows hosts that survive their
+  platform limits, a channel that paces itself and resumes instead of
+  duplicating, and qualification on installed hosts — with simulators ruling
+  where hardware is missing (the Q-M110 precedent).
+- **Scope.** D80 items deferred from phase 1 and the lead's phase-2 note:
+  owner binding, QR/mDNS discovery, Windows store protection, concrete
+  per-action controls, installed-host plus four-device qualification. The
+  orchestrator-link requirements (`codex/OLP-requirements.md`, from the
+  2026-10-06 fleet run) and the SSH/placement lessons
+  (`codex/ssh-limits-research.md`, `codex/playbook-placement.md`) are
+  requirements inputs, not new scope: one long-lived paced channel, verified
+  inputs, capability advertisement, and the gotcha rules below. Out of scope:
+  short numeric codes, unattended services, approval forwarding to the
+  orchestrator, ACP/headless pairing, NAT traversal/relay and overlays
+  (still Q-M100); machine-wide caps (still M96d/M107 territory).
+- **Depends on.** Phase 1 (paired channel, offers, journal, quarantine
+  results); M96c (board, scheduler, input manifests, merge queue); M107
+  (governor signals, relocation lane R); M109 (vault broker for lane K);
+  D101 when it lands (no lane waits on it; lane 0 reconciles its scope if
+  it touches pairing or transport). No lane starts implementation until
+  lane 0's contracts and threat-model update are accepted.
+- **Lanes and file ownership.** One integration branch; lane 0 settles
+  contracts first, D/C/R/V start after 0, H/A/K follow their dependencies,
+  U against fakes after 0, and W last. Each lane owns its new files plus
+  its named regions; shared-file regions are serialized by the lead.
+
+  | Lane                                           | Owns (exclusive)                                                                                                                                                                                                                                                                                                                                                                                            | Rig                                                      | Starts after                     |
+  | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | -------------------------------- |
+  | 0 Contracts, strings, threat model (lead)      | Phase-2 amendments to `src/shared/devices.ts`; `DEVICE_MODEL_TEXT` additions with declared lazy readers; versioned zod envelopes for channel, capability, grant and result messages; runtime English keys, all 14 `l10n/ui.*.json`, `package.nls*.json`; dependency choice with exact pins, peers, audit and notices (QR render, mDNS); update to `docs/certification/m100-threat-model.md`; contract tests | Linux                                                    | day 0, blocks all                |
+  | D QR and mDNS discovery                        | New `src/host/devices/qrInvite.ts` and `deviceMdns.ts`; pairing-UI invite regions; discovery switch and Blocked-or-unreachable setup regions; owning tests                                                                                                                                                                                                                                                  | macOS + Linux (Bonjour vs Avahi matrix)                  | 0                                |
+  | C Multiplexed channel                          | New `src/core/devices/channel.ts` (portable framing, priorities, backpressure, sequence/ack) and `src/host/devices/deviceChannel.ts` (TLS carriage, pacing, backoff, authenticated ready call); owning tests                                                                                                                                                                                                | Linux                                                    | 0                                |
+  | R Reconnect, leases, result channel            | New `src/core/devices/epochs.ts`; receiver reconcile and journal regions (new files only, phase-1 E stays untouched); result-channel regions; owning tests                                                                                                                                                                                                                                                  | Linux                                                    | 0                                |
+  | V Verified inputs and capability advertisement | New `src/core/devices/inputManifest.ts` and `capability.ts`; offer capability regions (new files only); owning tests                                                                                                                                                                                                                                                                                        | Linux                                                    | 0                                |
+  | H Host execution, Windows-first                | New `src/host/devices/deviceWorkerHost.ts`; native helper launch/query modes; sleep-inhibit and battery regions; owning tests                                                                                                                                                                                                                                                                               | Windows (Win11 VM), plus Linux/macOS for systemd/launchd | 0                                |
+  | A Per-action controls                          | New `src/core/devices/actionGrants.ts`; receiver admission grant-intersection regions; presence-relay protocol regions; owning tests                                                                                                                                                                                                                                                                        | Linux core; macOS + Windows for presence drills          | 0, reads M103 rules              |
+  | K Owner binding and vault path                 | New `src/core/devices/ownerBind.ts`; brokered-use call sites over the M100 channel (with M109 lane R); owning tests                                                                                                                                                                                                                                                                                         | Linux                                                    | M109 B; D101 reconcile if landed |
+  | U Devices UI phase 2                           | New `src/webview/models/sections/devices/qr/`, `grants/` view files; harness scenes; owning UI tests                                                                                                                                                                                                                                                                                                        | Linux                                                    | 0                                |
+  | W Wiring, qualification, docs (last)           | Lazy `dist/devices.js` phase-2 regions, `package.json`, build/split/size/host-globals/notices/packaging gates, knip/dpdm entries; README, PRIVACY, SECURITY, CHANGELOG, host API record, `docs/certification/m100-phase2.md`; installed-host four-device qualification                                                                                                                                      | All four (Windows PC, Kubuntu VM, Mac mini, Win11 VM)    | last                             |
+
+- **Acceptance and red drills.** Each row requires a real failing test on an
+  intentional guard break, byte-exact restored source SHA-256, then a passing
+  run recorded in `docs/certification/m100-phase2.md`. These are planned
+  tests, not receipts from this documentation lane. D100 amendments naming
+  M100 are marked; G29–G31 are the proposed rows from
+  `codex/ssh-limits-research.md` (the register currently ends at G27, so
+  lane 0 adds them first, then lane C enforces them).
+
+  - **Lane 0.** Every new envelope has a version, a byte/queue cap and a
+    zod parse before use; unknown fields are shown, never dropped (D36).
+    Every UI string exists in all 14 tables (`npm run check:l10n` clean).
+    The threat-model update covers owner binding, QR/mDNS, Windows store
+    and per-action control, and names the D101 reconcile. Red drill: drop
+    one envelope version check; the contract test fails.
+  - **Lane D.** A QR invite decodes to the identical text invite; both
+    carry public certificate, fingerprint, address, protocol version and
+    bounded validity — never a bearer secret. mDNS is off by default,
+    advertises only opaque service id, port and protocol version, and a
+    spoofed record never replaces the saved peer pin. Manual entry connects
+    with discovery fully blocked (multicast denied plus authorized inbound
+    TCP). Red drills: copy a public invite without its private key and try
+    to pair (must fail); inject a spoofed mDNS record (must not connect);
+    enable discovery without consent in a golden (zero-traffic test fails).
+  - **Lane C (G29–G31).** One long-lived authenticated channel per pair;
+    logical streams prioritize control over status/events over logs over
+    bulk, and bulk never starves control or Stop. At most 3 pending
+    handshakes per host with jittered exponential backoff capped at 10
+    minutes; refusal reads as throttled/unknown, never down. No port
+    probes: health is the authenticated ready call. One failed password
+    stops and asks; retries never loop. Red drills: fire a handshake burst
+    (pacer must queue); probe a port (test fails if any probe is sent);
+    fail one auth (second attempt without user consent fails the test).
+  - **Lane R (D100: G5, G6, G27).** Identity is the pair key, not the
+    address: reconnect resumes the session, resends only unacknowledged
+    messages, and never launches twice. A failed poll reads **unknown
+    since {time}**, never running. Re-dispatch only after lease expiry
+    under a new epoch, from the last acknowledged checkpoint; late results
+    go to quarantine. Results return content-addressed through the result
+    channel, acknowledged once. Red drills: drop the admission reply and
+    resend (launch counter must show one start); advance every timeout (no
+    release, duplication or reassignment); corrupt durable state (dispatch
+    refused, never an empty success).
+  - **Lane V (D100: G1, G2, G12).** Dispatch carries a manifest of
+    content-addressed inputs plus base objects; the worker verifies both
+    before starting and refuses with any item missing or mismatched. The
+    device advertises measured capabilities (OS, tools, signed-in engines,
+    hardware, power, slot cap) and live pressure; transport failure rate
+    and OS-service pressure feed M107 as signals. Red drills: name a plan
+    file not copied to the worker, and a base commit the worker lacks (both
+    must refuse before start); remove the manifest check (test fails).
+  - **Lane H (D100: G14, G15; plus G30).** Windows workers run in their own
+    scheduled-task or service context, never under the transport session;
+    a desktop-heap failure (`STATUS_DLL_INIT_FAILED`) surfaces a clear
+    diagnostic and never a registry change without consent. Remote commands
+    run with an explicit recorded environment; hook tools are resolved and
+    verified before start. Windows uses per-process policy only, stdin
+    closed explicitly, results on a structured exit-code-plus-JSON
+    channel. Red drills: run under the transport session on Windows (must
+    refuse); strip the hook tool from `PATH` (preflight fails before
+    start); parse stderr text for a result (test fails).
+  - **Lane A.** Every admission binds the sender's role/mode ceiling to the
+    receiver's repository grant, role/tools, workspace trust, protected
+    paths and current approval policy under an explicit receiver-side
+    grant; physical or maker actions need a fresh per-action step-up on
+    the device. User-presence prompts (Touch ID, Windows Hello) are
+    relayed to the device and answered there, never faked. A waiting
+    prompt shows **Waiting for approval on {device}**. Red drills: omit
+    the receiver intersection (denied work must reach a forbidden-call spy
+    and fail); forge an approval or settlement (must fail); fake a
+    presence answer on the orchestrator (must fail).
+  - **Lane K.** Pairs are bound to their owners: a device may serve two
+    orchestrators only with separate grants and quotas per owner.
+    Per-message authorization by role and by least-privilege time-bounded
+    revocable grant; every security-relevant action audited. Secrets never
+    cross the channel in the clear: brokered uses go through M109's vault.
+    Windows pair keys use OS store protection (DPAPI lane of M109 P's
+    platform slots). Red drills: present a valid pair key for the wrong
+    owner (must fail); plant a secret sentinel in any frame (scrub test
+    fails); replay a grant past its bound (must fail).
+  - **Lane U.** QR display with text fallback, discovery switch, owner and
+    grant views, per-action prompts, battery/pressure display, and
+    Blocked-or-unreachable setup naming the listener, interface, address
+    and port with OS/admin recovery. Full keyboard flow, four themes,
+    320px, pseudo-locale. Red drill: break one message schema, focus
+    label, status or recovery mapping; owning tests and a11y fail.
+  - **Lane W.** Installed-host qualification on all four devices (Windows
+    PC, Kubuntu VM, Mac mini, Win11 VM): actual listener ports, OS
+    permissions, firewall facts and authorizations recorded; simulators
+    rule where hardware is missing. Full gate on the joined tree
+    (`npm run quality`, coverage, integration, a11y, secrets/SAST/audit,
+    packaged-host checks). Split-gate drills prove activation, Model API
+    and ACP bundles contain no receiver, channel-multiplexing or QR/mDNS
+    code; a missing lazy asset refuses Devices without breaking chat.
+    `dist/devices.js` re-measured against the D6 budget lane 0 records.
+    Fake-only by default; any real-model/paid drill needs separate
+    authorization and records every attempt and spend.
+
 ### M41 — Install Muse Code from the panel (folded into M55)
 
 **Status 2026-09-25: folded into M55 (D36); built there (PR #43, merged
