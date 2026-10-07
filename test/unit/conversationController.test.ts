@@ -149,6 +149,8 @@ import { PendingPrompts } from '../../src/core/sessionBoard'
 import { BestOfNCoordinator } from '../../src/core/bestOfN/bestOfNCoordinator'
 import { removeFolder } from './helpers/temporaryFolders'
 import { buildModelApiBundle } from './helpers/modelApiBundle'
+import { integrationFixture } from './helpers/playbookIntegration'
+import { latestRound, reviewBlock } from './playbookPolicyFixture'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
 import { EditReview, type ReviewNotice } from '../../src/host/editor/editReview'
@@ -426,6 +428,7 @@ function setup(
     editReview?: ConversationDeps['editReview']
     /** `/review`'s git material and markers (M70). */
     review?: ConversationDeps['review']
+    playbook?: ConversationDeps['playbook']
     /** A revert that refuses (a stale patch): it answers with a warning. */
     refusesRevert?: boolean
     /** A picked session-transfer file's text (M84); undefined dismisses the dialog. */
@@ -648,6 +651,7 @@ function setup(
     refuseStorageWrite: () => undefined,
   }
   const deps: ConversationDeps = {
+    playbook: options.playbook,
     surface,
     judge: options.judge,
     checkpoints,
@@ -6502,6 +6506,24 @@ describe('ConversationController chat references (M17)', () => {
 })
 
 describe('ConversationController subagent controls (M18, M48)', () => {
+  it('M116 refuses a laundered follow-up before the native delegate starts', async () => {
+    const f = integrationFixture()
+    const t = setup({ playbook: () => f.panel })
+    await t.send('l1', 'hi')
+    f.policy.recordRefusal(f.work.commands[0]!, f.work.requester, 'permission')
+    t.server.handle('subagent/followupTask', () => ({ status: 'accepted' }))
+    await t.controller.handle({
+      type: 'subagentMessage',
+      subagentId: 'sub-1',
+      body: 'continue',
+      isFollowup: true,
+    })
+    expect(t.server.requestsFor('subagent/followupTask')).toEqual([])
+    expect(f.events.note.mock.calls.some(([note]) => note.code === 'permissionLaundering')).toBe(
+      true,
+    )
+    t.controller.dispose()
+  })
   it('refuses a paid child follow-up in another panel as sign-out begins', async () => {
     const t = setup()
     await t.send('l1', 'hi')
@@ -10250,6 +10272,55 @@ const turnStartText = (t: ReturnType<typeof setup>, index = 0) => {
 // M70 (PLAN.md D49): `/review` on both backends, the review pane's reads and
 // reverts, and a comment on a line reaching the agent.
 describe('ConversationController: review (M70)', () => {
+  it('M116 consumes only a completed review and cancels its listener when the session leaves', async () => {
+    const f = integrationFixture()
+    const t = setup({ initialPermissionMode: 'plan', playbook: () => f.panel })
+    await t.controller.handle({
+      type: 'startReview',
+      localId: 'r1',
+      text: '/review inspect the declared module',
+      request: { scope: 'custom', focus: 'general', instructions: 'inspect the declared module' },
+    })
+    // The M79 captured completed-message frame, with extension-owned review text.
+    t.server.notify('item/completed', {
+      ...PLAN_REPLY_COMPLETED,
+      sessionId: 's1',
+      item: {
+        ...PLAN_REPLY_COMPLETED.item,
+        turnId: 't1',
+        text: `\`\`\`muse-review\n${JSON.stringify(reviewBlock())}\n\`\`\``,
+      },
+    })
+    t.finishTurn()
+    await vi.waitFor(() => {
+      expect(latestRound(f.policy).round).toBe(1)
+    })
+    expect(f.registry.review).toHaveBeenCalledWith('s1', [])
+    await t.controller.handle({ type: 'clearConversation' })
+    t.controller.dispose()
+  })
+
+  it('M116 refuses a configured playbook that cannot load before any review request', async () => {
+    const t = setup({
+      initialPermissionMode: 'plan',
+      playbook: () => {
+        throw new Error(UI_TEXT.playbookUnavailable)
+      },
+    })
+    await t.controller.handle({
+      type: 'startReview',
+      localId: 'r1',
+      text: '/review inspect the declared module',
+      request: { scope: 'custom', focus: 'general', instructions: 'inspect the declared module' },
+    })
+    expect(t.server.requestsFor('turn/start')).toEqual([])
+    expect(t.surface.posted).toContainEqual({
+      type: 'sendFailed',
+      localId: 'r1',
+      reason: UI_TEXT.playbookUnavailable,
+    })
+    t.controller.dispose()
+  })
   const GIT_MATERIAL: ReviewCollection = {
     kind: 'material',
     isCurrent: () => true,
