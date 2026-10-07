@@ -1,7 +1,9 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import {
   AccountPlacements,
   AccountPlacementError,
+  RemoteAccountPool,
   sendToDeviceLabel,
 } from '../../src/core/team/remotePool'
 import type { AccountRouteRequest, AccountPlacementStore } from '../../src/core/team/remotePool'
@@ -11,6 +13,14 @@ import { EN } from '../../src/shared/l10n/en'
 import { placementRig, remoteDeviceRig, routeRequest } from './helpers/deviceAccounts'
 
 const vendorLimit = { kind: 'vendorLimit', reason: 'rateLimited', resetAt: null } as const
+const userCap = {
+  kind: 'userCap',
+  metric: 'requests',
+  period: 'day',
+  value: 10,
+  threshold: 5,
+  resetAt: '2026-10-07T00:00:00.000Z',
+} as const
 
 describe('M108 D account placement', () => {
   it('pins each account to exactly one device or node and replaces its old placement', async () => {
@@ -131,11 +141,156 @@ describe('M108 D account placement', () => {
 })
 
 describe('M108 D routing by the pinned device', () => {
-  it('moves away from the live sticky account on every threshold', async () => {
+  it.each(['named destination', 'empty alternate', 'repeated trigger', 'deleted account'])(
+    'retains the original vendor-limit group with a %s',
+    async (scenario) => {
+      const rig = remoteDeviceRig()
+      rig.accounts.rows[0]!.limitGroup = 'shared'
+      rig.accounts.rows[1]!.limitGroup = 'shared'
+      if (scenario === 'deleted account') {
+        expect(await rig.run()).toBe('device-0')
+        rig.accounts.rows.shift()
+        rig.state.placement.rows.shift()
+        expect(await rig.run({ trigger: vendorLimit, account: 'a' })).toBe('device-2')
+      } else if (scenario === 'named destination') {
+        await expect(
+          rig.run({ trigger: vendorLimit, destination: 'device-1' }),
+        ).rejects.toMatchObject({ code: 'routeUnavailable' })
+      } else {
+        expect(await rig.run({ trigger: vendorLimit })).toBe('device-2')
+        if (scenario === 'empty alternate') {
+          rig.state.remote.offers[2]!.headroom['anthropic'] = 'none'
+          await expect(rig.run()).rejects.toMatchObject({ code: 'routeUnavailable' })
+        } else {
+          await expect(rig.run({ trigger: vendorLimit })).rejects.toMatchObject({
+            code: 'routeUnavailable',
+          })
+        }
+      }
+      await expect(rig.run({ destination: 'device-1' })).rejects.toMatchObject({
+        code: 'routeUnavailable',
+      })
+    },
+  )
+
+  it('honors the actual OpenRouter API global scope through reset and restart', async () => {
+    const rig = remoteDeviceRig('openrouter', 'api')
+    const resetAt = new Date(rig.state.remote.now + 60_000).toISOString()
+    expect(rig.accounts.policy().limitScopes).toEqual(['global'])
+    await expect(rig.run({ trigger: { ...vendorLimit, resetAt } })).rejects.toMatchObject({
+      code: 'routeUnavailable',
+    })
+    const restarted = new RemoteAccountPool(rig.deps)
+    for (const destination of [undefined, 'device-1'])
+      await expect(
+        restarted.run(routeRequest({ provider: 'openrouter', destination }), rig.dispatch),
+      ).rejects.toMatchObject({ code: 'routeUnavailable' })
+    expect(rig.dispatch).not.toHaveBeenCalled()
+    rig.state.remote.now = Date.parse(resetAt) - 1
+    await expect(rig.run()).rejects.toMatchObject({ code: 'routeUnavailable' })
+    rig.state.remote.now += 1
+    expect(await rig.run({ destination: 'device-1' })).toBe('device-1')
+  })
+
+  it('persists the recorded group across deletion and restart until the bounded default expires', async () => {
     const rig = remoteDeviceRig()
-    expect(await rig.run({ trigger: vendorLimit })).toBe('device-1')
+    rig.accounts.rows[0]!.limitGroup = 'shared'
+    rig.accounts.rows[1]!.limitGroup = 'shared'
     expect(await rig.run({ trigger: vendorLimit })).toBe('device-2')
-    expect(await rig.run({ trigger: vendorLimit })).toBe('device-1')
+    rig.accounts.rows.shift()
+    rig.state.placement.rows.shift()
+    const restarted = new RemoteAccountPool(rig.deps)
+    const request = routeRequest({ account: 'c', destination: 'device-1' })
+    await expect(restarted.run(request, rig.dispatch)).rejects.toMatchObject({
+      code: 'routeUnavailable',
+    })
+    expect(rig.limitStore.write).toHaveBeenCalledTimes(1)
+    const [stored] = rig.blocks.values()
+    expect(stored).toMatchObject({ account: 'a', limitGroup: 'shared', scope: 'group' })
+    // The default is a bounded minute, rather than renewed by route decisions.
+    rig.state.remote.now += 60_000
+    expect(await restarted.run(request, rig.dispatch)).toBe('device-1')
+  })
+
+  it('retains an account-only vendor block while other owners and providers remain independent', async () => {
+    const rig = remoteDeviceRig()
+    await rig.run({ trigger: vendorLimit })
+    await expect(rig.run({ destination: 'device-0' })).rejects.toMatchObject({
+      code: 'routeUnavailable',
+    })
+    expect(await rig.run({ owner: 'other', destination: 'device-0' })).toBe('device-0')
+    expect(await rig.run({ kind: 'worker', destination: 'device-0' })).toBe('device-0')
+    for (const row of rig.state.placement.rows) row.provider = 'meta'
+    rig.deps.offers = () => [{ device: 'device-0', headroom: { meta: 'ample' } }]
+    expect(await rig.run({ provider: 'meta', destination: 'device-0' })).toBe('device-0')
+  })
+
+  it('fences overlapping limits in one record until the later reset without forgetting the first group', async () => {
+    const rig = remoteDeviceRig()
+    rig.accounts.rows[0]!.limitGroup = 'shared'
+    rig.accounts.rows[1]!.limitGroup = 'shared'
+    const firstReset = new Date(rig.state.remote.now + 60_000).toISOString()
+    const laterReset = new Date(rig.state.remote.now + 120_000).toISOString()
+    expect(await rig.run({ trigger: { ...vendorLimit, resetAt: firstReset } })).toBe('device-2')
+    await expect(
+      rig.run({ trigger: { ...vendorLimit, resetAt: laterReset } }),
+    ).rejects.toMatchObject({ code: 'routeUnavailable' })
+    expect(rig.blocks.size).toBe(1)
+    const [block] = rig.blocks.values()
+    expect(block).toMatchObject({
+      account: 'a',
+      limitGroup: 'shared',
+      scope: 'group',
+      isOverlapping: true,
+      expiresAt: Date.parse(laterReset),
+    })
+    const restarted = new RemoteAccountPool(rig.deps)
+    rig.state.remote.now = Date.parse(firstReset)
+    await expect(restarted.run(routeRequest(), rig.dispatch)).rejects.toMatchObject({
+      code: 'routeUnavailable',
+    })
+    rig.state.remote.now = Date.parse(laterReset)
+    expect(await restarted.run(routeRequest(), rig.dispatch)).toBe('device-0')
+  })
+
+  it('requires durable publication after a failed write and refuses malformed restore data', async () => {
+    const rig = remoteDeviceRig()
+    rig.limitStore.write.mockRejectedValueOnce(new Error('store unavailable'))
+    await expect(rig.run({ trigger: vendorLimit })).rejects.toThrow('store unavailable')
+    expect(rig.deps.admit).not.toHaveBeenCalled()
+    rig.limitStore.write.mockRejectedValueOnce(new Error('still unavailable'))
+    await expect(rig.run()).rejects.toThrow('still unavailable')
+    expect(rig.deps.admit).not.toHaveBeenCalled()
+    expect(await rig.run()).toBe('device-1')
+    expect(rig.limitStore.write).toHaveBeenCalledTimes(3)
+    for (const stored of [
+      { account: 'a', scope: 'group', expiresAt: rig.state.remote.now + 60_000 },
+      {
+        account: 'a',
+        scope: 'account',
+        expiresAt: rig.state.remote.now + 60_000,
+        credential: 'canary',
+      },
+    ]) {
+      rig.limitStore.read.mockResolvedValueOnce(stored)
+      const restarted = new RemoteAccountPool(rig.deps)
+      await expect(restarted.run(routeRequest(), rig.dispatch)).rejects.toMatchObject({
+        issues: expect.any(Array),
+      })
+    }
+    rig.deps.policy = () => undefined
+    await expect(rig.run({ owner: 'no-policy', trigger: vendorLimit })).rejects.toMatchObject({
+      code: 'routeUnavailable',
+    })
+    rig.state.remote.now = NaN
+    await expect(rig.run()).rejects.toMatchObject({ code: 'routeUnavailable' })
+  })
+
+  it('moves away from the live sticky account on every user threshold', async () => {
+    const rig = remoteDeviceRig()
+    expect(await rig.run({ trigger: userCap })).toBe('device-1')
+    expect(await rig.run({ trigger: userCap })).toBe('device-2')
+    expect(await rig.run({ trigger: userCap })).toBe('device-1')
   })
 
   it.each(['a', 'b'] as const)(
@@ -145,7 +300,7 @@ describe('M108 D routing by the pinned device', () => {
       await rig.run({ trigger: vendorLimit })
       rig.accounts.rows.splice(1, 1)
       rig.state.placement.rows.splice(1, 1)
-      expect(await rig.run({ account })).toBe('device-0')
+      expect(await rig.run({ account })).toBe('device-2')
     },
   )
 
@@ -167,22 +322,14 @@ describe('M108 D routing by the pinned device', () => {
     const rig = remoteDeviceRig()
     rig.accounts.rows[0]!.limitGroup = 'shared'
     rig.accounts.rows[1]!.limitGroup = 'shared'
-    const userCap = {
-      kind: 'userCap',
-      metric: 'requests',
-      period: 'day',
-      value: 10,
-      threshold: 5,
-      resetAt: '2026-10-07T00:00:00.000Z',
-    } as const
     expect(await rig.run({ trigger: userCap })).toBe('device-1')
   })
 
   it('keeps the selected route valid on retries after adopting its sticky account', async () => {
     const rig = remoteDeviceRig()
-    await rig.run({ trigger: vendorLimit })
+    await rig.run({ trigger: userCap })
     expect(
-      await rig.pool.run(routeRequest({ trigger: vendorLimit }), (route) => {
+      await rig.pool.run(routeRequest({ trigger: userCap }), (route) => {
         route.beforeSend()
         route.beforeSend()
         return Promise.resolve(route.device)
@@ -226,16 +373,16 @@ describe('M108 D routing by the pinned device', () => {
     const rig = remoteDeviceRig()
     expect(await rig.run()).toBe('device-0')
     expect(await rig.run({ trigger: vendorLimit })).toBe('device-1')
-    rig.state.remote.offers[1]!.headroom.anthropic = 'some'
-    rig.state.remote.offers[2]!.headroom.anthropic = 'ample'
+    rig.state.remote.offers[1]!.headroom['anthropic'] = 'some'
+    rig.state.remote.offers[2]!.headroom['anthropic'] = 'ample'
     expect(await rig.run()).toBe('device-1')
   })
 
   it('spreads new workers by headroom and preserves worker stickiness and conversation ownership', async () => {
     const rig = remoteDeviceRig()
     expect(await rig.run({ kind: 'worker', owner: 'worker' })).toBe('device-1')
-    rig.state.remote.offers[1]!.headroom.anthropic = 'some'
-    rig.state.remote.offers[2]!.headroom.anthropic = 'ample'
+    rig.state.remote.offers[1]!.headroom['anthropic'] = 'some'
+    rig.state.remote.offers[2]!.headroom['anthropic'] = 'ample'
     expect(await rig.run({ kind: 'worker', owner: 'worker' })).toBe('device-1')
     expect(await rig.run({ kind: 'worker', owner: 'other' })).toBe('device-2')
     expect(await rig.run()).toBe('device-0')
@@ -247,7 +394,7 @@ describe('M108 D routing by the pinned device', () => {
 
   it('respects pool order when provider buckets tie and ignores other providers headroom', async () => {
     const rig = remoteDeviceRig()
-    rig.state.remote.offers[1]!.headroom.anthropic = 'some'
+    rig.state.remote.offers[1]!.headroom['anthropic'] = 'some'
     expect(await rig.run({ trigger: vendorLimit })).toBe('device-1')
     rig.deps.offers = () => [{ device: 'device-2', headroom: { meta: 'ample' } }]
     await expect(rig.run()).rejects.toThrow(UI_TEXT.accounts.routeUnavailable)
@@ -256,7 +403,7 @@ describe('M108 D routing by the pinned device', () => {
   it('routes manual Send to choices only to the named device, with no fallback after denial', async () => {
     const rig = remoteDeviceRig()
     expect(await rig.run({ destination: 'device-2' })).toBe('device-2')
-    rig.state.remote.offers[2]!.headroom.anthropic = 'none'
+    rig.state.remote.offers[2]!.headroom['anthropic'] = 'none'
     await expect(rig.run({ destination: 'device-2' })).rejects.toThrow()
     rig.deps.admit = vi.fn(() => Promise.resolve(undefined))
     await expect(rig.run({ destination: 'device-0' })).rejects.toThrow()
@@ -301,7 +448,7 @@ describe('M108 D routing by the pinned device', () => {
         rig.pool.run(routeRequest(), (route) => {
           switch (change) {
             case 'headroom': {
-              rig.state.remote.offers[0]!.headroom.anthropic = 'none'
+              rig.state.remote.offers[0]!.headroom['anthropic'] = 'none'
               break
             }
             case 'permission': {
@@ -389,13 +536,13 @@ describe('M108 D routing by the pinned device', () => {
         isWaiting = true
         entered.resolve(undefined)
         await resume.promise
-        rig.state.remote.offers[1]!.headroom.anthropic = 'none'
+        rig.state.remote.offers[1]!.headroom['anthropic'] = 'none'
         isWaiting = false
       }
       return await original(device, request)
     })
     const first = rig.pool.run(routeRequest({ owner: 'first', kind: 'worker' }), async (route) => {
-      rig.state.remote.offers[1]!.headroom.anthropic = 'some'
+      rig.state.remote.offers[1]!.headroom['anthropic'] = 'some'
       route.beforeSend()
       await Promise.resolve()
       return route.device
@@ -444,6 +591,33 @@ describe('M108 D routing by the pinned device', () => {
       expect(sendToDeviceLabel('Kubuntu')).toBe('An Kubuntu senden')
     } finally {
       setUiText(EN, 'en')
+    }
+  })
+
+  it('keeps the certification table pointers on the sticky, retry and busy regressions', () => {
+    const certification = readFileSync(
+      new URL('../../docs/certification/m108.md', import.meta.url),
+      'utf8',
+    )
+    const lines = readFileSync(new URL(import.meta.url), 'utf8').split(/\r?\n/)
+    for (const { finding, test } of [
+      {
+        finding: 'D P1 later sticky trigger',
+        test: 'moves away from the live sticky account on every user threshold',
+      },
+      {
+        finding: 'D P1 later sticky trigger',
+        test: 'keeps the selected route valid on retries after adopting its sticky account',
+      },
+      {
+        finding: 'D P3 typed refusals',
+        test: 'reports a busy owner and a missing device with distinct typed reasons',
+      },
+    ]) {
+      const row = certification.split(/\r?\n/).find((line) => line.startsWith(`| ${finding} `))
+      const index = lines.findIndex((line) => line.includes(`it('${test}'`))
+      expect(index).toBeGreaterThan(-1)
+      expect(row).toContain(`remoteAccountPool.test.ts:${String(index + 1)}`)
     }
   })
 })

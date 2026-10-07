@@ -276,7 +276,11 @@ export class DeveloperOptions {
     })
   }
 
-  public async addProfile(provider: string, account: string): Promise<DeveloperSnapshot> {
+  public async addProfile(
+    provider: string,
+    account: string,
+    source: DeveloperAudit['source'] = 'page',
+  ): Promise<DeveloperSnapshot> {
     const current = this.fence()
     return await this.serialize(async () => {
       this.assertCurrent(current)
@@ -293,7 +297,7 @@ export class DeveloperOptions {
       this.assertCurrent(current)
       // Record ownership before creating resources; failed starts remain
       // visible/removable and never become an unrecorded cleanup target.
-      await this.save(next, 'create', 'page', profile.id)
+      await this.save(next, 'create', source, profile.id)
       this.assertCurrent(current)
       await this.deps.resources.start(profile, current)
       this.assertCurrent(current)
@@ -301,7 +305,10 @@ export class DeveloperOptions {
     })
   }
 
-  public async removeProfile(id: string): Promise<DeveloperSnapshot> {
+  public async removeProfile(
+    id: string,
+    source: DeveloperAudit['source'] = 'page',
+  ): Promise<DeveloperSnapshot> {
     if (this.state.profiles.every((row) => row.id !== id))
       throw new DeveloperOptionsError('invalidRequest')
     this.invalidate()
@@ -317,7 +324,7 @@ export class DeveloperOptions {
       await this.save(
         { ...this.state, profiles: this.state.profiles.filter((row) => row.id !== id) },
         'remove',
-        'page',
+        source,
         id,
       )
       return this.snapshot()
@@ -340,7 +347,7 @@ export class DeveloperOptions {
     return this.snapshot()
   }
 
-  public async reset(): Promise<DeveloperSnapshot> {
+  public async reset(source: DeveloperAudit['source'] = 'page'): Promise<DeveloperSnapshot> {
     // Reset revokes pending work as soon as requested, even while its
     // destructive cleanup confirmation is pending or denied.
     this.invalidate()
@@ -355,7 +362,7 @@ export class DeveloperOptions {
         await this.save(
           { ...this.state, unlockedAt: null, expiresAt: null, profiles: [] },
           'reset',
-          'page',
+          source,
         )
       }
       return this.snapshot()

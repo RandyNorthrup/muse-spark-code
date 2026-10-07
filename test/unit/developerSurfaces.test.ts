@@ -19,6 +19,24 @@ import { developerFixture, enabledDeveloper } from './helpers/developer'
 const page = { id: 'local-page', isLocal: true, kind: 'page' } as const
 
 describe('Developer options on every surface', () => {
+  it.each(['create', 'remove', 'reset'] as const)(
+    'audits a terminal %s with the actual caller source',
+    async (action) => {
+      const h = await enabledDeveloper()
+      if (action !== 'create') await h.owner.addProfile('meta', 'work')
+      const commands = {
+        create: ['developer', 'add', 'meta', 'work'],
+        remove: ['developer', 'remove', 'profile-1'],
+        reset: ['developer', 'reset'],
+      }
+      const args = commands[action]
+      expect(await runDeveloperCommand(h.owner, args, 'terminal-client')).toMatchObject({
+        type: 'developer/state',
+      })
+      expect(h.audits.at(-1)).toMatchObject({ action, source: 'terminal' })
+    },
+  )
+
   it.each(['page', 'palette', 'terminal', 'setting'] as const)(
     'audits enable and disable from the real %s source',
     async (source) => {

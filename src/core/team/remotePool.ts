@@ -1,10 +1,26 @@
 // M108 D: local placement and routing fragments. M100 owns authentication,
 // envelopes, leases and transport; M107 owns resource admission.
 import * as z from 'zod/mini'
-import { accountIdSchema, accountTriggerSchema, type Account } from '../../shared/accounts'
-import { ACCOUNT_LABEL_MAX_LENGTH, UI_TEXT } from '../../shared/constants'
+import {
+  accountIdSchema,
+  accountPoolSchema,
+  accountTriggerSchema,
+  type Account,
+} from '../../shared/accounts'
+import {
+  ACCOUNT_LABEL_MAX_LENGTH,
+  ACCOUNT_REMOTE_LIMIT_DEFAULT_MS,
+  UI_TEXT,
+} from '../../shared/constants'
 import { type accountHeadroomSchema, deviceAccountHeadroomSchema } from '../../shared/devices'
 import { fill } from '../../shared/l10n/text'
+import {
+  accountLimitBlockSchema,
+  accountLimitIdentity,
+  isAccountLimitEligible,
+  type AccountLimitBlock,
+} from '../accounts/limitBlock'
+import type { AccountPolicy } from '../providers/accountPolicy'
 
 const deviceIdSchema = z
   .string()
@@ -153,6 +169,16 @@ export interface DeviceAccountClaim {
 export interface RemoteAccountPoolDeps {
   readonly placements: AccountPlacements
   readonly accounts: (provider: string) => readonly Account[]
+  /** The same provider/product policy owner as the local AccountPool. */
+  readonly policy: (provider: string) => AccountPolicy | undefined
+  readonly now: () => number
+  /** One durable sender-local record per owner key; write resolves only after
+   * persistence. A single profile owner serializes access, as for placements.
+   * Account removal must retain this metadata until expiry. Never transport it. */
+  readonly limitStore: {
+    read(owner: string): Promise<unknown>
+    write(owner: string, block: AccountLimitBlock): Promise<void>
+  }
   /** Authenticated, live offers only; missing/unknown peers are absent (G5). */
   readonly offers: () => unknown
   /** Selected-model capabilities, pair/receiver epoch, permission and governor. */
@@ -191,7 +217,9 @@ export class AccountRouteError extends Error {
 }
 
 export class RemoteAccountPool {
-  private readonly sticky = new Map<string, string>()
+  private readonly sticky = new Map<string, Pick<Account, 'id' | 'limitGroup'>>()
+  private readonly limits = new Map<string, AccountLimitBlock | undefined>()
+  private readonly pendingLimits = new Set<string>()
   private readonly active = new Set<string>()
   private admissions: Promise<void> = Promise.resolve()
 
@@ -204,25 +232,78 @@ export class RemoteAccountPool {
     return JSON.stringify([request.provider, request.kind, request.owner])
   }
 
-  private routes(
-    request: AccountRouteRequest,
-    rows: readonly AccountPlacement[],
-    liveAccount?: string,
-  ) {
+  private block(owner: string): AccountLimitBlock | undefined {
+    const now = this.deps.now()
+    if (!Number.isSafeInteger(now) || now < 0) throw new AccountRouteError('routeUnavailable')
+    const block = this.limits.get(owner)
+    return block !== undefined && now < block.expiresAt ? block : undefined
+  }
+
+  private async prepareLimit(request: AccountRouteRequest): Promise<string> {
+    const owner = this.owner(request)
+    const held = this.sticky.get(owner)
+    const current = held?.id ?? request.account
+    const account =
+      accountPoolSchema
+        .parse(this.deps.accounts(request.provider))
+        .find((row) => row.id === current) ?? held
+    if (account === undefined) throw new Error(UI_TEXT.accounts.invalidAccount)
+    if (!this.limits.has(owner)) {
+      const stored = await this.deps.limitStore.read(owner)
+      this.limits.set(
+        owner,
+        stored === undefined ? undefined : Object.freeze(accountLimitBlockSchema.parse(stored)),
+      )
+    }
+    // A retry/later threshold cannot erase the original live group by moving
+    // the sticky route. Once it expires, a new trigger captures a new block.
+    const previous = this.block(owner)
+    if (request.trigger?.kind === 'vendorLimit') {
+      const policy = this.deps.policy(request.provider)
+      if (policy === undefined) throw new AccountRouteError('routeUnavailable')
+      const expiresAt =
+        request.trigger.resetAt === null
+          ? this.deps.now() + ACCOUNT_REMOTE_LIMIT_DEFAULT_MS
+          : Date.parse(request.trigger.resetAt)
+      const block = Object.freeze(
+        accountLimitBlockSchema.parse(
+          previous === undefined
+            ? { ...accountLimitIdentity(account, policy), expiresAt }
+            : {
+                ...previous,
+                ...(isAccountLimitEligible(account, previous) && { isOverlapping: true }),
+                // Unknown-reset repeats do not renew the bounded default.
+                expiresAt:
+                  request.trigger.resetAt !== null || isAccountLimitEligible(account, previous)
+                    ? Math.max(previous.expiresAt, expiresAt)
+                    : previous.expiresAt,
+              },
+        ),
+      )
+      // Retain the fence even if persistence fails; the failed write admits
+      // nothing. The store's durable publication is required before routing.
+      this.limits.set(owner, block)
+      this.pendingLimits.add(owner)
+    }
+    const pending = this.limits.get(owner)
+    if (pending !== undefined && this.pendingLimits.has(owner)) {
+      await this.deps.limitStore.write(owner, pending)
+      this.pendingLimits.delete(owner)
+    }
+    return current
+  }
+
+  private routes(request: AccountRouteRequest, rows: readonly AccountPlacement[], current: string) {
     const offers = this.offers()
-    const accounts = this.deps.accounts(request.provider).toSorted((a, b) => a.order - b.order)
+    const accounts = accountPoolSchema
+      .parse(this.deps.accounts(request.provider))
+      .toSorted((a, b) => a.order - b.order)
     const owner = this.owner(request)
     const sticky = this.sticky.get(owner)
-    if (sticky !== undefined && accounts.every((account) => account.id !== sticky))
+    if (sticky !== undefined && accounts.every((account) => account.id !== sticky.id))
       this.sticky.delete(owner)
-    const current = liveAccount ?? this.sticky.get(owner) ?? request.account
-    // The sender knows each account's limit group from its own pool rows, so a
-    // vendor-limit trigger excludes the blocked account's whole group without
-    // any account or group data entering the device frame.
-    const currentGroup = accounts.find((account) => account.id === current)?.limitGroup
+    const block = this.block(owner)
     const index = accounts.findIndex((account) => account.id === current)
-    if (index === -1 && sticky === undefined && liveAccount === undefined)
-      throw new Error(UI_TEXT.accounts.invalidAccount)
     const start = index === -1 ? 0 : index
     const ordered = [...accounts.slice(start), ...accounts.slice(0, start)]
     return ordered
@@ -232,20 +313,16 @@ export class RemoteAccountPool {
         )
         if (
           placement === undefined ||
+          !isAccountLimitEligible(account, block) ||
           (request.destination !== undefined && request.destination !== placement.device)
         )
           return []
-        if (request.destination === undefined && request.trigger !== undefined) {
-          if (account.id === current) return []
-          // A vendor limit binds the live account's whole limit group, mirroring
-          // the local pool's shared-group skip. Per-account caps move one aside.
-          if (
-            currentGroup !== undefined &&
-            request.trigger.kind === 'vendorLimit' &&
-            account.limitGroup === currentGroup
-          )
-            return []
-        }
+        if (
+          request.destination === undefined &&
+          request.trigger !== undefined &&
+          account.id === current
+        )
+          return []
         const rank = headroomRank(
           offers.find((offer) => offer.device === placement.device)?.headroom[request.provider],
         )
@@ -283,13 +360,14 @@ export class RemoteAccountPool {
     const previous = this.admissions
     const operation = (async () => {
       await previous
+      const current = await this.prepareLimit(request)
       const snapshot = await this.deps.placements.snapshot()
       if (
         request.destination !== undefined &&
         this.offers().every((offer) => offer.device !== request.destination)
       )
         throw new AccountRouteError('missingDevice')
-      const route = this.routes(request, snapshot.rows)[0]
+      const route = this.routes(request, snapshot.rows, current)[0]
       if (route === undefined) throw new AccountRouteError('routeUnavailable')
       const claim = await this.deps.admit(route.placement.device, request)
       if (claim === undefined) throw new AccountRouteError('routeUnavailable')
@@ -297,7 +375,7 @@ export class RemoteAccountPool {
         snapshot,
         placement: route.placement,
         claim,
-        current: this.sticky.get(owner) ?? request.account,
+        current,
       }
     })()
     this.admissions = (async () => {
@@ -338,7 +416,14 @@ export class RemoteAccountPool {
             )
               throw new AccountRouteError('routeUnavailable')
             claim.check()
-            this.sticky.set(owner, placement.account)
+            const account = this.deps
+              .accounts(request.provider)
+              .find((row) => row.id === placement.account)
+            if (account === undefined) throw new AccountRouteError('routeUnavailable')
+            this.sticky.set(owner, {
+              id: account.id,
+              ...(account.limitGroup !== undefined && { limitGroup: account.limitGroup }),
+            })
             outcome = 'uncertain'
           },
         })

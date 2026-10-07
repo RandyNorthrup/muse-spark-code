@@ -26021,6 +26021,26 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
+**FIXM108DX3 (2026-10-07):** replace the remote pool's transient vendor-limit
+filter with one durable, sender-local block per provider and conversation/worker
+owner. Capture the blocked account, its group and the effective scope from the
+same `src/core/providers/accountPolicy.ts` policy port as the local pool; use the
+reported reset or a named, bounded default. Retain a live block across subsequent
+triggers, named destinations, sticky moves and deletion; expiry permits a new
+block. Preserve deleted sticky metadata long enough to capture its group. Every
+overlapping vendor limit on a different eligible account conservatively fences
+the provider for this owner until the later reset, within that same record;
+one record must never forget an earlier group in order to remember another.
+Retry a failed durable publication before any later admission. Every
+admission and send/retry uses one eligibility function shared with the local
+pool. The required owner-store port persists the record before admission and
+restores it on first use after restart; it never travels in a device frame.
+Profile create, remove and Reset audit the initiating surface. Correct stale
+round-one certification pointers. Prove all review scenarios against `e459939be`,
+drill the new guards, and repeat the owning files three times in a fresh clone
+with `npm ci`, `CI=true`, default timeouts and unchanged static/build gates.
+Aggregate quality and live/paid calls remain prohibited by the shared lane rules.
+
 **FIXM108DX (2026-10-07):** verify the previously unrouted D/X reports in
 `M108-findings.md` against `9f608e58e` and fix every remaining finding.
 Receiver admission uses the existing provider pool owner, retaining its full

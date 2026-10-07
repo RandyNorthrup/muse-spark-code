@@ -25,6 +25,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Remote vendor limits persist one sender-local block per owner and provider
+  through sticky moves, named sends, account deletion and restart. Group and
+  global exclusions share the local pool's eligibility rule; reset or a bounded
+  default expires the block. Overlapping limits conservatively stop that owner
+  until the later reset. Device frames carry no account or group metadata.
+- Developer profile create/remove and Reset audit the caller's real surface,
+  including terminal commands. M108's sticky/retry/busy certification pointers
+  now follow their owning regressions.
+
 - Device account admission shares its local pool's queue, checks the complete
   vendor limit group and uses the advertised capacity. Later thresholds move
   the live sticky route; deleted accounts no longer wedge it. Refusals

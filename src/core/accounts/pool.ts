@@ -12,6 +12,7 @@ import {
 import { ACCOUNT_DEFAULTS, TOKENS_PER_MILLION, UI_TEXT } from '../../shared/constants'
 import { multiplyUsd, parseUsd, sumUsd, usdNumber, type Usd } from '../../shared/usd'
 import type { AccountPolicy } from '../providers/accountPolicy'
+import { accountLimitIdentity, isAccountLimitEligible } from './limitBlock'
 import type { AccountPolicyGate, AccountPolicyDecision } from './policyGate'
 import {
   AccountThresholdExceededError,
@@ -162,8 +163,7 @@ export class AccountPool {
     for (const peer of this.rows()) {
       if (
         peer.id === account.id ||
-        (this.deps.policy()?.limitScopes.includes('global') !== true &&
-          (account.limitGroup === undefined || account.limitGroup !== peer.limitGroup))
+        isAccountLimitEligible(account, accountLimitIdentity(peer, this.deps.policy()))
       )
         continue
       shared.push(
@@ -293,8 +293,7 @@ export class AccountPool {
       recoveries.push(this.reset(blocked))
       if (
         triggers[0]?.kind === 'vendorLimit' &&
-        (this.deps.policy()?.limitScopes.includes('global') === true ||
-          (current.limitGroup !== undefined && account.limitGroup === current.limitGroup))
+        !isAccountLimitEligible(account, accountLimitIdentity(current, this.deps.policy()))
       ) {
         await this.deps.sharedGroupNotice(account.id)
         continue

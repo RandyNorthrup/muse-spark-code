@@ -43,13 +43,13 @@ export async function handleDeveloperRequest(
         return await owner.setMultiple(request.enabled, surface.kind)
       }
       case 'developer/addProfile': {
-        return await owner.addProfile(request.provider, request.account)
+        return await owner.addProfile(request.provider, request.account, surface.kind)
       }
       case 'developer/removeProfile': {
-        return await owner.removeProfile(request.id)
+        return await owner.removeProfile(request.id, surface.kind)
       }
       case 'developer/reset': {
-        return await owner.reset()
+        return await owner.reset(surface.kind)
       }
     }
   } catch (error) {
