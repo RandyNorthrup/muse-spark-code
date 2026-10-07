@@ -1,7 +1,6 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { lookup } from 'node:dns/promises'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createModelsPanelSeam } from '../../src/core/providers/panelSeam'
 import { checkEndpointUrl } from '../../src/core/providers/endpointPolicy'
@@ -12,7 +11,10 @@ import { probeLocalServers } from '../../src/host/providers/localProbe'
 import { testProvidersHost } from './helpers/m95kFixtures'
 import { memorySecrets, unexpectedWarning } from './helpers/fakes'
 
-vi.mock('node:dns/promises', () => ({ lookup: vi.fn() }))
+const lookupAll = vi.hoisted(() =>
+  vi.fn<(host: string, options: { all: true }) => Promise<{ address: string; family: number }[]>>(),
+)
+vi.mock('node:dns/promises', () => ({ lookup: lookupAll }))
 
 const folders: string[] = []
 afterEach(async () => {
@@ -58,9 +60,9 @@ describe('production Models panel seam', () => {
       configFile,
       subscriptionModels: () => Promise.resolve([]),
     })
-    vi.mocked(lookup).mockResolvedValue([{ address: '8.8.8.8', family: 4 }])
+    lookupAll.mockResolvedValue([{ address: '8.8.8.8', family: 4 }])
     expect(await seam.policy.check(CLOUD.address)).toEqual({ kind: 'ok' })
-    expect(lookup).toHaveBeenCalledWith('api.openai.com', { all: true })
+    expect(lookupAll).toHaveBeenCalledWith('api.openai.com', { all: true })
   })
   it('resolves public and loopback hosts while adding and editing providers (PR136 VA)', async () => {
     const { seam, credentials, resolve } = await panel()
