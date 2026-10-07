@@ -28822,7 +28822,12 @@ TypeScript projects and the scoped lane gates. Browser gates unavailable on
 this rig remain named lead-owned commands in `docs/certification/m117.md`.
 
 Repair plan: [x] packaging; [x] engine/evidence; [x] UI/session/CLI;
-[x] size/portable tests; [ ] fresh-clone verification and certification.
+[x] size/portable tests; [~] fresh-clone verification and certification.
+
+The complete accessibility matrix exposed a stale fake-host initialization:
+its settings omit the required `estimator.optimize`. Update the harness
+fixture and add a real-fixture initialization protocol regression before
+restarting the committed-source final verification; keep validation strict.
 
 **Lane P implementation plan (2026-10-06; partial, corrected 2026-10-07).** After the explicitly required
 `m117/s` and `m117/c` no-fast-forward merges, implement D97.7 only in
