@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Documentation
+
+- A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
+  what went wrong while a fleet of agents built this project. For each one it
+  gives the rule that prevents it and the milestone that will enforce that
+  rule in the app's own orchestrator (D100).
+
 ## [0.14.4] - 2026-10-06
 
 ### Added
@@ -87,7 +94,8 @@ happened, not what was planned; superseded entries are kept.
 - Release checks cover crash recovery through the shared reload helper, await
   deferred question commands and menus, and verify Cline shell quoting on all
   platforms without a slow PowerShell startup.
-
+- Two accessibility scenes for questions wait for the lazily loaded question
+  controls instead of a fixed delay.
 - Retry after a failed optional panel reloads its complete module graph with
   the conversation and draft saved. Cold menus respect outside dismissal and
   late imports cannot take focus; failed menus accept Escape and return focus
