@@ -142,6 +142,12 @@ async function publishedHintFixture() {
   return { ...f, writer, reader, file: path.join(f.directory, `${writer.id}.json`) }
 }
 
+// The native Windows hint suites start Windows PowerShell and compile the C#
+// hint reader on every read (windowHints.ts), two or three times per test; a
+// cold hosted runner needs longer than the unit default. PLAN.md §8
+// (2026-10-07) tracks this; the follow-up precompiles the reader once.
+const NATIVE_WINDOWS_HINT_TIMEOUT_MS = 30_000
+
 describe('M96 K advisory hints', () => {
   it('accepts a native short temp spelling but refuses links and different resolved folders', async () => {
     const f = await hintFixture()
@@ -201,7 +207,7 @@ describe('M96 K advisory hints', () => {
     await hints.dispose()
   })
 
-  describe('native owner-only folder', () => {
+  describe('native owner-only folder', { timeout: NATIVE_WINDOWS_HINT_TIMEOUT_MS }, () => {
     let f: Awaited<ReturnType<typeof hintFixture>>
     let hints: ReturnType<typeof createWindowHints> | undefined
     let disabled: ReturnType<typeof vi.fn<() => void>>
@@ -365,7 +371,7 @@ describe('M96 K advisory hints', () => {
   })
 
   if (process.platform === 'win32') {
-    describe('native Windows hint permissions', () => {
+    describe('native Windows hint permissions', { timeout: NATIVE_WINDOWS_HINT_TIMEOUT_MS }, () => {
       let f: Awaited<ReturnType<typeof publishedHintFixture>> | undefined
       beforeAll(async () => {
         f = await publishedHintFixture()
