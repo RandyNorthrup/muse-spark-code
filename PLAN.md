@@ -19010,6 +19010,8 @@ Knip names the actual vault boundary build entry; unused panel re-exports are
 removed rather than ignored. Duplication fixes reuse the existing read-file
 queue method, derive legacy account fields while retaining its URL constraint,
 and share the two vault-redaction postconditions without dropping assertions.
+Legacy field reuse reads the existing schema shape directly; it introduces no
+new export into the curated shared mini-parser.
 Estimator namespace imports preserve the shared mini-parser export contract;
 real package import checks exercise these first-use dependencies. Fresh-clone
 repairs preserve fixed auth-error text, build cold package inputs, retain new

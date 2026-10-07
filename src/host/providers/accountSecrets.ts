@@ -16,7 +16,9 @@ import { ACCOUNT_DEFAULT_ID, MODEL_API_BASE_URL } from '../../shared/constants'
 import { isValidModelApiKey, type SecretStore } from '../auth/credentialStore'
 
 const legacyRecordSchema = z.strictObject({
-  ...z.pick(credentialRecordSchema, { v: true, auth: true, secret: true }).shape,
+  v: credentialRecordSchema.shape.v,
+  auth: credentialRecordSchema.shape.auth,
+  secret: credentialRecordSchema.shape.secret,
   // Legacy records accept any URL here; binding validation below still pins the origin.
   origin: z.url(),
 })
