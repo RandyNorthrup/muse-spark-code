@@ -19012,6 +19012,10 @@ queue method, derive legacy account fields while retaining its URL constraint,
 and share the two vault-redaction postconditions without dropping assertions.
 Legacy field reuse reads the existing schema shape directly; it introduces no
 new export into the curated shared mini-parser.
+The shared screenshot/accessibility harness must supply M117's required
+`estimator.optimize` setting in its init fixture. A contract regression parses
+the actual harness settings through the production host-message validator;
+retain strict validation and every existing readiness entry.
 Estimator namespace imports preserve the shared mini-parser export contract;
 real package import checks exercise these first-use dependencies. Fresh-clone
 repairs preserve fixed auth-error text, build cold package inputs, retain new

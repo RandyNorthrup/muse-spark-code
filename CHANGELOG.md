@@ -18,7 +18,9 @@ happened, not what was planned; superseded entries are kept.
   Unbound vault shell descriptors preserve ordinary strict-tool requests,
   account CLI help shares the installed usage contract, and GCM decryption
   explicitly pins its authenticated tag length. Legacy credential parsing reuses
-  validators already exported by the shipped shared parser. Caps stay unchanged.
+  validators already exported by the shipped shared parser. Shared browser
+  harness initialization supplies the required estimator setting, restoring
+  rendered accessibility and screenshot scenes. Caps stay unchanged.
 
 ### Added
 
