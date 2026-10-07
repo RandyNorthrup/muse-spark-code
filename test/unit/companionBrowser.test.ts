@@ -19,6 +19,7 @@ try {
   await warmContext.close()
 }
 const SESSION_CLOCK_MS = Date.UTC(2026, 9, 7)
+const BROWSER_CLOSE_GRACE_MS = 5000
 
 /** Runs in the browser; both fetch overloads must retain the private bearer. */
 async function postFromPage(isRequest: boolean): Promise<number> {
@@ -55,7 +56,18 @@ describe('companion browser security', () => {
     vi.restoreAllMocks()
   })
   afterAll(async () => {
-    await browser.close()
+    // Contexts first: a renderer still holding a socket kept browser.close()
+    // waiting past the hook deadline on hosted macOS. Close stays bounded;
+    // Playwright also kills the launched browser when this worker exits.
+    await Promise.allSettled(browser.contexts().map((context) => context.close()))
+    let timer: NodeJS.Timeout | undefined
+    await Promise.race([
+      browser.close(),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, BROWSER_CLOSE_GRACE_MS)
+      }),
+    ])
+    clearTimeout(timer)
   })
   it('exchanges the fragment without leaking it, then refuses a foreign form, fetch, EventSource and WebSocket', async () => {
     const panel = await startPanel()
