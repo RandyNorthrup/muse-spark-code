@@ -27544,6 +27544,21 @@ lane T and M111b. One short live check per backend (step 3).
 
 ### M113 — Deterministic reports: `/report` (D93)
 
+**Lane N lifecycle redesign RVM113N3 (2026-10-06).** Three review rounds
+found defects in admission and response ownership, so replace that path with
+one synchronous per-host reducer, `step(state, event) -> { state, effects }`.
+It owns requested/admitted/transportReturned/transportFailed/aborted/timedOut/
+dispatched/released transitions, queued generations, response ownership and
+rate state. The shell only executes generation-tagged transport, cancellation,
+dispatch, release and refusal effects. Stale completions cancel their bodies
+and cannot publish rate/cache facts. Read the shared live network/sign-in
+decision immediately before transport dispatch; preserve authorized pages
+that return after sign-out and recheck before the next send. Preserve the
+existing public ports and tests. Enumerate abort/timeout at each lifecycle
+boundary with late completions, and prove body-cancellation and generation
+guards with byte-exact red drills. Scoped checks run directly on Kubuntu with
+default test timeouts; W retains the existing integration handoffs.
+
 **Lane N round-two repair RVM113N2 (2026-10-06).** Fix both P2 findings
 structurally within N's files: one serialized admission owner per host,
 abort/deadline-bounded waits and transport settlement, and generation checks
@@ -28732,7 +28747,7 @@ anywhere joined it).
 
 ## 7. Gates
 
-**M113-N-RVM113N/RVM113N2 bounded rig certification (2026-10-06).** The explicit
+**M113-N-RVM113N/RVM113N2/RVM113N3 bounded rig certification (2026-10-06).** The explicit
 rig/shared brief reserves aggregate quality for the lead and forbids merges.
 Run complete owned suites (at most three files per run), default timeouts,
 scoped static checks and the production build directly in this worktree.
@@ -30106,6 +30121,18 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M113-N-lifecycle-RVM113N3 (2026-10-06).** The admission reducer owns
+  queued/current generations, response ownership and rate publication. Abort,
+  deadline and transport failure retire an owner once; stale completions
+  cancel returned bodies and cannot dispatch or release a successor. A
+  successful dispatch transfers the response to the query's cleanup scope,
+  which also covers cancellation before its await continuation resumes.
+  The async shell has only resource ports and reducer states, no independent
+  lifecycle flags or promise queue. Existing authorized-page semantics and
+  N-captures/storage/wiring/lazy-bundle/W handoffs remain. Model interleavings,
+  microtask abort schedules and byte-exact drills are in N's certification;
+  no new live-service, model-call or integrated-editor claim is made.
 
 - **M113-N-review-RVM113N2 (2026-10-06).** Both P2 findings fixed;
   no review residuals. Each host has one admission owner; its waits and

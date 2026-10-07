@@ -11,6 +11,12 @@ import {
 import { fill } from '../../../shared/l10n/text'
 import type { ReportSourceRecord } from '../../../shared/reportSchema'
 import type { SourceReadContext, SourceResult } from './types'
+import {
+  reportAdmissionStep,
+  type ReportAdmissionState,
+  type ReportAdmissionEvent,
+  type ReportAdmissionEffect,
+} from './admission'
 
 export interface ReportNetworkPolicy {
   readonly surface: 'editor' | 'terminal'
@@ -167,12 +173,24 @@ export function isReportNetworkAllowed(
   )
 }
 
+interface DispatchResult {
+  readonly response: Response
+  readonly limited: number | null
+  readonly now: string
+}
+interface NetworkGeneration {
+  readonly request: ReportNetworkRequest
+  readonly etag: string | null
+  readonly signal: AbortSignal
+  readonly context: SourceReadContext
+  readonly completion: {
+    readonly resolve: (value: DispatchResult) => void
+    readonly reject: (reason: ReportNetworkFailure) => void
+  }
+}
+
 export class ReportNetworkReader {
-  private readonly limitedUntil = new Map<string, number>()
-  private readonly dispatches = new Map<
-    string,
-    { generation: AbortController; released: Promise<void> }
-  >()
+  private readonly admissions = new Map<string, ReportAdmissionState<NetworkGeneration>>()
 
   public constructor(private readonly deps: ReportNetworkDeps) {
     z.number().check(z.int(), z.positive()).parse(deps.maxBytes)
@@ -234,31 +252,39 @@ export class ReportNetworkReader {
       context,
       url.origin,
     )
-    signal.throwIfAborted()
-    if (response.status === HTTP_NOT_MODIFIED) {
-      if (previous === undefined) throw new ReportNetworkFailure('cache-missing')
-      // A 304 never makes the cached observation newer than it was.
-      return {
-        data: outputSchema.parse(scrubStructured(previous.data, this.deps.scrub)),
-        observedAt: previous.observedAt,
-        cached: true,
+    // Dispatch transfers ownership synchronously; this scope owns every later
+    // continuation, including an abort before the await above resumes.
+    try {
+      signal.throwIfAborted()
+      if (response.status === HTTP_NOT_MODIFIED) {
+        if (previous === undefined) throw new ReportNetworkFailure('cache-missing')
+        // A 304 never makes the cached observation newer than it was.
+        return {
+          data: outputSchema.parse(scrubStructured(previous.data, this.deps.scrub)),
+          observedAt: previous.observedAt,
+          cached: true,
+        }
       }
-    }
-    if (!response.ok) {
-      await response.body?.cancel()
-      throw new ReportNetworkFailure(
-        limited === null
-          ? `http-${String(response.status)}`
-          : fill(UI_TEXT.reportUi.rateLimitedUntil, { time: new Date(limited).toISOString() }),
+      if (!response.ok) {
+        await response.body?.cancel()
+        throw new ReportNetworkFailure(
+          limited === null
+            ? `http-${String(response.status)}`
+            : fill(UI_TEXT.reportUi.rateLimitedUntil, { time: new Date(limited).toISOString() }),
+        )
+      }
+      const raw = await this.body(response, signal)
+      signal.throwIfAborted()
+      const data = outputSchema.parse(
+        scrubStructured(schema.parse(JSON.parse(raw)), this.deps.scrub),
       )
+      const etag = response.headers.get('etag')
+      const safeEtag = etag !== null && this.deps.scrub(etag) === etag ? etag : null
+      await this.deps.cache.set({ key, etag: safeEtag, observedAt: now, data }, signal)
+      return { data, observedAt: now, cached: false }
+    } finally {
+      if (response.body !== null && !response.body.locked) await this.cancelBody(response)
     }
-    const raw = await this.body(response, signal)
-    signal.throwIfAborted()
-    const data = outputSchema.parse(scrubStructured(schema.parse(JSON.parse(raw)), this.deps.scrub))
-    const etag = response.headers.get('etag')
-    const safeEtag = etag !== null && this.deps.scrub(etag) === etag ? etag : null
-    await this.deps.cache.set({ key, etag: safeEtag, observedAt: now, data }, signal)
-    return { data, observedAt: now, cached: false }
   }
 
   /** Bound admission and transport by the source signal, even if a port ignores it. */
@@ -278,61 +304,154 @@ export class ReportNetworkReader {
     }
   }
 
-  /** One live owner per host, held through its response headers and rate update. */
+  /** Resource ports carry no lifecycle flags: only the reducer owns admission. */
   private async dispatch(
     request: ReportNetworkRequest,
     etag: string | null,
     signal: AbortSignal,
     context: SourceReadContext,
     origin: string,
-  ): Promise<{ response: Response; limited: number | null; now: string }> {
-    for (;;) {
-      signal.throwIfAborted()
-      const owner = this.dispatches.get(origin)
-      if (owner === undefined) break
-      await this.untilAborted(owner.released, signal)
-    }
-    const generation = new AbortController()
-    const released = new Promise<void>((resolve) => {
-      generation.signal.addEventListener(
-        'abort',
-        () => {
-          resolve()
-        },
-        { once: true },
-      )
-    })
-    this.dispatches.set(origin, { generation, released })
-    try {
-      const now = timestamp.parse(this.deps.now())
-      const until = this.limitedUntil.get(origin)
-      if (until !== undefined && until > Date.parse(now))
-        throw new ReportNetworkFailure(
-          fill(UI_TEXT.reportUi.rateLimitedUntil, { time: new Date(until).toISOString() }),
-        )
-      // No await between the live setting check and the actual transport call.
-      if (!this.allowed(context, new URL(request.url).hostname))
-        throw new ReportNetworkFailure(
-          this.allowed(context) ? UI_TEXT.reportUi.signInRequired : UI_TEXT.reportUi.networkOff,
-        )
-      const response = await this.untilAborted(
-        (async () => {
-          const response = await this.deps.transport(request, etag, signal)
-          if (signal.aborted || this.dispatches.get(origin)?.generation !== generation) {
-            // Obsolete work cannot publish rate state or cache data in a later generation.
-            await response.body?.cancel()
-            throw new ReportNetworkFailure('source-deadline')
-          }
-          return response
-        })(),
+  ): Promise<DispatchResult> {
+    signal.throwIfAborted()
+    return await new Promise<DispatchResult>((resolve, reject) => {
+      const abort = (): void => {
+        this.step(origin, {
+          type: signal.reason === 'source-timeout' ? 'timedOut' : 'aborted',
+          generation,
+        })
+      }
+      const generation: NetworkGeneration = {
+        request,
+        etag,
         signal,
-      )
-      signal.throwIfAborted()
-      const limited = this.rateLimit(response, origin, Date.parse(now))
-      return { response, limited, now }
-    } finally {
-      if (this.dispatches.get(origin)?.generation === generation) this.dispatches.delete(origin)
-      generation.abort()
+        context,
+        completion: {
+          resolve: (value) => {
+            signal.removeEventListener('abort', abort)
+            resolve(value)
+          },
+          reject: (reason) => {
+            signal.removeEventListener('abort', abort)
+            reject(reason)
+          },
+        },
+      }
+      signal.addEventListener('abort', abort, { once: true })
+      this.step(origin, { type: 'requested', generation })
+    })
+  }
+
+  private step(
+    origin: string,
+    event: ReportAdmissionEvent<NetworkGeneration>,
+  ): readonly ReportAdmissionEffect<NetworkGeneration>[] {
+    const result = reportAdmissionStep(
+      this.admissions.get(origin) ?? { current: null, waiting: [], limitedUntil: null },
+      event,
+    )
+    this.admissions.set(origin, result.state)
+    for (const effect of result.effects) this.execute(origin, effect)
+    return result.effects
+  }
+
+  private refusal(generation: NetworkGeneration): string | null {
+    if (this.allowed(generation.context, new URL(generation.request.url).hostname)) return null
+    return this.allowed(generation.context)
+      ? UI_TEXT.reportUi.signInRequired
+      : UI_TEXT.reportUi.networkOff
+  }
+
+  private execute(origin: string, effect: ReportAdmissionEffect<NetworkGeneration>): void {
+    const generation = effect.generation
+    switch (effect.type) {
+      case 'cancelBody': {
+        void this.cancelBody(effect.response)
+        break
+      }
+      case 'refuse': {
+        generation.completion.reject(
+          new ReportNetworkFailure(
+            typeof effect.reason === 'number'
+              ? fill(UI_TEXT.reportUi.rateLimitedUntil, {
+                  time: new Date(effect.reason).toISOString(),
+                })
+              : effect.reason,
+          ),
+        )
+        break
+      }
+      case 'release': {
+        queueMicrotask(() => {
+          this.step(origin, { type: 'released', generation })
+        })
+        break
+      }
+      case 'startTransport': {
+        void (async () => {
+          try {
+            if (generation.signal.aborted) {
+              this.step(origin, { type: 'aborted', generation })
+              return
+            }
+            const observedAt = timestamp.parse(this.deps.now())
+            // Pure live inputs, with no await before the actual transport call.
+            this.step(origin, {
+              type: 'admitted',
+              generation,
+              observedAt,
+              refusal: this.refusal(generation),
+            })
+            const owner = this.admissions.get(origin)?.current
+            if (owner?.generation !== generation || owner.phase !== 'transport') return
+            const response = await this.deps.transport(
+              generation.request,
+              generation.etag,
+              generation.signal,
+            )
+            this.step(origin, { type: 'transportReturned', generation, response })
+          } catch {
+            this.step(origin, { type: 'transportFailed', generation })
+          }
+        })()
+        break
+      }
+      case 'dispatch': {
+        const owner = this.admissions.get(origin)?.current
+        if (
+          owner?.generation !== generation ||
+          owner.phase !== 'dispatch' ||
+          owner.observedAt === null
+        )
+          return
+        if (generation.signal.aborted) {
+          this.step(origin, { type: 'aborted', generation })
+          return
+        }
+        const limited = this.rateLimit(effect.response, origin, Date.parse(owner.observedAt))
+        // Preserve an already authorized page if sign-in changes in flight;
+        // the next transport re-reads the same live policy before sending.
+        const effects = this.step(origin, {
+          type: 'dispatched',
+          generation,
+          limitedUntil: limited,
+        })
+        if (effects.length === 1 && effects[0]?.type === 'release')
+          generation.completion.resolve({
+            response: effect.response,
+            limited,
+            now: owner.observedAt,
+          })
+        break
+      }
+    }
+  }
+
+  private async cancelBody(response: Response): Promise<void> {
+    try {
+      await response.body?.cancel()
+    } catch {
+      // Cleanup failures cannot keep the host slot or expose transport text.
+      return
     }
   }
 
@@ -363,7 +482,6 @@ export class ReportNetworkReader {
     ) {
       // Missing/malformed reset cannot authorize another dispatch immediately.
       until = until > now && Number.isFinite(until) ? until : now + REPORT_SOURCE_TIMEOUT_MS
-      this.limitedUntil.set(origin, until)
       return until
     }
     return null
@@ -455,7 +573,7 @@ export class ReportNetworkReader {
       }
     }
     const timer = setTimeout(() => {
-      controller.abort()
+      controller.abort('source-timeout')
     }, REPORT_SOURCE_TIMEOUT_MS)
     try {
       return await this.untilAborted(work(), signal)

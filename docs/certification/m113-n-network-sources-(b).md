@@ -478,3 +478,103 @@ handoffs and are not claimed green. No threshold, rule or ignore is weakened.
 W retains the public Unreleased documentation for these two repairs.
 PLAN §9 records no review residuals and keeps all existing integration
 handoffs with their named owners.
+
+## RVM113N3 lifecycle redesign (2026-10-06)
+
+Authority: the current `M113N.rig.md`, shared `codex/common.md`, all three
+RVM113N review reports, AGENTS.md, and PLAN D93/M113. Starting HEAD
+`b20a022c3`, branch `m113/n`, Kubuntu. The third review exposed an unread
+response abandoned between transport settlement and dispatch's continuation.
+The owner's three-strikes rule replaces the admission implementation rather
+than adding another race guard. Previous clean-review claims above are
+superseded by this finding and this implementation's evidence.
+
+`sources/admission.ts` is the single synchronous per-host reducer. Its state
+holds the current generation and phase, queued generations, owned response,
+observation timestamp and rate floor. Generation identity is the request's
+resource-port object; no counters, AbortControllers as ownership tokens,
+promise chain or independent shell lifecycle flags remain. The shell in
+`cache.ts` executes effects and feeds completions back. Release acknowledgements
+use a microtask so a queue of refused requests does not recurse on the stack.
+
+| Event                                | Transition and effects                                                                                                                                           |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `requested(gen)`                     | An idle host claims the generation in admission and emits `startTransport(gen)`; an occupied host queues it. Duplicate current/queued requests have no effect.   |
+| `admitted(gen, observedAt, refusal)` | Only the current admission can enter transport. Pure live policy inputs or the reducer's rate floor refuse it and emit `refuse` and `release`.                   |
+| `transportReturned(gen, response)`   | A current transport owns the response and emits `dispatch(gen, response)`; stale or out-of-phase responses emit `cancelBody(gen, response)`.                     |
+| `transportFailed(gen)`               | A current unfinished generation retires with `refuse` and `release`, cancelling an owned response if present. A stale failure has no effect.                     |
+| `aborted(gen)`                       | Retire the unfinished owner with body cancellation/refusal/release, or remove and refuse a queued waiter without releasing its owner's slot.                     |
+| `timedOut(gen)`                      | The same terminal transition as abort; the source timer identifies this event explicitly.                                                                        |
+| `dispatched(gen, limitedUntil)`      | Only the current response handoff publishes rate state, transfers response ownership, and emits `release` once. Duplicate/stale acknowledgements have no effect. |
+| `released(gen)`                      | Only its matching releasing owner clears the slot and starts the next queued generation; a stale release cannot affect a successor.                              |
+
+All effects carry the generation. The shell reads the shared
+`isReportNetworkAllowed` decision immediately before HTTP dispatch, with no
+await between admission and the transport call. Existing GitHub semantics
+remain: a page authorized before sign-out is preserved, and every following
+send reads current network/sign-in inputs. Stores retain public eligibility.
+Response dispatch checks the reducer's generation/phase and abort signal;
+headers are pure inputs and only an accepted acknowledgement changes rate
+state. Its synchronous ownership transfer is followed by a query cleanup
+scope covering all later continuations, including an abort before the
+dispatch await resumes. A reader-owned body is cancelled by the existing
+body reader; an unread/unlocked response is cancelled by that cleanup scope.
+Cleanup rejection is contained and never retains admission or exposes text.
+
+No existing public interface or existing test changes. No wire shape, paid
+call, dependency, escape hatch, localization key, path comparison, command,
+setting, activation import or provider-specific behavior changes. The same
+core ports serve every editor and runtime. All existing capture, bounded
+storage, wiring, lazy bundle and W documentation/reference handoffs above
+remain; no integrated or live-service certification is implied. Public
+CHANGELOG/help edits remain W's explicitly assigned handoff.
+
+### Regressions and model
+
+The new public-port regression enumerates 12 microtask abort schedules for
+a streaming returned response, asserting cancellation once, no cache write,
+and successful next admission. Against reviewed HEAD it first returned four
+failures (depths 2, 3, 4 and 5) and eight passes; no timeout override was used.
+The redesign passes all 12.
+
+The reducer model enumerates **72 traces**: six boundaries (before admission,
+during transport, after transport before dispatch, during dispatch before
+acknowledgement, after dispatch before release, after release) × abort/timeout
+× late response/failure × three successor positions (before admission,
+during transport, after release). It asserts one release per owner, at most
+one dispatch per request, cancellation of each returned non-dispatched body,
+and unchanged successor state/rate/publication tokens after obsolete events.
+The real-port cases and existing late-generation regressions assert actual
+body cancellation and absence of stale persistent cache writes. Two queued
+cancellation cases and one duplicate/out-of-phase case add 3 model tests:
+**87 new tests**, plus the unchanged 132 owned tests.
+
+### Redesign deliberate failures
+
+Each mutation ran complete owning files (at most two files),
+`--maxWorkers=3`, default repository timeouts and no test-name filters.
+All nine exited 1 at semantic assertions; both production files were restored
+from saved bytes in `finally`, with matching SHA-256 after every run. Receipts
+and full failure names: `temp/m113n-redesign/drills.json`; individual JSON/log
+files are beside it. The release-once drill's initial selector matched two
+guards and was refused before mutation; an exact case-specific selector then
+ran the intended drill. No additional implementation fix was needed.
+
+| Drill                 | Removed guard                                       | Failed / passed tests                                                                |
+| --------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `body-cancellation`   | The shell's `cancelBody` effect                     | 2 / 136: first-microtask cleanup and the existing late-generation body cancellation. |
+| `generation-check`    | The reducer's current-generation comparison         | 54 / 33: obsolete completions corrupt a successor across model interleavings.        |
+| `handoff-cleanup`     | The query's unread-body cleanup scope               | 2 / 85: microtask abort depths 2 and 3.                                              |
+| `queued-cancellation` | Removal of an aborted/timed-out waiter              | 2 / 85: both queued cancellation cases.                                              |
+| `rate-floor`          | The reducer's admission floor check                 | 5 / 46: the unchanged rate, concurrency and Retry-After tests.                       |
+| `live-policy`         | The live policy input before transport dispatch     | 14 / 73: unchanged GitHub, network-off and terminal-consent cases.                   |
+| `dispatch-phase`      | The current response-phase acknowledgement check    | 1 / 86: duplicate/out-of-phase acknowledgements.                                     |
+| `release-once`        | The terminal-phase guard on repeated stops/failures | 13 / 74: repeated stops before release and phase replay.                             |
+| `duplicate-request`   | Deduplication of current/queued requested events    | 1 / 86: duplicate requests.                                                          |
+
+Restored production SHA-256:
+
+- `cache.ts`: `1daa6eb74e263d8e5dd843f8486297ad63711f7d4ba49946e42851143ac0b9a2`
+- `admission.ts`: `6c1dc4be3919e48fa410e65f53e11f9108ca15f42705001db331969c89e1e777`
+
+Final scoped verification, sizes and enabled-hook results follow below.
