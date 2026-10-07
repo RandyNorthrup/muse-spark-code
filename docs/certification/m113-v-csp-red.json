@@ -1,0 +1,539 @@
+{
+  "id": "production-CSP-nonce-refusal",
+  "exitCode": 1,
+  "namedFailure": true,
+  "restored": [
+    {
+      "file": "src/host/reporting/reportPanel.ts",
+      "sha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+      "restoredSha256": "47cb069ccec9426c4d16d7e3e693c85270d17b7f18fe6639699515d7ffd2d6e6",
+      "byteExact": true
+    },
+    {
+      "file": "docs/certification/m113-v-a11y.json",
+      "sha256": "e88037d89dfa4cb5aef58d50a5bb779cfc452db0cd2733ab731cd72f7e169939",
+      "restoredSha256": "e88037d89dfa4cb5aef58d50a5bb779cfc452db0cd2733ab731cd72f7e169939",
+      "byteExact": true
+    },
+    {
+      "file": "docs/certification/m113-v-320-light.png",
+      "sha256": "cb5d8f7953d9e4d14e6f163c3579f3617d5f1e82a21904c6a28023e3a0806ae8",
+      "restoredSha256": "cb5d8f7953d9e4d14e6f163c3579f3617d5f1e82a21904c6a28023e3a0806ae8",
+      "byteExact": true
+    }
+  ],
+  "checks": [
+    {
+      "theme": "light",
+      "width": 690,
+      "scene": "report",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-V0IeRa1DkU1iARF20m4CWsNasUQnEXh5''. Either the 'unsafe-inline' keyword, a hash ('sha256-/7MIp4y+e/lups2W47FMJsxERgRzqQSwvPWvS0SdO18='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-V0IeRa1DkU1iARF20m4CWsNasUQnEXh5''. Either the 'unsafe-inline' keyword, a hash ('sha256-/7MIp4y+e/lups2W47FMJsxERgRzqQSwvPWvS0SdO18='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":false}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "light",
+      "width": 690,
+      "scene": "history",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-V0IeRa1DkU1iARF20m4CWsNasUQnEXh5''. Either the 'unsafe-inline' keyword, a hash ('sha256-/7MIp4y+e/lups2W47FMJsxERgRzqQSwvPWvS0SdO18='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-V0IeRa1DkU1iARF20m4CWsNasUQnEXh5''. Either the 'unsafe-inline' keyword, a hash ('sha256-/7MIp4y+e/lups2W47FMJsxERgRzqQSwvPWvS0SdO18='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":false}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "light",
+      "width": 690,
+      "scene": "diff",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-V0IeRa1DkU1iARF20m4CWsNasUQnEXh5''. Either the 'unsafe-inline' keyword, a hash ('sha256-/7MIp4y+e/lups2W47FMJsxERgRzqQSwvPWvS0SdO18='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-V0IeRa1DkU1iARF20m4CWsNasUQnEXh5''. Either the 'unsafe-inline' keyword, a hash ('sha256-/7MIp4y+e/lups2W47FMJsxERgRzqQSwvPWvS0SdO18='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":false}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "light",
+      "width": 690,
+      "scene": "error",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-V0IeRa1DkU1iARF20m4CWsNasUQnEXh5''. Either the 'unsafe-inline' keyword, a hash ('sha256-/7MIp4y+e/lups2W47FMJsxERgRzqQSwvPWvS0SdO18='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-V0IeRa1DkU1iARF20m4CWsNasUQnEXh5''. Either the 'unsafe-inline' keyword, a hash ('sha256-/7MIp4y+e/lups2W47FMJsxERgRzqQSwvPWvS0SdO18='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":false}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "scene": "report",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-V0IeRa1DkU1iARF20m4CWsNasUQnEXh5''. Either the 'unsafe-inline' keyword, a hash ('sha256-/7MIp4y+e/lups2W47FMJsxERgRzqQSwvPWvS0SdO18='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-V0IeRa1DkU1iARF20m4CWsNasUQnEXh5''. Either the 'unsafe-inline' keyword, a hash ('sha256-/7MIp4y+e/lups2W47FMJsxERgRzqQSwvPWvS0SdO18='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":true}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": true
+      }
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "scene": "history",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-V0IeRa1DkU1iARF20m4CWsNasUQnEXh5''. Either the 'unsafe-inline' keyword, a hash ('sha256-/7MIp4y+e/lups2W47FMJsxERgRzqQSwvPWvS0SdO18='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-V0IeRa1DkU1iARF20m4CWsNasUQnEXh5''. Either the 'unsafe-inline' keyword, a hash ('sha256-/7MIp4y+e/lups2W47FMJsxERgRzqQSwvPWvS0SdO18='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":true}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": true
+      }
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "scene": "diff",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-V0IeRa1DkU1iARF20m4CWsNasUQnEXh5''. Either the 'unsafe-inline' keyword, a hash ('sha256-/7MIp4y+e/lups2W47FMJsxERgRzqQSwvPWvS0SdO18='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-V0IeRa1DkU1iARF20m4CWsNasUQnEXh5''. Either the 'unsafe-inline' keyword, a hash ('sha256-/7MIp4y+e/lups2W47FMJsxERgRzqQSwvPWvS0SdO18='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":true}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": true
+      }
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "scene": "error",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-V0IeRa1DkU1iARF20m4CWsNasUQnEXh5''. Either the 'unsafe-inline' keyword, a hash ('sha256-/7MIp4y+e/lups2W47FMJsxERgRzqQSwvPWvS0SdO18='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-V0IeRa1DkU1iARF20m4CWsNasUQnEXh5''. Either the 'unsafe-inline' keyword, a hash ('sha256-/7MIp4y+e/lups2W47FMJsxERgRzqQSwvPWvS0SdO18='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":true}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": true
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 690,
+      "scene": "report",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-NQ7oGcmBKJLqjf03JTP4ModZQKDm7e0L''. Either the 'unsafe-inline' keyword, a hash ('sha256-SD7SQ5ve8VZxeCVopcbgKPp4KJI5mQZPs4Or4nG/UDI='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-NQ7oGcmBKJLqjf03JTP4ModZQKDm7e0L''. Either the 'unsafe-inline' keyword, a hash ('sha256-SD7SQ5ve8VZxeCVopcbgKPp4KJI5mQZPs4Or4nG/UDI='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":false}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 690,
+      "scene": "history",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-NQ7oGcmBKJLqjf03JTP4ModZQKDm7e0L''. Either the 'unsafe-inline' keyword, a hash ('sha256-SD7SQ5ve8VZxeCVopcbgKPp4KJI5mQZPs4Or4nG/UDI='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-NQ7oGcmBKJLqjf03JTP4ModZQKDm7e0L''. Either the 'unsafe-inline' keyword, a hash ('sha256-SD7SQ5ve8VZxeCVopcbgKPp4KJI5mQZPs4Or4nG/UDI='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":false}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 690,
+      "scene": "diff",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-NQ7oGcmBKJLqjf03JTP4ModZQKDm7e0L''. Either the 'unsafe-inline' keyword, a hash ('sha256-SD7SQ5ve8VZxeCVopcbgKPp4KJI5mQZPs4Or4nG/UDI='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-NQ7oGcmBKJLqjf03JTP4ModZQKDm7e0L''. Either the 'unsafe-inline' keyword, a hash ('sha256-SD7SQ5ve8VZxeCVopcbgKPp4KJI5mQZPs4Or4nG/UDI='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":false}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 690,
+      "scene": "error",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-NQ7oGcmBKJLqjf03JTP4ModZQKDm7e0L''. Either the 'unsafe-inline' keyword, a hash ('sha256-SD7SQ5ve8VZxeCVopcbgKPp4KJI5mQZPs4Or4nG/UDI='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-NQ7oGcmBKJLqjf03JTP4ModZQKDm7e0L''. Either the 'unsafe-inline' keyword, a hash ('sha256-SD7SQ5ve8VZxeCVopcbgKPp4KJI5mQZPs4Or4nG/UDI='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":false}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "scene": "report",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-NQ7oGcmBKJLqjf03JTP4ModZQKDm7e0L''. Either the 'unsafe-inline' keyword, a hash ('sha256-SD7SQ5ve8VZxeCVopcbgKPp4KJI5mQZPs4Or4nG/UDI='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-NQ7oGcmBKJLqjf03JTP4ModZQKDm7e0L''. Either the 'unsafe-inline' keyword, a hash ('sha256-SD7SQ5ve8VZxeCVopcbgKPp4KJI5mQZPs4Or4nG/UDI='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":true}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": true
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "scene": "history",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-NQ7oGcmBKJLqjf03JTP4ModZQKDm7e0L''. Either the 'unsafe-inline' keyword, a hash ('sha256-SD7SQ5ve8VZxeCVopcbgKPp4KJI5mQZPs4Or4nG/UDI='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-NQ7oGcmBKJLqjf03JTP4ModZQKDm7e0L''. Either the 'unsafe-inline' keyword, a hash ('sha256-SD7SQ5ve8VZxeCVopcbgKPp4KJI5mQZPs4Or4nG/UDI='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":true}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": true
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "scene": "diff",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-NQ7oGcmBKJLqjf03JTP4ModZQKDm7e0L''. Either the 'unsafe-inline' keyword, a hash ('sha256-SD7SQ5ve8VZxeCVopcbgKPp4KJI5mQZPs4Or4nG/UDI='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-NQ7oGcmBKJLqjf03JTP4ModZQKDm7e0L''. Either the 'unsafe-inline' keyword, a hash ('sha256-SD7SQ5ve8VZxeCVopcbgKPp4KJI5mQZPs4Or4nG/UDI='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":true}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": true
+      }
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "scene": "error",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-NQ7oGcmBKJLqjf03JTP4ModZQKDm7e0L''. Either the 'unsafe-inline' keyword, a hash ('sha256-SD7SQ5ve8VZxeCVopcbgKPp4KJI5mQZPs4Or4nG/UDI='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-NQ7oGcmBKJLqjf03JTP4ModZQKDm7e0L''. Either the 'unsafe-inline' keyword, a hash ('sha256-SD7SQ5ve8VZxeCVopcbgKPp4KJI5mQZPs4Or4nG/UDI='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":true}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": true
+      }
+    },
+    {
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "report",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-dh4s8ifPCpDkk9KTa2Pt4nb-eF2la4kR''. Either the 'unsafe-inline' keyword, a hash ('sha256-BpnGeYFNxdneaRsHJlNs/cW57SHSXQ5pFnq4QwEgDpw='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-dh4s8ifPCpDkk9KTa2Pt4nb-eF2la4kR''. Either the 'unsafe-inline' keyword, a hash ('sha256-BpnGeYFNxdneaRsHJlNs/cW57SHSXQ5pFnq4QwEgDpw='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":false}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "history",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-dh4s8ifPCpDkk9KTa2Pt4nb-eF2la4kR''. Either the 'unsafe-inline' keyword, a hash ('sha256-BpnGeYFNxdneaRsHJlNs/cW57SHSXQ5pFnq4QwEgDpw='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-dh4s8ifPCpDkk9KTa2Pt4nb-eF2la4kR''. Either the 'unsafe-inline' keyword, a hash ('sha256-BpnGeYFNxdneaRsHJlNs/cW57SHSXQ5pFnq4QwEgDpw='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":false}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "diff",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-dh4s8ifPCpDkk9KTa2Pt4nb-eF2la4kR''. Either the 'unsafe-inline' keyword, a hash ('sha256-BpnGeYFNxdneaRsHJlNs/cW57SHSXQ5pFnq4QwEgDpw='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-dh4s8ifPCpDkk9KTa2Pt4nb-eF2la4kR''. Either the 'unsafe-inline' keyword, a hash ('sha256-BpnGeYFNxdneaRsHJlNs/cW57SHSXQ5pFnq4QwEgDpw='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":false}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-dark",
+      "width": 690,
+      "scene": "error",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-dh4s8ifPCpDkk9KTa2Pt4nb-eF2la4kR''. Either the 'unsafe-inline' keyword, a hash ('sha256-BpnGeYFNxdneaRsHJlNs/cW57SHSXQ5pFnq4QwEgDpw='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-dh4s8ifPCpDkk9KTa2Pt4nb-eF2la4kR''. Either the 'unsafe-inline' keyword, a hash ('sha256-BpnGeYFNxdneaRsHJlNs/cW57SHSXQ5pFnq4QwEgDpw='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":false}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "report",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-dh4s8ifPCpDkk9KTa2Pt4nb-eF2la4kR''. Either the 'unsafe-inline' keyword, a hash ('sha256-BpnGeYFNxdneaRsHJlNs/cW57SHSXQ5pFnq4QwEgDpw='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-dh4s8ifPCpDkk9KTa2Pt4nb-eF2la4kR''. Either the 'unsafe-inline' keyword, a hash ('sha256-BpnGeYFNxdneaRsHJlNs/cW57SHSXQ5pFnq4QwEgDpw='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":true}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": true
+      }
+    },
+    {
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "history",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-dh4s8ifPCpDkk9KTa2Pt4nb-eF2la4kR''. Either the 'unsafe-inline' keyword, a hash ('sha256-BpnGeYFNxdneaRsHJlNs/cW57SHSXQ5pFnq4QwEgDpw='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-dh4s8ifPCpDkk9KTa2Pt4nb-eF2la4kR''. Either the 'unsafe-inline' keyword, a hash ('sha256-BpnGeYFNxdneaRsHJlNs/cW57SHSXQ5pFnq4QwEgDpw='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":true}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": true
+      }
+    },
+    {
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "diff",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-dh4s8ifPCpDkk9KTa2Pt4nb-eF2la4kR''. Either the 'unsafe-inline' keyword, a hash ('sha256-BpnGeYFNxdneaRsHJlNs/cW57SHSXQ5pFnq4QwEgDpw='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-dh4s8ifPCpDkk9KTa2Pt4nb-eF2la4kR''. Either the 'unsafe-inline' keyword, a hash ('sha256-BpnGeYFNxdneaRsHJlNs/cW57SHSXQ5pFnq4QwEgDpw='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":true}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": true
+      }
+    },
+    {
+      "theme": "hc-dark",
+      "width": 320,
+      "scene": "error",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-dh4s8ifPCpDkk9KTa2Pt4nb-eF2la4kR''. Either the 'unsafe-inline' keyword, a hash ('sha256-BpnGeYFNxdneaRsHJlNs/cW57SHSXQ5pFnq4QwEgDpw='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-dh4s8ifPCpDkk9KTa2Pt4nb-eF2la4kR''. Either the 'unsafe-inline' keyword, a hash ('sha256-BpnGeYFNxdneaRsHJlNs/cW57SHSXQ5pFnq4QwEgDpw='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":true}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": true
+      }
+    },
+    {
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "report",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-fsxWPcnOgtRrC1D1RwaMvD-Sj0-NPVLY''. Either the 'unsafe-inline' keyword, a hash ('sha256-PjNfA1SD4VoIkcBQUhCVaFFmjqghzewnUMzjCp3BLa0='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-fsxWPcnOgtRrC1D1RwaMvD-Sj0-NPVLY''. Either the 'unsafe-inline' keyword, a hash ('sha256-PjNfA1SD4VoIkcBQUhCVaFFmjqghzewnUMzjCp3BLa0='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":false}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "history",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-fsxWPcnOgtRrC1D1RwaMvD-Sj0-NPVLY''. Either the 'unsafe-inline' keyword, a hash ('sha256-PjNfA1SD4VoIkcBQUhCVaFFmjqghzewnUMzjCp3BLa0='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-fsxWPcnOgtRrC1D1RwaMvD-Sj0-NPVLY''. Either the 'unsafe-inline' keyword, a hash ('sha256-PjNfA1SD4VoIkcBQUhCVaFFmjqghzewnUMzjCp3BLa0='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":false}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "diff",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-fsxWPcnOgtRrC1D1RwaMvD-Sj0-NPVLY''. Either the 'unsafe-inline' keyword, a hash ('sha256-PjNfA1SD4VoIkcBQUhCVaFFmjqghzewnUMzjCp3BLa0='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-fsxWPcnOgtRrC1D1RwaMvD-Sj0-NPVLY''. Either the 'unsafe-inline' keyword, a hash ('sha256-PjNfA1SD4VoIkcBQUhCVaFFmjqghzewnUMzjCp3BLa0='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":false}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-light",
+      "width": 690,
+      "scene": "error",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-fsxWPcnOgtRrC1D1RwaMvD-Sj0-NPVLY''. Either the 'unsafe-inline' keyword, a hash ('sha256-PjNfA1SD4VoIkcBQUhCVaFFmjqghzewnUMzjCp3BLa0='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-fsxWPcnOgtRrC1D1RwaMvD-Sj0-NPVLY''. Either the 'unsafe-inline' keyword, a hash ('sha256-PjNfA1SD4VoIkcBQUhCVaFFmjqghzewnUMzjCp3BLa0='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":false}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": false
+      }
+    },
+    {
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "report",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-fsxWPcnOgtRrC1D1RwaMvD-Sj0-NPVLY''. Either the 'unsafe-inline' keyword, a hash ('sha256-PjNfA1SD4VoIkcBQUhCVaFFmjqghzewnUMzjCp3BLa0='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-fsxWPcnOgtRrC1D1RwaMvD-Sj0-NPVLY''. Either the 'unsafe-inline' keyword, a hash ('sha256-PjNfA1SD4VoIkcBQUhCVaFFmjqghzewnUMzjCp3BLa0='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":true}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": true
+      }
+    },
+    {
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "history",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-fsxWPcnOgtRrC1D1RwaMvD-Sj0-NPVLY''. Either the 'unsafe-inline' keyword, a hash ('sha256-PjNfA1SD4VoIkcBQUhCVaFFmjqghzewnUMzjCp3BLa0='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-fsxWPcnOgtRrC1D1RwaMvD-Sj0-NPVLY''. Either the 'unsafe-inline' keyword, a hash ('sha256-PjNfA1SD4VoIkcBQUhCVaFFmjqghzewnUMzjCp3BLa0='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":true}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": true
+      }
+    },
+    {
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "diff",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-fsxWPcnOgtRrC1D1RwaMvD-Sj0-NPVLY''. Either the 'unsafe-inline' keyword, a hash ('sha256-PjNfA1SD4VoIkcBQUhCVaFFmjqghzewnUMzjCp3BLa0='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-fsxWPcnOgtRrC1D1RwaMvD-Sj0-NPVLY''. Either the 'unsafe-inline' keyword, a hash ('sha256-PjNfA1SD4VoIkcBQUhCVaFFmjqghzewnUMzjCp3BLa0='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":true}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": true
+      }
+    },
+    {
+      "theme": "hc-light",
+      "width": 320,
+      "scene": "error",
+      "errors": [
+        "Applying inline style violates the following Content Security Policy directive 'style-src http://127.0.0.1:59002 'nonce-fsxWPcnOgtRrC1D1RwaMvD-Sj0-NPVLY''. Either the 'unsafe-inline' keyword, a hash ('sha256-PjNfA1SD4VoIkcBQUhCVaFFmjqghzewnUMzjCp3BLa0='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Applying inline style violates the following Content Security Policy directive 'style-src 'nonce-fsxWPcnOgtRrC1D1RwaMvD-Sj0-NPVLY''. Either the 'unsafe-inline' keyword, a hash ('sha256-PjNfA1SD4VoIkcBQUhCVaFFmjqghzewnUMzjCp3BLa0='), or a nonce ('nonce-...') is required to enable inline execution. The action has been blocked.",
+        "Production iframe style/width regression: {\"overflowX\":\"visible\",\"foreground\":\"rgb(0, 0, 0)\",\"cssRules\":0,\"overflow\":true}"
+      ],
+      "appliedStyle": {
+        "overflowX": "visible",
+        "foreground": "rgb(0, 0, 0)",
+        "cssRules": 0,
+        "overflow": true
+      }
+    }
+  ]
+}

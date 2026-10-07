@@ -15174,6 +15174,62 @@ function withReports(
 }
 
 describe('report a problem wiring (M93, PLAN.md D72)', () => {
+  it('intercepts report arguments before auth, hooks and backend admission', async () => {
+    const t = setup({ status: 'signedOut' })
+    const showDeterministicReport = vi
+      .fn<(argumentsText: string) => Promise<void>>()
+      .mockResolvedValue(undefined)
+    const ensureHost = vi.fn<ConversationDeps['ensureHost']>()
+    const rewriteMessage = vi.fn<NonNullable<ConversationDeps['rewriteMessage']>>()
+    const controller = new ConversationController({
+      ...t.deps,
+      ensureHost,
+      rewriteMessage,
+      showDeterministicReport,
+    })
+    for (const text of ['/report', '/report milestone M113', '/report\tunknown --oops']) {
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'report-command',
+        text,
+        attachmentIds: ['kept-image'],
+      })
+    }
+    expect(showDeterministicReport.mock.calls).toEqual([
+      [''],
+      ['milestone M113'],
+      ['unknown --oops'],
+    ])
+    expect(ensureHost).not.toHaveBeenCalled()
+    expect(rewriteMessage).not.toHaveBeenCalled()
+    expect(t.server.requestsFor('turn/start')).toHaveLength(0)
+    expect(t.surface.posted).toContainEqual({
+      type: 'sendFailed',
+      localId: 'report-command',
+      reason: UI_TEXT.reportSlashDescription,
+      attachmentsKept: true,
+    })
+    controller.attachReportMarkdown('# Project\nNeeds you')
+    expect(t.surface.posted).toContainEqual({ type: 'insertText', text: '# Project\nNeeds you\n' })
+    expect(t.surface.reveal).toHaveBeenCalled()
+    controller.dispose()
+  })
+
+  it('refuses a local report with no bound surface instead of sending it to a model', async () => {
+    const t = setup({ status: 'signedOut' })
+    await t.controller.handle({
+      type: 'sendMessage',
+      localId: 'local',
+      text: '/report project',
+      attachmentIds: [],
+    })
+    expect(t.surface.posted).toContainEqual({
+      type: 'notice',
+      level: 'warning',
+      text: UI_TEXT.reportUi.generationFailed,
+    })
+    expect(t.server.requestsFor('session/start')).toHaveLength(0)
+  })
   it('journals an error notice as a fact and gives its row the reference, never the text', async () => {
     const t = setup()
     const { controller, recorded } = withReports(t)

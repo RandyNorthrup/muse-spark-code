@@ -2749,6 +2749,11 @@
     "keybindings": "Tuş atamaları"
   },
   "reportUi": {
+    "invalidArguments": "Geçersiz rapor bağımsız değişkenleri. Bir rapor türü ve kapsamı seçin.",
+    "problem": "Sorun bildir…",
+    "scope": "Kilometre taşı kimliğini veya sürüm numarasını girin.",
+    "historyRequired": "Karşılaştırmadan önce bu raporu geçmişe kaydedin.",
+    "format": "Biçim",
     "show": "Rapor göster…",
     "description": "Model çağrısı yapmadan, adlandırılmış kaynaklardan belirlenimci bir rapor oluşturun.",
     "usageAction": "Kullanım raporu",

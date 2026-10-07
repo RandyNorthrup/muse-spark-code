@@ -2749,6 +2749,11 @@
     "keybindings": "Billentyűparancsok"
   },
   "reportUi": {
+    "invalidArguments": "Érvénytelen jelentésargumentumok. Válasszon jelentéstípust és hatókört.",
+    "problem": "Probléma jelentése…",
+    "scope": "Adja meg a mérföldkő azonosítóját vagy a kiadás verzióját.",
+    "historyRequired": "Összehasonlítás előtt mentse ezt a jelentést az előzményekbe.",
+    "format": "Formátum",
     "show": "Jelentés megjelenítése…",
     "description": "Determinisztikus jelentés készítése megnevezett forrásokból modellhívás nélkül.",
     "usageAction": "Használati jelentés",

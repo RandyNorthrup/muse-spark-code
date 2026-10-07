@@ -2653,6 +2653,11 @@
     "keybindings": "快捷鍵"
   },
   "reportUi": {
+    "invalidArguments": "報告參數無效。請選擇報告類型及其範圍。",
+    "problem": "回報問題…",
+    "scope": "請輸入里程碑 id 或發行版本。",
+    "historyRequired": "比較前請將此報告儲存到歷史記錄。",
+    "format": "格式",
     "show": "顯示報告…",
     "description": "從具名來源產生確定性報告，不呼叫模型。",
     "usageAction": "用量報告",

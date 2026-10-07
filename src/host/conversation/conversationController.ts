@@ -8,6 +8,7 @@ import type {
   QuestionStore,
 } from '../../shared/questions'
 import { startApprovalJudge } from '../../core/judge/use'
+import { reportCommandArguments } from '../reporting/reportCommand'
 // One conversation per surface: owns the MSP session for that surface, turns
 // webview requests into backend calls, and streams AgentEvents back. Also the
 // source of truth for the composer settings that outlive a webview reload
@@ -370,6 +371,8 @@ export interface SessionMemory {
 }
 
 export interface ConversationDeps {
+  /** Local reports: native hosts inject the same operation; absent means unavailable. */
+  readonly showDeterministicReport?: (argumentsText: string) => Promise<void>
   readonly surface: ChatSurface
   readonly auth: AuthPort
   readonly ensureHost: () => Promise<AgentHost>
@@ -8640,6 +8643,20 @@ export class ConversationController {
 
   /** One message from the webview, routed; `handle` catches what it throws. */
   private async dispatch(message: ConversationMessage): Promise<void> {
+    // Reports are host commands, even while signed out or while a model turn is running.
+    if (message.type === 'sendMessage') {
+      const argumentsText = reportCommandArguments(message.text)
+      if (argumentsText !== undefined) {
+        this.post({
+          type: 'sendFailed',
+          localId: message.localId,
+          reason: UI_TEXT.reportSlashDescription,
+          attachmentsKept: true,
+        })
+        await this.showDeterministicReport(argumentsText)
+        return
+      }
+    }
     if (!this.isAuthAdmitted() && AUTH_REQUIRED_SESSION_ACTIONS.has(message.type)) {
       this.notice('warning', UI_TEXT.notSignedInReason)
       // A command the panel waits on hears the refusal too (M45, M74, M87),
@@ -9607,6 +9624,21 @@ export class ConversationController {
    */
   public async openReport(): Promise<void> {
     await this.handleReportMessage({ type: 'openReport' })
+  }
+
+  /** W binds the composer's dedicated command action to this host-only entry. */
+  public async showDeterministicReport(argumentsText = ''): Promise<void> {
+    if (this.deps.showDeterministicReport === undefined) {
+      this.notice('warning', UI_TEXT.reportUi.generationFailed)
+      return
+    }
+    await this.deps.showDeterministicReport(argumentsText)
+  }
+
+  /** Attach the reviewed Markdown to the draft; spending still needs the user's Send. */
+  public attachReportMarkdown(text: string): void {
+    this.post({ type: 'insertText', text: `${text}\n` })
+    this.deps.surface.reveal()
   }
 
   /**

@@ -78,6 +78,8 @@ export type PaletteAction =
   | { readonly type: 'openLog' }
   /** "Report an issue…" (M93, PLAN.md D72): the scrubbed report's preview, never a bare link. */
   | { readonly type: 'openReport' }
+  /** Deterministic reports (M113); W routes this action to the host command. */
+  | { readonly type: 'showReport' }
   /** "What's New" (M99): the release notes of this version in an editor tab. */
   | { readonly type: 'showWhatsNew' }
   | { readonly type: 'openHelp' }
@@ -693,6 +695,14 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
       id: 'support',
       title: UI_TEXT.groupSupport,
       items: [
+        {
+          id: 'showReport',
+          label: UI_TEXT.reportShowItem,
+          slashName: SLASH_COMMAND_NAMES.report,
+          detail: UI_TEXT.reportSlashDescription,
+          tip: UI_TEXT.reportSlashDescription,
+          action: { type: 'showReport' },
+        },
         {
           id: 'help',
           label: UI_TEXT.helpReferenceTitle,

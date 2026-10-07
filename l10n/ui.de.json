@@ -2749,6 +2749,11 @@
     "keybindings": "Tastenbelegungen"
   },
   "reportUi": {
+    "invalidArguments": "Ungültige Berichtsargumente. Wählen Sie eine Berichtsart und ihren Umfang.",
+    "problem": "Problem melden…",
+    "scope": "Geben Sie die Meilenstein-ID oder Release-Version ein.",
+    "historyRequired": "Speichern Sie diesen Bericht vor dem Vergleich im Verlauf.",
+    "format": "Dateiformat",
     "show": "Bericht anzeigen…",
     "description": "Einen deterministischen Bericht aus benannten Quellen ohne Modellaufruf erstellen.",
     "usageAction": "Nutzungsbericht",

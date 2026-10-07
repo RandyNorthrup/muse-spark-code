@@ -8,7 +8,7 @@
 // usage row, `/usage` and `/cost`; centred over the transcript with the
 // chat dimmed behind it.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   META_DASHBOARD_URL,
   MILLISECONDS_PER_SECOND,
@@ -64,6 +64,8 @@ export interface UsageDialogProps {
   readonly now: () => number
   readonly onOpenExternal: (url: string) => void
   readonly onClose: () => void
+  /** The report action loads through its own reporting boundary. */
+  readonly reportAction?: ReactNode
 }
 
 type InsightWindow = 'day' | 'week'
@@ -616,6 +618,7 @@ export function UsageDialogContent({
   now,
   onOpenExternal,
   onClose,
+  reportAction,
 }: UsageDialogProps) {
   const [confirmInstall, setConfirmInstall] = useState(false)
   const [, setCountdownTick] = useState(0)
@@ -694,6 +697,7 @@ export function UsageDialogContent({
   }
   return (
     <Modal title={UI_TEXT.usageLabel} titleId="usage-title" onClose={onClose}>
+      {reportAction}
       {body}
       {auth.status === 'signedIn' ? (
         <div className="usage-setup">
