@@ -206,6 +206,13 @@ function isContributorModel(modelId: string): boolean {
   return modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
 }
 
+function accountRequestError(error: unknown): RequestError {
+  const text = accountErrorText(error)
+  return text === UI_TEXT.accounts.invalidAccount
+    ? RequestError.invalidParams(undefined, text)
+    : RequestError.internalError(undefined, text)
+}
+
 /** The model a new session starts on: the backend's default, else the first listed. */
 function startingModel(models: readonly ModelSummary[]): string {
   const model = models.find((candidate) => candidate.isDefault) ?? models[0]
@@ -818,7 +825,7 @@ class AcpSession {
     }
     if (configId === ACP_CONFIG_IDS.account) {
       if (this.accounts === undefined)
-        throw RequestError.invalidParams(undefined, UI_TEXT.accounts.unavailable)
+        throw RequestError.internalError(undefined, UI_TEXT.accounts.unavailable)
       if (this.pending !== undefined || this.preparing !== undefined)
         throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
       try {
@@ -827,7 +834,7 @@ class AcpSession {
           () => !this.isDisposed && this.pending === undefined && this.preparing === undefined,
         )
       } catch (error) {
-        throw RequestError.invalidParams(undefined, accountErrorText(error))
+        throw accountRequestError(error)
       }
       return
     }
@@ -884,7 +891,7 @@ class AcpSession {
       const first = parsed.parts[0]
       if (first?.type === 'text' && /^\/accounts(?:\s|$)/.test(first.text)) {
         if (this.accounts === undefined)
-          throw RequestError.invalidParams(undefined, UI_TEXT.accounts.unavailable)
+          throw RequestError.internalError(undefined, UI_TEXT.accounts.unavailable)
         if (parsed.parts.length !== 1)
           throw RequestError.invalidParams(undefined, UI_TEXT.accounts.invalidAccount)
         let text: string | undefined
@@ -894,7 +901,7 @@ class AcpSession {
             () => !this.isDisposed && !preparing.isCancelled && !('error' in preparing),
           )
         } catch (error) {
-          throw RequestError.invalidParams(undefined, accountErrorText(error))
+          throw accountRequestError(error)
         }
         if (preparing.isCancelled || this.isDisposed) return 'cancelled'
         if (text !== undefined)

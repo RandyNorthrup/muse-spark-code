@@ -19842,7 +19842,8 @@ through that same owner. Serialize refreshes with selection and keep newer
 notifications authoritative over held reads/results, including disposal.
 Report valid selections refused by unavailable services with the fixed
 unavailable reason, while retaining invalid-account errors for invalid input
-and suppressing raw service text. Add backend-adoption, live-store and real
+and suppressing raw service text. ACP service failures use the SDK internal-error
+code; only locally invalid input uses invalid-params. Add backend-adoption, live-store and real
 ACP-router regressions and byte-exact red/restoration drills for every
 finding. No dependency, timeout, threshold, credential, budget or gate changes;
 H-P-SESSION still requires the shared profile owner before installed support.

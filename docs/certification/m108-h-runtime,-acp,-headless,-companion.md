@@ -286,7 +286,7 @@ while sessions stay open, and reports service unavailability with fixed text.
 README/reference publication and installed editor composition remain W-owned;
 this repair changes no command syntax, setting or manifest contribution.
 
-### Repair guard drills
+### Repair guard drills (`809aac67b`)
 
 Each final drill ran the complete `test/unit/acpAccounts.test.ts` with
 `--maxWorkers=3`, the repository default timeout and no name filter. All
@@ -328,3 +328,103 @@ The duplication check initially identified two repeated test setup/fixture
 blocks. A small local held-read fixture now shares setup, and the independent
 metadata edits use their natural ordering. The unchanged zero-duplication gate
 then passed. No ignore, lint suppression, cast, test skip or threshold change.
+
+### ACP error-code completion and final guard receipts
+
+`809aac67b` fixed availability text but still returned the SDK invalid-params
+code. Stronger real-router assertions then failed on all three applicable
+cases (unbound service, command, option): expected the SDK internal-error
+code -32603, received invalid-params -32602 (exit 1, 3 failed / 24 passed).
+`accountRequestError` now maps the fixed local input diagnosis to invalid-params
+and all fixed service failures to internal-error; an absent binding is also
+internal-error. Neither path reflects raw errors. Invalid input tests assert
+both their fixed text and invalid-params code; unavailable routes assert both
+the fixed reason and internal-error code.
+
+All 21 guards below were rerun after that completion using the complete
+27-test account file, repository-default timeouts and `--maxWorkers=3`.
+Each exited 1 with direct assertions, no test timeout and no unhandled error.
+Every mutation restored its source byte-exact and checked SHA-256 in `finally`.
+These receipts supersede the earlier agent.ts hash and retain the earlier
+17-drill record as the receipt for the first repair commit. No source or test
+semantics changed after this final drill run.
+
+| Mutation                            | Named failing test                                                                                        | Final result                      |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| `F1-adoption-generation`            | `invalidates backend adoption when a newer swap commits during a held selection`                          | Exit 1; 4 failed / 23 passed (27) |
+| `F1-pending-and-queued-generation`  | `refuses selections already queued or refreshing when a newer swap commits`                               | Exit 1; 1 failed / 26 passed (27) |
+| `F1-capture-request-generation`     | `refuses selections already queued or refreshing when a newer swap commits`                               | Exit 1; 1 failed / 26 passed (27) |
+| `F1-committed-selection-generation` | `accepts the selected account and fences its committed selection (swap published: false)`                 | Exit 1; 1 failed / 26 passed (27) |
+| `F2-store-subscription`             | `updates the picker from validated store notifications before any command or newly added account swap`    | Exit 1; 3 failed / 24 passed (27) |
+| `F2-store-snapshot-validation`      | `updates the picker from validated store notifications before any command or newly added account swap`    | Exit 1; 1 failed / 26 passed (27) |
+| `F2-live-selection-read`            | `refuses selections already queued or refreshing when a newer swap commits`                               | Exit 1; 5 failed / 22 passed (27) |
+| `F2-live-command-read`              | `refreshes live store membership and thresholds for commands, the picker and selection`                   | Exit 1; 6 failed / 21 passed (27) |
+| `F2-held-read-revision`             | `keeps a newer store notification authoritative over a held live read`                                    | Exit 1; 1 failed / 26 passed (27) |
+| `F2-refresh-disposal`               | `refuses a dispose live refresh without updating the picker`                                              | Exit 1; 1 failed / 26 passed (27) |
+| `F2-refresh-provider`               | `refuses a foreign live refresh without updating the picker`                                              | Exit 1; 1 failed / 26 passed (27) |
+| `F2-uninitialized-selection`        | `rejects uninitialized, disposed and null selections and service results for another provider or account` | Exit 1; 1 failed / 26 passed (27) |
+| `F3-service-classification`         | `reports unavailable selections through the ACP command route without raw errors`                         | Exit 1; 2 failed / 25 passed (27) |
+| `F3-read-classification`            | `reports unavailable selections through the ACP command route without raw errors`                         | Exit 1; 2 failed / 25 passed (27) |
+| `F3-result-classification`          | `invalidates a held selection when the live store removes its target account`                             | Exit 1; 2 failed / 25 passed (27) |
+| `F3-option-router`                  | `reports unavailable selections through the ACP option route without raw errors`                          | Exit 1; 1 failed / 26 passed (27) |
+| `F3-command-router`                 | `reports unavailable selections through the ACP command route without raw errors`                         | Exit 1; 1 failed / 26 passed (27) |
+| `F3-availability-code`              | `reports unavailable selections through the ACP command route without raw errors`                         | Exit 1; 2 failed / 25 passed (27) |
+| `F3-invalid-input-code`             | `rejects malformed selections and mixed-content commands before any model dispatch`                       | Exit 1; 1 failed / 26 passed (27) |
+| `F3-unbound-option-code`            | `refuses account commands and options without a binding before any model turn`                            | Exit 1; 1 failed / 26 passed (27) |
+| `F3-unbound-command-code`           | `refuses account commands and options without a binding before any model turn`                            | Exit 1; 1 failed / 26 passed (27) |
+
+| Final restored source | SHA-256                                                            |
+| --------------------- | ------------------------------------------------------------------ |
+| `src/acp/accounts.ts` | `00b5d07e0b562dde2a2e051036d2d11cfdcca5f7cc53ddf21f7824afb33ab3c4` |
+| `src/acp/agent.ts`    | `42c883d1c66736f25528b1d804c00038728044a85efe3544ae622f9cfc4681d9` |
+
+### Final repair verification (Kubuntu)
+
+Final restored sources: **354/354 tests** across the same nine complete owned
+files used by RVM108H, all with repository-default timeouts and at most three
+workers/files per invocation. No source/test semantics changed after these
+runs; the remaining edits only complete this record.
+
+| Command                                                                                                                        | Result                                                                                                     |
+| ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `npx vitest run test/unit/accountsCommand.test.ts test/unit/acpAccounts.test.ts test/unit/execAccounts.test.ts --maxWorkers=3` | 62 passed; 3.09 s                                                                                          |
+| `npx vitest run test/unit/execRun.test.ts test/unit/acpAgent.test.ts test/unit/execOutput.test.ts --maxWorkers=3`              | 176 passed; 21.77 s                                                                                        |
+| `npx vitest run test/unit/acpRuntime.test.ts test/unit/execArgs.test.ts test/unit/execSchema.test.ts --maxWorkers=3`           | 116 passed; 7.66 s                                                                                         |
+| `npm run typecheck`                                                                                                            | All five projects passed after final code/test changes                                                     |
+| Changed-file ESLint `--max-warnings=0`                                                                                         | Passed; also enforced by hooks                                                                             |
+| Changed-file Prettier check; `git diff --check`                                                                                | Passed                                                                                                     |
+| `npm run deadcode`                                                                                                             | Passed; two existing configuration hints unchanged                                                         |
+| `npx jscpd`                                                                                                                    | Passed; zero clones, unchanged zero threshold                                                              |
+| `node scripts/check-l10n.mjs`                                                                                                  | 14 tables, 164 manifest strings, 609 sources; zero problems                                                |
+| `npm run cycles`                                                                                                               | 568 files; no circular dependencies                                                                        |
+| `node scripts/exec-schema.mjs --check`                                                                                         | Exec schemas match; no contract/version change                                                             |
+| `npm run build`                                                                                                                | Passed; all size, split, model-text, host-global and notices checks                                        |
+| `npm run check:host-api`                                                                                                       | Exit 1: only the pre-existing H-W-HOSTAPI two-count difference; W owns regeneration                        |
+| `node dist/acp.js --help`; `node dist/acp.js --version`                                                                        | Both exit 0; help includes accounts and pool flags; version 0.14.0; no backend or credential store invoked |
+
+The final host inventory is still 332 VS Code APIs, 31 importing files,
+25 Node built-ins and 61 theme variables. The generated record needs only
+`node:crypto` 46 → 47 and `node:util` 5 → 6, exactly as RVM108H and the
+original H receipt reported. H-W-HOSTAPI and H-W-DOCS-HELP remain W-owned;
+FIXM108H-INTEGRATION in PLAN §9 records both and the required profile/session
+composition. No RVM108H review finding remains; no gate was weakened.
+
+| Production output                | Measured  | Existing cap |
+| -------------------------------- | --------- | ------------ |
+| Extension activation             | 440.3 KiB | 600 KiB      |
+| Model API                        | 450.1 KiB | 475 KiB      |
+| ACP/runtime                      | 835.8 KiB | 850 KiB      |
+| Checkpoint store                 | 76.9 KiB  | 225 KiB      |
+| Chat startup with static imports | 897.8 KiB | 900 KiB      |
+| Deferred webview JS              | 49.7 KiB  | 50 KiB       |
+| Shared Node English fallback     | 49.6 KiB  | 125 KiB      |
+
+`809aac67b` committed the owner/live-state repair and initial guard receipts
+with the unmodified hooks enabled (lint-staged ESLint/Prettier and staged,
+redacted gitleaks: no leaks). The completion commit adds ACP error-code
+classification, its stronger real-router assertions and the final 21-drill/
+354-test/static/build receipts, also with hooks enabled and explicit paths.
+No dependency was installed, no network or live/paid call ran, no credential
+was read and no merge, push or rebase occurred. Full quality/coverage, a11y,
+installed-editor/bridge composition, hosted Action and live capture gates
+remain with W/the lead under the explicit bounded-rig rules.

@@ -133,14 +133,20 @@ describe('M108 ACP accounts', () => {
           sessionId: id,
           prompt: [{ type: 'text', text: '/accounts' }],
         }),
-      ).rejects.toThrow(UI_TEXT.accounts.unavailable)
+      ).rejects.toMatchObject({
+        code: acp.RequestError.internalError().code,
+        message: expect.stringContaining(UI_TEXT.accounts.unavailable),
+      })
       await expect(
         client.request('session/set_config_option', {
           sessionId: id,
           configId: 'account',
           value: 'work',
         }),
-      ).rejects.toThrow(UI_TEXT.accounts.unavailable)
+      ).rejects.toMatchObject({
+        code: acp.RequestError.internalError().code,
+        message: expect.stringContaining(UI_TEXT.accounts.unavailable),
+      })
       expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
       expect(h.port.read).not.toHaveBeenCalled()
     })
@@ -181,9 +187,12 @@ describe('M108 ACP accounts', () => {
         '/accounts thresholds missing',
         '/accounts use work extra',
       ]) {
-        await expect(
-          client.request('session/prompt', { sessionId: id, prompt: [{ type: 'text', text }] }),
-        ).rejects.toThrow(UI_TEXT.accounts.invalidAccount)
+        const request = client.request('session/prompt', {
+          sessionId: id,
+          prompt: [{ type: 'text', text }],
+        })
+        await expect(request).rejects.toThrow(UI_TEXT.accounts.invalidAccount)
+        await expect(request).rejects.toHaveProperty('code', acp.RequestError.invalidParams().code)
       }
       await expect(
         client.request('session/prompt', {
@@ -583,6 +592,10 @@ describe('M108 ACP accounts', () => {
                     value: 'work',
                   })
             await expect(request).rejects.toThrow(UI_TEXT.accounts.unavailable)
+            await expect(request).rejects.toHaveProperty(
+              'code',
+              acp.RequestError.internalError().code,
+            )
           }
         }
         expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
