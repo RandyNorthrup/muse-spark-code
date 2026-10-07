@@ -3,6 +3,7 @@ import * as acp from '@agentclientprotocol/sdk'
 import { MspError } from '@muse-code/sdk'
 import { describe, expect, it, vi } from 'vitest'
 import { type AcpAgentDeps, type BackendReadiness, createAcpAgent } from '../../src/acp/agent'
+import type { AcpAttachment, AcpMediaFactory, AcpMediaPort } from '../../src/acp/media'
 import { AcpPaidUse } from '../../src/acp/paid'
 import type { AgentHost, AgentSession, ModelSummary } from '../../src/core/agent/agentBackend'
 import type {
@@ -11,7 +12,12 @@ import type {
   ItemSnapshot,
   Question,
 } from '../../src/shared/agentEvents'
-import { type AcpPaidFeature, type PermissionMode, UI_TEXT } from '../../src/shared/constants'
+import {
+  type AcpPaidFeature,
+  type PermissionMode,
+  MAX_ATTACHMENTS_PER_MESSAGE,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import type { PaidUseRequest } from '../../src/shared/paid'
 import { approvalModeFor } from '../../src/shared/permissionModes'
 import { FAKE_MODELS, FakeAgentHost, type FakeAgentSession } from './helpers/fakeAgent'
@@ -54,6 +60,8 @@ interface Harness {
 }
 
 interface HarnessOptions {
+  readonly media?: AcpMediaFactory
+  readonly isHeadless?: boolean
   readonly backendHost?: AgentHost
   readonly readiness?: BackendReadiness
   readonly answer?: PermissionAnswer
@@ -96,11 +104,13 @@ function harness(options: HarnessOptions = {}): Harness {
       },
       hostFor: () => Promise.resolve(options.backendHost ?? host),
     },
+    ...(options.media !== undefined && { media: options.media }),
     version: '0.0.0-test',
     options: {
       canBypass: options.canBypass ?? false,
       allowsContributorModels: options.allowsContributorModels ?? false,
       initialMode: options.initialMode ?? 'manual',
+      ...(options.isHeadless !== undefined && { isHeadless: options.isHeadless }),
     },
     signIn: {
       id: 'muse-code-login',
@@ -2141,3 +2151,135 @@ describe('ACP session ownership across asynchronous releases', () => {
     })
   })
 })
+
+describe('M105 ACP attachment commands', () => {
+  it('refuses an overfull between-turn attachment queue before preparation', async () => {
+    const { h, port } = mediaHarness()
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      for (let count = 0; count < MAX_ATTACHMENTS_PER_MESSAGE; count++)
+        await prompt(client, sessionId, '/attach clip.mp4')
+      await expect(prompt(client, sessionId, '/attach clip.mp4')).rejects.toThrow(
+        UI_TEXT.attachmentLimit,
+      )
+    })
+    expect(port.attach).toHaveBeenCalledTimes(MAX_ATTACHMENTS_PER_MESSAGE)
+    expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+  })
+  it('reports an attachment preparation refusal by its named reason without a turn', async () => {
+    const { h, port } = mediaHarness()
+    vi.mocked(port.attach).mockRejectedValueOnce(new Error(UI_TEXT.media.durationUnknown))
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await expect(prompt(client, sessionId, '/attach clip.mp4')).rejects.toThrow(
+        UI_TEXT.media.durationUnknown,
+      )
+    })
+    expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+  })
+  it('advertises audio, queues /attach and preview-approved /record without a model turn', async () => {
+    const { h, factory, dispose } = mediaHarness()
+    await h.run(async (client) => {
+      const init = await client.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
+      expect(init.agentCapabilities?.promptCapabilities?.audio).toBe(true)
+      const { sessionId } = await client.request('session/new', { cwd: CWD, mcpServers: [] })
+      expect(factory).not.toHaveBeenCalled()
+      expect(await prompt(client, sessionId, '/attach clip.mp4')).toEqual({
+        stopReason: 'end_turn',
+      })
+      expect(await prompt(client, sessionId, '/record')).toEqual({ stopReason: 'end_turn' })
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+      await turn(h, client, sessionId, (session) => {
+        expect(session.sendTurn.mock.calls[0]?.[0]).toEqual([
+          { type: 'text', text: 'hello' },
+          { type: 'text', text: 'registered-media' },
+          { type: 'text', text: 'registered-media' },
+        ])
+      })
+      await until(() => dispose.mock.calls.length === 2)
+      await turn(h, client, sessionId, (session) => {
+        expect(session.sendTurn.mock.calls[1]?.[0]).toEqual([{ type: 'text', text: 'hello' }])
+      })
+    })
+    expect(h.updates).toContainEqual(
+      expect.objectContaining({
+        sessionUpdate: 'available_commands_update',
+        availableCommands: expect.arrayContaining([
+          expect.objectContaining({ name: 'attach' }),
+          expect.objectContaining({ name: 'record' }),
+        ]),
+      }),
+    )
+    expect(JSON.stringify(h.updates)).not.toContain('registered-media')
+  })
+
+  it('refuses recording in headless prompts before loading any recording port', async () => {
+    const { h, factory, port } = mediaHarness(true)
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await expect(prompt(client, sessionId, '/record')).rejects.toThrow(
+        UI_TEXT.media.recordingUserOnly,
+      )
+    })
+    expect(factory).not.toHaveBeenCalled()
+    expect(port.record).not.toHaveBeenCalled()
+    expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+  })
+
+  it('is busy during media preparation and discards a late cancelled preview', async () => {
+    const { h, port, dispose } = mediaHarness()
+    const attachment = await port.record(new AbortController().signal)
+    const held = Promise.withResolvers<AcpAttachment | undefined>()
+    vi.mocked(port.record)
+      .mockClear()
+      .mockImplementation(() => held.promise)
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      const recording = prompt(client, sessionId, '/record')
+      await until(() => vi.mocked(port.record).mock.calls.length === 1)
+      await expect(prompt(client, sessionId)).rejects.toThrow(UI_TEXT.acpPromptBusy)
+      await client.notify('session/cancel', { sessionId })
+      await until(() => vi.mocked(port.record).mock.calls[0]?.[0].aborted === true)
+      held.resolve(attachment)
+      expect(await recording).toEqual({ stopReason: 'cancelled' })
+    })
+    expect(dispose).toHaveBeenCalledOnce()
+    expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+  })
+
+  it('preserves queued attachments when submission fails and disposes on session close', async () => {
+    const { h, dispose } = mediaHarness()
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await prompt(client, sessionId, '/attach clip.mp4')
+      h.host.sessions[0]?.sendTurn.mockRejectedValueOnce(new Error('send refused'))
+      await expect(prompt(client, sessionId)).rejects.toMatchObject({ code: -32_603 })
+      expect(dispose).not.toHaveBeenCalled()
+      await client.request('session/close', { sessionId })
+    })
+    expect(dispose).toHaveBeenCalledOnce()
+  })
+})
+
+function mediaHarness(isHeadless = false) {
+  const dispose = vi.fn(() => Promise.resolve())
+  const attachment: AcpAttachment = {
+    part: { type: 'text', text: 'registered-media' },
+    name: 'clip.mp4',
+    info: {
+      kind: 'video',
+      mediaType: 'video/mp4',
+      sizeBytes: 100,
+      durationSeconds: 2,
+      hasSoundtrack: false,
+    },
+    dispose,
+  }
+  const port: AcpMediaPort = {
+    block: vi.fn(() => Promise.resolve(attachment.part)),
+    attach: vi.fn(() => Promise.resolve(attachment)),
+    record: vi.fn(() => Promise.resolve(attachment)),
+  }
+  const factory = vi.fn(() => Promise.resolve(port))
+  return { h: harness({ kind: 'modelApi', media: factory, isHeadless }), port, factory, dispose }
+}

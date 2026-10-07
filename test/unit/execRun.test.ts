@@ -41,6 +41,10 @@ import { acpMspHost } from './helpers/acpMsp'
 import { createExecClient } from '../../src/runtime/exec/execClient'
 import { createExecSink } from '../../src/runtime/exec/execOutput'
 import * as keyInput from '../../src/runtime/exec/keyInput'
+import { AcpMedia } from '../../src/acp/media'
+import { acpMediaIo } from './helpers/acpMediaIo'
+import { videoFixture } from './helpers/media/fixtures'
+import { mediaModel } from './helpers/media/replay'
 
 const actualMemoryStore = keyInput.memorySecretStore
 
@@ -1075,4 +1079,80 @@ describe('M80 real runtime → ACP → manager → client → tools', () => {
       })
     },
   )
+})
+
+describe('M105 headless attachment entry', () => {
+  it('returns usage/2 for unsupported attached media and headless /record without inference', async () => {
+    const h = await harness(['--attach', 'clip.mp4'], [], {
+      media: () =>
+        Promise.resolve({
+          block: () => Promise.resolve(UI_TEXT.media.cappedRateUnknown),
+          attach: () => Promise.reject(new Error('unused')),
+          record: () => Promise.reject(new Error('unused')),
+        }),
+    })
+    writeFileSync(path.join(h.cwd, 'clip.mp4'), videoFixture())
+    const refused = await h.run()
+    expect(refused.code).toBe(2)
+    expect(h.api.responseBodies()).toHaveLength(0)
+    const recording = await harness()
+    recording.deps.options = {
+      ...recording.deps.options,
+      prompt: { kind: 'text', text: '/record' },
+    }
+    const refusedRecording = await recording.run()
+    expect(refusedRecording.code).toBe(2)
+    expect(recording.api.responseBodies()).toHaveLength(0)
+  })
+  it('returns usage/2 for an escaped path or an unbound media route before an API attempt', async () => {
+    for (const given of ['../private.mp4', 'clip.mp4']) {
+      const h = await harness(['--attach', given])
+      writeFileSync(path.join(h.cwd, 'clip.mp4'), videoFixture())
+      const done = await h.run()
+      expect(done.code).toBe(2)
+      expect(h.api.requests).toHaveLength(0)
+      expect(h.err.chunks.join('')).toContain(
+        given.startsWith('..') ? UI_TEXT.textFilePrivate : UI_TEXT.media.uploadStorageUnknown,
+      )
+    }
+  })
+
+  it('hands repeatable confined links to a noninteractive media port and keeps bytes out of exec output', async () => {
+    const prepare = vi.fn((_input: unknown) =>
+      Promise.resolve({ type: 'text' as const, text: 'test-registered-media' }),
+    )
+    const h = await harness(['--attach', 'clip.mp4', '--attach', 'clip.mp4'], [{ text: 'done' }], {
+      media: (context) => {
+        expect(context.interactive).toBe(false)
+        return Promise.resolve(
+          new AcpMedia({
+            ...context,
+            platform: process.platform,
+            model: () => mediaModel(context.modelId()),
+            io: acpMediaIo(),
+            assertReadable: () => Promise.resolve(),
+            prepare,
+          }),
+        )
+      },
+    })
+    const bytes = videoFixture({ soundtrack: false })
+    writeFileSync(path.join(h.cwd, 'clip.mp4'), bytes)
+    const done = await h.run()
+    expect(done.code).toBe(0)
+    expect(prepare).toHaveBeenCalledTimes(2)
+    expect(result(done).status).toBe('completed')
+    expect(result(done).inputs).toEqual(
+      Array.from({ length: 2 }, () => ({
+        name: 'clip.mp4',
+        bytes: bytes.length,
+        chunks: 0,
+        complete: true,
+      })),
+    )
+    expect(JSON.stringify(h.api.responseBodies())).toContain('test-registered-media')
+    expect([...h.out.chunks, ...h.err.chunks].join('')).not.toContain(
+      Buffer.from(bytes).toString('base64'),
+    )
+  })
 })

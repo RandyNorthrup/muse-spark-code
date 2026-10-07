@@ -17,7 +17,8 @@ import {
   UI_TEXT,
 } from '../shared/constants'
 import { fill } from '../shared/l10n/text'
-import { parseExec, type ExecOptions } from './exec/execArgs'
+import { parseExec } from './exec/execArgs'
+import { parseAttachArgs, type ExecAttachmentOptions as ExecOptions } from './exec/attachArgs'
 
 export interface ServeOptions {
   /** Which account pays; chosen here, never guessed (D62). */
@@ -163,6 +164,8 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
             cwd: { type: 'string' },
             'prompt-file': { type: 'string' },
             'untrusted-file': { type: 'string', multiple: true },
+            attach: { type: 'string', multiple: true },
+            record: { type: 'boolean' },
             'permission-mode': { type: 'string' },
             model: { type: 'string' },
             effort: { type: 'string' },
@@ -193,10 +196,20 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
             keyFromStdin: values['key-stdin'] === true,
           }
         : { command: 'invalid', reason: UI_TEXT.execScanUsage, exitCode: 2 }
-    const { help: _help, ...options } = values
+    const { help: _help, attach, record, ...options } = values
+    if (record === true)
+      return { command: 'invalid', reason: UI_TEXT.media.recordingUserOnly, exitCode: 2 }
+    const attachments = parseAttachArgs(attach)
+    if (!attachments.ok) return { command: 'invalid', reason: attachments.reason, exitCode: 2 }
     const parsed = parseExec(options, positionals)
     return parsed.ok
-      ? { command: 'exec', options: parsed.options }
+      ? {
+          command: 'exec',
+          options: {
+            ...parsed.options,
+            ...(attachments.files.length > 0 && { attachFiles: attachments.files }),
+          },
+        }
       : { command: 'invalid', reason: parsed.reason, exitCode: 2 }
   } catch (error: unknown) {
     return {
