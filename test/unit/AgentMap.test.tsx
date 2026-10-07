@@ -98,6 +98,54 @@ describe('formatDurationMs', () => {
 })
 
 describe('AgentMap', () => {
+  it('offers recovery for a background task whose reported final exit is nonzero', () => {
+    const onControl = vi.fn()
+    renderMap({
+      agents: [],
+      backgroundTasks: [{ ...task, status: 'completed', exitCode: 1 }],
+      onControl,
+    })
+    expect(screen.getByText(/Inactive · Failed/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    expect(onControl).toHaveBeenCalledWith(task.id, 'continue')
+  })
+  it('shows an incomplete receipt, linked files and requested recovery controls', () => {
+    const agent: SubagentEntry = {
+      ...explorer,
+      agentEvidence: { stopReason: 'budget', unfinished: ['Run checks'] },
+    }
+    const props = renderMap({
+      agents: [agent],
+      selectedAgentId: agent.id,
+      onOpenFile: vi.fn(),
+      childTranscripts: {
+        'child-1': {
+          entries: [
+            {
+              ...task,
+              id: 'c',
+              isBackground: false,
+              status: 'completed',
+              exitCode: 1,
+              durationMs: 1000,
+              changedFiles: [{ path: String.raw`src\app.ts`, added: 2, removed: 1 }],
+            },
+          ],
+        },
+      },
+    })
+    expect(screen.getByRole('region', { name: 'Agent receipt' })).toHaveTextContent(
+      'Budget exhausted',
+    )
+    expect(screen.getByText(/Inactive · Incomplete/)).toHaveAttribute('aria-live', 'polite')
+    fireEvent.click(screen.getByRole('button', { name: 'src/app.ts' }))
+    expect(props.onOpenFile).toHaveBeenCalledWith('src/app.ts', undefined)
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(props.onControl).toHaveBeenCalledWith('sub-1', 'continue')
+    expect(props.onControl).toHaveBeenCalledWith('sub-1', 'retry')
+  })
+
   it('labels a billed Model API child in the map', () => {
     renderMap({ backend: 'modelApi', agents: [{ ...explorer, paid: 'subagents' }] })
     expect(screen.getByRole('button', { name: /Map the workspace/ })).toHaveTextContent('paid')
@@ -115,7 +163,7 @@ describe('AgentMap', () => {
     expect(screen.getByRole('button', { name: /Review the diff/ })).toHaveTextContent('running')
     expect(map).toHaveTextContent('1 background task')
     expect(screen.getByRole('list', { name: 'Background tasks' })).toHaveTextContent(
-      'PowerShellRun delayed output command · runningStop',
+      'PowerShellRun delayed output command · running · ActiveStop',
     )
     fireEvent.click(screen.getByRole('button', { name: /Map the workspace/ }))
     expect(props.onSelectAgent).toHaveBeenCalledWith('sa1')

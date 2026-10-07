@@ -2852,5 +2852,45 @@
   "referenceElicitationTitle": "Formularze MCP",
   "referenceElicitation": "Formularze MCP proszą o informacje dla żądającego serwera MCP. Wysłane wartości trafiają do tego serwera poza rozmową modelu i zapisem rozmowy. Serwer może umieścić je w późniejszych wynikach narzędzia. Nigdy nie wpisuj hasła ani klucza.",
   "referenceNativeAgentsConditions": "Gdy run.subagent_delegation_mode=\"auto\", Muse Code może delegować agentom. Przy \"off\" narzędzia delegowania są niedostępne. run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "Skanuje plik poprawki UTF-8 w poszukiwaniu sekretów i kończy się błędem po wykryciu. --key-stdin sprawdza także dokładny klucz Model API w pamięci; żaden klucz nie jest zapisywany."
+  "referenceScanSecrets": "Skanuje plik poprawki UTF-8 w poszukiwaniu sekretów i kończy się błędem po wykryciu. --key-stdin sprawdza także dokładny klucz Model API w pamięci; żaden klucz nie jest zapisywany.",
+  "agentActivities": {
+    "active": "Aktywny",
+    "waiting": "Oczekuje",
+    "inactive": "Nieaktywny"
+  },
+  "agentOutcomes": {
+    "complete": "Ukończone",
+    "incomplete": "Nieukończone",
+    "failed": "Niepowodzenie",
+    "cancelled": "Anulowane",
+    "unverified": "Zakończone, niezweryfikowane"
+  },
+  "agentWaitingReasons": {
+    "approval": "zatwierdzenie",
+    "input": "dane wejściowe",
+    "queued": "w kolejce",
+    "interrupted": "przerwane",
+    "idle": "brak ostatniej aktywności"
+  },
+  "agentStopReasons": {
+    "normal": "Normalne zakończenie",
+    "budget": "Budżet wyczerpany",
+    "error": "Błąd",
+    "cancelled": "Zatrzymane przez użytkownika",
+    "unknown": "Niedostępne"
+  },
+  "agentContinue": "Kontynuuj",
+  "agentRetry": "Ponów",
+  "agentReceipt": "Raport agenta",
+  "agentReceiptFiles": "Zmienione pliki",
+  "agentReceiptChecks": "Polecenia i kontrole",
+  "agentReceiptStop": "Powód zatrzymania",
+  "agentReceiptUnfinished": "Nieukończone elementy",
+  "agentReceiptHistory": "Historia prób",
+  "agentReceiptUnavailable": "Ten backend nie dostarczył tych dowodów.",
+  "agentReceiptTruncated": "Raport osiągnął limit rozmiaru; część dowodów pominięto.",
+  "agentRecoveryConfirm": "{action}: {objective}? Obowiązują bieżące uprawnienia i budżety.",
+  "agentRetryUnavailable": "Ponowienie jest niedostępne: ten backend nie udostępnia izolowanego punktu kontrolnego drzewa roboczego. Zmiany wspólnego obszaru roboczego zostają zachowane.",
+  "agentContinueUnavailable": "Kontynuacja jest niedostępna dla tego agenta lub jego obecnego stanu.",
+  "referenceAgentOutcomes": "Agenci pokazują aktywność i wyniki oparte na dowodach. Wybierz zakończonego agenta, aby zobaczyć ograniczony raport i historię prób. Kontynuacja po potwierdzeniu zachowuje sesję i zmiany; ponowienie wymaga izolowanego punktu kontrolnego. Brakujące dowody pozostają niezweryfikowane. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

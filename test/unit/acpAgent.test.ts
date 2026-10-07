@@ -426,6 +426,87 @@ async function runMcpForm(
 }
 
 describe('the ACP agent (M63)', () => {
+  it('lists active agents locally while a model turn is running', async () => {
+    const h = harness()
+    vi.spyOn(h.host, 'readSession').mockResolvedValue({
+      mode: 'inline',
+      items: [{ itemId: 'a', kind: 'subagent', subagentId: 'child', status: 'inProgress' }],
+      todos: [],
+      name: undefined,
+    })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      const running = prompt(client, sessionId)
+      const session = h.host.sessions[0]!
+      await until(() => session.sendTurn.mock.calls.length === 1)
+      await prompt(client, sessionId, '/agents')
+      expect(session.sendTurn).toHaveBeenCalledTimes(1)
+      session.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+      await running
+    })
+  })
+  it.each(['continue', 'retry'])(
+    'does not recover through local %s after the editor denies',
+    async (action) => {
+      const h = harness({ answer: () => ({ outcome: { outcome: 'selected', optionId: 'deny' } }) })
+      vi.spyOn(h.host, 'readSession').mockResolvedValue({
+        mode: 'inline',
+        items: [{ itemId: 'a', kind: 'subagent', subagentId: 'child', status: 'failed' }],
+        todos: [],
+        name: undefined,
+      })
+      await h.run(async (client) => {
+        const { sessionId } = await start(client)
+        await prompt(client, sessionId, `/agents ${action} child`)
+      })
+      expect(h.host.sessions[0]?.controlSubagent).not.toHaveBeenCalled()
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+      expect(h.permissions).toHaveLength(1)
+    },
+  )
+  it('lists agent evidence and receipts locally, and asks before recovery in Bypass', async () => {
+    const h = harness({
+      canBypass: true,
+      initialMode: 'bypassPermissions',
+      answer: () => ({ outcome: { outcome: 'selected', optionId: 'recover' } }),
+    })
+    const item: ItemSnapshot = {
+      itemId: 'a',
+      kind: 'subagent',
+      subagentId: 'child',
+      status: 'completed',
+      objective: 'Keep objective',
+      agentEvidence: { stopReason: 'budget', unfinished: ['Run checks'] },
+      result: { summary: 'Final message' },
+    }
+    vi.spyOn(h.host, 'readSession').mockResolvedValue({
+      mode: 'inline',
+      items: [item],
+      name: undefined,
+      todos: [],
+    })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await prompt(client, sessionId, '/agents')
+      await prompt(client, sessionId, '/agents receipt child')
+      await prompt(client, sessionId, '/agents continue child')
+      await prompt(client, sessionId, '/agents retry child')
+    })
+    expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    expect(h.permissions).toHaveLength(2)
+    expect(h.host.sessions[0]?.controlSubagent).toHaveBeenCalledWith('child', 'continue')
+    expect(h.host.sessions[0]?.controlSubagent).toHaveBeenCalledWith('child', 'retry')
+    const messages = h.updates
+      .flatMap((update) =>
+        update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text'
+          ? [update.content.text]
+          : [],
+      )
+      .join('\n')
+    expect(messages).toContain('Inactive · Incomplete')
+    expect(messages).toContain('Final message')
+  })
+
   it('initializes with its capabilities, and a terminal sign-in only for a client that runs one', async () => {
     const h = harness()
     const [plain, terminal] = await h.run(async (client) => [
@@ -626,7 +707,9 @@ describe('the ACP agent (M63)', () => {
       sessionUpdate: 'agent_message_chunk',
       content: {
         type: 'text',
-        text: expect.stringContaining(`${UI_TEXT.groupSlashCommands}: /help, /questions, /answer`),
+        text: expect.stringContaining(
+          `${UI_TEXT.groupSlashCommands}: /help, /agents, /questions, /answer`,
+        ),
       },
     })
     expect(h.permissions).toHaveLength(0)
@@ -691,6 +774,11 @@ describe('the ACP agent (M63)', () => {
       sessionUpdate: 'available_commands_update',
       availableCommands: [
         { name: 'help', description: UI_TEXT.referenceIntro, input: null },
+        {
+          name: 'agents',
+          description: UI_TEXT.referenceAgentOutcomes,
+          input: { hint: '[receipt|continue|retry] [ID]' },
+        },
         { name: 'review', description: 'Review', input: { hint: '<path>' } },
         { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
         { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },

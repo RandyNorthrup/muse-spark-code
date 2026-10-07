@@ -2756,5 +2756,45 @@
   "referenceElicitationTitle": "Formulários MCP",
   "referenceElicitation": "Os formulários MCP pedem informações para o servidor MCP solicitante. Os valores enviados vão para esse servidor, fora da conversa do modelo e da transcrição. O servidor pode incluí-los em uma saída posterior de ferramenta. Nunca informe uma senha ou chave.",
   "referenceNativeAgentsConditions": "Quando run.subagent_delegation_mode=\"auto\", Muse Code pode delegar a agentes. Com \"off\", as ferramentas de delegação ficam indisponíveis. run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "Verifica um arquivo de patch UTF-8 em busca de segredos e falha ao detectá-los. --key-stdin também procura a chave exata da Model API mantida em memória; nenhuma chave é armazenada."
+  "referenceScanSecrets": "Verifica um arquivo de patch UTF-8 em busca de segredos e falha ao detectá-los. --key-stdin também procura a chave exata da Model API mantida em memória; nenhuma chave é armazenada.",
+  "agentActivities": {
+    "active": "Ativo",
+    "waiting": "Aguardando",
+    "inactive": "Inativo"
+  },
+  "agentOutcomes": {
+    "complete": "Completo",
+    "incomplete": "Incompleto",
+    "failed": "Falhou",
+    "cancelled": "Cancelado",
+    "unverified": "Encerrado, não verificado"
+  },
+  "agentWaitingReasons": {
+    "approval": "aprovação",
+    "input": "entrada",
+    "queued": "na fila",
+    "interrupted": "interrompido",
+    "idle": "sem atividade recente"
+  },
+  "agentStopReasons": {
+    "normal": "Fim normal",
+    "budget": "Orçamento esgotado",
+    "error": "Erro",
+    "cancelled": "Parado pelo usuário",
+    "unknown": "Indisponível"
+  },
+  "agentContinue": "Continuar",
+  "agentRetry": "Tentar novamente",
+  "agentReceipt": "Registro do agente",
+  "agentReceiptFiles": "Arquivos alterados",
+  "agentReceiptChecks": "Comandos e verificações",
+  "agentReceiptStop": "Motivo da parada",
+  "agentReceiptUnfinished": "Itens inacabados",
+  "agentReceiptHistory": "Histórico de tentativas",
+  "agentReceiptUnavailable": "Este backend não forneceu estas evidências.",
+  "agentReceiptTruncated": "O registro atingiu o limite de tamanho; algumas evidências foram omitidas.",
+  "agentRecoveryConfirm": "{action}: {objective}? Aplicam-se as permissões e os orçamentos atuais.",
+  "agentRetryUnavailable": "Nova tentativa indisponível: este backend não fornece um ponto de controle isolado da árvore de trabalho. As alterações do espaço compartilhado são mantidas.",
+  "agentContinueUnavailable": "Continuar está indisponível para este agente ou seu estado atual.",
+  "referenceAgentOutcomes": "Os agentes mostram atividade e resultados baseados em evidências. Selecione um agente encerrado para seu registro limitado e histórico. Continuar mantém a sessão e as alterações após confirmação; tentar novamente exige um ponto de controle isolado. Evidências ausentes aparecem como não verificadas. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

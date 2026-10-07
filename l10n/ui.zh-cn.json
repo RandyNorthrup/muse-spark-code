@@ -2564,5 +2564,45 @@
   "referenceElicitationTitle": "MCP 表单",
   "referenceElicitation": "MCP 表单为提出请求的 MCP 服务器收集信息。提交的表单值传给该服务器，不进入模型对话或记录。服务器可能将这些值包含在后续工具输出中。切勿输入密码或密钥。",
   "referenceNativeAgentsConditions": "当 run.subagent_delegation_mode=\"auto\" 时，Muse Code可以委派给代理。设为 \"off\" 时，委派工具不可用。 run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。"
+  "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。",
+  "agentActivities": {
+    "active": "活跃",
+    "waiting": "等待",
+    "inactive": "非活跃"
+  },
+  "agentOutcomes": {
+    "complete": "完成",
+    "incomplete": "未完成",
+    "failed": "失败",
+    "cancelled": "已取消",
+    "unverified": "已结束，未验证"
+  },
+  "agentWaitingReasons": {
+    "approval": "批准",
+    "input": "输入",
+    "queued": "排队中",
+    "interrupted": "已中断",
+    "idle": "近期无活动"
+  },
+  "agentStopReasons": {
+    "normal": "正常结束",
+    "budget": "预算耗尽",
+    "error": "错误",
+    "cancelled": "用户停止",
+    "unknown": "不可用"
+  },
+  "agentContinue": "继续",
+  "agentRetry": "重试",
+  "agentReceipt": "代理记录",
+  "agentReceiptFiles": "更改的文件",
+  "agentReceiptChecks": "命令与检查",
+  "agentReceiptStop": "停止原因",
+  "agentReceiptUnfinished": "未完成项目",
+  "agentReceiptHistory": "尝试历史",
+  "agentReceiptUnavailable": "此后端未提供这些证据。",
+  "agentReceiptTruncated": "记录已达到大小上限，部分证据已省略。",
+  "agentRecoveryConfirm": "{action}：{objective}？将应用当前权限和预算。",
+  "agentRetryUnavailable": "无法重试：此后端不提供隔离的工作树检查点。共享工作区的更改会保留。",
+  "agentContinueUnavailable": "此代理或其当前状态无法继续。",
+  "referenceAgentOutcomes": "代理显示活动状态和基于证据的结果。选择已结束的代理可查看有大小限制的记录及尝试历史。确认后继续会保留会话和更改；重试需要隔离的检查点。缺失的证据显示为未验证。ACP：/agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

@@ -2756,5 +2756,45 @@
   "referenceElicitationTitle": "Formulaires MCP",
   "referenceElicitation": "Les formulaires MCP demandent des informations pour le serveur MCP demandeur. Les valeurs envoyées vont à ce serveur, hors de la conversation du modèle et de la transcription. Le serveur peut les inclure dans une sortie d’outil ultérieure. Ne saisissez jamais de mot de passe ni de clé.",
   "referenceNativeAgentsConditions": "Quand run.subagent_delegation_mode=\"auto\", Muse Code peut déléguer à des agents. Avec \"off\", les outils de délégation sont indisponibles. run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "Analyse un fichier de patch UTF-8 pour détecter des secrets et échoue en cas de détection. --key-stdin recherche aussi la clé Model API exacte conservée en mémoire ; aucune clé n’est stockée."
+  "referenceScanSecrets": "Analyse un fichier de patch UTF-8 pour détecter des secrets et échoue en cas de détection. --key-stdin recherche aussi la clé Model API exacte conservée en mémoire ; aucune clé n’est stockée.",
+  "agentActivities": {
+    "active": "Actif",
+    "waiting": "En attente",
+    "inactive": "Inactif"
+  },
+  "agentOutcomes": {
+    "complete": "Terminé",
+    "incomplete": "Incomplet",
+    "failed": "Échec",
+    "cancelled": "Annulé",
+    "unverified": "Terminé, non vérifié"
+  },
+  "agentWaitingReasons": {
+    "approval": "approbation",
+    "input": "saisie",
+    "queued": "en file",
+    "interrupted": "interrompu",
+    "idle": "aucune activité récente"
+  },
+  "agentStopReasons": {
+    "normal": "Fin normale",
+    "budget": "Budget épuisé",
+    "error": "Erreur",
+    "cancelled": "Arrêté par l’utilisateur",
+    "unknown": "Indisponible"
+  },
+  "agentContinue": "Continuer",
+  "agentRetry": "Réessayer",
+  "agentReceipt": "Relevé de l’agent",
+  "agentReceiptFiles": "Fichiers modifiés",
+  "agentReceiptChecks": "Commandes et vérifications",
+  "agentReceiptStop": "Motif d’arrêt",
+  "agentReceiptUnfinished": "Éléments inachevés",
+  "agentReceiptHistory": "Historique des tentatives",
+  "agentReceiptUnavailable": "Ce backend n’a pas fourni ces preuves.",
+  "agentReceiptTruncated": "Le relevé a atteint sa limite de taille ; certaines preuves sont omises.",
+  "agentRecoveryConfirm": "{action} : {objective} ? Les autorisations et budgets actuels s’appliquent.",
+  "agentRetryUnavailable": "Nouvelle tentative indisponible : ce backend ne fournit aucun point de contrôle isolé de l’arbre de travail. Les modifications de l’espace partagé sont conservées.",
+  "agentContinueUnavailable": "La continuation est indisponible pour cet agent ou son état actuel.",
+  "referenceAgentOutcomes": "Les agents affichent leur activité et des résultats étayés. Sélectionnez un agent terminé pour son relevé limité et son historique. Continuer conserve la session et les modifications après confirmation ; réessayer exige un point de contrôle isolé. Les preuves manquantes restent non vérifiées. ACP : /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

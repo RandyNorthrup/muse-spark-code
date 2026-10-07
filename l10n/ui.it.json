@@ -2756,5 +2756,45 @@
   "referenceElicitationTitle": "Moduli MCP",
   "referenceElicitation": "I moduli MCP chiedono informazioni per il server MCP richiedente. I valori inviati vanno a quel server, fuori dalla conversazione del modello e dalla trascrizione. Il server può includerli in un successivo risultato di uno strumento. Non inserire mai una password o una chiave.",
   "referenceNativeAgentsConditions": "Quando run.subagent_delegation_mode=\"auto\", Muse Code può delegare agli agenti. Con \"off\", gli strumenti di delega non sono disponibili. run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "Analizza un file patch UTF-8 alla ricerca di segreti e termina con errore se li rileva. --key-stdin cerca anche la chiave Model API esatta in memoria; nessuna chiave viene salvata."
+  "referenceScanSecrets": "Analizza un file patch UTF-8 alla ricerca di segreti e termina con errore se li rileva. --key-stdin cerca anche la chiave Model API esatta in memoria; nessuna chiave viene salvata.",
+  "agentActivities": {
+    "active": "Attivo",
+    "waiting": "In attesa",
+    "inactive": "Inattivo"
+  },
+  "agentOutcomes": {
+    "complete": "Completo",
+    "incomplete": "Incompleto",
+    "failed": "Fallito",
+    "cancelled": "Annullato",
+    "unverified": "Terminato, non verificato"
+  },
+  "agentWaitingReasons": {
+    "approval": "approvazione",
+    "input": "immissione",
+    "queued": "in coda",
+    "interrupted": "interrotto",
+    "idle": "nessuna attività recente"
+  },
+  "agentStopReasons": {
+    "normal": "Fine normale",
+    "budget": "Budget esaurito",
+    "error": "Errore",
+    "cancelled": "Fermato dall’utente",
+    "unknown": "Non disponibile"
+  },
+  "agentContinue": "Continua",
+  "agentRetry": "Riprova",
+  "agentReceipt": "Resoconto dell’agente",
+  "agentReceiptFiles": "File modificati",
+  "agentReceiptChecks": "Comandi e verifiche",
+  "agentReceiptStop": "Motivo di arresto",
+  "agentReceiptUnfinished": "Elementi incompleti",
+  "agentReceiptHistory": "Cronologia dei tentativi",
+  "agentReceiptUnavailable": "Questo backend non ha fornito queste prove.",
+  "agentReceiptTruncated": "Il resoconto ha raggiunto il limite di dimensione; alcune prove sono omesse.",
+  "agentRecoveryConfirm": "{action}: {objective}? Si applicano autorizzazioni e budget attuali.",
+  "agentRetryUnavailable": "Il nuovo tentativo non è disponibile: questo backend non fornisce un punto di controllo isolato dell’albero di lavoro. Le modifiche dello spazio condiviso vengono conservate.",
+  "agentContinueUnavailable": "La continuazione non è disponibile per questo agente o il suo stato attuale.",
+  "referenceAgentOutcomes": "Gli agenti mostrano attività e risultati basati su prove. Seleziona un agente terminato per il resoconto limitato e la cronologia. Continua conserva sessione e modifiche dopo conferma; Riprova richiede un punto di controllo isolato. Le prove mancanti restano non verificate. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

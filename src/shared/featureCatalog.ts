@@ -188,6 +188,17 @@ function feature(
 export function featureCatalog(): readonly Feature[] {
   return [
     feature(
+      'agent-outcomes',
+      { ui: 'agentReceipt' },
+      { ui: 'referenceAgentOutcomes' },
+      [],
+      [],
+      'agent-outcomes',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
       'prompt-library',
       { ui: 'promptLibrary' },
       { ui: 'promptSecretsNote' },

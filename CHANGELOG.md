@@ -7,6 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Agent activity and structured outcomes, with bounded redacted receipts and
+  retained Model API attempt history. Continue asks before resuming the same
+  child and keeps its edits. Retry explains when an isolated checkpoint is
+  unavailable. Native ends without completion evidence remain unverified.
+  ACP editors get local `/agents` listing, receipts and confirmed recovery.
+  Model API children can keep their own task list without replacing the parent's.
+
 ### Fixed
 
 - Windows shell credential regressions await the matching background completion

@@ -7,10 +7,12 @@
 // through a fake in-memory transport.
 
 import { Buffer } from 'node:buffer'
+import { observeAgentItem, observeChildReceipt } from '../../agent/agentObservation'
 import { type Connection, MspError, ProtocolError } from '@muse-code/sdk'
 import * as z from 'zod/mini'
 import {
   type AgentEvent,
+  type ItemSnapshot,
   type QuestionAnswer,
   type RequirementRef,
   requirementRefSchema,
@@ -634,6 +636,8 @@ export function describeExit(
 }
 
 export class MuseSession implements AgentSession {
+  private readonly observedAgents = new Map<string, ItemSnapshot>()
+
   private readonly listeners = new Set<SessionEventListener>()
   /** One card per prompt and stage, and the open ones for a late listener (D26). */
   private readonly prompts = new PromptLedger()
@@ -876,6 +880,22 @@ export class MuseSession implements AgentSession {
   }
 
   /** Muse Code reported this session's event log failed (`noteLogFault`). */
+  /** Merge captured native attempt history for both live updates and local inspection. */
+  public observeAgent(item: ItemSnapshot): ItemSnapshot {
+    if (item.kind !== 'subagent' && item.kind !== 'workflow') return item
+    const observed = observeAgentItem(this.observedAgents.get(item.itemId), item, Date.now())
+    this.observedAgents.set(item.itemId, observed)
+    return observed
+  }
+  public observeChild(sessionId: string, history: SessionHistoryOutcome): void {
+    const observed = new Map(this.observedAgents)
+    for (const item of observed.values()) {
+      if (item.kind !== 'subagent' || item.childSessionId !== sessionId) continue
+      const updated = observeChildReceipt(item, history.items, history.todos)
+      this.emit({ type: 'itemUpdated', item: updated })
+      this.observedAgents.set(item.itemId, updated)
+    }
+  }
   public onLogDamaged(listener: () => void): () => void {
     this.logDamagedListeners.add(listener)
     return () => {
@@ -922,6 +942,8 @@ export class MuseSession implements AgentSession {
     if (this.isDisposed) {
       return
     }
+    if (['itemStarted', 'itemUpdated', 'itemCompleted'].includes(event.type) && 'item' in event)
+      event = { ...event, item: this.observeAgent(event.item) }
     const admitted = this.prompts.admit(event)
     if (admitted === undefined) {
       return
@@ -1168,6 +1190,11 @@ export class MuseSession implements AgentSession {
 
   /** Captured owner verbs on a child (M18); M48's uncaptured verbs stay unavailable. */
   public async controlSubagent(subagentId: string, action: SubagentAction): Promise<void> {
+    if (action === 'continue' || action === 'retry') {
+      throw new Error(
+        action === 'retry' ? UI_TEXT.agentRetryUnavailable : UI_TEXT.agentContinueUnavailable,
+      )
+    }
     if (action === 'reopen' || action === 'readResult') {
       throw new Error(`subagent/${action}`)
     }
@@ -1759,7 +1786,13 @@ export class MuseCodeHost implements AgentHost {
       sessionId,
       excludeItems: false,
     })
-    const history = historyOutcome(sessionEnvelopeSchema.parse(result))
+    const read = historyOutcome(sessionEnvelopeSchema.parse(result))
+    const session = this.sessions.get(sessionId)
+    const history = {
+      ...read,
+      items: read.items.map((item) => session?.observeAgent(item) ?? item),
+    }
+    for (const parent of this.sessions.values()) parent.observeChild(sessionId, history)
     return options?.recoverGoal === true && history.goal === undefined
       ? { ...history, goal: await this.goalFromView(sessionId) }
       : history

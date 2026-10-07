@@ -904,7 +904,7 @@ describe('M112 through the pinned ACP SDK client', () => {
     const h = agentHarness()
     await h.run(async (client) => {
       h.session.listSkills.mockResolvedValueOnce(
-        ['answer', 'questions'].map((selector) => ({
+        ['agents', 'answer', 'questions'].map((selector) => ({
           selector,
           displayName: selector,
           description: 'skill collision',
@@ -915,9 +915,15 @@ describe('M112 through the pinned ACP SDK client', () => {
       const commands = h.updates.flatMap((update) =>
         update.sessionUpdate === 'available_commands_update' ? update.availableCommands : [],
       )
-      expect(commands.map((command) => command.name)).toEqual(['help', 'answer', 'questions'])
+      expect(commands.map((command) => command.name)).toEqual([
+        'help',
+        'agents',
+        'answer',
+        'questions',
+      ])
       expect(commands.map((command) => command.description)).toEqual([
         UI_TEXT.referenceIntro,
+        UI_TEXT.referenceAgentOutcomes,
         UI_TEXT.acpAnswerHelp,
         UI_TEXT.acpQuestionsHelp,
       ])

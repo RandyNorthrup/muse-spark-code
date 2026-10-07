@@ -417,8 +417,8 @@ describe('toolDefinitions / classifyTool', () => {
       'search',
       'list_files',
       'bash',
-      'ask_user',
       'todo_write',
+      'ask_user',
       // Muse Code's goal tools (M45), offered in every session.
       'create_goal',
       'get_goal',
@@ -479,7 +479,7 @@ describe('toolDefinitions / classifyTool', () => {
     }).map((tool) => tool.name)
     expect(child).not.toContain('subagent_spawn')
     expect(child).not.toContain('ask_user')
-    expect(child).not.toContain('todo_write')
+    expect(child).toContain('todo_write')
     expect(child).toContain('read_file')
   })
 })

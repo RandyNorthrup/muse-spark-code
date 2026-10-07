@@ -1,4 +1,5 @@
 import type { ChatShareSource } from '../../core/sharing/chatShare'
+import { recoveryStamp } from '../../shared/agentRecovery'
 import { QuestionRegistry } from '../../core/questions/registry'
 import type { QuestionAnswerText } from '../../core/questions/lateAnswer'
 import type {
@@ -8114,6 +8115,34 @@ export class ConversationController {
       return
     }
     try {
+      if (action === 'continue' || action === 'retry') {
+        const host = await this.deps.ensureHost()
+        const history = await host.readSession(session.sessionId)
+        if (!this.isCurrentSessionAction(session, generation)) return
+        const agent = history.items.findLast((item) => item.subagentId === subagentId)
+        const title = action === 'continue' ? UI_TEXT.agentContinue : UI_TEXT.agentRetry
+        if (
+          !(await this.deps.confirmFileAction(
+            title,
+            fill(UI_TEXT.agentRecoveryConfirm, {
+              action: title,
+              objective: agent?.objective ?? subagentId,
+            }),
+            title,
+          )) ||
+          !this.isCurrentSessionAction(session, generation)
+        )
+          return
+        const latest = await host.readSession(session.sessionId)
+        if (!this.isCurrentSessionAction(session, generation)) return
+        const current = latest.items.findLast((item) => item.subagentId === subagentId)
+        if (recoveryStamp(current) !== recoveryStamp(agent))
+          throw new Error(UI_TEXT.agentContinueUnavailable)
+        if (agent === undefined)
+          throw new Error(
+            action === 'retry' ? UI_TEXT.agentRetryUnavailable : UI_TEXT.agentContinueUnavailable,
+          )
+      }
       await session.controlSubagent(subagentId, action)
     } catch (error: unknown) {
       if (this.isCurrentSessionAction(session, generation)) {
@@ -8371,6 +8400,14 @@ export class ConversationController {
         return
       }
       const history = await host.readSession(sessionId)
+      const session = this.session
+      const { agentReceiptFiles } = await import('../../core/agent/agentReceiptFiles')
+      const items =
+        session === undefined
+          ? history.items
+          : await agentReceiptFiles(history.items, (request) =>
+              this.readOutputSlot(session, generation, request),
+            )
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }
@@ -8378,7 +8415,7 @@ export class ConversationController {
         type: 'childTranscript',
         sessionId,
         ...(history.name !== undefined && { name: history.name }),
-        items: [...history.items],
+        items: [...items],
       })
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch) {

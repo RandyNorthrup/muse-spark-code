@@ -430,6 +430,8 @@ export interface TouchedFiles {
 }
 
 export interface ToolOutcome {
+  /** Owned process exit, retained separately from its human-readable output. */
+  readonly exitCode?: number
   /** What the model receives as the function result. */
   readonly output: string
   /** The result as content parts instead, when it holds pictures (an MCP tool's, M50). */
@@ -699,6 +701,28 @@ export function toolDefinitions(
           ),
         ]
       : []),
+    define(
+      MODEL_API_TOOLS.todoWrite,
+      'Replace your task list, shown to the user while you work.',
+      {
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              text: { type: 'string' },
+              status: { type: 'string', enum: ['pending', 'inProgress', 'completed'] },
+              activeForm: {
+                type: 'string',
+                description: 'Present-tense form shown while in progress',
+              },
+            },
+            required: ['text', 'status'],
+          },
+        },
+      },
+      ['items'],
+    ),
     ...(options.isSubagent === true
       ? []
       : [
@@ -733,28 +757,6 @@ export function toolDefinitions(
               },
             },
             ['questions'],
-          ),
-          define(
-            MODEL_API_TOOLS.todoWrite,
-            'Replace your task list, shown to the user while you work.',
-            {
-              items: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    text: { type: 'string' },
-                    status: { type: 'string', enum: ['pending', 'inProgress', 'completed'] },
-                    activeForm: {
-                      type: 'string',
-                      description: 'Present-tense form shown while in progress',
-                    },
-                  },
-                  required: ['text', 'status'],
-                },
-              },
-            },
-            ['items'],
           ),
           // Muse Code's goal tools (M45, PLAN.md D38), offered in every session as
           // `muse serve` offers them.
@@ -1619,6 +1621,7 @@ export function shellOutcome(
   return {
     output: body,
     visibleOutput: body,
+    ...(result.exitCode !== null && { exitCode: result.exitCode }),
     ...((result.isTimedOut || result.isCancelled) && { failureReason: exit }),
   }
 }

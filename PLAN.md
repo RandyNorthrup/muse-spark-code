@@ -12812,13 +12812,13 @@ worktree state. Missing evidence is unverified; a final message is never parsed
 for claims of completeness. Active means an in-flight call/tool or output in a
 named short window. Silence does not certify success.
 
-| Source                               | Available evidence                                                                                                                                   | Limits and recovery                                                                                                                                                                                                                                                                              |
-| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Muse Code subagents / child sessions | Captured M14/M18 item/control states, child-session transcript, tool calls, result and turn terminals                                                | No captured end reason, required-check declaration or private-worktree/checkpoint report. Ended normal agents remain unverified. Continue uses captured followupTask on the same child when supported. Retry refuses without a verified isolated checkpoint. No new MSP fields or verbs guessed. |
-| Model API subagents                  | Owned child session, queued/running/interrupted/result/closed states, owned request/step budgets, tool exits and verification reports, final message | Children share the workspace; it is not their own worktree. Continue keeps the session and edits, obtains fresh paid consent and obeys current permissions/budgets. Retry refuses: resetting a shared workspace could destroy another agent's edits.                                             |
-| M47 workflow agents                  | Captured child ID, attempt, status, terminal, duration and usage; reconciled run report                                                              | No per-child session, commands, files or resumable checkpoint. Receipt explicitly marks missing evidence. Both recovery actions refuse with a reason.                                                                                                                                            |
-| Background tasks                     | Owned/captured tool arguments, output, exit and duration where reported                                                                              | Commands are tasks, not objective-completion proof. Missing exit evidence stays unverified. No resumable agent session/checkpoint; recovery refuses.                                                                                                                                             |
-| ACP / other editors                  | Same portable evidence mapping and receipts from session events/history                                                                              | Local /agents listing, receipt and explicitly confirmed Continue/Retry expose identical evidence and refusals; no model request for local inspection.                                                                                                                                            |
+| Source                               | Available evidence                                                                                                                                   | Limits and recovery                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Muse Code subagents / child sessions | Captured M14/M18 item/control states, child-session transcript, tool calls, result and turn terminals                                                | No captured end reason, required-check declaration or private-worktree/checkpoint report. Ended normal agents remain unverified. Ended-child Continue refuses until preservation is captured; interrupted Resume is unchanged. Retry refuses without a verified isolated checkpoint. No new MSP fields or verbs guessed. |
+| Model API subagents                  | Owned child session, queued/running/interrupted/result/closed states, owned request/step budgets, tool exits and verification reports, final message | Children share the workspace; it is not their own worktree. Continue keeps the session and edits, obtains fresh paid consent and obeys current permissions/budgets. Retry refuses: resetting a shared workspace could destroy another agent's edits.                                                                     |
+| M47 workflow agents                  | Captured child ID, attempt, status, terminal, duration and usage; reconciled run report                                                              | No per-child session, commands, files or resumable checkpoint. Receipt explicitly marks missing evidence. Both recovery actions refuse with a reason.                                                                                                                                                                    |
+| Background tasks                     | Owned/captured tool arguments, output, exit and duration where reported                                                                              | Commands are tasks, not objective-completion proof. Missing exit evidence stays unverified. No resumable agent session/checkpoint; recovery refuses.                                                                                                                                                                     |
+| ACP / other editors                  | Same portable evidence mapping and receipts from session events/history                                                                              | Local /agents listing, receipt and explicitly confirmed Continue/Retry expose identical evidence and refusals; no model request for local inspection.                                                                                                                                                                    |
 
 Receipts are bounded, redacted using existing tool-output redaction and read on
 selection within the lazy Agent map budget. They list linked files and line
@@ -29528,20 +29528,35 @@ Authority: the rig brief and lead decisions, refining D92/M112 from
 
 ### M119 — Agent activity, honest outcomes and receipts (D101)
 
+Implementation evidence: Model API children previously could not write their own
+task list. Offer child-local `todo_write` (never forwarded to the parent list)
+as a structured unfinished-item declaration; absent a declaration, normal ends
+remain unverified. Parent conversation terminal behavior stays unchanged.
+Native ended-child Continue refuses until a capture proves preserved-session
+recovery; interrupted Resume remains the captured control.
+
 - [x] Record backend evidence and recovery limits before implementation.
-- [ ] Portable structured outcome/activity mapping and bounded receipt evidence.
-- [ ] Live Agent map, workflow and background task activity/outcomes; lazy receipts.
-- [ ] Owner-confirmed Continue and Retry with honest unsupported refusals,
+- [x] Portable structured outcome/activity mapping and bounded receipt evidence.
+- [x] Live Agent map, workflow and background task activity/outcomes; lazy receipts.
+- [x] Owner-confirmed Continue and Retry with honest unsupported refusals,
       preserved original objective/session/edits and numbered attempt history.
-- [ ] ACP /agents inspection, receipt and recovery parity for all editors.
-- [ ] Fourteen translations, Help & Reference/feature catalog, README screenshots.
-- [ ] Owning unit tests at default timeouts, intentional mapping failure with
+- [x] ACP /agents inspection, receipt and recovery parity for all editors.
+- [x] Fourteen translations, Help & Reference/feature catalog, README screenshots.
+- [x] Owning unit tests at default timeouts, intentional mapping failure with
       byte-exact restoration, five typechecks, lint, prettier, plain knip,
       duplication, localization/reference/host gates and unchanged production caps.
-- [ ] Four-theme zero-violation harness scenes, CHANGELOG and certification record
+- [x] Four-theme zero-violation harness scenes, CHANGELOG and certification record
       in docs/certification/agent-outcomes.md with completed/blocked evidence.
 
 ## 7. Gates
+
+**M119 scoped rig certification (2026-10-06–07).** The lane's shared brief
+prohibits aggregate quality, full-suite tests, live model calls and unlisted
+merges. Complete owning suites at default timeouts and the individual
+typecheck, lint, format, knip, duplication, localization, reference, host,
+production and four-theme accessibility checks certify the local work.
+The lead retains aggregate quality and live recovery/checkpoint captures.
+No gate is weakened. See `docs/certification/agent-outcomes.md`.
 
 **FIX0144W bounded Windows repair (2026-10-06).** The rig/shared brief
 prohibits aggregate quality and unlisted merges. Scoped default-timeout M118/D89.5

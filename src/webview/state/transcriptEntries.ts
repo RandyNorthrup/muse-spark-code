@@ -8,6 +8,7 @@
 // reducer treats them.
 
 import * as z from 'zod/mini'
+import { agentEvidenceSchema, agentFileSchema } from '../../shared/agentOutcome'
 import {
   approvalChoiceSchema,
   approvalSubjectSchema,
@@ -209,6 +210,9 @@ const reasoningEntrySchema = z.object({
 })
 
 const toolEntrySchema = z.object({
+  exitCode: z.optional(z.number()),
+  durationMs: z.optional(z.number()),
+  changedFiles: z.optional(z.array(agentFileSchema)),
   kind: z.literal('tool'),
   id: z.string(),
   tool: z.string(),
@@ -288,6 +292,7 @@ const userShellEntrySchema = z.object({
 })
 
 const subagentEntrySchema = z.object({
+  agentEvidence: z.optional(agentEvidenceSchema),
   /** A native subagent the CLI spawned for this turn (M14). */
   kind: z.literal('subagent'),
   id: z.string(),
@@ -320,6 +325,7 @@ const subagentEntrySchema = z.object({
  * The row keeps previously reported fields within that attempt.
  */
 export const workflowChildSchema = z.object({
+  agentEvidence: z.optional(agentEvidenceSchema),
   childId: z.string(),
   attempt: z.number(),
   status: z.string(),

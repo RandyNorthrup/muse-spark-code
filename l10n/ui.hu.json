@@ -2660,5 +2660,45 @@
   "referenceElicitationTitle": "MCP-űrlapok",
   "referenceElicitation": "Az MCP-űrlapok a kérést küldő MCP-kiszolgáló számára kérnek adatokat. Az elküldött értékek ehhez a kiszolgálóhoz kerülnek, a modell beszélgetésén és az átiraton kívül. A kiszolgáló későbbi eszközkimenetben visszaadhatja őket. Soha ne adjon meg jelszót vagy kulcsot.",
   "referenceNativeAgentsConditions": "Ha run.subagent_delegation_mode=\"auto\", a Muse Code ügynökökre delegálhat. \"off\" esetén a delegálási eszközök nem érhetők el. run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "Titkokat keres egy UTF-8 javításfájlban, és találat esetén hibával kilép. A --key-stdin a memóriában lévő pontos Model API-kulcsot is keresi; nem tárol kulcsot."
+  "referenceScanSecrets": "Titkokat keres egy UTF-8 javításfájlban, és találat esetén hibával kilép. A --key-stdin a memóriában lévő pontos Model API-kulcsot is keresi; nem tárol kulcsot.",
+  "agentActivities": {
+    "active": "Aktív",
+    "waiting": "Várakozik",
+    "inactive": "Inaktív"
+  },
+  "agentOutcomes": {
+    "complete": "Kész",
+    "incomplete": "Befejezetlen",
+    "failed": "Sikertelen",
+    "cancelled": "Megszakítva",
+    "unverified": "Befejeződött, ellenőrizetlen"
+  },
+  "agentWaitingReasons": {
+    "approval": "jóváhagyás",
+    "input": "bevitel",
+    "queued": "sorban áll",
+    "interrupted": "megszakítva",
+    "idle": "nincs friss tevékenység"
+  },
+  "agentStopReasons": {
+    "normal": "Normál befejezés",
+    "budget": "Keret kimerült",
+    "error": "Hiba",
+    "cancelled": "Felhasználó leállította",
+    "unknown": "Nem elérhető"
+  },
+  "agentContinue": "Folytatás",
+  "agentRetry": "Újrapróbálás",
+  "agentReceipt": "Ügynök bizonylata",
+  "agentReceiptFiles": "Módosított fájlok",
+  "agentReceiptChecks": "Parancsok és ellenőrzések",
+  "agentReceiptStop": "Leállás oka",
+  "agentReceiptUnfinished": "Befejezetlen elemek",
+  "agentReceiptHistory": "Próbálkozások előzményei",
+  "agentReceiptUnavailable": "Ez a háttérrendszer nem adta meg ezeket a bizonyítékokat.",
+  "agentReceiptTruncated": "A bizonylat elérte a méretkorlátot; egyes bizonyítékok kimaradtak.",
+  "agentRecoveryConfirm": "{action}: {objective}? Az aktuális jogosultságok és keretek érvényesek.",
+  "agentRetryUnavailable": "Az újrapróbálás nem elérhető: a háttérrendszer nem biztosít elszigetelt munkafa-ellenőrzőpontot. A közös munkaterület módosításai megmaradnak.",
+  "agentContinueUnavailable": "A folytatás nem elérhető ennél az ügynöknél vagy a jelenlegi állapotában.",
+  "referenceAgentOutcomes": "Az ügynökök tevékenységet és bizonyítékokon alapuló eredményeket mutatnak. Válasszon befejezett ügynököt a korlátozott bizonylathoz és az előzményekhez. A megerősített folytatás megőrzi a munkamenetet és a módosításokat; az újrapróbálás elszigetelt ellenőrzőpontot igényel. A hiányzó bizonyíték ellenőrizetlen marad. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

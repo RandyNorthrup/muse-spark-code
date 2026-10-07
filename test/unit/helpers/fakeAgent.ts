@@ -11,6 +11,7 @@ import type {
   ModelSummary,
   SessionEventListener,
   SessionPage,
+  SessionHistoryOutcome,
   SkillSummary,
   TurnSubmission,
 } from '../../../src/core/agent/agentBackend'
@@ -188,7 +189,7 @@ export class FakeAgentHost implements AgentHost {
     }
   }
 
-  public readSession(): Promise<never> {
+  public readSession(): Promise<SessionHistoryOutcome> {
     return Promise.reject(new Error('not used'))
   }
 

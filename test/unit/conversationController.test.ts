@@ -3804,6 +3804,25 @@ function envelope(session: Record<string, unknown>, mode = 'inline') {
   }
 }
 
+function agentRecoveryHistory(status: string) {
+  const value = envelope({ ...storedSession, sessionId: 's1' })
+  return {
+    ...value,
+    history: {
+      ...value.history,
+      items: [
+        {
+          itemId: 'a',
+          kind: 'subagent',
+          status,
+          subagentId: 'sub-1',
+          objective: 'Original objective',
+        },
+      ],
+    },
+  }
+}
+
 async function holdTurnCancel(t: ReturnType<typeof setup>) {
   t.server.silence('turn/cancel')
   const stopping = t.controller.backendStopping(true)
@@ -6498,6 +6517,42 @@ describe('ConversationController question cancel (M16)', () => {
     const t = setup()
     await t.controller.handle({ type: 'cancelQuestion', userInputId: 'q1' })
     expect(t.server.requestsFor('userInput/cancel')).toEqual([])
+  })
+
+  it.each(['continue', 'retry'] as const)(
+    'always confirms %s, including Bypass, and respects a denial',
+    async (action) => {
+      const t = setup({ initialPermissionMode: 'bypassPermissions', confirmsFileAction: false })
+      await t.send('l1', 'hi')
+      t.server.handle('session/read', () => agentRecoveryHistory('failed'))
+      const confirm = vi.spyOn(t.deps, 'confirmFileAction')
+      await t.controller.handle({ type: 'subagentControl', subagentId: 'sub-1', action })
+      expect(confirm).toHaveBeenCalledWith(
+        action === 'continue' ? UI_TEXT.agentContinue : UI_TEXT.agentRetry,
+        expect.stringContaining('Original objective'),
+        expect.any(String),
+      )
+      expect(t.server.requestsFor('subagent/followupTask')).toEqual([])
+      expect(t.server.requestsFor('subagent/resume')).toEqual([])
+    },
+  )
+
+  it('refuses recovery when the agent changed during the owner confirmation', async () => {
+    const t = setup({ confirmsFileAction: true })
+    await t.send('l1', 'hi')
+    let status = 'failed'
+    t.server.handle('session/read', () => agentRecoveryHistory(status))
+    vi.spyOn(t.deps, 'confirmFileAction').mockImplementation(() => {
+      status = 'inProgress'
+      return Promise.resolve(true)
+    })
+    await t.controller.handle({ type: 'subagentControl', subagentId: 'sub-1', action: 'continue' })
+    expect(t.surface.posted.at(-1)).toMatchObject({
+      type: 'notice',
+      level: 'error',
+      text: `${UI_TEXT.agentControlFailed}: ${UI_TEXT.agentContinueUnavailable}`,
+    })
+    expect(t.server.requestsFor('subagent/followupTask')).toEqual([])
   })
 })
 

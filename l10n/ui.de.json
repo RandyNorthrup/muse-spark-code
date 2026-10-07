@@ -2660,5 +2660,45 @@
   "referenceElicitationTitle": "MCP-Formulare",
   "referenceElicitation": "MCP-Formulare erfragen Informationen für den anfragenden MCP-Server. Gesendete Formularwerte gehen an diesen Server, außerhalb des Modellgesprächs und des Transkripts. Ein Server kann sie in späteren Werkzeugausgaben zurückgeben. Geben Sie niemals ein Passwort oder einen Schlüssel ein.",
   "referenceNativeAgentsConditions": "Bei run.subagent_delegation_mode=\"auto\" kann Muse Code an Agenten delegieren. Bei \"off\" sind Delegationswerkzeuge nicht verfügbar. run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "Prüft eine UTF-8-Patchdatei auf Geheimnisse und schlägt bei einem Fund fehl. --key-stdin prüft auch auf den exakten Model-API-Schlüssel im Speicher; kein Schlüssel wird gespeichert."
+  "referenceScanSecrets": "Prüft eine UTF-8-Patchdatei auf Geheimnisse und schlägt bei einem Fund fehl. --key-stdin prüft auch auf den exakten Model-API-Schlüssel im Speicher; kein Schlüssel wird gespeichert.",
+  "agentActivities": {
+    "active": "Aktiv",
+    "waiting": "Wartend",
+    "inactive": "Inaktiv"
+  },
+  "agentOutcomes": {
+    "complete": "Vollständig",
+    "incomplete": "Unvollständig",
+    "failed": "Fehlgeschlagen",
+    "cancelled": "Abgebrochen",
+    "unverified": "Beendet, ungeprüft"
+  },
+  "agentWaitingReasons": {
+    "approval": "Genehmigung",
+    "input": "Eingabe",
+    "queued": "in Warteschlange",
+    "interrupted": "unterbrochen",
+    "idle": "keine aktuelle Aktivität"
+  },
+  "agentStopReasons": {
+    "normal": "Normal beendet",
+    "budget": "Budget ausgeschöpft",
+    "error": "Fehler",
+    "cancelled": "Vom Benutzer gestoppt",
+    "unknown": "Nicht verfügbar"
+  },
+  "agentContinue": "Fortsetzen",
+  "agentRetry": "Erneut versuchen",
+  "agentReceipt": "Agentenbeleg",
+  "agentReceiptFiles": "Geänderte Dateien",
+  "agentReceiptChecks": "Befehle und Prüfungen",
+  "agentReceiptStop": "Stoppgrund",
+  "agentReceiptUnfinished": "Unerledigte Aufgaben",
+  "agentReceiptHistory": "Versuchsverlauf",
+  "agentReceiptUnavailable": "Dieses Backend hat diese Nachweise nicht bereitgestellt.",
+  "agentReceiptTruncated": "Der Beleg hat seine Größenbegrenzung erreicht; einige Nachweise fehlen.",
+  "agentRecoveryConfirm": "{action}: {objective}? Aktuelle Berechtigungen und Budgets gelten.",
+  "agentRetryUnavailable": "Erneuter Versuch nicht verfügbar: Dieses Backend bietet keinen isolierten Worktree-Kontrollpunkt. Änderungen im gemeinsamen Arbeitsbereich bleiben erhalten.",
+  "agentContinueUnavailable": "Fortsetzen ist für diesen Agenten oder seinen aktuellen Zustand nicht verfügbar.",
+  "referenceAgentOutcomes": "Agenten zeigen Aktivität und nachweisgestützte Ergebnisse. Wählen Sie einen beendeten Agenten für seinen begrenzten Beleg und Versuchsverlauf. Fortsetzen bewahrt nach Bestätigung Sitzung und Änderungen; ein erneuter Versuch erfordert einen isolierten Kontrollpunkt. Fehlende Nachweise gelten als ungeprüft. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

@@ -8,6 +8,16 @@ import { webviewKey } from '../../shared/keybindings'
 // a click away; the extension never edits it.
 
 import { useState } from 'react'
+import { useAgentClock } from '../useAgentClock'
+import {
+  agentActivity,
+  endedOutcome,
+  agentStateText,
+  toolAgentEvidence,
+} from '../../shared/agentOutcome'
+import { buildAgentReceipt } from '../../shared/agentReceipt'
+import type { ItemSnapshot } from '../../shared/agentEvents'
+import { formatNumber } from '../../shared/l10n/text'
 import {
   SUBAGENT_CLOSED,
   SUBAGENT_RESULT_READY,
@@ -30,6 +40,7 @@ import { describeTool } from '../toolPresentation'
 import { agentStatusLabel, formatDurationMs } from '../agentFormat'
 import { workflowName, workflowTriggerText } from '../workflowDetails'
 import { Modal } from './Modal'
+import { AgentReceiptBody, AgentReceiptDisclosure, AgentReceiptHistory } from './AgentReceiptBody'
 import { WorkflowRunView } from './WorkflowRun'
 import { PaidBadge } from './PaidBadge'
 
@@ -37,6 +48,7 @@ export type SubagentEntry = Extract<TranscriptEntry, { kind: 'subagent' }>
 export type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
 
 export interface AgentMapProps {
+  readonly onOpenFile?: ((path: string, range: undefined) => void) | undefined
   readonly backend: BackendKind | undefined
   readonly title: string
   readonly modelId: string | undefined
@@ -73,6 +85,15 @@ export function controlsFor(
   if (agent.subagentId === undefined) {
     return []
   }
+  const outcome = endedOutcome({ status: agent.status, evidence: agent.agentEvidence })
+  if (
+    agentActivity(
+      { status: agent.status, controlStatus: agent.controlStatus, evidence: agent.agentEvidence },
+      0,
+    ).activity === 'inactive' &&
+    (outcome === 'failed' || outcome === 'incomplete')
+  )
+    return ['continue', 'retry', 'close']
   if (agent.controlStatus === SUBAGENT_CLOSED) {
     return backend === 'modelApi' ? ['reopen'] : []
   }
@@ -101,6 +122,8 @@ function controlLabel(action: SubagentAction): string {
     close: UI_TEXT.agentClose,
     reopen: UI_TEXT.agentReopen,
     readResult: UI_TEXT.agentReadResult,
+    continue: UI_TEXT.agentContinue,
+    retry: UI_TEXT.agentRetry,
   }
   return labels[action]
 }
@@ -188,12 +211,19 @@ function agentTokens(agent: SubagentEntry): string | undefined {
     : fill(UI_TEXT.agentTokens, { tokens: formatTokenWindow(totalTokens(agent.usage)) })
 }
 
-function agentMeta(agent: SubagentEntry): string {
+function agentMeta(agent: SubagentEntry, now: number): string {
   return [
+    agent.agentEvidence?.attempt === undefined
+      ? undefined
+      : fill(UI_TEXT.workflowAttempt, { attempt: formatNumber(agent.agentEvidence.attempt) }),
     agent.durationMs === undefined ? undefined : formatDurationMs(agent.durationMs),
     agentTokens(agent),
     agentStatusLabel(
       agent.status === RUNNING ? agent.status : (agent.controlStatus ?? agent.status),
+    ),
+    agentStateText(
+      { status: agent.status, controlStatus: agent.controlStatus, evidence: agent.agentEvidence },
+      now,
     ),
   ]
     .filter((part) => part !== undefined)
@@ -214,6 +244,7 @@ function AgentNode({
   readonly agent: SubagentEntry
   readonly onSelect: () => void
 }) {
+  const now = useAgentClock()
   return (
     <button type="button" className="agent-node agent-node-clickable" onClick={onSelect}>
       <span className="agent-node-title">
@@ -221,7 +252,9 @@ function AgentNode({
         {agent.objective ?? agent.role ?? UI_TEXT.agentUntitled}
         {agent.paid === undefined ? null : <PaidBadge feature={agent.paid} />}
       </span>
-      <span className="agent-node-meta">{agentMeta(agent)}</span>
+      <span className="agent-node-meta" aria-live="polite">
+        {agentMeta(agent, now)}
+      </span>
     </button>
   )
 }
@@ -262,6 +295,7 @@ function AgentDetails({
   onBack,
   onControl,
   onMessage,
+  onOpenFile,
 }: {
   readonly agent: SubagentEntry
   readonly backend: BackendKind | undefined
@@ -269,8 +303,15 @@ function AgentDetails({
   readonly onBack: () => void
   readonly onControl: AgentMapProps['onControl']
   readonly onMessage: AgentMapProps['onMessage']
+  readonly onOpenFile: AgentMapProps['onOpenFile']
 }) {
   let body
+  const now = useAgentClock()
+  const isEnded =
+    agentActivity(
+      { status: agent.status, controlStatus: agent.controlStatus, evidence: agent.agentEvidence },
+      now,
+    ).activity === 'inactive'
   if (agent.childSessionId === undefined) {
     body = <p className="usage-row-meta">{UI_TEXT.agentNoTranscript}</p>
   } else if (transcript === undefined) {
@@ -298,19 +339,29 @@ function AgentDetails({
         {agent.objective ?? agent.role ?? UI_TEXT.agentUntitled}
         {agent.paid === undefined ? null : <PaidBadge feature={agent.paid} />}
       </h3>
-      <p className="usage-row-meta">
+      <p className="usage-row-meta" aria-live="polite">
         {[
           agent.role === undefined ? undefined : `${UI_TEXT.agentRole} ${agent.role}`,
-          agentMeta(agent),
+          agentMeta(agent, now),
         ]
           .filter((part) => part !== undefined)
           .join(' · ')}
       </p>
       <AgentControls agent={agent} backend={backend} onControl={onControl} onMessage={onMessage} />
-      {agent.resultSummary === undefined ? null : (
+      {isEnded ? (
+        <AgentReceiptView
+          agent={agent}
+          backend={backend}
+          transcript={transcript}
+          onOpenFile={onOpenFile}
+        />
+      ) : null}
+      {isEnded || agent.resultSummary === undefined ? null : (
         <p className="agent-result">{agent.resultSummary}</p>
       )}
-      {agent.resultText === undefined || agent.resultText === agent.resultSummary ? null : (
+      {isEnded ||
+      agent.resultText === undefined ||
+      agent.resultText === agent.resultSummary ? null : (
         <pre className="agent-result-text" aria-label={UI_TEXT.agentResultText}>
           {agent.resultText}
         </pre>
@@ -320,20 +371,80 @@ function AgentDetails({
   )
 }
 
+/** Receipts are built only in this lazy surface, after the child is selected. */
+function AgentReceiptView({
+  agent,
+  backend,
+  transcript,
+  onOpenFile,
+}: {
+  readonly agent: SubagentEntry
+  readonly backend: BackendKind | undefined
+  readonly transcript: ChildTranscript | undefined
+  readonly onOpenFile: AgentMapProps['onOpenFile']
+}) {
+  const items = (transcript?.entries ?? []).flatMap<ItemSnapshot>((entry) => {
+    if (entry.kind === 'tool')
+      return [
+        {
+          itemId: entry.id,
+          kind: 'toolCall',
+          status: entry.status,
+          tool: entry.tool,
+          args: entry.args,
+          changedFiles: entry.changedFiles,
+          exitCode: entry.exitCode,
+          durationMs: entry.durationMs,
+          verifySummary: entry.verifySummary,
+          thenRun: entry.thenRun,
+        },
+      ]
+    return entry.kind === 'assistant'
+      ? [{ itemId: entry.id, kind: 'agentMessage', status: 'completed', text: entry.text }]
+      : []
+  })
+  const history = agent.agentEvidence?.attempts ?? []
+  const receipt =
+    backend === 'modelApi'
+      ? (history.at(-1)?.receipt ??
+        buildAgentReceipt(items, agent.agentEvidence, agent.resultText ?? agent.resultSummary))
+      : buildAgentReceipt(items, agent.agentEvidence, agent.resultText ?? agent.resultSummary)
+  const attempts = history.slice(0, -1)
+  return (
+    <section aria-label={UI_TEXT.agentReceipt}>
+      <h4>{UI_TEXT.agentReceipt}</h4>
+      <AgentReceiptBody receipt={receipt} onOpenFile={onOpenFile} />
+      <AgentReceiptHistory attempts={attempts} onOpenFile={onOpenFile} />
+    </section>
+  )
+}
+
 /**
  * The conversation's background tasks (M14), each with its Stop while it
  * runs and one Stop all (M46): the row says what the task is, as its
  * transcript row does, and how it stands.
  */
+function taskSignals(task: ToolEntry) {
+  const evidence = toolAgentEvidence(task.status, task.exitCode)
+  if (task.approval !== undefined) evidence.waiting = 'approval'
+  else if (task.question !== undefined) evidence.waiting = 'input'
+  return { status: task.status, evidence }
+}
+
 function BackgroundTasks({
   tasks,
   onStopTask,
   onStopAllTasks,
+  onControl,
+  onOpenFile,
 }: {
   readonly tasks: readonly ToolEntry[]
   readonly onStopTask: (itemId: string) => void
   readonly onStopAllTasks: () => void
+  readonly onControl: AgentMapProps['onControl']
+  readonly onOpenFile: AgentMapProps['onOpenFile']
 }) {
+  const now = useAgentClock()
   const running = tasks.filter((task) => isRunningTask(task))
   return (
     <>
@@ -353,20 +464,71 @@ function BackgroundTasks({
       <ul className="agent-tasks" aria-label={UI_TEXT.backgroundTasksLabel}>
         {tasks.map((task) => {
           const presentation = describeTool(task.tool, task.args)
+          const signals = taskSignals(task)
+          const outcome = endedOutcome(signals)
+          const isRecoverable =
+            agentActivity(signals, now).activity === 'inactive' &&
+            (outcome === 'failed' || outcome === 'incomplete')
           return (
             <li key={task.id} className="agent-node agent-task">
               <span className="agent-node-title">
                 <span className={statusClassOf(task.status)} aria-hidden="true" />
                 {presentation.label}
               </span>
-              <span className="agent-node-meta">
+              <span className="agent-node-meta" aria-live="polite">
                 {[
                   presentation.summary === '' ? undefined : presentation.summary,
                   agentStatusLabel(task.status),
+                  agentStateText(taskSignals(task), now),
                 ]
                   .filter((part) => part !== undefined)
                   .join(' · ')}
               </span>
+              {isRunningTask(task) ? null : (
+                <AgentReceiptDisclosure
+                  onOpenFile={onOpenFile}
+                  readReceipt={() =>
+                    buildAgentReceipt(
+                      [
+                        {
+                          itemId: task.id,
+                          kind: 'toolCall',
+                          status: task.status,
+                          tool: task.tool,
+                          args: task.args,
+                          changedFiles: task.changedFiles,
+                          exitCode: task.exitCode,
+                          durationMs: task.durationMs,
+                        },
+                      ],
+                      taskSignals(task).evidence,
+                      task.output,
+                    )
+                  }
+                />
+              )}
+              {isRecoverable ? (
+                <div className="agent-control-row">
+                  <button
+                    type="button"
+                    className="tool-more"
+                    onClick={() => {
+                      onControl(task.id, 'continue')
+                    }}
+                  >
+                    {UI_TEXT.agentContinue}
+                  </button>
+                  <button
+                    type="button"
+                    className="tool-more"
+                    onClick={() => {
+                      onControl(task.id, 'retry')
+                    }}
+                  >
+                    {UI_TEXT.agentRetry}
+                  </button>
+                </div>
+              ) : null}
               {isRunningTask(task) ? (
                 <button
                   type="button"
@@ -410,6 +572,7 @@ export function AgentMapContent({
   onClose,
   workflows,
   workflowTriggerMode,
+  onOpenFile,
 }: AgentMapProps) {
   const selected = agents.find((agent) => agent.id === selectedAgentId)
   const transcript =
@@ -475,7 +638,7 @@ export function AgentMapContent({
                     className="agent-node workflow"
                     data-status={workflow.status}
                   >
-                    <WorkflowRunView entry={workflow} />
+                    <WorkflowRunView entry={workflow} onControl={onControl} />
                   </li>
                 ))}
               </ul>
@@ -497,6 +660,8 @@ export function AgentMapContent({
               tasks={backgroundTasks}
               onStopTask={onStopTask}
               onStopAllTasks={onStopAllTasks}
+              onControl={onControl}
+              onOpenFile={onOpenFile}
             />
           )}
         </>
@@ -510,6 +675,7 @@ export function AgentMapContent({
           }}
           onControl={onControl}
           onMessage={onMessage}
+          onOpenFile={onOpenFile}
         />
       )}
     </Modal>

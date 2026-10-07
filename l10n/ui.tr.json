@@ -2660,5 +2660,45 @@
   "referenceElicitationTitle": "MCP formları",
   "referenceElicitation": "MCP formları istekte bulunan MCP sunucusu için bilgi ister. Gönderilen form değerleri model konuşması ve dökümünün dışında bu sunucuya gider. Sunucu bunları sonraki araç çıktısına ekleyebilir. Asla parola veya anahtar girmeyin.",
   "referenceNativeAgentsConditions": "run.subagent_delegation_mode=\"auto\" olduğunda Muse Code aracılara devredebilir. \"off\" olduğunda devir araçları kullanılamaz. run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "UTF-8 yama dosyasında gizli bilgileri arar ve bulursa başarısız olur. --key-stdin bellekteki Model API anahtarının tam değerini de arar; anahtar saklanmaz."
+  "referenceScanSecrets": "UTF-8 yama dosyasında gizli bilgileri arar ve bulursa başarısız olur. --key-stdin bellekteki Model API anahtarının tam değerini de arar; anahtar saklanmaz.",
+  "agentActivities": {
+    "active": "Etkin",
+    "waiting": "Bekliyor",
+    "inactive": "Etkin değil"
+  },
+  "agentOutcomes": {
+    "complete": "Tamamlandı",
+    "incomplete": "Eksik",
+    "failed": "Başarısız",
+    "cancelled": "İptal edildi",
+    "unverified": "Bitti, doğrulanmadı"
+  },
+  "agentWaitingReasons": {
+    "approval": "onay",
+    "input": "girdi",
+    "queued": "sırada",
+    "interrupted": "kesintiye uğradı",
+    "idle": "yakın zamanda etkinlik yok"
+  },
+  "agentStopReasons": {
+    "normal": "Normal bitiş",
+    "budget": "Bütçe tükendi",
+    "error": "Hata",
+    "cancelled": "Kullanıcı durdurdu",
+    "unknown": "Kullanılamıyor"
+  },
+  "agentContinue": "Devam et",
+  "agentRetry": "Yeniden dene",
+  "agentReceipt": "Ajan kaydı",
+  "agentReceiptFiles": "Değişen dosyalar",
+  "agentReceiptChecks": "Komutlar ve kontroller",
+  "agentReceiptStop": "Durma nedeni",
+  "agentReceiptUnfinished": "Bitmemiş öğeler",
+  "agentReceiptHistory": "Deneme geçmişi",
+  "agentReceiptUnavailable": "Bu arka uç bu kanıtı sağlamadı.",
+  "agentReceiptTruncated": "Kayıt boyut sınırına ulaştı; bazı kanıtlar çıkarıldı.",
+  "agentRecoveryConfirm": "{action}: {objective}? Geçerli izinler ve bütçeler uygulanır.",
+  "agentRetryUnavailable": "Yeniden deneme kullanılamıyor: bu arka uç yalıtılmış çalışma ağacı kontrol noktası sağlamıyor. Ortak çalışma alanındaki değişiklikler korunur.",
+  "agentContinueUnavailable": "Bu ajan veya mevcut durumu için devam etme kullanılamıyor.",
+  "referenceAgentOutcomes": "Ajanlar etkinlik ve kanıta dayalı sonuçları gösterir. Sınırlı kayıt ve deneme geçmişi için bitmiş bir ajan seçin. Onaylanan devam işlemi oturumu ve değişiklikleri korur; yeniden deneme yalıtılmış kontrol noktası gerektirir. Eksik kanıt doğrulanmamış olarak gösterilir. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }
