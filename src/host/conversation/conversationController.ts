@@ -142,6 +142,7 @@ import {
   type ReportEventKind,
   UI_TEXT,
   QUESTION_DEFER_DEFAULT_SECONDS,
+  SCHEDULE_PROTOCOL_VERSION,
   USER_SHELL_ITEM_KIND,
   USER_SHELL_SANDBOX_FAILURE_MARKER,
 } from '../../shared/constants'
@@ -158,6 +159,8 @@ import type { GitAction, GitDraftKind } from '../../shared/git'
 import { backendLabel } from '../../shared/palette'
 import type { PaidUseRequest } from '../../shared/paid'
 import type { ScheduleCadence, ScheduledPrompt } from '../../shared/schedule'
+import type { SchedulesBridge } from '../schedules/schedulesBridge'
+import { parseScheduleHostMessage } from '../../shared/scheduleProtocol'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
 import { approvalModeFor, untrustedStartMode } from '../../shared/permissionModes'
 import type { MuseCodeReviewerPort } from '../review/museCodeReviewerBundle'
@@ -497,6 +500,8 @@ export interface ConversationDeps {
   /** M52 compatibility, removed when W binds all entry points to v2. */
   readonly confirmScheduledRun?: (job: ScheduledPrompt, modelId: string) => Promise<boolean>
   readonly isScheduledPaidOn?: () => boolean
+  /** The v2 schedules panel bridge (M115, PLAN.md D95); absent while disabled. */
+  readonly schedulesBridge?: SchedulesBridge
   /** The paid-use popup (M58, PLAN.md D48): before each Muse Voice recording. */
   readonly allowsPaidUse: (request: PaidUseRequest) => Promise<boolean>
   /** Turn checkpoints (M72): captured around each turn, restored from a user card. */
@@ -1298,6 +1303,8 @@ export class ConversationController {
    * open for this surface's conversation.
    */
   private tasksTabFor: { readonly sessionId: string | undefined } | undefined
+  /** One v2 channel request from the panel over the workspace control. */
+  private schedulesRevision = 0
 
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
@@ -7301,6 +7308,68 @@ export class ConversationController {
     }
   }
 
+  private async answerSchedules(input: unknown): Promise<void> {
+    const bridge = this.deps.schedulesBridge
+    const workspaceRoot = this.deps.workspaceRoot
+    if (bridge === undefined || workspaceRoot === undefined) return
+    try {
+      const answer = await bridge.message(input, workspaceRoot)
+      const parsed = parseScheduleHostMessage(answer)
+      if (!parsed.ok) return
+      this.post({ type: 'schedulesMessage', message: parsed.message })
+      if (
+        parsed.message.type === 'schedulesResponse' &&
+        parsed.message.response.kind === 'accepted'
+      ) {
+        this.schedulesRevision += 1
+        this.post({
+          type: 'schedulesMessage',
+          message: {
+            type: 'scheduleChanged',
+            version: SCHEDULE_PROTOCOL_VERSION,
+            workspaceKey: bridge.keyFor(workspaceRoot),
+            revision: this.schedulesRevision,
+          },
+        })
+      }
+    } catch (error: unknown) {
+      this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
+    }
+  }
+
+  /** A schedule command's panel: the v2 surface over this workspace. */
+  private openSchedules(initialView: 'list' | 'timeline' | 'editor'): void {
+    const bridge = this.deps.schedulesBridge
+    const workspaceRoot = this.deps.workspaceRoot
+    if (bridge === undefined || workspaceRoot === undefined) {
+      this.notice('warning', UI_TEXT.noWorkspaceReason)
+      return
+    }
+    const session =
+      this.session === undefined || this.sessionKind === undefined
+        ? undefined
+        : {
+            sessionId: this.session.sessionId,
+            backend: this.sessionKind,
+            label: UI_TEXT.scheduleV2.targets.conversation,
+          }
+    const nowMs = this.deps.now()
+    this.post({
+      type: 'schedulesSurface',
+      workspaceKey: bridge.keyFor(workspaceRoot),
+      targets: [...bridge.targets(session)],
+      // The session's backend first; 'modelApi' only before any session, for
+      // the fallback target the draft needs when no conversation is open.
+      defaultDraft: bridge.defaultDraft(
+        nowMs,
+        session,
+        this.sessionKind ?? this.deps.auth.current.backend ?? 'modelApi',
+      ),
+      nowMs,
+      initialView,
+    })
+  }
+
   private scheduleRunChanged(): void {
     this.notice(
       'warning',
@@ -8962,6 +9031,14 @@ export class ConversationController {
       }
       case 'scheduleRun': {
         await this.runSchedule(message.id, message.occurrenceMs)
+        break
+      }
+      case 'schedulesRequest': {
+        await this.answerSchedules(message.message)
+        break
+      }
+      case 'openSchedules': {
+        this.openSchedules(message.view)
         break
       }
       case 'exportConversation': {
