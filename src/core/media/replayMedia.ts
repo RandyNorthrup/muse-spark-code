@@ -19,11 +19,7 @@ import type { MediaBudget } from '../backends/modelapi/mediaBudget'
 import type { UploadLedger } from './uploadLedger'
 import { modalityGate, type MediaModelCapabilities, type MediaGateResult } from './modalityGate'
 
-export {
-  storedMediaPartSchema,
-  storedReplayMediaSchema,
-  type StoredMediaPart,
-} from '../../shared/media'
+export { storedMediaPartSchema, type StoredMediaPart } from '../../shared/media'
 
 export interface ReplayMediaDeps {
   readonly capabilities: (modelId: string) => MediaModelCapabilities
