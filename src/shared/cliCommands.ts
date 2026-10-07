@@ -4,6 +4,12 @@ import { ACP_AGENT_NAME, REFERENCE_DOCS_URL, UI_TEXT, SLASH_COMMAND_NAMES } from
 export function cliCommands() {
   return [
     {
+      route: 'judge',
+      name: 'judge ask|calibrate|report|mcp|serve|lint',
+      description: UI_TEXT.judgeCaution,
+      text: { ui: 'judgeCaution' },
+    },
+    {
       route: 'usage',
       name: 'usage [summary|daily|models|limits|export|open|serve] [options] / --usage --json',
       description: UI_TEXT.acpUsageDescription,

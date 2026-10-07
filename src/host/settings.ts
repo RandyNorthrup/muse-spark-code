@@ -115,6 +115,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly tabWithCopilot: TabWithCopilot
   /** The Muse Judge's engine (M98, PLAN.md D77): `auto` is `same` in phase 1. */
   readonly 'judge.engine': JudgeEngine
+  /** Configured separate source/model id; empty keeps today's single-model setup. */
+  readonly 'judge.separate': string
   /** The verify loop (M68, PLAN.md D49): diagnostics after edits, check commands, format on edit. */
   readonly diagnosticsAfterEdits: boolean
   readonly checkCommands: readonly CheckCommandSetting[]
@@ -200,6 +202,7 @@ const settingSchemas = {
   tabTrigger: z.enum(TAB_TRIGGER_MODES),
   tabWithCopilot: z.enum(TAB_WITH_COPILOT_MODES),
   'judge.engine': z.enum(JUDGE_ENGINES),
+  'judge.separate': z.string(),
   diagnosticsAfterEdits: z.boolean(),
   checkCommands: checkCommandsSchema,
   formatOnEdit: z.boolean(),
@@ -331,6 +334,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiRepositoryRules: readSetting(config, 'modelApiRepositoryRules', log),
     modelApiAutoReviewer: readSetting(config, 'modelApiAutoReviewer', log),
     'judge.engine': readSetting(config, 'judge.engine', log),
+    'judge.separate': readSetting(config, 'judge.separate', log),
     museCodeAutoReviewer: readSetting(config, 'museCodeAutoReviewer', log),
     modelApiTab: readSetting(config, 'modelApiTab', log),
     tabModel: readSetting(config, 'tabModel', log),

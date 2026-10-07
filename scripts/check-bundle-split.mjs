@@ -94,6 +94,78 @@ import { UI_TEXT_REGIONS } from './lib/uiTextRegions.mjs'
 
 const MODEL_API_DIR = 'src/core/backends/modelapi'
 const ENTRY = 'src/host/backend/modelApiEntry.ts'
+const JUDGE = { output: 'dist/judgeP2.js', metafile: 'dist/meta/judgeP2.json' }
+const JUDGE_ONLY = [
+  'src/runtime/judge/judgeEntry.ts',
+  'src/core/judge/calibration/apply.ts',
+  'src/core/judge/calibration/fit.ts',
+  'src/core/judge/calibration/report.ts',
+  'src/core/judge/calibration/schema.ts',
+  'src/core/judge/sampling.ts',
+  'src/core/judge/contrastive.ts',
+  'src/runtime/judge/serve.ts',
+  'src/runtime/judge/tokenFile.ts',
+  'src/runtime/judge/commands.ts',
+  'src/runtime/judge/mcp.ts',
+]
+const JUDGE_CHILDREN = [
+  {
+    output: 'dist/judgeLocal.js',
+    metafile: 'dist/meta/judgeLocal.json',
+    files: [
+      'src/runtime/judge/judgeLocalEntry.ts',
+      'src/runtime/judge/localHelper.ts',
+      'src/host/judge/local.ts',
+      'src/core/judge/local/darwinPeer.ts',
+      'src/core/judge/local/executable.ts',
+      'src/core/judge/local/linuxPeer.ts',
+      'src/core/judge/local/linuxVolume.ts',
+      'src/core/judge/local/model.ts',
+      'src/core/judge/local/posixPeer.ts',
+      'src/core/judge/local/recommendations.ts',
+      'src/core/judge/local/snapshot.ts',
+      'src/core/judge/local/source.ts',
+      'src/core/judge/local/transport.ts',
+      'src/core/judge/local/windowsPeer.ts',
+      'src/core/judge/local/wire.ts',
+    ],
+  },
+  {
+    output: 'dist/judgeUses.js',
+    metafile: 'dist/meta/judgeUses.json',
+    files: [
+      'src/runtime/judge/judgeUsesEntry.ts',
+      'src/host/judge/uses.ts',
+      'src/core/judge/uses/advice.ts',
+      'src/core/judge/uses/definitions.ts',
+      'src/core/judge/uses/fences.ts',
+    ],
+  },
+  {
+    output: 'dist/judgeLint.js',
+    metafile: 'dist/meta/judgeLint.json',
+    files: [
+      'src/runtime/judge/judgeLintEntry.ts',
+      'src/runtime/judge/lint.ts',
+      'src/host/judge/lint.ts',
+      'src/core/judge/lint/cache.ts',
+      'src/core/judge/lint/config.ts',
+      'src/core/judge/lint/context.ts',
+      'src/core/judge/lint/evals.ts',
+      'src/core/judge/lint/evaluate.ts',
+      'src/core/judge/lint/formats.ts',
+      'src/core/judge/lint/report.ts',
+      'src/core/judge/lint/rules.ts',
+      'src/core/judge/lint/syntax.ts',
+      'src/core/judge/lint/units.ts',
+    ],
+  },
+  {
+    output: 'dist/judgeHook.js',
+    metafile: 'dist/meta/judgeHook.json',
+    files: ['src/runtime/judge/judgeHookEntry.ts', 'src/runtime/judge/hook.ts'],
+  },
+]
 // M91 lane W: the adapters for hooks imported in another agent's format (lane
 // P's contracts and engine), dist/foreignHooks.js, loaded the first time a
 // session holding one runs a hook.
@@ -586,6 +658,8 @@ for (const bundle of [
   PROMPTS,
   SHARING_RUNTIME,
   REVIEW,
+  JUDGE,
+  ...JUDGE_CHILDREN,
   ...DEFERRED,
   AGENT_IMPORT,
   CONVERSATION_GIT,
@@ -921,6 +995,42 @@ const webviewReview = SHIPPED.filter(
 )
 if (webviewReview.length !== 1) {
   problems.push('exactly one webview graph must carry ReviewPane')
+}
+// The shared parser exposes conversion lazily; no other shipped bundle may
+// carry the converter or its entry, even if a caller only lists tools.
+for (const file of ['src/host/validationSchemaEntry.ts']) {
+  for (const bundle of SHIPPED) {
+    if (bundle.output !== 'dist/validationSchema.js' && inputsOf(bundle).has(file))
+      problems.push(`${bundle.output} carries ${file}, which loads only for JSON Schema conversion`)
+  }
+  if (
+    !inputsOf({
+      output: 'dist/validationSchema.js',
+      metafile: 'dist/meta/validationSchema.json',
+    }).has(file)
+  )
+    problems.push(`dist/validationSchema.js no longer carries ${file}`)
+}
+
+// Phase-2 implementations belong only to the explicit-action factory. This
+// includes every other lazy bundle, so an accidental import cannot hide there.
+const judge = inputsOf(JUDGE)
+for (const file of JUDGE_ONLY) {
+  if (!judge.has(file)) problems.push(`${JUDGE.output} no longer carries ${file}`)
+  for (const bundle of SHIPPED) {
+    if (bundle.output !== JUDGE.output && inputsOf(bundle).has(file)) {
+      problems.push(`${bundle.output} carries ${file}, which belongs to the lazy judge bundle`)
+    }
+  }
+}
+for (const child of JUDGE_CHILDREN) {
+  for (const file of child.files) {
+    if (!inputsOf(child).has(file)) problems.push(`${child.output} no longer carries ${file}`)
+    for (const bundle of SHIPPED) {
+      if (bundle.output !== child.output && inputsOf(bundle).has(file))
+        problems.push(`${bundle.output} carries ${file}, which belongs to ${child.output}`)
+    }
+  }
 }
 /** The shipped bundle that `output` names; a missing one is a problem. */
 function shipped(output) {
@@ -1425,6 +1535,7 @@ console.log('ok   webview: optional surfaces and highlighting load only in guard
 console.log(
   `ok   ${CONVERSATION_GIT.output}: carries the Git adapter and the window's ${String(GIT_ONLY.length - 2)} git and pull request files; activation keeps its checked loader`,
 )
+console.log(`ok   ${JUDGE.output}: B/D/CS/G load only on an explicit judge action`)
 for (const bundle of DEFERRED) console.log(`ok   ${bundle.output}: loads only on its first action`)
 for (const bundle of ON_FIRST_USE) {
   console.log(`ok   ${bundle.output}: loads only on ${bundle.use}, never at activation`)

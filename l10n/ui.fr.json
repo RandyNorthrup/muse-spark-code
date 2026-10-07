@@ -4151,5 +4151,11 @@
   "promptDeleteConfirm": "Supprimer ce prompt ?",
   "promptLink": "Importer depuis un lien ou une URL de gist brut",
   "promptFromFile": "Importer depuis un fichier",
-  "promptImportConfirm": "Enregistrer le prompt importé"
+  "promptImportConfirm": "Enregistrer le prompt importé",
+  "judgeSourceSame": "Votre modèle de conversation",
+  "judgeSourceSeparate": "Évaluateur distinct",
+  "judgeSourceBoth": "Votre modèle et évaluateur distinct",
+  "judgeLocalUnverified": "Point de terminaison local non vérifié",
+  "judgeSourceUntested": "Expérimental, non testé ; accord explicite requis",
+  "judgeNoAnswer": "Aucune réponse de l’évaluateur ({reason}). Les vérifications et approbations existantes restent applicables."
 }

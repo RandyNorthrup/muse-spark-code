@@ -4295,5 +4295,11 @@
   "promptDeleteConfirm": "Удалить этот запрос?",
   "promptLink": "Импорт по ссылке или URL исходного gist",
   "promptFromFile": "Импорт из файла",
-  "promptImportConfirm": "Сохранить импортированный запрос"
+  "promptImportConfirm": "Сохранить импортированный запрос",
+  "judgeSourceSame": "Собственная модель беседы",
+  "judgeSourceSeparate": "Отдельный оценщик",
+  "judgeSourceBoth": "Собственная модель и отдельный оценщик",
+  "judgeLocalUnverified": "Непроверенная локальная конечная точка",
+  "judgeSourceUntested": "Экспериментально, не проверено; нужно явное согласие",
+  "judgeNoAnswer": "Оценщик не ответил ({reason}). Существующие проверки и подтверждения продолжают действовать."
 }

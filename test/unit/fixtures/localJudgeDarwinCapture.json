@@ -1,0 +1,116 @@
+{
+  "workspace": "/Users/<owner>/lanes/M98J3M",
+  "runtimeVersion": "0.35.1",
+  "platform": "darwin-x64",
+  "releaseArchiveSha256": "60dba52660dc7cb4e160e914edd76b98271945941f5db40d34a507cef544970e",
+  "teamId": "3MU9H2V9Y9",
+  "executableDigest": "5f0e245e8369a66b7b24654c51c8ec95f3eab9a1e263f6e95e20d2d4374b8e26",
+  "counts": {
+    "attempts": 5,
+    "completed": 5
+  },
+  "request": {
+    "model": "tev1:0.8b-q8_0",
+    "state": "git status",
+    "questions": {
+      "risk": {
+        "type": "noul",
+        "instructions": "Can this command delete data?"
+      }
+    }
+  },
+  "response": {
+    "model": "tev1:0.8b-q8_0",
+    "answers": {
+      "risk": {
+        "type": "noul",
+        "noul": 0.1402065161341606
+      }
+    },
+    "usage": {
+      "input_tokens": 107,
+      "output_tokens": 1
+    }
+  },
+  "tags": {
+    "models": [
+      {
+        "name": "tev1:0.8b-q8_0",
+        "model": "tev1:0.8b-q8_0",
+        "modified_at": "2026-10-05T12:07:04.193001362-07:00",
+        "size": 811856202,
+        "digest": "d45e875d63fed9465390a4eb9e55f51f470390a446667b55d0a075a15e0336bf",
+        "details": {
+          "parent_model": "Tev1-0.8B-Q8_0.gguf",
+          "format": "gguf",
+          "family": "qwen35",
+          "families": ["qwen35"],
+          "parameter_size": "752.39M",
+          "quantization_level": "Q8_0",
+          "context_length": 262144,
+          "embedding_length": 1024
+        },
+        "capabilities": ["decision"]
+      }
+    ]
+  },
+  "health": {
+    "models": [
+      {
+        "name": "tev1:0.8b-q8_0",
+        "model": "tev1:0.8b-q8_0",
+        "size": 896962395,
+        "digest": "d45e875d63fed9465390a4eb9e55f51f470390a446667b55d0a075a15e0336bf",
+        "details": {
+          "parent_model": "",
+          "format": "gguf",
+          "family": "qwen35",
+          "families": ["qwen35"],
+          "parameter_size": "752.39M",
+          "quantization_level": "Q8_0"
+        },
+        "expires_at": "2026-10-05T12:19:28.689047-07:00",
+        "size_vram": 0,
+        "context_length": 2050
+      }
+    ]
+  },
+  "peers": [
+    {
+      "pid": 41733,
+      "creationTime": "1791227123536208",
+      "executable": "<rig-install>/Ollama.app/Contents/Resources/ollama",
+      "uid": 502,
+      "executableDigest": "5f0e245e8369a66b7b24654c51c8ec95f3eab9a1e263f6e95e20d2d4374b8e26"
+    },
+    {
+      "pid": 41733,
+      "creationTime": "1791227123536208",
+      "executable": "<rig-install>/Ollama.app/Contents/Resources/ollama",
+      "uid": 502,
+      "executableDigest": "5f0e245e8369a66b7b24654c51c8ec95f3eab9a1e263f6e95e20d2d4374b8e26"
+    },
+    {
+      "pid": 41733,
+      "creationTime": "1791227123536208",
+      "executable": "<rig-install>/Ollama.app/Contents/Resources/ollama",
+      "uid": 502,
+      "executableDigest": "5f0e245e8369a66b7b24654c51c8ec95f3eab9a1e263f6e95e20d2d4374b8e26"
+    },
+    {
+      "pid": 41733,
+      "creationTime": "1791227123536208",
+      "executable": "<rig-install>/Ollama.app/Contents/Resources/ollama",
+      "uid": 502,
+      "executableDigest": "5f0e245e8369a66b7b24654c51c8ec95f3eab9a1e263f6e95e20d2d4374b8e26"
+    }
+  ],
+  "ports": [62078, 62080, 62080, 62096],
+  "disk": {
+    "digest": "d45e875d63fed9465390a4eb9e55f51f470390a446667b55d0a075a15e0336bf",
+    "weightBytes": 811843424
+  },
+  "elapsedMs": 10765.030599000002,
+  "verifiedMs": 10674.525374,
+  "noBytesBeforeProof": true
+}

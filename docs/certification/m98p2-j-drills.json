@@ -1,0 +1,645 @@
+[
+  {
+    "guard": "coherent blob snapshot",
+    "file": "src/core/judge/local/model.ts",
+    "test": "refuses blobs that never matched in one consistent snapshot",
+    "mutation": "remove final digest/identity revalidation of held blobs",
+    "exit": 1,
+    "greenExit": 0,
+    "before": "997d57328d3e86b3727b60d3c78f84e2d3167520db76a5ee132d1802ce9889d6",
+    "after": "997d57328d3e86b3727b60d3c78f84e2d3167520db76a5ee132d1802ce9889d6"
+  },
+  {
+    "guard": "unverified confidentiality",
+    "file": "src/core/judge/local/source.ts",
+    "test": "test/unit/judgeLocalSource.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > refuses unverified confidential without opening any socket"
+    ],
+    "mutationIndex": 0,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e",
+    "after": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e"
+  },
+  {
+    "guard": "unverified never automatic",
+    "file": "src/core/judge/local/source.ts",
+    "test": "test/unit/judgeLocalSource.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > refuses unverified auto without opening any socket"
+    ],
+    "mutationIndex": 1,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e",
+    "after": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e"
+  },
+  {
+    "guard": "local option enabled",
+    "file": "src/core/judge/local/source.ts",
+    "test": "test/unit/judgeLocalSource.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > refuses disabled before dispatch"
+    ],
+    "mutationIndex": 2,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e",
+    "after": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e"
+  },
+  {
+    "guard": "per-platform certification",
+    "file": "src/core/judge/local/source.ts",
+    "test": "test/unit/judgeLocalSource.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > refuses native before dispatch",
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > refuses platform before dispatch",
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > refuses receipt before dispatch"
+    ],
+    "mutationIndex": 3,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e",
+    "after": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e"
+  },
+  {
+    "guard": "current configuration after waits",
+    "file": "src/core/judge/local/source.ts",
+    "test": "test/unit/judgeLocalSource.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > rebinds confidentiality and mode after model verification waits"
+    ],
+    "mutationIndex": 4,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e",
+    "after": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e"
+  },
+  {
+    "guard": "request never switches model",
+    "file": "src/core/judge/local/source.ts",
+    "test": "test/unit/judgeLocalSource.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > refuses request-model before dispatch"
+    ],
+    "mutationIndex": 5,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e",
+    "after": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e"
+  },
+  {
+    "guard": "captured exact capability identity",
+    "file": "src/core/judge/local/source.ts",
+    "test": "test/unit/judgeLocalSource.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > refuses capability before dispatch"
+    ],
+    "mutationIndex": 6,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e",
+    "after": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e"
+  },
+  {
+    "guard": "process generation on every socket",
+    "file": "src/core/judge/local/source.ts",
+    "test": "test/unit/judgeLocalSource.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > refuses a process replacement after metadata before sending content"
+    ],
+    "mutationIndex": 7,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e",
+    "after": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e"
+  },
+  {
+    "guard": "served and local disk digest",
+    "file": "src/core/judge/local/source.ts",
+    "test": "test/unit/judgeLocalSource.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > refuses mismatching disk provenance on the exact content socket"
+    ],
+    "mutationIndex": 8,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e",
+    "after": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e"
+  },
+  {
+    "guard": "loaded context and full overhead",
+    "file": "src/core/judge/local/source.ts",
+    "test": "test/unit/judgeLocalSource.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > measures the complete request against loaded context before content",
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > splits SystemOne questions to fit without splitting state or losing usage"
+    ],
+    "mutationIndex": 9,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e",
+    "after": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e"
+  },
+  {
+    "guard": "full state in split requests",
+    "file": "src/core/judge/local/source.ts",
+    "test": "test/unit/judgeLocalSource.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > proves metadata and each content socket again after disk hashing",
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > splits qwen questions only, with the whole state and one fresh proof per call",
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > splits SystemOne questions to fit without splitting state or losing usage"
+    ],
+    "mutationIndex": 10,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e",
+    "after": "a81bf5f7229142ff8c4f959558c52b918c9b17e5dad13471c82a124d58e1594e"
+  },
+  {
+    "guard": "SystemOne answer/model alignment",
+    "file": "src/core/judge/local/wire.ts",
+    "test": "test/unit/judgeLocalWire.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalWire.test.ts > M98 J2 captured local result boundary > refuses invalid model rather than manufacturing an answer",
+      "test/unit/judgeLocalWire.test.ts > M98 J2 captured local result boundary > refuses invalid extra rather than manufacturing an answer"
+    ],
+    "mutationIndex": 11,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "18d49c4fd79564c282bc7238147285774b837c7b133a09e80ad5ca0235119219",
+    "after": "18d49c4fd79564c282bc7238147285774b837c7b133a09e80ad5ca0235119219"
+  },
+  {
+    "guard": "requested answer kind",
+    "file": "src/core/judge/local/wire.ts",
+    "test": "test/unit/judgeLocalWire.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalWire.test.ts > M98 J2 captured local result boundary > rejects a valid wire answer of the wrong requested kind"
+    ],
+    "mutationIndex": 12,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "18d49c4fd79564c282bc7238147285774b837c7b133a09e80ad5ca0235119219",
+    "after": "18d49c4fd79564c282bc7238147285774b837c7b133a09e80ad5ca0235119219"
+  },
+  {
+    "guard": "all and only probability alternatives",
+    "file": "src/core/judge/local/wire.ts",
+    "test": "test/unit/judgeLocalWire.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalWire.test.ts > M98 J2 captured local result boundary > refuses invalid option-keys rather than manufacturing an answer"
+    ],
+    "mutationIndex": 13,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "18d49c4fd79564c282bc7238147285774b837c7b133a09e80ad5ca0235119219",
+    "after": "18d49c4fd79564c282bc7238147285774b837c7b133a09e80ad5ca0235119219"
+  },
+  {
+    "guard": "probability mass",
+    "file": "src/core/judge/local/wire.ts",
+    "test": "test/unit/judgeLocalWire.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalWire.test.ts > M98 J2 captured local result boundary > refuses invalid mass rather than manufacturing an answer"
+    ],
+    "mutationIndex": 14,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "18d49c4fd79564c282bc7238147285774b837c7b133a09e80ad5ca0235119219",
+    "after": "18d49c4fd79564c282bc7238147285774b837c7b133a09e80ad5ca0235119219"
+  },
+  {
+    "guard": "choice refers to offered option",
+    "file": "src/core/judge/local/wire.ts",
+    "test": "test/unit/judgeLocalWire.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalWire.test.ts > M98 J2 captured local result boundary > refuses invalid choice rather than manufacturing an answer"
+    ],
+    "mutationIndex": 15,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "18d49c4fd79564c282bc7238147285774b837c7b133a09e80ad5ca0235119219",
+    "after": "18d49c4fd79564c282bc7238147285774b837c7b133a09e80ad5ca0235119219"
+  },
+  {
+    "guard": "score/legend alignment",
+    "file": "src/core/judge/local/wire.ts",
+    "test": "test/unit/judgeLocalWire.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalWire.test.ts > M98 J2 captured local result boundary > refuses invalid legend rather than manufacturing an answer",
+      "test/unit/judgeLocalWire.test.ts > M98 J2 captured local result boundary > refuses invalid score rather than manufacturing an answer"
+    ],
+    "mutationIndex": 16,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "18d49c4fd79564c282bc7238147285774b837c7b133a09e80ad5ca0235119219",
+    "after": "18d49c4fd79564c282bc7238147285774b837c7b133a09e80ad5ca0235119219"
+  },
+  {
+    "guard": "chat chosen model",
+    "file": "src/core/judge/local/wire.ts",
+    "test": "test/unit/judgeLocalWire.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalWire.test.ts > M98 J2 captured local result boundary > refuses model chat evidence"
+    ],
+    "mutationIndex": 17,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "18d49c4fd79564c282bc7238147285774b837c7b133a09e80ad5ca0235119219",
+    "after": "18d49c4fd79564c282bc7238147285774b837c7b133a09e80ad5ca0235119219"
+  },
+  {
+    "guard": "native host posture",
+    "file": "src/host/judge/local.ts",
+    "test": "test/unit/judgeLocalHost.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalHost.test.ts > M98 J2 host posture and status > refuses remote before writing even metadata",
+      "test/unit/judgeLocalHost.test.ts > M98 J2 host posture and status > refuses container before writing even metadata",
+      "test/unit/judgeLocalHost.test.ts > M98 J2 host posture and status > refuses wsl before writing even metadata",
+      "test/unit/judgeLocalHost.test.ts > M98 J2 host posture and status > refuses unknown before writing even metadata"
+    ],
+    "mutationIndex": 18,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "67c75389c8725501b63e2da2472d9353da000dab50f732275b3b7150806fba66",
+    "after": "67c75389c8725501b63e2da2472d9353da000dab50f732275b3b7150806fba66"
+  },
+  {
+    "guard": "canonical Windows model root",
+    "file": "src/core/judge/local/windowsPeer.ts",
+    "test": "test/unit/judgeLocalHost.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalHost.test.ts > M98 J2 real Windows model-volume helper > accepts a canonical fixed-volume fixture and refuses a junction root"
+    ],
+    "mutationIndex": 19,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "e50acdf8ddfaaf4340231b2304c28aec8136a5012e1a3a2cecb4c74b8ecb3c59",
+    "after": "e50acdf8ddfaaf4340231b2304c28aec8136a5012e1a3a2cecb4c74b8ecb3c59"
+  },
+  {
+    "guard": "fixed Windows volume",
+    "file": "native/windows/MuseSparkLocalJudgePeer.cs",
+    "test": "test/unit/judgeLocalHost.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalHost.test.ts > M98 J2 real Windows model-volume helper > accepts a canonical fixed-volume fixture and refuses a junction root"
+    ],
+    "mutationIndex": 20,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "a7a47577e5c82919fc58efe1f375308ea8bc2dadea555016a1e8670b90990477",
+    "after": "a7a47577e5c82919fc58efe1f375308ea8bc2dadea555016a1e8670b90990477"
+  },
+  {
+    "guard": "explicit download action",
+    "file": "src/core/judge/local/recommendations.ts",
+    "test": "test/unit/judgeLocalPull.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalPull.test.ts > M98 J2 explicit consented model download boundary > never pulls for automatic",
+      "test/unit/judgeLocalPull.test.ts > M98 J2 explicit consented model download boundary > never pulls for changed-action"
+    ],
+    "mutationIndex": 21,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "f8a3bfe517001ab1a143a236345486587ca9484879c36a342be1915aa5de7952",
+    "after": "f8a3bfe517001ab1a143a236345486587ca9484879c36a342be1915aa5de7952"
+  },
+  {
+    "guard": "download consent",
+    "file": "src/core/judge/local/recommendations.ts",
+    "test": "test/unit/judgeLocalPull.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalPull.test.ts > M98 J2 explicit consented model download boundary > never pulls for declined"
+    ],
+    "mutationIndex": 22,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "f8a3bfe517001ab1a143a236345486587ca9484879c36a342be1915aa5de7952",
+    "after": "f8a3bfe517001ab1a143a236345486587ca9484879c36a342be1915aa5de7952"
+  },
+  {
+    "guard": "vetted executable bytes",
+    "file": "src/core/judge/local/executable.ts",
+    "test": "test/unit/judgeLocalExecutable.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalExecutable.test.ts > M98 J2 vetted executable and real pull implementation (fake executor) > does not start a pull after digest refusal"
+    ],
+    "mutationIndex": 23,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "d380d15f9ae6f1558df42a1efccc1e41a52748ff77efcf50ad4ead26e0007903",
+    "after": "d380d15f9ae6f1558df42a1efccc1e41a52748ff77efcf50ad4ead26e0007903"
+  },
+  {
+    "guard": "canonical executable path",
+    "file": "src/core/judge/local/executable.ts",
+    "test": "test/unit/judgeLocalExecutable.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalExecutable.test.ts > M98 J2 vetted executable and real pull implementation (fake executor) > refuses an executable reached through a redirected directory"
+    ],
+    "mutationIndex": 24,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "d380d15f9ae6f1558df42a1efccc1e41a52748ff77efcf50ad4ead26e0007903",
+    "after": "d380d15f9ae6f1558df42a1efccc1e41a52748ff77efcf50ad4ead26e0007903"
+  },
+  {
+    "guard": "credential-free pull child",
+    "file": "src/host/judge/local.ts",
+    "test": "test/unit/judgeLocalExecutable.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalExecutable.test.ts > M98 J2 vetted executable and real pull implementation (fake executor) > verifies exact bytes then invokes only the consented model without credential environment"
+    ],
+    "mutationIndex": 25,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "67c75389c8725501b63e2da2472d9353da000dab50f732275b3b7150806fba66",
+    "after": "67c75389c8725501b63e2da2472d9353da000dab50f732275b3b7150806fba66"
+  },
+  {
+    "guard": "bounded asynchronous verifier",
+    "file": "src/core/judge/local/transport.ts",
+    "test": "test/unit/judgeLocalTransport.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalTransport.test.ts > M98-2j pinned transport > bounds a stalled verifier on deadline and sends zero bytes"
+    ],
+    "mutationIndex": 26,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "7d0d0bbd8c5f227686970635ddb68a842eed1f83fb0bdc2d5db6bfcb7e01689c",
+    "after": "7d0d0bbd8c5f227686970635ddb68a842eed1f83fb0bdc2d5db6bfcb7e01689c"
+  },
+  {
+    "guard": "cancel asynchronous verifier",
+    "file": "src/core/judge/local/transport.ts",
+    "test": "test/unit/judgeLocalTransport.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalTransport.test.ts > M98-2j pinned transport > bounds a stalled verifier on cancel and sends zero bytes"
+    ],
+    "mutationIndex": 27,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "7d0d0bbd8c5f227686970635ddb68a842eed1f83fb0bdc2d5db6bfcb7e01689c",
+    "after": "7d0d0bbd8c5f227686970635ddb68a842eed1f83fb0bdc2d5db6bfcb7e01689c"
+  },
+  {
+    "guard": "Linux exact reversed tuple",
+    "file": "src/core/judge/local/posixPeer.ts",
+    "test": "test/unit/judgeLocalPosix.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 linux design guard (fake native evidence) > refuses tuple ambiguity"
+    ],
+    "mutationIndex": 28,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e",
+    "after": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e"
+  },
+  {
+    "guard": "Linux socket UID",
+    "file": "src/core/judge/local/posixPeer.ts",
+    "test": "test/unit/judgeLocalPosix.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 linux design guard (fake native evidence) > refuses foreign ambiguity"
+    ],
+    "mutationIndex": 29,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e",
+    "after": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e"
+  },
+  {
+    "guard": "Linux namespace proof",
+    "file": "src/core/judge/local/posixPeer.ts",
+    "test": "test/unit/judgeLocalPosix.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 Linux namespace and ownership evidence > refuses namespace without trusting visibility",
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 Linux namespace and ownership evidence > refuses start-time without trusting visibility"
+    ],
+    "mutationIndex": 30,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e",
+    "after": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e"
+  },
+  {
+    "guard": "native process generation",
+    "file": "src/core/judge/local/posixPeer.ts",
+    "test": "test/unit/judgeLocalPosix.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 linux design guard (fake native evidence) > refuses pid-reuse ambiguity",
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 darwin design guard (fake native evidence) > refuses pid-reuse ambiguity"
+    ],
+    "mutationIndex": 31,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e",
+    "after": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e"
+  },
+  {
+    "guard": "native held lease is live",
+    "file": "src/core/judge/local/posixPeer.ts",
+    "test": "test/unit/judgeLocalPosix.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 linux design guard (fake native evidence) > requires the full IPv4 tuple and a held lifetime lease",
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 linux design guard (fake native evidence) > requires the full IPv6 tuple and a held lifetime lease",
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 darwin design guard (fake native evidence) > requires the full IPv4 tuple and a held lifetime lease",
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 darwin design guard (fake native evidence) > requires the full IPv6 tuple and a held lifetime lease",
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 linux design guard (fake native evidence) > refuses dead ambiguity",
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 darwin design guard (fake native evidence) > refuses dead ambiguity"
+    ],
+    "mutationIndex": 32,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e",
+    "after": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e"
+  },
+  {
+    "guard": "native local-volume proof",
+    "file": "src/core/judge/local/posixPeer.ts",
+    "test": "test/unit/judgeLocalPosix.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 linux design guard (fake native evidence) > refuses volume ambiguity",
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 darwin design guard (fake native evidence) > refuses volume ambiguity"
+    ],
+    "mutationIndex": 33,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e",
+    "after": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e"
+  },
+  {
+    "guard": "native installed executable digest",
+    "file": "src/core/judge/local/posixPeer.ts",
+    "test": "test/unit/judgeLocalPosix.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 linux design guard (fake native evidence) > refuses fingerprint ambiguity",
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 darwin design guard (fake native evidence) > refuses fingerprint ambiguity"
+    ],
+    "mutationIndex": 34,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e",
+    "after": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e"
+  },
+  {
+    "guard": "macOS exact tuple",
+    "file": "src/core/judge/local/posixPeer.ts",
+    "test": "test/unit/judgeLocalPosix.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 darwin design guard (fake native evidence) > refuses tuple ambiguity"
+    ],
+    "mutationIndex": 35,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e",
+    "after": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e"
+  },
+  {
+    "guard": "macOS numeric owner",
+    "file": "src/core/judge/local/posixPeer.ts",
+    "test": "test/unit/judgeLocalPosix.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 darwin design guard (fake native evidence) > refuses foreign ambiguity"
+    ],
+    "mutationIndex": 36,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e",
+    "after": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e"
+  },
+  {
+    "guard": "macOS unique connected owner",
+    "file": "src/core/judge/local/posixPeer.ts",
+    "test": "test/unit/judgeLocalPosix.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 darwin design guard (fake native evidence) > refuses multiple ambiguity"
+    ],
+    "mutationIndex": 37,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e",
+    "after": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e"
+  },
+  {
+    "guard": "redacted judged data",
+    "file": "src/core/judge/local/source.ts",
+    "test": "test/unit/judgeLocalSource.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > redacts state and criteria before a possibly forwarded endpoint without changing ids"
+    ],
+    "mutationIndex": 38,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "566cd9689884d9b853cffffd1ab00a5beff56d85567570090e48da4f557bacd6",
+    "after": "566cd9689884d9b853cffffd1ab00a5beff56d85567570090e48da4f557bacd6"
+  },
+  {
+    "guard": "Linux native start time",
+    "file": "src/core/judge/local/posixPeer.ts",
+    "test": "test/unit/judgeLocalPosix.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 Linux namespace and ownership evidence > refuses start-time without trusting visibility"
+    ],
+    "mutationIndex": 39,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e",
+    "after": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e"
+  },
+  {
+    "guard": "canonical POSIX installation",
+    "file": "src/core/judge/local/posixPeer.ts",
+    "test": "test/unit/judgeLocalPosix.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 linux design guard (fake native evidence) > refuses redirect ambiguity",
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 darwin design guard (fake native evidence) > refuses redirect ambiguity"
+    ],
+    "mutationIndex": 40,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e",
+    "after": "192a68b87038bccfa29ce5cd7b8d1bda74fc9f6d6b0f3679f7eeb5e3bf74cc8e"
+  },
+  {
+    "guard": "rehash snapshot after hash helper refactor",
+    "file": "src/core/judge/local/model.ts",
+    "test": "test/unit/judgeLocalModel.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalModel.test.ts > M98-2j captured model provenance > refuses blobs that never matched in one consistent snapshot"
+    ],
+    "mutationIndex": 41,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "4d91b1c1255e950156826459556517d3889c78c983e31de6f0c4062b98bee8ae",
+    "after": "4d91b1c1255e950156826459556517d3889c78c983e31de6f0c4062b98bee8ae"
+  },
+  {
+    "guard": "exact loaded model and served digest",
+    "file": "src/core/judge/local/source.ts",
+    "test": "test/unit/judgeLocalSource.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > refuses duplicates loaded health",
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > refuses digest loaded health"
+    ],
+    "mutationIndex": 42,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "566cd9689884d9b853cffffd1ab00a5beff56d85567570090e48da4f557bacd6",
+    "after": "566cd9689884d9b853cffffd1ab00a5beff56d85567570090e48da4f557bacd6"
+  },
+  {
+    "guard": "uncalibrated qwen never automatic",
+    "file": "src/core/judge/local/source.ts",
+    "test": "test/unit/judgeLocalSource.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > keeps the uncalibrated qwen recommendation out of automatic selection"
+    ],
+    "mutationIndex": 43,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "566cd9689884d9b853cffffd1ab00a5beff56d85567570090e48da4f557bacd6",
+    "after": "566cd9689884d9b853cffffd1ab00a5beff56d85567570090e48da4f557bacd6"
+  },
+  {
+    "guard": "Linux connected inode unchanged",
+    "file": "src/core/judge/local/posixPeer.ts",
+    "test": "test/unit/judgeLocalPosix.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 Linux namespace and ownership evidence > refuses inode-change without trusting visibility"
+    ],
+    "mutationIndex": 44,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "d498de5c4311317d1881a6c63babcaccebb7f3b3159c160caf601ac4eb9b11eb",
+    "after": "d498de5c4311317d1881a6c63babcaccebb7f3b3159c160caf601ac4eb9b11eb"
+  },
+  {
+    "guard": "sparse option prompt alignment",
+    "file": "src/core/judge/local/source.ts",
+    "test": "test/unit/judgeLocalSource.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > splits qwen questions only, with the whole state and one fresh proof per call"
+    ],
+    "mutationIndex": 45,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "30730a7bd6dc4c904cd27cb754d299f70c3319cd1d6fb375e06c75da883067ca",
+    "after": "30730a7bd6dc4c904cd27cb754d299f70c3319cd1d6fb375e06c75da883067ca"
+  },
+  {
+    "guard": "shared native file metadata comparison",
+    "file": "src/core/judge/local/snapshot.ts",
+    "test": "test/unit/judgeLocalModel.test.ts",
+    "namedFailures": [
+      "test/unit/judgeLocalModel.test.ts > M98-2j captured model provenance > refuses a pathname replacement while the original blob handle remains valid"
+    ],
+    "mutationIndex": 46,
+    "exit": 1,
+    "greenExit": 0,
+    "before": "598aa4d9d2eac8f13460ae20d8616d88c363f71deb7bcbae9436b5003072cebd",
+    "after": "598aa4d9d2eac8f13460ae20d8616d88c363f71deb7bcbae9436b5003072cebd"
+  }
+]

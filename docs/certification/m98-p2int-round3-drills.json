@@ -1,0 +1,700 @@
+{
+  "startingHead": "ef67306f",
+  "merges": {
+    "H": "b2a165d1",
+    "GH": "1e53e27f"
+  },
+  "prerequisites": "8b139f6f",
+  "conflicts": [
+    ".github/workflows/build.yml",
+    "CHANGELOG.md",
+    "PLAN.md",
+    "docs/ide-compatibility/host-api.md",
+    "l10n/ui.cs.json",
+    "l10n/ui.de.json",
+    "l10n/ui.es.json",
+    "l10n/ui.fr.json",
+    "l10n/ui.hu.json",
+    "l10n/ui.it.json",
+    "l10n/ui.ja.json",
+    "l10n/ui.ko.json",
+    "l10n/ui.pl.json",
+    "l10n/ui.pt-br.json",
+    "l10n/ui.ru.json",
+    "l10n/ui.tr.json",
+    "l10n/ui.zh-cn.json",
+    "l10n/ui.zh-tw.json",
+    "package.json",
+    "package.nls.cs.json",
+    "package.nls.de.json",
+    "package.nls.es.json",
+    "package.nls.fr.json",
+    "package.nls.hu.json",
+    "package.nls.it.json",
+    "package.nls.ja.json",
+    "package.nls.json",
+    "package.nls.ko.json",
+    "package.nls.pl.json",
+    "package.nls.pt-br.json",
+    "package.nls.ru.json",
+    "package.nls.tr.json",
+    "package.nls.zh-cn.json",
+    "package.nls.zh-tw.json",
+    "scripts/build.mjs",
+    "scripts/check-bundle-size.mjs",
+    "scripts/check-bundle-split.mjs",
+    "scripts/package-acp.mjs",
+    "scripts/third-party-notices.mjs",
+    "src/extension.ts",
+    "src/host/paid/paidHost.ts",
+    "src/runtime/main.ts"
+  ],
+  "prerequisiteControls": [
+    {
+      "name": "english-value-preservation",
+      "file": "scripts/build.mjs",
+      "mutation": {
+        "old": "JSON.stringify(context.module.exports.EN)",
+        "next": "JSON.stringify({})"
+      },
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/deferredBundles.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "rejection": "preserves every English fallback value",
+      "redExit": 1,
+      "greenExit": 0,
+      "original": {
+        "sha256": "955a8bcf0e59b6549b2f08f6b797bbd8a783b22f463a2e6e06b25fc5e0baf21e"
+      },
+      "restored": {
+        "sha256": "955a8bcf0e59b6549b2f08f6b797bbd8a783b22f463a2e6e06b25fc5e0baf21e"
+      }
+    },
+    {
+      "name": "lazy-conversion",
+      "file": "src/host/validationSchema.ts",
+      "mutation": {
+        "old": "/** The parser stays small;",
+        "next": "const eagerWriter: unknown = createRequire(__filename)('./validationSchema.js')\n\n/** The parser stays small;"
+      },
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/deferredBundles.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "rejection": "loads JSON Schema conversion only",
+      "redExit": 1,
+      "greenExit": 0,
+      "original": {
+        "sha256": "3e711230abb7ab0eb6c6b3eaae82877f9fcf2bf2236b2092b8f188e53ca794d6"
+      },
+      "restored": {
+        "sha256": "3e711230abb7ab0eb6c6b3eaae82877f9fcf2bf2236b2092b8f188e53ca794d6"
+      }
+    },
+    {
+      "name": "writer-callable",
+      "file": "src/host/validationSchema.ts",
+      "mutation": {
+        "old": "  if (!isSchemaWriter(writer)) throw new Error('validation-schema-unavailable')\n",
+        "next": ""
+      },
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/deferredBundles.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "rejection": "loads JSON Schema conversion only",
+      "redExit": 1,
+      "greenExit": 0,
+      "original": {
+        "sha256": "3e711230abb7ab0eb6c6b3eaae82877f9fcf2bf2236b2092b8f188e53ca794d6"
+      },
+      "restored": {
+        "sha256": "3e711230abb7ab0eb6c6b3eaae82877f9fcf2bf2236b2092b8f188e53ca794d6"
+      }
+    },
+    {
+      "name": "conversion-export",
+      "file": "src/host/validationEntry.ts",
+      "mutation": {
+        "old": "export { toJSONSchema } from './validationSchema'\n",
+        "next": ""
+      },
+      "command": ["npm", "run", "build"],
+      "rejection": "reads zod/mini.toJSONSchema, absent from validation.js",
+      "redExit": 1,
+      "greenExit": 0,
+      "original": {
+        "sha256": "a0840327242ac2e7d580d3b214facc1f81c8a3a037746f698e688df895b4c83a"
+      },
+      "restored": {
+        "sha256": "a0840327242ac2e7d580d3b214facc1f81c8a3a037746f698e688df895b4c83a"
+      }
+    }
+  ],
+  "wiringControls": [
+    {
+      "name": "child-callable",
+      "file": "src/runtime/judge/judgeEntry.ts",
+      "removed": "function hasFactory<T>(value: unknown, field: keyof T): value is T {\n  return (\n    typeof value === 'object' &&\n    value !== null &&\n    Object.hasOwn(value, field) &&\n    typeof Reflect.get(value, field) === 'function'\n  )\n}",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/judgeP2Round3.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "rejection": "after a missing or malformed child is repaired",
+      "redExit": 1,
+      "greenExit": 0,
+      "original": {
+        "sha256": "8ddb2a781d4cf7b584290e02c8a4f66701828e4774e94fbe22e981a7cd2c2782"
+      },
+      "restored": {
+        "sha256": "8ddb2a781d4cf7b584290e02c8a4f66701828e4774e94fbe22e981a7cd2c2782"
+      }
+    },
+    {
+      "name": "factory-lint",
+      "file": "src/runtime/judge/judgeEntry.ts",
+      "removed": "  loadLint() {\n    const bundle = children().lint()\n    return Promise.resolve(\n      bundle.createJudgeLintFeatures({ uiText: UI_TEXT, uiLocale: uiLocale() }),\n    )\n  },\n",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/judgeP2Round3.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "rejection": "keeps missing lint extraction visibly incomplete without inference",
+      "redExit": 1,
+      "greenExit": 0,
+      "original": {
+        "sha256": "8ddb2a781d4cf7b584290e02c8a4f66701828e4774e94fbe22e981a7cd2c2782"
+      },
+      "restored": {
+        "sha256": "8ddb2a781d4cf7b584290e02c8a4f66701828e4774e94fbe22e981a7cd2c2782"
+      }
+    },
+    {
+      "name": "factory-hook",
+      "file": "src/runtime/judge/judgeEntry.ts",
+      "removed": "  loadHook() {\n    const bundle = children().hook()\n    return Promise.resolve(\n      bundle.createJudgeHookFeatures({\n        uiText: UI_TEXT,\n        uiLocale: uiLocale(),\n        runAsk: runJudgeCommand,\n      }),\n    )\n  },\n",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/judgeP2Round3.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "rejection": "never registers any Cursor blocking row",
+      "redExit": 1,
+      "greenExit": 0,
+      "original": {
+        "sha256": "8ddb2a781d4cf7b584290e02c8a4f66701828e4774e94fbe22e981a7cd2c2782"
+      },
+      "restored": {
+        "sha256": "8ddb2a781d4cf7b584290e02c8a4f66701828e4774e94fbe22e981a7cd2c2782"
+      }
+    },
+    {
+      "name": "cursor-registration",
+      "file": "src/runtime/judge/hook.ts",
+      "removed": "!(format === 'cursor' && cursorBlockingEvents.has(row.vendor))",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/judgeP2Round3.test.ts",
+        "--maxWorkers=3",
+        "--testTimeout=120000"
+      ],
+      "rejection": "never registers any Cursor blocking row",
+      "redExit": 1,
+      "greenExit": 0,
+      "original": {
+        "sha256": "2adad95321d8c24bc87d008e9e652c4dcd397d8a297582ec4f1a718b47b37ea7"
+      },
+      "restored": {
+        "sha256": "2adad95321d8c24bc87d008e9e652c4dcd397d8a297582ec4f1a718b47b37ea7"
+      }
+    },
+    {
+      "name": "lint-validation-api",
+      "file": "src/shared/validationEntry.ts",
+      "removed": "  partialRecord,\n",
+      "command": ["npm", "run", "build"],
+      "rejection": "reads zod/mini.partialRecord, absent from validation.js",
+      "redExit": 1,
+      "greenExit": 0,
+      "original": {
+        "sha256": "dff7f68fcd8e50b56417dca35932474de67e1248ca4fb217f559887b6fdb5e76"
+      },
+      "restored": {
+        "sha256": "dff7f68fcd8e50b56417dca35932474de67e1248ca4fb217f559887b6fdb5e76"
+      }
+    }
+  ],
+  "inventoryControls": [
+    {
+      "archive": "muse-spark-code-0.13.0.vsix",
+      "entry": "extension/dist/judgeLint.js",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "fc3c5216bfbf95e81940c9cdbbef5c9317fa7bad252754a63063c10b9bb50a27"
+    },
+    {
+      "archive": "muse-spark-code-0.13.0.vsix",
+      "entry": "extension/dist/judgeHook.js",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "fc3c5216bfbf95e81940c9cdbbef5c9317fa7bad252754a63063c10b9bb50a27"
+    },
+    {
+      "archive": "muse-spark-code-0.13.0.vsix",
+      "entry": "extension/dist/validationSchema.js",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "fc3c5216bfbf95e81940c9cdbbef5c9317fa7bad252754a63063c10b9bb50a27"
+    },
+    {
+      "archive": "muse-spark-code-0.13.0.vsix",
+      "bytes": 2382021,
+      "sha256": "fc3c5216bfbf95e81940c9cdbbef5c9317fa7bad252754a63063c10b9bb50a27",
+      "entries": 155,
+      "inventoryExit": 0
+    },
+    {
+      "archive": "dist/muse-spark-code-acp-0.13.0.tgz",
+      "entry": "package/dist/judgeLint.js",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "8cf35ad8899a91f4b32be6765314bbef82cb2ce2d8195ea1882405318989b8d9"
+    },
+    {
+      "archive": "dist/muse-spark-code-acp-0.13.0.tgz",
+      "entry": "package/dist/judgeHook.js",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "8cf35ad8899a91f4b32be6765314bbef82cb2ce2d8195ea1882405318989b8d9"
+    },
+    {
+      "archive": "dist/muse-spark-code-acp-0.13.0.tgz",
+      "entry": "package/dist/validationSchema.js",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "8cf35ad8899a91f4b32be6765314bbef82cb2ce2d8195ea1882405318989b8d9"
+    },
+    {
+      "archive": "dist/muse-spark-code-acp-0.13.0.tgz",
+      "bytes": 1250310,
+      "sha256": "8cf35ad8899a91f4b32be6765314bbef82cb2ce2d8195ea1882405318989b8d9",
+      "entries": 36,
+      "inventoryExit": 0
+    }
+  ],
+  "artifacts": {
+    "dist/acp.js": {
+      "bytes": 837894,
+      "sha256": "546c4c8a0fa0f57364ff7cd5fbc20d31c6fd730e42370e45fc8c9d166c90b162"
+    },
+    "dist/agentImport.js": {
+      "bytes": 117789,
+      "sha256": "1090e44b3d729d0884b7e9a497fc63bdfa8f13c8b4b1baf63e682fd017ac6f55"
+    },
+    "dist/browserCheck.js": {
+      "bytes": 38524,
+      "sha256": "aa67a97b5d77d674d7d1b163929e265dbb49a1534d45acbca56bcf2139b03ac9"
+    },
+    "dist/browserRuntime.js": {
+      "bytes": 19762,
+      "sha256": "bf78122411d861a98d85678257a6b6abeeffbe603fa36baab018518ef3b2b75c"
+    },
+    "dist/bundledSkills.js": {
+      "bytes": 14766,
+      "sha256": "dee40073a77fe4546b4515a931d56f5b154358628d9d93a47a41931c4cead617"
+    },
+    "dist/checkpointStore.js": {
+      "bytes": 91575,
+      "sha256": "114b83bf36cc2cc7e2e34154124c633c32724095900e4e3dd24f775224f5e392"
+    },
+    "dist/codeIntel.js": {
+      "bytes": 39638,
+      "sha256": "527c2afe27aa172771772f2816a0afd25ea5ff4b16e5bbb954ae84527ca0627e"
+    },
+    "dist/extension.js": {
+      "bytes": 612062,
+      "sha256": "959096e55bde87b9931bd51f46ec9181af30e7725b30b46973cadbccf2b1953c"
+    },
+    "dist/extensionHooks.js": {
+      "bytes": 35813,
+      "sha256": "525b4e75ad00a3360cdc9cb94451aa1e26c5a49afba80c0bad620abc345558dd"
+    },
+    "dist/foreignHooks.js": {
+      "bytes": 70086,
+      "sha256": "8374e389a0fcf54fdfbfad6901b4a7a460f1a415f4b9be95e6471c91a9daf554"
+    },
+    "dist/hookRuntime.js": {
+      "bytes": 43202,
+      "sha256": "62df7042fcb679e04c1dbc77c76632ffbbf3d488c683c49ca2f33f8d755d791f"
+    },
+    "dist/judge.js": {
+      "bytes": 52877,
+      "sha256": "970198c6171e45bd07c48356e975eb6db050f9412c6c97ee1219521cea37e940"
+    },
+    "dist/judgeHook.js": {
+      "bytes": 69745,
+      "sha256": "a733b8283b19187dd68269ba2c31d128b400c0cb2866927d6ac35a40dc0e3177"
+    },
+    "dist/judgeLint.js": {
+      "bytes": 39301,
+      "sha256": "aa6dfe6e24e1907bd215819a1ff56dda1a80acb04e25b19dd6a38b036ca64d65"
+    },
+    "dist/modelApi.js": {
+      "bytes": 479307,
+      "sha256": "d25446959019003c4a0d0d85a5ac28ad59516708651b05d0daa3b86ac4da3931"
+    },
+    "dist/museCodeReviewer.js": {
+      "bytes": 22642,
+      "sha256": "145f85c86fd3767c214869b18e09096621cd2ebccfc4a9fe8e9a26aec82b0f77"
+    },
+    "dist/pageWorker.js": {
+      "bytes": 193171,
+      "sha256": "520bafa5a877928be07c6283b91ac1802780d3819168f511ec4b2d8aafbc156e"
+    },
+    "dist/planMarkdown.js": {
+      "bytes": 147608,
+      "sha256": "5d8760b833c795e1a0cf1d0398e3b5849c6743dadc53d9421fcd56035ec1ea31"
+    },
+    "dist/pluginHooks.js": {
+      "bytes": 34590,
+      "sha256": "ea02fb19551f3a89c9054ede81f31699a264ec8d77f8c14fd008335a19a9eef4"
+    },
+    "dist/review.js": {
+      "bytes": 29343,
+      "sha256": "0bc8fef2d2440d6fcedf80c2124cb06b6f84c4230773d4b149987dd8563a0be3"
+    },
+    "dist/reviewer.js": {
+      "bytes": 22253,
+      "sha256": "e2d80b4c42d080928760afb7046e4154f91286475ab597d3c13e5117390c109a"
+    },
+    "dist/searchWorker.js": {
+      "bytes": 4969,
+      "sha256": "14338954deb1cc12c2b38c46b989a6a587e778f55812d2e2e007b5a3662d7058"
+    },
+    "dist/sessionBoard.js": {
+      "bytes": 53764,
+      "sha256": "0a610da5686f291199a1b84faa15f95f3f1b5ff9adfb8c107319719cf9ab1a7e"
+    },
+    "dist/uiText.js": {
+      "bytes": 45133,
+      "sha256": "8eff4d7fe78b2bddb25a04ea38b99cc02d970fb376e17a88aa3c9690504e1ac7"
+    },
+    "dist/validation.js": {
+      "bytes": 41406,
+      "sha256": "6acf1ea164460985fb7df8fb56cacbb7fe209cd876424c9faf937623aebeba4b"
+    },
+    "dist/validationSchema.js": {
+      "bytes": 22808,
+      "sha256": "cefd78400c22a4be6d861cde3497fef43255cc47c95dda086e6b331ad377212f"
+    },
+    "dist/voice.js": {
+      "bytes": 19003,
+      "sha256": "a552a31c324709c44858fb70825396e33773eed972b1157605d094d2b9fafc5c"
+    },
+    "dist/webFetch.js": {
+      "bytes": 37896,
+      "sha256": "d5d6c97c622db815650d48d14018a3cf4b6f06346d5dd6df4a37735fe0cbbe9f"
+    },
+    "dist/webview/chunks/AgentMap-2R6DB76P.js": {
+      "bytes": 8009,
+      "sha256": "5f3f643d844728d53eaf036c63d6f89ec7a330432fc9238d68fb65d256bface9"
+    },
+    "dist/webview/chunks/BestOfNDialog-7JDPDAVM.js": {
+      "bytes": 7043,
+      "sha256": "3047d641282b22a30183e6e0c6c7e700cb3326714bf21c3b809fe50b791c13e8"
+    },
+    "dist/webview/chunks/HistoryDialog-7TQ66PQA.js": {
+      "bytes": 3433,
+      "sha256": "3eb9fc515400b66fdfaa438574d4a95ad3fac163c382f9290451b228561279d4"
+    },
+    "dist/webview/chunks/ReviewPane-XBORMAA3.js": {
+      "bytes": 5583,
+      "sha256": "72f87828171b8c79169540b99170c8ba0aebd8e82399a534789d91b7d488cd73"
+    },
+    "dist/webview/chunks/SessionBoardDialog-3Z73SRZO.js": {
+      "bytes": 2286,
+      "sha256": "3923dabc87c321497cc3681eb6bb7ac9db0e1ca65d30dbf2826a8715e44ee985"
+    },
+    "dist/webview/chunks/UsageDialog-Q4TZBUV4.js": {
+      "bytes": 11665,
+      "sha256": "945e8a65e10c9fe8e8e90dc828418c4f57546586809415577ff3c411fe1dc649"
+    },
+    "dist/webview/chunks/chunk-2AFJA6CY.js": {
+      "bytes": 4040,
+      "sha256": "487e03757a98051f1be030c7c11455d8e92805555dea714d6e055ca6640f9253"
+    },
+    "dist/webview/chunks/chunk-5D5OIGMZ.js": {
+      "bytes": 165,
+      "sha256": "6873114664b6dec213c2fad6eb84e4a99a011eb3d6e52a307325f0e0b1ff099f"
+    },
+    "dist/webview/chunks/chunk-5IKLA57U.js": {
+      "bytes": 372,
+      "sha256": "6ed3c5559c222b854fbfd0d68cab2d2b95e662a4986a23595c5dbdfa369e164d"
+    },
+    "dist/webview/chunks/chunk-5OYIARPN.js": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "dist/webview/chunks/chunk-AC4WH2BF.js": {
+      "bytes": 32467,
+      "sha256": "eabe9a399ce5a024eabcf9cb3c2c9ec7156a2e9c6e45e263b3449f0bd7fde71a"
+    },
+    "dist/webview/chunks/chunk-CNUQUFNK.js": {
+      "bytes": 1877,
+      "sha256": "acfb6f5ea6d08cbb9ad33b23d2695a48fc7b1655b69a857862c35fceb8afee24"
+    },
+    "dist/webview/chunks/chunk-DVFBWJJJ.js": {
+      "bytes": 210,
+      "sha256": "63cd90d89c2ef178383e21c6e9e44961945813ed466328c69f355cb755787a83"
+    },
+    "dist/webview/chunks/chunk-FPHYU5NX.js": {
+      "bytes": 8434,
+      "sha256": "75bd6aa887214dc2c8ff4891245dcb01030ad1e1965fae7a56d91a0d85af83dd"
+    },
+    "dist/webview/chunks/chunk-GY2UEMOM.js": {
+      "bytes": 1549,
+      "sha256": "e37dcf5f406cd047bdcfa9fc320fd591e45b693f3ca1953c7f211d6dc89d1aa8"
+    },
+    "dist/webview/chunks/chunk-HKYZ73H3.js": {
+      "bytes": 157421,
+      "sha256": "7cbe3bd2eb65a2411a727c20e8c9422bdd599758058e9d0a2a302bc1dadbf347"
+    },
+    "dist/webview/chunks/chunk-HTXRPBTH.js": {
+      "bytes": 946,
+      "sha256": "3800975ad007a2ab31b0194755bb180d060d75a891213645e8183cf7ac8f48cd"
+    },
+    "dist/webview/chunks/chunk-JSBJNLRG.js": {
+      "bytes": 1143,
+      "sha256": "4e7877150ee074bc09866d49607c6c1d940c2af3d183d370cfd5829b164a7af5"
+    },
+    "dist/webview/chunks/chunk-KAAVZYBL.js": {
+      "bytes": 74021,
+      "sha256": "162eddefe2dbfb3814310d2ed62ec90381e1d1d585555625f949cdaef95d4f00"
+    },
+    "dist/webview/chunks/chunk-RBLEKKOC.js": {
+      "bytes": 7051,
+      "sha256": "80f5870c281d5dfb66654a1582b320f6a192f39dc9bf160ce078c8e77ba032c0"
+    },
+    "dist/webview/chunks/chunk-YAZSGQ77.js": {
+      "bytes": 6079,
+      "sha256": "009135ea741331b5a40faffdac34b4d722bbd4ea2140eedf483f763be34aaa1a"
+    },
+    "dist/webview/main.css": {
+      "bytes": 52404,
+      "sha256": "027a068b1727a443b118c9a98ec58d8e036c060696b2d6ea4fa8b435bee9f79a"
+    },
+    "dist/webview/main.js": {
+      "bytes": 625148,
+      "sha256": "dd80600625ef36773109a7239c3e6d74c6fefdbe8cfaedf945b7212986de1bee"
+    },
+    "dist/webview/whatsNew.css": {
+      "bytes": 2534,
+      "sha256": "01071c4365687b25df74aaa5daf19b97a406e37fbe927c77b16aa653e4cad74b"
+    },
+    "dist/webview/whatsNew.js": {
+      "bytes": 708,
+      "sha256": "a04a649fe4b1b856e5615d6842914e83d315c959117549cfa641fe5b7ec19cbf"
+    },
+    "dist/whatsNew.js": {
+      "bytes": 17655,
+      "sha256": "90bf029a2494fdbd09c304ded9fa5a2cebcd450d4594af9ca16aa420822b3108"
+    }
+  },
+  "comparisons": {
+    "starting": {
+      "unchanged": [
+        "dist/pageWorker.js",
+        "dist/searchWorker.js",
+        "dist/planMarkdown.js",
+        "dist/browserRuntime.js",
+        "dist/browserCheck.js",
+        "dist/webview/whatsNew.css",
+        "dist/webview/whatsNew.js",
+        "dist/webview/chunks/chunk-5D5OIGMZ.js",
+        "dist/webview/chunks/chunk-5OYIARPN.js"
+      ],
+      "changed": [
+        "dist/review.js",
+        "dist/museCodeReviewer.js",
+        "dist/sessionBoard.js",
+        "dist/codeIntel.js",
+        "dist/whatsNew.js",
+        "dist/uiText.js",
+        "dist/webFetch.js",
+        "dist/modelApi.js",
+        "dist/agentImport.js",
+        "dist/validation.js",
+        "dist/checkpointStore.js",
+        "dist/bundledSkills.js",
+        "dist/acp.js",
+        "dist/voice.js",
+        "dist/judge.js",
+        "dist/extension.js",
+        "dist/reviewer.js",
+        "dist/webview/main.css",
+        "dist/webview/main.js"
+      ],
+      "missing": [
+        "dist/webview/chunks/chunk-BSOTXLTP.js",
+        "dist/webview/chunks/UsageDialog-DV23UDQJ.js",
+        "dist/webview/chunks/chunk-GH6JGEFO.js",
+        "dist/webview/chunks/chunk-NONCQNQQ.js",
+        "dist/webview/chunks/AgentMap-FFHZXHPA.js",
+        "dist/webview/chunks/BestOfNDialog-I75LAMYU.js",
+        "dist/webview/chunks/chunk-E4OWQ42K.js",
+        "dist/webview/chunks/ReviewPane-WEBJZHUV.js",
+        "dist/webview/chunks/chunk-6SPMJFFK.js",
+        "dist/webview/chunks/chunk-WT2ZX2XO.js",
+        "dist/webview/chunks/chunk-OEALNJ7J.js",
+        "dist/webview/chunks/chunk-FSGZQDDV.js",
+        "dist/webview/chunks/chunk-SOFNVDAL.js",
+        "dist/webview/chunks/HistoryDialog-FNGVMHK4.js",
+        "dist/webview/chunks/chunk-UCYZ7BDR.js",
+        "dist/webview/chunks/chunk-QZ3EYUPM.js",
+        "dist/webview/chunks/chunk-7NOEETPU.js",
+        "dist/webview/chunks/SessionBoardDialog-RF3J3TEE.js",
+        "dist/webview/chunks/chunk-QILTKRTR.js"
+      ],
+      "new": [
+        "dist/extensionHooks.js",
+        "dist/foreignHooks.js",
+        "dist/hookRuntime.js",
+        "dist/judgeHook.js",
+        "dist/judgeLint.js",
+        "dist/pluginHooks.js",
+        "dist/validationSchema.js",
+        "dist/webview/chunks/AgentMap-2R6DB76P.js",
+        "dist/webview/chunks/BestOfNDialog-7JDPDAVM.js",
+        "dist/webview/chunks/HistoryDialog-7TQ66PQA.js",
+        "dist/webview/chunks/ReviewPane-XBORMAA3.js",
+        "dist/webview/chunks/SessionBoardDialog-3Z73SRZO.js",
+        "dist/webview/chunks/UsageDialog-Q4TZBUV4.js",
+        "dist/webview/chunks/chunk-2AFJA6CY.js",
+        "dist/webview/chunks/chunk-5IKLA57U.js",
+        "dist/webview/chunks/chunk-AC4WH2BF.js",
+        "dist/webview/chunks/chunk-CNUQUFNK.js",
+        "dist/webview/chunks/chunk-DVFBWJJJ.js",
+        "dist/webview/chunks/chunk-FPHYU5NX.js",
+        "dist/webview/chunks/chunk-GY2UEMOM.js",
+        "dist/webview/chunks/chunk-HKYZ73H3.js",
+        "dist/webview/chunks/chunk-HTXRPBTH.js",
+        "dist/webview/chunks/chunk-JSBJNLRG.js",
+        "dist/webview/chunks/chunk-KAAVZYBL.js",
+        "dist/webview/chunks/chunk-RBLEKKOC.js",
+        "dist/webview/chunks/chunk-YAZSGQ77.js"
+      ]
+    },
+    "resolved": {
+      "unchanged": [
+        "dist/pageWorker.js",
+        "dist/review.js",
+        "dist/museCodeReviewer.js",
+        "dist/sessionBoard.js",
+        "dist/codeIntel.js",
+        "dist/searchWorker.js",
+        "dist/whatsNew.js",
+        "dist/pluginHooks.js",
+        "dist/planMarkdown.js",
+        "dist/foreignHooks.js",
+        "dist/uiText.js",
+        "dist/webFetch.js",
+        "dist/modelApi.js",
+        "dist/agentImport.js",
+        "dist/browserRuntime.js",
+        "dist/extensionHooks.js",
+        "dist/checkpointStore.js",
+        "dist/bundledSkills.js",
+        "dist/acp.js",
+        "dist/voice.js",
+        "dist/validationSchema.js",
+        "dist/hookRuntime.js",
+        "dist/browserCheck.js",
+        "dist/extension.js",
+        "dist/reviewer.js",
+        "dist/webview/whatsNew.css",
+        "dist/webview/whatsNew.js",
+        "dist/webview/main.css",
+        "dist/webview/main.js",
+        "dist/webview/chunks/chunk-HKYZ73H3.js",
+        "dist/webview/chunks/chunk-FPHYU5NX.js",
+        "dist/webview/chunks/ReviewPane-XBORMAA3.js",
+        "dist/webview/chunks/chunk-DVFBWJJJ.js",
+        "dist/webview/chunks/chunk-HTXRPBTH.js",
+        "dist/webview/chunks/chunk-5D5OIGMZ.js",
+        "dist/webview/chunks/HistoryDialog-7TQ66PQA.js",
+        "dist/webview/chunks/chunk-KAAVZYBL.js",
+        "dist/webview/chunks/SessionBoardDialog-3Z73SRZO.js",
+        "dist/webview/chunks/chunk-YAZSGQ77.js",
+        "dist/webview/chunks/AgentMap-2R6DB76P.js",
+        "dist/webview/chunks/chunk-CNUQUFNK.js",
+        "dist/webview/chunks/chunk-GY2UEMOM.js",
+        "dist/webview/chunks/chunk-5OYIARPN.js",
+        "dist/webview/chunks/chunk-RBLEKKOC.js",
+        "dist/webview/chunks/chunk-AC4WH2BF.js",
+        "dist/webview/chunks/chunk-JSBJNLRG.js",
+        "dist/webview/chunks/UsageDialog-Q4TZBUV4.js",
+        "dist/webview/chunks/BestOfNDialog-7JDPDAVM.js",
+        "dist/webview/chunks/chunk-2AFJA6CY.js",
+        "dist/webview/chunks/chunk-5IKLA57U.js"
+      ],
+      "changed": ["dist/validation.js", "dist/judge.js"],
+      "missing": [],
+      "new": ["dist/judgeHook.js", "dist/judgeLint.js"]
+    }
+  },
+  "helper": {
+    "source": "baseline-0.13.0.vsix",
+    "packageVersion": "0.13.0",
+    "bytes": 290816,
+    "sha256": "96d650e2d282219e58dbed4206fe199da7b6b4188af20e9e54bd66676e7564a4"
+  },
+  "packages": {
+    "vsix": {
+      "bytes": 2382021,
+      "capBytes": 2252800,
+      "overBytes": 129221,
+      "sizeGateExit": 1,
+      "inventoryExit": 0,
+      "sha256": "fc3c5216bfbf95e81940c9cdbbef5c9317fa7bad252754a63063c10b9bb50a27"
+    },
+    "acp": {
+      "bytes": 1250310
+    },
+    "fakeOnly": {
+      "bytes": 1318277,
+      "private": true
+    }
+  },
+  "installedSmoke": {
+    "version": "0.13.0",
+    "versionExit": 0,
+    "factoriesExit": 0
+  },
+  "realModelAttempts": 0,
+  "realModelCostUsd": 0
+}

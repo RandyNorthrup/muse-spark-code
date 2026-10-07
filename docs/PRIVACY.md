@@ -193,6 +193,13 @@ extension's state; ACP ChatGPT tallies currently live for the process lifetime.
   the panel announces this, and local history still keeps the original bytes.
   Media read by a tool in a stopped or failed turn is removed from later
   replay; the next request gets a path-only explanation instead of its bytes.
+- **Muse Judge phase-2 library.** Offline calibration processes the labelled
+  predictions supplied by its caller without network access or a new store.
+  The separately packaged sampling/contrastive and loopback boundary functions
+  select no recipient. Explicit judge CLI/MCP dispatch loads the library;
+  missing source and offline/surface adapters refuse, and MCP initialization
+  and tool listing require no inference. A later admitted source must redact content before remote
+  sends and disclose its recipient; this slice adds no remote recipient.
 - **Auto reviewer (Model API, available by default).** With
   `museSpark.modelApiAutoReviewer` enabled and its paid-use popup accepted,
   a separate request to Meta judges an eligible tool call. It includes your

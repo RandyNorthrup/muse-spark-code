@@ -3863,5 +3863,11 @@
   "promptDeleteConfirm": "删除此提示词？",
   "promptLink": "从链接或gist原始内容网址导入",
   "promptFromFile": "从文件导入",
-  "promptImportConfirm": "保存导入的提示词"
+  "promptImportConfirm": "保存导入的提示词",
+  "judgeSourceSame": "自己的聊天模型",
+  "judgeSourceSeparate": "单独的评判模型",
+  "judgeSourceBoth": "自己的模型和单独的评判模型",
+  "judgeLocalUnverified": "未经验证的本地端点",
+  "judgeSourceUntested": "实验性，未经测试；需要明确选择加入",
+  "judgeNoAnswer": "评判模型未回答（{reason}）。现有检查和审批仍然适用。"
 }

@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "name": "no-silent-fallback pass",
+      "rule": "no-silent-fallback",
+      "file": "../../test/fixtures/judge/lint/standards/no-silent-fallback-pass.txt",
+      "expect": "pass"
+    },
+    {
+      "name": "no-silent-fallback fail",
+      "rule": "no-silent-fallback",
+      "file": "../../test/fixtures/judge/lint/standards/no-silent-fallback-fail.txt",
+      "expect": "fail"
+    },
+    {
+      "name": "no-placeholder-production-code pass",
+      "rule": "no-placeholder-production-code",
+      "file": "../../test/fixtures/judge/lint/standards/no-placeholder-production-code-pass.txt",
+      "expect": "pass"
+    },
+    {
+      "name": "no-placeholder-production-code fail",
+      "rule": "no-placeholder-production-code",
+      "file": "../../test/fixtures/judge/lint/standards/no-placeholder-production-code-fail.txt",
+      "expect": "fail"
+    },
+    {
+      "name": "no-production-mock-data pass",
+      "rule": "no-production-mock-data",
+      "file": "../../test/fixtures/judge/lint/standards/no-production-mock-data-pass.txt",
+      "expect": "pass"
+    },
+    {
+      "name": "no-production-mock-data fail",
+      "rule": "no-production-mock-data",
+      "file": "../../test/fixtures/judge/lint/standards/no-production-mock-data-fail.txt",
+      "expect": "fail"
+    },
+    {
+      "name": "actionable-errors pass",
+      "rule": "actionable-errors",
+      "file": "../../test/fixtures/judge/lint/standards/actionable-errors-pass.txt",
+      "expect": "pass"
+    },
+    {
+      "name": "actionable-errors fail",
+      "rule": "actionable-errors",
+      "file": "../../test/fixtures/judge/lint/standards/actionable-errors-fail.txt",
+      "expect": "fail"
+    },
+    {
+      "name": "explained-values pass",
+      "rule": "explained-values",
+      "file": "../../test/fixtures/judge/lint/standards/explained-values-pass.txt",
+      "expect": "pass"
+    },
+    {
+      "name": "explained-values fail",
+      "rule": "explained-values",
+      "file": "../../test/fixtures/judge/lint/standards/explained-values-fail.txt",
+      "expect": "fail"
+    },
+    {
+      "name": "honest-function-names pass",
+      "rule": "honest-function-names",
+      "file": "../../test/fixtures/judge/lint/standards/honest-function-names-pass.txt",
+      "expect": "pass"
+    },
+    {
+      "name": "honest-function-names fail",
+      "rule": "honest-function-names",
+      "file": "../../test/fixtures/judge/lint/standards/honest-function-names-fail.txt",
+      "expect": "fail"
+    }
+  ]
+}

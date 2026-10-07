@@ -4007,5 +4007,11 @@
   "promptDeleteConfirm": "Törli ezt a promptot?",
   "promptLink": "Importálás hivatkozásból vagy nyers gist URL-ből",
   "promptFromFile": "Importálás fájlból",
-  "promptImportConfirm": "Importált prompt mentése"
+  "promptImportConfirm": "Importált prompt mentése",
+  "judgeSourceSame": "Saját csevegőmodell",
+  "judgeSourceSeparate": "Külön értékelő",
+  "judgeSourceBoth": "Saját modell és külön értékelő",
+  "judgeLocalUnverified": "Nem ellenőrzött helyi végpont",
+  "judgeSourceUntested": "Kísérleti, nem tesztelt; kifejezett beleegyezés szükséges",
+  "judgeNoAnswer": "Az értékelő nem válaszolt ({reason}). A meglévő ellenőrzések és jóváhagyások továbbra is érvényesek."
 }

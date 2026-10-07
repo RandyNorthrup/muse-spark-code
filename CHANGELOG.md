@@ -10,6 +10,32 @@ happened, not what was planned; superseded entries are kept.
 - Keep every long-reply accessibility delta while yielding through a task port,
   avoiding nested timer throttling within the existing readiness deadline.
 
+- **M98 phase 2 on the 0.15.0 train.** The phase-2 judge libraries merged
+  so far (contract, calibration, loopback serve boundary, sampling and
+  contrastive framing, CLI/MCP, lint, local proofs, advisory uses and the
+  hook adapter) sit on the train that already has bring-your-own models.
+  They load on an explicit judge action. `auto` still uses the chat model
+  until a separate source is verified, calibrated and measured. Settings may
+  name `separate` and `both`; naming one does not enable a source or run
+  anything at startup. Service adapters, bring-your-own judge routing, the
+  models-panel section, the cascade, embeddings and final delivery remain
+  open.
+
+- Restore the inherited startup size ratchet by loading the legal report,
+  review comment form, optional English text and optional keyboard contexts
+  on demand. Keep complete translation validation, first-paint controls,
+  accessible loading and retry, and existing bundle caps.
+  Wait for workflow-map controls and its loaded tree in the accessibility
+  harness instead of timing the clicks.
+
+- Share chat, Models and Usage browser dependencies in one emitted graph;
+  load the optional panel bodies on demand with separate measured budgets.
+  Preserve the pages' specific failures and Models' host error reports.
+  The authenticated ACP companion resolves their dynamic shared chunks under
+  its existing nonce policy.
+  Set this train's universal VSIX cap to 2775 KiB from the measured package
+  plus 5%, rounded up to 25 KiB; existing individual bundle caps stay fixed.
+
 - Check every staged ACP help language in bounded parallel batches, keeping
   cold package certification within its existing deadline.
 

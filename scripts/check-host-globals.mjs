@@ -13,6 +13,7 @@ import { existsSync, readFileSync } from 'node:fs'
 
 const HOST_BUNDLES = [
   'dist/validation.js',
+  'dist/validationSchema.js',
   'dist/wire.js',
   'dist/uiText.js',
   'dist/uiTextRuntime.js',
@@ -59,6 +60,11 @@ const HOST_BUNDLES = [
   'dist/voice.js',
   'dist/webFetch.js',
   'dist/museCodeReviewer.js',
+  'dist/judgeP2.js',
+  'dist/judgeLint.js',
+  'dist/judgeHook.js',
+  'dist/judgeLocal.js',
+  'dist/judgeUses.js',
   'dist/report.js',
   'dist/recorder.js',
   'dist/whatsNew.js',

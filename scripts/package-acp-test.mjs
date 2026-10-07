@@ -34,6 +34,12 @@ for (const file of [
     'validation.js',
     'wire.js',
     'runtime.bundles.json.br',
+    'validationSchema.js',
+    'judgeP2.js',
+    'judgeLint.js',
+    'judgeHook.js',
+    'judgeLocal.js',
+    'judgeUses.js',
   ].map((name) => path.join(SOURCE, 'dist', name)),
   ...['exec-result-v1.schema.json', 'exec-event-v1.schema.json'].map((name) =>
     path.join(SOURCE, 'schemas', name),

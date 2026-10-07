@@ -1,0 +1,51 @@
+[
+  {
+    "guard": "score-legend",
+    "file": "src/core/judge/local/wire.ts",
+    "test": "rejects a score legend that reverses the requested criteria",
+    "redExit": 1,
+    "restoredExit": 0,
+    "beforeSha256": "6b4ca32dc7cd8d3ea0e26b4d50f0dbbb1ccd559c3a4795288c35a61f76b3c024",
+    "restoredSha256": "6b4ca32dc7cd8d3ea0e26b4d50f0dbbb1ccd559c3a4795288c35a61f76b3c024"
+  },
+  {
+    "guard": "score-expectation",
+    "file": "src/core/judge/local/wire.ts",
+    "test": "rejects an in-range score that contradicts its distribution",
+    "redExit": 1,
+    "restoredExit": 0,
+    "beforeSha256": "6b4ca32dc7cd8d3ea0e26b4d50f0dbbb1ccd559c3a4795288c35a61f76b3c024",
+    "restoredSha256": "6b4ca32dc7cd8d3ea0e26b4d50f0dbbb1ccd559c3a4795288c35a61f76b3c024"
+  },
+  {
+    "guard": "score-roundoff",
+    "file": "src/core/judge/local/wire.ts",
+    "test": "accepts score summation roundoff but rejects a meaningful discrepancy",
+    "redExit": 1,
+    "restoredExit": 0,
+    "beforeSha256": "6b4ca32dc7cd8d3ea0e26b4d50f0dbbb1ccd559c3a4795288c35a61f76b3c024",
+    "restoredSha256": "6b4ca32dc7cd8d3ea0e26b4d50f0dbbb1ccd559c3a4795288c35a61f76b3c024"
+  },
+  {
+    "guard": "promoted-helper-link",
+    "file": "docs/certification/m98-2j-spike.md",
+    "test": "links the spike helper evidence to the promoted native source",
+    "redExit": 1,
+    "restoredExit": 0,
+    "beforeSha256": "53c57ddccd177993c1b539b400800de1547bf2b5552745ca1894c05c3daa8d6b",
+    "restoredSha256": "53c57ddccd177993c1b539b400800de1547bf2b5552745ca1894c05c3daa8d6b"
+  },
+  {
+    "guard": "native-held-process-lifetime",
+    "file": "native/windows/MuseSparkLocalJudgePeer.cs",
+    "test": "refuses an exited native process lease while a new OS PID is forced near it",
+    "redExit": 1,
+    "restoredExit": 1,
+    "beforeSha256": "a7a47577e5c82919fc58efe1f375308ea8bc2dadea555016a1e8670b90990477",
+    "restoredSha256": "a7a47577e5c82919fc58efe1f375308ea8bc2dadea555016a1e8670b90990477",
+    "completed": false,
+    "intendedRedAssertion": "helper exit code 0 instead of 1",
+    "restoredFailure": "fixture could not allocate within 16: nearest distances 44 and 28",
+    "residual": "WIN-PID-REPEATABILITY"
+  }
+]

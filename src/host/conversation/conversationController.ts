@@ -173,6 +173,7 @@ import { approvalModeFor, untrustedStartMode } from '../../shared/permissionMode
 import type { MuseCodeReviewerPort } from '../review/museCodeReviewerBundle'
 import type { JudgeAdvisory, JudgeFence } from '../../core/judge/use'
 import type { ReviewedApprovals } from '../review/reviewedApprovals'
+import type { JudgeReviewUses } from '../judge/uses'
 import type {
   ChatReference,
   EditRef,
@@ -389,6 +390,8 @@ export interface SessionMemory {
 
 export interface ConversationDeps {
   readonly usageRecording?: UsageRecording | undefined
+  /** M98 FU: optional until the independent use's B/M75 evidence is certified. */
+  readonly judgeUses?: JudgeReviewUses
   readonly surface: ChatSurface
   readonly auth: AuthPort
   readonly ensureHost: () => Promise<AgentHost>
@@ -2005,6 +2008,7 @@ export class ConversationController {
     }
     try {
       this.reviews ??= port.reviewer().conversation({
+        ...(this.deps.judgeUses !== undefined && { judgeUses: this.deps.judgeUses }),
         showCard: (held, note) => {
           const card = scrubSecretApproval(note === undefined ? held : { ...held, note })
           this.forward(card)

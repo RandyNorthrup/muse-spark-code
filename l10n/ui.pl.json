@@ -4295,5 +4295,11 @@
   "promptDeleteConfirm": "Usunąć ten prompt?",
   "promptLink": "Importuj z linku lub adresu surowego gistu",
   "promptFromFile": "Importuj z pliku",
-  "promptImportConfirm": "Zapisz zaimportowany prompt"
+  "promptImportConfirm": "Zapisz zaimportowany prompt",
+  "judgeSourceSame": "Własny model czatu",
+  "judgeSourceSeparate": "Osobny oceniający",
+  "judgeSourceBoth": "Własny model i osobny oceniający",
+  "judgeLocalUnverified": "Niezweryfikowany lokalny punkt końcowy",
+  "judgeSourceUntested": "Eksperymentalne, nieprzetestowane; wymagana wyraźna zgoda",
+  "judgeNoAnswer": "Brak odpowiedzi oceniającego ({reason}). Dotychczasowe kontrole i zatwierdzenia nadal obowiązują."
 }

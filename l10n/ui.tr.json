@@ -4007,5 +4007,11 @@
   "promptDeleteConfirm": "Bu istem silinsin mi?",
   "promptLink": "Bağlantıdan veya ham gist URL’sinden içe aktar",
   "promptFromFile": "Dosyadan içe aktar",
-  "promptImportConfirm": "İçe aktarılan istemi kaydet"
+  "promptImportConfirm": "İçe aktarılan istemi kaydet",
+  "judgeSourceSame": "Kendi sohbet modeliniz",
+  "judgeSourceSeparate": "Ayrı değerlendirici",
+  "judgeSourceBoth": "Kendi modeliniz ve ayrı değerlendirici",
+  "judgeLocalUnverified": "Doğrulanmamış yerel uç nokta",
+  "judgeSourceUntested": "Deneysel, test edilmemiş; açık onay gerekli",
+  "judgeNoAnswer": "Değerlendirici yanıt vermedi ({reason}). Mevcut kontroller ve onaylar geçerliliğini korur."
 }

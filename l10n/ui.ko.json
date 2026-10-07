@@ -3863,5 +3863,11 @@
   "promptDeleteConfirm": "이 프롬프트를 삭제할까요?",
   "promptLink": "링크 또는 원시 gist URL에서 가져오기",
   "promptFromFile": "파일에서 가져오기",
-  "promptImportConfirm": "가져온 프롬프트 저장"
+  "promptImportConfirm": "가져온 프롬프트 저장",
+  "judgeSourceSame": "자신의 채팅 모델",
+  "judgeSourceSeparate": "별도 평가 모델",
+  "judgeSourceBoth": "자신의 모델과 별도 평가 모델",
+  "judgeLocalUnverified": "검증되지 않은 로컬 엔드포인트",
+  "judgeSourceUntested": "실험적이며 테스트되지 않음; 명시적 동의 필요",
+  "judgeNoAnswer": "평가 모델의 응답 없음({reason}). 기존 검사와 승인은 계속 적용됩니다."
 }

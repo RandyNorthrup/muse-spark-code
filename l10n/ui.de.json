@@ -4007,5 +4007,11 @@
   "promptDeleteConfirm": "Diesen Prompt löschen?",
   "promptLink": "Aus Link oder Roh-Gist-URL importieren",
   "promptFromFile": "Aus Datei importieren",
-  "promptImportConfirm": "Importierten Prompt speichern"
+  "promptImportConfirm": "Importierten Prompt speichern",
+  "judgeSourceSame": "Eigenes Chatmodell",
+  "judgeSourceSeparate": "Separater Beurteiler",
+  "judgeSourceBoth": "Eigenes Modell und separater Beurteiler",
+  "judgeLocalUnverified": "Unverifizierter lokaler Endpunkt",
+  "judgeSourceUntested": "Experimentell, ungetestet; ausdrückliche Zustimmung erforderlich",
+  "judgeNoAnswer": "Keine Antwort des Beurteilers ({reason}). Bestehende Prüfungen und Genehmigungen gelten weiterhin."
 }

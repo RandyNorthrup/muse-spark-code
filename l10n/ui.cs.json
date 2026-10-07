@@ -4295,5 +4295,11 @@
   "promptDeleteConfirm": "Smazat tento prompt?",
   "promptLink": "Importovat z odkazu nebo adresy surového gistu",
   "promptFromFile": "Importovat ze souboru",
-  "promptImportConfirm": "Uložit importovaný prompt"
+  "promptImportConfirm": "Uložit importovaný prompt",
+  "judgeSourceSame": "Vlastní model chatu",
+  "judgeSourceSeparate": "Samostatný hodnotitel",
+  "judgeSourceBoth": "Vlastní model a samostatný hodnotitel",
+  "judgeLocalUnverified": "Neověřený místní koncový bod",
+  "judgeSourceUntested": "Experimentální, neotestováno; nutný výslovný souhlas",
+  "judgeNoAnswer": "Hodnotitel neodpověděl ({reason}). Stávající kontroly a schvalování nadále platí."
 }
