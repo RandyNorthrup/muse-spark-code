@@ -25230,6 +25230,28 @@ a byte-exact red drill in `docs/certification/m105-m1-media-core-(a).md`.
 Existing localized refusal templates are retained. No new dependency, editor
 binding, gate change, branch merge or live/paid call is in scope.
 
+**E1 implementation plan (M105E1, 2026-10-06).** Work only in E1's
+attachment, composer, chip and command-loader regions, new host media modules,
+and their tests/certification. First implement bounded host-token admission
+against M1/M2's injected source/capability/part ports; then route picker and
+URI paste/drop without reading new media bytes in the browser; then implement
+the preview tab and interactive recorder command port. Preserve legacy image,
+PDF, text and ordinary mention behavior. Verify each new guard with a named
+regression and byte-exact red drill. Lane W owns bundle/manifest/reference/docs
+bindings and unchanged failing integrated gates; C/A own estimates and sound
+actions, and R1–R3 own driver implementations. Record all missing bindings by
+name in `docs/certification/m105-e1-vs-code-(a).md`. Zero live or paid calls.
+
+E1 progress: host-token admission, picker filters passed through `FileAccess`,
+confined URI paste/drop, media metadata chips, the recording preview and lazy
+command registrations are implemented. 690 owning regressions and 59
+byte-exact guard drills pass, as do scoped checks and four-theme/320px/960px
+UI receipts. No recorder, provider record, upload ownership or build
+configuration is guessed: their injected bindings are named W handoffs.
+Browser startup is 921659 bytes against 921600: E1 leaves a 59-byte excess
+for W's lazy-entry integration after two local reductions failed to meet the
+cap. The common-rule two-fix stop applies; no cap or gate is changed.
+
 **M2 review corrections (RVM105M2, 2026-10-06).** Fix all three P2 findings
 within the existing media gate/replay/host regions. Select the actual inline
 or Files route before checking its byte limit, including replay promotions.
@@ -29755,6 +29777,19 @@ resource/structure red drills restore source byte-exact. W's existing host
 record, browser-size and split-classification failures remain enforced and
 are reported in the lane certification; the lead owns the integrated gates.
 
+**M105-E1 bounded-lane gate scope (2026-10-06).** The rig brief forbids a
+full quality/full unit run and reserves manifest, generated reference/host
+records and bundle registration for W. Run owning files at the repository's
+default timeout, scoped lint/format, typecheck, dead-code, duplication,
+localization and production build directly on linuxlt. Keep inherited size
+and split gates enforced. Hook-on commits remain unmerged lane work; full
+quality is required on the integrated tree. Record receipts and handoffs in
+`docs/certification/m105-e1-vs-code-(a).md`. E1 also leaves a measured
+59-byte browser-startup excess (900.1/900 KiB) for W's lazy build integration
+after two failed local reductions, and the new preview's generated host-API
+inventory update. These are failures, not gate exemptions; the integrated
+quality gate must pass before proposing a product commit.
+
 **M105-M2 follow-up gate scope (RVM105M2, 2026-10-06).** The rig brief
 reserves full quality/full-unit and integrated cross-platform certification
 for the lead. Scoped regression files, typecheck, lint/format, dead-code,
@@ -30929,6 +30964,12 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
+
+M105 E1 adds one trusted in-process signature guard:
+
+| Location                                                    | Escape hatch                                    | Reason                                                                                                                                                                                             |
+| ----------------------------------------------------------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/host/media/screenRecordBundle.ts:isScreenRecordBundle` | Function signature after export-shape narrowing | Loader and recorder/preview factory ship from the same source/build; runtime checks object/export type, owning tests prove malformed exports refuse and retry. No cast, `any` or lint suppression. |
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
