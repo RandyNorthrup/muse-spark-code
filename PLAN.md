@@ -25231,7 +25231,7 @@ hooks on. All requested local static/build/package/browser gates pass; the
 complete default-timeout Vitest sweep passes **576 files, 192 batches,
 12,265 tests, zero failures, 112 existing skips, zero todo**. Accessibility
 passes **716 pages with zero violations**. All 15 deliberate red controls
-restore source/bundles byte-exact. Local VSIX is **2,376,257/2,457,600 bytes**.
+restore source/bundles byte-exact. Local VSIX is **2,376,296/2,457,600 bytes**.
 
 W's local integration and documentation scope is complete. Every named
 production handoff is individually closed, partial or blocked in
