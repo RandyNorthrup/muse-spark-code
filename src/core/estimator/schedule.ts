@@ -61,6 +61,12 @@ function refuse(detail: string): never {
   throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
 }
 
+/** One candidate cannot be placed: R records it as infeasible and ranks the
+ * rest, instead of aborting the whole estimate. Corrupt inputs stay `refuse`. */
+function schedulingRefusal(detail: string): never {
+  throw new EstimateSchedulingError(detail)
+}
+
 function known(quantity: Quantity, detail: string): number {
   if (quantity.status === 'unknown') refuse(`unknown-demand:${detail}`)
   return quantity.value
@@ -139,7 +145,7 @@ function renewals(window: Window, until: number): number[] {
     output.push(next)
     if (next > until) return output
   }
-  return refuse('quota-horizon')
+  return schedulingRefusal('quota-horizon')
 }
 
 function accountShare(reservation: Reservation, accountId: string): number {
@@ -659,7 +665,7 @@ export function prepareEstimateSchedule(
                 !Number.isFinite(new Date(asOf + end * HOUR_MS).getTime()) ||
                 new Date(asOf + end * HOUR_MS).getUTCFullYear() > MAX_ISO_YEAR
               )
-                refuse('schedule-date-overflow')
+                schedulingRefusal('schedule-date-overflow')
               const available =
                 relaxation === 'slots' || relaxation === 'machines'
                   ? eligible
@@ -783,7 +789,7 @@ export function prepareEstimateSchedule(
                   hints.push(...quotaHints)
                 }
                 if (hints.length === 0 && start >= lastEnd && start >= finalBoundary())
-                  refuse(`account-selection-limit:${lane.id}`)
+                  schedulingRefusal(`account-selection-limit:${lane.id}`)
               }
               // After all existing reservations finish and every reported window
               // renews, more identical empty periods cannot cure a structural

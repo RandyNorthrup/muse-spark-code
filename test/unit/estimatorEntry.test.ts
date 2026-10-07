@@ -146,6 +146,55 @@ describe('M117 estimator bundle assembly', () => {
     expect(result.forecastFleet?.machines.some((machine) => machine.id === 'extra')).toBe(true)
     estimateSectionSchema.parse(result)
   })
+  it('keeps ranking candidates when a pool subset hits a scheduling refusal', async () => {
+    const source = ports()
+    const snapshot = chainSnapshot()
+    snapshot.lanes = [{ lane: scheduleLane('M117:A') }]
+    snapshot.milestones[0]!.laneIds = ['M117:A']
+    const fleet = scheduleFleet(1)
+    const pool = structuredClone(fleet)
+    const extra = {
+      ...structuredClone(scheduleFleet(1).machines[0]!),
+      id: 'extra',
+      source: 'node' as const,
+    }
+    pool.machines.push(extra)
+    const limited = {
+      ...structuredClone(pool.accounts[0]!),
+      id: 'limited',
+      usageLimits: [
+        {
+          id: 'old',
+          kind: 'rolling' as const,
+          periodSeconds: 3600,
+          unit: 'requests' as const,
+          remaining: 0,
+          allowance: 1,
+          resetsAt: '2026-01-01T00:00:00.000Z',
+          timeZone: 'UTC',
+        },
+      ],
+    }
+    pool.accounts.push(limited)
+    pool.slots.push({
+      id: 'extra-slot',
+      machineId: extra.id,
+      roleId: pool.roles[0]!.id,
+      accountId: limited.id,
+    })
+    source.snapshot = () => Promise.resolve(snapshot)
+    source.fleet = () => Promise.resolve(structuredClone(fleet))
+    source.candidatePool = () => Promise.resolve(structuredClone(pool))
+    const result = await createEstimatorRun(source, EN, BASE_LOCALE).estimate(
+      request(),
+      new AbortController().signal,
+    )
+    expect(result.setups.some((setup) => setup.kind === 'current')).toBe(true)
+    expect(result.currentRefusal).toBeUndefined()
+    expect(Date.parse(result.p50)).toBeGreaterThan(Date.parse(ESTIMATOR_AS_OF))
+    expect(Date.parse(result.p50)).toBeLessThanOrEqual(Date.parse('2026-10-06T14:00:00.000Z'))
+    estimateSectionSchema.parse(result)
+  })
   it('propagates engine faults instead of classifying them as infeasible fleets', async () => {
     const real = simulation.simulateEstimate
     let calls = 0
