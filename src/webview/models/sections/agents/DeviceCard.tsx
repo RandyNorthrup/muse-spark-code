@@ -7,6 +7,7 @@ import type {
   DeviceHostMessage,
   DevicesPanelState,
 } from '../../../../shared/modelsPanel'
+import { webviewKey } from '../../../../shared/keybindings'
 import type { DeviceAction } from './DevicePairing'
 import { deviceObservationText, deviceStatusText } from './devicePresentation'
 import { DeviceFingerprint } from './DeviceFingerprint'
@@ -168,7 +169,7 @@ export function DeviceCard({
         <fieldset
           className="device-unlink"
           onKeyDown={(event) => {
-            if (event.key !== 'Escape') {
+            if (webviewKey('devices.unlink', event) !== 'close') {
               return
             }
 

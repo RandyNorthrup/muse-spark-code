@@ -4578,6 +4578,12 @@
       "key": "Escape",
       "when": "bestOfN.close",
       "text": { "ui": "referenceModalKeys" }
+    },
+    {
+      "command": "devices.unlink",
+      "key": "Escape",
+      "when": "devices.unlink",
+      "text": { "ui": "referenceModalKeys" }
     }
   ]
 }
