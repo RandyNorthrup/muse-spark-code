@@ -13,12 +13,13 @@ export const scheduleWebviewMessageSchema = z.strictObject({
   requestId: z.string().check(z.minLength(1)),
   request: scheduleRequestSchema,
 })
-const scheduleResponseMessageSchema = z.strictObject({
+export const scheduleResponseMessageSchema = z.strictObject({
   type: z.literal('schedulesResponse'),
   version: z.literal(SCHEDULE_PROTOCOL_VERSION),
   requestId: z.string().check(z.minLength(1)),
   response: scheduleResponseSchema,
 })
+export type ScheduleHostResponseMessage = z.infer<typeof scheduleResponseMessageSchema>
 /** W/S broadcast the durable workspace store revision after every write. */
 export const scheduleChangedMessageSchema = z.strictObject({
   type: z.literal('scheduleChanged'),

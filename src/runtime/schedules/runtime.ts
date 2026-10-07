@@ -66,8 +66,16 @@ export class ScheduleRuntime implements RuntimeSchedulesBinding {
         const releases: (() => Promise<void>)[] = []
         const failures: unknown[] = []
         try {
+          // dueWorkspaces are keys, not paths: hold them directly instead of
+          // re-hashing them through holdWorkspace's path handling.
           const workspaces = await this.deps.dueWorkspaces()
-          for (const workspace of workspaces) releases.push(await this.holdWorkspace(workspace))
+          for (const workspace of workspaces) {
+            const release = this.deps.host.hold(workspace)
+            releases.push(() => {
+              release()
+              return Promise.resolve()
+            })
+          }
           await control.runDue()
         } catch (error: unknown) {
           failures.push(error)

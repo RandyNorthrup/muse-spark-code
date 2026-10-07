@@ -1,8 +1,8 @@
 // One channel for the companion, native bridges, TUI, desktop and VS Code panel.
 import {
   scheduleWebviewMessageSchema,
-  scheduleHostMessageSchema,
-  type ScheduleHostMessage,
+  scheduleResponseMessageSchema,
+  type ScheduleHostResponseMessage,
 } from '../../shared/scheduleProtocol'
 import {
   scheduleRequestSchema,
@@ -142,11 +142,11 @@ export class ScheduleSurface {
     }
   }
   /** Bridges translate their outer transport only; this versioned envelope stays intact. */
-  async message(input: unknown, cwd: string): Promise<ScheduleHostMessage> {
+  async message(input: unknown, cwd: string): Promise<ScheduleHostResponseMessage> {
     const envelope = scheduleWebviewMessageSchema.safeParse(input)
     if (!envelope.success) throw new Error(UI_TEXT.scheduleV2.runtime.invalidRequest)
     const response = await this.request(envelope.data.request, workspaceKey(cwd))
-    return scheduleHostMessageSchema.parse({
+    return scheduleResponseMessageSchema.parse({
       type: 'schedulesResponse',
       version: SCHEDULE_PROTOCOL_VERSION,
       requestId: envelope.data.requestId,

@@ -3162,6 +3162,7 @@ export const ATOMIC_TEMPORARY_SUFFIX = '.tmp'
 export const ATOMIC_RENAME_ATTEMPTS = 5
 export const ATOMIC_RENAME_DELAY_MS = 25
 export const MILLISECONDS_PER_DAY = 24 * 60 * 60 * 1000
+export const MILLISECONDS_PER_HOUR = 60 * 60 * 1000
 // Model API schedules (M52): local jobs expire as Muse Code's do, and no
 // occurrence may run without a fresh paid-run confirmation.
 export const SCHEDULE_MIN_INTERVAL_MS = 60 * 1000
@@ -3213,8 +3214,11 @@ export const SCHEDULE_RUN_ID_MAX_CHARS =
 export const SCHEDULE_RULE_MAX_CHARS = 1000
 export const SCHEDULE_MAX_GRANT_RULES = 100
 export const SCHEDULE_MAX_DESTINATIONS = 20
+export const SCHEDULE_STORE_SUBFOLDER = 'schedules'
 // Lane T's recovery-window bound, owned here since W wiring.
 export const SCHEDULE_MISSED_COUNT_MAX = 100
+// W's engine keeps only recent failures for its onError log.
+export const SCHEDULE_ENGINE_ERROR_MAX = 32
 export const SCHEDULE_REPORT_FORMATS = ['markdown', 'html', 'json', 'text'] as const
 export const SCHEDULE_MAX_WEEKLY_TIMES = 24
 export const SCHEDULE_PREVIEW_COUNT = 5
