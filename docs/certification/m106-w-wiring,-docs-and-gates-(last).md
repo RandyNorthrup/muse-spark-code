@@ -39,7 +39,8 @@ those extra clauses; the deterministic shipped-schema check exposed the omission
 The optional tool bodies now load asynchronously; their row suite exercises its
 first real body in shared `beforeAll` and awaits that body before cleanup.
 
-**Stopped path, as required by common.md's two-fix rule:**
+**Original stopped path, as required by common.md's two-fix rule (resolved in
+the continuation below):**
 `modelApiHost.test.ts`, “a cut-short reply never runs any calls … refuses completed
 and uncompleted calls and reports a failed turn”, still reports `completed` while
 expecting `failed`. First tried passing an explicit false continuation setting in
@@ -140,4 +141,48 @@ and remain the lead's gates.
 After sharing the duplicated fixture setup, the final wiring/reference/notify
 group passes 64 tests (`tests-commit-final.log`). Final guard hashes still match
 all 20 restoration receipts. Scope covers W's integration repairs; the ordinary
-full milestone suites and the two stopped test paths remain explicitly pending.
+full milestone suites remain with the lead. The two original stopped paths
+are resolved in the continuation below.
+
+## Lead-authorized stopped-path continuation
+
+The continuation brief lifts the two-fix stop for exactly these two tests.
+No extra branch was merged, and the original host expectation remains intact.
+
+**Cut-short turn.** Merge `829469d4a` (`m106/l2`) replaced `streamAttempt`'s
+M101 incomplete-tool `ModelApiError` with an `incompleteReason` return so the
+new loop could continue. Its continuation-off path returned normally, leaving
+the outer turn's terminal value at `completed`. The manager already forwards
+`outputContinuation`, and the session already snapshots it; no public setting
+binding was missing. Restoring the failure guard under that captured off arm
+preserves the existing enabled continuation and refuses every call as before.
+Two new regressions exercise the manager's normal and attempt factories,
+toggle the source flag after session creation, and require a failed terminal,
+one request, a failed tool row and no tool read.
+
+**Goal row.** Its first objective assertion used `getByText` before the lazy
+Goal body resolved. Awaiting that objective with `findByText` makes the remaining
+assertions inspect the loaded body. The body renders the correct captured
+content; no production UI change or fixed delay is needed.
+
+Before the fixes, the full wiring/row files produced **34 passed, 3 failed**:
+both new factory regressions reported `completed`, and the Goal objective was
+missing. After the fixes, the full host/wiring/row group passed **700 tests**
+with the repository timeout and `--maxWorkers=3` directly on macmini.
+
+The inherited immutable install still has SDK 1.3.0 and lacks raster packages.
+An isolated exact-lock install in `temp/m106-w/continuation-install` uses SDK
+1.4.2 (902 packages; 11 existing advisories: 2 low, 9 high). No dependency,
+lockfile, hook, cap or timeout changed. Final dependency-sensitive checks run
+in that ignored source snapshot inside this worktree.
+
+All four continuation red drills failed as expected with default timeouts,
+and each mutated file was restored byte-exact (SHA-256 below). Logs are
+`temp/m106-w/continuation-red-<drill>.log`.
+
+| Drill              | File                                         | Failing cases                              | Restored SHA-256                                                   |
+| ------------------ | -------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------ |
+| off-terminal       | `src/core/backends/modelapi/ModelApiHost.ts` | Both normal/attempt continuation-off cases | `4d3d766e1187421f01b625dea5e802219527b244f5cd529b8076f022dd29c2cb` |
+| manager-forwarding | `src/host/backend/modelApiBackendManager.ts` | Both normal/attempt continuation-off cases | `f95787907252f5aa56e4f5f43c1a871a5cafdf58c060bf1d5d6821c61e3497ae` |
+| session-snapshot   | `src/core/backends/modelapi/ModelApiHost.ts` | Both normal/attempt continuation-off cases | `4d3d766e1187421f01b625dea5e802219527b244f5cd529b8076f022dd29c2cb` |
+| goal-first-body    | `test/unit/toolRows.test.tsx`                | Goal first-body assertion                  | `e10901d4549fd67cbe81380413b56c5c398175db8ff322b896966c9707514bf4` |

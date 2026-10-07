@@ -6,13 +6,15 @@ import * as entry from '../../src/host/backend/modelApiEntry'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import { fakeModelApi } from './helpers/fakeModelApi'
+import { memoryToolIo } from './helpers/fakeToolIo'
+import { watchSessionTurns } from './helpers/sessionTurns'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { execOutputSchemaPort } from '../../src/runtime/exec/runExec'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { execEventSchema, validateResult } from '../../src/runtime/exec/execProtocol'
 import { compileOutputSchema } from '../../src/runtime/exec/outputSchema'
 import { resultRecord } from './helpers/execContract'
-import { M106_CAPTURED_META_MODEL } from '../../src/shared/constants'
+import { M106_CAPTURED_META_MODEL, UI_TEXT } from '../../src/shared/constants'
 import {
   metaSideCallFormats,
   metaHostedCapabilities,
@@ -57,6 +59,61 @@ async function schemaSession() {
 }
 
 describe('M106 integrated wiring', () => {
+  it.each(['normal', 'attempt'] as const)(
+    'snapshots continuation off in the %s factory and fails cut-short tool calls without dispatching them',
+    async (factory) => {
+      const api = fakeModelApi()
+      const log = new FakeLogOutputChannel()
+      const io = memoryToolIo({}, '/ws')
+      const read = vi.spyOn(io, 'readFile')
+      let isContinuationOn = false
+      const m = new ModelApiBackendManager(
+        fakeManagerDeps(api, log, {
+          workspaceRoot: '/ws',
+          bundlePath: 'source',
+          loadBundle: () => entry,
+          io,
+          outputContinuation: () => isContinuationOn,
+        }),
+      )
+      const host =
+        factory === 'normal'
+          ? await m.ensureHost()
+          : await m.buildAttemptHost('/ws', () => undefined)
+      try {
+        const session = await host.startSession({
+          workspaceRoot: '/ws',
+          modelId: 'muse-spark-1.3',
+          approvalMode: 'allowAll',
+        })
+        const { events, turnDone } = watchSessionTurns(session)
+        isContinuationOn = true
+        api.script(
+          {
+            calls: [{ name: 'read_file', arguments: '{"path":"unsafe.txt"}', callId: 'cut' }],
+            incomplete: { reason: 'max_output_tokens' },
+          },
+          { text: 'Unexpected continuation.' },
+        )
+        await session.sendTurn([{ type: 'text', text: 'read' }])
+        await turnDone()
+        expect(events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+          terminal: 'failed',
+          reason: UI_TEXT.incompleteToolCallsNotRun,
+        })
+        expect(api.responseBodies()).toHaveLength(1)
+        expect(read).not.toHaveBeenCalled()
+        expect(events).toContainEqual({
+          type: 'itemCompleted',
+          item: expect.objectContaining({ kind: 'toolCall', status: 'failed' }),
+        })
+      } finally {
+        if (factory === 'attempt') await host.close()
+        await m.dispose()
+      }
+    },
+  )
+
   it('snapshots strict off before declarations/cache construction in normal and attempt hosts', async () => {
     let isEnabled = false
     const h = manager(() => isEnabled)

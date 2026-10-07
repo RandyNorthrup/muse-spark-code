@@ -27523,6 +27523,16 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**W stopped-path continuation (2026-10-06, macmini).** The lead lifts the
+two-fix stop for exactly the cut-short host turn and the first lazy Goal-body
+assertion. Trace the continuation flag through manager and session creation;
+restore M101 item 8's failed turn when continuation is off, with a regression
+at the normal/attempt factory boundary. Preserve L2's enabled continuation and
+all feature-off golden bytes. Await the Goal body's first rendered content.
+Re-run the prior scoped M106 files plus App/Transcript/toolRows, with the
+repository timeout and unchanged build/size gates; aggregate certification
+and live receipts remain the lead's responsibility.
+
 **FIXM106T review corrections (2026-10-06, macmini).** Address RVM106T's
 three P2 findings with regressions and byte-restored red drills: share private
 strict-tool metadata across independently built bundles, preserve each Chat
@@ -33273,12 +33283,14 @@ aggregate certification record.
   - [ ] Each phase-2 section certified on its own when it ships.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
-M106 W scoped validation deferral (2026-10-06): the restored scoped tree has
-one cut-short host terminal assertion and one first-use lazy Goal-body assertion
-still failing after two fixes each. Per the shared lane's two-fix stop rule these
-paths are stopped, without skips or weakened assertions; see the exact names,
-attempts and next action in `docs/certification/m106-w-wiring,-docs-and-gates-(last).md`.
-M106 is not certified and no aggregate-quality claim is made.
+M106 W scoped validation continuation (2026-10-06): the lead lifted the two-fix
+stop for the cut-short host terminal assertion and the first lazy Goal-body
+assertion. Both now pass without changing their expected behavior. The L2 merge
+removed M101's terminal failure; bind that failure to the captured continuation-off
+arm. The Goal test awaits its first body content. Factory-boundary regressions,
+guard-fire receipts and scoped verification are recorded in
+`docs/certification/m106-w-wiring,-docs-and-gates-(last).md`.
+M106 still awaits the lead's aggregate and live certification.
 
 M106 W Node build binding (2026-10-06): the standalone exec split carries the
 ACP SDK's classic Zod browser detector. The existing no-navigator gate observed
