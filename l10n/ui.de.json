@@ -2605,6 +2605,8 @@
   "referenceElicitation": "MCP-Formulare erfragen Informationen für den anfragenden MCP-Server. Gesendete Formularwerte gehen an diesen Server, außerhalb des Modellgesprächs und des Transkripts. Ein Server kann sie in späteren Werkzeugausgaben zurückgeben. Geben Sie niemals ein Passwort oder einen Schlüssel ein.",
   "referenceNativeAgentsConditions": "Bei run.subagent_delegation_mode=\"auto\" kann Muse Code an Agenten delegieren. Bei \"off\" sind Delegationswerkzeuge nicht verfügbar. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "Prüft eine UTF-8-Patchdatei auf Geheimnisse und schlägt bei einem Fund fehl. --key-stdin prüft auch auf den exakten Model-API-Schlüssel im Speicher; kein Schlüssel wird gespeichert.",
+  "referenceVault": "Arbeite im Terminal mit dem benutzereigenen Anmeldeinformations-Tresor: Status, Entsperren, Sperren, Auflisten, Hinzufügen, Freigaben, Prüfung, Import und Beobachtung. Werte werden nie ausgegeben; der Broker hält sie.",
+  "referenceVaultHelp": "Verwendung des Befehls für den benutzereigenen Anmeldeinformations-Tresor anzeigen.",
   "vault": {
     "title": "Tresor",
     "locked": "Gesperrt",

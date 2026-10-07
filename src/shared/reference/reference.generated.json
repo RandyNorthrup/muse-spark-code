@@ -3279,6 +3279,18 @@
       "text": { "ui": "referenceVersion" }
     },
     {
+      "route": "vault",
+      "name": "vault",
+      "description": "Work with the per-user credential vault from a terminal: status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.",
+      "text": { "ui": "referenceVault" }
+    },
+    {
+      "route": "vaultHelp",
+      "name": "vault --help",
+      "description": "Show the per-user credential vault command usage.",
+      "text": { "ui": "referenceVaultHelp" }
+    },
+    {
       "route": "serve",
       "name": "serve: --backend <value>",
       "description": "--backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key",
@@ -4275,6 +4287,13 @@
         "default": false,
         "purpose": "keyFromStdin"
       }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --vault",
+      "description": "--vault                          Allow headless exec to use vault items covered by unattended grants",
+      "text": { "cli": "vault" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false, "purpose": "vault" }
     },
     {
       "route": "exec",

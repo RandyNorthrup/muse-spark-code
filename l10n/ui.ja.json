@@ -2509,6 +2509,8 @@
   "referenceElicitation": "MCP フォームは、要求元の MCP サーバーのために情報を尋ねます。送信したフォームの値は、そのサーバーに渡され、モデルの会話や履歴には入りません。ただしサーバーは、後のツール出力に値を含めることができます。パスワードやキーは入力しないでください。",
   "referenceNativeAgentsConditions": "run.subagent_delegation_mode=\"auto\" の場合、Muse Codeはエージェントに委任できます。\"off\" の場合、委任ツールは使用できません。 run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "UTF-8 のパッチファイルから秘密情報を検出し、見つかった場合は失敗終了します。--key-stdin はメモリ内の Model API キーそのものも検索します。キーは保存されません。",
+  "referenceVault": "ターミナルからユーザーごとの資格情報 Vault を操作します: 状態、ロック解除、ロック、一覧、追加、付与、監査、インポート、監視。値は決して表示されません。ブローカーが保持します。",
+  "referenceVaultHelp": "ユーザーごとの資格情報 Vault コマンドの使用方法を表示します。",
   "vault": {
     "title": "保管庫",
     "locked": "ロック中",

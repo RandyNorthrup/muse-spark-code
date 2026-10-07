@@ -2797,6 +2797,8 @@
   "referenceElicitation": "Formularze MCP proszą o informacje dla żądającego serwera MCP. Wysłane wartości trafiają do tego serwera poza rozmową modelu i zapisem rozmowy. Serwer może umieścić je w późniejszych wynikach narzędzia. Nigdy nie wpisuj hasła ani klucza.",
   "referenceNativeAgentsConditions": "Gdy run.subagent_delegation_mode=\"auto\", Muse Code może delegować agentom. Przy \"off\" narzędzia delegowania są niedostępne. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "Skanuje plik poprawki UTF-8 w poszukiwaniu sekretów i kończy się błędem po wykryciu. --key-stdin sprawdza także dokładny klucz Model API w pamięci; żaden klucz nie jest zapisywany.",
+  "referenceVault": "Pracuj z magazynem poświadczeń użytkownika z terminala: stan, odblokowanie, blokowanie, lista, dodawanie, granty, audyt, import i obserwacja. Wartości nigdy nie są wypisywane; przechowuje je broker.",
+  "referenceVaultHelp": "Pokazuje użycie polecenia magazynu poświadczeń użytkownika.",
   "vault": {
     "title": "Sejf",
     "locked": "Zablokowany",

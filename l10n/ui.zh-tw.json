@@ -2509,6 +2509,8 @@
   "referenceElicitation": "MCP 表單為提出請求的 MCP 伺服器收集資訊。提交的表單值傳給該伺服器，不進入模型對話或記錄。伺服器可能將這些值包含在後續工具輸出中。請勿輸入密碼或金鑰。",
   "referenceNativeAgentsConditions": "當 run.subagent_delegation_mode=\"auto\" 時，Muse Code可以委派給代理。設為 \"off\" 時，委派工具無法使用。 run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "掃描 UTF-8 修補檔案中的秘密資訊，偵測到時以失敗結束。--key-stdin 也會檢查記憶體中的 Model API 金鑰原值；不儲存金鑰。",
+  "referenceVault": "從終端機使用按使用者 credential 保管庫：狀態、解鎖、鎖定、清單、新增、授權、稽核、匯入和監視。值永遠不會列印；由代理持有。",
+  "referenceVaultHelp": "顯示按使用者 credential 保管庫命令的用法。",
   "vault": {
     "title": "憑證庫",
     "locked": "已鎖定",

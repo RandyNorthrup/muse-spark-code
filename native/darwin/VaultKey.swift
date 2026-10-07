@@ -14,8 +14,16 @@ enum VaultNative {
     static let publicKeyBytes = 65
     static let sealedBytes = 60 // 12-byte nonce + 32-byte key + 16-byte tag
     static let service = "Muse Spark Code (Unofficial).vault.v1"
-    // Q-M109: compiled, but never offered until creation/reload/presence are captured.
-    static let enclaveCertified = false
+    // Q-M109-OK (M109-SE-CAPTURE.md, owner's Touch ID Mac, 2026-10-06): the
+    // capture harness (explicit certified:true, ad hoc signed) wrapped a
+    // generated enclave key into a blob, reloaded it and unwrapped twice,
+    // erasing each throwaway; the production-default probe generated no key
+    // and kept no blob. Hardware and presence slots are therefore offered
+    // where SecureEnclave.isAvailable (M109 W). Per-use presence timing and
+    // helper-only real-item capture remain follow-ups; no Keychain-biometry
+    // path exists here (presence is .userPresence, no entitlement), so none
+    // is enabled.
+    static let enclaveCertified = true
     static let bindingDomain = "muse-spark-vault-macos-v1"
 }
 

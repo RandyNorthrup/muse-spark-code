@@ -75,6 +75,18 @@ export function cliCommands() {
       description: UI_TEXT.referenceVersion,
       text: { ui: 'referenceVersion' },
     },
+    {
+      route: 'vault',
+      name: 'vault',
+      description: UI_TEXT.referenceVault,
+      text: { ui: 'referenceVault' },
+    },
+    {
+      route: 'vaultHelp',
+      name: 'vault --help',
+      description: UI_TEXT.referenceVaultHelp,
+      text: { ui: 'referenceVaultHelp' },
+    },
   ]
 }
 

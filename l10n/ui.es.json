@@ -2701,6 +2701,8 @@
   "referenceElicitation": "Los formularios MCP solicitan información para el servidor MCP que la pide. Los valores enviados van a ese servidor, fuera de la conversación del modelo y de la transcripción. El servidor puede incluirlos en una salida posterior de una herramienta. Nunca introduzcas una contraseña ni una clave.",
   "referenceNativeAgentsConditions": "Cuando run.subagent_delegation_mode=\"auto\", Muse Code puede delegar en agentes. Con \"off\", las herramientas de delegación no están disponibles. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "Busca secretos en un archivo de parche UTF-8 y falla si los detecta. --key-stdin también busca la clave exacta de Model API mantenida en memoria; no se almacena ninguna clave.",
+  "referenceVault": "Trabaja con el almacén de credenciales por usuario desde un terminal: estado, desbloqueo, bloqueo, lista, adición, concesiones, auditoría, importación y observación. Los valores nunca se imprimen; los guarda el intermediario.",
+  "referenceVaultHelp": "Muestra el uso del comando del almacén de credenciales por usuario.",
   "vault": {
     "title": "Bóveda",
     "locked": "Bloqueada",

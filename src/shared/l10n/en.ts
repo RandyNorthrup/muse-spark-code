@@ -81,6 +81,9 @@ export const EN = {
   },
   referenceScanSecrets:
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
+  referenceVault:
+    'Work with the per-user credential vault from a terminal: status, unlock, lock, list, add, grants, audit, import and watch. Values never print; the broker holds them.',
+  referenceVaultHelp: 'Show the per-user credential vault command usage.',
   referenceAuthClear: 'Remove the stored Model API key.',
   referenceAuthStatus: 'Check whether a Model API key is stored.',
   referenceTabLanguages: 'Choose a language to switch Tab suggestions on or off for it.',

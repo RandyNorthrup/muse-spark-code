@@ -2701,6 +2701,8 @@
   "referenceElicitation": "Les formulaires MCP demandent des informations pour le serveur MCP demandeur. Les valeurs envoyées vont à ce serveur, hors de la conversation du modèle et de la transcription. Le serveur peut les inclure dans une sortie d’outil ultérieure. Ne saisissez jamais de mot de passe ni de clé.",
   "referenceNativeAgentsConditions": "Quand run.subagent_delegation_mode=\"auto\", Muse Code peut déléguer à des agents. Avec \"off\", les outils de délégation sont indisponibles. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "Analyse un fichier de patch UTF-8 pour détecter des secrets et échoue en cas de détection. --key-stdin recherche aussi la clé Model API exacte conservée en mémoire ; aucune clé n’est stockée.",
+  "referenceVault": "Utilisez le coffre d’identifiants par utilisateur depuis un terminal : état, déverrouillage, verrouillage, liste, ajout, autorisations, audit, import et surveillance. Les valeurs ne s’impriment jamais ; le courtier les détient.",
+  "referenceVaultHelp": "Affiche l’utilisation de la commande du coffre d’identifiants par utilisateur.",
   "vault": {
     "title": "Coffre-fort",
     "locked": "Verrouillé",

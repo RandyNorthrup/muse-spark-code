@@ -2605,6 +2605,8 @@
   "referenceElicitation": "MCP formları istekte bulunan MCP sunucusu için bilgi ister. Gönderilen form değerleri model konuşması ve dökümünün dışında bu sunucuya gider. Sunucu bunları sonraki araç çıktısına ekleyebilir. Asla parola veya anahtar girmeyin.",
   "referenceNativeAgentsConditions": "run.subagent_delegation_mode=\"auto\" olduğunda Muse Code aracılara devredebilir. \"off\" olduğunda devir araçları kullanılamaz. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "UTF-8 yama dosyasında gizli bilgileri arar ve bulursa başarısız olur. --key-stdin bellekteki Model API anahtarının tam değerini de arar; anahtar saklanmaz.",
+  "referenceVault": "Kullanıcı başına kimlik bilgisi kasasıyla bir terminalden çalışın: durum, kilit açma, kilitleme, liste, ekleme, izinler, denetim, içe aktarma ve izleme. Değerler asla yazdırılmaz; aracı tutar.",
+  "referenceVaultHelp": "Kullanıcı başına kimlik bilgisi kasası komutunun kullanımını gösterir.",
   "vault": {
     "title": "Kasa",
     "locked": "Kilitli",

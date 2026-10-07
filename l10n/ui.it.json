@@ -2701,6 +2701,8 @@
   "referenceElicitation": "I moduli MCP chiedono informazioni per il server MCP richiedente. I valori inviati vanno a quel server, fuori dalla conversazione del modello e dalla trascrizione. Il server può includerli in un successivo risultato di uno strumento. Non inserire mai una password o una chiave.",
   "referenceNativeAgentsConditions": "Quando run.subagent_delegation_mode=\"auto\", Muse Code può delegare agli agenti. Con \"off\", gli strumenti di delega non sono disponibili. run.workflow_trigger_mode: auto / explicit / off.",
   "referenceScanSecrets": "Analizza un file patch UTF-8 alla ricerca di segreti e termina con errore se li rileva. --key-stdin cerca anche la chiave Model API esatta in memoria; nessuna chiave viene salvata.",
+  "referenceVault": "Lavora con il vault delle credenziali per utente da un terminale: stato, sblocco, blocco, elenco, aggiunta, concessioni, audit, importazione e osservazione. I valori non vengono mai stampati; li detiene il broker.",
+  "referenceVaultHelp": "Mostra l’uso del comando del vault delle credenziali per utente.",
   "vault": {
     "title": "Cassaforte",
     "locked": "Bloccata",
