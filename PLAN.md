@@ -33502,7 +33502,13 @@ before a repaired one loads (2026-09-30).
   **FIXM106W-FULL-HOOK-SEARCH** (modelApiExtensionHooks): The narrowed hosted-search case sends ordinary chat rather than refusing before HTTP. The observed request has no hosted search tool, so this case incurs no paid search. Follow-up: Supply verified hosted capability/bound evidence in the fixture, then prove narrowing refuses before its hosted dispatch.
   **FIXM106W-FULL-PRICE-DISPLAY** (paletteRegistry / scheduledRunConfirmation): Exact-money formatting shows the same cached price as $0.0020 rather than the fixtures' $0.002. Price, consent and billing gates are unchanged. Follow-up: Align the asserted Intl/exact-money rendering while preserving selected-model rates and paid labels.
   **FIXM106W-FULL-RETRY-POLICY** (providerRetry): Meta retry classification now admits a status that the older table expects to refuse. Existing request admission, retry limits and Stop still bound the transport. Follow-up: Reconcile the documented/captured retry table and its complete status assertions in the pacing lane; do not broaden limits.
-  Exact named failures and final batch results are in the W certification.
+  Final committed-code evidence (`a235790ca`): 57 M106 files / 2,955 tests
+  pass; all 590 repository files ran in 198 serial default-timeout batches
+  (12,992 passed, 47 failed, 88 naturally skipped tests).
+  All 11 individual static gates and 18 red drills pass. The full suite is
+  blocked on the named residuals above; exact names/results are in the W
+  certification. Aggregate quality, coverage/accessibility and live/release
+  qualification remain the lead’s gates.
 
 - **FIXDIET1 audit outcome (2026-10-06).** RVMDIET1 P2-1, P2-2 and P3 are
   fixed; no review finding is deferred. Retry flushes the existing webview
