@@ -15,6 +15,8 @@ happened, not what was planned; superseded entries are kept.
   expiry independent of runner load.
 - Share immutable Git setup for persistent-slot tests and run every uncertain
   descendant or transport-failure scenario at its own unchanged test deadline.
+- Start the browser restart capture's discovery window after its verified
+  runtime is ready, so a cold download cannot consume the discovery budget.
 - Make provider, headless, deferred-bundle and VSIX tests independent of stale
   build outputs in clean CI shards. Reuse VSCE collection and reject oversized
   runtime members before parsing; existing budgets and test deadlines stay fixed.

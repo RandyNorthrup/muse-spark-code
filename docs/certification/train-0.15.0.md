@@ -1933,3 +1933,24 @@ exit zero from their fresh clone, including real network badge checks, all five
 typechecks, build/sizes/splits/notices and audit. Native universal compilation
 and disclaimed SIGTERM both pass. Remaining full-shard failures and the final
 post-slot-repair matrix are reported below rather than treated as green CI.
+
+### Cold browser restart preparation
+
+The complete fresh-clone browser restart job fails on first runtime acquisition:
+its 400 discovery polls start during the verified Chromium download. The check
+later completes normally, but discovery has ended before the browser appears.
+The warm diagnostic finds the browser and passes every assertion in 7,253 ms.
+Wait for bounded runtime preparation to settle (or for an early check refusal)
+before counting the unchanged discovery polls. Proxy, resolver rules, service
+restart, same browser, challenge removal, no Authorization, and cleanup
+assertions remain unchanged.
+
+Two tests execute the actual harness startup region with controlled preparation
+and early-admission completion. Both pass at defaults, both fail when the wait
+is deliberately removed, then both pass after byte-exact restoration. Harness
+SHA-256 `0d61e3885bed0770ee181b30f1b158338a272f93e64861ffc6a3cd45391bf5d2`.
+Scoped ESLint exits zero. A new empty runtime store exercises the real pinned
+download: **restartObserved**, 49,934 ms, all expectations satisfied, 5 initial
+and 28 resumed requests through the proxy, zero Authorization/challenges, no
+browser or check folder left. Model attempts: **0**. Final committed fresh-clone
+job results follow below.
