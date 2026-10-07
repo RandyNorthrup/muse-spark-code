@@ -19025,7 +19025,8 @@ vault Git fence while asserting credentials remain absent. Browser startup
 root exclusion is relative to the project, so a committed clone under temp
 retains its real UI readers while synthetic probe entries remain deferred.
 The vault shell secrets descriptor is offered only with a bound private runner;
-unbound ordinary shell schemas and golden request bytes remain unchanged.
+unbound ordinary shell schemas retain the release strict-tool contract. Merged
+request goldens still disagree on request attempts and need semantic review.
 Diagnostic compiled child runs also exceed the simulation and scrub performance
 limits without coverage. Keep the original benchmark assertions, all 2,000
 simulation trials, forty lanes, 1,000 scrub values and original hard limits.
@@ -19067,12 +19068,16 @@ not recover optional English. No schema, behavior or existing cap changes.
 
 - [ ] Repair integration failures with failing-before/passing-after tests and
       byte-exact restored guard drills; no increased caps or timeouts.
-- [ ] Fresh-clone committed source, `npm ci`, `CI=true`: exact Linux static
+      Listed repairs are committed; remaining hard failures and assigned
+      stop-rule deferrals remain active in §7 and the certification record.
+- [x] Fresh-clone committed source, `npm ci`, `CI=true`: exact Linux static
       job, four coverage shards and merged coverage, integration, packages,
       secrets, SAST and accessibility jobs from `.github/workflows/build.yml`.
       Run heavy jobs serially on this rig; scoped development runs use at most
       three files and three workers. Record missing hosted artifacts honestly.
-- [ ] Finish `docs/certification/int0180.md`, hooks-on explicit-path commits,
+      Final tested source `ba4c2ad6`: all commands attempted; required aggregate
+      failed. Legal accessibility and real team scenes pass; full axe times out.
+- [x] Finish `docs/certification/int0180.md`, hooks-on explicit-path commits,
       merge/job results and lead handoff. No push, extra merges or model calls.
 
 The assigned integration brief supersedes common.md's legacy merge and scoped
@@ -41890,7 +41895,9 @@ is relaxed. No live or paid calls, push, rebase or merge.
 ## 7. Gates
 
 INT0180 (2026-10-07): the four ordered integrations retain every existing cap.
-The combined startup is 752,075 B versus 751,411 B, residual 664 B.
+Fresh committed clones measure startup at 752,182 B versus 751,411 B,
+residual 771 B. The partial Linux VSIX is 2,889,541 B versus 2,841,600 B;
+genuine macOS dictation, signed screen-recorder and vault artifacts are absent.
 Contract/price/session splits removed most incoming estimator growth. Further
 budget rewrites stopped under the assigned two-fix rule; no waiver is requested
 or implied. The regression remains active and final CI reports it. The earlier
@@ -41899,8 +41906,15 @@ unchanged assertion now passes. Fresh-clone performance diagnostics also fail
 without coverage (simulation 2.2–3.0 s / 2 s; scrub 20.94 / 50 MB/s). Account
 closure remains 77.4 / 25 KiB after two fixture repairs; stop that path. B12
 reference/provider-auth disagreement likewise awaits lead review after setup
-repairs. Full CI records remaining coverage/SAST/native-artifact failures; no
-threshold or rule is weakened. See `docs/certification/int0180.md`.
+repairs. The full Linux shards still fail despite passing merged coverage
+thresholds. Both latest and floor VS Code ignore nested vault settings beneath
+the boolean `museSpark.vault`; resolving that public contract needs lead review
+under the assigned no-renames rule. Request-attempt goldens, private vault
+bindings, recorder vocabulary, media/CLI contracts and default-deadline failures
+remain open. SAST findings remain active, including vault host-pattern matching
+and estimator JSON-pointer/HTML handling; no scanner rule is waived. Full CI
+records each failure and missing native artifact; no threshold or rule is
+weakened. See `docs/certification/int0180.md`.
 
 **CI0150M round 3 aggregate status (2026-10-07).** The attempted unmodified
 `npm run quality` passes static gates, then fails whole-repository tests in
