@@ -329,6 +329,118 @@ describe('M116 D100 amendments (W)', () => {
     expect(policy.releaseReady('M116', lanes).kind).toBe('refuse')
   })
 
+  it('G24 a legacy name-only acceptance never authorizes a residual answered after it', () => {
+    // RVF116I P2: the review's timestamp (t=120) predates the acceptance
+    // (t=140) but the answer is published after it (t=160). Coverage binds to
+    // the answer's journal position, so the later instance stays open.
+    const fixture = policyFixture()
+    const { policy } = fixture
+    const other = {
+      ...MODULE,
+      id: 'module-worker-9',
+      key: 'src/core/schedules/worker',
+      files: ['src/core/schedules/worker.ts'],
+    }
+    const lanes = [...fakePlaybookLanes(), { ...fakePlaybookLanes()[0]!, id: 'Z', module: other }]
+    const otherBlock = {
+      ...reviewBlock('concurrency', 'high'),
+      findings: [
+        {
+          file: 'src/core/schedules/worker.ts',
+          title: 'An actual finding',
+          severity: 'high',
+          class: 'concurrency',
+        },
+      ],
+    }
+    policy.declareModule(other)
+    completeReview(policy, MODULE, reviewBlock('concurrency', 'high'), REVIEW_AGENTS)
+    const firstId = latestRound(policy).findings[0]!.id
+    policy.recordDesignDecision(design())
+    expect(
+      policy.answerFindings(MODULE, [
+        {
+          findingId: firstId,
+          status: 'residual',
+          name: 'native-binding',
+          whySafe: 'Module A serializes the claim for now.',
+          followUp: 'Replace it in lane R.',
+        },
+      ]).kind,
+    ).toBe('allow')
+    // B's review is recorded at t=120 but answers nothing yet.
+    fixture.advance(20)
+    completeReview(policy, other, otherBlock, REVIEW_AGENTS)
+    // The owner accepts A at t=140 with the pre-binding journal shape: a
+    // name, no instance evidence.
+    fixture.advance(20)
+    fixture.tamper([
+      ...policy.getRecord(),
+      {
+        kind: 'residual',
+        value: {
+          milestoneId: 'M116',
+          name: 'native-binding',
+          status: 'accepted',
+          actor: 'owner',
+          reason: 'Accepted A.',
+          at: 140,
+        },
+      },
+    ])
+    // B answers at t=160 with a different instance under the same name. Its
+    // round keeps the review's timestamp (t=120): only journal position tells
+    // it was answered after the acceptance.
+    fixture.advance(20)
+    const secondId = latestRound(policy, other).findings[0]!.id
+    policy.recordDesignDecision({ ...design(other), id: 'atomic-claim-worker' })
+    expect(
+      policy.answerFindings(other, [
+        {
+          findingId: secondId,
+          status: 'residual',
+          name: 'native-binding',
+          whySafe: 'Module B retries on its own worker.',
+          followUp: 'Harden it in lane Z.',
+        },
+      ]).kind,
+    ).toBe('allow')
+    const register = collectResidualRegister(policy.getRecord(), lanes, 'M116')
+    expect(register.open.map((entry) => entry.moduleId)).toEqual(['module-worker-9'])
+    const refused = policy.releaseReady('M116', lanes)
+    if (refused.kind !== 'refuse') throw new Error('Expected release refusal')
+    expect(refused.note.code).toBe('residualOpen')
+    expect(refused.note.missing).toEqual(['native-binding'])
+  })
+
+  it('G24 a legacy acceptance with no preceding answer is unbound, never accepted', () => {
+    const fixture = policyFixture()
+    const { policy } = fixture
+    const lanes = fakePlaybookLanes()
+    // A pre-binding record names a residual nothing answered before it.
+    fixture.tamper([
+      ...policy.getRecord(),
+      {
+        kind: 'residual',
+        value: {
+          milestoneId: 'M116',
+          name: 'hook-drift-follow-up',
+          status: 'accepted',
+          actor: 'owner',
+          reason: 'Accepted for now.',
+          at: 100,
+        },
+      },
+    ])
+    const register = collectResidualRegister(policy.getRecord(), lanes, 'M116')
+    expect(register.open).toEqual([])
+    expect(register.accepted).toEqual([])
+    expect(register.unbound.map((entry) => entry.name)).toEqual(['hook-drift-follow-up'])
+    // Nothing is open, so release still allows: the stale record blocks
+    // nothing, and a fresh acceptance names whatever later opens.
+    expect(policy.releaseReady('M116', lanes).kind).toBe('allow')
+  })
+
   it('G24 integration release runs only with an empty or accepted register', () => {
     const fixture = policyFixture()
     const board = new FakePlaybookBoard()
