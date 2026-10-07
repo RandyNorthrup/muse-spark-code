@@ -19,7 +19,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { findChrome } from './lib/chrome.mjs'
-import { screenshotUrl } from './lib/harnessCapture.mjs'
+import { screenshotUrl, waitForHarness } from './lib/harnessCapture.mjs'
 import { harnessArgs, langQuery, prepareLang } from './lib/harnessLang.mjs'
 import {
   HARNESS_PATH,
@@ -45,6 +45,7 @@ async function shoot(chrome, port, scenario, lang, theme, outDir, profileDir) {
   const sized = SIZED_SCENARIOS[scenario]
   if (sized !== undefined) {
     await withSizedPage(chrome, profileDir, url, sized, async (page) => {
+      await waitForHarness(page)
       await page.locator(sized.ready).first().waitFor()
       await page.screenshot({ path: file, animations: 'disabled' })
     })

@@ -18853,6 +18853,8 @@ transcript marker (icon, Open question, title and Answer). Answer selects,
 expands, scrolls and focuses the dock's first control. MCP forms follow the
 same rule. Preserve late delivery, drafts, approval priority and settled
 summaries. Update Help & Reference in all 14 languages and README images.
+Sized screenshot captures must wait for the same scenario, fonts and paints
+as wide captures: the existing early locator wait raced lazy question UI.
 
 - [ ] Implement the marker and explicit dock navigation; owning tests and
       a deliberate duplicate-card regression drill with byte-exact restore.
