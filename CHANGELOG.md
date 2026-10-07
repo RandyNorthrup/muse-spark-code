@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Design 5 hardware review: Stop and marker failures.** Model API Stop
+  transport failures now fail their row and tell the user delivery is
+  unconfirmed. Marker scans reject special files before opening and check
+  opened regular files without following links or waiting for FIFO writers.
+
 - **M103 hardware guard, fifth structural design (unreleased).** Share the
   hardware context and latch across production entrypoints; detect the planned
   machine/firmware markers and fail closed on missing scans. Reject Bypass at

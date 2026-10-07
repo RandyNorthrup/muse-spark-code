@@ -4917,6 +4917,19 @@ also cover attempt worktrees, and legacy host sources are normalized through
 the owner before mode selection. Marker reads are bounded by the named file
 and byte ceilings, with directory and file handles closed on every exit.
 
+**Design 5 review fixes (FIXM103G5, 2026-10-07).** RVM103G5's three P1
+and two P2 findings require a refusal at every Muse Code execution-submission
+boundary, including retries after awaits; root-aware composition callbacks
+must select the actual workspace lease or reject a mismatch. Resume first
+reads the captured session envelope without attaching, and refuses hardware
+before `session/resume` can restart queued work. Stop failure or uncertain
+delivery on Model API emits the dedicated unconfirmed notice and a failed
+row. Marker sniffing rejects special files and validates an opened regular
+file through a nonblocking, no-follow boundary. Regression tests run red on
+`39144b519`, then green; fresh-clone CI coverage repeats three times at the
+repository timeout. All five typechecks and unchanged static/build gates
+follow. Fakes/simulators only; shared core covers every editor/runtime.
+
 **Fourth design (REDM103G3, lead ruling after RVM103G3).** Every agent shell
 command in a hardware session asks the host UI once for the exact command;
 there is no shell read allowlist, standing grant, reviewer grant or classifier

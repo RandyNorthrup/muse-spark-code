@@ -7843,9 +7843,17 @@ export class ModelApiSession implements AgentSession {
   }
 
   private async executeHardwareStop(stop: HardwareStop): Promise<ToolOutcome> {
-    return this.deps.io.runHardwareStop === undefined
-      ? toolFailure(MODEL_API_MODEL_TEXT.hardwareRefused, UI_TEXT.hardwareBindingUnavailable)
-      : shellOutcome(await this.deps.io.runHardwareStop(stop), SHELL_DEFAULT_TIMEOUT_MS)
+    let outcome: ToolOutcome
+    try {
+      if (this.deps.io.runHardwareStop === undefined) throw new Error(UI_TEXT.hardwareRefused)
+      const result = await this.deps.io.runHardwareStop(stop)
+      outcome = shellOutcome(result, SHELL_DEFAULT_TIMEOUT_MS)
+      if (result.exitCode === 0 && outcome.failureReason === undefined) return outcome
+    } catch (error: unknown) {
+      outcome = toolFailure(describe(error))
+    }
+    this.emit({ type: 'backendNotice', level: 'error', text: UI_TEXT.hardwareStopUnconfirmed })
+    return { ...outcome, failureReason: UI_TEXT.hardwareStopUnconfirmed }
   }
 
   /** Permission check, execution and the transcript row for one tool call. */

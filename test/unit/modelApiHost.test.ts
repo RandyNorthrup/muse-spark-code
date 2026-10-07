@@ -646,6 +646,52 @@ describe('M103-G hardware dispatch boundary', () => {
     expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
   })
 
+  it.each(['http503', 'notStarted', 'throws', 'missingAdapter'])(
+    'Design 5 review P2.4 Stop delivery is unconfirmed and the row fails: %s',
+    async (failure) => {
+      const t = setup({
+        hardwareContext: () => ({
+          targets: [{ address: 'https://printer.local', stop: '/printer/emergency_stop' }],
+        }),
+      })
+      const dispatch = vi.fn(() => {
+        if (failure === 'throws') throw new Error('simulated transport failure')
+        return Promise.resolve({
+          stdout: '',
+          stderr: failure === 'http503' ? 'simulated HTTP 503' : 'simulated spawn failure',
+          exitCode: failure === 'http503' ? 22 : null,
+          isTimedOut: false,
+          isCancelled: false,
+        })
+      })
+      if (failure !== 'missingAdapter') t.io.runHardwareStop = dispatch
+      const { session, events, turnDone } = await startSession(t, 'onRequest')
+      t.api.script(
+        { calls: [shellCall('curl -X POST https://printer.local/printer/emergency_stop')] },
+        { text: 'done' },
+      )
+      await session.sendTurn([{ type: 'text', text: 'stop' }])
+      await turnDone()
+      expect(dispatch).toHaveBeenCalledTimes(failure === 'missingAdapter' ? 0 : 1)
+      expect(events).toContainEqual({
+        type: 'backendNotice',
+        level: 'error',
+        text: UI_TEXT.hardwareStopUnconfirmed,
+      })
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: 'itemCompleted',
+          item: expect.objectContaining({
+            status: 'failed',
+            failureReason: UI_TEXT.hardwareStopUnconfirmed,
+          }),
+        }),
+      )
+      expect(events.some((event) => event.type === 'approvalRequested')).toBe(false)
+      expect(t.shellCalls).toHaveLength(0)
+    },
+  )
+
   it('hardware workspace hooks never start a process or grant a model shell command', async () => {
     const runHook = vi.fn(permitHook)
     const t = setup({

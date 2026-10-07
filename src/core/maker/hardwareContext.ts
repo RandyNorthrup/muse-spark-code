@@ -1,5 +1,13 @@
 import { fileIdentityKey, statIdentitySync } from '../fs/fileIdentity'
-import { closeSync, fstatSync, openSync, opendirSync, readSync, readdirSync } from 'node:fs'
+import {
+  closeSync,
+  constants,
+  fstatSync,
+  openSync,
+  opendirSync,
+  readSync,
+  readdirSync,
+} from 'node:fs'
 import path from 'node:path'
 import { MAKER_DETECT_MAX_BYTES, MAKER_DETECT_MAX_FILES, UI_TEXT } from '../../shared/constants'
 import type { HardwareContext } from './guard/httpCommands'
@@ -52,6 +60,7 @@ function hasDirectoryMarker(
         continue
       }
       if (
+        !entry.isFile() ||
         /^(?:platformio\.ini|sdkconfig(?:\.defaults)?|pico_sdk_import\.cmake|printer\.cfg|Configuration.*\.h|prj\.conf|west\.ya?ml|code\.py|boot\.py|package\.xml)$|\.ino$/i.test(
           entry.name,
         )
@@ -70,15 +79,18 @@ function hasDirectoryMarker(
 }
 
 function hasSniffedProject(file: string): boolean {
-  const descriptor = openSync(file, 'r')
+  // Enumeration can race a replacement: never wait for a FIFO writer or follow a link.
+  const descriptor = openSync(
+    file,
+    constants.O_RDONLY | constants.O_NONBLOCK | constants.O_NOFOLLOW,
+  )
   try {
+    const stat = fstatSync(descriptor)
+    if (!stat.isFile() || stat.size > MAKER_DETECT_MAX_BYTES) return true
     const buffer = Buffer.alloc(MAKER_DETECT_MAX_BYTES)
     const count = readSync(descriptor, buffer, 0, buffer.length, 0)
-    return (
-      fstatSync(descriptor).size > MAKER_DETECT_MAX_BYTES ||
-      /IDF_PATH|pico_sdk_import|pico_sdk_init|^\s*esphome\s*:/m.test(
-        buffer.toString('utf8', 0, count),
-      )
+    return /IDF_PATH|pico_sdk_import|pico_sdk_init|^\s*esphome\s*:/m.test(
+      buffer.toString('utf8', 0, count),
     )
   } finally {
     closeSync(descriptor)
@@ -140,14 +152,16 @@ export class HardwareWorkspace {
 }
 
 /** Created once in each composition root; every consumer shares its workspace leases. */
-export function createHardwareContexts(inventory: () => HardwareContext = connectedBoards) {
+export function createHardwareContexts(
+  inventory: (workspaceRoot: string | undefined) => HardwareContext = connectedBoards,
+) {
   const workspaces = new Map<string | undefined, HardwareWorkspace>()
   return (workspaceRoot: string | undefined): HardwareWorkspace => {
     const key = workspaceRoot?.replaceAll('\\', '/')
     let owner = workspaces.get(key)
     if (owner === undefined) {
       owner = new HardwareWorkspace(() => ({
-        ...inventory(),
+        ...inventory(workspaceRoot),
         ...(workspaceRoot !== undefined && { workspaceRoot }),
       }))
       workspaces.set(key, owner)
