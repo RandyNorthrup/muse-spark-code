@@ -30,6 +30,7 @@ const COMMON_OPTIONS = {
   [ACP_PAID_FLAGS.imageGeneration]: { type: 'boolean' },
   verbose: { type: 'boolean' },
   'questions-defer-after': { type: 'string' },
+  hardware: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
   version: { type: 'boolean', short: 'v' },
 } as const satisfies CliParserOptions
@@ -99,6 +100,7 @@ export const CLI_OPTION_TEXT = {
   'image-generation': 'image-generation',
   verbose: 'verbose',
   'questions-defer-after': 'questions-defer-after',
+  hardware: 'hardware',
   help: 'help',
   version: 'version',
   cwd: 'cwd',

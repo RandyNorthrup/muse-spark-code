@@ -59,7 +59,7 @@ describe('the browser check tool (M81)', () => {
           { kind: 'type', selector: 'input', text: 'hello' },
         ],
       },
-      NONE,
+      new Set(['http://localhost:3000']),
     )
     expect(placed).toEqual({
       ok: true,
@@ -124,7 +124,10 @@ describe('the browser check tool (M81)', () => {
   })
 
   it('widens a check to the setting as it stands now, and to the URL host a card allowed', () => {
-    const local = placeBrowserCall({ url: 'http://localhost/' }, NONE)
+    const local = placeBrowserCall(
+      { url: 'http://localhost:3000/' },
+      new Set(['http://localhost:3000']),
+    )
     const beyond = placeBrowserCall({ url: `${HTTP}//intranet.example:8080/` }, NONE)
     if (!local.ok || !beyond.ok) {
       throw new Error('expected placements')
@@ -169,7 +172,7 @@ describe('the browser check tool (M81)', () => {
   it('shows the row in the display language, each entry under its count', () => {
     expect(browserReportRow('http://localhost:3000/', REPORT)).toBe(
       [
-        'Checked http://localhost:3000/: 1 console error, 3 failed requests, 0 requests blocked beyond this computer',
+        'Checked http://localhost:3000/: 1 console error, 3 failed requests, 0 requests blocked',
         '',
         '1 console error',
         'TypeError: x is undefined',
@@ -190,7 +193,7 @@ describe('the browser check tool (M81)', () => {
       'de',
     )
     expect(browserReportRow('http://localhost:3000/', REPORT).split('\n', 1)[0]).toBe(
-      'Geprüft http://localhost:3000/: 1 Konsolenfehler, 3 failed requests, 0 requests blocked beyond this computer',
+      'Geprüft http://localhost:3000/: 1 Konsolenfehler, 3 failed requests, 0 requests blocked',
     )
   })
 

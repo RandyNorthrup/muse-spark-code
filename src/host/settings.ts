@@ -192,7 +192,7 @@ const settingSchemas = {
   modelApiRepoMap: z.boolean(),
   modelApiObservationPacking: z.boolean(),
   turnCheckpoints: z.boolean(),
-  // Each entry a plain host name or IP address (no port, path or wildcard):
+  // Public hosts or exact dev-server origins; private destinations require the origin.
   // one that is not refuses the whole list, so a typo warns rather than
   // widening something else.
   browserCheckExtraHosts: z

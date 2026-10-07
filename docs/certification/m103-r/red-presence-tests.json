@@ -1,0 +1,134 @@
+{
+  "rig": "Kubuntu Linux",
+  "defaultTestTimeout": true,
+  "modelAttempts": 0,
+  "files": 26,
+  "passedTests": 553,
+  "batches": [
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/runtimeMakerHost.test.ts",
+        "test/unit/runtimeUserPresence.test.ts",
+        "test/unit/runtimeMakerTransport.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "passedTests": 79,
+      "seconds": 3.03
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/runtimeMakerCommands.test.ts",
+        "test/unit/runtimeMakerAttendance.test.ts",
+        "test/unit/runtimeMakerAcp.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "passedTests": 36,
+      "seconds": 3.47
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/browserPolicy.test.ts",
+        "test/unit/browserTool.test.ts",
+        "test/unit/browserRun.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "passedTests": 63,
+      "seconds": 12.49
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/checkProxy.test.ts",
+        "test/unit/canaries.test.ts",
+        "test/unit/browserChecks.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "passedTests": 58,
+      "seconds": 12.63
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/ideBrowserCheck.test.ts",
+        "test/unit/settings.test.ts",
+        "test/unit/browserCheckConfirm.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "passedTests": 29,
+      "seconds": 2.25
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/runtimeMakerStop.test.ts",
+        "test/unit/makerLease.test.ts",
+        "test/unit/makerMachines.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "passedTests": 134,
+      "seconds": 6.82
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/publicAddress.test.ts",
+        "test/unit/webFetch.test.ts",
+        "test/unit/makerProtocol.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "passedTests": 77,
+      "seconds": 3.45
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/deferredBundles.test.ts",
+        "test/unit/bundleSize.test.mjs",
+        "test/unit/vsixPackaging.test.mjs",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "passedTests": 58,
+      "seconds": 13.19
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/runtimeManifest.test.ts",
+        "test/e2e/acpStdio.e2e.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exitCode": 0,
+      "passedTests": 19,
+      "seconds": 8.18
+    }
+  ]
+}

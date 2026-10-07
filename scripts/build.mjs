@@ -499,6 +499,16 @@ const runtimeQuestionsOptions = {
   entryPoints: [RUNTIME_QUESTIONS_ENTRY],
   outfile: RUNTIME_QUESTIONS_OUTFILE,
 }
+// M103 R: native/runtime maker work is absent from ACP and activation startup.
+const runtimeMakerOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: ['src/runtime/maker/entry.ts'],
+  outfile: 'dist/runtimeMaker.js',
+  platform: 'node',
+  format: 'cjs',
+  target: AGENT_NODE_TARGET,
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -664,6 +674,7 @@ if (isWatch) {
     esbuild.context(recorderOptions),
     esbuild.context(whatsNewOptions),
     esbuild.context(judgeOptions),
+    esbuild.context(runtimeMakerOptions),
     esbuild.context(uiTextOptions),
     ...uiTextRegionOptions.map((options) => esbuild.context(options)),
     esbuild.context(validationOptions),
@@ -720,6 +731,7 @@ if (isWatch) {
     recorder: esbuild.build(recorderOptions),
     whatsNew: esbuild.build(whatsNewOptions),
     judge: esbuild.build(judgeOptions),
+    runtimeMaker: esbuild.build(runtimeMakerOptions),
     uiText: esbuild.build(uiTextOptions),
     ...Object.fromEntries(
       UI_TEXT_REGIONS.map((region, index) => [
@@ -807,4 +819,5 @@ if (isWatch) {
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.js`))
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.css`))
   reportSize(ACP_OUTFILE)
+  reportSize('dist/runtimeMaker.js')
 }

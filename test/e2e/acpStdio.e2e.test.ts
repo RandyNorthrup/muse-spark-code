@@ -108,6 +108,16 @@ beforeAll(async () => {
       logLevel: 'silent',
     })
   }
+  await build({
+    entryPoints: [path.join(ROOT, 'src/runtime/maker/entry.ts')],
+    outfile: path.join(path.dirname(AGENT), 'runtimeMaker.js'),
+    bundle: true,
+    platform: 'node',
+    format: 'cjs',
+    target: 'node22',
+    external: ['@napi-rs/keyring'],
+    logLevel: 'silent',
+  })
   writeFileSync(path.join(PACKAGE, 'package.json'), JSON.stringify({ version: LAID_OUT_VERSION }))
   cpSync(path.join(ROOT, 'l10n'), path.join(PACKAGE, 'l10n'), { recursive: true })
 })
@@ -234,6 +244,34 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
       expect(await prompt('Continue again')).toEqual({ stopReason: 'end_turn' })
       expect(text(h.updates.slice(second))).not.toContain('Use teal')
     })
+  })
+  it('handles hardware status and ungated Stop over stdio against the fake CLI', async () => {
+    const agent = startAgent(signedIn, ['--hardware'], {
+      LOCALAPPDATA: dataHome,
+      XDG_DATA_HOME: dataHome,
+    })
+    await agent.run(async (client) => {
+      const sessionId = await newSession(client)
+      for (const command of ['/hardware status', '/machines list', '/stop-machine --all']) {
+        expect(
+          await client.request('session/prompt', {
+            sessionId,
+            prompt: [{ type: 'text', text: command }],
+          }),
+        ).toEqual({ stopReason: 'end_turn' })
+      }
+    })
+    expect(text(agent.updates)).toContain(UI_TEXT.makerHardwareDisabled)
+    expect(text(agent.updates)).toContain(UI_TEXT.makerSoftwareStopWarning)
+    expect(agent.updates).toContainEqual(
+      expect.objectContaining({
+        sessionUpdate: 'available_commands_update',
+        availableCommands: expect.arrayContaining([
+          expect.objectContaining({ name: 'stop-machine' }),
+        ]),
+      }),
+    )
+    expect(agent.wire.join('')).not.toContain('Bearer ')
   })
   it('prints its version and help, and refuses an argument it does not know', () => {
     const env = { ...process.env, NODE_PATH, LANG: 'C', LC_ALL: 'C' }

@@ -75,6 +75,8 @@
     "src/acp/questionDeferralEntry.ts",
     "src/runtime/questions/questionRegistryEntry.ts",
     "src/core/questions/deferralEntry.ts",
+    // M103 R: required by path only for explicit runtime maker commands/--hardware.
+    "src/runtime/maker/entry.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     "test/e2e/**/*.test.ts",
     // DIET1 production browser smoke, invoked directly as documented in README.

@@ -194,6 +194,64 @@ happened, not what was planned; superseded entries are kept.
   Menus, toolbar captions and failure notices ship in all fourteen translated
   languages through gettext catalogues.
 
+- FIXM103R4: maker CLI hardware enable, machine add and panel commands refuse
+  agent-marked shells before asking for OS presence. Unattended shell children
+  carry the runtime marker; Stop remains available.
+  The panel opens with a public URL and exchanges its one-shot code over
+  loopback; the code never appears on an opener command line.
+  Browser origins are user-only, with a separate settings confirmation for
+  non-loopback origins. Registered machine hosts and aliases, known printer/CNC
+  UIs, private machine/web ports and encrypted private tunnels stay refused,
+  including Bypass. HTTP documents are bounded and screened before browser
+  interaction. Browser classification now uses web fetch's NAT64 discovery
+  and refuses unknown IPv6 translation.
+
+- REDM103R supersedes the terminal/SSH approval repairs below: physical maker
+  approvals, hardware enable, machine add and panel open require OS user
+  authentication bound to the exact action. Grants expire in five seconds and
+  work once. Remove ancestry walks, terminal launch codes, id-only HMAC answers
+  and the multiplexer refusal. Linux ships a non-caching polkit policy; the
+  macOS/Windows native helpers and real authenticated runs remain qualification
+  prerequisites. Stop remains independent. Browser checks deny private resolved
+  addresses by default, permit exact workspace dev-server origins explicitly,
+  and always deny the reserved companion ports, even without discovery files.
+  The ACP package carries the runtime bundle, browser schema entry and policy.
+
+- FIXM103R2: reject local/unknown SSH attendance and verify Windows ancestor
+  executable paths. Browser launchers receive only a public panel URL; a typed
+  eight-character code expires after 60 seconds, is single use and rate-limited,
+  and is printed only to the attended CLI's own TTY. Privileged commands refuse
+  inside terminal multiplexers because capture-pane can expose their code;
+  a separately opened person panel remains available, while direct multiplexer
+  confirmation is a named integration residual. Browser checks refuse published
+  companion ports, including aliases, redirects and tunnels; same-user registry
+  integrity remains a named G4 integration residual. Worker IDE-tool
+  admission now fails closed even when only static tools were registered.
+
+- FIXM103R: refuse unattended maker privileges using terminal and ancestry
+  evidence; open the companion via the OS browser without printing launch or
+  Thonny tokens. Panel cookies bind their instance and port; only a separate
+  page-held, once-only capability can answer an approval. Stop reads user-level
+  registries independently of workspace authority, including home/root/linked
+  paths and occupied ACP turns with leading whitespace. Failed Stop names the
+  machine and requires immediate physical emergency Stop in all fourteen
+  languages. Dead leases no longer cause a false alarm; unavailable serial and
+  PrusaLink Stop reports the physical requirement, and cancelling an unsent
+  approval no longer dispatches emergency Stop. ACP session guards now have
+  direct regression/drill coverage. Physical Muse Code MCP tools are withheld
+  until captured caller-turn provenance is available; the unsafe stdout
+  Thonny startup handoff is withdrawn pending private editor integration.
+
+- M103R runtime/ACP maker host: hardware grants outside the workspace, OS
+  credential storage, hardware/machines/Stop commands, editor permissions
+  with once-only target binding, authenticated loopback companion/MCP
+  transports and the Thonny v2 handover endpoint. Stop bypasses admission and
+  occupied ACP turns; ordinary prompts retain their preparing hold. Runtime
+  tools are withdrawn in Plan and unattended contexts. The maker engine loads
+  from a deferred bundle capped at 125 KiB; existing caps are unchanged.
+  Shared maker UI, package wiring, G4 and physical/cross-OS
+  qualification remain integration work, as recorded in M103R certification.
+
 ## [0.14.3] - 2026-10-06
 
 ### Added

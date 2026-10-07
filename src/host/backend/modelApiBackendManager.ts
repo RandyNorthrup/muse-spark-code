@@ -112,6 +112,7 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
     | undefined
   /** The extension's own IDE tools, offered in process (M50). */
   readonly ideTools?: readonly McpTool[] | undefined
+  readonly getIdeTools?: (() => readonly McpTool[]) | undefined
   /** The window's web fetch, run in this bundle for the backend's `web_fetch` (M69). */
   readonly webFetch?: WebFetcher | undefined
   /** The window's browser check, run in its own bundle for `browser_check` (M81). */
@@ -155,6 +156,7 @@ const MANAGER_DISPOSED = 'The Model API backend was stopped while it was startin
 
 /** What differs between the window's host and a best-of-N attempt's host. */
 interface HostVariant {
+  readonly getIdeTools?: (() => readonly McpTool[]) | undefined
   readonly verify: ModelApiBackendManagerDeps['verify']
   readonly workspaceEdits: WorkspaceEdits
   readonly sessionWorkspaceRoot: string | undefined
@@ -302,6 +304,8 @@ export class ModelApiBackendManager {
         sessionBudgetUsd: this.deps.sessionBudgetUsd,
         showReplyUsage: this.deps.showReplyUsage,
         ideTools: variant.ideTools,
+        // Attempt variants deliberately have no IDE tools; never hand hardware to a worker.
+        getIdeTools: variant.getIdeTools,
         webFetch: variant.webFetch,
         browserCheck: variant.browserCheck,
         codeIntel: variant.codeIntel,
@@ -354,6 +358,7 @@ export class ModelApiBackendManager {
       describeEnvironment: this.deps.describeEnvironment,
       isPaidFeatureOn: this.deps.isPaidFeatureOn,
       ideTools: this.deps.ideTools,
+      getIdeTools: this.deps.getIdeTools,
       allowsPaidUse: this.deps.allowsPaidUse,
       isPaidUseRemembered: this.deps.isPaidUseRemembered,
       isHooksEnabled: this.deps.isHooksEnabled,

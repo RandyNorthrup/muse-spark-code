@@ -104,7 +104,7 @@ import { isWebFetchAllowed } from './host/web/webFetchConfirm'
 import { pageConverter } from './host/web/pageConverter'
 import { lazyPageUrlCheck, lazyWebFetcher, webFetchLoader } from './host/web/webFetchBundle'
 import { BrowserChecks } from './host/browser/browserChecks'
-import { isBrowserCheckAllowed } from './host/browser/browserCheckConfirm'
+import { isBrowserCheckAllowed, browserDevOrigins } from './host/browser/browserCheckConfirm'
 import { downloadBrowserRuntime } from './host/browser/runtimeCommand'
 import { runtimeConsent } from './host/browser/runtimeConsent'
 import { ideBrowserCheckTools } from './host/ide/browserCheckTool'
@@ -1825,9 +1825,22 @@ async function activateWindow(
     },
   })
   context.subscriptions.push(browserChecks)
+  const devOrigins = browserDevOrigins(
+    context.globalState,
+    () => currentSettings().browserCheckExtraHosts,
+  )
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration(`${SETTINGS_SECTION}.browserCheckExtraHosts`)) {
+        void devOrigins.change().catch(() => {
+          log.warn('Browser check: origin confirmation failed')
+        })
+      }
+    }),
+  )
   const browserCheck: BrowserCheckHost = {
     check: browserChecks.check,
-    extraHosts: () => currentSettings().browserCheckExtraHosts,
+    extraHosts: devOrigins.read,
     isOffered: () => browserChecks.isOffered(),
   }
   const isIdeBrowserCheckOffered = (): boolean =>

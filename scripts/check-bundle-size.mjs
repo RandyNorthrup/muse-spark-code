@@ -20,6 +20,8 @@ const BUDGETS = [
   { path: 'dist/acpQuestions.js', budgetKiB: 25 },
   { path: 'dist/runtimeQuestions.js', budgetKiB: 25 },
   { path: 'dist/questionNotes.js', budgetKiB: 25 },
+  // M103R: 107.0 KiB + 15%, rounded to 25 KiB. Existing caps are unchanged.
+  { path: 'dist/runtimeMaker.js', budgetKiB: 125 },
   { path: 'dist/extension.js', budgetKiB: 600 },
   // ACTDIET: first chat surface; 216.0 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/conversation.js', budgetKiB: 250 },

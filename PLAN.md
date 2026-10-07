@@ -12121,7 +12121,8 @@ etc?" The research, its sources and the ranked list are in
 Physical machines can injure people and start fires. A model is wrong
 sometimes, and a prompt in a datasheet, a README or a fetched page can steer
 it. These decisions keep every physical effect behind a person who sees
-exactly what will be sent.
+exactly what will be sent. Physical approvals require OS user presence;
+terminal attendance is never authority.
 
 1. **Help with the work; the user's hand moves the machine.** The extension
    helps write, build, flash, simulate and read devices and machines. It is
@@ -29858,6 +29859,13 @@ growth is entirely three required English fallback keys; no maker UI/engine
 source enters startup. M103V-STARTUP-FALLBACK in §9 is waived by lead 2026-10-06, +137 B, cap unchanged.
 Aggregate and native/editor qualification remain explicit W/E handoffs;
 the inline complete English browser fallback is retained as D6 requires.
+**FIXM103R4 / REDM103R / FIXM103R2 bounded verification (2026-10-06, Kubuntu).** The explicit rig
+brief prohibits aggregate quality/full tests here and delegates them to the
+lead. Complete owning suites run at the unchanged repository default timeout,
+at most three files per run, with typecheck, changed-file ESLint/Prettier,
+Knip, duplication, localization, host API and production build gates. Every
+new guard is deliberately broken and restored byte-exact in m103-r.md and its
+machine-readable receipts. No threshold, cap, hook or timeout is weakened.
 
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
@@ -30221,6 +30229,128 @@ Certify fakes, every new guard's deliberate
 failure, static gates and unchanged production caps; no live/paid calls or
 physical hardware. Runtime/ACP/companion equivalents belong to R; native MHP
 surfaces reuse that runtime and shared protocol. Full quality remains lead-owned.
+**FIXM103R4 (2026-10-06, Kubuntu, RVM103R4G).** Close all four findings.
+Browser dev origins come only from user-level settings; private/LAN additions
+require a settings UI confirmation naming the origin, stored outside the
+workspace. Default private access is loopback only after an exact origin is
+configured. Registered machine hosts and known printer/CNC UI destinations
+are always refused, including allowlisted origins and Bypass. Browser
+checks refuse private standard web/machine ports and encrypted private tunnels;
+plain HTTP documents are bounded, uncompressed and screened for known maker
+UI identities before reaching the browser. Read the runtime's and extension's
+validated machine registries at every connection and deny matching hosts and
+resolved aliases on every port. Revocation removes the user origin grant;
+subsequent addition needs a fresh settings question. Existing public host
+widening still cannot admit private addresses. Runtime maker
+enable, add and panel refuse agent-marked shells before any presence question;
+unattended shell children carry the marker. Browser proxy classification uses
+the web fetch adapter's NAT64 discovery, including the well-known prefix, and
+refuses unknown IPv6 translation. The panel launcher receives a public URL;
+its one-shot loopback exchange delivers the launch code to the opened page,
+never on any process command line. Each guard has a failing regression and a
+byte-exact red drill in docs/certification/m103-r.md. No dependencies, guard
+widening, merge, push, live/paid/physical calls or aggregate quality runs.
+
+**REDM103R (2026-10-06, Kubuntu, RVM103R3G).** Replace terminal/SSH/process
+authority with one portable UserPresence port. Each approval authenticates the
+OS user for its exact id, payload SHA-256 and target, then mints a short-lived,
+single-use grant checked inside the runtime host. Hardware enable, machine add
+and panel open also authenticate their exact action. Linux uses a fixed
+pkcheck executable and a shipped auth_self (never cached) polkit policy; missing
+policy/agent refuses. Signed Darwin LocalAuthentication and Windows Hello
+helpers join through M109's port; this base lacks M109 and defaults to an honest
+unavailable refusal on those platforms. No terminal bootstrap code, ancestry
+walk or SSH peer confers authority; multiplexers have no special refusal.
+FIXM103R4 supersedes the launch transport: the OS browser receives only a
+public URL and its page uses a one-shot loopback exchange. ACP
+permission answers still require OS presence. Workers retain no physical tools.
+Browser checks deny non-public resolved addresses unless an exact dev-server
+origin was explicitly set by the person (user-only with separate non-loopback
+settings confirmation after FIXM103R4). Public-host widening remains,
+but cannot admit private addresses. Reserve a small fixed companion port range
+that no browser scope can admit, so registry deletion cannot permit a companion
+even when dev origins are configured; other loopback relays remain denied by
+default. The existing browserCheckExtraHosts setting accepts exact origins and
+is machine-scoped/user-only after FIXM103R4; legacy host entries widen public
+destinations only.
+The host's own canaries get a private, path-bound proxy allowance, unavailable
+to page traffic. Its existing pure IP classifier is shared at core/publicAddress
+(the lazy web module re-exports it) so activation's scope checks share one rule
+without pulling web-fetch transport into the activation bundle. The companion
+bridge imports boundary schemas from the existing webview startup entry; no
+standalone schema chunk or size-cap exception is added. Stop remains independent of presence, grants and workspace
+storage. Native re-runs, bounded gates and three byte-exact red drills are
+recorded in docs/certification/m103-r.md; full quality belongs to the lead per
+the shared rig rules. No merge, push, physical or paid/live model call.
+
+**FIXM103R2 (2026-10-06, Kubuntu, RVM103R2).** Repair all six reviewed
+channels under D83, with the explicitly named integration residuals in §9:
+SSH attendance requires another machine's client address
+in the SSH environment and a matching sshd-ancestor socket peer (Linux /proc,
+macOS system lsof);
+loopback, own-interface and unknown peers refuse. Verify each Windows
+ancestor's executable location. Open the companion's public URL without a
+capability; exchange an eight-character, 60-second, single-use, rate-limited
+code printed only to the attended CLI's own TTY. Mint the approval key only
+after that exchange and keep it in page memory. Multiplexer ancestry requires
+independent person authority: privileged CLI commands refuse before storage
+or code output; a separately opened person panel remains available. Direct
+multiplexer-to-panel confirmation is the named §9 functionality residual,
+because capture-pane can steal an in-terminal bootstrap code. Publish live
+companion ports in the runtime registry and deny browser-check navigation and
+requests to them, including redirects and aliases. Worker IDE-tool admission
+fails closed even without a dynamic callback. Keep every round-one guard.
+The public-port registry is writable by the same OS user; G4 protection or
+trusted discovery remains a named residual, and the registry never conveys
+person authority. Its erasure cannot supply the new own-TTY launch code.
+Each finding gets a failing regression and byte-exact red drill in
+docs/certification/m103-r.md. No new dependency, guard widening, merge, push,
+live/paid/physical call or aggregate quality run; the lead owns aggregate and
+cross-platform qualification under the explicit rig brief.
+
+**FIXM103R review repair (2026-10-06, Kubuntu).** Repair RVM103R's
+P1/P2 findings with computed terminal attendance (TTYs, agent marker and
+bounded fail-closed ancestry), person-only panel launch/answer capabilities,
+instance-bound cookies, and Stop independent of workspace authority/storage.
+ACP creates workspace authority lazily so home/root/linked cwd sessions retain
+Stop. Prove the single-attended-session and per-session tool guards directly.
+The captured MCP transport on this base has no authenticated caller turn id;
+physical MCP calls must fail closed until a real capture supplies provenance
+(no guessed wire field, rule 13). Model API retains its existing worker denial.
+Fix dead-owner Stop alarms, unavailable serial/PrusaLink Stop reporting,
+permission-only cancellation (retaining controller Stop after guarded dispatch), constant-time Thonny authentication and the
+shared whitespace-tolerant Stop parser. Panel tests own their assets. Every
+fix has a regression and byte-exact red drill in m103-r.md. No new dependency,
+paid/live/physical call, merge, push or cap change. Full quality stays with the
+lead per the explicit rig brief; focused owning suites and static/build gates
+run here. Missing captured turn provenance and remaining review P3 risks get
+named residuals in §9 and certification.
+
+**M103R runtime lane (2026-10-05, win11).** Implement the existing R row on
+the integrated MakerHost/makerProtocol contract: host-owned workspace hardware
+grants, OS secrets, runtime commands, ACP once-only permissions and commands,
+authenticated loopback companion/MCP transports and Thonny v2 context/port
+handover. Preserve the engine's single-use target binding and ungated Stop;
+G4 classification is supplied through a port, never duplicated. Runtime code
+loads from its own deferred bundle; U/W own the shared React mount and final
+package wiring. Each feature has the VS Code, ACP/companion and native MHP
+equivalent recorded in docs/certification/m103-r.md. No paid or live calls,
+physical hardware or main/guard merge. The explicit lane brief delegates full
+quality to the lead; run owning suites and unchanged static/build gates here.
+Technical command syntax is added to the existing ACP usage entry in every
+language. D6 adds `dist/runtimeMaker.js`: 107.0 KiB measured, plus 15%, rounded
+to 125 KiB; every pre-existing cap is unchanged. Shared validation exports
+`omit` because the first real runtime build exposed the maker schema's use.
+R's independent Stop must also reach unregistered serial/Thonny leases from a
+second process. Add a core Stop-all helper over P's existing validated v2
+records and owner endpoints; it does not invent a lease parser or wait for a
+mutex. Attempt each resource independently so a corrupt record cannot delay
+another controller's fixed Stop. Certify it with the full lease suite.
+Refresh runtime workspace admission and registry identity after the final HTTP
+preparation await, immediately before the existing synchronous engine guard;
+the optional HTTP policy hook runs only for guarded sends, never fixed Stop.
+ACP reserves its existing preparing hold before awaiting a maker command;
+an explicit Stop command bypasses an occupied turn without enabling hardware.
 
 **M103INT integration and lanes I/0 (2026-10-05, Kubuntu).** Merge only
 m103/sfix, m103/dfix, m103/pfix2, m103/mfix3, m103/x, m103/afix and
@@ -32001,10 +32131,11 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
-| Location                                                                                                            | Escape hatch                                               | Reason                                                                                                                                                                                                                                                   |
-| ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/acp/questionDeferralBundle.ts` (FIXM112A)                                                                      | `isAcpQuestionBundle` trusts the checked factory signature | The entry, loader and ACP package come from the same build; the export is checked as a function and loader tests reject missing/malformed modules. The factory installs the caller's language table before constructing a session's question controller. |
-| `src/runtime/questions/questionRegistryBundle.ts`, `src/host/conversation/conversationBundle.ts` (M112 integration) | Checked same-build function signatures                     | Loader guards validate each required export as a function; entries and callers ship from the same build. Registry and host store factories install or inherit the caller's language before use; loader and real-disk tests exercise their signatures.    |
+| Location                                                                                                            | Escape hatch                                                 | Reason                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/acp/questionDeferralBundle.ts` (FIXM112A)                                                                      | `isAcpQuestionBundle` trusts the checked factory signature   | The entry, loader and ACP package come from the same build; the export is checked as a function and loader tests reject missing/malformed modules. The factory installs the caller's language table before constructing a session's question controller.                                                 |
+| `src/runtime/questions/questionRegistryBundle.ts`, `src/host/conversation/conversationBundle.ts` (M112 integration) | Checked same-build function signatures                       | Loader guards validate each required export as a function; entries and callers ship from the same build. Registry and host store factories install or inherit the caller's language before use; loader and real-disk tests exercise their signatures.                                                    |
+| `src/runtime/makerBundle.ts` (M103R)                                                                                | `isRuntimeMakerBundle` trusts the checked factory signatures | The entry, loader and ACP package come from the same source and build, as the other deferred factories do. The inline reason names this register; owning command and deferred-bundle tests exercise the real factories. No `any`, non-narrowing cast, lint suppression or scanner suppression was added. |
 
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -32204,6 +32335,57 @@ before a repaired one loads (2026-09-30).
   complete inline English fallback (current 813,789 B, +187 B from recorded
   full base). The historical waiver covers exactly +137 B; no further waiver
   is claimed. Numeric caps and structural startup isolation stay unchanged.
+- **FIXM103R2-REGISTRY-INTEGRITY (closed by REDM103R, 2026-10-06).**
+  Browser proxy connections deny private resolved addresses unless the exact
+  dev-server origin was configured in user settings (FIXM103R4); non-loopback
+  origins also need a separate settings UI address confirmation. Registered
+  machine hosts/aliases, known UIs, private standard web/machine ports and
+  encrypted private tunnels cannot be admitted. Companion listeners always use reserved
+  ports 47830–47839, which no allowlist admits, independent of discovery files.
+  Registry erasure cannot open a companion destination. An explicitly allowed
+  dev server remains trusted to serve its content; a proxy placed there can
+  serve arbitrary content, but still cannot mint physical approval authority.
+- **FIXM103R2-MULTIPLEXER-CONFIRMATION (closed by REDM103R, 2026-10-06).**
+  No ancestry or terminal code authenticates the person. The multiplexer
+  refusal is removed: each action needs its own OS-authenticated, exact digest
+  grant. Reading an OS-launcher URL yields only a panel session, never a physical
+  grant. Terminal attendance is not retained as an authority or a hint because
+  no current presentation needs it.
+
+- **FIXM103R-MCP-PROVENANCE (P2-3 functionality residual, 2026-10-06).**
+  The captured MCP HTTP transport has no authenticated caller turn id on
+  this base. No physical tool is exposed on the Muse Code runtime MCP route,
+  even for an attended parent; Model API workers remain excluded. This closes
+  worker actuation without inventing a wire field. G4/W must capture parent
+  and child requests, bind a trusted turn identity to the attended ACP turn,
+  and prove mismatched/missing identities refuse before restoring the tools.
+- **FIXM103R-ACP-CLIENT-AUTOANSWER (authority closed by REDM103R).**
+  Automatic client replies still pass the exact-action UserPresence check before
+  the host mints a grant. Real per-editor/native surface qualification remains
+  owed; an ACP client click or auto-answer alone grants nothing.
+- **FIXM103R-CROSS-HOST-LEASES (review P3-8, 2026-10-06).** R's user-level
+  lease directory is not yet unified with V's adapter. R Stop/exclusivity is
+  tested across runtime owners; concurrent physical use across hosts is not
+  supported or certified. P/V/W must unify the root and test cross-host Stop
+  and lease contention on all operating systems before physical support.
+- **FIXM103R-PRIVATE-EDITOR-LAUNCH (REDM103R).**
+  Person-authorized browser opening passes only a public URL to the OS launcher
+  (FIXM103R4); its one-shot, same-origin loopback exchange delivers the code to
+  the page. No command line or output carries it. It grants only a panel session, with independent
+  OS presence for each hardware action. Native-editor automatic launch/provider
+  IPC and the complete shared maker surface remain T/U/W integration work.
+- **FIXM103R-HELPREF (inherited integration residual, 2026-10-06).**
+  This base lacks featureCatalog.ts, gen-reference.mjs and check:reference.
+  README/CHANGELOG carry the changed commands now. HELPREF/W must mirror
+  these safety/availability contracts, including FIXM103R4 origin consent and
+  public panel launch, when its catalogue joins; no new
+  undocumented command or substitute catalogue was introduced.
+- **FIXM103R-M107-ATTENDANCE (superseded by REDM103R).**
+  Process ancestry, SSH peers and TTYs no longer authorize maker actions.
+  M107 integration is not a maker approval prerequisite. M109 signed macOS and
+  Windows helpers are absent from this base and refuse as unavailable; fake
+  port receipts are not native authentication certification. Linux policy
+  installation and supervised auth_self approved/denied runs are also owed.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting

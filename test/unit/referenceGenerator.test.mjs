@@ -108,6 +108,20 @@ describe('the code-derived reference gate', () => {
       build(manifest, { slashCommandsOf: () => [...slash, { name: 'missing' }] }),
     ).toThrow('Missing description: missing')
   })
+  it('resolves a named command interface through one relative import', () => {
+    const routes = build().cli.map((c) => c.route)
+    expect(routes).toContain('maker')
+    expect(build().cli.find((c) => c.name === 'hardware enable|disable|status').route).toBe('maker')
+    expect(() =>
+      buildReference(
+        manifest,
+        nls,
+        source,
+        runtime.replace('| MakerCommand', '| MissingCommand'),
+        readme,
+      ),
+    ).toThrow('Invalid RuntimeCommand variant')
+  })
   it('rejects an undocumented CLI route', () => {
     expect(() =>
       buildReference(

@@ -64,7 +64,7 @@ export interface MakerHost<Request extends ApprovalRequest = ApprovalRequest> {
   readonly secrets: MakerSecrets
   isTrusted(): boolean
   hardwareEnabled(): boolean
-  /** Eligible attended top-level action; false in Plan and every unattended/worker context. */
+  /** Eligible interactive top-level action; false in Plan and every unattended/worker context. */
   isInteractive(): boolean
   readonly serialProvider?: MakerSerialProvider
 }

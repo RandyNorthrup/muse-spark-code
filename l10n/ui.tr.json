@@ -17,7 +17,7 @@
   "makerReject": "Reddet",
   "makerApprovalExpired": "Bu onayın süresi doldu. İşlemi yeniden isteyin.",
   "makerApprovalTargetChanged": "Hedef değişti. Yeni bir onayı gözden geçirin.",
-  "makerUnattendedDenied": "Donanım işlemleri kullanıcı gözetiminde bir oturum gerektirir.",
+  "makerUnattendedDenied": "Donanım için uygun bir etkileşimli oturum ve işletim sistemi kimlik doğrulaması gerekir.",
   "makerTrustRequired": "Donanımı etkinleştirmeden önce bu çalışma alanına güvenin.",
   "makerEnableHardware": "Bu çalışma alanında donanımı etkinleştir",
   "makerDisableHardware": "Bu çalışma alanında donanımı devre dışı bırak",
@@ -680,7 +680,7 @@
   "webFetchMoved": "Sayfa, başka bir ana bilgisayardaki {location} adresine yönlendirdi. Muse onu yeniden soran yeni bir çağrıyla getirebilir.",
   "webFetchRestrictedMode": "Kısıtlı Modda sayfa getirme kapalıdır. Kullanmak için çalışma alanına güvenin.",
   "browserCheckConfirmTitle": "Muse Code, {url} adresini başsız bir tarayıcıda açmak istiyor",
-  "browserCheckConfirmDetail": "Sayfa, sonrasında silinen yeni ve özel bir tarayıcı profilinde yüklenir. Tüm trafiği uzantının kendi proxy’sinden geçer; bu proxy yalnızca bu bilgisayara ve museSpark.browserCheckExtraHosts içindeki ana bilgisayarlara giden düz http’ye izin verir.",
+  "browserCheckConfirmDetail": "Tarayıcı geçici özel profil ve proxy kullanır. Özel adresler için museSpark.browserCheckExtraHosts içinde tam geliştirme sunucusu kaynağı gerekir. Makine yardımcı paneli kaynakları her zaman reddedilir.",
   "browserCheckConfirmDetailWiden": "{host} bu bilgisayar değil. İzin vermek, yalnızca bu denetimin ona https ve WebSocket dahil ulaşmasını sağlar. Bu trafik şifrelidir, bu yüzden uzantı onu inceleyemez ve oradaki bir site bu bilgisayarın hesabıyla sizin adınıza oturum açabilir (özellikle Windows’ta).",
   "browserRuntimeConsentTitle": "Tarayıcı denetimleri için tarayıcı indirilsin mi ({size})?",
   "browserRuntimeConsentDetail": "Muse Spark Code, Google’ın Chrome for Testing headless shell {version} sürümünü ({size}) storage.googleapis.com adresinden indirip {location} konumunda saklayacak. Yalnızca tarayıcı denetimleri için kullanılır ve bir uzantı güncellemesinin sabitlediği her yeni sürüm yeniden indirilir. Artık sorulmasın istiyorsanız museSpark.browserCheckRuntime ayarını download, tarayıcı denetimini kapatmak için off olarak ayarlayın.",
@@ -698,10 +698,10 @@
     "other": "{count} başarısız istek"
   },
   "browserCheckBlockedRequests": {
-    "one": "bu bilgisayarın dışına giden {count} istek engellendi",
-    "other": "bu bilgisayarın dışına giden {count} istek engellendi"
+    "one": "{count} istek engellendi",
+    "other": "{count} istek engellendi"
   },
-  "browserCheckUrlRefused": "Yalnızca basit bir ana bilgisayar adı veya IP adresi içeren, kullanıcı adı ya da parola içermeyen bir http:// veya https:// adresi açılabilir.",
+  "browserCheckUrlRefused": "Bu adres açılamaz. Özel adresler için museSpark.browserCheckExtraHosts içinde tam geliştirme sunucusu kaynağı gerekir; makine yardımcı paneli kaynakları her zaman reddedilir.",
   "browserCheckInvalidArguments": "Tarayıcı denetimi geçersiz bağımsız değişkenlerle istendi, bu yüzden hiçbir şey açılmadı.",
   "browserCheckRuntimeMissing": "Tarayıcı denetiminin tarayıcısı yüklü değil ve şu anda indirilemedi. Bağlantıyı denetleyip yeniden deneyin.",
   "browserCheckRuntimeUnsupported": "Tarayıcı denetimi bu bilgisayarda kullanılamaz. Windows x64, Linux x64 ve macOS desteklenir.",
@@ -1596,7 +1596,7 @@
   "acpQuestionAsked": "Muse'un bir sorusu var; bu düzenleyici soruyu form olarak gösteremiyor, bu yüzden bir sonraki iletinizde yanıtlayın:",
   "acpUnknownArgument": "Bilinmeyen bağımsız değişken: {argument}",
   "acpPaidNeedsModelApi": "{argument} için --backend modelApi gerekir: ücretli özellikler bir Model API anahtarına faturalandırılır.",
-  "acpUsage": "Kullanım:\n  {command} [seçenekler]              Agent Client Protocol'ü stdin ve stdout üzerinden sunar\n  {command} [seçenekler] login        Bu terminalde Muse Code'da oturum açar\n  {command} auth set|status|clear  Meta Model API anahtarını saklar, denetler veya kaldırır\n  {command} exec [options] <prompt>  Arayüzsüz bir tur çalıştır\n  {command} scan-secrets <file> [--key-stdin]  Bir dosyadaki olası gizli bilgileri say (yalnızca sayıyı yazar)\n  {command} report [options]  Düzeltilmiş sorun raporu yazdır (arka uç başlatmaz, tarayıcı açmaz)\nSeçenekler:\n  --backend museCode|modelApi      Kim öder: Muse Code (varsayılan) veya Model API anahtarı\n  --trust-workspace                Klasörün kurallarını, becerilerini ve belleğini yükler\n  --muse-binary <yol>             Çalıştırılacak Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code'un kabuk korumalı alanı\n  --questions-defer-after <seconds>  Soruları varsayılan olarak 60 saniye sonra ertele; 0 hiçbir zaman, 1–9 değeri 10 sayılır, en fazla 3600\n  --allow-dangerously-skip-permissions  \"İzinleri atla\" modunu sunar\n  --allow-contributor-models       Katkıda bulunan düzeyindeki modelleri listeler (Meta bunların içeriğiyle eğitim yapabilir)\n  --web-search                     Ücretli web aramasını sunar (Model API arka ucu; önce fiyatı sorulur)\n  --image-generation               Ücretli görüntü oluşturmayı sunar (Model API arka ucu; önce fiyatı sorulur)\n  --verbose                        Her ayrıntıyı stderr'e kaydeder\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Setup kancalarını çalıştırır ve çıkar",
+  "acpUsage": "Kullanım:\n  {command} [seçenekler]              Agent Client Protocol'ü stdin ve stdout üzerinden sunar\n  {command} [seçenekler] login        Bu terminalde Muse Code'da oturum açar\n  {command} auth set|status|clear  Meta Model API anahtarını saklar, denetler veya kaldırır\n  {command} exec [options] <prompt>  Arayüzsüz bir tur çalıştır\n  {command} scan-secrets <file> [--key-stdin]  Bir dosyadaki olası gizli bilgileri say (yalnızca sayıyı yazar)\n  {command} report [options]  Düzeltilmiş sorun raporu yazdır (arka uç başlatmaz, tarayıcı açmaz)\nSeçenekler:\n  --backend museCode|modelApi      Kim öder: Muse Code (varsayılan) veya Model API anahtarı\n  --trust-workspace                Klasörün kurallarını, becerilerini ve belleğini yükler\n  --muse-binary <yol>             Çalıştırılacak Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code'un kabuk korumalı alanı\n  --questions-defer-after <seconds>  Soruları varsayılan olarak 60 saniye sonra ertele; 0 hiçbir zaman, 1–9 değeri 10 sayılır, en fazla 3600\n  --allow-dangerously-skip-permissions  \"İzinleri atla\" modunu sunar\n  --allow-contributor-models       Katkıda bulunan düzeyindeki modelleri listeler (Meta bunların içeriğiyle eğitim yapabilir)\n  --web-search                     Ücretli web aramasını sunar (Model API arka ucu; önce fiyatı sorulur)\n  --image-generation               Ücretli görüntü oluşturmayı sunar (Model API arka ucu; önce fiyatı sorulur)\n  --verbose                        Her ayrıntıyı stderr'e kaydeder\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Setup kancalarını çalıştırır ve çıkar\n  {command} hardware enable|disable|status [--reason <text>] [--cwd <path>] [--trust-workspace]\n  {command} machines add --registration <JSON> [--key-stdin] --trust-workspace\n  {command} machines list|remove [id] [--cwd <path>] [--trust-workspace]\n  {command} stop-machine [id|--all] [--cwd <path>]\n  {command} panel [--cwd <path>] [--trust-workspace]\n  --hardware",
   "reportUsage": "Kullanım:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Düzeltilmiş sorun raporunu stdout’a yazar veya --out ile <file> dosyasına kaydeder.\n  Arka uç başlatmaz, hiçbir yerde oturum açmaz ve tarayıcı açmaz.\nSeçenekler:\n  --out <file>         Raporu stdout yerine dosyaya yaz\n  --description <text>  Neler olduğunu kendi sözlerinle anlat\n  --no-facts           Destek bilgilerini çıkar\n  --no-events          Son olayları çıkar",
   "exportSessionLine": "Oturum: `{id}`",
   "exportBackendLine": "Arka uç: {backend}",
@@ -2623,6 +2623,7 @@
     "image-generation": "--image-generation               Ücretli görüntü oluşturmayı sunar (Model API arka ucu; önce fiyatı sorulur)",
     "verbose": "--verbose                        Her ayrıntıyı stderr'e kaydeder",
     "questions-defer-after": "--questions-defer-after <seconds>  Soruları varsayılan olarak 60 saniye sonra ertele; 0 hiçbir zaman, 1–9 değeri 10 sayılır, en fazla 3600",
+    "hardware": "--hardware  Donanım araçlarına izin ver (çalışma alanında da donanımı etkinleştirmelidir)",
     "help": "help / --help / -h: ACP / CLI. help --all: Açıklamalar ve belgelerle birlikte komutlar, ayarlar ve özellikler.",
     "version": "Yüklü aracının sürümünü yazdır.",
     "cwd": "Bu dizini çalışma alanı olarak kullanın.",
@@ -2660,5 +2661,17 @@
   "referenceElicitationTitle": "MCP formları",
   "referenceElicitation": "MCP formları istekte bulunan MCP sunucusu için bilgi ister. Gönderilen form değerleri model konuşması ve dökümünün dışında bu sunucuya gider. Sunucu bunları sonraki araç çıktısına ekleyebilir. Asla parola veya anahtar girmeyin.",
   "referenceNativeAgentsConditions": "run.subagent_delegation_mode=\"auto\" olduğunda Muse Code aracılara devredebilir. \"off\" olduğunda devir araçları kullanılamaz. run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "UTF-8 yama dosyasında gizli bilgileri arar ve bulursa başarısız olur. --key-stdin bellekteki Model API anahtarının tam değerini de arar; anahtar saklanmaz."
+  "referenceScanSecrets": "UTF-8 yama dosyasında gizli bilgileri arar ve bulursa başarısız olur. --key-stdin bellekteki Model API anahtarının tam değerini de arar; anahtar saklanmaz.",
+  "makerStopFailed": "Durdurma başarısız — {machine} makinesinin fiziksel acil durdurmasını hemen kullanın.",
+  "makerStopPhysicalRequired": "{machine} makinesi fiziksel acil durdurma gerektirir; yazılımla durdurma kullanılamıyor.",
+  "makerLaunchConnect": "Paneli aç",
+  "makerPresenceReason": "{machine}: {action} (veri {digest})",
+  "makerPresenceDenied": "İşletim sistemi kimlik doğrulaması reddedildi. Hiçbir şey gönderilmedi.",
+  "makerPresenceUnavailable": "İşletim sistemi kimlik doğrulaması kullanılamıyor. macOS ve Windows, yerel kullanıcı varlığı yardımcısının entegrasyonunu gerektirir; Linux, Makers polkit ilkesi ve bir oturum aracısı gerektirir. Durdurma kullanılabilir durumda kalır.",
+  "makerPresenceConnect": "Cihaza bağlan",
+  "makerPresenceProgram": "Cihazı programla",
+  "makerPresenceActuate": "Makineyi hareket ettir, ısıt veya çalıştır",
+  "makerCompanionUnavailable": "Makine paneli ayrılmış yerel bağlantı noktalarını kullanamıyor. Başka bir makine panelini kapatıp yeniden deneyin; Stop kullanılabilir.",
+  "browserDevOriginAllow": "Bu geliştirme kaynağına izin ver",
+  "browserDevOriginConsent": "Tarayıcı kontrollerinin {origin} adresine erişmesine izin verilsin mi? Yalnızca denetiminizdeki bir geliştirme sunucusunu onaylayın. Yazıcı ve CNC arayüzleri her zaman reddedilir. Kaynağı kullanıcı ayarlarınızdan kaldırana kadar bu izin bu bilgisayarda kalır."
 }

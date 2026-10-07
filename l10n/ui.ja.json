@@ -17,7 +17,7 @@
   "makerReject": "拒否",
   "makerApprovalExpired": "この承認は期限切れです。操作を再度要求してください。",
   "makerApprovalTargetChanged": "対象が変わりました。新しい承認を確認してください。",
-  "makerUnattendedDenied": "ハードウェア操作にはユーザーが監督するセッションが必要です。",
+  "makerUnattendedDenied": "ハードウェア操作には対象の対話セッションと OS 認証が必要です。",
   "makerTrustRequired": "ハードウェアを有効にする前に、このワークスペースを信頼してください。",
   "makerEnableHardware": "このワークスペースでハードウェアを有効にする",
   "makerDisableHardware": "このワークスペースでハードウェアを無効にする",
@@ -665,7 +665,7 @@
   "webFetchMoved": "ページは別のホストの {location} にリダイレクトしました。Muse は新しい呼び出しで取得でき、その際に再度確認します。",
   "webFetchRestrictedMode": "制限モードではページの取得はオフです。使用するにはワークスペースを信頼してください。",
   "browserCheckConfirmTitle": "Muse Code が {url} をヘッドレス ブラウザーで開こうとしています",
-  "browserCheckConfirmDetail": "ページは新しいプライベートなブラウザー プロファイルで読み込まれ、終了後に削除されます。通信はすべて拡張機能専用のプロキシを通り、このコンピューターと museSpark.browserCheckExtraHosts のホストへの暗号化されていない http だけが通過できます。",
+  "browserCheckConfirmDetail": "ブラウザーは一時的なプライベートプロファイルとプロキシを使用します。プライベートアドレスには museSpark.browserCheckExtraHosts 内の正確な開発サーバーオリジンが必要です。機器の補助パネルのオリジンは常に拒否されます。",
   "browserCheckConfirmDetailWiden": "{host} はこのコンピューターではありません。許可すると、今回のチェックに限り https と WebSocket も含めてアクセスできます。この通信は暗号化されているため拡張機能は検査できず、そのサイトがこのコンピューターのアカウントであなたとしてサインインする可能性があります (特に Windows)。",
   "browserRuntimeConsentTitle": "ブラウザー チェック用のブラウザー ({size}) をダウンロードしますか?",
   "browserRuntimeConsentDetail": "Muse Spark Code は Google の Chrome for Testing headless shell {version} ({size}) を storage.googleapis.com からダウンロードし、{location} に保存します。ブラウザー チェックにのみ使用され、拡張機能の更新で指定される新しいバージョンはそのたびに再度ダウンロードされます。確認を省くには museSpark.browserCheckRuntime を download に、ブラウザー チェックをオフにするには off に設定してください。",
@@ -681,9 +681,9 @@
     "other": "失敗したリクエスト {count} 件"
   },
   "browserCheckBlockedRequests": {
-    "other": "このコンピューター外へのリクエスト {count} 件をブロック"
+    "other": "リクエスト {count} 件をブロック"
   },
-  "browserCheckUrlRefused": "開けるのは、単純なホスト名または IP アドレスで、ユーザー名やパスワードを含まない http:// または https:// のアドレスだけです。",
+  "browserCheckUrlRefused": "このアドレスは開けません。プライベートアドレスには museSpark.browserCheckExtraHosts 内の正確な開発サーバーオリジンが必要です。機器の補助パネルのオリジンは常に拒否されます。",
   "browserCheckInvalidArguments": "ブラウザー チェックが無効な引数で要求されたため、何も開いていません。",
   "browserCheckRuntimeMissing": "ブラウザー チェック用のブラウザーがインストールされておらず、現在ダウンロードできませんでした。接続を確認してから、もう一度お試しください。",
   "browserCheckRuntimeUnsupported": "このコンピューターではブラウザー チェックを利用できません。対応しているのは Windows x64、Linux x64、macOS です。",
@@ -1548,7 +1548,7 @@
   "acpQuestionAsked": "Muse から質問があります。このエディターではフォームとして表示できないため、次のメッセージで回答してください:",
   "acpUnknownArgument": "不明な引数: {argument}",
   "acpPaidNeedsModelApi": "{argument} には --backend modelApi が必要です。有料機能は Model API キーに請求されます。",
-  "acpUsage": "使い方:\n  {command} [オプション]              stdin と stdout で Agent Client Protocol を提供します\n  {command} [オプション] login        このターミナルで Muse Code にサインインします\n  {command} auth set|status|clear  Meta Model API キーを保存、確認、または削除します\n  {command} exec [options] <prompt>  ヘッドレスで1ターン実行\n  {command} scan-secrets <file> [--key-stdin]  1つのファイル内の秘密情報らしきものを数える（件数のみ出力）\n  {command} report [options]  問題レポート（無害化済み）を出力する（バックエンドを起動せず、ブラウザも開かない）\nオプション:\n  --backend museCode|modelApi      支払い元: Muse Code (既定) または Model API キー\n  --trust-workspace                フォルダーのルール、スキル、メモリを読み込みます\n  --muse-binary <パス>             実行する Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code のシェル サンドボックス\n  --questions-defer-after <seconds>  既定では60秒後に質問を保留；0は保留しない、1～9は10として扱い、上限3600\n  --allow-dangerously-skip-permissions  「権限バイパス」モードを表示します\n  --allow-contributor-models       コントリビューター階層のモデルを表示します (Meta がその内容で学習する場合があります)\n  --web-search                     有料の Web 検索を提供します (Model API バックエンド、先に料金を確認します)\n  --image-generation               有料の画像生成を提供します (Model API バックエンド、先に料金を確認します)\n  --verbose                        すべての詳細を stderr に記録します\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Setup フックを実行して終了します",
+  "acpUsage": "使い方:\n  {command} [オプション]              stdin と stdout で Agent Client Protocol を提供します\n  {command} [オプション] login        このターミナルで Muse Code にサインインします\n  {command} auth set|status|clear  Meta Model API キーを保存、確認、または削除します\n  {command} exec [options] <prompt>  ヘッドレスで1ターン実行\n  {command} scan-secrets <file> [--key-stdin]  1つのファイル内の秘密情報らしきものを数える（件数のみ出力）\n  {command} report [options]  問題レポート（無害化済み）を出力する（バックエンドを起動せず、ブラウザも開かない）\nオプション:\n  --backend museCode|modelApi      支払い元: Muse Code (既定) または Model API キー\n  --trust-workspace                フォルダーのルール、スキル、メモリを読み込みます\n  --muse-binary <パス>             実行する Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code のシェル サンドボックス\n  --questions-defer-after <seconds>  既定では60秒後に質問を保留；0は保留しない、1～9は10として扱い、上限3600\n  --allow-dangerously-skip-permissions  「権限バイパス」モードを表示します\n  --allow-contributor-models       コントリビューター階層のモデルを表示します (Meta がその内容で学習する場合があります)\n  --web-search                     有料の Web 検索を提供します (Model API バックエンド、先に料金を確認します)\n  --image-generation               有料の画像生成を提供します (Model API バックエンド、先に料金を確認します)\n  --verbose                        すべての詳細を stderr に記録します\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Setup フックを実行して終了します\n  {command} hardware enable|disable|status [--reason <text>] [--cwd <path>] [--trust-workspace]\n  {command} machines add --registration <JSON> [--key-stdin] --trust-workspace\n  {command} machines list|remove [id] [--cwd <path>] [--trust-workspace]\n  {command} stop-machine [id|--all] [--cwd <path>]\n  {command} panel [--cwd <path>] [--trust-workspace]\n  --hardware",
   "reportUsage": "使い方:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  無害化済みの問題レポートをstdoutに出力する。--outを指定すると<file>に書き込む。\n  バックエンドを起動せず、サインインも行わず、ブラウザも開かない。\nオプション:\n  --out <file>         stdoutの代わりにファイルにレポートを書き込む\n  --description <text>  何が起きていたかを自分の言葉で\n  --no-facts           サポート情報を省く\n  --no-events          最近のイベントを省く",
   "exportSessionLine": "セッション: `{id}`",
   "exportBackendLine": "バックエンド: {backend}",
@@ -2526,6 +2526,7 @@
     "image-generation": "--image-generation               有料の画像生成を提供します (Model API バックエンド、先に料金を確認します)",
     "verbose": "--verbose                        すべての詳細を stderr に記録します",
     "questions-defer-after": "--questions-defer-after <seconds>  既定では60秒後に質問を保留；0は保留しない、1～9は10として扱い、上限3600",
+    "hardware": "--hardware  ハードウェアツールを使用する (ワークスペースでもハードウェアを有効にする必要があります)",
     "help": "help / --help / -h: ACP / CLI. help --all: コマンド、設定、機能の説明とドキュメント。",
     "version": "インストール済みエージェントのバージョンを表示します。",
     "cwd": "このディレクトリをワークスペースとして使用します。",
@@ -2563,5 +2564,17 @@
   "referenceElicitationTitle": "MCP フォーム",
   "referenceElicitation": "MCP フォームは、要求元の MCP サーバーのために情報を尋ねます。送信したフォームの値は、そのサーバーに渡され、モデルの会話や履歴には入りません。ただしサーバーは、後のツール出力に値を含めることができます。パスワードやキーは入力しないでください。",
   "referenceNativeAgentsConditions": "run.subagent_delegation_mode=\"auto\" の場合、Muse Codeはエージェントに委任できます。\"off\" の場合、委任ツールは使用できません。 run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "UTF-8 のパッチファイルから秘密情報を検出し、見つかった場合は失敗終了します。--key-stdin はメモリ内の Model API キーそのものも検索します。キーは保存されません。"
+  "referenceScanSecrets": "UTF-8 のパッチファイルから秘密情報を検出し、見つかった場合は失敗終了します。--key-stdin はメモリ内の Model API キーそのものも検索します。キーは保存されません。",
+  "makerStopFailed": "停止に失敗しました — 今すぐ機械 {machine} の物理的な非常停止装置を使用してください。",
+  "makerStopPhysicalRequired": "機械 {machine} は物理的な非常停止が必要です。ソフトウェアによる停止は利用できません。",
+  "makerLaunchConnect": "パネルを開く",
+  "makerPresenceReason": "{machine}: {action}（ペイロード {digest}）",
+  "makerPresenceDenied": "OS の認証が拒否されました。何も送信されていません。",
+  "makerPresenceUnavailable": "OS 認証を利用できません。macOS と Windows ではネイティブの本人確認ヘルパーとの統合が必要です。Linux では Makers 用 polkit ポリシーとセッションエージェントが必要です。停止は引き続き利用できます。",
+  "makerPresenceConnect": "デバイスに接続",
+  "makerPresenceProgram": "デバイスを書き込み",
+  "makerPresenceActuate": "機器の移動・加熱・電源操作",
+  "makerCompanionUnavailable": "機器パネルが予約済みのローカルポートを使用できません。他の機器パネルを閉じて再試行してください。Stop は引き続き利用できます。",
+  "browserDevOriginAllow": "この開発用オリジンを許可",
+  "browserDevOriginConsent": "ブラウザーの確認が {origin} にアクセスすることを許可しますか？自分で管理する開発サーバーのみ確認してください。プリンターと CNC の操作画面は常に拒否されます。この許可は、ユーザー設定からオリジンを削除するまでこのコンピューターに残ります。"
 }

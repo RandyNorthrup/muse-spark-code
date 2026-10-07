@@ -17,7 +17,7 @@
   "makerReject": "Ablehnen",
   "makerApprovalExpired": "Diese Genehmigung ist abgelaufen. Fordern Sie die Aktion erneut an.",
   "makerApprovalTargetChanged": "Das Ziel hat sich geändert. Prüfen Sie eine neue Genehmigung.",
-  "makerUnattendedDenied": "Hardwareaktionen erfordern eine vom Benutzer betreute Sitzung.",
+  "makerUnattendedDenied": "Hardware erfordert eine berechtigte interaktive Sitzung und die Betriebssystem-Authentifizierung.",
   "makerTrustRequired": "Vertrauen Sie diesem Arbeitsbereich, bevor Sie Hardware aktivieren.",
   "makerEnableHardware": "Hardware für diesen Arbeitsbereich aktivieren",
   "makerDisableHardware": "Hardware für diesen Arbeitsbereich deaktivieren",
@@ -680,7 +680,7 @@
   "webFetchMoved": "Die Seite leitete zu {location} weiter, auf einen anderen Host. Muse kann sie mit einem neuen Aufruf abrufen, der erneut fragt.",
   "webFetchRestrictedMode": "Das Abrufen von Seiten ist im eingeschränkten Modus aus. Vertrauen Sie dem Arbeitsbereich, um es zu nutzen.",
   "browserCheckConfirmTitle": "Muse Code möchte {url} in einem Headless-Browser öffnen",
-  "browserCheckConfirmDetail": "Die Seite lädt in einem neuen, privaten Browserprofil, das danach gelöscht wird. Ihr gesamter Verkehr läuft über den eigenen Proxy der Erweiterung, der nur einfaches http an diesen Computer und an die Hosts in museSpark.browserCheckExtraHosts durchlässt.",
+  "browserCheckConfirmDetail": "Der Browser verwendet ein temporäres privates Profil und einen Proxy. Private Adressen erfordern einen genauen Entwicklungsserver-Ursprung in museSpark.browserCheckExtraHosts. Ursprünge des Maschinen-Begleitpanels werden immer abgelehnt.",
   "browserCheckConfirmDetailWiden": "{host} ist nicht dieser Computer. Wenn Sie zulassen, kann diese eine Prüfung ihn erreichen, auch über https und WebSockets. Dieser Verkehr ist verschlüsselt, daher kann die Erweiterung ihn nicht prüfen, und eine Website dort kann Sie mit dem Konto dieses Computers anmelden (vor allem unter Windows).",
   "browserRuntimeConsentTitle": "Den Browser für Browserprüfungen herunterladen ({size})?",
   "browserRuntimeConsentDetail": "Muse Spark Code lädt die Chrome-for-Testing-Headless-Shell {version} von Google ({size}) von storage.googleapis.com herunter und speichert sie in {location}. Sie wird nur für Browserprüfungen verwendet, und jede neue Version, die ein Update der Erweiterung festlegt, wird erneut heruntergeladen. Setzen Sie museSpark.browserCheckRuntime auf download, um nicht mehr gefragt zu werden, oder auf off, um die Browserprüfung auszuschalten.",
@@ -698,10 +698,10 @@
     "other": "{count} fehlgeschlagene Anfragen"
   },
   "browserCheckBlockedRequests": {
-    "one": "{count} Anfrage außerhalb dieses Computers blockiert",
-    "other": "{count} Anfragen außerhalb dieses Computers blockiert"
+    "one": "{count} Anfrage blockiert",
+    "other": "{count} Anfragen blockiert"
   },
-  "browserCheckUrlRefused": "Geöffnet werden kann nur eine http://- oder https://-Adresse mit einem einfachen Hostnamen oder einer IP-Adresse und ohne Benutzername oder Passwort.",
+  "browserCheckUrlRefused": "Diese Adresse kann nicht geöffnet werden. Private Adressen erfordern einen genauen Entwicklungsserver-Ursprung in museSpark.browserCheckExtraHosts; Ursprünge des Maschinen-Begleitpanels werden immer abgelehnt.",
   "browserCheckInvalidArguments": "Die Browserprüfung wurde mit ungültigen Argumenten angefordert, daher wurde nichts geöffnet.",
   "browserCheckRuntimeMissing": "Der Browser der Browserprüfung ist nicht installiert und konnte gerade nicht heruntergeladen werden. Prüfen Sie die Verbindung und versuchen Sie es erneut.",
   "browserCheckRuntimeUnsupported": "Die Browserprüfung ist auf diesem Computer nicht verfügbar. Sie unterstützt Windows x64, Linux x64 und macOS.",
@@ -1596,7 +1596,7 @@
   "acpQuestionAsked": "Muse hat eine Frage; dieser Editor kann sie nicht als Formular anzeigen, antworten Sie daher in Ihrer nächsten Nachricht:",
   "acpUnknownArgument": "Unbekanntes Argument: {argument}",
   "acpPaidNeedsModelApi": "{argument} erfordert --backend modelApi: Kostenpflichtige Funktionen werden über einen Model-API-Schlüssel abgerechnet.",
-  "acpUsage": "Verwendung:\n  {command} [Optionen]              Das Agent Client Protocol über stdin und stdout bereitstellen\n  {command} [Optionen] login        In diesem Terminal bei Muse Code anmelden\n  {command} auth set|status|clear  Den Schlüssel für die Meta Model API speichern, prüfen oder entfernen\n  {command} exec [options] <prompt>  Einen Lauf ohne Oberfläche ausführen\n  {command} scan-secrets <file> [--key-stdin]  Mögliche Geheimnisse in einer Datei zählen (gibt nur die Anzahl aus)\n  {command} report [options]  Einen bereinigten Problembericht ausgeben (startet kein Backend, öffnet keinen Browser)\nOptionen:\n  --backend museCode|modelApi      Wer bezahlt: Muse Code (Standard) oder der Model API-Schlüssel\n  --trust-workspace                Regeln, Skills und Speicher des Ordners laden\n  --muse-binary <Pfad>             Die auszuführende Muse Code-CLI\n  --shell-sandbox auto|muse|off    Die Shell-Sandbox von Muse Code\n  --questions-defer-after <seconds>  Fragen standardmäßig nach 60 Sekunden zurückstellen; 0 nie, 1–9 gelten als 10, höchstens 3600\n  --allow-dangerously-skip-permissions  Den Modus „Berechtigungen umgehen“ anbieten\n  --allow-contributor-models       Modelle der Contributor-Stufe auflisten (Meta darf mit ihren Inhalten trainieren)\n  --web-search                     Kostenpflichtige Websuche anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --image-generation               Kostenpflichtige Bilderzeugung anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --verbose                        Jedes Detail auf stderr protokollieren\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Die Setup-Hooks ausführen und beenden",
+  "acpUsage": "Verwendung:\n  {command} [Optionen]              Das Agent Client Protocol über stdin und stdout bereitstellen\n  {command} [Optionen] login        In diesem Terminal bei Muse Code anmelden\n  {command} auth set|status|clear  Den Schlüssel für die Meta Model API speichern, prüfen oder entfernen\n  {command} exec [options] <prompt>  Einen Lauf ohne Oberfläche ausführen\n  {command} scan-secrets <file> [--key-stdin]  Mögliche Geheimnisse in einer Datei zählen (gibt nur die Anzahl aus)\n  {command} report [options]  Einen bereinigten Problembericht ausgeben (startet kein Backend, öffnet keinen Browser)\nOptionen:\n  --backend museCode|modelApi      Wer bezahlt: Muse Code (Standard) oder der Model API-Schlüssel\n  --trust-workspace                Regeln, Skills und Speicher des Ordners laden\n  --muse-binary <Pfad>             Die auszuführende Muse Code-CLI\n  --shell-sandbox auto|muse|off    Die Shell-Sandbox von Muse Code\n  --questions-defer-after <seconds>  Fragen standardmäßig nach 60 Sekunden zurückstellen; 0 nie, 1–9 gelten als 10, höchstens 3600\n  --allow-dangerously-skip-permissions  Den Modus „Berechtigungen umgehen“ anbieten\n  --allow-contributor-models       Modelle der Contributor-Stufe auflisten (Meta darf mit ihren Inhalten trainieren)\n  --web-search                     Kostenpflichtige Websuche anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --image-generation               Kostenpflichtige Bilderzeugung anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --verbose                        Jedes Detail auf stderr protokollieren\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Die Setup-Hooks ausführen und beenden\n  {command} hardware enable|disable|status [--reason <text>] [--cwd <path>] [--trust-workspace]\n  {command} machines add --registration <JSON> [--key-stdin] --trust-workspace\n  {command} machines list|remove [id] [--cwd <path>] [--trust-workspace]\n  {command} stop-machine [id|--all] [--cwd <path>]\n  {command} panel [--cwd <path>] [--trust-workspace]\n  --hardware",
   "reportUsage": "Verwendung:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Gibt den bereinigten Problembericht auf stdout aus oder schreibt ihn mit --out nach <file>.\n  Startet kein Backend, meldet sich nirgends an und öffnet keinen Browser.\nOptionen:\n  --out <file>         Den Bericht in eine Datei statt auf stdout schreiben\n  --description <text>  Was gerade geschah, in eigenen Worten\n  --no-facts           Die Support-Fakten weglassen\n  --no-events          Die letzten Ereignisse weglassen",
   "exportSessionLine": "Sitzung: `{id}`",
   "exportBackendLine": "Backend: {backend}",
@@ -2623,6 +2623,7 @@
     "image-generation": "--image-generation               Kostenpflichtige Bilderzeugung anbieten (Model-API-Backend; der Preis wird zuerst erfragt)",
     "verbose": "--verbose                        Jedes Detail auf stderr protokollieren",
     "questions-defer-after": "--questions-defer-after <seconds>  Fragen standardmäßig nach 60 Sekunden zurückstellen; 0 nie, 1–9 gelten als 10, höchstens 3600",
+    "hardware": "--hardware  Hardwarewerkzeuge zulassen (der Arbeitsbereich muss Hardware ebenfalls aktivieren)",
     "help": "help / --help / -h: ACP / CLI. help --all: Befehle, Einstellungen und Funktionen mit Beschreibungen und Dokumentation.",
     "version": "Version des installierten Agenten ausgeben.",
     "cwd": "Dieses Verzeichnis als Arbeitsbereich verwenden.",
@@ -2660,5 +2661,17 @@
   "referenceElicitationTitle": "MCP-Formulare",
   "referenceElicitation": "MCP-Formulare erfragen Informationen für den anfragenden MCP-Server. Gesendete Formularwerte gehen an diesen Server, außerhalb des Modellgesprächs und des Transkripts. Ein Server kann sie in späteren Werkzeugausgaben zurückgeben. Geben Sie niemals ein Passwort oder einen Schlüssel ein.",
   "referenceNativeAgentsConditions": "Bei run.subagent_delegation_mode=\"auto\" kann Muse Code an Agenten delegieren. Bei \"off\" sind Delegationswerkzeuge nicht verfügbar. run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "Prüft eine UTF-8-Patchdatei auf Geheimnisse und schlägt bei einem Fund fehl. --key-stdin prüft auch auf den exakten Model-API-Schlüssel im Speicher; kein Schlüssel wird gespeichert."
+  "referenceScanSecrets": "Prüft eine UTF-8-Patchdatei auf Geheimnisse und schlägt bei einem Fund fehl. --key-stdin prüft auch auf den exakten Model-API-Schlüssel im Speicher; kein Schlüssel wird gespeichert.",
+  "makerStopFailed": "Stopp fehlgeschlagen — betätigen Sie jetzt den physischen Not-Aus der Maschine {machine}.",
+  "makerStopPhysicalRequired": "Maschine {machine} erfordert den physischen Not-Aus; ein Softwarestopp ist nicht verfügbar.",
+  "makerLaunchConnect": "Panel öffnen",
+  "makerPresenceReason": "{machine}: {action} (Nutzdaten {digest})",
+  "makerPresenceDenied": "Die Betriebssystem-Authentifizierung wurde abgelehnt. Es wurde nichts gesendet.",
+  "makerPresenceUnavailable": "Die Betriebssystemauthentifizierung ist nicht verfügbar. macOS und Windows benötigen die Integration des nativen Helfers zur Anwesenheitsprüfung; Linux benötigt die Maker-polkit-Richtlinie und einen Sitzungsagenten. Stopp bleibt verfügbar.",
+  "makerPresenceConnect": "Gerät verbinden",
+  "makerPresenceProgram": "Gerät programmieren",
+  "makerPresenceActuate": "Maschine bewegen, heizen oder einschalten",
+  "makerCompanionUnavailable": "Das Maschinenpanel kann seine reservierten lokalen Ports nicht belegen. Schließen Sie ein anderes Maschinenpanel und versuchen Sie es erneut; Stop bleibt verfügbar.",
+  "browserDevOriginAllow": "Diesen Entwicklungsursprung erlauben",
+  "browserDevOriginConsent": "Browserprüfungen den Zugriff auf {origin} erlauben? Bestätigen Sie nur einen Entwicklungsserver, den Sie kontrollieren. Drucker- und CNC-Oberflächen werden immer abgelehnt. Diese Berechtigung bleibt auf diesem Computer, bis Sie den Ursprung aus Ihren Benutzereinstellungen entfernen."
 }

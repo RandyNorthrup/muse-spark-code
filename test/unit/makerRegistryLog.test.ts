@@ -16,6 +16,7 @@ import {
   machineRecordSchema,
   machineSecretName,
   machineTarget,
+  registeredMachineEndpoints,
   type MachineRecord,
   type MakerLanPolicy,
 } from '../../src/core/maker/registry'
@@ -345,9 +346,15 @@ describe('maker registry boundaries', () => {
     await records.register(machine())
     expect(await storage.compareAndSwap(0, [])).toBe(false)
     expect(await records.list()).toHaveLength(1)
+    expect(await registeredMachineEndpoints(directory)).toEqual(['https://printer.local'])
     await writeFile(path.join(directory, 'machines.lock'), '')
     await expect(records.remove('printer')).rejects.toThrow()
     expect(await records.list()).toHaveLength(1)
+    await writeFile(
+      path.join(directory, 'machines.json'),
+      '{"revision":0,"records":[{"endpoint":"http://agent"}]}',
+    )
+    await expect(registeredMachineEndpoints(directory)).rejects.toThrow()
   })
 })
 async function logFixture(maxBytes = 20_000, maxEntryBytes = 2000) {

@@ -715,6 +715,17 @@ const TEXT_BLOCKS = [
     readers: ['dist/makerHost.js'],
   },
   {
+    block: 'RUNTIME_MAKER_MODEL_TEXT',
+    sentinels: [
+      'runtimeMakerStatus',
+      'runtimeMakerSend',
+      'runtimeMakerStop',
+      'runtimeMakerPorts',
+      'runtimeMakerSerial',
+    ],
+    readers: ['dist/runtimeMaker.js'],
+  },
+  {
     block: 'CONVERSATION_MODEL_TEXT',
     sentinels: ['planBriefRequest', 'replyContextLead'],
     readers: ['dist/conversation.js', BUNDLES.modelApi.output],

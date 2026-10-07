@@ -88,13 +88,21 @@ const localFakeLan: MakerLanPolicy = {
   classify: () => 'private',
   resolve: () => Promise.resolve(['127.0.0.1']),
 }
-function http(target: MachineRecord, lan = localFakeLan) {
+function http(
+  target: MachineRecord,
+  lan = localFakeLan,
+  beforeGuardedDispatch?: () => Promise<void>,
+) {
   const secrets: MakerSecrets = {
     get: () => Promise.resolve(randomUUID()),
     store: () => Promise.resolve(),
     delete: () => Promise.resolve(),
   }
-  return new MachineHttp(target, lan, secrets, { timeoutMs: 1000, maxResponseBytes: 16_000 })
+  return new MachineHttp(target, lan, secrets, {
+    timeoutMs: 1000,
+    maxResponseBytes: 16_000,
+    ...(beforeGuardedDispatch !== undefined && { beforeGuardedDispatch }),
+  })
 }
 function watchRequests(transport: MachineHttp, observe: (path: string) => void): void {
   const request = transport.request.bind(transport)
@@ -117,6 +125,24 @@ async function moonrakerTest() {
 }
 
 describe('maker printer status and guarded send', () => {
+  it('refreshes runtime admission after preparation; fixed Stop bypasses that hook', async () => {
+    const { target, deps, server } = await moonrakerTest()
+    let isEnabled = true
+    const refresh = vi.fn<() => Promise<void>>(() => {
+      isEnabled = false
+      return Promise.resolve()
+    })
+    const machine = createMoonrakerMachine(target, http(target, localFakeLan, refresh), {
+      ...deps,
+      host: { ...deps.host, hardwareEnabled: () => isEnabled },
+    })
+    await expect(machine.send('G1 X20')).rejects.toThrow()
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(server.requests.some((request) => request.path === '/printer/gcode/script')).toBe(false)
+    await machine.stop()
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(server.requests.some((request) => request.path === '/printer/emergency_stop')).toBe(true)
+  })
   it('looks up the immutable registration credential and refuses a mismatched registration', async () => {
     const { target, deps, server } = await moonrakerTest()
     const get = vi.fn((name: string) =>

@@ -99,6 +99,18 @@ export class FileMachineStorage implements MachineStorage {
   }
 }
 
+/** Browser safety reads only validated registrations, never their secrets. */
+export async function registeredMachineEndpoints(directory: string): Promise<readonly string[]> {
+  const snapshot = snapshotSchema.parse(await new FileMachineStorage(directory).read())
+  return snapshot.records
+    .filter(
+      (record) =>
+        ['moonraker', 'octoprint', 'prusalink'].includes(record.kind) ||
+        /^https?:\/\//.test(record.endpoint),
+    )
+    .map((record) => record.endpoint)
+}
+
 /** Host-only mutations, under one fail-closed OS lock and a revision CAS. */
 export class MachineRegistry {
   private pending: Promise<void> = Promise.resolve()

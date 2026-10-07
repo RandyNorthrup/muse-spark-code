@@ -17,7 +17,7 @@
   "makerReject": "拒绝",
   "makerApprovalExpired": "此批准已过期。请重新请求操作。",
   "makerApprovalTargetChanged": "目标已更改。请审核新的批准请求。",
-  "makerUnattendedDenied": "硬件操作需要用户监督的会话。",
+  "makerUnattendedDenied": "硬件操作需要符合条件的交互会话和操作系统认证。",
   "makerTrustRequired": "启用硬件前，请信任此工作区。",
   "makerEnableHardware": "为此工作区启用硬件",
   "makerDisableHardware": "为此工作区禁用硬件",
@@ -665,7 +665,7 @@
   "webFetchMoved": "网页重定向到了另一台主机上的 {location}。Muse 可以通过新的调用获取它，届时会再次询问。",
   "webFetchRestrictedMode": "受限模式下网页获取已关闭。信任此工作区即可使用。",
   "browserCheckConfirmTitle": "Muse Code 想要在无头浏览器中打开 {url}",
-  "browserCheckConfirmDetail": "页面会在一个全新的私有浏览器配置文件中加载，结束后删除。它的所有流量都经过扩展自己的代理，该代理只放行发往本计算机和 museSpark.browserCheckExtraHosts 中主机的普通 http。",
+  "browserCheckConfirmDetail": "浏览器使用临时隐私配置和代理。私有地址需要 museSpark.browserCheckExtraHosts 中的精确开发服务器源。机器辅助面板的源始终被拒绝。",
   "browserCheckConfirmDetailWiden": "{host} 不是本计算机。允许后，仅本次检查可以访问它，也包括 https 和 WebSocket。这类流量经过加密，扩展无法检查，该站点可能会以此计算机的帐户替你登录（尤其是在 Windows 上）。",
   "browserRuntimeConsentTitle": "下载浏览器检查所用的浏览器（{size}）？",
   "browserRuntimeConsentDetail": "Muse Spark Code 将从 storage.googleapis.com 下载 Google 的 Chrome for Testing headless shell {version}（{size}），并保存在 {location}。它仅用于浏览器检查，扩展更新所固定的每个新版本都会重新下载。若不想再被询问，请将 museSpark.browserCheckRuntime 设为 download；若要关闭浏览器检查，请设为 off。",
@@ -681,9 +681,9 @@
     "other": "{count} 个失败的请求"
   },
   "browserCheckBlockedRequests": {
-    "other": "已阻止 {count} 个发往本计算机以外的请求"
+    "other": "已阻止 {count} 个请求"
   },
-  "browserCheckUrlRefused": "只能打开使用简单主机名或 IP 地址、且不含用户名或密码的 http:// 或 https:// 地址。",
+  "browserCheckUrlRefused": "无法打开此地址。私有地址需要 museSpark.browserCheckExtraHosts 中的精确开发服务器源；机器辅助面板的源始终被拒绝。",
   "browserCheckInvalidArguments": "浏览器检查的请求参数无效，因此未打开任何内容。",
   "browserCheckRuntimeMissing": "浏览器检查所用的浏览器尚未安装，且现在无法下载。请检查网络连接后重试。",
   "browserCheckRuntimeUnsupported": "此计算机上无法使用浏览器检查。它支持 Windows x64、Linux x64 和 macOS。",
@@ -1548,7 +1548,7 @@
   "acpQuestionAsked": "Muse 有一个问题；此编辑器无法以表单形式显示，请在下一条消息中回答：",
   "acpUnknownArgument": "未知参数：{argument}",
   "acpPaidNeedsModelApi": "{argument} 需要 --backend modelApi：付费功能会计费到 Model API 密钥。",
-  "acpUsage": "用法：\n  {command} [选项]              通过 stdin 和 stdout 提供 Agent Client Protocol\n  {command} [选项] login        在此终端中登录 Muse Code\n  {command} auth set|status|clear  存储、检查或移除 Meta Model API 密钥\n  {command} exec [options] <prompt>  无界面运行一轮\n  {command} scan-secrets <file> [--key-stdin]  统计单个文件中疑似机密的数量（仅输出数量）\n  {command} report [options]  输出已清理的问题报告（不启动后端，不打开浏览器）\n选项：\n  --backend museCode|modelApi      由谁付费：Muse Code（默认）或 Model API 密钥\n  --trust-workspace                加载文件夹的规则、技能和记忆\n  --muse-binary <路径>             要运行的 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code 的 shell 沙盒\n  --questions-defer-after <seconds>  默认在60秒后暂缓问题；0表示从不暂缓，1–9按10处理，最大3600\n  --allow-dangerously-skip-permissions  提供“绕过权限”模式\n  --allow-contributor-models       列出贡献者级模型（Meta 可能使用其内容进行训练）\n  --web-search                     提供付费网页搜索（Model API 后端；会先询问价格）\n  --image-generation               提供付费图片生成（Model API 后端；会先询问价格）\n  --verbose                        在 stderr 上记录所有细节\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  运行 Setup 钩子并退出",
+  "acpUsage": "用法：\n  {command} [选项]              通过 stdin 和 stdout 提供 Agent Client Protocol\n  {command} [选项] login        在此终端中登录 Muse Code\n  {command} auth set|status|clear  存储、检查或移除 Meta Model API 密钥\n  {command} exec [options] <prompt>  无界面运行一轮\n  {command} scan-secrets <file> [--key-stdin]  统计单个文件中疑似机密的数量（仅输出数量）\n  {command} report [options]  输出已清理的问题报告（不启动后端，不打开浏览器）\n选项：\n  --backend museCode|modelApi      由谁付费：Muse Code（默认）或 Model API 密钥\n  --trust-workspace                加载文件夹的规则、技能和记忆\n  --muse-binary <路径>             要运行的 Muse Code CLI\n  --shell-sandbox auto|muse|off    Muse Code 的 shell 沙盒\n  --questions-defer-after <seconds>  默认在60秒后暂缓问题；0表示从不暂缓，1–9按10处理，最大3600\n  --allow-dangerously-skip-permissions  提供“绕过权限”模式\n  --allow-contributor-models       列出贡献者级模型（Meta 可能使用其内容进行训练）\n  --web-search                     提供付费网页搜索（Model API 后端；会先询问价格）\n  --image-generation               提供付费图片生成（Model API 后端；会先询问价格）\n  --verbose                        在 stderr 上记录所有细节\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  运行 Setup 钩子并退出\n  {command} hardware enable|disable|status [--reason <text>] [--cwd <path>] [--trust-workspace]\n  {command} machines add --registration <JSON> [--key-stdin] --trust-workspace\n  {command} machines list|remove [id] [--cwd <path>] [--trust-workspace]\n  {command} stop-machine [id|--all] [--cwd <path>]\n  {command} panel [--cwd <path>] [--trust-workspace]\n  --hardware",
   "reportUsage": "用法：\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  将已清理的问题报告输出到 stdout，或使用 --out 将其写入 <file>。\n  不启动后端，不登录任何位置，不打开浏览器。\n选项：\n  --out <file>         将报告写入文件而不是 stdout\n  --description <text>  用自己的话描述当时发生了什么\n  --no-facts           不包含支持信息\n  --no-events          不包含最近事件",
   "exportSessionLine": "会话：`{id}`",
   "exportBackendLine": "后端：{backend}",
@@ -2526,6 +2526,7 @@
     "image-generation": "--image-generation               提供付费图片生成（Model API 后端；会先询问价格）",
     "verbose": "--verbose                        在 stderr 上记录所有细节",
     "questions-defer-after": "--questions-defer-after <seconds>  默认在60秒后暂缓问题；0表示从不暂缓，1–9按10处理，最大3600",
+    "hardware": "--hardware  允许硬件工具（此工作区也必须启用硬件）",
     "help": "help / --help / -h: ACP / CLI. help --all: 命令、设置和功能，附有说明和文档。",
     "version": "打印已安装代理的版本。",
     "cwd": "将此目录用作工作区。",
@@ -2563,5 +2564,17 @@
   "referenceElicitationTitle": "MCP 表单",
   "referenceElicitation": "MCP 表单为提出请求的 MCP 服务器收集信息。提交的表单值传给该服务器，不进入模型对话或记录。服务器可能将这些值包含在后续工具输出中。切勿输入密码或密钥。",
   "referenceNativeAgentsConditions": "当 run.subagent_delegation_mode=\"auto\" 时，Muse Code可以委派给代理。设为 \"off\" 时，委派工具不可用。 run.workflow_trigger_mode: auto / explicit / off.",
-  "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。"
+  "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。",
+  "makerStopFailed": "停止失败 — 请立即使用机器 {machine} 的物理紧急停止装置。",
+  "makerStopPhysicalRequired": "机器 {machine} 需要物理紧急停止；软件停止不可用。",
+  "makerLaunchConnect": "打开面板",
+  "makerPresenceReason": "{machine}：{action}（载荷 {digest}）",
+  "makerPresenceDenied": "操作系统认证被拒绝。未发送任何内容。",
+  "makerPresenceUnavailable": "操作系统身份验证不可用。macOS 和 Windows 需要集成原生用户确认助手；Linux 需要 Makers 的 polkit 策略和会话代理。停止功能仍然可用。",
+  "makerPresenceConnect": "连接设备",
+  "makerPresenceProgram": "编程设备",
+  "makerPresenceActuate": "移动、加热或为机器供电",
+  "makerCompanionUnavailable": "机器面板无法使用保留的本地端口。请关闭另一个机器面板后重试；Stop 仍可使用。",
+  "browserDevOriginAllow": "允许此开发源",
+  "browserDevOriginConsent": "允许浏览器检查访问 {origin} 吗？请仅确认由您控制的开发服务器。打印机和 CNC 界面始终被拒绝。此权限保留在这台计算机上，直到您从用户设置中移除该源。"
 }

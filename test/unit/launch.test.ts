@@ -236,6 +236,7 @@ describe('buildChildEnvironment', () => {
       PATH: 'x',
       PSModulePath: String.raw`C:\Program Files\WindowsPowerShell\Modules;C:\Windows\System32\WindowsPowerShell\v1.0\Modules`,
       MUSE_HOME: 'D:/muse',
+      MUSE_SPARK_AGENT_SHELL: '1',
     })
     expect(env).not.toHaveProperty('META_API_KEY')
   })
@@ -251,6 +252,7 @@ describe('buildChildEnvironment', () => {
     // Node would pass the first spelling in sort order; only one is left.
     expect(Object.keys(env).toSorted((a, b) => a.localeCompare(b))).toEqual([
       'MUSE_HOME',
+      'MUSE_SPARK_AGENT_SHELL',
       'PSModulePath',
     ])
     expect(env['MUSE_HOME']).toBe('new')
@@ -264,8 +266,26 @@ describe('buildChildEnvironment', () => {
       systemRoot: undefined,
       programFiles: undefined,
     })
-    expect(env).toEqual({ PATH: 'x', PSModulePath: 'keep', META_API_KEY: 'from-the-user-shell' })
+    expect(env).toEqual({
+      PATH: 'x',
+      PSModulePath: 'keep',
+      META_API_KEY: 'from-the-user-shell',
+      MUSE_SPARK_AGENT_SHELL: '1',
+    })
   })
+  it.each(['linux', 'darwin', 'win32'] as const)(
+    'marks Muse Code subagent shell descendants even with a %s environment override',
+    (platform) => {
+      const env = buildChildEnvironment({
+        platform,
+        baseEnv: { MUSE_SPARK_AGENT_SHELL: '' },
+        extraVariables: [{ name: 'MUSE_SPARK_AGENT_SHELL', value: '' }],
+        systemRoot: undefined,
+        programFiles: undefined,
+      })
+      expect(env['MUSE_SPARK_AGENT_SHELL']).toBe('1')
+    },
+  )
 })
 
 // The CLI in a terminal (`muse logout`, `muse mcp login`) reads the config

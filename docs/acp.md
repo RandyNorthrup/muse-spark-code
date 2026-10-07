@@ -1,5 +1,13 @@
 # Muse Spark in other editors (ACP)
 
+M103's integration runtime adds `--hardware`, `/hardware`, `/machines` and
+`/stop-machine`, plus terminal registration and companion commands. Hardware
+requires a host-owned workspace grant and a fresh once-only permission for
+each action. Plan, Bypass and unattended contexts cannot widen that grant;
+Stop remains independent. See the [runtime command guide](../README.md) and
+[M103R receipts and integration limits](certification/m103-r.md) before
+claiming installed maker support.
+
 > The package's npm landing page is [`muse-spark-code-acp`](https://www.npmjs.com/package/muse-spark-code-acp); this file is the full guide.
 
 `muse-spark-code-acp` runs Muse Spark as an agent for editors that speak
@@ -529,3 +537,18 @@ keep secrets out of it.
 ## Help and reference
 
 Send `/help` in an ACP session for its local command list and the [generated reference](reference.md). Run `muse-spark-code-acp help --all` in a terminal for the complete reference. Help starts no backend and makes no model request.
+
+### Maker OS presence (M103R)
+
+The maker runtime requires OS authentication for hardware enable, machine add,
+panel open and each exact physical payload. Agent-marked shells refuse enable,
+add and panel before asking for authentication. The panel launcher receives only
+a public loopback URL; the page gets its single-use launch code through a
+same-origin loopback exchange, never a process argument. ACP permission replies
+alone grant nothing. Linux uses the shipped auth_self polkit policy and a graphical session
+agent; its administrator installs the policy with @UID@ replaced by the intended
+account’s numeric UID. macOS LocalAuthentication and Windows Hello join through
+M109’s native helper port and refuse as unavailable until installed. Grants last
+five seconds and work once; terminal ancestry and multiplexer state confer no
+authority. Stop requires neither presence nor workspace storage. See the
+[repository guide](../README.md) for installation and qualification details.

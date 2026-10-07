@@ -1778,7 +1778,7 @@ Review what the agent did before it lands, on both backends.
   operations keep their own filter configuration.
 - **On the Model API** the review is the Reviewer's turn in your
   conversation: its own prompt, and tools that only read (read, search,
-  list files, VS Code's Problems). It cannot edit, run commands or reach
+  list files). IDE tools are withheld from review turns. It cannot edit, run commands or reach
   the network, in any permission mode. It is part of your own turn, so it
   asks nothing extra; the model can also start the Reviewer as a subagent
   (role `reviewer`, with no custom agent named), which is a paid child task
@@ -2280,29 +2280,32 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   private profile under the extension's storage that is deleted afterwards,
   never yours, and ends with the check, when you press Stop, when trust or a
   setting withdraws the check, and when the window closes.
-- **Where a page may go.** Everything the browser sends goes to the
-  extension's own proxy, started for that check on 127.0.0.1: the browser's
-  proxy with its usual loopback exception removed, and the same proxy on
-  the page's private browser context. The proxy passes only plain `http` to
-  this computer (`localhost`, `127.x.x.x` and `[::1]`) and to hosts you
-  widened, with sign-in challenges and credentials taken out both ways, so
-  a page cannot sign in as you over plain `http`; anything else gets a fixed
-  refusal. The browser looks up no host names itself; the proxy looks up
-  only a name you widened, once. `https` and WebSockets reach only a host you
-  widened, this computer included (a page on `https://localhost` needs
-  `localhost` in the setting). That traffic is encrypted, so the proxy passes
-  it unread, and a site there may sign in as you with this computer's
-  account (on Windows in particular). Before, between and after the page the
-  check runs its own tests in the same browser (requests that must arrive
-  refused at the proxy, a sign-in challenge that must be taken out, WebRTC
-  and WebTransport that must stay inside the proxy); one that fails stops
-  the check and nothing from the page comes back, and so does a restart of
-  the browser's network service during the check. Every frame and worker
-  the page starts is watched from its first line: a WebSocket beyond the
-  allowed hosts, or an answer that did not come back through the proxy,
-  stops the check too. To let checks reach other hosts, name them in
-  `museSpark.browserCheckExtraHosts` (machine-scoped: plain host names or IP
-  addresses, no ports, paths or wildcards). The model can never widen it.
+- **Where a page may go.** Everything goes through the check's own proxy.
+  Loopback, link-local and private addresses are refused by default, including
+  DNS names resolving to them, redirects, IPv4-mapped IPv6 and a relay on a
+  second port. To use a dev server, explicitly add its exact origin, for
+  example `http://localhost:3000`, to **user-level** `museSpark.browserCheckExtraHosts`.
+  Workspace files and settings cannot add an origin. Editing the setting to add
+  a non-loopback origin opens a separate confirmation naming its address;
+  closing or rejecting it leaves that origin unavailable. Re-edit an existing
+  non-loopback entry to request confirmation after upgrading. Remove the origin
+  to revoke it; adding it again asks anew. Scheme, host and port all matter;
+  allowing that origin does not allow another port. A plain host entry widens only public destinations,
+  and a one-call permission card cannot widen private-address access. Maker
+  companion ports 47830–47839 are always refused, even if listed or their
+  discovery record was removed. The proxy pins each connection to its one
+  DNS answer, strips plain HTTP credentials and sign-in challenges, and
+  applies discovered NAT64 prefixes to the IPv4 address inside an IPv6 answer,
+  and refuses unknown translation. Registered machine hosts and their resolved
+  aliases are refused on every port, in every mode, Bypass included. Known
+  OctoPrint, Mainsail, Fluidd/Moonraker, Duet DWC, PrusaLink, Bambu LAN,
+  Repetier and Snapmaker Luban interfaces remain refused even when listed.
+  Private ports 80, 443, 5000, 7125, 3344, 8080, 8000 and 8888, and private
+  encrypted tunnels, are unavailable. HTTP documents must be uncompressed and
+  at most 64 KiB; known machine UI content is refused before the browser can
+  interact. Public HTTPS and WebSockets remain unread. The check's own canaries
+  have a private nonce-path allowance revoked before the model's page runs. All existing
+  network, sign-in and leak checks still run before and after the page.
 - **The download.** What comes from Google is one archive per platform,
   the version this release pins (154.0.8037.92), checked before use against
   the length and SHA-256 recorded in the extension
@@ -3084,7 +3087,9 @@ started when a session first needs it; the same server also carries the
 code-intelligence tools, web fetch (in a trusted workspace) and, while paid
 images are on, the image tools. On the
 Model API backend it runs inside the extension under the same name
-(`mcp__ide__getDiagnostics`), as a read in every mode. It reports the workspace's files only (the
+(`mcp__ide__getDiagnostics`), as a read in attended ordinary turns. IDE tools
+are withheld from Plan, review, side chats, subagents and scheduled turns,
+including when only static IDE tools were registered. It reports the workspace's files only (the
 first folder), by relative path, each message cut at 1,000 characters, and
 past 200 problems a count instead of the rest. VS Code's language servers
 report only on files an editor shows, so when the agent asks about one file
@@ -3443,7 +3448,7 @@ when a conversation starts). The settings that choose what runs and what is bill
 (`initialPermissionMode`, `backend`, `shellSandbox`, `sandboxNetwork`,
 `allowDangerouslySkipPermissions`, `museBinaryPath`, `environmentVariables`,
 `modelApiHooks`, `modelApiRepoMap`, `modelApiObservationPacking`,
-`modelApiPromptCacheRetention`, `turnCheckpoints`, `bundledSkills`, `browserCheckExtraHosts`,
+`modelApiPromptCacheRetention`, `turnCheckpoints`, `bundledSkills`,
 `browserCheckRuntime`, `showWhatsNewOnUpdate`,
 the verify loop's `checkCommands`, `formatOnEdit` and `diagnosticsAfterEdits`,
 `modelApiSessionBudgetUsd`, `modelApiCommandRules`,
@@ -3504,7 +3509,7 @@ Bypass at once.
 | `notifyOnBackgroundTurn`          | `true`      | A VS Code notification when a turn of a minute or more ends, or a turn waits for your approval or answer, while the VS Code window is unfocused; never while it is focused                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `modelApiReplyUsage`              | `true`      | On by default. Shows tokens and estimated cost under each Model API reply; display only.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `modelApiSessionBudgetUsd`        | `0`         | Spend cap in dollars for each Model API conversation (`0`: no cap). Shared durable reservations cover the conversation's own token requests and image fees; working storage is required. Paid subagent requests keep their own consent and request ceiling: their reported cost is counted, but it is not reserved against this cap and can take the conversation past it. Unknown sent usage retains its full liability and cannot retry an ambiguous failure under the same allowance. Capped web search is unavailable until its billed query bound is verified, and paid Muse Voice is unavailable while a cap is set. Input estimates and published prices may differ from actual billing. Machine-scoped |
-| `browserCheckExtraHosts`          | `[]`        | [Browser check](#browser-check): hosts beyond this computer a checked page may open and reach, as plain host names or IP addresses (no ports, paths or wildcards; one that is not refuses the list); listing a loopback name also lets a local page use `https` and WebSockets. Empty means plain `http` to this computer only, unless you allow a host on a card or in the dialog for one check. `https` and WebSocket traffic to a listed host is encrypted and not inspected, and a site there may sign in as you with this computer's account (on Windows in particular). Only you widen it, never the model. Machine-scoped                                                                               |
+| `browserCheckExtraHosts`          | `[]`        | [Browser check](#browser-check): user-level public hosts or exact dev-server origins. Non-loopback origins require an address confirmation after a settings edit. Registered machines, known printer/CNC UIs, private web/machine ports and encrypted private tunnels are always refused, including Bypass. Remove an origin to revoke it. Machine-scoped                                                                                                                                                                                                                                                                                                                                                      |
 | `browserCheckRuntime`             | `'ask'`     | [Browser check](#browser-check): how the check gets its browser, Google's Chrome for Testing headless shell pinned to this extension version (about 100 to 120 MB per version, from `storage.googleapis.com` into the extension's storage): `ask` asks before downloading it, `download` downloads it when a check needs it without asking (for every later pinned version too), `off` offers no browser check and downloads nothing. Machine-scoped                                                                                                                                                                                                                                                           |
 | `showWhatsNewOnUpdate`            | `true`      | Open What's New after the extension updates: the page after a release with Highlights, a quiet notification after a fixes-only patch; off shows nothing on updates ([What's New after an update](#whats-new-after-an-update))                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `paidDailyBudgetUsd`              | `5`         | Shared interactive extras budget in USD, $0.50–$500; machine-scoped. Daily reservations persist across windows; Tab uses its own separate ledger.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
@@ -4307,6 +4312,120 @@ recorded in [the M78 certification](docs/certification/m78.md).
 | `npm run clean`                           | Remove `dist/` and `coverage/`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 
 The portable maker engine/surface contract is in `src/shared/makerProtocol.ts`.
+The runtime lane adds host-owned hardware grants, machine registration and
+independent Stop. These are integration commands; the installed shared maker
+page and package assembly remain with lanes U/W. The runtime host, loopback
+transport and fake-CLI receipts are in [M103R certification](docs/certification/m103-r.md).
+
+```text
+muse-spark-code-acp hardware enable --reason "supervised bench" --trust-workspace
+muse-spark-code-acp hardware status
+muse-spark-code-acp hardware disable
+muse-spark-code-acp machines add --registration <secretless-JSON> --trust-workspace
+muse-spark-code-acp machines list
+muse-spark-code-acp machines remove <id> --trust-workspace
+muse-spark-code-acp stop-machine [id|--all]
+muse-spark-code-acp panel [--trust-workspace]
+```
+
+`hardware enable`, `machines add`, opening the panel, and every motion, heater,
+power, connect or flash approval require **OS user presence for that exact
+action**. The OS prompt names the machine, action and a short payload digest.
+After authentication the runtime issues a five-second, single-use grant bound
+to the approval id, complete digest and target. An ACP Allow once answer alone
+cannot approve hardware. No terminal ancestry, SSH peer, TTY or multiplexer
+authenticates the person. tmux/screen work under the same presence rule.
+
+- **Linux:** a graphical session polkit agent asks for your account password
+  through the system `pkcheck`, with `auth_self`, without cached approval. An
+  administrator must install the shipped
+  `native/linux/org.muse-spark-code.maker.policy` in
+  `/usr/share/polkit-1/actions/`, replacing `@UID@` with your numeric account
+  id (shown by `id -u`). The root-owned policy must match the shipped file
+  apart from that substitution and be unwritable by other accounts. The
+  owner declaration permits the runtime to pass the action details; it grants
+  no action. Authentication itself runs as your ordinary user. Without the
+  policy, active session or session agent the action refuses. This rig's real
+  approved/denied password paths still await supervised qualification.
+- **macOS:** M109's signed helper uses LocalAuthentication
+  `deviceOwnerAuthentication`, with Touch ID or your account password.
+- **Windows:** M109's helper uses Windows Hello `UserConsentVerifier`, with
+  biometric authentication or a PIN.
+
+This branch has neither native helper yet, so macOS and Windows report presence
+unavailable and refuse. They never fall back to a terminal or editor click.
+If no presence source is available, enable/install the source for your OS and
+retry; **Stop stays available** without it.
+
+Agent-marked shells (including subagent and unattended shell children) refuse
+`hardware enable`, `machines add` and `panel` before asking for OS presence.
+These commands belong in the person's terminal. Stop remains available there
+and in agent shells.
+
+The runtime opens the OS browser with a public loopback URL. After OS presence,
+the opened page receives its single-use launch code through a one-shot,
+same-origin loopback exchange. No process argument, URL fragment, stdout,
+stderr or log carries the code. That capability opens a session;
+every physical approval still needs a separate OS presence check. Companion
+ports 47830–47839 are reserved and cannot be allowed by the browser tool.
+
+`--cwd <path>` selects the workspace. Registration JSON contains `machine`
+(`id`, `name`, `kind`, `category`, `endpoint`, `limits`) and `allowPlainHttp`;
+the engine generates the registration identity. Add `--key-stdin` only when
+registering a credential, and provide it privately on standard input. No
+credential belongs in JSON, an argument, the environment or a file.
+
+ACP requires the explicit `--hardware` flag plus a workspace hardware grant.
+The editor offers `/hardware enable <reason>`, `/hardware disable`,
+`/hardware status`, `/machines list`, `/machines add <makerAddMachine JSON>`,
+`/machines remove <id>` and `/stop-machine [id|--all]`. Every physical action
+still requires its own target-bound Allow once or Reject once answer; Plan,
+Bypass and unattended contexts cannot widen that permission. Stop remains
+available when hardware is disabled, trust is absent or an ACP turn is busy,
+including a command with leading whitespace. CLI Stop works from home, root,
+a parent of the data folder, and through a data-folder symlink/junction; it
+reads only user-level registries, without workspace grants, logs or storage.
+All reachable lease owners and HTTP machines are attempted independently.
+A failed Stop names the machine and tells you to use its physical emergency
+stop immediately. PrusaLink has no emergency-stop API; serial controllers
+without a live leased owner also require the physical stop. These are named
+warnings rather than missing-factory errors. Cancelling a turn while a send
+only awaits approval revokes it without sending an emergency stop.
+A software stop does not replace the physical emergency stop.
+
+Exactly one active ACP session per canonical workspace may request physical
+approval. An automatic ACP permission answer still needs the exact action’s
+OS authentication; it cannot mint a presence grant. Model API
+workers retain no physical tools. On this base Muse Code's MCP transport has
+no captured, authenticated caller-turn identity, so `machine_send` and
+`device_serial` are withheld from every MCP caller, including the parent turn.
+Restoring them requires the provenance capture and worker-denial test owned
+by G4/W; observe and Stop remain available during the eligible parent session.
+
+Browser checks refuse published maker companion ports before browser preparation
+and before every connection, including aliases, redirects and tunnels. The
+companion announces its public ports in a shared runtime registry; no credential
+is stored there. An unreadable registry refuses the check. Crash records keep
+their ports blocked conservatively. Reserved companion ports stay refused even
+if that registry is deleted. Workspace settings cannot admit private origins;
+user settings require the separate address confirmation and never admit known
+machine interfaces. A page session supplies no physical approval authority.
+
+The panel binds only a loopback literal. Its launch code is delivered over
+loopback and consumed once; only a successful exchange mints the session cookie.
+Each physical action requires a separate OS presence grant. The host-only HttpOnly
+cookie is bound to its random instance and port,
+so two panels can coexist. Request credentials cannot answer approvals:
+answers require a separate per-approval capability held only in the person's
+page, absent from event streams and tool channels, and consumed once.
+The Thonny v2 transport accepts context and explicit port handover, never
+device payloads or approval answers; its token uses constant-time comparison.
+The legacy stdout startup handoff is withdrawn. A private, person-launched
+Thonny/editor handoff remains T/W integration work; the CLI panel delivers provider connection details only in the single-use
+private page bootstrap, never through ordinary requests or events. The current native handover is an approved,
+bounded read session; serial writes await G4's classifier, persistent serial
+machine sessions await P/W, and PrusaLink digest transport awaits integration.
+
 `node scripts/maker-schema.mjs` regenerates its committed
 [host](docs/schemas/maker-host-v1.schema.json) and
 [surface](docs/schemas/maker-surface-v1.schema.json) JSON Schemas;

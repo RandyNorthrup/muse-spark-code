@@ -21,6 +21,14 @@ import { restoredUiState } from './state/snapshot'
 import { createUiStore, listenToHost, persistStore, type UiStore } from './state/store'
 import './styles.css'
 
+// The companion bridge uses the existing startup bundle's validated boundaries.
+export {
+  companionBootstrapSchema,
+  companionPresenceSchema,
+  companionLaunchSchema,
+} from '../shared/companionProtocol'
+export { makerHostMessageSchema, makerSurfaceMessageSchema } from '../shared/makerProtocol'
+
 const TasksApp = lazy(async () => {
   const { TasksApp } = await import('./TasksApp')
   return { default: TasksApp }

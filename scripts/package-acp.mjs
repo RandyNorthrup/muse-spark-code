@@ -34,6 +34,7 @@ const BUNDLES = [
   'acpQuestions.js',
   'runtimeQuestions.js',
   'questionNotes.js',
+  'runtimeMaker.js',
   'modelApi.js',
   'reviewer.js',
   'foreignHooks.js',
@@ -59,6 +60,7 @@ const JOB_SOURCES = [
   path.join('native', 'windows', 'MuseSparkJob.cs'),
   path.join('native', 'windows', 'MuseSparkMcpJob.cs'),
 ]
+const POLKIT_POLICY = path.join('native', 'linux', 'org.muse-spark-code.maker.policy')
 const NATIVE_DEPENDENCY = '@napi-rs/keyring'
 const PACKAGE_NAME = 'muse-spark-code-acp'
 // The package's landing page (docs/npm-readme.md): npm renders
@@ -106,10 +108,14 @@ for (const schema of SCHEMAS) {
 for (const bundle of BUNDLES) {
   copyFileSync(path.join('dist', bundle), path.join(STAGE, 'dist', bundle))
 }
-for (const source of JOB_SOURCES) {
+for (const source of [...JOB_SOURCES, POLKIT_POLICY]) {
   mkdirSync(path.join(STAGE, path.dirname(source)), { recursive: true })
   copyFileSync(source, path.join(STAGE, source))
 }
+cpSync('dist/webview', path.join(STAGE, 'dist', 'webview'), {
+  recursive: true,
+  filter: (source) => !source.endsWith('.map'),
+})
 cpSync('l10n', path.join(STAGE, 'l10n'), {
   recursive: true,
   filter: (source) => !source.endsWith('untranslated.json'),

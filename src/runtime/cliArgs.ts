@@ -20,8 +20,11 @@ import {
 import { fill } from '../shared/l10n/text'
 import { parseExec, type ExecOptions } from './exec/execArgs'
 import { questionDeferSeconds } from '../shared/questionDeadline'
+import { parseMakerCommand, type MakerCommand } from './maker/commandArgs'
 
 export interface ServeOptions {
+  /** M103: hardware tools require both this explicit flag and a host-owned workspace grant. */
+  readonly hardware?: boolean
   /** Which account pays; chosen here, never guessed (D62). */
   readonly backend: AcpBackendKind
   /** A folder's rules, skills and memory load (D13's flag, as Muse Code takes it). */
@@ -51,6 +54,7 @@ export interface ReportOptions {
 }
 
 export type RuntimeCommand =
+  | MakerCommand
   | { readonly command: 'setup'; readonly options: ServeOptions; readonly maintenance: boolean }
   | { readonly command: 'exec'; readonly options: ExecOptions }
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
@@ -93,6 +97,12 @@ function paidFeaturesOf(values: Readonly<Record<string, unknown>>): AcpPaidFeatu
 }
 
 export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
+  try {
+    const maker = parseMakerCommand(argv)
+    if (maker !== undefined) return maker
+  } catch {
+    return { command: 'invalid', reason: UI_TEXT.makerDevicesTitle, exitCode: 2 }
+  }
   if (argv[0] === 'help') {
     return argv.length === 1 || (argv.length === 2 && argv[1] === '--all')
       ? { command: 'help', all: argv[1] === '--all' }
@@ -138,6 +148,7 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
     }
   }
   const options: ServeOptions = {
+    ...(values.hardware === true && { hardware: true }),
     backend,
     trustWorkspace: values['trust-workspace'] === true,
     museBinary: values['muse-binary'] ?? SETTING_DEFAULTS.museBinaryPath,

@@ -1,0 +1,370 @@
+[
+  {
+    "id": "tty",
+    "finding": "P1-1",
+    "source": "src/runtime/maker/attended.ts",
+    "command": "npx vitest run test/unit/runtimeMakerAttendance.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses a redirected stdinTty before probing",
+      "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses a redirected stdoutTty before probing"
+    ],
+    "summary": null,
+    "restoredSha256": "65afd6eea02e8fccdb7cf11d5f589cd501f3193e2c079acef1e04815a250e7ec"
+  },
+  {
+    "id": "agent-marker",
+    "finding": "P1-1",
+    "source": "src/runtime/maker/attended.ts",
+    "command": "npx vitest run test/unit/runtimeMakerAttendance.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses marker CI even with both TTYs",
+      "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses marker MUSE_SPARK_AGENT_SHELL even with both TTYs",
+      "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses marker CODEX_THREAD_ID even with both TTYs",
+      "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses marker CLAUDECODE even with both TTYs"
+    ],
+    "summary": null,
+    "restoredSha256": "65afd6eea02e8fccdb7cf11d5f589cd501f3193e2c079acef1e04815a250e7ec"
+  },
+  {
+    "id": "terminal-ancestry",
+    "finding": "P1-1",
+    "source": "src/runtime/maker/attended.ts",
+    "command": "npx vitest run test/unit/runtimeMakerAttendance.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > refuses orphaned shells and interpreters that impersonate a terminal process name"
+    ],
+    "summary": null,
+    "restoredSha256": "65afd6eea02e8fccdb7cf11d5f589cd501f3193e2c079acef1e04815a250e7ec"
+  },
+  {
+    "id": "cli-entry-computed",
+    "finding": "P1-1",
+    "source": "src/runtime/maker/entry.ts",
+    "command": "npx vitest run test/unit/runtimeMakerAttendance.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > real CLI entry refuses non-TTY agent-shell privilege \"hardware\" before storage or credential output",
+      "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > real CLI entry refuses non-TTY agent-shell privilege \"machines\" before storage or credential output",
+      "FAIL  test/unit/runtimeMakerAttendance.test.ts > computed maker terminal attendance > real CLI entry refuses non-TTY agent-shell privilege \"panel\" before storage or credential output"
+    ],
+    "summary": null,
+    "restoredSha256": "da98d128d00c5221919f8510a01398ef9b75de764ac193191bf69520594a7d7f"
+  },
+  {
+    "id": "cli-privileges",
+    "finding": "P1-1",
+    "source": "src/runtime/maker/commands.ts",
+    "command": "npx vitest run test/unit/runtimeMakerCommands.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > refuses unattended maker privilege \"machines\" without printing a credential",
+      "FAIL  test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > refuses unattended maker privilege \"panel\" without printing a credential"
+    ],
+    "summary": null,
+    "restoredSha256": "8d70f89a43a5944bba9ba278dda99ba4e41085c7979ce39be5f62a2caf6e862b"
+  },
+  {
+    "id": "no-stdout-capability",
+    "finding": "P1-1",
+    "source": "src/runtime/maker/commands.ts",
+    "command": "npx vitest run test/unit/runtimeMakerCommands.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > opens and closes the loopback panel through the OS launcher without printing credentials"
+    ],
+    "summary": null,
+    "restoredSha256": "8d70f89a43a5944bba9ba278dda99ba4e41085c7979ce39be5f62a2caf6e862b"
+  },
+  {
+    "id": "stop-before-workspace",
+    "finding": "P1-2",
+    "source": "src/runtime/maker/entry.ts",
+    "command": "npx vitest run test/unit/runtimeMakerStop.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerStop.test.ts > independent runtime Stop > CLI Stop reaches the machine from D4 cwd home without touching workspace storage",
+      "FAIL  test/unit/runtimeMakerStop.test.ts > independent runtime Stop > CLI Stop reaches the machine from D4 cwd root without touching workspace storage",
+      "FAIL  test/unit/runtimeMakerStop.test.ts > independent runtime Stop > CLI Stop reaches the machine from D4 cwd data-parent without touching workspace storage",
+      "FAIL  test/unit/runtimeMakerStop.test.ts > independent runtime Stop > CLI Stop reaches the machine from D4 cwd linked-data without touching workspace storage",
+      "FAIL  test/unit/runtimeMakerStop.test.ts > independent runtime Stop > names a failed machine and directs immediate physical emergency Stop"
+    ],
+    "summary": null,
+    "restoredSha256": "da98d128d00c5221919f8510a01398ef9b75de764ac193191bf69520594a7d7f"
+  },
+  {
+    "id": "acp-stop-before-authority",
+    "finding": "P1-2",
+    "source": "src/runtime/maker/acpRuntime.ts",
+    "command": "npx vitest run test/unit/runtimeMakerAcp.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerAcp.test.ts > real ACP maker runtime admission > home sessions always expose independent Stop, without constructing workspace authority",
+      "FAIL  test/unit/runtimeMakerAcp.test.ts > real ACP maker runtime admission > a failed authority initialization does not poison Stop or the next attempt"
+    ],
+    "summary": null,
+    "restoredSha256": "df92fd767352010e60062898a778e70217741f431c4c48ff54e17818aca28d66"
+  },
+  {
+    "id": "stop-read-only",
+    "finding": "P1-2",
+    "source": "src/core/maker/lease.ts",
+    "command": "npx vitest run test/unit/runtimeMakerStop.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerStop.test.ts > independent runtime Stop > CLI Stop reaches the machine from D4 cwd home without touching workspace storage",
+      "FAIL  test/unit/runtimeMakerStop.test.ts > independent runtime Stop > CLI Stop reaches the machine from D4 cwd root without touching workspace storage",
+      "FAIL  test/unit/runtimeMakerStop.test.ts > independent runtime Stop > CLI Stop reaches the machine from D4 cwd data-parent without touching workspace storage",
+      "FAIL  test/unit/runtimeMakerStop.test.ts > independent runtime Stop > CLI Stop reaches the machine from D4 cwd linked-data without touching workspace storage",
+      "FAIL  test/unit/runtimeMakerStop.test.ts > independent runtime Stop > does not create storage when no user registry or lease exists"
+    ],
+    "summary": null,
+    "restoredSha256": "27d1d9d5586de21308bc49d23113a2ccdc5fd222ad29b615d1d22410317e9342"
+  },
+  {
+    "id": "acp-D3-single-session",
+    "finding": "P2-2",
+    "source": "src/runtime/maker/acpRuntime.ts",
+    "command": "npx vitest run test/unit/runtimeMakerAcp.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerAcp.test.ts > real ACP maker runtime admission > exactly one active session reaches the real approval and losing exclusivity revokes pending approval",
+      "FAIL  test/unit/runtimeMakerAcp.test.ts > real ACP maker runtime admission > ACP marker CI refuses grants and tools even with one active client; Stop remains independent",
+      "FAIL  test/unit/runtimeMakerAcp.test.ts > real ACP maker runtime admission > ACP marker MUSE_SPARK_AGENT_SHELL refuses grants and tools even with one active client; Stop remains independent",
+      "FAIL  test/unit/runtimeMakerAcp.test.ts > real ACP maker runtime admission > two aliases of one workspace share the attended-session guard"
+    ],
+    "summary": null,
+    "restoredSha256": "df92fd767352010e60062898a778e70217741f431c4c48ff54e17818aca28d66"
+  },
+  {
+    "id": "acp-unattended-marker",
+    "finding": "P1-1",
+    "source": "src/runtime/maker/acpRuntime.ts",
+    "command": "npx vitest run test/unit/runtimeMakerAcp.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerAcp.test.ts > real ACP maker runtime admission > ACP marker CI refuses grants and tools even with one active client; Stop remains independent",
+      "FAIL  test/unit/runtimeMakerAcp.test.ts > real ACP maker runtime admission > ACP marker MUSE_SPARK_AGENT_SHELL refuses grants and tools even with one active client; Stop remains independent"
+    ],
+    "summary": null,
+    "restoredSha256": "df92fd767352010e60062898a778e70217741f431c4c48ff54e17818aca28d66"
+  },
+  {
+    "id": "mcp-worker-denial",
+    "finding": "P2-3",
+    "source": "src/runtime/maker/acpRuntime.ts",
+    "command": "npx vitest run test/unit/runtimeMakerAcp.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerAcp.test.ts > real ACP maker runtime admission > Muse Code MCP offers no physical action without captured top-level turn provenance, even during an attended turn"
+    ],
+    "summary": null,
+    "restoredSha256": "df92fd767352010e60062898a778e70217741f431c4c48ff54e17818aca28d66"
+  },
+  {
+    "id": "named-stop-failure",
+    "finding": "P2-5",
+    "source": "src/runtime/maker/stop.ts",
+    "command": "npx vitest run test/unit/runtimeMakerStop.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerStop.test.ts > independent runtime Stop > reaches lease owners even if the machine registry is corrupt",
+      "FAIL  test/unit/runtimeMakerStop.test.ts > independent runtime Stop > names a failed machine and directs immediate physical emergency Stop"
+    ],
+    "summary": null,
+    "restoredSha256": "f74d7596e4944ab5e28599b77edfc7a52b557b5faa2e82561e83a449d9869652"
+  },
+  {
+    "id": "stop-failure-translations",
+    "finding": "P2-5",
+    "source": "l10n/ui.de.json",
+    "command": "node scripts/check-l10n.mjs",
+    "exit": 1,
+    "failedTests": [],
+    "summary": "l10n/ui.de.json: makerStopFailed: missing\nl10n: 14 tables, 165 manifest strings, 650 source files; 1 problems\n",
+    "restoredSha256": "61bca50a6ff2f4c4d236f0eaa92e00663341353e1656d091a14609fafd29115a"
+  },
+  {
+    "id": "stale-owner",
+    "finding": "P3-1",
+    "source": "src/core/maker/lease.ts",
+    "command": "npx vitest run test/unit/runtimeMakerStop.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerStop.test.ts > independent runtime Stop > dead owner with an absent endpoint is stale and remains untouched without a false Stop alarm"
+    ],
+    "summary": null,
+    "restoredSha256": "27d1d9d5586de21308bc49d23113a2ccdc5fd222ad29b615d1d22410317e9342"
+  },
+  {
+    "id": "serial-prusa-stop",
+    "finding": "P3-2",
+    "source": "src/runtime/maker/stop.ts",
+    "command": "npx vitest run test/unit/runtimeMakerStop.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerStop.test.ts > independent runtime Stop > attempts HTTP Stop alongside registered serial and PrusaLink machines and names their physical Stop requirement"
+    ],
+    "summary": null,
+    "restoredSha256": "f74d7596e4944ab5e28599b77edfc7a52b557b5faa2e82561e83a449d9869652"
+  },
+  {
+    "id": "thonny-constant-time",
+    "finding": "P3-4",
+    "source": "src/runtime/maker/thonnyServer.ts",
+    "command": "npx vitest run test/unit/runtimeMakerTransport.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerTransport.test.ts > Thonny v2 ownership > compares same-length Thonny tokens with timingSafeEqual before accepting the provider"
+    ],
+    "summary": null,
+    "restoredSha256": "11f92c4c102b4c502edcf1a3938de809320d4fe963124745a690e83a3ccbeb44"
+  },
+  {
+    "id": "acp-retry",
+    "finding": "P3-5",
+    "source": "src/runtime/maker/acpRuntime.ts",
+    "command": "npx vitest run test/unit/runtimeMakerAcp.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerAcp.test.ts > real ACP maker runtime admission > a failed authority initialization does not poison Stop or the next attempt"
+    ],
+    "summary": null,
+    "restoredSha256": "df92fd767352010e60062898a778e70217741f431c4c48ff54e17818aca28d66"
+  },
+  {
+    "id": "acp-canonical-workspace",
+    "finding": "P3-5",
+    "source": "src/runtime/maker/acpRuntime.ts",
+    "command": "npx vitest run test/unit/runtimeMakerAcp.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerAcp.test.ts > real ACP maker runtime admission > two aliases of one workspace share the attended-session guard"
+    ],
+    "summary": null,
+    "restoredSha256": "df92fd767352010e60062898a778e70217741f431c4c48ff54e17818aca28d66"
+  },
+  {
+    "id": "busy-stop-whitespace",
+    "finding": "P3-7",
+    "source": "src/acp/agent.ts",
+    "command": "npx vitest run test/unit/acpAgent.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/acpAgent.test.ts > M103 ACP hardware lifecycle > runs explicit Stop while a model turn is busy without enabling another prompt"
+    ],
+    "summary": null,
+    "restoredSha256": "57f2202cffc52074b7c89dacbb53de7bdf1e1dc609297261c06b4c6d81f6539d"
+  },
+  {
+    "id": "answer-channel",
+    "finding": "P1-1",
+    "source": "src/runtime/maker/companionServer.ts",
+    "command": "npx vitest run test/unit/runtimeMakerTransport.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerTransport.test.ts > companion boundary > request/session channels cannot self-approve; the page capability answers only once"
+    ],
+    "summary": null,
+    "restoredSha256": "832292e6b58349b17e8db17c16fd4d402b4a46e6d5b0d7e915e560d85c9d190a"
+  },
+  {
+    "id": "page-only-approval",
+    "finding": "P1-1",
+    "source": "src/runtime/maker/companionServer.ts",
+    "command": "npx vitest run test/unit/runtimeMakerTransport.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerTransport.test.ts > companion boundary > request/session channels cannot self-approve; the page capability answers only once"
+    ],
+    "summary": null,
+    "restoredSha256": "832292e6b58349b17e8db17c16fd4d402b4a46e6d5b0d7e915e560d85c9d190a"
+  },
+  {
+    "id": "cookie-instance",
+    "finding": "P2-1",
+    "source": "src/runtime/maker/companionServer.ts",
+    "command": "npx vitest run test/unit/runtimeMakerTransport.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerTransport.test.ts > companion boundary > binds host-only cookies to each instance and port without panel clobbering"
+    ],
+    "summary": null,
+    "restoredSha256": "832292e6b58349b17e8db17c16fd4d402b4a46e6d5b0d7e915e560d85c9d190a"
+  },
+  {
+    "id": "cookie-port",
+    "finding": "P2-1",
+    "source": "src/runtime/maker/companionServer.ts",
+    "command": "npx vitest run test/unit/runtimeMakerTransport.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerTransport.test.ts > companion boundary > binds host-only cookies to each instance and port without panel clobbering"
+    ],
+    "summary": null,
+    "restoredSha256": "832292e6b58349b17e8db17c16fd4d402b4a46e6d5b0d7e915e560d85c9d190a"
+  },
+  {
+    "id": "panel-stop-only",
+    "finding": "P1-2",
+    "source": "src/runtime/maker/service.ts",
+    "command": "npx vitest run test/unit/runtimeMakerStop.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerStop.test.ts > independent runtime Stop > the companion keeps Stop when home is the workspace and authority storage is unavailable"
+    ],
+    "summary": null,
+    "restoredSha256": "0f619cf10ad8c68ab9f811c065e8d3e9f72deb7109259fda8d867562dd7c9d06"
+  },
+  {
+    "id": "cancel-only-revokes",
+    "finding": "P3-3",
+    "source": "src/runtime/maker/service.ts",
+    "command": "npx vitest run test/unit/runtimeMakerCommands.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > cancelling a turn while approval is pending only revokes; it sends no emergency Stop"
+    ],
+    "summary": null,
+    "restoredSha256": "0f619cf10ad8c68ab9f811c065e8d3e9f72deb7109259fda8d867562dd7c9d06"
+  },
+  {
+    "id": "cancel-stop-failure",
+    "finding": "P2-5",
+    "source": "src/runtime/maker/service.ts",
+    "command": "npx vitest run test/unit/runtimeMakerCommands.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > cancelling after guarded HTTP dispatch retains controller Stop and reports failure: true"
+    ],
+    "summary": null,
+    "restoredSha256": "0f619cf10ad8c68ab9f811c065e8d3e9f72deb7109259fda8d867562dd7c9d06"
+  },
+  {
+    "id": "cancel-after-dispatch",
+    "finding": "P3-3",
+    "source": "src/core/maker/machines/http.ts",
+    "command": "npx vitest run test/unit/runtimeMakerCommands.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > cancelling after guarded HTTP dispatch retains controller Stop and reports failure: false",
+      "FAIL  test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > cancelling after guarded HTTP dispatch retains controller Stop and reports failure: true"
+    ],
+    "summary": null,
+    "restoredSha256": "d09694c6ca0481b36dc08967a5dbbc35fe9eb0b35858ee803366de3d5608540a"
+  },
+  {
+    "id": "own-panel-fixture",
+    "finding": "P2-4",
+    "source": "test/unit/runtimeMakerCommands.test.ts",
+    "command": "npx vitest run test/unit/runtimeMakerCommands.test.ts --maxWorkers=3 --testTimeout=120000",
+    "exit": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeMakerCommands.test.ts > runtime maker command execution without a credential store or device > opens and closes the loopback panel through the OS launcher without printing credentials"
+    ],
+    "summary": null,
+    "restoredSha256": "a4fa8c80612301d2af71e4b13ee1cb06f9b5518e5f6e8ca71a485b821b3d2e1c"
+  }
+]

@@ -442,33 +442,34 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `workspace.textDocuments`                                                            | `src/extension.ts`, `src/host/editor/verifyEditor.ts`                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `workspace.workspaceFolders`                                                         | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`, `src/host/maker/vscodeMakerHost.ts`                                                                                                                                                                                                                                                                                                                                                      |
 
-## Node built-ins the host imports (26)
+## Node built-ins the host imports (27)
 
 | Module                 | Files |
 | ---------------------- | ----- |
 | `node:buffer`          | 46    |
-| `node:child_process`   | 18    |
-| `node:crypto`          | 55    |
+| `node:child_process`   | 19    |
+| `node:crypto`          | 62    |
 | `node:dgram`           | 1     |
 | `node:dns`             | 1     |
-| `node:dns/promises`    | 3     |
-| `node:fs`              | 38    |
-| `node:fs/promises`     | 57    |
-| `node:http`            | 5     |
+| `node:dns/promises`    | 5     |
+| `node:events`          | 1     |
+| `node:fs`              | 40    |
+| `node:fs/promises`     | 65    |
+| `node:http`            | 6     |
 | `node:https`           | 2     |
 | `node:module`          | 1     |
-| `node:net`             | 10    |
-| `node:os`              | 9     |
-| `node:path`            | 99    |
-| `node:perf_hooks`      | 2     |
-| `node:process`         | 1     |
+| `node:net`             | 12    |
+| `node:os`              | 10    |
+| `node:path`            | 108   |
+| `node:perf_hooks`      | 3     |
+| `node:process`         | 2     |
 | `node:stream`          | 12    |
 | `node:stream/promises` | 2     |
 | `node:string_decoder`  | 1     |
 | `node:timers/promises` | 3     |
 | `node:tls`             | 1     |
 | `node:url`             | 4     |
-| `node:util`            | 5     |
+| `node:util`            | 6     |
 | `node:vm`              | 1     |
 | `node:worker_threads`  | 4     |
 | `node:zlib`            | 4     |

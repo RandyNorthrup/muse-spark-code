@@ -431,6 +431,7 @@ function setup(
     /** The MCP servers and the IDE tools (M50). */
     mcpServers?: ModelApiHostDeps['mcpServers']
     ideTools?: ModelApiHostDeps['ideTools']
+    getIdeTools?: ModelApiHostDeps['getIdeTools']
     /** False: the host has no memory store (M49). */
     hasMemory?: boolean
     /** Folders the memory fake reports as links to elsewhere (M49). */
@@ -558,6 +559,7 @@ function setup(
     }),
     mcpServers: options.mcpServers,
     ideTools: options.ideTools,
+    getIdeTools: options.getIdeTools,
     allowsPaidUse: async (request, requiresAsking, sessionId) => {
       paidRequests.push({ request, requiresAsking })
       paidSessions.push(sessionId)
@@ -1993,7 +1995,7 @@ describe('Model API scheduled prompts (M52)', () => {
     await restored.host.close()
   })
 
-  it('refuses a due run while its paid gate is off, then admits one explicit run and marks it paid', async () => {
+  it('refuses a due run while its paid gate is off, then admits one explicit run and withholds static physical tools', async () => {
     let now = 1_000_000
     const paid: PaidFeature[] = []
     const sessionStore = memorySessionStore()
@@ -2007,6 +2009,14 @@ describe('Model API scheduled prompts (M52)', () => {
       scheduleStore: store,
       getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
       paid,
+      ideTools: [
+        {
+          name: 'machine_send',
+          description: 'Physical tool fixture',
+          inputSchema: { type: 'object' },
+          call: () => Promise.resolve('must not run'),
+        },
+      ],
     })
     // `allowAll` is Bypass permissions; paid admission still refuses.
     const { session, turnDone } = await startSession(t, 'allowAll')
@@ -2024,6 +2034,7 @@ describe('Model API scheduled prompts (M52)', () => {
     await schedules.run(job.id, job.nextFireAtMs, confirmedRun(job, session))
     await completed
     expect(t.api.responseBodies()).toHaveLength(1)
+    expect(toolNames(t.api.responseBodies()[0])).not.toContain('mcp__ide__machine_send')
     const requestJson = JSON.stringify(t.api.responseBodies())
     expect(requestJson).not.toContain(FAKE_MODEL_API_ACCOUNT_ID)
     expect(requestJson).not.toContain('confirmedRequest')
@@ -14049,6 +14060,95 @@ describe('ModelApiHost: MCP servers and the IDE tool (M50)', () => {
     expect(offered).not.toContain('mcp__docs__search')
   })
 
+  it('reads runtime tool admission again when a streamed call arrives', async () => {
+    let isAdmitted = true
+    const call = vi.fn<McpTool['call']>().mockResolvedValue('observed')
+    const tool = { ...DIAGNOSTICS, call }
+    const t = setup({ getIdeTools: () => (isAdmitted ? [tool] : []) })
+    const { session, turnDone } = await startSession(t, 'allowAll')
+    const held = Promise.withResolvers<undefined>()
+    t.api.script(
+      { calls: [{ name: 'mcp__ide__getDiagnostics', arguments: '{}' }], hold: held.promise },
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'go' }])
+    await vi.waitFor(() => {
+      expect(t.api.responseBodies()).toHaveLength(1)
+    })
+    isAdmitted = false
+    held.resolve(undefined)
+    await turnDone()
+    expect(call).not.toHaveBeenCalled()
+  })
+
+  it.each([false, true])(
+    'does not offer hardware tools in Plan with dynamic callback %s',
+    async (dynamic) => {
+      const t = setup({
+        ideTools: [DIAGNOSTICS],
+        ...(dynamic && { getIdeTools: () => [DIAGNOSTICS] }),
+      })
+      const { session, turnDone } = await startSession(t, 'denyUnmatched')
+      t.api.script({ text: 'done' })
+      await session.sendTurn([{ type: 'text', text: 'go' }])
+      await turnDone()
+      const tools = z
+        .array(z.looseObject({ name: z.optional(z.string()) }))
+        .parse(t.api.responseBodies()[0]?.['tools'])
+      expect(tools.map((tool) => tool.name)).not.toContain('mcp__ide__getDiagnostics')
+    },
+  )
+
+  it.each(['plan', 'review', 'side chat', 'subagent'] as const)(
+    'static physical IDE tools fail closed for a %s turn without getIdeTools',
+    async (context) => {
+      const call = vi.fn<McpTool['call']>().mockResolvedValue('must not run')
+      const tool = { ...DIAGNOSTICS, name: 'machine_send', call }
+      const t = setupSubagents({ ideTools: [tool], store: memorySessionStore() })
+      const { session, turnDone } = await startSession(
+        t,
+        context === 'plan' ? 'denyUnmatched' : 'allowAll',
+      )
+      const physical = { calls: [{ name: 'mcp__ide__machine_send', arguments: '{}' }] }
+      try {
+        if (context === 'subagent') {
+          await completePaidChild(t, session, 'static-physical-guard')
+          const child = t.api.responseBodies().find((body) => isChildRequest(body))
+          expect(child).toBeDefined()
+          expect(toolNames(child)).not.toContain('mcp__ide__machine_send')
+        } else {
+          if (context === 'side chat') await answerFirst(t, session, turnDone)
+          const prior = t.api.responseBodies().length
+          t.api.script(physical, { text: 'done' })
+          switch (context) {
+            case 'review': {
+              await session.review([{ type: 'text', text: 'review' }], '/review')
+              await turnDone()
+              break
+            }
+            case 'side chat': {
+              const side = await openSideFork(t, session)
+              const sideTurns = watchSessionTurns(side.session)
+              await side.session.sendTurn([{ type: 'text', text: 'question' }])
+              await sideTurns.turnDone()
+              break
+            }
+            case 'plan': {
+              await session.sendTurn([{ type: 'text', text: 'plan' }])
+              await turnDone()
+              break
+            }
+          }
+          for (const body of t.api.responseBodies().slice(prior))
+            expect(toolNames(body)).not.toContain('mcp__ide__machine_send')
+        }
+        expect(call).not.toHaveBeenCalled()
+      } finally {
+        await t.host.close()
+      }
+    },
+  )
+
   it('asks before an MCP tool in Manual, as a tool, and remembers "always allow"', async () => {
     const { session, events, turnDone, t, mcp } = await mcpTurn({
       calls: [
@@ -14125,12 +14225,12 @@ describe('ModelApiHost: MCP servers and the IDE tool (M50)', () => {
     expect(rows.map((row) => [row.tool, row.status])).toEqual([
       ['mcp__docs__search', 'rejected'],
       ['mcp__docs__lookup', 'completed'],
-      ['mcp__ide__getDiagnostics', 'completed'],
+      ['mcp__ide__getDiagnostics', 'failed'],
     ])
     expect(rows[0]?.failureReason).toBe(
       `mcp__docs__search ${MODEL_API_MODEL_TEXT.toolRefusedByMode}`,
     )
-    expect(rows[2]?.visibleOutput).toBe('No diagnostics.')
+    expect(rows[2]?.visibleOutput).not.toBe('No diagnostics.')
     expect(mcp.calls.map((call) => call.name)).toEqual(['mcp__docs__lookup'])
   })
 
@@ -14493,7 +14593,7 @@ describe('ModelApiSession Reviewer (M70)', () => {
     inputSchema: { type: 'object', properties: {} },
     call: () => Promise.resolve('No diagnostics.'),
   }
-  const READ_ONLY = ['read_file', 'search', 'list_files', 'mcp__ide__getDiagnostics']
+  const READ_ONLY = ['read_file', 'search', 'list_files']
 
   it('offers only the tools that read, with its own prompt, and gives the next turn everything back', async () => {
     const t = setup({
@@ -17043,7 +17143,7 @@ const CHECKED: BrowserCheckResult = {
 /** A browser check that records what it was asked and answers with `result`. */
 function recordingBrowser(
   result: () => BrowserCheckResult = () => CHECKED,
-  extraHosts: readonly string[] = [],
+  extraHosts: readonly string[] = ['http://localhost:3000', 'http://127.0.0.1:5173'],
   isOffered = true,
 ) {
   const requests: BrowserCheckRequest[] = []
@@ -17090,6 +17190,19 @@ function checkRows(events: readonly AgentEvent[]) {
   )
 }
 
+/** A refused URL reaches neither a card nor the browser, once for each call. */
+function expectRefusedChecks(
+  browser: ReturnType<typeof recordingBrowser>,
+  events: readonly AgentEvent[],
+  count: number,
+): void {
+  expect(hasApprovalCard(events)).toBe(false)
+  expect(browser.requests).toEqual([])
+  expect(checkRows(events).map((row) => row.failureReason)).toEqual(
+    Array.from({ length: count }, () => UI_TEXT.browserCheckUrlRefused),
+  )
+}
+
 /** Whether the first request of a conversation lists the browser check. */
 async function isCheckListed(options: Parameters<typeof setup>[0], isSideChat = false) {
   const t = setup(options)
@@ -17101,6 +17214,30 @@ async function isCheckListed(options: Parameters<typeof setup>[0], isSideChat = 
 }
 
 describe('the browser check on the Model API backend (M81)', () => {
+  it('refuses the reviewer private machine URL and allowlisted known UI clicks in Bypass before a card', async () => {
+    const origins = ['http://192.168.1.50', `${HTTP}//mainsail.example:5173`]
+    const browser = recordingBrowser(undefined, origins)
+    const t = setup({ browserCheck: browser.host })
+    const { session, events, turnDone } = await startSession(t, 'allowAll')
+    t.api.script(
+      ...origins.map((origin, index) => ({
+        calls: [
+          {
+            name: 'browser_check',
+            arguments: JSON.stringify({
+              url: `${origin}/`,
+              actions: [{ kind: 'click', selector: '#print' }],
+            }),
+            callId: `check_${String(index)}`,
+          },
+        ],
+      })),
+      { text: 'done' },
+    )
+    await session.sendTurn([{ type: 'text', text: 'check' }])
+    await turnDone()
+    expectRefusedChecks(browser, events, origins.length)
+  })
   it('is offered only in a trusted workspace with a browser check, and not in a side chat', async () => {
     const browser = recordingBrowser()
     expect(await isCheckListed({ browserCheck: browser.host })).toBe(true)
@@ -17127,7 +17264,7 @@ describe('the browser check on the Model API backend (M81)', () => {
     expect(browser.requests[0]).toMatchObject({
       url: 'http://localhost:3000/',
       actions: [],
-      allowedHosts: [],
+      allowedHosts: ['http://127.0.0.1:5173', 'http://localhost:3000'],
       includeScreenshot: true,
     })
     const output = toolOutput(t, 'check_0') ?? ''
@@ -17206,7 +17343,7 @@ describe('the browser check on the Model API backend (M81)', () => {
   })
 
   it('widens beyond loopback only on a card, Bypass included, and keeps an "always" to that host', async () => {
-    const browser = recordingBrowser()
+    const browser = recordingBrowser(undefined, [])
     const t = setup({ browserCheck: browser.host })
     const { session, events, turnDone } = await startSession(t, 'allowAll')
     scriptChecks(
@@ -17222,19 +17359,13 @@ describe('the browser check on the Model API backend (M81)', () => {
       target: `${HTTP}//intranet.example:8080/`,
       toolName: 'browser_check',
     })
-    // The same host runs without a card now; another one asks, and a Reject holds.
-    const metadata = await answerCard(session, events, 1, 'abort')
-    expect(metadata.subject.kind).toBe('browserCheckWiden')
+    // The same public host needs no second card; the private metadata URL is refused before a card.
     await turnDone()
     expect(browser.requests.map((request) => [request.url, request.allowedHosts])).toEqual([
       [`${HTTP}//intranet.example:8080/`, ['intranet.example']],
       [`${HTTP}//intranet.example:8080/next`, ['intranet.example']],
     ])
-    expect(checkRows(events).map((row) => row.status)).toEqual([
-      'completed',
-      'completed',
-      'rejected',
-    ])
+    expect(checkRows(events).map((row) => row.status)).toEqual(['completed', 'completed', 'failed'])
   })
 
   it('needs no widening card for a host in the setting, and reads the setting when it runs', async () => {
@@ -17256,12 +17387,7 @@ describe('the browser check on the Model API backend (M81)', () => {
     scriptChecks(t, 'file:///etc/passwd', 'http://admin:secret@localhost/')
     await session.sendTurn([{ type: 'text', text: 'check' }])
     await turnDone()
-    expect(hasApprovalCard(events)).toBe(false)
-    expect(browser.requests).toEqual([])
-    expect(checkRows(events).map((row) => row.failureReason)).toEqual([
-      UI_TEXT.browserCheckUrlRefused,
-      UI_TEXT.browserCheckUrlRefused,
-    ])
+    expectRefusedChecks(browser, events, 2)
     expect(toolOutput(t, 'check_1')).toBe(`Error: ${MODEL_TEXT.browserCheckUrlRefused}`)
 
     const untrusted = setup({ browserCheck: browser.host, isTrusted: false })
@@ -17353,7 +17479,7 @@ describe('the browser check on the Model API backend (M81)', () => {
             })
           })
         },
-        extraHosts: () => [],
+        extraHosts: () => ['http://localhost:3000'],
         isOffered: () => true,
       },
     })

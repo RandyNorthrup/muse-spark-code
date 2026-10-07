@@ -43,6 +43,18 @@ export const DEFERRED = [
     ],
   },
   {
+    output: 'dist/runtimeMaker.js',
+    metafile: 'dist/meta/runtimeMaker.json',
+    files: [
+      'src/runtime/maker/entry.ts',
+      'src/runtime/maker/service.ts',
+      'src/runtime/maker/nativeSerial.ts',
+      'src/runtime/maker/runtimeMakerHost.ts',
+      'src/runtime/maker/companionServer.ts',
+      'src/runtime/maker/thonnyServer.ts',
+    ],
+  },
+  {
     output: 'dist/sessionBoard.js',
     metafile: 'dist/meta/sessionBoard.json',
     files: [

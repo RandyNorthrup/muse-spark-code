@@ -50,7 +50,7 @@ function setup(
   const checked: BrowserCheckRequest[] = []
   const admissions: CheckAdmission[] = []
   let isOffered = options.isOffered ?? true
-  let extraHosts = options.extraHosts ?? []
+  let extraHosts = options.extraHosts ?? ['http://localhost:3000', 'http://localhost:4000']
   const offer = (isNowOffered: boolean) => {
     isOffered = isNowOffered
   }
@@ -113,7 +113,7 @@ describe('the ide server browser check (M81)', () => {
     expect(t.tools()).toEqual([])
   })
 
-  it('asks before every check and runs it text only, on loopback alone', async () => {
+  it('asks before every check and runs it text only, on the configured dev origin', async () => {
     const t = setup()
     const text = await t.call({
       url: 'http://localhost:3000/',
@@ -124,7 +124,7 @@ describe('the ide server browser check (M81)', () => {
     expect(t.checked[0]).toMatchObject({
       url: 'http://localhost:3000/',
       actions: [{ kind: 'click', selector: '#go' }],
-      allowedHosts: [],
+      allowedHosts: ['http://localhost:3000', 'http://localhost:4000'],
       includeScreenshot: false,
     })
     expect(text).toContain('Opened http://localhost:3000/ in a headless browser: 1 console errors')
@@ -150,7 +150,7 @@ describe('the ide server browser check (M81)', () => {
 
   it('opens nothing when the user declines, or for a URL it would refuse anyway', async () => {
     const declined = setup({ answer: false })
-    await expect(declined.call({ url: 'http://localhost/' })).rejects.toThrow(
+    await expect(declined.call({ url: 'http://localhost:3000/' })).rejects.toThrow(
       MODEL_TEXT.browserCheckDeclined,
     )
     expect(declined.checked).toEqual([])
@@ -158,7 +158,7 @@ describe('the ide server browser check (M81)', () => {
     await expect(refused.call({ url: 'file:///etc/passwd' })).rejects.toThrow(
       MODEL_TEXT.browserCheckUrlRefused,
     )
-    await expect(refused.call({ url: 'http://localhost/', actions: 'click' })).rejects.toThrow(
+    await expect(refused.call({ url: 'http://localhost:3000/', actions: 'click' })).rejects.toThrow(
       'the arguments are not valid, so nothing was opened',
     )
     expect(refused.asked).toEqual([])
@@ -169,14 +169,14 @@ describe('the ide server browser check (M81)', () => {
     const held = Promise.withResolvers<boolean>()
     const t = setup({ held: held.promise })
     const stop = new AbortController()
-    const calling = t.call({ url: 'http://localhost/' }, stop.signal)
+    const calling = t.call({ url: 'http://localhost:3000/' }, stop.signal)
     stop.abort()
     await expect(calling).rejects.toThrow(MODEL_TEXT.browserCheckCancelled)
     held.resolve(true)
     expect(t.checked).toEqual([])
 
     const withdrawn = setup({ held: Promise.resolve(true) })
-    const pending = withdrawn.call({ url: 'http://localhost/' })
+    const pending = withdrawn.call({ url: 'http://localhost:3000/' })
     withdrawn.offer(false)
     await expect(pending).rejects.toThrow(MODEL_TEXT.browserCheckNotOffered)
     expect(withdrawn.checked).toEqual([])
@@ -189,7 +189,7 @@ describe('the ide server browser check (M81)', () => {
       },
     })
     const stop = new AbortController()
-    await expect(t.call({ url: 'http://localhost/' }, stop.signal)).rejects.toThrow(
+    await expect(t.call({ url: 'http://localhost:3000/' }, stop.signal)).rejects.toThrow(
       MODEL_TEXT.browserCheckNotOffered,
     )
     expect(t.checked[0]?.signal).toBe(stop.signal)
@@ -257,7 +257,7 @@ describe('the ide server browser check (M81)', () => {
 
   it("throws the check's own reason when it did not finish", async () => {
     const t = setup({ result: { ok: false, failure: { kind: 'runtimeMissing' } } })
-    await expect(t.call({ url: 'http://localhost/' })).rejects.toThrow(
+    await expect(t.call({ url: 'http://localhost:3000/' })).rejects.toThrow(
       MODEL_TEXT.browserCheckRuntimeMissing,
     )
   })

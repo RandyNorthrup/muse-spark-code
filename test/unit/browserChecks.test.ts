@@ -19,6 +19,8 @@ import {
 } from '../../src/host/browser/browserChecks'
 import type { BrowserRuntimeMode } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { startCompanion } from '../../src/runtime/maker/companionServer'
+import * as companionRegistry from '../../src/core/maker/companionRegistry'
 
 const CHECK = '/ext/dist/browserCheck.js'
 const RUNTIME = '/ext/dist/browserRuntime.js'
@@ -27,7 +29,7 @@ function request(signal = new AbortController().signal): BrowserCheckRequest {
   return {
     url: 'http://localhost/',
     actions: [],
-    allowedHosts: [],
+    allowedHosts: ['http://localhost'],
     approvalKey: 'key',
     includeScreenshot: true,
     signal,
@@ -161,6 +163,47 @@ async function preparing(
 }
 
 describe('the browser check’s bundles (M81 A1)', () => {
+  it('refuses the live maker panel URL and aliases before loading or preparing any browser', async () => {
+    const server = await startCompanion({
+      dispatch: () => Promise.resolve(),
+      tools: () => [],
+      assets: new Map(),
+    })
+    const t = harness({
+      check: {
+        runBrowserCheck: vi.fn().mockResolvedValue({ ok: false, failure: { kind: 'launch' } }),
+      },
+    })
+    try {
+      const port = new URL(server.url).port
+      for (const host of ['127.0.0.1', 'localhost', '[::1]', '127.1', 'allowed.example']) {
+        expect(
+          await t.checks.check({ ...request(), url: `http://${host}:${port}/` }, admitted),
+        ).toEqual({ ok: false, failure: { kind: 'pageBlocked' } })
+      }
+      expect(t.loads).toEqual([])
+      expect(t.prepared).toEqual([])
+    } finally {
+      await server.close()
+      t.checks.dispose()
+    }
+  })
+  it('fails closed before browser preparation when the companion registry cannot be read', async () => {
+    const ports = vi
+      .spyOn(companionRegistry, 'makerCompanionPorts')
+      .mockRejectedValue(new Error('unavailable'))
+    const t = harness()
+    try {
+      expect(await t.checks.check(request(), admitted)).toEqual({
+        ok: false,
+        failure: { kind: 'pageBlocked' },
+      })
+      expect(t.loads).toEqual([])
+    } finally {
+      ports.mockRestore()
+      t.checks.dispose()
+    }
+  })
   it('loads the check bundle on the first check, and the runtime bundle only when the runtime is prepared', async () => {
     const t = harness()
     expect(t.loads).toEqual([])

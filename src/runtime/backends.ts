@@ -12,6 +12,7 @@
 
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
+import type { McpTool } from '../core/mcp'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
 import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
 import type { AgentHost } from '../core/agent/agentBackend'
@@ -71,6 +72,7 @@ export interface ExecRuntimeOptions {
 
 export interface RuntimeBackendDeps {
   readonly questions?: { remove(sessionId: string): Promise<void> }
+  readonly makerTools?: (cwd: string) => readonly McpTool[]
   readonly exec?: ExecRuntimeOptions
   readonly options: ServeOptions
   readonly version: string
@@ -273,6 +275,10 @@ function modelApiManager(
     confirmContributorModel: () => Promise.resolve(options.allowsContributorModels),
     isWorkspaceTrusted,
     store: deps.exec === undefined ? store : headlessStore,
+    ...(deps.exec === undefined &&
+      deps.makerTools !== undefined && {
+        getIdeTools: () => deps.makerTools?.(storedWorkspaceRoot) ?? [],
+      }),
     describeEnvironment: () =>
       describeEnvironment({
         runGit: deps.runGit,

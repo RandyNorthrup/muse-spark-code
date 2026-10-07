@@ -56,6 +56,7 @@ export const EN = {
     verbose: '--verbose                        Log every detail on stderr',
     'questions-defer-after':
       '--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600',
+    hardware: '--hardware  Allow maker hardware tools (the workspace must also enable hardware)',
     help: 'help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.',
     version: 'Print the installed agent version.',
     cwd: 'Use this directory as the workspace.',
@@ -228,12 +229,25 @@ export const EN = {
   makerStopMachine: 'Stop machine',
   makerMachineKeyPrompt: 'Machine API key (optional; stored only in SecretStorage)',
   makerUnavailable: 'The maker host is unavailable. Check the local extension log.',
+  makerCompanionUnavailable:
+    'The maker panel cannot bind its reserved local ports. Close another maker panel and retry; Stop is still available.',
+  makerLaunchConnect: 'Open panel',
   makerApprovalTitle: 'Approve hardware action',
   makerSendOnce: 'Send once',
   makerReject: 'Reject',
   makerApprovalExpired: 'This approval expired. Request the action again.',
   makerApprovalTargetChanged: 'The target changed. Review a new approval.',
-  makerUnattendedDenied: 'Hardware actions require an attended session.',
+  makerPresenceReason: '{machine}: {action} (payload {digest})',
+  makerPresenceDenied: 'OS authentication was denied. Nothing was sent.',
+  makerPresenceUnavailable:
+    'OS authentication is unavailable. macOS and Windows need the native presence helper integration; Linux needs the maker polkit policy and a session agent. Stop remains available.',
+  makerPresenceConnect: 'Connect to device',
+  makerPresenceProgram: 'Program device',
+  makerPresenceActuate: 'Move, heat or power machine',
+  makerUnattendedDenied: 'Hardware requires an eligible interactive session and OS authentication.',
+  makerStopFailed: 'Stop failed — use the machine’s physical emergency stop now: {machine}.',
+  makerStopPhysicalRequired:
+    'Machine {machine} requires its physical emergency stop; software Stop is unavailable.',
   makerTrustRequired: 'Trust this workspace before enabling hardware.',
   makerEnableHardware: 'Enable hardware for this workspace',
   makerDisableHardware: 'Disable hardware for this workspace',
@@ -1333,8 +1347,11 @@ export const EN = {
   // M81 (PLAN.md D49): the browser check. Before each check Muse Code asks
   // the extension for; the second sentence when the host is beyond loopback.
   browserCheckConfirmTitle: 'Muse Code wants to open {url} in a headless browser',
+  browserDevOriginAllow: 'Allow this dev origin',
+  browserDevOriginConsent:
+    'Allow browser checks to reach {origin}? Confirm only a development server you control. Printer and CNC interfaces are always refused. This permission stays on this machine until you remove the origin from your user settings.',
   browserCheckConfirmDetail:
-    'The page loads in a fresh private browser profile that is deleted afterwards. All its traffic goes through the extension’s own proxy, which lets through only plain http to this computer and the hosts in museSpark.browserCheckExtraHosts.',
+    'The browser uses a temporary private profile and a proxy. Private addresses require an exact dev-server origin in museSpark.browserCheckExtraHosts. Maker companion origins are always refused.',
   browserCheckConfirmDetailWiden:
     '{host} is not this computer. Allowing lets this one check reach it, over https and WebSockets too. That traffic is encrypted, so the extension cannot inspect it, and a site there may sign in as you with this computer’s account (on Windows in particular).',
   // M81 A1: the question before the browser check's runtime is downloaded,
@@ -1357,12 +1374,12 @@ export const EN = {
     other: '{count} failed requests',
   }),
   browserCheckBlockedRequests: forms({
-    one: '{count} request blocked beyond this computer',
-    other: '{count} requests blocked beyond this computer',
+    one: '{count} request blocked',
+    other: '{count} requests blocked',
   }),
   // Why a check did not happen or did not finish.
   browserCheckUrlRefused:
-    'Only an http:// or https:// address with a plain host name or IP address, and no user name or password, can be opened.',
+    'This address cannot be opened. Private addresses require an exact dev-server origin in museSpark.browserCheckExtraHosts; maker companion origins are always refused.',
   browserCheckInvalidArguments:
     'The browser check was asked for with arguments that are not valid, so nothing was opened.',
   // The runtime's preparation (M81 A1): why no verified browser was ready.
@@ -2639,6 +2656,12 @@ export const EN = {
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',
     '  {command} --trust-workspace setup [--maintenance]  Run the Setup hooks and exit',
+    '  {command} hardware enable|disable|status [--reason <text>] [--cwd <path>] [--trust-workspace]',
+    '  {command} machines add --registration <JSON> [--key-stdin] --trust-workspace',
+    '  {command} machines list|remove [id] [--cwd <path>] [--trust-workspace]',
+    '  {command} stop-machine [id|--all] [--cwd <path>]',
+    '  {command} panel [--cwd <path>] [--trust-workspace]',
+    '  --hardware',
   ].join('\n'),
   // Report a problem headless (M93 lane A, PLAN.md D72): `report --help`
   // and bad report arguments print this on stderr, never the report itself.

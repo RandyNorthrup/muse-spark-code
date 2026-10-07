@@ -57,6 +57,7 @@ interface Harness {
 }
 
 interface HarnessOptions {
+  readonly maker?: AcpAgentDeps['maker']
   readonly backendHost?: AgentHost
   readonly readiness?: BackendReadiness
   readonly answer?: PermissionAnswer
@@ -92,6 +93,7 @@ function harness(options: HarnessOptions = {}): Harness {
     log,
   })
   const deps: AcpAgentDeps = {
+    ...(options.maker !== undefined && { maker: options.maker }),
     backend: {
       kind,
       readiness: (isRecheck) => {
@@ -269,6 +271,105 @@ async function startFormSession(h: Harness, client: acp.ClientContext) {
 function prompt(client: acp.ClientContext, sessionId: string, text = 'hello') {
   return client.request('session/prompt', { sessionId, prompt: [{ type: 'text', text }] })
 }
+
+function maker() {
+  const session = {
+    server: { url: 'http://127.0.0.1:12345/mcp', headers: {} },
+    setInteractive: vi.fn<(isEligible: boolean) => void>(),
+    command: vi.fn<(text: string) => Promise<string | undefined>>().mockResolvedValue(undefined),
+    cancel: vi.fn().mockResolvedValue(undefined),
+    close: vi.fn().mockResolvedValue(undefined),
+  }
+  const runtime = {
+    session: vi.fn<NonNullable<AcpAgentDeps['maker']>['session']>().mockResolvedValue(session),
+    toolsFor: () => [],
+    close: () => Promise.resolve(),
+  }
+  return { session, runtime }
+}
+
+describe('M103 ACP hardware lifecycle', () => {
+  it('forwards the host tool endpoint and handles slash commands without a model attempt', async () => {
+    const { session, runtime } = maker()
+    session.command.mockResolvedValue(UI_TEXT.makerHardwareDisabled)
+    const h = harness({ maker: runtime })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      expect(h.host.startSession).toHaveBeenCalledWith(
+        expect.objectContaining({ mcpServers: { muse_spark_maker: session.server } }),
+      )
+      expect(await prompt(client, sessionId, '/hardware status')).toMatchObject({
+        stopReason: 'end_turn',
+      })
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+      expect(session.setInteractive.mock.calls.map((call) => call[0])).toEqual([true, false])
+    })
+  })
+  it('keeps Plan noninteractive and rejects a Bypass switch', async () => {
+    const { session, runtime } = maker()
+    session.command.mockResolvedValue(UI_TEXT.makerHardwareDisabled)
+    const h = harness({ maker: runtime, initialMode: 'plan', canBypass: true })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await prompt(client, sessionId, '/hardware status')
+      expect(session.setInteractive).toHaveBeenNthCalledWith(1, false)
+      await expect(
+        client.request('session/set_mode', { sessionId, modeId: 'bypassPermissions' }),
+      ).rejects.toThrow()
+    })
+  })
+  it('cancel reaches the maker engine even between turns', async () => {
+    const { session, runtime } = maker()
+    const h = harness({ maker: runtime })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await client.notify('session/cancel', { sessionId })
+      await until(() => session.cancel.mock.calls.length === 1)
+      expect(session.cancel).toHaveBeenCalledTimes(1)
+    })
+  })
+  it('holds maker command preparation against overlapping prompts and honours cancel', async () => {
+    const { session, runtime } = maker()
+    const held = Promise.withResolvers<string>()
+    session.command.mockResolvedValue(UI_TEXT.makerHardwareDisabled)
+    session.command.mockImplementationOnce(() => held.promise)
+    const h = harness({ maker: runtime })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      const first = prompt(client, sessionId, '/hardware status')
+      await until(() => session.command.mock.calls.length === 1)
+      const didOverlap = await didRequestSucceed(prompt(client, sessionId, '/hardware status'))
+      await client.notify('session/cancel', { sessionId })
+      await until(() => session.cancel.mock.calls.length === 1)
+      held.resolve(UI_TEXT.makerHardwareDisabled)
+      const outcome = await first
+      expect(didOverlap).toBe(false)
+      expect(outcome).toEqual({ stopReason: 'cancelled' })
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    })
+  })
+  it('runs explicit Stop while a model turn is busy without enabling another prompt', async () => {
+    const { session, runtime } = maker()
+    session.command.mockImplementation((text) =>
+      Promise.resolve(
+        text.trimStart().startsWith('/stop-machine') ? UI_TEXT.makerSoftwareStopWarning : undefined,
+      ),
+    )
+    const h = harness({ maker: runtime })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      const running = prompt(client, sessionId)
+      const backendSession = h.host.sessions[0]!
+      await until(() => backendSession.sendTurn.mock.calls.length === 1)
+      const didStop = await didRequestSucceed(prompt(client, sessionId, '  /stop-machine --all'))
+      backendSession.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+      await running
+      expect(didStop).toBe(true)
+      expect(session.command).toHaveBeenLastCalledWith('  /stop-machine --all')
+      expect(backendSession.sendTurn).toHaveBeenCalledTimes(1)
+    })
+  })
+})
 
 function message(itemId: string, text: string, status = 'inProgress'): ItemSnapshot {
   return { itemId, kind: 'agentMessage', status, turnId: 'turn-1', text }

@@ -239,7 +239,25 @@ describe('readSettings', () => {
     expect(String(log.warn.mock.calls[0]?.[0])).toContain('each check needs a name of its own')
   })
 
-  // M81 (PLAN.md D49): only plain hosts widen the browser check.
+  it('ignores the reviewer workspace-file private origin, including in Bypass', () => {
+    const origins = ['http://192.168.1.50:80']
+    const settings = readSettings(
+      {
+        ...fakeSettingsSource({ browserCheckExtraHosts: origins }),
+        inspect: () => ({ globalValue: [], defaultValue: [] }),
+      },
+      new FakeLogOutputChannel(),
+    )
+    expect(settings.browserCheckExtraHosts).toEqual([])
+    const invalid = readSettings(
+      fakeSettingsSource({ browserCheckExtraHosts: ['http://localhost:47830'] }),
+      new FakeLogOutputChannel(),
+    )
+    expect(invalid.browserCheckExtraHosts).toEqual([])
+  })
+
+  // Public host entries and exact dev origins widen the browser check.
+
   it('reads the hosts the browser check may reach, and refuses a list with one that is not a plain host', () => {
     const valid = readSettings(
       fakeSettingsSource({ browserCheckExtraHosts: ['dev.example.com', '192.168.1.20', '::1'] }),

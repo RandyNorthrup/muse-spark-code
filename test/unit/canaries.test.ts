@@ -165,7 +165,10 @@ async function throughProxy(
   const proxy = await startCheckProxy(
     { url: plan.pageUrl, explicitHosts, approvalKey: 'key' },
     lookup,
+    () => Promise.resolve({ isKnown: true, prefixes: [] }),
+    () => Promise.resolve([]),
   )
+  proxy.allowProbe?.(plan.target)
   proxies.push(proxy)
   const records: ProxyObservation[] = []
   proxy.observe((record) => {
