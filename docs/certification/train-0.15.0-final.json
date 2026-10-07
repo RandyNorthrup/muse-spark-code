@@ -1,87 +1,13 @@
 {
   "schemaVersion": 1,
   "release": "0.15.0",
-  "status": "held-full-lint",
+  "status": "held",
   "preparedAt": "2026-10-07T05:29:46.483Z",
   "platform": "win11",
   "worktree": "C:/lanes/TRAIN15E",
-  "base": "c15b7eeaeabc20f64cd39c910e39c507492db930",
-  "merge": "8c6351d73b7e089d403b44ecbedb61c03de105d7",
-  "conflictCount": 69,
-  "conflicts": [
-    "CHANGELOG.md",
-    "PLAN.md",
-    "README.md",
-    "docs/acp.md",
-    "docs/ide-compatibility/host-api.md",
-    "docs/reference.md",
-    "l10n/ui.cs.json",
-    "l10n/ui.de.json",
-    "l10n/ui.es.json",
-    "l10n/ui.fr.json",
-    "l10n/ui.hu.json",
-    "l10n/ui.it.json",
-    "l10n/ui.ja.json",
-    "l10n/ui.ko.json",
-    "l10n/ui.pl.json",
-    "l10n/ui.pt-br.json",
-    "l10n/ui.ru.json",
-    "l10n/ui.tr.json",
-    "l10n/ui.zh-cn.json",
-    "l10n/ui.zh-tw.json",
-    "package.json",
-    "package.nls.cs.json",
-    "package.nls.de.json",
-    "package.nls.es.json",
-    "package.nls.fr.json",
-    "package.nls.hu.json",
-    "package.nls.it.json",
-    "package.nls.ja.json",
-    "package.nls.json",
-    "package.nls.ko.json",
-    "package.nls.pl.json",
-    "package.nls.pt-br.json",
-    "package.nls.ru.json",
-    "package.nls.tr.json",
-    "package.nls.zh-cn.json",
-    "package.nls.zh-tw.json",
-    "scripts/build.mjs",
-    "scripts/check-bundle-split.mjs",
-    "scripts/lib/deferredBundles.mjs",
-    "scripts/lib/harnessServer.mjs",
-    "scripts/lib/webviewBundles.mjs",
-    "scripts/package-acp.mjs",
-    "scripts/third-party-notices.mjs",
-    "src/acp/agent.ts",
-    "src/core/agent/agentBackend.ts",
-    "src/host/backend/fileSessionStore.ts",
-    "src/host/conversation/conversationController.ts",
-    "src/runtime/backends.ts",
-    "src/runtime/cliArgs.ts",
-    "src/runtime/main.ts",
-    "src/shared/agentEvents.ts",
-    "src/shared/constants.ts",
-    "src/shared/l10n/en.ts",
-    "src/shared/protocol.ts",
-    "src/shared/reference/reference.generated.json",
-    "src/shared/reference/reference.generated.ts",
-    "src/webview/App.tsx",
-    "src/webview/components/ApprovalDock.tsx",
-    "src/webview/components/ToolRow.tsx",
-    "src/webview/components/Transcript.tsx",
-    "src/webview/state/uiState.ts",
-    "test/e2e/execStdio.e2e.test.ts",
-    "test/unit/acpAgent.test.ts",
-    "test/unit/acpRuntime.test.ts",
-    "test/unit/bundleSize.test.mjs",
-    "test/unit/conversationController.test.ts",
-    "test/unit/deferredBundles.test.ts",
-    "test/unit/webviewBundle.test.mjs",
-    "test/unit/webviewBundles.test.mjs"
-  ],
-  "newLiveOrPaidModelAttempts": 0,
-  "pushed": false,
-  "published": false,
+  "sourceHead": "8527cbd0b7ee1ece644e058841f42b9f9c14ad4f",
+  "mergeCommit": "95231901919ed3494dc50d2fac2087938be08399",
+  "repairCommit": "8527cbd0b7ee1ece644e058841f42b9f9c14ad4f",
   "tests": {
     "expectedFiles": 793,
     "completedBatches": 265,
@@ -10725,359 +10651,7 @@
       }
     ]
   },
-  "finalFailures": [],
-  "accessibility": {
-    "pages": 952,
-    "scenarios": 238,
-    "themes": 4,
-    "violations": 0,
-    "pagesWithoutResult": 0,
-    "undecided": 0,
-    "limits": {
-      "coveredOffscreenContrastElements": 2182,
-      "glyphOnlyContrastElements": 76
-    }
-  },
-  "badges": {
-    "httpsImages": 34,
-    "code": 0
-  },
-  "images": [
-    {
-      "file": "media/readme/agents.png",
-      "scenario": "agents",
-      "theme": "light",
-      "preview": "temp/readme-preview/agents.png",
-      "bytes": 41898,
-      "beforeSha256": "64ca09dc97eeb3c1f0f6a7ba6bbb8839ab658294bbefc1b58233864249d70775",
-      "sha256": "6fcb1bdb63b524dbf83d12dde51756edb060d4caa186c8083204cc0d1485cc94",
-      "changed": true,
-      "viewed": true,
-      "replaced": true
-    },
-    {
-      "file": "media/readme/approval.png",
-      "scenario": "approval",
-      "theme": "light",
-      "preview": "temp/readme-preview/approval.png",
-      "bytes": 31817,
-      "beforeSha256": "1ba329c6ceaed8efc99c696c53ec866c37d21f3508b8088533e346c55ea2d1f1",
-      "sha256": "3515d149a3fae29809d20364be7a13d06f04382272e128c4fe1a33c018499738",
-      "changed": true,
-      "viewed": true,
-      "replaced": true
-    },
-    {
-      "file": "media/readme/history.png",
-      "scenario": "history",
-      "theme": "light",
-      "preview": "temp/readme-preview/history.png",
-      "bytes": 38788,
-      "beforeSha256": "77b43ff2d05d08120a8bfaaa2a42ee80c92e36cfb3451fe4e98720c9ec3e1f84",
-      "sha256": "df53de81378d6295a7e423267039a1e8abb4ffcb7ec1d5092e5aeaf5b7e8c760",
-      "changed": true,
-      "viewed": true,
-      "replaced": true
-    },
-    {
-      "file": "media/readme/languages.png",
-      "scenario": "usage",
-      "theme": "light",
-      "preview": "temp/readme-preview/languages.png",
-      "bytes": 52810,
-      "beforeSha256": "3e263f546b1dbb94ae2b40a26b1ec8068bf45bb73942f9d31e1eb8a5c29b3de8",
-      "sha256": "323983d3d961d5829af91dc0907e5e3db0490c6daa2c6047495c5772bd71c44c",
-      "changed": true,
-      "viewed": true,
-      "replaced": true
-    },
-    {
-      "file": "media/readme/modes.png",
-      "scenario": "modes",
-      "theme": "light",
-      "preview": "temp/readme-preview/modes.png",
-      "bytes": 47301,
-      "beforeSha256": "681f87052daa340a455fc49d02aff2e4fba87a09c8d0e86f4b5b51e5788a666d",
-      "sha256": "874ce7b79c82b6fdeb5cd1e5671e0d525705d323063928d792954434fa224115",
-      "changed": true,
-      "viewed": true,
-      "replaced": true
-    },
-    {
-      "file": "media/readme/paid.png",
-      "scenario": "paid",
-      "theme": "light",
-      "preview": "temp/readme-preview/paid.png",
-      "bytes": 21335,
-      "beforeSha256": "4f1e4119025fa908f49b66e3a9a8007d396221954b5bbb75f40a02d2387a9f75",
-      "sha256": "03244dccfc58df4ce953ff05bc192a56d4d22b8be16b06c2ca2d43c856c1a38b",
-      "changed": true,
-      "viewed": true,
-      "replaced": true
-    },
-    {
-      "file": "media/readme/paid-always.png",
-      "scenario": "paid-always",
-      "theme": "light",
-      "preview": "temp/readme-preview/paid-always.png",
-      "bytes": 59931,
-      "beforeSha256": "23d1056f410ffa21544b36791cd233f0bf8b7b36bc779d239ff43831023377ca",
-      "sha256": "0bcf97d01cd395562a3cc48b995b15942f44d8671ebe8f6da12fdd8702f705a2",
-      "changed": true,
-      "viewed": true,
-      "replaced": true
-    },
-    {
-      "file": "media/readme/palette.png",
-      "scenario": "slash-palette",
-      "theme": "light",
-      "preview": "temp/readme-preview/palette.png",
-      "bytes": 38380,
-      "beforeSha256": "f70224ce3bee045e9a8b797fe51d7a9d290f0b4e8ed337a73aeca688658783b6",
-      "sha256": "0e70090996eece56a099e4d79f6f3b5aa4825bf6ac637572aa7f2230a82649b6",
-      "changed": true,
-      "viewed": true,
-      "replaced": true
-    },
-    {
-      "file": "media/readme/question.png",
-      "scenario": "question",
-      "theme": "light",
-      "preview": "temp/readme-preview/question.png",
-      "bytes": 33751,
-      "beforeSha256": "9acdbee349c549e8b273049a91dbff9a674047d25826498a156c4ced9f133621",
-      "sha256": "44e4912fe546d247e49b57faf613c2a5f2af04f5b846c342a922f29e176958cc",
-      "changed": true,
-      "viewed": true,
-      "replaced": true
-    },
-    {
-      "file": "media/readme/quote.png",
-      "scenario": "quote-menu",
-      "theme": "light",
-      "preview": "temp/readme-preview/quote.png",
-      "bytes": 24512,
-      "beforeSha256": "d629ee1534307a1a98acdd4fef6159ae8f6dea9f6f45e7978b901121d9459bc4",
-      "sha256": "b9a7b7cf1b45b2137566c2aad0d7183ec57d4a47be17d6ad91fc304d26cc2f88",
-      "changed": true,
-      "viewed": true,
-      "replaced": true
-    },
-    {
-      "file": "media/readme/rewind.png",
-      "scenario": "rewind",
-      "theme": "light",
-      "preview": "temp/readme-preview/rewind.png",
-      "bytes": 27478,
-      "beforeSha256": "0b98130222e0d084a60884b870920b572e1688ebb27661cae4949d27686c12bc",
-      "sha256": "50477918c12bddea9e7ee2c02ea5edb2b076f8b2fb7982d8cfb1ca7b005ab1e1",
-      "changed": true,
-      "viewed": true,
-      "replaced": true
-    },
-    {
-      "file": "media/readme/slash-commands.png",
-      "scenario": "slash-commands",
-      "theme": "light",
-      "preview": "temp/readme-preview/slash-commands.png",
-      "bytes": 39949,
-      "beforeSha256": "e4273083763fdda3801336a13605262f7205336b7dcae964e404013cfeb24bd7",
-      "sha256": "5d31699ed2399c9e018b33d9fa2e3ddef1816da92fe9bf3aa941d172e7a716ee",
-      "changed": true,
-      "viewed": true,
-      "replaced": true
-    },
-    {
-      "file": "media/readme/turn.png",
-      "scenario": "tools-open",
-      "theme": "light",
-      "preview": "temp/readme-preview/turn.png",
-      "bytes": 35522,
-      "beforeSha256": "dde774504bf413fc82761b0839d4a95587df7cadf143674e29fc089c57fc3cb9",
-      "sha256": "8023d34a6669d108a2f3a9ec2e7317f8cacbc23f9d9fbc7d1167a8cc6813410c",
-      "changed": true,
-      "viewed": true,
-      "replaced": true
-    },
-    {
-      "file": "media/readme/usage.png",
-      "scenario": "usage",
-      "theme": "light",
-      "preview": "temp/readme-preview/usage.png",
-      "bytes": 47613,
-      "beforeSha256": "53faffbbeea5a2d70cfa56230f7458163af4f0074644ce268b4fdeaadd3935cc",
-      "sha256": "281c926122c2f6f153e97599ed75b1fdac5906775c5353f79c3f6344301047be",
-      "changed": true,
-      "viewed": true,
-      "replaced": true
-    },
-    {
-      "file": "media/readme/voice.png",
-      "scenario": "dictation",
-      "theme": "light",
-      "preview": "temp/readme-preview/voice.png",
-      "bytes": 33185,
-      "beforeSha256": "0a68754747f6a23e80c35d4e3dc7ce42a6aae2f33d89ee3db266b6f1e0390995",
-      "sha256": "1fd8d47740ff9c414850ac8e94e235a0fed9249b5c052ef8ce70a285ebf7cd14",
-      "changed": true,
-      "viewed": true,
-      "replaced": true
-    }
-  ],
-  "drills": [
-    {
-      "id": "compact-keeps-queue",
-      "file": "src/acp/agent.ts",
-      "from": "isUsage || isCompact ? []",
-      "to": "isUsage ? []",
-      "test": "test/unit/acpAgent.test.ts",
-      "expected": "keeps queued late answers",
-      "code": 1,
-      "restoredSha256": "5cc4f0cf8aab41bb2810b6b139138dbfb0ed879b0f60940a6d0efa505bed960c",
-      "failed": [
-        "FIXM101C1 ACP compaction keeps queued late answers for the next model turn while compacting locally"
-      ]
-    },
-    {
-      "id": "attention-worker-label",
-      "file": "src/webview/components/AttentionDock.tsx",
-      "from": "          worker={first.teamWorker}\n",
-      "to": "",
-      "test": "test/unit/TeamCards.test.tsx",
-      "expected": "labels a worker’s own approval",
-      "code": 1,
-      "restoredSha256": "e91e2274396fb14554f351e6cac3c27a5252014819baf6241c19f19c993ee252",
-      "failed": ["worker label labels a worker’s own approval with role, agent and task"]
-    },
-    {
-      "id": "release-dated-notes",
-      "file": "CHANGELOG.md",
-      "from": "## [0.15.0] - 2026-10-06",
-      "to": "## [0.15.0]",
-      "test": "test/unit/changelogVersion.test.ts",
-      "expected": "has a dated section",
-      "code": 1,
-      "restoredSha256": "cd3be81525c27d1156f5cb7c78f363c7c53719fcc56b144295b41e6b176cc1a2",
-      "failed": [
-        "CHANGELOG and the manifest version has a dated section for 0.15.0",
-        "CHANGELOG and the manifest version gives 0.15.0 the Highlights What's New opens with, when it is a minor or major release"
-      ]
-    },
-    {
-      "id": "release-readme-heading",
-      "file": "README.md",
-      "from": "## What's new in 0.15.0",
-      "to": "## What's new in 0.14.3",
-      "test": "test/unit/readmeVersion.test.ts",
-      "expected": "README.md has exactly one",
-      "code": 1,
-      "restoredSha256": "b940348da26bc9f564395fe035a2f5b28cac802e5de53b3ccad3e07e6931b918",
-      "failed": [
-        "the README's What's new section and the manifest version README.md has exactly one What's new section, for 0.15.0"
-      ]
-    },
-    {
-      "id": "pending-provider-retry",
-      "file": "CHANGELOG.md",
-      "from": "Provider-specific retry-table binding remains pending for non-Meta transports",
-      "to": "Provider-specific retry-table binding is complete",
-      "test": "test/unit/m101P2Documentation.test.ts",
-      "expected": "separates pending provider retry binding",
-      "command": "npx.cmd vitest run test/unit/m101P2Documentation.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/pending-provider-retry.json",
-      "code": 1,
-      "failed": [
-        "M101 P2 release claims (RVM101P2 F7) separates pending provider retry binding from the shipped P2 improvements"
-      ],
-      "restoredSha256": "bb3ae1ea15b4842ee4d787be5805f7a6f03773a25de9c954574aa1c12b4d2f1b"
-    },
-    {
-      "id": "approved-vsix-boundary",
-      "file": "scripts/check-vsix-size.mjs",
-      "from": "export const MAX_VSIX_BYTES = 2775 * 1024",
-      "to": "export const MAX_VSIX_BYTES = 2775 * 1024 + 1",
-      "test": "test/unit/releaseIntegrity.test.mjs",
-      "expected": "accepts exactly the measured budget",
-      "command": "npx.cmd vitest run test/unit/releaseIntegrity.test.mjs --maxWorkers=3 --reporter=json --outputFile=temp/approved-vsix-boundary.json",
-      "code": 1,
-      "failed": ["compressed universal VSIX budget accepts exactly the measured budget"],
-      "restoredSha256": "c55d50c987c64b5bd4056fd016b92380e0b103f08360805f07445a2b4f1043e1"
-    },
-    {
-      "id": "relative-entry-point",
-      "file": "scripts/lib/deferredBundles.mjs",
-      "from": "      if (args.kind === 'entry-point') return\n",
-      "to": "",
-      "test": "test/unit/teamActivationGraph.test.ts",
-      "expected": "ordinary activation, backend and ACP graphs",
-      "command": "npx.cmd vitest run test/unit/teamActivationGraph.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/relative-entry-point.json",
-      "code": 1,
-      "failed": ["ordinary activation, backend and ACP graphs have no team runtime modules"],
-      "restoredSha256": "71133cd0fe562044dc118b83347419bfec4b323e7ed37fb0aa1fd2bab533933c"
-    },
-    {
-      "id": "windows-alias-admission",
-      "file": "src/core/team/teamWorkspaces.ts",
-      "from": "!isSameTeamPath(await realpath(root), root)",
-      "to": "(await realpath(root)) !== root",
-      "test": "test/unit/teamWorkspaces.test.ts",
-      "expected": "starts and removes a copy through a case alias",
-      "command": "npx.cmd vitest run test/unit/teamWorkspaces.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/windows-alias-admission.json",
-      "code": 1,
-      "failed": [
-        "removeTeamWorkspace removes through an equivalent Windows case spelling without touching an unrelated copy",
-        "Windows storage paths starts and removes a copy through a case alias",
-        "Windows storage paths starts and removes a copy through a drive alias",
-        "Windows storage paths starts and removes a copy through a namespace alias"
-      ],
-      "restoredSha256": "fd6f6f876c8d82b044b8235fa0f263732531fc9002669ad146b44ce7a90c687b"
-    },
-    {
-      "id": "private-hint-owner",
-      "file": "src/host/team/windowHints.ts",
-      "from": "          if (options.platform === 'win32') await ownNativeWindowsHintFile(temporary)",
-      "to": "          if (options.platform === 'win32') await Promise.resolve(temporary)",
-      "test": "test/unit/teamHintsAndLoad.test.ts",
-      "expected": "publishes only the strict projection",
-      "command": "npx.cmd vitest run test/unit/teamHintsAndLoad.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/private-hint-owner.json",
-      "code": 1,
-      "failed": [
-        "M96 K advisory hints publishes only the strict projection, sums all windows and removes its own hint",
-        "M96 K advisory hints asks once across rewrites and other tasks; new path and drop ask again",
-        "M96 K advisory hints Wait lasts only while fresh collision exists; stale, absent and malformed hints never lock",
-        "M96 K advisory hints native Windows holds the consumed hint against replacement through ACL verification"
-      ],
-      "restoredSha256": "e93613e5f6c8e25addc7489bcb97c32a6fd10a38d13a9c86c5f38599224a3e43"
-    },
-    {
-      "id": "team-status-frame-limit",
-      "file": "src/host/team/processLifetime.ts",
-      "from": "if (text.length > TEAM_PROCESS_STATUS_MAX_CHARS)",
-      "to": "if (text.length > MCP_JOB_HANDSHAKE_MAX_CHARS)",
-      "test": "test/unit/teamNativeLifetime.test.ts",
-      "expected": "runs marked child at below-normal priority",
-      "command": "npx.cmd vitest run test/unit/teamNativeLifetime.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/team-status-frame-limit.json",
-      "code": 1,
-      "failed": [
-        "M96 K real native lifetime starts a separate journalled team Muse Code host over real fake-CLI pipes",
-        "M96 K real native lifetime preserves the real command exit code through its native container",
-        "M96 K real native lifetime warns about malformed launch payloads at startup and preserves all foreign bytes",
-        "M96 K real native lifetime runs marked child at below-normal priority with intent and OS confirmation on disk",
-        "M96 K real native lifetime aborts a held confirmation on dispose without releasing the real command",
-        "M96 K real native lifetime prepared Windows owner hard host death closes jobs and ends detached grandchildren"
-      ],
-      "restoredSha256": "9e68d659d3f931104ffba571299ff158f074d52e2d657cbc65f2ee9421e8fb29"
-    }
-  ],
-  "checks": [
-    {
-      "id": "typecheck",
-      "command": "npm.cmd run typecheck",
-      "attempt": 1,
-      "code": 0,
-      "durationMs": 142624,
-      "log": "temp/train15-release-typecheck-1.log",
-      "tail": "> muse-spark-code@0.15.0 typecheck:host\n> tsc -p tsconfig.json --noEmit\n\n\n> muse-spark-code@0.15.0 typecheck:webview\n> tsc -p src/webview/tsconfig.json --noEmit\n\n\n> muse-spark-code@0.15.0 typecheck:unit\n> tsc -p test/unit/tsconfig.json --noEmit\n\n\n> muse-spark-code@0.15.0 typecheck:e2e\n> tsc -p test/e2e/tsconfig.json --noEmit\n\n\n> muse-spark-code@0.15.0 typecheck:integration\n> tsc -p test/integration/tsconfig.json --noEmit"
-    },
+  "gates": [
     {
       "id": "format",
       "command": "npm.cmd run format:check",
@@ -11169,123 +10743,6 @@
       "reason": "Stopped at the 90-minute brief limit to leave time for the required normal commit hooks; no ESLint result was produced."
     }
   ],
-  "unfinishedChecks": [
-    "Full repository ESLint: interrupted without a result. Changed-file ESLint is enforced by the normal commit hooks."
-  ],
-  "liveEvidence": [
-    "docs/certification/m95-captures.md",
-    "docs/certification/m101.md",
-    "docs/certification/m102.md"
-  ],
-  "deferrals": [
-    "Full repository ESLint: interrupted without a result. Changed-file ESLint is enforced by the normal commit hooks.",
-    "Lead-owned aggregate coverage, security/editor matrices and hosted release checks."
-  ],
-  "commitAttempt": {
-    "status": "merge-committed",
-    "hooksEnabled": true,
-    "head": "95231901919ed3494dc50d2fac2087938be08399",
-    "repairCommit": "8527cbd0b7ee1ece644e058841f42b9f9c14ad4f"
-  },
-  "priorBoundedPreparation": {
-    "preparedAt": "2026-10-07T03:51:01.536Z",
-    "tests": {
-      "passed": 15957,
-      "failed": 9,
-      "skipped": 100
-    },
-    "finalFailures": [
-      {
-        "file": "C:/lanes/TRAIN15E/test/unit/runnerHelperNative.test.ts",
-        "assertions": [
-          {
-            "name": "native Windows runner certification runs setup and checks through the native job branch and publishes the exit marker",
-            "errors": [
-              "AssertionError: expected { state: 'running' } to match object { state: 'ended', exitCode: +0 }\n    at Proxy.<anonymous> (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/index.DGdajAO2.js:2051:10)\n    at Proxy.<anonymous> (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/index.DGdajAO2.js:1945:14)\n    at Proxy.methodWrapper (file:///C:/lanes/TRAIN15E/node_modules/chai/index.js:1700:25)\n    at C:/lanes/TRAIN15E/test/unit/runnerHelperNative.test.ts:110:24\n    at file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:20"
-            ]
-          }
-        ]
-      },
-      {
-        "file": "C:/lanes/TRAIN15E/test/unit/sshRunner.test.ts",
-        "assertions": [
-          {
-            "name": "SSH runner over a fake transport and local repositories one remote cache lifecycle (PLAN.md M96 round 3d) pushes working edits and untracked files, streams exact output and reuses setup",
-            "errors": [
-              "AssertionError: expected undefined to match object { freeSlots: 1, inputReady: true }\n    at Proxy.<anonymous> (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/index.DGdajAO2.js:2051:10)\n    at Proxy.<anonymous> (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/index.DGdajAO2.js:1945:14)\n    at Proxy.methodWrapper (file:///C:/lanes/TRAIN15E/node_modules/chai/index.js:1700:25)\n    at C:/lanes/TRAIN15E/test/unit/sshRunner.test.ts:256:24\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:20"
-            ]
-          },
-          {
-            "name": "SSH runner over a fake transport and local repositories one remote cache lifecycle (PLAN.md M96 round 3d) changes the cache when the text lockfile changes",
-            "errors": [
-              "AssertionError: expected 'x' to be 'xx' // Object.is equality\n    at C:/lanes/TRAIN15E/test/unit/sshRunner.test.ts:292:69\n    at file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:20"
-            ]
-          },
-          {
-            "name": "SSH runner over a fake transport and local repositories one remote cache lifecycle (PLAN.md M96 round 3d) distinguishes raw binary lockfiles and installs only by rename",
-            "errors": [
-              "AssertionError: expected 'xxx' to be 'xxxx' // Object.is equality\n    at C:/lanes/TRAIN15E/test/unit/sshRunner.test.ts:309:69\n    at file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:20"
-            ]
-          },
-          {
-            "name": "SSH runner over a fake transport and local repositories keeps the remote slot after disconnect until an exit marker, rejects late run ids and respects maxJobs across windows",
-            "errors": [
-              "AssertionError: expected undefined to match object { freeSlots: +0 }\n    at Proxy.<anonymous> (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/index.DGdajAO2.js:2051:10)\n    at Proxy.<anonymous> (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/index.DGdajAO2.js:1945:14)\n    at Proxy.methodWrapper (file:///C:/lanes/TRAIN15E/node_modules/chai/index.js:1700:25)\n    at C:/lanes/TRAIN15E/test/unit/sshRunner.test.ts:359:49\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2783:20"
-            ]
-          }
-        ]
-      },
-      {
-        "file": "C:/lanes/TRAIN15E/test/unit/teamLanding.test.ts",
-        "assertions": [
-          {
-            "name": "snapshot-bound landing and recovery checks holders immediately before deleting a matching file",
-            "errors": [
-              "Error: Test timed out in 5000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\".\n    at task (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2681:43)\n    at Object.<anonymous> (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2698:16)\n    at Object.<anonymous> (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2471:28)\n    at chain (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1859:14)\n    at C:/lanes/TRAIN15E/test/unit/teamLanding.test.ts:38:3\n    at file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2763:52\n    at runWithSuite (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3248:8)\n    at Object.collect (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2763:22)\n    at Object.collect (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2768:51)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)"
-            ]
-          },
-          {
-            "name": "snapshot-bound landing and recovery invalidates untouched dependency changes and changed check identities before writing",
-            "errors": [
-              "Error: Test timed out in 5000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\".\n    at task (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2681:43)\n    at Object.<anonymous> (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2698:16)\n    at Object.<anonymous> (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2471:28)\n    at chain (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1859:14)\n    at C:/lanes/TRAIN15E/test/unit/teamLanding.test.ts:194:3\n    at file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2763:52\n    at runWithSuite (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3248:8)\n    at Object.collect (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2763:22)\n    at Object.collect (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2768:51)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)"
-            ]
-          },
-          {
-            "name": "snapshot-bound landing and recovery excludes overlapping in-process landings and makes real git add meet the lock",
-            "errors": [
-              "Error: Test timed out in 5000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\".\n    at task (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2681:43)\n    at Object.<anonymous> (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2698:16)\n    at Object.<anonymous> (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2471:28)\n    at chain (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1859:14)\n    at C:/lanes/TRAIN15E/test/unit/teamLanding.test.ts:243:3\n    at file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2763:52\n    at runWithSuite (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3248:8)\n    at Object.collect (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2763:22)\n    at Object.collect (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2768:51)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)"
-            ]
-          },
-          {
-            "name": "snapshot-bound landing and recovery asks separately for Land without checks in every mode",
-            "errors": [
-              "Error: Test timed out in 5000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\".\n    at task (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2681:43)\n    at Object.<anonymous> (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2698:16)\n    at Object.<anonymous> (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2471:28)\n    at chain (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:1859:14)\n    at C:/lanes/TRAIN15E/test/unit/teamLanding.test.ts:294:3\n    at file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2763:52\n    at runWithSuite (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:3248:8)\n    at Object.collect (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2763:22)\n    at Object.collect (file:///C:/lanes/TRAIN15E/node_modules/vitest/dist/chunks/run.C5UmxDPh.js:2768:51)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)"
-            ]
-          }
-        ]
-      }
-    ],
-    "commitAttempt": {
-      "status": "rejected",
-      "hooksEnabled": true,
-      "head": "c15b7eeaeabc20f64cd39c910e39c507492db930",
-      "mergeResolvedAndStaged": true,
-      "rule": "unicorn/no-top-level-assignment-in-function",
-      "file": "test/unit/teamHarness.test.mjs",
-      "line": 23,
-      "message": "Do not assign to top-level variable packagedFiles from inside a function",
-      "automaticBackupRestored": true,
-      "automaticBackupCleaned": true,
-      "reasonNotRetried": "120-minute rig time box expired before hook finished. No hook bypass or post-limit code rewrite."
-    },
-    "unfinishedChecks": [
-      "Full lint stopped without a result after more than seven minutes at the 120-minute rig time limit.",
-      "Final plain knip, duplication, dpdm cycles and formatting sweep were not reached.",
-      "Reference, localization, host API and production build passed earlier in this continuation; final combined recheck was not reached.",
-      "Final universal VSIX/ACP packaging, packed versions, compressed bytes and browser-output hash comparison were not reached. No final artifact size or cap claim."
-    ]
-  },
-  "finalContinuationReceipt": "docs/certification/train-0.15.0-final.json",
   "packages": [
     {
       "file": "muse-spark-code-0.15.0.vsix",
@@ -11299,5 +10756,528 @@
       "sha256": "62bd1237569f552960a35663da95f4589ff12d9840f5e3ab523cff67b5ff6f34",
       "version": "0.15.0"
     }
+  ],
+  "vsixCapBytes": 2841600,
+  "universalNativeHelper": {
+    "bytes": 289568,
+    "sha256": "f42e757a0d78a6bc6a6af22c3bcf34fc7d082eb9e8130d9336024a55c19f0f36"
+  },
+  "browser": {
+    "outputs": 96,
+    "sourceAndPackagedHashesEqual": true,
+    "hashes": [
+      {
+        "file": "dist/webview/chunks/276LWE5G.js",
+        "bytes": 679,
+        "sha256": "5bdf48ed2a0c182c15d38dbf88920ab26bb6e888b9ee2cdeaa00917530227f84"
+      },
+      {
+        "file": "dist/webview/chunks/2T62P55C.js",
+        "bytes": 10405,
+        "sha256": "b1f16570314f15d63f40878fba7fe7760c4c626935db57e676bffca3f8b5404f"
+      },
+      {
+        "file": "dist/webview/chunks/2TEO5AI5.js",
+        "bytes": 549,
+        "sha256": "4e766cd11d666a4a56ba6c3b28fbe5fb748cdff2b7761fe23d6a1cbf6371574b"
+      },
+      {
+        "file": "dist/webview/chunks/32MI42QI.js",
+        "bytes": 45444,
+        "sha256": "7999cac8c5eb444b1bdcbbe25c23772c81b21b9d8698815605a4d38637aa1c86"
+      },
+      {
+        "file": "dist/webview/chunks/4FJZUAQ7.js",
+        "bytes": 54977,
+        "sha256": "d0bfce9afcf88a5148dbff0c4681de2e7997fef59e41ece902fadfe7d76bbb72"
+      },
+      {
+        "file": "dist/webview/chunks/4HJZ7PMG.js",
+        "bytes": 230,
+        "sha256": "578e89658a9a31e0632d259d96600da8f9c7ed3e04ecbe6036e5d6237ee47e60"
+      },
+      {
+        "file": "dist/webview/chunks/4RMM3L7L.js",
+        "bytes": 7071,
+        "sha256": "20e1f4acfb9a6d6f91d32dcbc203391f82c382e739fb5f0f4e5c76fa6d14c6d6"
+      },
+      {
+        "file": "dist/webview/chunks/4YEGDK2J.js",
+        "bytes": 22655,
+        "sha256": "e062824543715b54eeafab71c8370d197cc860d4aa769cfeec9f4746373342e1"
+      },
+      {
+        "file": "dist/webview/chunks/4ZW3DX3T.js",
+        "bytes": 1610,
+        "sha256": "412e677906076835cf4b1217fb8f5fb9adbb414fdee7db3fa54e0fad07d4bd58"
+      },
+      {
+        "file": "dist/webview/chunks/52SXDFFY.js",
+        "bytes": 13379,
+        "sha256": "fd08cdff855bf1ca1c62efffb943b4475e0ca0a5e8442c087b280915b5bebf17"
+      },
+      {
+        "file": "dist/webview/chunks/546DMFNU.js",
+        "bytes": 8242,
+        "sha256": "e0fc3034429cbc1fcedd90f979502dbdd7bdebef1edb38a1f3de114257fa9501"
+      },
+      {
+        "file": "dist/webview/chunks/5SPWKTMV.js",
+        "bytes": 834,
+        "sha256": "1987d12fddd5c39730106c50363d28a6cf442e509a4cbf6e3923894d6369ef0c"
+      },
+      {
+        "file": "dist/webview/chunks/5YDQJYGU.js",
+        "bytes": 860,
+        "sha256": "ddfe9ece3d4920d9701b23472a49ba24dc54d09e0628d89a7fc9162c1dd88517"
+      },
+      {
+        "file": "dist/webview/chunks/627N6I44.js",
+        "bytes": 16979,
+        "sha256": "0168d3bfc58c8996643e96769c76c02b6185bfcbfcd8264d6ea2731cadf470ca"
+      },
+      {
+        "file": "dist/webview/chunks/6VM5XT4S.js",
+        "bytes": 2665,
+        "sha256": "0ac53916fdc961ac5073ca8c7db36fdf22c3eb446da9759495e9ac91db8507ec"
+      },
+      {
+        "file": "dist/webview/chunks/7M6EVPAT.js",
+        "bytes": 336,
+        "sha256": "6db7f0082f4e5eefe2df444edce5e79403d0e993fdc377b70a78509123f4eba0"
+      },
+      {
+        "file": "dist/webview/chunks/AULHO3VR.js",
+        "bytes": 36546,
+        "sha256": "cdac90077b0ac3e5d095cffe06d4ecbcfc9be08a6b819cf710da881fae0604ae"
+      },
+      {
+        "file": "dist/webview/chunks/BHBPE324.js",
+        "bytes": 1549,
+        "sha256": "e6eea589cf38d58ca3e2fd4361646b1886a3cea74d79a7ea2bf2f9b396d50265"
+      },
+      {
+        "file": "dist/webview/chunks/C24AMIFK.js",
+        "bytes": 1418,
+        "sha256": "fde7b0735c66b09072f943df9e97a677c63b2b6c44466d7a8515668c49867ee6"
+      },
+      {
+        "file": "dist/webview/chunks/CIXF33U4.js",
+        "bytes": 2515,
+        "sha256": "4aaa93369efabb1cb26ee60d1a579b62897d5b92bd708fc4a3f2e7830d763274"
+      },
+      {
+        "file": "dist/webview/chunks/CRJQKXK6.js",
+        "bytes": 165,
+        "sha256": "6873114664b6dec213c2fad6eb84e4a99a011eb3d6e52a307325f0e0b1ff099f"
+      },
+      {
+        "file": "dist/webview/chunks/CYSCG6NP.js",
+        "bytes": 2309,
+        "sha256": "46e019d7ae6a5fca25ed765b0b8c35b5fee2713d9e83a2180d7f03cee6dedf06"
+      },
+      {
+        "file": "dist/webview/chunks/DFOZWQSN.js",
+        "bytes": 210797,
+        "sha256": "2d76e04ec502af47c6e3301ea2abb9e400b3fb435181b94f7b25a84c018fdd83"
+      },
+      {
+        "file": "dist/webview/chunks/DJ2XHDYZ.js",
+        "bytes": 367,
+        "sha256": "fc1695b17ddfef1a197b39005476bf643f2975646228252489afc96ff42bf877"
+      },
+      {
+        "file": "dist/webview/chunks/E7JETWQB.js",
+        "bytes": 13663,
+        "sha256": "2523ba5002ec9b77b947b600fcc771cad37bc35329a0008274ed8eb583b8037d"
+      },
+      {
+        "file": "dist/webview/chunks/ECZUZUL7.js",
+        "bytes": 1729,
+        "sha256": "42e3263892d42e0a52e1dd45f1e6f9b4c1b7e52a9c8177b6f416a1ffcda25393"
+      },
+      {
+        "file": "dist/webview/chunks/EW5GM7TZ.js",
+        "bytes": 3437,
+        "sha256": "9542d163567bbcafe84485d50589886c32e94aa553e3db31b0bf802cc96847bd"
+      },
+      {
+        "file": "dist/webview/chunks/EXH4XFLE.js",
+        "bytes": 434,
+        "sha256": "d0ed1275150e6a6f1e0f6968cd5faf600406df1de90c46005da7d3f3bafa2415"
+      },
+      {
+        "file": "dist/webview/chunks/EXXXVVH3.js",
+        "bytes": 2755,
+        "sha256": "78d1e4fd8f53a34737e2cd4b9954cc61d1d82c14c4860847eb1007fbacd65ca1"
+      },
+      {
+        "file": "dist/webview/chunks/EZX6NVKE.js",
+        "bytes": 2252,
+        "sha256": "ea82ad619cafa7a15c0e95b45cc2d90bae5a9c806a934fc357b24dac4d13268b"
+      },
+      {
+        "file": "dist/webview/chunks/FH2TASBT.js",
+        "bytes": 34329,
+        "sha256": "7be85ad1bfe107ef03e911d96e301e578f76fe719a1647ed4a2dc917bcac3899"
+      },
+      {
+        "file": "dist/webview/chunks/FIJ3WDLK.js",
+        "bytes": 35795,
+        "sha256": "f8db4aaf42dd73398f07d984f45101e52577df9f295133d82f5ec1605ad36978"
+      },
+      {
+        "file": "dist/webview/chunks/FJQRWP5K.js",
+        "bytes": 10017,
+        "sha256": "a080b98a020be7d34db887548bdf75c9a51b02c0cc47d40c05281e5244cb6bc2"
+      },
+      {
+        "file": "dist/webview/chunks/FWNC6A5K.js",
+        "bytes": 416,
+        "sha256": "4a36a747a7969b8c6978255c760030188ca92dd27ec81dfa1cb5e3a859d32c41"
+      },
+      {
+        "file": "dist/webview/chunks/G5YQVX3Z.js",
+        "bytes": 1462,
+        "sha256": "0be9183074387a3e6a59d9c3d5bd5c39c526cfd9d950700e8567dfda3ddb1324"
+      },
+      {
+        "file": "dist/webview/chunks/GQBR2L5F.js",
+        "bytes": 1009,
+        "sha256": "d9457359f53ed305256fb5c5048f3d57a0d1e8fdf16bba6e102264278f913926"
+      },
+      {
+        "file": "dist/webview/chunks/HG6BGXXZ.js",
+        "bytes": 313,
+        "sha256": "525edc43a56c12e415e32fe5c6c0ce97af71b2df132b3b7ddbf7634f8be964f8"
+      },
+      {
+        "file": "dist/webview/chunks/HLP3ZYR4.js",
+        "bytes": 791,
+        "sha256": "a2a493e8951d4f8cc707d9be8f506291432096ffeeed60c48b1ca5b6547e37a1"
+      },
+      {
+        "file": "dist/webview/chunks/HTXXAMMU.js",
+        "bytes": 9022,
+        "sha256": "1b6d10d80ac85b01d39513c0d806bec85953289023c34fd14218f522a1f0a653"
+      },
+      {
+        "file": "dist/webview/chunks/I4KJ4UUW.js",
+        "bytes": 2183,
+        "sha256": "76e3bd63cbaeb8de164cfe174f550497c16cfe9eb7317b239251f4d334d30904"
+      },
+      {
+        "file": "dist/webview/chunks/IKQKJ2OV.js",
+        "bytes": 90229,
+        "sha256": "1152619d6b555f4ce07850f72e02d0da524e70218500a38ee306defb6dca7aae"
+      },
+      {
+        "file": "dist/webview/chunks/JCG24P2X.js",
+        "bytes": 9241,
+        "sha256": "83b744904a2a331ec08133c2699725a106ab3a868fbfe9e62d64b59bd7c8b32b"
+      },
+      {
+        "file": "dist/webview/chunks/JJZXVCOD.js",
+        "bytes": 658,
+        "sha256": "d634c4a115030c8fda0adf85c11cb09bc765616a4e330829d19d95faa19dbc13"
+      },
+      {
+        "file": "dist/webview/chunks/KNXDORTR.js",
+        "bytes": 3526,
+        "sha256": "dbb49066363ece8fc16afbfc36c14c208a5a35a642112e97522442ff1f7448c2"
+      },
+      {
+        "file": "dist/webview/chunks/MQEIEY3K.js",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "file": "dist/webview/chunks/N2C4C3YI.js",
+        "bytes": 5606,
+        "sha256": "2abb5cd884fc754dc9c73899483764b7a14b1095afe0c8bd2b99ab007e440f8d"
+      },
+      {
+        "file": "dist/webview/chunks/NAWAKHGB.js",
+        "bytes": 945,
+        "sha256": "bd8e9ca14609154b3885a29326bf0139f67b660c216781d46a0124b4b7abf432"
+      },
+      {
+        "file": "dist/webview/chunks/NK73Q7BN.js",
+        "bytes": 5049,
+        "sha256": "ca5cc34b4c272ed3ed0fc3d0a4258af1140d0c9ef5be9f1dae0f9ebed9d90002"
+      },
+      {
+        "file": "dist/webview/chunks/NMG3SN4V.js",
+        "bytes": 1915,
+        "sha256": "a45a549d1b707abebbf1e58df9d0fdd5d6d79ad4992f1287b65f178fbbc694dc"
+      },
+      {
+        "file": "dist/webview/chunks/NMLVOSSC.js",
+        "bytes": 1591,
+        "sha256": "844d2e07d954ef5637d9df761b7dd4979dcfdfac352cbe2c9802aec23a49ae41"
+      },
+      {
+        "file": "dist/webview/chunks/NMTQQZUW.js",
+        "bytes": 17786,
+        "sha256": "a0b7dd5ee48f7f588270c138e6b85e149d8fc3bf4021bcdb0d61affcecd3cd34"
+      },
+      {
+        "file": "dist/webview/chunks/NRQ7RH2V.js",
+        "bytes": 257,
+        "sha256": "349404fda7b11f7e4e1c9cfe6ba61a26bec80e86376aada5de2386858a2eb7f8"
+      },
+      {
+        "file": "dist/webview/chunks/O3LZ5N76.js",
+        "bytes": 4332,
+        "sha256": "4ac9294592026e4201442a3bc6c5dded711403641d0945fd1e809250db91ff83"
+      },
+      {
+        "file": "dist/webview/chunks/O62MMXRX.js",
+        "bytes": 1446,
+        "sha256": "069979373442e95b2db5b8858ad428c67aaff4019b19eda752e7936e7a09a20a"
+      },
+      {
+        "file": "dist/webview/chunks/OIRSCEVK.js",
+        "bytes": 2378,
+        "sha256": "7ea51802a6abe2b8ed66767a8a1fe03bac0a88aa11626e8c846235040db75adb"
+      },
+      {
+        "file": "dist/webview/chunks/OMGFRT2N.js",
+        "bytes": 638,
+        "sha256": "9dbaaa1b267ebd74b96fc498735a78d76804f1e96e532871291c937cf83694e7"
+      },
+      {
+        "file": "dist/webview/chunks/OTLG6AFY.js",
+        "bytes": 312,
+        "sha256": "2b001eed664bdb6de02b1cb05b06f12f926baf99d5fd08bbf92cb3ae9d4d3247"
+      },
+      {
+        "file": "dist/webview/chunks/P3MK3ANE.js",
+        "bytes": 2117,
+        "sha256": "4fc24ab3fdb4a5302baf8e94c98a3b853951c885097c46287e0f5762d6d27c26"
+      },
+      {
+        "file": "dist/webview/chunks/P4QCYZXN.js",
+        "bytes": 4878,
+        "sha256": "f8e76535af9080053fb10f64e686c4bf6533d877d85aaef36d3a274b7af3d239"
+      },
+      {
+        "file": "dist/webview/chunks/Q6PB4OK7.js",
+        "bytes": 4833,
+        "sha256": "6810d900627950a92994a29fab9e4a8927f5a2653bf6d517bbb0f2c1473c70d0"
+      },
+      {
+        "file": "dist/webview/chunks/QFSHOLDI.js",
+        "bytes": 4256,
+        "sha256": "8c52618e8aee878508ad1b59848207ae3dde9691409cae951c756be523922fcf"
+      },
+      {
+        "file": "dist/webview/chunks/RWI26BG4.js",
+        "bytes": 118302,
+        "sha256": "7db12a0798a1128db88b3f1fbd7f3c990f1272655616ca044cddb9ed10200329"
+      },
+      {
+        "file": "dist/webview/chunks/RXOUQGMM.js",
+        "bytes": 3164,
+        "sha256": "c6ee8e1e3fe428920e4d91237b23783d38efc064ee847dfad78a8adbfb4b3053"
+      },
+      {
+        "file": "dist/webview/chunks/S4G5X77L.js",
+        "bytes": 2202,
+        "sha256": "5cdb4fd344ad8ef4bc0266241e125fc25421aa60d7e5a088a1161cf244550254"
+      },
+      {
+        "file": "dist/webview/chunks/TCR3UFJ5.js",
+        "bytes": 298,
+        "sha256": "615b450151614b749605f85058a1b54b73a12e9b30c60de4b10460b344dd8d7e"
+      },
+      {
+        "file": "dist/webview/chunks/TS4UWHXF.js",
+        "bytes": 384,
+        "sha256": "cb4ed8a210e86191e6dc0335aefcd2933c88a4e9c7a13c347fd9c6eab2168b0f"
+      },
+      {
+        "file": "dist/webview/chunks/TZJRFCLQ.js",
+        "bytes": 2371,
+        "sha256": "2a72bf96783562ec069feaa0fd9f8ac5b86ca962de84c8facfc9c99d93def936"
+      },
+      {
+        "file": "dist/webview/chunks/U5RGPCEU.js",
+        "bytes": 6930,
+        "sha256": "d6363a6f2c2c2ac4ad950d831f405067f506de36539a982fdd52500f2e0154a0"
+      },
+      {
+        "file": "dist/webview/chunks/UD3HWXFZ.js",
+        "bytes": 665,
+        "sha256": "841bfe4fe5667f2699603d614cedd873c3ba180b17d84f505488f137c8e04bd8"
+      },
+      {
+        "file": "dist/webview/chunks/VDLUQMFQ.js",
+        "bytes": 4470,
+        "sha256": "bbaa1ee448af55946d61cad8c085de1791e9993c7a9284ee68e1b3ddd4004cee"
+      },
+      {
+        "file": "dist/webview/chunks/VPG6I4OT.js",
+        "bytes": 9552,
+        "sha256": "bd8d43f93488b1149d8610b96eb0a3de0d405b42aafe0f89ae198a1e531ecc0e"
+      },
+      {
+        "file": "dist/webview/chunks/VTUT7MSP.js",
+        "bytes": 83139,
+        "sha256": "061a4cb15b305593a97dd18fdf60db3e5c5b0679d0ba562aeaea55f50f744cf7"
+      },
+      {
+        "file": "dist/webview/chunks/W5KQJAKQ.js",
+        "bytes": 4356,
+        "sha256": "10e3e86c00a0bd65bfbd174907de063d872374fccb85a4a4e7bccf2eb9fe5dcd"
+      },
+      {
+        "file": "dist/webview/chunks/WGNIFGRL.js",
+        "bytes": 436,
+        "sha256": "dd8d562dedd43eaca0d4d723926644ad3488ced6a22010c7ece1835c62556d21"
+      },
+      {
+        "file": "dist/webview/chunks/WJ42IDD5.js",
+        "bytes": 663,
+        "sha256": "c1abf15385bee0e079000188a26623933b1593e0a38a30e6b4b27b5f330cb166"
+      },
+      {
+        "file": "dist/webview/chunks/WSZFHRPJ.js",
+        "bytes": 1165,
+        "sha256": "7cffcd89e97d645f05ce058ddff1fd54edc540fd87ea38a5f3e2410204cd768c"
+      },
+      {
+        "file": "dist/webview/chunks/WZJ47CFU.js",
+        "bytes": 7300,
+        "sha256": "84470f8387829f8c736984cce80e4145400a47741db0c412f31adfa85df8ffb2"
+      },
+      {
+        "file": "dist/webview/chunks/XDEYZTOL.js",
+        "bytes": 4329,
+        "sha256": "0c051db73f9ef4e49e41a2e29eec15b1414254406465c14dd2fae003d18ed716"
+      },
+      {
+        "file": "dist/webview/chunks/XFVXE2QG.js",
+        "bytes": 3700,
+        "sha256": "3f622ff7c172bb966a013b386e9f0c825424e4f2b16baac42d98b8c5381e6cff"
+      },
+      {
+        "file": "dist/webview/chunks/XLV4ZHFS.js",
+        "bytes": 1131,
+        "sha256": "fc3122961647cae8945073904499b48e530a23a841c3977df76e7ff070f7ff11"
+      },
+      {
+        "file": "dist/webview/chunks/XPMFFL2I.js",
+        "bytes": 2594,
+        "sha256": "67681247fc0408d67c210875d33f1ec54588e6f040561c6134a664a303ac7e2b"
+      },
+      {
+        "file": "dist/webview/chunks/XQIZVC33.js",
+        "bytes": 7713,
+        "sha256": "99a0668f5d435d3c7db6ae685fbcddbbd19f426a479ca752a1a357f265d679f9"
+      },
+      {
+        "file": "dist/webview/chunks/YEJRYQSR.js",
+        "bytes": 1491,
+        "sha256": "e9cf1e58d3689c86ebce44cf465af8799a58f5f86f7a7d02199f3c82f2a93d1e"
+      },
+      {
+        "file": "dist/webview/chunks/YENRBPLE.js",
+        "bytes": 1703,
+        "sha256": "fa30eaffbeff04eac982210d38a85eb77e1a7319bbd27b727294e52602bfd1d8"
+      },
+      {
+        "file": "dist/webview/chunks/ZJK6PGSV.js",
+        "bytes": 1535,
+        "sha256": "7bd05a201b3d2a280544f980dbecf4aaadf88485b11f90d5d2332167082964f9"
+      },
+      {
+        "file": "dist/webview/chunks/ZSGRSMYA.js",
+        "bytes": 1542,
+        "sha256": "d81931975d119493d192de6c41b607a79abff4502e2c2ee379bb854da6e1a0ee"
+      },
+      {
+        "file": "dist/webview/main.css",
+        "bytes": 61039,
+        "sha256": "ecc8c6ea00077555a828caa410f4f5c307fcc2bcda87fc19c2e79a5a0b2606f1"
+      },
+      {
+        "file": "dist/webview/main.js",
+        "bytes": 123419,
+        "sha256": "908c259fe5c667d3d3658ee37660583eb3ae743a497849aa8b7542001b039162"
+      },
+      {
+        "file": "dist/webview/models.css",
+        "bytes": 8007,
+        "sha256": "5f3b9f6a3cc9064e117a923fdd8441ed38eead6c093f162026162f29df80b134"
+      },
+      {
+        "file": "dist/webview/models.js",
+        "bytes": 1756,
+        "sha256": "bfc3e21fa3d630d44e9cd58a0d0f3b6d8106dd25e1706ed0ea17ba984c726fe7"
+      },
+      {
+        "file": "dist/webview/referencePage.css",
+        "bytes": 1526,
+        "sha256": "a626209c39c66293106ef59c4b8ea722f97d679fbe6dda90ce0a7f39fab95968"
+      },
+      {
+        "file": "dist/webview/referencePage.js",
+        "bytes": 21605,
+        "sha256": "1bfd69d88101bbafd77b5f5618d61696414fb97377e2e5c2ed21803dbeedd179"
+      },
+      {
+        "file": "dist/webview/usage.css",
+        "bytes": 7562,
+        "sha256": "9fcf77bac5b89786a540d0fc5fabb0bbae6e3bbb8ef974d7cd6a716d27db87be"
+      },
+      {
+        "file": "dist/webview/usage.js",
+        "bytes": 5458,
+        "sha256": "0b4cf0887966a9bb3486e70fc5591612d5be097c70d9071b88c7a07d8d6f5d94"
+      },
+      {
+        "file": "dist/webview/whatsNew.css",
+        "bytes": 2534,
+        "sha256": "01071c4365687b25df74aaa5daf19b97a406e37fbe927c77b16aa653e4cad74b"
+      },
+      {
+        "file": "dist/webview/whatsNew.js",
+        "bytes": 713,
+        "sha256": "64a071a1b6059a59651bc9a91c9fba511a210b5f4b23f1d1a302cae356f089d8"
+      }
+    ],
+    "priorCompiledHashMatches": 28
+  },
+  "accessibility": {
+    "reusedReceipt": "docs/certification/train-0.15.0-release.json",
+    "pages": 952,
+    "violations": 0,
+    "reason": "No UI/shared source differs from the original staged continuation tree (af954994^2); prior 952-page receipt retained. Current production browser bytes match the VSIX; prior compiled hashes are separately reported, not claimed identical."
+  },
+  "drills": [
+    {
+      "name": "PowerShell closed-stdin native start",
+      "file": "native/runner/runner-helper.ps1",
+      "mutant": "DETACHED_PROCESS replaces CREATE_NO_WINDOW",
+      "red": 1,
+      "green": 0,
+      "beforeSha256": "3c03192aa84cd3b8c09409d3586b763b758aae05061ef2331b61c2b9ce47878e",
+      "restoredSha256": "3c03192aa84cd3b8c09409d3586b763b758aae05061ef2331b61c2b9ce47878e",
+      "byteExact": true
+    }
+  ],
+  "newLiveOrPaidModelAttempts": 0,
+  "pushed": false,
+  "published": false,
+  "externalRequirements": [
+    "Lead-owned aggregate coverage, security/editor matrices and hosted release checks"
+  ],
+  "nativeRunner": {
+    "sourceAndBothPackagesMatch": true,
+    "sha256": "3c03192aa84cd3b8c09409d3586b763b758aae05061ef2331b61c2b9ce47878e"
+  },
+  "unfinishedChecks": [
+    "Full repository ESLint: interrupted without a result. Changed-file ESLint is enforced by the normal commit hooks."
   ]
 }

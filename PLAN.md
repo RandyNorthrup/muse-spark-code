@@ -44646,6 +44646,28 @@ Reuse the 952-page accessibility receipt if browser sources remain unchanged.
 Record root causes, red/restored drills, final totals and package bytes in the
 train certification; no push or model call.
 
+The final sweep exposes a separate fake SSH canary race: Git Bash can finish
+the command's two-second sleep before its independently scheduled one-second
+timer gets CPU, so an early write is mistaken for a post-retirement escape.
+Bind the writer to the fixture's explicit release file, release it only after
+the unchanged timeout result has returned, and retain the canary-absence
+assertion and observation interval. This tests D75's retirement guarantee
+without assuming relative scheduling of two real processes. Re-run the whole
+SSH file at the default deadline and retain the original failing receipt.
+
+**TRAIN15E final continuation result (2026-10-06, win11).** Merge and root
+repairs are committed with normal hooks. All 793 files have a final positive
+result: 15,966 passed, zero failed and 100 existing skips after the full SSH
+rerun removes its independent canary timing race. Actual universal VSIX:
+2,703,474 / 2,841,600 bytes; ACP: 1,708,084 bytes, both version 0.15.0.
+All requested source-only gates, production/package guards and unit typecheck
+pass. Full repository ESLint is interrupted without a result at the 90-minute
+brief limit; it is an explicit remaining gate, never waived. The prior 952-page
+accessibility receipt is retained because this continuation changes no UI/shared
+source; current production/packaged browser bytes match, and identity with the
+earlier compiled capture is not claimed. Final receipt and exact holds:
+docs/certification/train-0.15.0-final.json. Zero new model calls or push.
+
 **TRAIN15E hook hold (2026-10-06, win11).** The required commit hook rejects
 `teamHarness.test.mjs:23` for `unicorn/no-top-level-assignment-in-function`.
 Lint-staged restores and cleans its automatic backup. The rig time limit has

@@ -538,10 +538,12 @@ describe('SSH runner over a fake transport and local repositories', () => {
       const { deps, runner, job } = await fixture()
       const answer = await new SshRunner(deps).run(runner, {
         ...job,
-        command: 'sleep 2; printf escaped > canary',
+        // A wall-clock sleep can finish before the independently scheduled timeout on a busy rig.
+        command: 'while [ ! -f ../release ]; do sleep 0.1; done; printf escaped > canary',
         timeoutMs: 1000,
       })
       expect(answer).toMatchObject({ kind: 'finished', result: { exitCode: 124 } })
+      await writeFile(path.join(runner.workFolder, 'runs', job.runId, 'release'), '')
       await delay(1200)
       const copy = path.join(runner.workFolder, 'runs', job.runId, 'copy')
       await expect(readFile(path.join(copy, 'canary'))).rejects.toThrow()

@@ -15,7 +15,7 @@ it remains executable. Native compilation/runtime on macOS is external proof.
 Local badge checks use the supported named network-only skip because shared
 rules prohibit public network requests; all static and exact-stage checks run.
 
-**Current disposition (TRAIN15E release continuation): release held. The additive main-0170 merge resolves 69 conflicts; metadata and release notes are 0.15.0. All 793 test files ran: 15,957 passed, nine failed and 100 existing skips. Accessibility clears all 952 pages with zero violations or missing results. All five TypeScript projects pass. Full lint stopped without a result at the 120-minute time limit; final remaining gates and actual universal VSIX/ACP packages are unverified. Ten deliberate regression drills restore exact bytes. Zero new model calls and no push.**
+**Current disposition (TRAIN15E final continuation): all 793 files verified; 15,966 passed, zero final failures and 100 existing skips after the complete SSH rerun. Both actual 0.15.0 packages pass: universal VSIX 2,703,474 / 2,841,600 bytes; ACP 1,708,084 bytes. Formatting, reference, localization, host API, knip, duplication, cycles and unit typecheck pass. Full repository ESLint was interrupted without a result at the 90-minute brief limit; release remains held for that gate and the lead-owned hosted checks.**
 
 **Historical disposition (TRAIN15F): current main is merged additively, the
 D78 assertion follows immutable request goldens, and exec's locale/inventory
@@ -1458,3 +1458,44 @@ An initial scratch verifier incorrectly piped Console.WriteLine into a
 PowerShell pipeline; the corrected verifier parses the child's actual stdout.
 The initial verifier is not counted as guard-fire evidence. Full sweep and
 remaining gate/package receipts follow after completion.
+
+### Final measured handoff
+
+All **793 files / 265 batches** ran with at most three workers and the repository
+default timeout. The first sweep has 15,965 passed / one failed / 100 existing
+skips. The only failure is the fake SSH canary's relative-sleep race: the writer
+can beat the independently scheduled timeout while both processes remain live.
+Gate that writer on the existing release file and release only after the actual
+timeout result returns (PLAN D75). Keep the one-second deadline, 1.2-second
+observation and absent-canary assertion. The complete final SSH file passes all
+22 tests. Final deduplicated totals: **15,966 passed / zero failed / 100 existing
+skips**, 16,066 cases. No assertion, skip, timeout or cap is weakened.
+
+Actual production build, size/split/global/notices checks and packaging pass.
+The **universal VSIX is 2,703,474 bytes**, 138,126 below the approved 2,841,600
+cap; **ACP is 1,708,084 bytes**. Both packed manifests are **0.15.0**.
+All 53 VSIX and 37 ACP native module tests pass without skips. Both packages
+contain the repaired native runner byte-exact; the universal macOS helper
+retains its certified 289,568-byte SHA-256. All 96 current production browser
+outputs equal the VSIX members byte-exact.
+
+No UI/shared source differs from the original staged continuation tree
+(af954994^2), so the existing 952-page accessibility pass is retained.
+The earlier compiled capture matches only 28 of 96 current hashes; prior
+compiled-byte identity is explicitly not claimed. The receipt records the
+current source/packaged hashes independently. No screenshot or accessibility
+work is repeated.
+
+Full formatting, reference, localization, host API, plain knip, zero-duplication
+and dpdm cycle gates pass. Unit typecheck passes after the final fixture repair;
+the unchanged host/webview/e2e/integration source retains the preceding compiler
+receipt. Full repository ESLint produces no result before the 90-minute brief
+limit and is stopped after 188.9 seconds (Windows termination code 4294967295).
+This is an unfinished gate, not a pass or waived rule. Normal commit hooks
+enforce changed-file ESLint/Prettier and Gitleaks. The lead must complete full
+ESLint plus its aggregate coverage, security/editor and hosted release checks.
+
+The detailed final receipt is [train-0.15.0-final.json](train-0.15.0-final.json).
+It preserves the first failed SSH assertion and complete-file rerun, exact
+package versions, hashes, byte counts and the effective native red/green drill.
+There are zero new live/paid model calls and no push, tag or publication.
