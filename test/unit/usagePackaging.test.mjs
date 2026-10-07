@@ -40,6 +40,7 @@ function fixture() {
   for (const bundle of [
     'acp',
     'headless',
+    'sharingRuntime',
     'modelApi',
     'modelApiHooks',
     'modelApiMcp',
@@ -84,7 +85,7 @@ function fixture() {
   put('dist/legal-data/licenses.json', '{}')
   put('native/runner/runner-helper.sh', '# fixture')
   put('docs/npm-readme.md', '# Test package')
-  for (const schema of ['exec-result-v1', 'exec-event-v1'])
+  for (const schema of ['exec-result-v1', 'exec-event-v1', 'share-v1'])
     put(`docs/schemas/${schema}.schema.json`, '{}')
   put(
     'scripts/third-party-notices.mjs',

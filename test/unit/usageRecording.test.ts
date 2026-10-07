@@ -172,7 +172,11 @@ describe('recording taps', () => {
     async (failsShutdown) => {
       const journal = writer()
       const held = Promise.withResolvers<undefined>()
-      vi.mocked(journal.flush).mockReturnValue(held.promise)
+      const shutdownOrder: string[] = []
+      vi.mocked(journal.flush).mockImplementation(() => {
+        shutdownOrder.push('usage')
+        return held.promise
+      })
       const port = createUsageRecording({
         client: 'VS Code',
         now: () => 100,
@@ -202,7 +206,17 @@ describe('recording taps', () => {
         }
       })()
       const failure = new Error('shutdown failed')
+      const promptClosed = Promise.withResolvers<undefined>()
+      const disposePrompts = vi.fn(async () => {
+        await promptClosed.promise
+        shutdownOrder.push('prompts')
+      })
+      const stopSignIn = vi.fn(() => {
+        shutdownOrder.push('auth')
+        return Promise.resolve()
+      })
       const restartBackend = vi.fn().mockImplementation(() => {
+        shutdownOrder.push('backend')
         port.note({ input_tokens: 100 }, call)
         return failsShutdown ? Promise.reject(failure) : Promise.resolve()
       })
@@ -212,7 +226,8 @@ describe('recording taps', () => {
           lifecycle: {},
           nativeStarts: { abort: vi.fn() },
           accountHosts: { close: vi.fn() },
-          auth: { stopSignIn: vi.fn().mockResolvedValue(undefined) },
+          promptHost: { dispose: disposePrompts },
+          auth: { stopSignIn },
           restartBackend,
           usageRecording: port,
           resolve: done.resolve,
@@ -221,12 +236,20 @@ describe('recording taps', () => {
       )
       try {
         await vi.waitFor(() => {
+          expect(disposePrompts).toHaveBeenCalledOnce()
+        })
+        expect(restartBackend).not.toHaveBeenCalled()
+        expect(journal.flush).not.toHaveBeenCalled()
+        promptClosed.resolve(undefined)
+        await vi.waitFor(() => {
           expect(journal.flush).toHaveBeenCalledOnce()
         })
         expect(restartBackend).toHaveBeenCalledExactlyOnceWith('the window is closing', true)
         expect(journal.noteUsage).toHaveBeenCalledOnce()
+        expect(shutdownOrder).toEqual(['prompts', 'auth', 'backend', 'usage'])
         expect(hasFinished).toBe(false)
       } finally {
+        promptClosed.resolve(undefined)
         held.resolve(undefined)
       }
       expect(await result).toBe(failsShutdown ? failure : undefined)

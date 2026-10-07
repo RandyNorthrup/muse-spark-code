@@ -37,10 +37,16 @@ describe('provider localization', () => {
     (file) => {
       const value: unknown = JSON.parse(readFileSync(fileURLToPath(new URL(file, tables)), 'utf8'))
       const help = z.object({ acpUsage: z.string() }).parse(value).acpUsage
-      expect(help).toContain('auth set|status|clear --provider <id>')
-      expect(help).toContain('providers list|add|test|remove')
-      expect(help).toContain('report [options]')
-      expect(help).toContain('setup [--maintenance]')
+      for (const command of [
+        'auth set|status|clear --provider <id>',
+        'providers list|add|test|remove',
+        'report [options]',
+        'setup [--maintenance]',
+        'legal [options]',
+        '--no-auto-compaction',
+      ]) {
+        expect.soft(help).toContain(command)
+      }
     },
   )
 

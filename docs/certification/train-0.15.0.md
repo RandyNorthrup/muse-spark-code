@@ -1605,27 +1605,79 @@ TeamUi from warm-up. Restored SHA-256 values respectively:
 `f2a078df966d9b36e2f6d086e66985fee7fb0f83d0dbba5dadb4bbef10f3a47c`.
 The existing sharing drill and these two records remain in temp/rel0150m.
 
+### Complete merged-tree sweep and repairs (2026-10-06–07)
+
+All **822 configured files / 274 batches** ran at repository defaults, at most
+three files and workers. Initial result: 16,382 passed, 26 failed assertions,
+22 setup-blocked team browser cases and 75 existing opt-in/platform skips.
+The setup-blocked cases are never counted as existing skips. Complete owning
+reruns replace whole-file results, not selected assertions. Final deduplicated
+result: **16,431 passed / zero failed / 75 existing skips**, 16,506 cases.
+The one new case distinguishes Side chat from the Agent map. No deadline,
+assertion, coverage threshold, file or case is removed or skipped.
+
+Repairs:
+
+- All fourteen incoming multiline ACP help strings lost the train's provider
+  authentication, provider management and legal rows. Restore the train's real
+  translations while retaining newer wording elsewhere; add real translations
+  of the existing automatic compaction opt-out. The help guard checks all six
+  command/flag rows in every language and collects each missing row.
+- The ChatGPT ACP package fixture includes the real sharing runtime and the
+  English table's judge predicate. The usage membership fixture includes the
+  sharing runtime and schema; its existing membership-only fakes remain tests.
+  The usage localization fixture copies the complete shared source graph and
+  real judge predicate. Production packers and localization guards stay intact.
+- The shutdown VM now provides the prompt-host port and a held disposal promise.
+  Both successful and rejected backend shutdowns must observe prompts, auth,
+  backend, then usage flush, and join the held final write.
+- VSCE lists ignored folders before filtering. The owned, independent scratch
+  npm install had 31,000 files under temp and exhausted the browser suite's
+  existing 60-second setup allowance. Preserve it in OS scratch instead; its
+  TypeScript file has link count one. Shared root node_modules remains untouched.
+  Use the rig's explicit CHROME_PATH. The setup then completes normally.
+- Executed browser cases reveal the ambiguous `.agents-pill` selector: Side chat
+  may appear before the Agent map. All four harness map openers target the titled
+  pill through whenFound. A real two-button DOM fixture rejects the ambiguous
+  opener; all 22 complete browser cases pass, retaining target sizes, narrow and
+  pseudo layout, traffic isolation, package inventory, chunk budget and nonce CSP.
+
+Complete default-invocation repair batches pass: provider/ChatGPT/usage-l10n
+**28**; usage-package/recording/recording-aux **44**; team/readiness/capture
+**46**; ACP stdio plus recording **38**. Final restored capture/readiness/recording
+batch passes **50**. These overlapping reruns are not added to sweep totals.
+Source localization: 14 UI and 14 usage tables, **zero problems**.
+
+Three further deliberate regressions fire and restore exact SHA-256 bytes:
+
+| Regression                                   | Intended failures | Restored file/hash                                                                          |
+| -------------------------------------------- | ----------------: | ------------------------------------------------------------------------------------------- |
+| Remove German legal and compaction help rows |                 1 | l10n/ui.de.json: `5847821d629fae964c04fbce8cb4d7e3ce3f3fc7d41260ce0ea7892c80a6059b`         |
+| Let one map opener select Side chat          |                 1 | test/harness/index.html: `309a47193c7475a20eb4559d117090e24dc5a05a48b22986e4c5b6a610200ce8` |
+| Stop awaiting lifecycle prompt disposal      |                 2 | src/extension.ts: `3f147db017531872e9d9c5b0b6cb3bad232305994aa46047c60bda22a1c295c8`        |
+
+Initial shutdown drill attempts did not fire: one targeted an earlier disposal
+site, and early call-count assertions could miss microtask ordering. Neither is
+claimed as proof. Observing the complete cleanup order and mutating the exact
+lifecycle await produces both intended failures, then the restored whole file
+passes. The final map guard lives in the existing JavaScript capture suite so
+no TypeScript declaration dependency is added. Receipts/logs remain under
+`temp/rel0150m/`; final machine-readable certification will retain the totals,
+whole-file reruns and all six successful drill records.
+
+The first full static pass clears repository ESLint with zero warnings, all five
+compiler projects, formatting, plain knip, cycles, reference, localization and
+production build. Duplication detects three copied ACP fixture blocks (34 lines /
+196 tokens); the shared real-agent fixture restores the unchanged zero-clone gate
+and both complete ACP files pass 13/13. Regenerating the host API record after
+walkthrough union records one walkthrough. Final static gates rerun on repairs.
+PowerShell lint exits zero with its existing Linux skip; native Windows analysis
+remains the lead's platform gate.
+
 ### Remaining acceptance work
 
-The first complete static pass clears full-repository ESLint with zero warnings,
-all five compiler projects, full formatting, plain knip, cycles, reference,
-localization and the production build. Duplication catches three inherited
-ACP Registry/stdio fixture blocks (34 lines / 196 tokens). A shared test-only
-real-agent build/cleanup removes the copies; the unchanged zero-duplication
-gate is now green, and both complete ACP files pass **13/13** at repository
-defaults. The host-API gate catches the earlier two-walkthrough generated
-count; regenerating after the manifest union records one walkthrough. Final
-static checks will rerun on this repaired tree. No threshold, ignore, assertion
-or deadline is weakened. PowerShell lint exits zero with its existing Linux
-skip; native Windows analysis remains the lead's platform gate.
-
-Infrastructure merge is committed as `4eac2793`, both parents retained; normal
-ESLint/Prettier/Gitleaks hooks pass. Full configured
-sweep: **822 files / 274 batches**, at most three files and workers, no
---testTimeout. Full ESLint, final five-project compiler/static gates, all
-accessibility pages, screenshot comparison and actual packages are pending.
-The screenshot list now has 17 captures, including open-question and Help;
-four image conflicts temporarily retain the prior train bytes until every
-capture is regenerated and reviewed. No final package size or universal cap
-is claimed. The rig has macOS helper source but no certified binary; its path
+Full final static gates, accessibility, all 17 screenshot captures/comparisons
+and actual package checks remain pending. The screenshot baseline is preserved,
+including incoming Help and open-question images. No final universal size or cap
+is claimed: this rig has helper source but no certified macOS binary. Its path
 was requested while independent work continues. Existing caps remain unchanged.

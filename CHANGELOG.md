@@ -19,6 +19,11 @@ happened, not what was planned; superseded entries are kept.
 
 - ACP Registry and stdio release tests share their real-agent fixture build
   and cleanup, preserving installed-package coverage without copied setup.
+- Translated ACP help retains provider and legal commands alongside sharing,
+  and names the automatic compaction opt-out in every installed language.
+- Agent map harness scenes select their titled pill when Side chat is also
+  available. Package and localization fixtures include the merged sharing graph;
+  shutdown coverage waits for prompt storage before backend and usage cleanup.
 - Checkpoint disposal tests retire the captured owner after filter-free Git
   discovery exits 1, so the cancellation assertion exercises disposal reliably.
 - Windows shell credential regressions await the matching background completion

@@ -55,6 +55,8 @@ function fixture() {
   mkdirSync(path.join(dir, 'src/runtime'), { recursive: true })
   cpSync('src/runtime/cliOptions.ts', path.join(dir, 'src/runtime/cliOptions.ts'))
   cpSync('src/core/whatsNew', path.join(dir, 'src/core/whatsNew'), { recursive: true })
+  mkdirSync(path.join(dir, 'src/core/judge'), { recursive: true })
+  cpSync('src/core/judge/engine.ts', path.join(dir, 'src/core/judge/engine.ts'))
   for (const name of readdirSync('.')) {
     if (/^package\.nls.*\.json$/.test(name)) cpSync(name, path.join(dir, name))
   }
@@ -74,6 +76,7 @@ function fixture() {
   for (const name of [
     'acp',
     'headless',
+    'sharingRuntime',
     'acpQuestions',
     'runtimeQuestions',
     'questionNotes',

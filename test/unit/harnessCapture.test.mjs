@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import { JSDOM } from 'jsdom'
 import path from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { screenshotUrl } from '../../scripts/lib/harnessCapture.mjs'
@@ -45,5 +47,35 @@ describe('harness screenshot readiness', () => {
       'profile',
       expect.objectContaining({ executablePath: executable }),
     )
+  })
+})
+
+describe('harness map controls', () => {
+  it('opens the Agent map when Side chat appears before its pill', () => {
+    const html = readFileSync(new URL('../harness/index.html', import.meta.url), 'utf8')
+    const selectors = html
+      .matchAll(/whenFound\('([^']*\.agents-pill[^']*)'/g)
+      .map((match) => match[1])
+      .toArray()
+    expect(selectors.length).toBeGreaterThan(0)
+    const dom = new JSDOM(
+      '<button class="agents-pill">Side chat</button><button class="agents-pill" title="Agent map">2 tasks</button>',
+    )
+    const clicked = []
+    try {
+      for (const button of dom.window.document.querySelectorAll('button')) {
+        button.addEventListener('click', () => {
+          clicked.push(button.textContent)
+        })
+      }
+      for (const selector of selectors) {
+        const control = dom.window.document.querySelector(selector)
+        expect(control).not.toBeNull()
+        control?.click()
+      }
+      expect(clicked).toEqual(selectors.map(() => '2 tasks'))
+    } finally {
+      dom.window.close()
+    }
   })
 })

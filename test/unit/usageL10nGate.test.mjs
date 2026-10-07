@@ -48,16 +48,13 @@ function runGate(args = []) {
 beforeEach(async () => {
   mkdirSync(path.join(root, 'temp'), { recursive: true })
   fixture.root = mkdtempSync(path.join(root, 'temp', 'm102-l10n-'))
-  cpSync(path.join(root, 'src/shared/l10n'), path.join(fixture.root, 'src/shared/l10n'), {
+  cpSync(path.join(root, 'src/shared'), path.join(fixture.root, 'src/shared'), {
     recursive: true,
   })
+  mkdirSync(path.join(fixture.root, 'src/core/judge'), { recursive: true })
   cpSync(
-    path.join(root, 'src/shared/constants.ts'),
-    path.join(fixture.root, 'src/shared/constants.ts'),
-  )
-  cpSync(
-    path.join(root, 'src/shared/browserCheckConstants.ts'),
-    path.join(fixture.root, 'src/shared/browserCheckConstants.ts'),
+    path.join(root, 'src/core/judge/engine.ts'),
+    path.join(fixture.root, 'src/core/judge/engine.ts'),
   )
   cpSync(path.join(root, 'l10n'), path.join(fixture.root, 'l10n'), { recursive: true })
   cpSync(path.join(root, 'src/core/whatsNew'), path.join(fixture.root, 'src/core/whatsNew'), {

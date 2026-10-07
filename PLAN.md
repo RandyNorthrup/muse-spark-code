@@ -18797,14 +18797,29 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 Both ordered merges are committed with normal hooks: `50a4947a` and
 `4eac2793`. Infrastructure owning tests and restored regression drills pass.
 The dependency union and clean ordinary npm ci check are complete. Generated
-reference/host records and locale unions are clean; final full-tree acceptance
-checks, all 17 screenshot captures and universal measurement remain pending.
+reference/host records and locale unions are clean. All 822 configured files
+have final whole-file results: 16,431 passed, zero failed, 75 existing skips.
+Final static gates, all 17 screenshot captures and universal measurement remain
+pending. Six successful deliberate regressions restore exact bytes.
 
 The merged ACP Registry and stdio suites duplicate their real packaged-agent
 build and cleanup. Consolidate only that test fixture setup to satisfy the
 unchanged zero-duplication gate; retain separate capability and lifecycle tests,
 installed-package coverage and default deadlines. Regenerate the host API record
 after the manifest's single-walkthrough union.
+
+The first 822-file sweep finds translated ACP help losing train command rows,
+three isolated package/localization fixtures missing newly merged dependencies,
+and the shutdown VM missing the prompt-host port. Restore translated provider,
+legal and compaction help, keep complete real fixture graphs, and verify prompt
+disposal precedes backend shutdown. Investigate the team browser setup's 60-second
+failure with the rig's explicit Chrome executable; keep all deadlines and cases.
+
+Team setup is blocked by VSCE scanning the owned scratch install before its
+allowlist filter; move that evidence to OS scratch rather than changing a gate.
+The now-executed browser cases expose the map opener matching Side chat's
+earlier `.agents-pill`. Target the titled Agent map pill in every harness scene
+and guard against the ambiguous selector; preserve all 22 browser assertions.
 
 The rig brief authorizes the full suite and listed full-repository gates despite
 common.md's scoped-file rule. Aggregate `npm run quality` remains reserved for

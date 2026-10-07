@@ -3492,7 +3492,7 @@
               result: { summary: 'All 12 tests pass.' },
             },
           })
-          whenFound('.agents-pill', (pill) => pill.click())
+          whenFound('.agents-pill[title]', (pill) => pill.click())
         },
         'agents-details': () => {
           steps.agents()
@@ -3545,7 +3545,7 @@
         'team-tree': () => {
           transcriptFixture()
           send({ type: 'teamTree', tree: teamTreeFixture() })
-          whenFound('.agents-pill', (control) => control.click())
+          whenFound('.agents-pill[title]', (control) => control.click())
         },
         'team-tree-320': () => {
           document.documentElement.style.width = '320px'
@@ -5068,7 +5068,7 @@
               backgroundInitiator: 'user',
             },
           })
-          whenFound('.agents-pill', (pill) => pill.click())
+          whenFound('.agents-pill[title]', (pill) => pill.click())
         },
         // --- M46: a question answered with an explanation, and one being explained ---
         'question-explain': () => {
@@ -5198,7 +5198,7 @@
         // The same runs in the Agent map, with Muse Code's trigger setting noted.
         'muse-workflow-map': () => {
           steps['muse-workflow']()
-          whenFound('.agents-pill', (pill) => pill.click())
+          whenFound('.agents-pill[title]', (pill) => pill.click())
         },
         // --- M52: due and upcoming Model API schedules, including narrow view ---
         schedules: () => {
