@@ -25,6 +25,7 @@ for (const file of [
   LAUNCHER,
   ...[
     'acp.js',
+    'estimator.js',
     'modelApi.js',
     'recorder.js',
     'uiText.js',

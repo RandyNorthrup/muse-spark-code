@@ -28802,6 +28802,28 @@ core.hooksPath`, an edit under `.husky/`, a delegate re-asking a refused
 
 ### M117 — The capacity estimator (D97)
 
+**FIXM117I integration review repair (2026-10-07, in progress).** Address
+C-RVM117W findings 1–14 with failing regressions against integration
+`7b89ea37afc4bffe77d43670e3f224ec4043d91e` (the rig's copy of
+`refs/rigs/macmini/m117/w`; that symbolic ref is absent locally). Ship the
+lazy engine in both products and the private test package; fit candidate
+classes, continue setup search when the current fleet is infeasible, retain
+simulation qualifications and parameter-specific evidence, complete tagged
+engine profiles and standalone CLI routing. Settle correlated panel failures,
+replay the first forecast, cancel estimates and clear inputs on session
+replacement, bind existing-fleet first-wave dispatch and isolate modal focus.
+Repair portable determinism children and both unchanged FIXDIET1 limits.
+Cheap P3 repairs cover bounded goal expansion, merged affinity normalization
+and honest public/internal handoffs; per-node duration evidence is assessed
+separately. No live/paid calls, merges, pushes, dependencies or cap changes.
+Each finished piece commits with hooks; final verification uses a fresh clone,
+`CI=true`, complete owning files three times at repository timeouts, five
+TypeScript projects and the scoped lane gates. Browser gates unavailable on
+this rig remain named lead-owned commands in `docs/certification/m117.md`.
+
+Repair plan: [~] packaging; [ ] engine/evidence; [ ] UI/session/CLI;
+[ ] size/portable tests; [ ] fresh-clone verification and certification.
+
 **Lane P implementation (2026-10-06).** After the explicitly required
 `m117/s` and `m117/c` no-fast-forward merges, implement D97.7 only in
 `src/core/estimator/provision/**`, owning fake-only tests and

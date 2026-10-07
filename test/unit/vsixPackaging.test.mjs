@@ -62,6 +62,7 @@ beforeAll(async () => {
   writeFileSync(path.join(fixture.root, 'PLAN.md'), 'must not ship')
   for (const file of [
     'dist/extension.js',
+    'dist/estimator.js',
     'dist/validation.js',
     'dist/webview/main.js',
     'dist/webview/main.css',
@@ -92,6 +93,7 @@ describe('VSIX packaging', () => {
     const packaged = await listFiles({ cwd: fixture.stage, dependencies: false })
     expect(packaged).toEqual(
       expect.arrayContaining([
+        'dist/estimator.js',
         'dist/validation.js',
         'dist/webview/chunks/UsageDialog-test.js',
         'native/darwin/muse-dictate',

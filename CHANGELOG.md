@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Include the lazy capacity estimator engine in VSIX, ACP and private test packages.
+
 ### Added
 
 - Capacity estimator (M117): `/estimate <goal> [--by <date>] [--fleet
