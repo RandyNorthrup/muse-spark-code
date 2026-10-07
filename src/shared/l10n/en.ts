@@ -305,7 +305,12 @@ export const EN = {
     drillMissing:
       'Playbook: lane {lane} needs a failing drill and a byte-exact restore for each new test or gate.',
     ownerFirst: 'Playbook: user items and failures are shown first.',
-    hookTampering: 'Safety check: bypassing or changing hooks is refused.',
+    hookTampering:
+      'Early warning: this command appears to bypass or change hooks. Commit verification controls push and completion.',
+    hookVerificationFailed:
+      'Needs you: repository hook verification failed. Push and completion are blocked.',
+    unverifiedCommit:
+      'Safety check: every new commit needs a passing hook receipt before push or completion.',
     gateSkipped: 'Safety check: skipping a gate is refused.',
     permissionLaundering:
       'Needs you: this action was already refused; another agent cannot re-ask it within {duration}.',

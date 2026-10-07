@@ -2582,13 +2582,15 @@
     "integrationRequired": "工作準則：工作分支 {lane} 必須在合併前包含持續整合主幹。",
     "drillMissing": "工作準則：工作分支 {lane} 的每個新測試或關卡都需要失敗演練與逐位元組一致的還原紀錄。",
     "ownerFirst": "工作準則：優先顯示使用者待辦與失敗。",
-    "hookTampering": "安全檢查：拒絕繞過或修改掛鉤。",
+    "hookTampering": "提前警告：此命令似乎繞過或變更掛鉤。提交驗證控制推送和完成。",
     "gateSkipped": "安全檢查：拒絕略過品質關卡。",
     "permissionLaundering": "需要你處理：此操作已被拒絕；其他代理程式也無法在 {duration} 內再次要求。",
     "classifierBlocked": "需要你處理：安全分類器已封鎖此操作；無法重試或改走其他路徑。",
     "ruleDisabled": "工作準則：{actor} 關閉了 {rule}：{reason}",
     "lineageRequired": "工作準則：{module} 需要已記錄的模組沿革，或負責人或擁有者核准的例外。",
-    "reviewerConflict": "工作準則：{module} 需要代理 ID 和工作階段皆不同的審查者。"
+    "reviewerConflict": "工作準則：{module} 需要代理 ID 和工作階段皆不同的審查者。",
+    "hookVerificationFailed": "需要你處理：儲存庫掛鉤驗證失敗。推送和完成已被阻止。",
+    "unverifiedCommit": "安全檢查：每個新提交都需要通過掛鉤驗證的憑據，才能推送或完成。"
   },
   "playbookStrikeBadge": {
     "other": "{count} 輪審查"

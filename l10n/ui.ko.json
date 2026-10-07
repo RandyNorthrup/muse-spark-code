@@ -2582,13 +2582,15 @@
     "integrationRequired": "지침서: 작업 분기 {lane}은(는) 병합 전에 지속적인 통합 분기를 포함해야 합니다.",
     "drillMissing": "지침서: 작업 분기 {lane}은(는) 새 테스트나 게이트마다 실패 실증과 바이트 단위의 정확한 복원을 증명해야 합니다.",
     "ownerFirst": "지침서: 사용자 조치와 실패를 먼저 표시합니다.",
-    "hookTampering": "안전 검사: 훅을 우회하거나 변경하는 작업은 거부됩니다.",
+    "hookTampering": "사전 경고: 이 명령은 훅을 우회하거나 변경하는 것으로 보입니다. 커밋 검증이 푸시와 완료를 제어합니다.",
     "gateSkipped": "안전 검사: 게이트를 건너뛰는 작업은 거부됩니다.",
     "permissionLaundering": "사용자 조치 필요: 이 작업은 이미 거부되었습니다. 다른 에이전트도 {duration} 내에 다시 요청할 수 없습니다.",
     "classifierBlocked": "사용자 조치 필요: 안전 분류기가 이 작업을 차단했습니다. 재시도하거나 다른 경로로 보낼 수 없습니다.",
     "ruleDisabled": "지침서: {actor}이(가) {rule}을(를) 끔: {reason}",
     "lineageRequired": "지침서: {module}에는 기록된 모듈 계보 또는 책임자나 소유자의 예외 승인이 필요합니다.",
-    "reviewerConflict": "지침서: {module}에는 에이전트 ID와 세션이 다른 검토자가 필요합니다."
+    "reviewerConflict": "지침서: {module}에는 에이전트 ID와 세션이 다른 검토자가 필요합니다.",
+    "hookVerificationFailed": "사용자 조치 필요: 저장소 훅 검증에 실패했습니다. 푸시와 완료가 차단되었습니다.",
+    "unverifiedCommit": "안전 확인: 모든 새 커밋은 푸시 또는 완료 전에 훅 검증 통과 기록이 필요합니다."
   },
   "playbookStrikeBadge": {
     "other": "검토 {count}라운드"

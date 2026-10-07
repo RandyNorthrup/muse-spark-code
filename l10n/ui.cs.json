@@ -2870,13 +2870,15 @@
     "integrationRequired": "Příručka: větev {lane} musí před sloučením zahrnout průběžnou integrační větev.",
     "drillMissing": "Příručka: větev {lane} potřebuje pro každý nový test či kontrolu doložené selhání a obnovení přesných bajtů.",
     "ownerFirst": "Příručka: požadavky na uživatele a selhání se zobrazují nejprve.",
-    "hookTampering": "Bezpečnostní kontrola: obcházení či změna hooků se odmítá.",
+    "hookTampering": "Včasné upozornění: tento příkaz zřejmě obchází nebo mění hooky. Ověření commitů řídí odeslání a dokončení.",
     "gateSkipped": "Bezpečnostní kontrola: přeskočení kontroly se odmítá.",
     "permissionLaundering": "Vyžaduje vás: tato akce již byla odmítnuta; jiný agent ji nemůže znovu požadovat během {duration}.",
     "classifierBlocked": "Vyžaduje vás: bezpečnostní klasifikátor tuto akci zablokoval; nelze ji opakovat ani přesměrovat.",
     "ruleDisabled": "Příručka: {actor} vypnul(a) {rule}: {reason}",
     "lineageRequired": "Příručka: {module} vyžaduje zaznamenaný původ modulu nebo výjimku schválenou vedoucím či vlastníkem.",
-    "reviewerConflict": "Příručka: {module} vyžaduje kontrolora s jiným ID agenta a jinou relací."
+    "reviewerConflict": "Příručka: {module} vyžaduje kontrolora s jiným ID agenta a jinou relací.",
+    "hookVerificationFailed": "Potřebujeme vás: ověření hooků repozitáře selhalo. Odeslání a dokončení jsou blokovány.",
+    "unverifiedCommit": "Bezpečnostní kontrola: každý nový commit potřebuje před odesláním nebo dokončením potvrzení úspěšného ověření hooků."
   },
   "playbookStrikeBadge": {
     "one": "{count} kolo kontroly",

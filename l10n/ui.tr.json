@@ -2678,13 +2678,15 @@
     "integrationRequired": "Kılavuz: {lane} dalı birleştirilmeden önce sürekli entegrasyon dalını içermeli.",
     "drillMissing": "Kılavuz: {lane} dalında her yeni test veya denetim için başarısız bir tatbikat ve bayt düzeyinde birebir geri yükleme gerekli.",
     "ownerFirst": "Kılavuz: kullanıcıdan beklenenler ve hatalar önce gösterilir.",
-    "hookTampering": "Güvenlik denetimi: hookları atlatmak veya değiştirmek reddedildi.",
+    "hookTampering": "Erken uyarı: bu komut kancaları atlıyor veya değiştiriyor gibi görünüyor. Commit doğrulaması gönderimi ve tamamlamayı denetler.",
     "gateSkipped": "Güvenlik denetimi: bir denetimi atlamak reddedildi.",
     "permissionLaundering": "Size ihtiyaç var: bu eylem zaten reddedildi; başka bir ajan {duration} içinde yeniden isteyemez.",
     "classifierBlocked": "Size ihtiyaç var: bir güvenlik sınıflandırıcısı bu eylemi engelledi; yeniden denenemez veya başka yoldan yönlendirilemez.",
     "ruleDisabled": "Kılavuz: {rule}, {actor} tarafından kapatıldı: {reason}",
     "lineageRequired": "Kılavuz: {module} için kayıtlı modül kökeni veya lider ya da sahip istisnası gerekir.",
-    "reviewerConflict": "Kılavuz: {module} için farklı bir ajan kimliğine ve oturuma sahip bir inceleyici gerekir."
+    "reviewerConflict": "Kılavuz: {module} için farklı bir ajan kimliğine ve oturuma sahip bir inceleyici gerekir.",
+    "hookVerificationFailed": "Müdahaleniz gerekiyor: depo kancalarının doğrulanması başarısız oldu. Gönderim ve tamamlama engellendi.",
+    "unverifiedCommit": "Güvenlik denetimi: her yeni commit, gönderim veya tamamlamadan önce başarılı kanca doğrulama kaydı gerektirir."
   },
   "playbookStrikeBadge": {
     "one": "{count} inceleme turu",

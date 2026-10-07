@@ -14,8 +14,35 @@ happened, not what was planned; superseded entries are kept.
   gives the rule that prevents it and the milestone that will enforce that
   rule in the app's own orchestrator (D100).
 
-## [0.14.3] - 2026-10-06
+### Fixed
 
+- Use native Git hook dispatch and its exit verdict throughout playbook
+  verification, removing Husky startup/layout emulation and invalidating older
+  receipts. Discover private refs in every worktree. Timeout cleanup tracks
+  detached descendants by parent chain and start-time identity; prepared
+  cgroup/scope runners take precedence pending the M107 integration binding.
+
+- Close playbook verification gaps for skipped Husky bodies, newly created refs
+  and detached worktree commits. Run source hooks by absolute path, clean
+  partial worktree registrations, scrub outer failures, and handle annotated
+  tags and ref deletions without false hook violations. Reject legacy and
+  startup-invalidated cached receipts; require explicit renewal/cancellation
+  tokens, enforce hook strikes without findings, and contain hook processes
+  with POSIX groups or the mandatory Windows job-runner port.
+- Harden the shared orchestrator playbook's safety history: policy refusals
+  block same-effect retries across tools, agents and restart. Disk-journal
+  tests create and clean their own OS temporary directories.
+- Replace orchestrator shell-wrapper parsing with outcome verification.
+  Newly reachable commits need durable receipts from the repository's own
+  hooks before harness-managed push or completion; failures add a strike.
+  The command guard is an advisory early warning. Bind reviews to lane and
+  lease generation, inherit edited moves through content and Git history,
+  publish claimed lineage before admission, and reconcile every merge
+  member's maximum strikes and lifetime counts. Shared policy is implemented;
+  editor/planner bindings remain M116 I/U/W work.
+
+
+## [0.14.3] - 2026-10-06
 ### Added
 
 - Questions stay in the dock and transcript, defer after a machine-scoped

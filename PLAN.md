@@ -12453,9 +12453,20 @@ repository's own working rule (AGENTS.md rule 14).
    orchestrator writes starts with what needs the user and whatever is
    failing (M113's **Needs you**), never buried below progress.
 9. **Never route around a safety check.**
-   - **No hook tampering:** `--no-verify`, `-c core.hooksPath=…`, `git config
-core.hooksPath`, edits under `.husky/`, or skipping a gate are refused
-     and reported.
+   - **Hook bypass is detected by outcome; the command guard is advisory.**
+     At work start the harness snapshots reachable commits. Before any
+     harness-managed push or completion, every commit newly reachable from
+     the work's refs runs the repository's own pre-commit and commit-msg on
+     its tree/message in an isolated temporary worktree under ordinary tool
+     admission. Pre-push runs once for the exact range with a clean index.
+     Push admission also checks commits introduced since the workspace's first
+     recorded work, so opening later work cannot hide an unverified ancestor. Hooks are never
+     rewritten. A passing commit has a durable commit id / hook-set digest /
+     result receipt. Failure or inability to run is a strike, blocks push
+     and completion, and shows scrubbed hook output. No receipt means no push.
+     Obvious bypass commands still receive an early warning and refusal;
+     shell wrappers, aliases and generated arguments are not parsed as a
+     security boundary.
    - **No permission laundering:** an action refused to one agent is not
      asked again through another (a delegate, a role, a tool with the same
      effect) for `PLAYBOOK_LAUNDER_WINDOW_MS` (one hour) on the same subject;
@@ -12515,7 +12526,58 @@ core.hooksPath`, edits under `.husky/`, or skipping a gate are refused
       detach every lane's module data, and test board dependencies and
       estimates independently of the plan's delivery-order literal.
 
+14. **Lane-P redesign (REDM116P, 2026-10-06).** One synchronous journal
+    reducer owns publication and emits tagged tool effects. Leases exclude
+    all members of a module family and name the lane and generation; every
+    review must present its admitted generation. Expired member leases do
+    not block another member's current work. File identities retain bounded
+    content fingerprints; edited moves inherit through Git history/rename
+    evidence and content similarity at `PLAYBOOK_CONTENT_SIMILARITY_PERCENT`.
+    Claimed lineage is published before admission. Merges reconcile maximum
+    strikes and lifetime counts throughout the family; only a complete
+    independent redesign can close an existing strike epoch.
+
+15. **RVM116P3 repair (FIXM116P3, 2026-10-06).** Keep the synchronous
+    outcome/journal architecture. Resolve the source hook directory once and
+    run native Git hooks with that absolute hooksPath and a credential/Git/
+    hook-disable scrubbed environment. Configured hook sets fail closed on
+    missing/non-executable hooks and missing Husky dispatch/body files; Husky
+    startup scripts cannot silently suppress a body. Snapshot all refs and
+    every worktree HEAD before/after work, including new branches/tags/notes.
+    Peel annotated tags; deletion-only pushes require no hook receipt. Scrub
+    outer errors, require explicit renewal/cancellation generations, contain
+    hook descendants, clean partial worktree registration, and connect hook
+    strikes to patch refusal and independent redesign even without findings.
+    Hook-digest epoch v2 invalidates earlier potentially skipped-body receipts;
+    startup presence is checked on receipt reuse. POSIX executions end their
+    process group; every Windows Git child requires the trusted harness
+    job/tree runner and refuse without it.
+    Each review finding receives a named regression and byte-exact red drill
+    in `docs/certification/m116-p.md`. No new dependency or relaxed gate.
+
 ---
+
+### FIXM116P4 — Final outcome verification repairs (2026-10-06)
+
+The final lane follows the lead's native-Git contract: delete all Husky
+startup/layout/body emulation. Only `git hook run` in the verification
+worktree, with the source repository's resolved absolute hooksPath and
+HUSKY/HUSKY_SKIP_HOOKS/GIT_* variables deleted, supplies the hook verdict.
+Git's missing-hook error fails closed for a configured hook set. Native
+Husky v9 passing/failing layouts receive real Git regressions and red drills.
+Invalidate pre-repair receipts with a new hook-digest epoch.
+
+Enumerate every worktree and snapshot its HEAD and private refs/worktree,
+refs/bisect and refs/rewritten alongside shared refs. New and moved private
+refs require receipts even when the worktree HEAD stays unchanged.
+
+Contain detached descendants through parent-chain enumeration and start-time
+identity checks in the existing process-tree module; the synchronous policy
+needs a bounded supervisor because spawnSync cannot enumerate while blocked.
+The process-tree module is the necessary shared-file extension of lane P's
+scope. Prefer a prepared Linux cgroup/scope runner when the harness provides
+one. Record the M107 governed-tree binding as an I/W integration handoff.
+No dependency, hook rewrite, gate weakening, paid call or branch merge.
 
 ### D97 — The capacity estimator (M117, 2026-10-06)
 
@@ -28030,6 +28092,20 @@ and HELP, quiet hours, the summary and link, the caps, the price and the
 paid ask-once; 18 h, Win11 VM), with the lead's 2 h; it needs M109 and
 M110, and fake providers for every adapter.
 
+- **RVM116P repair (2026-10-06).** Fix all nine findings in lane P,
+  without changing guard ceilings or adding packages: tokenize shell commands
+  with the installed shell-quote parser and subcommand-specific Git options;
+  retain policy refusals for same-effect retries; require lineage for current,
+  historical, Git-renamed and content-identical file sets and share subsequent
+  strikes; retain a workspace journal marker and fail closed on lost history;
+  authorize three-strikes opt-outs through the trusted user port; retain
+  redesign escalation until a recorded user decision; reserve patch work in
+  durable journal notes until review/release or expiry; use OS temporary
+  directories in tests. Each finding gets a regression and byte-exact red
+  drill in `docs/certification/m116-p.md`. The shared core applies equally to
+  all editor/runtime bindings; lane I must bind the trusted workspace and
+  authorization ports and keep a reservation alive throughout actual work.
+
 - **Lane 0's contracts,** frozen before the other lanes start:
   - **`src/shared/reportSchema.ts`:** `report-v1` (header, Needs you,
     sections with typed rows and stable row keys, sources, footer) as zod;
@@ -29479,6 +29555,26 @@ outstanding receipt: 628 pages (157 scenarios × four themes), exit 0, zero
 violations, zero undecided rules, zero exemptions and zero missing results.
 No timeout, exemption, worker policy or accessibility rule changed. The lead
 still owns integrated aggregate quality and actual host/release certification.
+**RVM116P lane certification (2026-10-06).** The rig brief prohibits full
+quality and all merges/pushes/rebases in P; the lead runs integrated quality.
+P runs default-timeout owning tests, typecheck, scoped lint/format, deadcode,
+duplication, localization, host API and production budgets. The generated host API
+inventory was refreshed for the new Node imports; editor bindings remain an
+integration handoff. REDM116P removes the
+shell-quote imports and the dependency-declaration handoff: the small advisory
+warning needs no shell interpreter. The help catalog and generated reference
+are checked by `check:reference`, included in `quality:gates`. Results are in `m116-p.md`.
+
+**REDM116P outcome redesign (2026-10-06).** The rig brief again prohibits
+aggregate quality, pushes and unlisted merges. The lane runs all owning tests
+at default timeout, scoped lint/format, all five typecheck projects, deadcode,
+duplication, localization, host API, the new help-reference check and production
+budgets directly on macmini. It removes the shell-quote dependency handoff,
+refreshes the generated Node import inventory, and records deliberate
+receipt/generation/merge and round-2 mutation failures with byte-exact restores
+in `docs/certification/m116-p.md`. Full joined-tree quality and trusted
+editor/planner bindings remain the lead/I/U/W integration work; no gate is
+weakened and no round-2 finding is accepted as a residual.
 
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
@@ -30736,6 +30832,10 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
 
+| Location                                                | Escape hatch                                                                                  | Reason                                                                                                                                                                                          |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/host/processTree.ts`, POSIX synchronous supervisor | Generated-program catches for vanished `/proc` identities, absent `ps` rows and ESRCH signals | Descendants can exit between enumeration and identity/signal checks. Only disappearance is ignored; other failures refuse verification. The caller owns the captured PID/start-time identities. |
+
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
 | M94 staged exports (`src/shared/constants.ts`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Owner                                                             | Deferral and removal condition                                                                                                                                                                                                                                                                            |
@@ -30897,6 +30997,49 @@ before a repaired one loads (2026-09-30).
   adapter is claimed as newly shipped. HELPREF's absent catalogue/reference,
   aggregate quality and the installed editor/backend matrix remain lead
   handoffs, with no live or paid call in this rig lane.
+- **FIXM116P3-Windows-job-binding (M116 I/W handoff).** The synchronous
+  policy cannot call the existing asynchronous job registry directly. Its
+  trusted `PlaybookHookAdmission.runContained` port requires the prepared
+  job/tree runner, the original effect and scrubbed spawn options, and returns
+  only after the entire tree has ended. No Git child (including ref/index plumbing and worktree cleanup)
+  dispatches on Windows without that port. Safe for now: missing containment
+  refuses verification before dispatch; the policy remains unshipped pending
+  I/U/W binding. Follow-up: bind the real Windows job registry in I/W and run
+  the native parent/grandchild timeout fixture. macmini proves native POSIX
+  group cleanup and the Windows admission/options branches with fixture doubles;
+  it does not certify a native Windows job run.
+- **FIXM116P4-M107-governed-tree-binding (M116 I/W handoff).** The shared
+  synchronous runner prefers `PlaybookHookAdmission.runContained` on Linux
+  when a prepared cgroup/scope is available. I/W must bind M107's governed
+  tree owner and its completion barrier, and certify native Linux cgroup
+  teardown. The POSIX fallback enumerates parent chains while the hook runs,
+  retaining start-time identities before timeout reparents detached children;
+  it rechecks identity before signals and sweeps the original process group.
+  A descendant that completely reparents between polls cannot be attested
+  by enumeration; the governed creation-to-exit boundary is the handoff.
+  Safe for now: the shared policy remains unshipped pending I/U/W; native
+  macmini tests cover hanging descendants in both the original group and a
+  separate session. This is the requested integration handoff, not a claim
+  of native Linux cgroup certification.
+- **FIXM116P4 native-hook contract.** The lead explicitly replaced the prior
+  Husky compatibility refusal with Git's own exit verdict, including its
+  startup/body/layout behavior. No shell script is interpreted by policy.
+  Missing hooks in a configured set fail through native Git. Epoch v3
+  invalidates all earlier receipts without erasing their history; fresh work
+  still retains the original workspace baseline for push introduction checks.
+  FIXM116P3-Husky-startup/layout-compatibility is superseded, not an open
+  compatibility residual.
+
+- **RVM116P (2026-10-06).** The P1 and all eight P2 findings are repaired;
+  none is accepted as residual. Every repair has a named regression and a
+  observed red drill with byte-exact restoration in `m116-p.md`. The shared
+  contracts have additive REDM116P lifecycle records: bounded content
+  fingerprints, lane/member/generation leases, work baselines and hook
+  receipts/violations. Internal notes still retain real user decisions. I must supply the canonical workspace,
+  renew reservations while work runs, release canceled work, surface lost
+  history's `needsUser` error, and bind override authority to the user's actual
+  decision. These planned integrations remain outside P's certification.
+
 - **M116-L0 enforcement handoff (RVM116L0).** All six lane-0 review findings
   are fixed in the contracts/fixtures; none is deferred as a residual.
   Actual stable-id allocation/recovery, lineage counter inheritance,

@@ -2774,13 +2774,15 @@
     "integrationRequired": "Guía: la rama {lane} debe incluir la rama continua de integración antes de fusionarse.",
     "drillMissing": "Guía: la rama {lane} necesita una prueba que falle y una restauración byte por byte para cada test o control nuevo.",
     "ownerFirst": "Guía: las necesidades del usuario y los fallos se muestran primero.",
-    "hookTampering": "Comprobación de seguridad: se rechaza eludir o modificar los hooks.",
+    "hookTampering": "Aviso anticipado: este comando parece omitir o cambiar los hooks. La verificación de commits controla el envío y la finalización.",
     "gateSkipped": "Comprobación de seguridad: se rechaza omitir un control.",
     "permissionLaundering": "Necesita tu intervención: esta acción ya fue rechazada; otro agente no puede volver a pedirla durante {duration}.",
     "classifierBlocked": "Necesita tu intervención: un clasificador de seguridad bloqueó esta acción; no se puede reintentar ni redirigir.",
     "ruleDisabled": "Guía: {actor} desactivó {rule}: {reason}",
     "lineageRequired": "Guía: {module} necesita un registro del origen del módulo o una excepción del responsable o propietario.",
-    "reviewerConflict": "Guía: {module} necesita un revisor con un identificador de agente y una sesión distintos."
+    "reviewerConflict": "Guía: {module} necesita un revisor con un identificador de agente y una sesión distintos.",
+    "hookVerificationFailed": "Se necesita tu intervención: falló la verificación de hooks del repositorio. El envío y la finalización están bloqueados.",
+    "unverifiedCommit": "Comprobación de seguridad: cada commit nuevo necesita un recibo de hooks aprobados antes del envío o la finalización."
   },
   "playbookStrikeBadge": {
     "one": "{count} ronda de revisión",

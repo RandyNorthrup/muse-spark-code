@@ -85,6 +85,10 @@ const reviewAgents = z.strictObject({
  * P refuses equal agent ids or shared sessions before consuming the review. */
 export type PlaybookReviewAgents = z.infer<typeof reviewAgents>
 
+/** Harness-issued identity; a release never makes an old generation valid. */
+const leaseToken = z.strictObject({ moduleId: id, laneId: id, ownerId: id, generation: id })
+export type PlaybookLease = z.infer<typeof leaseToken>
+
 /** No review text or file contents in the journal: only host-assigned references. */
 const findingRef = z.strictObject({
   id,
@@ -113,6 +117,7 @@ const answer = z.discriminatedUnion('status', [
 export const playbookRoundSchema = z.strictObject({
   module: playbookModuleSchema,
   ...reviewAgents.shape,
+  lease: z.optional(leaseToken),
   // Omitted class is the module aggregate; named class is its own counter.
   class: z.optional(z.enum(PLAYBOOK_FINDING_CLASSES)),
   round: z.int().check(z.gte(1)),
@@ -164,6 +169,8 @@ export const playbookWhyNoteSchema = z.strictObject({
     'drillMissing',
     'ownerFirst',
     'hookTampering',
+    'hookVerificationFailed',
+    'unverifiedCommit',
     'gateSkipped',
     'permissionLaundering',
     'classifierBlocked',
@@ -184,7 +191,7 @@ export const playbookWhyNoteSchema = z.strictObject({
 })
 export type PlaybookWhyNote = z.infer<typeof playbookWhyNoteSchema>
 export type PlaybookDecision =
-  | { readonly kind: 'allow'; readonly note: PlaybookWhyNote }
+  | { readonly kind: 'allow'; readonly note: PlaybookWhyNote; readonly lease?: PlaybookLease }
   | { readonly kind: 'refuse'; readonly note: PlaybookWhyNote }
 
 /** Each JSONL line is validated. P supplies bounded retention and second scrubbing. */
@@ -201,6 +208,37 @@ export const playbookRecordSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('design'), value: playbookDesignDecisionSchema }),
   z.strictObject({ kind: z.literal('note'), value: playbookWhyNoteSchema }),
   z.strictObject({ kind: z.literal('settings'), value: playbookSettingsSchema }),
+  z.strictObject({
+    kind: z.literal('lease'),
+    value: z.strictObject({
+      ...leaseToken.shape,
+      status: z.enum(['held', 'released']),
+      at: timestamp,
+    }),
+  }),
+  z.strictObject({
+    kind: z.literal('work'),
+    value: z.strictObject({
+      id,
+      moduleId: id,
+      refs: z.array(file).check(z.minLength(1)),
+      baseline: z.array(id),
+      hookDigest: id,
+      at: timestamp,
+    }),
+  }),
+  z.strictObject({
+    kind: z.literal('verification'),
+    value: z.strictObject({
+      workId: id,
+      moduleId: id,
+      commit: id,
+      hookDigest: id,
+      scope: z.enum(['commit', 'push']),
+      result: z.enum(['pass', 'fail']),
+      at: timestamp,
+    }),
+  }),
 ])
 export type PlaybookRecord = z.infer<typeof playbookRecordSchema>
 
@@ -247,6 +285,18 @@ export interface PlaybookPlanPort {
   readBoard(): PlaybookBoard
 }
 
+/** Trusted harness freezes these object ids before verification and push. */
+export interface PlaybookPushRange {
+  readonly remote: string
+  readonly url: string
+  readonly updates: readonly {
+    readonly localRef: string
+    readonly localOid: string
+    readonly remoteRef: string
+    readonly remoteOid: string
+  }[]
+}
+
 /** Compare effect+subject, not spelling or requester, when guarding a retry. */
 export interface PlaybookAction {
   readonly effect: string
@@ -289,12 +339,26 @@ export interface PlaybookReportItem {
  * No authorization is granted by this port; existing tool/paid gates still run.
  * Incomplete coverage is refused without incrementing any round. */
 export interface PlaybookPolicy {
+  beginWork(module: PlaybookModule, refs: readonly string[]): string
+  verifyWork(
+    workId: string,
+    range?: PlaybookPushRange,
+  ): { readonly decision: PlaybookDecision; readonly output: string }
+  beforePush(workId: string, range: PlaybookPushRange): PlaybookDecision
+  finishWork(workId: string): PlaybookDecision
+  renewPatch(module: PlaybookModule, lease: PlaybookLease): PlaybookDecision
+  releasePatch(module: PlaybookModule, lease: PlaybookLease): PlaybookDecision
   beforeDispatch(lane: PlaybookLane, board: PlaybookBoard): PlaybookDecision
-  beforeReview(module: PlaybookModule, agents: PlaybookReviewAgents): PlaybookDecision
+  beforeReview(
+    module: PlaybookModule,
+    agents: PlaybookReviewAgents,
+    lease?: PlaybookLease,
+  ): PlaybookDecision
   afterReview(
     module: PlaybookModule,
     review: ReviewBlock,
     agents: PlaybookReviewAgents,
+    lease?: PlaybookLease,
   ): PlaybookDecision
   beforeFixRound(module: PlaybookModule): PlaybookDecision
   beforeMerge(lane: PlaybookLane): PlaybookDecision

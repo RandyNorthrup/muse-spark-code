@@ -112,6 +112,32 @@ key to the CLI.
 Earlier releases are in the
 [changelog](https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md).
 
+## Orchestrator playbook policy (M116)
+
+The shared policy verifies commit outcomes before harness-managed push or
+completion. Its command guard is an advisory early warning. Each newly
+reachable commit needs a passing receipt for the repository's own hooks;
+failed or unavailable hooks add a strike and block completion and push.
+Verification discovers new branches, tags, notes, every worktree HEAD and
+private refs in every worktree. Hooks run only through native `git hook run`
+in the verification worktree with the source repository's absolute hooksPath;
+HUSKY, HUSKY_SKIP_HOOKS and all GIT_* overrides are removed from its environment.
+Git's exit code is the verdict, including repository-defined Husky startup
+and layout behavior. Git's missing-hook error fails closed for configured
+hook sets. Annotated tags verify their target commit; ref deletions need no
+hook receipt. Pre-repair receipts require fresh verification. Renewal and
+cancellation require the requesting lease token; hook-failure strikes stop
+patches even without review findings. POSIX timeout cleanup tracks descendants
+by parent chain and start-time identity, including separate sessions. Prepared
+Linux cgroup/scope runners take precedence; their M107 binding remains I/W work.
+Windows verification requires the trusted harness job runner and refuses while
+that integration is unavailable.
+Lane and generation leases fence stale reviews, and edited moves and merges
+inherit review history. Editor/planner integration remains M116 I/U/W work.
+See the [shared policy help reference](docs/reference.md) for its lifecycle.
+Regenerate it with `node scripts/gen-reference.mjs`; verify it with
+`npm run check:reference`.
+
 ## Highlights
 
 - **Streaming chat with tools you can see.** Every read, edit, write and shell
