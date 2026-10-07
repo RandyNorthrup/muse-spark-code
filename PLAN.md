@@ -40790,6 +40790,13 @@ certification's baseline and packaged observations are independent isolated
 workers; start that pair together, retain every export/call comparison, and
 measure the cold fixture again. No timer, retry or assertion is changed.
 
+The concurrent rerun also exposes E5's unread-output fixture generating
+104,858 five-character SSE deltas before its large-write marker. This case
+tests a blocked output pipe, not fragmentation throughput. Add a test-only
+single-text-delta reply option and use it only for the existing 512 KiB
+blocked reply; keep its marker, unread stdout, signal, 5.4-second exit
+assertion and 30-second test deadline unchanged.
+
 ### CI0150A — Clean-shard artifacts and portable certification (2026-10-07)
 
 Scope: six owning suites in the CI0150A brief. Clean hosted shards have no

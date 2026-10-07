@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Exercise headless unread-output shutdown with the same large write in one
+  synthetic text delta, avoiding more than 100,000 unnecessary fake frames.
+
 - Keep cold package certification within its existing setup deadline by
   observing the source and packaged native exports in isolated workers together.
 

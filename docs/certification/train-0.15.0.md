@@ -1933,6 +1933,18 @@ push, rebase, merge, credential output or disabled hook.
   test fails and the refusal case passes. The archive writer is restored
   byte-exact. No timeout, assertion, retry or worker-isolation rule changes.
 
+- An overloaded multi-job run at `463db7f0e` is not accepted as the final
+  receipt: its ChatGPT fixture overruns and E5's unread-output case takes
+  30 seconds. The latter manufactures 104,858 five-character fake SSE frames
+  before the large-write marker. Its synthetic reply now uses one text delta
+  for the identical 512 KiB write; the marker, unread output, signal, 5.4-second
+  exit bound and 30-second test timer stay unchanged. The three owning suites
+  pass 47 tests together (128.93 seconds). Deliberately sending SIGINT fails
+  the unchanged expected exit 143 with actual 130. The file is restored exactly.
+  Final verification isolates the aggregate, shard and other job processes on
+  separate CPU sets and runs one shard at a time; no product priority or delay
+  is changed. Interrupted old clones have been deleted.
+
 ### Fresh-clone job verification
 
 The first committed repair (`02fd30fe9`) passes all four Linux shards, the

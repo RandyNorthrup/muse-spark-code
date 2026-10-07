@@ -821,10 +821,10 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
           });
           const api = fakeModelApi();
           api.models = ['muse-spark-1.3-contributor'];
-          // The blocked reply stays inside exec's 32 MiB response cap: the fake
-          // streams text in five-character deltas, so 4 MiB of text would be cut
-          // short and withheld, and nothing large would reach stdout.
-          api.script({text:mode === 'blocked' ? 'x'.repeat(512 * 1024) : 'ok', usage:{input:10, output:5}, ...(mode === 'hold' ? {hold:new Promise(()=>{})} : {})});
+          // One large synthetic delta reaches the unread pipe without spending
+          // the signal test's deadline manufacturing 104,858 tiny SSE frames.
+          // The same 512 KiB write stays inside exec's 32 MiB response cap.
+          api.script({text:mode === 'blocked' ? 'x'.repeat(512 * 1024) : 'ok', isSingleTextDelta:mode === 'blocked', usage:{input:10, output:5}, ...(mode === 'hold' ? {hold:new Promise(()=>{})} : {})});
           globalThis.fetch = (url, init) => {
             if (mode === 'crash') throw new Error('startup ' + key);
             if (String(url).endsWith('/responses')) writeFileSync(process.env.M80D_REQUEST_MARKER, 'dispatched');
