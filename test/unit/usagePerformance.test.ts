@@ -1,22 +1,29 @@
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { aggregateUsage, shiftUsageDay, usageLocalDay } from '../../src/core/usage/aggregate'
 import { createUsageService } from '../../src/core/usage/usageService'
 import { usageFixtureDeps, usageFixtureRecord, usageNow } from './helpers/usageFixture'
 
 describe('usage at the M102 history scale', () => {
-  it('serves thirty days times two thousand calls and records the warm service timing on this rig', async () => {
-    const records = Array.from({ length: 60_000 }, (_, index) =>
-      usageFixtureRecord({
-        id: `call-${String(index)}`,
-        provider: `provider-${String(index % 9)}`,
-        day: shiftUsageDay(usageLocalDay(usageNow), -Math.floor(index / 2000)),
-      }),
-    )
-    const service = createUsageService(usageFixtureDeps(records))
-    const query = { range: '30d', groupBy: 'provider', metric: 'cost' } as const
+  const query = { range: '30d', groupBy: 'provider', metric: 'cost' } as const
+  const base = usageFixtureRecord()
+  const days = Array.from({ length: 30 }, (_, index) =>
+    shiftUsageDay(usageLocalDay(usageNow), -index),
+  )
+  const records = Array.from({ length: 60_000 }, (_, index) => ({
+    ...base,
+    id: `call-${String(index)}`,
+    provider: `provider-${String(index % 9)}`,
+    day: days[Math.floor(index / 2000)]!,
+  }))
+  const service = createUsageService(usageFixtureDeps(records))
+  const aggregate = aggregateUsage(records, [], query, usageNow)
+  beforeAll(async () => {
+    // Fixture construction and warm-up are outside the measured service request.
     await service.snapshot(query)
+  })
+  it('serves thirty days times two thousand calls and records the warm service timing on this rig', async () => {
     const started = performance.now()
     const state = await service.snapshot(query)
     const warmMs = performance.now() - started
@@ -25,7 +32,6 @@ describe('usage at the M102 history scale', () => {
     expect(state.buckets).toHaveLength(30)
     expect(state.breakdown).toHaveLength(9)
     expect(state.totals.costs[0]?.usd).toBeCloseTo(600, 6)
-    const aggregate = aggregateUsage(records, [], query, usageNow)
     expect(state.totals).toEqual(aggregate.totals)
     const folder = path.join(process.cwd(), 'temp')
     await mkdir(folder, { recursive: true })

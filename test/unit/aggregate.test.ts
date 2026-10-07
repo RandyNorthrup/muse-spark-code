@@ -75,14 +75,13 @@ describe('usage aggregation', () => {
     expect(usageSumUsd([undefined, undefined])).toBeUndefined()
     expect(usageSumUsd([0, undefined])).toBe(0)
   })
-  it('keeps randomized fixed-point settlements identical across orders, buckets, groups and serialized rollups', () => {
+  const trials = (() => {
     let seed = 102
     const random = (max: number): number => {
       seed = (seed * 16_807) % 2_147_483_647
       return seed % max
     }
-    const selected: UsageQuery = { ...query, range: '7d' }
-    for (let trial = 0; trial < 24; trial += 1) {
+    return Array.from({ length: 24 }, (_, trial) => {
       const records = Array.from({ length: 80 }, (_, index) => {
         const tag = random(6)
         return record({
@@ -100,6 +99,17 @@ describe('usage aggregation', () => {
           },
         })
       })
+      const shuffled = records
+        .map((call) => ({ call, order: random(10_000) }))
+        .toSorted((a, b) => a.order - b.order)
+        .map(({ call }) => call)
+      return { trial, records, shuffled }
+    })
+  })()
+  it.each(trials)(
+    'keeps randomized fixed-point settlements identical across orders, buckets, groups and serialized rollups: trial $trial',
+    ({ records, shuffled }) => {
+      const selected: UsageQuery = { ...query, range: '7d' }
       const rollups: UsageAggregateRow[] = []
       for (const provider of ['provider-0', 'provider-1']) {
         for (const model of ['model-0', 'model-1', 'model-2']) {
@@ -117,10 +127,6 @@ describe('usage aggregation', () => {
           })
         }
       }
-      const shuffled = records
-        .map((call) => ({ call, order: random(10_000) }))
-        .toSorted((a, b) => a.order - b.order)
-        .map(({ call }) => call)
       for (const groupBy of ['provider', 'model', 'kind', 'client'] as const) {
         for (const interval of ['hour', 'day', 'week'] as const) {
           for (const [calls, rows] of [
@@ -158,8 +164,8 @@ describe('usage aggregation', () => {
           }
         }
       }
-    }
-  })
+    },
+  )
   it('refuses amounts and sums outside safe fixed-point precision', () => {
     expect(() => usageSumUsd([Number.MAX_SAFE_INTEGER])).toThrow('unsafe usage amount')
     const safe = Math.floor(Number.MAX_SAFE_INTEGER / EXEC_USD_UNITS)

@@ -2,14 +2,16 @@ import { execFileSync } from 'node:child_process'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { brotliCompressSync, constants } from 'node:zlib'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { loadL10n } from '../../scripts/lib/l10nSource.mjs'
+import { createLocalizationCheck } from '../../scripts/lib/localizationGate.mjs'
 import { isPluralForms } from '../../src/shared/l10n/forms'
 import { USAGE_EN } from '../../src/shared/l10n/usageEn'
 
 const root = process.cwd()
 const script = path.join(root, 'scripts/check-l10n.mjs')
-const fixture = { root: '' }
+const fixture = { root: '', check: undefined, completeGate: undefined }
+const originalFiles = new Map()
 // Compression speed is irrelevant to the gate's decoded-value validation.
 const TEST_BROTLI_OPTIONS = { params: { [constants.BROTLI_PARAM_QUALITY]: 1 } }
 function writeJson(file, value) {
@@ -31,7 +33,7 @@ function translate(value, locale) {
     Object.entries(value).map(([key, child]) => [key, translate(child, locale)]),
   )
 }
-function runGate(args = []) {
+function runCli(args = []) {
   try {
     return {
       code: 0,
@@ -44,8 +46,11 @@ function runGate(args = []) {
     return { code: error.status, output: String(error.stdout) }
   }
 }
+function runGate(args = []) {
+  return fixture.check(args)
+}
 
-beforeEach(async () => {
+beforeAll(async () => {
   mkdirSync(path.join(root, 'temp'), { recursive: true })
   fixture.root = mkdtempSync(path.join(root, 'temp', 'm102-l10n-'))
   cpSync(path.join(root, 'src/shared'), path.join(fixture.root, 'src/shared'), {
@@ -73,12 +78,29 @@ beforeEach(async () => {
     cpSync(path.join(root, file), path.join(fixture.root, file))
     if (locale !== '') writeJson(`l10n/usage.${locale}.json`, translate(USAGE_EN, locale))
   }
+  for (const file of [
+    'l10n/untranslated.json',
+    ...TABLE_LOCALES.map((locale) => `l10n/usage.${locale}.json`),
+  ])
+    originalFiles.set(file, readFileSync(path.join(fixture.root, file)))
+  fixture.check = await createLocalizationCheck(fixture.root)
+  // Retain a real CLI smoke check; mutations use the same checker without cold builds.
+  fixture.completeGate = runCli()
+  fixture.check()
 })
-afterEach(() => rmSync(fixture.root, { recursive: true, force: true }))
+beforeEach(() => {
+  // Every test gets pristine mutable files without recopying the entire source tree.
+  for (const [file, contents] of originalFiles)
+    writeFileSync(path.join(fixture.root, file), contents)
+  for (const file of ['src/read.ts', 'l10n/usage.unknown.json', 'stage'])
+    rmSync(path.join(fixture.root, file), { recursive: true, force: true })
+})
+afterAll(() => rmSync(fixture.root, { recursive: true, force: true }))
 
 describe('both localization families', () => {
   it('passes all 14 complete usage tables and rejects a missing key, bad slots and untranslated text', () => {
-    expect(runGate()).toEqual({ code: 0, output: expect.stringContaining('0 problems') })
+    expect(fixture.completeGate).toEqual({ code: 0, output: expect.stringContaining('0 problems') })
+    expect(runGate()).toEqual(fixture.completeGate)
     const file = 'l10n/usage.de.json'
     const german = JSON.parse(readFileSync(path.join(fixture.root, file), 'utf8'))
     delete german.title

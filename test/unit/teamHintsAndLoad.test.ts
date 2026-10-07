@@ -14,7 +14,7 @@ import {
 import type * as fsPromises from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createWindowIdentity } from '../../src/host/team/windowIdentity'
 import { createLoadGuard } from '../../src/host/team/loadGuard'
 import {
@@ -27,9 +27,6 @@ import { runProgram, windowsPowerShell } from '../../src/host/processTree'
 import { powerShellQuoted } from '../../src/core/shellQuote'
 import { WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../src/shared/constants'
 import { createOrphanRecovery, type OrphanObservation } from '../../src/host/team/orphanRecovery'
-
-// These cases repeatedly launch native Windows ACL and opened-handle checks.
-const NATIVE_HINT_TRANSACTION_TIMEOUT_MS = 60_000
 
 const directories: string[] = []
 const permissionState = vi.hoisted(() => ({ ignoresChmod: false, foreignUid: false }))
@@ -61,7 +58,22 @@ afterEach(async () => {
     await rm(directory, { recursive: true, force: true })
 })
 
-async function hintFixture() {
+async function hintFixture(isNative = false) {
+  if (!isNative && process.platform === 'win32') {
+    // Advisory state cases use real files without spawning/compiling PowerShell
+    // on every read. The separate native cases exercise the actual ACL/handle path.
+    vi.spyOn(processTree, 'runProgram').mockImplementation(async (_file, args) => {
+      const script = args.at(-1) ?? ''
+      const read = /\[MuseTeamHintReader\]::Read\('((?:''|[^'])*)', (\d+)\)/.exec(script)
+      if (read !== null) {
+        const content = await readFile(read[1]!.replaceAll("''", "'"), 'utf8')
+        return Buffer.byteLength(content) > Number(read[2]) ? 'TEAM_HINT_TOO_LARGE' : content
+      }
+      if (script.includes('DirectorySecurity')) return 'secured'
+      if (script.includes('$acl.SetOwner($sid)')) return ''
+      throw new Error('Unexpected Windows hint helper')
+    })
+  }
   const directory = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm96-k-hints-')))
   directories.push(directory)
   let now = 100_000
@@ -114,7 +126,7 @@ const hintState: Omit<WindowHint, 'at' | 'instanceId'> = {
 const intent = { repository: '/repo/.git', paths: ['src/a.ts'], exclusiveServers: [] }
 
 async function publishedHintFixture() {
-  const f = await hintFixture()
+  const f = await hintFixture(true)
   const writer = f.make()
   const reader = f.make()
   await writer.hints.publish(hintState)
@@ -122,127 +134,126 @@ async function publishedHintFixture() {
 }
 
 describe('M96 K advisory hints', () => {
-  it('uses state home and secures a real native owner-only hints folder', async () => {
-    const f = await hintFixture()
-    const stateHome = windowHintsDirectory(
-      process.platform,
-      { LOCALAPPDATA: f.directory, XDG_STATE_HOME: f.directory },
-      f.directory,
-    )
-    expect(stateHome.endsWith(path.join('muse-spark-code', 'hints'))).toBe(true)
-    expect(() =>
-      windowHintsDirectory('linux', { XDG_STATE_HOME: 'relative' }, f.directory),
-    ).toThrow('STATE_HOME_UNAVAILABLE')
-    const disabled = vi.fn()
-    const hints = createWindowHints({
-      directory: f.directory,
-      instanceId: createWindowIdentity(Date.now()).instanceId,
-      platform: process.platform,
-      freshMs: 60_000,
-      writeMs: 10_000,
-      maxHintBytes: 8192,
-      now: Date.now,
-      disabled,
-      question: () => Promise.resolve('continue'),
-      overlap: () => [],
+  describe('native owner-only folder', () => {
+    let f: Awaited<ReturnType<typeof hintFixture>>
+    let hints: ReturnType<typeof createWindowHints>
+    let disabled: ReturnType<typeof vi.fn<() => void>>
+    beforeEach(async () => {
+      f = await hintFixture(true)
+      disabled = vi.fn()
+      hints = createWindowHints({
+        directory: f.directory,
+        instanceId: createWindowIdentity(Date.now()).instanceId,
+        platform: process.platform,
+        freshMs: 60_000,
+        writeMs: 10_000,
+        maxHintBytes: 8192,
+        now: Date.now,
+        disabled,
+        question: () => Promise.resolve('continue'),
+        overlap: () => [],
+      })
+      await hints.publish(hintState)
     })
-    await hints.publish(hintState)
-    expect(disabled).not.toHaveBeenCalled()
-    if (process.platform === 'win32') {
-      const ps = windowsPowerShell(process.env['SystemRoot'] ?? '', {})
-      const script = `$d = New-Object IO.DirectoryInfo(${powerShellQuoted(f.directory)}); $acl = $d.GetAccessControl(); $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User; $r = @($acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])); $acl.AreAccessRulesProtected -and $r.Count -eq 1 -and $r[0].IdentityReference.Value -eq $sid.Value`
-      const result = await runProgram(ps.file, [...WINDOWS_POWERSHELL_COMMAND_ARGS, script], ps.env)
-      expect(result.trim()).toBe('True')
-    } else {
-      const information = await stat(f.directory)
-      expect(information.mode & 0o777).toBe(0o700)
-    }
-    await hints.dispose()
-  })
-  it(
-    'publishes only the strict projection, sums all windows and removes its own hint',
-    async () => {
-      const f = await hintFixture()
-      const a = f.make()
-      const b = f.make()
-      await a.hints.publish(hintState)
-      await b.hints.publish({ ...hintState, workers: 5 })
-      const file = path.join(f.directory, `${a.id}.json`)
-      expect(JSON.parse(await readFile(file, 'utf8'))).toEqual({
-        ...hintState,
-        instanceId: a.id,
-        at: 100_000,
-      })
-      expect(await b.hints.advisory()).toEqual({
-        windows: 2,
-        workers: 9,
-        processWorkers: 4,
-        heavyCommands: 2,
-      })
-      await a.hints.dispose()
-      expect(await b.hints.advisory()).toEqual({
-        windows: 1,
-        workers: 5,
-        processWorkers: 2,
-        heavyCommands: 1,
-      })
-      await b.hints.dispose()
-    },
-    NATIVE_HINT_TRANSACTION_TIMEOUT_MS,
-  )
-
-  it(
-    'asks once across rewrites and other tasks; new path and drop ask again',
-    async () => {
-      const f = await hintFixture()
-      const a = f.make()
-      const b = f.make()
-      await a.hints.publish(hintState)
-      for (let rewrite = 0; rewrite < 10; rewrite++) {
-        await a.hints.publish(hintState)
-        expect(await b.hints.check(intent)).toBe('continue')
+    it('uses state home and secures a real native owner-only hints folder', async () => {
+      const stateHome = windowHintsDirectory(
+        process.platform,
+        { LOCALAPPDATA: f.directory, XDG_STATE_HOME: f.directory },
+        f.directory,
+      )
+      expect(stateHome.endsWith(path.join('muse-spark-code', 'hints'))).toBe(true)
+      expect(() =>
+        windowHintsDirectory('linux', { XDG_STATE_HOME: 'relative' }, f.directory),
+      ).toThrow('STATE_HOME_UNAVAILABLE')
+      expect(disabled).not.toHaveBeenCalled()
+      if (process.platform === 'win32') {
+        const ps = windowsPowerShell(process.env['SystemRoot'] ?? '', {})
+        const script = `$d = New-Object IO.DirectoryInfo(${powerShellQuoted(f.directory)}); $acl = $d.GetAccessControl(); $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User; $r = @($acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier])); $acl.AreAccessRulesProtected -and $r.Count -eq 1 -and $r[0].IdentityReference.Value -eq $sid.Value`
+        const result = await runProgram(
+          ps.file,
+          [...WINDOWS_POWERSHELL_COMMAND_ARGS, script],
+          ps.env,
+        )
+        expect(result.trim()).toBe('True')
+      } else {
+        const information = await stat(f.directory)
+        expect(information.mode & 0o777).toBe(0o700)
       }
-      expect(f.question).toHaveBeenCalledTimes(1)
-      await b.hints.check({ ...intent, paths: ['unrelated.ts'] })
-      await b.hints.check(intent)
-      expect(f.question).toHaveBeenCalledTimes(1)
-      await b.hints.check({ ...intent, paths: ['src/b.ts'] })
-      expect(f.question).toHaveBeenCalledTimes(2)
-      await a.hints.publish({ ...hintState, trees: [] })
-      await b.hints.check(intent)
-      await a.hints.publish(hintState)
-      await b.hints.check(intent)
-      expect(f.question).toHaveBeenCalledTimes(3)
-      await a.hints.dispose()
-      await b.hints.dispose()
-    },
-    NATIVE_HINT_TRANSACTION_TIMEOUT_MS,
-  )
+      await hints.dispose()
+    })
+  })
+  it('publishes only the strict projection, sums all windows and removes its own hint', async () => {
+    const f = await hintFixture()
+    const a = f.make()
+    const b = f.make()
+    await a.hints.publish(hintState)
+    await b.hints.publish({ ...hintState, workers: 5 })
+    const file = path.join(f.directory, `${a.id}.json`)
+    expect(JSON.parse(await readFile(file, 'utf8'))).toEqual({
+      ...hintState,
+      instanceId: a.id,
+      at: 100_000,
+    })
+    expect(await b.hints.advisory()).toEqual({
+      windows: 2,
+      workers: 9,
+      processWorkers: 4,
+      heavyCommands: 2,
+    })
+    await a.hints.dispose()
+    expect(await b.hints.advisory()).toEqual({
+      windows: 1,
+      workers: 5,
+      processWorkers: 2,
+      heavyCommands: 1,
+    })
+    await b.hints.dispose()
+  })
 
-  it(
-    'Wait lasts only while fresh collision exists; stale, absent and malformed hints never lock',
-    async () => {
-      const f = await hintFixture()
-      f.question.mockImplementation(() => Promise.resolve('wait'))
-      const a = f.make()
-      const b = f.make()
+  it('asks once across rewrites and other tasks; new path and drop ask again', async () => {
+    const f = await hintFixture()
+    const a = f.make()
+    const b = f.make()
+    await a.hints.publish(hintState)
+    for (let rewrite = 0; rewrite < 10; rewrite++) {
       await a.hints.publish(hintState)
-      expect(await b.hints.check({ ...intent, paths: [], exclusiveServers: ['browser'] })).toBe(
-        'wait',
-      )
-      f.setNow(160_000)
-      expect(await b.hints.check({ ...intent, paths: [], exclusiveServers: ['browser'] })).toBe(
-        'continue',
-      )
-      await writeFile(path.join(f.directory, `${a.id}.json`), '{broken')
       expect(await b.hints.check(intent)).toBe('continue')
-      expect(f.disabled).not.toHaveBeenCalled()
-      await a.hints.dispose()
-      expect(await b.hints.check(intent)).toBe('continue')
-      await b.hints.dispose()
-    },
-    NATIVE_HINT_TRANSACTION_TIMEOUT_MS,
-  )
+    }
+    expect(f.question).toHaveBeenCalledTimes(1)
+    await b.hints.check({ ...intent, paths: ['unrelated.ts'] })
+    await b.hints.check(intent)
+    expect(f.question).toHaveBeenCalledTimes(1)
+    await b.hints.check({ ...intent, paths: ['src/b.ts'] })
+    expect(f.question).toHaveBeenCalledTimes(2)
+    await a.hints.publish({ ...hintState, trees: [] })
+    await b.hints.check(intent)
+    await a.hints.publish(hintState)
+    await b.hints.check(intent)
+    expect(f.question).toHaveBeenCalledTimes(3)
+    await a.hints.dispose()
+    await b.hints.dispose()
+  })
+
+  it('Wait lasts only while fresh collision exists; stale, absent and malformed hints never lock', async () => {
+    const f = await hintFixture()
+    f.question.mockImplementation(() => Promise.resolve('wait'))
+    const a = f.make()
+    const b = f.make()
+    await a.hints.publish(hintState)
+    expect(await b.hints.check({ ...intent, paths: [], exclusiveServers: ['browser'] })).toBe(
+      'wait',
+    )
+    f.setNow(160_000)
+    expect(await b.hints.check({ ...intent, paths: [], exclusiveServers: ['browser'] })).toBe(
+      'continue',
+    )
+    await writeFile(path.join(f.directory, `${a.id}.json`), '{broken')
+    expect(await b.hints.check(intent)).toBe('continue')
+    expect(f.disabled).not.toHaveBeenCalled()
+    await a.hints.dispose()
+    expect(await b.hints.check(intent)).toBe('continue')
+    await b.hints.dispose()
+  })
 
   it('Windows consumes the handle-verified hint rather than an older opened inode after replacement', async () => {
     const f = await hintFixture()
@@ -285,10 +296,16 @@ describe('M96 K advisory hints', () => {
   })
 
   if (process.platform === 'win32') {
-    it(
-      'native Windows holds the consumed hint against replacement through ACL verification',
-      async () => {
-        const f = await publishedHintFixture()
+    describe('native Windows hint permissions', () => {
+      let f: Awaited<ReturnType<typeof publishedHintFixture>>
+      beforeEach(async () => {
+        f = await publishedHintFixture()
+      })
+      afterEach(async () => {
+        await f.writer.hints.dispose()
+        await f.reader.hints.dispose()
+      })
+      it('native Windows holds the consumed hint against replacement through ACL verification', async () => {
         const original = processTree.runProgram
         const helper = vi
           .spyOn(processTree, 'runProgram')
@@ -307,26 +324,20 @@ describe('M96 K advisory hints', () => {
         expect(f.disabled).not.toHaveBeenCalled()
         expect(helper).toHaveBeenCalled()
         expect(await readFile(f.file, 'utf8')).toContain(f.writer.id)
-        await f.writer.hints.dispose()
-        await f.reader.hints.dispose()
-      },
-      NATIVE_HINT_TRANSACTION_TIMEOUT_MS,
-    )
+      })
 
-    it('native Windows rejects an opened hint with another principal granted write access', async () => {
-      const f = await publishedHintFixture()
-      const powershell = windowsPowerShell(process.env['SystemRoot'] ?? '', {})
-      const script = `$f = New-Object IO.FileInfo(${powerShellQuoted(f.file)}); $acl = $f.GetAccessControl(); $everyone = New-Object Security.Principal.SecurityIdentifier('S-1-1-0'); $rule = New-Object Security.AccessControl.FileSystemAccessRule($everyone,'Modify','Allow'); $acl.AddAccessRule($rule); $f.SetAccessControl($acl)`
-      await runProgram(
-        powershell.file,
-        [...WINDOWS_POWERSHELL_COMMAND_ARGS, script],
-        powershell.env,
-      )
-      expect(await f.reader.hints.check(intent)).toBe('continue')
-      expect(f.question).not.toHaveBeenCalled()
-      expect(f.disabled).toHaveBeenCalledTimes(1)
-      await f.writer.hints.dispose()
-      await f.reader.hints.dispose()
+      it('native Windows rejects an opened hint with another principal granted write access', async () => {
+        const powershell = windowsPowerShell(process.env['SystemRoot'] ?? '', {})
+        const script = `$f = New-Object IO.FileInfo(${powerShellQuoted(f.file)}); $acl = $f.GetAccessControl(); $everyone = New-Object Security.Principal.SecurityIdentifier('S-1-1-0'); $rule = New-Object Security.AccessControl.FileSystemAccessRule($everyone,'Modify','Allow'); $acl.AddAccessRule($rule); $f.SetAccessControl($acl)`
+        await runProgram(
+          powershell.file,
+          [...WINDOWS_POWERSHELL_COMMAND_ARGS, script],
+          powershell.env,
+        )
+        expect(await f.reader.hints.check(intent)).toBe('continue')
+        expect(f.question).not.toHaveBeenCalled()
+        expect(f.disabled).toHaveBeenCalledTimes(1)
+      })
     })
   }
 

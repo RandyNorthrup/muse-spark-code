@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Make usage, reference, provider and companion tests independent of stale build
+  output and repeated cold setup on hosted runners, preserving default deadlines,
+  all randomized cases, offline replays and native Windows security checks.
+
 ## [0.15.0] - 2026-10-06
 
 ### Highlights

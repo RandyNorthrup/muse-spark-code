@@ -18789,6 +18789,19 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### CI0150B — Hosted CI test setup repair (2026-10-07, win11)
+
+- [x] Profile the ten lane-owned suites from a clean checkout with `CI=true`.
+      Share invariant transforms, source fixtures and cold setup; build only the
+      Usage browser artifacts required by its real CSP and chunk test.
+- [x] Preserve all assertions, history scales, performance budgets and default
+      deadlines; remove wall-clock races and normalize Windows fixture paths.
+- [x] Run every owned whole file three times after clean-tree removal, all five
+      typecheck projects, lint, changed-file formatting, plain knip and duplication.
+- [x] Prove a repaired guard fails under deliberate regression and restore exact
+      bytes; record timings and checks in `docs/certification/ci0150b.md`.
+      Commit locally with hooks; no push, merge, rebase or live/paid calls.
+
 ### REL0150M — Bring 0.14.4 and 0.14.5 into 0.15.0 (2026-10-06, linuxlt)
 
 - [x] Merge `rel-0145` then `chore/infra-0150-m`, each with `git merge --no-ff`;
@@ -40706,6 +40719,15 @@ pages. No version bump or README What’s New changes; no paid/live calls.
       in `docs/certification/train-0.15.0.md` and its TRAIN15H receipt.
 
 ## 7. Gates
+
+**CI0150B scoped verification (2026-10-07).** This lane owns the ten slow suites
+in its brief. The shared CI0150 rules require three clean-tree whole-file runs,
+all compiler projects, lint, formatting, plain knip and duplication. Full
+`npm run quality` certification is deferred to the integrated CI repair: the
+other lanes own clean-checkout artifact failures in configured-provider,
+headless/package and other suites, and this lane must not edit their files.
+No threshold, assertion, retry or global timeout is relaxed. This branch's
+receipts certify only its named suites and checks, not a complete release gate.
 
 **TRAIN15H scoped certification.** The lead's rig brief and shared common.md
 reserve aggregate quality for the lead. This lane runs complete owning files
