@@ -26,6 +26,10 @@ it(
       "const value = '😀'\r\nconst other = 2\r\n",
     )
     await writeFile(
+      path.join(workspace, 'language services Ω.ts'),
+      'export function m104Double(value:number){return value*2}\nexport const result=m104Double(21)\n',
+    )
+    await writeFile(
       path.join(profile, 'User', 'settings.json'),
       JSON.stringify({
         'update.mode': 'none',
@@ -59,7 +63,7 @@ it(
       if (isCredentialVariable(name)) Reflect.deleteProperty(process.env, name)
     await runTests({
       vscodeExecutablePath: 'C:/Program Files/Microsoft VS Code/Code.exe',
-      extensionDevelopmentPath: process.cwd(),
+      extensionDevelopmentPath: [process.cwd(), path.resolve('test/m104/windows/notebookFixture')],
       extensionTestsPath: path.join(root, 'entry.js'),
       extensionTestsEnv: {
         M104_PD_RESULT: receipt,
@@ -90,7 +94,7 @@ it(
       platform: 'win32',
       modelAttempts: 0,
     })
-    expect(result.receipts).toHaveLength(8)
+    expect(result.receipts).toHaveLength(11)
   },
   INSTALLED_EDITOR_TIMEOUT_MS,
 )

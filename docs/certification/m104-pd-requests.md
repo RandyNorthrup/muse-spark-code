@@ -62,3 +62,13 @@ F-owned source record still describes 349 APIs; the terminal adapter yields
 353, adding native terminal disposal/argv/environment/close-event usage and
 the new `node:crypto` reader. Then rerun the check without `--write`. No host API
 gate or generated record is bypassed in this lane.
+
+A/B: bind the frozen code-intelligence methods to the existing native language
+driver through the integrated runtime, preserving virtual-resource identity and
+file-operation refusal. The installed VS Code receipt now exercises real
+TypeScript definition/reference/hover/symbol/rename answers through
+`vscodeLanguageServices()`; that direct native-driver receipt does not qualify
+the currently unbound in-process MHP `codeIntel` group. A's installed-Windows
+job must load the test-only notebook contribution at
+`test/m104/windows/notebookFixture` beside the product extension, as the suite
+does now. No product manifest or provider capability was changed for this test.

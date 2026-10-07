@@ -1,7 +1,10 @@
 import * as assert from 'node:assert/strict'
-import { writeFile } from 'node:fs/promises'
+import { realpath, writeFile } from 'node:fs/promises'
 import * as vscode from 'vscode'
 import { createVscodeHostServices } from '../../../src/host/vscode/hostServices'
+import { vscodeLanguageServices } from '../../../src/host/vscode/codeIntel/languageServices'
+import { createVerifyEditor } from '../../../src/host/vscode/editor/verifyEditor'
+import { createLogger } from '../../../src/host/logger'
 import { COMMAND_IDS, EXTENSION_QUALIFIED_ID, MHP } from '../../../src/shared/constants'
 
 // A real Windows terminal writes and exits through the editor's pty host.
@@ -101,6 +104,106 @@ export async function run(): Promise<void> {
   assert.equal(active.range.end.character - active.range.start.character, '😀'.length)
   receipts.push('selection/caret positions use the native UTF-16 snapshot')
 
+  const cellText = "const cell = '😀'"
+  const notebookData = new vscode.NotebookData([
+    new vscode.NotebookCellData(vscode.NotebookCellKind.Code, cellText, 'typescript'),
+  ])
+  const serializer = vscode.workspace.registerNotebookSerializer('m104-pd-fixture', {
+    deserializeNotebook: () => notebookData,
+    serializeNotebook: () => {
+      throw new Error('M104_FIXTURE_NOTEBOOK_IS_READ_ONLY')
+    },
+  })
+  try {
+    const notebook = await vscode.workspace.openNotebookDocument('m104-pd-fixture', notebookData)
+    const notebookEditor = await vscode.window.showNotebookDocument(notebook)
+    notebookEditor.selections = [new vscode.NotebookRange(0, 1)]
+    const cell = notebook.cellAt(0).document
+    assert.equal(cell.uri.scheme, 'vscode-notebook-cell')
+    const cellEmoji = cellText.indexOf('😀')
+    const cellEditor = await vscode.window.showTextDocument(cell, {
+      selection: new vscode.Range(0, cellEmoji, 0, cellEmoji + '😀'.length),
+    })
+    assert.equal(cellEditor.document, cell)
+    const cellRead = await host.request('documents/read', { uri: cell.uri.toString() })
+    assert.equal(cellRead.text, cellText)
+    assert.equal(cellRead.document.version, cell.version)
+    assert.equal(cellRead.document.languageId, 'typescript')
+    const cellActive = await host.request('editor/active', {})
+    assert.ok(cellActive)
+    assert.equal(cellActive.uri, cell.uri.toString())
+    assert.equal(cellActive.excerpt, '😀')
+    assert.equal(cellActive.range.end.character - cellActive.range.start.character, '😀'.length)
+    cellEditor.selection = new vscode.Selection(0, 0, 0, 0)
+    const moved = await host.request('editor/active', {})
+    assert.ok(moved)
+    assert.equal(moved.range.start.character, 0)
+    assert.equal(moved.range.end.character, 0)
+    receipts.push(
+      'native notebook-cell read/UTF-16 selection sees the current caret after movement',
+    )
+  } finally {
+    serializer.dispose()
+    await vscode.window.showTextDocument(document)
+  }
+
+  const typescript = vscode.extensions.getExtension('vscode.typescript-language-features')
+  assert.ok(typescript)
+  await typescript.activate()
+  const languageUri = vscode.Uri.joinPath(root, 'language services Ω.ts')
+  const languageDocument = await vscode.workspace.openTextDocument(languageUri)
+  await vscode.window.showTextDocument(languageDocument)
+  const language = vscodeLanguageServices()
+  const call = { line: 1, character: languageDocument.lineAt(1).text.indexOf('m104Double') + 1 }
+  const definitions = await language.definitions(languageUri.fsPath, call)
+  assert.ok(
+    definitions.some(
+      (item) =>
+        item.path?.replaceAll('\\', '/').toLowerCase() ===
+          languageUri.fsPath.replaceAll('\\', '/').toLowerCase() && item.range.start.line === 0,
+    ),
+  )
+  const references = await language.references(languageUri.fsPath, call)
+  assert.ok(references.some((item) => item.range.start.line === 0))
+  assert.ok(references.some((item) => item.range.start.line === 1))
+  const hover = await language.hover(languageUri.fsPath, call)
+  assert.ok(hover.some((part) => part.includes('m104Double')))
+  const symbols = await language.documentSymbols(languageUri.fsPath)
+  assert.ok(symbols.some((symbol) => symbol.name === 'm104Double'))
+  assert.ok(symbols.some((symbol) => symbol.name === 'result'))
+  const rename = await language.rename(languageUri.fsPath, call, 'm104Twice')
+  assert.equal(rename.fileOperations, 'none')
+  assert.equal(rename.files.length, 1)
+  assert.equal(rename.files[0]?.edits.length, 2)
+  assert.ok(rename.files[0].edits.every((edit) => edit.newText === 'm104Twice'))
+  assert.ok(languageDocument.getText().includes('m104Double'))
+  receipts.push(
+    'installed TypeScript service returns definition/references/hover/symbols and a text-only rename plan',
+  )
+
+  const output = vscode.window.createOutputChannel('M104 Windows Verify Fixture', { log: true })
+  const verify = createVerifyEditor({
+    platform: process.platform,
+    workspaceRoot: root.fsPath,
+    realPath: realpath,
+    log: createLogger(output),
+  })
+  try {
+    const nativePath = await realpath(languageUri.fsPath)
+    const before = languageDocument.getText()
+    const formatted = await verify.formatAfterEdit(nativePath, before)
+    assert.ok(formatted)
+    assert.ok(formatted.includes('value * 2'))
+    assert.equal(languageDocument.getText(), before)
+    assert.equal(languageDocument.isDirty, false)
+    assert.equal(await verify.formatAfterEdit(nativePath, before + '\n// stale'), undefined)
+    receipts.push('native formatter returns an unwritten plan and refuses a stale editor snapshot')
+  } finally {
+    verify.dispose()
+    output.dispose()
+  }
+  await vscode.window.showTextDocument(document)
+
   const diagnostics = vscode.languages.createDiagnosticCollection('m104-pd-fixture')
   try {
     const diagnostic = new vscode.Diagnostic(
@@ -181,10 +284,10 @@ export async function run(): Promise<void> {
   await assert.rejects(host.request('window/state', {}), /MHP_HOST_CLOSED/u)
   receipts.push('MHP 1.2 in-process schema boundary and shutdown refusal')
 
-  const output = process.env['M104_PD_RESULT']
-  assert.ok(output)
+  const receiptPath = process.env['M104_PD_RESULT']
+  assert.ok(receiptPath)
   await writeFile(
-    output,
+    receiptPath,
     JSON.stringify(
       {
         editor: vscode.env.appName,
