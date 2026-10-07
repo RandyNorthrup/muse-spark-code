@@ -382,7 +382,9 @@ describe('M114 bounded pixelmatch visual gate', () => {
     expect(visual).toContain('test "$SHARDS" = success')
     expect(visual).toContain('--merge-shards=temp/visual-shards')
     expect(visual).not.toContain('inputs.fast')
-    expect(workflow).toContain('check:badges check:tokens check:l10n')
+    // The static checks step runs quality:gates' static gates, so the visual
+    // gate (M114 S) sits between check:tokens and check:l10n there.
+    expect(workflow).toContain('check:badges check:tokens check:visual check:l10n')
     const required = workflow.slice(
       workflow.indexOf('  required:'),
       workflow.indexOf('  native-build:'),
