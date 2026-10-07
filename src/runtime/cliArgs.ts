@@ -65,6 +65,7 @@ export type RuntimeCommand =
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
   | { readonly command: 'accounts'; readonly options: AccountsCommand }
+  | { readonly command: 'developer'; readonly args: readonly string[] }
   | { readonly command: 'help'; readonly all?: boolean }
   | { readonly command: 'authSet'; readonly target?: AccountTarget }
   | { readonly command: 'authStatus' | 'authClear' | 'version' }
@@ -113,6 +114,9 @@ export function parseCommandLine(argv: readonly string[]): RuntimeCommand {
       ? { command: 'invalid', reason: fill(UI_TEXT.accounts.cliUsage, { command: ACP_AGENT_NAME }) }
       : { command: 'accounts', options }
   }
+  // The developer words stay raw here: the strict parser would reject them,
+  // and the terminal owner validates them (X-D4, lane X's strict table).
+  if (argv[0] === 'developer') return { command: 'developer', args: argv }
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   if (argv[0] === 'report') return parseReport(argv.slice(1))
   let parsed: ReturnType<typeof parseCommandLineStrictly>

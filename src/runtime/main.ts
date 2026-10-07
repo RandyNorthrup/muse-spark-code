@@ -45,7 +45,7 @@ import { reportEventsOf } from '../core/support/journalEvents'
 import { agentDataFolder } from './dataFolder'
 import { runReportCommand } from './reportCommand'
 import { readSecretLine } from './hiddenInput'
-import { credentialStoreName, keyringSecretStore } from './keyStore'
+import { credentialStoreName, keyringSecretStore, type KeyringEntry } from './keyStore'
 import { takeCredentials } from './credentialVariables'
 import { displayLanguage } from './locale'
 import { envProxyWarning } from './proxyWarning'
@@ -65,22 +65,14 @@ import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { uiLocale } from '../shared/l10n/text'
-import {
-  runAccountsCommand,
-  runAccountAuthSet,
-  type AccountsCommandDeps,
-} from './providers/accountsCommand'
-import type { AccountsSessionPort } from '../acp/accounts'
-import type { ExecAccountsPort } from './exec/execAccounts'
+import { runAccountsCommand, runAccountAuthSet } from './providers/accountsCommand'
 import { ACCOUNT_DEFAULT_ID } from '../shared/constants'
-
-/** H-W-PROFILE: integration supplies one broker-owned service. With no
- * binding, additional-account commands fail before reading a credential. */
-interface RuntimeAccountsServices {
-  readonly commands: Omit<AccountsCommandDeps, 'print' | 'printError'>
-  readonly sessions: AccountsSessionPort
-  readonly exec: ExecAccountsPort
-}
+import {
+  createRuntimeAccountServices,
+  type RuntimeAccountServices,
+} from './providers/runtimeServices'
+import { runDeveloperCommand } from './developer/developerCommand'
+import { developerStatusText } from '../core/developer/surfaces'
 
 const EXIT_FAILED = 1
 // The Model API key variable Muse Code reads; the report says only whether it was set.
@@ -127,15 +119,48 @@ function packageVersion(): string {
 }
 
 /** The OS credential store's entry; Linux is held to the Secret Service (D61). */
+type KeyringEntryConstructor = new (
+  service: string,
+  account: string,
+  options: { linux: { store: 'secret-service' } },
+) => KeyringEntry
+const keyringEntryClass: { value?: Promise<KeyringEntryConstructor> } = {}
+async function loadEntryClass(): Promise<KeyringEntryConstructor> {
+  keyringEntryClass.value ??= (async () => {
+    const keyring = await import('@napi-rs/keyring')
+    return keyring.AsyncEntry
+  })()
+  return await keyringEntryClass.value
+}
+/** The OS credential store's entry; Linux is held to the Secret Service (D61). */
+function openKeyringEntry(service: string, account: string): KeyringEntry {
+  const loaded: { value?: Promise<KeyringEntry> } = {}
+  const entry = async (): Promise<KeyringEntry> => {
+    loaded.value ??= (async () => {
+      const AsyncEntry = await loadEntryClass()
+      return new AsyncEntry(service, account, { linux: { store: 'secret-service' } })
+    })()
+    return await loaded.value
+  }
+  return {
+    getPassword: async (): Promise<string | undefined> => {
+      const open = await entry()
+      const secret = await open.getPassword()
+      return secret ?? undefined
+    },
+    setPassword: async (value: string): Promise<void> => {
+      const open = await entry()
+      await open.setPassword(value)
+    },
+    deletePassword: async (): Promise<boolean> => {
+      const open = await entry()
+      return await open.deletePassword()
+    },
+  }
+}
 const nativeStore: { value?: Promise<SecretStore> } = {}
 async function loadSecrets(): Promise<SecretStore> {
-  nativeStore.value ??= (async () => {
-    const { AsyncEntry } = await import('@napi-rs/keyring')
-    return keyringSecretStore(
-      (service, account) =>
-        new AsyncEntry(service, account, { linux: { store: 'secret-service' } }),
-    )
-  })()
+  nativeStore.value ??= Promise.resolve(keyringSecretStore(openKeyringEntry))
   return await nativeStore.value
 }
 const secrets: SecretStore = {
@@ -335,7 +360,7 @@ async function setupHooks(
 async function serve(
   options: ServeOptions,
   log: Logger,
-  accounts?: RuntimeAccountsServices,
+  accounts: RuntimeAccountServices,
 ): Promise<number> {
   const directory = path.join(
     agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
@@ -368,7 +393,9 @@ async function serve(
   const journal = await reportJournal(log)
   await journal.startup()
   const agent = createAcpAgent({
-    ...(accounts !== undefined && { accounts: accounts.sessions }),
+    // The Model API backend serves Meta's key; Muse Code accounts stay off
+    // without a live capture (M108 acceptance 9, lane M's Q-M108 wait).
+    ...(options.backend === 'modelApi' && { accounts: accounts.sessions('meta') }),
     backend: runtime.backend,
     version: packageVersion(),
     options: {
@@ -427,7 +454,19 @@ function logLevel(command: ReturnType<typeof parseCommandLine>): LogLevel {
   return command.options.isVerbose ? 'trace' : 'info'
 }
 
-async function main(accounts?: RuntimeAccountsServices): Promise<number> {
+async function main(): Promise<number> {
+  // The runtime's parent-owned account service (M108/W): the CLI commands,
+  // ACP sessions and headless runs share one store over the runtime's
+  // providers file and the OS credential store. Building it reads nothing;
+  // the keyring loads only when a credential is touched.
+  const accounts = createRuntimeAccountServices({
+    dataDir: agentDataFolder({
+      platform: process.platform,
+      env: process.env,
+      homeDir: homedir(),
+    }),
+    openEntry: openKeyringEntry,
+  })
   const command = parseCommandLine(process.argv.slice(2))
   if (command.command === 'invalid' && command.exitCode === EXEC_EXIT.usage) {
     const stderr = createFdWriter(process.stderr.fd, () => {
@@ -505,7 +544,7 @@ async function main(accounts?: RuntimeAccountsServices): Promise<number> {
         }
       }
       headlessCode = await runExec(lifecycle, {
-        ...(accounts !== undefined && { accounts: accounts.exec }),
+        accounts: accounts.exec,
         options: command.options,
         version: packageVersion(),
         distDir,
@@ -577,19 +616,11 @@ async function main(accounts?: RuntimeAccountsServices): Promise<number> {
     case 'authSet': {
       const { target } = command
       if (target === undefined) return await authSet(authDeps())
-      if (accounts === undefined) {
-        if (target.provider === 'meta' && target.account === ACCOUNT_DEFAULT_ID)
-          return await authSet(authDeps())
-        writeLine(process.stderr, UI_TEXT.accounts.unavailable)
-        return EXIT_FAILED
-      }
-      return await runAccountAuthSet(target, { ...accounts.commands, ...authDeps() })
+      return target.provider === 'meta' && target.account === ACCOUNT_DEFAULT_ID
+        ? await authSet(authDeps())
+        : await runAccountAuthSet(target, { ...accounts.commands, ...authDeps() })
     }
     case 'accounts': {
-      if (accounts === undefined) {
-        writeLine(process.stderr, UI_TEXT.accounts.unavailable)
-        return EXIT_FAILED
-      }
       return await runAccountsCommand(command.options, {
         ...accounts.commands,
         print: (line) => {
@@ -599,6 +630,21 @@ async function main(accounts?: RuntimeAccountsServices): Promise<number> {
           writeLine(process.stderr, line)
         },
       })
+    }
+    case 'developer': {
+      const owner = await accounts.developer({
+        readLine: (prompt) => readSecretLine(prompt, process.stdin, process.stderr),
+        print: (line) => {
+          writeLine(process.stdout, line)
+        },
+      })
+      const reply = await runDeveloperCommand(owner, command.args, 'terminal')
+      if (reply.type === 'developer/error') {
+        writeLine(process.stderr, UI_TEXT.developer[reply.code])
+        return EXIT_FAILED
+      }
+      writeLine(process.stdout, developerStatusText(reply))
+      return 0
     }
     case 'authStatus': {
       return await authStatus(authDeps())

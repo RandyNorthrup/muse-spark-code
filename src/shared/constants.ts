@@ -3172,6 +3172,10 @@ export const ACP_WORKSPACE_HASH_CHARS = 16
 // "Allow always in this workspace" for paid uses (M58), every folder's in one
 // file beside the folders' own, keyed by the same hash.
 export const ACP_PAID_GRANTS_FILE = 'paid-uses.json'
+// M108 (PLAN.md D88.1): the runtime's own providers file beside the session
+// folders. It holds account metadata only, never a credential; M95 owns the
+// VS Code-side envelope, whose accounts field this mirrors.
+export const ACCOUNT_PROVIDERS_FILE = 'providers.json'
 // The file walk that stands in for VS Code's file search when git cannot
 // list a folder: what it never descends into.
 export const FILE_WALK_SKIPPED: ReadonlySet<string> = new Set(['.git', 'node_modules'])
