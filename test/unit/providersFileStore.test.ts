@@ -34,6 +34,19 @@ function seed(folder: string, envelope: unknown): string {
   return file
 }
 
+async function expectWriteRejected(
+  metadata: ReturnType<typeof fileAccountsMetadata>,
+): Promise<void> {
+  const rows = [{ id: 'default', label: 'D', order: 0, thresholds: {} }] as const
+  // writeAccounts throws synchronously; the async boundary turns it into a
+  // rejection for the assertion.
+  await expect(
+    (async () => {
+      await metadata.writeAccounts('meta', [...rows])
+    })(),
+  ).rejects.toBeInstanceOf(AccountStoreError)
+}
+
 describe('fileAccountsMetadata', () => {
   it('reads nothing when the file is absent', async () => {
     const metadata = fileAccountsMetadata(dir())
@@ -58,13 +71,7 @@ describe('fileAccountsMetadata', () => {
   it('refuses an unknown provider instead of creating one', async () => {
     const folder = dir()
     seed(folder, { providers: {} })
-    const metadata = fileAccountsMetadata(folder)
-    const rows = [{ id: 'default', label: 'D', order: 0, thresholds: {} }] as const
-    await expect(
-      (async () => {
-        await metadata.writeAccounts('meta', [...rows])
-      })(),
-    ).rejects.toBeInstanceOf(AccountStoreError)
+    await expectWriteRejected(fileAccountsMetadata(folder))
   })
 
   it('throws on a corrupt file instead of clobbering it', async () => {
@@ -76,12 +83,7 @@ describe('fileAccountsMetadata', () => {
         await metadata.read('meta')
       })(),
     ).rejects.toBeInstanceOf(AccountStoreError)
-    const rows = [{ id: 'default', label: 'D', order: 0, thresholds: {} }] as const
-    await expect(
-      (async () => {
-        await metadata.writeAccounts('meta', [...rows])
-      })(),
-    ).rejects.toBeInstanceOf(AccountStoreError)
+    await expectWriteRejected(metadata)
     expect(readFileSync(before, 'utf8')).toBe('{oops')
   })
 
