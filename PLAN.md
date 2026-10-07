@@ -19191,6 +19191,13 @@ default-deadline owning suites, followed by fresh-clone CI-style TypeScript
 checks in `docs/certification/m104.md`. Scoped rig checks replace aggregate
 quality; no merge, dependency, cap change, support promotion or live/paid call.
 
+The fresh-clone full lint exposes three existing floating promises in
+`test/unit/judgeSameSession.test.ts`. This lane may make the fixture await
+its fake background completion instead of sleeping, while retaining the
+immediate-return assertion and synchronous invalid-timeout assertion. Run
+that owning file three times at the default deadline and prove the existing
+lint rule rejects the exact-base file; no judge production behavior changes.
+
 **FIXM104PA4 / RVM104PA4 (2026-10-07).** Close the re-review's two P2
 findings in lane A's files, closing residual R3-2. State publication
 reconciles into the mounted presentation page (fresh boundary key only
@@ -19637,6 +19644,19 @@ and are not transferred or accepted as complete by these launcher repairs.
 ---
 
 ## 7. Gates
+
+**FIXM104PE2 native static debt (2026-10-07).** The exact `5adb76f38`
+snapshot fails Detekt with five issues. This repair removes its settled-report
+return-count and line-length issues, and removes every new Detekt issue in the
+page preparation and browser regression. Three unchanged findings remain in
+`NativeHostServices`: its seven-parameter constructor (`LongParameterList`),
+the 15-branch UI dispatcher (`CyclomaticComplexMethod`), and the class's
+15 functions (`TooManyFunctions`). Defer decomposition of that existing
+service to a dedicated native cleanup: changing its full constructor and UI
+ownership is outside this six-finding repair. The mandatory Maven `verify`
+and Gradle `test` gates and native regressions are required green; Detekt
+is explicitly not certified green. No threshold, ignore or rule is changed.
+Exact base/head commands and counts are in `docs/certification/m104.md`.
 
 **FIXM104PA3 packaging correction (2026-10-06).** Lane A repairs the existing
 VSIX allowlist and its actual package-member/production activation tests for

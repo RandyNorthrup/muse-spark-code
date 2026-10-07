@@ -261,19 +261,25 @@ class NativeHostServices(
     val expected = params["expectedVersion"].asLong
     val (file, document) = documents.document(uri)
     if (document.modificationStamp != expected) return jsonValue(null)
-    val psi = PsiDocumentManager.getInstance(project).getPsiFile(document) ?: return jsonValue(null)
+    val psi = PsiDocumentManager.getInstance(project).getPsiFile(document)
     val daemon = DaemonCodeAnalyzerImpl.getInstance(project)
     // The daemon's completion predicate checks committed PSI, the exact document
     // stamp and dirty analysis scopes; cached highlights alone attest none of these.
-    if (daemon !is DaemonCodeAnalyzerImpl || !daemon.isAllAnalysisFinished(psi)) return jsonValue(null)
-    val diagnostics = fileDiagnostics(file, document)
-    checkCurrent()
-    if (document.modificationStamp != expected || !daemon.isAllAnalysisFinished(psi)) return jsonValue(null)
-    return json(
-      "uri" to DocumentServices.uri(file),
-      "version" to expected,
-      "diagnostics" to diagnostics,
-    )
+    return if (psi == null || daemon !is DaemonCodeAnalyzerImpl || !daemon.isAllAnalysisFinished(psi)) {
+      jsonValue(null)
+    } else {
+      val diagnostics = fileDiagnostics(file, document)
+      checkCurrent()
+      if (document.modificationStamp != expected || !daemon.isAllAnalysisFinished(psi)) {
+        jsonValue(null)
+      } else {
+        json(
+          "uri" to DocumentServices.uri(file),
+          "version" to expected,
+          "diagnostics" to diagnostics,
+        )
+      }
+    }
   }
 
   private fun ui(

@@ -104,7 +104,7 @@ class EmbeddedPanel(
     }
     runCatching {
       installGuards()
-      browser.loadHTML(html(), policy.page)
+      browser.loadHTML(prepareHtml(), policy.page)
       readiness.start()
     }.onFailure {
       query.dispose()
@@ -127,7 +127,7 @@ class EmbeddedPanel(
     surface.reload()
     subscribed.set(false)
     readiness.restart()
-    browser.loadHTML(html(), policy.page)
+    browser.loadHTML(prepareHtml(), policy.page)
   }
 
   fun updateTheme() {
@@ -140,12 +140,9 @@ class EmbeddedPanel(
     browser.cefBrowser.executeJavaScript(script, policy.page, 0)
   }
 
-  private fun html(): String {
+  private fun prepareHtml(source: String? = null): String {
     val kind = if (surface.kind in setOf("tasks", "whatsNew")) surface.kind else "chat"
-    return prepareHtml(JsonBoundary.resource("/pages/$kind.$locale.html"))
-  }
-
-  private fun prepareHtml(html: String): String {
+    val html = source ?: JsonBoundary.resource("/pages/$kind.$locale.html")
     val envelope = boundary.panel.getAsJsonObject("envelope")
     val payloads =
       envelope.getAsJsonArray("oneOf").map {
@@ -181,7 +178,6 @@ class EmbeddedPanel(
     val safeScript =
       JsonBoundary.resource("/embedded.mjs") +
         "\nwindow.installMuseHost($safeConfig,(request,onSuccess,onFailure)=>{$injection});" + moduleBridge(injection)
-    val kind = if (surface.kind in setOf("tasks", "whatsNew")) surface.kind else "chat"
     return html
       .replace(
         "__MUSE_ASSET_BASE__",
