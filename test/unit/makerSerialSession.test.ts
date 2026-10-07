@@ -1,5 +1,4 @@
-import type { SerialApprovalRequest } from '../../src/core/maker/ports'
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -8,31 +7,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   claimHardwareLease,
   didStopHardwareLease,
+  stopHardwareLease,
   serialLeaseResource,
 } from '../../src/core/maker/lease'
 import {
-  runSerialAction as engineRunSerialAction,
+  runSerialAction,
   type SerialActionInput,
+  type SerialApprovalRequest,
   type SerialSessionDependencies,
 } from '../../src/core/maker/serial/session'
 import type { SerialCapture, SerialProcess } from '../../src/core/maker/serial/process'
 import { makerLeaseDeps } from './helpers/makerSerial'
 
-function runSerialAction(input: unknown, deps: SerialSessionDependencies) {
-  return engineRunSerialAction(input, {
-    ...deps,
-    confirm: (request, review) => {
-      review({
-        v: 1,
-        type: 'makerPayloadReviewed',
-        id: request.id,
-        digest: request.digest,
-        isComplete: true,
-      })
-      return deps.confirm(request, review)
-    },
-  })
-}
 const directories: string[] = []
 afterEach(async () => {
   for (const directory of directories.splice(0))
@@ -40,7 +26,7 @@ afterEach(async () => {
 })
 
 function allow(request: SerialApprovalRequest) {
-  return { id: request.id, digest: request.digest, target: request.target, decision: 'allow_once' }
+  return { id: request.id, digest: request.digest, decision: 'allow_once' }
 }
 
 const classifyReplacement: SerialSessionDependencies['classify'] = (input) =>
@@ -61,7 +47,9 @@ function enteredSignal() {
 }
 
 async function fixture() {
-  const directory = await mkdtemp(path.join(tmpdir(), 'm103-session-'))
+  const directory = await mkdtemp(
+    path.join(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'm103-session-'),
+  )
   directories.push(directory)
   const port = path.join(directory, 'fake-port')
   await writeFile(port, '')
@@ -88,13 +76,7 @@ async function fixture() {
   const identityNow = vi
     .fn<SerialSessionDependencies['identityNow']>()
     .mockResolvedValue(input.identity)
-  const open = vi.fn<SerialSessionDependencies['open']>(
-    async (_input, _maxBytes, _signal, start) => {
-      const guard = await start()
-      guard()
-      return transport
-    },
-  )
+  const open = vi.fn<SerialSessionDependencies['open']>().mockResolvedValue(transport)
   const log = vi.fn<SerialSessionDependencies['log']>().mockResolvedValue(undefined)
   const deps: SerialSessionDependencies = {
     platform: process.platform,
@@ -110,84 +92,141 @@ async function fixture() {
     log,
     signal: abort.signal,
   }
-  return { deps, input, confirm, identityNow, open, log, write, close, abort, capture }
+  return { deps, input, confirm, identityNow, open, log, write, close, abort, capture, transport }
 }
 
 describe('host-only serial approval', () => {
-  it('refuses a different target echoed by the host UI before opening', async () => {
+  it.each([false, true])(
+    "reports only the active holder's settled Stop while a contender prepares (failure: %s)",
+    async (failsStop) => {
+      const f = await fixture()
+      const active = enteredSignal()
+      const querying = enteredSignal()
+      const closing = enteredSignal()
+      const identityQuery = Promise.withResolvers<undefined>()
+      const holderStop = Promise.withResolvers<undefined>()
+      const captured = Promise.withResolvers<SerialCapture>()
+      f.open.mockResolvedValue({ ...f.transport, result: captured.promise })
+      f.write.mockImplementation(() => {
+        active.entered.abort()
+        return Promise.resolve()
+      })
+      f.close.mockImplementationOnce(async () => {
+        closing.entered.abort()
+        await holderStop.promise
+        if (failsStop) throw new Error('test-holder-stop-failed')
+        captured.resolve({ bytes: Buffer.alloc(0), reason: 'stopped' })
+      })
+      const running = runSerialAction(f.input, f.deps)
+      await active.waiting
+      let queries = 0
+      const confirm = vi.fn((request: SerialApprovalRequest) => Promise.resolve(allow(request)))
+      const open = vi
+        .fn<SerialSessionDependencies['open']>()
+        .mockRejectedValue(new Error('test-contender-open'))
+      const contender = runSerialAction(f.input, {
+        ...f.deps,
+        holder: 'contender',
+        confirm,
+        open,
+        lease: {
+          ...f.deps.lease,
+          processStartTime: async (pid) => {
+            queries += 1
+            if (queries === 2) {
+              querying.entered.abort()
+              await identityQuery.promise
+            }
+            return await f.deps.lease.processStartTime(pid)
+          },
+        },
+      })
+      let stopping: ReturnType<typeof stopHardwareLease> | undefined
+      try {
+        await querying.waiting
+        let hasSettled = false
+        stopping = stopHardwareLease(
+          f.deps.lease,
+          await serialLeaseResource(f.input.identity, process.platform),
+        )
+        void stopping.then(() => {
+          hasSettled = true
+        })
+        await closing.waiting
+        await delay(100)
+        expect(hasSettled).toBe(false)
+        holderStop.resolve(undefined)
+        expect(await stopping).toMatchObject({
+          stopped: !failsStop,
+          sessions: expect.arrayContaining([
+            {
+              record: expect.objectContaining({ holder: 'conversation' }),
+              party: 'holder',
+              status: failsStop ? 'failed' : 'stopped',
+              ...(failsStop && { reason: 'lease-stop-failed' }),
+            },
+            {
+              record: expect.objectContaining({ holder: 'contender' }),
+              party: 'contender',
+              status: 'cancelled',
+            },
+          ]),
+        })
+        identityQuery.resolve(undefined)
+        expect(await contender).toEqual({ status: 'refused', reason: 'context' })
+        expect(confirm).not.toHaveBeenCalled()
+        expect(open).not.toHaveBeenCalled()
+      } finally {
+        holderStop.resolve(undefined)
+        identityQuery.resolve(undefined)
+        captured.resolve({ bytes: Buffer.alloc(0), reason: 'ended' })
+        await Promise.allSettled([running, contender, stopping])
+      }
+    },
+  )
+
+  it('stops the active process with a corrupt lease and keeps cleanup failure out of Stop', async () => {
     const f = await fixture()
-    f.confirm.mockImplementation((request) =>
-      Promise.resolve({
-        ...allow(request),
-        target: { ...request.target, serialNumber: 'other-board' },
-      }),
-    )
-    expect(await runSerialAction(f.input, f.deps)).toEqual({
-      status: 'refused',
-      reason: 'approval',
-    })
-    expect(f.open).not.toHaveBeenCalled()
-  })
-  it('keeps the serial approval target and payload frozen at the host boundary', async () => {
-    const f = await fixture()
-    f.confirm.mockImplementation((request) => {
-      expect(Reflect.set(request.target, 'serialNumber', 'other-board')).toBe(false)
-      expect(Reflect.set(request.payload, 'value', 'changed')).toBe(false)
-      return Promise.resolve(allow(request))
-    })
-    const result = await runSerialAction(f.input, f.deps)
-    expect(result.status).toBe('complete')
-    expect(f.write).toHaveBeenCalledWith(Buffer.from(f.input.payloadHex, 'hex'))
-  })
-  it('refuses a target swap during adapter preparation before the final spawn guard', async () => {
-    const f = await fixture()
-    let didSpawn = false
-    f.open.mockImplementation(async (_input, _maxBytes, _signal, start) => {
-      await delay(1)
-      f.identityNow.mockResolvedValue({ ...f.input.identity, vid: '2e8a', pid: '0003' })
-      const guard = await start()
-      guard()
-      didSpawn = true
-      throw new Error('unexpected test spawn')
-    })
-    expect(
-      await runSerialAction(f.input, { ...f.deps, flashTarget: { idfTarget: 'esp32' } }),
-    ).toEqual({ status: 'refused', reason: 'mismatch' })
-    expect(didSpawn).toBe(false)
-    expect(f.write).not.toHaveBeenCalled()
-    expect(f.confirm).toHaveBeenCalledOnce()
-  })
-  it('refuses newly unattended admission after target discovery but before spawn', async () => {
-    const f = await fixture()
-    let isAdmitted = true
-    let didSpawn = false
-    f.open.mockImplementation(async (_input, _maxBytes, _signal, start) => {
-      const guard = await start()
-      isAdmitted = false
-      guard()
-      didSpawn = true
-      throw new Error('unexpected test spawn')
-    })
-    expect(await runSerialAction(f.input, { ...f.deps, canUseHardware: () => isAdmitted })).toEqual(
-      { status: 'refused', reason: 'context' },
-    )
-    expect(didSpawn).toBe(false)
-    expect(f.write).not.toHaveBeenCalled()
-  })
-  it('fails explicitly when an adapter omits the required spawn guard', async () => {
-    const f = await fixture()
+    const { entered, waiting } = enteredSignal()
+    const captured = Promise.withResolvers<SerialCapture>()
     f.open.mockResolvedValue({
       pid: undefined,
-      result: Promise.resolve(f.capture),
-      write: f.write,
+      result: captured.promise,
       close: f.close,
+      write: f.write,
     })
-    await expect(runSerialAction(f.input, f.deps)).rejects.toThrow(
-      'maker-adapter-start-guard-missing',
+    f.write.mockImplementation(() => {
+      entered.abort()
+      return Promise.resolve()
+    })
+    f.close.mockImplementation(() => {
+      captured.resolve({ bytes: Buffer.alloc(0), reason: 'stopped' })
+      return Promise.resolve()
+    })
+    const resource = await serialLeaseResource(f.input.identity, process.platform)
+    const slot = path.join(
+      f.deps.lease.directory,
+      `claim-v1.${createHash('sha256').update(resource).digest('hex')}.head.claim`,
     )
-    expect(f.write).not.toHaveBeenCalled()
-    expect(f.close).toHaveBeenCalled()
+    const running = runSerialAction(f.input, f.deps)
+    await waiting
+    const saved = await readFile(slot)
+    try {
+      await writeFile(slot, '{')
+      expect(await didStopHardwareLease(f.deps.lease, resource)).toBe(true)
+      expect(await running).toEqual({
+        status: 'complete',
+        capture: { bytes: Buffer.alloc(0), reason: 'stopped' },
+      })
+      expect(f.close).toHaveBeenCalled()
+      expect(f.log.mock.calls.at(-1)?.[0].outcome).toBe('stopped')
+    } finally {
+      captured.resolve({ bytes: Buffer.alloc(0), reason: 'stopped' })
+      await writeFile(slot, saved)
+      await running
+    }
   })
+
   it.each(['Stop', 'turn cancellation'])(
     'waits for cancelled opening cleanup on %s',
     async (method) => {
@@ -489,9 +528,7 @@ describe('host-only serial approval', () => {
     const f = await fixture()
     const ended = new AbortController()
     const { entered, waiting } = enteredSignal()
-    f.open.mockImplementation(async (_input, _maxBytes, _signal, start) => {
-      const guard = await start()
-      guard()
+    f.open.mockImplementation(() => {
       const result = new Promise<SerialCapture>((resolve) => {
         const timer = setTimeout(() => {
           resolve({ bytes: Buffer.alloc(0), reason: 'ended' })
@@ -505,7 +542,7 @@ describe('host-only serial approval', () => {
           { once: true },
         )
       })
-      return { pid: undefined, result, close: f.close, write: f.write }
+      return Promise.resolve({ pid: undefined, result, close: f.close, write: f.write })
     })
     f.close.mockImplementation(() => {
       ended.abort()
@@ -564,10 +601,8 @@ describe('host-only serial approval', () => {
 
   it('sends nothing if approval expires or the board changes while opening', async () => {
     const f = await fixture()
-    f.open.mockImplementation(async (_input, _maxBytes, _signal, start) => {
+    f.open.mockImplementation(async () => {
       await delay(50)
-      const guard = await start()
-      guard()
       return { pid: undefined, result: Promise.resolve(f.capture), write: f.write, close: f.close }
     })
     expect(
@@ -587,8 +622,7 @@ describe('host-only serial approval', () => {
       await runSerialAction(next.input, { ...next.deps, flashTarget: { idfTarget: 'esp32' } }),
     ).toEqual({ status: 'refused', reason: 'mismatch' })
     expect(next.write).not.toHaveBeenCalled()
-    // Final target verification now refuses before any opener creates a port.
-    expect(next.close).not.toHaveBeenCalled()
+    expect(next.close).toHaveBeenCalledTimes(1)
   })
 
   it('logs an already-expired answer as rejected and rejects extra answer fields', async () => {

@@ -5,6 +5,7 @@ import { FileMachineStorage, MachineRegistry, type MakerLanPolicy } from '../../
 import { MachineHttp } from '../../core/maker/machines/http'
 import {
   didStopHardwareLease,
+  processStartTime,
   stopAllHardwareLeases,
   type LeaseDependencies,
 } from '../../core/maker/lease'
@@ -42,6 +43,7 @@ export async function stopRuntimeMachines(
     platform: deps.platform,
     timeoutMs: RUNTIME_MAKER_TIMEOUT_MS,
     maxRecordBytes: RUNTIME_MAKER_MAX_BYTES,
+    processStartTime,
     exclusive: () => {
       throw new Error('stop-never-locks')
     },

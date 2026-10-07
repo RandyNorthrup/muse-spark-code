@@ -101,7 +101,7 @@ public static class MuseSparkSerial
                             var callId = Guid.NewGuid().ToString();
                             Console.Out.WriteLine("stop:" + callId);
                             Console.Out.Flush();
-                            string answer = "failed:" + callId;
+                            string answer = "timeout:" + callId;
                             var waiting = Stopwatch.StartNew();
                             while (waiting.ElapsedMilliseconds < timeout)
                             {
@@ -109,7 +109,8 @@ public static class MuseSparkSerial
                                 int remaining = timeout - (int)waiting.ElapsedMilliseconds;
                                 if (remaining <= 0 || !answers.TryTake(out received, remaining)) break;
                                 // A late reply to an earlier Stop never settles this one.
-                                if (received == "stopped:" + callId || received == "failed:" + callId)
+                                if (received == "stopped:" + callId || received == "failed:" + callId ||
+                                    received == "cancelled:" + callId || received == "cancel-failed:" + callId)
                                 {
                                     answer = received;
                                     break;
@@ -117,7 +118,11 @@ public static class MuseSparkSerial
                             }
                             using (var writer = new StreamWriter(pipe))
                             {
-                                writer.WriteLine(answer == "stopped:" + callId ? "{\"stopped\":true}" : "{\"stopped\":false}");
+                                string reply = answer == "stopped:" + callId ? "{\"stopped\":true}" :
+                                    answer == "failed:" + callId ? "{\"stopped\":false}" :
+                                    answer == "cancelled:" + callId ? "{\"cancelled\":true}" :
+                                    answer == "cancel-failed:" + callId ? "{\"cancelled\":false}" : "{\"timedOut\":true}";
+                                writer.WriteLine(reply);
                                 writer.Flush();
                             }
                         }

@@ -147,14 +147,22 @@ happened, not what was planned; superseded entries are kept.
 
 - **Maker serial lifecycle before integration.** Cross-process Stop accepts
   Windows CRLF frames and waits for cancelled opening and port cleanup.
-  Lost native locks invalidate stale-reclamation work, COM namespace aliases
+  COM namespace aliases
   share a lease, failed POSIX claims retain another holder's exclusivity, and
   empty Windows enumeration returns no ports. Adapters that cannot honour
   approved DTR/RTS settings refuse before opening. Submitted stale removals
-  address only their immutable holder generation, and failed claims drain
-  pending writes and remove their own record before rejecting. Windows port
+  address only their immutable holder generation. Admission now publishes
+  one fully written, fsynced record with an exclusive link, without a native
+  mutex or cleanup mutex. PID plus process-start identity detects stale
+  holders, generation-checked retirement makes release idempotent, and a
+  separate session index lets Stop
+  reach the process even with corrupt claim records. Retired claim slots
+  stay immutable so delayed cleanup cannot erase a replacement. Windows port
   identity uses the registry's PortName, falling back only to a final COM
   suffix in the friendly name.
+  Stop now waits for the active holder and reports its success or failure
+  separately from cancellation of a preparing contender. A contender cannot
+  acknowledge hardware Stop or acquire the lease after cancellation.
 
 
 

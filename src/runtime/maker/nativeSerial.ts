@@ -12,7 +12,11 @@ import {
   type NativeLeaseHelper,
 } from '../../core/maker/serial/nativeLease'
 import type { MakerHost } from '../../core/maker/ports'
-import { stopAllHardwareLeases, type LeaseDependencies } from '../../core/maker/lease'
+import {
+  processStartTime,
+  stopAllHardwareLeases,
+  type LeaseDependencies,
+} from '../../core/maker/lease'
 import { killTree, sweepExitedTree, runProgram, windowsPowerShell } from '../../host/processTree'
 import { withoutCredentials, withoutKeyringRoutes } from '../credentialVariables'
 import {
@@ -96,6 +100,7 @@ export function nativeSerial(deps: NativeSerialDeps) {
     platform: deps.platform,
     timeoutMs: RUNTIME_MAKER_TIMEOUT_MS,
     maxRecordBytes: RUNTIME_MAKER_MAX_BYTES,
+    processStartTime,
     exclusive: async (file, operation) =>
       await withNativeLeaseMutex(await leaseHelper(), file, operation),
     ...(deps.platform === 'win32' && {

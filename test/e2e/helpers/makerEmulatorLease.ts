@@ -37,9 +37,11 @@ export async function makerEmulatorLeaseMain(): Promise<void> {
     },
   )
   if (claimed.status === 'busy') {
+    if (claimed.holder === undefined) throw new Error('lease worker busy holder unknown')
     process.stdout.write(JSON.stringify({ status: 'busy', holderPid: claimed.holder.pid }) + '\n')
     return
   }
+  if (claimed.status !== 'acquired') throw new Error('lease worker cancelled')
   process.stdin.resume()
   process.stdin.once('end', () => {
     release(undefined)
@@ -58,12 +60,13 @@ const leaseFrame = z.discriminatedUnion('status', [
   z.object({
     status: z.literal('claimed'),
     record: z.object({
-      version: z.literal(2),
+      version: z.literal(1),
       id: z.uuid(),
       generation: z.uuid(),
       resource: z.string(),
       holder: z.string(),
       pid: z.number().int().positive(),
+      startedAt: z.string(),
       endpoint: z.string(),
     }),
   }),
