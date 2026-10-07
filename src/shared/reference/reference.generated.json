@@ -1324,6 +1324,21 @@
       "editors": ["vscode"]
     },
     {
+      "id": "estimator",
+      "name": { "ui": "estimateTitle" },
+      "summary": { "ui": "referenceEstimate" },
+      "description": { "ui": "referenceEstimate" },
+      "commands": ["museSpark.estimate"],
+      "settings": ["museSpark.estimator.optimize", "museSpark.estimator.priceLookup"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#estimates",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "support",
       "name": { "ui": "groupSupport" },
       "summary": { "tip": "issue" },
@@ -1462,6 +1477,16 @@
       "categoryKey": "command.category",
       "description": "Preview a scrubbed problem report before saving or sending it.",
       "text": { "ui": "referenceReport" },
+      "canRun": true
+    },
+    {
+      "id": "museSpark.estimate",
+      "name": "Open Estimator",
+      "nameKey": "command.estimate.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Ship-date forecast for a goal from the current fleet, or the setup a target date needs.",
+      "text": { "ui": "referenceEstimate" },
       "canRun": true
     },
     {
@@ -2890,6 +2915,38 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "string", "enum": ["auto", "same", "off"], "default": "auto" }
+    },
+    {
+      "id": "museSpark.estimator.optimize",
+      "name": "museSpark.estimator.optimize",
+      "description": "Choose the cheapest setup meeting the deadline at P90, or the fastest setup with worthwhile marginal savings.",
+      "descriptionKey": "config.estimator.optimize.description",
+      "type": "string",
+      "default": "cost",
+      "enum": ["cost", "speed"],
+      "enumDescriptions": [
+        "Cheapest setup meeting the deadline at P90.",
+        "Fastest setup while another machine still saves enough time."
+      ],
+      "enumDescriptionKeys": [
+        "config.estimator.optimize.enumDescriptions.cost",
+        "config.estimator.optimize.enumDescriptions.speed"
+      ],
+      "enumTexts": {},
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "string", "enum": ["cost", "speed"], "default": "cost" }
+    },
+    {
+      "id": "museSpark.estimator.priceLookup",
+      "name": "museSpark.estimator.priceLookup",
+      "description": "Public catalog price lookup under the Reports network policy; each price shows its date.",
+      "descriptionKey": "config.estimator.priceLookup.description",
+      "type": "boolean",
+      "default": false,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": false }
     },
     {
       "text": {
