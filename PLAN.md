@@ -29560,8 +29560,8 @@ No wire field, dependency, command, translation or gate cap changes. Inspection
 must read output by its owning session without resuming that child.
 
 - [x] Five regressions fail on the reviewed revision and pass after repair.
-- [ ] Fresh-clone repeated owning tests and individual static/build gates.
-- [ ] CHANGELOG and `docs/certification/agent-outcomes.md` repair receipts.
+- [x] Fresh-clone repeated owning tests and individual static/build gates.
+- [x] CHANGELOG and `docs/certification/agent-outcomes.md` repair receipts.
 
 ## 7. Gates
 

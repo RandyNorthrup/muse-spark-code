@@ -159,7 +159,9 @@ The first baseline runs produced 6 failures / 710 passes across ACP, controller
 and outcomes, and 17 failures / 658 passes across the host, tools and golden
 requests (15 golden failures). After adding the late-preparation and portable
 output regressions, the final ACP/controller/host baseline run produced
-8 failures / 1,305 passes. These are defect reproductions, not CI verification.
+8 failures / 1,305 passes. The final outcome/tools/exec-wrapper baseline batch also failed 3 tests /
+68 passed (`temp/base-final-ports.log`), including the new host-port forwarding
+expectation. These are defect reproductions, not CI verification.
 The outcome and tool-order failures are in the earlier baseline batches.
 Local ignored logs: `temp/base-regressions-{1,2}.log` and
 `temp/base-final-owning.log`.
@@ -175,7 +177,7 @@ and its before/after SHA-256 matched. Logs are `temp/guard-drill-{1,2}.log`;
 and the committed fresh clone are verified below. No new command, UI text or feature description
 is introduced: the existing catalog and fourteen translations remain accurate.
 
-| Restored source                                   | SHA-256                                                            |
+| Source bytes at drill restoration                 | SHA-256                                                            |
 | ------------------------------------------------- | ------------------------------------------------------------------ |
 | `src/acp/agent.ts`                                | `1b77a8a09c0327fe9184b8e0e77328b47b1afc150d4a0fed2fd2e39067e94c7b` |
 | `src/core/agent/agentObservation.ts`              | `87063ebcaef3bf1b02011996b7d9ccd77a31eea3cdfaa1d859a4fe84871d6679` |
@@ -187,5 +189,66 @@ The restored complete owning files passed **1,515 tests across 9 files**:
 ACP/controller/outcomes 717; Model API host/tools/golden requests 676;
 Muse Code host/exec session tap/session store 122. Logs:
 `temp/restored-{1,2,3}.log`. The unchanged duplication gate reports 0 clones.
-The repair is committed before the required fresh-clone CI verification;
-that verification and its static/build results follow in a documentation commit.
+The repair commits are `4f67d529c824fed9e8798999e2bfd537476dcd91` and
+`b116d9960505aff29874564f23e81a6a82109642`. Both passed the unchanged
+pre-commit ESLint/Prettier and staged Gitleaks hooks. The first fresh clone's
+three test repetitions passed; typechecking then caught the fake host reader's
+argument mismatch. The second commit supplies the correctly typed adapter.
+Subsequent required lint narrowing/member-order changes and that adapter are
+covered by the final committed verification; the hashes above name the bytes
+restored at the earlier deliberate drills.
+
+### Final committed CI verification
+
+A new clone at `temp/ci-verify-final` has exact HEAD
+`b116d9960505aff29874564f23e81a6a82109642`; `CI=true npm ci` installed its
+locked dependencies. It stayed clean after verification. No system dependency
+was installed and no tracked package or lockfile changed. Every check ran with
+`CI=true`, one owning batch or static/build process at a time.
+
+All **9 complete owning files ran three times**, each repetition passing
+**1,515 tests**, for **4,545 passing executions**, with no retries, selected
+names, timeout override or per-test timeout change:
+
+| Complete owning files                                     | Repetition 1 | Repetition 2 | Repetition 3 |
+| --------------------------------------------------------- | -----------: | -----------: | -----------: |
+| `acpAgent`, `conversationController`, `agentOutcome`      |          717 |          717 |          717 |
+| `modelApiHost`, `modelApiTools`, `modelApiGoldenRequests` |          676 |          676 |          676 |
+| `MuseCodeHost`, `sessionTap`, `sessionStore`              |          122 |          122 |          122 |
+
+Each batch used `npx vitest run test/unit/<file>.test.ts ... --maxWorkers=3`
+at repository-default deadlines. All 18 golden tests passed in every repetition.
+The parent strings in the changed child fixture were independently compared
+byte-for-byte with `git show f50425ffa:<fixture>` and were identical; its only
+changed child body fields are `input`, `tools` and `prompt_cache_key`.
+
+| Final fresh-clone gate              | Result                                                                                                                                                             |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `npm run typecheck`                 | All five host, webview, unit, e2e and integration projects passed.                                                                                                 |
+| `npm run lint`                      | Full JavaScript/TypeScript and CSS gates passed. The repository's unchanged PowerShell gate reports its normal Linux skip; Windows CI retains that platform check. |
+| Changed-file `npx prettier --check` | All 21 changed paths passed.                                                                                                                                       |
+| Plain `npx knip`                    | Passed, only the same two configuration hints. No `--strict`.                                                                                                      |
+| `npm run duplication`               | 0 clones, unchanged zero threshold.                                                                                                                                |
+| `npm run build`                     | Production build, every cap, split checks, host globals and 83-package notices passed.                                                                             |
+| `npm run check:reference`           | 56 features, 52 commands, 61 settings, 26 slash commands and 130 CLI entries; current.                                                                             |
+| `npm run check:l10n`                | 14 tables, 176 manifest strings, 670 source files; 0 problems.                                                                                                     |
+| `npm run check:host-api`            | 336 APIs, 34 VS Code importing files, 26 Node built-ins, 65 theme variables; 0 problems.                                                                           |
+
+| Final production measurement       |   KiB | Unchanged cap KiB |
+| ---------------------------------- | ----: | ----------------: |
+| Activation                         | 451.8 |               600 |
+| Conversation                       | 221.0 |               250 |
+| Model API                          | 456.0 |               475 |
+| ACP                                | 847.8 |               850 |
+| Checkpoint store                   |  77.0 |               225 |
+| Webview startup and static imports | 736.9 |               900 |
+| Agent map closure                  |  17.7 |                25 |
+| Original deferred aggregate        |  32.1 |                50 |
+
+Final receipts are `temp/ci-final-logs/results.json` and each named check's log;
+the preceding clone's receipts are retained in `temp/ci-logs/`. The final
+documentation update gets changed-file formatting and the unchanged commit
+hooks; source and test bytes stay at the verified commit. Aggregate quality,
+hosted Windows/macOS execution and the original live recovery/checkpoint
+limitations remain with the lead under the shared brief. All five review
+findings are fixed; none is deferred. No push or live/paid request was made.
