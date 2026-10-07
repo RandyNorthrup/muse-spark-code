@@ -167,5 +167,8 @@
   "config.shell.passEnvironmentVariables.description": "传递给主会话交互式 shell 命令的环境变量名称，包括通常被排除的凭据变量。仅填写名称，不填写值。默认不传递。命令可能在对话中以及向模型提供商暴露这些值。验证/then_run、计划任务、子代理/团队工作者和钩子永远不会接收凭据变量，即使在此列出了名称。移至后台的交互式命令保留启动时的环境。不会更改 Muse Code 或显式配置的 MCP 服务器环境。",
   "command.nextOpenQuestion.title": "下一个待回答的问题",
   "command.previousOpenQuestion.title": "上一个待回答的问题",
-  "config.questions.deferAfterSeconds.description": "在多少秒后暂缓未回答的问题，让 Muse 继续工作。默认值为 60；0 表示从不；1–9 按 10 处理；最大值为 3,600。问题会保持待回答状态，可稍后回答。仅使用此计算机的设置。"
+  "config.questions.deferAfterSeconds.description": "在多少秒后暂缓未回答的问题，让 Muse 继续工作。默认值为 60；0 表示从不；1–9 按 10 处理；最大值为 3,600。问题会保持待回答状态，可稍后回答。仅使用此计算机的设置。",
+  "config.accountSwap.description": "达到阈值时在下一个请求边界切换到有余量的下一个账号。每个账号保留各自的限额。默认开启；仅使用本机的设置。",
+  "config.accountParallel.description": "按余量将后台工作分散到各账号；每个工作器固定在其账号上。默认开启；仅使用本机的设置。",
+  "config.accounts.severalOnThisDevice.description": "允许同一提供商的多个账号在本机上用于测试，每个账号运行在各自独立的本地配置文件中。开启时先请求确认该提供商的条款。默认关闭；仅使用本机的设置。"
 }

@@ -365,6 +365,15 @@ export const SETTING_DEFAULTS = {
   // M112 (PLAN.md D92): seconds before an unanswered question defers; the
   // host reads only the user's own value (questionStore.ts).
   'questions.deferAfterSeconds': 60,
+  // M108 (PLAN.md D88.5): swap at the next request boundary and spread
+  // background work across accounts, both on by default; machine-scoped so a
+  // repository cannot pool the user's accounts.
+  accountSwap: true,
+  accountParallel: true,
+  // D88 amendment b2: several accounts of one provider on this PC for
+  // testing, off by default; turning it on asks the provider's vendor-terms
+  // confirmation, and each extra account runs in an isolated local profile.
+  'accounts.severalOnThisDevice': false,
   shellSandbox: 'auto' as ShellSandboxMode,
   backend: 'auto' as BackendMode,
   // Claude Code's `enableNewConversationShortcut`: Ctrl+N starts a new
@@ -558,6 +567,11 @@ export const MACHINE_SCOPED_SETTINGS = [
   'showWhatsNewOnUpdate',
   // How long Muse waits for an answer is the user's choice (M112, D92).
   'questions.deferAfterSeconds',
+  // M108 (PLAN.md D88.5 and amendment b2): pooling the user's accounts and
+  // testing several on this PC are the user's choice, never a repository's.
+  'accountSwap',
+  'accountParallel',
+  'accounts.severalOnThisDevice',
   // Tab chooses what runs, what is billed and how much is approved (M94,
   // PLAN.md D73): every Tab setting is machine-scoped, so a workspace's
   // settings cannot change what Tab spends.
@@ -5369,7 +5383,9 @@ export const CONVERSATION_MODEL_TEXT = {
 // Shared by the eager composer and the optional command palette.
 export const PALETTE_LISTBOX_ID = 'palette-listbox'
 // M108 X: machine-local testing options. These never change vendor/paid gates.
-export const DEVELOPER_UNLOCK_MS = 24 * 60 * 60 * 1000
+// D88 amendment b: developer options expire after seven days.
+export const DEVELOPER_OPTIONS_EXPIRY_DAYS = 7
+export const DEVELOPER_UNLOCK_MS = DEVELOPER_OPTIONS_EXPIRY_DAYS * 24 * 60 * 60 * 1000
 export const DEVELOPER_VERSION_CLICKS = 7
 export const DEVELOPER_CLICK_WINDOW_MS = 10_000
 export const DEVELOPER_MAX_PROFILES = 8
@@ -5379,5 +5395,8 @@ export const DEVELOPER_UI_BUDGET_BYTES = 25 * 1024
 export const DEVELOPER_DIRECTORY_MODE = 0o700
 export const DEVELOPER_FILE_MODE = 0o600
 export const DEVELOPER_COMMAND_ID = 'museSpark.developerOptions'
-export const DEVELOPER_SETTING_ID = 'museSpark.allowSeveralAccountsOnThisPc'
+// D88 amendment b2: the visible Settings › Accounts option (machine-scoped,
+// off by default); its accounts run in isolated local profiles like the
+// developer first option, without the developer badge or expiry.
+export const DEVELOPER_SETTING_ID = 'museSpark.accounts.severalOnThisDevice'
 export const DEVELOPER_FILES = { state: 'developer.json', audit: 'developer-audit.jsonl' } as const

@@ -1154,6 +1154,24 @@
           "maximum": 3600,
           "description": "%config.questions.deferAfterSeconds.description%",
           "scope": "machine"
+        },
+        "museSpark.accountSwap": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.accountSwap.description%",
+          "scope": "machine"
+        },
+        "museSpark.accountParallel": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.accountParallel.description%",
+          "scope": "machine"
+        },
+        "museSpark.accounts.severalOnThisDevice": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.accounts.severalOnThisDevice.description%",
+          "scope": "machine"
         }
       }
     },
