@@ -158,3 +158,12 @@ Final boundary evidence: **59 unit tests pass**, three shell-admission fixtures
 pass, and **53 source drills** fail by name and restore exact hashes. The test
 HTTP response is parsed with zod before use. All committed source hashes were
 rechecked after the last restoration; final media rebuilding follows.
+
+Final x86 raw and optical media now pass native TCG qualification. The
+installer's vendor dependency executes and its verified read-only usr bind
+survives switch-root. One two-vCPU raw run panicked at the kernel timer/APIC
+check, before initrd; the unchanged image passes with one vCPU. The optical
+pass used two vCPUs. This is configuration-specific evidence, not a hardware
+or KVM receipt. The real usr-block corruption drill withheld readiness and
+restored the full disposable copy's exact SHA-256. Receipts are in
+`m110-os1-boot.json`; ARM final media and Pi composition are still running.
