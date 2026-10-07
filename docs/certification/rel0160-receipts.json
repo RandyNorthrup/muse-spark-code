@@ -3857,5 +3857,76 @@
       }
     ]
   },
-  "productionDiffFromM107": []
+  "productionDiffFromM107": [],
+  "additionalChecks": [
+    {
+      "command": ["npm", "run", "typecheck"],
+      "exit": 0,
+      "projects": 5
+    },
+    {
+      "command": [
+        "npx",
+        "--no-install",
+        "prettier",
+        "--check",
+        "README.md",
+        "PLAN.md",
+        "docs/certification/rel0160.md",
+        "docs/certification/rel0160-receipts.json",
+        "docs/certification/rel0160-readme-draft.md"
+      ],
+      "exit": 0
+    }
+  ],
+  "accessibility": {
+    "command": ["npm", "run", "test:a11y"],
+    "exit": 0,
+    "pages": 716,
+    "scenarios": 179,
+    "themes": 4,
+    "violations": 0,
+    "undecided": 0,
+    "exempt": 0,
+    "missingResults": 0,
+    "unmeasurableHiddenContrastElements": 1597,
+    "unmeasurableGlyphContrastElements": 76
+  },
+  "resourceBrowsers": {
+    "chromePath": "/usr/bin/google-chrome",
+    "initialControlsLaunch": {
+      "exit": 1,
+      "reason": "Bare google-chrome executablePath was not resolved by Playwright; supported CHROME_PATH override supplies the absolute executable."
+    },
+    "controls": {
+      "command": ["node", "test/harness/resources-check.mjs"],
+      "exit": 0,
+      "pages": 48,
+      "errors": 0,
+      "violations": 0,
+      "incomplete": 0,
+      "overflow": 0
+    },
+    "history": {
+      "command": ["node", "test/harness/resource-history-check.mjs"],
+      "exit": 0,
+      "pages": 8,
+      "errors": 0,
+      "violations": 0,
+      "overflow": 0,
+      "sectionBytes": 13184
+    },
+    "archivedArtifacts": [
+      {
+        "directory": "resource-controls",
+        "files": 113,
+        "byteExact": true
+      },
+      {
+        "directory": "resource-history",
+        "files": 79,
+        "byteExact": true
+      }
+    ]
+  }
 }

@@ -32927,3 +32927,20 @@ M106 waits on the lead's explicit `sync/m106-final` handoff. All delivery and
 verification receipts, remaining qualifications and final candidate identity
 are in `docs/certification/rel0160.md`. This is preparation, not publication
 or a claim that unbound M107 surfaces are accepted.
+
+**REL0160 M107 verification (2026-10-06).** The authorized merge and all
+requested individual gates pass. The complete set is 582 files in 194
+repository-default-timeout batches: 12,170 passed, zero failed, 87 existing
+skips after the complete README batch rerun. Its initial two failures prove the
+current-version heading/contents gate; the exact prospective section is now
+`docs/certification/rel0160-readme-draft.md` until promotion. Accessibility
+passes 716 main pages plus 48 resource-control and eight resource-history
+pages. Local VSIX is 2,425,175 / 2,457,600 bytes; ACP is 1,551,607 bytes,
+both still version 0.14.3. Both archive inventories carry the real Linux binaries; ACP
+also carries the three exact generated schemas. The local VSIX lacks the
+universal macOS helper.
+No existing cap is raised. `sync/m106-final` is present at `3e0c0c603`, but
+its explicitly requested lead handoff is pending; `sync/main-0160` is absent.
+Final receipts and remaining aggregate/native qualification are in
+`docs/certification/rel0160.md` and its checked-in JSON. No production, test,
+pin or gate change; no live/paid call, tag, push or publication.
