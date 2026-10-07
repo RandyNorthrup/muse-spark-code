@@ -8,7 +8,13 @@ import {
 } from '../../src/core/usage/usageText'
 import { EN } from '../../src/shared/l10n/en'
 import { formatPercent, setUiText } from '../../src/shared/l10n/text'
-import { USAGE_NOW, usageAccount, usageEvents, usageFixture } from './helpers/accounts/usage'
+import {
+  USAGE_NOW,
+  usageAccount,
+  usageEvents,
+  usageFixture,
+  usageRecord,
+} from './helpers/accounts/usage'
 
 afterEach(() => {
   setUiText(EN, 'en')
@@ -75,6 +81,25 @@ describe('M108 J account text', () => {
     expect(accountUsageEventText({ ...swap, provider: 'deleted-provider' }, report)).toContain(
       'deleted-provider · personal',
     )
+  })
+
+  it('shows carried reservations and uncertain liability after a reset while settled spend stays in its period', () => {
+    const f = usageFixture()
+    f.records.splice(
+      0,
+      f.records.length,
+      usageRecord({
+        time: new Date(2026, 8, 30, 23, 59).toISOString(),
+        settledUsd: '9',
+        reservedUsd: '1',
+        uncertainUsd: '2',
+      }),
+    )
+    const text = accountUsageText(f.report())
+    expect(text).toContain('Meta · Work label canary: 0 requests; $0.0000 spent.')
+    expect(text).toContain('Reserved $1.00; uncertain $2.00.')
+    expect(text).toContain('$3.00 / $0.3000')
+    expect(text).toContain('Threshold reached')
   })
 
   it('reads installed strings, plurals, USD, percentages and dates at render time', () => {

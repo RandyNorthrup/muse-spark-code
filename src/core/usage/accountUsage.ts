@@ -37,7 +37,9 @@ const catalogSchema = z.strictObject({
   accounts: accountPoolSchema,
 })
 export interface AccountUsageSource {
-  records(range: Range): unknown
+  /** Return each current projection once: period history plus every unresolved
+   * reservation/uncertainty before end, even when created before start. */
+  records(range: Range & { readonly includeOutstanding: true }): unknown
   events(range: Range): unknown
 }
 export type AccountUsageCatalog = z.infer<typeof catalogSchema>
@@ -109,13 +111,12 @@ function totalsFor(
   }
   const counts = { inputTokens: 0, outputTokens: 0, requests: 0 }
   for (const row of records) {
-    if (
-      Date.parse(row.time) < Date.parse(range.start) ||
-      Date.parse(row.time) >= Date.parse(range.end)
-    )
-      continue
-    for (const metric of ['settledUsd', 'reservedUsd', 'uncertainUsd'] as const)
+    if (Date.parse(row.time) >= Date.parse(range.end)) continue
+    // Outstanding claims survive calendar resets; only settled history is bounded.
+    for (const metric of ['reservedUsd', 'uncertainUsd'] as const)
       money[metric] = sumUsd([money[metric], parseUsd(row[metric])])
+    if (Date.parse(row.time) < Date.parse(range.start)) continue
+    money.settledUsd = sumUsd([money.settledUsd, parseUsd(row.settledUsd)])
     for (const metric of ['inputTokens', 'outputTokens', 'requests'] as const)
       counts[metric] = safeSum(counts[metric], row[metric])
   }
@@ -256,7 +257,9 @@ export function readAccountUsage(deps: {
   const catalog = z.array(catalogSchema).parse(deps.catalog)
   if (new Set(catalog.map((entry) => entry.provider)).size !== catalog.length)
     throw new Error(UI_TEXT.accounts.invalidAccount)
-  const records = z.array(recordSchema).parse(deps.source.records(history))
+  const records = z
+    .array(recordSchema)
+    .parse(deps.source.records({ ...history, includeOutstanding: true }))
   // Validate money even on ignored rows; malformed source data cannot look like no use.
   for (const row of records)
     for (const metric of ['settledUsd', 'reservedUsd', 'uncertainUsd'] as const)
@@ -287,7 +290,12 @@ export function readAccountUsage(deps: {
     for (const account of ordered) group(provider.provider, account.id)
   }
   for (const record of records)
-    if (Date.parse(record.time) >= Date.parse(history.start) && Date.parse(record.time) <= deps.now)
+    if (
+      Date.parse(record.time) <= deps.now &&
+      (Date.parse(record.time) >= Date.parse(history.start) ||
+        parseUsd(record.reservedUsd) > 0 ||
+        parseUsd(record.uncertainUsd) > 0)
+    )
       group(record.provider, record.account ?? ACCOUNT_DEFAULT_ID).records.push(record)
   for (const event of events) {
     group(event.provider, event.account)

@@ -10,7 +10,7 @@ import {
 } from '../../src/core/usage/usageText'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
-import { usageAccount, usageEvents, usageFixture } from './helpers/accounts/usage'
+import { usageAccount, usageEvents, usageFixture, usageRecord } from './helpers/accounts/usage'
 
 afterEach(() => {
   setUiText(EN, 'en')
@@ -82,5 +82,24 @@ describe('M108 J shared account section', () => {
     expect(container.querySelector('img')).toBeNull()
     const labels = [...container.querySelectorAll('h2')].map((heading) => heading.id)
     expect(new Set(labels).size).toBe(2)
+  })
+
+  it('keeps carried liability visible in the summary and accessible spend meter after a reset', () => {
+    const f = usageFixture()
+    f.records.splice(
+      0,
+      f.records.length,
+      usageRecord({
+        time: new Date(2026, 8, 30, 23, 59).toISOString(),
+        settledUsd: '9',
+        reservedUsd: '1',
+        uncertainUsd: '2',
+      }),
+    )
+    render(<AccountsSection report={f.report()} />)
+    expect(screen.getByText('Reserved $1.00; uncertain $2.00.')).toBeVisible()
+    const meter = screen.getByRole('progressbar', { name: 'Spend in USD (Day)' })
+    expect(meter).toHaveAttribute('value', '100')
+    expect(meter).toHaveAttribute('aria-valuetext', '$3.00 / $0.3000')
   })
 })

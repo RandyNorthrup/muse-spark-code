@@ -21,7 +21,13 @@ file reader, guessed vendor wire shape or substitute usage application.
   `default`), timestamp, separate settled/reserved/uncertain USD, tokens and
   requests. Amounts are decimal strings or individually reported legacy
   numbers; never aggregate binary dollar values before this port. Read enough
-  history for selected and configured local calendar periods. The source
+  history for selected and configured local calendar periods. Honor the
+  required `includeOutstanding: true` query: also return all still-unresolved
+  reservations/uncertainty created before `end`, regardless of `start`. Return
+  each current projection once, including claims inside the history range;
+  released or settled claims have no outstanding amount. This is the same
+  authoritative outstanding state T's admission reader must carry through a
+  reset, not an unbounded scan or a sum of historical reservation events. The source
   returns P's canonical `AccountEvent` shapes, after its atomic swap/spread
   commit or stop append; J does not synthesize pool events.
 - **J-M95-CATALOG:** inject local provider/account labels and thresholds from
@@ -257,3 +263,66 @@ percentage repair and this receipt are committed with the same unmodified hooks.
 All work remains local for the lead; no push, merge or rebase. W's named M95/M102,
 mount/CSS/budget, help/reference/docs and host-record bindings remain explicit
 integration work, rather than installed product support on this base.
+
+## Final review repair — FIXM108J (2026-10-06, Kubuntu)
+
+Read `M108J.rig.md`, shared `codex/common.md` and the complete RVM108J report.
+The sole finding, **RVM108J-P2-CALENDAR-LIABILITY**, is fixed within J's source,
+tests and this record. No P1/P3 or review residual remains. The rig override
+requires direct checks and forbids a merge/full quality run; hooks and every
+existing guard remain unchanged. PLAN D88/M108 already covers this correction;
+there is no new scope or residual requiring a PLAN §9 entry.
+
+`AccountUsageSource.records` now explicitly requests `includeOutstanding:
+true`: bounded settled history plus every current unresolved claim before
+the observation cutoff, each once. Grouping retains older claims under their
+own provider/account (legacy `default` included). `totalsFor` sums reserved
+and uncertain nano-USD before applying the start boundary to settled spend,
+tokens and requests. Future rows remain excluded. The selected summary and
+all day/week/month spend meters therefore retain the same outstanding
+liability as admission, even after a reset. W must honor this required query
+when binding the already-named **J-M102-JOURNAL** port; no production journal
+adapter exists on this base.
+
+The new aggregation regression first failed on the original source with
+liability `0.300000001` instead of `1.300000001` and reservation `0.2` instead
+of `1.2`. It exercises each claim kind at midnight, across a week/month reset,
+across New Year, and older than the earliest queried period. It compares all
+spend meters with T's admission evaluator, checks exact summaries and counts,
+isolates other providers/accounts and removed identities, excludes future
+data, and releases the claim without duplicate current-period liability.
+The existing calendar-history fixture now explicitly marks its old settled
+row's outstanding amounts as zero.
+
+The two additional end-to-end text/component regressions failed on the old
+source too: they observed zero liability instead of carried `$1` reservation
+and `$2` uncertainty. Their initial assertions mistakenly expected four
+fraction digits for whole-dollar amounts; corrected to the existing formatter's
+two-digit output, with no formatter or product change. The final assertions
+require the carried summary, reached status and accessible full spend meter.
+
+No strings, dependencies, manifests, settings, commands, paid behaviour,
+admission code or browser graph change. W still owns the existing installed
+bindings, README/CHANGELOG/help and host API record handoffs above; this shared
+aggregation correction reaches every editor and ACP/headless text surface
+through those same ports.
+
+### Repair regression and red-drill receipts
+
+Each drill ran all three complete owning test files with `--maxWorkers=3`,
+repository-default deadlines, no test-name filter or skip, and exited 1.
+Restoration in `finally` matched SHA-256 after every mutation:
+`507a659c3b3f838fdcb5bb21017f15fa6e3737a05c49665b0a7c6f6dfc7fb005`.
+
+| Broken guard                                                    | Named failing regression                                                                                                                                                                                                                                                                     | Result                                                          |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `outstanding-query`: send `includeOutstanding: false`           | `carries outstanding liability across calendar resets and matches admission without counting old settlements or duplicating current claims` (`accountUsage.test.ts`)                                                                                                                         | Exit 1; restored byte-exact                                     |
+| `outstanding-grouping`: drop claims before history start        | Same aggregation regression; `shows carried reservations and uncertain liability after a reset while settled spend stays in its period` (`accountUsageText.test.ts`); `keeps carried liability visible in the summary and accessible spend meter after a reset` (`AccountsSection.test.tsx`) | Exit 1; all three named regressions failed; restored byte-exact |
+| `outstanding-totals`: discard the whole row before period start | Same three named regressions                                                                                                                                                                                                                                                                 | Exit 1; all three failed; restored byte-exact                   |
+
+Restored-source verification before the repair commit: all five TypeScript
+projects pass; changed-source ESLint and Prettier pass. Final complete
+`accountUsage.test.ts`, `accountUsageText.test.ts` and `AccountsSection.test.tsx`
+run: **25 passed**. Separate complete `accountUsageBundle.test.mjs`: **1 passed**,
+including its unchanged 25 KiB cap and lazy graph guard. Both final runs used
+the repository's default deadlines and three workers on Kubuntu.

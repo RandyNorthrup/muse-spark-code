@@ -105,7 +105,12 @@ describe('M108 J account aggregation', () => {
         }),
       )
     f.records.push(
-      usageRecord({ time: new Date(2026, 8, 30, 23, 59).toISOString(), settledUsd: '9' }),
+      usageRecord({
+        time: new Date(2026, 8, 30, 23, 59).toISOString(),
+        settledUsd: '9',
+        reservedUsd: 0,
+        uncertainUsd: 0,
+      }),
     )
     const queries: { start: string; end: string }[] = []
     const source = {
@@ -127,7 +132,11 @@ describe('M108 J account aggregation', () => {
       ['month', '6', new Date(2026, 10, 1).toISOString()],
     ])
     expect(queries).toEqual([
-      { start: new Date(2026, 9, 1).toISOString(), end: new Date(USAGE_NOW + 1).toISOString() },
+      {
+        start: new Date(2026, 9, 1).toISOString(),
+        end: new Date(USAGE_NOW + 1).toISOString(),
+        includeOutstanding: true,
+      },
     ])
     for (const [period, expected] of [
       ['week', '5'],
@@ -163,6 +172,112 @@ describe('M108 J account aggregation', () => {
         new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString(),
       ])
     }
+  })
+
+  it('carries outstanding liability across calendar resets and matches admission without counting old settlements or duplicating current claims', () => {
+    for (const metric of ['reservedUsd', 'uncertainUsd'] as const)
+      for (const [created, observed] of [
+        [new Date(2026, 9, 5, 23, 59), new Date(2026, 9, 6, 0, 1)],
+        [new Date(2026, 8, 30, 23, 59), new Date(2026, 10, 2, 0, 1)],
+        [new Date(2026, 11, 31, 23, 59), new Date(2027, 0, 1, 0, 1)],
+      ] as const) {
+        const f = usageFixture()
+        const account = usageAccount('default', { spendUsd: { day: 1, week: 1, month: 1 } })
+        f.catalog[0]!.accounts[0] = account
+        const old = usageRecord({
+          account: undefined,
+          time: created.toISOString(),
+          settledUsd: '9',
+          reservedUsd: '0',
+          uncertainUsd: '0',
+          [metric]: '1',
+        })
+        const records = [
+          old,
+          usageRecord({ time: observed.toISOString() }),
+          usageRecord({ ...old, account: 'personal', [metric]: '2' }),
+          usageRecord({ ...old, provider: 'other', [metric]: '3' }),
+          usageRecord({ ...old, account: 'removed', [metric]: '4' }),
+          usageRecord({ ...old, account: 'closed', [metric]: '0' }),
+          usageRecord({ time: new Date(observed.getTime() + 1).toISOString(), [metric]: '9' }),
+        ]
+        const recordsReader = vi.fn(
+          (query: { start: string; end: string; includeOutstanding?: true }) =>
+            records.filter(
+              (row) =>
+                Date.parse(row.time) < Date.parse(query.end) &&
+                (Date.parse(row.time) >= Date.parse(query.start) ||
+                  (query.includeOutstanding === true &&
+                    (parseUsd(row.reservedUsd) > 0 || parseUsd(row.uncertainUsd) > 0))),
+            ),
+        )
+        const source = { ...f.source, records: recordsReader }
+        const reservedUsd = metric === 'reservedUsd' ? '1.2' : '0.2'
+        const uncertainUsd = metric === 'uncertainUsd' ? '1.000000001' : '0.000000001'
+        for (const period of ['day', 'week', 'month'] as const) {
+          const report = readAccountUsage({
+            source,
+            catalog: f.catalog,
+            now: observed.getTime(),
+            period,
+          })
+          const row = report.accounts[0]!
+          const isOldInPeriod = Date.parse(old.time) >= Date.parse(report.start)
+          expect(row.totals).toEqual({
+            settledUsd: isOldInPeriod ? '9.1' : '0.1',
+            reservedUsd,
+            uncertainUsd,
+            liabilityUsd: isOldInPeriod ? '10.300000001' : '1.300000001',
+            inputTokens: isOldInPeriod ? 20 : 10,
+            outputTokens: isOldInPeriod ? 4 : 2,
+            requests: isOldInPeriod ? 2 : 1,
+          })
+          const admission = evaluateAccountThresholds({
+            provider: 'meta',
+            account,
+            now: observed.getTime(),
+            journal: {
+              read: (query) => ({
+                settledUsd: Date.parse(old.time) >= Date.parse(query.start) ? 9.1 : 0.1,
+                reservedUsd: Number(reservedUsd),
+                uncertainUsd: Number(uncertainUsd),
+                inputTokens: 0,
+                outputTokens: 0,
+                requests: 0,
+              }),
+            },
+          })
+          for (const meter of row.meters) {
+            const trigger = admission.find(
+              (entry) => entry.kind === 'userCap' && entry.period === meter.period,
+            )
+            expect(meter).toMatchObject({
+              value: String(trigger?.kind === 'userCap' ? trigger.value : undefined),
+              progress: 100,
+              isReached: true,
+            })
+          }
+          expect(
+            report.accounts.find((entry) => entry.account === 'personal')?.totals[metric],
+          ).toBe('2')
+          expect(report.accounts.find((entry) => entry.provider === 'other')?.totals[metric]).toBe(
+            '3',
+          )
+          expect(report.accounts.find((entry) => entry.account === 'removed')?.totals[metric]).toBe(
+            '4',
+          )
+          if (Date.parse(old.time) < Date.parse(recordsReader.mock.lastCall![0].start))
+            expect(report.accounts.some((entry) => entry.account === 'closed')).toBe(false)
+        }
+        expect(recordsReader.mock.calls.every(([query]) => query.includeOutstanding === true)).toBe(
+          true,
+        )
+        old[metric] = '0'
+        expect(
+          readAccountUsage({ source, catalog: f.catalog, now: observed.getTime(), period: 'day' })
+            .accounts[0]?.totals.liabilityUsd,
+        ).toBe('0.300000001')
+      }
   })
 
   it('lists canonical committed swaps, spreads and stops chronologically in the selected interval', () => {
