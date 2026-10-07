@@ -7,42 +7,55 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-- Fix prompt and chat exports from symlinked workspace paths by binding atomic writes to their checked canonical targets.
-- Cancel prompt exports that are waiting on the Save dialog, reuse literal
-  variable substitution in terminal prompt loading, activate the prompt sync
-  mirror on settings changes before first use, and show failures from composer,
-  message/history menus and palette prompt actions as conversation notices.
-
-- Integrate M118's saved prompt library and message/history/composer/editor
-  Save menus, portable personal prompts in every workspace, reviewed raw
-  HTTPS imports and insert-only loading. Wire local chat previews and
-  confirmed copy/file/browser destinations through deferred bundles.
-- Bind ACP/CLI local prompt and sharing commands to the shared stores and
-  renderer, with `/help` and a generated command reference. ACP final-action
-  UI/composer insertion, native/companion menus and the TUI remain named
-  dependencies of M104/M110a0; installed-editor parity is not claimed.
-
-- Correct M118 chat sharing's path scrub to redact colon-prefixed absolute
-  paths while preserving division, slash commands, closing tags, URLs and
-  regex literals; unknown paths stop at whitespace.
-- Preserve displayed command outcomes, verification failures, status, exit
-  codes and citations in full chat shares through the existing transcript
-  projection; prevent late share confirmations from closing a replacement
-  session's dialog.
+## [0.14.4] - 2026-10-06
 
 ### Added
 
-- Stage M118's shared prompt/share contracts, lossless portable prompt files,
-  insert-only loading, conversation-only allow-lists, privacy and confirmation
-  boundaries, versioned share JSON Schema, all-kind test fixtures, and English
-  plus fourteen translations. Command/menu contributions and lazy production bindings are now integrated.
+- Save your own messages, composer text and editor selections into a personal
+  prompt library usable across workspaces, or a project-local library. Search,
+  tags, literal variable substitution and reviewed portable imports prepare
+  text for insertion without submitting a model request.
+- Share prompts and conversations as Markdown, HTML or versioned JSON with an
+  exact preview and confirmation before copy, file or browser destinations.
+  Conversation-only shares use an allow-list; confidential or unknown content
+  is refused with an explanation, and secrets and private paths are scrubbed.
+- Local ACP `/prompt` and `/share chat` commands and terminal `prompts` and
+  `share chat` routes use the shared stores and renderer. Help & Reference
+  includes all six editor commands, both features and the opt-in sync setting.
+  ACP composer insertion and final-action UI still depend on M104/M110a0;
+  installed-editor parity is not claimed.
 
 ### Fixed
 
-- Problem reports retain frames from the shipped question deferral bundle.
-- Release checks cover crash recovery through the shared reload helper, await
-  deferred question commands and menus, and verify Cline shell quoting on all
-  platforms without a slow PowerShell startup.
+- History Save menus stay keyboard reachable beside listbox options, and
+  composer prompt actions and the input meet minimum target sizes.
+- Cold prompt and chat dialogs retain modal loading, Escape dismissal and
+  focus restoration; a late import cannot reopen a dismissed dialog.
+- Exports from symlinked workspaces bind atomic writes to checked canonical
+  targets. Cancellation covers a pending Save dialog; prompt sync changes
+  activate the mirror before first use, and action failures appear as notices.
+- Full shares retain displayed command outcomes, verification failures, status,
+  exit codes and citations. Late confirmation cannot close another session's
+  dialog; colon-prefixed absolute paths are scrubbed without damaging URLs,
+  slash commands, division, HTML tags or regex literals.
+- Standalone ACP full Help ships its manifest localization tables and is
+  checked from the staged package in every shipped language before packing.
+- Panel `/help` uses the complete Help & Reference catalog through one palette
+  route while retaining all prompt and chat actions.
+- Problem reports recognize the shipped prompt bundle alongside the question
+  deferral bundle. Translated ACP compact help includes the sharing routes.
+
+### Performance
+
+- Prompt library and chat preview load on first use with their own measured
+  25 KiB budgets. Optional tool details, review findings, effort controls and
+  History rows also load lazily, preserving the existing startup regression
+  baseline, 900 KiB startup cap and 50 KiB original deferred cap.
+- The Node Help bundle packs its complete reference with a native lossless
+  codec while keeping the browser schema and every reference field intact.
+  Its existing 100 KiB cap and the 2400 KiB VSIX cap are unchanged.
+- Bundle tests build only the production browser fixture they inspect, keeping
+  verification within the repository's default timeouts.
 
 ## [0.14.3] - 2026-10-06
 
@@ -69,6 +82,11 @@ happened, not what was planned; superseded entries are kept.
   remounting. The chunk has its own 25 KiB budget; existing caps are unchanged.
 
 ### Fixed
+
+- Problem reports retain frames from the shipped question deferral bundle.
+- Release checks cover crash recovery through the shared reload helper, await
+  deferred question commands and menus, and verify Cline shell quoting on all
+  platforms without a slow PowerShell startup.
 
 - Retry after a failed optional panel reloads its complete module graph with
   the conversation and draft saved. Cold menus respect outside dismissal and

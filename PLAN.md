@@ -13409,14 +13409,18 @@ M112 questions, Help and STARTDIET deferred surfaces. Give M118 optional
 surfaces the diet's accessible loading/retry pattern and independent measured
 caps (size plus 15%, rounded up to 25 KiB). To retain the diet regression
 baseline, defer existing tool bodies and review findings, and the history row
-with its M118 Save menu; preserve their rendering and actions. Load the effort slider on first model-menu use too. Pack the generated
-Node reference at build time with native Brotli, retaining the decoded model and zod checks; keep startup at 900 KiB, original
+with its M118 Save menu; preserve their rendering and actions. Load the effort
+slider on first model-menu use too. Pack the generated Node reference at build
+time with native Brotli, retaining the decoded model and zod checks; keep
+startup at 900 KiB, original
 deferred UI at 50 KiB and VSIX at 2400 KiB. Join both help inventories and
 regenerate all derived references. Prepare the manifests and release notes
 for 0.14.4; certify every configured Vitest file at repository defaults, all
 accessibility scenarios in four themes, static gates, production builds and
 packages, and live public badges. No model calls: Use prepares text and never
-submits. Hosted run IDs remain the lead's release-record fields.
+submits. Hosted run IDs remain the lead's release-record fields. Pack the manifest
+localization tables needed by standalone full Help into the ACP tarball, and
+prove staged full Help for every shipped language before npm packing.
 
 ### FIXM118INT — RVM118INT corrections (2026-10-06)
 
@@ -29410,6 +29414,15 @@ Authority: the rig brief and lead decisions, refining D92/M112 from
 
 ## 7. Gates
 
+**REL0144 bounded release verification (2026-10-06, Kubuntu).** The rig brief
+requires the complete configured Vitest suite in at-most-three-file batches
+with repository-default timeouts, every accessibility scenario in four themes,
+all named individual static gates, production and package caps, and live public
+badges. The shared rig rule prohibits aggregate `npm run quality`; the lead
+retains integrated coverage/quality, hosted CI and cross-platform publication
+checks. No threshold, timeout, ignore or cap is widened. Exact receipts and
+byte-restored intentional failures are in `docs/certification/m118.md`.
+
 **FIXM118INT repair certification (2026-10-06).** All five RVM118INT P2s
 have regressions and restored red drills; the owning files run directly on
 Kubuntu at repository-default timeouts. The repair brief/shared rules prohibit
@@ -32111,3 +32124,28 @@ deferral live, installed editors and screenshots, the lead's integrated full
 quality and hosted CI, remote badges and universal-package/platform checks.
 Evidence: `docs/certification/rel0143.md`. Release run, tag commit and channel
 results: pending.
+
+**0.14.4 prepared (2026-10-06, draft; PR, tag and run ids to be filled by the lead).**
+
+`release/0.14.4` merges `sync/main-0144` (`582af0470`, 0.14.3) into the
+reviewed M118 integration (`fe171b665`) additively: question deferral, full
+Help & Reference and startup diet remain, with local prompt libraries and
+confirmed prompt/chat shares. Use prepares text and sends no model request.
+No live model checks are needed or run. ACP local commands and terminal routes
+ship; ACP composer/final-action UI and installed-editor parity retain the
+M104/M110a0 dependencies recorded in M118.
+
+The extension and generated ACP package use version `0.14.4`. Both landing
+pages have one current What's New section and retain 0.14.3 as Earlier.
+Default-timeout full Vitest, all four accessibility themes, production build,
+packages and individual static gate receipts are recorded in
+`docs/certification/m118.md#release-0144`. Existing size caps and diet baselines
+are unchanged. Kubuntu: all 557 configured Vitest files, 11,884 tests
+(11,812 passed, zero failed, 72 existing skips); accessibility 732/732 pages
+with zero violations and zero missing results. Named individual gates, build,
+VSIX and ACP packages pass. Startup is 750,733 bytes, legacy deferred 32,865,
+prompt library 10,120, chat sharing 13,795 and VSIX 2,375,405. All nine red
+drill runs restore exact hashes; standalone full Help is checked in all 15
+shipped languages, including the actual tarball. Hosted CI, cross-platform universal-package validation, release
+run IDs, tag commit and publication channels remain for the lead. No push or
+publication was performed on this rig.
