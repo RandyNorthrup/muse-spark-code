@@ -770,3 +770,37 @@ describe('resource event subscriptions', () => {
     expect(onError).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('D100 G12 pressure signals', () => {
+  it('G12 transport failures throttle with healthy CPU and RAM and expire as unknown', async () => {
+    const f = setup()
+    for (const wasSuccessful of [true, false, true, true, true])
+      f.governor.recordTransportResult(wasSuccessful)
+    await f.read(0)
+    await f.series(30_000, {})
+    expect(f.governor.level()).toBe('throttle')
+    expect(f.seen.at(-1)).toMatchObject({ reason: 'transport' })
+    expect(f.governor.status([]).sample?.transportFailurePercent).toBe(20)
+    await f.read(65_000)
+    expect(f.governor.status([]).sample?.transportFailurePercent).toBeNull()
+    expect(f.governor.level()).toBe('throttle')
+    f.governor.dispose()
+  })
+  it('G12 OS service stalls throttle independently of aggregate CPU and RAM', async () => {
+    const f = setup()
+    const pressure = { cpuSomePercent: 25, memorySomePercent: 0, memoryFullPercent: 0 }
+    await f.read(0, { pressure })
+    await f.series(30_000, { pressure })
+    expect(f.governor.level()).toBe('throttle')
+    expect(f.seen.at(-1)).toMatchObject({ reason: 'osService' })
+    await f.read(35_000, {
+      pressure: { cpuSomePercent: null, memorySomePercent: 0, memoryFullPercent: 0 },
+    })
+    expect(f.governor.level()).toBe('throttle')
+    await f.read(100_000, {
+      pressure: { cpuSomePercent: null, memorySomePercent: 0, memoryFullPercent: 0 },
+    })
+    expect(f.governor.level()).toBe('throttle')
+    f.governor.dispose()
+  })
+})

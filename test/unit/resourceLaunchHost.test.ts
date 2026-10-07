@@ -3,7 +3,13 @@ import { ResourceLaunchHost } from '../../src/core/resources/launchHost'
 import { ResourceGovernor } from '../../src/core/resources/governor'
 import { ResourceEvents } from '../../src/core/resources/events'
 import type { ResourceTreeBinding } from '../../src/core/resources/launch'
-import { RESOURCE_FOREGROUND_WAIT_MS, RESOURCE_GIB_BYTES } from '../../src/shared/constants'
+import {
+  RESOURCE_TREE_PROCESS_CAP,
+  RESOURCE_TREE_SPAWN_CAP,
+  RESOURCE_TREE_SPAWN_WINDOW_MS,
+  RESOURCE_FOREGROUND_WAIT_MS,
+  RESOURCE_GIB_BYTES,
+} from '../../src/shared/constants'
 import { resourceSettingsSchema, type ResourceSample } from '../../src/shared/resources'
 import { FakeResourceClock, ScriptedResourceSampler } from './helpers/resources/fakes'
 
@@ -246,4 +252,65 @@ describe('C1 process admission and registration', () => {
     next.complete(true)
     h.host.dispose()
   })
+})
+
+describe('D100 G13 offending-job containment', () => {
+  it.each(['process count', 'spawn rate'])(
+    'G13 caps %s without stopping another job or releasing unproved occupancy',
+    async (kind) => {
+      const h = setup()
+      let members = [h.binding.root!]
+      h.binding.reader.members = () => Promise.resolve(members)
+      h.binding.reader.actionMembers = () => Promise.resolve(members)
+      const signal = vi.fn<NonNullable<ResourceTreeBinding['reader']['signal']>>(() =>
+        Promise.resolve('done'),
+      )
+      h.binding.reader.signal = signal
+      const offender = await h.host.admit('check')
+      offender.register({ pid: 700, group: true })
+      await h.host.refreshTrees()
+      const unrelated = await h.host.admit('toolShell')
+      const otherRoot = { pid: 900, startTime: '2000' }
+      const otherSignal = vi.fn<NonNullable<ResourceTreeBinding['reader']['signal']>>(() =>
+        Promise.resolve('done'),
+      )
+      h.bindTree.mockResolvedValueOnce({
+        root: otherRoot,
+        scope: { type: 'group', pgid: otherRoot.pid },
+        reader: {
+          members: () => Promise.resolve([otherRoot]),
+          contains: () => Promise.resolve(true),
+          usage: () => Promise.resolve({ cpuSeconds: 1, residentBytes: 100 }),
+          actionMembers: () => Promise.resolve([otherRoot]),
+          signal: otherSignal,
+        },
+        gone: () => Promise.resolve(false),
+      })
+      unrelated.register({ pid: otherRoot.pid, group: true })
+      await h.host.refreshTrees()
+      const cap = kind === 'process count' ? RESOURCE_TREE_PROCESS_CAP : RESOURCE_TREE_SPAWN_CAP
+      if (kind === 'process count') {
+        // Do not trip the birth cap: spread known births across expired windows.
+        for (let offset = 1; offset <= cap; offset += 32) {
+          h.clock.advance(RESOURCE_TREE_SPAWN_WINDOW_MS)
+          members = Array.from({ length: Math.min(offset + 32, cap + 1) }, (_, i) => ({
+            pid: 700 + i,
+            startTime: '1000',
+          }))
+          await h.host.refreshTrees()
+        }
+      } else {
+        members = Array.from({ length: cap + 1 }, (_, i) => ({ pid: 700 + i, startTime: '1000' }))
+        await h.host.refreshTrees()
+      }
+      expect(signal).toHaveBeenCalled()
+      expect(signal.mock.calls.every(([ticket]) => ticket.kind === 'check')).toBe(true)
+      expect(otherSignal).not.toHaveBeenCalled()
+      expect(h.host.tickets()).toHaveLength(2)
+      expect(h.governor.level()).toBe('normal')
+      unrelated.complete(true)
+      offender.complete(true)
+      h.host.dispose()
+    },
+  )
 })

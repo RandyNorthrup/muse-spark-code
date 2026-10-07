@@ -52,6 +52,7 @@ import {
   ACP_AGENT_TITLE,
   ACP_CONFIG_IDS,
   ACP_PAID_TOOL_CALL_PREFIX,
+  ACP_QUESTIONS_BUNDLE_FILE,
   ACP_SESSION_LIST_LIMIT,
   type AcpBackendKind,
   type ReportEventKind,
@@ -60,11 +61,12 @@ import {
   type EffortLevel,
   MSP_REQUESTED_CAPABILITIES,
   type PermissionMode,
+  QUESTION_DEFER_DEFAULT_SECONDS,
   UI_TEXT,
   SLASH_COMMAND_NAMES,
 } from '../shared/constants'
 import { effortForThinking, effortLabel, effortLevelsFor, isEffortLevel } from '../shared/effort'
-import { fill } from '../shared/l10n/text'
+import { fill, uiLocale } from '../shared/l10n/text'
 import { parseSkillInvocation } from '../shared/mentions'
 import type { PaidUseRequest } from '../shared/paid'
 import {
@@ -77,14 +79,17 @@ import { type AcpPaidUse, paidUseAnswer, paidUseOptions } from './paid'
 import { acpResourceCommand, acpResourceUpdates, resourceCommands } from './resources'
 import type { RuntimeResources } from '../runtime/resources/port'
 import { resourceStatusText } from '../runtime/resources/text'
+import type {
+  AcpQuestionDeferral,
+  AcpQuestionRegistry,
+  AcpQuestionRegistryFactory,
+} from './questionDeferral'
 import {
-  elicitationSchema,
-  elicitationText,
-  formAnswers,
-  parseElicitationResult,
-  questionForm,
-  questionsText,
-} from './questions'
+  acpQuestionClock,
+  questionDeferralLoader,
+  type AcpQuestionBundle,
+} from './questionDeferralBundle'
+import type { QuestionClock } from '../shared/questions'
 import {
   approvalToolCall,
   decidedChoice,
@@ -120,6 +125,7 @@ export interface AcpAgentOptions {
   /** Contributor-tier models are listed (`--allow-contributor-models`). */
   readonly allowsContributorModels: boolean
   readonly initialMode: PermissionMode
+  readonly questionsDeferAfterSeconds?: number
 }
 
 /** How the user signs in to the chosen backend (D61, D62). */
@@ -145,6 +151,11 @@ export interface AcpAgentDeps {
   readonly log: CoreLogger
   /** The process-wide lazy governor; subscriptions do not start it. */
   readonly resources?: RuntimeResources
+  /** Required Q/runtime binding: portable registry plus durable idle-answer queue. */
+  readonly questions: AcpQuestionRegistryFactory | 'decline'
+  readonly questionClock?: QuestionClock
+  /** Same-build factory loader; tests inject the source factory. */
+  readonly questionBundle?: () => AcpQuestionBundle
   /**
    * Report a problem (M93 lane A, PLAN.md D72): facts-only error observation
    * for the standalone report's journal. The runtime wires this to its local
@@ -227,8 +238,11 @@ function servedEffort(modelId: string, wanted: EffortLevel): EffortLevel {
 
 /** One ACP session over one AgentSession. */
 class AcpSession {
+  private readonly questionRegistry: AcpQuestionRegistry | undefined
+  private questions: AcpQuestionDeferral | undefined
+  private readonly questionBundle: () => AcpQuestionBundle
   private readonly translator: UpdateTranslator
-  private readonly unsubscribe: () => void
+  private unsubscribe: (() => void) | undefined
   private readonly unsubscribeResources: (() => void) | undefined
   private readonly approvals = new Map<string, ApprovalRequest>()
   private readonly earlyFinishes = new Map<string, TurnCompleted>()
@@ -259,12 +273,25 @@ class AcpSession {
     private readonly deps: AcpAgentDeps,
     private mode: PermissionMode,
     private modelId: string,
+    private activeTurnId: string | undefined,
   ) {
     this.sessionId = session.sessionId
+    this.questionBundle =
+      deps.questionBundle ??
+      questionDeferralLoader({
+        bundlePath: path.join(__dirname, ACP_QUESTIONS_BUNDLE_FILE),
+        log: deps.log,
+      })
+    const questionClock = deps.questionClock ?? acpQuestionClock
+    this.questionRegistry =
+      deps.questions === 'decline'
+        ? undefined
+        : deps.questions({
+            session,
+            clock: questionClock,
+            deliver: (message) => this.getQuestions().deliver(message),
+          })
     this.translator = new UpdateTranslator(cwd, false)
-    this.unsubscribe = session.onEvent((event) => {
-      this.onEvent(event)
-    })
     this.unsubscribeResources = deps.resources?.subscribe(this.sessionId, (notice) => {
       const updates = acpResourceUpdates(notice)
       const isPause = notice.event.type === 'levelChanged' && notice.event.to === 'pause'
@@ -275,6 +302,47 @@ class AcpSession {
       }
       if (isPause) this.hasShownResourcePause = true
     })
+  }
+
+  private getQuestions(): AcpQuestionDeferral {
+    if (this.questions !== undefined) return this.questions
+    if (this.questionRegistry === undefined) throw new Error(UI_TEXT.questionAnswerFailed)
+    this.questions = this.questionBundle().createAcpQuestions(
+      {
+        registry: this.questionRegistry,
+        clock: this.deps.questionClock ?? acpQuestionClock,
+        seconds: this.deps.options.questionsDeferAfterSeconds ?? QUESTION_DEFER_DEFAULT_SECONDS,
+        session: this.session,
+        turn: () => ({
+          isReleased: this.isDisposed,
+          isCancelled: this.pending?.isCancelled === true,
+          turnId: this.pending?.turnId ?? this.activeTurnId,
+          starting: this.starting,
+        }),
+        notice: (text) => {
+          this.questionNotice(text)
+        },
+        failed: () => {
+          this.questionFailed()
+          observeError(this.deps, 'questionFailed')
+        },
+      },
+      UI_TEXT,
+      uiLocale(),
+    )
+    return this.questions
+  }
+
+  private questionStateNotSaved(): void {
+    this.deps.log.warn(`ACP session ${this.sessionId}: question state was not saved`)
+  }
+
+  private questionFailed(): void {
+    this.deps.log.warn(`ACP session ${this.sessionId}: question operation failed`)
+  }
+
+  private async endQuestions(isCancelled: boolean): Promise<void> {
+    await (this.questions?.turnEnded(isCancelled) ?? this.questionRegistry?.turnEnded(isCancelled))
   }
 
   /** Queues an update behind the ones before it: the client sees them in order. */
@@ -343,7 +411,7 @@ class AcpSession {
         ...this.skills
           .filter(
             (skill) =>
-              skill.selector !== SLASH_COMMAND_NAMES.help &&
+              ![SLASH_COMMAND_NAMES.help, 'answer', 'questions'].includes(skill.selector) &&
               (this.deps.resources === undefined ||
                 !['resources', 'usage'].includes(skill.selector)),
           )
@@ -352,11 +420,18 @@ class AcpSession {
             description: skill.description === '' ? skill.displayName : skill.description,
             input: skill.argumentHint === undefined ? null : { hint: skill.argumentHint },
           })),
+        ...(this.questionRegistry === undefined
+          ? []
+          : [
+              { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
+              { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },
+            ]),
       ],
     })
   }
 
   private onEvent(event: AgentEvent): void {
+    if (event.type === 'turnStarted') this.activeTurnId = event.turnId
     switch (event.type) {
       case 'approvalRequested': {
         this.approvals.set(event.approvalId, event)
@@ -383,6 +458,10 @@ class AcpSession {
       }
       case 'questionRequested': {
         void this.ask(event)
+        return
+      }
+      case 'questionSettled': {
+        this.questions?.settled(event.userInputId, event.outcome)
         return
       }
       case 'elicitationRequested': {
@@ -425,6 +504,7 @@ class AcpSession {
     pending.turnId = turnId
     const early = this.earlyFinishes.get(turnId)
     if (early === undefined) {
+      this.activeTurnId = turnId
       return
     }
     this.earlyFinishes.delete(turnId)
@@ -432,9 +512,17 @@ class AcpSession {
   }
 
   private finishTurn(event: TurnCompleted): void {
+    const wasActive = this.activeTurnId === event.turnId
+    if (wasActive) this.activeTurnId = undefined
     const pending = this.pending
     if (pending?.turnId === event.turnId) {
       this.settle(pending, event)
+      return
+    }
+    if (pending === undefined && wasActive) {
+      void this.endQuestions(event.terminal === CANCELLED_TERMINAL).catch(() => {
+        this.questionStateNotSaved()
+      })
       return
     }
     if (pending?.turnId !== undefined) {
@@ -450,6 +538,11 @@ class AcpSession {
   /** ACP's answer to the prompt: cancelled whenever the client cancelled it (as the spec requires). */
   private settle(pending: PendingPrompt, event: TurnCompleted): void {
     this.pending = undefined
+    void this.endQuestions(pending.isCancelled || event.terminal === CANCELLED_TERMINAL).catch(
+      () => {
+        this.questionStateNotSaved()
+      },
+    )
     if (pending.isCancelled || event.terminal === CANCELLED_TERMINAL) {
       pending.resolve('cancelled')
       return
@@ -528,6 +621,8 @@ class AcpSession {
     const settle = this.session.settleElicitation
     const message = `${fill(UI_TEXT.elicitationTitle, { server: event.server })}\n${event.message}`
     try {
+      const { elicitationSchema, elicitationText, parseElicitationResult } =
+        this.questionBundle().acpElicitation(UI_TEXT, uiLocale())
       if (settle === undefined || this.clientCapabilities.elicitation?.form == null) {
         this.send({
           sessionUpdate: 'agent_message_chunk',
@@ -588,46 +683,32 @@ class AcpSession {
   }
 
   private async ask(event: QuestionRequest): Promise<void> {
-    const pending = this.pending
     try {
-      if (this.clientCapabilities.elicitation?.form == null) {
-        this.send({
-          sessionUpdate: 'agent_message_chunk',
-          content: { type: 'text', text: questionsText(event.questions) },
-        })
-      } else {
-        const request: CreateElicitationRequest = {
-          sessionId: this.sessionId,
-          mode: 'form',
-          message: UI_TEXT.acpQuestionFormMessage,
-          requestedSchema: questionForm(event.questions),
-        }
-        const response = await this.client.request('elicitation/create', request)
-        if (!this.isCurrentPrompt(pending)) {
-          return
-        }
-        const answers = formAnswers(event.questions, response)
-        if (answers !== undefined) {
-          await this.session.answerQuestions(event.userInputId, answers)
-          return
-        }
-        this.deps.log.info(
-          `ACP session ${this.sessionId}: question ${event.userInputId} declined: the form came back without an answer that fits each question`,
-        )
-      }
-      if (this.isCurrentPrompt(pending)) {
+      if (this.questionRegistry === undefined) {
+        // Explicit headless policy: decline at once, without a form or a timer.
         await this.session.cancelQuestions(event.userInputId)
+        return
       }
-    } catch (error: unknown) {
-      this.deps.log.warn(
-        `ACP session ${this.sessionId}: question ${event.userInputId}: ${failureForLog(error)}`,
+      await this.getQuestions().askClient(
+        event,
+        this.client,
+        this.clientCapabilities.elicitation?.form != null,
+        this.pending?.turnId ?? this.activeTurnId,
       )
+    } catch {
+      this.questionFailed()
       observeError(this.deps, 'questionFailed')
-      // A form that failed is declined, so the turn goes on without the answer.
-      if (this.isCurrentPrompt(pending)) {
-        await this.declineQuestions(event.userInputId)
+      if (this.questionRegistry === undefined) return
+      try {
+        await this.session.cancelQuestions(event.userInputId)
+      } catch {
+        this.questionFailed()
       }
     }
+  }
+
+  private questionNotice(text: string): void {
+    this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
   }
 
   /**
@@ -661,19 +742,6 @@ class AcpSession {
       await this.session.cancel()
     } catch (error: unknown) {
       this.deps.log.warn(`ACP session ${this.sessionId}: cancel failed: ${failureForLog(error)}`)
-    }
-  }
-
-  private async declineQuestions(userInputId: string): Promise<void> {
-    if (this.isDisposed) {
-      return
-    }
-    try {
-      await this.session.cancelQuestions(userInputId)
-    } catch (error: unknown) {
-      this.deps.log.warn(
-        `ACP session ${this.sessionId}: question ${userInputId} not declined: ${failureForLog(error)}`,
-      )
     }
   }
 
@@ -847,6 +915,14 @@ class AcpSession {
     }
   }
 
+  public async loadQuestions(): Promise<void> {
+    await this.questionRegistry?.load()
+    this.ensureHeld()
+    this.unsubscribe = this.session.onEvent((event) => {
+      this.onEvent(event)
+    })
+  }
+
   public async prompt(blocks: readonly ContentBlock[]): Promise<StopReason> {
     this.ensureHeld()
     if (this.deps.resources !== undefined) {
@@ -857,6 +933,19 @@ class AcpSession {
         await this.outbox
         return 'end_turn'
       }
+    }
+    const [first] = blocks
+    if (
+      this.questionRegistry !== undefined &&
+      blocks.length === 1 &&
+      first?.type === 'text' &&
+      /^\/(?:questions|answer)(?:\s|$)/.test(first.text.trim())
+    ) {
+      await this.announceCommands()
+      const notice = await this.getQuestions().command(first.text)
+      this.questionNotice(notice)
+      await this.outbox
+      return 'end_turn'
     }
     if (this.pending !== undefined || this.preparing !== undefined) {
       throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
@@ -886,7 +975,12 @@ class AcpSession {
         sessionUpdate: 'agent_message_chunk',
         content: {
           type: 'text',
-          text: compactReference(this.skills.map((skill) => skill.selector)),
+          text: compactReference([
+            ...this.skills
+              .map((skill) => skill.selector)
+              .filter((name) => !['answer', 'questions'].includes(name)),
+            ...(this.questionRegistry === undefined ? [] : ['questions', 'answer']),
+          ]),
         },
       })
       await this.outbox
@@ -894,15 +988,19 @@ class AcpSession {
     }
     const preparing: PreparingPrompt = { isCancelled: false }
     this.preparing = preparing
+    let queued: readonly TurnPart[]
     try {
       await this.announceCommands()
+      queued = (await this.questionRegistry?.queuedParts()) ?? []
     } finally {
       this.preparing = undefined
     }
     if ('error' in preparing) {
+      await this.questionRegistry?.acknowledgeQueued('notTaken')
       throw preparing.error
     }
     if (preparing.isCancelled) {
+      await this.questionRegistry?.acknowledgeQueued('notTaken')
       await this.outbox
       return 'cancelled'
     }
@@ -921,11 +1019,25 @@ class AcpSession {
       }
     })
     try {
-      const starting = this.session.sendTurn(this.withSkill(parsed.parts), parsed.displayText)
+      const starting = this.session.sendTurn(
+        [...queued, ...this.withSkill(parsed.parts)],
+        parsed.displayText,
+      )
       this.starting = starting
       const submission = await starting
       this.noteTurnId(submission.turnId)
+      try {
+        await this.questionRegistry?.acknowledgeQueued('taken')
+        if (queued.length > 0) this.getQuestions().sentQueued()
+      } catch {
+        throw RequestError.internalError(undefined, UI_TEXT.questionAnswerUncertain)
+      }
     } catch (error: unknown) {
+      try {
+        await this.questionRegistry?.acknowledgeQueued('uncertain')
+      } catch {
+        this.questionStateNotSaved()
+      }
       this.pending = undefined
       if (this.isDisposed) {
         // Let go while starting: a close cancels; a host exit fails.
@@ -953,10 +1065,14 @@ class AcpSession {
       this.deps.log.info(`ACP session ${this.sessionId}: cancelled before its turn started`)
       return
     }
-    if (this.pending === undefined) {
+    if (this.pending === undefined && this.activeTurnId === undefined) {
       return
     }
-    this.pending.isCancelled = true
+    if (this.pending === undefined) this.activeTurnId = undefined
+    else this.pending.isCancelled = true
+    void this.endQuestions(true).catch(() => {
+      this.questionStateNotSaved()
+    })
     // Stopped once its start is answered, as in release(): a stop sent
     // while the turn is still starting finds no turn, and the turn would
     // then run on, editing and billing, while the editor is told it ended.
@@ -976,6 +1092,9 @@ class AcpSession {
     }
     this.pending?.reject(error)
     this.pending = undefined
+    void this.endQuestions(false).catch(() => {
+      this.questionStateNotSaved()
+    })
   }
 
   public get isReleased(): boolean {
@@ -996,13 +1115,15 @@ class AcpSession {
       return
     }
     this.isDisposed = true
+    this.questions?.dispose()
+    if (this.questions === undefined) this.questionRegistry?.dispose()
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
     }
-    const wasRunning = this.pending !== undefined
+    const wasRunning = this.pending !== undefined || this.activeTurnId !== undefined
     this.pending?.resolve('cancelled')
     this.pending = undefined
-    this.unsubscribe()
+    this.unsubscribe?.()
     this.unsubscribeResources?.()
     if (wasRunning) {
       // Stopped once its start is answered, even a start that failed: one
@@ -1085,6 +1206,7 @@ class AgentState {
     claim: SessionClaim,
     prepare: (acp: AcpSession) => Promise<void>,
     isImported = false,
+    activeTurnId?: string,
   ): Promise<AcpSession> {
     // A session loaded again replaces the one held, and one still being set
     // up by an earlier load, before anything runs on it: both hosts hand
@@ -1111,8 +1233,10 @@ class AgentState {
           ? untrustedStartMode(this.deps.options.initialMode, this.deps.options.initialMode)
           : this.deps.options.initialMode,
         session.modelId,
+        activeTurnId,
       )
       this.adopting.set(sessionId, acp)
+      await acp.loadQuestions()
       await prepare(acp)
       this.ensureClaim(claim, host)
       if (acp.isReleased) {
@@ -1314,6 +1438,7 @@ class AgentState {
           resumed.sendPlan(loaded.history.todos)
         },
         loaded.record.imported === true,
+        loaded.activeTurnId,
       )
       return { modes: acp.modes(), configOptions: acp.configOptions() }
     } catch (error: unknown) {

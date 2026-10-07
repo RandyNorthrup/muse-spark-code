@@ -175,5 +175,8 @@
   "config.resourceRelocate.description": "Makine meşgulken kuyruktaki ekip görevlerinin ve kontrollerin taşınabileceği yer. Mevcut cihaz izinleri ve teklifleri geçerliliğini korur.",
   "config.resourceRelocate.enumDescriptions.paired": "Kaynak yükü normal olan, önceden onaylanmış eşleştirilmiş bir cihazı kullanır.",
   "config.resourceRelocate.enumDescriptions.ask": "Kuyruktaki işi taşımadan önce sorar.",
-  "config.resourceRelocate.enumDescriptions.off": "İşi bu makinede tutar."
+  "config.resourceRelocate.enumDescriptions.off": "İşi bu makinede tutar.",
+  "command.nextOpenQuestion.title": "Sonraki açık soru",
+  "command.previousOpenQuestion.title": "Önceki açık soru",
+  "config.questions.deferAfterSeconds.description": "Muse’un çalışmaya devam edebilmesi için yanıtsız bir sorunun ertelenmesine kadar geçen saniye. Varsayılan 60; 0 hiçbir zaman demektir; 1–9, 10 olarak okunur; en fazla 3.600. Soru açık kalır ve daha sonra yanıtlanabilir. Yalnızca bu bilgisayarın ayarı kullanılır."
 }

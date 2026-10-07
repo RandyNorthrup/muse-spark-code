@@ -1,3 +1,8 @@
+import { questionAnswerText } from './helpers/questions/registry'
+import { FakeQuestionClock } from './helpers/questions/clock'
+import { FakeQuestionStore } from './helpers/questions/store'
+import { questionFixture } from './helpers/questions/fixtures'
+import { QUESTION_CLARIFIED } from './helpers/m46Capture'
 import { MspError } from '@muse-code/sdk'
 import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
@@ -444,6 +449,7 @@ function setup(
     tasksTab?: TasksTabPort
     /** The window's Auto reviewer on Muse Code (M90). */
     museCodeReviewer?: ConversationDeps['museCodeReviewer']
+    questions?: ConversationDeps['questions']
     judge?: ConversationDeps['judge']
   } = {},
 ) {
@@ -649,6 +655,7 @@ function setup(
   }
   const deps: ConversationDeps = {
     surface,
+    ...(options.questions !== undefined && { questions: options.questions }),
     judge: options.judge,
     checkpoints,
     unsavedPaths: () => unsaved.files.map((file) => `/ws/${file}`),
@@ -4347,6 +4354,7 @@ describe('ConversationController: session history (M6)', () => {
         expect.objectContaining({ sessionId: 'page2' }),
       ],
       archivedIds: ['page2'],
+      openQuestionCounts: {},
     })
   })
 
@@ -7175,12 +7183,7 @@ describe('ConversationController: permission hardening (D24)', () => {
   it('ignores a refused Bypass fallback after its conversation was replaced', async () => {
     const t = setup({ hasApprovalUi: true, initialPermissionMode: 'bypassPermissions' })
     await t.send('l1', 'hi')
-    t.server.silence('session/setApprovalMode')
-    t.setBypassAllowed(false)
-    const revoking = t.controller.revokeBypass()
-    await vi.waitFor(() => {
-      expect(approvalModes(t)).toEqual(['promptUnmatched'])
-    })
+    const { revoking } = await heldBypassRevocation(t)
     await t.controller.handle({ type: 'clearConversation' })
     t.server.handle('session/start', (params) => ({
       session: { sessionId: 'replacement', modelId: params['modelId'], status: 'idle' },
@@ -10228,6 +10231,16 @@ async function endReviewInManual(t: ReturnType<typeof setup>) {
 
 const approvalModes = (t: ReturnType<typeof setup>) =>
   t.server.requestsFor('session/setApprovalMode').map((request) => request.params?.['mode'])
+
+async function heldBypassRevocation(t: ReturnType<typeof setup>) {
+  t.server.silence('session/setApprovalMode')
+  t.setBypassAllowed(false)
+  const revoking = t.controller.revokeBypass()
+  await vi.waitFor(() => {
+    expect(approvalModes(t)).toEqual(['promptUnmatched'])
+  })
+  return { revoking }
+}
 
 /** A held fake-host acknowledgement applies that requested mode, or refuses it. */
 function answerModeRequest(t: ReturnType<typeof setup>, index: number, isAccepted = true): string {
@@ -15390,4 +15403,345 @@ describe('ConversationController: Muse Judge card lifecycle (M98-U)', () => {
     expect(t.server.requestsFor('approval/decide')).toHaveLength(1)
     t.controller.dispose()
   })
+})
+
+// M112 Q: the real MSP backend, portable registry and controller's submit path.
+async function questionConversation(options: Parameters<typeof runningTurn>[0] = {}) {
+  const clock = new FakeQuestionClock()
+  const store = new FakeQuestionStore()
+  const t = await runningTurn({
+    ...options,
+    questions: {
+      store,
+      clock,
+      deferAfterSeconds: () => 60,
+      formatAnswer: questionAnswerText,
+    },
+  })
+  t.server.handle('userInput/clarify', (params) => {
+    t.server.notify('userInput/settled', {
+      ...QUESTION_CLARIFIED,
+      sessionId: 's1',
+      userInputId: params['userInputId'],
+    })
+    return { status: 'accepted', commandId: params['commandId'] }
+  })
+  t.server.notify('userInput/requested', {
+    sessionId: 's1',
+    userInputId: 'q-1',
+    itemId: 'question-item',
+    questions: questionFixture().questions,
+  })
+  await vi.waitFor(() => {
+    expect(
+      t.surface.posted.some(
+        (message) =>
+          message.type === 'openQuestions' &&
+          message.snapshot.questions.some((entry) => entry.state === 'waiting'),
+      ),
+    ).toBe(true)
+  })
+  clock.advance(60_000)
+  await vi.waitFor(() => {
+    expect(t.server.requestsFor('userInput/clarify')).toHaveLength(1)
+  })
+  await settle()
+  return { ...t, clock, questionStore: store }
+}
+
+function openAnswer(): Extract<ConversationMessage, { type: 'answerOpenQuestion' }> {
+  return {
+    type: 'answerOpenQuestion',
+    sessionId: 's1',
+    userInputId: 'q-1',
+    reply: { answers: [{ questionId: 'colour', selectedLabel: 'Blue' }] },
+  }
+}
+
+describe('ConversationController: durable open questions (M112 Q)', () => {
+  it.each([false, true])(
+    'discards a stale History question read, including a failed read (%s)',
+    async (isFailed) => {
+      const t = await questionConversation()
+      t.server.handle('session/list', () => ({
+        sessions: [{ ...storedSession, sessionId: 'unvisited', workspaceRoot: '/ws' }],
+        nextCursor: null,
+      }))
+      const held = Promise.withResolvers<Awaited<ReturnType<typeof t.questionStore.load>>>()
+      t.questionStore.load.mockImplementationOnce(() => held.promise)
+      const listing = t.controller.handle({ type: 'listSessions' })
+      await vi.waitFor(() => {
+        expect(t.questionStore.load).toHaveBeenCalledWith('unvisited')
+      })
+      t.controller.dispose()
+      const before = t.surface.posted.length
+      if (isFailed) held.reject(new Error('PRIVATE-HISTORY-CANARY'))
+      else held.resolve([questionFixture({ sessionId: 'unvisited' })])
+      await listing
+      expect(
+        t.surface.posted.slice(before).filter((message) => message.type === 'sessionList'),
+      ).toEqual([])
+      await t.host.close()
+    },
+  )
+
+  it('loads History question counts for authenticated sessions never opened by this surface', async () => {
+    const t = await questionConversation()
+    await t.questionStore.save('unvisited', [
+      questionFixture({ sessionId: 'unvisited' }),
+      questionFixture({
+        sessionId: 'unvisited',
+        state: 'waiting',
+        deferredAt: undefined,
+        userInputId: 'waiting',
+        itemId: 'waiting',
+        key: 'waiting',
+      }),
+      questionFixture({
+        sessionId: 'unvisited',
+        state: 'answeredLater',
+        userInputId: 'answered',
+        itemId: 'answered',
+        key: 'answered',
+      }),
+    ])
+    t.server.handle('session/list', () => ({
+      sessions: [{ ...storedSession, sessionId: 'unvisited', workspaceRoot: '/ws' }],
+      nextCursor: null,
+    }))
+    await t.controller.handle({ type: 'listSessions' })
+    expect(t.surface.posted.findLast((message) => message.type === 'sessionList')).toMatchObject({
+      openQuestionCounts: { unvisited: 1 },
+    })
+    t.controller.jumpToOpenQuestion('previous')
+    expect(t.surface.posted.at(-1)).toEqual({
+      type: 'jumpToOpenQuestion',
+      sessionId: 's1',
+      direction: 'previous',
+    })
+    await t.host.close()
+  })
+
+  it('holds a late answer behind Bypass revocation until the restrictive mode is acknowledged', async () => {
+    const t = await questionConversation({
+      hasApprovalUi: true,
+      initialPermissionMode: 'bypassPermissions',
+    })
+    t.finishTurn()
+    await settle()
+    const { revoking } = await heldBypassRevocation(t)
+    const answering = t.controller.handle(openAnswer())
+    await settle()
+    const beforeAcknowledgement = t.server.requestsFor('turn/start').length
+    answerModeRequest(t, 0)
+    await Promise.all([revoking, answering])
+    expect(beforeAcknowledgement).toBe(1)
+    expect(t.server.requestsFor('turn/start')).toHaveLength(2)
+    await t.host.close()
+  })
+
+  it('resumes an evicted session and retries its late answer exactly once through the ordinary send path', async () => {
+    const t = await questionConversation()
+    t.finishTurn()
+    await settle()
+    let attempts = 0
+    t.server.handle('turn/start', (params) => {
+      attempts += 1
+      if (attempts === 1) throw Object.assign(new Error('not loaded'), { kind: 'sessionNotLoaded' })
+      return { turnId: 't2', status: 'accepted', commandId: params['commandId'] }
+    })
+    t.server.handle('session/resume', () =>
+      envelope({ ...storedSession, sessionId: 's1', modelId: 'muse-spark-1.3' }),
+    )
+    await t.controller.handle(openAnswer())
+    expect(t.server.requestsFor('session/resume')).toHaveLength(1)
+    expect(attempts).toBe(2)
+    expect(t.server.requestsFor('turn/start')[2]?.params).toMatchObject({
+      displayText: fill(UI_TEXT.questionLateAnswerDisplay, { header: 'Colour' }),
+      input: expect.arrayContaining([NOTE]),
+    })
+    const saved = await t.questionStore.load('s1')
+    expect(saved.some((entry) => entry.state === 'open')).toBe(false)
+    await t.host.close()
+  })
+
+  it('defers through the captured clarification and steers a late answer exactly once', async () => {
+    const t = await questionConversation()
+    await Promise.all([t.controller.handle(openAnswer()), t.controller.handle(openAnswer())])
+    expect(t.server.requestsFor('turn/steer')).toHaveLength(1)
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+    expect(t.server.requestsFor('turn/steer')[0]?.params).toMatchObject({
+      expectedTurnId: 't1',
+      input: [
+        { type: 'text', text: expect.stringContaining('Answer to your earlier question q-1') },
+        NOTE,
+      ],
+    })
+    expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+    expect(t.server.requestsFor('session/setApprovalMode')).toHaveLength(0)
+    expect(logLines(t.log).join('\n')).not.toContain('Which colour?')
+    await t.host.close()
+  })
+
+  it('uses one fresh turn after a proven refused steer, and a fresh idle answer has its display text', async () => {
+    const refused = await questionConversation()
+    refused.server.handle('turn/steer', rejectionFor('invalid_target'))
+    await refused.controller.handle(openAnswer())
+    expect(refused.server.requestsFor('turn/steer')).toHaveLength(1)
+    expect(refused.server.requestsFor('turn/start')).toHaveLength(2)
+    await refused.host.close()
+    const idle = await questionConversation()
+    idle.finishTurn()
+    await settle()
+    await idle.controller.handle(openAnswer())
+    expect(idle.server.requestsFor('turn/steer')).toHaveLength(0)
+    expect(idle.server.requestsFor('turn/start')).toHaveLength(2)
+    expect(idle.server.requestsFor('turn/start')[1]?.params).toMatchObject({
+      displayText: fill(UI_TEXT.questionLateAnswerDisplay, { header: 'Colour' }),
+    })
+    await idle.host.close()
+  })
+
+  it('replays the open set to an attached second surface and both surfaces still send one answer', async () => {
+    const t = await questionConversation()
+    const surface = fakeSurface('second')
+    const second = new ConversationController({ ...t.deps, surface })
+    t.server.handle('session/resume', () =>
+      envelope({ ...storedSession, sessionId: 's1', modelId: 'muse-spark-1.3' }),
+    )
+    await second.handle({ type: 'resumeSession', sessionId: 's1' })
+    expect(surface.posted).toContainEqual(
+      expect.objectContaining({
+        type: 'openQuestions',
+        snapshot: expect.objectContaining({
+          sessionId: 's1',
+          questions: [expect.objectContaining({ userInputId: 'q-1', state: 'open' })],
+        }),
+      }),
+    )
+    await Promise.all([t.controller.handle(openAnswer()), second.handle(openAnswer())])
+    expect(
+      t.server.requestsFor('turn/steer').length + t.server.requestsFor('turn/start').length,
+    ).toBe(2)
+    expect(
+      surface.posted.some(
+        (message) =>
+          message.type === 'openQuestions' &&
+          message.snapshot.questions.some((entry) => entry.state === 'answeredLater'),
+      ),
+    ).toBe(true)
+    await t.host.close()
+  })
+
+  it('queues an idle dismissal before the next message and never starts a dismissal turn', async () => {
+    const t = await questionConversation()
+    t.finishTurn()
+    await settle()
+    await t.controller.handle({ type: 'dismissOpenQuestion', sessionId: 's1', userInputId: 'q-1' })
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+    expect(t.server.requestsFor('turn/steer')).toHaveLength(0)
+    await t.send('next', 'Continue now')
+    expect(t.server.requestsFor('turn/start')[1]?.params).toMatchObject({
+      input: [
+        { type: 'text', text: expect.stringContaining('The user dismissed question q-1') },
+        { type: 'text', text: 'Continue now' },
+        NOTE,
+      ],
+    })
+    await t.send('again', 'Another message')
+    expect(JSON.stringify(t.server.requestsFor('turn/steer'))).not.toContain(
+      'The user dismissed question',
+    )
+    await t.host.close()
+  })
+
+  it('retains a refused running dismissal for the next message, without a standalone fallback', async () => {
+    const t = await questionConversation()
+    t.server.handle('turn/steer', rejectionFor('invalid_target'))
+    await t.controller.handle({ type: 'dismissOpenQuestion', sessionId: 's1', userInputId: 'q-1' })
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+    const saved = await t.questionStore.load('s1')
+    expect(saved[0]?.state).toBe('dismissed')
+    t.finishTurn()
+    await settle()
+    await t.send('next', 'Continue')
+    expect(JSON.stringify(t.server.requestsFor('turn/start')[1])).toContain(
+      'The user dismissed question',
+    )
+    await t.host.close()
+  })
+
+  it('rejects stale sessions and invented answers and exposes no question text in failures', async () => {
+    const t = await questionConversation()
+    await t.controller.handle({ ...openAnswer(), sessionId: 'another' })
+    await t.controller.handle({
+      ...openAnswer(),
+      reply: { answers: [{ questionId: 'colour', selectedLabel: 'QUESTION_CANARY' }] },
+    })
+    expect(t.server.requestsFor('turn/steer')).toHaveLength(0)
+    expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+    expect(logLines(t.log).join('\n')).not.toContain('QUESTION_CANARY')
+    expect(logLines(t.log).join('\n')).not.toContain('Which colour?')
+    t.controller.surfaceReady()
+    expect(t.surface.posted).toContainEqual(
+      expect.objectContaining({
+        type: 'openQuestions',
+        snapshot: expect.objectContaining({
+          sessionId: 's1',
+          questions: [expect.objectContaining({ state: 'open' })],
+        }),
+      }),
+    )
+    await t.host.close()
+  })
+})
+
+it('drops a failed registry attachment so it cannot start an untracked turn, and a later send can retry', async () => {
+  const store = new FakeQuestionStore()
+  store.load.mockRejectedValueOnce(new Error('QUESTION_LOAD_CANARY'))
+  const t = setup({
+    questions: {
+      store,
+      clock: new FakeQuestionClock(),
+      deferAfterSeconds: () => 60,
+      formatAnswer: questionAnswerText,
+    },
+  })
+  await t.send('first', 'First')
+  expect(t.server.requestsFor('turn/start')).toHaveLength(0)
+  expect(logLines(t.log).join('\n')).not.toContain('QUESTION_LOAD_CANARY')
+  await t.send('second', 'Second')
+  expect(store.load).toHaveBeenCalledTimes(2)
+  expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+  await t.host.close()
+})
+
+it('never defers or decides an approval on the question clock, and suppresses its open-question reminder', async () => {
+  const t = await questionConversation()
+  t.server.notify('approval/requested', { ...raceRequested('s1'), turnId: 't1' })
+  await settle()
+  t.clock.advance(60_000)
+  await settle()
+  expect(t.server.requestsFor('userInput/clarify')).toHaveLength(1)
+  expect(t.server.requestsFor('approval/decide')).toHaveLength(0)
+  t.finishTurn()
+  await settle()
+  const saved = await t.questionStore.load('s1')
+  expect(saved[0]?.reminders).toBe(0)
+  expect(t.deps.notifyAttention).not.toHaveBeenCalledWith(
+    expect.objectContaining({ message: UI_TEXT.notifyOpenQuestions }),
+  )
+  await t.host.close()
+})
+
+it('requires current sign-in for open answers and dismissals before marking or steering', async () => {
+  const t = await questionConversation()
+  t.auth.snapshot = { status: 'signedOut', detail: undefined }
+  await t.controller.handle(openAnswer())
+  await t.controller.handle({ type: 'dismissOpenQuestion', sessionId: 's1', userInputId: 'q-1' })
+  expect(t.server.requestsFor('turn/steer')).toHaveLength(0)
+  expect(t.server.requestsFor('turn/start')).toHaveLength(1)
+  const saved = await t.questionStore.load('s1')
+  expect(saved[0]?.state).toBe('open')
+  await t.host.close()
 })

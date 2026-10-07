@@ -23,6 +23,9 @@ if (
 }
 for (const file of [
   LAUNCHER,
+  ...(process.platform === 'linux'
+    ? [path.join(SOURCE, 'native', 'linux', process.arch, 'muse-created')]
+    : []),
   ...[
     'acp.js',
     'modelApi.js',

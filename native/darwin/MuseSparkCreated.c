@@ -16,6 +16,8 @@
 #ifdef __APPLE__
 #include <CommonCrypto/CommonDigest.h>
 #else
+// Stable SHA primitives keep static delivery small; see PLAN §8 for the scoped deprecation deferral.
+#define OPENSSL_SUPPRESS_DEPRECATED
 #include <openssl/sha.h>
 #include <linux/stat.h>
 #include <sys/syscall.h>
@@ -111,7 +113,11 @@ static void marker_matches(int root, const char *id, const char *hash) {
 #ifdef __APPLE__
   CC_SHA256(token, (CC_LONG)strlen(token), digest);
 #else
-  SHA256((unsigned char *)token, strlen(token), digest);
+  // Low-level SHA keeps static Linux delivery independent of OpenSSL providers.
+  SHA256_CTX hash_context;
+  if (!SHA256_Init(&hash_context) ||
+      !SHA256_Update(&hash_context, token, strlen(token)) ||
+      !SHA256_Final(digest, &hash_context)) refuse();
 #endif
   for (int i = 0; i < 32; i++) snprintf(hex + 2*i, 3, "%02x", digest[i]);
   if (strcmp(hex, hash)) refuse();

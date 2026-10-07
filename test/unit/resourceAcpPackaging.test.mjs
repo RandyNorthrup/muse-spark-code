@@ -79,3 +79,28 @@ it('M107 refuses a non-file or malformed v2 schema before any staging or child p
   expect(copyFileSync).not.toHaveBeenCalled()
   expect(execFileSync).not.toHaveBeenCalled()
 })
+
+it('G10 Linux delivery copies both architectures into the ACP package', async () => {
+  await import('../../scripts/package-acp.mjs')
+  for (const arch of ['x64', 'arm64'])
+    expect(
+      copyFileSync.mock.calls.map(([source, target]) => [
+        source.replaceAll('\\', '/'),
+        target.replaceAll('\\', '/'),
+      ]),
+    ).toContainEqual([
+      `native/linux/${arch}/muse-created`,
+      `dist/acp-package/native/linux/${arch}/muse-created`,
+    ])
+})
+it.each(['x64', 'arm64'])(
+  'refuses a missing native Linux helper %s before staging',
+  async (arch) => {
+    statSync.mockImplementation((file) => ({
+      isFile: () => !file.replaceAll('\\', '/').includes(`native/linux/${arch}/muse-created`),
+    }))
+    await expect(import('../../scripts/package-acp.mjs')).rejects.toThrow('Required Linux')
+    expect(copyFileSync).not.toHaveBeenCalled()
+    expect(execFileSync).not.toHaveBeenCalled()
+  },
+)

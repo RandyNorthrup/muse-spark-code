@@ -1,6 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { RESOURCE_TREE_SAMPLE_MS, RESOURCE_TEMP_KEEP_MS } from '../../shared/constants'
+import {
+  RESOURCE_TREE_PROCESS_CAP,
+  RESOURCE_TREE_SPAWN_CAP,
+  RESOURCE_TREE_SPAWN_WINDOW_MS,
+  RESOURCE_TREE_SAMPLE_MS,
+  RESOURCE_TEMP_KEEP_MS,
+} from '../../shared/constants'
 import type {
   ResourceClass,
   ResourceClock,
@@ -37,6 +43,9 @@ interface Work {
   temp: ResourceTempRoot | undefined
   failed: boolean
   checkpoint: boolean
+  members: Set<string>
+  births: number[]
+  limited: boolean
 }
 export interface ResourceLaunchHostOptions {
   readonly governor: ResourceGovernor
@@ -191,6 +200,28 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
           return
         }
       }
+      const members = await work.registry?.members(work.ticket)
+      if (!this.work.has(work)) return
+      if (members !== undefined && !work.limited) {
+        const now = this.options.clock.now()
+        const current = new Set(
+          members.map((member) => `${String(member.pid)}:${member.startTime}`),
+        )
+        work.births = work.births.filter((atMs) => now - atMs < RESOURCE_TREE_SPAWN_WINDOW_MS)
+        for (const key of current) if (!work.members.has(key)) work.births.push(now)
+        work.members = current
+        if (
+          current.size > RESOURCE_TREE_PROCESS_CAP ||
+          work.births.length > RESOURCE_TREE_SPAWN_CAP
+        ) {
+          // D100 G13 is an independent offending-job stop, never a machine-wide actuator.
+          work.failed = true
+          work.ended = true
+          const result = await work.registry?.kill(work.ticket)
+          work.limited = result?.status === 'done'
+          if (!work.limited) this.options.onError()
+        }
+      }
       const usage = await work.registry?.usage(work.ticket)
       work.known = usage !== undefined && usage !== null
     } catch {
@@ -288,6 +319,9 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       temp: undefined,
       failed: false,
       checkpoint: isCheckpoint,
+      members: new Set(),
+      births: [],
+      limited: false,
     }
     this.work.add(work)
     let creating: Promise<ResourceTempRoot> | undefined
@@ -367,6 +401,10 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
 
   inClass<T>(workClass: ResourceClass, action: () => Promise<T>): Promise<T> {
     return this.context.run(workClass, action)
+  }
+
+  recordTransportResult(wasSuccessful: boolean): void {
+    this.options.governor.recordTransportResult(wasSuccessful)
   }
 
   hasRetired(owner: string): boolean {

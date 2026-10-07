@@ -131,6 +131,10 @@ function packagingFixture() {
   )
   for (const bundle of [
     'acp',
+    // M112: the lazy ACP forms, the private registry and the deferral note.
+    'acpQuestions',
+    'runtimeQuestions',
+    'questionNotes',
     'modelApi',
     'reviewer',
     // M91: the adapters, the hook and MCP-form runtime, the window's hook runner.
@@ -154,6 +158,12 @@ function packagingFixture() {
   }
   for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs']) {
     writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
+  }
+  for (const arch of ['x64', 'arm64']) {
+    const native = path.join(dir, 'native', 'linux', arch)
+    mkdirSync(native, { recursive: true })
+    // This fixture checks packaging only; it never executes these native bytes.
+    writeFileSync(path.join(native, 'muse-created'), 'test-owned inert Linux helper\n')
   }
   writeFileSync(path.join(dir, 'l10n', 'ui.de.json'), '{}\n')
   writeFileSync(path.join(dir, 'LICENSE'), 'test-owned licence\n')

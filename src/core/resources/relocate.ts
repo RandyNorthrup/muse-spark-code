@@ -10,6 +10,7 @@ import {
   type ResourceLinkedDevice,
   type ResourceStatus,
 } from '../../shared/resources'
+import { reportResourceTransport } from './admission'
 import { unlessAborted } from '../timeouts'
 import type { ResourceEvents } from './events'
 
@@ -71,6 +72,7 @@ export interface ResourceRelocationOptions {
   ): void
   notice(target: ResourceRelocationTarget): void
   traffic(target: ResourceRelocationTarget, event: RelocatedEvent): void
+  transportResult?: (wasSuccessful: boolean) => Promise<void>
   onError(error: unknown): void
 }
 
@@ -124,14 +126,19 @@ export class ResourceRelocator {
       }, RESOURCE_RELOCATION_PROBE_MS)
     })
     try {
-      const parsed = deviceResourceSchema.safeParse(
-        await unlessAborted(Promise.race([target.resource(), expired]), signal),
-      )
+      const response = await unlessAborted(Promise.race([target.resource(), expired]), signal)
+      signal.throwIfAborted()
+      const parsed = deviceResourceSchema.safeParse(response)
+      await (this.options.transportResult ?? reportResourceTransport)(parsed.success)
       return !parsed.success ||
         !canAdmitResourceRelocation(parsed.data.level) ||
         parsed.data.headroom === 'none'
         ? null
         : parsed.data.headroom
+    } catch (error: unknown) {
+      if (!(error instanceof DOMException && error.name === 'AbortError'))
+        await (this.options.transportResult ?? reportResourceTransport)(false)
+      throw error
     } finally {
       clear?.()
     }

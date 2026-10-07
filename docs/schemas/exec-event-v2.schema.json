@@ -821,7 +821,9 @@
                     "recovery",
                     "critical",
                     "override",
-                    "disabled"
+                    "disabled",
+                    "transport",
+                    "osService"
                   ]
                 }
               },

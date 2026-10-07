@@ -87,6 +87,7 @@ import {
   PROJECT_SKILLS_DIR_SEGMENTS,
   type PromptCacheRetention,
   QUESTION_OUTCOME_CLARIFIED,
+  QUESTION_OUTCOME_DEFERRED,
   REPO_MAP_PROMPT_TRIES,
   SCHEDULE_LIFETIME_MS,
   SCHEDULE_MAX_INTERVAL_MS,
@@ -167,10 +168,12 @@ import {
   type SkillSummary,
   type StartSessionOptions,
   SteerRefusedError,
+  PromptSettledError,
   type TurnPart,
   type TurnSubmission,
   type WithdrawOutcome,
 } from '../../agent/agentBackend'
+import type { QuestionReply } from '../../../shared/questions'
 import type { ContextIo } from '../../context/contextFiles'
 import {
   type AgentDefinition,
@@ -873,12 +876,6 @@ interface Pending<T> {
   reject(error: Error): void
 }
 
-/** How the question card settled a prompt (M16), an explanation included (M46). */
-type QuestionReply =
-  | { readonly kind: 'answered'; readonly answers: readonly QuestionAnswer[] }
-  | { readonly kind: 'cancelled' }
-  | { readonly kind: 'clarified'; readonly text: string }
-
 /** How an elicitation form settled (M91 lane M): accept, decline or cancel. */
 type ElicitationContent =
   | { readonly kind: 'accepted'; readonly content: Readonly<Record<string, unknown>> }
@@ -1296,7 +1293,7 @@ function noteItem(text: string): InputItem {
 }
 
 /** What the model is told a question card settled with. */
-function questionResultText(reply: QuestionReply): string {
+export function questionResultText(reply: Exclude<QuestionReply, { kind: 'deferred' }>): string {
   switch (reply.kind) {
     case 'answered': {
       return `${MODEL_API_MODEL_TEXT.answersPrefix}\n${JSON.stringify(reply.answers)}`
@@ -4856,6 +4853,11 @@ export class ModelApiSession implements AgentSession {
       // as the card arrives must find it (the live sweep, 2026-09-27).
       reply = await waitFor<QuestionReply>(signal, (pending) => {
         this.pendingQuestions.set(userInputId, pending)
+        // D95 amends D92.8: scheduled questions never admit interactive answers.
+        if (this.active?.confirmedRequest !== undefined) {
+          this.pendingQuestions.delete(userInputId)
+          pending.resolve({ kind: 'deferred', userInputId })
+        }
         this.emit({ type: 'questionRequested', userInputId, itemId, questions: [...questions] })
       })
     } finally {
@@ -4867,6 +4869,7 @@ export class ModelApiSession implements AgentSession {
       answered: ANSWERED,
       cancelled: CANCELLED,
       clarified: QUESTION_OUTCOME_CLARIFIED,
+      deferred: QUESTION_OUTCOME_DEFERRED,
     }
     this.emit({
       type: 'questionSettled',
@@ -4875,7 +4878,11 @@ export class ModelApiSession implements AgentSession {
       answers: reply.kind === 'answered' ? [...reply.answers] : [],
       ...(reply.kind === 'clarified' && { clarification: reply.text }),
     })
-    const text = questionResultText(reply)
+    let text: string
+    if (reply.kind === 'deferred') {
+      const notes = await import('../../questions/deferralEntry')
+      text = notes.questionDeferralText(reply.userInputId)
+    } else text = questionResultText(reply)
     return { output: text, visibleOutput: text }
   }
 
@@ -4883,8 +4890,11 @@ export class ModelApiSession implements AgentSession {
   private settleQuestion(userInputId: string, reply: QuestionReply): Promise<void> {
     const pending = this.pendingQuestions.get(userInputId)
     if (pending === undefined) {
-      return Promise.reject(new Error(`question ${userInputId} is not pending`))
+      return Promise.reject(
+        new PromptSettledError('alreadySettled', `question ${userInputId} is not pending`),
+      )
     }
+    this.pendingQuestions.delete(userInputId)
     pending.resolve(reply)
     return Promise.resolve()
   }
@@ -11509,8 +11519,13 @@ export class ModelApiSession implements AgentSession {
   public answerQuestions(userInputId: string, answers: readonly QuestionAnswer[]): Promise<void> {
     return this.settleQuestion(
       userInputId,
-      answers.length === 0 ? { kind: 'cancelled' } : { kind: 'answered', answers },
+      answers.length === 0 ? { kind: 'cancelled' } : { kind: 'answered', answers: [...answers] },
     )
+  }
+
+  /** Resolve only this question with the internal deferral output; approvals never enter here. */
+  public deferQuestions(userInputId: string): Promise<void> {
+    return this.settleQuestion(userInputId, { kind: 'deferred', userInputId })
   }
 
   /** Decline the prompt (M16): the tool resolves with no answers and tells the model so. */

@@ -1,4 +1,6 @@
 import {
+  RESOURCE_SERVICE_PRESSURE_PERCENT,
+  RESOURCE_TRANSPORT_FAILURE_PERCENT,
   RESOURCE_CRITICAL_CPU_PERCENT,
   RESOURCE_CRITICAL_MEMORY_FLOOR_FRACTION,
   RESOURCE_GIB_BYTES,
@@ -100,6 +102,24 @@ export function resourceNoticeText(event: ResourceEvent, status: ResourceStatus)
     reason === 'critical' ? RESOURCE_CRITICAL_CPU_PERCENT : status.settings.cpuMaxPercent,
   )
   switch (reason) {
+    case 'transport': {
+      metric = UI_TEXT.resourceTransport
+      reading = percentage(sample?.transportFailurePercent)
+      threshold = percentage(RESOURCE_TRANSPORT_FAILURE_PERCENT)
+      break
+    }
+    case 'osService': {
+      metric = UI_TEXT.resourceOsService
+      const values = [
+        sample?.pressure?.cpuSomePercent ?? null,
+        sample?.pressure?.memorySomePercent ?? null,
+        sample?.pressure?.memoryFullPercent ?? null,
+      ]
+      const known = values.filter((value) => value !== null)
+      reading = percentage(known.length === 0 || values.includes(null) ? null : Math.max(...known))
+      threshold = percentage(RESOURCE_SERVICE_PRESSURE_PERCENT)
+      break
+    }
     case 'memoryUsed': {
       metric = UI_TEXT.resourceMemory
       reading = percentage(sample?.memoryUsedPercent)

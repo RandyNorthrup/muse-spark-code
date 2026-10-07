@@ -108,7 +108,7 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
                 directories ??
                 ((args) =>
                   runTreeProgram(
-                    path.join(__dirname, '..', 'native', 'linux', 'muse-created'),
+                    path.join(__dirname, '..', 'native', 'linux', process.arch, 'muse-created'),
                     args,
                   )),
               exited: (owner) => Promise.resolve(state.host?.hasRetired(owner) ?? false),

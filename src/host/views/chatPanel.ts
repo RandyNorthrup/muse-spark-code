@@ -8,8 +8,10 @@
 // on when it turns active or its document takes focus (M25).
 
 import * as vscode from 'vscode'
+import { plural } from '../../shared/l10n/text'
 import { CHAT_PANEL_VIEW_TYPE, UI_TEXT } from '../../shared/constants'
 import { parsePersistedState } from '../../shared/protocol'
+import { observeOpenQuestionCount } from './ChatViewProvider'
 import type { SurfaceRegistry } from './surfaceRegistry'
 import { configureWebview, type WebviewHostContext } from './webviewSetup'
 
@@ -26,8 +28,11 @@ function attachChatPanel(
     ? panel.title.slice(UI_TEXT.unreadMark.length)
     : panel.title
   let isUnread = false
+  let openCount = 0
   const applyTitle = () => {
-    panel.title = isUnread ? `${UI_TEXT.unreadMark}${title}` : title
+    const counted =
+      openCount === 0 ? title : `${title} · ${plural(UI_TEXT.openQuestionsTabCount, openCount)}`
+    panel.title = isUnread ? `${UI_TEXT.unreadMark}${counted}` : counted
   }
   const surface = configureWebview(panel.webview, context, {
     id: `panel:${globalThis.crypto.randomUUID()}`,
@@ -50,6 +55,10 @@ function attachChatPanel(
     onFocused: (focused) => {
       registry.setActive(focused)
     },
+  })
+  observeOpenQuestionCount(surface, restoredSessionId, (count) => {
+    openCount = count
+    applyTitle()
   })
   const registration = registry.add(surface)
   registry.setActive(surface)

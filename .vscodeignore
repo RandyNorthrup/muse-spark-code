@@ -2,6 +2,7 @@
 !dist/extension.js
 !dist/resourceAdmission.js
 !dist/resourceGovernor.js
+!dist/questionNotes.js
 !dist/conversation.js
 !dist/tab.js
 !dist/modelApi.js
@@ -55,6 +56,8 @@
 !native/windows/MuseSparkMcpJob.cs
 !native/windows/MuseSparkJob.cs
 !native/windows/MuseSparkMcpLauncher.cs
+!native/linux/x64/muse-created
+!native/linux/arm64/muse-created
 !native/darwin/muse-dictate
 !package.json
 !package.nls.json

@@ -1111,3 +1111,24 @@ describe('resource relocation', () => {
     expect(f.target.dispatch).not.toHaveBeenCalled()
   })
 })
+
+it('G12 reports real peer probe success and failure without transport payloads', async () => {
+  const h = setup()
+  const outcome = vi.fn(() => Promise.resolve())
+  h.options.transportResult = outcome
+  const attempt = new ResourceRelocator(h.options).create(h.work)
+  await attempt.run()
+  expect(outcome).toHaveBeenCalledWith(true)
+  const failed = setup()
+  failed.options.transportResult = outcome
+  failed.target.resource = () => Promise.reject(new Error('peer unavailable'))
+  await failed.attempt.run()
+  expect(outcome).toHaveBeenCalledWith(false)
+  outcome.mockClear()
+  const malformed = setup()
+  malformed.options.transportResult = outcome
+  malformed.target.resource = () => Promise.resolve({ invalid: true })
+  await malformed.attempt.run()
+  expect(outcome).toHaveBeenCalledWith(false)
+  expect(outcome).not.toHaveBeenCalledWith(true)
+})

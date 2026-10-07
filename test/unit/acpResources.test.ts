@@ -41,6 +41,7 @@ async function scene() {
       readiness: () => Promise.resolve({ state: 'ready' }),
     },
     resources: fixture.host,
+    questions: 'decline',
     paid: new AcpPaidUse({
       flagged: [],
       canRemember: () => false,

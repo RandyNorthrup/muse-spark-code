@@ -6,18 +6,18 @@ differs from the source. Do not edit it by hand.
 
 ## Manifest
 
-| Field                              | Value                                                                                                                        |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `engines.vscode`                   | `^1.99.0`                                                                                                                    |
-| `engines.node`                     | `>=22`                                                                                                                       |
-| `main`                             | `./dist/extension.js`                                                                                                        |
-| `browser`                          | none                                                                                                                         |
-| `extensionKind`                    | `workspace`                                                                                                                  |
-| `capabilities.virtualWorkspaces`   | `false`                                                                                                                      |
-| `capabilities.untrustedWorkspaces` | `limited`                                                                                                                    |
-| `enabledApiProposals`              | none                                                                                                                         |
-| `activationEvents`                 | `onWebviewPanel:museSpark.chatPanel`, `onStartupFinished`                                                                    |
-| `contributes`                      | `commands` (44), `configuration` (2), `keybindings` (8), `menus` (2), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
+| Field                              | Value                                                                                                                         |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `engines.vscode`                   | `^1.99.0`                                                                                                                     |
+| `engines.node`                     | `>=22`                                                                                                                        |
+| `main`                             | `./dist/extension.js`                                                                                                         |
+| `browser`                          | none                                                                                                                          |
+| `extensionKind`                    | `workspace`                                                                                                                   |
+| `capabilities.virtualWorkspaces`   | `false`                                                                                                                       |
+| `capabilities.untrustedWorkspaces` | `limited`                                                                                                                     |
+| `enabledApiProposals`              | none                                                                                                                          |
+| `activationEvents`                 | `onWebviewPanel:museSpark.chatPanel`, `onStartupFinished`                                                                     |
+| `contributes`                      | `commands` (46), `configuration` (2), `keybindings` (10), `menus` (2), `views` (1), `viewsContainers` (1), `walkthroughs` (1) |
 
 ## Build targets
 
@@ -29,7 +29,7 @@ differs from the source. Do not edit it by hand.
 
 ## Files that import `vscode`
 
-The VS Code adapter: 32 files. Everything else reaches VS Code only through them.
+The VS Code adapter: 33 files. Everything else reaches VS Code only through them.
 
 | File                                       | VS Code APIs used |
 | ------------------------------------------ | ----------------- |
@@ -50,6 +50,7 @@ The VS Code adapter: 32 files. Everything else reaches VS Code only through them
 | `src/host/paid/paidDailyBudget.ts`         | 10                |
 | `src/host/paid/paidHost.ts`                | 12                |
 | `src/host/popups.ts`                       | 2                 |
+| `src/host/questions/questionStore.ts`      | 3                 |
 | `src/host/quickPick.ts`                    | 5                 |
 | `src/host/resources/resourceStatus.ts`     | 13                |
 | `src/host/support/reportEditorIo.ts`       | 9                 |
@@ -357,8 +358,8 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `WebviewViewProvider.resolveWebviewView`                                             | `src/extension.ts`, `src/host/views/ChatViewProvider.ts`                                                                                                                                                                                                                                                                                                                  |
 | `WindowState.focused`                                                                | `src/extension.ts`, `src/host/paid/paidHost.ts`                                                                                                                                                                                                                                                                                                                           |
 | `WorkspaceConfiguration.get`                                                         | `src/extension.ts`, `src/host/editor/verifyEditor.ts`, `src/host/paid/paidHost.ts`                                                                                                                                                                                                                                                                                        |
-| `WorkspaceConfiguration.inspect`                                                     | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                        |
-| `WorkspaceConfiguration.inspect(globalValue)`                                        | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                        |
+| `WorkspaceConfiguration.inspect`                                                     | `src/extension.ts`, `src/host/questions/questionStore.ts`                                                                                                                                                                                                                                                                                                                 |
+| `WorkspaceConfiguration.inspect(globalValue)`                                        | `src/extension.ts`, `src/host/questions/questionStore.ts`                                                                                                                                                                                                                                                                                                                 |
 | `WorkspaceConfiguration.update`                                                      | `src/extension.ts`, `src/host/paid/paidHost.ts`                                                                                                                                                                                                                                                                                                                           |
 | `WorkspaceEdit`                                                                      | `src/host/agentImportHost.ts`                                                                                                                                                                                                                                                                                                                                             |
 | `WorkspaceEdit.entries`                                                              | `src/host/codeIntel/languageServices.ts`                                                                                                                                                                                                                                                                                                                                  |
@@ -414,7 +415,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `workspace.createFileSystemWatcher`                                                  | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                        |
 | `workspace.findFiles`                                                                | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                        |
 | `workspace.fs`                                                                       | `src/extension.ts`, `src/host/cliFeatures.ts`, `src/host/editor/verifyEditor.ts`, `src/host/memoryFeatures.ts`, `src/host/support/reportEditorIo.ts`                                                                                                                                                                                                                      |
-| `workspace.getConfiguration`                                                         | `src/extension.ts`, `src/host/editor/verifyEditor.ts`, `src/host/paid/paidHost.ts`                                                                                                                                                                                                                                                                                        |
+| `workspace.getConfiguration`                                                         | `src/extension.ts`, `src/host/editor/verifyEditor.ts`, `src/host/paid/paidHost.ts`, `src/host/questions/questionStore.ts`                                                                                                                                                                                                                                                 |
 | `workspace.getWorkspaceFolder`                                                       | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                        |
 | `workspace.isTrusted`                                                                | `src/extension.ts`, `src/host/git/gitWindow.ts`                                                                                                                                                                                                                                                                                                                           |
 | `workspace.notebookDocuments`                                                        | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                        |
@@ -435,18 +436,18 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:async_hooks`     | 1     |
 | `node:buffer`          | 39    |
 | `node:child_process`   | 17    |
-| `node:crypto`          | 50    |
+| `node:crypto`          | 51    |
 | `node:dgram`           | 1     |
 | `node:dns`             | 1     |
 | `node:dns/promises`    | 3     |
 | `node:fs`              | 34    |
-| `node:fs/promises`     | 56    |
+| `node:fs/promises`     | 57    |
 | `node:http`            | 4     |
 | `node:https`           | 1     |
 | `node:module`          | 1     |
 | `node:net`             | 7     |
 | `node:os`              | 13    |
-| `node:path`            | 99    |
+| `node:path`            | 102   |
 | `node:process`         | 5     |
 | `node:stream`          | 12    |
 | `node:stream/promises` | 2     |

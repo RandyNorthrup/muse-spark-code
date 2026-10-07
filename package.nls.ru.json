@@ -175,5 +175,8 @@
   "config.resourceRelocate.description": "Куда переносить задачи команды и проверки из очереди, когда этот компьютер занят. Существующие согласия и предложения устройств остаются в силе.",
   "config.resourceRelocate.enumDescriptions.paired": "Использует уже одобренное связанное устройство с обычной загрузкой ресурсов.",
   "config.resourceRelocate.enumDescriptions.ask": "Спрашивает перед переносом работы из очереди.",
-  "config.resourceRelocate.enumDescriptions.off": "Оставляет работу на этом компьютере."
+  "config.resourceRelocate.enumDescriptions.off": "Оставляет работу на этом компьютере.",
+  "command.nextOpenQuestion.title": "Следующий открытый вопрос",
+  "command.previousOpenQuestion.title": "Предыдущий открытый вопрос",
+  "config.questions.deferAfterSeconds.description": "Число секунд до откладывания вопроса без ответа, чтобы Muse мог продолжить работу. По умолчанию 60; 0 означает никогда; 1–9 читаются как 10; максимум 3600. Вопрос остаётся открытым, и на него можно ответить позже. Используется только настройка этого компьютера."
 }

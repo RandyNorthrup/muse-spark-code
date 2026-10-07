@@ -304,7 +304,7 @@ describe('Transcript', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows failures, generic bodies, and decided or answered outcomes', () => {
+  it('shows failures, generic bodies, and decided or answered outcomes', async () => {
     renderSteps([
       tool({
         id: 'f',
@@ -326,6 +326,9 @@ describe('Transcript', () => {
         },
       }),
     ])
+    await act(async () => {
+      await import('../../src/webview/components/QuestionUi')
+    })
     expect(screen.getByText(/Failed: sandbox enforcement unavailable/)).toBeInTheDocument()
     expect(screen.getByText(/Rejected/)).toBeInTheDocument()
     expect(screen.getByText(/Decided: approved \(user\)/)).toBeInTheDocument()
@@ -338,7 +341,7 @@ describe('Transcript', () => {
     expect(screen.getByText('match')).toBeInTheDocument()
   })
 
-  it('folds steps under one summary in Focus view but never a step waiting on the user', () => {
+  it('folds steps under one summary in Focus view but never a step waiting on the user', async () => {
     const entries: TranscriptEntry[] = [
       { kind: 'assistant', id: 'a', text: 'plan', isStreaming: false },
       tool({ id: 't1' }),
@@ -353,6 +356,9 @@ describe('Transcript', () => {
       'steps',
     ])
     renderTranscript(entries, { isFocusView: true })
+    await act(async () => {
+      await import('../../src/webview/components/QuestionUi')
+    })
     // Focus view folds a single step too, as before, now under its summary (M87).
     const summaries = screen.getAllByRole('button', { name: 'Read a file' })
     expect(summaries).toHaveLength(2)
@@ -954,7 +960,7 @@ describe('Transcript rows (M25)', () => {
     expect(screen.queryByRole('button', { name: 'Reject' })).toBeNull()
   })
 
-  it('locks a question card once it was answered or cancelled', () => {
+  it('locks a question card once it was answered or cancelled', async () => {
     renderTranscript([
       tool({
         id: 'q',
@@ -975,6 +981,9 @@ describe('Transcript rows (M25)', () => {
         },
       }),
     ])
+    await act(async () => {
+      await import('../../src/webview/components/QuestionUi')
+    })
     expect(screen.getByRole('radio', { name: 'Red' })).toBeDisabled()
     expect(screen.getByText('Submit')).toBeDisabled()
     expect(screen.getByText('Cancel')).toBeDisabled()

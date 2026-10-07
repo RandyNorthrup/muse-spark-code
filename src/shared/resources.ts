@@ -128,6 +128,7 @@ export type ResourceDiskVolume = z.infer<typeof resourceDiskVolumeSchema>
 export const resourceSampleSchema = z
   .strictObject({
     atMs: counter,
+    transportFailurePercent: z.optional(reading),
     cpuPercent: reading,
     memoryUsedPercent: reading,
     memoryAvailableBytes: z.nullable(counter),
@@ -200,6 +201,8 @@ const reason = z.enum([
   'critical',
   'override',
   'disabled',
+  'transport',
+  'osService',
 ])
 export const resourceEventSchema = z.discriminatedUnion('type', [
   z.strictObject({

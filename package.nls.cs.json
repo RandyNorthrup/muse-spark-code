@@ -175,5 +175,8 @@
   "config.resourceRelocate.description": "Kam přesunout týmové úkoly a kontroly z fronty, když je počítač vytížený. Stávající souhlasy a nabídky zařízení zůstávají v platnosti.",
   "config.resourceRelocate.enumDescriptions.paired": "Použije již schválené spárované zařízení s běžným zatížením prostředků.",
   "config.resourceRelocate.enumDescriptions.ask": "Před přesunutím práce z fronty se zeptá.",
-  "config.resourceRelocate.enumDescriptions.off": "Ponechá práci na tomto počítači."
+  "config.resourceRelocate.enumDescriptions.off": "Ponechá práci na tomto počítači.",
+  "command.nextOpenQuestion.title": "Další otevřená otázka",
+  "command.previousOpenQuestion.title": "Předchozí otevřená otázka",
+  "config.questions.deferAfterSeconds.description": "Počet sekund, po kterých se nezodpovězená otázka odloží, aby Muse mohl pokračovat v práci. Výchozí hodnota je 60; 0 znamená nikdy; 1–9 se čtou jako 10; maximum je 3 600. Otázka zůstává otevřená a můžete na ni odpovědět později. Použije se pouze nastavení tohoto počítače."
 }

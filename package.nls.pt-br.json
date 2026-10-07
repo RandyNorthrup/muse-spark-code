@@ -175,5 +175,8 @@
   "config.resourceRelocate.description": "Destino das tarefas da equipe e verificações na fila quando esta máquina está ocupada. Os consentimentos e as ofertas dos dispositivos continuam válidos.",
   "config.resourceRelocate.enumDescriptions.paired": "Usa um dispositivo pareado já autorizado com carga de recursos normal.",
   "config.resourceRelocate.enumDescriptions.ask": "Pergunta antes de mover o trabalho na fila.",
-  "config.resourceRelocate.enumDescriptions.off": "Mantém o trabalho nesta máquina."
+  "config.resourceRelocate.enumDescriptions.off": "Mantém o trabalho nesta máquina.",
+  "command.nextOpenQuestion.title": "Próxima pergunta em aberto",
+  "command.previousOpenQuestion.title": "Pergunta em aberto anterior",
+  "config.questions.deferAfterSeconds.description": "Segundos antes de adiar uma pergunta sem resposta para que o Muse possa continuar trabalhando. 60 por padrão; 0 significa nunca; 1–9 são interpretados como 10; máximo de 3.600. A pergunta permanece em aberto e pode ser respondida depois. Apenas a configuração deste computador é usada."
 }

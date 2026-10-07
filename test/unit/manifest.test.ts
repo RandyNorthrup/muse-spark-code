@@ -16,6 +16,8 @@ import {
   EXTENSION_NAME,
   EXTENSION_PUBLISHER,
   MACHINE_SCOPED_SETTINGS,
+  QUESTION_DEFER_SETTING,
+  QUESTION_DEFER_DEFAULT_SECONDS,
   SETTING_DEFAULTS,
   SETTINGS_SECTION,
   WALKTHROUGH_ID,
@@ -129,6 +131,7 @@ describe('package.json manifest', () => {
     const resource = resourceSettingsSchema.parse({})
     const defaults = {
       ...SETTING_DEFAULTS,
+      [QUESTION_DEFER_SETTING]: QUESTION_DEFER_DEFAULT_SECONDS,
       resourceGovernor: resource.enabled,
       resourceCpuMaxPercent: resource.cpuMaxPercent,
       resourceMemoryMaxPercent: resource.memoryMaxPercent,
@@ -557,7 +560,14 @@ describe('tiered CI (CIFLOW)', () => {
         .join(' ')}\n`,
     )
     expect(job('unit')).toContain('npx vitest run\n')
-    for (const id of ['coverage', 'accessibility', 'integration', 'native-build', 'packages']) {
+    for (const id of [
+      'coverage',
+      'accessibility',
+      'integration',
+      'native-build',
+      'linux-native-build',
+      'packages',
+    ]) {
       expect(job(id)).toContain('if: ${{ !inputs.fast }}')
     }
     expect(job('accessibility')).toContain('runs-on: ubuntu-latest')
@@ -598,15 +608,37 @@ describe('tiered CI (CIFLOW)', () => {
     ]) {
       expect(job(id)).toContain(`- ${name}\n`)
     }
-    expect(job(id)).toMatch(
-      /needs:\s+\[checks, unit, coverage, accessibility, integration, native-build, packages, secrets, sast\]/,
-    )
+    expect(
+      /needs:\s+\[([^\]]+)\]/
+        .exec(job(id))?.[1]
+        ?.split(',')
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ).toEqual([
+      'checks',
+      'unit',
+      'coverage',
+      'accessibility',
+      'integration',
+      'native-build',
+      'linux-native-build',
+      'packages',
+      'secrets',
+      'sast',
+    ])
     expect(job(id)).toContain('if: always()')
     for (const key of ['CHECKS', 'UNIT', 'SECRETS', 'SAST']) {
       expect(job(id)).toContain(`          test "$${key}" = success\n`)
     }
     expect(job(id)).toContain('          if [ "$FAST" != true ]; then\n')
-    for (const key of ['COVERAGE', 'ACCESSIBILITY', 'INTEGRATION', 'HELPER', 'PACKAGES']) {
+    for (const key of [
+      'COVERAGE',
+      'ACCESSIBILITY',
+      'INTEGRATION',
+      'HELPER',
+      'LINUX_HELPER',
+      'PACKAGES',
+    ]) {
       expect(job(id)).toContain(`            test "$${key}" = success\n`)
     }
     expect(job(id)).not.toContain('continue-on-error')
@@ -635,7 +667,7 @@ describe('tiered CI (CIFLOW)', () => {
   })
 
   const bash = findBash()
-  // 22 subshells: about 7.5 s on a loaded Windows host, where each one is a
+  // 24 subshells: about 7.5 s on a loaded Windows host, where each one is a
   // new process; well under a second on Linux.
   const BASH_CASES_TIMEOUT_MS = 60_000
   // The aggregate's own step, run the way GitHub runs a bash step (-e, pipefail)
@@ -648,13 +680,25 @@ describe('tiered CI (CIFLOW)', () => {
       // Each step variable and the expression it reads: FAST from the input,
       // the rest from one needed job's result.
       const pairs = Array.from(
-        required.matchAll(/^ {10}([A-Z]+): \$\{\{ (\S+) \}\}$/gm),
+        required.matchAll(/^ {10}([A-Z_]+): \$\{\{ (\S+) \}\}$/gm),
         (match) => [match[2] ?? '', match[1] ?? ''] as const,
       )
       const env = new Map(pairs)
-      const ids = /needs:\s+\[([^\]]+)\]/.exec(required)?.[1]?.split(', ') ?? []
+      const ids =
+        /needs:\s+\[([^\]]+)\]/
+          .exec(required)?.[1]
+          ?.split(',')
+          .map((value) => value.trim())
+          .filter(Boolean) ?? []
       const always = ['checks', 'unit', 'secrets', 'sast']
-      const fullOnly = ['coverage', 'accessibility', 'integration', 'native-build', 'packages']
+      const fullOnly = [
+        'coverage',
+        'accessibility',
+        'integration',
+        'native-build',
+        'linux-native-build',
+        'packages',
+      ]
       expect(ids.toSorted(byText)).toEqual([...always, ...fullOnly].toSorted(byText))
       expect(pairs.map(([expression]) => expression).toSorted(byText)).toEqual(
         ['inputs.fast', ...ids.map((id) => `needs.${id}.result`)].toSorted(byText),

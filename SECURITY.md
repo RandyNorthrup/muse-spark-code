@@ -617,12 +617,19 @@ Cleanup requires a private canonical base, recorded creation identity and
 marker, fresh tree exit and handle-confined traversal. Foreign/platform
 helpers must be trusted and missing proof refuses cleanup. Content moved into
 an already harness-created root follows the owner's stated content rule;
-replacements of the root or ancestors do not. The joined DK snapshot still
-has open re-review findings: POSIX destination overwrite during rename,
-final empty-directory substitution, and adoption of an existing empty
-creation directory. FIXM107DK4 is separately assigned to repair and certify
-these. This integration must not be released as certified cleanup until that
-repair and macOS/Windows native qualification pass.
+replacements of the root or ancestors do not. The final DK repair is joined: POSIX
+publication and quarantine/restore use no-replace operations and held/name
+identity checks; creation rejects adoption of an older directory and binds its
+marker to the native creation identity. The final same-user empty-name window
+can remove an empty replacement only, never populated file content. Persisted
+registry discovery, retained publication-artifact recovery and macOS/Windows
+native qualification remain required before cleanup is certified.
+
+D100's per-job process/birth caps use the independent registered-tree stop API
+only for the offending job. Ordinary machine pressure still never kills work.
+Observed births are sampled, so very short-lived unobserved descendants remain
+a native launch/accounting qualification. Unknown membership never permits a
+raw PID or process-name fallback.
 
 Actuator lifecycle, runtime/UI/source mounts, persisted registry discovery,
 all-volume watch targets and journal/paired-device joins are recorded as

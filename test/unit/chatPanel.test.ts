@@ -1,3 +1,4 @@
+import { questionFixture } from './helpers/questions/fixtures'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { openChatPanel, restoreChatPanel } from '../../src/host/views/chatPanel'
 import { SurfaceRegistry } from '../../src/host/views/surfaceRegistry'
@@ -176,5 +177,31 @@ describe('openChatPanel', () => {
     expect(restored.panel.webview.postMessage).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'init', sideChat: true }),
     )
+  })
+})
+
+describe('M112 question tab title', () => {
+  it('adds the count, preserves unread/name changes and clears at a session boundary', () => {
+    const { registry, panel } = openFakePanel()
+    const surface = registry.active
+    surface?.post({ type: 'sessionInfo', sessionId: 'session-1', modelId: 'test' })
+    surface?.setTitle('Choices')
+    surface?.post({
+      type: 'openQuestions',
+      snapshot: { sessionId: 'session-1', questions: [questionFixture()] },
+    })
+    expect(panel.title).toBe('Choices · 1 open')
+    panel.active = false
+    surface?.markUnread()
+    expect(panel.title).toBe('● Choices · 1 open')
+    surface?.setTitle('Renamed')
+    expect(panel.title).toBe('● Renamed · 1 open')
+    surface?.post({ type: 'openQuestions', snapshot: { sessionId: 'other', questions: [] } })
+    expect(panel.title).toBe('● Renamed · 1 open')
+    panel.active = true
+    panel.viewStateChanges.fire({ webviewPanel: panel })
+    expect(panel.title).toBe('Renamed · 1 open')
+    surface?.post({ type: 'sessionInfo', sessionId: 'other', modelId: 'test' })
+    expect(panel.title).toBe('Renamed')
   })
 })

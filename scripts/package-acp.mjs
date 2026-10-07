@@ -31,6 +31,9 @@ import { renderPackageReadme } from './check-badges.mjs'
 const STAGE = path.join('dist', 'acp-package')
 const BUNDLES = [
   'acp.js',
+  'acpQuestions.js',
+  'runtimeQuestions.js',
+  'questionNotes.js',
   'modelApi.js',
   'resourceAdmission.js',
   'resourceGovernor.js',
@@ -58,6 +61,9 @@ const JOB_SOURCES = [
   path.join('native', 'windows', 'MuseSparkJob.cs'),
   path.join('native', 'windows', 'MuseSparkMcpJob.cs'),
 ]
+const LINUX_HELPERS = ['x64', 'arm64'].map((arch) =>
+  path.join('native', 'linux', arch, 'muse-created'),
+)
 const NATIVE_DEPENDENCY = '@napi-rs/keyring'
 const PACKAGE_NAME = 'muse-spark-code-acp'
 // The package's landing page (docs/npm-readme.md): npm renders
@@ -91,6 +97,9 @@ function requireBundles() {
 const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
 const keyringVersion = lockedVersion(manifest)
 requireBundles()
+for (const helper of LINUX_HELPERS)
+  if (!existsSync(helper) || !statSync(helper).isFile())
+    throw new Error(`Required Linux created-path helper is missing: ${helper}`)
 for (const schema of SCHEMAS) {
   const source = path.join('docs', 'schemas', schema)
   if (!statSync(source).isFile()) {
@@ -109,7 +118,7 @@ for (const schema of SCHEMAS) {
 for (const bundle of BUNDLES) {
   copyFileSync(path.join('dist', bundle), path.join(STAGE, 'dist', bundle))
 }
-for (const source of JOB_SOURCES) {
+for (const source of [...JOB_SOURCES, ...LINUX_HELPERS]) {
   mkdirSync(path.join(STAGE, path.dirname(source)), { recursive: true })
   copyFileSync(source, path.join(STAGE, source))
 }

@@ -84,6 +84,8 @@ const RESOURCE_REASONS = new Set([
   'critical',
   'override',
   'disabled',
+  'transport',
+  'osService',
 ])
 // Projections of src/shared/constants.ts EXEC_PROHIBITED_UPDATE_PATTERN and
 // EXEC_RAW_TOOL_FIELDS (parity-tested).

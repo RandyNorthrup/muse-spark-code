@@ -175,5 +175,8 @@
   "config.resourceRelocate.description": "Where queued team tasks and checks may move when this machine is busy. Existing device consent and offers still apply.",
   "config.resourceRelocate.enumDescriptions.paired": "Use an already approved paired device with normal resource load.",
   "config.resourceRelocate.enumDescriptions.ask": "Ask before moving queued work.",
-  "config.resourceRelocate.enumDescriptions.off": "Keep work on this machine."
+  "config.resourceRelocate.enumDescriptions.off": "Keep work on this machine.",
+  "command.nextOpenQuestion.title": "Next open question",
+  "command.previousOpenQuestion.title": "Previous open question",
+  "config.questions.deferAfterSeconds.description": "Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used."
 }

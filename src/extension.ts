@@ -52,6 +52,7 @@ import { SandboxSetup } from './host/backend/sandboxSetup'
 import { fileContextIo } from './host/backend/contextIo'
 import { describeEnvironment } from './host/backend/environment'
 import { createFileSessionStore } from './host/backend/fileSessionStore'
+import type { QuestionStore } from './shared/questions'
 import { modelApiMcpPoolDeps } from './host/backend/mcpServers'
 import { type JobHelper, jobSourceReader } from './host/backend/jobSource'
 import { mcpJobExecutable } from './host/backend/mcpJobExecutable'
@@ -754,6 +755,16 @@ async function activateWindow(
   // D49): a window on a folder under the extension's pull request worktrees is
   // held until the user trusts it in the card, whatever VS Code's trust says.
   const storageRoot = context.globalStorageUri.fsPath
+  let loadedQuestionsStore: QuestionStore | undefined
+  const questionStore = () => {
+    loadedQuestionsStore ??= loadConversation().createHostQuestionStore(storageRoot)
+    return loadedQuestionsStore
+  }
+  const questionsStore: QuestionStore = {
+    load: (id) => questionStore().load(id),
+    save: (id, questions) => questionStore().save(id, questions),
+    remove: (id) => questionStore().remove(id),
+  }
   const worktreeRegistry = new WorktreeRegistry(context.globalState, process.platform, existsSync)
   const windowHold = new WindowHold(
     holdFor(
@@ -2242,6 +2253,7 @@ async function activateWindow(
         ? undefined
         : createFileSessionStore({
             directory: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
+            questions: questionsStore,
             log,
             retentionDays: () => currentSettings().cleanupPeriodDays,
             now: () => Date.now(),
@@ -2833,6 +2845,7 @@ async function activateWindow(
             return await runner?.rewriteMessage(text)
           },
           surface,
+          questions: factory.questionsForHost(questionsStore),
           tasksTab,
           auth,
           ensureHost: ensureSelectedHost,
@@ -3682,6 +3695,18 @@ async function activateWindow(
         },
       })
     }),
+    ...(['next', 'previous'] as const).map((direction) =>
+      registerLoggedCommand(
+        log,
+        direction === 'next' ? COMMAND_IDS.nextOpenQuestion : COMMAND_IDS.previousOpenQuestion,
+        () => {
+          const surface = registry.active
+          if (surface === undefined) return
+          surface.reveal()
+          controllers.get(surface.id)?.jumpToOpenQuestion(direction)
+        },
+      ),
+    ),
     registerLoggedCommand(log, COMMAND_IDS.toggleFocusView, async () => {
       await runHostAction('toggleFocusView')
     }),

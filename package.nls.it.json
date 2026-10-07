@@ -175,5 +175,8 @@
   "config.resourceRelocate.description": "Destinazione delle attività di squadra e dei controlli in coda quando questa macchina è occupata. Restano validi i consensi e le offerte dei dispositivi.",
   "config.resourceRelocate.enumDescriptions.paired": "Usa un dispositivo associato già autorizzato con un carico di risorse normale.",
   "config.resourceRelocate.enumDescriptions.ask": "Chiede prima di spostare il lavoro in coda.",
-  "config.resourceRelocate.enumDescriptions.off": "Mantiene il lavoro su questa macchina."
+  "config.resourceRelocate.enumDescriptions.off": "Mantiene il lavoro su questa macchina.",
+  "command.nextOpenQuestion.title": "Domanda aperta successiva",
+  "command.previousOpenQuestion.title": "Domanda aperta precedente",
+  "config.questions.deferAfterSeconds.description": "Secondi prima che una domanda senza risposta venga rimandata per consentire a Muse di continuare a lavorare. 60 per impostazione predefinita; 0 significa mai; 1–9 vengono interpretati come 10; massimo 3.600. La domanda resta aperta e può ricevere una risposta in seguito. Si usa solo l’impostazione di questo computer."
 }

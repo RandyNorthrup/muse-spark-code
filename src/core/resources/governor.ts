@@ -1,4 +1,9 @@
 import {
+  RESOURCE_SERVICE_PRESSURE_PERCENT,
+  RESOURCE_TRANSPORT_FAILURE_PERCENT,
+  RESOURCE_TRANSPORT_MIN_RESULTS,
+  RESOURCE_TRANSPORT_WINDOW_MS,
+  RESOURCE_TRANSPORT_MAX_RESULTS,
   RESOURCE_CPU_WINDOW_MS,
   RESOURCE_CRITICAL_CPU_PERCENT,
   RESOURCE_CRITICAL_CPU_WINDOW_MS,
@@ -32,7 +37,8 @@ import { type ResourceEvents } from './events'
 import { diskPressure } from './disk'
 
 type Reason = Extract<ResourceEvent, { type: 'levelChanged' }>['reason']
-type Metric = 'cpu' | 'memoryUsed' | 'memoryFree' | 'gpu' | 'disk' | 'diskFree'
+type Metric =
+  'cpu' | 'memoryUsed' | 'memoryFree' | 'gpu' | 'disk' | 'diskFree' | 'transport' | 'osService'
 interface Threshold {
   metric: Metric
   high: boolean | null
@@ -50,8 +56,11 @@ export interface ResourceGovernorOptions {
 
 /** Portable policy only: no process changes, network requests or activation work. */
 export class ResourceGovernor {
+  private readonly transport: { atMs: number; failed: boolean }[] = []
   private settings: ResourceSettings
   private sample: ResourceSample | null = null
+  private readonly observedServiceFields = new Set<number>()
+  private serviceObserved = false
   private diskHeld = false
   private current: ResourceLevel = 'normal'
   private changedAt = -RESOURCE_MIN_DWELL_MS
@@ -171,10 +180,44 @@ export class ResourceGovernor {
       const disk = diskPressure(sample.diskVolumes, this.settings)
       readings.push({ metric: 'diskFree', high: disk.high, recovered: disk.hasRecovered })
     }
+    if (sample.pressure !== null || this.serviceObserved) {
+      this.serviceObserved = true
+      const values = [
+        sample.pressure?.cpuSomePercent ?? null,
+        sample.pressure?.memorySomePercent ?? null,
+        sample.pressure?.memoryFullPercent ?? null,
+      ]
+      for (const [index, value] of values.entries())
+        if (value !== null) this.observedServiceFields.add(index)
+      const known = values.filter((value) => value !== null)
+      const service = percentage(
+        'osService',
+        known.length === 0 ? null : Math.max(...known),
+        RESOURCE_SERVICE_PRESSURE_PERCENT,
+      )
+      service.recovered &&= [...this.observedServiceFields].every((index) => values[index] != null)
+      readings.push(service)
+    }
+    if (sample.transportFailurePercent !== undefined)
+      readings.push(
+        percentage('transport', sample.transportFailurePercent, RESOURCE_TRANSPORT_FAILURE_PERCENT),
+      )
     return readings
   }
 
   private evaluate(sample: ResourceSample): void {
+    const since = this.options.clock.now() - RESOURCE_TRANSPORT_WINDOW_MS
+    while (this.transport[0] !== undefined && this.transport[0].atMs < since) this.transport.shift()
+    if (this.transport.length > 0 || this.sample?.transportFailurePercent !== undefined)
+      sample = {
+        ...sample,
+        transportFailurePercent:
+          this.transport.length < RESOURCE_TRANSPORT_MIN_RESULTS
+            ? null
+            : (this.transport.filter((result) => result.failed).length / this.transport.length) *
+              100,
+      }
+
     if (
       (sample.diskVolumes === undefined || sample.diskVolumes.length === 0) &&
       this.sample?.diskVolumes !== undefined
@@ -278,6 +321,12 @@ export class ResourceGovernor {
   }
 
   /** Admission must wake on disk recovery even while an override keeps the level normal. */
+  /** Aggregate outcomes only: no endpoint, account, error text or transport payload. */
+  recordTransportResult(wasSuccessful: boolean): void {
+    this.transport.push({ atMs: this.options.clock.now(), failed: !wasSuccessful })
+    if (this.transport.length > RESOURCE_TRANSPORT_MAX_RESULTS) this.transport.shift()
+  }
+
   onSample(listener: () => void): () => void {
     this.sampleListeners.add(listener)
     return () => {

@@ -84,3 +84,9 @@ export async function resourceSafePoint(kind: ResourceKind, signal?: AbortSignal
   const host = await load()
   await host?.safePoint(kind, signal)
 }
+
+/** Paired/SSH probes feed only success/failure into the already configured local governor. */
+export async function reportResourceTransport(wasSuccessful: boolean): Promise<void> {
+  const host = await load()
+  host?.recordTransportResult(wasSuccessful)
+}

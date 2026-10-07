@@ -175,5 +175,8 @@
   "config.resourceRelocate.description": "Destination des tâches d’équipe et vérifications en attente lorsque cette machine est occupée. Les autorisations et offres des appareils restent applicables.",
   "config.resourceRelocate.enumDescriptions.paired": "Utilise un appareil associé déjà autorisé dont la charge est normale.",
   "config.resourceRelocate.enumDescriptions.ask": "Demande avant de déplacer le travail en attente.",
-  "config.resourceRelocate.enumDescriptions.off": "Garde le travail sur cette machine."
+  "config.resourceRelocate.enumDescriptions.off": "Garde le travail sur cette machine.",
+  "command.nextOpenQuestion.title": "Question en attente suivante",
+  "command.previousOpenQuestion.title": "Question en attente précédente",
+  "config.questions.deferAfterSeconds.description": "Nombre de secondes avant de reporter une question sans réponse pour que Muse puisse poursuivre son travail. 60 par défaut ; 0 signifie jamais ; 1–9 sont interprétés comme 10 ; maximum 3 600. La question reste en attente et peut recevoir une réponse plus tard. Seul le réglage de cet ordinateur est utilisé."
 }

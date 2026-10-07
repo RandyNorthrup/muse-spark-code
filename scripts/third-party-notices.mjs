@@ -32,6 +32,9 @@ const METAFILE_DIR = path.join('dist', 'meta')
 // and the search/page workers (scripts/build.mjs, scripts/package-acp.mjs).
 const ACP_METAFILES = [
   path.join('dist', 'meta-acp', 'acp.json'),
+  path.join('dist', 'meta-acp', 'acpQuestions.json'),
+  path.join('dist', 'meta-acp', 'runtimeQuestions.json'),
+  path.join(METAFILE_DIR, 'questionNotes.json'),
   path.join(METAFILE_DIR, 'modelApi.json'),
   path.join(METAFILE_DIR, 'resourceGovernor.json'),
   path.join(METAFILE_DIR, 'resourceAdmission.json'),
@@ -75,6 +78,8 @@ high-quality-projects-skill workflow package is also included below.
 The macOS dictation helper links
 only Apple's system frameworks and the Windows helper is a PowerShell
 script of this project; neither includes third-party code.
+The Linux created-path helper statically links OpenSSL SHA-256 routines;
+its copyright notices and Apache 2.0 licence follow the package notices.
 
 Generated from the production build by scripts/third-party-notices.mjs;
 "npm run notices" regenerates this file.
@@ -84,7 +89,7 @@ const ACP_HEADER = `THIRD-PARTY SOFTWARE NOTICES
 muse-spark-code-acp, Muse Spark Code (Unofficial) for editors that speak the
 Agent Client Protocol
 
-The agent's bundles (dist/acp.js, dist/resourceGovernor.js, dist/resourceAdmission.js, dist/modelApi.js, dist/reviewer.js, dist/foreignHooks.js, dist/hookRuntime.js, dist/recorder.js, dist/uiText.js, dist/uiTextRuntime.js, dist/uiTextHooks.js, dist/uiTextSurfaces.js, dist/validation.js, dist/wire.js, dist/searchWorker.js and
+The agent's bundles (dist/acp.js, dist/acpQuestions.js, dist/runtimeQuestions.js, dist/questionNotes.js, dist/resourceGovernor.js, dist/resourceAdmission.js, dist/modelApi.js, dist/reviewer.js, dist/foreignHooks.js, dist/hookRuntime.js, dist/recorder.js, dist/uiText.js, dist/uiTextRuntime.js, dist/uiTextHooks.js, dist/uiTextSurfaces.js, dist/validation.js, dist/wire.js, dist/searchWorker.js and
 dist/pageWorker.js) include code from the packages below, each under its
 own licence, reproduced here as the package ships it. The keyring binding (@napi-rs/keyring) is installed
 beside it as a dependency, with its own licence.
@@ -165,7 +170,8 @@ function render(packages, isAcp) {
     const names = group.map((entry) => `${entry.name} (${entry.licence})\n  ${entry.url}`)
     return `${RULE}\n${names.join('\n')}\n${THIN_RULE}\n\n${text}\n`
   })
-  return `${header}\n${blocks.join('\n')}`
+  const native = `${RULE}\nOpenSSL (Linux native helper, Apache-2.0)\n${THIN_RULE}\n\n${readFileSync(path.join('native', 'openssl-NOTICE.txt'), 'utf8').trimEnd()}\n`
+  return `${header}\n${blocks.join('\n')}\n${native}`
 }
 
 /** The file `--acp` names; undefined without the flag. */

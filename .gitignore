@@ -30,3 +30,6 @@ harness-shots/
 test/harness/l10n/
 # Claude Code session settings (permission rules), written by the tool
 .claude/
+
+# Linux created-path helpers, compiled from the reviewed native source.
+native/linux/

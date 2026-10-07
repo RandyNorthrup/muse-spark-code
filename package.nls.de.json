@@ -175,5 +175,8 @@
   "config.resourceRelocate.description": "Ziel für eingereihte Teamaufgaben und Prüfungen, wenn dieser Rechner ausgelastet ist. Bestehende Gerätezustimmungen und Angebote gelten weiterhin.",
   "config.resourceRelocate.enumDescriptions.paired": "Verwendet ein bereits genehmigtes gekoppeltes Gerät mit normaler Ressourcenauslastung.",
   "config.resourceRelocate.enumDescriptions.ask": "Fragt vor dem Verschieben eingereihter Arbeit.",
-  "config.resourceRelocate.enumDescriptions.off": "Behält die Arbeit auf diesem Rechner."
+  "config.resourceRelocate.enumDescriptions.off": "Behält die Arbeit auf diesem Rechner.",
+  "command.nextOpenQuestion.title": "Nächste offene Frage",
+  "command.previousOpenQuestion.title": "Vorherige offene Frage",
+  "config.questions.deferAfterSeconds.description": "Sekunden, nach denen eine unbeantwortete Frage zurückgestellt wird, damit Muse weiterarbeiten kann. Standard: 60; 0 bedeutet nie; 1–9 werden als 10 gelesen; höchstens 3.600. Die Frage bleibt offen und kann später beantwortet werden. Nur die Einstellung dieses Computers wird verwendet."
 }

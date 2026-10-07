@@ -175,5 +175,8 @@
   "config.resourceRelocate.description": "A várakozó csapatfeladatok és ellenőrzések célja, amikor a gép foglalt. A meglévő eszközengedélyek és ajánlatok továbbra is érvényesek.",
   "config.resourceRelocate.enumDescriptions.paired": "Már engedélyezett, párosított eszközt használ normál erőforrás-terheléssel.",
   "config.resourceRelocate.enumDescriptions.ask": "A várakozó munka áthelyezése előtt kérdez.",
-  "config.resourceRelocate.enumDescriptions.off": "Ezen a gépen tartja a munkát."
+  "config.resourceRelocate.enumDescriptions.off": "Ezen a gépen tartja a munkát.",
+  "command.nextOpenQuestion.title": "Következő nyitott kérdés",
+  "command.previousOpenQuestion.title": "Előző nyitott kérdés",
+  "config.questions.deferAfterSeconds.description": "Ennyi másodperc után halasztjuk el a megválaszolatlan kérdést, hogy Muse folytathassa a munkát. Alapérték: 60; a 0 jelentése soha; az 1–9 értékeket 10-ként kezeljük; maximum 3600. A kérdés nyitva marad, és később is megválaszolható. Csak ennek a gépnek a beállítását használjuk."
 }

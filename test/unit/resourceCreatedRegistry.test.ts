@@ -71,7 +71,7 @@ async function fixture() {
 }
 
 describe('D87.14 creation registry and tree temp roots', () => {
-  it('refuses unregistered cleanup, including a folder that looks like ours', async () => {
+  it('G11 refuses unregistered cleanup, including a folder that looks like ours', async () => {
     const h = await fixture()
     try {
       const outsider = path.join(h.root, 'muse-tree-personal')
@@ -1079,4 +1079,22 @@ describe('D87.14 creation registry and tree temp roots', () => {
       await h.cleanup()
     }
   })
+})
+
+it('G10 each job owns a separate temp root and removes only its completed root', async () => {
+  const h = await fixture()
+  try {
+    const roots = new TreeTempRoots(h.registry.base, h.registry)
+    const first = await roots.create('first')
+    expect(first.environment['TMPDIR']).toBe(first.root)
+    const second = await roots.create('second')
+    expect(first.root).not.toBe(second.root)
+    h.exit()
+    await first.finish(false)
+    expect(await readdir(h.registry.base)).toEqual([path.basename(second.root)])
+    await second.finish(false)
+    expect(await readdir(h.registry.base)).toEqual([])
+  } finally {
+    await h.cleanup()
+  }
 })

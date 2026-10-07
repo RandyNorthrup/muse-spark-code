@@ -175,5 +175,8 @@
   "config.resourceRelocate.description": "Destino del trabajo del equipo y las comprobaciones en cola cuando este equipo está ocupado. Se mantienen los permisos y las ofertas de los dispositivos.",
   "config.resourceRelocate.enumDescriptions.paired": "Usa un dispositivo vinculado ya autorizado con una carga de recursos normal.",
   "config.resourceRelocate.enumDescriptions.ask": "Pregunta antes de mover el trabajo en cola.",
-  "config.resourceRelocate.enumDescriptions.off": "Mantiene el trabajo en este equipo."
+  "config.resourceRelocate.enumDescriptions.off": "Mantiene el trabajo en este equipo.",
+  "command.nextOpenQuestion.title": "Siguiente pregunta pendiente",
+  "command.previousOpenQuestion.title": "Pregunta pendiente anterior",
+  "config.questions.deferAfterSeconds.description": "Segundos antes de aplazar una pregunta sin respuesta para que Muse pueda seguir trabajando. 60 de forma predeterminada; 0 significa nunca; 1–9 se interpretan como 10; máximo 3.600. La pregunta sigue pendiente y se puede responder más tarde. Solo se usa la configuración de este equipo."
 }

@@ -7,6 +7,113 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Deliver Linux resource cleanup helpers in VSIX and ACP packages, including
+  architecture-specific CI builds and missing-helper package refusal.
+- Resource admission now responds to transport failures and OS service pressure;
+  per-job process and observed spawn-rate caps stop only the offending tree.
+- Correct the security guide to reflect the joined disk-registry race repairs.
+
+### Documentation
+
+- A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
+  what went wrong while a fleet of agents built this project. For each one it
+  gives the rule that prevents it and the milestone that will enforce that
+  rule in the app's own orchestrator (D100).
+
+## [0.14.3] - 2026-10-06
+
+### Added
+
+- Questions stay in the dock and transcript, defer after a machine-scoped
+  deadline, and accept late answers exactly once. Open counts appear in
+  History, the tab title and the composer; Next and Previous navigate them.
+- ACP question handling: deadlines and cooperative form
+  withdrawal, immediate deferral without forms, late form answers, and local
+  `/questions` and `/answer` commands. The runtime parses
+  `--questions-defer-after` and its help is translated in all 14 languages.
+  The real registry and private durable idle-answer queue are connected to
+  the launcher. Headless's explicit policy declines immediately with no clock.
+- Help & Reference covers questions: the Next and Previous open question
+  commands, `museSpark.questions.deferAfterSeconds`, `--questions-defer-after`
+  and the ACP-local `/questions` and `/answer`, which ACP `/help` now lists.
+
+### Changed
+
+- Question choices, explanations, countdowns and dock controls now load in a
+  separate lazy browser chunk on the first question. A minimal arrival card
+  stays visible while loading, and the shared draft survives loading and
+  remounting. The chunk has its own 25 KiB budget; existing caps are unchanged.
+
+### Fixed
+
+- Problem reports retain frames from the shipped question deferral bundle.
+- Release checks cover crash recovery through the shared reload helper, await
+  deferred question commands and menus, and verify Cline shell quoting on all
+  platforms without a slow PowerShell startup.
+- Two accessibility scenes for questions wait for the lazily loaded question
+  controls instead of a fixed delay.
+- Retry after a failed optional panel reloads its complete module graph with
+  the conversation and draft saved. Cold menus respect outside dismissal and
+  late imports cannot take focus; failed menus accept Escape and return focus
+  to their trigger.
+
+- Durable questions: late answers now use the ordinary send path's permission
+  barriers and session recovery. Re-asks keep their own deferral deadline,
+  publication saves once with durable rollback, coalesced replies finish
+  independently before their shared card retires, and session deletion removes
+  temporary question snapshots left by interrupted writes.
+- ACP Stop cancels without waiting for question storage. Late form answers
+  wait for registry opening, failed deferrals explicitly cancel the waiting
+  tool, and released sessions cannot queue refused steers. Idle answers are
+  announced as queued until the next prompt actually sends them.
+- Question cards and settled outcomes load when first shown. ACP forms and
+  elicitation parsing use `acpQuestions.js`; private registry and queue storage
+  use `runtimeQuestions.js`. Both backends load the shared deferral note only
+  when a question defers. Every existing hard cap remains unchanged; the lead
+  accepted the webview startup growth in PLAN §9.
+- Cancelling ACP preparation restores a leased answer queue before any turn
+  starts; an uncertain submission retires its prefix so a restart cannot send
+  it again. Failed grouped deferrals cancel each failed backend request.
+- History shows the same open count as the chat badge and discards a private
+  count read after its surface changes, including a failed read, so an old list
+  cannot reappear on the new surface.
+- Correct the frozen question contract: scheduled/unattended prompts defer
+  immediately, including when interactive deferral is disabled.
+- Question snapshots now retire stale open cards and their controls together;
+  known terminal states survive same-session history refreshes. The attention
+  dock prioritizes the newest waiting question over past reminders while
+  preserving a focused question and retaining inactive drafts.
+- MCP-form accessibility scenes wait for the lazy dock's input before filling
+  it, so a slower first load is checked without a harness timing failure.
+
+### Performance
+
+- The Help reference packs each CLI route prefix losslessly, keeping the
+  Node reference within its existing 100 KiB budget with the question entries.
+
+- Optional menus, sign-in, goals, schedules, Account & usage and Agent map
+  content load on first use with accessible loading and retry after a failed
+  chunk request. A lossless native encoding keeps the complete English fallback
+  inline while reducing webview startup from 794.1 to 733.8 KiB (60.3 KiB).
+  The original deferred group drops from 50.0 to 32.1 KiB; existing size caps
+  stay unchanged.
+
+- MCP form controls and workflow details also load on first use, preserving
+  the diet's startup and deferred regression limits with the question dock.
+  Questions keep their visible arrival card and use the shared local retry
+  after a failed load. Workflow details have their own 25 KiB closure budget;
+  all existing caps remain unchanged.
+
+- Reference tests share unchanged setup and keyboard analysis, keeping
+  catalogue mutation checks within the normal test timeout.
+
+- The VSIX omits the duplicate generated Markdown reference; Help continues
+  to load its bundled reference and links to the complete online guide.
+  Its compressed universal package budget is 2400 KiB, measured with Help
+  and the macOS helper plus 5%, rounded up to 25 KiB.
+
+## [0.14.2] - 2026-10-06
+
 ### Security
 
 - Update the dev-only shell-quote lock entry to fix GHSA-pqg4-j6r4-53mv
@@ -201,27 +308,6 @@ happened, not what was planned; superseded entries are kept.
 - Activation paid-setting checks are directly importable in tests, and ACP
   stdio checks include the localized Help reference hint.
 
-### Performance
-
-- Optional menus, sign-in, goals, schedules, Account & usage and Agent map
-  content load on first use with accessible loading and retry after a failed
-  chunk request. A lossless native encoding keeps the complete English fallback
-  inline while reducing webview startup from 794.1 to 733.8 KiB (60.3 KiB).
-  The original deferred group drops from 50.0 to 32.1 KiB; existing size caps
-  stay unchanged.
-
-- Reference tests share unchanged setup and keyboard analysis, keeping
-  catalogue mutation checks within the normal test timeout.
-
-- The VSIX omits the duplicate generated Markdown reference; Help continues
-  to load its bundled reference and links to the complete online guide.
-  Its compressed universal package budget is 2400 KiB, measured with Help
-  and the macOS helper plus 5%, rounded up to 25 KiB.
-
-## [0.14.2] - 2026-10-06
-
-### Fixed
-
 - Hungarian Help translations now package correctly alongside the other languages.
 
 - Help includes the shell credential pass-through setting and its restrictions
@@ -267,6 +353,14 @@ happened, not what was planned; superseded entries are kept.
   `check:reference` guards catalogue coverage and generated-file freshness.
 
 ### Performance
+
+- Reference tests share unchanged setup and keyboard analysis, keeping
+  catalogue mutation checks within the normal test timeout.
+
+- The VSIX omits the duplicate generated Markdown reference; Help continues
+  to load its bundled reference and links to the complete online guide.
+  Its compressed universal package budget is 2400 KiB, measured with Help
+  and the macOS helper plus 5%, rounded up to 25 KiB.
 
 - Frequent Help reference values use shorter lossless dictionary tokens, keeping
   the complete reference within its existing bundle limit.

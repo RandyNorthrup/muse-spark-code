@@ -21,9 +21,14 @@ interface SurfaceProps {
 
 export function DeferredSurface({
   children,
+  fallback,
   ...props
-}: SurfaceProps & { readonly children: ReactNode }) {
-  return <Suspense fallback={<UnavailableSurface {...props} />}>{children}</Suspense>
+}: SurfaceProps & { readonly children: ReactNode; readonly fallback?: ReactNode }) {
+  return (
+    <Suspense fallback={fallback === undefined ? <UnavailableSurface {...props} /> : fallback}>
+      {children}
+    </Suspense>
+  )
 }
 
 /** Loading and failure retain the same dismissal contract as an open menu. */
@@ -105,6 +110,7 @@ function UnavailableSurface({
 export function deferred<P extends object>(
   load: () => Promise<{ default: ComponentType<P> }>,
   isModal = false,
+  fallback?: (props: P) => ReactNode,
 ) {
   const Surface = lazy(load)
   return function Deferred(props: P & SurfaceProps) {
@@ -120,7 +126,7 @@ export function deferred<P extends object>(
     const surfaceProps = { onClose, isModal: props.isModal ?? isModal, keepFocus: props.keepFocus }
     return (
       <SurfaceBoundary {...surfaceProps} opener={intent.opener}>
-        <DeferredSurface {...surfaceProps}>
+        <DeferredSurface {...surfaceProps} fallback={fallback?.(props)}>
           <Surface {...props} />
         </DeferredSurface>
       </SurfaceBoundary>

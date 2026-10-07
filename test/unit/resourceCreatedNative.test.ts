@@ -45,7 +45,7 @@ async function nativeFixture() {
 }
 
 describe('native created-directory protocol', () => {
-  it('creates through the base handle and removes a nested tree without following its symlinks', async () => {
+  it('G16 creates through the base handle and unlinks nested junctions or symlinks without following them', async () => {
     const h = await nativeFixture()
     const created = await h.registry.createTemp('tree')
     const personal = h.personal
