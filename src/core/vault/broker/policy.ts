@@ -95,7 +95,9 @@ export function isBindingCovered(binding: VaultBinding, use: VaultUse): boolean 
       )
     }
     case 'disclosure': {
-      return use.kind === 'disclosure' && use.recipient === binding.recipient
+      // Both schemas literal-type the only recipient as 'person', so kinds
+      // alone decide, like the 'git' case above (RVM109T lane note).
+      return use.kind === 'disclosure'
     }
   }
 }
