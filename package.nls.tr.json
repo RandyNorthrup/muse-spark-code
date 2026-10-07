@@ -188,5 +188,12 @@
   "command.openHelp.title": "Yardım ve başvuru",
   "command.nextOpenQuestion.title": "Sonraki açık soru",
   "command.previousOpenQuestion.title": "Önceki açık soru",
-  "config.questions.deferAfterSeconds.description": "Muse’un çalışmaya devam edebilmesi için yanıtsız bir sorunun ertelenmesine kadar geçen saniye. Varsayılan 60; 0 hiçbir zaman demektir; 1–9, 10 olarak okunur; en fazla 3.600. Soru açık kalır ve daha sonra yanıtlanabilir. Yalnızca bu bilgisayarın ayarı kullanılır."
+  "config.questions.deferAfterSeconds.description": "Muse’un çalışmaya devam edebilmesi için yanıtsız bir sorunun ertelenmesine kadar geçen saniye. Varsayılan 60; 0 hiçbir zaman demektir; 1–9, 10 olarak okunur; en fazla 3.600. Soru açık kalır ve daha sonra yanıtlanabilir. Yalnızca bu bilgisayarın ayarı kullanılır.",
+  "command.shareChat.title": "Sohbeti paylaş…",
+  "command.sharePrompt.title": "İstemi paylaş…",
+  "command.promptLibrary.title": "İstem kitaplığı",
+  "command.savePrompt.title": "İstemi kaydet",
+  "command.useSavedPrompt.title": "Kayıtlı istemi kullan…",
+  "command.copyToMyPrompts.title": "İstemlerime kopyala",
+  "config.syncPromptsAndBookmarks.description": "Tüm çalışma alanlarının istemlerini ayar eşitlemesine yansıtın. Çalışma alanı istemleri yerel kalır."
 }

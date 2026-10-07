@@ -188,5 +188,12 @@
   "command.openHelp.title": "Nápověda a reference",
   "command.nextOpenQuestion.title": "Další otevřená otázka",
   "command.previousOpenQuestion.title": "Předchozí otevřená otázka",
-  "config.questions.deferAfterSeconds.description": "Počet sekund, po kterých se nezodpovězená otázka odloží, aby Muse mohl pokračovat v práci. Výchozí hodnota je 60; 0 znamená nikdy; 1–9 se čtou jako 10; maximum je 3 600. Otázka zůstává otevřená a můžete na ni odpovědět později. Použije se pouze nastavení tohoto počítače."
+  "config.questions.deferAfterSeconds.description": "Počet sekund, po kterých se nezodpovězená otázka odloží, aby Muse mohl pokračovat v práci. Výchozí hodnota je 60; 0 znamená nikdy; 1–9 se čtou jako 10; maximum je 3 600. Otázka zůstává otevřená a můžete na ni odpovědět později. Použije se pouze nastavení tohoto počítače.",
+  "command.shareChat.title": "Sdílet chat…",
+  "command.sharePrompt.title": "Sdílet prompt…",
+  "command.promptLibrary.title": "Knihovna promptů",
+  "command.savePrompt.title": "Uložit prompt",
+  "command.useSavedPrompt.title": "Použít uložený prompt…",
+  "command.copyToMyPrompts.title": "Zkopírovat do mých promptů",
+  "config.syncPromptsAndBookmarks.description": "Zrcadlit prompty pro všechny pracovní prostory do synchronizace nastavení. Prompty pracovního prostoru zůstávají místní."
 }

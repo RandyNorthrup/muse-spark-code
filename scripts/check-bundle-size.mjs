@@ -29,6 +29,10 @@ const BUDGETS = [
   { path: 'dist/conversation.js', budgetKiB: 250 },
   // M94: provider, engine and ledger on first Tab use (PLAN.md D6).
   { path: 'dist/tab.js', budgetKiB: 75 },
+  // M118: portable stores, native/panel adapters and chat renderer: 163.4 KiB + 15%, rounded to 25 KiB.
+  { path: 'dist/prompts.js', budgetKiB: 200 },
+  // M118: local CLI/ACP stores, renderer and destinations: 152.1 KiB + 15%, rounded to 25 KiB.
+  { path: 'dist/sharingRuntime.js', budgetKiB: 175 },
   // The Model API backend, loaded when it first starts (M57). Revisited on
   // purpose after M77, M78 and M82 (2026-10-02): 402.8 KiB measured, plus 15%,
   // rounded up to 25 KiB (PLAN.md D6).

@@ -439,6 +439,14 @@ async function runMcpForm(
   })
 }
 
+/** Client capabilities carrying non-boolean wire values, as a registry client may send. */
+function wireCapabilities(json: string): acp.ClientCapabilities {
+  const parsed: unknown = JSON.parse(json)
+  // The SDK type rejects non-boolean flags; the agent's zod layer validates
+  // them at runtime, so the test holds them as unknown and casts once here.
+  return parsed as acp.ClientCapabilities
+}
+
 describe('the ACP agent (M63)', () => {
   it('exposes all three ChatGPT actions to terminal and manual editors and verifies them independently of Meta', async () => {
     const secrets = memorySecrets()
@@ -516,6 +524,58 @@ describe('the ACP agent (M63)', () => {
         args: ['login'],
       },
     ])
+  })
+
+  it('offers terminal sign-in for the older _meta terminal-auth flag, only for a literal true', async () => {
+    const terminal = [
+      {
+        type: 'terminal',
+        id: 'muse-code-login',
+        name: 'Sign in',
+        description: 'Sign in to Muse Code',
+        args: ['login'],
+      },
+    ]
+    const byHand = [
+      {
+        id: 'muse-code-login',
+        name: 'Sign in',
+        description: 'Run “muse-spark-code-acp login” in a terminal, then try again.',
+      },
+    ]
+    const h = harness()
+    const [meta, both, neither, junkMeta, junkAuth, junkRecord] = await h.run(async (client) => [
+      await client.request('initialize', {
+        protocolVersion: acp.PROTOCOL_VERSION,
+        clientCapabilities: { _meta: { 'terminal-auth': true } },
+      }),
+      await client.request('initialize', {
+        protocolVersion: acp.PROTOCOL_VERSION,
+        clientCapabilities: { auth: { terminal: true }, _meta: { 'terminal-auth': true } },
+      }),
+      await client.request('initialize', {
+        protocolVersion: acp.PROTOCOL_VERSION,
+        clientCapabilities: {},
+      }),
+      await client.request('initialize', {
+        protocolVersion: acp.PROTOCOL_VERSION,
+        clientCapabilities: wireCapabilities('{"_meta":{"terminal-auth":"yes"}}'),
+      }),
+      await client.request('initialize', {
+        protocolVersion: acp.PROTOCOL_VERSION,
+        clientCapabilities: wireCapabilities('{"auth":{"terminal":1},"_meta":{"terminal-auth":0}}'),
+      }),
+      await client.request('initialize', {
+        protocolVersion: acp.PROTOCOL_VERSION,
+        clientCapabilities: wireCapabilities('{"_meta":{"terminal-auth":{"nested":true}}}'),
+      }),
+    ])
+    expect(meta.authMethods).toEqual(terminal)
+    expect(both.authMethods).toEqual(terminal)
+    expect(neither.authMethods).toEqual(byHand)
+    expect(junkMeta.authMethods).toEqual(byHand)
+    expect(junkAuth.authMethods).toEqual(byHand)
+    expect(junkRecord.authMethods).toEqual(byHand)
   })
 
   it('passes the editor’s MCP servers to Muse Code, logging their names only', async () => {

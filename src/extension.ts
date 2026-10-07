@@ -7,6 +7,8 @@ import { MuseCodeHost } from './core/backends/musecode/MuseCodeHost'
 import { agentDataFolder } from './runtime/dataFolder'
 import { requireFile } from './host/lazyBundle'
 import { isJudgeEngineOn } from './core/judge/engine'
+import { promptBundleLoader } from './host/prompts/promptBundle'
+import type { createPromptHost } from './host/prompts/promptEntry'
 import { judgeWindowPort } from './host/judge/judgeBundle'
 import { storeErrorCode } from './host/backend/storeErrors'
 import { LEGAL_EXPLANATION_BUNDLE_FILE } from './shared/constants'
@@ -295,6 +297,9 @@ import {
   MUSE_INSTALL_COMMANDS,
   OUTPUT_DOCUMENT_SCHEME,
   PRODUCT_NAME,
+  PROMPT_BUNDLE_FILE,
+  PROMPT_COMMAND_IDS,
+  PROMPT_SYNC_SETTING,
   SANDBOX_NETWORK_SETTING,
   PAGE_WORKER_FILE,
   SEARCH_WORKER_FILE,
@@ -795,6 +800,9 @@ async function activateWindow(
   })
 
   const registry = new SurfaceRegistry()
+  const readyPromptSurfaces = new WeakSet<ChatSurface>()
+  let promptHost: ReturnType<typeof createPromptHost> | undefined
+
   const controllers = new Map<string, ConversationController>()
   // Approvals and questions waiting on the user, shared by every surface's
   // controller so the session board marks them window-wide (M77).
@@ -1822,6 +1830,7 @@ async function activateWindow(
     try {
       nativeStarts.abort()
       accountHosts.close()
+      await promptHost?.dispose()
       await auth.stopSignIn()
       await restartBackend('the window is closing', true)
     } finally {
@@ -3456,6 +3465,8 @@ async function activateWindow(
       )
     },
     onSurfaceReady: (surface, attachmentEpoch) => {
+      readyPromptSurfaces.add(surface)
+      promptHost?.ready(surface)
       const controller = controllerFor(surface)
       controller.surfaceReady(attachmentEpoch)
       if (isHelpPending) {
@@ -3516,11 +3527,22 @@ async function activateWindow(
         })
         return
       }
+      if (message.type === 'sharingAction') {
+        void (async () => {
+          try {
+            await sharing().handle(surface, message)
+          } catch (error: unknown) {
+            logRejection(log, 'sharing action')(error)
+          }
+        })()
+        return
+      }
       void controllerFor(surface).handle(message)
     },
   }
 
   registry.onRemoved((surface) => {
+    promptHost?.close(surface)
     controllers.get(surface.id)?.dispose()
     controllers.delete(surface.id)
     tasksTabs.get(surface.id)?.release()
@@ -3551,6 +3573,43 @@ async function activateWindow(
     }
     openChatPanel(hostContext, registry)
   }
+  // Sharing loads on first use or when the user changes its machine sync consent.
+  const sharing = () =>
+    (promptHost ??= promptBundleLoader(
+      `${context.extensionUri.fsPath}/dist/${PROMPT_BUNDLE_FILE}`,
+      log,
+    )().createPromptHost(
+      {
+        context,
+        workspaceRoot,
+        credentials,
+        settings: currentSettings,
+        registry,
+        openConversation,
+        ready: readyPromptSurfaces,
+        controllers,
+        webFetch: webFetchBundle,
+        log,
+      },
+      UI_TEXT,
+      uiLocale(),
+    ))
+  const syncPrompts = async () => {
+    try {
+      await sharing().run('synchronise')
+    } catch (error: unknown) {
+      logRejection(log, 'prompt sync')(error)
+    }
+  }
+  if (
+    vscode.workspace.getConfiguration(SETTINGS_SECTION).inspect<boolean>(PROMPT_SYNC_SETTING)
+      ?.globalValue
+  )
+    void syncPrompts()
+  for (const id of Object.values(PROMPT_COMMAND_IDS))
+    context.subscriptions.push(
+      registerLoggedCommand(log, id, (input: unknown) => sharing().run(id, input)),
+    )
   const resolveCli = () => {
     const resolution = backend.resolveLaunch()
     return resolution.ok
@@ -3827,6 +3886,8 @@ async function activateWindow(
       { webviewOptions: { retainContextWhenHidden: true } },
     ),
     vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration(`${SETTINGS_SECTION}.${PROMPT_SYNC_SETTING}`))
+        void syncPrompts()
       if (event.affectsConfiguration(SETTINGS_SECTION)) {
         void withHookRunner((runner) => runner.noteSettingsChange(), false).catch(
           logRejection(log, 'ConfigChange hook'),

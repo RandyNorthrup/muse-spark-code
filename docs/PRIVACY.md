@@ -951,3 +951,39 @@ Lanes A to D are integrated and the live receipt LA passed on 2026-10-05; L and
 LR remain open. Read
 [CI guide](ci.md) and [M80 receipts](certification/m80.md) for exact flow,
 retention/cleanup bounds, platform limits and support claims.
+
+## Prompt and chat sharing
+
+Sharing is local and starts only from an explicit action. A preview holds the
+exact scrubbed bytes in memory; only its final confirmation permits copy,
+file save or local browser opening. No hosted destination is implemented.
+Confidential workspaces, or unavailable policy, refuse sharing.
+
+Conversation-only shares contain user and assistant text. Full shares may
+contain portable tool arguments and outputs, commands, outcomes, shown
+reasoning and approval decisions. Code blocks and attachment names are
+optional. Diffs and explicitly selected attachment text require separate
+options; history that retains only metadata cannot supply attachment bytes.
+No live handles, replay credentials or arbitrary backend objects are exported.
+
+Every string, including identifiers, titles, names and chosen contents, goes
+through the credential/account/path scrub. Registered values are refreshed
+before preview and confirmation in the editor. Workspace paths become
+relative; home, user and unrelated absolute paths become redaction markers.
+An unknown secret shape can survive, so inspect the preview. Local output
+files are privately written and confined; opening HTML loads no scripts or
+remote assets.
+
+Saving a prompt is separate from sharing: the portable local prompt file
+retains its body and metadata verbatim. Personal files use the agent data
+folder; workspace files use `.muse/prompts/`. Do not save secrets or commit
+private prompts. Settings Sync copies personal prompts only with explicit
+global opt-in. Raw HTTPS import uses the existing pinned public-address
+transport under a 128 KiB decoded-byte cap and refuses confidential policy.
+Imported text is untrusted, reviewed before acceptance, and never executed
+by import or loading.
+
+In the ACP runtime, sharing refreshes its already-known credential-variable
+values and the stored key of an active Model API backend. A key that becomes
+known after preview invalidates release if it appears anywhere in the portable
+document, including JSON strings. Standalone save/list/use never read a key.

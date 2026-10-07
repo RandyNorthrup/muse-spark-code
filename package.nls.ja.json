@@ -188,5 +188,12 @@
   "command.openHelp.title": "ヘルプとリファレンス",
   "command.nextOpenQuestion.title": "次の未回答の質問",
   "command.previousOpenQuestion.title": "前の未回答の質問",
-  "config.questions.deferAfterSeconds.description": "Muse が作業を続けられるよう、未回答の質問を保留するまでの秒数。既定値は 60、0 は保留しない設定、1～9 は 10 として扱い、上限は 3,600 です。質問は未回答のまま保持され、後から回答できます。このコンピューターの設定のみを使用します。"
+  "config.questions.deferAfterSeconds.description": "Muse が作業を続けられるよう、未回答の質問を保留するまでの秒数。既定値は 60、0 は保留しない設定、1～9 は 10 として扱い、上限は 3,600 です。質問は未回答のまま保持され、後から回答できます。このコンピューターの設定のみを使用します。",
+  "command.shareChat.title": "チャットを共有…",
+  "command.sharePrompt.title": "プロンプトを共有…",
+  "command.promptLibrary.title": "プロンプトライブラリ",
+  "command.savePrompt.title": "プロンプトを保存",
+  "command.useSavedPrompt.title": "保存したプロンプトを使用…",
+  "command.copyToMyPrompts.title": "自分のプロンプトにコピー",
+  "config.syncPromptsAndBookmarks.description": "全ワークスペース用のプロンプトを設定同期に反映します。ワークスペース用プロンプトはローカルに残ります。"
 }

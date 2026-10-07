@@ -91,6 +91,15 @@ beforeAll(async () => {
     external: ['@napi-rs/keyring'],
     logLevel: 'silent',
   })
+  await build({
+    entryPoints: [path.join(ROOT, 'src', 'runtime', 'sharing', 'sharingEntry.ts')],
+    outfile: path.join(path.dirname(AGENT), 'sharingRuntime.js'),
+    bundle: true,
+    platform: 'node',
+    format: 'cjs',
+    target: 'node22',
+    logLevel: 'silent',
+  })
   await buildModelApiBundle(path.dirname(AGENT))
   for (const [entry, file] of [
     ['src/acp/questionDeferralEntry.ts', 'acpQuestions.js'],
@@ -259,13 +268,35 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
   })
 
   it('prints the complete translated usage and reference hint from the installed table', () => {
-    const table = z
+    const translation = z
       .object({
         acpUsage: z.string(),
         acpChatGpt: z.object({ usage: z.string() }),
         helpReferenceTitle: z.string(),
+        referenceIntro: z.string(),
+        promptLibrary: z.string(),
+        shareReviewPrivacy: z.string(),
+        promptSave: z.string(),
+        promptSecretsNote: z.string(),
+        promptUseSaved: z.string(),
+        promptVariables: z.string(),
+        promptInsert: z.string(),
+        promptScopeUser: z.string(),
+        promptScopeWorkspace: z.string(),
+        promptCopyToUser: z.string(),
+        sharePrompt: z.string(),
+        shareChat: z.string(),
+        shareConversation: z.string(),
+        shareFull: z.string(),
+        promptRun: z.string(),
+        shareConfirm: z.string(),
       })
       .parse(JSON.parse(readFileSync(path.join(PACKAGE, 'l10n', 'ui.de.json'), 'utf8')))
+    const table = {
+      ...UI_TEXT,
+      ...translation,
+      acpChatGpt: { ...UI_TEXT.acpChatGpt, ...translation.acpChatGpt },
+    }
     const help = spawnSync(process.execPath, [AGENT, '--help'], {
       encoding: 'utf8',
       env: { ...process.env, NODE_PATH, LC_ALL: 'de_DE.UTF-8' },
@@ -275,6 +306,32 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
     expect(help.stdout.trim()).toBe(formatAcpUsage(table, ACP_AGENT_NAME))
     expect(help.stdout).toContain(table.helpReferenceTitle)
     expect(help.stdout).toContain('--trust-workspace setup [--maintenance]')
+  })
+
+  it('binds saved prompts and sharing help over real ACP stdio without a model send (M118)', async () => {
+    mkdirSync(path.join(workspace, 'empty'), { recursive: true })
+    const agent = startAgent(signedIn, [], { XDG_DATA_HOME: dataHome, LOCALAPPDATA: dataHome })
+    await agent.run(async (client) => {
+      const sessionId = await newSession(client)
+      const ask = (id: string, prompt: string) =>
+        client.request('session/prompt', {
+          sessionId: id,
+          prompt: [{ type: 'text', text: prompt }],
+        })
+      await ask(sessionId, '/prompt save --title Shared --scope user --   Exact\r\nbody  ')
+      const id = /\(([^()]*)\)$/.exec(text(agent.updates))?.[1]
+      expect(id).toBeDefined()
+      const { sessionId: fresh } = await client.request('session/new', {
+        cwd: path.join(workspace, 'empty'),
+        mcpServers: [],
+      })
+      await ask(fresh, '/prompt list')
+      await ask(fresh, `/prompt use ${id ?? ''}`)
+      await ask(fresh, '/help')
+      expect(text(agent.updates)).toContain('  Exact\r\nbody  ')
+      expect(text(agent.updates)).toContain('/share chat')
+      expect(text(agent.updates)).not.toContain('echo:')
+    })
   })
 
   it('streams a reply, runs an allowed tool call and skips a denied one, on Muse Code', async () => {

@@ -25,6 +25,26 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "prompt-library",
+      "name": { "ui": "promptLibrary" },
+      "summary": { "ui": "promptSecretsNote" },
+      "description": { "ui": "promptSecretsNote" },
+      "commands": [
+        "museSpark.savePrompt",
+        "museSpark.useSavedPrompt",
+        "museSpark.promptLibrary",
+        "museSpark.copyToMyPrompts"
+      ],
+      "settings": ["museSpark.syncPromptsAndBookmarks"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#sharing",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "usage",
       "name": { "ui": "usagePageTitle" },
       "summary": { "ui": "paletteUsagePage" },
@@ -163,6 +183,21 @@
       "surfaces": ["vscode:modelApi", "acp:modelApi"],
       "details": [],
       "facts": { "automatic": "evaluationPending", "manual": "/compact" },
+      "editors": ["vscode", "acp"]
+    },
+    {
+      "id": "chat-sharing",
+      "name": { "ui": "shareChat" },
+      "summary": { "ui": "shareReviewPrivacy" },
+      "description": { "ui": "shareReviewPrivacy" },
+      "commands": ["museSpark.shareChat", "museSpark.sharePrompt"],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#sharing",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
       "editors": ["vscode", "acp"]
     },
     {
@@ -2059,6 +2094,66 @@
       "description": "Previous open question",
       "text": { "ui": "questionPreviousOpen" },
       "canRun": false
+    },
+    {
+      "id": "museSpark.sharePrompt",
+      "name": "Share prompt…",
+      "nameKey": "command.sharePrompt.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.",
+      "text": { "ui": "shareReviewPrivacy" },
+      "canRun": false
+    },
+    {
+      "id": "museSpark.promptLibrary",
+      "name": "Prompt library",
+      "nameKey": "command.promptLibrary.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Prompt library",
+      "text": { "ui": "promptLibrary" },
+      "canRun": true
+    },
+    {
+      "id": "museSpark.savePrompt",
+      "name": "Save prompt",
+      "nameKey": "command.savePrompt.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Prompts are stored as plain text. Do not save passwords or keys.",
+      "text": { "ui": "promptSecretsNote" },
+      "canRun": false
+    },
+    {
+      "id": "museSpark.useSavedPrompt",
+      "name": "Use saved prompt…",
+      "nameKey": "command.useSavedPrompt.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Review variables and insert",
+      "text": { "ui": "promptRun" },
+      "canRun": false
+    },
+    {
+      "id": "museSpark.copyToMyPrompts",
+      "name": "Copy to my prompts",
+      "nameKey": "command.copyToMyPrompts.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "All workspaces",
+      "text": { "ui": "promptScopeUser" },
+      "canRun": false
+    },
+    {
+      "id": "museSpark.shareChat",
+      "name": "Share chat…",
+      "nameKey": "command.shareChat.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.",
+      "text": { "ui": "shareReviewPrivacy" },
+      "canRun": false
     }
   ],
   "settings": [
@@ -3268,6 +3363,17 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "integer", "default": 60, "minimum": 0, "maximum": 3600 }
+    },
+    {
+      "id": "museSpark.syncPromptsAndBookmarks",
+      "name": "museSpark.syncPromptsAndBookmarks",
+      "description": "Mirror prompts for all workspaces into Settings Sync. Workspace prompts stay local.",
+      "descriptionKey": "config.syncPromptsAndBookmarks.description",
+      "type": "boolean",
+      "default": false,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": false }
     }
   ],
   "slash": [
@@ -3677,6 +3783,48 @@
       "name": "help / --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "ui": "referenceBriefHelp" }
+    },
+    {
+      "route": "share",
+      "name": "share chat SESSION_ID [--mode full|conversation] [--format md|html|json]",
+      "description": "Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.",
+      "text": { "ui": "shareReviewPrivacy" }
+    },
+    {
+      "route": "prompts",
+      "name": "prompts save --title TITLE [--scope user|workspace] [--cwd FOLDER] < prompt.txt",
+      "description": "Prompts are stored as plain text. Do not save passwords or keys.",
+      "text": { "ui": "promptSecretsNote" }
+    },
+    {
+      "route": "prompts",
+      "name": "prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER]",
+      "description": "Prompt library",
+      "text": { "ui": "promptLibrary" }
+    },
+    {
+      "route": "prompts",
+      "name": "prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER]",
+      "description": "Review variables and insert",
+      "text": { "ui": "promptRun" }
+    },
+    {
+      "route": "prompts",
+      "name": "prompts share ID [--scope user|workspace] [--format md|html|json] [--destination copy|file|browser] [--out FILE]",
+      "description": "Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.",
+      "text": { "ui": "shareReviewPrivacy" }
+    },
+    {
+      "route": "acp",
+      "name": "/prompt save|list|use|share",
+      "description": "Review variables and insert",
+      "text": { "ui": "promptRun" }
+    },
+    {
+      "route": "acp",
+      "name": "/share chat [--mode full|conversation] [--format md|html|json]",
+      "description": "Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.",
+      "text": { "ui": "shareReviewPrivacy" }
     },
     {
       "route": "version",

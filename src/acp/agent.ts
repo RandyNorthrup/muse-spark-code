@@ -1,4 +1,3 @@
-import { unlessAborted } from '../core/timeouts'
 // The Muse Spark agent over the Agent Client Protocol (PLAN.md D62): one
 // client on stdio, any number of sessions, each an AgentSession of the
 // backend chosen at launch. The client's editor shows the chat, the tool
@@ -46,6 +45,7 @@ import {
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
 import { failureForLog } from '../core/backends/musecode/logText'
+import { unlessAborted } from '../core/timeouts'
 import type { CoreLogger } from '../core/logging'
 import { type PaidUseAnswer, paidUseQuestion } from '../core/paid/paidConsent'
 import type { AgentEvent } from '../shared/agentEvents'
@@ -100,6 +100,7 @@ import {
   promptParts,
   UpdateTranslator,
 } from './translate'
+import type { AcpSharingPort } from './sharing'
 
 // Muse Code runs a session's MCP servers only with this grant (M63c).
 const [SESSION_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
@@ -164,6 +165,8 @@ export interface AcpAgentDeps {
   /** The flagged paid features; the agent asks before each use (M63c, M58). */
   readonly paid: AcpPaidUse
   readonly log: CoreLogger
+  /** M118-X-ACP: P/C storage/rendering and the host's explicit preview/insert bridge. */
+  readonly sharing?: AcpSharingPort
   /** Required Q/runtime binding: portable registry plus durable idle-answer queue. */
   readonly questions: AcpQuestionRegistryFactory | 'decline'
   readonly questionClock?: QuestionClock
@@ -217,6 +220,7 @@ type PromptOutcome = { readonly reason: StopReason } | { readonly error: unknown
 
 interface PreparingPrompt {
   isCancelled: boolean
+  readonly abort: AbortController
   error?: unknown
   abandonElicitation?: () => void
 }
@@ -409,6 +413,9 @@ class AcpSession {
     this.send({
       sessionUpdate: 'available_commands_update',
       availableCommands: [
+        ...(this.deps.sharing
+          ?.commands()
+          .filter((command) => command.name !== SLASH_COMMAND_NAMES.help) ?? []),
         { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
         { name: ACP_COMPACT_COMMAND, description: UI_TEXT.compactDetail, input: null },
         ...(this.deps.legalScan === undefined
@@ -429,7 +436,7 @@ class AcpSession {
               skill.selector !== SLASH_COMMAND_NAMES.help &&
               skill.selector !== ACP_COMPACT_COMMAND &&
               skill.selector !== 'legal' &&
-              !['answer', 'questions'].includes(skill.selector) &&
+              !['answer', 'questions', 'share', 'prompt'].includes(skill.selector) &&
               (this.deps.usage === undefined || skill.selector !== 'usage'),
           )
           .map((skill) => ({
@@ -775,7 +782,7 @@ class AcpSession {
     isRegistryOn: boolean,
   ): Promise<StopReason> {
     const stop = new AbortController()
-    const preparing: PreparingPrompt = { isCancelled: false }
+    const preparing: PreparingPrompt = { isCancelled: false, abort: stop }
     this.legalStop = stop
     this.preparing = preparing
     try {
@@ -1065,7 +1072,7 @@ class AcpSession {
       parsed.parts[0]?.type === 'text' &&
       parsed.parts[0].text.trim() === `/${SLASH_COMMAND_NAMES.help}`
     ) {
-      const preparing: PreparingPrompt = { isCancelled: false }
+      const preparing: PreparingPrompt = { isCancelled: false, abort: new AbortController() }
       this.preparing = preparing
       try {
         await this.announceCommands()
@@ -1085,15 +1092,18 @@ class AcpSession {
             ACP_COMPACT_COMMAND,
             ...(this.deps.legalScan === undefined ? [] : ['legal']),
             ...(this.deps.usage === undefined ? [] : ['usage']),
-            ...this.skills.map((skill) => skill.selector),
+            ...this.skills
+              .map((skill) => skill.selector)
+              .filter((name) => !['answer', 'questions', 'share', 'prompt'].includes(name)),
             ...(this.questionRegistry === undefined ? [] : ['questions', 'answer']),
+            ...(this.deps.sharing?.commands().map((command) => command.name) ?? []),
           ]),
         },
       })
       await this.outbox
       return 'end_turn'
     }
-    const preparing: PreparingPrompt = { isCancelled: false }
+    const preparing: PreparingPrompt = { isCancelled: false, abort: new AbortController() }
     this.preparing = preparing
     const [part] = parsed.parts
     const isCompact =
@@ -1104,10 +1114,47 @@ class AcpSession {
     let queued: readonly TurnPart[]
     try {
       await this.announceCommands()
+      // Reserved local commands never become a skill or a model turn, even when
+      // their runtime bridge has not been bound yet or their syntax is invalid.
+      const local = parseSkillInvocation(parsed.displayText, new Set(['share', 'prompt']))
+      if (local !== undefined) {
+        if (blocks.length !== 1 || blocks[0]?.type !== 'text') {
+          throw RequestError.invalidParams(undefined, UI_TEXT.promptFileInvalid)
+        }
+        const sharing = this.deps.sharing
+        if (sharing === undefined) {
+          throw RequestError.invalidRequest(
+            undefined,
+            fill(UI_TEXT.acpUnknownArgument, {
+              argument: `/${local.selector}`,
+            }),
+          )
+        }
+        const isActive = () =>
+          !this.isDisposed &&
+          this.preparing === preparing &&
+          !preparing.isCancelled &&
+          !('error' in preparing)
+        if (!isActive()) return 'cancelled'
+        const text = await unlessAborted(
+          sharing.execute(parsed.displayText, {
+            cwd: this.cwd,
+            sessionId: this.sessionId,
+            isActive,
+            signal: preparing.abort.signal,
+          }),
+          preparing.abort.signal,
+        )
+        if ('error' in preparing) throw preparing.error
+        if (text === undefined || !isActive()) return 'cancelled'
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+        await this.outbox
+        return 'end_turn'
+      }
       isUsage = await this.usageReply(blocks, preparing)
       queued = isUsage || isCompact ? [] : ((await this.questionRegistry?.queuedParts()) ?? [])
     } finally {
-      this.preparing = undefined
+      if (this.preparing === preparing) this.preparing = undefined
     }
     if ('error' in preparing) {
       await this.questionRegistry?.acknowledgeQueued('notTaken')
@@ -1189,6 +1236,8 @@ class AcpSession {
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
       this.preparing.abandonElicitation?.()
+      this.preparing.abort.abort()
+      this.preparing = undefined
       this.deps.log.info(`ACP session ${this.sessionId}: cancelled before its turn started`)
       return
     }
@@ -1217,6 +1266,7 @@ class AcpSession {
     if (this.preparing !== undefined) {
       this.preparing.error = error
       this.preparing.abandonElicitation?.()
+      this.preparing.abort.abort()
     }
     this.pending?.reject(error)
     this.pending = undefined
@@ -1249,6 +1299,8 @@ class AcpSession {
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
       this.preparing.abandonElicitation?.()
+      this.preparing.abort.abort()
+      this.preparing = undefined
     }
     const wasRunning = this.pending !== undefined || this.activeTurnId !== undefined
     this.pending?.resolve('cancelled')
@@ -1289,7 +1341,13 @@ class AgentState {
    */
   private authMethod(method: SignInMethod): AuthMethod {
     const { id, name, description, args, command } = method
-    return this.clientCapabilities.auth?.terminal === true
+    // Registry clients may announce terminal support with the older `_meta`
+    // `terminal-auth` flag instead of `auth.terminal`. Only a literal `true`
+    // counts on either form; any other value is no announcement.
+    const hasTerminal =
+      this.clientCapabilities.auth?.terminal === true ||
+      this.clientCapabilities._meta?.['terminal-auth'] === true
+    return hasTerminal
       ? { type: 'terminal', id, name, description, args: [...args] }
       : { id, name, description: fill(UI_TEXT.acpSignInByHand, { command }) }
   }

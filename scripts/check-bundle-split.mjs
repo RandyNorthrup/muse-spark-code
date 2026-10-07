@@ -260,6 +260,43 @@ for (const name of [
 }
 
 const activation = inputsOf(BUNDLES.activation)
+// M118: prompt/share implementations load with their first action, never
+// activation. Type-only imports contribute no runtime bytes.
+for (const file of ['src/shared/prompts.ts', 'src/shared/share.ts']) {
+  if (activation.has(file)) {
+    problems.push(`${BUNDLES.activation.output} carries the lazy prompt/share contract ${file}`)
+  }
+}
+const PROMPTS = { output: 'dist/prompts.js', metafile: 'dist/meta/prompts.json' }
+const SHARING_RUNTIME = {
+  output: 'dist/sharingRuntime.js',
+  metafile: 'dist/meta/sharingRuntime.json',
+}
+for (const source of [
+  'src/runtime/sharing/sharingEntry.ts',
+  'src/runtime/sharing/commands.ts',
+  'src/core/sharing/promptShare.ts',
+  'src/core/sharing/chatShare.ts',
+]) {
+  if (!inputsOf(SHARING_RUNTIME).has(source))
+    problems.push(`${SHARING_RUNTIME.output} no longer carries ${source}`)
+  for (const bundle of [BUNDLES.activation, BUNDLES.acp, BUNDLES.modelApi])
+    if (inputsOf(bundle).has(source))
+      problems.push(`${bundle.output} carries lazy sharing implementation ${source}`)
+}
+const promptInputs = inputsOf(PROMPTS)
+for (const source of [
+  'src/host/prompts/promptEntry.ts',
+  'src/core/prompts/promptStore.ts',
+  'src/core/sharing/chatShare.ts',
+  'src/host/prompts/chatSharing.ts',
+]) {
+  if (!promptInputs.has(source)) problems.push(`${PROMPTS.output} no longer carries ${source}`)
+  for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
+    if (inputsOf(bundle).has(source))
+      problems.push(`${bundle.output} carries lazy sharing implementation ${source}`)
+  }
+}
 const modelApi = inputsOf(BUNDLES.modelApi)
 const acp = inputsOf(BUNDLES.acp)
 for (const [names, owner] of [
@@ -546,6 +583,8 @@ for (const bundle of [
   BUNDLES.modelApi,
   BUNDLES.acp,
   CHECKPOINT_STORE,
+  PROMPTS,
+  SHARING_RUNTIME,
   REVIEW,
   ...DEFERRED,
   AGENT_IMPORT,
@@ -929,7 +968,12 @@ const TEXT_BLOCKS = [
   {
     block: 'CONVERSATION_MODEL_TEXT',
     sentinels: ['planBriefRequest', 'replyContextLead'],
-    readers: ['dist/conversation.js', BUNDLES.modelApi.output],
+    readers: [
+      PROMPTS.output,
+      SHARING_RUNTIME.output,
+      'dist/conversation.js',
+      BUNDLES.modelApi.output,
+    ],
   },
   {
     block: 'TAB_MODEL_TEXT',
@@ -1151,6 +1195,7 @@ const deferredWebviewSources = [
   'src/webview/components/TeamUi.tsx',
   'src/webview/components/TeamTree.tsx',
   'src/webview/components/TeamCards.tsx',
+  'src/core/prompts/promptSearch.ts',
 ]
 for (const source of deferredWebviewSources) {
   const outputs = Object.entries(webviewMeta.outputs).filter(([, output]) =>

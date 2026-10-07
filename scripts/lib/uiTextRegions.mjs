@@ -402,3 +402,37 @@ installSurfaceEnglish(EN);`,
     })
   },
 }
+
+/** Pack the complete reference only in Node production bundles. */
+export function compressedReference(isProduction) {
+  return {
+    name: 'compressed-node-reference',
+    setup(build) {
+      if (!isProduction) return
+      build.onLoad({ filter: /[/\\]reference\.generated\.ts$/ }, async (args) => {
+        const source = readFileSync(args.path, 'utf8')
+        const tree = ts.createSourceFile(args.path, source, ts.ScriptTarget.Latest, true)
+        const factory = tree.statements.find(
+          (node) => ts.isFunctionDeclaration(node) && node.name?.text === 'referenceModel',
+        )
+        if (factory === undefined) throw new Error('Missing generated reference factory')
+        const { L10N_COMPRESSION_QUALITY } = await loadL10n(process.cwd())
+        const modelPath = path.join(path.dirname(args.path), 'reference.generated.json')
+        const packed = brotliCompressSync(readFileSync(modelPath), {
+          params: { [zlibConstants.BROTLI_PARAM_QUALITY]: L10N_COMPRESSION_QUALITY },
+        }).toString('base64')
+        const factorySource = `export function referenceModel() { return parseReferenceModel(JSON.parse(brotliDecompressSync(Buffer.from(${JSON.stringify(packed)}, 'base64')).toString('utf8'))) }`
+        return {
+          contents:
+            "import { Buffer } from 'node:buffer'; import { brotliDecompressSync } from 'node:zlib';\n" +
+            source.slice(0, factory.getStart(tree)) +
+            factorySource +
+            source.slice(factory.end),
+          loader: 'ts',
+          resolveDir: path.dirname(args.path),
+          watchFiles: [args.path, modelPath],
+        }
+      })
+    },
+  }
+}

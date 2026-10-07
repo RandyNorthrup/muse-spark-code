@@ -68,6 +68,20 @@ it('disables the effort palette row when the record has no effort tiers', () => 
   expect(flattenPalette(groups).some((item) => item.id === 'effort')).toBe(false)
 })
 
+it('exposes prompt actions only with a bound host and keeps real tips', () => {
+  const absent = flattenPalette(buildPalette(context))
+  expect(absent.filter((item) => item.action.type === 'promptCommand')).toEqual([])
+  const bound = flattenPalette(buildPalette({ ...context, arePromptCommandsBound: true })).filter(
+    (item) => item.action.type === 'promptCommand',
+  )
+  expect(bound.map((item) => item.action)).toEqual([
+    { type: 'promptCommand', command: 'library' },
+    { type: 'promptCommand', command: 'use' },
+    { type: 'promptCommand', command: 'share' },
+  ])
+  expect(bound.every((item) => item.tip !== undefined && item.tip.trim() !== '')).toBe(true)
+})
+
 describe('formatTokenWindow', () => {
   afterEach(() => {
     setUiText(EN, 'en')
@@ -799,6 +813,22 @@ describe('M87 palette tips', () => {
       const expected = description.trim() || 'Run the Review code skill.'
       expect(skill?.tip).toBe(expected)
       expect(slashCommandsOf(groups).find((row) => row.name === 'review')?.tip).toBe(expected)
+    },
+  )
+})
+
+describe('release Help and sharing menus', () => {
+  it.each([false, true])(
+    'offers one complete Help route with sharing bound: %s',
+    (arePromptCommandsBound) => {
+      const items = flattenPalette(buildPalette({ ...context, arePromptCommandsBound }))
+      const help = items.filter((item) => item.slashName === 'help' || item.label === '/help')
+      expect(help).toHaveLength(1)
+      expect(help[0]?.action).toEqual({ type: 'openHelp' })
+      if (arePromptCommandsBound) {
+        for (const id of ['shareChat', 'promptLibrary', 'promptUseSaved', 'sharePrompt'])
+          expect(items.some((item) => item.id === id)).toBe(true)
+      }
     },
   )
 })

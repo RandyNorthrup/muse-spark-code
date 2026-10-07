@@ -1,14 +1,10 @@
 import type { UiText } from '../shared/l10n/en'
+import { sharingHelp } from '../shared/featureCatalog'
 import { fill } from '../shared/l10n/text'
 
 /** Compact CLI help, also checked against the installed package's tables. */
-export function formatAcpUsage(
-  table: Pick<UiText, 'acpUsage' | 'helpReferenceTitle'> & {
-    readonly acpChatGpt: Pick<UiText['acpChatGpt'], 'usage'>
-  },
-  command: string,
-): string {
-  return `${fill(table.acpUsage, { command })}\n${fill(table.acpChatGpt.usage, { command })}\n${table.helpReferenceTitle}: ${command} help --all`
+export function formatAcpUsage(table: UiText, command: string): string {
+  return `${fill(table.acpUsage, { command })}\n${fill(table.acpChatGpt.usage, { command })}\n${table.helpReferenceTitle}: ${command} help --all\n${sharingHelp(table)}`
 }
 
 // One parseArgs definition per runtime route, also read by the lazy reference.

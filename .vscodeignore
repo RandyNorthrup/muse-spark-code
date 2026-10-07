@@ -3,6 +3,7 @@
 !dist/questionNotes.js
 !dist/conversation.js
 !dist/tab.js
+!dist/prompts.js
 !dist/modelApi.js
 !dist/modelApiBoundaries.js
 !dist/providers.js

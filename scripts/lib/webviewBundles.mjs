@@ -96,6 +96,10 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     budgetKiB: 25,
   },
   ...[
+    'EffortSlider',
+    'ToolBodies',
+    'ReviewFindings',
+    'HistoryPromptRow',
     'SignIn',
     'GoalPanel',
     'SchedulePanel',
@@ -141,6 +145,21 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
       'src/webview/components/UsageProviderSections.tsx',
       'src/webview/components/SetupBanner.tsx',
     ],
+    budgetKiB: 25,
+  },
+  {
+    // M118: the prompt library gets its own measured closure budget.
+    name: 'prompt library',
+    entries: [
+      'src/webview/prompts/PromptLibrary.tsx',
+      'src/webview/prompts/PromptLibraryBridge.tsx',
+    ],
+    budgetKiB: 25,
+  },
+  {
+    // M118: chat preview closure 13.4 KiB + 15%, rounded up to 25 KiB.
+    name: 'chat sharing',
+    entries: ['src/webview/sharing/ChatShareDialog.tsx', 'src/webview/sharing/ChatShareBridge.tsx'],
     budgetKiB: 25,
   },
   {

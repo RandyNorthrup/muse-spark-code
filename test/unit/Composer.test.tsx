@@ -139,6 +139,73 @@ function largePdf(name: string): File {
   return file
 }
 
+it('offers exact composer prompt text to the shared menus without sending', async () => {
+  const onSavePrompt = vi.fn(),
+    onSharePrompt = vi.fn(),
+    onUseSavedPrompt = vi.fn()
+  const { props, textarea } = renderComposer({
+    draft: 'Exact\r\ncomposer text',
+    onSavePrompt,
+    onSharePrompt,
+    onUseSavedPrompt,
+  })
+  const context = textarea.closest('footer')?.dataset['vscodeContext']
+  expect(context === undefined ? undefined : JSON.parse(context)).toEqual({
+    'museSpark.promptSource': 'composer',
+    'museSpark.promptText': 'Exact\r\ncomposer text',
+    'museSpark.composerHasText': true,
+    'museSpark.chatAvailable': true,
+  })
+  // One compact menu button, never a row of prompt buttons above the box.
+  for (const name of [UI_TEXT.promptSave, UI_TEXT.sharePrompt, UI_TEXT.promptUseSaved]) {
+    expect(screen.queryByRole('button', { name })).toBeNull()
+  }
+  const openMenu = () => {
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.promptLibrary }))
+  }
+  openMenu()
+  const menu = await screen.findByRole('menu', { name: UI_TEXT.promptLibrary })
+  expect(
+    within(menu)
+      .getAllByRole('menuitem')
+      .map((item) => item.textContent),
+  ).toEqual([UI_TEXT.promptSave, UI_TEXT.sharePrompt, UI_TEXT.promptUseSaved])
+  fireEvent.click(within(menu).getByRole('menuitem', { name: UI_TEXT.promptSave }))
+  expect(screen.queryByRole('menu', { name: UI_TEXT.promptLibrary })).toBeNull()
+  expect(document.activeElement).toBe(textarea)
+  openMenu()
+  fireEvent.click(await screen.findByRole('menuitem', { name: UI_TEXT.sharePrompt }))
+  openMenu()
+  fireEvent.click(await screen.findByRole('menuitem', { name: UI_TEXT.promptUseSaved }))
+  expect(onSavePrompt).toHaveBeenCalledWith('Exact\r\ncomposer text')
+  expect(onSharePrompt).toHaveBeenCalledWith('Exact\r\ncomposer text')
+  expect(onUseSavedPrompt).toHaveBeenCalledTimes(1)
+  expect(props.onSubmit).not.toHaveBeenCalled()
+})
+
+it('keeps save and share out of the prompt menu while the draft is empty', async () => {
+  renderComposer({
+    draft: '  ',
+    onSavePrompt: vi.fn(),
+    onSharePrompt: vi.fn(),
+    onUseSavedPrompt: vi.fn(),
+  })
+  fireEvent.click(screen.getByRole('button', { name: UI_TEXT.promptLibrary }))
+  const menu = await screen.findByRole('menu', { name: UI_TEXT.promptLibrary })
+  expect(
+    within(menu)
+      .getAllByRole('menuitem')
+      .map((item) => item.textContent),
+  ).toEqual([UI_TEXT.promptUseSaved])
+  fireEvent.keyDown(menu, { key: 'Escape' })
+  expect(screen.queryByRole('menu', { name: UI_TEXT.promptLibrary })).toBeNull()
+})
+
+it('shows no prompt menu button when no prompt action is available', () => {
+  renderComposer({ draft: 'Text' })
+  expect(screen.queryByRole('button', { name: UI_TEXT.promptLibrary })).toBeNull()
+})
+
 function pasteOrDropFile(
   gesture: 'paste' | 'drop',
   textarea: HTMLTextAreaElement,

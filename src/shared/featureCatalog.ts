@@ -173,6 +173,12 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   tabMenu: { description: { ui: 'referenceTabMenu' }, canRun: false },
   tabLanguages: { description: { ui: 'referenceTabLanguages' }, canRun: false },
   openPullRequestInConversation: { description: { ui: 'gitCheckoutItemDetail' }, canRun: false },
+  savePrompt: { description: { ui: 'promptSecretsNote' }, canRun: false },
+  useSavedPrompt: { description: { ui: 'promptRun' }, canRun: false },
+  promptLibrary: { description: { ui: 'promptLibrary' }, canRun: true },
+  copyToMyPrompts: { description: { ui: 'promptScopeUser' }, canRun: false },
+  sharePrompt: { description: { ui: 'shareReviewPrivacy' }, canRun: false },
+  shareChat: { description: { ui: 'shareReviewPrivacy' }, canRun: false },
   openHelp: { description: { ui: 'referenceIntro' }, canRun: true },
   nextOpenQuestion: { description: { ui: 'questionNextOpen' }, canRun: false },
   previousOpenQuestion: { description: { ui: 'questionPreviousOpen' }, canRun: false },
@@ -226,6 +232,17 @@ export function featureCatalog(): readonly Feature[] {
       ['vscode', 'acp'],
     ),
     feature(
+      'prompt-library',
+      { ui: 'promptLibrary' },
+      { ui: 'promptSecretsNote' },
+      ['savePrompt', 'useSavedPrompt', 'promptLibrary', 'copyToMyPrompts'],
+      ['syncPromptsAndBookmarks'],
+      'sharing',
+      undefined,
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
       'usage',
       { ui: 'usagePageTitle' },
       { ui: 'paletteUsagePage' },
@@ -275,6 +292,17 @@ export function featureCatalog(): readonly Feature[] {
       ['modelApiAutoCompaction'],
       'observation-packing-model-api',
       ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'chat-sharing',
+      { ui: 'shareChat' },
+      { ui: 'shareReviewPrivacy' },
+      ['shareChat', 'sharePrompt'],
+      [],
+      'sharing',
+      undefined,
       false,
       ['vscode', 'acp'],
     ),
@@ -822,4 +850,126 @@ const REFERENCE_DETAILS: Readonly<
   'custom-agents': ['referencePaidContexts'],
   'conversation-actions': ['referenceWindowsSessions'],
   questions: ['referenceQuestionsDeferral'],
+}
+
+import { PROMPT_COMMAND_IDS, UI_TEXT } from './constants'
+
+/** Runtime localized inventory for M118; the reference generator uses the English fallback. */
+export function sharingFeatures(table: UiText = UI_TEXT) {
+  return [
+    {
+      id: 'sharing-help',
+      surface: 'editor/acp',
+      syntax: '/help',
+      label: table.helpReferenceTitle,
+      detail: table.referenceIntro,
+    },
+    {
+      id: PROMPT_COMMAND_IDS.save,
+      surface: 'editor',
+      syntax: 'museSpark.savePrompt',
+      label: table.promptSave,
+      detail: table.promptSecretsNote,
+    },
+    {
+      id: PROMPT_COMMAND_IDS.use,
+      surface: 'editor',
+      syntax: 'museSpark.useSavedPrompt',
+      label: table.promptUseSaved,
+      detail: `${table.promptVariables}; ${table.promptInsert}`,
+    },
+    {
+      id: PROMPT_COMMAND_IDS.library,
+      surface: 'editor',
+      syntax: 'museSpark.promptLibrary',
+      label: table.promptLibrary,
+      detail: `${table.promptScopeUser}; ${table.promptScopeWorkspace}`,
+    },
+    {
+      id: PROMPT_COMMAND_IDS.copyToUser,
+      surface: 'editor',
+      syntax: 'museSpark.copyToMyPrompts',
+      label: table.promptCopyToUser,
+      detail: table.promptScopeUser,
+    },
+    {
+      id: PROMPT_COMMAND_IDS.sharePrompt,
+      surface: 'editor',
+      syntax: 'museSpark.sharePrompt',
+      label: table.sharePrompt,
+      detail: table.shareReviewPrivacy,
+    },
+    {
+      id: PROMPT_COMMAND_IDS.shareChat,
+      surface: 'editor',
+      syntax: 'museSpark.shareChat',
+      label: table.shareChat,
+      detail: `${table.shareConversation}; ${table.shareFull}`,
+    },
+    {
+      // Activation observes machine consent before any sharing command is used.
+      id: 'museSpark.syncPromptsAndBookmarks',
+      surface: 'setting',
+      syntax: 'museSpark.syncPromptsAndBookmarks',
+      label: table.promptLibrary,
+      detail: table.promptScopeUser,
+    },
+    {
+      id: 'share',
+      surface: 'acp',
+      syntax: '/share chat [--mode full|conversation] [--format md|html|json]',
+      label: table.shareChat,
+      detail: table.shareReviewPrivacy,
+    },
+    {
+      id: 'prompt',
+      surface: 'acp',
+      syntax:
+        '/prompt save --title TITLE [--scope user|workspace] -- TEXT; /prompt list; /prompt use ID; /prompt share ID',
+      label: table.promptLibrary,
+      detail: table.promptRun,
+    },
+    {
+      id: 'share-cli',
+      surface: 'cli',
+      syntax: 'share chat SESSION_ID [--mode full|conversation] [--format md|html|json]',
+      label: table.shareChat,
+      detail: table.shareConfirm,
+    },
+    {
+      id: 'prompts-save-cli',
+      surface: 'cli',
+      syntax: 'prompts save --title TITLE [--scope user|workspace] [--cwd FOLDER] < prompt.txt',
+      label: table.promptLibrary,
+      detail: table.promptRun,
+    },
+    {
+      id: 'prompts-list-cli',
+      surface: 'cli',
+      syntax: 'prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER]',
+      label: table.promptLibrary,
+      detail: table.promptScopeUser,
+    },
+    {
+      id: 'prompts-use-cli',
+      surface: 'cli',
+      syntax: 'prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER]',
+      label: table.promptUseSaved,
+      detail: `${table.promptVariables}; ${table.promptInsert}`,
+    },
+    {
+      id: 'prompts-share-cli',
+      surface: 'cli',
+      syntax:
+        'prompts share ID [--scope user|workspace] [--format md|html|json] [--destination copy|file|browser] [--out FILE]',
+      label: table.sharePrompt,
+      detail: table.shareConfirm,
+    },
+  ]
+}
+
+export function sharingHelp(table: UiText = UI_TEXT): string {
+  return sharingFeatures(table)
+    .map((feature) => `${feature.syntax}\n${feature.label}: ${feature.detail}`)
+    .join('\n\n')
 }

@@ -220,6 +220,12 @@ const itemSnapshotSchema = z.object(itemSnapshotFields)
 
 export type ItemSnapshot = z.infer<typeof itemSnapshotSchema>
 
+// M118: default deny, including future wire kinds and internal items.
+const CONVERSATION_SHARE_ITEM_KINDS: ReadonlySet<string> = new Set(['userMessage', 'agentMessage'])
+export function isConversationShareItem(item: Pick<ItemSnapshot, 'kind'>): boolean {
+  return CONVERSATION_SHARE_ITEM_KINDS.has(item.kind)
+}
+
 export const approvalChoiceSchema = z.object({
   choiceId: stringSchema,
   label: stringSchema,

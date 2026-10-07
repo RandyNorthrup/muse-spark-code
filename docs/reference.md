@@ -21,6 +21,14 @@ Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no
 
 Commands: `museSpark.startWithOwnModel`, `museSpark.modelsAndAgents`, `museSpark.addModelProvider`, `museSpark.connectChatGpt`, `museSpark.connectCopilot`. Settings: `museSpark.suggestedProvider`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#backends)
 
+### Prompt library
+
+Prompts are stored as plain text. Do not save passwords or keys.
+
+Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: `museSpark.savePrompt`, `museSpark.useSavedPrompt`, `museSpark.promptLibrary`, `museSpark.copyToMyPrompts`. Settings: `museSpark.syncPromptsAndBookmarks`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#sharing)
+
 ### Usage & cost
 
 Track cost, tokens and limits across editors.
@@ -171,6 +179,14 @@ autoCompactionEvaluation: Automatic compaction is awaiting evaluation and is ina
 Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: —. Settings: `museSpark.modelApiAutoCompaction`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#observation-packing-model-api)
+
+### Share chat…
+
+Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
+
+Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: `museSpark.shareChat`, `museSpark.sharePrompt`. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#sharing)
 
 ### Best of N
 
@@ -421,7 +437,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Help & Reference
 
-Installed skills add dynamic slash commands. This static reference does not list them. ACP handles only local /help, /compact, /legal, /usage, /questions, /answer and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
+Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /compact, /legal, /usage, /questions, /answer, /prompt and /share plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
 
 ```json
 {
@@ -1380,7 +1396,7 @@ Commands: —. Settings: `museSpark.judge.engine`. [Documentation](https://githu
 
 Report an issue.
 
-Installed skills add dynamic slash commands. This static reference does not list them. ACP handles only local /help, /compact, /legal, /usage, /questions, /answer and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
+Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /compact, /legal, /usage, /questions, /answer, /prompt and /share plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -1660,6 +1676,30 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 ### Muse Spark: Previous open question
 
 `museSpark.previousOpenQuestion` — Previous open question
+
+### Muse Spark: Share prompt…
+
+`museSpark.sharePrompt` — Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
+
+### Muse Spark: Prompt library
+
+`museSpark.promptLibrary` — Prompt library
+
+### Muse Spark: Save prompt
+
+`museSpark.savePrompt` — Prompts are stored as plain text. Do not save passwords or keys.
+
+### Muse Spark: Use saved prompt…
+
+`museSpark.useSavedPrompt` — Review variables and insert
+
+### Muse Spark: Copy to my prompts
+
+`museSpark.copyToMyPrompts` — All workspaces
+
+### Muse Spark: Share chat…
+
+`museSpark.shareChat` — Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
 
 ## Settings
 
@@ -2849,6 +2889,19 @@ Type: `"integer"`. Default: `60`. Scope: `machine`.
 }
 ```
 
+### museSpark.syncPromptsAndBookmarks
+
+Mirror prompts for all workspaces into Settings Sync. Workspace prompts stay local.
+
+Type: `"boolean"`. Default: `false`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": false
+}
+```
+
 ## Keyboard shortcuts
 
 These are defaults; editor customizations take precedence.
@@ -2918,6 +2971,13 @@ These are defaults; editor customizations take precedence.
   --no-events Leave the recent events out
 - `help --all`: Commands, settings and features, with descriptions and documentation.
 - `help / --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.
+- `share chat SESSION_ID [--mode full|conversation] [--format md|html|json]`: Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
+- `prompts save --title TITLE [--scope user|workspace] [--cwd FOLDER] < prompt.txt`: Prompts are stored as plain text. Do not save passwords or keys.
+- `prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER]`: Prompt library
+- `prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER]`: Review variables and insert
+- `prompts share ID [--scope user|workspace] [--format md|html|json] [--destination copy|file|browser] [--out FILE]`: Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
+- `/prompt save|list|use|share`: Review variables and insert
+- `/share chat [--mode full|conversation] [--format md|html|json]`: Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
 - `--version / -v`: Print the installed agent version.
 - `providersAdd: --preset <value>`: --preset: Provider `{"type":"string","repeatable":false}`
 - `providersAdd: --as <value>`: --as: Provider `{"type":"string","repeatable":false}`

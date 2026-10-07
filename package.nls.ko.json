@@ -188,5 +188,12 @@
   "command.openHelp.title": "도움말 및 참조",
   "command.nextOpenQuestion.title": "다음 미답변 질문",
   "command.previousOpenQuestion.title": "이전 미답변 질문",
-  "config.questions.deferAfterSeconds.description": "Muse가 작업을 계속할 수 있도록 미답변 질문을 보류하기까지의 초 단위 시간입니다. 기본값은 60이며, 0은 보류하지 않음, 1–9는 10으로 처리됩니다. 최댓값은 3,600입니다. 질문은 열린 상태로 유지되며 나중에 답변할 수 있습니다. 이 컴퓨터의 설정만 사용합니다."
+  "config.questions.deferAfterSeconds.description": "Muse가 작업을 계속할 수 있도록 미답변 질문을 보류하기까지의 초 단위 시간입니다. 기본값은 60이며, 0은 보류하지 않음, 1–9는 10으로 처리됩니다. 최댓값은 3,600입니다. 질문은 열린 상태로 유지되며 나중에 답변할 수 있습니다. 이 컴퓨터의 설정만 사용합니다.",
+  "command.shareChat.title": "채팅 공유…",
+  "command.sharePrompt.title": "프롬프트 공유…",
+  "command.promptLibrary.title": "프롬프트 라이브러리",
+  "command.savePrompt.title": "프롬프트 저장",
+  "command.useSavedPrompt.title": "저장된 프롬프트 사용…",
+  "command.copyToMyPrompts.title": "내 프롬프트로 복사",
+  "config.syncPromptsAndBookmarks.description": "모든 작업 공간용 프롬프트를 설정 동기화에 반영합니다. 작업 공간 프롬프트는 로컬에 유지됩니다."
 }

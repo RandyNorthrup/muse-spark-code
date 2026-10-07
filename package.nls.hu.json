@@ -188,5 +188,12 @@
   "command.openHelp.title": "Súgó és referencia",
   "command.nextOpenQuestion.title": "Következő nyitott kérdés",
   "command.previousOpenQuestion.title": "Előző nyitott kérdés",
-  "config.questions.deferAfterSeconds.description": "Ennyi másodperc után halasztjuk el a megválaszolatlan kérdést, hogy Muse folytathassa a munkát. Alapérték: 60; a 0 jelentése soha; az 1–9 értékeket 10-ként kezeljük; maximum 3600. A kérdés nyitva marad, és később is megválaszolható. Csak ennek a gépnek a beállítását használjuk."
+  "config.questions.deferAfterSeconds.description": "Ennyi másodperc után halasztjuk el a megválaszolatlan kérdést, hogy Muse folytathassa a munkát. Alapérték: 60; a 0 jelentése soha; az 1–9 értékeket 10-ként kezeljük; maximum 3600. A kérdés nyitva marad, és később is megválaszolható. Csak ennek a gépnek a beállítását használjuk.",
+  "command.shareChat.title": "Csevegés megosztása…",
+  "command.sharePrompt.title": "Prompt megosztása…",
+  "command.promptLibrary.title": "Promptkönyvtár",
+  "command.savePrompt.title": "Prompt mentése",
+  "command.useSavedPrompt.title": "Mentett prompt használata…",
+  "command.copyToMyPrompts.title": "Másolás a saját promptjaimba",
+  "config.syncPromptsAndBookmarks.description": "Az összes munkaterület promptjainak tükrözése a beállítások szinkronizálásába. A munkaterületi promptok helyben maradnak."
 }

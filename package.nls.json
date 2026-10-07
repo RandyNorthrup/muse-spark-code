@@ -188,5 +188,12 @@
   "command.openHelp.title": "Open Help & Reference",
   "command.nextOpenQuestion.title": "Next open question",
   "command.previousOpenQuestion.title": "Previous open question",
-  "config.questions.deferAfterSeconds.description": "Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used."
+  "config.questions.deferAfterSeconds.description": "Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.",
+  "command.shareChat.title": "Share chat…",
+  "command.sharePrompt.title": "Share prompt…",
+  "command.promptLibrary.title": "Prompt library",
+  "command.savePrompt.title": "Save prompt",
+  "command.useSavedPrompt.title": "Use saved prompt…",
+  "command.copyToMyPrompts.title": "Copy to my prompts",
+  "config.syncPromptsAndBookmarks.description": "Mirror prompts for all workspaces into Settings Sync. Workspace prompts stay local."
 }

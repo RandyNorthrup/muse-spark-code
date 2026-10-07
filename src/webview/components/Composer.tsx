@@ -1,3 +1,5 @@
+import type { PromptLibraryProps } from '../prompts/PromptLibrary'
+import { deferred } from './DeferredSurface'
 import { webviewKey } from '../../shared/keybindings'
 // The prompt box: textarea with Claude-Code key semantics (Enter sends,
 // Shift+Enter newline, optional Ctrl/Cmd+Enter-to-send, Shift+Tab cycles the
@@ -71,6 +73,7 @@ import { type DictationUiState, type MentionResults, userShellCommandOf } from '
 import { AttachmentChips } from './AttachmentChips'
 import { ContextMeter, type ContextMeterProps } from './ContextMeter'
 import {
+  BookmarkIcon,
   CloseIcon,
   FileIcon,
   MicIcon,
@@ -83,6 +86,7 @@ import {
 import { MENTION_OPTION_ID_PREFIX, MentionMenu, mentionOptionId } from './MentionMenu'
 import { modeIcon } from './modeIcons'
 import type { PaletteKeys } from './Palette'
+import type { MenuEntry } from './PopoverMenu'
 import { PALETTE_LISTBOX_ID } from '../../shared/constants'
 import { SLASH_LISTBOX_ID, SLASH_OPTION_ID_PREFIX, SlashMenu, slashOptionId } from './SlashMenu'
 
@@ -100,7 +104,22 @@ export interface SlashPaletteSlot {
   readonly onActiveRowChange: (elementId: string | undefined) => void
 }
 
+const PromptLibrary = deferred(async () => {
+  const module = await import('../prompts/PromptLibrary')
+  return { default: module.PromptLibrary }
+})
+
+const PopoverMenu = deferred(async () => {
+  const module = await import('./PopoverMenu')
+  return { default: module.PopoverMenu }
+})
+
 export interface ComposerProps {
+  /** M118-P-REACT-BRIDGE: bound by W/native hosts; IO stays in the host. */
+  readonly promptLibrary?: Omit<PromptLibraryProps, 'onClose'>
+  readonly onUseSavedPrompt?: () => void
+  readonly onSavePrompt?: (text: string) => void
+  readonly onSharePrompt?: (text: string) => void
   readonly draft: string
   readonly placeholder: string
   readonly settings: SettingsSnapshot
@@ -323,6 +342,8 @@ function slashMenuOf(draft: string, caret: number): 'palette' | 'commands' | und
 }
 
 export function Composer(props: ComposerProps) {
+  const [isPromptLibraryOpen, setPromptLibraryOpen] = useState(false)
+  const [isPromptMenuOpen, setPromptMenuOpen] = useState(false)
   const {
     draft,
     placeholder,
@@ -930,9 +951,54 @@ export function Composer(props: ComposerProps) {
   // What the box's aria-controls and aria-activedescendant point at.
   const popup = popupAria()
 
+  // Occasional prompt actions share one compact menu beside the toolbar's
+  // other menus; the panel's right-click menu offers them too.
+  const hasDraftText = draft.trim() !== ''
+  const promptEntries: MenuEntry[] = [
+    ...(hasDraftText && props.onSavePrompt !== undefined
+      ? [{ id: 'save', label: UI_TEXT.promptSave }]
+      : []),
+    ...(hasDraftText && props.onSharePrompt !== undefined
+      ? [{ id: 'share', label: UI_TEXT.sharePrompt }]
+      : []),
+    ...(props.promptLibrary !== undefined || props.onUseSavedPrompt !== undefined
+      ? [{ id: 'use', label: UI_TEXT.promptUseSaved }]
+      : []),
+  ]
+  const closePromptMenu = () => {
+    setPromptMenuOpen(false)
+    textareaRef.current?.focus()
+  }
+  const runPromptAction = (id: string) => {
+    switch (id) {
+      case 'save': {
+        props.onSavePrompt?.(draft)
+        break
+      }
+      case 'share': {
+        props.onSharePrompt?.(draft)
+        break
+      }
+      case 'use': {
+        if (props.onUseSavedPrompt === undefined) {
+          setPromptLibraryOpen(true)
+        } else {
+          props.onUseSavedPrompt()
+        }
+        break
+      }
+    }
+  }
+
   return (
     <footer
       className="composer"
+      data-vscode-context={JSON.stringify({
+        'museSpark.promptSource': 'composer',
+        'museSpark.promptText': draft,
+        'museSpark.composerHasText': draft.trim() !== '',
+        'museSpark.chatAvailable': true,
+      })}
       onFocus={() => {
         setIsFocusWithin(true)
       }}
@@ -1014,6 +1080,26 @@ export function Composer(props: ComposerProps) {
           onFocusChange(false)
         }}
       />
+      {isPromptLibraryOpen && props.promptLibrary !== undefined ? (
+        <PromptLibrary
+          {...props.promptLibrary}
+          onClose={() => {
+            setPromptLibraryOpen(false)
+          }}
+        />
+      ) : null}
+      {isPromptMenuOpen && promptEntries.length > 0 ? (
+        <PopoverMenu
+          label={UI_TEXT.promptLibrary}
+          entries={promptEntries}
+          align="left"
+          onSelect={(id) => {
+            closePromptMenu()
+            runPromptAction(id)
+          }}
+          onClose={closePromptMenu}
+        />
+      ) : null}
       <div className="composer-toolbar">
         <div className="composer-toolbar-group">
           <button
@@ -1036,6 +1122,22 @@ export function Composer(props: ComposerProps) {
           >
             <SlashIcon />
           </button>
+          {promptEntries.length === 0 ? null : (
+            <button
+              type="button"
+              className="icon-button"
+              title={UI_TEXT.promptLibrary}
+              aria-label={UI_TEXT.promptLibrary}
+              aria-haspopup="dialog"
+              aria-expanded={isPromptMenuOpen}
+              onMouseDown={keepMenuFocus}
+              onClick={() => {
+                setPromptMenuOpen(!isPromptMenuOpen)
+              }}
+            >
+              <BookmarkIcon />
+            </button>
+          )}
           <button
             type="button"
             className="pill"

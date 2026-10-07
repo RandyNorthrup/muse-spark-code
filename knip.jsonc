@@ -35,6 +35,7 @@
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",
     "src/core/legal/entry.ts",
+    "src/host/prompts/promptEntry.ts",
     // The Model API backend's own bundle (M57), required by path at runtime.
     "src/host/backend/modelApiEntry.ts",
     "src/host/backend/providersEntry.ts",
@@ -89,6 +90,7 @@
     // The Models & Agents panel's own entry (M95 lane M), required by path.
     "src/webview/models/models.tsx",
     "src/runtime/main.ts",
+    "src/runtime/sharing/sharingEntry.ts",
     // M112 A: same-build ACP question factory, loaded by path on first use.
     "src/acp/questionDeferralEntry.ts",
     "src/runtime/questions/questionRegistryEntry.ts",

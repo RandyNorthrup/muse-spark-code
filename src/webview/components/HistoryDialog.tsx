@@ -1,4 +1,4 @@
-import { webviewKey, WEBVIEW_KEYBINDINGS } from '../../shared/keybindings'
+import { webviewKey } from '../../shared/keybindings'
 // The History dialog (M6): the workspace's stored sessions grouped Today /
 // Yesterday / Previous 7 days / Older, a search box over titles and
 // branches, Archive / Unarchive per row and a "Show archived" switch.
@@ -18,17 +18,15 @@ import {
   type SessionRow,
 } from '../../shared/sessions'
 import { scrollRowIntoView } from '../listNavigation'
-import { CloseIcon, HistoryIcon } from './icons'
+import { deferred } from './DeferredSurface'
+import { HistoryIcon } from './icons'
 import { ListBody } from './ListBody'
 import {
   PaletteList,
   PaletteSearchInput,
-  PaletteSessionRow,
   usePaletteDismiss,
   usePaletteNavigation,
 } from './paletteDialog'
-
-const ARCHIVE_KEY = WEBVIEW_KEYBINDINGS['history.archive'].archive.keys[0].key
 
 export interface HistoryDialogProps {
   /** undefined while the host has not answered `listSessions`. */
@@ -38,6 +36,7 @@ export interface HistoryDialogProps {
   readonly currentSessionId: string | undefined
   readonly archiveAfterDays: number
   readonly now: () => number
+  readonly onSavePrompt?: (sessionId: string) => void
   readonly onResume: (sessionId: string) => void
   readonly onSetArchived: (sessionId: string, isArchived: boolean) => void
   readonly onClose: () => void
@@ -52,16 +51,20 @@ export type HistoryEntry =
   | { readonly kind: 'row'; readonly key: string; readonly index: number; readonly row: SessionRow }
 
 export function layoutHistory(groups: readonly SessionGroup[]): readonly HistoryEntry[] {
+  const entries: HistoryEntry[] = []
   let index = 0
-  return groups.flatMap((group): HistoryEntry[] => [
-    { kind: 'title', key: `title:${group.id}`, title: group.title },
-    ...group.rows.map((row): HistoryEntry => ({
-      kind: 'row',
-      key: row.sessionId,
-      index: index++,
-      row,
-    })),
-  ])
+  for (const group of groups) {
+    entries.push({ kind: 'title', key: `title:${group.id}`, title: group.title })
+    for (const row of group.rows) {
+      entries.push({
+        kind: 'row',
+        key: row.sessionId,
+        index: index++,
+        row,
+      })
+    }
+  }
+  return entries
 }
 
 function metaOf(row: SessionRow, nowMs: number, openCount = 0): string {
@@ -76,63 +79,13 @@ function metaOf(row: SessionRow, nowMs: number, openCount = 0): string {
     .join(' · ')
 }
 
-function RowView({
-  row,
-  isActive,
-  isCurrent,
-  isRowArchived,
-  meta,
-  onHover,
-  onResume,
-  onSetArchived,
-}: {
-  readonly row: SessionRow
-  readonly isActive: boolean
-  readonly isCurrent: boolean
-  readonly isRowArchived: boolean
-  readonly meta: string
-  readonly onHover: () => void
-  readonly onResume: () => void
-  readonly onSetArchived: (isArchived: boolean) => void
-}) {
-  const archiveLabel = isRowArchived ? UI_TEXT.historyUnarchive : UI_TEXT.historyArchive
-  return (
-    <PaletteSessionRow
-      rowId={`${ROW_ID_PREFIX}${row.sessionId}`}
-      title={row.title}
-      isActive={isActive}
-      isCurrent={isCurrent}
-      meta={meta}
-      // The row is the control: Delete (un)archives it from the search box.
-      keyShortcuts={ARCHIVE_KEY}
-      keyDescription={archiveLabel}
-      action={
-        <>
-          {/* For the mouse only: a button inside an option is still reachable by
-              assistive technology (WCAG 4.1.2, M37); the keyboard uses Delete. */}
-          <span
-            className="icon-button history-archive"
-            title={`${archiveLabel} (${ARCHIVE_KEY})`}
-            aria-hidden="true"
-            onMouseDown={(event) => {
-              event.preventDefault()
-            }}
-            onClick={(event) => {
-              event.stopPropagation()
-              onSetArchived(!isRowArchived)
-            }}
-          >
-            <CloseIcon />
-          </span>
-        </>
-      }
-      onHover={onHover}
-      onResume={onResume}
-    />
-  )
-}
+const RowView = deferred(async () => {
+  const module = await import('./HistoryPromptRow')
+  return { default: module.HistoryPromptRow }
+})
 
 export function HistoryDialog(props: HistoryDialogProps) {
+  const [menuContainer, setMenuContainer] = useState<HTMLDivElement | null>(null)
   const { sessions, archivedIds, currentSessionId, archiveAfterDays, now } = props
   const { onResume, onSetArchived, onClose } = props
   const [query, setQuery] = useState('')
@@ -212,6 +165,8 @@ export function HistoryDialog(props: HistoryDialogProps) {
           ) : (
             <RowView
               key={entry.key}
+              onSavePrompt={props.onSavePrompt}
+              menuContainer={menuContainer}
               row={entry.row}
               isActive={entry.index === activeIndex}
               isCurrent={entry.row.sessionId === currentSessionId}
@@ -258,6 +213,18 @@ export function HistoryDialog(props: HistoryDialogProps) {
           }}
           onKeyDown={handleKeyDown}
         />
+        {props.onSavePrompt === undefined ? null : (
+          <button
+            type="button"
+            className="button-secondary"
+            disabled={activeRow === undefined}
+            onClick={() => {
+              if (activeRow !== undefined) props.onSavePrompt?.(activeRow.sessionId)
+            }}
+          >
+            {UI_TEXT.promptSave}
+          </button>
+        )}
         <label
           className="history-toggle"
           onMouseDown={(event) => {
@@ -279,6 +246,7 @@ export function HistoryDialog(props: HistoryDialogProps) {
         </label>
       </div>
       <ListBody>{body}</ListBody>
+      <div ref={setMenuContainer} />
     </div>
   )
 }

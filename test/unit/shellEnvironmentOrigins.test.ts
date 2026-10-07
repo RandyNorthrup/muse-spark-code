@@ -148,7 +148,8 @@ describe('D89.5 command origins cannot widen unattended environments', () => {
       })
       const nextRequested = Promise.withResolvers<undefined>()
       const nextRelease = Promise.withResolvers<undefined>()
-      const command = process.platform === 'win32' ? 'Get-ChildItem Env:' : 'env'
+      const command =
+        process.platform === 'win32' ? '[Environment]::GetEnvironmentVariables().Values' : 'env'
       t.api.script(
         {
           calls: [
@@ -169,6 +170,8 @@ describe('D89.5 command origins cannot widen unattended environments', () => {
         },
       )
       const done = turnDone()
+      let commandDone: Promise<undefined> | undefined
+      let stopWatching: (() => void) | undefined
       try {
         if (test.isScheduled) {
           await schedules.run(job.id, job.nextFireAtMs, {
@@ -184,6 +187,12 @@ describe('D89.5 command origins cannot widen unattended environments', () => {
           .history()
           .items.find((item) => item.tool === 'bash' || item.tool === 'powershell')
         if (row === undefined) throw new Error('expected shell row')
+        const completed = Promise.withResolvers<undefined>()
+        commandDone = completed.promise
+        stopWatching = session.onEvent((event) => {
+          if (event.type === 'itemCompleted' && event.item.itemId === row.itemId)
+            completed.resolve(undefined)
+        })
         await session.moveToBackground(row.itemId)
         await done
         expect(t.shell).not.toHaveBeenCalled()
@@ -191,17 +200,10 @@ describe('D89.5 command origins cannot widen unattended environments', () => {
           await session.sendTurn([{ type: 'text', text: 'another interactive turn' }])
           await nextRequested.promise
         }
-        const completed = Promise.withResolvers<undefined>()
-        const unwatch = session.onEvent((event) => {
-          if (event.type === 'itemCompleted' && event.item.itemId === row.itemId)
-            completed.resolve(undefined)
-        })
-        try {
-          release.resolve(undefined)
-          await completed.promise
-        } finally {
-          unwatch()
-        }
+        release.resolve(undefined)
+        // Await this command's event, within the test deadline, rather than a
+        // one-second polling deadline that can expire during PowerShell startup.
+        await commandDone
         expect(
           events.some(
             (event) => event.type === 'itemCompleted' && event.item.itemId === row.itemId,
@@ -215,6 +217,9 @@ describe('D89.5 command origins cannot widen unattended environments', () => {
         release.resolve(undefined)
         nextRelease.resolve(undefined)
         await session.settled()
+        // Background shells are outside settled(); finish ours before removing its cwd.
+        await commandDone
+        stopWatching?.()
       }
     },
   )

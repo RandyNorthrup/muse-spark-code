@@ -1499,3 +1499,81 @@ The detailed final receipt is [train-0.15.0-final.json](train-0.15.0-final.json)
 It preserves the first failed SSH assertion and complete-file rerun, exact
 package versions, hashes, byte counts and the effective native red/green drill.
 There are zero new live/paid model calls and no push, tag or publication.
+
+## 0.14.5 merge — REL0150M (2026-10-06, linuxlt)
+
+Starting point: `6b778176d`, branch `release/0.15.0`. The rig brief authorizes
+exactly two ordered no-fast-forward merges: `rel-0145` (`4ca230efc`, includes
+0.14.4/M118), then `chore/infra-0150-m` (`6bfc08f8`, PR #132).
+The brief overrides common.md's scoped-suite restriction for the complete
+configured suite and named full-repository gates. Aggregate quality, merged
+coverage and hosted/editor certification remain with the lead; no aggregate
+quality wrapper, extra merge, push or paid/live model call is made.
+
+### First merge resolutions and checks
+
+Conflicts are resolved by preserving both train and M118 behavior. ACP keeps
+provider sign-ins, usage/legal/compact commands, durable questions and sharing;
+terminal auth accepts literal true in either capability announcement. Both
+elicitation abandonment and the sharing abort controller run on cancellation,
+exit and disposal. The legal scan binds that same controller. Runtime sharing
+uses the lazy engine and awaits the async backend factory; credential values
+removed at startup remain in memory only for known-secret sharing redaction,
+never authentication or child environments. Extension shutdown disposes prompt
+storage before backend shutdown and still flushes usage in finally.
+
+Locale/NLS tables use a recursive key union with incoming text on scalar
+conflicts; ACP reference text names all merged local routes in every language.
+Reference and host API output are regenerated, never hand-merged. The manifest
+retains 0.15.0, both command/setting/dependency inventories and one walkthrough.
+Both READMEs have one current 0.15.0 section, then Earlier 0.14.5, Earlier
+0.14.4 and Earlier 0.14.3. The changelog retains every entry, ordered 0.15.0,
+0.14.5, 0.14.4. Both deferred English/browser mechanisms and compressed Node
+reference remain. Both harness scenario/size/readiness inventories remain.
+
+Source localization reports **zero problems**. The production build and every
+size/split/global/notices gate pass under the existing caps. The dependency
+union adds no pin: lock regeneration passes, and a clean ordinary `npm ci`
+(exact manifest/lock/.npmrc, isolated OS scratch directory) exits zero. The
+shared hard-linked node_modules is untouched; worktree Husky hooks are present.
+The installer reports eleven existing audit findings and three unapproved
+third-party install-script notices; no dependency update or approval is made.
+
+At repository-default invocations, complete owning batches pass:
+
+- shareContracts, acpSharing and acpAgent: **173 tests**.
+- conversationController, AppLazy and paletteRegistry: **688 tests**.
+- acpStdio: **12 tests**.
+- execStdio: **44 tests**, after repairing its merged package fixture.
+
+The first execStdio run has 29 failures from one cold-fixture setup failure:
+its copied shared localization graph lacks `src/core/judge/engine.ts`. Copying
+that real predicate into the isolated fixture restores every package guard;
+no gate, assertion or timeout is changed. The fixture now includes sharing
+bundles/schema and all train bundles, with cached expensive package preparation.
+
+Sharing contract fixtures add all five team transcript kinds. Deliberately
+admitting `teamReport` to conversation-only sharing fails the intended
+exhaustive assertion (one failed / 41 passed). Exact restoration SHA-256:
+`a653c5ffb511f9ca2a61e5c2352d16b5bf9fc402ce9b0caa03d65fc1e1bb56b4`.
+The final merged-tree sweep will rerun the restored complete file. Detailed
+local logs and the drill receipt are under `temp/rel0150m/`.
+
+Normal hooks also exposed the incoming browser-only build's stale standalone
+page option names after the train moved all pages into one shared graph.
+The complete browser file first fails setup with `referencePageOptions is not
+defined`; 36 cases are unexecuted, not counted as passes or existing skips.
+Both browser-only and full production builds now write the same five reachable
+page inventories from that single graph. The owning package fixture removes
+all five prior inventories before setup, so a prior full build cannot hide a
+missing page. The restored complete file passes 36/36 at default invocation.
+All five TypeScript projects pass across the final owning compiler runs.
+
+### Remaining acceptance work
+
+The second merge, full configured test sweep, full ESLint, final five-project
+compiler/static gates, all accessibility pages, screenshot comparison and
+actual packages are pending. No final package size or universal cap is claimed.
+The rig has macOS helper source but no certified binary; its path was requested
+while independent work continues. Existing caps remain unchanged until actual
+universal measurement is available.

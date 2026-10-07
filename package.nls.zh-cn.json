@@ -188,5 +188,12 @@
   "command.openHelp.title": "帮助与参考",
   "command.nextOpenQuestion.title": "下一个待回答的问题",
   "command.previousOpenQuestion.title": "上一个待回答的问题",
-  "config.questions.deferAfterSeconds.description": "在多少秒后暂缓未回答的问题，让 Muse 继续工作。默认值为 60；0 表示从不；1–9 按 10 处理；最大值为 3,600。问题会保持待回答状态，可稍后回答。仅使用此计算机的设置。"
+  "config.questions.deferAfterSeconds.description": "在多少秒后暂缓未回答的问题，让 Muse 继续工作。默认值为 60；0 表示从不；1–9 按 10 处理；最大值为 3,600。问题会保持待回答状态，可稍后回答。仅使用此计算机的设置。",
+  "command.shareChat.title": "分享聊天…",
+  "command.sharePrompt.title": "分享提示词…",
+  "command.promptLibrary.title": "提示词库",
+  "command.savePrompt.title": "保存提示词",
+  "command.useSavedPrompt.title": "使用已保存的提示词…",
+  "command.copyToMyPrompts.title": "复制到我的提示词",
+  "config.syncPromptsAndBookmarks.description": "将所有工作区的提示词镜像到设置同步。工作区提示词保留在本地。"
 }

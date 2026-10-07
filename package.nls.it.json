@@ -188,5 +188,12 @@
   "command.openHelp.title": "Aiuto e riferimento",
   "command.nextOpenQuestion.title": "Domanda aperta successiva",
   "command.previousOpenQuestion.title": "Domanda aperta precedente",
-  "config.questions.deferAfterSeconds.description": "Secondi prima che una domanda senza risposta venga rimandata per consentire a Muse di continuare a lavorare. 60 per impostazione predefinita; 0 significa mai; 1–9 vengono interpretati come 10; massimo 3.600. La domanda resta aperta e può ricevere una risposta in seguito. Si usa solo l’impostazione di questo computer."
+  "config.questions.deferAfterSeconds.description": "Secondi prima che una domanda senza risposta venga rimandata per consentire a Muse di continuare a lavorare. 60 per impostazione predefinita; 0 significa mai; 1–9 vengono interpretati come 10; massimo 3.600. La domanda resta aperta e può ricevere una risposta in seguito. Si usa solo l’impostazione di questo computer.",
+  "command.shareChat.title": "Condividi chat…",
+  "command.sharePrompt.title": "Condividi prompt…",
+  "command.promptLibrary.title": "Libreria di prompt",
+  "command.savePrompt.title": "Salva prompt",
+  "command.useSavedPrompt.title": "Usa prompt salvato…",
+  "command.copyToMyPrompts.title": "Copia nei miei prompt",
+  "config.syncPromptsAndBookmarks.description": "Copia i prompt per tutti gli spazi di lavoro nella sincronizzazione delle impostazioni. I prompt dello spazio restano locali."
 }

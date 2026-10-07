@@ -188,5 +188,12 @@
   "command.openHelp.title": "Ayuda y referencia",
   "command.nextOpenQuestion.title": "Siguiente pregunta pendiente",
   "command.previousOpenQuestion.title": "Pregunta pendiente anterior",
-  "config.questions.deferAfterSeconds.description": "Segundos antes de aplazar una pregunta sin respuesta para que Muse pueda seguir trabajando. 60 de forma predeterminada; 0 significa nunca; 1–9 se interpretan como 10; máximo 3.600. La pregunta sigue pendiente y se puede responder más tarde. Solo se usa la configuración de este equipo."
+  "config.questions.deferAfterSeconds.description": "Segundos antes de aplazar una pregunta sin respuesta para que Muse pueda seguir trabajando. 60 de forma predeterminada; 0 significa nunca; 1–9 se interpretan como 10; máximo 3.600. La pregunta sigue pendiente y se puede responder más tarde. Solo se usa la configuración de este equipo.",
+  "command.shareChat.title": "Compartir chat…",
+  "command.sharePrompt.title": "Compartir prompt…",
+  "command.promptLibrary.title": "Biblioteca de prompts",
+  "command.savePrompt.title": "Guardar prompt",
+  "command.useSavedPrompt.title": "Usar prompt guardado…",
+  "command.copyToMyPrompts.title": "Copiar a mis prompts",
+  "config.syncPromptsAndBookmarks.description": "Reflejar los prompts de todos los espacios de trabajo en la sincronización de configuración. Los prompts del espacio permanecen locales."
 }

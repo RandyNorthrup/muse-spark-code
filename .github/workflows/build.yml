@@ -337,7 +337,7 @@ jobs:
             extension/native/windows/dictate.ps1 extension/native/windows/capture.ps1 \
             extension/native/windows/MuseSparkJob.cs extension/native/windows/MuseSparkMcpJob.cs \
             extension/native/windows/MuseSparkMcpLauncher.cs extension/native/darwin/muse-dictate \
-            extension/dist/extension.js extension/dist/conversation.js extension/dist/modelApi.js extension/dist/searchWorker.js \
+            extension/dist/extension.js extension/dist/conversation.js extension/dist/prompts.js extension/dist/modelApi.js extension/dist/searchWorker.js \
             extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js \
             extension/dist/review.js extension/dist/agentImport.js extension/dist/conversationGit.js extension/dist/bundledSkills.js \
             extension/dist/uiTextRuntime.js extension/dist/uiTextHooks.js extension/dist/uiTextSurfaces.js \
@@ -369,7 +369,7 @@ jobs:
         run: |
           listing="$(tar -tzf dist/muse-spark-code-acp-*.tgz)"
           for entry in package/package.json package/dist/uiTextRuntime.js package/dist/uiTextHooks.js package/dist/uiTextSurfaces.js \
-            package/dist/acp.js package/dist/modelApi.js package/dist/uiText.js package/dist/validation.js package/dist/wire.js package/dist/reviewer.js \
+            package/dist/acp.js package/dist/sharingRuntime.js package/dist/modelApi.js package/dist/uiText.js package/dist/validation.js package/dist/wire.js package/dist/reviewer.js \
             package/dist/providers.js package/dist/subscriptions.js package/dist/configuredProviders.js package/dist/providerCatalog.js \
             package/dist/foreignHooks.js package/dist/hookRuntime.js package/dist/extensionHooks.js \
             package/dist/recorder.js \
@@ -378,7 +378,7 @@ jobs:
             package/dist/legalScan.js package/dist/legal-data/NOTICE.md package/dist/legal-data/provenance.json \
             package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \
             package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md \
-            package/schemas/exec-result-v1.schema.json package/schemas/exec-event-v1.schema.json; do
+            package/schemas/exec-result-v1.schema.json package/schemas/exec-event-v1.schema.json package/schemas/share-v1.schema.json; do
             if ! grep -Fxq -- "$entry" <<< "$listing"; then
               echo "::error::$entry is missing from the agent's package" >&2
               exit 1
@@ -400,7 +400,7 @@ jobs:
       - name: built headless process and package guards (fake transport only)
         env:
           MUSE_ACP_PACKAGE_DIR: ${{ runner.temp }}/acp-install/node_modules/muse-spark-code-acp
-        run: npx vitest run test/e2e/execStdio.e2e.test.ts
+        run: npx vitest run test/e2e/execStdio.e2e.test.ts test/e2e/acpRegistryAuth.e2e.test.ts
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: muse-spark-code-acp

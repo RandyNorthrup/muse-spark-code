@@ -490,6 +490,50 @@
               send({ type: 'usage/state', state })
               break
             }
+            case 'sharingAction': {
+              let value
+              if (message.action === 'list')
+                value = {
+                  prompts: [
+                    {
+                      schemaVersion: 1,
+                      id: 'example',
+                      title: 'Review code',
+                      body: 'Review this code without changing it.',
+                      tags: ['review'],
+                      variables: [],
+                      scope: 'user',
+                      createdAt: '2026-10-06T00:00:00Z',
+                      updatedAt: '2026-10-06T00:00:00Z',
+                      untrusted: false,
+                    },
+                  ],
+                  hasWorkspace: true,
+                  canImportLinks: true,
+                }
+              if (message.action === 'chatContext')
+                value = {
+                  sessionId: 'sharing-session',
+                  messages: [
+                    { id: 'u1', label: 'Review the code' },
+                    { id: 'a1', label: 'The review' },
+                  ],
+                  attachments: [],
+                  initialMode: 'conversation',
+                  initialFormat: 'md',
+                }
+              if (message.action === 'chatPreview')
+                value = {
+                  previewId: 'sharing-preview',
+                  request: message.payload,
+                  fileName: 'muse-chat.md',
+                  content:
+                    'User: Review [redacted] in [home].\nAssistant: Keep src/main.ts, [user], [path].\n',
+                }
+              if (message.action === 'chatConfirm') value = 'shared'
+              later(0, () => send({ type: 'sharingResult', id: message.id, value }))
+              break
+            }
             case 'hostAction': {
               if (message.action === 'reload') location.reload()
               break
@@ -2410,6 +2454,20 @@
         whenFound('.approval-choices > button', () => later(SETTLE_MS, columnGeometry))
       }
       const steps = {
+        'prompt-library': () => {
+          send({ type: 'openSharing', surface: 'prompts' })
+        },
+        'prompt-library-narrow': () => {
+          send({ type: 'openSharing', surface: 'prompts' })
+        },
+        'chat-sharing': () => {
+          send({ type: 'openSharing', surface: 'chat' })
+          whenFound('[role="dialog"] button.button-secondary', (button) => button.click())
+        },
+        'chat-sharing-narrow': () => {
+          send({ type: 'openSharing', surface: 'chat' })
+          whenFound('[role="dialog"] button.button-secondary', (button) => button.click())
+        },
         empty: () => {},
         // --- The pre-sign-in gate (M1/M7): what the panel shows before a
         // credential exists. `ready` above answers signedIn, so each step
@@ -6058,6 +6116,10 @@
       // when this much time has passed.
       const FRAME_FALLBACK_MS = 50
       const SCENARIO_READY = {
+        'prompt-library': () => document.querySelector('.prompt-library li') !== null,
+        'prompt-library-narrow': () => document.querySelector('.prompt-library li') !== null,
+        'chat-sharing': () => document.querySelector('.chat-share-preview') !== null,
+        'chat-sharing-narrow': () => document.querySelector('.chat-share-preview') !== null,
         'reply-chip': () => document.querySelector('.reference-chip') !== null,
         'quote-chip': () => document.querySelector('.reference-chip') !== null,
         'add-context': () => document.querySelector('.mention-menu [role="option"]') !== null,

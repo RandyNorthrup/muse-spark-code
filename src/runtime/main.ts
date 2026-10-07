@@ -52,7 +52,16 @@ import {
   authStatusProvider,
   login,
 } from './authCommands'
-import { isHeadlessCommand, parseCommandLine, type ServeOptions } from './cliArgs'
+import {
+  isHeadlessCommand,
+  parseCommandLine,
+  type RuntimeCommand,
+  type ServeOptions,
+} from './cliArgs'
+import { parseSharingArgs, type SharingCommand } from './sharing/args'
+import { runtimeSharingLoader } from './sharing/sharingBundle'
+import { acpSharingCommands } from '../acp/sharing'
+import type { RuntimeSharingPorts } from './sharing/sharingEntry'
 import { formatAcpUsage } from './cliOptions'
 import { referenceLoader } from '../host/referenceLoader'
 import { REFERENCE_BUNDLE_FILE } from '../shared/constants'
@@ -111,8 +120,9 @@ const HEADLESS_WIRING_EXIT = {
 } as const
 const wasEnvironmentApiKeyPresent = process.env[META_API_KEY_VARIABLE] !== undefined
 // Credential variables leave the agent's own environment before anything
-// starts a process; no child gets them back (FIXM95X).
-takeCredentials(process.env)
+// starts a process; no child gets them back (FIXM95X). Removed values remain
+// in memory only for D98 sharing redaction, never for authentication or children.
+const sharingCredentials = takeCredentials(process.env)
 // The package root holds `package.json` and `l10n/`; this file runs from `dist/`.
 const distDir = __dirname
 const packageRoot = path.dirname(distDir)
@@ -579,6 +589,13 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
       signIn: signInMethod(options),
       providerSignIns: providerCommands.signIns,
       defaultCwd: process.cwd(),
+      sharing: {
+        commands: acpSharingCommands,
+        execute: (text, context) =>
+          runtimeSharingLoader(path.join(distDir, 'sharingRuntime.js'), log)()
+            .runtimeAcpSharing(sharingPorts(log, runtime), UI_TEXT, uiLocale())
+            .execute(text, context),
+      },
       paid: runtime.paid,
       questions: (input) => {
         const registry = loadQuestions().createRuntimeQuestionRegistry(
@@ -624,7 +641,45 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   }
 }
 
-function logLevel(command: ReturnType<typeof parseCommandLine>): LogLevel {
+function sharingPorts(
+  log: Logger,
+  current?: Awaited<ReturnType<typeof runtimeFor>>,
+): RuntimeSharingPorts {
+  return {
+    folders: { platform: process.platform, env: process.env, homeDir: homedir() },
+    registeredSecrets: async () => {
+      const values = sharingCredentials.map(({ value }) => value)
+      if (current?.backend.kind !== 'modelApi') return values
+      try {
+        const key = await secrets.get(SECRET_KEYS.modelApiKey)
+        return key === undefined || key === '' ? values : [...values, key]
+      } catch {
+        // A key refresh that cannot complete grants no share and discloses no store failure.
+        throw new Error(UI_TEXT.sharePreviewExpired)
+      }
+    },
+    read: async (cwd, sessionId, exportedAt) => {
+      const parsed = parseCommandLine(['serve'])
+      if (parsed.command !== 'serve') throw new Error(UI_TEXT.exportHistoryUnavailable)
+      const runtime = current ?? (await runtimeFor(parsed.options, log))
+      try {
+        const host = await runtime.backend.hostFor(cwd)
+        const history = await host.readSession(sessionId)
+        if (history.mode === 'none') throw new Error(UI_TEXT.exportHistoryUnavailable)
+        return {
+          sessionId,
+          title: history.name ?? UI_TEXT.exportDefaultTitle,
+          exportedAt,
+          items: history.items,
+        }
+      } finally {
+        if (current === undefined) await runtime.close()
+      }
+    },
+  }
+}
+
+function logLevel(command: RuntimeCommand | SharingCommand): LogLevel {
   if (command.command !== 'serve') {
     return 'warn'
   }
@@ -632,7 +687,15 @@ function logLevel(command: ReturnType<typeof parseCommandLine>): LogLevel {
 }
 
 async function main(): Promise<number> {
-  const command = parseCommandLine(process.argv.slice(2))
+  if (process.argv[2] === 'share' || process.argv[2] === 'prompts')
+    await loadUiTable({
+      language: displayLanguage(process.env, new Intl.DateTimeFormat().resolvedOptions().locale),
+      readExtensionFile: (segments) => readUiTableFile(packageRoot, segments),
+      log: stderrLogger((line) => {
+        writeLine(process.stderr, line)
+      }, 'warn'),
+    })
+  const command = parseCommandLine(process.argv.slice(2), parseSharingArgs)
   if (command.command === 'invalid' && command.exitCode === EXEC_EXIT.usage) {
     const stderr = createFdWriter(process.stderr.fd, () => {
       /* A usage error already owns exit 2; a closed pipe cannot turn it into success. */
@@ -641,7 +704,7 @@ async function main(): Promise<number> {
     const isFlushed = await stderr.flush(EXEC_FORCE_WRITE_MS)
     exitHeadless(EXEC_EXIT.usage, !isFlushed)
   }
-  if (isHeadlessCommand(command)) {
+  if (command.command !== 'share' && command.command !== 'prompts' && isHeadlessCommand(command)) {
     const closed = () => {
       lifecycle.latch({ kind: 'output_closed' })
     }
@@ -835,6 +898,13 @@ async function main(): Promise<number> {
         // commands leave no server behind; ACP closes its server on disconnect.
         if (!isPageOpen) await usage.dispose()
       }
+    }
+    case 'share':
+    case 'prompts': {
+      return await runtimeSharingLoader(
+        path.join(distDir, 'sharingRuntime.js'),
+        log,
+      )().runRuntimeSharing(command, sharingPorts(log), UI_TEXT, uiLocale())
     }
     case 'setup': {
       return await setupHooks(command.options, command.maintenance, log)

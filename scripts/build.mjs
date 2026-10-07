@@ -66,6 +66,7 @@ import {
   regionalUiText,
   compressedEnglish,
   compactBrowserUiText,
+  compressedReference,
 } from './lib/uiTextRegions.mjs'
 import { webviewEntryMetafile } from './lib/webviewBundles.mjs'
 import { lazyBrowserKeybindings } from './lib/browserKeybindings.mjs'
@@ -104,6 +105,10 @@ const CONVERSATION_ENTRY = 'src/host/conversation/conversationEntry.ts'
 const CONVERSATION_OUTFILE = 'dist/conversation.js'
 // One immutable English fallback shared by Node bundles; each keeps its own
 // mutable installed-language state. The browser keeps its fallback bundled.
+const SHARING_RUNTIME_ENTRY = 'src/runtime/sharing/sharingEntry.ts'
+const SHARING_RUNTIME_OUTFILE = 'dist/sharingRuntime.js'
+const PROMPTS_ENTRY = 'src/host/prompts/promptEntry.ts'
+const PROMPTS_OUTFILE = 'dist/prompts.js'
 const TAB_ENTRY = 'src/host/tab/tabEntry.ts'
 const TAB_OUTFILE = 'dist/tab.js'
 const UI_TEXT_ENTRY = 'src/shared/l10n/en.ts'
@@ -199,7 +204,6 @@ const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
 const ACP_ENTRY = 'src/runtime/main.ts'
 const ACP_OUTFILE = 'dist/acp.js'
-const ACP_METAFILE_DIR = 'dist/meta-acp'
 const ACP_QUESTIONS_ENTRY = 'src/acp/questionDeferralEntry.ts'
 const ACP_QUESTIONS_OUTFILE = 'dist/acpQuestions.js'
 const RUNTIME_QUESTIONS_ENTRY = 'src/runtime/questions/questionRegistryEntry.ts'
@@ -257,6 +261,20 @@ const conversationOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const sharingRuntimeOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: [SHARING_RUNTIME_ENTRY],
+  outfile: SHARING_RUNTIME_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: AGENT_NODE_TARGET,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const promptsOptions = { ...hostOptions, entryPoints: [PROMPTS_ENTRY], outfile: PROMPTS_OUTFILE }
+
+/** @type {import('esbuild').BuildOptions} */
 const modelApiOptions = {
   ...common,
   plugins: [
@@ -279,6 +297,7 @@ const referenceOptions = {
   ...modelApiOptions,
   entryPoints: ['src/shared/reference/referenceEntry.ts'],
   outfile: 'dist/reference.js',
+  plugins: [...modelApiOptions.plugins, compressedReference(isProduction)],
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -756,6 +775,22 @@ const webviewOptions = {
   jsx: 'automatic',
 }
 
+function writeWebviewMetafiles(metafile) {
+  const pages = {
+    webview: 'dist/webview/main.js',
+    modelsWebview: 'dist/webview/models.js',
+    whatsNewPage: 'dist/webview/whatsNew.js',
+    usageWebview: 'dist/webview/usage.js',
+    referencePage: 'dist/webview/referencePage.js',
+  }
+  for (const [page, entry] of Object.entries(pages)) {
+    writeFileSync(
+      path.join(METAFILE_DIR, `${page}.json`),
+      JSON.stringify(webviewEntryMetafile(metafile, entry)),
+    )
+  }
+}
+
 function listIntegrationTests() {
   return readdirSync(INTEGRATION_TEST_DIR, { recursive: true })
     .map(String)
@@ -790,11 +825,23 @@ console.log(
   `What's New: ${String(whatsNewContent.releases)} releases from CHANGELOG.md into ${WHATS_NEW_CONTENT_OUTFILE}`,
 )
 
+// The browser fixture exercises the real webview build without recompiling
+// every unrelated Node bundle inside Vitest's default setup deadline.
+if (process.argv.includes('--webview-only')) {
+  if (!isProduction || isWatch) throw new Error('--webview-only requires --production')
+  mkdirSync(METAFILE_DIR, { recursive: true })
+  const { metafile } = await esbuild.build(webviewOptions)
+  writeWebviewMetafiles(metafile)
+  process.exit(0)
+}
+
 if (isWatch) {
   const contexts = await Promise.all([
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
     esbuild.context(tabOptions),
+    esbuild.context(promptsOptions),
+    esbuild.context(sharingRuntimeOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(providersOptions),
     esbuild.context(subscriptionsOptions),
@@ -885,6 +932,8 @@ if (isWatch) {
     extension: esbuild.build(hostOptions),
     conversation: esbuild.build(conversationOptions),
     tab: esbuild.build(tabOptions),
+    prompts: esbuild.build(promptsOptions),
+    sharingRuntime: esbuild.build(sharingRuntimeOptions),
     modelApi: esbuild.build(modelApiOptions),
     providers: esbuild.build(providersOptions),
     subscriptions: esbuild.build(subscriptionsOptions),
@@ -974,21 +1023,10 @@ if (isWatch) {
     for (const [name, build] of Object.entries(shipped)) {
       const { metafile } = await build
       if (name === 'webview') {
-        const pages = {
-          webview: 'dist/webview/main.js',
-          modelsWebview: 'dist/webview/models.js',
-          whatsNewPage: 'dist/webview/whatsNew.js',
-          usageWebview: 'dist/webview/usage.js',
-          referencePage: 'dist/webview/referencePage.js',
-        }
-        for (const [page, entry] of Object.entries(pages)) {
-          writeFileSync(
-            path.join(METAFILE_DIR, `${page}.json`),
-            JSON.stringify(webviewEntryMetafile(metafile, entry)),
-          )
-        }
+        writeWebviewMetafiles(metafile)
       } else writeFileSync(path.join(METAFILE_DIR, `${name}.json`), JSON.stringify(metafile))
     }
+    const ACP_METAFILE_DIR = 'dist/meta-acp'
     mkdirSync(ACP_METAFILE_DIR, { recursive: true })
     const { metafile } = await acp
     const { metafile: headlessMetafile } = await headless
@@ -1010,6 +1048,8 @@ if (isWatch) {
   reportSize(HOST_OUTFILE)
   reportSize(CONVERSATION_OUTFILE)
   reportSize(TAB_OUTFILE)
+  reportSize(PROMPTS_OUTFILE)
+  reportSize(SHARING_RUNTIME_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
   reportSize(PROVIDERS_OUTFILE)
   reportSize(SUBSCRIPTIONS_OUTFILE)

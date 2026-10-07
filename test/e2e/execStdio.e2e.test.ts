@@ -242,6 +242,7 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
   for (const bundle of [
     'acp',
     'headless',
+    'sharingRuntime',
     // M112: the lazy ACP forms, the private registry and the deferral note.
     'acpQuestions',
     'runtimeQuestions',
@@ -287,6 +288,8 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
   }
   cpSync(path.join(ROOT, 'src/shared'), path.join(dir, 'src/shared'), { recursive: true })
+  mkdirSync(path.join(dir, 'src/core/judge'), { recursive: true })
+  cpSync(path.join(ROOT, 'src/core/judge/engine.ts'), path.join(dir, 'src/core/judge/engine.ts'))
   mkdirSync(path.join(dir, 'src/runtime'), { recursive: true })
   cpSync(path.join(ROOT, 'src/runtime/cliOptions.ts'), path.join(dir, 'src/runtime/cliOptions.ts'))
   cpSync(path.join(ROOT, 'src/core/whatsNew'), path.join(dir, 'src/core/whatsNew'), {
@@ -356,7 +359,11 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
       expect(run.status, run.stdout + run.stderr).toBe(0)
       const stage = path.join(dir, 'dist', 'acp-package')
       const packed = path.join(dir, 'dist', 'muse-spark-code-acp-0.0.0.tgz')
-      for (const schema of ['exec-result-v1.schema.json', 'exec-event-v1.schema.json']) {
+      for (const schema of [
+        'exec-result-v1.schema.json',
+        'exec-event-v1.schema.json',
+        'share-v1.schema.json',
+      ]) {
         expect(readFileSync(path.join(stage, 'schemas', schema))).toEqual(
           readFileSync(path.join(ROOT, 'docs', 'schemas', schema)),
         )
@@ -390,6 +397,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
       const manifest: unknown = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
       expect(manifest).toMatchObject({ bin: { 'muse-spark-code-acp': 'dist/acp.js' } })
       expect(existsSync(path.join(stage, 'dist', 'validation.js'))).toBe(true)
+      expect(existsSync(path.join(stage, 'dist', 'sharingRuntime.js'))).toBe(true)
       expect(existsSync(path.join(stage, 'dist', 'providerCatalog.json'))).toBe(false)
       expect(existsSync(path.join(stage, 'dist', 'providerCatalog.js'))).toBe(true)
       expect(existsSync(path.join(stage, 'dist', 'exec-test-launcher.js'))).toBe(false)
@@ -475,6 +483,8 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     'dist/subscriptions.js',
     'dist/configuredProviders.js',
     'dist/providerCatalog.js',
+    'schemas/share-v1.schema.json',
+    'dist/sharingRuntime.js',
   ])('build tarball guard rejects missing %s', (missing) => {
     const dir = productionFixture()
     const workflow = readFileSync(path.join(ROOT, '.github/workflows/build.yml'), 'utf8')
