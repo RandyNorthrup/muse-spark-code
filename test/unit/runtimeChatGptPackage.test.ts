@@ -12,11 +12,18 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { brotliDecompressSync } from 'node:zlib'
 import * as z from 'zod/mini'
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { withoutCredentials } from '../../src/runtime/credentialVariables'
 import { removeFolder } from './helpers/temporaryFolders'
+import { buildProductionPackage, packageImagePreload } from './helpers/productionPackage'
 
 const roots: string[] = []
+const root = process.cwd()
+mkdirSync(path.join(root, 'temp'), { recursive: true })
+const production = mkdtempSync(path.join(root, 'temp', 'chatgpt-build-'))
+afterAll(async () => {
+  await removeFolder(production)
+})
 // Cold solid-archive compression and native export checks exceed five seconds.
 const ARCHIVE_SETUP_TIMEOUT_MS = 60_000
 // Drive-letter archive names require native bsdtar; Git's GNU tar treats
@@ -112,12 +119,17 @@ function fixture() {
     'usageService',
     'usageCompanion',
   ])
-    cpSync(path.join('dist', `${name}.js`), path.join(dir, 'dist', `${name}.js`))
-  cpSync('dist/legal-data', path.join(dir, 'dist/legal-data'), { recursive: true })
+    cpSync(path.join(production, 'dist', `${name}.js`), path.join(dir, 'dist', `${name}.js`))
+  cpSync(path.join(production, 'dist/legal-data'), path.join(dir, 'dist/legal-data'), {
+    recursive: true,
+  })
   cpSync('native/runner', path.join(dir, 'native/runner'), { recursive: true })
-  cpSync('dist/webview', path.join(dir, 'dist/webview'), { recursive: true })
+  cpSync(path.join(production, 'dist/webview'), path.join(dir, 'dist/webview'), { recursive: true })
   mkdirSync(path.join(dir, 'dist/meta'), { recursive: true })
-  cpSync('dist/meta/usageWebview.json', path.join(dir, 'dist/meta/usageWebview.json'))
+  cpSync(
+    path.join(production, 'dist/meta/usageWebview.json'),
+    path.join(dir, 'dist/meta/usageWebview.json'),
+  )
   for (const name of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs'])
     writeFileSync(path.join(dir, 'native/windows', name), '// test-owned native fixture\n')
   cpSync('docs/schemas', path.join(dir, 'docs/schemas'), { recursive: true })
@@ -125,6 +137,8 @@ function fixture() {
   writeFileSync(path.join(dir, 'LICENSE'), 'test-owned licence\n')
   for (const file of ['README.md', 'docs/npm-readme.md', 'docs/marketplace-readme.md'])
     cpSync(file, path.join(dir, file))
+  cpSync('media', path.join(dir, 'media'), { recursive: true })
+  packageImagePreload(path.join(dir, 'images.cjs'), dir, path.join(dir, 'images.jsonl'))
   return dir
 }
 
@@ -134,7 +148,8 @@ function pack(dir: string) {
     encoding: 'utf8',
     env: {
       ...withoutCredentials(process.env),
-      BADGE_CHECK_SKIP_NETWORK: 'Offline TRAIN15E packaging fixture',
+      BADGE_CHECK_SKIP_NETWORK: undefined,
+      NODE_OPTIONS: `--require ${JSON.stringify(path.join(dir, 'images.cjs'))}`,
     },
   })
 }
@@ -142,6 +157,7 @@ function pack(dir: string) {
 describe('ChatGPT ACP package', () => {
   let prepared: { dir: string; run: ReturnType<typeof pack> } | undefined
   beforeAll(() => {
+    buildProductionPackage(root, production)
     const dir = fixture()
     prepared = { dir, run: pack(dir) }
   }, ARCHIVE_SETUP_TIMEOUT_MS)

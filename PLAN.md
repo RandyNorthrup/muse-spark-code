@@ -40872,6 +40872,113 @@ pages. No version bump or README What’s New changes; no paid/live calls.
       restoration, full accessibility, static gates and actual VSIX measurements
       in `docs/certification/train-0.15.0.md` and its TRAIN15H receipt.
 
+### CI0150L — Linux hosted CI round 3 (2026-10-07)
+
+Scope: the Linux rig brief and CI0150-os-common: private clean-shard ACP
+packaging artifacts, checked-in pre-K activation sources, package badge/image
+isolation, installed archived translations, Semgrep findings and fake-only
+Action W/low-budget failures. Preserve every budget, assertion, timeout and
+security boundary. No live/paid model calls, push, rebase or merge.
+
+The fresh jobs expose two further causes. The hosted release PR's review diff
+is 29,912,292 bytes, exceeding the generic child-output bound before the
+promised 262,144-byte review prefix can be selected. Add a dedicated read-only
+Git-diff prefix sink that drains/counts the complete stream under the same
+phase/child deadlines while retaining at most the existing review byte cap;
+ordinary child output, published patch, stderr and cancellation gates stay
+unchanged. Certify a real diff larger than the generic cap and its UTF-8 cut,
+then run W and low-budget against the actual installed production runtime.
+Latest VS Code also resolves showTextDocument before its observable active
+editor snapshot settles. Make the integration test await that same editor
+condition through its existing bounded UI readiness helper, keeping its
+original assertion and deadline.
+
+- [ ] Reproduce each owned failure and fix its cause; prove changed checks fire.
+- [ ] Commit finished pieces with hooks and explicit paths.
+- [ ] Run Linux pull-request jobs from fresh clones of committed work with
+      Node 22, CI=true, original shard/coverage and package steps; record exact
+      passes, failures and unavailable hosted dependencies in the Linux round 3
+      section of docs/certification/train-0.15.0.md.
+
+Static duplication shares the inert text encoder with the lazy code-fence
+renderer as well as exported chats and the companion page; the zero-clone
+threshold is retained.
+
+The first full rerun exposes the private ChatGPT fixture's combined build and
+pack crossing its unchanged 60-second cold archive bound. Native export
+certification's baseline and packaged observations are independent isolated
+workers; start that pair together, retain every export/call comparison, and
+measure the cold fixture again. No timer, retry or assertion is changed.
+
+The concurrent rerun also exposes E5's unread-output fixture generating
+104,858 five-character SSE deltas before its large-write marker. This case
+tests a blocked output pipe, not fragmentation throughput. Add a test-only
+single-text-delta reply option and use it only for the existing 512 KiB
+blocked reply; keep its marker, unread stdout, signal, 5.4-second exit
+assertion and 30-second test deadline unchanged.
+
+The isolated three-core shard still measures 62.3 seconds for the combined
+cold ChatGPT setup. Its packer serializes three independent, bounded Brotli
+archives (tables, code and usage). Compress those concurrently with Node's
+bounded zlib worker pool, preserving quality 11, decoded caps, canonical
+ordering and exact compressed bytes. Certify byte equivalence with the
+original synchronous compressor and deliberately change its quality to prove
+the new comparison fails.
+
+The complete shard 3 exposes the usage journal's warm-cache benchmark doing
+its 60,000-record fixture construction and cold scan inside the five-second
+warm test. Prepare and assert that cold snapshot once in the default-bounded
+setup; keep the five-second test, 300 ms warm bound, full record count and
+no-reread assertions. Clean failed setup roots at file teardown too.
+
+The complete Linux aggregate passes 988 WCAG pages, then legal accessibility
+refuses Playwright's bare `google-chrome` executable path. Resolve installed
+browser candidates and explicit overrides to existing absolute paths through
+the shared finder, keeping overrides authoritative and refusing missing
+installs. Remove the test harness's duplicate PATH resolver. Certify PATH
+selection and override refusals, the real legal keyboard/zoom/WCAG gate, then
+repeat the complete committed Linux job set. No browser or job timer changes.
+
+The four-CPU WCAG job has a structural floor: 988 pages each sleep five
+seconds, in six lanes, consuming nearly fourteen minutes before axe and the
+legal gate under a fifteen-minute job cap. Replace that blanket sleep with
+tracked fake-host/scenario callbacks and the existing bounded readiness
+condition. Preserve every scheduled event delay, streaming pump yield, font
+and animation wait, two paint frames, error capture, focus rule and per-page
+deadline. Readiness's own deadline/poll/frame timers stay untracked. Prove
+nested callbacks, callback failure cleanup and readiness blocking/deadlines
+with counterfactuals; rerun the complete job set from the committed repair.
+
+The Linux aggregate's local SAST launcher then refuses duplicated `--jobs`
+arguments: the inherited two-worker option and a later serial option both
+reach Semgrep 1.178.0. Keep one named serial worker limit, as the existing
+large-taint-analysis rationale requires; do not change rules, excludes,
+severity or scan deadlines. Certify the actual local launcher against the
+pinned scanner as well as CI's direct command.
+
+The next full shard's cold package still crosses 60 seconds under concurrent
+job load. Profile its unchanged production build, compression, fifteen
+language-help processes and isolated native-loader checks. Remove remaining
+serialized independent work or repeated setup while retaining every language,
+export/call comparison and the existing cold setup deadline; then rerun the
+complete Linux job set. The interrupted wave is not a passing receipt.
+The measured post-archive validation through staged Help takes 13.2 seconds
+of a 41.8-second cold fixture, including localization and badge gates. Run
+Help's independent commands in bounded batches of three,
+settling each batch before reporting a failure. Keep all fifteen language
+checks, each original command/environment/output bound and every package
+assertion. Final fresh-clone jobs run one at a time, as hosted jobs receive
+independent machines; no test launch delay or product priority change.
+
+The serial aggregate passes 16,622 tests and coverage, then the completed
+long-stream harness scene exceeds its existing ten-second readiness bound in
+two high-contrast themes. Its repeated zero-delay timers incur the browser's
+nested-timer clamp. Use one MessageChannel task queue for that scene's
+continuations, preserving every 100-character delta and an event-loop yield;
+track each continuation, close both ports on completion/error, and retain all
+readiness/paint/deadline checks. Certify complete chunk order and failure
+cleanup, then repeat the complete fresh-clone job set without retries or skips.
+
 ### CI0150A — Clean-shard artifacts and portable certification (2026-10-07)
 
 Scope: six owning suites in the CI0150A brief. Clean hosted shards have no
@@ -40920,6 +41027,13 @@ timeout, and dedicated browser/credential-store checks have the exact residuals
 listed in §3 and the train record. Original coverage thresholds are exceeded;
 the merge command still fails because it replays failed package suite setup.
 No gate, refusal, assertion, timeout, retry or skip is weakened to claim green.
+
+**CI0150L rolling verification.** The round-3 rig brief explicitly requires
+committing finished pieces after owning tests pass, then verifying committed
+work in fresh clones. Full quality and Linux CI jobs remain pending until that
+fresh-clone run and are not claimed green by an intermediate commit. Record
+any external hosted dependency that cannot run on this rig in the Linux round-3
+certification section; no threshold, ignore, timeout or assertion changes.
 
 **FIX0150R scoped certification.** The rig brief requires complete owning test
 files in batches of at most three, with three clean `CI=true` repetitions and

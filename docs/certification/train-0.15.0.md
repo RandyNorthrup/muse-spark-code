@@ -2277,3 +2277,217 @@ the installed agent-package job have the exact failures above; hosted W has
 no receipt here. `npm run quality` is not certified green (PLAN §7 scoped
 deferral). No merge, rebase, push or paid/live model call occurred. M80's
 required hosted W and live L/LA/LR receipts remain release work.
+
+## CI round 3 — Linux (CI0150L, 2026-10-07)
+
+Worktree `/home/randy/lanes/CI0150L`, branch `fix/0150-ci-l`, base
+`f033583e2`. Node 22.23.3 and npm 11.19.0 are private local toolchain installs;
+Semgrep 1.178.0 uses a private Python 3.12 environment. No live/paid model call,
+push, rebase, merge, credential output or disabled hook.
+
+### Repairs and deliberate failures
+
+- Clean-shard package suites now build production inputs in their own folder,
+  once per file, including all lazy modules, usage assets and README images.
+  The initial clean run fails on missing `temp/` and `dist/acp.js`; built exec
+  independently fails on `build/media/readme/banner.png`. The repaired three
+  files pass 47 tests with `CI=true`, Node 22 and `--maxWorkers=3`.
+- Both source and packaged README checks receive a scripted public-main tree:
+  the existing banner still gets a public-image response, while new images
+  must decode from the private checkout. No network-skip variable is used for
+  real badge validation; inert package-admission fixtures retain their own
+  separate no-op image boundary.
+- The immutable pre-K comparison uses 193 checked-in source inputs from
+  `ad916bbc`, not a Git object. Fixture SHA-256 is
+  `6d361ac567eb3894eaff407045daef7fcdd23cceb05cb436bd6f7f024172f4f7`.
+  Baseline/current are 561,384/473,885 bytes with current production plugins.
+  Deliberately retaining 100,000 extra bytes produces growth 12,526 against
+  the unchanged 3,072-byte limit and fails. A single extra fixture byte fails
+  its digest assertion. Both files are restored byte-exact; the suite passes.
+- ACP help reads its shipped archive through `readUiTableFile` and unpacks
+  the original table shape. PLAN's VSIXDIET2/TRAIN15F decisions require that
+  archive; plaintext tables are not reintroduced into the package.
+- Semgrep's original scan finds eight issues: three plaintext WebSocket
+  examples in research and five findings around companion recovery HTML.
+  Research now spells out the same plain protocol, ports and paths in prose.
+  Companion uses the shared single-pass element/attribute encoder; the
+  targeted page scan passes, as do its two tests. No rule or ignore changes.
+- Source ACP, companion page and local W rehearsal: 21 tests pass. W rehearsal
+  now also accepts the actual installed ACP runtime so archived/lazy production
+  layout can be checked, beyond its source-built fixture. Hosted W-review
+  fails before its checker; direct job-log download returns HTTP 403 (admin
+  rights required), so production-package reproduction remains necessary.
+
+- The release PR diff is 29,912,292 bytes. The original launcher fails on a
+  real 25 MB diff (Git gets SIGPIPE after the 16 MiB generic child cap),
+  before exec writes a result. Review input now retains only the existing
+  prefix, drains/counts the full stream under unchanged deadlines, and drops
+  incomplete trailing UTF-8. Generic child and published-patch caps stay.
+  The large-diff W fixture passes all six cases. Action input/Git/lifecycle
+  suites pass 106 tests. Removing the prefix slice fails both memory/file
+  tests; decoding without streaming fails the partial-code-point test. Both
+  drills are restored exactly.
+- The first fresh static job passes format, full lint, five typechecks,
+  badges, localization, reference, host API, knip and cycles, then fails the
+  zero-duplication gate on the new encoder and the lazy highlighter's existing
+  encoder. They now share one implementation. Page, sharing and highlighting
+  pass nine tests. Newly added Action fixtures also share their diff builder.
+- Latest VS Code 1.138.0 exposes a readiness race in the AGENTS.md test;
+  minimum 1.99.0 passes all 40 tests. The test now waits for its original
+  active-editor condition through the existing five-second readiness helper,
+  before making the unchanged assertion.
+
+- The first full rerun (`d9382117e`) exposes cold setup overruns in both
+  private package fixtures: their source build plus pack crosses 60 seconds.
+  Native-export certification observed baseline and packaged isolated workers
+  serially. Starting that independent pair together retains all comparisons
+  and cuts the measured ChatGPT fixture from 69.96 to 54.92 seconds. Removing
+  the packed CommonJS export annotations deliberately fails the package's
+  native-import comparison, then the suite's successful-pack assertion; one
+  test fails and the refusal case passes. The archive writer is restored
+  byte-exact. No timeout, assertion, retry or worker-isolation rule changes.
+
+- An overloaded multi-job run at `463db7f0e` is not accepted as the final
+  receipt: its ChatGPT fixture overruns and E5's unread-output case takes
+  30 seconds. The latter manufactures 104,858 five-character fake SSE frames
+  before the large-write marker. Its synthetic reply now uses one text delta
+  for the identical 512 KiB write; the marker, unread output, signal, 5.4-second
+  exit bound and 30-second test timer stay unchanged. The three owning suites
+  pass 47 tests together (128.93 seconds). Deliberately sending SIGINT fails
+  the unchanged expected exit 143 with actual 130. The file is restored exactly.
+  Final verification isolates the aggregate, shard and other job processes on
+  separate CPU sets and runs one shard at a time; no product priority or delay
+  is changed. Interrupted old clones have been deleted.
+
+- The next three-core shard still measures 62.3 seconds for cold setup. The
+  packer now compresses its three independent bounded archives concurrently
+  through Node's zlib pool. Quality 11, decoded limits, canonical ordering and
+  per-member digests are unchanged. ChatGPT packaging passes in 39.96 seconds;
+  VSIX packaging passes 75 tests in 41.22 seconds; headless/package guards pass
+  44 tests in 119.08 seconds, each on three CPUs with default test timers.
+  Expensive synchronous reference compression lives in the existing bounded
+  archive setup; the new assertions only compare bytes. Deliberately changing
+  the asynchronous compressor to quality 1 fails all three byte comparisons
+  (72 other tests pass). The script is restored byte-exact.
+
+- Shard 3's warm usage benchmark times out while creating and cold-reading
+  60,000 records inside the five-second test. Its unchanged dataset and cold
+  count assertion now run once in the default-bounded setup; the warm test
+  retains its default timer, 300 ms bound and no-reread assertion. File teardown
+  also cleans failed setup roots. The owning file passes 19 tests in 7.29
+  seconds on three CPUs. Appending one harmless newline before the warm read
+  deliberately fails the no-reread assertion (expected 0 reads, actual 1);
+  the file is restored byte-exact.
+
+- The complete aggregate at `a878af4e7` passes 16,611 tests, all coverage
+  thresholds and 988 WCAG pages, then legal accessibility refuses the bare
+  `google-chrome` executable path. The shared finder now resolves existing
+  files through PATH or an authoritative explicit override to absolute paths;
+  missing/empty overrides and directories refuse. The team harness uses the
+  same resolver without its duplicate `which` subprocess. Six new finder
+  cases and the existing capture/team suites pass together. Returning the
+  original candidate deliberately fails four finder cases (two pass), then
+  the helper is restored byte-exact. A fresh production build passes the real
+  legal gate: 96 keyboard/zoom checks and 24 English/pseudo WCAG pages.
+  A stale worktree build's earlier readiness failure is not accepted evidence.
+- All four shards at `c781c06c6` and their fresh coverage merge pass 16,611
+  tests, with statements/branches/functions/lines 92.60/87.61/93.65/93.23%.
+  Static, universal packages, pinned Semgrep, integration, installed agent and
+  Secret Service, all host/fork entries, Action suites, installed W rehearsal,
+  pinned browser captures and the Action's exact gitleaks arguments pass.
+  The mixed-job accessibility scan takes 951.5 seconds, above its 15-minute
+  workflow budget; it and the legal executable failure are not a green job.
+  Final verification gives the accessibility job four CPUs to itself after
+  other jobs finish, and reruns the complete job set after this repair.
+
+- The dedicated four-CPU accessibility job at `58023b3d7` passes all
+  checks but takes about 1,082 seconds including setup and legal checks,
+  exceeding its unchanged 900-second workflow cap. Its blanket five-second
+  wait per page consumes nearly fourteen minutes before scans. The harness
+  now tracks the real scheduled scenario/host callbacks and streaming yields;
+  readiness also requires their completion. All event delays, fonts, finite
+  animations, two paints, bounded readiness, focus and error checks remain.
+  Readiness's own timers use a separate clock adapter and still require
+  explicit timing reasons. The worktree's complete real run passes 988 WCAG
+  pages, 96 keyboard/zoom checks and 24 English/pseudo WCAG pages. The owning
+  harness/finder/capture files pass 37 tests with default timers. A real-browser
+  observation at scan completion confirms both heartbeat canvases are painted
+  (163 visible pixels each), and the long reply has rendered all its deltas.
+  Removing
+  event-count cleanup fails both nested and throwing-callback cases; removing
+  the pending-event readiness guard fails both readiness cases; excluding the
+  readiness timer adapter from the reason rule fails its new case. All five
+  new cases have fired and all drills restore exact bytes. The zero-duplication
+  gate first catches duplicated test contexts; those now share small fixtures.
+- The complete aggregate at `58023b3d7` passes 16,617 tests, merged coverage,
+  all 988 WCAG pages, legal checks and history-wide secret scanning, then
+  Semgrep refuses duplicated `--jobs` arguments. Its local launcher now
+  passes one named serial limit, retaining every rule, exclude, severity and
+  deadline. The actual launcher passes Semgrep 1.178.0 with zero findings.
+- Additional boundary drills complete the new cases' certification: ignoring
+  explicit Chrome overrides fails the four override tests (the earlier bare
+  candidate drill covers the other two cases); removing read-only diff-prefix
+  admission fails the binary-patch refusal; removing prefix-bound validation
+  fails both invalid-bound cases. Each file is restored byte-exact.
+- The latest integration job at `58023b3d7` stops while resolving the VS Code
+  download version with an OS network timeout before any integration test.
+  This is not a passing receipt; the complete final job set starts again from
+  the new committed repair without adding a retry to tests or workflow.
+
+- Shard 1 at `ac358446d` still exposes a 61.6-second cold ChatGPT setup
+  against its unchanged 60-second hook; 205 other files pass. Shard 2 passes.
+  The rest of that wave is interrupted and its clones removed; no partial
+  wave is accepted. Temporary phase instrumentation is restored byte-exact.
+  The isolated cold fixture takes 41.81 seconds: package archive preparation
+  and compression end at 10.37 seconds, localization/badge/Help validation at
+  23.54 seconds, npm pack at 24.29 seconds, and all 38 native-export checks
+  at 31.42 seconds, plus production build and fixture preparation. Fifteen
+  staged Help commands are independent but serial. They now run in bounded
+  batches of three with unchanged commands, environments and output bounds;
+  every batch settles before any child failure is reported. ChatGPT and VSIX
+  package suites pass all 77 tests together on three CPUs (52.75 seconds),
+  with default timers and the same 60-second cold hook. Final jobs run one
+  at a time to reproduce hosted jobs' independent machines; no test launch
+  delay or product priority change is introduced. Deliberately making only
+  the German help child exit 9 fails the successful-package assertion; the
+  existing missing-bundle refusal still passes. The script is restored
+  byte-exact. The drill uses pinned Node 22 and default test timers. The
+  restored ChatGPT file passes both tests in 36.37 seconds.
+
+- The serial aggregate at `d9154a9c0` passes 16,622 tests, every coverage
+  threshold, production build and dependency audit. All 988 WCAG pages are
+  attempted, but the fully completed `long` stream misses its existing
+  ten-second readiness bound in hc-dark and hc-light. Its nested zero-delay
+  continuations incur browser timer throttling. The scene now uses one
+  MessageChannel task port, preserving every 100-character delta, their order
+  and the event-loop yield. Every continuation remains tracked; both ports
+  close at completion or callback failure. No readiness, paint, focus or
+  deadline assertion changes. The two stream tests certify full ordered
+  chunks/completion and failure cleanup; removing the pending-count decrement
+  deliberately fails both (26 other harness tests pass), then the HTML is
+  restored byte-exact. Harness/finder/capture suites pass 39 tests with default
+  timers. Real Chrome passes long and both heartbeat scenes across all four
+  themes: 12 pages, zero violations, undecided checks or missing results.
+  The complete worktree scan is running; the next committed receipt repeats
+  full quality and every Linux job from fresh clones.
+
+- The complete worktree scan after the task-port repair passes all 988
+  pages with zero violations, undecided checks, exemptions or missing results.
+  An independent real-browser probe wraps axe at scan start: in every theme
+  the reply has aria-busy=false and all 120 paragraphs and 120 code blocks,
+  confirming the scan starts on the complete rendered reply. The next fresh
+  aggregate catches a test-fixture TypeScript getter/setter mismatch: its
+  initially absent handler is allowed by the getter but not its setter. Both
+  now agree on that optional callback type; no runtime branch or assertion
+  changes. All five typechecks, targeted lint and 39 owning tests pass before
+  committing the correction. The failed aggregate's clone is removed and
+  the complete fresh-clone job set starts again.
+
+### Fresh-clone job verification
+
+The first committed repair (`02fd30fe9`) passes all four Linux shards, the
+pinned Semgrep scan, real pinned browser restart/live captures with zero skips,
+and installed ACP stdio/headless plus installed W rehearsal. Static fails at
+duplication and latest integration fails at editor readiness as recorded above.
+Complete reruns from the next committed repair are pending, including coverage
+merge, all host matrix entries, accessibility and full quality.

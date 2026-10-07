@@ -7,6 +7,44 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Keep every long-reply accessibility delta while yielding through a task port,
+  avoiding nested timer throttling within the existing readiness deadline.
+
+- Check every staged ACP help language in bounded parallel batches, keeping
+  cold package certification within its existing deadline.
+
+### Fixed
+
+- Pass one serial worker limit to the local Semgrep launcher so aggregate
+  quality runs reach the scan with the pinned CLI.
+
+- Wait for actual scheduled harness events before accessibility scans instead
+  of sleeping five seconds on every page, keeping timed scenes and all checks.
+
+- Resolve installed browser paths before legal accessibility checks launch
+  Playwright, including PATH-only Linux installs and explicit overrides.
+
+- Prepare the large usage-journal benchmark before timing its warm read,
+  retaining its 300 ms and no-reread checks with the normal test deadline.
+
+- Compress the independent package archives concurrently at the same production
+  quality and with identical bytes, keeping cold CI setup within its deadline.
+
+- Exercise headless unread-output shutdown with the same large write in one
+  synthetic text delta, avoiding more than 100,000 unnecessary fake frames.
+
+- Keep cold package certification within its existing setup deadline by
+  observing the source and packaged native exports in isolated workers together.
+
+- Make clean CI shards own their ACP build and README image inputs, retain the
+  historical activation baseline in the checkout, and verify installed help
+  against its shipped translation archive.
+- Encode companion recovery text with the shared HTML text encoder.
+- Keep Action reviews and low-budget refusals working for large release diffs
+  by retaining only the bounded review prefix before exec.
+
+
+
 ### Fixed
 
 - Search usage-journal newlines in native byte arrays so cold scans retain their
