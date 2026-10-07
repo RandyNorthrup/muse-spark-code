@@ -4,7 +4,7 @@ import { PanelDelivery } from '../../src/runtime/panel/delivery'
 import { PanelSurfaces, type PanelView } from '../../src/runtime/panel/surfaces'
 
 const lifecycle = (event: string, extra = {}, surface = 'surface') => ({
-  mhp: '1.2',
+  mhp: '1.3',
   kind: 'surface',
   surface,
   sessionId: 'session',
@@ -13,7 +13,7 @@ const lifecycle = (event: string, extra = {}, surface = 'surface') => ({
   ...extra,
 })
 const message = (seq: number, payload?: unknown) => ({
-  mhp: '1.2',
+  mhp: '1.3',
   kind: 'panel',
   surface: 'surface',
   direction: 'toHost',

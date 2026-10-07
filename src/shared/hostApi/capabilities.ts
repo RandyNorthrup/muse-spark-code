@@ -95,7 +95,7 @@ export function isMhpVersionSupported(range: z.infer<typeof versionRangeSchema>)
   )
 }
 
-// The editor offers a range; only the reviewed 1.2 contract is implemented.
+// The editor offers a range; only the reviewed 1.3 contract is implemented.
 // A range containing it can select it, but no older/future version is guessed.
 export function selectMhpVersion(range: z.infer<typeof versionRangeSchema>) {
   return isMhpVersionSupported(range) ? MHP.version : undefined

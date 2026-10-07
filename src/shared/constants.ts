@@ -5276,9 +5276,9 @@ export const POSIX_TERMINAL_SHELL = '/bin/sh'
 // in-process adapter and the stdio hosts; no credential is a protocol value.
 export const MHP_ZERO_VERSION_COMPONENT = 0n
 export const MHP = {
-  version: 'mhp/1.2.0',
-  minimumVersion: 'mhp/1.2.0',
-  maximumVersionExclusive: 'mhp/1.3.0',
+  version: 'mhp/1.3.0',
+  minimumVersion: 'mhp/1.3.0',
+  maximumVersionExclusive: 'mhp/1.4.0',
   jsonRpcVersion: '2.0',
   maximumInteger: Number.MAX_SAFE_INTEGER,
   maximumSelectionChars: 16_384,
@@ -5299,18 +5299,29 @@ export const MHP_ERROR_CODES = {
   permissionDenied: -32_006,
 } as const
 
-// MHP 1.2 is the sole supported contract; editor hosts initiate initialization.
+// MHP 1.3 is the sole supported contract; editor hosts initiate initialization.
+export const MHP_PRESENTATION = {
+  maximumIdChars: 256,
+  maximumTextChars: 16_384,
+  maximumRecords: 128,
+  maximumDateMs: 8_640_000_000_000_000,
+} as const
+
 export const MHP_PANEL = {
-  version: 'mhp/1.2.0',
-  wireVersion: '1.2',
-  minimumVersion: 'mhp/1.2.0',
-  maximumVersionExclusive: 'mhp/1.3.0',
+  version: 'mhp/1.3.0',
+  wireVersion: '1.3',
+  minimumVersion: 'mhp/1.3.0',
+  maximumVersionExclusive: 'mhp/1.4.0',
   maximumEnvelopeBytes: 16_777_216,
   maximumQueuedBytes: 33_554_432,
   maximumQueuedMessages: 128,
 } as const
 
 // Runtime panel carrier bounds; credential lifetime remains in the backend.
+export const RUNTIME_BACKEND_SERVICES_BUNDLE_FILE = 'runtimeBackendServices.js'
+export const RUNTIME_ENGINES_BUNDLE_FILE = 'runtimeEngines.js'
+export const RUNTIME_CONTEXT_BUNDLE_FILE = 'runtimeContext.js'
+export const RUNTIME_PRESENTATION_BUNDLE_FILE = 'runtimePresentation.js'
 export const RUNTIME_PANEL_PORTS_BUNDLE_FILE = 'runtimePanelPorts.js'
 export const RUNTIME_PANEL_BUNDLE_FILE = 'runtimePanel.js'
 export const PORTABLE_MODULE_HEX_RADIX = 16

@@ -1,4 +1,9 @@
 {
+  "paidProviderUseDetail": "{subject}\n\n本次使用最多收费 {price}，计入您的 {provider} 密钥。共享每日预算：{budget}。您的订阅不支付本次使用费用。",
+  "presentationRolesTitle": "角色",
+  "presentationTrafficTitle": "消息流量",
+  "presentationRulesTitle": "规则",
+  "presentationAgentsTitle": "自定义智能体",
   "companionLaunchFailed": "无法打开面板。请返回编辑器并重新打开 Muse Spark Code，以获取新的启动链接。",
   "untitledConversation": "未命名",
   "crashTitle": "面板出错了",

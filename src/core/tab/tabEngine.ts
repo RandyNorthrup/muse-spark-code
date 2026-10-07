@@ -67,6 +67,7 @@ export type TabStream = (
   body: CreateResponseBody,
   signal: AbortSignal,
   budget: RetryBudget,
+  trigger?: TabEngineRequest,
 ) => AsyncIterable<StreamEvent>
 
 export interface TabEngineDeps {
@@ -191,7 +192,7 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine {
         // One HTTP attempt: the reservation prices one, so the client's
         // retries are spent before the first try (RVM94LC).
         const budget: RetryBudget = { retriesUsed: MODEL_API_MAX_RETRIES }
-        for await (const event of deps.stream(body, timeout.signal, budget)) {
+        for await (const event of deps.stream(body, timeout.signal, budget, request)) {
           if (shouldStopAt(event)) {
             break
           }

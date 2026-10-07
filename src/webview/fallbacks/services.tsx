@@ -7,9 +7,18 @@ import { Picker } from './Picker'
 import { Input } from './Input'
 import { Toasts } from './Toasts'
 import { StatusStrip } from './StatusStrip'
+import { OpenExternal } from './OpenExternal'
 import './fallbacks.css'
 
-type UiMethod = 'ui/confirm' | 'ui/pick' | 'ui/input' | 'ui/notify' | 'ui/status' | 'ui/progress'
+type UiMethod =
+  | 'ui/confirm'
+  | 'ui/pick'
+  | 'ui/input'
+  | 'ui/notify'
+  | 'ui/status'
+  | 'ui/progress'
+  | 'ui/clipboard'
+  | 'ui/openExternal'
 type Handlers = {
   readonly [M in UiMethod]: (params: MhpParams<M>, signal?: AbortSignal) => Promise<MhpResult<M>>
 }
@@ -21,6 +30,7 @@ export function createFallbackUi(element: Element, onCommand: (id: string) => vo
   const notifications: (MhpParams<'ui/notify'> & { id: string })[] = []
   const status = new Map<string | number, MhpParams<'ui/status'>>()
   const progress = new Map<string | number, MhpParams<'ui/progress'>>()
+  const clipboardRequests = new Set<() => void>()
   let serial = 0
   let promptSerial = 0
   let isDisposed = false
@@ -82,6 +92,55 @@ export function createFallbackUi(element: Element, onCommand: (id: string) => vo
     })
   }
   const handlers: Handlers = {
+    'ui/clipboard': async (params, signal) => {
+      signal?.throwIfAborted()
+      if (!('clipboard' in navigator)) throw new Error('MHP_UNSUPPORTED_CAPABILITY')
+      return await new Promise<null>((resolve, reject) => {
+        let isSettled = false
+        const settle = (failure?: Error) => {
+          if (isSettled) return
+          isSettled = true
+          signal?.removeEventListener('abort', abort)
+          clipboardRequests.delete(cancel)
+          if (failure === undefined) resolve(null)
+          else reject(failure)
+        }
+        const abort = () => {
+          settle(new Error('MHP_CANCELLED'))
+        }
+        const cancel = () => {
+          settle(new Error('MHP_UI_DISPOSED'))
+        }
+        clipboardRequests.add(cancel)
+        signal?.addEventListener('abort', abort, { once: true })
+        void (async () => {
+          try {
+            await navigator.clipboard.writeText(params.text)
+            settle()
+          } catch (error: unknown) {
+            settle(error instanceof Error ? error : new Error('MHP_CLIPBOARD_FAILED'))
+          }
+        })()
+      })
+    },
+    'ui/openExternal': async (params, signal) => {
+      const isOpened = await prompt<boolean>(
+        (done) => (
+          <OpenExternal
+            uri={params.uri}
+            onOpened={() => {
+              done(true)
+            }}
+            onCancel={() => {
+              done(null)
+            }}
+          />
+        ),
+        signal,
+      )
+      if (isOpened !== true) throw new Error('MHP_CANCELLED')
+      return null
+    },
     'ui/confirm': (params, signal) =>
       prompt((onResult) => <Confirm params={params} onResult={onResult} />, signal),
     'ui/pick': (params, signal) =>
@@ -117,6 +176,7 @@ export function createFallbackUi(element: Element, onCommand: (id: string) => vo
     },
     dispose() {
       isDisposed = true
+      for (const cancel of clipboardRequests) cancel()
       let entry
       while ((entry = prompts.pop()) !== undefined) entry.cancel()
       root.unmount()

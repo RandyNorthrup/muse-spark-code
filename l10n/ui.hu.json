@@ -1,4 +1,9 @@
 {
+  "paidProviderUseDetail": "{subject}\n\nLegfeljebb {price} ezért a használatért, a(z) {provider} kulcsára terhelve. Közös napi keret: {budget}. Az előfizetése nem fedezi ezt a használatot.",
+  "presentationRolesTitle": "Szerepkörök",
+  "presentationTrafficTitle": "Üzenetforgalom",
+  "presentationRulesTitle": "Szabályok",
+  "presentationAgentsTitle": "Egyéni ügynökök",
   "companionLaunchFailed": "Nem sikerült megnyitni a panelt. Térjen vissza a szerkesztőbe, és nyissa meg újra a Muse Spark Code-ot egy új indítási hivatkozásért.",
   "untitledConversation": "Névtelen",
   "crashTitle": "Hiba történt a panelen",

@@ -20,6 +20,10 @@ const BUDGETS = [
   // M104 B2: carrier/runtime ports on the panel command; existing ACP cap stays 850.
   { path: 'dist/runtimePanel.js', budgetKiB: 100 },
   { path: 'dist/runtimePanelPorts.js', budgetKiB: 75 },
+  { path: 'dist/runtimeContext.js', budgetKiB: 50 },
+  { path: 'dist/runtimeEngines.js', budgetKiB: 150 },
+  { path: 'dist/runtimeBackendServices.js', budgetKiB: 200 },
+  { path: 'dist/runtimePresentation.js', budgetKiB: 50 },
   // M94: provider, engine and ledger on first Tab use (PLAN.md D6).
   { path: 'dist/tab.js', budgetKiB: 75 },
   // The Model API backend, loaded when it first starts (M57). Revisited on
@@ -130,6 +134,7 @@ const BUDGETS = [
   { path: 'dist/validation.js', budgetKiB: 50 },
   // Shared existing Node boundary schemas: 41.3 KB plus 15%, rounded to 25 KiB.
   { path: 'dist/wire.js', budgetKiB: 50 },
+  { path: 'dist/hostProtocol.js', budgetKiB: 50 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
   // Web fetch's page converter (M69), on a worker started for each page:
   // 201.2 KiB when split out (parse5 122.7 of it), plus room.
@@ -193,4 +198,18 @@ for (const { name, budgetKiB, outputs } of webviewDeferredBudgetGroups(webview))
 if (hasFailure) {
   console.error('bundle size budget exceeded or a bundle is missing; see PLAN.md section 2 (D6)')
   process.exit(1)
+}
+
+const portableGroups = webviewDeferredBudgetGroups(
+  JSON.parse(readFileSync('dist/meta/portable.json', 'utf8')),
+  true,
+)
+for (const group of portableGroups) {
+  if (['deferred JS', 'code highlighting', 'action dialogs', 'tasks tab'].includes(group.name))
+    continue
+  const bytes = group.outputs.reduce((sum, file) => sum + statSync(file).size, 0)
+  if (bytes > group.budgetKiB * BYTES_PER_KIB) process.exitCode = 1
+  console.log(
+    `${bytes > group.budgetKiB * BYTES_PER_KIB ? 'FAIL' : 'ok  '} portable ${group.name}: ${(bytes / BYTES_PER_KIB).toFixed(1)} / ${String(group.budgetKiB)} KiB`,
+  )
 }

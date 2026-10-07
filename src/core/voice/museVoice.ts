@@ -361,6 +361,7 @@ export class MuseVoiceDictation implements DictationHandle {
   /** Every stream still open, the finishing ones included (a dispose ends them). */
   private readonly open = new Set<MuseVoiceStream>()
   private readonly budgets = new Map<MuseVoiceStream, VoiceBudgetState>()
+  private readonly pending = new Set<Promise<void>>()
   private status: DictationStatus = 'idle'
   private isDisposed = false
 
@@ -404,7 +405,7 @@ export class MuseVoiceDictation implements DictationHandle {
     const budget = this.budgets.get(stream)
     this.budgets.delete(stream)
     if (budget !== undefined) {
-      void this.settleBudget(budget, stream.audioSeconds)
+      this.track(this.settleBudget(budget, stream.audioSeconds))
     }
   }
 
@@ -545,8 +546,25 @@ export class MuseVoiceDictation implements DictationHandle {
     this.budgets.set(stream, state)
     // The helper records from the press; the key is read meanwhile, and the
     // stream holds the audio until its handshake is answered.
-    void this.prepareStream(stream, state, key, consentFence)
+    this.track(this.prepareStream(stream, state, key, consentFence))
     return stream
+  }
+
+  private track(work: Promise<void>): void {
+    this.pending.add(work)
+    void (async () => {
+      try {
+        await work
+      } catch {
+        this.deps.log.warn('Muse Voice owned work failed')
+      } finally {
+        this.pending.delete(work)
+      }
+    })()
+  }
+
+  public async settled(): Promise<void> {
+    while (this.pending.size > 0) await Promise.allSettled(this.pending)
   }
 
   public start(): void {

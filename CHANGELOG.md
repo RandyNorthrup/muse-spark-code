@@ -22,6 +22,20 @@ happened, not what was planned; superseded entries are kept.
 - The standalone carrier guide now describes the shipped authenticated browser
   renderer and UI bridge and names the remaining native integration gaps.
 
+- Integrate portable engine and presentation factories in separately checked lazy
+  bundles, including real checkpoint recording, version-attested verification,
+  saved plans, transfer, Tasks, What's New and scrubbed report export.
+- Adopt MHP 1.3 for bounded auxiliary messages and awaited native services;
+  correlate browser actions, defer lifecycle delivery until view adoption,
+  bind companion traffic to its authenticated surface, and queue crash-report
+  recovery until chat readiness. Native adoption and qualification remain open.
+- Verified provider quotes name the complete maximum price, billed provider and
+  shared daily budget; absent or replaced quotes refuse before consent.
+- Tasks and What's New acquisitions preserve the newest requested session and
+  drain superseded opens. Authoritative closes retire Tasks ownership before
+  reopening. Browser clipboard cancellation rejects the result and suppresses
+  late acknowledgements; an already started clipboard write cannot be undone.
+
 - Portable controllers honor contributed host readiness and host selection
   during restore and login model warm-up, preserving session ownership fences
   and refusing late admission after release.

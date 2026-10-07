@@ -1,3 +1,5 @@
+import type { PaidUseAsker } from '../../src/acp/paid'
+import { ACP_PAID_OPTIONS } from '../../src/shared/constants'
 import { PassThrough } from 'node:stream'
 import { mkdtemp, mkdir, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -27,6 +29,7 @@ beforeAll(async () => {
   await buildHostBundles(rig.root, {
     conversation: path.resolve('src/host/conversation/conversationEntry.ts'),
     runtimePanelPorts: path.resolve('src/runtime/panel/runtimeFeaturesEntry.ts'),
+    runtimeBackendServices: path.resolve('src/runtime/panel/backendEntry.ts'),
   })
 })
 afterAll(async () => {
@@ -44,7 +47,7 @@ const frameSchema = z.union([
   z.object({ id: frameId, error: z.object({ code: z.number(), message: z.string() }) }),
 ])
 
-async function fixture(kind: 'museCode' | 'modelApi', isTrusted = false) {
+async function fixture(kind: 'museCode' | 'modelApi', isTrusted = false, isPortable = false) {
   const root = await realpath(await mkdtemp(path.join(rig.root, 'workspace-')))
   const worktree = path.join(root, 'worktree')
   await mkdir(worktree)
@@ -54,6 +57,7 @@ async function fixture(kind: 'museCode' | 'modelApi', isTrusted = false) {
   const frames: unknown[] = []
   const bindings = new Map<string, { sessionId: string; surface: string }>()
   const contexts: RuntimeFeatureContext[] = []
+  const askers: PaidUseAsker[] = []
   const profiles: { kind: string; trusted: boolean; sandbox: string }[] = []
   const options: ServeOptions = {
     backend: kind,
@@ -75,6 +79,11 @@ async function fixture(kind: 'museCode' | 'modelApi', isTrusted = false) {
       homeDir: root,
       runGit,
       log,
+    })
+    const attach = base.paid.attach.bind(base.paid)
+    vi.spyOn(base.paid, 'attach').mockImplementation((asker) => {
+      askers.push(asker)
+      attach(asker)
     })
     const host = new FakeAgentHost()
     host.info = { ...host.info, kind: options.backend }
@@ -117,22 +126,33 @@ async function fixture(kind: 'museCode' | 'modelApi', isTrusted = false) {
         const binding = { sessionId: params.sessionId, surface }
         bindings.set(surface, binding)
         send({ jsonrpc: '2.0', id, result: { surfaceId: surface } })
-        send({ mhp: '1.2', kind: 'surface', ...binding, surfaceKind: 'chat', event: 'opened' })
-        send({ mhp: '1.2', kind: 'surface', ...binding, surfaceKind: 'chat', event: 'ready' })
+        send({ mhp: '1.3', kind: 'surface', ...binding, surfaceKind: 'chat', event: 'opened' })
+        send({ mhp: '1.3', kind: 'surface', ...binding, surfaceKind: 'chat', event: 'ready' })
         send({
-          mhp: '1.2',
+          mhp: '1.3',
           kind: 'panel',
           surface,
           direction: 'toHost',
           seq: 1,
           payload: { type: 'ready' },
         })
+      } else if (isPortable && method === 'ui/confirm') {
+        send({ jsonrpc: '2.0', id, result: ACP_PAID_OPTIONS.allowOnce })
       } else if (method === 'surfaces/close') {
         send({ jsonrpc: '2.0', id, result: null })
       }
     }
   })
   const result = runPanel({
+    ...(isPortable && {
+      portable: {
+        version: 'fake',
+        hasStoredKey: () => Promise.resolve(false),
+        platform: process.platform,
+        env: {},
+        homeDir: root,
+      },
+    }),
     options,
     runtime: backend(options),
     transport: 'stdio',
@@ -180,8 +200,8 @@ async function fixture(kind: 'museCode' | 'modelApi', isTrusted = false) {
     method: 'initialize',
     params: {
       host: { id: 'fake', version: '1' },
-      protocolRange: { minimum: 'mhp/1.2.0', maximumExclusive: 'mhp/1.3.0' },
-      capabilities: ['lifecycle', 'surfaces', 'settings', 'storage'],
+      protocolRange: { minimum: 'mhp/1.3.0', maximumExclusive: 'mhp/1.4.0' },
+      capabilities: ['lifecycle', 'surfaces', 'settings', 'storage', ...(isPortable ? ['ui'] : [])],
       locale: 'de',
       theme: { kind: 'dark', tokens: {} },
       folders: [{ uri: pathToFileURL(root).href, name: 'fake' }],
@@ -211,6 +231,7 @@ async function fixture(kind: 'museCode' | 'modelApi', isTrusted = false) {
     frames,
     bindings,
     contexts,
+    askers,
     profiles,
     send,
     waitReply,
@@ -454,3 +475,22 @@ for (const kind of ['museCode', 'modelApi'] as const) {
     }
   })
 }
+
+it('refuses stock portable paid consent before a popup when catalog and hard-ledger configuration is absent', async () => {
+  const t = await fixture('modelApi', true, true)
+  try {
+    const ask = t.askers.at(-1)
+    const context = t.contexts[0]
+    if (ask === undefined || context === undefined) throw new Error('Missing owned paid asker')
+    expect(await ask(context.ports.surface.id, { feature: 'webSearch' }, true)).toBe('deny')
+    expect(
+      t.frames.some(
+        (frame) =>
+          requestSchema.safeParse(frame).success &&
+          requestSchema.parse(frame).method === 'ui/confirm',
+      ),
+    ).toBe(false)
+  } finally {
+    await t.close()
+  }
+})

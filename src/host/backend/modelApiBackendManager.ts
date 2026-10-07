@@ -57,6 +57,7 @@ import {
 
 export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
+  readonly paidResponseCost?: ModelApiClientDeps['paidResponseCost']
   readonly judge?: ModelApiHostDeps['judge']
   readonly log: Logger
   readonly getApiKey: () => Promise<string | undefined>
@@ -260,6 +261,9 @@ export class ModelApiBackendManager {
       client: {
         ...(this.deps.reservePaidRequest !== undefined && {
           reservePaidRequest: this.deps.reservePaidRequest,
+        }),
+        ...(this.deps.paidResponseCost !== undefined && {
+          paidResponseCost: this.deps.paidResponseCost,
         }),
         fetch: this.deps.fetch,
         ...(this.deps.streamIdleMs !== undefined && { streamIdleMs: this.deps.streamIdleMs }),

@@ -1,6 +1,6 @@
 {
-  "protocol": "mhp/1.2.0",
-  "range": { "minimum": "mhp/1.2.0", "maximumExclusive": "mhp/1.3.0" },
+  "protocol": "mhp/1.3.0",
+  "range": { "minimum": "mhp/1.3.0", "maximumExclusive": "mhp/1.4.0" },
   "capabilities": [
     "lifecycle",
     "workspace",
@@ -57,7 +57,7 @@
   "conventions": {
     "transport": "JSON-RPC 2.0, one UTF-8 JSON object per line over stdio; no batches",
     "positions": "zero-based UTF-16 line and character",
-    "initialize": "hostToRuntime; editor sends host metadata, locale, theme, folders, trust and capabilities; runtime returns mhp/1.2.0 and its capabilities",
+    "initialize": "hostToRuntime; editor sends host metadata, locale, theme, folders, trust and capabilities; runtime returns mhp/1.3.0 and its capabilities",
     "requiredCapability": "lifecycle",
     "versioning": "breaking schema or semantic changes require a new protocol version and snapshot",
     "edits": "reject stale versions, dirty buffers and invalid/overlapping ranges before any side effect; apply atomically with one undo transaction",
@@ -278,7 +278,7 @@
           "result": {
             "type": "object",
             "properties": {
-              "protocolVersion": { "type": "string", "const": "mhp/1.2.0" },
+              "protocolVersion": { "type": "string", "const": "mhp/1.3.0" },
               "capabilities": {
                 "type": "array",
                 "items": {
@@ -1580,6 +1580,66 @@
         "additionalProperties": false
       }
     },
+    "diff/decide": {
+      "kind": "request",
+      "direction": "runtimeToHost",
+      "capability": "diff",
+      "fallback": "react-diff",
+      "call": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "method": { "type": "string", "const": "diff/decide" },
+          "params": {
+            "type": "object",
+            "properties": {
+              "reviewId": {
+                "anyOf": [
+                  { "type": "string", "minLength": 1 },
+                  { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                ]
+              },
+              "hunkId": {
+                "anyOf": [
+                  { "type": "string", "minLength": 1 },
+                  { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                ]
+              },
+              "uri": { "type": "string", "format": "uri" },
+              "expectedVersion": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+              "decision": { "type": "string", "enum": ["accept", "reject", "cancel"] }
+            },
+            "required": ["reviewId", "hunkId", "uri", "expectedVersion", "decision"],
+            "additionalProperties": false
+          },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          }
+        },
+        "required": ["jsonrpc", "method", "params", "id"],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          },
+          "result": { "type": "null" }
+        },
+        "required": ["jsonrpc", "id", "result"],
+        "additionalProperties": false
+      }
+    },
     "diff/didDecide": {
       "kind": "notification",
       "direction": "hostToRuntime",
@@ -1613,6 +1673,280 @@
           }
         },
         "required": ["jsonrpc", "method", "params"],
+        "additionalProperties": false
+      }
+    },
+    "diagnostics/settled": {
+      "kind": "request",
+      "direction": "runtimeToHost",
+      "capability": "diagnostics",
+      "fallback": "lsp-or-check-commands",
+      "call": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "method": { "type": "string", "const": "diagnostics/settled" },
+          "params": {
+            "type": "object",
+            "properties": {
+              "uri": { "type": "string", "format": "uri" },
+              "expectedVersion": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            },
+            "required": ["uri", "expectedVersion"],
+            "additionalProperties": false
+          },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          }
+        },
+        "required": ["jsonrpc", "method", "params", "id"],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "uri": { "type": "string", "format": "uri" },
+                  "version": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+                  "diagnostics": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "uri": { "type": "string", "format": "uri" },
+                        "range": {
+                          "type": "object",
+                          "properties": {
+                            "start": {
+                              "type": "object",
+                              "properties": {
+                                "line": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "character": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": ["line", "character"],
+                              "additionalProperties": false
+                            },
+                            "end": {
+                              "type": "object",
+                              "properties": {
+                                "line": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                },
+                                "character": {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 9007199254740991
+                                }
+                              },
+                              "required": ["line", "character"],
+                              "additionalProperties": false
+                            }
+                          },
+                          "required": ["start", "end"],
+                          "additionalProperties": false
+                        },
+                        "severity": {
+                          "type": "string",
+                          "enum": ["error", "warning", "information", "hint"]
+                        },
+                        "message": { "type": "string" },
+                        "source": { "type": "string" },
+                        "code": {
+                          "anyOf": [
+                            { "type": "string" },
+                            { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                          ]
+                        }
+                      },
+                      "required": ["uri", "range", "severity", "message"],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": ["uri", "version", "diagnostics"],
+                "additionalProperties": false
+              },
+              { "type": "null" }
+            ]
+          }
+        },
+        "required": ["jsonrpc", "id", "result"],
+        "additionalProperties": false
+      }
+    },
+    "ui/openFile": {
+      "kind": "request",
+      "direction": "runtimeToHost",
+      "capability": "ui",
+      "fallback": "react-ui",
+      "call": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "method": { "type": "string", "const": "ui/openFile" },
+          "params": {
+            "type": "object",
+            "properties": { "title": { "type": "string" } },
+            "required": ["title"],
+            "additionalProperties": false
+          },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          }
+        },
+        "required": ["jsonrpc", "method", "params", "id"],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          },
+          "result": { "anyOf": [{ "type": "string", "format": "uri" }, { "type": "null" }] }
+        },
+        "required": ["jsonrpc", "id", "result"],
+        "additionalProperties": false
+      }
+    },
+    "ui/saveText": {
+      "kind": "request",
+      "direction": "runtimeToHost",
+      "capability": "ui",
+      "fallback": "react-ui",
+      "call": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "method": { "type": "string", "const": "ui/saveText" },
+          "params": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "suggestedName": { "type": "string" },
+              "text": { "type": "string" }
+            },
+            "required": ["title", "suggestedName", "text"],
+            "additionalProperties": false
+          },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          }
+        },
+        "required": ["jsonrpc", "method", "params", "id"],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          },
+          "result": { "type": "boolean" }
+        },
+        "required": ["jsonrpc", "id", "result"],
+        "additionalProperties": false
+      }
+    },
+    "surfaces/presentHtml": {
+      "kind": "request",
+      "direction": "runtimeToHost",
+      "capability": "surfaces",
+      "fallback": "companion-tabs",
+      "call": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "method": { "type": "string", "const": "surfaces/presentHtml" },
+          "params": {
+            "type": "object",
+            "properties": {
+              "surfaceId": {
+                "anyOf": [
+                  { "type": "string", "minLength": 1 },
+                  { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                ]
+              },
+              "sessionId": {
+                "anyOf": [
+                  { "type": "string", "minLength": 1 },
+                  { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+                ]
+              },
+              "html": { "type": "string" }
+            },
+            "required": ["surfaceId", "sessionId", "html"],
+            "additionalProperties": false
+          },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          }
+        },
+        "required": ["jsonrpc", "method", "params", "id"],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          },
+          "result": { "type": "null" }
+        },
+        "required": ["jsonrpc", "id", "result"],
         "additionalProperties": false
       }
     },
@@ -3289,6 +3623,7 @@
             "type": "object",
             "properties": {
               "title": { "type": "string" },
+              "placeholder": { "type": "string" },
               "items": {
                 "type": "array",
                 "items": {
@@ -3300,7 +3635,9 @@
                         { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
                       ]
                     },
-                    "title": { "type": "string" }
+                    "title": { "type": "string" },
+                    "description": { "type": "string" },
+                    "detail": { "type": "string" }
                   },
                   "required": ["id", "title"],
                   "additionalProperties": false
@@ -3620,7 +3957,10 @@
                   "traffic",
                   "settings",
                   "walkthrough",
-                  "diff"
+                  "diff",
+                  "plans",
+                  "manager",
+                  "roles"
                 ]
               },
               "placement": { "type": "string", "enum": ["side", "tab", "window"] },
@@ -4287,6 +4627,115 @@
         "additionalProperties": false
       }
     },
+    "commands/run": {
+      "kind": "request",
+      "direction": "runtimeToHost",
+      "capability": "commands",
+      "fallback": "panel-palette",
+      "call": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "method": { "type": "string", "const": "commands/run" },
+          "params": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "args": { "type": "array", "items": { "$ref": "#/$defs/__schema0" } }
+            },
+            "required": ["id", "args"],
+            "additionalProperties": false
+          },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          }
+        },
+        "required": ["jsonrpc", "method", "params", "id"],
+        "additionalProperties": false,
+        "$defs": {
+          "__schema0": {
+            "anyOf": [
+              { "type": "string" },
+              { "type": "number" },
+              { "type": "boolean" },
+              { "type": "null" },
+              { "type": "array", "items": { "$ref": "#/$defs/__schema0" } },
+              {
+                "type": "object",
+                "propertyNames": { "type": "string" },
+                "additionalProperties": { "$ref": "#/$defs/__schema0" }
+              }
+            ]
+          }
+        }
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          },
+          "result": { "type": "null" }
+        },
+        "required": ["jsonrpc", "id", "result"],
+        "additionalProperties": false
+      }
+    },
+    "ui/showSetting": {
+      "kind": "request",
+      "direction": "runtimeToHost",
+      "capability": "ui",
+      "fallback": "react-ui",
+      "call": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "method": { "type": "string", "const": "ui/showSetting" },
+          "params": {
+            "type": "object",
+            "properties": {
+              "key": { "type": "string", "pattern": "^museSpark\\.[a-zA-Z][\\w.]*$" }
+            },
+            "required": ["key"],
+            "additionalProperties": false
+          },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          }
+        },
+        "required": ["jsonrpc", "method", "params", "id"],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          },
+          "result": { "type": "null" }
+        },
+        "required": ["jsonrpc", "id", "result"],
+        "additionalProperties": false
+      }
+    },
     "commands/execute": {
       "kind": "notification",
       "direction": "hostToRuntime",
@@ -4633,6 +5082,212 @@
             "type": "object",
             "properties": { "authenticated": { "type": "boolean" } },
             "required": ["authenticated"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["jsonrpc", "id", "result"],
+        "additionalProperties": false
+      }
+    },
+    "auth/keySignIn": {
+      "kind": "request",
+      "direction": "runtimeToHost",
+      "capability": "auth",
+      "fallback": "gh-credential-store",
+      "call": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "method": { "type": "string", "const": "auth/keySignIn" },
+          "params": {
+            "type": "object",
+            "properties": {
+              "workspaceUri": { "type": "string", "format": "uri" },
+              "ownerId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              }
+            },
+            "required": ["workspaceUri", "ownerId"],
+            "additionalProperties": false
+          },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          }
+        },
+        "required": ["jsonrpc", "method", "params", "id"],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          },
+          "result": {
+            "type": "object",
+            "properties": { "completed": { "type": "boolean" } },
+            "required": ["completed"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["jsonrpc", "id", "result"],
+        "additionalProperties": false
+      }
+    },
+    "auth/githubLease": {
+      "kind": "request",
+      "direction": "runtimeToHost",
+      "capability": "auth",
+      "fallback": "gh-credential-store",
+      "call": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "method": { "type": "string", "const": "auth/githubLease" },
+          "params": {
+            "type": "object",
+            "properties": {
+              "workspaceUri": { "type": "string", "format": "uri" },
+              "ownerId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "mode": { "type": "string", "enum": ["ask", "silent"] }
+            },
+            "required": ["workspaceUri", "ownerId", "mode"],
+            "additionalProperties": false
+          },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          }
+        },
+        "required": ["jsonrpc", "method", "params", "id"],
+        "additionalProperties": false
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          },
+          "result": {
+            "type": "object",
+            "properties": {
+              "leaseId": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  { "type": "null" }
+                ]
+              }
+            },
+            "required": ["leaseId"],
+            "additionalProperties": false
+          }
+        },
+        "required": ["jsonrpc", "id", "result"],
+        "additionalProperties": false
+      }
+    },
+    "github/request": {
+      "kind": "request",
+      "direction": "runtimeToHost",
+      "capability": "auth",
+      "fallback": "gh-credential-store",
+      "call": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "method": { "type": "string", "const": "github/request" },
+          "params": {
+            "type": "object",
+            "properties": {
+              "leaseId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "ownerId": {
+                "type": "string",
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              },
+              "url": { "type": "string", "format": "uri" },
+              "method": { "type": "string", "enum": ["GET", "POST"] },
+              "body": { "$ref": "#/$defs/__schema0" }
+            },
+            "required": ["leaseId", "ownerId", "url", "method"],
+            "additionalProperties": false
+          },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          }
+        },
+        "required": ["jsonrpc", "method", "params", "id"],
+        "additionalProperties": false,
+        "$defs": {
+          "__schema0": {
+            "anyOf": [
+              { "type": "string" },
+              { "type": "number" },
+              { "type": "boolean" },
+              { "type": "null" },
+              { "type": "array", "items": { "$ref": "#/$defs/__schema0" } },
+              {
+                "type": "object",
+                "propertyNames": { "type": "string" },
+                "additionalProperties": { "$ref": "#/$defs/__schema0" }
+              }
+            ]
+          }
+        }
+      },
+      "result": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "properties": {
+          "jsonrpc": { "type": "string", "const": "2.0" },
+          "id": {
+            "anyOf": [
+              { "type": "string", "minLength": 1 },
+              { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+            ]
+          },
+          "result": {
+            "type": "object",
+            "properties": {
+              "status": { "type": "integer", "minimum": 100, "maximum": 599 },
+              "body": { "type": "string", "maxLength": 16777216 }
+            },
+            "required": ["status", "body"],
             "additionalProperties": false
           }
         },
@@ -4998,7 +5653,7 @@
     {
       "id": "F8",
       "name": "hunk-review",
-      "methods": ["diff/review", "diff/didDecide"],
+      "methods": ["diff/review", "diff/didDecide", "diff/decide"],
       "capabilities": ["diff"],
       "fallback": "react-diff",
       "editors": {
@@ -5032,7 +5687,7 @@
     {
       "id": "F9",
       "name": "verify-loop",
-      "methods": ["diagnostics/get", "diagnostics/didChange"],
+      "methods": ["diagnostics/get", "diagnostics/didChange", "diagnostics/settled"],
       "capabilities": ["diagnostics"],
       "fallback": "lsp-or-check-commands",
       "editors": {
@@ -5910,9 +6565,9 @@
     {
       "id": "F34",
       "name": "session-import-export-share",
-      "methods": [],
-      "capabilities": [],
-      "fallback": "shared-controller",
+      "methods": ["ui/openFile", "ui/saveText"],
+      "capabilities": ["ui"],
+      "fallback": "react-ui",
       "editors": {
         "vscode": { "status": "M", "evidence": [] },
         "cursor": { "status": "M", "evidence": [] },
@@ -5978,7 +6633,7 @@
     {
       "id": "F36",
       "name": "git-and-pull-requests",
-      "methods": ["auth/github"],
+      "methods": ["auth/github", "auth/githubLease", "github/request"],
       "capabilities": ["auth"],
       "fallback": "gh-credential-store",
       "editors": {
@@ -6012,9 +6667,9 @@
     {
       "id": "F37",
       "name": "cli-install-and-login",
-      "methods": [],
-      "capabilities": [],
-      "fallback": "shared-controller",
+      "methods": ["auth/keySignIn"],
+      "capabilities": ["auth"],
+      "fallback": "gh-credential-store",
       "editors": {
         "vscode": { "status": "M", "evidence": [] },
         "cursor": { "status": "M", "evidence": [] },
@@ -6223,8 +6878,8 @@
     {
       "id": "F43",
       "name": "settings",
-      "methods": ["settings/get", "settings/update", "settings/didChange"],
-      "capabilities": ["settings"],
+      "methods": ["settings/get", "settings/update", "settings/didChange", "ui/showSetting"],
+      "capabilities": ["settings", "ui"],
       "fallback": "runtime-settings",
       "editors": {
         "vscode": { "status": "M", "evidence": [] },
@@ -6291,9 +6946,9 @@
     {
       "id": "F45",
       "name": "whats-new",
-      "methods": [],
-      "capabilities": [],
-      "fallback": "shared-controller",
+      "methods": ["surfaces/presentHtml"],
+      "capabilities": ["surfaces"],
+      "fallback": "companion-tabs",
       "editors": {
         "vscode": { "status": "M", "evidence": [] },
         "cursor": { "status": "M", "evidence": [] },
@@ -6435,7 +7090,7 @@
     {
       "id": "F49",
       "name": "commands-and-keybindings",
-      "methods": ["commands/register", "commands/execute"],
+      "methods": ["commands/register", "commands/execute", "commands/run"],
       "capabilities": ["commands"],
       "fallback": "panel-palette",
       "editors": {

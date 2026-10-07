@@ -1,4 +1,9 @@
 {
+  "paidProviderUseDetail": "{subject}\n\n今回の利用は最大 {price} で、{provider} キーに請求されます。共有の1日予算：{budget}。サブスクリプションではこの利用料金は支払われません。",
+  "presentationRolesTitle": "ロール",
+  "presentationTrafficTitle": "メッセージのやり取り",
+  "presentationRulesTitle": "ルール",
+  "presentationAgentsTitle": "カスタムエージェント",
   "companionLaunchFailed": "パネルを開けませんでした。エディターに戻り、Muse Spark Code をもう一度開いて、新しい起動リンクを取得してください。",
   "untitledConversation": "無題",
   "crashTitle": "パネルでエラーが発生しました",

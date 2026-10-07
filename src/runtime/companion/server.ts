@@ -23,6 +23,7 @@ export interface CompanionHandler<Input, Output> {
     sessionId: string,
     signal: AbortSignal,
   ): Promise<void>
+  readonly isBindingAllowed?: (message: unknown, context: string | undefined) => boolean
   readonly surfaceSchema?: typeof panelLifecycleSchema
   subscribe(sessionId: string, emit: (message: unknown, complete?: () => void) => void): () => void
 }
@@ -315,6 +316,10 @@ export async function startCompanionServer<Input, Output>(
             panelReply(response, admissionError('MHP_PANEL_INVALID_LIFECYCLE'))
             return
           }
+          if (handler.isBindingAllowed?.(parsed.data, session.context) === false) {
+            panelReply(response, admissionError('MHP_PANEL_UNKNOWN_SURFACE'))
+            return
+          }
           await handler.surface(parsed.data, session.id, controller.signal)
           if (!controller.signal.aborted) reply(response, HTTP_STATUS.noContent)
           activity()
@@ -323,6 +328,10 @@ export async function startCompanionServer<Input, Output>(
         const parsed = handler.inputSchema.safeParse(input)
         if (!parsed.success) {
           panelReply(response, admissionError('MHP_PANEL_INVALID_PAYLOAD'))
+          return
+        }
+        if (handler.isBindingAllowed?.(parsed.data, session.context) === false) {
+          panelReply(response, admissionError('MHP_PANEL_UNKNOWN_SURFACE'))
           return
         }
         await handler.post(parsed.data, session.id, controller.signal)

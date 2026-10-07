@@ -1,3 +1,4 @@
+import { createRuntimeEngineFactory } from '../../src/runtime/panel/engineEntry'
 import { mkdtemp, mkdir, writeFile, symlink, realpath } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -292,4 +293,19 @@ describe('standalone conversation ports', () => {
       return f.deps.exports.saveMarkdown('fake.md', 'private')
     }).toThrow('MHP_UNSUPPORTED_CAPABILITY')
   })
+})
+
+it('requires a contributed native process guard for Best-of-N Git instead of the ordinary runner', async () => {
+  const missing = await setup(true, { engines: createRuntimeEngineFactory(() => ({})) })
+  await expect(missing.deps.runBestOfNGit?.(['status'], missing.workspace)).rejects.toThrow(
+    'MHP_NATIVE_PROCESS_ADMISSION_UNAVAILABLE',
+  )
+  const run = vi.fn(() => Promise.resolve('native accepted'))
+  const bound = await setup(true, {
+    engines: createRuntimeEngineFactory(() => ({ runBestOfNGit: run })),
+  })
+  await expect(bound.deps.runBestOfNGit?.(['status'], bound.workspace)).resolves.toBe(
+    'native accepted',
+  )
+  expect(run).toHaveBeenCalledOnce()
 })

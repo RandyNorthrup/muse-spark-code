@@ -96,6 +96,12 @@ export async function panelProcessFixture() {
     runtimePanelPorts: path.join(root, 'src/runtime/panel/runtimeFeaturesEntry.ts'),
     conversation: path.join(root, 'src/host/conversation/conversationEntry.ts'),
     sessionBoard: path.join(root, 'src/host/sessionBoardEntry.ts'),
+    runtimeContext: path.join(root, 'src/runtime/panel/contextEntry.ts'),
+    planMarkdown: path.join(root, 'src/host/planMarkdownEntry.ts'),
+    runtimeEngines: path.join(root, 'src/runtime/panel/engineEntry.ts'),
+    runtimeBackendServices: path.join(root, 'src/runtime/panel/backendEntry.ts'),
+    runtimePresentation: path.join(root, 'src/host/views/runtimePresentationEntry.ts'),
+    checkpointStore: path.join(root, 'src/host/checkpoints/checkpointStoreEntry.ts'),
   })
   await buildModelApiBundle(dist)
   await buildPortableBundle(dist)
@@ -185,7 +191,7 @@ export async function panelProcessFixture() {
         locale: 'en',
         theme: { kind: 'dark', tokens: {} },
         trusted: false,
-        protocolRange: protocolRange ?? { minimum: 'mhp/1.2.0', maximumExclusive: 'mhp/1.3.0' },
+        protocolRange: protocolRange ?? { minimum: 'mhp/1.3.0', maximumExclusive: 'mhp/1.4.0' },
         capabilities: ['lifecycle', 'surfaces', 'ui'],
         folders: [{ uri: pathToFileURL(workspace).href, name: 'fake workspace' }],
       })
@@ -198,7 +204,7 @@ export async function panelProcessFixture() {
           z
             .object({
               id: z.literal(1),
-              result: z.object({ protocolVersion: z.literal('mhp/1.2.0') }),
+              result: z.object({ protocolVersion: z.literal('mhp/1.3.0') }),
             })
             .safeParse(frame).success,
       )

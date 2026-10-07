@@ -3,12 +3,13 @@ import { conversationLoader } from '../../host/conversation/conversationBundle'
 import type { ConversationController } from '../../host/conversation/conversationController'
 import type { ChatSurface } from '../../host/views/chatSurface'
 import type { Logger } from '../../host/logger'
-import { UI_TEXT, type PermissionMode } from '../../shared/constants'
+import { UI_TEXT, MHP_PANEL, type PermissionMode } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import {
   hostToWebviewMessageSchema,
   webviewToHostMessageSchema,
   type HostToWebviewMessage,
+  type WebviewToHostMessage,
 } from '../../shared/protocol'
 import type { MhpPanelBinding } from '../../shared/hostApi/panel'
 import type { PanelView } from './surfaces'
@@ -18,11 +19,16 @@ import type { SessionController } from './controllerRegistry'
 
 /** One conversation owns the session; any number of transport views subscribe to it. */
 export class RuntimeConversation implements SessionController, PanelView {
+  private readonly ending = new AbortController()
   private readonly listeners = new Set<(message: HostToWebviewMessage) => void>()
   private conversation: ConversationController | undefined
   private preparation: Promise<void> | undefined
   private releasing: Promise<void> | undefined
   private readonly inFlight = new Set<Promise<void>>()
+  private readonly afterReady: Extract<
+    WebviewToHostMessage,
+    { type: 'hostAction' | 'openReport' }
+  >[] = []
   private handling: Promise<void> = Promise.resolve()
   private isDisposed = false
   private isHostStopped = false
@@ -86,6 +92,17 @@ export class RuntimeConversation implements SessionController, PanelView {
     const deps = await compose({
       ...ports,
       surface,
+      signal: this.ending.signal,
+      controller: () => this.conversation,
+      queueAfterReady: (message) => {
+        this.ensureLive()
+        if (this.afterReady.length >= MHP_PANEL.maximumQueuedMessages)
+          throw new Error('MHP_DEFERRED_ACTION_REFUSED')
+        const parsed = webviewToHostMessageSchema.parse(message)
+        if (parsed.type !== 'hostAction' && parsed.type !== 'openReport')
+          throw new Error('MHP_DEFERRED_ACTION_REFUSED')
+        this.afterReady.push(parsed)
+      },
       own: (dispose) => {
         this.cleanups.push(dispose)
       },
@@ -209,6 +226,10 @@ export class RuntimeConversation implements SessionController, PanelView {
         }
         this.conversation.replayHistory(history)
         this.conversation.surfaceReady(message.attachmentEpoch)
+        for (const action of this.afterReady.splice(0)) {
+          this.ensureLive()
+          await this.conversation.handle(action)
+        }
         break
       }
       case 'inputFocusChanged': {
@@ -278,6 +299,9 @@ export class RuntimeConversation implements SessionController, PanelView {
     return this.preparation
   }
 
+  public get signal(): AbortSignal {
+    return this.ending.signal
+  }
   public get controller(): ConversationController | undefined {
     return this.conversation
   }
@@ -370,6 +394,8 @@ export class RuntimeConversation implements SessionController, PanelView {
   public release(): Promise<void> {
     if (this.releasing !== undefined) return this.releasing
     this.isDisposed = true
+    this.ending.abort()
+    this.afterReady.length = 0
     this.listeners.clear()
     this.releasing = this.releaseController()
     return this.releasing
