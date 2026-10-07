@@ -19,8 +19,8 @@ and clears a rejected promise so a later Discard/Cancel can retry.
 The driver also renders the fixed helper code `accessDenied` through the new
 runtime-read `media.recordingAccessDenied` text in English and all fourteen
 translations; it keeps the existing screen-permission recovery distinct.
-The complete three-file recorder batch passed **100/100** (driver 59,
-native 36, compiler 5), repository timeouts, on Win11. The following controls ran
+The complete three-file recorder batch passed **102/102** (driver 59,
+native 38, compiler 5), repository timeouts, on Win11. The following controls ran
 the whole driver suite and exited 1 with the named test failure. Source bytes
 were restored in finally and checked with SHA-256 after each control:
 
@@ -37,10 +37,147 @@ Driver restoration SHA-256 at drill time:
 After lint fixes and the access-denied cases, all four current driver controls
 again exited 1 and restored SHA-256
 `d20b8ea9a2b2d6e08b89c217b3666cdea27187a40a85bfb3c3512b8f4f2fa162`.
+The final four controls (after moving the unsubscribe binding to satisfy lint)
+restored `fb08e3c9988db0908fbbc943088ee88129b86bb422b78f1bb6ac75e90e327ca5`.
+The shutdown fixture now acknowledges any wrongly launched helper so its
+negative control fails on the result assertion rather than the test timeout.
 Ignored receipts: `temp/r2-shutdown-preparation.log`,
 `temp/r2-bounded-retry.log`, `temp/r2-failed-cache.log`.
 
-## Original delivered scope
+## RVM105R2 corrections: native helper
+
+All five confirmed P2 findings and finding 6's confirmed cancellation gap are
+fixed. Finding 6's actual hung-encoder scenario remains unconfirmed on this VM;
+its working-desktop receipt is owed, as named in PLAN §9.
+
+- A shared, private `Lifetime` is necessary for the Form and static latest
+  dispatch to use the same lifecycle rules. Its lock protects the monotone
+  Preparing / Recording / Stopping / Cancelled / Completed state and operation
+  registration. Cancellation cannot be overwritten by ordinary Stop or success.
+  Cancel calls happen outside the state lock; an operation registered after
+  cancellation is cancelled immediately. Picker, file lookup, stream open,
+  transcoder preparation and encoding all register their pending handles.
+- Capture and latest import validate and hold the owner process before starting
+  work. A background watcher observes the held process rather than a reused PID
+  or a potentially blocked UI timer. Owner death cancels work and arms an
+  independent two-second forced-exit watchdog. Latest import now reads Stop,
+  Cancel and EOF, checks cancellation during its bounded copy, and deletes a
+  partial or completed copy cancelled before the completion acknowledgement.
+- `Win32Exception(5)` emits the fixed `accessDenied` code, mapped by the driver
+  to its translated access refusal. Arbitrary exception text never crosses the
+  helper boundary. The existing screen-permission refusal remains separate.
+
+Native tests compile the actual helper with the inbox compiler, split metadata
+and warnings as errors, once in `beforeAll`. They replace only known-folder
+resolution with the test-private folder and add a scheduling barrier after one
+real bounded write. The `--latest` dispatch, stdin worker, copy, process-handle
+binding, cancellation state and watchdog are the production implementations.
+Fake pending WinRT operations obey idempotent cancellation and one completion;
+they open no picker, graphics or audio device. A test-only sleeping owner is
+the only process intentionally killed.
+
+The first new fixture compilation exposed two reflection-assigned fields under
+the unchanged warning gate; explicit null initialization fixed that fixture.
+The first scheduled-copy run exposed reflection's exception wrapper in the
+test-only folder substitution; that adapter now rethrows the original failure.
+Moving Cancel outside the lock exposed a fake operation that completed twice
+on concurrent cancellation; its idempotence now matches WinRT. No timeout or
+gate was changed for these corrections. The complete recorder batch then
+passed **102/102** at repository timeouts. A final failure-path check also
+caught cleanup turning an access failure into cancellation before its error
+frame. Disposal now preserves the terminal cause while removing unfinished
+copies, and a native regression proves that access denial survives cleanup.
+
+## RVM105R2 native guard-fire receipts
+
+All nine controls ran the complete native suite, without filters, skips or
+timeout overrides, and exited 1 at the named regression. The helper bytes were
+restored in finally and checked after every control. All nine were rerun
+against the final, corrected fake-operation semantics.
+
+| Finding / guard           | Deliberate break                                | Named failing regression                                                                 | Receipt          |
+| ------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------- |
+| 1: atomic cancellation    | Let ordinary Stop overwrite Cancelled           | keeps Cancel atomic when a concurrent normal Stop finishes later                         | exit 1; restored |
+| 3: latest owner binding   | Remove --latest's WatchOwner call               | latest import refuses an owner that has already died before copying                      | exit 1; restored |
+| 3: latest controls        | Remove --latest's stdin worker                  | latest import observes stdin cancellation during copying and deletes its partial preview | exit 1; restored |
+| 3: bounded owner death    | Disable the native forced-exit deadline         | exits on owner death even when native work never cooperates                              | exit 1; restored |
+| 3: late copy cleanup      | Remove lifetime disposal's deletion             | deletes a completed private copy when Cancel arrives before acknowledgement              | exit 1; restored |
+| 5: access denied          | Remove Win32 NativeErrorCode 5 mapping          | reports Win32 access denial as file access denied                                        | exit 1; restored |
+| 6: pending preparation    | Await the operation without registering it      | Stop cancels a pending prepare operation before recording starts                         | exit 1; restored |
+| 6: registration race      | Ignore cancellation latched before registration | cancels an operation registered after Cancel was already latched                         | exit 1; restored |
+| 5: terminal failure cause | Turn disposal into a Cancel                     | cleanup preserves access denial instead of relabeling it cancellation                    | exit 1; restored |
+
+Helper restoration SHA-256:
+`50746cb6d72ccf0bf809d5d039539d6dbce10fb5bd2a23a65abf75966a07bc3e`.
+Ignored logs: `temp/r2-atomic-cancel.log`, `temp/r2-latest-owner.log`,
+`temp/r2-latest-stdin.log`, `temp/r2-owner-exit.log`,
+`temp/r2-late-copy-cleanup.log`, `temp/r2-access-denied-native.log`,
+`temp/r2-pending-preparation.log`, `temp/r2-late-pending.log`,
+`temp/r2-cleanup-reason.log`.
+
+## Named residuals after RVM105R2
+
+No confirmed P1/P2 code finding is left open. PLAN §9 names these remaining
+receipt/policy limits and their follow-up:
+
+- **M105-R2-direct-runtime-receipt:** the VM explicitly refuses WGC; no direct
+  recording or actual hung encoder was tested. The lead owes the generated
+  encoder smoke and working-desktop capture/Stop/sound/permission receipts.
+- **M105-R2-forced-exit-preview:** a forced exit or persistent lock can retain
+  an owner-only file. Cooperative copy cancellation is tested to remove it;
+  bounded driver cleanup reports exhaustion and allows later preview disposal
+  to retry. W/E1/E2 owe confined deletion and crash/lock purge integration.
+- **M105-R2-latest-provenance:** modification age identifies the selected file,
+  not its capture provenance. Mandatory sniffing, bounds, preview and explicit
+  Attach keep this safe pending the lead's timestamp/UI policy decision.
+- **M105-R2-host-api-record:** the previously recorded W-owned importer count
+  mismatch is unchanged (84 → 85). The portable-boundary check passes. W must
+  regenerate/review the record before the full gate can pass.
+
+These limits do not certify direct capture or editor integration. Full quality,
+coverage, packaging and the hosted matrix remain the lead's integration gates.
+
+## Final RVM105R2 checks
+
+- Final recorder batch: `windowsScreenRecorder`, `windowsScreenRecorderBuild`,
+  `windowsScreenRecorderNative`: **102/102 passed**, no skipped Windows cases.
+  Existing compiler regressions `jobBuild` and `mcpJobExecutable`: **6/6
+  passed**. **108 distinct tests**, directly on Win11 in sequential batches
+  of at most three files and `--maxWorkers=3`, repository timeouts throughout.
+- `npm.cmd run typecheck`: all five projects passed. The unit project was
+  checked again after the final fixture corrections. The first full check
+  caught a resolver incorrectly inferred as a Vitest mock; its explicit
+  callable type fixed that test harness without a cast or suppression.
+- Changed-file ESLint passed for all five changed TypeScript files. The
+  original hooks also ran lint/format and staged gitleaks on the driver commit.
+- Changed-file Prettier check and `git diff --check`: passed. Final helper
+  and driver hashes match the byte-restoration receipts above.
+- `npm.cmd run deadcode`: passed, with only the existing configuration hints.
+- `npx.cmd jscpd`: zero clones across 1,170 files. Its first run caught six
+  duplicated preview-setup lines; the two cleanup regressions now share one
+  fixture setup while keeping their independent assertions and failure modes.
+- Localization: all 14 tables, 164 manifest strings and 593 source files,
+  **zero problems**. The new access-denied key has a real translation in every
+  table, and all fifteen runtime language cases passed.
+- `npm.cmd run check:host-api`: the existing W-owned 84 → 85 `node:path`
+  importer mismatch remains the sole failure; 332 VS Code APIs, 31 importing
+  files, 25 Node built-ins and 61 theme variables. Portable-boundary checks
+  pass. The original lane receipt below records this same mismatch.
+- `npm.cmd run build`: size, split, host-global and notices checks all passed.
+  Existing artifacts remain under their unchanged caps. W still owns the
+  complete `screenRecord.js` factory, its package members and integration.
+
+| Artifact                                                      |   Fresh size |                                 Existing cap |
+| ------------------------------------------------------------- | -----------: | -------------------------------------------: |
+| activation                                                    |    436.8 KiB |                                      600 KiB |
+| Model API                                                     |    446.7 KiB |                                      475 KiB |
+| ACP                                                           |    816.9 KiB |                                      850 KiB |
+| compressed English fallback                                   |     49.3 KiB |                                      125 KiB |
+| browser startup JS and static imports                         |    899.0 KiB |                                      900 KiB |
+| deferred browser JS                                           |     49.7 KiB |                                       50 KiB |
+| standalone owned Windows driver, shared UI/validation plugins | 12,509 bytes | complete recorder bundle remains W's receipt |
+
+## Original delivered scope (before RVM105R2)
 
 - `src/core/media/record/windows.ts` implements lane 0's driver and a separate
   latest-recording entry point through explicit injected ports. It has no
@@ -187,7 +324,7 @@ Final checks and the named, byte-exact red-drill table follow below.
 These owed checks keep M105 delivery c open; this lane is not a release or
 support claim for direct Windows recording.
 
-## Final lane checks
+## Original lane checks (before RVM105R2)
 
 - Final Vitest batch: `windowsScreenRecorder`, `windowsScreenRecorderNative`,
   `windowsScreenRecorderBuild`: **67/67 passed** (no skipped Windows checks).
@@ -238,7 +375,7 @@ It does not modify build scripts, budgets, package members or production
 entrypoints. Capture implementation and host/API record integration remain
 open exactly as noted above.
 
-## Guard-fire record
+## Original guard-fire record (before RVM105R2)
 
 All **47** controls below exited 1 with named failures. Every source was
 restored in finally and its SHA-256 matched the saved bytes. Each control ran

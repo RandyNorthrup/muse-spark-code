@@ -34,8 +34,10 @@ internal sealed class MuseSparkScreenRecord : Form
     private const uint VideoBitrate = 4000000, AudioBitrate = 128000;
     private const int SampleRate = 48000, Channels = 2, Bits = 16;
     private const int PollMilliseconds = 10, ParentPollMilliseconds = 100;
+    private const int OwnerExitMilliseconds = 2000, CopyBufferBytes = 81920;
     private const long RecentMaxAgeMilliseconds = 10L * 60 * 1000;
-    private readonly object gate = new object();
+    private readonly Lifetime lifetime = new Lifetime();
+    private object gate { get { return lifetime.Gate; } }
     private readonly string directory;
     private readonly long byteLimit;
     private readonly int maxSeconds, parent;
@@ -43,13 +45,14 @@ internal sealed class MuseSparkScreenRecord : Form
     private readonly Label clock = new Label();
     private readonly Stopwatch elapsed = new Stopwatch();
     private readonly System.Windows.Forms.Timer timer = new System.Windows.Forms.Timer();
-    private volatile bool stopping, cancelled, finished;
+    private bool stopping { get { return lifetime.Stopping; } }
+    private bool cancelled { get { return lifetime.Cancelled; } }
+    private volatile bool finished;
     private bool ownsDirectory;
     private Direct3D11CaptureFrame pending;
     private TimeSpan? videoStart;
     private Exception failure;
     private long audioPosition;
-    private volatile IAsyncInfo pendingOperation;
 
     private MuseSparkScreenRecord(string[] args)
     {
@@ -70,22 +73,13 @@ internal sealed class MuseSparkScreenRecord : Form
         timer.Tick += delegate {
             clock.Text = Math.Max(0, maxSeconds - (int)elapsed.Elapsed.TotalSeconds).ToString(CultureInfo.CurrentCulture);
             if (elapsed.IsRunning && elapsed.Elapsed.TotalSeconds >= maxSeconds) Stop(false);
-            try { using (Process owner = Process.GetProcessById(parent)) { if (owner.HasExited) Stop(true); } }
-            catch (ArgumentException) { Stop(true); }
         };
         Shown += async delegate {
             bool success = false;
             try {
                 timer.Start(); SystemEvents.PowerModeChanged += PowerChanged;
-                Thread controls = new Thread(delegate() {
-                    string command;
-                    while ((command = Console.ReadLine()) != null) {
-                        if (command == "stop") Stop(false); else Stop(true);
-                    }
-                    Stop(true);
-                });
-                controls.IsBackground = true; controls.Start();
-                await Record(); success = !cancelled && failure == null;
+                lifetime.WatchOwner(parent); StartControls(lifetime);
+                await Record(); success = lifetime.Finish(failure == null);
             }
             catch (Exception error) { failure = error; }
             finally {
@@ -93,6 +87,7 @@ internal sealed class MuseSparkScreenRecord : Form
                 timer.Stop(); timer.Dispose();
                 SystemEvents.PowerModeChanged -= PowerChanged;
                 if (!success && ownsDirectory) RemovePrivate(directory);
+                lifetime.Dispose();
                 Emit(success ? "complete" : "error", success ? null : ErrorCode(failure, cancelled));
                 Environment.ExitCode = success ? 0 : 1;
                 Close();
@@ -113,8 +108,13 @@ internal sealed class MuseSparkScreenRecord : Form
                 Console.WriteLine("muse-spark-screen-record-ready"); return 0;
             }
             if (args.Length == 5 && args[0] == "--latest") {
-                Latest(args[1], ParseLimit(args[2], MaxBytes), ParseLimit(args[4], RecentMaxAgeMilliseconds));
-                Emit("complete", null); return 0;
+                using (Lifetime lifetime = new Lifetime()) {
+                    lifetime.WatchOwner(Int32.Parse(args[3], CultureInfo.InvariantCulture));
+                    StartControls(lifetime);
+                    Latest(args[1], ParseLimit(args[2], MaxBytes), ParseLimit(args[4], RecentMaxAgeMilliseconds), lifetime);
+                    if (!lifetime.Finish(true)) throw new OperationCanceledException();
+                    Emit("complete", null); return 0;
+                }
             }
             if (args.Length != 9 || args[0] != "--record") throw new ArgumentException();
             using (MuseSparkScreenRecord form = new MuseSparkScreenRecord(args)) Application.Run(form);
@@ -140,6 +140,8 @@ internal sealed class MuseSparkScreenRecord : Form
     private static string ErrorCode(Exception error, bool cancelled)
     {
         if (cancelled || error is OperationCanceledException) return "cancelled";
+        System.ComponentModel.Win32Exception win32 = error as System.ComponentModel.Win32Exception;
+        if (win32 != null && win32.NativeErrorCode == 5) return "accessDenied";
         if (error is UnauthorizedAccessException || (error != null && error.HResult == unchecked((int)0x80070005))) return "permission";
         if (error is FileNotFoundException) return "noRecent";
         if (error is RecordingLimitException) return "limit";
@@ -148,13 +150,7 @@ internal sealed class MuseSparkScreenRecord : Form
 
     private void Stop(bool cancel)
     {
-        // Stop while the OS picker is open cancels the selection; during the
-        // recording it ends the media source and lets the MP4 sink finalize.
-        cancel |= !elapsed.IsRunning;
-        cancelled |= cancel; stopping = true;
-        IAsyncInfo operation = pendingOperation;
-        if (cancel && operation != null) { try { operation.Cancel(); } catch (COMException) { } }
-        lock (gate) Monitor.PulseAll(gate);
+        lifetime.Stop(cancel);
     }
     private void PowerChanged(object sender, PowerModeChangedEventArgs args)
     {
@@ -169,10 +165,7 @@ internal sealed class MuseSparkScreenRecord : Form
         if (cancelled) throw new OperationCanceledException();
         GraphicsCapturePicker picker = new GraphicsCapturePicker();
         ((IInitializeWithWindow)(object)picker).Initialize(Handle);
-        IAsyncOperation<GraphicsCaptureItem> selection = picker.PickSingleItemAsync();
-        pendingOperation = selection;
-        GraphicsCaptureItem item = await Await(selection);
-        pendingOperation = null;
+        GraphicsCaptureItem item = await lifetime.TrackOperation(picker.PickSingleItemAsync());
         if (item == null || cancelled) throw new OperationCanceledException();
         int width = item.Size.Width, height = item.Size.Height;
         if (width < 2 || height < 2) throw new NotSupportedException();
@@ -183,8 +176,8 @@ internal sealed class MuseSparkScreenRecord : Form
         using (Wasapi system = systemAudio ? new Wasapi(true) : null) {
             string destination = Path.Combine(directory, "recording.mp4");
             using (FileStream created = new FileStream(destination, FileMode.CreateNew)) { }
-            StorageFile sink = await Await(StorageFile.GetFileFromPathAsync(destination));
-            using (IRandomAccessStream output = new BoundedRandomAccessStream(await Await(sink.OpenAsync(FileAccessMode.ReadWrite)), byteLimit)) {
+            StorageFile sink = await lifetime.TrackOperation(StorageFile.GetFileFromPathAsync(destination));
+            using (IRandomAccessStream output = new BoundedRandomAccessStream(await lifetime.TrackOperation(sink.OpenAsync(FileAccessMode.ReadWrite)), byteLimit)) {
             // The OS capture border stays enabled. The visible Stop window is
             // already present before StartCapture or either audio Start call.
             item.Closed += delegate { Stop(false); };
@@ -224,18 +217,16 @@ internal sealed class MuseSparkScreenRecord : Form
             if (audio == null) profile.Audio = null;
             else { profile.Audio.SampleRate = SampleRate; profile.Audio.ChannelCount = Channels; profile.Audio.Bitrate = AudioBitrate; }
             MediaTranscoder transcoder = new MediaTranscoder(); transcoder.HardwareAccelerationEnabled = true;
-            PrepareTranscodeResult prepared = await Await(transcoder.PrepareMediaStreamSourceTranscodeAsync(source, output, profile));
+            PrepareTranscodeResult prepared = await lifetime.TrackOperation(transcoder.PrepareMediaStreamSourceTranscodeAsync(source, output, profile));
             if (!prepared.CanTranscode) throw new NotSupportedException();
             {
-                if (cancelled) throw new OperationCanceledException();
+                lifetime.StartRecording();
                 elapsed.Start(); session.StartCapture();
                 if (mic != null) mic.Start(); if (system != null) system.Start();
                 Emit("recording", null);
                 IAsyncActionWithProgress<double> encode = prepared.TranscodeAsync();
-                pendingOperation = encode;
-                try { await Await(encode); }
+                try { await lifetime.TrackTranscode(encode); }
                 finally {
-                    pendingOperation = null;
                     Stop(false); timer.Stop();
                     lock (gate) { if (pending != null) { pending.Dispose(); pending = null; } }
                 }
@@ -330,7 +321,7 @@ internal sealed class MuseSparkScreenRecord : Form
         }
     }
 
-    private static void Latest(string directory, long maximum, long maxAge)
+    private static void Latest(string directory, long maximum, long maxAge, Lifetime lifetime)
     {
         IntPtr value;
         Guid videos = new Guid("18989b1d-99b5-455b-841c-ab7c74e4ddfc");
@@ -338,13 +329,15 @@ internal sealed class MuseSparkScreenRecord : Form
         string folder;
         try { folder = Path.Combine(Marshal.PtrToStringUni(value), "Screen Recordings"); }
         finally { Marshal.FreeCoTaskMem(value); }
-        CopyLatest(folder, directory, maximum, maxAge);
+        CopyLatest(folder, directory, maximum, maxAge, lifetime);
     }
-    private static void CopyLatest(string folder, string directory, long maximum, long maxAge)
+    private static void CopyLatest(string folder, string directory, long maximum, long maxAge, Lifetime lifetime)
     {
+        lifetime.ThrowIfStopped();
         if (!Directory.Exists(folder) || (File.GetAttributes(folder) & FileAttributes.ReparsePoint) != 0) throw new FileNotFoundException();
         FileInfo newest = null;
         foreach (string file in Directory.EnumerateFiles(folder, "*", SearchOption.TopDirectoryOnly)) {
+            lifetime.ThrowIfStopped();
             FileInfo candidate = new FileInfo(file);
             double age = (DateTime.UtcNow - candidate.LastWriteTimeUtc).TotalMilliseconds;
             if (!String.Equals(candidate.Extension, ".mp4", StringComparison.OrdinalIgnoreCase) ||
@@ -370,10 +363,141 @@ internal sealed class MuseSparkScreenRecord : Form
             using (FileStream source = new FileStream(handle, FileAccess.Read)) {
                 if (source.Length <= 0 || source.Length > maximum) throw new RecordingLimitException();
                 CreatePrivate(directory);
+                lifetime.OwnDirectory(directory);
                 try {
-                    using (BoundedFile sink = new BoundedFile(Path.Combine(directory, "recording.mp4"), maximum)) source.CopyTo(sink);
+                    using (BoundedFile sink = new BoundedFile(Path.Combine(directory, "recording.mp4"), maximum)) {
+                        byte[] buffer = new byte[CopyBufferBytes];
+                        int count;
+                        while ((count = source.Read(buffer, 0, buffer.Length)) != 0) {
+                            lifetime.ThrowIfStopped();
+                            sink.Write(buffer, 0, count);
+                        }
+                    }
+                    lifetime.ThrowIfStopped();
                 } catch { RemovePrivate(directory); throw; }
             }
+        }
+    }
+
+    private static void StartControls(Lifetime lifetime)
+    {
+        Thread controls = new Thread(delegate() {
+            string command;
+            while ((command = Console.ReadLine()) != null) lifetime.Stop(command != "stop");
+            lifetime.Stop(true);
+        });
+        controls.IsBackground = true; controls.Start();
+    }
+
+    // One lock protects the monotone state and registration of an operation.
+    // Stop in preparation cancels; Stop while recording lets the sink finalize.
+    private sealed class Lifetime : IDisposable
+    {
+        private enum State { Preparing, Recording, Stopping, Cancelled, Completed }
+        public readonly object Gate = new object();
+        private State state;
+        private IAsyncInfo pendingOperation;
+        private string privateDirectory;
+        private readonly ManualResetEvent done = new ManualResetEvent(false);
+        public bool Cancelled { get { lock (Gate) return state == State.Cancelled; } }
+        public bool Stopping { get { lock (Gate) return state >= State.Stopping; } }
+        public void Stop(bool cancel)
+        {
+            IAsyncInfo operation;
+            lock (Gate) {
+                if (state == State.Completed) return;
+                if (cancel || state == State.Preparing) state = State.Cancelled;
+                else if (state == State.Recording) state = State.Stopping;
+                operation = state == State.Cancelled ? pendingOperation : null;
+                Monitor.PulseAll(Gate);
+            }
+            CancelOperation(operation);
+        }
+        private static void CancelOperation(IAsyncInfo operation)
+        {
+            if (operation == null) return;
+            // Completion may have closed a WinRT operation just before Stop.
+            try { operation.Cancel(); }
+            catch (COMException) { }
+            catch (ObjectDisposedException) { }
+        }
+        public void StartRecording()
+        {
+            lock (Gate) {
+                if (state != State.Preparing) throw new OperationCanceledException();
+                state = State.Recording;
+            }
+        }
+        public void ThrowIfStopped() { if (Stopping) throw new OperationCanceledException(); }
+        private void Register(IAsyncInfo operation)
+        {
+            bool cancel;
+            lock (Gate) {
+                pendingOperation = operation;
+                cancel = state == State.Cancelled;
+            }
+            if (cancel) CancelOperation(operation);
+        }
+        private void Clear(IAsyncInfo operation)
+        {
+            lock (Gate) { if (Object.ReferenceEquals(pendingOperation, operation)) pendingOperation = null; }
+        }
+        public async Task<T> TrackOperation<T>(IAsyncOperation<T> operation)
+        {
+            Register(operation);
+            try { return await Await(operation); }
+            finally { Clear(operation); }
+        }
+        public async Task TrackTranscode(IAsyncActionWithProgress<double> operation)
+        {
+            Register(operation);
+            try { await Await(operation); }
+            finally { Clear(operation); }
+        }
+        public bool Finish(bool valid)
+        {
+            lock (Gate) {
+                if (!valid || state == State.Cancelled) { Stop(true); return false; }
+                state = State.Completed; return true;
+            }
+        }
+        public void OwnDirectory(string directory) { privateDirectory = directory; }
+        public void WatchOwner(int parent)
+        {
+            Process owner;
+            if (parent <= 0) throw new ArgumentException();
+            try {
+                owner = Process.GetProcessById(parent);
+                // Force a held process handle now, so PID reuse cannot rebind it.
+                if (owner.HasExited) { owner.Dispose(); throw new OperationCanceledException(); }
+            } catch (ArgumentException) { throw new OperationCanceledException(); }
+            Thread watcher = new Thread(delegate() {
+                using (owner) {
+                    while (!done.WaitOne(ParentPollMilliseconds)) {
+                        if (!owner.HasExited) continue;
+                        // A stuck native operation must not outlive its owner.
+                        // Cooperative cancellation closes handles and cleans up;
+                        // a forced exit leaves any partial preview to host purge.
+                        using (System.Threading.Timer deadline = new System.Threading.Timer(
+                            delegate { if (!done.WaitOne(0)) Environment.Exit(1); }, null, OwnerExitMilliseconds, Timeout.Infinite)) {
+                            Stop(true);
+                            done.WaitOne();
+                        }
+                        return;
+                    }
+                }
+            });
+            watcher.IsBackground = true; watcher.Start();
+        }
+        public void Dispose()
+        {
+            bool completed;
+            lock (Gate) completed = state == State.Completed;
+            try {
+                // Cleanup follows terminal work; it must not turn an access or
+                // availability failure into a user cancellation before Emit.
+                if (!completed && privateDirectory != null) RemovePrivate(privateDirectory);
+            } finally { done.Set(); }
         }
     }
 

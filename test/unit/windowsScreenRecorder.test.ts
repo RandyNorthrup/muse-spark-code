@@ -100,6 +100,14 @@ async function outcomeOf(
   return await run.result
 }
 
+async function completedPreview(harness: ReturnType<typeof setup>) {
+  const run = await windowsScreenRecorder(harness.deps).start(OPTIONS, vi.fn())
+  harness.finish()
+  const outcome = await run.result
+  if (!outcome.ok) throw new Error('preview missing')
+  return { run, preview: outcome.preview }
+}
+
 afterEach(() => {
   vi.useRealTimers()
   setUiText(EN, 'en')
@@ -281,7 +289,13 @@ describe('M105 R2 Windows screen recorder', () => {
     async (phase) => {
       for (const shouldImportLatest of [false, true]) {
         const harness = setup()
-        const controls = { release: vi.fn() }
+        // If admission regresses, settle the wrongly launched helper so this
+        // control fails on its result/launch assertion rather than a timeout.
+        vi.mocked(harness.deps.launch).mockImplementation(() => {
+          queueMicrotask(harness.finish)
+          return harness.child
+        })
+        const controls: { release: () => void } = { release: vi.fn() }
         const pending = new Promise<void>((resolve) => {
           controls.release = resolve
         })
@@ -315,12 +329,9 @@ describe('M105 R2 Windows screen recorder', () => {
     vi.useFakeTimers()
     const harness = setup()
     vi.mocked(harness.deps.removeDirectory).mockRejectedValueOnce(new Error('locked'))
-    const run = await windowsScreenRecorder(harness.deps).start(OPTIONS, vi.fn())
-    harness.finish()
-    const outcome = await run.result
-    if (!outcome.ok) throw new Error('preview missing')
-    const first = outcome.preview.dispose()
-    expect(outcome.preview.dispose()).toBe(first)
+    const { run, preview } = await completedPreview(harness)
+    const first = preview.dispose()
+    expect(preview.dispose()).toBe(first)
     await vi.advanceTimersByTimeAsync(SCREEN_RECORDING_REMOVE_RETRY_MS)
     await first
     await run.cancel()
@@ -332,11 +343,8 @@ describe('M105 R2 Windows screen recorder', () => {
     vi.useFakeTimers()
     const harness = setup()
     vi.mocked(harness.deps.removeDirectory).mockRejectedValue(new Error('locked'))
-    const run = await windowsScreenRecorder(harness.deps).start(OPTIONS, vi.fn())
-    harness.finish()
-    const outcome = await run.result
-    if (!outcome.ok) throw new Error('preview missing')
-    const failed = expect(outcome.preview.dispose()).rejects.toThrow('locked')
+    const { run, preview } = await completedPreview(harness)
+    const failed = expect(preview.dispose()).rejects.toThrow('locked')
     await vi.advanceTimersByTimeAsync(
       SCREEN_RECORDING_REMOVE_ATTEMPTS * SCREEN_RECORDING_REMOVE_RETRY_MS,
     )
@@ -344,7 +352,7 @@ describe('M105 R2 Windows screen recorder', () => {
     expect(harness.deps.removeDirectory).toHaveBeenCalledTimes(SCREEN_RECORDING_REMOVE_ATTEMPTS)
     vi.mocked(harness.deps.removeDirectory).mockResolvedValue(undefined)
     await run.cancel()
-    await outcome.preview.dispose()
+    await preview.dispose()
     expect(harness.deps.removeDirectory).toHaveBeenCalledTimes(SCREEN_RECORDING_REMOVE_ATTEMPTS + 1)
     expect(vi.getTimerCount()).toBe(0)
   })

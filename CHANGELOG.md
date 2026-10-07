@@ -12,6 +12,9 @@ happened, not what was planned; superseded entries are kept.
 - Windows screen-recording preparation now observes host shutdown before
   asynchronous work, and private-preview deletion retries temporary locks
   with a bound while allowing later cleanup to retry an exhausted failure.
+- The Windows recorder helper now preserves concurrent cancellation, cancels
+  pending transcoder preparation, and watches its owner during capture and
+  latest-file import. File access denial has its own translated refusal.
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.
