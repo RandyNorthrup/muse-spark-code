@@ -9,6 +9,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Pass one serial worker limit to the local Semgrep launcher so aggregate
+  quality runs reach the scan with the pinned CLI.
+
+- Wait for actual scheduled harness events before accessibility scans instead
+  of sleeping five seconds on every page, keeping timed scenes and all checks.
+
 - Resolve installed browser paths before legal accessibility checks launch
   Playwright, including PATH-only Linux installs and explicit overrides.
 

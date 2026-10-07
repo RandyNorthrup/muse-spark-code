@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import ts from 'typescript'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 const DOM_METHODS = new Set([
   'querySelector',
@@ -83,7 +83,7 @@ function delayedDom(html: string): string[] {
       if (
         ts.isCallExpression(node) &&
         ts.isIdentifier(node.expression) &&
-        node.expression.text === 'later'
+        ['later', 'readinessLater'].includes(node.expression.text)
       ) {
         const callback = node.arguments[1]
         const comments = code.slice(node.getFullStart(), node.getStart(tree))
@@ -101,6 +101,151 @@ function delayedDom(html: string): string[] {
   }
   return failures
 }
+
+interface ScheduledEvent {
+  delay: number
+  run: () => void
+}
+
+function harnessSection(start: string, end: string): string {
+  const html = readFileSync(new URL('../harness/index.html', import.meta.url), 'utf8')
+  const first = html.indexOf(start)
+  const last = html.indexOf(end, first)
+  expect(first).toBeGreaterThanOrEqual(0)
+  expect(last).toBeGreaterThan(first)
+  return html.slice(first, last)
+}
+
+function runNext(timers: ScheduledEvent[]): void {
+  const timer = timers.shift()
+  if (timer === undefined) throw new Error('No scheduled harness event')
+  timer.run()
+}
+
+function scenarioClock() {
+  const timers: ScheduledEvent[] = []
+  const counts: number[] = []
+  return {
+    timers,
+    counts,
+    context: {
+      setTimeout: (run: () => void, delay: number) => {
+        timers.push({ run, delay })
+      },
+      observe: (count: number) => {
+        counts.push(count)
+      },
+    },
+  }
+}
+
+function readinessPage(now: () => number) {
+  return {
+    performance: { now },
+    document: { querySelector: () => null, fonts: { ready: Promise.resolve() } },
+    hasPageLoaded: true,
+    pendingFinds: 0,
+    pendingScenarioEvents: 1,
+    SCENARIO_READY: {},
+    READY_TIMEOUT_MS: 10_000,
+    READY_POLL_MS: 50,
+    finiteAnimations: () => [],
+  }
+}
+
+describe('harness scenario event readiness', () => {
+  it('requires timing reasons for readiness timers too', () => {
+    expect(delayedDom('<script>readinessLater(50, () => resolve())</script>')).toEqual([
+      'Timer without a kept-timing reason: readinessLater(50, () => resolve())',
+    ])
+    expect(
+      delayedDom(
+        '<script>// kept-timing: readiness yields before checking the page again.\nreadinessLater(50, () => resolve())</script>',
+      ),
+    ).toEqual([])
+  })
+
+  it('waits for nested scheduled events while preserving their actual delays', () => {
+    const source = harnessSection('let pendingScenarioEvents =', '// Runs fn with')
+    const { timers, counts, context } = scenarioClock()
+    runInNewContext(
+      `${source}\n later(300, () => { observe(pendingScenarioEvents); later(50, () => {}); }); observe(pendingScenarioEvents);`,
+      context,
+    )
+    expect(timers[0]?.delay).toBe(300)
+    runNext(timers)
+    runInNewContext('observe(pendingScenarioEvents)', context)
+    expect(timers[0]?.delay).toBe(50)
+    runNext(timers)
+    runInNewContext('observe(pendingScenarioEvents)', context)
+    expect(counts).toEqual([1, 1, 1, 0])
+  })
+
+  it('propagates a scheduled callback failure and releases its pending count', () => {
+    const source = harnessSection('let pendingScenarioEvents =', '// Runs fn with')
+    const { timers, counts, context } = scenarioClock()
+    runInNewContext(
+      `${source}\n later(300, () => { throw new Error('scheduled failure'); }); observe(pendingScenarioEvents);`,
+      context,
+    )
+    expect(() => {
+      runNext(timers)
+    }).toThrow('scheduled failure')
+    runInNewContext('observe(pendingScenarioEvents)', context)
+    expect(counts).toEqual([1, 0])
+  })
+
+  it('holds readiness until scheduled events finish, then still waits for both paints', async () => {
+    const source = harnessSection('const whenReady = async', '// A scan holds')
+    const timers: ScheduledEvent[] = []
+    const nextFrame = vi.fn(() => Promise.resolve())
+    const settled = vi.fn()
+    const context = {
+      ...readinessPage(() => 0),
+      nextFrame,
+      readinessLater: (delay: number, run: () => void) => {
+        timers.push({ delay, run })
+      },
+      settled,
+    }
+    runInNewContext(`${source}\n void whenReady('ordinary').then(settled);`, context)
+    expect(timers[0]?.delay).toBe(50)
+    expect(nextFrame).not.toHaveBeenCalled()
+    expect(settled).not.toHaveBeenCalled()
+    context.pendingScenarioEvents = 0
+    runNext(timers)
+    await vi.waitFor(() => {
+      expect(settled).toHaveBeenCalledOnce()
+    })
+    expect(nextFrame).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps the existing readiness deadline when an event never finishes', async () => {
+    const source = harnessSection('const whenReady = async', '// A scan holds')
+    let now = 0
+    const settled = vi.fn()
+    const failed = vi.fn()
+    runInNewContext(`${source}\n void whenReady('ordinary').then(settled, failed);`, {
+      ...readinessPage(() => now),
+      nextFrame: () => Promise.resolve(),
+      readinessLater: (delay: number, run: () => void) => {
+        now += delay
+        queueMicrotask(run)
+      },
+      settled,
+      failed,
+    })
+    await vi.waitFor(() => {
+      expect(failed).toHaveBeenCalledOnce()
+    })
+    expect(settled).not.toHaveBeenCalled()
+    expect(failed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'scenario ordinary never became ready within 10 s',
+      }),
+    )
+  })
+})
 
 describe('harness scenes wait for the controls they touch', () => {
   it.each([

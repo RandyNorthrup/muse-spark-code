@@ -142,7 +142,18 @@
       const send = (message) => {
         window.postMessage(message, '*')
       }
-      const later = (ms, fn) => setTimeout(fn, ms)
+      let pendingScenarioEvents = 0
+      const later = (ms, fn) => {
+        pendingScenarioEvents += 1
+        return setTimeout(() => {
+          try {
+            fn()
+          } finally {
+            pendingScenarioEvents -= 1
+          }
+        }, ms)
+      }
+      const readinessLater = (ms, fn) => setTimeout(fn, ms)
       // Runs fn with the first element matching selector once one renders:
       // after the settle time the scenarios have always given, then every
       // 50 ms. One that never renders throws, naming it, so the accessibility
@@ -3210,7 +3221,8 @@
               return
             }
             event({ type: 'textDelta', itemId: 'long', field: 'text', delta: chunk })
-            setTimeout(pump, 0)
+            // kept-timing: each long-reply delta yields to the event loop before the next one.
+            later(0, pump)
           }
           pump()
         },
@@ -6061,7 +6073,6 @@
         }
         document.body.classList.add(...theme.bodyClass.split(' '))
       }
-      const AXE_AFTER_MS = 5000
       const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']
       const writeAxeResult = (value) => {
         const result = document.createElement('pre')
@@ -6243,7 +6254,7 @@
         new Promise((resolve) => {
           requestAnimationFrame(() => resolve())
           // kept-timing: a background window needs a clock fallback when frames stop painting.
-          later(FRAME_FALLBACK_MS, resolve)
+          readinessLater(FRAME_FALLBACK_MS, resolve)
         })
       // An infinite animation (the caret's blink, a spinner) is a steady
       // state: it never finishes, so it is not waited for.
@@ -6262,7 +6273,7 @@
             promise,
             new Promise((resolve) => {
               // kept-timing: readiness has a bounded deadline even if fonts or animations never settle.
-              later(Math.max(0, deadline - performance.now()), resolve)
+              readinessLater(Math.max(0, deadline - performance.now()), resolve)
             }),
           ])
         const scenarioReady = name.startsWith('usage-page-')
@@ -6271,6 +6282,7 @@
         const isReady = () =>
           hasPageLoaded &&
           pendingFinds === 0 &&
+          pendingScenarioEvents === 0 &&
           document.querySelector('[data-deferred-loading]') === null &&
           scenarioReady()
         for (;;) {
@@ -6294,7 +6306,7 @@
           }
           await new Promise((resolve) => {
             // kept-timing: readiness polling yields before checking paints and animations again.
-            later(READY_POLL_MS, resolve)
+            readinessLater(READY_POLL_MS, resolve)
           })
         }
       }
@@ -6326,13 +6338,6 @@
       const themed = params.has('theme') ? applyTheme(params.get('theme')) : Promise.resolve()
       if (params.get('axe') === '1') {
         themed
-          .then(
-            () =>
-              new Promise((resolve) => {
-                // kept-timing: streaming and heartbeat scenes run through their timed events before axe starts.
-                later(AXE_AFTER_MS, resolve)
-              }),
-          )
           .then(() => whenReady(params.get('scenario') ?? 'none'))
           .then(collectWebviewErrors)
           .then(scanWhileFocused)

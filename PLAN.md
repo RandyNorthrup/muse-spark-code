@@ -40819,6 +40819,23 @@ installs. Remove the test harness's duplicate PATH resolver. Certify PATH
 selection and override refusals, the real legal keyboard/zoom/WCAG gate, then
 repeat the complete committed Linux job set. No browser or job timer changes.
 
+The four-CPU WCAG job has a structural floor: 988 pages each sleep five
+seconds, in six lanes, consuming nearly fourteen minutes before axe and the
+legal gate under a fifteen-minute job cap. Replace that blanket sleep with
+tracked fake-host/scenario callbacks and the existing bounded readiness
+condition. Preserve every scheduled event delay, streaming pump yield, font
+and animation wait, two paint frames, error capture, focus rule and per-page
+deadline. Readiness's own deadline/poll/frame timers stay untracked. Prove
+nested callbacks, callback failure cleanup and readiness blocking/deadlines
+with counterfactuals; rerun the complete job set from the committed repair.
+
+The Linux aggregate's local SAST launcher then refuses duplicated `--jobs`
+arguments: the inherited two-worker option and a later serial option both
+reach Semgrep 1.178.0. Keep one named serial worker limit, as the existing
+large-taint-analysis rationale requires; do not change rules, excludes,
+severity or scan deadlines. Certify the actual local launcher against the
+pinned scanner as well as CI's direct command.
+
 ### CI0150A — Clean-shard artifacts and portable certification (2026-10-07)
 
 Scope: six owning suites in the CI0150A brief. Clean hosted shards have no

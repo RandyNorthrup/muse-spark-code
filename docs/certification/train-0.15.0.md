@@ -1986,6 +1986,40 @@ push, rebase, merge, credential output or disabled hook.
   Final verification gives the accessibility job four CPUs to itself after
   other jobs finish, and reruns the complete job set after this repair.
 
+- The dedicated four-CPU accessibility job at `58023b3d7` passes all
+  checks but takes about 1,082 seconds including setup and legal checks,
+  exceeding its unchanged 900-second workflow cap. Its blanket five-second
+  wait per page consumes nearly fourteen minutes before scans. The harness
+  now tracks the real scheduled scenario/host callbacks and streaming yields;
+  readiness also requires their completion. All event delays, fonts, finite
+  animations, two paints, bounded readiness, focus and error checks remain.
+  Readiness's own timers use a separate clock adapter and still require
+  explicit timing reasons. The worktree's complete real run passes 988 WCAG
+  pages, 96 keyboard/zoom checks and 24 English/pseudo WCAG pages. The owning
+  harness/finder/capture files pass 37 tests with default timers. A real-browser
+  observation at scan completion confirms both heartbeat canvases are painted
+  (163 visible pixels each), and the long reply has rendered all its deltas.
+  Removing
+  event-count cleanup fails both nested and throwing-callback cases; removing
+  the pending-event readiness guard fails both readiness cases; excluding the
+  readiness timer adapter from the reason rule fails its new case. All five
+  new cases have fired and all drills restore exact bytes. The zero-duplication
+  gate first catches duplicated test contexts; those now share small fixtures.
+- The complete aggregate at `58023b3d7` passes 16,617 tests, merged coverage,
+  all 988 WCAG pages, legal checks and history-wide secret scanning, then
+  Semgrep refuses duplicated `--jobs` arguments. Its local launcher now
+  passes one named serial limit, retaining every rule, exclude, severity and
+  deadline. The actual launcher passes Semgrep 1.178.0 with zero findings.
+- Additional boundary drills complete the new cases' certification: ignoring
+  explicit Chrome overrides fails the four override tests (the earlier bare
+  candidate drill covers the other two cases); removing read-only diff-prefix
+  admission fails the binary-patch refusal; removing prefix-bound validation
+  fails both invalid-bound cases. Each file is restored byte-exact.
+- The latest integration job at `58023b3d7` stops while resolving the VS Code
+  download version with an OS network timeout before any integration test.
+  This is not a passing receipt; the complete final job set starts again from
+  the new committed repair without adding a retry to tests or workflow.
+
 ### Fresh-clone job verification
 
 The first committed repair (`02fd30fe9`) passes all four Linux shards, the

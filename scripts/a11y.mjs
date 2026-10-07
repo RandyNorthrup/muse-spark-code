@@ -48,8 +48,8 @@ const SIZED_VIEWPORT_HEIGHT = 760
 const MAX_WORKERS = 6
 // Bound concurrent axe work on Windows as before; every page still runs.
 const WINDOWS_MAX_WORKERS = 2
-// Each worker's browser holds this many pages at once; a page spends most of
-// its time in the harness's 5 s settle, in real time now.
+// Each worker's browser holds this many pages at once; scenario events and
+// readiness still run in real time before each scan.
 const PAGES_PER_WORKER = 2
 const WINDOWS_PAGES_PER_WORKER = 1
 // axe's reasons (messageKey) for a contrast it could not decide: the text is
