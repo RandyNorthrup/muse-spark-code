@@ -397,7 +397,9 @@ jobs:
       - name: built headless process and package guards (fake transport only)
         env:
           MUSE_ACP_PACKAGE_DIR: ${{ runner.temp }}/acp-install/node_modules/muse-spark-code-acp
-        run: npx vitest run test/e2e/execStdio.e2e.test.ts
+        run: |
+          npx vitest run test/e2e/execStdio.e2e.test.ts
+          npx vitest run test/e2e/acpStdio.e2e.test.ts -t "the ACP registry release gate"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: muse-spark-code-acp

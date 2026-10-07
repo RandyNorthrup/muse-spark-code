@@ -73,6 +73,7 @@ import { type DictationUiState, type MentionResults, userShellCommandOf } from '
 import { AttachmentChips } from './AttachmentChips'
 import { ContextMeter, type ContextMeterProps } from './ContextMeter'
 import {
+  BookmarkIcon,
   CloseIcon,
   FileIcon,
   MicIcon,
@@ -85,6 +86,7 @@ import {
 import { MENTION_OPTION_ID_PREFIX, MentionMenu, mentionOptionId } from './MentionMenu'
 import { modeIcon } from './modeIcons'
 import type { PaletteKeys } from './Palette'
+import type { MenuEntry } from './PopoverMenu'
 import { PALETTE_LISTBOX_ID } from '../../shared/constants'
 import { SLASH_LISTBOX_ID, SLASH_OPTION_ID_PREFIX, SlashMenu, slashOptionId } from './SlashMenu'
 
@@ -105,6 +107,11 @@ export interface SlashPaletteSlot {
 const PromptLibrary = deferred(async () => {
   const module = await import('../prompts/PromptLibrary')
   return { default: module.PromptLibrary }
+})
+
+const PopoverMenu = deferred(async () => {
+  const module = await import('./PopoverMenu')
+  return { default: module.PopoverMenu }
 })
 
 export interface ComposerProps {
@@ -335,6 +342,7 @@ function slashMenuOf(draft: string, caret: number): 'palette' | 'commands' | und
 
 export function Composer(props: ComposerProps) {
   const [isPromptLibraryOpen, setPromptLibraryOpen] = useState(false)
+  const [isPromptMenuOpen, setPromptMenuOpen] = useState(false)
   const {
     draft,
     placeholder,
@@ -458,7 +466,9 @@ export function Composer(props: ComposerProps) {
   // A prompt that starts with `!` runs as a shell command (M46): the box says so.
   const isShellMode = userShellCommandOf(draft) !== undefined
   const mention: MentionQuery | undefined = mentionQueryAt(draft, caret)
-  const isMentionOpen = mention !== undefined && dismissedMention !== mention.start
+  // The prompt menu takes the place of the attached `/` and `@` lists while it is open.
+  const isMentionOpen =
+    !isPromptMenuOpen && mention !== undefined && dismissedMention !== mention.start
   const mentionItems: readonly MentionItem[] =
     isMentionOpen && mentionResults !== undefined && mentionResults.requestId === activeRequest
       ? mentionResults.items
@@ -470,7 +480,9 @@ export function Composer(props: ComposerProps) {
     setDismissedSlash(undefined)
   }
   const slashMenu =
-    isFocusWithin && !isMenuOpen && dismissedSlash !== draft ? slashMenuOf(draft, caret) : undefined
+    isFocusWithin && !isMenuOpen && !isPromptMenuOpen && dismissedSlash !== draft
+      ? slashMenuOf(draft, caret)
+      : undefined
   const slashItems =
     slashMenu === 'commands' ? rankSlashCommands(slashCommands, draft.slice(1)) : []
   const activeSlash = slashIndex < slashItems.length ? slashIndex : 0
@@ -942,6 +954,45 @@ export function Composer(props: ComposerProps) {
   // What the box's aria-controls and aria-activedescendant point at.
   const popup = popupAria()
 
+  // Occasional prompt actions share one compact menu beside the toolbar's
+  // other menus; the panel's right-click menu offers them too.
+  const hasDraftText = draft.trim() !== ''
+  const promptEntries: MenuEntry[] = [
+    ...(hasDraftText && props.onSavePrompt !== undefined
+      ? [{ id: 'save', label: UI_TEXT.promptSave }]
+      : []),
+    ...(hasDraftText && props.onSharePrompt !== undefined
+      ? [{ id: 'share', label: UI_TEXT.sharePrompt }]
+      : []),
+    ...(props.promptLibrary !== undefined || props.onUseSavedPrompt !== undefined
+      ? [{ id: 'use', label: UI_TEXT.promptUseSaved }]
+      : []),
+  ]
+  const closePromptMenu = () => {
+    setPromptMenuOpen(false)
+    textareaRef.current?.focus()
+  }
+  const runPromptAction = (id: string) => {
+    switch (id) {
+      case 'save': {
+        props.onSavePrompt?.(draft)
+        break
+      }
+      case 'share': {
+        props.onSharePrompt?.(draft)
+        break
+      }
+      case 'use': {
+        if (props.onUseSavedPrompt === undefined) {
+          setPromptLibraryOpen(true)
+        } else {
+          props.onUseSavedPrompt()
+        }
+        break
+      }
+    }
+  }
+
   return (
     <footer
       className="composer"
@@ -1040,45 +1091,18 @@ export function Composer(props: ComposerProps) {
           }}
         />
       ) : null}
-      {props.onSavePrompt === undefined ? null : (
-        <button
-          type="button"
-          className="button-secondary"
-          disabled={draft.trim() === ''}
-          onClick={() => {
-            props.onSavePrompt?.(draft)
+      {isPromptMenuOpen && promptEntries.length > 0 ? (
+        <PopoverMenu
+          label={UI_TEXT.promptLibrary}
+          entries={promptEntries}
+          align="left"
+          onSelect={(id) => {
+            closePromptMenu()
+            runPromptAction(id)
           }}
-        >
-          {UI_TEXT.promptSave}
-        </button>
-      )}
-      {props.onSharePrompt === undefined ? null : (
-        <button
-          type="button"
-          className="button-secondary"
-          disabled={draft.trim() === ''}
-          onClick={() => {
-            props.onSharePrompt?.(draft)
-          }}
-        >
-          {UI_TEXT.sharePrompt}
-        </button>
-      )}
-      {props.promptLibrary === undefined && props.onUseSavedPrompt === undefined ? null : (
-        <button
-          type="button"
-          className="button-secondary"
-          onClick={() => {
-            if (props.onUseSavedPrompt === undefined) {
-              setPromptLibraryOpen(true)
-            } else {
-              props.onUseSavedPrompt()
-            }
-          }}
-        >
-          {UI_TEXT.promptUseSaved}
-        </button>
-      )}
+          onClose={closePromptMenu}
+        />
+      ) : null}
       <div className="composer-toolbar">
         <div className="composer-toolbar-group">
           <button
@@ -1101,6 +1125,26 @@ export function Composer(props: ComposerProps) {
           >
             <SlashIcon />
           </button>
+          {promptEntries.length === 0 ? null : (
+            <button
+              type="button"
+              className="icon-button prompt-menu-button"
+              title={UI_TEXT.promptLibrary}
+              aria-label={UI_TEXT.promptLibrary}
+              aria-haspopup="dialog"
+              aria-expanded={isPromptMenuOpen}
+              onMouseDown={keepMenuFocus}
+              onClick={() => {
+                if (isPromptMenuOpen) {
+                  closePromptMenu()
+                } else {
+                  setPromptMenuOpen(true)
+                }
+              }}
+            >
+              <BookmarkIcon />
+            </button>
+          )}
           <button
             type="button"
             className="pill"
