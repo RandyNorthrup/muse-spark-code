@@ -55,8 +55,15 @@ queue-cap tests (`canAddOwner is not a function`), both ceiling tests plus
 the widened-grant port case, the epoch-ack case, and the threat-table
 case (no table on base). On the fixed tree the same file is 35 passed.
 
-### Verification (fresh clone, `CI=true`, default timeouts)
+### Verification (fresh clone `/tmp/fixm100-verify`, `npm ci`, `CI=true`, default timeouts)
 
-To be recorded here after the final commit: three runs of the owning test
-file, the five typecheck projects, lint, prettier on changed files, plain
-knip, duplication, `check:reference`, `check:l10n` and `check:host-api`.
+- `npx vitest run test/unit/devicePhase2Contracts.test.ts --maxWorkers=3`
+  three times: 35 passed each time.
+- `npm run typecheck` (host, webview, unit, e2e, integration): clean.
+- `npm run lint:js` (full tree, `--max-warnings=0`): clean.
+- `npx prettier --check` on every changed file: clean.
+- Plain `knip`: exit 0 (two pre-existing configuration hints only).
+- `jscpd`: 0 clones.
+- `npm run check:reference`: current (53 features, Devices reference
+  18 entries). `node scripts/check-l10n.mjs`: 14 tables, 0 problems.
+  `node scripts/check-host-api.mjs`: 0 problems.
