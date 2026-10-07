@@ -547,7 +547,11 @@ export type DeviceChannelMessage = z.infer<typeof deviceChannelSchema>
 
 // G29 pacing, pure so lane C and its tests share the exact contract: at
 // most pendingHandshakes open handshakes per host, jittered exponential
-// backoff from the base capped at the ten-minute maximum.
+// backoff from the base capped at the ten-minute maximum. The jitter is
+// one-sided: randomSource removes up to handshakeBackoffJitter of the
+// nominal delay, so hosts that fail together spread out while the result
+// never exceeds the nominal delay or the cap. Tests inject a fixed source;
+// production passes Math.random.
 export function canOpenHandshake(pendingHandshakes: number): boolean {
   return (
     Number.isSafeInteger(pendingHandshakes) &&
@@ -555,12 +559,17 @@ export function canOpenHandshake(pendingHandshakes: number): boolean {
     pendingHandshakes < DEVICE_LIMITS.pendingHandshakes
   )
 }
-export function handshakeBackoffMs(failures: number): number {
+export function handshakeBackoffMs(
+  failures: number,
+  randomSource: () => number = Math.random,
+): number {
   const attempts = Number.isSafeInteger(failures) && failures > 0 ? failures : 1
-  return Math.min(
+  const nominal = Math.min(
     DEVICE_LIMITS.handshakeBackoffBaseMs * 2 ** (attempts - 1),
     DEVICE_LIMITS.handshakeBackoffMaxMs,
   )
+  const draw = Math.min(Math.max(randomSource(), 0), 1)
+  return nominal - nominal * DEVICE_LIMITS.handshakeBackoffJitter * draw
 }
 // G31: one failed authentication stops and asks; retries never loop.
 export function canRetryAuth(failures: number): boolean {
@@ -612,7 +621,12 @@ export const deviceCapabilitySchema = z
       (value) =>
         new Set(value.tools).size === value.tools.length &&
         new Set(value.engines.map((engine) => `${engine.model.providerId} ${engine.model.modelId}`))
-          .size === value.engines.length,
+          .size === value.engines.length &&
+        // The byte cap is part of the schema, not a comment beside it: a
+        // field-valid advertisement that serializes past capabilityBytes
+        // refuses to parse, so lane V can treat parse success as proof of
+        // the cap and lane C never has to drop what the schema called valid.
+        JSON.stringify(value).length <= DEVICE_LIMITS.capabilityBytes,
     ),
   )
 export type DeviceCapability = z.infer<typeof deviceCapabilitySchema>
@@ -621,7 +635,13 @@ export type DeviceCapability = z.infer<typeof deviceCapabilitySchema>
 // device serves two orchestrators only with separate grants and quotas per
 // owner. No credential field exists on any grant shape: a secret planted in
 // one refuses to parse.
-const grantMode = z.enum(['plan', 'manual', 'acceptEdits', 'auto'])
+// Lanes A and K read: modes from narrowest to widest. This order is the
+// ceiling order and deliberately differs from PERMISSION_MODES in
+// constants.ts, where plan sorts after manual: an index compare over that
+// array treats plan as wider than manual.
+export const DEVICE_GRANT_MODE_ORDER = ['plan', 'manual', 'acceptEdits', 'auto'] as const
+export type DeviceGrantMode = (typeof DEVICE_GRANT_MODE_ORDER)[number]
+const grantMode = z.enum(DEVICE_GRANT_MODE_ORDER)
 export const deviceGrantRequestSchema = z
   .strictObject({
     version: z.literal(DEVICE_LIMITS.protocolVersion),
@@ -664,6 +684,41 @@ export const deviceGrantSchema = z
   )
 export type DeviceGrant = z.infer<typeof deviceGrantSchema>
 
+// Lanes A and K read: the sender's ceiling a grant request is admitted
+// against. grantCeilingRefusal returns null when the request fits inside
+// the ceiling (mode no wider than the ceiling mode, every quota field no
+// larger than the ceiling quota) and a typed scope-denied refusal naming
+// the request's pair and owner otherwise. Parse success never means
+// admission: lanes A and K call this before admitting.
+export interface DeviceGrantCeiling {
+  readonly mode: DeviceGrantMode
+  readonly quota: DeviceCaps
+}
+const grantQuotaFields = [
+  'workers',
+  'processes',
+  'heavyChecks',
+  'tokens',
+  'spendUsd',
+  'artifactBytes',
+] as const
+export function grantCeilingRefusal(
+  request: DeviceGrantRequest,
+  ceiling: DeviceGrantCeiling,
+): DeviceGrantRefusal | null {
+  const isModeWider =
+    DEVICE_GRANT_MODE_ORDER.indexOf(request.mode) > DEVICE_GRANT_MODE_ORDER.indexOf(ceiling.mode)
+  const isQuotaWider = grantQuotaFields.some((field) => request.quota[field] > ceiling.quota[field])
+  if (!isModeWider && !isQuotaWider) return null
+  return {
+    version: DEVICE_LIMITS.protocolVersion,
+    pairId: request.pairId,
+    ownerId: request.ownerId,
+    reason: 'scope-denied',
+    retryable: false,
+  }
+}
+
 // A fresh per-action step-up, confirmed on the device. Presence is one of
 // the device's real methods; there is no unattested kind, so a faked answer
 // has no value that parses.
@@ -705,6 +760,24 @@ export const deviceGrantRefusalSchema = z.strictObject({
 })
 export type DeviceGrantRefusal = z.infer<typeof deviceGrantRefusalSchema>
 
+// Lane K reads: the owner/grant queue bounds as callable guards, mirroring
+// canOpenHandshake. Lane K calls canAddOwner before binding another owner
+// to a device and canAddGrant before issuing another grant under an owner,
+// so the caps are enforced by the shared contract rather than picked per
+// lane. Counts are current occupancy, not the incoming item.
+export function canAddOwner(ownerCount: number): boolean {
+  return (
+    Number.isSafeInteger(ownerCount) &&
+    ownerCount >= 0 &&
+    ownerCount < DEVICE_LIMITS.ownersPerDevice
+  )
+}
+export function canAddGrant(grantCount: number): boolean {
+  return (
+    Number.isSafeInteger(grantCount) && grantCount >= 0 && grantCount < DEVICE_LIMITS.grantsPerOwner
+  )
+}
+
 // Lane R reads: the result channel. Results return content-addressed and
 // are acknowledged once; a resend returns the recorded duplicate outcome,
 // and a late result is quarantined, never silently applied.
@@ -730,6 +803,26 @@ export const deviceResultAckSchema = z.strictObject({
   acknowledgedAt: timestamp,
 })
 export type DeviceResultAck = z.infer<typeof deviceResultAckSchema>
+
+// Lane R reads: an acknowledgement settles one (epoch, digest) pair, never
+// a digest alone. An old-epoch ack beside a new-epoch envelope with the
+// same digest does not match, so copying the sample port still resends the
+// new epoch instead of settling it. Lane R calls isAckForEnvelope before
+// applying an ack and canQueueResultAck before queueing another wait.
+export function isAckForEnvelope(ack: DeviceResultAck, envelope: DeviceResultEnvelope): boolean {
+  return (
+    isSameAttempt(ack.identity, envelope.identity) &&
+    ack.epoch === envelope.epoch &&
+    ack.resultDigest === envelope.resultDigest
+  )
+}
+export function canQueueResultAck(pendingAcks: number): boolean {
+  return (
+    Number.isSafeInteger(pendingAcks) &&
+    pendingAcks >= 0 &&
+    pendingAcks < DEVICE_LIMITS.pendingResultAcks
+  )
+}
 
 // Injected ports. Lanes C, V, A and R provide the real authorities; tests
 // inject fakes. No port carries credentials, probes or unattested presence.

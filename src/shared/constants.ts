@@ -77,6 +77,10 @@ export const DEVICE_LIMITS = {
   pendingHandshakes: 3,
   handshakeBackoffBaseMs: 15_000,
   handshakeBackoffMaxMs: 600_000,
+  // Fraction of the nominal backoff the injected jitter may remove: a draw
+  // of 0 keeps the nominal delay, a draw of 1 removes a quarter of it. The
+  // jittered delay never exceeds the nominal delay or the ten-minute cap.
+  handshakeBackoffJitter: 0.25,
   // G31: one failed authentication stops and asks; retries never loop.
   authFailuresBeforeAsk: 1,
   capabilityBytes: 8192,

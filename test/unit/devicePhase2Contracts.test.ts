@@ -2,12 +2,18 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { DEVICE_LIMITS, DEVICE_MODEL_TEXT } from '../../src/shared/constants'
 import {
+  DEVICE_GRANT_MODE_ORDER,
   DEVICE_GRANT_REFUSALS,
   DEVICE_RESULT_DISPOSITIONS,
   DEVICE_STEP_UP_METHODS,
   DEVICE_STREAMS,
   DEVICE_THROTTLE_REASONS,
+  isAckForEnvelope,
+  canAddGrant,
+  canAddOwner,
   canOpenHandshake,
+  canQueueResultAck,
+  grantCeilingRefusal,
   deviceCapabilitySchema,
   deviceChannelSchema,
   deviceGrantRefusalSchema,
@@ -27,6 +33,8 @@ import {
   type DeviceChannelMessage,
   type DeviceChannelPort,
   type DeviceGrant,
+  type DeviceGrantCeiling,
+  type DeviceGrantRefusal,
   type DeviceStream,
   type DeviceGrantRequest,
   type DeviceHeartbeat,
@@ -42,6 +50,9 @@ const ID = 'a'.repeat(32)
 const OTHER_ID = 'b'.repeat(32)
 const HASH = 'c'.repeat(64)
 const STREAMS: DeviceStream[] = ['control', 'status', 'events', 'logs', 'bulk']
+const noJitter = () => 0
+const halfJitter = () => 0.5
+const fullJitter = () => 1
 const ready: DeviceReady = {
   version: 1,
   pairId: ID,
@@ -200,14 +211,45 @@ describe('M100 phase-2 channel contracts (lane C reads)', () => {
     expect(canOpenHandshake(2)).toBe(true)
     expect(canOpenHandshake(3)).toBe(false)
     expect(canOpenHandshake(-1)).toBe(false)
-    expect(handshakeBackoffMs(1)).toBe(DEVICE_LIMITS.handshakeBackoffBaseMs)
-    expect(handshakeBackoffMs(2)).toBe(DEVICE_LIMITS.handshakeBackoffBaseMs * 2)
-    expect(handshakeBackoffMs(3)).toBe(DEVICE_LIMITS.handshakeBackoffBaseMs * 4)
-    expect(handshakeBackoffMs(10)).toBe(DEVICE_LIMITS.handshakeBackoffMaxMs)
-    expect(handshakeBackoffMs(100)).toBe(DEVICE_LIMITS.handshakeBackoffMaxMs)
     expect(canRetryAuth(0)).toBe(true)
     expect(canRetryAuth(1)).toBe(false)
     expect(canRetryAuth(2)).toBe(false)
+  })
+  it('jitters the backoff from an injected source within the stated bound (G29)', () => {
+    expect(DEVICE_LIMITS.handshakeBackoffJitter).toBe(0.25)
+    expect(handshakeBackoffMs(1, noJitter)).toBe(DEVICE_LIMITS.handshakeBackoffBaseMs)
+    expect(handshakeBackoffMs(2, noJitter)).toBe(DEVICE_LIMITS.handshakeBackoffBaseMs * 2)
+    expect(handshakeBackoffMs(3, noJitter)).toBe(DEVICE_LIMITS.handshakeBackoffBaseMs * 4)
+    expect(handshakeBackoffMs(10, noJitter)).toBe(DEVICE_LIMITS.handshakeBackoffMaxMs)
+    expect(handshakeBackoffMs(100, noJitter)).toBe(DEVICE_LIMITS.handshakeBackoffMaxMs)
+    expect(handshakeBackoffMs(1, fullJitter)).toBe(
+      DEVICE_LIMITS.handshakeBackoffBaseMs * (1 - DEVICE_LIMITS.handshakeBackoffJitter),
+    )
+    expect(handshakeBackoffMs(2, fullJitter)).toBe(
+      DEVICE_LIMITS.handshakeBackoffBaseMs * 2 * (1 - DEVICE_LIMITS.handshakeBackoffJitter),
+    )
+    expect(handshakeBackoffMs(1, halfJitter)).toBe(
+      DEVICE_LIMITS.handshakeBackoffBaseMs * (1 - DEVICE_LIMITS.handshakeBackoffJitter / 2),
+    )
+    for (const failures of [1, 2, 3, 10, 100]) {
+      const nominal = Math.min(
+        DEVICE_LIMITS.handshakeBackoffBaseMs * 2 ** (failures - 1),
+        DEVICE_LIMITS.handshakeBackoffMaxMs,
+      )
+      for (const source of [noJitter, halfJitter, fullJitter]) {
+        const jittered = handshakeBackoffMs(failures, source)
+        expect(jittered).toBeLessThanOrEqual(nominal)
+        expect(jittered).toBeGreaterThanOrEqual(
+          nominal * (1 - DEVICE_LIMITS.handshakeBackoffJitter),
+        )
+        expect(jittered).toBeLessThanOrEqual(DEVICE_LIMITS.handshakeBackoffMaxMs)
+      }
+    }
+    const deflected = handshakeBackoffMs(1)
+    expect(deflected).toBeLessThanOrEqual(DEVICE_LIMITS.handshakeBackoffBaseMs)
+    expect(deflected).toBeGreaterThanOrEqual(
+      DEVICE_LIMITS.handshakeBackoffBaseMs * (1 - DEVICE_LIMITS.handshakeBackoffJitter),
+    )
   })
 })
 
@@ -245,6 +287,25 @@ describe('M100 phase-2 capability contracts (lane V reads)', () => {
   })
   it('serializes the advertisement within the capability byte cap', () => {
     expect(JSON.stringify(capability).length).toBeLessThanOrEqual(DEVICE_LIMITS.capabilityBytes)
+  })
+  it('refuses a field-valid advertisement that serializes past the byte cap', () => {
+    const full: DeviceCapability = {
+      ...capability,
+      tools: Array.from({ length: DEVICE_LIMITS.capabilityTools }, (_, index) =>
+        `tool-${String(index)}-`.padEnd(DEVICE_LIMITS.labelChars, 'x'),
+      ),
+      engines: Array.from({ length: DEVICE_LIMITS.capabilityEngines }, (_, index) => ({
+        model: {
+          providerId: `p${String(index)}`.padEnd(DEVICE_LIMITS.modelIdChars, 'x'),
+          modelId: `m${String(index)}`.padEnd(DEVICE_LIMITS.modelIdChars, 'x'),
+        },
+        budget: 'ok',
+      })),
+      pressure: { ...capability.pressure, transportResets: Number.MAX_SAFE_INTEGER },
+    }
+    expect(JSON.stringify(full).length).toBeGreaterThan(DEVICE_LIMITS.capabilityBytes)
+    expect(deviceCapabilitySchema.safeParse(full).success).toBe(false)
+    expect(deviceCapabilitySchema.parse(capability)).toEqual(capability)
   })
 })
 
@@ -311,6 +372,75 @@ describe('M100 phase-2 grant contracts (lanes A and K read)', () => {
   })
 })
 
+describe('M100 phase-2 queue caps (lanes K and R read)', () => {
+  it('locks ownersPerDevice, grantsPerOwner and pendingResultAcks behind callable guards', () => {
+    expect(DEVICE_LIMITS.ownersPerDevice).toBe(4)
+    expect(DEVICE_LIMITS.grantsPerOwner).toBe(16)
+    expect(DEVICE_LIMITS.pendingResultAcks).toBe(256)
+    expect(canAddOwner(DEVICE_LIMITS.ownersPerDevice - 1)).toBe(true)
+    expect(canAddOwner(DEVICE_LIMITS.ownersPerDevice)).toBe(false)
+    expect(canAddGrant(DEVICE_LIMITS.grantsPerOwner - 1)).toBe(true)
+    expect(canAddGrant(DEVICE_LIMITS.grantsPerOwner)).toBe(false)
+    expect(canQueueResultAck(DEVICE_LIMITS.pendingResultAcks - 1)).toBe(true)
+    expect(canQueueResultAck(DEVICE_LIMITS.pendingResultAcks)).toBe(false)
+  })
+  it('refuses negative, fractional and non-finite counts on every queue guard', () => {
+    for (const guard of [canAddOwner, canAddGrant, canQueueResultAck]) {
+      expect(guard(0)).toBe(true)
+      expect(guard(-1)).toBe(false)
+      expect(guard(1.5)).toBe(false)
+      expect(guard(NaN)).toBe(false)
+      expect(guard(Number.MAX_SAFE_INTEGER)).toBe(false)
+    }
+  })
+})
+
+describe('M100 phase-2 grant ceiling (lanes A and K read)', () => {
+  const ceiling: DeviceGrantCeiling = {
+    mode: 'manual',
+    quota: { ...grantRequest.quota },
+  }
+  it('orders modes plan < manual < acceptEdits < auto', () => {
+    expect(DEVICE_GRANT_MODE_ORDER).toEqual(['plan', 'manual', 'acceptEdits', 'auto'])
+    expect(grantCeilingRefusal(grantRequest, ceiling)).toBe(null)
+    expect(grantCeilingRefusal({ ...grantRequest, mode: 'plan' }, ceiling)).toBe(null)
+    for (const mode of ['acceptEdits', 'auto'] as const) {
+      const refusal = grantCeilingRefusal({ ...grantRequest, mode }, ceiling)
+      expect(deviceGrantRefusalSchema.parse(refusal)).toEqual({
+        version: 1,
+        pairId: grantRequest.pairId,
+        ownerId: grantRequest.ownerId,
+        reason: 'scope-denied',
+        retryable: false,
+      })
+    }
+  })
+  it('refuses a grant wider than the ceiling on every quota field', () => {
+    const fields = [
+      'workers',
+      'processes',
+      'heavyChecks',
+      'tokens',
+      'spendUsd',
+      'artifactBytes',
+    ] as const
+    expect(fields).toHaveLength(6)
+    for (const field of fields) {
+      const quota = { ...grantRequest.quota }
+      quota[field] += 1
+      const widened: DeviceGrantRequest = { ...grantRequest, quota }
+      const refusal: DeviceGrantRefusal | null = grantCeilingRefusal(widened, ceiling)
+      expect(refusal?.reason).toBe('scope-denied')
+      expect(deviceGrantRefusalSchema.parse(refusal)).toEqual({
+        ...refusal,
+        version: 1,
+        pairId: grantRequest.pairId,
+        ownerId: grantRequest.ownerId,
+      })
+    }
+  })
+})
+
 describe('M100 phase-2 result contracts (lane R reads)', () => {
   it('parses an envelope and each disposition exactly once', () => {
     expect(deviceResultEnvelopeSchema.parse(envelope)).toEqual(envelope)
@@ -333,8 +463,9 @@ describe('M100 phase-2 result contracts (lane R reads)', () => {
 })
 
 describe('M100 phase-2 injected ports (later lanes implement, tests inject fakes)', () => {
-  it('admits an owner grant, refuses a wrong owner and attests step-up', async () => {
+  it('admits an owner grant, refuses a wrong owner and a widened grant, and attests step-up', async () => {
     const steppedUp: DeviceStepUpApproval[] = []
+    const ceiling: DeviceGrantCeiling = { mode: 'manual', quota: { ...grantRequest.quota } }
     const port: DeviceActionGrantPort = {
       admit: (request) => {
         if (request.ownerId !== ID)
@@ -345,7 +476,10 @@ describe('M100 phase-2 injected ports (later lanes implement, tests inject fakes
             reason: 'owner-mismatch',
             retryable: false,
           })
-        return Promise.resolve({ ...grant, pairId: request.pairId, ownerId: request.ownerId })
+        const overCeiling = grantCeilingRefusal(request, ceiling)
+        return overCeiling
+          ? Promise.resolve(overCeiling)
+          : Promise.resolve({ ...grant, pairId: request.pairId, ownerId: request.ownerId })
       },
       attestStepUp: (approval) => {
         steppedUp.push(approval)
@@ -356,6 +490,8 @@ describe('M100 phase-2 injected ports (later lanes implement, tests inject fakes
     expect(deviceGrantSchema.parse(admitted)).toEqual({ ...grant, pairId: ID, ownerId: ID })
     const refused = await port.admit({ ...grantRequest, ownerId: OTHER_ID })
     expect(deviceGrantRefusalSchema.parse(refused).reason).toBe('owner-mismatch')
+    const widened = await port.admit({ ...grantRequest, mode: 'auto' })
+    expect(deviceGrantRefusalSchema.parse(widened).reason).toBe('scope-denied')
     await port.attestStepUp(stepUp)
     expect(deviceStepUpSchema.parse(steppedUp[0])).toEqual(stepUp)
   })
@@ -393,15 +529,43 @@ describe('M100 phase-2 injected ports (later lanes implement, tests inject fakes
     const resultPort: DeviceResultPort = {
       publish: (result) => {
         const parsed = deviceResultEnvelopeSchema.parse(result)
-        const disposition = seen.has(parsed.resultDigest) ? 'duplicate' : 'accepted'
-        seen.add(parsed.resultDigest)
-        return Promise.resolve(deviceResultAckSchema.parse({ ...ack, disposition }))
+        const key = `${String(parsed.epoch)}:${parsed.resultDigest}`
+        const disposition = seen.has(key) ? 'duplicate' : 'accepted'
+        seen.add(key)
+        return Promise.resolve(
+          deviceResultAckSchema.parse({ ...ack, epoch: parsed.epoch, disposition }),
+        )
       },
     }
     const first = await resultPort.publish(envelope)
     const second = await resultPort.publish(envelope)
     expect(first.disposition).toBe('accepted')
     expect(second.disposition).toBe('duplicate')
+  })
+  it('binds an acknowledgement to its epoch: an old-epoch ack never settles a new epoch', async () => {
+    const settled = new Set<string>()
+    const resultPort: DeviceResultPort = {
+      publish: (result) => {
+        const parsed = deviceResultEnvelopeSchema.parse(result)
+        const key = `${String(parsed.epoch)}:${parsed.resultDigest}`
+        const disposition = settled.has(key) ? 'duplicate' : 'accepted'
+        settled.add(key)
+        return Promise.resolve(
+          deviceResultAckSchema.parse({ ...ack, epoch: parsed.epoch, disposition }),
+        )
+      },
+    }
+    const nextEpoch = { ...envelope, epoch: 2 }
+    const oldAck = await resultPort.publish(envelope)
+    expect(isAckForEnvelope(oldAck, envelope)).toBe(true)
+    expect(isAckForEnvelope(oldAck, nextEpoch)).toBe(false)
+    const fresh = await resultPort.publish(nextEpoch)
+    expect(fresh.disposition).toBe('accepted')
+    expect(isAckForEnvelope(fresh, nextEpoch)).toBe(true)
+    expect(isAckForEnvelope(fresh, envelope)).toBe(false)
+    expect(isAckForEnvelope({ ...fresh, resultDigest: 'd'.repeat(64) }, nextEpoch)).toBe(false)
+    const again = await resultPort.publish(nextEpoch)
+    expect(again.disposition).toBe('duplicate')
   })
 })
 
