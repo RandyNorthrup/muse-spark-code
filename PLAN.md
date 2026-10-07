@@ -28311,6 +28311,21 @@ Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
   no P1/P2/S surface, style or documentation region is changed. README,
   CHANGELOG and help-reference additions are supplied in F's contract for S
   and the integration lead (featureCatalog is absent on this base).
+- **P2 review repair completed (RVM114P2, 2026-10-06):** fix the owned header targets
+  at an actual 320 px harness viewport, distinguish approval/gooey hover from
+  pressed states in six themes and forced colours without blur, and correct
+  History's keyboard certification to its existing Arrow/Delete contract.
+  Each finding gets a regression and a byte-exact red drill in
+  `docs/certification/m114-p2-panel-polish-menus-dialogs-and-the-rest.md`.
+  No dependency, token, bridge, handler or P1 region changes are needed.
+  Actual PNG verification must also fit the default timeout: compare its
+  complete per-image facts as one batch, with a corruption/restoration drill.
+  All 205 tests across the ten final files pass with default timeouts on
+  Kubuntu; eight deliberate failures restore byte-exact. Refreshed evidence
+  covers 360 PNGs and 444 renders with zero scoped violations. No review
+  finding is deferred. Static/build checks pass except the inherited S-owned
+  host-API inventory mismatch recorded in §7/§9; startup CSS growth is 3,831
+  bytes, below 4 KiB, with unchanged caps.
 
 - **Lane 0's contracts,** frozen before the other lanes start:
   - the token names and groups, with each role's VS Code variable and its
@@ -30315,6 +30330,14 @@ localization and the production build. Full integrated quality, coverage,
 the polished-surface accessibility/visual matrix and editor bindings remain
 with the lead and lanes A/C/D/N/S. No gate or threshold is weakened.
 
+**M114 P2 review repair scoped certification (2026-10-06).** The rig/shared
+brief likewise prohibits aggregate quality/full unit runs and cross-lane
+edits. P2 runs complete owning test files with default timeouts, byte-exact
+red drills, scoped lint/format, all compiler projects, localization,
+dead-code, duplication and production build checks directly on Kubuntu.
+The existing S-owned host-API inventory and final integrated quality/visual
+certification remain explicit handoffs; no gate is weakened.
+
 **M114 lane 0 host-API record handoff to S.** `check:host-api` exits 1 only
 because the source list for the same 61 theme variables now includes the
 generated `src/webview/tokens.css`. The API counts and policy are unchanged.
@@ -31015,6 +31038,13 @@ before a repaired one loads (2026-09-30).
   inherited lane 0/S imported-role inventories, shared changelog/goldens,
   4 KiB startup-growth compaction target and lead aggregate quality keep
   their existing owners. No guard, permission or paid-call scope changes.
+- **M114-P2-HOST-API / integrated certification (inherited, 2026-10-06).**
+  The theme-variable inventory scanner misses imported generated host roles,
+  leaving S's host-API document stale. This does not alter host calls or
+  permissions; the unchanged gate still rejects release. S must fix the
+  scanner/inventory and the lead must run integrated quality and reviewed
+  visual goldens. RVM114P2's header, pressed-state and History-claim findings
+  are all fixed; none is accepted as a residual.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting
