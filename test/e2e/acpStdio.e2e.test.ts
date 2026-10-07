@@ -123,7 +123,7 @@ afterAll(async () => {
 })
 
 function agentEnvironment(configHome: string): NodeJS.ProcessEnv {
-  return {
+  const env: NodeJS.ProcessEnv = {
     ...process.env,
     // What the fake CLI needs (fakeMuse.ts), handed through the agent's own environment.
     MUSE_FAKE_NODE: process.execPath,
@@ -137,6 +137,22 @@ function agentEnvironment(configHome: string): NodeJS.ProcessEnv {
     LANG: 'C',
     LC_ALL: '',
   }
+  // Proxy lookups read the process environment, so an ambient sandbox proxy
+  // would leak into every spawned agent (Q66 names exactly the vars it sets).
+  // Tests that need a proxy set it through startAgent's extraEnv instead.
+  // Literal keys: the dynamic form trips no-dynamic-delete.
+  delete env['HTTP_PROXY']
+  delete env['HTTPS_PROXY']
+  delete env['ALL_PROXY']
+  delete env['FTP_PROXY']
+  delete env['http_proxy']
+  delete env['https_proxy']
+  delete env['all_proxy']
+  delete env['ftp_proxy']
+  delete env['NO_PROXY']
+  delete env['no_proxy']
+  delete env['NODE_USE_ENV_PROXY']
+  return env
 }
 
 interface Session {
