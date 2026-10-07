@@ -20696,6 +20696,17 @@ only, no dependencies or live calls. Certification: `docs/certification/m109-b.m
 - **R** waits for M96; its device part for M100's lanes S and E and M107's
   lane R.
 - **M** moves each store as its owner milestone merges (D89.14).
+- **M lane management slice (2026-10-06, MacBook):** the private migration
+  service and the SecretStorage/runtime adapters copy and SHA-256-verify,
+  retain and mirror rotations, undo, resume interrupted work and retire after
+  two minor-release ordinals (patches do not advance the ordinal). C binds the
+  encrypted journal and physical-commit checks to its serialized writer;
+  B/P/W bind generation/epoch ownership and lazy startup. Only the already
+  merged Model API key format is built in. Each unmerged store owner supplies
+  its exact codec, binding and original storage key as it lands; no guessed
+  credentials or activation changes. Ambient import and CSV are the next
+  lane-M slice. Receipts and integration obligations are in
+  `docs/certification/m109-m-migration-and-import.md`.
 - Every lane certifies on fakes. The rig captures need no model call. The
   Secure Enclave capture waits for the owner (Q-M109) and blocks no lane.
 

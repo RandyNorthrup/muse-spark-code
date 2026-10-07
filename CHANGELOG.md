@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- M109's private credential migration service and SecretStorage/OS-store
+  adapters: verified copies, downgrade mirrors, undo, interrupted-work recovery
+  and guarded retirement. Wiring into the vault remains an integration task.
+
 - M109's credential-vault contracts, canonical use digest, translated panel
   labels and warnings, test-only broker and route harnesses, and threat and
   capture plan. This prepares the runtime lanes; it does not enable a vault
