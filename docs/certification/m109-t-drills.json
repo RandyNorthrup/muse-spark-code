@@ -1,0 +1,69 @@
+[
+  {
+    "drill": "T01 forced taint",
+    "file": "src/core/vault/taint.ts",
+    "sha256": "ab345ae972d4734c889854a2ea7732c91655c8d1a580c3ae40e892285a5e78d3",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > forces an ask after web despite an Always grant and denies unattended use",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > forces an ask after search despite an Always grant and denies unattended use",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > forces an ask after browser despite an Always grant and denies unattended use",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > forces an ask after mcp despite an Always grant and denies unattended use",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > forces an ask after issue despite an Always grant and denies unattended use",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > forces an ask after pullRequest despite an Always grant and denies unattended use",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > forces an ask after agent despite an Always grant and denies unattended use",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > forces an ask after device despite an Always grant and denies unattended use",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > tracks actual Model API context and propagates summaries without poisoning an independent request",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > keeps Muse Code taint through later requests and refuses mutation of snapshots",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > Restricted Mode taints either backend, and Muse Code retains it after trust changes",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > bounds and deduplicates reasons without clearing taint, including unspecified provenance"
+    ]
+  },
+  {
+    "drill": "T02 provenance validation",
+    "file": "src/core/vault/taint.ts",
+    "sha256": "ab345ae972d4734c889854a2ea7732c91655c8d1a580c3ae40e892285a5e78d3",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > bounds and deduplicates reasons without clearing taint, including unspecified provenance"
+    ]
+  },
+  {
+    "drill": "T03 bounded reasons",
+    "file": "src/core/vault/taint.ts",
+    "sha256": "ab345ae972d4734c889854a2ea7732c91655c8d1a580c3ae40e892285a5e78d3",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > bounds and deduplicates reasons without clearing taint, including unspecified provenance"
+    ]
+  },
+  {
+    "drill": "T04 sticky Muse Code",
+    "file": "src/core/vault/taint.ts",
+    "sha256": "ab345ae972d4734c889854a2ea7732c91655c8d1a580c3ae40e892285a5e78d3",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > tracks actual Model API context and propagates summaries without poisoning an independent request",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > keeps Muse Code taint through later requests and refuses mutation of snapshots",
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > Restricted Mode taints either backend, and Muse Code retains it after trust changes"
+    ]
+  },
+  {
+    "drill": "T05 Restricted Mode",
+    "file": "src/core/vault/taint.ts",
+    "sha256": "ab345ae972d4734c889854a2ea7732c91655c8d1a580c3ae40e892285a5e78d3",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > Restricted Mode taints either backend, and Muse Code retains it after trust changes"
+    ]
+  },
+  {
+    "drill": "T06 derived context",
+    "file": "src/core/vault/taint.ts",
+    "sha256": "ab345ae972d4734c889854a2ea7732c91655c8d1a580c3ae40e892285a5e78d3",
+    "restored": true,
+    "failed": [
+      "FAIL  test/unit/vault/taint.test.ts > vault taint > tracks actual Model API context and propagates summaries without poisoning an independent request"
+    ]
+  }
+]

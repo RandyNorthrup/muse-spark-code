@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- M109 lane T's provenance engine distinguishes per-request Model API taint
+  from Muse Code's session taint, retains the outside-content reasons and
+  carries them through derived summaries. Broker integration remains pending.
+
 - M109's credential-vault contracts, canonical use digest, translated panel
   labels and warnings, test-only broker and route harnesses, and threat and
   capture plan. This prepares the runtime lanes; it does not enable a vault

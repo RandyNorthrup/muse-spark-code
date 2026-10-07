@@ -20637,6 +20637,20 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**Lane T implementation (2026-10-06, Mac mini).** Implement D89.7 provenance
+and sticky Muse Code session taint, plus D89.8's broker-memory Aho–Corasick
+scrubber, encoded forms, streaming overlap and disposal. Bind the Model API
+pre-send boundary, M84 portable/Markdown exports and M93's final draft through
+an injected scrub port; scrub failures refuse delivery. Provenance stays out
+of provider wire fields and survives replay, summaries and session restore.
+No broker, platform, exec or UI lane files change. The lead binds B's existing
+`scrub`/`taint` ports and the host transcript/log adapters; X consumes the
+streaming scrubber. M96 ledger/report and M102 journal owners are absent here:
+they bind the same shared port before storage or delivery (named handoffs in
+`docs/certification/m109-t-taint-and-scrub.md`). Certify V1/V3/V7/V9/V12 with
+generated canaries and byte-exact red drills; no paid/live calls, dependencies,
+cap changes, merges or aggregate quality run in this lane.
+
 **FIXM109B6 / RVM109B5 (2026-10-06).** Close both confirmed findings:
 make audit-session key erasure and reference clearing unconditional despite
 file-writer close failures, and report cleanup failure to Lock/Dispose callers;
