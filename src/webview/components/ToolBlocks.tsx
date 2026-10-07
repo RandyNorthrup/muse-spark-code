@@ -1,3 +1,4 @@
+import { webviewKey } from '../../shared/keybindings'
 // The pieces tool rows are built from (M15, M43): text clipped behind Show
 // more, a diff clipped behind Click to expand, and a block that opens its
 // whole content in an editor tab.
@@ -22,7 +23,7 @@ function Openable({
       title={UI_TEXT.openOutputTitle}
       onClick={onOpen}
       onKeyDown={(event) => {
-        if (event.key !== 'Enter' && event.key !== ' ') {
+        if (webviewKey('output.open', event) !== 'open') {
           return
         }
         event.preventDefault()

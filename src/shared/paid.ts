@@ -5,6 +5,7 @@
 // Shared by host and webview: no `vscode`, Node, or DOM imports.
 
 import * as z from 'zod/mini'
+import { isJudgeEngineOn } from '../core/judge/engine'
 import {
   BEST_OF_N_DEFAULT_ATTEMPTS,
   BEST_OF_N_DEFAULT_REQUESTS_PER_ATTEMPT,
@@ -15,6 +16,9 @@ import {
   MODEL_API_PRICES_PER_MILLION,
   MODEL_API_PRICE_DECIMALS,
   PAID_FEATURES,
+  PAID_FEATURE_SETTINGS,
+  type JudgeEngine,
+  type SETTING_DEFAULTS,
   PAID_PRICES_USD,
   type PaidFeature,
   SEARCHES_PER_PRICE_UNIT,
@@ -85,6 +89,63 @@ export interface SubagentUsage {
   readonly inputTokens: number
   readonly outputTokens: number
   readonly cachedTokens: number
+}
+
+/** Runtime paid-use identity: popup grants, tally fields and reference claims. */
+export const PAID_USE_REGISTRY = {
+  webSearch: { featureId: 'search', tally: 'webSearches', once: 'use' },
+  imageGeneration: { featureId: 'images', tally: 'images', once: 'use' },
+  voice: { featureId: 'voice', tally: 'voiceSeconds', once: 'use' },
+  subagents: {
+    featureId: 'subagents',
+    tally: 'subagentRequests',
+    unknown: 'subagentUnknownRequests',
+    once: 'use',
+  },
+  scheduledPrompts: { featureId: 'schedules', tally: 'scheduledRuns', once: 'use' },
+  autoReviewer: {
+    featureId: 'auto',
+    tally: 'autoReviews',
+    unknown: 'autoReviewUnknownRequests',
+    once: 'use',
+  },
+  bestOfN: { featureId: 'best-of-n', tally: 'bestOfNAttempts', once: 'use' },
+  tab: { featureId: 'tab', tally: 'tabRequests', once: 'window' },
+  hookModels: {
+    featureId: 'hook-models',
+    tally: 'hookModelRuns',
+    unknown: 'hookModelUnknownRequests',
+    once: 'use',
+  },
+  judge: { featureId: 'judge', tally: 'judgeCalls', unknown: 'judgeUnknownRequests', once: 'use' },
+} as const satisfies Readonly<
+  Record<
+    PaidFeature,
+    {
+      readonly featureId: string
+      readonly tally: keyof PaidTally
+      readonly unknown?: keyof PaidTally
+      readonly once: 'use' | 'window'
+    }
+  >
+>
+
+/** A boolean switch and the judge enum use their actual runtime predicates. */
+export function isPaidSettingOn(
+  feature: PaidFeature,
+  settings: {
+    readonly [
+      K in (typeof PAID_FEATURE_SETTINGS)[PaidFeature]
+    ]: (typeof SETTING_DEFAULTS)[K] extends boolean ? boolean : JudgeEngine
+  },
+): boolean {
+  return feature === 'judge'
+    ? isJudgeEngineOn(settings['judge.engine'])
+    : settings[PAID_FEATURE_SETTINGS[feature]]
+}
+
+export function paidWindowOnceFeatures(): ReadonlySet<PaidFeature> {
+  return new Set(PAID_FEATURES.filter((feature) => PAID_USE_REGISTRY[feature].once === 'window'))
 }
 
 /** Unknown model tariffs cannot authorize a paid child task. */

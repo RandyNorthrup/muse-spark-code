@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TodoItem } from '../../src/shared/agentEvents'
 import { UI_TEXT } from '../../src/shared/constants'
@@ -10,6 +10,7 @@ import type { ErrorReporter } from '../../src/webview/errorReport'
 import { restoredUiState, type WebviewState } from '../../src/webview/state/snapshot'
 import { createUiStore, listenToHost, persistStore } from '../../src/webview/state/store'
 import { initialUiState } from '../../src/webview/state/uiState'
+import { installSurfaceRetry, retrySurface } from '../../src/webview/surfaceRetry'
 import { testSettings } from './helpers/fakes'
 
 // M25 (PLAN.md D28): the UI state lives outside React, keeps reducing under
@@ -62,13 +63,18 @@ function openDocument(saved: unknown) {
     states.push(state)
   })
   const posted = vi.fn<(message: WebviewToHostMessage) => void>()
+  installSurfaceRetry(
+    () => {
+      persister.flush(store.hasRendered())
+    },
+    () => {
+      // The rebuilt document must receive the state saved before the host reload.
+      expect(states.at(-1)).toBeDefined()
+      posted({ type: 'hostAction', action: 'reload' })
+    },
+  )
   const view = render(
-    <ErrorBoundary
-      onError={() => undefined}
-      onReload={() => {
-        persister.flush(store.hasRendered())
-      }}
-    >
+    <ErrorBoundary onError={() => undefined} onReload={retrySurface}>
       <App store={store} postMessage={posted} />
     </ErrorBoundary>,
   )
@@ -211,7 +217,7 @@ describe('the crash screen and its Reload (M25)', () => {
     vi.restoreAllMocks()
   })
 
-  it('keeps reducing under the crash screen and comes back with the transcript, the turn and the card', () => {
+  it('keeps reducing under the crash screen and comes back with the transcript, the turn and the card', async () => {
     const first = openDocument(undefined)
     hostReady('s1', 't1')
     event({ type: 'turnStarted', turnId: 't1' })
@@ -249,7 +255,9 @@ describe('the crash screen and its Reload (M25)', () => {
     deliver({ type: 'surfaceState', sessionId: 's1', activeTurnId: 't1' })
     deliver({ type: 'authState', status: 'signedIn' })
     expect(screen.getByText('Before and after')).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: 'Red' })).toBeInTheDocument()
+    expect(
+      await within(screen.getByRole('main')).findByRole('radio', { name: 'Red' }),
+    ).toBeInTheDocument()
     expect(screen.getByLabelText('Stop')).toBeInTheDocument()
     second.close()
   })
@@ -285,6 +293,7 @@ describe('the crash screen and its Reload (M25)', () => {
     expect(screen.getByText(UI_TEXT.crashTitle)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.crashReload }))
     expect(second.states.at(-1)).toEqual({ sessionId: 's1' })
+    expect(second.posted).toHaveBeenCalledWith({ type: 'hostAction', action: 'reload' })
     second.close()
     const third = openDocument(throughJson(second.states.at(-1)))
     hostReady('s1')

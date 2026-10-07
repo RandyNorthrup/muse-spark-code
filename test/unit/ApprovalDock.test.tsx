@@ -5,7 +5,7 @@ import { UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { forms } from '../../src/shared/l10n/forms'
 import { setUiText } from '../../src/shared/l10n/text'
-import { ApprovalDock } from '../../src/webview/components/ApprovalDock'
+import { AttentionDock as ApprovalDock } from '../../src/webview/components/AttentionDock'
 import type { PendingApproval, WaitingApproval } from '../../src/webview/state/uiState'
 
 /** A two-step approval waiting on `sourceIndex`, its Reject taking feedback. */

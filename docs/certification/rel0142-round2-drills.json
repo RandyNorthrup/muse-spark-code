@@ -1,0 +1,127 @@
+[
+  {
+    "rig": "kubuntu",
+    "finding": "P1",
+    "source": "src/shared/l10n/en.ts",
+    "mutation": {
+      "before": "A finite session budget requires an owned parent budget scope shared by candidates.",
+      "after": "A finite session budget prevents this workflow until candidate budgets can be shared."
+    },
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/referenceGenerator.test.mjs",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exitCode": 1,
+    "diagnostics": [
+      "FAIL  test/unit/referenceGenerator.test.mjs > the code-derived reference gate > checks all generated outputs byte-for-byte",
+      "FAIL  test/unit/referenceGenerator.test.mjs > RVHELPREF truth regressions > RVHELPREF4 P1 derives the Best-of-N budget prerequisite from production admission"
+    ],
+    "sha256Before": "f60056435aaf6afbd45f4ca48e9e0aed4373ccafad4886363f34ed909244169a",
+    "sha256Restored": "f60056435aaf6afbd45f4ca48e9e0aed4373ccafad4886363f34ed909244169a",
+    "restoredByteExact": true,
+    "elapsedSeconds": 79.13
+  },
+  {
+    "rig": "kubuntu",
+    "finding": "P2-1",
+    "source": "scripts/lib/reference.mjs",
+    "mutation": {
+      "before": "(?:available|unavailable|enabled|disabled|on|off|active",
+      "after": "(?:unavailable|enabled|disabled|on|off|active"
+    },
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/referenceGenerator.test.mjs",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exitCode": 1,
+    "diagnostics": [
+      "FAIL  test/unit/referenceGenerator.test.mjs > RVHELPREF2 runtime truth regressions > RVHELPREF4 P2-1 rejects the closed state vocabulary at the generator boundary"
+    ],
+    "sha256Before": "3c69765ddc86442cfd6d0232882cc33a9c047960504ba3d56dd0368fddac5353",
+    "sha256Restored": "3c69765ddc86442cfd6d0232882cc33a9c047960504ba3d56dd0368fddac5353",
+    "restoredByteExact": true,
+    "elapsedSeconds": 64.08
+  },
+  {
+    "rig": "kubuntu",
+    "finding": "P2-2",
+    "source": "scripts/lib/reference.mjs",
+    "mutation": {
+      "before": "errors.push(...lintOutput(model))",
+      "after": "errors.push(...lintOutput({ ...model, shortcuts: [] }))"
+    },
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/referenceGenerator.test.mjs",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exitCode": 1,
+    "diagnostics": [
+      "FAIL  test/unit/referenceGenerator.test.mjs > RVHELPREF2 runtime truth regressions > RVHELPREF4 P2-2 walks emitted shortcut descriptions and future nested rows"
+    ],
+    "sha256Before": "3c69765ddc86442cfd6d0232882cc33a9c047960504ba3d56dd0368fddac5353",
+    "sha256Restored": "3c69765ddc86442cfd6d0232882cc33a9c047960504ba3d56dd0368fddac5353",
+    "restoredByteExact": true,
+    "elapsedSeconds": 80.52
+  },
+  {
+    "rig": "kubuntu",
+    "finding": "packing-equality",
+    "source": "src/shared/reference/reference.generated.ts",
+    "mutation": {
+      "before": "return prefix + (prefixMatch[2] ?? '')",
+      "after": "return prefixMatch[2] ?? ''"
+    },
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/referenceEntry.test.ts",
+      "--maxWorkers=3",
+      "--testTimeout=120000"
+    ],
+    "exitCode": 1,
+    "diagnostics": [
+      "FAIL  test/unit/referenceEntry.test.ts > reference host actions and command line > RVHELPREF4 renders localized enum and fact conditions in terminal help",
+      "FAIL  test/unit/referenceEntry.test.ts > reference host actions and command line > reads every current value, keeps sensitive variables off the bridge and sends a valid model",
+      "FAIL  test/unit/referenceEntry.test.ts > reference host actions and command line > opens an exact known setting key, including native-host dotted anchors",
+      "FAIL  test/unit/referenceEntry.test.ts > reference host actions and command line > allows only reviewed context-free commands and rejects destructive or foreign commands",
+      "FAIL  test/unit/referenceEntry.test.ts > reference host actions and command line > prints every category without starting a backend and parses full help strictly",
+      "FAIL  test/unit/referenceEntry.test.ts > RVHELPREF host and terminal regressions > R22 uses installed manifest titles, setting prose and enum translations in full help",
+      "FAIL  test/unit/referenceEntry.test.ts > round-trips the entire compressed reference without losing any fact"
+    ],
+    "sha256Before": "69d8367c2790cd7dc1e01e4de0ffa4c28e883f6b76c07636c46442af17871827",
+    "sha256Restored": "69d8367c2790cd7dc1e01e4de0ffa4c28e883f6b76c07636c46442af17871827",
+    "restoredByteExact": true,
+    "elapsedSeconds": 2.84
+  },
+  {
+    "rig": "kubuntu",
+    "finding": "merged-shell-condition",
+    "source": "src/shared/featureCatalog.ts",
+    "mutation": {
+      "before": "  'shell.passEnvironmentVariables': 'backend=modelApi&shellOrigin=interactive',\n",
+      "after": ""
+    },
+    "command": ["node", "scripts/gen-reference.mjs", "--check"],
+    "exitCode": 1,
+    "diagnostics": [
+      "Error: Catalogue asserts conditional state: museSpark.shell.passEnvironmentVariables"
+    ],
+    "sha256Before": "9c8b9f174529e18cddd286c7a0314eed2d4c5b058830e74d32fc1351f981644e",
+    "sha256Restored": "9c8b9f174529e18cddd286c7a0314eed2d4c5b058830e74d32fc1351f981644e",
+    "restoredByteExact": true,
+    "elapsedSeconds": 0.97
+  }
+]

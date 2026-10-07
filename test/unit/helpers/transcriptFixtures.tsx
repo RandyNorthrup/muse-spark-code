@@ -139,3 +139,15 @@ export function selectPassage(element: HTMLElement): () => void {
     selection.removeAllRanges()
   }
 }
+
+/** Share the cold menu import in synchronous row-behaviour suites. */
+export async function warmRowMenus(): Promise<void> {
+  const props = transcriptProps(
+    [{ kind: 'assistant', id: 'warm', text: 'Warm menu', isStreaming: false }],
+    {},
+  )
+  const view = render(<Transcript {...props} />)
+  fireEvent.click(view.getByRole('button', { name: 'More actions' }))
+  await view.findByRole('menu')
+  view.unmount()
+}

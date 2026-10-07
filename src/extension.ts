@@ -1,6 +1,7 @@
-import { isJudgeEngineOn } from './core/judge/engine'
 import { judgeWindowPort } from './host/judge/judgeBundle'
 import { storeErrorCode } from './host/backend/storeErrors'
+import { isReferenceRequest, referenceLoader } from './host/referenceLoader'
+import { REFERENCE_BUNDLE_FILE } from './shared/constants'
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
@@ -52,6 +53,7 @@ import { type ProcessResult, SandboxSetup } from './host/backend/sandboxSetup'
 import { fileContextIo } from './host/backend/contextIo'
 import { describeEnvironment } from './host/backend/environment'
 import { createFileSessionStore } from './host/backend/fileSessionStore'
+import type { QuestionStore } from './shared/questions'
 import { modelApiMcpPoolDeps } from './host/backend/mcpServers'
 import { type JobHelper, jobSourceReader } from './host/backend/jobSource'
 import { mcpJobExecutable } from './host/backend/mcpJobExecutable'
@@ -111,6 +113,7 @@ import { ideCodeIntelTools } from './host/ide/codeIntelTools'
 import { codeIntelLoader } from './host/ide/codeIntelBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures } from './shared/paid'
+import { isJudgeEngineOn } from './core/judge/engine'
 import { agentImportLoader } from './host/agentImportBundle'
 import {
   TAB_BUNDLE_FILE,
@@ -194,6 +197,7 @@ import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictati
 import { voiceLoader } from './host/voice/voiceBundle'
 import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { createPaidFeatures } from './host/paid/paidHost'
+import { isActivationPaidSettingOn } from './host/paid/paidActivation'
 import { createPaidDailyBudget } from './host/paid/paidDailyBudget'
 import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
 import {
@@ -757,6 +761,16 @@ async function activateWindow(
   // D49): a window on a folder under the extension's pull request worktrees is
   // held until the user trusts it in the card, whatever VS Code's trust says.
   const storageRoot = context.globalStorageUri.fsPath
+  let loadedQuestionsStore: QuestionStore | undefined
+  const questionStore = () => {
+    loadedQuestionsStore ??= loadConversation().createHostQuestionStore(storageRoot)
+    return loadedQuestionsStore
+  }
+  const questionsStore: QuestionStore = {
+    load: (id) => questionStore().load(id),
+    save: (id, questions) => questionStore().save(id, questions),
+    remove: (id) => questionStore().remove(id),
+  }
   const worktreeRegistry = new WorktreeRegistry(context.globalState, process.platform, existsSync)
   const windowHold = new WindowHold(
     holdFor(
@@ -911,8 +925,7 @@ async function activateWindow(
   const paid = createPaidFeatures({
     globalState: context.globalState,
     workspaceState: context.workspaceState,
-    isSettingOn: (feature) =>
-      feature !== 'judge' && currentSettings()[PAID_FEATURE_SETTINGS[feature]],
+    isSettingOn: (feature) => isActivationPaidSettingOn(feature, currentSettings()),
     isJudgeOn: () => isJudgeEngineOn(currentSettings()['judge.engine']),
     isAvailable: (feature) =>
       feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature),
@@ -2234,6 +2247,7 @@ async function activateWindow(
         ? undefined
         : createFileSessionStore({
             directory: path.join(context.storageUri.fsPath, MODEL_API_SESSIONS_DIR),
+            questions: questionsStore,
             log,
             retentionDays: () => currentSettings().cleanupPeriodDays,
             now: () => Date.now(),
@@ -2404,6 +2418,11 @@ async function activateWindow(
   // `Report a Problem` with no conversation open (M93): the dialog opens
   // once the surface it opened is ready to show it.
   let isReportPending = false
+  let isHelpPending = false
+  const referenceBundle = referenceLoader({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', REFERENCE_BUNDLE_FILE).fsPath,
+    log,
+  })
   // The report dialog's facts, journal and scrub context (M93, PLAN.md D72):
   // local reads only. The CLI's sign-in comes from its credential file's
   // structure (no `account/read`), the key's presence from the secret store.
@@ -2819,6 +2838,7 @@ async function activateWindow(
             return await runner?.rewriteMessage(text)
           },
           surface,
+          questions: factory.questionsForHost(questionsStore),
           tasksTab,
           auth,
           ensureHost: ensureSelectedHost,
@@ -3121,6 +3141,10 @@ async function activateWindow(
     onSurfaceReady: (surface, attachmentEpoch) => {
       const controller = controllerFor(surface)
       controller.surfaceReady(attachmentEpoch)
+      if (isHelpPending) {
+        isHelpPending = false
+        surface.post({ type: 'openHelp' })
+      }
       // `Report a Problem` opened this surface (M93): its dialog now has a page to show in.
       if (isReportPending) {
         isReportPending = false
@@ -3147,6 +3171,34 @@ async function activateWindow(
       void sandbox.offerIfNeeded('startup').catch(logRejection(log, 'sandbox offer'))
     },
     onConversationMessage: (surface, message) => {
+      if (isReferenceRequest(message)) {
+        void (async () => {
+          const reference = referenceBundle().createReference(l10n.table, l10n.locale)
+          await reference.handle(message, {
+            readNls: async () => {
+              const file =
+                l10n.locale === 'en' ? 'package.nls.json' : `package.nls.${l10n.locale}.json`
+              const text = await readUiTableFile(context.extensionUri.fsPath, [file])
+              const parsed: unknown = JSON.parse(text)
+              return parsed
+            },
+            currentValue: (key) => vscode.workspace.getConfiguration().get(key),
+            openSetting: async (key) => {
+              await vscode.commands.executeCommand(VSCODE_COMMANDS.openSettings, `@id:${key}`)
+            },
+            runCommand: async (command) => {
+              await vscode.commands.executeCommand(command)
+            },
+            post: (reply) => {
+              surface.post(reply)
+            },
+          })
+        })().catch((error: unknown) => {
+          logRejection(log, 'help reference')(error)
+          surface.post({ type: 'referenceValues', model: '', values: {}, nls: {}, error: true })
+        })
+        return
+      }
       void controllerFor(surface).handle(message)
     },
   }
@@ -3509,6 +3561,16 @@ async function activateWindow(
     registerLoggedCommand(log, COMMAND_IDS.showLogs, () => {
       channel.show(true)
     }),
+    registerLoggedCommand(log, COMMAND_IDS.openHelp, async () => {
+      const surface = registry.active
+      if (surface === undefined) {
+        isHelpPending = true
+        await openConversation()
+        return
+      }
+      surface.reveal()
+      surface.post({ type: 'openHelp' })
+    }),
     // Report a problem (M93, PLAN.md D72): the dialog over the journal and
     // local facts, in the conversation in view or one opened for it.
     registerLoggedCommand(log, COMMAND_IDS.reportProblem, async () => {
@@ -3617,6 +3679,18 @@ async function activateWindow(
         },
       })
     }),
+    ...(['next', 'previous'] as const).map((direction) =>
+      registerLoggedCommand(
+        log,
+        direction === 'next' ? COMMAND_IDS.nextOpenQuestion : COMMAND_IDS.previousOpenQuestion,
+        () => {
+          const surface = registry.active
+          if (surface === undefined) return
+          surface.reveal()
+          controllers.get(surface.id)?.jumpToOpenQuestion(direction)
+        },
+      ),
+    ),
     registerLoggedCommand(log, COMMAND_IDS.toggleFocusView, async () => {
       await runHostAction('toggleFocusView')
     }),

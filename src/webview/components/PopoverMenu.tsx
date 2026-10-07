@@ -1,3 +1,4 @@
+import { webviewKey } from '../../shared/keybindings'
 // A small anchored menu above a composer button (the "+" attach menu and the
 // permission Modes menu). Keyboard-first: the list itself holds focus,
 // Up/Down move, Enter or Space activate, Left/Right go to the optional
@@ -61,32 +62,31 @@ export function PopoverMenu(props: PopoverMenuProps) {
   }
 
   const handleKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
-    switch (event.key) {
-      case 'ArrowDown': {
+    switch (webviewKey('popover', event)) {
+      case 'next': {
         event.preventDefault()
         move(1)
         break
       }
-      case 'ArrowUp': {
+      case 'previous': {
         event.preventDefault()
         move(-1)
         break
       }
-      case 'ArrowLeft':
-      case 'ArrowRight': {
-        const direction = event.key === 'ArrowRight' ? STEP_RIGHT : STEP_LEFT
+      case 'decrease':
+      case 'increase': {
+        const direction = webviewKey('popover', event) === 'increase' ? STEP_RIGHT : STEP_LEFT
         if (onStep?.(direction) === true) {
           event.preventDefault()
         }
         break
       }
-      case 'Enter':
-      case ' ': {
+      case 'accept': {
         event.preventDefault()
         activate(activeIndex)
         break
       }
-      case 'Escape': {
+      case 'close': {
         event.preventDefault()
         onClose()
         break

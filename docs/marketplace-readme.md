@@ -22,7 +22,42 @@ Code” are Meta trademarks. You bring your own credentials.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-## What's new in 0.14.1
+**Contents:** [What's new](#whats-new-in-0143) · [Get started](#get-started) ·
+[Work in the panel](#work-in-the-panel)
+
+## What's new in 0.14.3
+
+- **Questions never block.** A question Muse asks you is pinned in the
+  attention dock above the composer and kept in the transcript. After a minute
+  (`museSpark.questions.deferAfterSeconds`), Muse carries on with work that
+  does not need the answer.
+- **Answer later.** An unanswered question becomes an **Open question** you can
+  answer any time from its card or the open-question chip; **Dismiss** closes it
+  without an answer. A late answer reaches Muse once, as your own message, and
+  approves nothing.
+- **Find open questions.** The view badge, tab title and History show how many
+  are open; **Next open question** and **Previous open question**
+  (Ctrl+Alt+J and Ctrl+Alt+Shift+J) cycle through them.
+- **ACP editors.** Editors with forms get each question as a form, withdrawn at
+  the deadline (`--questions-defer-after`); other editors get the text.
+  `/questions` lists open questions and `/answer <n> <text>` answers one.
+
+- **Faster startup.** Optional panels and menus load when first opened, keeping
+  the chat panel quick to start.
+
+### Earlier in 0.14.2
+
+- **Help & Reference.** Type `/help` or run **Muse Spark: Open Help & Reference**
+  for every command, setting, slash command, keyboard shortcut, CLI/ACP option
+  and paid feature.
+- **Search and copy.** Find features by name or shortcut, copy details, and open
+  related settings.
+- **Accurate details.** Help is generated from the extension's own tables.
+  Defaults, availability and paid costs are now described for each backend.
+- **Editors and terminal.** Use `/help` in the chat panel and ACP editors, or
+  `muse-spark-code-acp help --all` in the terminal.
+
+### Earlier in 0.14.1
 
 - **Safer shell commands.** Commands the agent runs no longer see your
   credential variables (API keys, tokens, passwords). Name any you want passed

@@ -5,10 +5,8 @@
 // engine (`parseHookConfig` and `matchingHooks`), never by string equality
 // alone.
 
-import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 import { mcpFunctionName } from '../../src/core/backends/modelapi/mcp/functions'
-import { windowsPowerShell } from '../../src/host/processTree'
 import { AGENT_IMPORT_CURSOR_EVENTS, EXTENSION_HOOK_EVENTS } from '../../src/shared/constants'
 import {
   type HookDefinition,
@@ -698,50 +696,39 @@ describe('Cursor fixed-subject matchers', () => {
 // gh/copilot_reference_hooks-configuration.md:426-448; raw/kiro_hooks.md:84.
 describe('RVM91I2 exact admission and records', () => {
   it('R2-3 quotes Cline shell metacharacters and spaces as one literal path', () => {
-    const path =
-      process.platform === 'win32'
-        ? "C:/missing/space ' $(echo R2_PATH_EVALUATED)/.clinerules/hooks/PreToolUse.ps1"
-        : "/missing/space ' $(printf R2_PATH_EVALUATED >&2)/.clinerules/hooks/PreToolUse"
-    const group = groupOf(convertClineHook('PreToolUse', path))
-    expect(group['sourceEntry']).toEqual({ path })
-    const parsed = parseHookConfig(
-      JSON.stringify({ hooks: { PreToolUse: [{ hooks: group['hooks'] }] } }),
-      'project',
-      process.platform,
-    )
-    const command = parsed.hooks[0]?.command
-    expect(command).toBeDefined()
-    expect(parsed.hooks[0]?.timeoutSeconds).toBe(30)
-    const shellEnv = {
-      PATH: process.env['PATH'] ?? '',
-      SystemRoot: process.env['SystemRoot'] ?? '',
+    // Exact shell-language goldens avoid starting PowerShell, whose cold startup
+    // on Windows can exceed the unit-test deadline before quoting is exercised.
+    const paths = [
+      {
+        path: "/missing/space ' $(printf R2_PATH_EVALUATED >&2)/.clinerules/hooks/PreToolUse",
+        posix: String.raw`'/missing/space '\'' $(printf R2_PATH_EVALUATED >&2)/.clinerules/hooks/PreToolUse'`,
+        windows:
+          "& '/missing/space '' $(printf R2_PATH_EVALUATED >&2)/.clinerules/hooks/PreToolUse'",
+      },
+      {
+        path: "C:/missing/space ' $(echo R2_PATH_EVALUATED)/.clinerules/hooks/PreToolUse.ps1",
+        posix: String.raw`'C:/missing/space '\'' $(echo R2_PATH_EVALUATED)/.clinerules/hooks/PreToolUse.ps1'`,
+        windows:
+          "& 'C:/missing/space '' $(echo R2_PATH_EVALUATED)/.clinerules/hooks/PreToolUse.ps1'",
+      },
+    ]
+    for (const fixture of paths) {
+      const group = groupOf(convertClineHook('PreToolUse', fixture.path))
+      expect(group['sourceEntry']).toEqual({ path: fixture.path })
+      for (const platform of ['linux', 'darwin', 'win32'] as const) {
+        const parsed = parseHookConfig(
+          JSON.stringify({ hooks: { PreToolUse: [{ hooks: group['hooks'] }] } }),
+          'project',
+          platform,
+        )
+        expect(parsed.warnings).toEqual([])
+        expect(parsed.hooks).toHaveLength(1)
+        expect(parsed.hooks[0]?.timeoutSeconds).toBe(30)
+        expect(parsed.hooks[0]?.command).toBe(
+          platform === 'win32' ? fixture.windows : fixture.posix,
+        )
+      }
     }
-    const powershell = windowsPowerShell(shellEnv.SystemRoot, shellEnv)
-    const run =
-      process.platform === 'win32'
-        ? spawnSync(
-            powershell.file,
-            [
-              '-NoProfile',
-              '-NonInteractive',
-              '-Command',
-              `try { ${command ?? ''} } catch { [Console]::Error.WriteLine([string]$_.TargetObject); exit 1 }`,
-            ],
-            { encoding: 'utf8', env: powershell.env, windowsHide: true },
-          )
-        : spawnSync('/bin/sh', ['-c', command ?? ''], { encoding: 'utf8', env: shellEnv })
-    expect(run.error).toBeUndefined()
-    expect(run.status).not.toBe(0)
-    // A shell error must name the whole literal path; no command substitution runs.
-    expect(run.stderr).toContain(path)
-    expect(run.stderr.split('\n')).not.toContain('R2_PATH_EVALUATED')
-    expect(run.stdout).not.toContain('R2_PATH_EVALUATED')
-    const windows = parseHookConfig(
-      JSON.stringify({ hooks: { PreToolUse: [{ hooks: group['hooks'] }] } }),
-      'project',
-      'win32',
-    )
-    expect(windows.hooks[0]?.command).toBe(`& '${path.replaceAll("'", "''")}'`)
   })
 
   it('R2-5g refuses unanchored Gemini read_file rather than widening underscores', () => {

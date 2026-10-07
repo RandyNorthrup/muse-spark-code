@@ -24,7 +24,11 @@ import {
 } from '../../src/core/whatsNew/whatsNewContent'
 import { releasesToShow } from '../../src/core/whatsNew/whatsNewVersions'
 import { renderWhatsNewPage } from '../../src/host/whatsNew/whatsNewHtml'
-import { WHATS_NEW_CHANGELOG_URL } from '../../src/shared/constants'
+import {
+  WHATS_NEW_CHANGELOG_URL,
+  WHATS_NEW_CONTENT_DECODE_MAX_BYTES,
+  WHATS_NEW_CONTENT_MAX_BYTES,
+} from '../../src/shared/constants'
 import manifest from '../../package.json'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -345,16 +349,26 @@ describe('bounded lossless What’s New artifact', () => {
   it('packs real release notes that exceed the cap and decodes them losslessly', () => {
     const changelog = readFileSync(path.resolve(import.meta.dirname, '../../CHANGELOG.md'), 'utf8')
     const all = parseChangelog(changelog, contributedIds(manifest), repositoryUrl(manifest))
-    // The smallest leading run of real releases whose JSON exceeds the 40 KiB cap.
-    let count = 1
-    while (
-      count < all.length &&
-      Buffer.byteLength(JSON.stringify({ schema: 1, releases: all.slice(0, count) })) <= 40 * 1024
-    ) {
-      count += 1
+    // A whole release may jump past the decode limit; try the next contiguous run.
+    let plain = ''
+    for (let start = 0; start < all.length; start++) {
+      let count = 1
+      while (
+        count < all.length - start &&
+        Buffer.byteLength(
+          JSON.stringify({ schema: 1, releases: all.slice(start, start + count) }),
+        ) <= WHATS_NEW_CONTENT_MAX_BYTES
+      ) {
+        count += 1
+      }
+      const candidate = JSON.stringify({ schema: 1, releases: all.slice(start, start + count) })
+      if (Buffer.byteLength(candidate) <= WHATS_NEW_CONTENT_DECODE_MAX_BYTES) {
+        plain = candidate
+        break
+      }
     }
-    const plain = JSON.stringify({ schema: 1, releases: all.slice(0, count) })
     expect(Buffer.byteLength(plain)).toBeGreaterThan(40 * 1024)
+    expect(Buffer.byteLength(plain)).toBeLessThanOrEqual(WHATS_NEW_CONTENT_DECODE_MAX_BYTES)
     const encoded = encodeWhatsNewContent(plain)
     expect(JSON.parse(encoded)).toHaveProperty('encoding', 'br')
     expect(Buffer.byteLength(encoded)).toBeLessThanOrEqual(40 * 1024)

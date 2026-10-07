@@ -16,6 +16,8 @@ import {
   EXTENSION_NAME,
   EXTENSION_PUBLISHER,
   MACHINE_SCOPED_SETTINGS,
+  QUESTION_DEFER_SETTING,
+  QUESTION_DEFER_DEFAULT_SECONDS,
   SETTING_DEFAULTS,
   SETTINGS_SECTION,
   WALKTHROUGH_ID,
@@ -125,7 +127,12 @@ describe('package.json manifest', () => {
       { default: unknown }
     >
     const declared = Object.keys(properties).map((key) => key.replace(`${SETTINGS_SECTION}.`, ''))
-    expect(new Set(declared)).toEqual(new Set(Object.keys(SETTING_DEFAULTS)))
+    expect(new Set(declared)).toEqual(
+      new Set([...Object.keys(SETTING_DEFAULTS), QUESTION_DEFER_SETTING]),
+    )
+    expect(properties[`${SETTINGS_SECTION}.${QUESTION_DEFER_SETTING}`]?.default).toBe(
+      QUESTION_DEFER_DEFAULT_SECONDS,
+    )
     for (const [key, value] of Object.entries(SETTING_DEFAULTS)) {
       expect(properties[`${SETTINGS_SECTION}.${key}`]?.default, key).toEqual(value)
     }

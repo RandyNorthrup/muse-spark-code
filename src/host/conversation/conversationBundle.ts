@@ -10,7 +10,13 @@ function isBundle(value: unknown): value is Bundle {
     typeof value === 'object' &&
     value !== null &&
     'createConversation' in value &&
-    typeof value.createConversation === 'function'
+    typeof value.createConversation === 'function' &&
+    'questionAnswerText' in value &&
+    typeof value.questionAnswerText === 'function' &&
+    'createHostQuestionStore' in value &&
+    typeof value.createHostQuestionStore === 'function' &&
+    'questionsForHost' in value &&
+    typeof value.questionsForHost === 'function'
   )
 }
 

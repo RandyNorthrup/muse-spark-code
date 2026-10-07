@@ -16,7 +16,11 @@ import {
   requirementRefSchema,
   todoItemSchema,
 } from '../../../shared/agentEvents'
-import { UI_TEXT } from '../../../shared/constants'
+import {
+  QUESTION_OUTCOME_CLARIFIED,
+  QUESTION_OUTCOME_DEFERRED,
+  UI_TEXT,
+} from '../../../shared/constants'
 import { isProtectedFileAccess } from '../../protectedPaths'
 import { toSessionGoal, toSnapshot, wireGoalSchema, wireItemSchema } from './sessionRecords'
 
@@ -421,4 +425,9 @@ export function mapNotification(notification: WireNotification): MapOutcome {
   return typeof mapped === 'string' || !('event' in mapped)
     ? mapped
     : { ...mapped, event: redactDiagnosticEvent(mapped.event) }
+}
+
+/** Only a harness-deferred id changes M46's captured clarified outcome. Future words pass through. */
+export function questionSettlementOutcome(outcome: string, wasDeferred: boolean): string {
+  return wasDeferred && outcome === QUESTION_OUTCOME_CLARIFIED ? QUESTION_OUTCOME_DEFERRED : outcome
 }

@@ -1,3 +1,4 @@
+import { webviewKey } from '../../shared/keybindings'
 // A centred modal over the transcript with the chat dimmed behind it, as
 // Claude Code's Account & Usage and Agent map dialogs are (PLAN.md D17).
 // Escape, the close button and a click on the backdrop dismiss it; the close
@@ -22,7 +23,7 @@ const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 /** Keep Tab inside the dialog: past the last control it wraps to the first, and back. */
-function trapTab(event: KeyboardEvent<HTMLDivElement>): void {
+function trapTab(event: KeyboardEvent<HTMLDivElement>, isBackward: boolean): void {
   const controls = [...event.currentTarget.querySelectorAll<HTMLElement>(FOCUSABLE)]
   const first = controls[0]
   const last = controls.at(-1)
@@ -31,7 +32,6 @@ function trapTab(event: KeyboardEvent<HTMLDivElement>): void {
     return
   }
   const active = document.activeElement
-  const isBackward = event.shiftKey
   const isAtStart = active === first || !event.currentTarget.contains(active)
   if (isBackward && isAtStart) {
     event.preventDefault()
@@ -48,11 +48,12 @@ export function Modal({ title, titleId, isWide = false, onClose, children }: Mod
     closeButton.current?.focus()
   }, [])
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Tab') {
-      trapTab(event)
+    const action = webviewKey('modal.focus', event)
+    if (action === 'focusNext' || action === 'focusPrevious') {
+      trapTab(event, action === 'focusPrevious')
       return
     }
-    if (event.key !== 'Escape') {
+    if (webviewKey('modal.focus', event) !== 'close') {
       return
     }
     event.preventDefault()

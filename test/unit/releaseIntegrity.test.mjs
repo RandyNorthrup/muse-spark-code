@@ -122,11 +122,11 @@ describe('GitHub Release reruns', () => {
 
 describe('compressed universal VSIX budget', () => {
   it('accepts exactly the measured budget', () => {
-    writeFileSync(fixture.artifact, new Uint8Array(2200 * 1024))
-    expect(checkVsixSize(fixture.artifact)).toBe(2200 * 1024)
+    writeFileSync(fixture.artifact, new Uint8Array(2400 * 1024))
+    expect(checkVsixSize(fixture.artifact)).toBe(2400 * 1024)
   })
   it('refuses one byte over budget', () => {
-    writeFileSync(fixture.artifact, new Uint8Array(2200 * 1024 + 1))
+    writeFileSync(fixture.artifact, new Uint8Array(2400 * 1024 + 1))
     expect(() => checkVsixSize(fixture.artifact)).toThrow('budget')
   })
   it('refuses a missing package', () => {

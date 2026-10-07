@@ -1105,6 +1105,21 @@ export class MuseSession implements AgentSession {
     }
   }
 
+  /** M46's captured clarification settles the tool; only our reserved ids display Deferred. */
+  public async deferQuestions(userInputId: string): Promise<void> {
+    const bundle = await import('../../questions/deferralEntry')
+    await bundle.deferMuseQuestions(
+      this,
+      userInputId,
+      () => this.prompts.markQuestionDeferred(userInputId),
+      () => {
+        this.prompts.unmarkQuestionDeferred(userInputId)
+      },
+      this.timeouts.normalMs,
+      UI_TEXT.questionAnswerUncertain,
+    )
+  }
+
   /** Explain instead of choosing (`userInput/clarify`, M46): the model decides again. */
   public async clarifyQuestions(userInputId: string, text: string): Promise<void> {
     try {

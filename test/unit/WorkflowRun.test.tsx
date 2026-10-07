@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-import { fireEvent, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, screen, within } from '@testing-library/react'
+import { beforeAll, describe, expect, it } from 'vitest'
 import type { WorkflowEntry } from '../../src/webview/state/uiState'
 import { renderTranscript, tool } from './helpers/transcriptFixtures'
 import {
@@ -47,6 +47,13 @@ const runningRun: WorkflowEntry = {
     { childId: 'queued', attempt: 1, status: 'scheduled' },
   ],
 }
+
+// Repeated behavior checks share first use; bundle tests cover the cold split.
+beforeAll(async () => {
+  renderTranscript([completedRun])
+  await screen.findByRole('list', { name: 'Workflow agents' })
+  cleanup()
+})
 
 describe('a workflow run’s card (M47)', () => {
   it('shows the captured run: its name, status, agent, tokens, what started it and its result', () => {

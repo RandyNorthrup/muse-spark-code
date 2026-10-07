@@ -45,6 +45,7 @@ function observerHarness(reportError?: AcpAgentDeps['reportError'] | 'collect'):
     log,
   })
   const deps: AcpAgentDeps = {
+    questions: 'decline',
     backend: {
       kind: 'museCode',
       readiness: () => Promise.resolve({ state: 'ready' }),

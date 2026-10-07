@@ -1,0 +1,214 @@
+--- a/package.nls.json
++++ b/package.nls.json
+@@ -163,5 +163,8 @@
+   "config.judge.engine.enumDescriptions.auto": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured.",
+   "config.judge.engine.enumDescriptions.same": "Only your own chat model judges; it never switches models.",
+   "config.judge.engine.enumDescriptions.off": "No judge: approvals behave exactly as without one.",
+-  "config.shell.passEnvironmentVariables.description": "Names of environment variables to pass to interactive top-level shell commands, including credential variables normally withheld. Names only, never values. Default: none. A command can expose these values in the conversation and to the model provider. Verification/then_run, schedules, child/team workers and hooks never receive credential variables, even when named here. An interactive command moved to the background retains its starting environment. Does not change Muse Code or explicitly configured MCP server environments."
++  "config.shell.passEnvironmentVariables.description": "Names of environment variables to pass to interactive top-level shell commands, including credential variables normally withheld. Names only, never values. Default: none. A command can expose these values in the conversation and to the model provider. Verification/then_run, schedules, child/team workers and hooks never receive credential variables, even when named here. An interactive command moved to the background retains its starting environment. Does not change Muse Code or explicitly configured MCP server environments.",
++  "command.nextOpenQuestion.title": "Next open question",
++  "command.previousOpenQuestion.title": "Previous open question",
++  "config.questions.deferAfterSeconds.description": "Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used."
+ }
+--- a/package.nls.cs.json
++++ b/package.nls.cs.json
+@@ -163,5 +163,8 @@
+   "config.judge.engine.enumDescriptions.auto": "Posuzuje váš vlastní chatovací model (ve fázi 1 `same`); samostatný posuzovatel se přidá, jakmile se nastaví.",
+   "config.judge.engine.enumDescriptions.same": "Posuzuje pouze váš vlastní chatovací model; model nikdy nemění.",
+   "config.judge.engine.enumDescriptions.off": "Bez posuzovatele: schvalování se chová přesně jako bez něj.",
+-  "config.shell.passEnvironmentVariables.description": "Názvy proměnných prostředí předávaných interaktivním příkazům shellu hlavní relace, včetně proměnných s přihlašovacími údaji, které jsou běžně skryté. Pouze názvy, nikdy hodnoty. Výchozí: žádné. Příkaz může tyto hodnoty odhalit v konverzaci a poskytovateli modelu. Ověřování/then_run, plány, podřízení/týmoví pracovníci a hooky nikdy nedostávají proměnné s přihlašovacími údaji, ani když jsou zde uvedené. Interaktivní příkaz přesunutý na pozadí si ponechá počáteční prostředí. Nemění prostředí Muse Code ani explicitně nakonfigurovaných serverů MCP."
++  "config.shell.passEnvironmentVariables.description": "Názvy proměnných prostředí předávaných interaktivním příkazům shellu hlavní relace, včetně proměnných s přihlašovacími údaji, které jsou běžně skryté. Pouze názvy, nikdy hodnoty. Výchozí: žádné. Příkaz může tyto hodnoty odhalit v konverzaci a poskytovateli modelu. Ověřování/then_run, plány, podřízení/týmoví pracovníci a hooky nikdy nedostávají proměnné s přihlašovacími údaji, ani když jsou zde uvedené. Interaktivní příkaz přesunutý na pozadí si ponechá počáteční prostředí. Nemění prostředí Muse Code ani explicitně nakonfigurovaných serverů MCP.",
++  "command.nextOpenQuestion.title": "Další otevřená otázka",
++  "command.previousOpenQuestion.title": "Předchozí otevřená otázka",
++  "config.questions.deferAfterSeconds.description": "Počet sekund, po kterých se nezodpovězená otázka odloží, aby Muse mohl pokračovat v práci. Výchozí hodnota je 60; 0 znamená nikdy; 1–9 se čtou jako 10; maximum je 3 600. Otázka zůstává otevřená a můžete na ni odpovědět později. Použije se pouze nastavení tohoto počítače."
+ }
+--- a/package.nls.de.json
++++ b/package.nls.de.json
+@@ -163,5 +163,8 @@
+   "config.judge.engine.enumDescriptions.auto": "Ihr eigenes Chatmodell beurteilt (in Phase 1 `same`); ein separater Beurteiler kommt hinzu, sobald einer eingerichtet ist.",
+   "config.judge.engine.enumDescriptions.same": "Nur Ihr eigenes Chatmodell beurteilt; es wechselt nie das Modell.",
+   "config.judge.engine.enumDescriptions.off": "Kein Beurteiler: Genehmigungen verhalten sich genau wie ohne ihn.",
+-  "config.shell.passEnvironmentVariables.description": "Namen von Umgebungsvariablen, die an interaktive Shell-Befehle der Hauptsitzung übergeben werden, einschließlich normalerweise zurückgehaltener Zugangsdaten. Nur Namen, niemals Werte. Standard: keine. Ein Befehl kann diese Werte im Gespräch und gegenüber dem Modellanbieter offenlegen. Prüfungen/then_run, Zeitpläne, untergeordnete/Team-Worker und Hooks erhalten niemals Zugangsdatenvariablen, auch wenn sie hier genannt sind. Ein in den Hintergrund verschobener interaktiver Befehl behält seine ursprüngliche Umgebung. Ändert weder Muse Code noch explizit konfigurierte MCP-Serverumgebungen."
++  "config.shell.passEnvironmentVariables.description": "Namen von Umgebungsvariablen, die an interaktive Shell-Befehle der Hauptsitzung übergeben werden, einschließlich normalerweise zurückgehaltener Zugangsdaten. Nur Namen, niemals Werte. Standard: keine. Ein Befehl kann diese Werte im Gespräch und gegenüber dem Modellanbieter offenlegen. Prüfungen/then_run, Zeitpläne, untergeordnete/Team-Worker und Hooks erhalten niemals Zugangsdatenvariablen, auch wenn sie hier genannt sind. Ein in den Hintergrund verschobener interaktiver Befehl behält seine ursprüngliche Umgebung. Ändert weder Muse Code noch explizit konfigurierte MCP-Serverumgebungen.",
++  "command.nextOpenQuestion.title": "Nächste offene Frage",
++  "command.previousOpenQuestion.title": "Vorherige offene Frage",
++  "config.questions.deferAfterSeconds.description": "Sekunden, nach denen eine unbeantwortete Frage zurückgestellt wird, damit Muse weiterarbeiten kann. Standard: 60; 0 bedeutet nie; 1–9 werden als 10 gelesen; höchstens 3.600. Die Frage bleibt offen und kann später beantwortet werden. Nur die Einstellung dieses Computers wird verwendet."
+ }
+--- a/package.nls.es.json
++++ b/package.nls.es.json
+@@ -163,5 +163,8 @@
+   "config.judge.engine.enumDescriptions.auto": "Tu propio modelo de conversación evalúa (`same` en la fase 1); un evaluador aparte se une cuando se configura uno.",
+   "config.judge.engine.enumDescriptions.same": "Solo tu propio modelo de conversación evalúa; nunca cambia de modelo.",
+   "config.judge.engine.enumDescriptions.off": "Sin evaluador: las aprobaciones se comportan exactamente igual que sin él.",
+-  "config.shell.passEnvironmentVariables.description": "Nombres de variables de entorno que se pasan a comandos de shell interactivos de la sesión principal, incluidas las credenciales que normalmente se excluyen. Solo nombres, nunca valores. Predeterminado: ninguna. Un comando puede revelar estos valores en la conversación y al proveedor del modelo. Las verificaciones/then_run, tareas programadas, trabajadores secundarios/de equipo y hooks nunca reciben variables de credenciales, aunque se nombren aquí. Un comando interactivo movido al segundo plano conserva su entorno inicial. No cambia los entornos de Muse Code ni de servidores MCP configurados explícitamente."
++  "config.shell.passEnvironmentVariables.description": "Nombres de variables de entorno que se pasan a comandos de shell interactivos de la sesión principal, incluidas las credenciales que normalmente se excluyen. Solo nombres, nunca valores. Predeterminado: ninguna. Un comando puede revelar estos valores en la conversación y al proveedor del modelo. Las verificaciones/then_run, tareas programadas, trabajadores secundarios/de equipo y hooks nunca reciben variables de credenciales, aunque se nombren aquí. Un comando interactivo movido al segundo plano conserva su entorno inicial. No cambia los entornos de Muse Code ni de servidores MCP configurados explícitamente.",
++  "command.nextOpenQuestion.title": "Siguiente pregunta pendiente",
++  "command.previousOpenQuestion.title": "Pregunta pendiente anterior",
++  "config.questions.deferAfterSeconds.description": "Segundos antes de aplazar una pregunta sin respuesta para que Muse pueda seguir trabajando. 60 de forma predeterminada; 0 significa nunca; 1–9 se interpretan como 10; máximo 3.600. La pregunta sigue pendiente y se puede responder más tarde. Solo se usa la configuración de este equipo."
+ }
+--- a/package.nls.fr.json
++++ b/package.nls.fr.json
+@@ -163,5 +163,8 @@
+   "config.judge.engine.enumDescriptions.auto": "Votre propre modèle de conversation évalue (`same` en phase 1) ; un évaluateur distinct le rejoint dès qu’un est configuré.",
+   "config.judge.engine.enumDescriptions.same": "Seul votre propre modèle de conversation évalue ; il ne change jamais de modèle.",
+   "config.judge.engine.enumDescriptions.off": "Aucun évaluateur : les approbations se comportent exactement comme sans lui.",
+-  "config.shell.passEnvironmentVariables.description": "Noms des variables d’environnement transmises aux commandes shell interactives de la session principale, y compris les identifiants normalement exclus. Uniquement des noms, jamais des valeurs. Par défaut : aucune. Une commande peut révéler ces valeurs dans la conversation et au fournisseur du modèle. Les vérifications/then_run, tâches planifiées, agents secondaires/d’équipe et hooks ne reçoivent jamais de variables d’identifiants, même si elles sont nommées ici. Une commande interactive passée en arrière-plan conserve son environnement initial. Ne modifie pas les environnements de Muse Code ni des serveurs MCP configurés explicitement."
++  "config.shell.passEnvironmentVariables.description": "Noms des variables d’environnement transmises aux commandes shell interactives de la session principale, y compris les identifiants normalement exclus. Uniquement des noms, jamais des valeurs. Par défaut : aucune. Une commande peut révéler ces valeurs dans la conversation et au fournisseur du modèle. Les vérifications/then_run, tâches planifiées, agents secondaires/d’équipe et hooks ne reçoivent jamais de variables d’identifiants, même si elles sont nommées ici. Une commande interactive passée en arrière-plan conserve son environnement initial. Ne modifie pas les environnements de Muse Code ni des serveurs MCP configurés explicitement.",
++  "command.nextOpenQuestion.title": "Question en attente suivante",
++  "command.previousOpenQuestion.title": "Question en attente précédente",
++  "config.questions.deferAfterSeconds.description": "Nombre de secondes avant de reporter une question sans réponse pour que Muse puisse poursuivre son travail. 60 par défaut ; 0 signifie jamais ; 1–9 sont interprétés comme 10 ; maximum 3 600. La question reste en attente et peut recevoir une réponse plus tard. Seul le réglage de cet ordinateur est utilisé."
+ }
+--- a/package.nls.hu.json
++++ b/package.nls.hu.json
+@@ -163,5 +163,8 @@
+   "config.judge.engine.enumDescriptions.auto": "A saját csevegőmodellje értékel (az 1. fázisban `same`); külön értékelő csatlakozik, ha beállít egyet.",
+   "config.judge.engine.enumDescriptions.same": "Csak a saját csevegőmodellje értékel; modellt soha nem vált.",
+   "config.judge.engine.enumDescriptions.off": "Értékelő nélkül: a jóváhagyások pontosan úgy viselkednek, mint nélküle.",
+-  "config.shell.passEnvironmentVariables.description": "A fő munkamenet interaktív shellparancsainak átadandó környezeti változók nevei, beleértve az általában kizárt hitelesítési adatokat. Csak nevek, soha nem értékek. Alapértelmezés: nincs. A parancs felfedheti ezeket az értékeket a beszélgetésben és a modellszolgáltatónak. Az ellenőrzések/then_run, ütemezések, alárendelt/csapatmunkások és hookok soha nem kapnak hitelesítési változókat, akkor sem, ha itt szerepelnek. A háttérbe helyezett interaktív parancs megtartja a kezdeti környezetét. Nem módosítja a Muse Code vagy a kifejezetten beállított MCP-kiszolgálók környezetét."
++  "config.shell.passEnvironmentVariables.description": "A fő munkamenet interaktív shellparancsainak átadandó környezeti változók nevei, beleértve az általában kizárt hitelesítési adatokat. Csak nevek, soha nem értékek. Alapértelmezés: nincs. A parancs felfedheti ezeket az értékeket a beszélgetésben és a modellszolgáltatónak. Az ellenőrzések/then_run, ütemezések, alárendelt/csapatmunkások és hookok soha nem kapnak hitelesítési változókat, akkor sem, ha itt szerepelnek. A háttérbe helyezett interaktív parancs megtartja a kezdeti környezetét. Nem módosítja a Muse Code vagy a kifejezetten beállított MCP-kiszolgálók környezetét.",
++  "command.nextOpenQuestion.title": "Következő nyitott kérdés",
++  "command.previousOpenQuestion.title": "Előző nyitott kérdés",
++  "config.questions.deferAfterSeconds.description": "Ennyi másodperc után halasztjuk el a megválaszolatlan kérdést, hogy Muse folytathassa a munkát. Alapérték: 60; a 0 jelentése soha; az 1–9 értékeket 10-ként kezeljük; maximum 3600. A kérdés nyitva marad, és később is megválaszolható. Csak ennek a gépnek a beállítását használjuk."
+ }
+--- a/package.nls.it.json
++++ b/package.nls.it.json
+@@ -163,5 +163,8 @@
+   "config.judge.engine.enumDescriptions.auto": "Il tuo modello di conversazione valuta (`same` nella fase 1); un valutatore separato si unisce appena ne viene configurato uno.",
+   "config.judge.engine.enumDescriptions.same": "Solo il tuo modello di conversazione valuta; non cambia mai modello.",
+   "config.judge.engine.enumDescriptions.off": "Nessun valutatore: le approvazioni si comportano esattamente come senza.",
+-  "config.shell.passEnvironmentVariables.description": "Nomi delle variabili di ambiente da passare ai comandi shell interattivi della sessione principale, incluse le credenziali normalmente escluse. Solo nomi, mai valori. Predefinito: nessuna. Un comando può esporre questi valori nella conversazione e al fornitore del modello. Verifiche/then_run, pianificazioni, agenti secondari/di squadra e hook non ricevono mai variabili di credenziali, anche se elencate qui. Un comando interattivo spostato in background mantiene il suo ambiente iniziale. Non modifica gli ambienti di Muse Code o dei server MCP configurati esplicitamente."
++  "config.shell.passEnvironmentVariables.description": "Nomi delle variabili di ambiente da passare ai comandi shell interattivi della sessione principale, incluse le credenziali normalmente escluse. Solo nomi, mai valori. Predefinito: nessuna. Un comando può esporre questi valori nella conversazione e al fornitore del modello. Verifiche/then_run, pianificazioni, agenti secondari/di squadra e hook non ricevono mai variabili di credenziali, anche se elencate qui. Un comando interattivo spostato in background mantiene il suo ambiente iniziale. Non modifica gli ambienti di Muse Code o dei server MCP configurati esplicitamente.",
++  "command.nextOpenQuestion.title": "Domanda aperta successiva",
++  "command.previousOpenQuestion.title": "Domanda aperta precedente",
++  "config.questions.deferAfterSeconds.description": "Secondi prima che una domanda senza risposta venga rimandata per consentire a Muse di continuare a lavorare. 60 per impostazione predefinita; 0 significa mai; 1–9 vengono interpretati come 10; massimo 3.600. La domanda resta aperta e può ricevere una risposta in seguito. Si usa solo l’impostazione di questo computer."
+ }
+--- a/package.nls.ja.json
++++ b/package.nls.ja.json
+@@ -163,5 +163,8 @@
+   "config.judge.engine.enumDescriptions.auto": "自分のチャットモデルが判定します（フェーズ1では`same`）。別のジャッジを設定すると加わります。",
+   "config.judge.engine.enumDescriptions.same": "自分のチャットモデルのみが判定します。モデルを切り替えません。",
+   "config.judge.engine.enumDescriptions.off": "ジャッジなし。承認はジャッジがない場合とまったく同じ動作です。",
+-  "config.shell.passEnvironmentVariables.description": "メインセッションの対話型シェルコマンドに渡す環境変数の名前。通常は除外される認証情報の変数も含みます。値ではなく名前のみを指定します。既定では何も渡しません。コマンドはこれらの値を会話やモデルプロバイダーに公開する可能性があります。検証/then_run、スケジュール、子エージェント/チームワーカー、フックには、ここに名前を指定しても認証情報の変数を渡しません。バックグラウンドに移動した対話型コマンドは起動時の環境を保持します。Muse Codeや明示的に設定したMCPサーバーの環境は変更しません。"
++  "config.shell.passEnvironmentVariables.description": "メインセッションの対話型シェルコマンドに渡す環境変数の名前。通常は除外される認証情報の変数も含みます。値ではなく名前のみを指定します。既定では何も渡しません。コマンドはこれらの値を会話やモデルプロバイダーに公開する可能性があります。検証/then_run、スケジュール、子エージェント/チームワーカー、フックには、ここに名前を指定しても認証情報の変数を渡しません。バックグラウンドに移動した対話型コマンドは起動時の環境を保持します。Muse Codeや明示的に設定したMCPサーバーの環境は変更しません。",
++  "command.nextOpenQuestion.title": "次の未回答の質問",
++  "command.previousOpenQuestion.title": "前の未回答の質問",
++  "config.questions.deferAfterSeconds.description": "Muse が作業を続けられるよう、未回答の質問を保留するまでの秒数。既定値は 60、0 は保留しない設定、1～9 は 10 として扱い、上限は 3,600 です。質問は未回答のまま保持され、後から回答できます。このコンピューターの設定のみを使用します。"
+ }
+--- a/package.nls.ko.json
++++ b/package.nls.ko.json
+@@ -163,5 +163,8 @@
+   "config.judge.engine.enumDescriptions.auto": "자신의 채팅 모델이 판단합니다(1단계에서는 `same`). 별도의 판단자를 구성하면 함께 동작합니다.",
+   "config.judge.engine.enumDescriptions.same": "자신의 채팅 모델만 판단합니다. 모델을 전환하지 않습니다.",
+   "config.judge.engine.enumDescriptions.off": "판단 없음. 승인은 판단자가 없을 때와 정확히 동일하게 동작합니다.",
+-  "config.shell.passEnvironmentVariables.description": "기본 세션의 대화형 셸 명령에 전달할 환경 변수 이름입니다. 일반적으로 제외되는 자격 증명 변수도 포함됩니다. 값이 아닌 이름만 지정하세요. 기본값: 없음. 명령이 이 값을 대화 및 모델 제공자에게 노출할 수 있습니다. 검증/then_run, 예약 작업, 하위/팀 작업자 및 훅에는 여기 이름을 지정해도 자격 증명 변수가 전달되지 않습니다. 백그라운드로 이동한 대화형 명령은 시작 시 환경을 유지합니다. Muse Code나 명시적으로 구성한 MCP 서버 환경은 변경하지 않습니다."
++  "config.shell.passEnvironmentVariables.description": "기본 세션의 대화형 셸 명령에 전달할 환경 변수 이름입니다. 일반적으로 제외되는 자격 증명 변수도 포함됩니다. 값이 아닌 이름만 지정하세요. 기본값: 없음. 명령이 이 값을 대화 및 모델 제공자에게 노출할 수 있습니다. 검증/then_run, 예약 작업, 하위/팀 작업자 및 훅에는 여기 이름을 지정해도 자격 증명 변수가 전달되지 않습니다. 백그라운드로 이동한 대화형 명령은 시작 시 환경을 유지합니다. Muse Code나 명시적으로 구성한 MCP 서버 환경은 변경하지 않습니다.",
++  "command.nextOpenQuestion.title": "다음 미답변 질문",
++  "command.previousOpenQuestion.title": "이전 미답변 질문",
++  "config.questions.deferAfterSeconds.description": "Muse가 작업을 계속할 수 있도록 미답변 질문을 보류하기까지의 초 단위 시간입니다. 기본값은 60이며, 0은 보류하지 않음, 1–9는 10으로 처리됩니다. 최댓값은 3,600입니다. 질문은 열린 상태로 유지되며 나중에 답변할 수 있습니다. 이 컴퓨터의 설정만 사용합니다."
+ }
+--- a/package.nls.pl.json
++++ b/package.nls.pl.json
+@@ -163,5 +163,8 @@
+   "config.judge.engine.enumDescriptions.auto": "Ocenia Twój własny model rozmowy (w fazie 1 `same`); osobny oceniający dołączy, gdy zostanie skonfigurowany.",
+   "config.judge.engine.enumDescriptions.same": "Ocenia tylko Twój własny model rozmowy; nigdy nie zmienia modelu.",
+   "config.judge.engine.enumDescriptions.off": "Bez oceniającego: zatwierdzenia zachowują się dokładnie jak bez niego.",
+-  "config.shell.passEnvironmentVariables.description": "Nazwy zmiennych środowiskowych przekazywanych do interaktywnych poleceń powłoki głównej sesji, w tym zwykle wykluczanych danych uwierzytelniających. Tylko nazwy, nigdy wartości. Domyślnie: brak. Polecenie może ujawnić te wartości w rozmowie i dostawcy modelu. Weryfikacja/then_run, harmonogramy, pracownicy podrzędni/zespołowi i hooki nigdy nie otrzymują zmiennych uwierzytelniających, nawet jeśli są tu wymienione. Interaktywne polecenie przeniesione do tła zachowuje początkowe środowisko. Nie zmienia środowisk Muse Code ani jawnie skonfigurowanych serwerów MCP."
++  "config.shell.passEnvironmentVariables.description": "Nazwy zmiennych środowiskowych przekazywanych do interaktywnych poleceń powłoki głównej sesji, w tym zwykle wykluczanych danych uwierzytelniających. Tylko nazwy, nigdy wartości. Domyślnie: brak. Polecenie może ujawnić te wartości w rozmowie i dostawcy modelu. Weryfikacja/then_run, harmonogramy, pracownicy podrzędni/zespołowi i hooki nigdy nie otrzymują zmiennych uwierzytelniających, nawet jeśli są tu wymienione. Interaktywne polecenie przeniesione do tła zachowuje początkowe środowisko. Nie zmienia środowisk Muse Code ani jawnie skonfigurowanych serwerów MCP.",
++  "command.nextOpenQuestion.title": "Następne otwarte pytanie",
++  "command.previousOpenQuestion.title": "Poprzednie otwarte pytanie",
++  "config.questions.deferAfterSeconds.description": "Liczba sekund, po których pytanie bez odpowiedzi zostaje odroczone, aby Muse mógł kontynuować pracę. Domyślnie 60; 0 oznacza nigdy; 1–9 są odczytywane jako 10; maksimum 3600. Pytanie pozostaje otwarte i można odpowiedzieć później. Używane jest tylko ustawienie tego komputera."
+ }
+--- a/package.nls.pt-br.json
++++ b/package.nls.pt-br.json
+@@ -163,5 +163,8 @@
+   "config.judge.engine.enumDescriptions.auto": "Seu próprio modelo de conversa avalia (`same` na fase 1); um avaliador separado se junta quando um for configurado.",
+   "config.judge.engine.enumDescriptions.same": "Somente seu próprio modelo de conversa avalia; ele nunca troca de modelo.",
+   "config.judge.engine.enumDescriptions.off": "Sem avaliador: as aprovações se comportam exatamente como sem ele.",
+-  "config.shell.passEnvironmentVariables.description": "Nomes de variáveis de ambiente a passar para comandos de shell interativos da sessão principal, incluindo credenciais normalmente excluídas. Apenas nomes, nunca valores. Padrão: nenhuma. Um comando pode expor esses valores na conversa e ao provedor do modelo. Verificações/then_run, agendamentos, trabalhadores secundários/de equipe e hooks nunca recebem variáveis de credenciais, mesmo quando nomeadas aqui. Um comando interativo movido para segundo plano mantém seu ambiente inicial. Não altera os ambientes do Muse Code nem de servidores MCP configurados explicitamente."
++  "config.shell.passEnvironmentVariables.description": "Nomes de variáveis de ambiente a passar para comandos de shell interativos da sessão principal, incluindo credenciais normalmente excluídas. Apenas nomes, nunca valores. Padrão: nenhuma. Um comando pode expor esses valores na conversa e ao provedor do modelo. Verificações/then_run, agendamentos, trabalhadores secundários/de equipe e hooks nunca recebem variáveis de credenciais, mesmo quando nomeadas aqui. Um comando interativo movido para segundo plano mantém seu ambiente inicial. Não altera os ambientes do Muse Code nem de servidores MCP configurados explicitamente.",
++  "command.nextOpenQuestion.title": "Próxima pergunta em aberto",
++  "command.previousOpenQuestion.title": "Pergunta em aberto anterior",
++  "config.questions.deferAfterSeconds.description": "Segundos antes de adiar uma pergunta sem resposta para que o Muse possa continuar trabalhando. 60 por padrão; 0 significa nunca; 1–9 são interpretados como 10; máximo de 3.600. A pergunta permanece em aberto e pode ser respondida depois. Apenas a configuração deste computador é usada."
+ }
+--- a/package.nls.ru.json
++++ b/package.nls.ru.json
+@@ -163,5 +163,8 @@
+   "config.judge.engine.enumDescriptions.auto": "Ваша собственная модель беседы оценивает (`same` в фазе 1); отдельный оценщик присоединится, когда будет настроен.",
+   "config.judge.engine.enumDescriptions.same": "Оценивает только ваша собственная модель беседы; она никогда не переключается на другую модель.",
+   "config.judge.engine.enumDescriptions.off": "Без оценщика: подтверждения ведут себя точно так же, как без него.",
+-  "config.shell.passEnvironmentVariables.description": "Имена переменных окружения, передаваемых интерактивным командам оболочки основной сессии, включая обычно исключаемые учётные данные. Только имена, никогда значения. По умолчанию: нет. Команда может раскрыть эти значения в беседе и поставщику модели. Проверки/then_run, задания по расписанию, дочерние/командные исполнители и хуки никогда не получают переменные с учётными данными, даже если они указаны здесь. Интерактивная команда, переведённая в фон, сохраняет исходное окружение. Не меняет окружение Muse Code или явно настроенных серверов MCP."
++  "config.shell.passEnvironmentVariables.description": "Имена переменных окружения, передаваемых интерактивным командам оболочки основной сессии, включая обычно исключаемые учётные данные. Только имена, никогда значения. По умолчанию: нет. Команда может раскрыть эти значения в беседе и поставщику модели. Проверки/then_run, задания по расписанию, дочерние/командные исполнители и хуки никогда не получают переменные с учётными данными, даже если они указаны здесь. Интерактивная команда, переведённая в фон, сохраняет исходное окружение. Не меняет окружение Muse Code или явно настроенных серверов MCP.",
++  "command.nextOpenQuestion.title": "Следующий открытый вопрос",
++  "command.previousOpenQuestion.title": "Предыдущий открытый вопрос",
++  "config.questions.deferAfterSeconds.description": "Число секунд до откладывания вопроса без ответа, чтобы Muse мог продолжить работу. По умолчанию 60; 0 означает никогда; 1–9 читаются как 10; максимум 3600. Вопрос остаётся открытым, и на него можно ответить позже. Используется только настройка этого компьютера."
+ }
+--- a/package.nls.tr.json
++++ b/package.nls.tr.json
+@@ -163,5 +163,8 @@
+   "config.judge.engine.enumDescriptions.auto": "Kendi sohbet modeliniz değerlendirir (1. aşamada `same`); ayrı bir değerlendirici yapılandırıldığında katılır.",
+   "config.judge.engine.enumDescriptions.same": "Yalnızca kendi sohbet modeliniz değerlendirir; modeli asla değiştirmez.",
+   "config.judge.engine.enumDescriptions.off": "Değerlendirici yok: onaylar tam olarak değerlendiricisiz olduğu gibi davranır.",
+-  "config.shell.passEnvironmentVariables.description": "Ana oturumdaki etkileşimli kabuk komutlarına aktarılacak ortam değişkenlerinin adları; normalde dışarıda tutulan kimlik bilgileri de dahil. Yalnızca adlar, asla değerler. Varsayılan: hiçbiri. Bir komut bu değerleri konuşmada ve model sağlayıcısına açığa çıkarabilir. Doğrulama/then_run, zamanlanmış işler, alt/ekip çalışanları ve kancalar, burada adları yazılsa bile kimlik bilgisi değişkenlerini asla almaz. Arka plana taşınan etkileşimli bir komut başlangıç ortamını korur. Muse Code veya açıkça yapılandırılmış MCP sunucusu ortamlarını değiştirmez."
++  "config.shell.passEnvironmentVariables.description": "Ana oturumdaki etkileşimli kabuk komutlarına aktarılacak ortam değişkenlerinin adları; normalde dışarıda tutulan kimlik bilgileri de dahil. Yalnızca adlar, asla değerler. Varsayılan: hiçbiri. Bir komut bu değerleri konuşmada ve model sağlayıcısına açığa çıkarabilir. Doğrulama/then_run, zamanlanmış işler, alt/ekip çalışanları ve kancalar, burada adları yazılsa bile kimlik bilgisi değişkenlerini asla almaz. Arka plana taşınan etkileşimli bir komut başlangıç ortamını korur. Muse Code veya açıkça yapılandırılmış MCP sunucusu ortamlarını değiştirmez.",
++  "command.nextOpenQuestion.title": "Sonraki açık soru",
++  "command.previousOpenQuestion.title": "Önceki açık soru",
++  "config.questions.deferAfterSeconds.description": "Muse’un çalışmaya devam edebilmesi için yanıtsız bir sorunun ertelenmesine kadar geçen saniye. Varsayılan 60; 0 hiçbir zaman demektir; 1–9, 10 olarak okunur; en fazla 3.600. Soru açık kalır ve daha sonra yanıtlanabilir. Yalnızca bu bilgisayarın ayarı kullanılır."
+ }
+--- a/package.nls.zh-cn.json
++++ b/package.nls.zh-cn.json
+@@ -163,5 +163,8 @@
+   "config.judge.engine.enumDescriptions.auto": "您自己的聊天模型评判（第1阶段即`same`）；配置单独的评判器后会加入。",
+   "config.judge.engine.enumDescriptions.same": "仅您自己的聊天模型评判；从不切换模型。",
+   "config.judge.engine.enumDescriptions.off": "无评判器：审批与没有评判器时完全一致。",
+-  "config.shell.passEnvironmentVariables.description": "传递给主会话交互式 shell 命令的环境变量名称，包括通常被排除的凭据变量。仅填写名称，不填写值。默认不传递。命令可能在对话中以及向模型提供商暴露这些值。验证/then_run、计划任务、子代理/团队工作者和钩子永远不会接收凭据变量，即使在此列出了名称。移至后台的交互式命令保留启动时的环境。不会更改 Muse Code 或显式配置的 MCP 服务器环境。"
++  "config.shell.passEnvironmentVariables.description": "传递给主会话交互式 shell 命令的环境变量名称，包括通常被排除的凭据变量。仅填写名称，不填写值。默认不传递。命令可能在对话中以及向模型提供商暴露这些值。验证/then_run、计划任务、子代理/团队工作者和钩子永远不会接收凭据变量，即使在此列出了名称。移至后台的交互式命令保留启动时的环境。不会更改 Muse Code 或显式配置的 MCP 服务器环境。",
++  "command.nextOpenQuestion.title": "下一个待回答的问题",
++  "command.previousOpenQuestion.title": "上一个待回答的问题",
++  "config.questions.deferAfterSeconds.description": "在多少秒后暂缓未回答的问题，让 Muse 继续工作。默认值为 60；0 表示从不；1–9 按 10 处理；最大值为 3,600。问题会保持待回答状态，可稍后回答。仅使用此计算机的设置。"
+ }
+--- a/package.nls.zh-tw.json
++++ b/package.nls.zh-tw.json
+@@ -163,5 +163,8 @@
+   "config.judge.engine.enumDescriptions.auto": "您自己的聊天模型評判（第1階段即`same`）；設定單獨的評判器後會加入。",
+   "config.judge.engine.enumDescriptions.same": "僅您自己的聊天模型評判；從不切換模型。",
+   "config.judge.engine.enumDescriptions.off": "無評判器：審批與沒有評判器時完全一致。",
+-  "config.shell.passEnvironmentVariables.description": "傳遞給主工作階段互動式 shell 命令的環境變數名稱，包括通常被排除的憑證變數。僅填寫名稱，不填寫值。預設不傳遞。命令可能在對話中以及向模型供應商揭露這些值。驗證/then_run、排程、子代理/團隊工作者和掛鉤永遠不會接收憑證變數，即使在此列出名稱。移至背景的互動式命令保留啟動時的環境。不會變更 Muse Code 或明確設定的 MCP 伺服器環境。"
++  "config.shell.passEnvironmentVariables.description": "傳遞給主工作階段互動式 shell 命令的環境變數名稱，包括通常被排除的憑證變數。僅填寫名稱，不填寫值。預設不傳遞。命令可能在對話中以及向模型供應商揭露這些值。驗證/then_run、排程、子代理/團隊工作者和掛鉤永遠不會接收憑證變數，即使在此列出名稱。移至背景的互動式命令保留啟動時的環境。不會變更 Muse Code 或明確設定的 MCP 伺服器環境。",
++  "command.nextOpenQuestion.title": "下一個待回答的問題",
++  "command.previousOpenQuestion.title": "上一個待回答的問題",
++  "config.questions.deferAfterSeconds.description": "在多少秒後暫緩未回答的問題，讓 Muse 繼續工作。預設值為 60；0 表示永不；1–9 按 10 處理；最大值為 3,600。問題會維持待回答狀態，可稍後回答。僅使用此電腦的設定。"
+ }
+--- a/package.json
++++ b/package.json
+@@ -296,6 +296,16 @@
+       {
+         "command": "museSpark.openPullRequestInConversation",
+         "title": "%command.openPullRequestInConversation.title%",
++        "category": "%command.category%"
++      },
++      {
++        "command": "museSpark.nextOpenQuestion",
++        "title": "%command.nextOpenQuestion.title%",
++        "category": "%command.category%"
++      },
++      {
++        "command": "museSpark.previousOpenQuestion",
++        "title": "%command.previousOpenQuestion.title%",
+         "category": "%command.category%"
+       }
+     ],
+@@ -1118,6 +1128,14 @@
+             "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+           },
+           "description": "%config.shell.passEnvironmentVariables.description%",
++          "scope": "machine"
++        },
++        "museSpark.questions.deferAfterSeconds": {
++          "type": "integer",
++          "default": 60,
++          "minimum": 0,
++          "maximum": 3600,
++          "description": "%config.questions.deferAfterSeconds.description%",
+           "scope": "machine"
+         }
+       }

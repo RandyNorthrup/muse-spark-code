@@ -675,7 +675,7 @@ describe('questions', () => {
 
   it('writes the questions as text for a client without forms', () => {
     expect(questionsText([single, open])).toBe(
-      `${UI_TEXT.acpQuestionAsked}\nWhich one?\n- Blue\n- Red\nWhat name?`,
+      `${UI_TEXT.acpOpenQuestionAsked}\nWhich one?\n- Blue\n- Red\nWhat name?`,
     )
   })
 })

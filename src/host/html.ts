@@ -1,6 +1,6 @@
 // Builds the webview document. Pure: no `vscode` import, so it is unit-tested
 // directly. Security properties (PLAN.md section 2, D4):
-//   - default-src 'none'; scripts only with the per-load nonce; no remote
+//   - default-src 'none'; scripts from the bundle origin or with the per-load nonce; no remote
 //     origins; no 'unsafe-inline' / 'unsafe-eval' anywhere.
 //   - Inline `style=` attributes are blocked by this policy on purpose, so the
 //     React tree must style through classes in main.css.
@@ -57,7 +57,7 @@ export function buildWebviewHtml(options: WebviewHtmlOptions): string {
     `img-src ${options.cspSource} data:`,
     `style-src ${options.cspSource} 'nonce-${options.nonce}'`,
     `font-src ${options.cspSource}`,
-    `script-src 'nonce-${options.nonce}'`,
+    `script-src 'nonce-${options.nonce}' ${options.cspSource}`,
   ].join('; ')
   const { locale, table } = options.l10n
 

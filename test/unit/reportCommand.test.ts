@@ -189,8 +189,9 @@ describe('report argument parsing', () => {
     }
   })
 
-  it('answers --help with the top-level help', () => {
-    expect(parseCommandLine(['report', '--help'])).toEqual({ command: 'help' })
+  it('answers --help and -h with the complete reference', () => {
+    for (const flag of ['--help', '-h'])
+      expect(parseCommandLine(['report', flag])).toEqual({ command: 'help', all: true })
   })
 })
 

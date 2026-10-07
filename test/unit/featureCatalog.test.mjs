@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { renderDeviceReference } from '../../scripts/gen-reference.mjs'
+import { renderDeviceReference } from '../../scripts/lib/deviceReference.mjs'
 
 const table = { devices: { title: 'Devices', offHelp: 'Off by default' } }
 const feature = {

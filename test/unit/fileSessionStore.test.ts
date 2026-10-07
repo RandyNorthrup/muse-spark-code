@@ -1,3 +1,5 @@
+import { FakeQuestionStore } from './helpers/questions/store'
+import { questionFixture } from './helpers/questions/fixtures'
 import { mkdtempSync } from 'node:fs'
 import { mkdir, readdir, readFile, rename, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -158,4 +160,42 @@ describe('createFileSessionStore', () => {
     await expect(denied.store.save(stored('s3'))).rejects.toThrow('ENOSPC')
     expect(denied.sleep).not.toHaveBeenCalled()
   })
+})
+
+it('deletes the question registry on explicit deletion and retention cleanup, refusing partial cleanup', async () => {
+  const questions = new FakeQuestionStore()
+  const directory = path.join(root, 'questions-removal')
+  const { store } = storeIn(directory, { questions, retentionDays: () => 0 })
+  await store.save(stored('session-1'))
+  await questions.save('session-1', [questionFixture()])
+  await store.remove('session-1')
+  expect(await questions.load('session-1')).toEqual([])
+  await store.save(stored('session-1'))
+  await questions.save('session-1', [questionFixture()])
+  const expiring = storeIn(directory, {
+    questions,
+    retentionDays: () => 1,
+    now: () => NOW + MILLISECONDS_PER_DAY,
+  })
+  expect(await expiring.store.list()).toEqual([])
+  expect(await questions.load('session-1')).toEqual([])
+  await store.save(stored('session-1'))
+  questions.remove.mockRejectedValueOnce(new Error('cleanup refused'))
+  await expect(store.remove('session-1')).rejects.toThrow('cleanup refused')
+  expect(await store.load('session-1')).toBeDefined()
+})
+
+it('keeps an expired session visible when question cleanup fails', async () => {
+  const questions = new FakeQuestionStore()
+  const directory = path.join(root, 'questions-retention-failure')
+  const { store } = storeIn(directory, { questions, retentionDays: () => 0 })
+  await store.save(stored('session-1'))
+  const expiring = storeIn(directory, {
+    questions,
+    retentionDays: () => 1,
+    now: () => NOW + MILLISECONDS_PER_DAY,
+  })
+  questions.remove.mockRejectedValueOnce(new Error('cleanup refused'))
+  expect(await expiring.store.list()).toHaveLength(1)
+  expect(await store.load('session-1')).toBeDefined()
 })

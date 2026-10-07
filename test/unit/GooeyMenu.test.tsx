@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { GooeyMenu, type GooeyItem } from '../../src/webview/components/GooeyMenu'
+import {
+  GooeyMenuContent as GooeyMenu,
+  type GooeyItem,
+} from '../../src/webview/components/GooeyMenuContent'
 
 afterEach(() => {
   vi.restoreAllMocks()

@@ -474,6 +474,7 @@ const agentEventSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('questionSettled'),
     userInputId: z.string(),
+    /** Includes the harness's `deferred` (M112); unknown future MSP words survive. */
     outcome: z.string(),
     answers: z.array(answerSchema),
     /** The explanation given instead of an answer (`clarified`, M46). */

@@ -439,6 +439,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       }
       tap = observeBackend(runtime.backend)
       const agent = createAcpAgent({
+        questions: 'decline',
         backend: tap.backend,
         version: deps.version,
         options: {

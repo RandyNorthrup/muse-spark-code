@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { Buffer } from 'node:buffer'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { useEffect } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   DICTATION_HOLD_MS,
@@ -53,8 +54,21 @@ function slashPalette(seen: string[]) {
         return true
       },
     }
-    return <div role="dialog" aria-label="Actions" />
+    return <SlashPaletteRows slot={slot} />
   }
+}
+
+function SlashPaletteRows({ slot }: { readonly slot: SlashPaletteSlot }) {
+  useEffect(() => {
+    slot.onActiveRowChange('test-palette-row')
+  }, [slot.onActiveRowChange])
+  return (
+    <div role="dialog" aria-label="Actions">
+      <div id="palette-listbox">
+        <p id="test-palette-row">Command</p>
+      </div>
+    </div>
+  )
 }
 
 /** The composer's clock (the tap/hold threshold reads it). */
@@ -334,6 +348,8 @@ describe('Composer mention menu', () => {
     type(view, props, '@zz')
     const textarea = type(view, props, '@zz', { mentionResults: withResults(['old'], 99) })
     expect(screen.getByText('No matching files')).toBeInTheDocument()
+    expect(textarea).not.toHaveAttribute('aria-controls')
+    expect(textarea).not.toHaveAttribute('aria-activedescendant')
     expect(fireEvent.keyDown(textarea, { key: 'Enter' })).toBe(false)
     expect(props.onSubmit).toHaveBeenCalledOnce()
   })
@@ -1174,6 +1190,8 @@ describe('Composer "/" menus (M38)', () => {
     expect(
       screen.getByText('No matching commands; Enter sends the text as it is'),
     ).toBeInTheDocument()
+    expect(typed).not.toHaveAttribute('aria-controls')
+    expect(typed).not.toHaveAttribute('aria-activedescendant')
     expect(fireEvent.keyDown(typed, { key: 'Tab' })).toBe(true)
     fireEvent.keyDown(typed, { key: 'Enter' })
     expect(props.onSubmit).toHaveBeenCalledTimes(2)

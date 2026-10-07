@@ -1,48 +1,19 @@
-// Generate the Devices documentation inventory from real English keys and availability.
+#!/usr/bin/env node
+// Generates the code-derived reference or checks its coverage and freshness,
+// plus the Devices documentation inventory from real English keys and availability.
 import { Buffer } from 'node:buffer'
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { build } from 'esbuild'
 import { format, resolveConfig } from 'prettier'
+import { renderDeviceReference } from './lib/deviceReference.mjs'
+import { generateReference } from './lib/reference.mjs'
 
 const OUTPUT = 'docs/devices-reference.md'
-const cell = (text) => text.replaceAll('|', String.raw`\|`).replaceAll('\n', ' ')
 
-export function renderDeviceReference(catalog, table) {
-  const ids = new Set()
-  const entries = catalog.map((feature) => {
-    const title = table.devices[feature.titleKey]
-    const detail = table.devices[feature.detailKey]
-    if (
-      typeof title !== 'string' ||
-      typeof detail !== 'string' ||
-      feature.availability !== 'unshipped' ||
-      ids.has(feature.id)
-    )
-      throw new Error(`Invalid Devices catalog entry: ${feature.id}`)
-    ids.add(feature.id)
-    return `| ${cell(feature.id)} | ${cell(title)} | Unshipped | ${cell(detail)} |`
-  })
-  return [
-    '# Devices feature reference',
-    '',
-    'Generated from `src/shared/featureCatalog.ts` and the English table.',
-    '',
-    'This is an implementation inventory, not an installed command list. Devices',
-    'has no registered product command or setting on this integration base.',
-    'QR and mDNS have no qualified runtime binding. No board, Git-result or',
-    'physical-device support is claimed. All editors share the method port;',
-    'remote and headless receivers remain unqualified.',
-    '',
-    '| Id | Feature | Availability | Contract |',
-    '| --- | --- | --- | --- |',
-    ...entries,
-    '',
-  ].join('\n')
-}
-
-async function main() {
+async function checkDevicesReference(isCheck) {
   const { outputFiles } = await build({
     stdin: {
       contents:
@@ -63,7 +34,7 @@ async function main() {
     ...(await resolveConfig(OUTPUT)),
     filepath: OUTPUT,
   })
-  if (process.argv.includes('--check')) {
+  if (isCheck) {
     if (readFileSync(OUTPUT, 'utf8') !== generated)
       throw new Error(`Stale ${OUTPUT}: run node scripts/gen-reference.mjs`)
     console.log(`ok   Devices reference: ${FEATURE_CATALOG.length} entries`)
@@ -71,6 +42,15 @@ async function main() {
     writeFileSync(OUTPUT, generated)
     console.log(`wrote ${OUTPUT}: ${FEATURE_CATALOG.length} entries`)
   }
+}
+
+async function main() {
+  const isCheck = process.argv.includes('--check')
+  const model = await generateReference(process.cwd(), isCheck)
+  console.log(
+    `Reference: ${model.features.length} features, ${model.commands.length} commands, ${model.settings.length} settings, ${model.slash.length} slash, ${model.cli.length} CLI; ${isCheck ? 'current' : 'generated'}`,
+  )
+  await checkDevicesReference(isCheck)
 }
 if (
   process.argv[1] !== undefined &&

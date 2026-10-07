@@ -510,6 +510,19 @@ describe('filterPalette', () => {
 
 // M38: the prompt's "/" list.
 describe('slashCommandsOf', () => {
+  it('keeps /help local when an installed skill has the same selector', () => {
+    const commands = slashCommandsOf(
+      buildPalette({
+        ...context,
+        skills: [{ selector: 'help', displayName: 'Help skill', description: 'Custom help' }],
+      }),
+    )
+    expect(commands.find((command) => command.name === 'help')).toMatchObject({
+      action: { type: 'openHelp' },
+      detail: EN.referenceIntro,
+    })
+    expect(commands.filter((command) => command.name === 'help')).toHaveLength(1)
+  })
   it('lists the rows with a slash name and the skills, each name once, never a disabled row', () => {
     const commands = slashCommandsOf(buildPalette(context))
     const names = commands.map((command) => command.name)
@@ -540,6 +553,7 @@ describe('slashCommandsOf', () => {
       'review',
       'security-review',
       'changes',
+      'help',
     ])
     // A row named for the prompt describes itself by its label.
     expect(commands.find((command) => command.name === 'model')).toMatchObject({

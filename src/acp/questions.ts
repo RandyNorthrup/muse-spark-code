@@ -1,7 +1,7 @@
 // The agent's questions (`request_user_input`) in an ACP client (PLAN.md
 // D62): a form where the client can show one (`elicitation/create`), and
-// otherwise the questions as text, declined so the model carries on and the
-// user answers in the next prompt. The client's answer is parsed before use
+// otherwise the questions as text, deferred so the model carries on and the
+// user answers later with /answer. The client's answer is parsed before use
 // (AGENTS.md rule 7): the ACP SDK checks what the agent receives, not what a
 // request of its own gets back. Pure.
 
@@ -135,7 +135,27 @@ export function questionsText(questions: readonly Question[]): string {
     question.question,
     ...question.options.map((option) => `${BULLET}${option.label}`),
   ])
-  return [UI_TEXT.acpQuestionAsked, ...lines].join(LINE)
+  return [UI_TEXT.acpOpenQuestionAsked, ...lines].join(LINE)
+}
+
+/** Only a single text block can be a local command; attachments always remain a prompt. */
+export function questionCommand(
+  text: string,
+):
+  | { readonly kind: 'list' }
+  | { readonly kind: 'answer'; readonly number: number; readonly text: string }
+  | { readonly kind: 'invalid' }
+  | undefined {
+  const trimmed = text.trim()
+  if (trimmed === '/questions') return { kind: 'list' }
+  if (/^\/questions\s/.test(trimmed)) return { kind: 'invalid' }
+  if (!/^\/answer(?:\s|$)/.test(trimmed)) return undefined
+  const match = /^\/answer\s+([1-9]\d*)\s+([\s\S]+)$/.exec(trimmed)
+  const number = Number(match?.[1])
+  const answer = match?.[2]?.trim()
+  return answer !== undefined && answer !== '' && Number.isSafeInteger(number)
+    ? { kind: 'answer', number, text: answer }
+    : { kind: 'invalid' }
 }
 
 // --- MCP elicitation through the client's form (M91 lane M) ---

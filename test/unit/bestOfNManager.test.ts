@@ -85,6 +85,7 @@ class FakeSession implements AgentSession {
   public readonly modelId = 'muse-spark-1.3'
   public readonly sent: TurnPart[][] = []
   public decideApproval = vi.fn(resolvedVoid)
+  public deferQuestions = throwing('deferQuestions')
   public cancelQuestions = vi.fn(resolvedVoid)
   public cancel = vi.fn(resolvedVoid)
   public dispose = vi.fn(returnedVoid)

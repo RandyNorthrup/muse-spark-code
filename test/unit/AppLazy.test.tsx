@@ -97,7 +97,7 @@ describe('App while its deferred panels load', () => {
     })
 
     fireEvent.click(screen.getByLabelText('Commands'))
-    const filter = screen.getByRole('combobox')
+    const filter = await screen.findByRole('combobox')
     fireEvent.change(filter, { target: { value: '/usage' } })
     fireEvent.keyDown(filter, { key: 'Enter' })
     const loading = screen.getByRole('dialog', { name: EN.loadingOutput })

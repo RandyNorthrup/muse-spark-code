@@ -77,6 +77,15 @@ approval requests select reject_once (or cancel if unavailable). Model/effort
 validation closes a newly created session before usage/2. Too-small valid budget
 is refusal/5 before any billable request, naming the model's minimum.
 
+M112 does not start question timers in `exec`: `question_declined` remains
+its tally, with no late-answer queue or remembered answer. The interactive
+ACP option `--questions-defer-after` is refused by `exec`. Best-of-N, worktree
+conversations and the evaluation retain their immediate cancellation or
+clarification. Scheduled/unattended prompts instead defer at once and retain
+an open question, including with interactive deferral set to 0 (D92.8 as
+amended by D95); they never wait for a form. The schedule and registry
+bindings are certified by M112's integration, not by a headless run.
+
 ## Exits, authoritative completion and output
 
 | Code | Status                              | Meaning                                                                                                                                                |

@@ -1,3 +1,4 @@
+import { PAID_USE_REGISTRY } from '../../shared/paid'
 // The paid Model API features (M33–M35, PLAN.md D30), "opt in and loud":
 // which are on, and what this window has used of them.
 //
@@ -252,63 +253,10 @@ export class PaidUsage {
       return
     }
     const { tally } = this
-    switch (feature) {
-      case 'webSearch': {
-        this.tally = { ...tally, webSearches: tally.webSearches + units }
-        break
-      }
-      case 'imageGeneration': {
-        this.tally = { ...tally, images: tally.images + units }
-        break
-      }
-      case 'voice': {
-        this.tally = { ...tally, voiceSeconds: tally.voiceSeconds + units }
-        break
-      }
-      case 'scheduledPrompts': {
-        this.tally = { ...tally, scheduledRuns: tally.scheduledRuns + units }
-        break
-      }
-      case 'subagents': {
-        this.tally = {
-          ...tally,
-          subagentRequests: (tally.subagentRequests ?? 0) + units,
-          subagentUnknownRequests: (tally.subagentUnknownRequests ?? 0) + units,
-        }
-        break
-      }
-      case 'autoReviewer': {
-        this.tally = {
-          ...tally,
-          autoReviews: (tally.autoReviews ?? 0) + units,
-          autoReviewUnknownRequests: (tally.autoReviewUnknownRequests ?? 0) + units,
-        }
-        break
-      }
-      case 'bestOfN': {
-        this.tally = { ...tally, bestOfNAttempts: (tally.bestOfNAttempts ?? 0) + units }
-        break
-      }
-      case 'tab': {
-        this.tally = { ...tally, tabRequests: (tally.tabRequests ?? 0) + units }
-        break
-      }
-      case 'hookModels': {
-        this.tally = {
-          ...tally,
-          hookModelRuns: (tally.hookModelRuns ?? 0) + units,
-          hookModelUnknownRequests: (tally.hookModelUnknownRequests ?? 0) + units,
-        }
-        break
-      }
-      case 'judge': {
-        this.tally = {
-          ...tally,
-          judgeCalls: (tally.judgeCalls ?? 0) + units,
-          judgeUnknownRequests: (tally.judgeUnknownRequests ?? 0) + units,
-        }
-        break
-      }
+    const entry = PAID_USE_REGISTRY[feature]
+    this.tally = { ...tally, [entry.tally]: (tally[entry.tally] ?? 0) + units }
+    if ('unknown' in entry) {
+      this.tally = { ...this.tally, [entry.unknown]: (tally[entry.unknown] ?? 0) + units }
     }
     this.log.info(`Paid use: ${feature} +${String(units)}`)
     for (const listener of this.listeners) {

@@ -1,0 +1,77 @@
+{
+  "en": {
+    "command.nextOpenQuestion.title": "Next open question",
+    "command.previousOpenQuestion.title": "Previous open question",
+    "config.questions.deferAfterSeconds.description": "Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used."
+  },
+  "cs": {
+    "command.nextOpenQuestion.title": "Další otevřená otázka",
+    "command.previousOpenQuestion.title": "Předchozí otevřená otázka",
+    "config.questions.deferAfterSeconds.description": "Počet sekund, po kterých se nezodpovězená otázka odloží, aby Muse mohl pokračovat v práci. Výchozí hodnota je 60; 0 znamená nikdy; 1–9 se čtou jako 10; maximum je 3 600. Otázka zůstává otevřená a můžete na ni odpovědět později. Použije se pouze nastavení tohoto počítače."
+  },
+  "de": {
+    "command.nextOpenQuestion.title": "Nächste offene Frage",
+    "command.previousOpenQuestion.title": "Vorherige offene Frage",
+    "config.questions.deferAfterSeconds.description": "Sekunden, nach denen eine unbeantwortete Frage zurückgestellt wird, damit Muse weiterarbeiten kann. Standard: 60; 0 bedeutet nie; 1–9 werden als 10 gelesen; höchstens 3.600. Die Frage bleibt offen und kann später beantwortet werden. Nur die Einstellung dieses Computers wird verwendet."
+  },
+  "es": {
+    "command.nextOpenQuestion.title": "Siguiente pregunta pendiente",
+    "command.previousOpenQuestion.title": "Pregunta pendiente anterior",
+    "config.questions.deferAfterSeconds.description": "Segundos antes de aplazar una pregunta sin respuesta para que Muse pueda seguir trabajando. 60 de forma predeterminada; 0 significa nunca; 1–9 se interpretan como 10; máximo 3.600. La pregunta sigue pendiente y se puede responder más tarde. Solo se usa la configuración de este equipo."
+  },
+  "fr": {
+    "command.nextOpenQuestion.title": "Question en attente suivante",
+    "command.previousOpenQuestion.title": "Question en attente précédente",
+    "config.questions.deferAfterSeconds.description": "Nombre de secondes avant de reporter une question sans réponse pour que Muse puisse poursuivre son travail. 60 par défaut ; 0 signifie jamais ; 1–9 sont interprétés comme 10 ; maximum 3 600. La question reste en attente et peut recevoir une réponse plus tard. Seul le réglage de cet ordinateur est utilisé."
+  },
+  "hu": {
+    "command.nextOpenQuestion.title": "Következő nyitott kérdés",
+    "command.previousOpenQuestion.title": "Előző nyitott kérdés",
+    "config.questions.deferAfterSeconds.description": "Ennyi másodperc után halasztjuk el a megválaszolatlan kérdést, hogy Muse folytathassa a munkát. Alapérték: 60; a 0 jelentése soha; az 1–9 értékeket 10-ként kezeljük; maximum 3600. A kérdés nyitva marad, és később is megválaszolható. Csak ennek a gépnek a beállítását használjuk."
+  },
+  "it": {
+    "command.nextOpenQuestion.title": "Domanda aperta successiva",
+    "command.previousOpenQuestion.title": "Domanda aperta precedente",
+    "config.questions.deferAfterSeconds.description": "Secondi prima che una domanda senza risposta venga rimandata per consentire a Muse di continuare a lavorare. 60 per impostazione predefinita; 0 significa mai; 1–9 vengono interpretati come 10; massimo 3.600. La domanda resta aperta e può ricevere una risposta in seguito. Si usa solo l’impostazione di questo computer."
+  },
+  "ja": {
+    "command.nextOpenQuestion.title": "次の未回答の質問",
+    "command.previousOpenQuestion.title": "前の未回答の質問",
+    "config.questions.deferAfterSeconds.description": "Muse が作業を続けられるよう、未回答の質問を保留するまでの秒数。既定値は 60、0 は保留しない設定、1～9 は 10 として扱い、上限は 3,600 です。質問は未回答のまま保持され、後から回答できます。このコンピューターの設定のみを使用します。"
+  },
+  "ko": {
+    "command.nextOpenQuestion.title": "다음 미답변 질문",
+    "command.previousOpenQuestion.title": "이전 미답변 질문",
+    "config.questions.deferAfterSeconds.description": "Muse가 작업을 계속할 수 있도록 미답변 질문을 보류하기까지의 초 단위 시간입니다. 기본값은 60이며, 0은 보류하지 않음, 1–9는 10으로 처리됩니다. 최댓값은 3,600입니다. 질문은 열린 상태로 유지되며 나중에 답변할 수 있습니다. 이 컴퓨터의 설정만 사용합니다."
+  },
+  "pl": {
+    "command.nextOpenQuestion.title": "Następne otwarte pytanie",
+    "command.previousOpenQuestion.title": "Poprzednie otwarte pytanie",
+    "config.questions.deferAfterSeconds.description": "Liczba sekund, po których pytanie bez odpowiedzi zostaje odroczone, aby Muse mógł kontynuować pracę. Domyślnie 60; 0 oznacza nigdy; 1–9 są odczytywane jako 10; maksimum 3600. Pytanie pozostaje otwarte i można odpowiedzieć później. Używane jest tylko ustawienie tego komputera."
+  },
+  "pt-br": {
+    "command.nextOpenQuestion.title": "Próxima pergunta em aberto",
+    "command.previousOpenQuestion.title": "Pergunta em aberto anterior",
+    "config.questions.deferAfterSeconds.description": "Segundos antes de adiar uma pergunta sem resposta para que o Muse possa continuar trabalhando. 60 por padrão; 0 significa nunca; 1–9 são interpretados como 10; máximo de 3.600. A pergunta permanece em aberto e pode ser respondida depois. Apenas a configuração deste computador é usada."
+  },
+  "ru": {
+    "command.nextOpenQuestion.title": "Следующий открытый вопрос",
+    "command.previousOpenQuestion.title": "Предыдущий открытый вопрос",
+    "config.questions.deferAfterSeconds.description": "Число секунд до откладывания вопроса без ответа, чтобы Muse мог продолжить работу. По умолчанию 60; 0 означает никогда; 1–9 читаются как 10; максимум 3600. Вопрос остаётся открытым, и на него можно ответить позже. Используется только настройка этого компьютера."
+  },
+  "tr": {
+    "command.nextOpenQuestion.title": "Sonraki açık soru",
+    "command.previousOpenQuestion.title": "Önceki açık soru",
+    "config.questions.deferAfterSeconds.description": "Muse’un çalışmaya devam edebilmesi için yanıtsız bir sorunun ertelenmesine kadar geçen saniye. Varsayılan 60; 0 hiçbir zaman demektir; 1–9, 10 olarak okunur; en fazla 3.600. Soru açık kalır ve daha sonra yanıtlanabilir. Yalnızca bu bilgisayarın ayarı kullanılır."
+  },
+  "zh-cn": {
+    "command.nextOpenQuestion.title": "下一个待回答的问题",
+    "command.previousOpenQuestion.title": "上一个待回答的问题",
+    "config.questions.deferAfterSeconds.description": "在多少秒后暂缓未回答的问题，让 Muse 继续工作。默认值为 60；0 表示从不；1–9 按 10 处理；最大值为 3,600。问题会保持待回答状态，可稍后回答。仅使用此计算机的设置。"
+  },
+  "zh-tw": {
+    "command.nextOpenQuestion.title": "下一個待回答的問題",
+    "command.previousOpenQuestion.title": "上一個待回答的問題",
+    "config.questions.deferAfterSeconds.description": "在多少秒後暫緩未回答的問題，讓 Muse 繼續工作。預設值為 60；0 表示永不；1–9 按 10 處理；最大值為 3,600。問題會維持待回答狀態，可稍後回答。僅使用此電腦的設定。"
+  }
+}
