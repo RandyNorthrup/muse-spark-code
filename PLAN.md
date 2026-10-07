@@ -14201,7 +14201,7 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ### REL0160 — Prepare the 0.16.0 release (2026-10-06)
 
-**Status: draft; release promotion waits on the lead's sync branches.**
+**Status: M106/M107 joined; promotion waits on `sync/main-0160` and failed size qualifications.**
 The authorized first join is `git merge --no-ff m107/w` at `e8b6d24ae`,
 recorded as `06904a410`, onto main `8c6351d73`. Preserve all M107 repairs,
 generate reference/host/schema artifacts with their own generators, and move
@@ -14211,12 +14211,14 @@ CPU/memory throttling and eligible relocation, and free-disk floors. Keep every
 named M107 native/editor/storage qualification visible; component tests do not
 certify a missing production binding.
 
-The lead will supply `sync/m106-final` and tell this lane to merge it. Merge
-`sync/main-0160` when supplied with 0.14.4/0.15.0, then bump the manifest/lock
-and generated ACP package together to **0.16.0**. Preserve main's 0.15.0 notes
-as README's **Earlier in 0.15**. Until then the 0.16.0 changelog/README are
-explicit drafts and the manifest remains 0.14.3; absent M106 contributions
-are not invented in the feature catalog.
+The round-2 brief authorizes `git merge --no-ff sync/m106-final` at
+`3e0c0c603`, completed as `61d61038e` with both feature sets and regenerated
+reference/host/schema records. Merge `sync/main-0160` when supplied with
+0.14.4/0.15.0, then bump the manifest/lock and generated ACP package together
+to **0.16.0**. Preserve main's 0.15.0 notes as README's **Earlier in 0.15**.
+Until then the 0.16.0 changelog/README stay explicit drafts and the manifest
+remains 0.14.3. Final merged-source receipts and size/native qualifications
+are recorded in `docs/certification/rel0160.md`; no failed gate is waived.
 
 Run directly on Kubuntu with `$HOME/.local/bin` in PATH: production build,
 VSIX/ACP packaging and size measurement, all five typecheck projects, full lint,
@@ -32515,7 +32517,7 @@ recorded attempts and completes the remaining requested checks. No threshold
 or test is relaxed. The compiled macOS helper is absent on this Linux rig;
 universal VSIX measurement and D6’s authorized +5%-rounded-to-25-KiB budget
 calculation require that real artifact. Local size alone cannot establish a
-universal budget. The real local VSIX measures 2,863,593 bytes against the
+universal budget. The final local VSIX measures 2,863,706 bytes against the
 unchanged 2,457,600-byte cap; normal build/package and direct size qualification
 remain failed. ACP packaging succeeds at 1,960,102 bytes. Main’s release handoff `sync/main-0160` is also absent;
 manifest/lock promotion remains held at 0.14.3. See `rel0160.md` for final
@@ -36813,3 +36815,22 @@ no source-map-js advisory and refuses its stale GHSA-68fv-2mgg-jv7q exception.
 Remove only that obsolete entry as the existing gate requires; retain the
 reviewed braces exception and its date, all severity thresholds and all pins.
 The initial refusal and fresh audit rerun certify the removal.
+
+**REL0160 browser fixture money seam.** The full 820-page accessibility
+matrix has 16 missing results: Judge, subagent, Auto reviewer and Tab usage
+scenes still post numeric paid cost totals, which M106’s canonical decimal-string
+protocol correctly refuses before the badge can render. Convert those four fake
+totals and the reply’s agent-event cost to equivalent canonical strings. Keep
+provider/key-usage numeric fields on their existing distinct schema and all
+whenFound interaction waits. No production parser or threshold changes. Rerun
+the full four-theme matrix and the complete harness mapping test file.
+
+**REL0160 settled README capture.** The old virtual-time Chrome command
+never finishes the first agents screenshot on the joined lazy graph. Stop only
+that verified owned child; keep its nonzero capture receipt. Route README shots
+through the existing bounded withSizedPage Playwright driver and the harness’s
+real ready/axe-result condition, preserving each requested viewport and language.
+Refuse a scenario error rather than saving an empty screenshot. Regenerate all
+15 mapped scenes and compare pixels; deliberately throw in the first mapped
+scene, require capture refusal, and restore its HTML byte-exact before the final
+complete capture. No production surface, size or test timeout changes.

@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Keep paid/reply browser fixtures on canonical decimal USD and wait for the
+  real settled harness when capturing README scenes with lazy imports.
 - Remove the obsolete source-map-js audit exception once the locked tree no
   longer reports its advisory; retain the existing audit policy.
 - Restore queued late-question answers before ACP manual compaction, so the
