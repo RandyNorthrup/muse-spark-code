@@ -2709,7 +2709,12 @@
     "sms": "簡訊",
     "privateLink": "私人連結",
     "paidSms": "每則簡訊費用為 {price}。共用每日預算：{budget}。",
-    "generatedAsOf": "產生時點為 {asOf}"
+    "generatedAsOf": "產生時點為 {asOf}",
+    "verificationMessage": "您的郵件報告驗證碼為 {code}。",
+    "nameTemplate": "檔案名稱範本",
+    "retention": "保留的報告數量",
+    "format": "格式",
+    "verifyRecipient": "驗證收件者"
   },
   "reportRowsMore": {
     "other": "另外 {count} 列"

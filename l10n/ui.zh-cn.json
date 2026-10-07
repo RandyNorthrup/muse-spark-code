@@ -2709,7 +2709,12 @@
     "sms": "短信",
     "privateLink": "私有链接",
     "paidSms": "每条短信费用为 {price}。共享每日预算：{budget}。",
-    "generatedAsOf": "生成时点为 {asOf}"
+    "generatedAsOf": "生成时点为 {asOf}",
+    "verificationMessage": "您的邮件报告验证码为 {code}。",
+    "nameTemplate": "文件名模板",
+    "retention": "保留的报告数量",
+    "format": "格式",
+    "verifyRecipient": "验证收件人"
   },
   "reportRowsMore": {
     "other": "另外 {count} 行"

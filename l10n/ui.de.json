@@ -2805,7 +2805,12 @@
     "sms": "Textnachricht",
     "privateLink": "Privater Link",
     "paidSms": "Textnachrichten kosten jeweils {price}. Gemeinsames Tagesbudget: {budget}.",
-    "generatedAsOf": "Erstellt zum Stand {asOf}"
+    "generatedAsOf": "Erstellt zum Stand {asOf}",
+    "verificationMessage": "Ihr Bestätigungscode für Berichte per E-Mail lautet {code}.",
+    "nameTemplate": "Vorlage für den Dateinamen",
+    "retention": "Aufzubewahrende Berichte",
+    "format": "Ausgabeformat",
+    "verifyRecipient": "Empfänger bestätigen"
   },
   "reportRowsMore": {
     "one": "{count} weitere Zeile",

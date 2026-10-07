@@ -11507,9 +11507,11 @@ Needs: <items>.`).
          as that schedule's allowed root), the workspace's `reports/`
          folder, or a node's storage (M110's data volume, shown in its web
          UI). A name template (`{kind}`, `{scope}`, `{date}`, `{time}`,
-         `{hash8}`, `{ext}`; `{kind}-{date}.{ext}` by default) and a
+         `{hash8}`, `{ext}`; `{kind}-{date}-{time}.{ext}` by default, with
+         milliseconds preserved so each occurrence has its own name) and a
          retention of the newest N (`REPORT_SAVE_RETENTION_DEFAULT`, 30),
-         which deletes only files that schedule wrote (its own manifest).
+         which deletes only files that destination wrote (a manifest keyed
+         by both schedule and destination).
          Paths are canonicalised and confined to the allowed root (no link
          or junction escapes, `canonicalPath.ts`), and every write is atomic
          (`fsAtomic.ts`).
@@ -28072,6 +28074,20 @@ guard widening, command or setting change; W retains public documentation
 and integrated quality. Run scoped checks directly on Kubuntu with default
 test timeouts; the rig brief forbids aggregate quality and branch merges.
 
+**Lane Q review corrections (RVM113Q, 2026-10-06).** Fix all eight
+findings within Q: a serialized destination/root owner supplies a live,
+generation-bound assertion to every atomic save mutation, and the runner
+rechecks the complete grant before publication and retention removal. Give
+each destination its own manifest identity; make default names unique to
+the occurrence (including milliseconds) and refuse older replacements at
+custom colliding names. Use own-property outcome lookup, compare scrubbed
+scope identities, resume the persisted rendered payload byte-for-byte,
+sanitize interactive validation/broker errors, and name picker targets before
+selection. Add regressions and byte-exact red drills to Q's certification.
+No dependency, guard weakening or live/model call. Existing W wiring,
+reference and integration-gate handoffs remain; bounded rig checks replace
+aggregate quality for this lane under the explicit rig/shared brief.
+
 **Status 2026-10-05: planned.** No model call is needed anywhere in this
 milestone. It lands in three deliveries:
 
@@ -29311,6 +29327,16 @@ anywhere joined it).
 ### FIXM112U — RVM112U surface repairs (2026-10-06)
 
 **Status 2026-10-06: built.** Status evidence: `docs/certification/m112-u.md`.
+
+**M113-Q-RVM113Q bounded rig certification (2026-10-06).** The rig/shared
+brief prohibits aggregate quality and confines changes to Q. Complete owning
+test files run with repository-default timeouts and at most three workers;
+scoped lint/format, all-project typechecking, deadcode, duplication,
+localization, reference, host API and production build checks run directly
+on win11. No gate is weakened. Existing unused report manifest keys,
+generated host API inventory and destination shipping registration remain
+named W integration handoffs in Q's certification, with their actual exit
+codes recorded. The lead must pass complete integrated quality before shipping.
 
 **M113-R-RVM113R bounded rig certification (2026-10-06).** The lane brief
 reserves full `npm run quality` to the lead and confines changes to R's
@@ -31048,6 +31074,22 @@ before a repaired one loads (2026-09-30).
   M113-K-host-api-record (node:crypto 46 → 47) remain W's gate handoffs;
   W wires the manifest and regenerates the inventory before full quality.
   No threshold, ignore, dependency, wire shape or startup budget is changed.
+
+- **M113-Q-review-RVM113Q (2026-10-06).** All eight findings are fixed;
+  no review residual is deferred. Saving requires a serialized canonical-root
+  owner bound to the action generation, a live grant refresh before each
+  conditional write/removal, and a synchronous owner assertion immediately
+  before every atomic mutation. A revoked or stale effect records refused;
+  published bytes from before revocation are retained, without compensating
+  writes after consent ends. Destination-specific manifests isolate retention;
+  default UTC names preserve milliseconds and older custom-name replacements
+  refuse. Persisted rendered payloads resume unchanged. Fixed interactive
+  errors and pre-selection target names are covered by regressions and
+  byte-exact drills in Q's certification. M115/M110 must supply the required
+  cross-process owner and generation assertions, including on node volumes;
+  Q supplies no production fallback. The pre-existing final filesystem race,
+  orphan-on-manifest-failure limit, shape-only scrub and W integration/shipping
+  handoffs remain, without any expanded guard or support claim.
 
 - **M113-R-review-RVM113R2 (2026-10-06).** The single P2 is fixed;
   no review finding is deferred. Known workspace paths consume the full

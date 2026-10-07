@@ -2805,7 +2805,12 @@
     "sms": "Szöveges üzenet",
     "privateLink": "Privát hivatkozás",
     "paidSms": "A szöveges üzenetek ára darabonként {price}. Közös napi keret: {budget}.",
-    "generatedAsOf": "Az állapot időpontja: {asOf}"
+    "generatedAsOf": "Az állapot időpontja: {asOf}",
+    "verificationMessage": "Az e-mailes jelentések ellenőrző kódja: {code}.",
+    "nameTemplate": "Fájlnévsablon",
+    "retention": "Megőrzendő jelentések száma",
+    "format": "Formátum",
+    "verifyRecipient": "Címzett ellenőrzése"
   },
   "reportRowsMore": {
     "one": "További {count} sor",

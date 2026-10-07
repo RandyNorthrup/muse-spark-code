@@ -2997,7 +2997,12 @@
     "sms": "Wiadomość tekstowa",
     "privateLink": "Prywatny odnośnik",
     "paidSms": "Każda wiadomość tekstowa kosztuje {price}. Wspólny budżet dzienny: {budget}.",
-    "generatedAsOf": "Wygenerowano według stanu na {asOf}"
+    "generatedAsOf": "Wygenerowano według stanu na {asOf}",
+    "verificationMessage": "Twój kod weryfikacyjny raportów e-mail to {code}.",
+    "nameTemplate": "Szablon nazwy pliku",
+    "retention": "Liczba zachowanych raportów",
+    "format": "Format wyjściowy",
+    "verifyRecipient": "Zweryfikuj odbiorcę"
   },
   "reportRowsMore": {
     "one": "{count} dodatkowy wiersz",

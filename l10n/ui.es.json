@@ -2901,7 +2901,12 @@
     "sms": "Mensaje de texto",
     "privateLink": "Enlace privado",
     "paidSms": "Cada mensaje de texto cuesta {price}. Presupuesto diario compartido: {budget}.",
-    "generatedAsOf": "Generado con fecha {asOf}"
+    "generatedAsOf": "Generado con fecha {asOf}",
+    "verificationMessage": "Tu código de verificación para los informes por correo es {code}.",
+    "nameTemplate": "Plantilla del nombre de archivo",
+    "retention": "Informes que conservar",
+    "format": "Formato",
+    "verifyRecipient": "Verificar destinatario"
   },
   "reportRowsMore": {
     "one": "{count} fila más",

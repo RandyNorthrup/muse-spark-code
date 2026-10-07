@@ -2997,7 +2997,12 @@
     "sms": "Текстовое сообщение",
     "privateLink": "Закрытая ссылка",
     "paidSms": "Каждое текстовое сообщение стоит {price}. Общий дневной бюджет: {budget}.",
-    "generatedAsOf": "Создано по состоянию на {asOf}"
+    "generatedAsOf": "Создано по состоянию на {asOf}",
+    "verificationMessage": "Ваш код подтверждения для отчётов по электронной почте: {code}.",
+    "nameTemplate": "Шаблон имени файла",
+    "retention": "Число сохраняемых отчётов",
+    "format": "Формат",
+    "verifyRecipient": "Подтвердить получателя"
   },
   "reportRowsMore": {
     "one": "Ещё {count} строка",
