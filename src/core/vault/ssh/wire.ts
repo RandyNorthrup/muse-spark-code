@@ -12,6 +12,7 @@ export const SSH = {
   extension: 27,
   extensionFailure: 28,
   uint32Bytes: 4,
+  openSshBlockBytes: 8,
   userauth: 50,
   rsa256: 2,
   rsa512: 4,
@@ -45,6 +46,9 @@ export class SshReader {
     const result = this.bytes.subarray(this.offset, this.offset + length)
     this.offset += length
     return result
+  }
+  takeRemaining(): Buffer {
+    return this.take(this.bytes.length - this.offset)
   }
   byte(): number {
     return this.take(1).readUInt8()
@@ -137,38 +141,87 @@ export function parseSshRequest(bytes: Buffer): z.infer<typeof requestSchema> {
   }
 }
 
+const responseSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('success') }),
+  z.strictObject({ kind: z.literal('failure') }),
+  z.strictObject({ kind: z.literal('signature'), signature: bytesSchema }),
+  z.strictObject({
+    kind: z.literal('identities'),
+    keys: z
+      .array(
+        z.strictObject({
+          blob: bytesSchema,
+          comment: z.string().check(z.maxLength(VAULT_LIMITS.text)),
+        }),
+      )
+      .check(z.maxLength(VAULT_LIMITS.items)),
+  }),
+])
+export function parseSshResponse(bytes: Buffer): z.infer<typeof responseSchema> {
+  const reader = new SshReader(bytes),
+    type = reader.byte()
+  if ([SSH.success, SSH.failure, SSH.extensionFailure].includes(type)) {
+    reader.end()
+    return responseSchema.parse({ kind: type === SSH.success ? 'success' : 'failure' })
+  }
+  if (type === SSH.signAnswer) {
+    const signature = reader.string()
+    reader.end()
+    return responseSchema.parse({ kind: 'signature', signature })
+  }
+  if (type !== SSH.identitiesAnswer) throw sshFailure()
+  const count = reader.uint32()
+  if (count > VAULT_LIMITS.items) throw sshFailure()
+  const keys: { blob: Buffer; comment: string }[] = []
+  for (let index = 0; index < count; index++)
+    keys.push({ blob: reader.string(), comment: reader.text() })
+  reader.end()
+  return responseSchema.parse({ kind: 'identities', keys })
+}
+
 /** Holds at most one bounded frame; callers drain synchronously before accepting another chunk. */
 export class SshFramer {
-  private pending = Buffer.alloc(0)
+  private readonly header = Buffer.alloc(SSH.uint32Bytes)
+  private headerOffset = 0
+  private body: Buffer | null = null
+  private bodyOffset = 0
+  private isClosed = false
   push(chunk: Uint8Array, receive: (frame: Buffer) => void): void {
     let offset = 0
-    while (offset < chunk.length) {
-      let needed = SSH.uint32Bytes - this.pending.length
-      if (needed <= 0) {
-        const length = this.pending.readUInt32BE()
+    while (offset < chunk.length && !this.isClosed) {
+      if (!this.body) {
+        const amount = Math.min(SSH.uint32Bytes - this.headerOffset, chunk.length - offset)
+        this.header.set(chunk.subarray(offset, offset + amount), this.headerOffset)
+        this.headerOffset += amount
+        offset += amount
+        if (this.headerOffset < SSH.uint32Bytes) continue
+        const length = this.header.readUInt32BE()
         if (length < 1 || length > VAULT_LIMITS.frameBytes) throw sshFailure()
-        needed = SSH.uint32Bytes + length - this.pending.length
+        this.body = Buffer.alloc(length)
+        this.bodyOffset = 0
       }
-      const old = this.pending
-      const amount = Math.min(needed, chunk.length - offset)
-      this.pending = Buffer.concat([old, chunk.subarray(offset, offset + amount)])
-      old.fill(0)
+      const body = this.body,
+        amount = Math.min(body.length - this.bodyOffset, chunk.length - offset)
+      body.set(chunk.subarray(offset, offset + amount), this.bodyOffset)
+      this.bodyOffset += amount
       offset += amount
-      if (this.pending.length < SSH.uint32Bytes) continue
-      const length = this.pending.readUInt32BE()
-      if (length < 1 || length > VAULT_LIMITS.frameBytes) throw sshFailure()
-      if (this.pending.length !== SSH.uint32Bytes + length) continue
-      const frame = this.pending
-      this.pending = Buffer.alloc(0)
+      if (this.bodyOffset !== body.length) continue
+      this.body = null
+      this.headerOffset = 0
+      this.header.fill(0)
       try {
-        receive(frame.subarray(SSH.uint32Bytes))
+        receive(body)
       } finally {
-        frame.fill(0)
+        body.fill(0)
       }
     }
   }
   close(): void {
-    this.pending.fill(0)
-    this.pending = Buffer.alloc(0)
+    this.isClosed = true
+    this.header.fill(0)
+    this.body?.fill(0)
+    this.body = null
+    this.bodyOffset = 0
+    this.headerOffset = 0
   }
 }

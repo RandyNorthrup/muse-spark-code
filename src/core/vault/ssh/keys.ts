@@ -10,6 +10,7 @@ import {
 import * as z from 'zod/mini'
 import { VAULT_KEY_BYTES, VAULT_LIMITS } from '../../../shared/constants'
 import { SSH, SshReader, sshString, sshFailure } from './wire'
+import { readOpenSshKey } from './openSshFile'
 
 const jwkSchema = z.strictObject({
   kty: z.string(),
@@ -166,11 +167,9 @@ export function signSshData(
   if (!publicBlob(createPublicKey(key)).equals(blob)) throw sshFailure()
   let raw: Buffer | undefined
   try {
-    raw = sign(
-      method === 'ssh-ed25519' ? null : method === 'rsa-sha2-512' ? 'sha512' : 'sha256',
-      data,
-      { key, dsaEncoding: 'ieee-p1363' },
-    )
+    const digest = method === 'rsa-sha2-512' ? 'sha512' : 'sha256'
+    const hash = method === 'ssh-ed25519' ? null : digest
+    raw = sign(hash, data, { key, dsaEncoding: 'ieee-p1363' })
     const value =
       method === 'ecdsa-sha2-nistp256'
         ? Buffer.concat([
@@ -185,7 +184,7 @@ export function signSshData(
 }
 export interface SoftwareSshKey {
   algorithm: 'ed25519' | 'ecdsa-p256' | 'rsa'
-  privateKey: Buffer
+  privateKey: Buffer<ArrayBuffer>
   publicKey: string
   fingerprint: string
 }
@@ -214,46 +213,11 @@ export function generateEd25519Key(): SoftwareSshKey {
 /** The caller owns and erases the selected file bytes and optional passphrase. No ambient file reads. */
 export function importSshKey(bytes: Buffer, passphrase?: Buffer): SoftwareSshKey {
   if (bytes.length > VAULT_LIMITS.valueBytes) throw sshFailure()
-  let decoded: Buffer | undefined, der: Buffer | undefined
   try {
     const armorType = 'OPENSSH PRIVATE KEY'
-    const begin = `-----BEGIN ${armorType}-----`,
-      end = `-----END ${armorType}-----`
-    if (bytes.includes(Buffer.from(begin))) {
-      const text = bytes.toString('ascii').trim()
-      if (!text.startsWith(begin) || !text.endsWith(end)) throw sshFailure()
-      const encoded = text.slice(begin.length, -end.length).replaceAll(/\s/gu, '')
-      if (!/^[A-Za-z0-9+/=]+$/u.test(encoded)) throw sshFailure()
-      decoded = Buffer.from(encoded, 'base64')
-      const reader = new SshReader(decoded)
-      if (
-        reader.take(Buffer.byteLength('openssh-key-v1\0')).toString() !== 'openssh-key-v1\0' ||
-        reader.text() !== 'none' ||
-        reader.text() !== 'none' ||
-        reader.string().length > 0 ||
-        reader.uint32() !== 1
-      )
-        throw sshFailure()
-      const blob = reader.string(),
-        secret = reader.string()
-      reader.end()
-      const inner = new SshReader(secret)
-      if (inner.uint32() !== inner.uint32() || inner.text() !== 'ssh-ed25519') throw sshFailure()
-      const rawPublic = inner.string(),
-        combined = inner.string()
-      if (
-        rawPublic.length !== VAULT_KEY_BYTES ||
-        combined.length !== VAULT_KEY_BYTES * 2 ||
-        !combined.subarray(VAULT_KEY_BYTES).equals(rawPublic)
-      )
-        throw sshFailure()
-      inner.text()
-      // RFC 8410's fixed Ed25519 PrivateKeyInfo prefix; no private bytes become a JS string.
-      der = Buffer.concat([
-        Buffer.from('302e020100300506032b657004220420', 'hex'),
-        combined.subarray(0, VAULT_KEY_BYTES),
-      ])
-      const result = ownedKey(createPrivateKey({ key: der, format: 'der', type: 'pkcs8' }))
+    if (bytes.includes(Buffer.from(`-----BEGIN ${armorType}-----`))) {
+      const { key, blob } = readOpenSshKey(bytes)
+      const result = ownedKey(key)
       if (result.publicKey.split(' ', 2)[1] !== blob.toString('base64')) {
         result.privateKey.fill(0)
         throw sshFailure()
@@ -265,8 +229,5 @@ export function importSshKey(bytes: Buffer, passphrase?: Buffer): SoftwareSshKey
     )
   } catch {
     throw sshFailure()
-  } finally {
-    decoded?.fill(0)
-    der?.fill(0)
   }
 }

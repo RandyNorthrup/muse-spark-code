@@ -20,10 +20,31 @@ import {
 } from '../../../src/core/vault/ssh/wire'
 import { resolveKnownHost } from '../../../src/core/vault/ssh/knownHosts'
 import { createHmac } from 'node:crypto'
+import { VAULT_LIMITS } from '../../../src/shared/constants'
 
 function armor(bytes: Buffer): Buffer {
   const kind = 'OPENSSH PRIVATE KEY'
   return Buffer.from(`-----BEGIN ${kind}-----\n${bytes.toString('base64')}\n-----END ${kind}-----`)
+}
+function openSshFile(blob: Buffer, secret: Buffer): Buffer {
+  const padding = Buffer.from(
+    Array.from(
+      {
+        length:
+          (SSH.openSshBlockBytes - (secret.length % SSH.openSshBlockBytes)) % SSH.openSshBlockBytes,
+      },
+      (_, index) => index + 1,
+    ),
+  )
+  return Buffer.concat([
+    Buffer.from('openssh-key-v1\0'),
+    sshString('none'),
+    sshString('none'),
+    sshString(''),
+    uint32(1),
+    sshString(blob),
+    sshString(Buffer.concat([secret, padding])),
+  ])
 }
 describe('vault SSH keys and RFC 9987 boundary', () => {
   it('generates unpooled Ed25519 material, exports only public data and verifies signatures', () => {
@@ -42,6 +63,9 @@ describe('vault SSH keys and RFC 9987 boundary', () => {
         ),
       ).toBe(false)
       expect(() => signSshData(key.privateKey, blob, data, SSH.rsa512)).toThrow()
+      expect(() =>
+        signSshData(key.privateKey, publicBlob(generateKeyPairSync('ed25519').publicKey), data, 0),
+      ).toThrow()
     } finally {
       key.privateKey.fill(0)
     }
@@ -79,31 +103,20 @@ describe('vault SSH keys and RFC 9987 boundary', () => {
       sshString(Buffer.concat([der.subarray(-32), raw])),
       sshString('test'),
     ])
-    const file = Buffer.concat([
-      Buffer.from('openssh-key-v1\0'),
-      sshString('none'),
-      sshString('none'),
-      sshString(''),
-      uint32(1),
-      sshString(blob),
-      sshString(secret),
-    ])
+    const file = openSshFile(blob, secret)
     const encoded = armor(file)
     try {
       const result = importSshKey(encoded)
       result.privateKey.fill(0)
       secret[0] = 1
-      const bad = Buffer.concat([
-        Buffer.from('openssh-key-v1\0'),
-        sshString('none'),
-        sshString('none'),
-        sshString(''),
-        uint32(1),
-        sshString(blob),
-        sshString(secret),
-      ])
-      expect(() => importSshKey(armor(bad))).toThrow()
-      bad.fill(0)
+      const bad = openSshFile(blob, secret),
+        badEncoded = armor(bad)
+      try {
+        expect(() => importSshKey(badEncoded)).toThrow()
+      } finally {
+        bad.fill(0)
+        badEncoded.fill(0)
+      }
     } finally {
       der.fill(0)
       secret.fill(0)
@@ -163,7 +176,45 @@ describe('vault SSH keys and RFC 9987 boundary', () => {
     expect(() => {
       new SshFramer().push(Buffer.concat([uint32(0xff_ff_ff_ff), Buffer.from([1])]), vi.fn())
     }).toThrow()
+    expect(() => {
+      new SshFramer().push(uint32(VAULT_LIMITS.frameBytes + 1), vi.fn())
+    }).toThrow()
     parser.close()
+  })
+  it('bounds selected private-key files and known_hosts before decoding them', () => {
+    const generated = generateKeyPairSync('ed25519'),
+      pem = generated.privateKey.export({ type: 'pkcs8', format: 'pem' }),
+      bytes = Buffer.from(pem.toString() + '\n'.repeat(VAULT_LIMITS.valueBytes)),
+      blob = publicBlob(generated.publicKey)
+    try {
+      expect(() => importSshKey(bytes)).toThrow()
+      expect(() =>
+        resolveKnownHost(
+          '#' +
+            'x'.repeat(VAULT_LIMITS.frameBytes) +
+            `\nhost.example ssh-ed25519 ${blob.toString('base64')}`,
+          blob,
+        ),
+      ).toThrow()
+    } finally {
+      bytes.fill(0)
+    }
+  })
+  it('erases borrowed frames and rejects noncanonical booleans and text', () => {
+    const parser = new SshFramer(),
+      borrowed: Buffer[] = []
+    parser.push(sshFrame(SSH.identities), (frame) => {
+      borrowed.push(frame)
+    })
+    expect(borrowed[0]?.every((byte) => byte === 0)).toBe(true)
+    parser.close()
+    parser.push(sshFrame(SSH.identities), (frame) => {
+      borrowed.push(frame)
+    })
+    expect(borrowed).toHaveLength(1)
+    expect(() => new SshReader(Buffer.from([2])).boolean()).toThrow()
+    for (const bytes of [Buffer.from([0xff]), Buffer.from('line\n'), Buffer.from('null\0')])
+      expect(() => new SshReader(sshString(bytes)).text()).toThrow()
   })
   it('matches literal, hashed and wildcard known_hosts; revocation, negation, aliases and wrong keys fail closed', () => {
     const blob = publicBlob(generateKeyPairSync('ed25519').publicKey),
@@ -180,6 +231,7 @@ describe('vault SSH keys and RFC 9987 boundary', () => {
     )
     for (const [text, host] of [
       [`host.example ${key}`, 'other.example'],
+      [`|1|${salt.toString('base64')}|${hash} ${key}`, 'other.example'],
       [`*.example,!bad.example ${key}`, 'bad.example'],
       [`host.example ${key}\n@revoked host.example ${key}`, 'host.example'],
       [`host.example,alias.example ${key}`, undefined],
