@@ -53,6 +53,10 @@ export type PaletteAction =
   /** `/goal ` in the prompt, for the objective (M45). */
   | { readonly type: 'startGoal' }
   | { readonly type: 'startLoop' }
+  /** Scheduled prompts v2 (M115): the surface's list, editor and timeline. */
+  | { readonly type: 'openScheduleList' }
+  | { readonly type: 'openScheduleEditor' }
+  | { readonly type: 'openScheduleTimeline' }
   | { readonly type: 'startHook' }
   | { readonly type: 'compact' }
   /** `/handoff …` in the prompt, for the new conversation's goal (M74). */

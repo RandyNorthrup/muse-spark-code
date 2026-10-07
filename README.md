@@ -153,8 +153,10 @@ Earlier releases are in the
   dictation. Each is available by default on Model API; spending requires paid-use consent, marked
   paid wherever it is used, and tallied in Account & usage.
 - **Scheduled prompts under your control.** On the Model API backend,
-  `/loop` saves a recurring prompt in this conversation. A due prompt waits
-  for you to run and confirm it; your key is never spent unattended.
+  `/loop` saves a recurring prompt in this conversation. By default a due
+  prompt waits for you to run and confirm it; unattended runs are opt-in
+  per schedule with a hard spending cap, and your key is never spent
+  without your consent.
 - **Two backends, one per conversation.** Your Muse subscription through the Muse Code
   CLI, or a Meta Model API key (pay as you go) with the extension's own
   tools. The pasted key is never handed to the CLI.
@@ -1787,7 +1789,8 @@ It expires after seven days; `/loop 7d ...` has no run before that deadline
 and is refused. A due prompt stays pending until Run, Cancel or expiry.
 Only a loaded conversation checks for due work;
 closing VS Code stops checks. A missed recurring interval leaves one due
-occurrence, without a backlog. A due prompt **never runs by itself**: turn
+occurrence, without a backlog. By default a due prompt **never runs by
+itself**: turn
 on **Scheduled prompts (paid)** and accept both published standard and
 contributor token rates, then choose **Run now** and allow that
 occurrence's prompt, model and exact tier rates in the paid-use popup
@@ -1804,6 +1807,21 @@ in the transcript and a count in Account & usage; its token cost is already
 in that conversation's token estimate. A run admitted just before a crash
 is not replayed, even if its result was never seen. Cancel does not stop a
 turn that already began.
+
+Unattended runs are opt-in per schedule. The `schedule` command manages
+jobs beyond `/loop`: `schedule add --draft <JSON>` (with
+`--scheduled-prompts --max-budget-usd <USD>` to allow unattended runs under
+that hard cap), `list`, `remove`, `run-now`, `pause`, `resume`, `fire`,
+`timeline`, `run-due` and `background`. Without a positive budget, paid
+authorization for an unattended run is refused; with one, every run still
+passes the paid rule above, naming its price and the shared daily budget.
+Crash accounting holds across restarts: a lost acknowledgement is recovered
+from the delivery ledger without a second run, and even when both the
+acknowledgement and the ledger are lost there is at most one re-run and
+exactly one recorded settlement for the run. The ACP `/schedule` command
+offers the same list, except `run-due` and background maintenance, and only
+while the agent runs with `--scheduled-prompts` (again with
+`--max-budget-usd`).
 
 Muse Code has its own subscription-backed `cron_create`, `cron_list` and
 `cron_delete` tools. Ask it in chat to schedule, list or cancel its jobs;

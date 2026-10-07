@@ -171,6 +171,9 @@
     "reviewCommit": "Muse seçtiğiniz yakın tarihli bir commit'i inceler.",
     "reviewSecurity": "Muse kaydedilmemiş değişikliklerinizde güvenlik sorunlarını arar.",
     "reviewChanges": "Bu konuşmanın her düzenlemesini kabul edin veya geri alın.",
+    "schedule": "Review schedules and their standing grants in this workspace.",
+    "schedulePrompt": "Pick the time, target and permissions for this prompt.",
+    "scheduleTimeline": "See upcoming fires and collisions on the same target.",
     "paid:tab": "Ücretli Tab tamamlamalarını açın veya kapatın."
   },
   "paletteSkillTip": "{name} becerisini çalıştır.",
@@ -2764,6 +2767,8 @@
       "invalid": "Kaydetmeden önce zamanlama alanlarını, hedefin kullanılabilirliğini ve kalıcı izni kontrol edin.",
       "loadFailed": "Zamanlamalar yüklenemedi. Yeniden deneyin.",
       "empty": "Bu çalışma alanında zamanlama yok.",
+      "defaultName": "Scheduled prompt",
+      "defaultPrompt": "Describe what the schedule should do.",
       "dateTimeUtc": "Tarih ve saat (UTC)",
       "minutes": "Dakika cinsinden aralık",
       "everyDays": "Her N günde bir",

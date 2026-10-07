@@ -231,6 +231,8 @@ export const EN = {
       invalid: 'Check the schedule fields, target availability and standing grant before saving.',
       loadFailed: 'Schedules could not be loaded. Try again.',
       empty: 'No schedules in this workspace.',
+      defaultName: 'Scheduled prompt',
+      defaultPrompt: 'Describe what the schedule should do.',
       stateUnknown: 'State unknown — Retry',
       retry: 'Retry',
       dateTimeUtc: 'Date and time (UTC)',
@@ -297,7 +299,7 @@ export const EN = {
     settings: {
       enabled:
         'Enable schedules on available backends. On by default; each fire runs unattended within its standing grant.',
-      defaultDelivery: 'Default delivery for new schedules. Start a new turn when idle by default.',
+      defaultDelivery: 'Default delivery for new schedules: a new turn starts on idle by default.',
       agentCreation:
         'Default permission for agents to create schedules: ask, always within caps, or never. Ask by default.',
     },
@@ -675,6 +677,11 @@ export const EN = {
     reviewCommit: 'Muse reviews one recent commit you pick.',
     reviewSecurity: 'Muse checks your uncommitted changes for security problems.',
     reviewChanges: 'Accept or revert each edit this conversation made.',
+    // Scheduled prompts v2 (M115): the reference reuses these; the palette
+    // rows keep their translated editor tips until these are translated.
+    schedule: 'Review schedules and their standing grants in this workspace.',
+    schedulePrompt: 'Pick the time, target and permissions for this prompt.',
+    scheduleTimeline: 'See upcoming fires and collisions on the same target.',
   },
   paletteSkillTip: 'Run the {name} skill.',
   groupContext: 'Context',

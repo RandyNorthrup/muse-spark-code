@@ -876,7 +876,7 @@ Schedule a prompt in this Model API conversation.
 
 Surfaces: vscode:modelApi. Paid: yes; consent required; admission depends on the surface.
 
-Commands: —. Settings: `museSpark.modelApiScheduledPrompts`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api)
+Commands: `museSpark.schedulePrompt`, `museSpark.showSchedules`, `museSpark.showScheduleTimeline`. Settings: `museSpark.modelApiScheduledPrompts`, `museSpark.schedules`, `museSpark.schedules.defaultDelivery`, `museSpark.schedules.agentCreation`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api)
 
 ### /agents
 
@@ -1441,6 +1441,18 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 
 `museSpark.tabMenu` — copilotYield: Turn Tab off; Snooze for 15 minutes; Snooze for an hour; Snooze until restart; Tab languages…; Multi-line mode…; Account & usage. When Copilot causes Tab to yield, the menu also offers disabling Copilot for the current language or running both.
 
+### Muse Spark: Schedule this prompt…
+
+`museSpark.schedulePrompt` — Pick the time, target and permissions for this prompt.
+
+### Muse Spark: Show schedules
+
+`museSpark.showSchedules` — Review schedules and their standing grants in this workspace.
+
+### Muse Spark: Show schedule timeline
+
+`museSpark.showScheduleTimeline` — See upcoming fires and collisions on the same target.
+
 ### Muse Spark: Tab Languages
 
 `museSpark.tabLanguages` — Choose a language to switch Tab suggestions on or off for it.
@@ -1826,6 +1838,57 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
   "default": true
 }
 ```
+
+### museSpark.schedules
+
+Enable schedules on available backends. On by default; each fire runs unattended within its standing grant.
+
+Type: `"boolean"`. Default: `true`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": true
+}
+```
+
+### museSpark.schedules.defaultDelivery
+
+Default delivery for new schedules: a new turn starts on idle by default.
+
+Type: `"string"`. Default: `"whenIdle"`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "enum": ["steer", "interrupt", "queue", "whenIdle", "newConversation"],
+  "default": "whenIdle"
+}
+```
+
+- `"steer"`:
+- `"interrupt"`:
+- `"queue"`:
+- `"whenIdle"`:
+- `"newConversation"`:
+
+### museSpark.schedules.agentCreation
+
+Default permission for agents to create schedules: ask, always within caps, or never. Ask by default.
+
+Type: `"string"`. Default: `"ask"`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "enum": ["ask", "always", "never"],
+  "default": "ask"
+}
+```
+
+- `"ask"`:
+- `"always"`:
+- `"never"`:
 
 ### museSpark.modelApiSubagents
 

@@ -1016,8 +1016,17 @@
       "name": { "ui": "loopItem" },
       "summary": { "tip": "loop" },
       "description": { "tip": "loop" },
-      "commands": [],
-      "settings": ["museSpark.modelApiScheduledPrompts"],
+      "commands": [
+        "museSpark.schedulePrompt",
+        "museSpark.showSchedules",
+        "museSpark.showScheduleTimeline"
+      ],
+      "settings": [
+        "museSpark.modelApiScheduledPrompts",
+        "museSpark.schedules",
+        "museSpark.schedules.defaultDelivery",
+        "museSpark.schedules.agentCreation"
+      ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api",
       "backends": ["modelApi"],
       "paid": true,
@@ -1774,6 +1783,36 @@
       "canRun": false
     },
     {
+      "id": "museSpark.schedulePrompt",
+      "name": "Schedule this prompt…",
+      "nameKey": "command.schedulePrompt.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Pick the time, target and permissions for this prompt.",
+      "text": { "tip": "schedulePrompt" },
+      "canRun": true
+    },
+    {
+      "id": "museSpark.showSchedules",
+      "name": "Show schedules",
+      "nameKey": "command.showSchedules.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Review schedules and their standing grants in this workspace.",
+      "text": { "tip": "schedule" },
+      "canRun": true
+    },
+    {
+      "id": "museSpark.showScheduleTimeline",
+      "name": "Show schedule timeline",
+      "nameKey": "command.showScheduleTimeline.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "See upcoming fires and collisions on the same target.",
+      "text": { "tip": "scheduleTimeline" },
+      "canRun": true
+    },
+    {
       "id": "museSpark.tabLanguages",
       "name": "Tab Languages",
       "nameKey": "command.tabLanguages.title",
@@ -2223,6 +2262,45 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.schedules",
+      "name": "museSpark.schedules",
+      "description": "Enable schedules on available backends. On by default; each fire runs unattended within its standing grant.",
+      "descriptionKey": "config.schedules.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.schedules.defaultDelivery",
+      "name": "museSpark.schedules.defaultDelivery",
+      "description": "Default delivery for new schedules: a new turn starts on idle by default.",
+      "descriptionKey": "config.schedules.defaultDelivery.description",
+      "type": "string",
+      "default": "whenIdle",
+      "enum": ["steer", "interrupt", "queue", "whenIdle", "newConversation"],
+      "scope": "machine",
+      "refinements": [],
+      "schema": {
+        "type": "string",
+        "enum": ["steer", "interrupt", "queue", "whenIdle", "newConversation"],
+        "default": "whenIdle"
+      }
+    },
+    {
+      "id": "museSpark.schedules.agentCreation",
+      "name": "museSpark.schedules.agentCreation",
+      "description": "Default permission for agents to create schedules: ask, always within caps, or never. Ask by default.",
+      "descriptionKey": "config.schedules.agentCreation.description",
+      "type": "string",
+      "default": "ask",
+      "enum": ["ask", "always", "never"],
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "string", "enum": ["ask", "always", "never"], "default": "ask" }
     },
     {
       "id": "museSpark.modelApiSubagents",

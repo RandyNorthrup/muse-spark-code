@@ -149,6 +149,9 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   openHelp: { description: { ui: 'referenceIntro' }, canRun: true },
   nextOpenQuestion: { description: { ui: 'questionNextOpen' }, canRun: false },
   previousOpenQuestion: { description: { ui: 'questionPreviousOpen' }, canRun: false },
+  schedulePrompt: { description: { tip: 'schedulePrompt' }, canRun: true },
+  showSchedules: { description: { tip: 'schedule' }, canRun: true },
+  showScheduleTimeline: { description: { tip: 'scheduleTimeline' }, canRun: true },
 }
 
 function feature(
@@ -556,8 +559,13 @@ export function featureCatalog(): readonly Feature[] {
       'schedules',
       { ui: 'loopItem' },
       { tip: 'loop' },
-      [],
-      ['modelApiScheduledPrompts'],
+      ['schedulePrompt', 'showSchedules', 'showScheduleTimeline'],
+      [
+        'modelApiScheduledPrompts',
+        'schedules',
+        'schedules.defaultDelivery',
+        'schedules.agentCreation',
+      ],
       'scheduled-prompts-model-api',
       ['modelApi'],
       true,

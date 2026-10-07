@@ -171,6 +171,9 @@
     "reviewCommit": "O Muse revisa um commit recente que você escolher.",
     "reviewSecurity": "O Muse procura problemas de segurança nas alterações não confirmadas.",
     "reviewChanges": "Aceite ou reverta cada edição desta conversa.",
+    "schedule": "Review schedules and their standing grants in this workspace.",
+    "schedulePrompt": "Pick the time, target and permissions for this prompt.",
+    "scheduleTimeline": "See upcoming fires and collisions on the same target.",
     "paid:tab": "Ativar ou desativar as sugestões pagas do Tab."
   },
   "paletteSkillTip": "Executa a habilidade {name}.",
@@ -2862,6 +2865,8 @@
       "invalid": "Antes de salvar, confira os campos, a disponibilidade do destino e a permissão permanente.",
       "loadFailed": "Não foi possível carregar os agendamentos. Tente novamente.",
       "empty": "Nenhum agendamento neste espaço de trabalho.",
+      "defaultName": "Scheduled prompt",
+      "defaultPrompt": "Describe what the schedule should do.",
       "dateTimeUtc": "Data e hora (UTC)",
       "minutes": "Intervalo em minutos",
       "everyDays": "A cada N dias",

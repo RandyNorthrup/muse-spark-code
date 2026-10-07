@@ -171,6 +171,9 @@
     "reviewCommit": "Muse проверяет один выбранный недавний коммит.",
     "reviewSecurity": "Muse ищет проблемы безопасности в незафиксированных изменениях.",
     "reviewChanges": "Принять или отменить каждую правку из этого разговора.",
+    "schedule": "Review schedules and their standing grants in this workspace.",
+    "schedulePrompt": "Pick the time, target and permissions for this prompt.",
+    "scheduleTimeline": "See upcoming fires and collisions on the same target.",
     "paid:tab": "Включить или выключить платные дополнения Tab."
   },
   "paletteSkillTip": "Запустить навык {name}.",
@@ -2960,6 +2963,8 @@
       "invalid": "Перед сохранением проверьте поля расписания, доступность цели и постоянные разрешения.",
       "loadFailed": "Не удалось загрузить расписания. Повторите попытку.",
       "empty": "В этой рабочей области нет расписаний.",
+      "defaultName": "Scheduled prompt",
+      "defaultPrompt": "Describe what the schedule should do.",
       "dateTimeUtc": "Дата и время (UTC)",
       "minutes": "Интервал в минутах",
       "everyDays": "Каждые N дней",

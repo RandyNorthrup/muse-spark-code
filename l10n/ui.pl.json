@@ -171,6 +171,9 @@
     "reviewCommit": "Muse przegląda jeden wybrany niedawny commit.",
     "reviewSecurity": "Muse szuka problemów z bezpieczeństwem w niezatwierdzonych zmianach.",
     "reviewChanges": "Zaakceptuj lub cofnij każdą edycję z tej rozmowy.",
+    "schedule": "Review schedules and their standing grants in this workspace.",
+    "schedulePrompt": "Pick the time, target and permissions for this prompt.",
+    "scheduleTimeline": "See upcoming fires and collisions on the same target.",
     "paid:tab": "Włącz lub wyłącz płatne uzupełnienia Tab."
   },
   "paletteSkillTip": "Uruchom umiejętność {name}.",
@@ -2960,6 +2963,8 @@
       "invalid": "Przed zapisaniem sprawdź pola harmonogramu, dostępność celu i stałe uprawnienia.",
       "loadFailed": "Nie udało się wczytać harmonogramów. Spróbuj ponownie.",
       "empty": "Brak harmonogramów w tym obszarze roboczym.",
+      "defaultName": "Scheduled prompt",
+      "defaultPrompt": "Describe what the schedule should do.",
       "dateTimeUtc": "Data i godzina (UTC)",
       "minutes": "Odstęp w minutach",
       "everyDays": "Co N dni",

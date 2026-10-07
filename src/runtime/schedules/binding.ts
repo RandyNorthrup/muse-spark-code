@@ -16,6 +16,8 @@ export interface RuntimeSchedulesBinding extends AcpSchedulePort {
   ): Promise<ScheduleCommandResult>
   /** ACP/native/companion workspace lifetime; S binds the polling engine here. */
   holdWorkspace(cwd: string): Promise<() => Promise<void>>
+  /** The VS Code panel's request port over the same workspace control. */
+  message(input: unknown, cwd: string): Promise<unknown>
   close(): Promise<void>
 }
 

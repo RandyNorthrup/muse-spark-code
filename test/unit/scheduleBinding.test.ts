@@ -12,6 +12,7 @@ describe('lazy runtime schedule binding', () => {
       command: vi.fn(),
       run: vi.fn(),
       holdWorkspace: vi.fn(),
+      message: vi.fn(),
       close: vi.fn(),
     }
     const factory = vi.fn().mockResolvedValue(binding)

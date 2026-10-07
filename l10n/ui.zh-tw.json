@@ -171,6 +171,9 @@
     "reviewCommit": "Muse 審查你選擇的一個近期提交。",
     "reviewSecurity": "Muse 檢查未提交的變更中是否有安全問題。",
     "reviewChanges": "接受或還原此對話中的每處編輯。",
+    "schedule": "Review schedules and their standing grants in this workspace.",
+    "schedulePrompt": "Pick the time, target and permissions for this prompt.",
+    "scheduleTimeline": "See upcoming fires and collisions on the same target.",
     "paid:tab": "開啟或關閉付費 Tab 補全。"
   },
   "paletteSkillTip": "執行 {name} 技能。",
@@ -2666,6 +2669,8 @@
       "invalid": "儲存前請檢查排程欄位、目標可用性和長期授權。",
       "loadFailed": "無法載入排程。請重試。",
       "empty": "此工作區沒有排程。",
+      "defaultName": "Scheduled prompt",
+      "defaultPrompt": "Describe what the schedule should do.",
       "dateTimeUtc": "日期和時間 (UTC)",
       "minutes": "間隔（分鐘）",
       "everyDays": "每 N 天",

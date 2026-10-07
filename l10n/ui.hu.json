@@ -171,6 +171,9 @@
     "reviewCommit": "A Muse átnéz egy választott friss commitot.",
     "reviewSecurity": "A Muse biztonsági hibákat keres a nem véglegesített módosításokban.",
     "reviewChanges": "A beszélgetés minden szerkesztésének elfogadása vagy visszavonása.",
+    "schedule": "Review schedules and their standing grants in this workspace.",
+    "schedulePrompt": "Pick the time, target and permissions for this prompt.",
+    "scheduleTimeline": "See upcoming fires and collisions on the same target.",
     "paid:tab": "A fizetős Tab-kiegészítések be- vagy kikapcsolása."
   },
   "paletteSkillTip": "A(z) {name} képesség futtatása.",
@@ -2764,6 +2767,8 @@
       "invalid": "Mentés előtt ellenőrizze az ütemezés mezőit, a cél elérhetőségét és az állandó engedélyt.",
       "loadFailed": "Az ütemezéseket nem sikerült betölteni. Próbálja újra.",
       "empty": "Ebben a munkaterületben nincs ütemezés.",
+      "defaultName": "Scheduled prompt",
+      "defaultPrompt": "Describe what the schedule should do.",
       "dateTimeUtc": "Dátum és idő (UTC)",
       "minutes": "Időköz percben",
       "everyDays": "N naponta",

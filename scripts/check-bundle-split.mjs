@@ -714,7 +714,9 @@ const TEXT_BLOCKS = [
   {
     block: 'CONVERSATION_MODEL_TEXT',
     sentinels: ['planBriefRequest', 'replyContextLead'],
-    readers: ['dist/conversation.js', BUNDLES.modelApi.output],
+    // M115W: the lazy schedules bundle reads the export redaction strings
+    // through the event scrub's shared transfer text.
+    readers: ['dist/conversation.js', BUNDLES.modelApi.output, 'dist/schedules.js'],
   },
   {
     block: 'TAB_MODEL_TEXT',

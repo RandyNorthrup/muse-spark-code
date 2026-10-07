@@ -171,6 +171,9 @@
     "reviewCommit": "Muse が選んだ最近のコミットを 1 つレビューします。",
     "reviewSecurity": "Muse が未コミットの変更にセキュリティ上の問題がないか確認します。",
     "reviewChanges": "この会話の各編集を承認または元に戻します。",
+    "schedule": "Review schedules and their standing grants in this workspace.",
+    "schedulePrompt": "Pick the time, target and permissions for this prompt.",
+    "scheduleTimeline": "See upcoming fires and collisions on the same target.",
     "paid:tab": "有料の Tab 補完をオンまたはオフにします。"
   },
   "paletteSkillTip": "{name} スキルを実行します。",
@@ -2666,6 +2669,8 @@
       "invalid": "保存前にスケジュールの項目、対象の利用可否、常設の許可を確認してください。",
       "loadFailed": "スケジュールを読み込めませんでした。再試行してください。",
       "empty": "このワークスペースにスケジュールはありません。",
+      "defaultName": "Scheduled prompt",
+      "defaultPrompt": "Describe what the schedule should do.",
       "dateTimeUtc": "日時 (UTC)",
       "minutes": "間隔（分）",
       "everyDays": "N 日ごと",

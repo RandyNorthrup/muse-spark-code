@@ -48,6 +48,14 @@ happened, not what was planned; superseded entries are kept.
   expiry with user pinning. Production registration and the shared admission,
   grant, time and paid-ledger bindings await their M115 integration lanes.
 
+- Wire M115's scheduled prompts end to end: the `schedule` runtime command
+  (add, list, remove, run-now, pause, resume, fire, timeline, run-due,
+  background) and the ACP `/schedule` command, unattended runs behind
+  `--scheduled-prompts` with a hard `--max-budget-usd` cap, the delivery
+  admission ledgers both schedulers consult before dispatch, and restart
+  recovery that replays a lost acknowledgement without a second run and
+  records exactly one settlement per run.
+
 ### Fixed
 
 - Repair internal M115 delivery races: when-idle fires own withdrawable queue

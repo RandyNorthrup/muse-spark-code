@@ -560,7 +560,7 @@ export type ScheduleDraft = z.infer<typeof scheduleDraftSchema>
 const scheduleHistoryRangeSchema = z
   .strictObject({ fromMs: timestamp, toMs: timestamp })
   .check(z.refine((range) => range.fromMs < range.toMs))
-const scheduleSourceCapabilitySchema = z.discriminatedUnion('available', [
+export const scheduleSourceCapabilitySchema = z.discriminatedUnion('available', [
   z.strictObject({ available: z.literal(true) }),
   z.strictObject({ available: z.literal(false), reason: text }),
 ])

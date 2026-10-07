@@ -106,6 +106,22 @@ Scheduled/unattended prompts defer immediately and keep the question open,
 including with interactive deferral disabled; headless exec, best-of-N,
 worktrees and the evaluation retain their distinct immediate policies.
 
+## M115 schedule routes — integration status
+
+2026-10-07: the W lane wires the lanes' schedule surfaces. The `/schedule`
+translation is shared, so every ACP editor gets the same list; `run-due`
+and background maintenance stay refused over ACP on all of them.
+Installed-editor rows above retain their existing status; native OS
+registration (POSIX binding, Linux/macOS/ordinary-user Windows
+certification) remains an integration prerequisite.
+
+| Surface                            | Schedule route and paid rule                                                                                                                              | Binding / evidence                                                                 |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| VS Code family                     | Panel schedule list and composer; `/loop`; unattended runs opt-in per schedule with a hard `--max-budget-usd` cap                                         | Integrated schedule bindings; fake-CLI schedule command checks                     |
+| ACP editors (same on every client) | `/schedule` list, add, remove, run-now, pause, resume, fire and timeline; needs `--scheduled-prompts` with `--max-budget-usd`; each billed run asks first | Shared translation plus fakes; each installed client's prompting still needs a run |
+| Headless schedule command          | `schedule run-due` settles what is due; `schedule background` reports the native scheduler                                                                | Fake-only runtime checks                                                           |
+| Muse Code on every surface         | Its own subscription-backed `cron_create`, `cron_list` and `cron_delete`, not the panel's Model API jobs                                                  | Lead's live checks                                                                 |
+
 ## Native and scientific
 
 | Editor                    | Route                               | Milestone | Status  |

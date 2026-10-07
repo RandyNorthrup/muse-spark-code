@@ -171,6 +171,9 @@
     "reviewCommit": "Muse revisa un commit reciente que elijas.",
     "reviewSecurity": "Muse busca problemas de seguridad en tus cambios sin confirmar.",
     "reviewChanges": "Acepta o revierte cada edición de esta conversación.",
+    "schedule": "Review schedules and their standing grants in this workspace.",
+    "schedulePrompt": "Pick the time, target and permissions for this prompt.",
+    "scheduleTimeline": "See upcoming fires and collisions on the same target.",
     "paid:tab": "Activar o desactivar las sugerencias de pago de Tab."
   },
   "paletteSkillTip": "Ejecuta la aptitud {name}.",
@@ -2862,6 +2865,8 @@
       "invalid": "Antes de guardar, comprueba los campos, la disponibilidad del destino y el permiso permanente.",
       "loadFailed": "No se pudieron cargar las programaciones. Inténtalo de nuevo.",
       "empty": "No hay programaciones en este espacio de trabajo.",
+      "defaultName": "Scheduled prompt",
+      "defaultPrompt": "Describe what the schedule should do.",
       "dateTimeUtc": "Fecha y hora (UTC)",
       "minutes": "Intervalo en minutos",
       "everyDays": "Cada N días",

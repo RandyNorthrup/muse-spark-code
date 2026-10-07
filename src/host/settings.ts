@@ -22,6 +22,8 @@ import {
   type PromptCacheRetention,
   SANDBOX_NETWORK_MODES,
   type SandboxNetworkMode,
+  SCHEDULE_AGENT_CREATIONS,
+  SCHEDULE_DELIVERIES,
   SETTING_DEFAULTS,
   SETTINGS_SECTION,
   SHELL_SANDBOX_MODES,
@@ -67,6 +69,10 @@ export interface ExtensionSettings extends SettingsSnapshot {
   /** How long Meta is asked to keep the Model API's cached prompt prefix (M56). */
   readonly modelApiPromptCacheRetention: PromptCacheRetention
   readonly modelApiScheduledPrompts: boolean
+  /** The v2 schedules surface (M115, PLAN.md D95): on by default. */
+  readonly schedules: boolean
+  readonly 'schedules.defaultDelivery': (typeof SCHEDULE_DELIVERIES)[number]
+  readonly 'schedules.agentCreation': (typeof SCHEDULE_AGENT_CREATIONS)[number]
   readonly modelApiSubagents: boolean
   /** Best-of-N availability; an explicit run and consent choose its extra attempts. */
   readonly modelApiBestOfN: boolean
@@ -160,6 +166,9 @@ const settingSchemas = {
   sandboxNetwork: z.enum(SANDBOX_NETWORK_MODES),
   modelApiPromptCacheRetention: z.enum(PROMPT_CACHE_RETENTIONS),
   modelApiScheduledPrompts: z.boolean(),
+  schedules: z.boolean(),
+  'schedules.defaultDelivery': z.enum(SCHEDULE_DELIVERIES),
+  'schedules.agentCreation': z.enum(SCHEDULE_AGENT_CREATIONS),
   modelApiSubagents: z.boolean(),
   modelApiBestOfN: z.boolean(),
   modelApiHooks: z.boolean(),
@@ -271,6 +280,9 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     sandboxNetwork: readSetting(config, 'sandboxNetwork', log),
     modelApiPromptCacheRetention: readSetting(config, 'modelApiPromptCacheRetention', log),
     modelApiScheduledPrompts: readSetting(config, 'modelApiScheduledPrompts', log),
+    schedules: readSetting(config, 'schedules', log),
+    'schedules.defaultDelivery': readSetting(config, 'schedules.defaultDelivery', log),
+    'schedules.agentCreation': readSetting(config, 'schedules.agentCreation', log),
     modelApiSubagents: readSetting(config, 'modelApiSubagents', log),
     modelApiBestOfN: readSetting(config, 'modelApiBestOfN', log),
     modelApiHooks: readSetting(config, 'modelApiHooks', log),
@@ -335,5 +347,6 @@ export function toSettingsSnapshot(settings: ExtensionSettings): SettingsSnapsho
     archiveInactiveSessions: settings.archiveInactiveSessions,
     modelApiReplyUsage: settings.modelApiReplyUsage,
     museCodeAutoReviewer: settings.museCodeAutoReviewer,
+    schedules: settings.schedules,
   }
 }

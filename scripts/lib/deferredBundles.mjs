@@ -9,6 +9,50 @@ export const BUNDLES = {
 }
 const MODEL_API_DIR = 'src/core/backends/modelapi'
 export const SCHEDULES_ONLY = ['schedulesEntry.ts', 'schedules.ts']
+const RUNTIME_SCHEDULES_DIR = 'src/runtime/schedules'
+const CORE_SCHEDULES_DIR = 'src/core/schedules'
+// M115 W: the v2 runtime binding beside v1 in dist/schedules.js. Only files
+// owned by the schedules feature are pinned here; shared utilities the
+// bundle also carries (export text, the wire schemas) stay unlisted.
+export const SCHEDULES_RUNTIME = [
+  'schedulesBundle.ts',
+  'runtimeEntry.ts',
+  'engine.ts',
+  'control.ts',
+  'authorityStore.ts',
+  'consent.ts',
+  'registry.ts',
+  'timePlan.ts',
+  'wake.ts',
+  'runtime.ts',
+  'surface.ts',
+  'host.ts',
+  'command.ts',
+  'background.ts',
+  'nativeBackground.ts',
+  'nodeBackgroundIo.ts',
+  'nodeScheduleFs.ts',
+  'effectiveDefinition.ts',
+  'registration.ts',
+  'reportCli.ts',
+]
+export const SCHEDULES_CORE = [
+  'store.ts',
+  'scheduler.ts',
+  'fireRecord.ts',
+  'journal.ts',
+  'migrate.ts',
+  'delivery.ts',
+  'grantAudit.ts',
+  'time/cron.ts',
+  'time/scheduleTime.ts',
+  'time/zonedCalendar.ts',
+  'events/conditions.ts',
+  'events/ports.ts',
+  'events/privacy.ts',
+  'events/registry.ts',
+  'events/signals.ts',
+]
 export const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts']
 
 export const FOREIGN_HOOKS_ONLY = [
@@ -46,7 +90,11 @@ export const DEFERRED = [
   {
     output: 'dist/schedules.js',
     metafile: 'dist/meta/schedules.json',
-    files: SCHEDULES_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+    files: [
+      ...SCHEDULES_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+      ...SCHEDULES_RUNTIME.map((name) => `${RUNTIME_SCHEDULES_DIR}/${name}`),
+      ...SCHEDULES_CORE.map((name) => `${CORE_SCHEDULES_DIR}/${name}`),
+    ],
   },
   {
     output: 'dist/scheduleBackground.js',

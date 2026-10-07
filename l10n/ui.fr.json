@@ -171,6 +171,9 @@
     "reviewCommit": "Muse relit un commit récent que vous choisissez.",
     "reviewSecurity": "Muse cherche des problèmes de sécurité dans vos modifications non validées.",
     "reviewChanges": "Accepter ou annuler chaque modification de cette conversation.",
+    "schedule": "Review schedules and their standing grants in this workspace.",
+    "schedulePrompt": "Pick the time, target and permissions for this prompt.",
+    "scheduleTimeline": "See upcoming fires and collisions on the same target.",
     "paid:tab": "Activer ou désactiver les complétions payantes de Tab."
   },
   "paletteSkillTip": "Exécute la compétence {name}.",
@@ -2862,6 +2865,8 @@
       "invalid": "Avant de sauvegarder, vérifiez les champs, la disponibilité de la cible et les autorisations permanentes.",
       "loadFailed": "Impossible de charger les programmations. Réessayez.",
       "empty": "Aucune programmation dans cet espace de travail.",
+      "defaultName": "Scheduled prompt",
+      "defaultPrompt": "Describe what the schedule should do.",
       "dateTimeUtc": "Date et heure (UTC)",
       "minutes": "Intervalle en minutes",
       "everyDays": "Tous les N jours",

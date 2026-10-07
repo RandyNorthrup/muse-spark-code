@@ -171,6 +171,9 @@
     "reviewCommit": "Muse가 선택한 최근 커밋 하나를 검토합니다.",
     "reviewSecurity": "Muse가 커밋하지 않은 변경에서 보안 문제를 찾습니다.",
     "reviewChanges": "이 대화의 각 편집을 수락하거나 되돌립니다.",
+    "schedule": "Review schedules and their standing grants in this workspace.",
+    "schedulePrompt": "Pick the time, target and permissions for this prompt.",
+    "scheduleTimeline": "See upcoming fires and collisions on the same target.",
     "paid:tab": "유료 Tab 자동 완성을 켜거나 끕니다."
   },
   "paletteSkillTip": "{name} 스킬 실행.",
@@ -2666,6 +2669,8 @@
       "invalid": "저장하기 전에 일정 필드, 대상의 사용 가능 여부 및 상시 권한을 확인하세요.",
       "loadFailed": "일정을 불러올 수 없습니다. 다시 시도하세요.",
       "empty": "이 작업 공간에는 일정이 없습니다.",
+      "defaultName": "Scheduled prompt",
+      "defaultPrompt": "Describe what the schedule should do.",
       "dateTimeUtc": "날짜 및 시간 (UTC)",
       "minutes": "간격(분)",
       "everyDays": "N일마다",

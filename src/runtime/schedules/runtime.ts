@@ -135,6 +135,16 @@ export class ScheduleRuntime implements RuntimeSchedulesBinding {
     this.assertOpen()
     return await this.acp.run(text, context)
   }
+  async message(input: unknown, cwd: string): Promise<unknown> {
+    this.assertOpen()
+    // Warm the workspace control: the surface routes by key afterwards.
+    await this.control(cwd, {
+      source: 'interactive',
+      isInteractive: true,
+      scheduledPrompts: false,
+    })
+    return await this.deps.surface.message(input, cwd)
+  }
   async holdWorkspace(cwd: string): Promise<() => Promise<void>> {
     this.assertOpen()
     const unhold = this.deps.host.hold(workspaceKey(cwd))
