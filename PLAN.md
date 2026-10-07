@@ -13025,6 +13025,17 @@ D90.25, D96, D88 and D97.
   - **Item 9:** no audio at all: no voice input, no speech and no sounds.
   - **Items 8 and 10:** the defaults stand.
 
+- **Q-M109-Windows-DPAPI (2026-10-06, P Windows rig).** Current-user DPAPI
+  initially roundtripped generated material on Win11, then Windows itself
+  returned `0x80070005` in the rig's NTLM logon context, including outside
+  our helper. A fresh 17:03 UTC probe reports current-user protection
+  available again: this is intermittent, not a permanent OS limitation.
+  Local-machine protection works but is never a substitute.
+  The helper reports DPAPI availability in the current session; C/B must
+  offer passphrase/recovery where both hardware and the OS store refuse.
+  Re-capture DPAPI in a stable interactive and an independent SSH logon
+  before claiming network-logon support. No credential or setting is changed
+  to force availability. See `docs/certification/m109-pw.md`.
 - **Q-M109 — A Mac for the Secure Enclave slot (2026-10-05).** D89.2's
   Secure Enclave slot needs a Mac where `SecureEnclave.isAvailable`: Apple
   silicon, or a capable Intel Mac. The Intel Mac mini rig's T2 chip reports
@@ -26273,6 +26284,25 @@ only to the user's trusted surface. Regression tests and byte-exact red drills
 belong in `docs/certification/m109-c.md`; the lane introduces no dependency,
 command or surface. The rig brief reserves aggregate quality for the lead and
 prohibits merges, pushes and live/paid calls.
+**FIXM109PW3 / RVM109PW2G (2026-10-06).** Replace the PowerShell ACL
+scan with the trusted native guard's handle-based `GetSecurityInfo` check:
+refuse null DACLs, map file generic rights before ordered deny/allow
+evaluation, and test Everyone, Users, Authenticated Users and other untrusted
+principals. Hold the verified file and lexical ancestor handles against
+replacement across `CreateProcess`; supervise the child with a kill-on-close
+job before releasing private stdin. Regressions cover null/generic ACLs,
+deny/allow order, safe controls and the launch handles, with byte-exact red
+drills. No dependency, gate or other lane changes.
+
+**FIXM109PW / RVM109PW Windows repair (2026-10-06).** Authenticate each
+cached EXE by its build SHA-256 through a handle denying write/delete sharing,
+check file/directory ownership and ACLs and ancestor ACLs/reparse points,
+retain the handle during execution, and rebuild into fresh private storage
+on refusal without deleting the suspect cache. Restrict every native import
+and startup DLL search to System32. Validate DPAPI wrap title/use before
+selecting the tier. Each finding receives regression tests and byte-exact
+red-drill receipts in `docs/certification/m109-pw.md`; no dependency, gate or
+shipped feature changes. No review finding is deferred.
 
 **Status 2026-10-05: planned.** The research is
 `docs/research/credential-vault-2026-10-05.md`.
@@ -26299,6 +26329,19 @@ or helper-only-access certification.
 - **M** moves each store as its owner milestone merges (D89.14).
 - Every lane certifies on fakes. The rig captures need no model call. The
   Secure Enclave capture waits for the owner (Q-M109) and blocks no lane.
+- **P Windows binding (m109/pw).** The shared runtime adapter implements
+  `VaultSlotPort` with C-supplied slot identity/generation metadata and an
+  injected trusted helper transport, matching P's macOS adapter. DPAPI wraps
+  only the vault key, bound to the slot identity. TPM wrapping uses a
+  non-exportable current-user RSA-2048 key and OAEP-SHA-256. Presence requires
+  both a forced-high-protection PCP key and a fresh Hello signature of a
+  challenge bound to the slot and named use, in the helper's own window.
+  Hello padding is verified from the returned signature rather than assumed.
+  Unavailable hardware/Hello fails closed. Named integration handoffs to B/W:
+  bind the transport/compiler lazily, retain slot metadata in C, consume the
+  screen-lock port, ship the native sources in both packages, and include
+  the adapter in the vault bundle. No credential migration or activation
+  wiring is made by this platform-only lane.
 
 - **Goal.** One encrypted vault per user holds API keys, OAuth tokens, SSH
   keys, sudo and other passwords, website logins with their TOTP seeds,
@@ -30361,6 +30404,39 @@ mini reproduction and red drills run directly here with hooks enabled.
 shell tests and required static/build checks, leaving full quality, merged
 coverage and hosted cross-platform certification to the lead. No gate is
 weakened and no integrated-green claim is made by this lane.
+**FIXM109PW3 bounded-lane verification (2026-10-06).** The rig brief reserves
+full quality/coverage for the lead. Direct Win11 checks pass typecheck, changed
+file ESLint/Prettier, deadcode, zero-clone duplication, localization, production
+build and the 96 owned tests at repository default deadlines. The host-API
+mismatch remains exactly W's five import-count changes recorded below; no
+new VS Code API or generated snapshot change belongs to this repair. Sixteen
+byte-exact red controls are in `docs/certification/m109-pw3-drills.json`.
+
+**M109 P Windows bounded-lane gates and capture deferral (2026-10-06).**
+The Windows rig brief and shared lane rules prohibit full quality and the
+full test suite here. Hook-on commits use the three owned test files,
+guard-fire receipts, scoped lint/format and typecheck; final certification
+also runs dead-code, duplication, localization, host API and production build.
+The lead owns full integrated quality and coverage. This VM has no TPM or
+Hello; current-user DPAPI later refused even outside the helper in its NTLM
+logon context. Real PCP/Hello prompts, stable DPAPI isolation/network-logon
+captures and a screen-lock event need the named Windows-capable integration
+rigs. No threshold, rule, scope or OS protection setting is weakened.
+See `docs/certification/m109-pw.md` and Q-M109-Windows-DPAPI in §3.
+
+**M109 P Windows host-API snapshot deferral (2026-10-06).**
+`npm run check:host-api` exited 1 only for this lane's Node import counts:
+`node:child_process` 13 → 15, `node:crypto` 46 → 49,
+`node:fs/promises` 47 → 48, `node:path` 84 → 86. All portable-module
+checks passed; no VS Code API was added. M109's ownership table assigns
+`docs/ide-compatibility/**` and the host-API record to W, so P leaves that
+file untouched. W regenerates it with `npm run check:host-api -- --write`
+on the integrated tree and runs the unmodified check before certification.
+
+FIXM109PW's final check also has `node:crypto` **46 → 50** and `node:os`
+**9 → 10**, from the trusted build digest and protected temporary-directory
+fallback. The other counts above are unchanged. W owns this same generated
+snapshot handoff; the portable-module check and all build checks pass.
 
 **FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
 shared lane rules prohibit a full `npm run quality` or full test suite in
@@ -30840,9 +30916,13 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 | `src/acp/questionDeferralBundle.ts` (FIXM112A)                                                                      | `isAcpQuestionBundle` trusts the checked factory signature | The entry, loader and ACP package come from the same build; the export is checked as a function and loader tests reject missing/malformed modules. The factory installs the caller's language table before constructing a session's question controller. |
 | `src/runtime/questions/questionRegistryBundle.ts`, `src/host/conversation/conversationBundle.ts` (M112 integration) | Checked same-build function signatures                     | Loader guards validate each required export as a function; entries and callers ship from the same build. Registry and host store factories install or inherit the caller's language before use; loader and real-disk tests exercise their signatures.    |
 
-| Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
-| ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
+| Location                                                           | Escape hatch                                                          | Reason                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/l10n/text.ts` (ACTDIET)                                | `as UiText` on the descriptor clone                                   | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement.                            |
+| `native/windows/MuseSparkVault.cs` (FIXM109PW3, supervisor job)    | Job handle deliberately retained until OS process exit                | Joining the supervisor before CreateProcess makes child job membership atomic. The non-inheritable kill-on-close handle stays in its OS handle table for this one-launch process; closing it at Launch return would terminate the supervisor before it reports its exit code. |
+| `native/windows/MuseSparkVault.cs` (FIXM109PW3)                    | `unchecked((uint)ace.AccessMask)` and checked OS exit-code conversion | CommonAce stores native unsigned masks in signed integers; preserving all bits is required for GENERIC_WRITE/ALL. The checked exit conversion refuses values outside the managed entry's int range.                                                                           |
+| `test/unit/helpers/vault/windowsVaultGuardCapture.cs` (FIXM109PW3) | `unchecked((int)mask)`                                                | Test-only CommonAce fixtures preserve the native generic-rights bit patterns in their signed storage, with an inline reason.                                                                                                                                                  |
+| `test/unit/helpers/vault/windowsVaultGuardCapture.cs` (FIXM109PW)  | `(int)` on the reflected native entry result                          | The test-only protocol entry invokes the declared `int Main(string[])`; no wire value is coerced. Its valid baseline and invalid DPAPI text regressions execute that entry.                                                                                                   |
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
@@ -31104,6 +31184,34 @@ before a repaired one loads (2026-09-30).
   stays false and neither SE mode is offered. Follow-up: the owner's Touch ID
   Mac capture after 17:00 must also prove a second executable cannot read the
   real item silently. No helper-only ACL guarantee is asserted meanwhile.
+- **FIXM109PW3 / RVM109PW2G (2026-10-06).** The one P2 is repaired with
+  no review residual. The trusted native guard reads owner/DACL information
+  from held handles, refuses null DACLs, maps generic file rights and respects
+  deny/allow order for outsider principals. Verified file and ancestor handles
+  deny replacement across CreateProcess; a kill-on-close job supervises the
+  suspended child before private input is admitted. Guard source comes only
+  from the packaged reader, never the mutable cache. The native child's only
+  environment entry is the CLR-required SystemRoot; no credential is inherited.
+  Same-user/privileged principals and the original hardware/live captures
+  retain D89's existing scope. See `docs/certification/m109-pw.md` and the
+  byte-exact `m109-pw3-drills.json` receipts.
+
+- **FIXM109PW / RVM109PW (2026-10-06).** Both P1s (cached helper identity,
+  DLL search order) and P3 (DPAPI title/use validation) are repaired with no
+  finding residual. A build supplies its EXE digest in memory; no mutable
+  sidecar or file name authenticates a prior process's cache. Each launch
+  verifies content through a deny-write/delete read handle, file/directory
+  ownership and ACLs, and ancestor ACLs/reparse points. The absolute system
+  PowerShell now loads the trusted native guard, which starts the verified
+  helper while retaining file/ancestor handles; private input follows readiness. A refusal reports a fixed error
+  and rebuilds fresh private storage without removing the suspect path.
+  An unsafe storage parent selects the user's protected temporary tree.
+  Current user, SYSTEM and Administrators remain trusted, as the owner
+  explicitly decided; this does not claim same-user debugger isolation.
+  Native startup and every P/Invoke restrict DLL search to System32.
+  Existing TPM/Hello, screen-lock and stable DPAPI live-capture handoffs
+  remain the original integration requirements, not residual review findings.
+  See `docs/certification/m109-pw.md` for regression and red-drill evidence.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the

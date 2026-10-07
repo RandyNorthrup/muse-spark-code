@@ -16,6 +16,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- M109's Windows vault platform adapter and native helper: current-user DPAPI,
+  non-exportable PCP RSA wrapping with OAEP-SHA-256, forced-protection keys
+  with a fresh Windows Hello signature gate, capability facts and a
+  cancellable screen-lock notification. These are prepared for broker wiring;
+  they do not change existing credential storage or enable vault commands.
 - M109's credential-vault contracts, canonical use digest, translated panel
   labels and warnings, test-only broker and route harnesses, and threat and
   capture plan. This prepares the runtime lanes; it does not enable a vault
@@ -23,6 +28,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M109's Windows vault helper now rejects null DACLs, maps generic file rights
+  and respects deny/allow ACE order through native handle-based ACL checks.
+  File and ancestor handles prevent path replacement across process creation;
+  cancelling the launcher also terminates its supervised native child.
+
+- M109's Windows vault seam authenticates cached helper contents and ACLs on
+  every launch, holds the verified file against replacement during execution,
+  and rebuilds refused caches into fresh private storage without deleting
+  suspect files. Native DLL search is restricted to System32, and DPAPI wrap
+  validates title and use before acting.
 - M109's preparation contracts now accept complete HTTPS OAuth issuer
   identifiers, including tenant paths and trailing slashes, while preserving
   exact issuer identity in grants, token material and use digests.
