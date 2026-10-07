@@ -106,6 +106,21 @@ Scheduled/unattended prompts defer immediately and keep the question open,
 including with interactive deferral disabled; headless exec, best-of-N,
 worktrees and the evaluation retain their distinct immediate policies.
 
+## M105 media routes — integration status
+
+2026-10-07: integration binds the media attach port, the recording command
+deps and the uploaded-files list in `extension.ts` for every VSIX surface,
+and the ACP agent's `/attach` and `/record` for every ACP client. All rows
+are equal: the same confinement, refusal wording and expiry apply
+everywhere. Evidence here is fake-based unit and controller checks;
+installed-editor runs remain lead-owned.
+
+| Surface                                                                                           | Attach path                                                                                     | Recording path                                                          | Binding / evidence                                                                         |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| VS Code family, Remote SSH, WSL, containers, Codespaces                                           | `deps.mediaAttachments`; picked media confined like dropped media                               | `deps.recordingCommandDeps`; recording attaches to its own conversation | Integrated bindings; controller/media fakes; installed-host checks: lead                   |
+| ACP clients: Zed, Xcode 27, JetBrains AI Assistant, Qt Creator, Neovim, Emacs, Sublime and others | `/attach <path>` between turns; `resource_link` reads under workspace confinement               | `/record`; recorder-missing stays an honest unavailable-here notice     | ACP translate/media/agent fakes; each installed client's media rendering still needs a run |
+| Headless exec                                                                                     | `/attach` prompts are refused as usage errors; `--attach` without storage fails unknown-storage | `/record` prompts are refused as usage errors                           | runExec fakes; no live run here                                                            |
+
 ## Native and scientific
 
 | Editor                    | Route                               | Milestone | Status  |

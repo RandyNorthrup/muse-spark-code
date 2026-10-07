@@ -204,6 +204,11 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       dist/bundledSkills.js, loaded on first use),
                       Tab's lazy provider, ledger and menu (dist/tab.js),
                       with its status item in the activation shim,
+                      media attachments (dist/media.js: the attach port, the
+                      recording picker and the uploaded-files list, loaded on
+                      the first attach or recording action; M105) and screen
+                      recording (dist/screenRecord.js: the recorder command,
+                      loaded on the first recording; M105),
                       commands, auth, settings, mentions,
                       editor tracking, usage trace logs, voice, the IDE tool
                       MCP server (diagnostics, code intelligence, images, web

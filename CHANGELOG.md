@@ -21,6 +21,16 @@ happened, not what was planned; superseded entries are kept.
   before replacing a missing upload. Account & usage gains the file-list section
   and cleanup callbacks, with expiry and read-only retained metadata; integration
   binds these ports across editors.
+- M105 integration: media (`dist/media.js`) and screen recording
+  (`dist/screenRecord.js`) load lazily on first use with their own budgets and
+  split guards; startup stays near 733 KiB. Three commands (Attach screen
+  recording, Attach latest screen recording, Delete uploaded files) and four
+  settings (`mediaMaxUploadMiB`, `mediaUploadExpiryDays`,
+  `screenRecordingMaxSeconds`, `mediaAudioAction`). Recordings attach to the
+  conversation that started them; picked media is confined like dropped media
+  and refusals name the reason (private file, unknown storage, unavailable
+  recorder). Audio pastes transcribe by default. Gemini/OpenAI-compatible video
+  stays explicitly unsupported.
 
 ### Documentation
 
