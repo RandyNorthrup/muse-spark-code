@@ -25268,6 +25268,28 @@ intended and restored exact SHA-256 preimages. Certification and the six
 runtime/tool/recording/bundle/docs/editor handoffs are in
 [E2 certification](<docs/certification/m105-e2-acp,-headless-and-`read_file`-(a).md>).
 
+**E3 execution plan (linuxlt, 2026-10-06).** The `m105/e3` base has
+lane-0 media contracts and M1/M2, but no M104 companion server, MHP schemas,
+feature catalog, R3 browser recorder or U16/MSP video capture. Build against
+required injected ports; do not create replacement servers or wire guesses.
+Controls remount on the host attachment epoch, cancelling stale uploads and
+recordings on session changes. Only E3-owned modules and shared-file regions
+change. W owns shipped docs,
+reference entries, build entries and budgets; the certification names each
+binding and doc handoff.
+
+- [x] Guarded streamed companion upload: exact loopback Host/Origin, bearer,
+      custom header, Fetch Metadata, no cookies, byte cap, private temporary
+      file, sniffed metadata, cancellation and cleanup; fake HTTP regressions.
+- [x] Lazy accessible picker/drop/paste, upload Stop and recording preview UI;
+      browser recording uses R3's injected port, with explicit audio choices.
+- [x] Native `attachments/*` adapter behind a validated injected MHP port;
+      JCEF, WebView2 and SWT fake bridges, with no bytes in bridge frames.
+- [x] Muse Code refuses video/audio pending U16; prepare safe lazy video
+      presentation from approved resources without inventing MSP content.
+- [x] Byte-exact red drills, scoped default-timeout verification, local
+      hook-on commits and certification; no paid/live calls or branch merges.
+
 **M2 review corrections (RVM105M2, 2026-10-06).** Fix all three P2 findings
 within the existing media gate/replay/host regions. Select the actual inline
 or Files route before checking its byte limit, including replay promotions.
@@ -29820,6 +29842,22 @@ must close that path and rerun the complete file; E2 does not edit reservation
 regions outside its media-read ownership. Production compilation succeeds:
 ACP 844.8/850 KiB, Model API 454.9/475 KiB; deferred browser stays 51.1/50 KiB.
 
+**M105-E3 gate scope (2026-10-06).** The rig brief forbids full quality
+and full unit runs, and reserves integration for the lead. Run focused tests
+with repository-default timeouts and all named lane checks directly on linuxlt.
+Keep inherited W-owned bundle/split/host-record failures enforced; add no cap,
+ignore or weakened rule. New lazy browser/runtime entries await W binding.
+Scoped E3 and existing regressions pass (113 + 143 tests); 63 guards have
+named red failures and byte-exact restoration. Production compilation passes,
+but the deferred-browser gate remains 51.1/50 KiB, `files.ts` and
+`codecs/responses.ts` still lack split classifications, and the generated host
+importer/style inventory is stale. E3's standalone split media graph measures
+194.5 KiB including shared dependencies; W must bind its own companion-page
+budget and include R3, without raising a cap. Full quality and installed-editor,
+Windows private-ACL and real browser-capture receipts remain lead handoffs.
+Receipts and doc/reference handoffs:
+`docs/certification/m105-e3-companion,-native-plugins,-muse-code-(a,-d).md`.
+
 **M105-M2 follow-up gate scope (RVM105M2, 2026-10-06).** The rig brief
 reserves full quality/full-unit and integrated cross-platform certification
 for the lead. Scoped regression files, typecheck, lint/format, dead-code,
@@ -31234,6 +31272,23 @@ before a repaired one loads (2026-09-30).
   reservation region is byte-identical to the base. No live/paid call, cap
   increase, new dependency or full-quality claim is made. Receipts:
   [E2 certification](<docs/certification/m105-e2-acp,-headless-and-`read_file`-(a).md>).
+
+- **M105-E3-bindings (M104 C/0/b–d, F/M2/A/C, R3, W and lead).** The base
+  lacks the companion server, outer MHP envelope/native bridges, real browser
+  recorder and U16/MSP video capture. Required injected ports keep unavailable
+  bindings explicit; E3 opens no listener, uploads to no provider by default
+  and refuses uncaptured Muse Code media. Bind the guarded route only after
+  the launch exchange, with captured session epochs and abort-on-replacement;
+  mount controls with the host attachment epoch. Admission must enforce the
+  selected model, formats/limits, Contributor/storage consent and paid rules;
+  consumption must finish reading before temporary deletion and release
+  cancelled/stale provider references. Native bridges own confinement and
+  interactive-user provenance; recordings always preview before Attach.
+  Windows needs private user ACL verification. W binds lazy entries, budgets,
+  resource resolution, docs/reference and repairs the enforced inherited
+  gates. Actual capture and installed-IDE receipts remain required; no product
+  availability is claimed by these fakes. Each handoff is named in
+  `docs/certification/m105-e3-companion,-native-plugins,-muse-code-(a,-d).md`.
 
 - **M105-M2-review-and-bindings (RVM105M2, W/V/E1/E2/C/A).** All three P2
   findings are fixed with regressions and byte-exact red drills in
