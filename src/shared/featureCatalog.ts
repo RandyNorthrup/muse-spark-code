@@ -372,6 +372,17 @@ export function featureCatalog(): readonly Feature[] {
       'get-started',
     ),
     feature(
+      'accounts',
+      { ui: 'referenceAccountsTitle' },
+      { ui: 'referenceAccounts' },
+      [],
+      ['accountSwap', 'accountParallel', 'accounts.severalOnThisDevice'],
+      'several-accounts-per-provider',
+      undefined,
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
       'permissions',
       { ui: 'permissionModeItem' },
       { tip: 'permissionMode' },

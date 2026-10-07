@@ -2745,6 +2745,9 @@
   "referenceTabMenu": "Wyłącz Tab; Odłóż na 15 minut; Odłóż na godzinę; Odłóż do ponownego uruchomienia; Języki Tab…; Tryb wielowierszowy…; Konto i użycie. Gdy Tab ustępuje Copilotowi, menu pozwala wyłączyć Copilot dla bieżącego języka lub uruchomić oba.",
   "referenceTabLanguages": "Wybierz język, aby włączyć lub wyłączyć dla niego sugestie Tab.",
   "referenceAuthStatus": "Sprawdź, czy zapisano klucz Model API.",
+  "referenceAccountsTitle": "Several accounts per provider",
+  "referenceAccounts": "Zarządza kontami jednego dostawcy: lista, dodawanie, usuwanie, kolejność i progi. Poświadczenia pochodzą wyłącznie ze standardowego wejścia.",
+  "referenceDeveloper": "Pokazuje opcje programisty, odblokowuje je lub zarządza izolowanymi lokalnymi profilami testowymi na tym komputerze.",
   "referenceAuthClear": "Usuń zapisany klucz Model API.",
   "referenceCliOptions": {
     "backend": "--backend museCode|modelApi      Kto płaci: Muse Code (domyślnie) lub klucz Model API",

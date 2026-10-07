@@ -2649,6 +2649,9 @@
   "referenceTabMenu": "Désactiver Tab; Mettre en veille 15 minutes; Mettre en veille une heure; Mettre en veille jusqu’au redémarrage; Langages de Tab…; Mode multiligne…; Compte et utilisation. Quand Tab laisse la priorité à Copilot, le menu propose aussi de désactiver Copilot pour la langue actuelle ou d’exécuter les deux.",
   "referenceTabLanguages": "Choisir un langage pour activer ou désactiver ses suggestions Tab.",
   "referenceAuthStatus": "Vérifier si une clé Model API est enregistrée.",
+  "referenceAccountsTitle": "Several accounts per provider",
+  "referenceAccounts": "Gère les comptes d’un fournisseur : lister, ajouter, supprimer, ordonner et seuils. Les identifiants proviennent uniquement de l’entrée standard.",
+  "referenceDeveloper": "Affiche les options développeur, les déverrouille ou gère des profils locaux isolés de test sur cette machine.",
   "referenceAuthClear": "Supprimer la clé Model API enregistrée.",
   "referenceCliOptions": {
     "backend": "--backend museCode|modelApi      Qui paie : Muse Code (par défaut) ou la clé Model API",

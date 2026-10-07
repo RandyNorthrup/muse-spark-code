@@ -2553,6 +2553,9 @@
   "referenceTabMenu": "Tab'i kapat; 15 dakika ertele; 1 saat ertele; Yeniden başlatmaya kadar ertele; Tab dilleri…; Çok satırlı kip…; Hesap ve kullanım. Tab Copilot’a öncelik verdiğinde menü geçerli dil için Copilot’ı kapatmayı veya ikisini çalıştırmayı da sunar.",
   "referenceTabLanguages": "Tab önerilerini açıp kapatmak için bir dil seçin.",
   "referenceAuthStatus": "Model API anahtarının kayıtlı olup olmadığını denetleyin.",
+  "referenceAccountsTitle": "Several accounts per provider",
+  "referenceAccounts": "Bir sağlayıcının hesaplarını yönetir: listeleme, ekleme, kaldırma, sıralama ve eşikler. Kimlik bilgileri yalnızca standart girdiden gelir.",
+  "referenceDeveloper": "Geliştirici seçeneklerini gösterir, kilitlerini açar veya bu bilgisayardaki yalıtılmış yerel test profillerini yönetir.",
   "referenceAuthClear": "Kayıtlı Model API anahtarını kaldırın.",
   "referenceCliOptions": {
     "backend": "--backend museCode|modelApi      Kim öder: Muse Code (varsayılan) veya Model API anahtarı",

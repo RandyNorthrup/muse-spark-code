@@ -2457,6 +2457,9 @@
   "referenceTabMenu": "关闭 Tab; 稍后提醒 15 分钟; 稍后提醒 1 小时; 稍后提醒到重启; Tab 语言…; 多行模式…; 账户和用量. 当Tab让位于Copilot时，菜单还可关闭当前语言的Copilot建议或同时运行两者。",
   "referenceTabLanguages": "选择一种语言，开启或关闭该语言的 Tab 建议。",
   "referenceAuthStatus": "检查是否存储了 Model API 密钥。",
+  "referenceAccountsTitle": "Several accounts per provider",
+  "referenceAccounts": "管理同一提供商的账号：列出、添加、删除、排序和阈值。凭据仅来自标准输入。",
+  "referenceDeveloper": "显示开发者选项、将其解锁，或管理本机上隔离的本地测试配置文件。",
   "referenceAuthClear": "删除已存储的 Model API 密钥。",
   "referenceCliOptions": {
     "backend": "--backend museCode|modelApi      由谁付费：Muse Code（默认）或 Model API 密钥",

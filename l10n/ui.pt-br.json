@@ -2649,6 +2649,9 @@
   "referenceTabMenu": "Desativar o Tab; Adiar por 15 minutos; Adiar por uma hora; Adiar até reiniciar; Idiomas do Tab…; Modo multilinha…; Conta e uso. Quando Tab cede ao Copilot, o menu permite desativar o Copilot para o idioma atual ou executar ambos.",
   "referenceTabLanguages": "Escolher uma linguagem para ativar ou desativar suas sugestões Tab.",
   "referenceAuthStatus": "Verificar se uma chave Model API está salva.",
+  "referenceAccountsTitle": "Several accounts per provider",
+  "referenceAccounts": "Gerencia as contas de um provedor: listar, adicionar, remover, ordenar e limites. As credenciais vêm somente da entrada padrão.",
+  "referenceDeveloper": "Mostra as opções de desenvolvedor, desbloqueia-as ou gerencia perfis locais isolados de teste nesta máquina.",
   "referenceAuthClear": "Remover a chave Model API salva.",
   "referenceCliOptions": {
     "backend": "--backend museCode|modelApi      Quem paga: o Muse Code (padrão) ou a chave da Model API",

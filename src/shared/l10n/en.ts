@@ -86,6 +86,11 @@ export const EN = {
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
   referenceAuthClear: 'Remove the stored Model API key.',
   referenceAuthStatus: 'Check whether a Model API key is stored.',
+  referenceAccountsTitle: 'Several accounts per provider',
+  referenceAccounts:
+    'Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input.',
+  referenceDeveloper:
+    'Show developer options, unlock them, or manage isolated local testing profiles on this machine.',
   referenceTabLanguages: 'Choose a language to switch Tab suggestions on or off for it.',
   referenceTabMenu:
     'Turn Tab off; Snooze for 15 minutes; Snooze for an hour; Snooze until restart; Tab languages…; Multi-line mode…; Account & usage. When Copilot causes Tab to yield, the menu also offers disabling Copilot for the current language or running both.',

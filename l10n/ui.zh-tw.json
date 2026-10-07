@@ -2457,6 +2457,9 @@
   "referenceTabMenu": "關閉 Tab; 稍後提醒 15 分鐘; 稍後提醒 1 小時; 稍後提醒到重新啟動; Tab 語言…; 多行模式…; 帳戶與使用量. 當Tab讓位給Copilot時，選單還可關閉目前語言的Copilot建議或同時執行兩者。",
   "referenceTabLanguages": "選擇一種語言，開啟或關閉該語言的 Tab 建議。",
   "referenceAuthStatus": "檢查是否儲存了 Model API 金鑰。",
+  "referenceAccountsTitle": "Several accounts per provider",
+  "referenceAccounts": "管理同一提供者的帳號：列出、新增、刪除、排序和閾值。憑證僅來自標準輸入。",
+  "referenceDeveloper": "顯示開發者選項、將其解鎖，或管理本機上隔離的本機測試設定檔。",
   "referenceAuthClear": "刪除已儲存的 Model API 金鑰。",
   "referenceCliOptions": {
     "backend": "--backend museCode|modelApi      由誰付費：Muse Code（預設）或 Model API 金鑰",

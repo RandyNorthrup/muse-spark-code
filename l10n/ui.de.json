@@ -2553,6 +2553,9 @@
   "referenceTabMenu": "Tab ausschalten; 15 Minuten zurückstellen; Eine Stunde zurückstellen; Bis zum Neustart zurückstellen; Tab-Sprachen…; Mehrzeilenmodus…; Konto und Nutzung. Wenn Tab Copilot Vorrang gibt, bietet das Menü auch das Abschalten von Copilot für die aktuelle Sprache oder beide zusammen an.",
   "referenceTabLanguages": "Eine Sprache auswählen, um Tab-Vorschläge dafür ein- oder auszuschalten.",
   "referenceAuthStatus": "Prüfen, ob ein Model API-Schlüssel gespeichert ist.",
+  "referenceAccountsTitle": "Several accounts per provider",
+  "referenceAccounts": "Verwaltet die Konten eines Anbieters: Auflisten, Hinzufügen, Entfernen, Reihenfolge und Schwellenwerte. Zugangsdaten kommen nur aus der Standardeingabe.",
+  "referenceDeveloper": "Entwickleroptionen anzeigen, entsperren oder isolierte lokale Testprofile auf diesem Computer verwalten.",
   "referenceAuthClear": "Den gespeicherten Model API-Schlüssel entfernen.",
   "referenceCliOptions": {
     "backend": "--backend museCode|modelApi      Wer bezahlt: Muse Code (Standard) oder der Model API-Schlüssel",

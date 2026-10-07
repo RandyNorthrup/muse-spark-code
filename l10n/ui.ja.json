@@ -2457,6 +2457,9 @@
   "referenceTabMenu": "Tab をオフにする; 15 分間スヌーズ; 1 時間スヌーズ; 再起動までスヌーズ; Tab の言語…; 複数行モード…; アカウントと使用量. TabがCopilotを優先する場合、メニューから現在の言語のCopilotを無効にするか、両方を実行できます。",
   "referenceTabLanguages": "言語を選択し、その言語の Tab 候補を有効または無効にします。",
   "referenceAuthStatus": "Model API キーが保存されているか確認します。",
+  "referenceAccountsTitle": "Several accounts per provider",
+  "referenceAccounts": "1 つのプロバイダーのアカウントを管理します。一覧表示、追加、削除、順序、しきい値。認証情報は標準入力からのみ受け取ります。",
+  "referenceDeveloper": "開発者向けオプションの表示、ロック解除、またはこのコンピューター上の分離されたローカルテストプロファイルの管理。",
   "referenceAuthClear": "保存済みの Model API キーを削除します。",
   "referenceCliOptions": {
     "backend": "--backend museCode|modelApi      支払い元: Muse Code (既定) または Model API キー",
