@@ -1,0 +1,29 @@
+/** Move cold transforms outside Testing Library's default findBy deadline. */
+export async function warmDeferredSurfaces(): Promise<void> {
+  await Promise.all([
+    import('../../../src/webview/components/SignIn'),
+    import('../../../src/webview/components/GoalPanel'),
+    import('../../../src/webview/components/SchedulePanel'),
+    import('../../../src/webview/components/Palette'),
+    import('../../../src/webview/components/PopoverMenu'),
+    import('../../../src/webview/components/HistoryDialog'),
+    import('../../../src/webview/components/AgentMap'),
+    import('../../../src/webview/components/AgentMapContent'),
+    import('../../../src/webview/components/UsageDialog'),
+    import('../../../src/webview/components/UsageDialogContent'),
+    import('../../../src/webview/components/BestOfNDialog'),
+    import('../../../src/webview/components/ReviewPane'),
+    import('../../../src/webview/components/ReferencePage'),
+    import('../../../src/webview/components/HandoffDialog'),
+    import('../../../src/webview/components/SecretPromptDialog'),
+    import('../../../src/webview/components/SessionBoardDialog'),
+    import('../../../src/webview/components/ShareView'),
+    import('../../../src/webview/components/GitPanel'),
+    import('../../../src/webview/components/QuestionUi'),
+    import('../../../src/webview/components/ReportDialog'),
+    import('../../../src/webview/components/GooeyMenuContent'),
+    import('../../../src/webview/components/ElicitationCard'),
+    import('../../../src/webview/components/WorkflowRun'),
+    import('../../../src/webview/components/HighlightedCode'),
+  ])
+}

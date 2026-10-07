@@ -6,13 +6,16 @@
 // line to the agent.
 
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/shared/protocol'
 import { App } from '../../src/webview/App'
 import { MarkdownView } from '../../src/webview/components/MarkdownView'
 import { initialUiState, reviewHunkKey, uiReducer } from '../../src/webview/state/uiState'
 import { testSettings } from './helpers/fakes'
+import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
+
+beforeAll(warmDeferredSurfaces)
 
 function deliver(data: HostToWebviewMessage) {
   act(() => {

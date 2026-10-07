@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { referenceModel } from '../../src/shared/reference/reference.generated'
@@ -15,6 +15,9 @@ import { initialUiState } from '../../src/webview/state/uiState'
 import { createUiStore } from '../../src/webview/state/store'
 import { testSettings } from './helpers/fakes'
 import type { HostToWebviewMessage } from '../../src/shared/protocol'
+import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
+
+beforeAll(warmDeferredSurfaces)
 
 const deliver = (data: HostToWebviewMessage) => {
   act(() => {

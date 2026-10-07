@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { App } from '../../src/webview/App'
 import * as highlightModule from '../../src/webview/highlightRuntime'
 import * as presentation from '../../src/webview/toolPresentation'
 import { testSettings } from './helpers/fakes'
+import { warmDeferredSurfaces } from './helpers/warmDeferredSurfaces'
+
+beforeAll(warmDeferredSurfaces)
 
 // M25 (PLAN.md D28): a keystroke re-rendered every row of the transcript, and
 // every delta re-rendered every row too; a code block was re-highlighted per

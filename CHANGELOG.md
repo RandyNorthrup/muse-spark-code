@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Test infrastructure warms deferred panel and row modules before behavior
+  suites, keeping cold transforms outside the default UI query deadlines.
+  A source check catches new deferred imports missing from warm-up.
 - Problem reports retain frames from the shipped question deferral bundle.
 - Release checks cover crash recovery through the shared reload helper, await
   deferred question commands and menus, and verify Cline shell quoting on all
