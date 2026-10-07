@@ -133,3 +133,59 @@ the final normal runs and gates:
 ![Incomplete receipt in high-contrast dark](agent-outcomes-hc-dark.png)
 
 ![Incomplete receipt in high-contrast light](agent-outcomes-hc-light.png)
+
+## FIXAGENTOUT independent review repairs — 2026-10-07, Kubuntu
+
+Review base: `f50425ffa3afb9ac857ac860d98e7d055d7d09b1` (the reviewed
+`refs/rigs/win11/feat/agent-outcomes` snapshot). The rig checkout does not
+retain that symbolic ref; its starting HEAD and the review's full SHA agree.
+The baseline clone was made directly from this worktree before any commit,
+then installed with `CI=true npm ci`. Only regression test sources and fake
+helpers were copied into it; its production source remained at that SHA.
+Complete files ran with `--maxWorkers=3`, no timeout override or test-name
+filter. No live or paid calls, dependencies, gate definitions, caps or global
+settings changed. The shared brief's aggregate-quality prohibition still
+applies; the lead retains that integrated gate.
+
+| Review finding                                       | Structural repair and regression                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| P1: ACP inspection intercepted cancellation          | `AcpSession.cancel` cancels preparation and then cancels any running/starting backend turn. The inspection's `finally` clears only its own preparation. ACP tests hold `/agents` and `/agents receipt child` history while cancelling, assert exactly one backend cancel and both cancelled responses, and reject a model prompt while a newer inspection remains held.                                                                                                                                                  |
+| P2: ordinary parent request bytes changed            | `toolDefinitions` keeps `ask_user` before `todo_write` for parents, while children still receive their task tool. The tool-order expectation fails on the reviewed tree. All parent golden strings remain unchanged; only request 3 of `06-subagent-child.json` changes for the intended child instruction, task tool and resulting cache key.                                                                                                                                                                           |
+| P2: completion declaration leaked between tasks      | Successful task writes record their turn ID; terminal evidence accepts only that turn's declaration. The host test completes an earlier task, ends the next with prose, expects Ended, unverified and keeps earlier receipts.                                                                                                                                                                                                                                                                                            |
+| P2: patch reads used the parent session              | `AgentHost.readSessionOutput` reads by the owning session without resume or a turn, using the existing validated MSP shape and shared output decoding/paging. Both ACP and the panel use it, retaining the panel's bounded read slots and stale-generation check. Real MSP tests reject the wrong owner and exercise an attached and unattached parent. Model API tests read held/stored child patches, refuse wrong/unknown output owners and verify zero extra model requests. The exec wrapper forwards the new port. |
+| P2: active read overwrote an archived native receipt | `observeChildReceipt` enriches only an inactive, matching numbered attempt. The outcome regression inspects active, interrupted and mismatched attempts, preserves attempt 1 exactly, then enriches attempt 2 after its terminal snapshot.                                                                                                                                                                                                                                                                               |
+
+The first baseline runs produced 6 failures / 710 passes across ACP, controller
+and outcomes, and 17 failures / 658 passes across the host, tools and golden
+requests (15 golden failures). After adding the late-preparation and portable
+output regressions, the final ACP/controller/host baseline run produced
+8 failures / 1,305 passes. These are defect reproductions, not CI verification.
+The outcome and tool-order failures are in the earlier baseline batches.
+Local ignored logs: `temp/base-regressions-{1,2}.log` and
+`temp/base-final-owning.log`.
+
+Two deliberate guard-removal batches failed at default timeouts: 7 failures /
+710 passes for ACP/controller/outcomes, and 17 failures / 659 passes for
+host/tools/goldens. The mutations restore preparation-only cancellation and
+unconditional late clearing, parent-scoped output reads on both adapters,
+unrestricted native receipt replacement, session-wide task completion evidence
+and the reviewed parent tool ordering. Every source was restored in `finally`
+and its before/after SHA-256 matched. Logs are `temp/guard-drill-{1,2}.log`;
+`temp/guard-drill.json` holds the restoration check. Complete restored files
+and the committed fresh clone are verified below. No new command, UI text or feature description
+is introduced: the existing catalog and fourteen translations remain accurate.
+
+| Restored source                                   | SHA-256                                                            |
+| ------------------------------------------------- | ------------------------------------------------------------------ |
+| `src/acp/agent.ts`                                | `1b77a8a09c0327fe9184b8e0e77328b47b1afc150d4a0fed2fd2e39067e94c7b` |
+| `src/core/agent/agentObservation.ts`              | `87063ebcaef3bf1b02011996b7d9ccd77a31eea3cdfaa1d859a4fe84871d6679` |
+| `src/core/backends/modelapi/ModelApiHost.ts`      | `1a5b51f863ebe9dcb758e1f18844fde72d2ebdf59f67319b56383af93c063b1e` |
+| `src/core/backends/modelapi/tools.ts`             | `6d9c806be94f39ae4792114f958733712a23efb9a2f0463c61052018d708fea6` |
+| `src/host/conversation/conversationController.ts` | `7194f79ce39e70114ced3c16c7a0fc21e9a3e1433a85d5727768370a6d6feace` |
+
+The restored complete owning files passed **1,515 tests across 9 files**:
+ACP/controller/outcomes 717; Model API host/tools/golden requests 676;
+Muse Code host/exec session tap/session store 122. Logs:
+`temp/restored-{1,2,3}.log`. The unchanged duplication gate reports 0 clones.
+The repair is committed before the required fresh-clone CI verification;
+that verification and its static/build results follow in a documentation commit.

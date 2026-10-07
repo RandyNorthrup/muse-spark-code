@@ -164,6 +164,8 @@ export class FakeAgentHost implements AgentHost {
   public readonly listSessions = vi.fn<AgentHost['listSessions']>(() => Promise.resolve(this.page))
   public readonly listModels = vi.fn<AgentHost['listModels']>(() => Promise.resolve(this.models))
 
+  public readonly readSessionOutput = vi.fn<AgentHost['readSessionOutput']>(noOutput)
+
   public constructor(public models: readonly ModelSummary[] = FAKE_MODELS) {}
 
   private newSession(sessionId: string, modelId: string): FakeAgentSession {

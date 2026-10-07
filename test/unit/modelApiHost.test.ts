@@ -9045,6 +9045,88 @@ describe('ModelApiSession subagents (M48)', () => {
     ).toEqual(['First task', 'Second task'])
   })
 
+  it('reads held and stored child output without resuming or sending a model request', async () => {
+    const store = memorySessionStore()
+    const t = setupSubagents({ store })
+    const { session } = await startApprovedSubagentSession(t)
+    scriptWorkerSpawn(t, 'Create a file')
+    await delegateAndWaitForChild(session, { controlStatus: 'resultReady' }, true)
+    t.api.script(
+      { calls: [{ name: 'write_file', arguments: '{"path":"child.txt","content":"héllo"}' }] },
+      { text: 'File created.' },
+    )
+    await session.messageSubagent('subagent-1', 'Create child.txt', true)
+    await vi.waitFor(() => {
+      expect(
+        session.history().items.find((item) => item.kind === 'subagent')?.result?.summary,
+      ).toBe('File created.')
+    })
+    const childId =
+      session.history().items.find((item) => item.kind === 'subagent')?.childSessionId ?? ''
+    const history = await t.host.readSession(childId)
+    const edit = history.items.find((item) => item.patchRef !== undefined)
+    const request = {
+      itemId: edit?.itemId ?? '',
+      outputRef: edit?.patchRef?.id ?? '',
+      offsetBytes: 0,
+      lengthBytes: 100_000,
+    }
+    const calls = t.api.responseBodies().length
+    const page = await t.host.readSessionOutput(childId, request)
+    expect(page.content).toContain('child.txt')
+    await expect(t.host.readSessionOutput(session.sessionId, request)).rejects.toThrow(
+      'unknown output',
+    )
+    await expect(
+      t.host.readSessionOutput(childId, { ...request, outputRef: 'missing' }),
+    ).rejects.toThrow('unknown output')
+    await t.host.flush()
+    await t.host.close()
+    const stored = setup({ store })
+    await stored.host.load()
+    expect(await stored.host.readSessionOutput(childId, request)).toEqual(page)
+    expect(stored.host.sessionCount).toBe(0)
+    await expect(
+      stored.host.readSessionOutput(childId, { ...request, outputRef: 'missing' }),
+    ).rejects.toThrow('unknown output')
+    await expect(stored.host.readSessionOutput('missing', request)).rejects.toThrow(
+      'not held by this window',
+    )
+    expect(t.api.responseBodies()).toHaveLength(calls)
+    expect(stored.api.responseBodies()).toHaveLength(0)
+    await stored.host.close()
+  })
+
+  it('does not inherit a completed task declaration in a later child attempt', async () => {
+    const t = setupSubagents()
+    const { session } = await startApprovedSubagentSession(t)
+    scriptWorkerSpawn(t, 'First task')
+    await delegateAndWaitForChild(session, { controlStatus: 'resultReady' }, true)
+    t.api.script(
+      {
+        calls: [
+          {
+            name: 'todo_write',
+            arguments: '{"items":[{"text":"First task","status":"completed"}]}',
+          },
+        ],
+      },
+      { text: 'First declaration complete.' },
+    )
+    await session.messageSubagent('subagent-1', 'Declare the first task complete', true)
+    await waitForChildSummary(session, 'First declaration complete.')
+    const before = session.history().items.find((item) => item.kind === 'subagent')
+      ?.agentEvidence?.attempts
+    expect(before?.at(-1)?.outcome).toBe('complete')
+    t.api.script({ text: 'Second task ended with prose only.' })
+    await session.messageSubagent('subagent-1', 'Do a different second task', true)
+    await waitForChildSummary(session, 'Second task ended with prose only.')
+    const after = session.history().items.find((item) => item.kind === 'subagent')?.agentEvidence
+    expect(after?.reportedComplete).toBeUndefined()
+    expect(after?.attempts?.at(-1)?.outcome).toBe('unverified')
+    expect(after?.attempts?.slice(0, 2)).toEqual(before)
+  })
+
   it('continues an incomplete child in place, preserves edits and persists attempt receipts', async () => {
     const t = setupSubagents()
     const { session } = await startApprovedSubagentSession(t)

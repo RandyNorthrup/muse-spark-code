@@ -701,28 +701,6 @@ export function toolDefinitions(
           ),
         ]
       : []),
-    define(
-      MODEL_API_TOOLS.todoWrite,
-      'Replace your task list, shown to the user while you work.',
-      {
-        items: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              text: { type: 'string' },
-              status: { type: 'string', enum: ['pending', 'inProgress', 'completed'] },
-              activeForm: {
-                type: 'string',
-                description: 'Present-tense form shown while in progress',
-              },
-            },
-            required: ['text', 'status'],
-          },
-        },
-      },
-      ['items'],
-    ),
     ...(options.isSubagent === true
       ? []
       : [
@@ -758,12 +736,36 @@ export function toolDefinitions(
             },
             ['questions'],
           ),
-          // Muse Code's goal tools (M45, PLAN.md D38), offered in every session as
-          // `muse serve` offers them.
-          ...GOAL_TOOL_DEFINITIONS.map((tool) =>
-            define(tool.name, tool.description, tool.properties, tool.required),
-          ),
         ]),
+    define(
+      MODEL_API_TOOLS.todoWrite,
+      'Replace your task list, shown to the user while you work.',
+      {
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              text: { type: 'string' },
+              status: { type: 'string', enum: ['pending', 'inProgress', 'completed'] },
+              activeForm: {
+                type: 'string',
+                description: 'Present-tense form shown while in progress',
+              },
+            },
+            required: ['text', 'status'],
+          },
+        },
+      },
+      ['items'],
+    ),
+    ...(options.isSubagent === true
+      ? []
+      : // Muse Code's goal tools (M45, PLAN.md D38), offered in every session as
+        // `muse serve` offers them.
+        GOAL_TOOL_DEFINITIONS.map((tool) =>
+          define(tool.name, tool.description, tool.properties, tool.required),
+        )),
     ...(options.hasSubagents === true
       ? SUBAGENT_TOOL_DEFINITIONS.map((tool) =>
           define(tool.name, tool.description, tool.properties, tool.required),

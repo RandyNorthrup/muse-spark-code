@@ -18,6 +18,7 @@ import { approvalModeFor } from '../../src/shared/permissionModes'
 import { FAKE_MODELS, FakeAgentHost, type FakeAgentSession } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
 import { commandApproval, until } from './helpers/acpWaits'
+import { childPatchOutput } from './helpers/fakeMsp'
 import { acpMspHost, acpResumeEnvelope, answerMsp } from './helpers/acpMsp'
 import { fakeAcpQuestions } from './helpers/questions/acpRegistry'
 import { expectedQuestionCommandsUpdate } from './helpers/questions/fixtures'
@@ -445,6 +446,111 @@ describe('the ACP agent (M63)', () => {
       await running
     })
   })
+  it.each(['/agents', '/agents receipt child'])(
+    'cancels the running model turn while local inspection waits: %s',
+    async (command) => {
+      const h = harness()
+      const history = { mode: 'inline', items: [], todos: [], name: undefined } as const
+      const held = Promise.withResolvers<typeof history>()
+      const read = vi.spyOn(h.host, 'readSession').mockReturnValue(held.promise)
+      await h.run(async (client) => {
+        const { sessionId, session, response: runningPrompt } = await running(h, client)
+        const inspecting = prompt(client, sessionId, command)
+        await until(() => read.mock.calls.length === 1)
+        await client.notify('session/cancel', { sessionId })
+        try {
+          await until(() => session.cancel.mock.calls.length === 1)
+        } finally {
+          held.resolve(history)
+          session.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+        }
+        expect(await runningPrompt).toEqual({ stopReason: 'cancelled' })
+        expect(await inspecting).toEqual({ stopReason: 'cancelled' })
+        expect(session.cancel).toHaveBeenCalledTimes(1)
+      })
+    },
+  )
+
+  it('keeps newer inspection preparation when a cancelled history read settles late', async () => {
+    const h = harness()
+    const history = { mode: 'inline', items: [], todos: [], name: undefined } as const
+    const old = Promise.withResolvers<typeof history>()
+    const newer = Promise.withResolvers<typeof history>()
+    const read = vi
+      .spyOn(h.host, 'readSession')
+      .mockReturnValueOnce(old.promise)
+      .mockReturnValueOnce(newer.promise)
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      const first = prompt(client, sessionId, '/agents')
+      await until(() => read.mock.calls.length === 1)
+      await client.notify('session/cancel', { sessionId })
+      await until(() =>
+        h.log.info.mock.calls.some(([line]) => String(line).includes('cancelled before its turn')),
+      )
+      const second = prompt(client, sessionId, '/agents')
+      await until(() => read.mock.calls.length === 2)
+      old.resolve(history)
+      expect(await first).toEqual({ stopReason: 'cancelled' })
+      let isSettled = false
+      const regular = (async () => {
+        try {
+          await prompt(client, sessionId)
+          return 'started'
+        } catch (error: unknown) {
+          return error instanceof Error ? error.message : String(error)
+        } finally {
+          isSettled = true
+        }
+      })()
+      try {
+        await until(() => isSettled || h.host.sessions[0]?.sendTurn.mock.calls.length === 1)
+        h.host.sessions[0]?.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+        expect(await regular).toContain(UI_TEXT.acpPromptBusy)
+      } finally {
+        newer.resolve(history)
+      }
+      expect(await second).toEqual({ stopReason: 'end_turn' })
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    })
+  })
+
+  it('reads ACP child patch evidence through the child session without resuming it', async () => {
+    await withMspSession(async (client, wire) => {
+      wire.server.handle('session/read', (params) => {
+        const value = acpResumeEnvelope()
+        return {
+          ...value,
+          session: { ...value.session, sessionId: params['sessionId'] },
+          history: {
+            ...value.history,
+            items: [
+              params['sessionId'] === 'old-1'
+                ? {
+                    itemId: 'a',
+                    kind: 'subagent',
+                    subagentId: 'child',
+                    childSessionId: 'child-1',
+                    status: 'completed',
+                  }
+                : {
+                    itemId: 'edit',
+                    kind: 'toolCall',
+                    status: 'completed',
+                    patchRef: { id: 'patch', byteLen: 100 },
+                  },
+            ],
+          },
+        }
+      })
+      wire.server.handle('item/readOutput', childPatchOutput)
+      await prompt(client, 'old-1', '/agents receipt child')
+      expect(wire.server.requestsFor('item/readOutput')[0]?.params?.['sessionId']).toBe('child-1')
+      expect(wire.server.requestsFor('session/resume')).toHaveLength(1)
+      expect(wire.server.requestsFor('turn/start')).toHaveLength(0)
+    })
+  })
+
   it.each(['continue', 'retry'])(
     'does not recover through local %s after the editor denies',
     async (action) => {

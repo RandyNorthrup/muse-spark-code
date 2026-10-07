@@ -417,8 +417,8 @@ describe('toolDefinitions / classifyTool', () => {
       'search',
       'list_files',
       'bash',
-      'todo_write',
       'ask_user',
+      'todo_write',
       // Muse Code's goal tools (M45), offered in every session.
       'create_goal',
       'get_goal',

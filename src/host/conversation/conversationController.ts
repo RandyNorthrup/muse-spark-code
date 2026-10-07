@@ -8400,14 +8400,14 @@ export class ConversationController {
         return
       }
       const history = await host.readSession(sessionId)
-      const session = this.session
       const { agentReceiptFiles } = await import('../../core/agent/agentReceiptFiles')
-      const items =
-        session === undefined
-          ? history.items
-          : await agentReceiptFiles(history.items, (request) =>
-              this.readOutputSlot(session, generation, request),
-            )
+      const items = await agentReceiptFiles(history.items, (request) =>
+        this.outputReadSlots.run(
+          () => host.readSessionOutput(sessionId, request),
+          () => !this.isDisposed && generation === this.sendInvalidationEpoch,
+          () => new Error(UI_TEXT.questionCancelled),
+        ),
+      )
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }

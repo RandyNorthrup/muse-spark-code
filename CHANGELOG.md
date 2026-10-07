@@ -18,6 +18,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- ACP cancellation stops the running model turn while local agent inspection
+  waits, and a late cancelled read preserves newer command preparation.
+- Agent receipts read patch references through the child that owns them and
+  preserve earlier native attempt receipts while a new attempt is running.
+- Child completion evidence belongs to the current turn. Parent Model API
+  request bytes and cache prefixes keep their original tool order.
 - Windows shell credential regressions await the matching background completion
   before cleanup and probe raw environment values within the default test deadline.
 - Prompt host shutdown awaits mirror merges and other admitted operations

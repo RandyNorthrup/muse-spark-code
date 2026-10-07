@@ -29548,6 +29548,21 @@ recovery; interrupted Resume remains the captured control.
 - [x] Four-theme zero-violation harness scenes, CHANGELOG and certification record
       in docs/certification/agent-outcomes.md with completed/blocked evidence.
 
+### FIXAGENTOUT — Independent M119 review repairs (2026-10-07)
+
+The five confirmed findings in RVAGENTOUTC are in scope: cancellation while ACP
+inspection reads history, unchanged parent request bytes, turn-local task
+completion evidence, child-scoped patch reads in both editors, and preservation
+of archived native attempts during active reads. Each repair gets a regression
+run against the reviewed `f50425ffa` tree, then complete owning files run three
+times in a fresh committed clone with CI enabled and repository-default timeouts.
+No wire field, dependency, command, translation or gate cap changes. Inspection
+must read output by its owning session without resuming that child.
+
+- [x] Five regressions fail on the reviewed revision and pass after repair.
+- [ ] Fresh-clone repeated owning tests and individual static/build gates.
+- [ ] CHANGELOG and `docs/certification/agent-outcomes.md` repair receipts.
+
 ## 7. Gates
 
 **M119 scoped rig certification (2026-10-06–07).** The lane's shared brief

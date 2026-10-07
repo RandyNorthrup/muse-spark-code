@@ -18,12 +18,18 @@ export function observeChildReceipt(
 ): ItemSnapshot {
   const before = parent.agentEvidence
   const last = before?.attempts?.at(-1)
-  if (last === undefined) return parent
+  if (
+    last === undefined ||
+    last.number !== before?.attempt ||
+    agentActivity({ status: parent.status, controlStatus: parent.controlStatus }, 0).activity !==
+      'inactive'
+  )
+    return parent
   const turnId = items.findLast((item) => item.turnId !== undefined)?.turnId
   const current = turnId === undefined ? items : items.filter((item) => item.turnId === turnId)
   const evidence: AgentEvidence = {
     ...before,
-    ...finishedAgentEvidence(current, todos, before?.stopReason ?? 'unknown', []),
+    ...finishedAgentEvidence(current, todos, before.stopReason ?? 'unknown', []),
     worktree: 'unknown',
   }
   const receipt = buildAgentReceipt(
@@ -32,7 +38,7 @@ export function observeChildReceipt(
     parent.result?.text ?? parent.result?.summary,
   )
   evidence.attempts = [
-    ...(before?.attempts ?? []).slice(0, -1),
+    ...(before.attempts ?? []).slice(0, -1),
     { number: last.number, outcome: endedOutcome({ status: parent.status, evidence }), receipt },
   ]
   return { ...parent, agentEvidence: evidence }

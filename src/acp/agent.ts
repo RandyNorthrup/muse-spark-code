@@ -774,7 +774,9 @@ class AcpSession {
       const items = childHistory?.items ?? [agent]
       this.ensureHeld()
       const { agentReceiptFiles } = await import('../core/agent/agentReceiptFiles')
-      const files = await agentReceiptFiles(items, (request) => this.session.readOutput(request))
+      const files = await agentReceiptFiles(items, (request) =>
+        this.host.readSessionOutput(agent.childSessionId ?? this.sessionId, request),
+      )
       const receipt =
         this.host.info.kind === 'modelApi'
           ? (agent.agentEvidence?.attempts?.at(-1)?.receipt ??
@@ -1027,7 +1029,7 @@ class AcpSession {
         await this.outbox
         return preparing.isCancelled ? 'cancelled' : 'end_turn'
       } finally {
-        this.preparing = undefined
+        if (this.preparing === preparing) this.preparing = undefined
       }
     }
     if (
@@ -1201,7 +1203,6 @@ class AcpSession {
       this.preparing.abort.abort()
       this.preparing = undefined
       this.deps.log.info(`ACP session ${this.sessionId}: cancelled before its turn started`)
-      return
     }
     if (this.pending === undefined && this.activeTurnId === undefined) {
       return

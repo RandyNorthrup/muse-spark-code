@@ -266,6 +266,21 @@ const readOutputResultSchema = z.object({
   eof: z.boolean(),
 })
 
+function parseOutputPage(result: unknown): OutputPage {
+  const page = readOutputResultSchema.parse(result)
+  if (page.encoding !== BASE64_ENCODING) {
+    return page
+  }
+  // Binary media arrives base64 (tdd SS4.7.4): shown only if it is text after all.
+  let text: string
+  try {
+    text = STRICT_UTF8.decode(Buffer.from(page.content, BASE64_ENCODING))
+  } catch {
+    throw new Error(`${UI_TEXT.outputIsBinary} (${page.mediaType})`)
+  }
+  return { ...page, content: text, encoding: UTF8_ENCODING }
+}
+
 const DEFAULT_DISPOSITION = 'started'
 
 // The host mirrors a live approval or question as a JSON-RPC server request,
@@ -1240,18 +1255,7 @@ export class MuseSession implements AgentSession {
       offsetBytes: request.offsetBytes,
       lengthBytes: request.lengthBytes,
     })
-    const page = readOutputResultSchema.parse(result)
-    if (page.encoding !== BASE64_ENCODING) {
-      return page
-    }
-    // Binary media arrives base64 (tdd SS4.7.4): shown only if it is text after all.
-    let text: string
-    try {
-      text = STRICT_UTF8.decode(Buffer.from(page.content, BASE64_ENCODING))
-    } catch {
-      throw new Error(`${UI_TEXT.outputIsBinary} (${page.mediaType})`)
-    }
-    return { ...page, content: text, encoding: UTF8_ENCODING }
+    return parseOutputPage(result)
   }
 
   /**
@@ -1722,6 +1726,14 @@ export class MuseCodeHost implements AgentHost {
     return () => {
       this.listListeners.delete(listener)
     }
+  }
+
+  /** Captured item/readOutput also reads a child without loading its session. */
+  public async readSessionOutput(
+    sessionId: string,
+    request: OutputPageRequest,
+  ): Promise<OutputPage> {
+    return parseOutputPage(await this.command('item/readOutput', { sessionId, ...request }))
   }
 
   /** One page of this workspace's stored sessions, newest activity first. */

@@ -178,6 +178,7 @@ import { pdfFixture } from './helpers/pdfFixture'
 import {
   fakeInitializeResult,
   fakeMspHost,
+  childPatchOutput,
   goalRefusal,
   refusalOf,
   rejectionFor,
@@ -5167,6 +5168,39 @@ describe('ConversationController: session history (M6)', () => {
       text: 'Could not read the agent’s transcript: unknown session',
     })
   })
+
+  it.each([true, false])(
+    'reads child patches by their owner with parent attached=%s',
+    async (isAttached) => {
+      const t = withHistory()
+      if (isAttached) await t.controller.restoreSession('old')
+      t.server.handle('session/read', (params) => {
+        const value = envelope({ ...storedSession, sessionId: params['sessionId'] })
+        return {
+          ...value,
+          history: {
+            ...value.history,
+            items: [
+              {
+                itemId: 'edit',
+                kind: 'toolCall',
+                status: 'completed',
+                patchRef: { id: 'patch', byteLen: 100 },
+              },
+            ],
+          },
+        }
+      })
+      t.server.handle('item/readOutput', childPatchOutput)
+      await t.controller.handle({ type: 'readChildSession', sessionId: 'child-1' })
+      expect(t.server.requestsFor('item/readOutput')[0]?.params?.['sessionId']).toBe('child-1')
+      expect(t.surface.posted.at(-1)).toMatchObject({
+        type: 'childTranscript',
+        items: [{ changedFiles: [{ path: 'child.ts', added: 0, removed: 0 }] }],
+      })
+      expect(t.server.requestsFor('session/resume')).toHaveLength(isAttached ? 1 : 0)
+    },
+  )
 
   it('does not publish a held child transcript after account stop', async () => {
     const t = withHistory()

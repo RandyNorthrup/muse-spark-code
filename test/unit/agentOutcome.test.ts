@@ -164,6 +164,42 @@ describe('agent receipts and recovery', () => {
       'unverified',
     )
   })
+  it('preserves archived native receipts while a new attempt is active or mismatched', () => {
+    const ended = observeAgentItem(
+      undefined,
+      { itemId: 'a', kind: 'subagent', status: 'failed', result: { summary: 'first failure' } },
+      0,
+    )
+    const running = observeAgentItem(
+      ended,
+      { itemId: 'a', kind: 'subagent', status: 'inProgress' },
+      0,
+    )
+    const current: ItemSnapshot[] = [
+      {
+        itemId: 'reply',
+        turnId: 't2',
+        kind: 'agentMessage',
+        status: 'completed',
+        text: 'second attempt output',
+      },
+    ]
+    const todos = [{ text: 'second task', status: 'pending' }] as const
+    expect(observeChildReceipt(running, current, todos)).toEqual(running)
+    const waiting = { ...running, controlStatus: 'interrupted', status: 'cancelled' }
+    expect(observeChildReceipt(waiting, current, todos)).toEqual(waiting)
+    const mismatched = { ...running, status: 'completed' }
+    expect(observeChildReceipt(mismatched, current, todos)).toEqual(mismatched)
+    const final = observeAgentItem(
+      running,
+      { itemId: 'a', kind: 'subagent', status: 'completed', result: { summary: 'second end' } },
+      0,
+    )
+    const inspected = observeChildReceipt(final, current, todos)
+    expect(inspected.agentEvidence?.attempts?.[0]).toEqual(ended.agentEvidence?.attempts?.[0])
+    expect(inspected.agentEvidence?.attempts?.[1]?.receipt.unfinished).toEqual(['second task'])
+  })
+
   it('keeps observed native attempts and trusts the workflow attempt number', () => {
     const first: ItemSnapshot = {
       itemId: 'a',

@@ -1896,6 +1896,26 @@ function waitFor<T>(signal: AbortSignal, register: (pending: Pending<T>) => void
   })
 }
 
+function modelOutputPage(content: string, request: OutputPageRequest): Promise<OutputPage> {
+  const bytes = Buffer.from(content, MODEL_API_OUTPUT_ENCODING)
+  // Pages start and end on character boundaries, as the CLI serves them (D26):
+  // a character split across two pages would decode as U+FFFD in both.
+  const start = characterStart(bytes, Math.min(request.offsetBytes, bytes.length))
+  let end = characterStart(bytes, Math.min(start + request.lengthBytes, bytes.length))
+  if (end <= start && start < bytes.length) {
+    end = characterEnd(bytes, start)
+  }
+  const slice = bytes.subarray(start, end)
+  return Promise.resolve({
+    content: slice.toString(MODEL_API_OUTPUT_ENCODING),
+    encoding: MODEL_API_OUTPUT_ENCODING,
+    mediaType: MODEL_API_OUTPUT_MEDIA_TYPE,
+    offsetBytes: start,
+    byteLen: slice.length,
+    eof: end >= bytes.length,
+  })
+}
+
 export class ModelApiSession implements AgentSession {
   private lastJudgeBody: CreateResponseBody | undefined
   private readonly listeners = new Set<SessionEventListener>()
@@ -2074,6 +2094,7 @@ export class ModelApiSession implements AgentSession {
   private compacting: AbortController | undefined
   private effort: string = DEFAULT_EFFORT
   private todos: readonly TodoItem[] = []
+  private todoTurnId: string | undefined
   private outcomeStopReason: AgentEvidence['stopReason']
   private responseIncomplete = false
   /** The session goal (M45, PLAN.md D38), in Muse Code's own record shape. */
@@ -5124,6 +5145,7 @@ export class ModelApiSession implements AgentSession {
       this.taskRefusals = 0
     }
     this.todos = next
+    this.todoTurnId = turnId
     this.emit({ type: 'todoChanged', items: [...this.todos] })
     const summary = `${String(this.todos.length)} tasks`
     return { output: summary, visibleOutput: summary }
@@ -6290,7 +6312,7 @@ export class ModelApiSession implements AgentSession {
           child.session.outcomeStopReason ?? (terminalStop === 'unknown' ? 'normal' : terminalStop)
         const evidence = finishedAgentEvidence(
           items,
-          child.session.todos,
+          child.session.todoTurnId === event.turnId ? child.session.todos : [],
           stopReason,
           child.session.checkCommands(),
         )
@@ -11756,26 +11778,9 @@ export class ModelApiSession implements AgentSession {
 
   public readOutput(request: OutputPageRequest): Promise<OutputPage> {
     const content = this.outputs.get(request.outputRef)
-    if (content === undefined) {
-      return Promise.reject(new Error(`unknown output ${request.outputRef}`))
-    }
-    const bytes = Buffer.from(content, MODEL_API_OUTPUT_ENCODING)
-    // Pages start and end on character boundaries, as the CLI serves them (D26):
-    // a character split across two pages would decode as U+FFFD in both.
-    const start = characterStart(bytes, Math.min(request.offsetBytes, bytes.length))
-    let end = characterStart(bytes, Math.min(start + request.lengthBytes, bytes.length))
-    if (end <= start && start < bytes.length) {
-      end = characterEnd(bytes, start)
-    }
-    const slice = bytes.subarray(start, end)
-    return Promise.resolve({
-      content: slice.toString(MODEL_API_OUTPUT_ENCODING),
-      encoding: MODEL_API_OUTPUT_ENCODING,
-      mediaType: MODEL_API_OUTPUT_MEDIA_TYPE,
-      offsetBytes: start,
-      byteLen: slice.length,
-      eof: end >= bytes.length,
-    })
+    return content === undefined
+      ? Promise.reject(new Error(`unknown output ${request.outputRef}`))
+      : modelOutputPage(content, request)
   }
 
   public async listSkills(): Promise<readonly SkillSummary[]> {
@@ -12323,6 +12328,16 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  public childOutput(
+    sessionId: string,
+    request: OutputPageRequest,
+  ): Promise<OutputPage> | undefined {
+    for (const child of this.children.values()) {
+      if (child.session.sessionId === sessionId) return child.session.readOutput(request)
+    }
+    return undefined
+  }
+
   /** Child transcripts are read through the host, not listed as conversations. */
   public childHistory(sessionId: string): SessionHistoryOutcome | undefined {
     for (const child of this.children.values()) {
@@ -12616,6 +12631,24 @@ export class ModelApiHost implements AgentHost {
     throw new Error(`session ${sessionId} is not held by this window`)
   }
 
+  private async storedHistorySource(sessionId: string): Promise<StoredSession> {
+    let source: StoredSession
+    if (this.stored.has(sessionId)) {
+      source = await this.storedSession(sessionId)
+    } else {
+      const childMarker = `:${SUBAGENT_ID_PREFIX}`
+      const separator = sessionId.lastIndexOf(childMarker)
+      const parentId = separator === -1 ? sessionId : sessionId.slice(0, separator)
+      const stored = await this.storedSession(parentId)
+      const child = stored.children?.find((entry) => entry.session.sessionId === sessionId)
+      if (child === undefined) {
+        throw new Error(`session ${sessionId} is not held by this window`)
+      }
+      source = child.session
+    }
+    return source
+  }
+
   /** The live session, or the stored one brought back into this window. */
   private async revive(sessionId: string, isSideChatRequired = false): Promise<ModelApiSession> {
     const live = this.sessions.get(sessionId)
@@ -12867,20 +12900,7 @@ export class ModelApiHost implements AgentHost {
         return child
       }
     }
-    let source: StoredSession
-    if (this.stored.has(sessionId)) {
-      source = await this.storedSession(sessionId)
-    } else {
-      const childMarker = `:${SUBAGENT_ID_PREFIX}`
-      const separator = sessionId.lastIndexOf(childMarker)
-      const parentId = separator === -1 ? sessionId : sessionId.slice(0, separator)
-      const stored = await this.storedSession(parentId)
-      const child = stored.children?.find((entry) => entry.session.sessionId === sessionId)
-      if (child === undefined) {
-        throw new Error(`session ${sessionId} is not held by this window`)
-      }
-      source = child.session
-    }
+    const source = await this.storedHistorySource(sessionId)
     return {
       mode: 'inline',
       sideChat: source.sideChat === true,
@@ -12889,6 +12909,24 @@ export class ModelApiHost implements AgentHost {
       todos: source.todos,
       goal: source.goal === undefined ? null : toSessionGoal(source.goal),
     }
+  }
+
+  /** Inspect output in its owning session without attaching or starting a turn. */
+  public async readSessionOutput(
+    sessionId: string,
+    request: OutputPageRequest,
+  ): Promise<OutputPage> {
+    await this.requireAccountId()
+    const live = this.sessions.get(sessionId)
+    if (live !== undefined) return await live.readOutput(request)
+    for (const parent of this.sessions.values()) {
+      const page = parent.childOutput(sessionId, request)
+      if (page !== undefined) return await page
+    }
+    const source = await this.storedHistorySource(sessionId)
+    const content = source.outputs[request.outputRef]
+    if (content === undefined) throw new Error(`unknown output ${request.outputRef}`)
+    return await modelOutputPage(content, request)
   }
 
   /** Extension-owned callers bind only an already loaded, currently owned parent. */
