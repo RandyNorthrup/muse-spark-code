@@ -30736,6 +30736,31 @@ restored red drill in `docs/certification/m103-d.md`. No dependency or gate
 change; full quality and generated host-record integration remain lane W's
 responsibility under the rig brief.
 
+**FIXM103P3 / RVM103P2 Stop-index repair (2026-10-06, linuxlt).**
+Fixed and certified on linuxlt: bind Stop discovery to its immutable lease generation. A dead
+preparer or retired generation must never spoil a current holder's Stop;
+dispatch directly to indexed endpoints without admission, then discard only
+proven stale failures. Unknown live-owner failures remain explicit. Centralize
+retirement publication and marker/Stop-index cleanup in one idempotent
+transition, including an already matching receipt, and serialize release on
+the owning handle. Add real-process crash and injected-unlink regressions,
+run them against `eed26a69`, then certify restored whole-file tests at repository
+default timeouts and the bounded lane gates. No hardware, model calls,
+dependency, command, setting or guard relaxation. Receipts belong in
+`docs/certification/m103-p.md`; aggregate quality remains lead-owned under §7.
+The first build measures runtimeMaker at 128,289 bytes against its unchanged
+128,000-byte cap (base `eed26a69`: 127,971). Compact repeated record equality,
+nonempty-string validation and unknown Stop-failure construction inside the
+lease owner; these small local helpers are necessary to fit the existing cap
+and preserve identical validation/outcome semantics. The reference bundle's
+103,165/102,400 bytes is unchanged from base and remains
+M103W-REFERENCE-BUDGET, not permission to raise a gate.
+Retirement uses one finalizer for fresh, matching, mismatched or failed
+receipts. Even a rejected retirement cleans its own marker and Stop index;
+the immutable slot still holds admission closed, and a later owner retry can
+publish from that slot. Regression assertions preserve the slot and prove
+cleanup on both receipt mismatch and publication failure.
+
 **FIXM103P2 / RVM103P4 correction scope (2026-10-05).** Fix all three
 **FIXM103P3 / RVM103P6 scope (2026-10-06).** Fix the confirmed P2 before
 integration: Stop's endpoint classifies its own generation after any in-flight
@@ -31473,6 +31498,17 @@ run instead. The pre-existing stale host API file-count record is W-owned;
 W must regenerate and review it with the maker entry/package, then run full
 quality and the platform matrix before integration. No rule, threshold or
 record comparison is weakened. Evidence: `docs/certification/m103-p.md`.
+
+**FIXM103P3 Stop-index gates (2026-10-06, linuxlt):** the current integration
+base's host API and reference freshness gates pass. Its production build
+still rejects M103W-REFERENCE-BUDGET (103,165/102,400 bytes), byte-size identical
+with the lease source restored to `eed26a69`. A separate split run reports
+twelve namespaced `maker-validation:.../node_modules/zod/...` inputs; its
+transcript is byte-identical on the base and repaired sources. Record this as
+M103P-SPLIT-BASELINE in §9; the gate is not changed. The unchanged serial-session
+file also has twelve approval-fixture failures on both source versions.
+The lead owns those integration repairs and aggregate quality; this lane
+certifies its complete lease/crash suites and listed scoped gates only.
 
 **FIXM103M / FIXM103M2 / FIXM103M3 (2026-10-05, Kubuntu).** The rig brief prohibits full quality and
 full-suite runs and assigns integration gates to the lead. This fix lane
@@ -33121,6 +33157,15 @@ before a repaired one loads (2026-09-30).
   `docs/certification/m103-d.md`. No P2 from FIXM103D2's owned finding remains;
   RVM103MDA findings 2/3 are assigned to lane A, not deferred by this lane.
 
+- **M103P-SPLIT-BASELINE (2026-10-06, linuxlt):** a direct production split
+  check on `eed26a69` and the Stop-index repair reports the same twelve
+  namespaced maker-validation Zod input paths, with byte-identical transcripts.
+  No split rule or input classification is changed in this serial-lease lane.
+  Along with M103W-REFERENCE-BUDGET, this prevents a green production build
+  and release certification until the lead repairs and reruns the gates.
+  Evidence: `docs/certification/m103-p.md`. The separate twelve inherited
+  serial-session approval-fixture failures also need an integration repair;
+  approval policy and repository test deadlines remain unchanged.
 - **M103P-QUALIFICATION (2026-10-05):** lane P's RVM103P3/RVM103P4 corrections
   are checked on Win11, including a separate process stopping the compiled
   current-user C# pipe. No physical board, reset or flash is claimed. The

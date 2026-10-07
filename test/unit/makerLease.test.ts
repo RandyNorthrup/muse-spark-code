@@ -132,6 +132,29 @@ describe('hardware lease', () => {
     }
   })
 
+  it('retires an unpublished generation before failed Stop-index cleanup with its process still alive', async () => {
+    const deps = await fixture()
+    const fs = await vi.importActual<typeof FsPromises>('node:fs/promises')
+    vi.mocked(link).mockImplementation(async (source, target) => {
+      if (String(target).endsWith('.head.claim')) throw new Error('test-publication-failed')
+      await fs.link(source, target)
+    })
+    vi.mocked(unlink).mockImplementation(async (file) => {
+      const name = path.basename(String(file).replaceAll('\\', '/'))
+      if (name.startsWith('stop-v1.') && name.endsWith('.json'))
+        throw new Error('test-stop-cleanup-failed')
+      await fs.unlink(file)
+    })
+    await expect(claim(deps)).rejects.toThrow('test-stop-cleanup-failed')
+    vi.mocked(link).mockImplementation(fs.link)
+    vi.mocked(unlink).mockImplementation(fs.unlink)
+    const active = await claim(deps)
+    const result = await stopHardwareLease(deps, 'port:test')
+    expect(result.stopped).toBe(true)
+    expect(result.sessions).toEqual([{ record: active.record, party: 'holder', status: 'stopped' }])
+    await active.release()
+  })
+
   it('waits for in-flight publication before classifying Stop as holder or contender', async () => {
     const deps = await fixture()
     const fs = await vi.importActual<typeof FsPromises>('node:fs/promises')
@@ -270,7 +293,9 @@ describe('hardware lease', () => {
     vi.mocked(link).mockImplementation(fs.link)
     expect(exclusive).not.toHaveBeenCalled()
     const entries = await readdir(deps.directory)
-    expect(entries.filter((name) => name.endsWith('.json'))).toEqual([])
+    expect(
+      entries.filter((name) => name.endsWith('.json') && !name.startsWith('retired-v1.')),
+    ).toEqual([])
     const retry = await claim(deps)
     await retry.release()
   })
@@ -588,12 +613,48 @@ describe('hardware lease', () => {
     await replacement.release()
   })
 
-  it('accepts concurrent release when retirement already removed the other call source', async () => {
+  it.each(['claim', 'stop'])(
+    'cleans a matching retirement receipt after %s-index unlink fails without retrying the old handle',
+    async (kind) => {
+      const deps = await fixture()
+      const active = await claim(deps)
+      const marker = generationFile(deps.directory, active.record)
+      const stopFile = marker.replace('claim-v1.', 'stop-v1.')
+      const failedFile = kind === 'claim' ? marker : stopFile
+      const fs = await vi.importActual<typeof FsPromises>('node:fs/promises')
+      vi.mocked(unlink).mockImplementation(async (file) => {
+        if (String(file).replaceAll('\\', '/') === failedFile.replaceAll('\\', '/'))
+          throw new Error('test-retired-cleanup')
+        await fs.unlink(file)
+      })
+      await expect(active.release()).rejects.toThrow('test-retired-cleanup')
+      expect(await readFile(marker.replace('claim-v1.', 'retired-v1.'), 'utf8')).toBe(
+        JSON.stringify(active.record),
+      )
+      if (kind === 'claim') await expect(lstat(stopFile)).rejects.toHaveProperty('code', 'ENOENT')
+      vi.mocked(unlink).mockImplementation(fs.unlink)
+      const stop = vi.fn(() => Promise.resolve())
+      const replacement = await claimHardwareLease(deps, 'port:test', 'replacement', stop)
+      if (replacement.status !== 'acquired') throw new Error('test-replacement-claim')
+      await expect(lstat(marker)).rejects.toHaveProperty('code', 'ENOENT')
+      await expect(lstat(stopFile)).rejects.toHaveProperty('code', 'ENOENT')
+      expect(await stopHardwareLease(deps, 'port:test')).toMatchObject({
+        stopped: true,
+        sessions: [{ record: replacement.record, party: 'holder', status: 'stopped' }],
+      })
+      expect(stop).toHaveBeenCalledTimes(1)
+      await replacement.release()
+    },
+  )
+
+  it('serializes concurrent release through one retirement and cleanup transition', async () => {
     const deps = await fixture()
     const active = await claim(deps)
     const fs = await vi.importActual<typeof FsPromises>('node:fs/promises')
     const entered = Promise.withResolvers<undefined>()
     const resume = Promise.withResolvers<undefined>()
+    vi.mocked(link).mockClear()
+    vi.mocked(unlink).mockClear()
     vi.mocked(link).mockImplementationOnce(async (source, target) => {
       entered.resolve(undefined)
       await resume.promise
@@ -608,9 +669,17 @@ describe('hardware lease', () => {
           throw new Error('test-retirement-published-without-barrier')
         })(),
       ])
-      await active.release()
+      const second = active.release()
+      expect(vi.mocked(link)).toHaveBeenCalledTimes(1)
       resume.resolve(undefined)
-      await first
+      await Promise.all([first, second])
+      expect(vi.mocked(link)).toHaveBeenCalledTimes(1)
+      const removed = vi.mocked(unlink).mock.calls.map(([file]) => String(file))
+      const marker = generationFile(deps.directory, active.record)
+      expect(removed.filter((file) => file === marker)).toHaveLength(1)
+      expect(
+        removed.filter((file) => file === marker.replace('claim-v1.', 'stop-v1.')),
+      ).toHaveLength(1)
       const retry = await claim(deps)
       await retry.release()
     } finally {
@@ -634,25 +703,126 @@ describe('hardware lease', () => {
         },
       )
       await expect(active.release()).rejects.toThrow('lease-retirement-changed')
+      await expect(lstat(generationFile(deps.directory, active.record))).rejects.toHaveProperty(
+        'code',
+        'ENOENT',
+      )
+      await expect(
+        lstat(generationFile(deps.directory, active.record).replace('claim-v1.', 'stop-v1.')),
+      ).rejects.toHaveProperty('code', 'ENOENT')
     } finally {
       await unlink(receipt)
       await active.release()
     }
   })
 
-  it('retries retirement publication failure without abandoning the matching generation', async () => {
+  it('retries retirement publication failure from its immutable slot after cleaning the generation', async () => {
     const deps = await fixture()
     const active = await claim(deps)
     const file = generationFile(deps.directory, active.record)
     vi.mocked(link).mockRejectedValueOnce(new Error('test-retirement-link'))
     await expect(active.release()).rejects.toThrow('test-retirement-link')
-    expect(await readFile(file, 'utf8')).toBe(JSON.stringify(active.record))
+    await expect(lstat(file)).rejects.toHaveProperty('code', 'ENOENT')
+    await expect(lstat(file.replace('claim-v1.', 'stop-v1.'))).rejects.toHaveProperty(
+      'code',
+      'ENOENT',
+    )
+    const slot = path.join(
+      deps.directory,
+      `claim-v1.${createHash('sha256').update(active.record.resource).digest('hex')}.head.claim`,
+    )
+    expect(await readFile(slot, 'utf8')).toBe(JSON.stringify(active.record))
     const busy = await claimHardwareLease(deps, 'port:test', 'third', () => Promise.resolve())
     expect(busy.status).toBe('busy')
     await active.release()
     const retry = await claim(deps)
     await retry.release()
   })
+
+  it.each(['absent', 'reused', 'retired', 'cleanup-failure', 'unknown', 'live'])(
+    'dispatches current Stop directly while classifying a %s orphan index',
+    async (kind) => {
+      const deps = await fixture()
+      const dispatched = Promise.withResolvers<undefined>()
+      const stop = vi.fn(() => {
+        dispatched.resolve(undefined)
+        return Promise.resolve()
+      })
+      const active = await claimHardwareLease(deps, 'port:test', 'active', stop)
+      if (active.status !== 'acquired') throw new Error('test-active-claim')
+      const id = randomUUID()
+      const orphan = {
+        ...active.record,
+        id,
+        generation: randomUUID(),
+        startedAt: 'orphan-start',
+        endpoint:
+          deps.platform === 'win32'
+            ? String.raw`\\.\pipe\MuseSparkSerial-${id}`
+            : path.join(deps.directory, `${id}.sock`),
+      }
+      const orphanFile = generationFile(deps.directory, orphan).replace('claim-v1.', 'stop-v1.')
+      await writeFile(orphanFile, JSON.stringify(orphan))
+      if (kind === 'retired')
+        await writeFile(orphanFile.replace('stop-v1.', 'retired-v1.'), JSON.stringify(orphan))
+      // Broken admission history cannot hide the directly indexed current endpoint.
+      const slot = path.join(
+        deps.directory,
+        `claim-v1.${createHash('sha256').update('port:test').digest('hex')}.head.claim`,
+      )
+      const saved = await readFile(slot)
+      await writeFile(slot, '{')
+      const identity = vi.fn(async () => {
+        await dispatched.promise
+        expect(stop).toHaveBeenCalled()
+        if (kind === 'unknown') throw new Error('test-query-denied')
+        if (kind === 'live') return orphan.startedAt
+        if (kind === 'reused') return 'new-start'
+        return
+      })
+      const fs = await vi.importActual<typeof FsPromises>('node:fs/promises')
+      if (kind === 'cleanup-failure')
+        vi.mocked(unlink).mockImplementation(async (file) => {
+          if (String(file).replaceAll('\\', '/') === orphanFile.replaceAll('\\', '/'))
+            throw new Error('test-orphan-unlink')
+          await fs.unlink(file)
+        })
+      try {
+        const result = await stopHardwareLease({ ...deps, processStartTime: identity }, 'port:test')
+        expect(stop).toHaveBeenCalledTimes(1)
+        const isUnknown = kind === 'unknown' || kind === 'live'
+        expect(result.stopped).toBe(!isUnknown)
+        expect(result.sessions).toHaveLength(isUnknown ? 2 : 1)
+        expect(result.sessions).toContainEqual({
+          record: active.record,
+          party: 'holder',
+          status: 'stopped',
+        })
+        if (isUnknown)
+          expect(result.sessions).toContainEqual({
+            record: orphan,
+            party: 'unknown',
+            status: 'failed',
+            reason: 'lease-stop-unavailable',
+          })
+        if (kind === 'retired') expect(identity).not.toHaveBeenCalled()
+        else expect(identity).toHaveBeenCalledTimes(1)
+        if (!isUnknown && kind !== 'cleanup-failure')
+          await expect(lstat(orphanFile)).rejects.toHaveProperty('code', 'ENOENT')
+        if (kind === 'cleanup-failure') {
+          const retry = await stopHardwareLease(
+            { ...deps, processStartTime: identity },
+            'port:test',
+          )
+          expect(retry.stopped).toBe(true)
+        }
+      } finally {
+        vi.mocked(unlink).mockImplementation(fs.unlink)
+        await writeFile(slot, saved)
+        await active.release()
+      }
+    },
+  )
 
   it('never follows malformed, oversized, foreign or generation-mismatched Stop index entries', async () => {
     const deps = await fixture()
@@ -835,14 +1005,18 @@ describe('hardware lease', () => {
   })
 
   it('cleans a released generation after endpoint failure and accepts the next release as a no-op', async () => {
-    const deps = await fixture()
-    const closed = vi.fn(() => Promise.reject(new Error('test-release-close')))
-    const active = await claim({
+    const closed = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error('test-release-close'))
+      .mockResolvedValue(undefined)
+    let deps = await fixture()
+    deps = {
       ...deps,
       platform: 'win32',
       isOwnerDirectory: () => Promise.resolve(true),
       listenOwnerPipe: () => Promise.resolve(closed),
-    })
+    }
+    const active = await claim(deps)
     await expect(active.release()).rejects.toThrow('test-release-close')
     await active.release()
     expect(closed).toHaveBeenCalledTimes(1)

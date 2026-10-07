@@ -20,15 +20,16 @@ import {
 } from '../../shared/constants'
 import type { SerialIdentity } from './serial/identity'
 
+const nonEmptyString = z.string().check(z.minLength(1))
 const recordSchema = z.object({
   version: z.literal(1),
   id: z.uuid(),
   generation: z.uuid(),
-  resource: z.string().check(z.minLength(1)),
-  holder: z.string().check(z.minLength(1)),
+  resource: nonEmptyString,
+  holder: nonEmptyString,
   pid: z.int().check(z.positive()),
-  startedAt: z.string().check(z.minLength(1)),
-  endpoint: z.string().check(z.minLength(1)),
+  startedAt: nonEmptyString,
+  endpoint: nonEmptyString,
 })
 export type HardwareLeaseRecord = z.infer<typeof recordSchema>
 
@@ -200,6 +201,13 @@ function isBoundRecord(
   return record.resource === resource && record.endpoint === leaseEndpoint(deps, record.id)
 }
 
+function isMatchingRecord(
+  value: HardwareLeaseRecord | null | undefined,
+  record: HardwareLeaseRecord,
+): boolean {
+  return JSON.stringify(value) === JSON.stringify(record)
+}
+
 async function removeOwnedRecord(
   deps: LeaseDependencies,
   record: HardwareLeaseRecord,
@@ -214,10 +222,21 @@ async function removeOwnedRecord(
     throw new Error('lease-holder-changed')
   // An absent marker alone cannot retire a possibly corrupted routing record.
   const source = current ?? (await readRecord(slot, deps.maxRecordBytes))
-  if (JSON.stringify(source) === JSON.stringify(record))
+  if (isMatchingRecord(source, record))
     await retireGeneration(deps, record, current === undefined ? slot : file)
-  await removeGeneration(file)
-  await removeGeneration(recordPath(deps.directory, record, 'stop'))
+  else await cleanGeneration(deps, record)
+}
+
+async function cleanGeneration(
+  deps: LeaseDependencies,
+  record: HardwareLeaseRecord,
+): Promise<void> {
+  // Never unlink a reusable slot; both names belong only to this generation.
+  try {
+    await removeGeneration(recordPath(deps.directory, record))
+  } finally {
+    await removeGeneration(recordPath(deps.directory, record, 'stop'))
+  }
 }
 
 async function retireGeneration(
@@ -230,10 +249,14 @@ async function retireGeneration(
     await link(source, receipt)
   } catch (error: unknown) {
     // A concurrent release may have removed source after publishing this receipt.
-    if (JSON.stringify(await readRecord(receipt, deps.maxRecordBytes)) === JSON.stringify(record))
-      return
-    if (!hasCode(error, 'EEXIST')) throw error
-    throw new Error('lease-retirement-changed', { cause: error })
+    if (!isMatchingRecord(await readRecord(receipt, deps.maxRecordBytes), record)) {
+      if (!hasCode(error, 'EEXIST')) throw error
+      throw new Error('lease-retirement-changed', { cause: error })
+    }
+  } finally {
+    // Every receipt outcome completes this generation's one cleanup transition.
+    // Immutable routing slots still hold admission closed if retirement fails.
+    await cleanGeneration(deps, record)
   }
 }
 
@@ -242,9 +265,7 @@ async function isSameHolder(
   deps: LeaseDependencies,
 ): Promise<boolean> {
   try {
-    const start = z
-      .optional(z.string().check(z.minLength(1)))
-      .parse(await deps.processStartTime(record.pid))
+    const start = z.optional(nonEmptyString).parse(await deps.processStartTime(record.pid))
     return start === record.startedAt
   } catch {
     return true // Permission/OS failure cannot prove that the holder has died.
@@ -448,19 +469,28 @@ export async function claimHardwareLease(
         }
         const closeEndpoint = close
         let closing: Promise<void> | undefined
+        let releasing: Promise<void> | undefined
         let isReleased = false
         return {
           status: 'acquired',
           record,
           release: async () => {
             if (isReleased) return
-            // Close the session first; even endpoint failure must not bypass lease cleanup.
+            // Concurrent callers share one transition; a later call retries failed cleanup.
+            releasing ??= (async () => {
+              // Close first; even endpoint failure must not bypass lease cleanup.
+              try {
+                closing ??= closeEndpoint()
+                await closing
+              } finally {
+                await removeOwnedRecord(deps, record, slot)
+                isReleased = true
+              }
+            })()
             try {
-              closing ??= closeEndpoint()
-              await closing
+              await releasing
             } finally {
-              await removeOwnedRecord(deps, record, slot)
-              isReleased = true
+              releasing = undefined
             }
           },
         }
@@ -471,24 +501,17 @@ export async function claimHardwareLease(
         recordPath(directory, previous, 'retired'),
         deps.maxRecordBytes,
       )
-      if (retired !== undefined && JSON.stringify(retired) !== JSON.stringify(previous))
-        return { status: 'busy' }
+      if (retired !== undefined && !isMatchingRecord(retired, previous)) return { status: 'busy' }
       if (retired === undefined) {
         const live = await readRecord(previousFile, deps.maxRecordBytes)
-        if (
-          live === null ||
-          (live !== undefined && JSON.stringify(live) !== JSON.stringify(previous))
-        )
+        if (live === null || (live !== undefined && !isMatchingRecord(live, previous)))
           return { status: 'busy' }
         const isLive = await isSameHolder(previous, deps)
         if (isCancelled()) return { status: 'cancelled' }
         if (isLive)
           return live === undefined ? { status: 'busy' } : { status: 'busy', holder: previous }
-        await retireGeneration(deps, previous, slot)
-        // Never unlink a reusable slot. All cleaners address the old unique generation.
-        await removeGeneration(previousFile)
-        await removeGeneration(recordPath(directory, previous, 'stop'))
       }
+      await retireGeneration(deps, previous, slot)
       slot = path.join(directory, `claim-v1.${resourceKey(resource)}.${previous.generation}.claim`)
     }
   } finally {
@@ -496,9 +519,9 @@ export async function claimHardwareLease(
       try {
         await close?.()
       } finally {
-        if (hasOwnStop) await removeGeneration(stopFile)
+        if (hasOwnStop) await retireGeneration(deps, record, stopFile)
         if (hasOwnStopTemporary) await removeGeneration(stopTemporary)
-        if (hasOwnFile) await removeGeneration(file)
+        if (hasOwnFile && !hasOwnStop) await removeGeneration(file)
       }
     }
   }
@@ -555,7 +578,7 @@ export async function stopHardwareLease(
 ): Promise<HardwareLeaseStopResult> {
   await privateDirectory(deps)
   const directory = deps.directory
-  const pending: Promise<HardwareLeaseStopResult['sessions'][number]>[] = []
+  const pending: Promise<HardwareLeaseStopResult['sessions'][number] | undefined>[] = []
   const entries = await readdir(directory)
   for (const entry of entries) {
     if (!entry.startsWith(`stop-v1.${resourceKey(resource)}.`) || !entry.endsWith('.json')) continue
@@ -568,9 +591,27 @@ export async function stopHardwareLease(
       !isBoundRecord(record, deps, resource)
     )
       continue
-    pending.push(stopRecord(deps, record))
+    pending.push(
+      (async () => {
+        // Dispatch first: neither admission nor identity queries can gate a live Stop.
+        const result = await stopRecord(deps, record)
+        if (result.party !== 'unknown') return result
+        const retired = await readRecord(
+          recordPath(directory, record, 'retired'),
+          deps.maxRecordBytes,
+        )
+        if (!isMatchingRecord(retired, record) && (await isSameHolder(record, deps))) return result
+        try {
+          await removeGeneration(file)
+        } catch {
+          // Proven stale discovery is never a Stop failure, even if unlink cannot finish.
+        }
+        return
+      })(),
+    )
   }
-  const sessions = await Promise.all(pending)
+  const results = await Promise.all(pending)
+  const sessions = results.filter((session) => session !== undefined)
   return {
     stopped:
       sessions.some((session) => session.party === 'holder' && session.status === 'stopped') &&
@@ -595,11 +636,14 @@ async function stopRecord(
       socket.destroy()
       resolve({ ...outcome, record })
     }
+    const fail = (reason: Extract<StopOutcome, { readonly party: 'unknown' }>['reason']) => {
+      finish({ party: 'unknown', status: 'failed', reason })
+    }
     socket.setTimeout(deps.timeoutMs, () => {
-      finish({ party: 'unknown', status: 'failed', reason: 'lease-stop-timeout' })
+      fail('lease-stop-timeout')
     })
     socket.on('error', () => {
-      finish({ party: 'unknown', status: 'failed', reason: 'lease-stop-unavailable' })
+      fail('lease-stop-unavailable')
     })
     socket.once('connect', () =>
       socket.write(`${JSON.stringify({ command: 'stop', id: record.id })}\n`),
@@ -608,7 +652,7 @@ async function stopRecord(
     socket.on('data', (chunk: Buffer) => {
       input += chunk.toString('utf8')
       if (Buffer.byteLength(input) > deps.maxRecordBytes) {
-        finish({ party: 'unknown', status: 'failed', reason: 'lease-stop-invalid-response' })
+        fail('lease-stop-invalid-response')
         return
       }
       if (!input.endsWith('\n')) return
@@ -634,13 +678,13 @@ async function stopRecord(
                   reason: 'lease-contender-cancel-failed',
                 },
           )
-        else finish({ party: 'unknown', status: 'failed', reason: 'lease-stop-timeout' })
+        else fail('lease-stop-timeout')
       } catch {
-        finish({ party: 'unknown', status: 'failed', reason: 'lease-stop-invalid-response' })
+        fail('lease-stop-invalid-response')
       }
     })
     socket.once('end', () => {
-      finish({ party: 'unknown', status: 'failed', reason: 'lease-stop-unavailable' })
+      fail('lease-stop-unavailable')
     })
   })
 }

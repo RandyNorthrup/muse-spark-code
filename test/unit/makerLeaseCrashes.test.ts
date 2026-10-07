@@ -3,8 +3,8 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { build } from 'esbuild'
-import { afterEach, describe, expect, it } from 'vitest'
-import { claimHardwareLease } from '../../src/core/maker/lease'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { claimHardwareLease, stopHardwareLease } from '../../src/core/maker/lease'
 import { makerLeaseDeps, makerProcessDeps } from './helpers/makerSerial'
 
 const directories: string[] = []
@@ -68,7 +68,7 @@ describe('real process death across atomic lease publication', () => {
     'before-publish',
     'after-publish',
     'claimed',
-  ])('recovers after holder death at %s', async (phase) => {
+  ])('recovers and stops the current holder after process death at %s', async (phase) => {
     const directory = await mkdtemp(
       path.join(process.platform === 'darwin' ? '/private/tmp' : tmpdir(), 'm103-crash-'),
     )
@@ -135,11 +135,22 @@ describe('real process death across atomic lease publication', () => {
       }
       await makerProcessDeps().kill(child, started)
       await ended
-      const recovered = await claimHardwareLease(deps, resource, 'recovery', () =>
-        Promise.resolve(),
-      )
+      const stop = vi.fn(() => Promise.resolve())
+      const recovered = await claimHardwareLease(deps, resource, 'recovery', stop)
       expect(recovered.status).toBe('acquired')
-      if (recovered.status === 'acquired') await recovered.release()
+      if (recovered.status === 'acquired') {
+        try {
+          const result = await stopHardwareLease(deps, resource)
+          expect(stop).toHaveBeenCalledTimes(1)
+          expect(result).toMatchObject({
+            stopped: true,
+            sessions: [{ record: recovered.record, party: 'holder', status: 'stopped' }],
+          })
+          expect(result.sessions).toHaveLength(1)
+        } finally {
+          await recovered.release()
+        }
+      }
     } finally {
       await makerProcessDeps().kill(child, started)
       await ended

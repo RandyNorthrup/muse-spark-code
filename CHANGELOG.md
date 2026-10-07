@@ -59,6 +59,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Serial Stop ignores only proven dead or retired lease generations after
+  dispatching directly to current endpoints, so abandoned indexes cannot
+  spoil a successful Stop. Retirement retries marker and Stop-index cleanup
+  even with an existing matching receipt; concurrent releases share one
+  transition, and unpublished sessions retire their own indexes too.
+
 - Maker preview approval receipts now latch a decision or withdrawal. Changed
   or invalid rendered-byte acknowledgements revoke approval and ignore late
   Send once answers. Asking again requires a new approval ID. The deferred
