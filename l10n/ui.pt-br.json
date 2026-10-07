@@ -96,7 +96,14 @@
     "retry": "Tentar novamente",
     "renderUnavailable": "Dispositivos não pôde exibir a última observação. Recarregue para recuperar.",
     "unpairedHelp": "Este dispositivo não está pareado. Pareie ambos os dispositivos antes de oferecer trabalho.",
-    "revokedHelp": "Este pareamento foi revogado. Pareie novamente; o trabalho anterior não resolvido permanece bloqueado."
+    "revokedHelp": "Este pareamento foi revogado. Pareie novamente; o trabalho anterior não resolvido permanece bloqueado.",
+    "throttled": "Limitado",
+    "throttledHelp": "Novas tentativas estão limitadas. O trabalho admitido continua; nada é duplicado nem perdido.",
+    "unknownSince": "Desconhecido desde {time}",
+    "grantExpired": "Esta concessão expirou. Peça ao dispositivo receptor uma nova concessão.",
+    "resultQuarantined": "Um resultado tardio chegou após o prazo e ficará em quarentena em vez de ser aplicado.",
+    "ownerMismatch": "Esta chave de pareamento pertence a outro proprietário. Pareie novamente como o proprietário correto.",
+    "stepUpWaiting": "Aguardando aprovação reforçada em {device}."
   },
   "untitledConversation": "Sem título",
   "crashTitle": "O painel encontrou um erro",

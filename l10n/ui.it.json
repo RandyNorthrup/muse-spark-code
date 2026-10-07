@@ -96,7 +96,14 @@
     "retry": "Riprova",
     "renderUnavailable": "Dispositivi non ha potuto mostrare l’ultima osservazione. Ricarica per ripristinare.",
     "unpairedHelp": "Questo dispositivo non è associato. Associa entrambi i dispositivi prima di offrire lavoro.",
-    "revokedHelp": "Questa associazione è stata revocata. Associa di nuovo; il lavoro precedente irrisolto rimane bloccato."
+    "revokedHelp": "Questa associazione è stata revocata. Associa di nuovo; il lavoro precedente irrisolto rimane bloccato.",
+    "throttled": "Limitato",
+    "throttledHelp": "I nuovi tentativi sono limitati. Il lavoro ammesso continua; nulla viene duplicato o perso.",
+    "unknownSince": "Sconosciuto dalle {time}",
+    "grantExpired": "Questa concessione è scaduta. Chiedi al dispositivo ricevente una nuova concessione.",
+    "resultQuarantined": "Un risultato in ritardo è arrivato dopo la scadenza e viene messo in quarantena invece di essere applicato.",
+    "ownerMismatch": "Questa chiave di associazione appartiene a un altro proprietario. Associa di nuovo come proprietario corretto.",
+    "stepUpWaiting": "In attesa dell’approvazione rafforzata su {device}."
   },
   "untitledConversation": "Senza titolo",
   "crashTitle": "Si è verificato un errore nel pannello",

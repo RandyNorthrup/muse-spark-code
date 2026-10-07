@@ -162,8 +162,9 @@ export async function createDeviceService(deps: DeviceServiceDeps, table: UiText
     observe,
     request: (input: unknown, signal?: AbortSignal) => handleDeviceRequest(input, panel, signal),
     // Model guidance is consumed only by a qualified local lane adapter.
+    // Phase-2 contracts ride the same lazy reader; later lanes bind them.
     taskContext: () =>
-      `${DEVICE_MODEL_TEXT.deviceTaskContext}\n\n${DEVICE_MODEL_TEXT.deviceApprovalWait}`,
+      `${DEVICE_MODEL_TEXT.deviceTaskContext}\n\n${DEVICE_MODEL_TEXT.deviceApprovalWait}\n\n${DEVICE_MODEL_TEXT.deviceChannelPacing}\n\n${DEVICE_MODEL_TEXT.deviceGrantAdmission}\n\n${DEVICE_MODEL_TEXT.deviceResultChannel}\n\n${DEVICE_MODEL_TEXT.deviceOwnerBinding}`,
     async listen(pairId: string): Promise<() => void> {
       const { pair, localEndpoint } = await material(pairId, true)
       return await transport.listen(pair, localEndpoint.address, localEndpoint.port, receiverPort)

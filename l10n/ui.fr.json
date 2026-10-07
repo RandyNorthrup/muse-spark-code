@@ -96,7 +96,14 @@
     "retry": "Réessayer",
     "renderUnavailable": "Appareils n’a pas pu afficher la dernière observation. Rechargez pour rétablir l’affichage.",
     "unpairedHelp": "Cet appareil n’est pas jumelé. Jumelez les deux appareils avant de proposer du travail.",
-    "revokedHelp": "Ce jumelage a été révoqué. Jumelez à nouveau ; le travail antérieur non résolu reste bloqué."
+    "revokedHelp": "Ce jumelage a été révoqué. Jumelez à nouveau ; le travail antérieur non résolu reste bloqué.",
+    "throttled": "Limité",
+    "throttledHelp": "Les nouvelles tentatives sont limitées. Le travail admis continue ; rien n’est dupliqué ni perdu.",
+    "unknownSince": "Inconnu depuis {time}",
+    "grantExpired": "Cette autorisation a expiré. Demandez une nouvelle autorisation à l’appareil récepteur.",
+    "resultQuarantined": "Un résultat tardif est arrivé après son délai et est mis en quarantaine au lieu d’être appliqué.",
+    "ownerMismatch": "Cette clé d’appairage appartient à un autre propriétaire. Associez à nouveau en tant que bon propriétaire.",
+    "stepUpWaiting": "En attente de l’approbation renforcée sur {device}."
   },
   "untitledConversation": "Sans titre",
   "crashTitle": "Le panneau a rencontré une erreur",

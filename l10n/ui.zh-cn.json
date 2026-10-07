@@ -94,7 +94,14 @@
     "retry": "重试",
     "renderUnavailable": "设备无法显示最新观测。请重新加载以恢复。",
     "unpairedHelp": "此设备尚未配对。提供工作前请将两台设备配对。",
-    "revokedHelp": "此配对已撤销。请重新配对；先前未解决的工作仍被阻止。"
+    "revokedHelp": "此配对已撤销。请重新配对；先前未解决的工作仍被阻止。",
+    "throttled": "已限流",
+    "throttledHelp": "新的尝试受到限流。已准入的工作继续运行；不会重复，也不会丢失。",
+    "unknownSince": "自 {time} 起未知",
+    "grantExpired": "此授权已过期。请向接收设备申请新的授权。",
+    "resultQuarantined": "过期后到达的延迟结果将被隔离，而不会被应用。",
+    "ownerMismatch": "此配对密钥属于其他所有者。请以正确的所有者身份重新配对。",
+    "stepUpWaiting": "正在等待 {device} 上的升级审批。"
   },
   "untitledConversation": "未命名",
   "crashTitle": "面板出错了",

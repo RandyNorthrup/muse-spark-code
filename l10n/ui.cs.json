@@ -97,7 +97,14 @@
     "retry": "Zkusit znovu",
     "renderUnavailable": "Zařízení nemohla zobrazit poslední pozorování. Obnovte stránku pro zotavení.",
     "unpairedHelp": "Toto zařízení není spárované. Před nabízením práce spárujte obě zařízení.",
-    "revokedHelp": "Toto spárování bylo zrušeno. Spárujte znovu; dřívější nevyřešená práce zůstává blokována."
+    "revokedHelp": "Toto spárování bylo zrušeno. Spárujte znovu; dřívější nevyřešená práce zůstává blokována.",
+    "throttled": "Omezováno",
+    "throttledHelp": "Nové pokusy jsou omezovány. Přijatá práce pokračuje; nic se neduplikuje ani neztrácí.",
+    "unknownSince": "Neznámý stav od {time}",
+    "grantExpired": "Toto oprávnění vypršelo. Požádejte přijímající zařízení o nové oprávnění.",
+    "resultQuarantined": "Opožděný výsledek dorazil po vypršení lhůty a je umístěn do karantény, nikoli použit.",
+    "ownerMismatch": "Tento párovací klíč patří jinému vlastníkovi. Spárujte znovu jako správný vlastník.",
+    "stepUpWaiting": "Čeká se na zvýšené schválení na zařízení {device}."
   },
   "untitledConversation": "Bez názvu",
   "crashTitle": "V panelu došlo k chybě",

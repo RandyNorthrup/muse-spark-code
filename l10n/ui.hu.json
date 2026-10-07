@@ -95,7 +95,14 @@
     "retry": "Újrapróbálás",
     "renderUnavailable": "Az Eszközök nem tudta megjeleníteni a legutóbbi megfigyelést. A helyreállításhoz töltse újra.",
     "unpairedHelp": "Ez az eszköz nincs párosítva. Munka felajánlása előtt párosítsa mindkét eszközt.",
-    "revokedHelp": "Ezt a párosítást visszavonták. Párosítsa újra; a korábbi rendezetlen munka továbbra is blokkolva marad."
+    "revokedHelp": "Ezt a párosítást visszavonták. Párosítsa újra; a korábbi rendezetlen munka továbbra is blokkolva marad.",
+    "throttled": "Szabályozva",
+    "throttledHelp": "Az új próbálkozások szabályozva vannak. Az elfogadott munka folytatódik; semmi sem duplikálódik és nem vész el.",
+    "unknownSince": "Ismeretlen ettől: {time}",
+    "grantExpired": "Ez a jóváhagyás lejárt. Kérjen új jóváhagyást a fogadó eszköztől.",
+    "resultQuarantined": "Egy késve érkezett eredmény a határideje után érkezett, ezért alkalmazás helyett karanténba kerül.",
+    "ownerMismatch": "Ez a párosítási kulcs egy másik tulajdonoshoz tartozik. Párosítson újra megfelelő tulajdonosként.",
+    "stepUpWaiting": "Megerősített jóváhagyásra vár a(z) {device} eszközön."
   },
   "untitledConversation": "Névtelen",
   "crashTitle": "Hiba történt a panelen",

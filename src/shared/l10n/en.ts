@@ -122,6 +122,15 @@ export const EN = {
       'Enable paired LAN devices after mutual fingerprint confirmation and an explicit local offer. Off by default. Each executing device keeps its own credentials, approvals and charges.',
     discoveryDescription:
       'Enable optional LAN discovery for paired receivers that are offering work. Off by default. Advertises only an opaque service id, port and protocol version; discovery grants no trust.',
+    throttled: 'Throttled',
+    throttledHelp:
+      'New attempts are throttled. Admitted work keeps running; nothing is duplicated or lost.',
+    unknownSince: 'Unknown since {time}',
+    grantExpired: 'This grant expired. Ask the receiving device for a new grant.',
+    resultQuarantined:
+      'A late result arrived after its lease and is quarantined instead of applied.',
+    ownerMismatch: 'This pair key belongs to a different owner. Pair again as the right owner.',
+    stepUpWaiting: 'Waiting for step-up approval on {device}.',
   },
 
   referenceAgentControls:

@@ -95,7 +95,14 @@
     "retry": "Erneut versuchen",
     "renderUnavailable": "Geräte konnte die letzte Beobachtung nicht anzeigen. Zum Wiederherstellen neu laden.",
     "unpairedHelp": "Dieses Gerät ist nicht gekoppelt. Koppeln Sie beide Geräte, bevor Sie Arbeit anbieten.",
-    "revokedHelp": "Diese Kopplung wurde widerrufen. Koppeln Sie erneut; bisherige ungeklärte Arbeit bleibt blockiert."
+    "revokedHelp": "Diese Kopplung wurde widerrufen. Koppeln Sie erneut; bisherige ungeklärte Arbeit bleibt blockiert.",
+    "throttled": "Gedrosselt",
+    "throttledHelp": "Neue Versuche werden gedrosselt. Zugelassene Arbeit läuft weiter; nichts wird dupliziert oder geht verloren.",
+    "unknownSince": "Unbekannt seit {time}",
+    "grantExpired": "Diese Freigabe ist abgelaufen. Bitten Sie das empfangende Gerät um eine neue Freigabe.",
+    "resultQuarantined": "Ein verspätetes Ergebnis traf nach seiner Frist ein und wird unter Quarantäne gestellt, nicht angewendet.",
+    "ownerMismatch": "Dieser Kopplungsschlüssel gehört einem anderen Besitzer. Koppeln Sie erneut als der richtige Besitzer.",
+    "stepUpWaiting": "Warten auf erweiterte Genehmigung auf {device}."
   },
   "untitledConversation": "Unbenannt",
   "crashTitle": "Im Panel ist ein Fehler aufgetreten",

@@ -95,7 +95,14 @@
     "retry": "Yeniden dene",
     "renderUnavailable": "Cihazlar son gözlemi gösteremedi. Kurtarmak için yeniden yükleyin.",
     "unpairedHelp": "Bu cihaz eşleştirilmemiş. İş sunmadan önce her iki cihazı eşleştirin.",
-    "revokedHelp": "Bu eşleştirme iptal edildi. Yeniden eşleştirin; önceki çözümlenmemiş işler engellenmeye devam eder."
+    "revokedHelp": "Bu eşleştirme iptal edildi. Yeniden eşleştirin; önceki çözümlenmemiş işler engellenmeye devam eder.",
+    "throttled": "Kısıtlandı",
+    "throttledHelp": "Yeni denemeler kısıtlanıyor. Kabul edilen iş devam ediyor; hiçbir şey yinelenmiyor veya kaybolmuyor.",
+    "unknownSince": "{time} itibarıyla bilinmiyor",
+    "grantExpired": "Bu yetkinin süresi doldu. Alıcı cihazdan yeni bir yetki isteyin.",
+    "resultQuarantined": "Süresi dolduktan sonra gelen geç bir sonuç uygulanmak yerine karantinaya alınır.",
+    "ownerMismatch": "Bu eşleştirme anahtarı başka bir sahibe ait. Doğru sahip olarak yeniden eşleştirin.",
+    "stepUpWaiting": "{device} üzerinde artırılmış onay bekleniyor."
   },
   "untitledConversation": "Adsız",
   "crashTitle": "Panelde bir hata oluştu",

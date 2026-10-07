@@ -96,7 +96,14 @@
     "retry": "Reintentar",
     "renderUnavailable": "Dispositivos no pudo mostrar la última observación. Recarga para recuperarte.",
     "unpairedHelp": "Este dispositivo no está emparejado. Empareja ambos dispositivos antes de ofrecer trabajo.",
-    "revokedHelp": "Este emparejamiento se revocó. Empareja de nuevo; el trabajo anterior sin resolver sigue bloqueado."
+    "revokedHelp": "Este emparejamiento se revocó. Empareja de nuevo; el trabajo anterior sin resolver sigue bloqueado.",
+    "throttled": "Limitado",
+    "throttledHelp": "Los nuevos intentos están limitados. El trabajo admitido sigue en curso; nada se duplica ni se pierde.",
+    "unknownSince": "Desconocido desde {time}",
+    "grantExpired": "Esta concesión venció. Pida al dispositivo receptor una nueva concesión.",
+    "resultQuarantined": "Un resultado tardío llegó después de su plazo y queda en cuarentena en lugar de aplicarse.",
+    "ownerMismatch": "Esta clave de vinculación pertenece a otro propietario. Vincule de nuevo como el propietario correcto.",
+    "stepUpWaiting": "Esperando la aprobación reforzada en {device}."
   },
   "untitledConversation": "Sin título",
   "crashTitle": "El panel encontró un error",

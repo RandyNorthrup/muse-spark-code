@@ -488,3 +488,263 @@ export interface DeviceExecutionPort {
   reconcile(identities: readonly DeviceAttemptIdentity[]): Promise<readonly DeviceFrame[]>
   cancel(identity: DeviceAttemptIdentity): Promise<void>
 }
+
+// M100 phase 2 (lane 0): channel, capability, grant and result envelopes.
+// Every envelope carries the protocol version, a byte/queue cap and a zod
+// parse before use. Unknown fields are rejected by strict parsing, never
+// silently dropped: the receiver surfaces the refused shape for display
+// (D36). Lanes C, R, V, A and K own carriage and enforcement; this file is
+// the contract they code against, with injected ports below.
+
+// Lane C reads: one long-lived authenticated channel per pair. Streams run
+// in priority order: control over status/events over logs over bulk, so bulk
+// never starves control or Stop.
+export const DEVICE_STREAMS = ['control', 'status', 'events', 'logs', 'bulk'] as const
+export type DeviceStream = (typeof DEVICE_STREAMS)[number]
+
+// The authenticated ready call: health is this call, never a port probe
+// (G29). No probe message kind exists; a probe refuses to parse.
+export const deviceReadySchema = z.strictObject({
+  version: z.literal(DEVICE_LIMITS.protocolVersion),
+  pairId: id,
+  receiverIncarnationId: id,
+  requestId: id,
+  streams: z
+    .array(z.enum(DEVICE_STREAMS))
+    .check(z.minLength(1), z.maxLength(DEVICE_LIMITS.channelStreams)),
+})
+export type DeviceReady = z.infer<typeof deviceReadySchema>
+
+export const deviceHeartbeatSchema = z
+  .strictObject({
+    version: z.literal(DEVICE_LIMITS.protocolVersion),
+    pairId: id,
+    receiverIncarnationId: id,
+    sequence: z.int().check(z.gte(0)),
+    ackSequence: z.int().check(z.gte(0)),
+  })
+  .check(z.refine((value) => value.ackSequence <= value.sequence))
+export type DeviceHeartbeat = z.infer<typeof deviceHeartbeatSchema>
+
+// G29: refusal reads as throttled or unknown since a time, never down. The
+// closed reason set has no offline state.
+export const DEVICE_THROTTLE_REASONS = ['handshake-backoff', 'peer-penalty', 'pressure'] as const
+export const deviceThrottledSchema = z.strictObject({
+  version: z.literal(DEVICE_LIMITS.protocolVersion),
+  pairId: id,
+  receiverIncarnationId: z.optional(id),
+  unknownSince: timestamp,
+  reason: z.enum(DEVICE_THROTTLE_REASONS),
+})
+export type DeviceThrottled = z.infer<typeof deviceThrottledSchema>
+
+export const deviceChannelSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('ready'), ready: deviceReadySchema }),
+  z.strictObject({ kind: z.literal('heartbeat'), heartbeat: deviceHeartbeatSchema }),
+  z.strictObject({ kind: z.literal('throttled'), throttled: deviceThrottledSchema }),
+])
+export type DeviceChannelMessage = z.infer<typeof deviceChannelSchema>
+
+// G29 pacing, pure so lane C and its tests share the exact contract: at
+// most pendingHandshakes open handshakes per host, jittered exponential
+// backoff from the base capped at the ten-minute maximum.
+export function canOpenHandshake(pendingHandshakes: number): boolean {
+  return (
+    Number.isSafeInteger(pendingHandshakes) &&
+    pendingHandshakes >= 0 &&
+    pendingHandshakes < DEVICE_LIMITS.pendingHandshakes
+  )
+}
+export function handshakeBackoffMs(failures: number): number {
+  const attempts = Number.isSafeInteger(failures) && failures > 0 ? failures : 1
+  return Math.min(
+    DEVICE_LIMITS.handshakeBackoffBaseMs * 2 ** (attempts - 1),
+    DEVICE_LIMITS.handshakeBackoffMaxMs,
+  )
+}
+// G31: one failed authentication stops and asks; retries never loop.
+export function canRetryAuth(failures: number): boolean {
+  return (
+    Number.isSafeInteger(failures) &&
+    failures >= 0 &&
+    failures < DEVICE_LIMITS.authFailuresBeforeAsk
+  )
+}
+
+// Lane V reads: measured capability and capacity advertisement, kept current
+// by the device. Slot caps come from measured headroom; transport failure
+// and pressure feed the governor as signals (G12). G30 needs platform,
+// power and slot truth before a Windows worker is admitted.
+const engineBudget = z.enum(['ok', 'low', 'exhausted', 'unknown'])
+const percent = z.number().check(z.gte(0), z.lte(100))
+export const deviceCapabilitySchema = z
+  .strictObject({
+    version: z.literal(DEVICE_LIMITS.protocolVersion),
+    deviceId: id,
+    receiverIncarnationId: id,
+    observedAt: timestamp,
+    platform: z.enum(['win32', 'linux', 'darwin']),
+    osVersion: boundedText(DEVICE_LIMITS.labelChars),
+    tools: z
+      .array(boundedText(DEVICE_LIMITS.labelChars))
+      .check(z.maxLength(DEVICE_LIMITS.capabilityTools)),
+    engines: z
+      .array(z.strictObject({ model, budget: engineBudget }))
+      .check(z.maxLength(DEVICE_LIMITS.capabilityEngines)),
+    presence: z.strictObject({
+      touchId: z.boolean(),
+      windowsHello: z.boolean(),
+      tpm: z.boolean(),
+      secureEnclave: z.boolean(),
+    }),
+    power: z.enum(['ac', 'battery', 'unknown']),
+    sleepInhibited: z.boolean(),
+    slotCap: cap(DEVICE_LIMITS.workers),
+    pressure: z.strictObject({
+      cpuPercent: percent,
+      memoryPercent: percent,
+      diskPercent: percent,
+      transportResets: z.int().check(z.gte(0)),
+    }),
+  })
+  .check(
+    z.refine(
+      (value) =>
+        new Set(value.tools).size === value.tools.length &&
+        new Set(value.engines.map((engine) => `${engine.model.providerId} ${engine.model.modelId}`))
+          .size === value.engines.length,
+    ),
+  )
+export type DeviceCapability = z.infer<typeof deviceCapabilitySchema>
+
+// Lanes A and K read: per-action admission grants bound to their owner. A
+// device serves two orchestrators only with separate grants and quotas per
+// owner. No credential field exists on any grant shape: a secret planted in
+// one refuses to parse.
+const grantMode = z.enum(['plan', 'manual', 'acceptEdits', 'auto'])
+export const deviceGrantRequestSchema = z
+  .strictObject({
+    version: z.literal(DEVICE_LIMITS.protocolVersion),
+    pairId: id,
+    ownerId: id,
+    roleId: id,
+    mode: grantMode,
+    repositoryId: id,
+    lanes: z.boolean(),
+    checks: z.boolean(),
+    quota: deviceCapsSchema,
+  })
+  .check(z.refine((value) => value.lanes || value.checks))
+export type DeviceGrantRequest = z.infer<typeof deviceGrantRequestSchema>
+
+export const deviceGrantSchema = z
+  .strictObject({
+    version: z.literal(DEVICE_LIMITS.protocolVersion),
+    grantId: id,
+    grantRevision: revision,
+    pairId: id,
+    ownerId: id,
+    roleId: id,
+    mode: grantMode,
+    repositoryId: id,
+    lanes: z.boolean(),
+    checks: z.boolean(),
+    quota: deviceCapsSchema,
+    issuedAt: timestamp,
+    expiresAt: timestamp,
+    requiresStepUp: z.boolean(),
+  })
+  .check(
+    z.refine(
+      (value) =>
+        (value.lanes || value.checks) &&
+        value.expiresAt > value.issuedAt &&
+        value.expiresAt - value.issuedAt <= DEVICE_LIMITS.grantValidityMs,
+    ),
+  )
+export type DeviceGrant = z.infer<typeof deviceGrantSchema>
+
+// A fresh per-action step-up, confirmed on the device. Presence is one of
+// the device's real methods; there is no unattested kind, so a faked answer
+// has no value that parses.
+export const DEVICE_STEP_UP_METHODS = ['touch-id', 'windows-hello', 'local-confirm'] as const
+export const deviceStepUpSchema = z
+  .strictObject({
+    version: z.literal(DEVICE_LIMITS.protocolVersion),
+    grantId: id,
+    actionDigest: digest,
+    presence: z.enum(DEVICE_STEP_UP_METHODS),
+    approvedAt: timestamp,
+    expiresAt: timestamp,
+  })
+  .check(
+    z.refine(
+      (value) =>
+        value.expiresAt > value.approvedAt &&
+        value.expiresAt - value.approvedAt <= DEVICE_LIMITS.stepUpValidityMs,
+    ),
+  )
+export type DeviceStepUpApproval = z.infer<typeof deviceStepUpSchema>
+
+export const DEVICE_GRANT_REFUSALS = [
+  'unknown-owner',
+  'owner-mismatch',
+  'grant-expired',
+  'grant-revoked',
+  'scope-denied',
+  'quota-exceeded',
+  'step-up-required',
+  'presence-unverified',
+] as const
+export const deviceGrantRefusalSchema = z.strictObject({
+  version: z.literal(DEVICE_LIMITS.protocolVersion),
+  pairId: id,
+  ownerId: id,
+  reason: z.enum(DEVICE_GRANT_REFUSALS),
+  retryable: z.boolean(),
+})
+export type DeviceGrantRefusal = z.infer<typeof deviceGrantRefusalSchema>
+
+// Lane R reads: the result channel. Results return content-addressed and
+// are acknowledged once; a resend returns the recorded duplicate outcome,
+// and a late result is quarantined, never silently applied.
+export const deviceResultEnvelopeSchema = z.strictObject({
+  version: z.literal(DEVICE_LIMITS.protocolVersion),
+  identity: attempt,
+  epoch: z.int().check(z.gte(1)),
+  checkpoint: digest,
+  resultDigest: digest,
+  resultBytes: cap(DEVICE_LIMITS.artifactBytes).check(z.gte(1)),
+  recordedAt: timestamp,
+})
+export type DeviceResultEnvelope = z.infer<typeof deviceResultEnvelopeSchema>
+
+export const DEVICE_RESULT_DISPOSITIONS = ['accepted', 'quarantined', 'duplicate'] as const
+export const deviceResultAckSchema = z.strictObject({
+  version: z.literal(DEVICE_LIMITS.protocolVersion),
+  identity: attempt,
+  epoch: z.int().check(z.gte(1)),
+  resultDigest: digest,
+  settlementId: id,
+  disposition: z.enum(DEVICE_RESULT_DISPOSITIONS),
+  acknowledgedAt: timestamp,
+})
+export type DeviceResultAck = z.infer<typeof deviceResultAckSchema>
+
+// Injected ports. Lanes C, V, A and R provide the real authorities; tests
+// inject fakes. No port carries credentials, probes or unattested presence.
+export interface DeviceChannelPort {
+  open(input: DeviceReady): Promise<void>
+  heartbeat(input: DeviceHeartbeat): Promise<void>
+  close(): Promise<void>
+}
+export interface DeviceCapabilityPort {
+  snapshot(): Promise<DeviceCapability>
+}
+export interface DeviceActionGrantPort {
+  admit(request: DeviceGrantRequest): Promise<DeviceGrant | DeviceGrantRefusal>
+  attestStepUp(approval: DeviceStepUpApproval): Promise<void>
+}
+export interface DeviceResultPort {
+  publish(result: DeviceResultEnvelope): Promise<DeviceResultAck>
+}

@@ -94,7 +94,14 @@
     "retry": "다시 시도",
     "renderUnavailable": "장치의 최신 관측을 표시할 수 없습니다. 복구하려면 다시 로드하세요.",
     "unpairedHelp": "이 장치는 페어링되지 않았습니다. 작업을 제공하기 전에 두 장치를 페어링하세요.",
-    "revokedHelp": "이 페어링은 철회되었습니다. 다시 페어링하세요. 이전의 미해결 작업은 계속 차단됩니다."
+    "revokedHelp": "이 페어링은 철회되었습니다. 다시 페어링하세요. 이전의 미해결 작업은 계속 차단됩니다.",
+    "throttled": "제한됨",
+    "throttledHelp": "새 시도가 제한됩니다. 승인된 작업은 계속 진행되며, 중복되거나 손실되는 항목은 없습니다.",
+    "unknownSince": "{time} 이후 알 수 없음",
+    "grantExpired": "이 승인이 만료되었습니다. 수신 장치에 새 승인을 요청하세요.",
+    "resultQuarantined": "기한 후에 도착한 늦은 결과는 적용되지 않고 격리됩니다.",
+    "ownerMismatch": "이 페어 키는 다른 소유자의 것입니다. 올바른 소유자로 다시 페어링하세요.",
+    "stepUpWaiting": "{device}에서 단계적 승인을 기다리고 있습니다."
   },
   "untitledConversation": "제목 없음",
   "crashTitle": "패널에서 오류가 발생했습니다",

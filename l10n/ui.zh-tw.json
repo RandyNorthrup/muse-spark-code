@@ -94,7 +94,14 @@
     "retry": "重試",
     "renderUnavailable": "裝置無法顯示最新觀測。請重新載入以復原。",
     "unpairedHelp": "此裝置尚未配對。提供工作前請將兩台裝置配對。",
-    "revokedHelp": "此配對已撤銷。請重新配對；先前未解決的工作仍被封鎖。"
+    "revokedHelp": "此配對已撤銷。請重新配對；先前未解決的工作仍被封鎖。",
+    "throttled": "已節流",
+    "throttledHelp": "新的嘗試受到節流。已准入的工作繼續執行；不會重複，也不會遺失。",
+    "unknownSince": "自 {time} 起未知",
+    "grantExpired": "此授權已過期。請向接收裝置申請新的授權。",
+    "resultQuarantined": "逾時後抵達的延遲結果將被隔離，而不會被套用。",
+    "ownerMismatch": "此配對金鑰屬於其他擁有者。請以正確的擁有者身分重新配對。",
+    "stepUpWaiting": "正在等待 {device} 上的升級核准。"
   },
   "untitledConversation": "未命名",
   "crashTitle": "面板發生錯誤",

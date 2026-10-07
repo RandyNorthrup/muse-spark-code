@@ -14,6 +14,15 @@ happened, not what was planned; superseded entries are kept.
   storage, execution, approval and snapshot authorities. No installed Devices
   command, physical adapter or unattended receiver is registered by this change.
 - Add the generated Devices help inventory and its stale-reference gate.
+- Define the unshipped Devices phase-2 contracts every later lane codes
+  against: versioned channel, capability, grant and result envelopes with
+  byte/queue caps and strict zod parsing, pacing helpers (at most 3 pending
+  handshakes, backoff capped at 10 minutes, one failed authentication stops),
+  owner-bound grants with device-answered step-up, typed refusals and result
+  acknowledgements, plus injected channel/capability/grant/result ports with
+  fakes. Phase-2 model guidance rides the declared lazy reader; seven status
+  strings ship in all 14 tables. Register G29–G31 first and add the
+  phase-2 threat model with the D101 reconcile note.
 
 ### Fixed
 

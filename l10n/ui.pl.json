@@ -97,7 +97,14 @@
     "retry": "Spróbuj ponownie",
     "renderUnavailable": "Urządzenia nie mogły wyświetlić ostatniej obserwacji. Przeładuj, aby przywrócić widok.",
     "unpairedHelp": "To urządzenie nie jest sparowane. Sparuj oba urządzenia przed oferowaniem pracy.",
-    "revokedHelp": "To parowanie zostało cofnięte. Sparuj ponownie; wcześniejsza nierozstrzygnięta praca pozostaje zablokowana."
+    "revokedHelp": "To parowanie zostało cofnięte. Sparuj ponownie; wcześniejsza nierozstrzygnięta praca pozostaje zablokowana.",
+    "throttled": "Ograniczone",
+    "throttledHelp": "Nowe próby są ograniczane. Przyjęta praca jest kontynuowana; nic nie jest duplikowane ani tracone.",
+    "unknownSince": "Nieznany od {time}",
+    "grantExpired": "To zezwolenie wygasło. Poproś urządzenie odbierające o nowe zezwolenie.",
+    "resultQuarantined": "Spóźniony wynik dotarł po terminie i trafia do kwarantanny zamiast zostać zastosowany.",
+    "ownerMismatch": "Ten klucz parowania należy do innego właściciela. Sparuj ponownie jako właściwy właściciel.",
+    "stepUpWaiting": "Oczekiwanie na podwyższone zatwierdzenie na urządzeniu {device}."
   },
   "untitledConversation": "Bez tytułu",
   "crashTitle": "W panelu wystąpił błąd",

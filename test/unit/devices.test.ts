@@ -164,7 +164,14 @@ function frame(body: DeviceFrame['body']): DeviceFrame {
 describe('M100 public pairing contracts', () => {
   it('declares only the explicit lazy device factory as a model-text reader', () => {
     expect(DEVICE_MODEL_TEXT_READERS).toEqual(['dist/devices.js'])
-    expect(Object.keys(DEVICE_MODEL_TEXT)).toEqual(['deviceTaskContext', 'deviceApprovalWait'])
+    expect(Object.keys(DEVICE_MODEL_TEXT)).toEqual([
+      'deviceTaskContext',
+      'deviceApprovalWait',
+      'deviceChannelPacing',
+      'deviceGrantAdmission',
+      'deviceResultChannel',
+      'deviceOwnerBinding',
+    ])
     expect(DEVICE_MODEL_TEXT.deviceTaskContext).toContain('untrusted input')
     expect(DEVICE_MODEL_TEXT.deviceApprovalWait).toContain('same durable attempt')
   })
