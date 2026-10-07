@@ -2564,6 +2564,7 @@
     "allow-contributor-models": "--allow-contributor-models       Modelle der Contributor-Stufe auflisten (Meta darf mit ihren Inhalten trainieren)",
     "web-search": "--web-search                     Kostenpflichtige Websuche anbieten (Model-API-Backend; der Preis wird zuerst erfragt)",
     "image-generation": "--image-generation               Kostenpflichtige Bilderzeugung anbieten (Model-API-Backend; der Preis wird zuerst erfragt)",
+    "scheduled-prompts": "--scheduled-prompts              Kostenpflichtige geplante Eingabeaufforderungen anbieten (Model-API-Backend; der Preis wird zuerst erfragt)",
     "verbose": "--verbose                        Jedes Detail auf stderr protokollieren",
     "questions-defer-after": "--questions-defer-after <seconds>  Fragen standardmäßig nach 60 Sekunden zurückstellen; 0 nie, 1–9 gelten als 10, höchstens 3600",
     "help": "help / --help / -h: ACP / CLI. help --all: Befehle, Einstellungen und Funktionen mit Beschreibungen und Dokumentation.",
@@ -2796,6 +2797,22 @@
       "anchorDate": "Bezugsdatum (in der Zeitzone des Zeitplans)",
       "stateUnknown": "Status unbekannt — Erneut versuchen",
       "retry": "Erneut versuchen"
+    },
+    "runtime": {
+      "usage": "Verwendung: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Exitcodes: 0 Erfolg, 1 Ablehnung, 2 Aufruffehler, 3 Bereinigungswarnung.",
+      "accepted": "Zeitplananfrage angenommen",
+      "empty": "Keine Zeitpläne oder bevorstehenden Ausführungen.",
+      "unavailable": "Zeitpläne sind auf diesem Host nicht verfügbar. Die Anbindung an den Laufzeitplaner ist erforderlich.",
+      "invalidRequest": "Ungültige Zeitplananfrage. Prüfen Sie Entwurf, Kennung und Optionen.",
+      "invalidResponse": "Der Planer hat eine ungültige Antwort zurückgegeben.",
+      "consentRequired": "Die Hintergrundplanung erfordert Ihr ausdrückliches Ja.",
+      "backgroundUnavailable": "Hintergrundplanung ist auf diesem Host nicht verfügbar.",
+      "backgroundRearmUnavailable": "Die Hintergrundplanung wartet auf das Ende eines Aufrufs oder auf die Stilllegungsfrist. Versuchen Sie es in Kürze erneut.",
+      "unsafeLauncher": "Unsicherer Pfad zum Zeitplanstarter: {path}",
+      "paidAuthorizationRequired": "Kostenpflichtige Zeitpläne erfordern --scheduled-prompts und ein ausdrückliches --max-budget-usd, das beide Kostenlimits abdeckt.",
+      "cleanupFailed": "Die Zeitplananfrage wurde abgeschlossen, aber die Bereinigung ist fehlgeschlagen. Behalten Sie die bestätigte ID; Exitcode 3 bedeutet, dass die Bereinigung Aufmerksamkeit erfordert.",
+      "hostUnavailable": "Der Zeitplanhost konnte für diesen Arbeitsbereich nicht starten. Die Zeitplansteuerung ist nicht verfügbar; der normale Chat bleibt verfügbar.",
+      "wakeBarrierTimeout": "Der geplante Start hat beim Warten auf den Hintergrundabgleich das Zeitlimit überschritten. Es wurde keine geplante Arbeit gestartet."
     }
   }
 }

@@ -2756,6 +2756,7 @@
     "allow-contributor-models": "--allow-contributor-models       Wyświetl modele poziomu contributor (Meta może trenować na ich treści)",
     "web-search": "--web-search                     Udostępnij płatne wyszukiwanie w sieci (backend Model API; najpierw pyta o cenę)",
     "image-generation": "--image-generation               Udostępnij płatne generowanie obrazów (backend Model API; najpierw pyta o cenę)",
+    "scheduled-prompts": "--scheduled-prompts              Udostępnij płatne zaplanowane polecenia (backend Model API; najpierw pyta o cenę)",
     "verbose": "--verbose                        Zapisuj każdy szczegół w stderr",
     "questions-defer-after": "--questions-defer-after <seconds>  Domyślnie odraczaj pytania po 60 sekundach; 0 nigdy, 1–9 oznacza 10, maksymalnie 3600",
     "help": "help / --help / -h: ACP / CLI. help --all: Polecenia, ustawienia i funkcje wraz z opisami i dokumentacją.",
@@ -2992,6 +2993,22 @@
       "anchorDate": "Data odniesienia (w strefie czasowej harmonogramu)",
       "stateUnknown": "Stan nieznany — Ponów",
       "retry": "Ponów"
+    },
+    "runtime": {
+      "usage": "Użycie: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Kody wyjścia: 0 sukces, 1 odmowa, 2 błąd użycia, 3 ostrzeżenie o sprzątaniu.",
+      "accepted": "Przyjęto żądanie harmonogramu",
+      "empty": "Brak harmonogramów lub nadchodzących uruchomień.",
+      "unavailable": "Harmonogramy są niedostępne na tym hoście. Wymagane jest połączenie z harmonogramem środowiska wykonawczego.",
+      "invalidRequest": "Nieprawidłowe żądanie harmonogramu. Sprawdź wersję roboczą, identyfikator i opcje.",
+      "invalidResponse": "Harmonogram zwrócił nieprawidłową odpowiedź.",
+      "consentRequired": "Harmonogram w tle wymaga wyraźnej odpowiedzi Tak.",
+      "backgroundUnavailable": "Harmonogram w tle jest niedostępny na tym hoście.",
+      "backgroundRearmUnavailable": "Harmonogram w tle czeka na zakończenie uruchomienia lub upłynięcie okresu wycofania. Spróbuj ponownie za chwilę.",
+      "unsafeLauncher": "Niebezpieczna ścieżka programu uruchamiającego harmonogram: {path}",
+      "paidAuthorizationRequired": "Płatne harmonogramy wymagają --scheduled-prompts oraz jawnego --max-budget-usd pokrywającego oba limity kosztów.",
+      "cleanupFailed": "Żądanie harmonogramu zakończono, ale sprzątanie nie powiodło się. Zachowaj przyjęty identyfikator; kod wyjścia 3 oznacza problem ze sprzątaniem.",
+      "hostUnavailable": "Nie udało się uruchomić hosta harmonogramów dla tego obszaru roboczego. Sterowanie harmonogramami jest niedostępne; zwykły czat pozostaje dostępny.",
+      "wakeBarrierTimeout": "Zaplanowane uruchomienie przekroczyło limit oczekiwania na synchronizację w tle. Żadna zaplanowana praca nie została rozpoczęta."
     }
   }
 }

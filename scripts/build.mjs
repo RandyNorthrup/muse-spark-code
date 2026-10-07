@@ -154,6 +154,8 @@ const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
 const ACP_ENTRY = 'src/runtime/main.ts'
 const ACP_OUTFILE = 'dist/acp.js'
+const SCHEDULE_BACKGROUND_ENTRY = 'src/runtime/schedules/backgroundEntry.ts'
+const SCHEDULE_BACKGROUND_OUTFILE = 'dist/scheduleBackground.js'
 const ACP_METAFILE_DIR = 'dist/meta-acp'
 const ACP_QUESTIONS_ENTRY = 'src/acp/questionDeferralEntry.ts'
 const ACP_QUESTIONS_OUTFILE = 'dist/acpQuestions.js'
@@ -477,6 +479,12 @@ const runtimeQuestionsOptions = {
   entryPoints: [RUNTIME_QUESTIONS_ENTRY],
   outfile: RUNTIME_QUESTIONS_OUTFILE,
 }
+const scheduleBackgroundOptions = {
+  ...modelApiOptions,
+  entryPoints: [SCHEDULE_BACKGROUND_ENTRY],
+  outfile: SCHEDULE_BACKGROUND_OUTFILE,
+  target: AGENT_NODE_TARGET,
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -637,6 +645,7 @@ if (isWatch) {
     esbuild.context(recorderOptions),
     esbuild.context(whatsNewOptions),
     esbuild.context(judgeOptions),
+    esbuild.context(scheduleBackgroundOptions),
     esbuild.context(uiTextOptions),
     ...uiTextRegionOptions.map((options) => esbuild.context(options)),
     esbuild.context(validationOptions),
@@ -691,6 +700,7 @@ if (isWatch) {
     recorder: esbuild.build(recorderOptions),
     whatsNew: esbuild.build(whatsNewOptions),
     judge: esbuild.build(judgeOptions),
+    scheduleBackground: esbuild.build(scheduleBackgroundOptions),
     uiText: esbuild.build(uiTextOptions),
     ...Object.fromEntries(
       UI_TEXT_REGIONS.map((region, index) => [
@@ -775,4 +785,5 @@ if (isWatch) {
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.js`))
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.css`))
   reportSize(ACP_OUTFILE)
+  reportSize(SCHEDULE_BACKGROUND_OUTFILE)
 }

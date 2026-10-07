@@ -2756,6 +2756,7 @@
     "allow-contributor-models": "--allow-contributor-models       Zobrazí modely úrovně contributor (Meta může trénovat na jejich obsahu)",
     "web-search": "--web-search                     Nabídne placené hledání na webu (back-end Model API; nejprve se zeptá na cenu)",
     "image-generation": "--image-generation               Nabídne placené vytváření obrázků (back-end Model API; nejprve se zeptá na cenu)",
+    "scheduled-prompts": "--scheduled-prompts              Nabídne placené plánované pokyny (back-end Model API; nejprve se zeptá na cenu)",
     "verbose": "--verbose                        Zapisuje každý detail do stderr",
     "questions-defer-after": "--questions-defer-after <seconds>  Ve výchozím nastavení odložit otázky po 60 sekundách; 0 nikdy, 1–9 se bere jako 10, nejvýše 3600",
     "help": "help / --help / -h: ACP / CLI. help --all: Příkazy, nastavení a funkce s popisy a dokumentací.",
@@ -2992,6 +2993,22 @@
       "anchorDate": "Výchozí datum (v časovém pásmu plánu)",
       "stateUnknown": "Stav neznámý — Zkusit znovu",
       "retry": "Zkusit znovu"
+    },
+    "runtime": {
+      "usage": "Použití: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Návratové kódy: 0 úspěch, 1 odmítnutí, 2 nesprávné použití, 3 upozornění na úklid.",
+      "accepted": "Požadavek na plán přijat",
+      "empty": "Žádné plány ani nadcházející spuštění.",
+      "unavailable": "Plány nejsou na tomto hostiteli dostupné. Je nutné připojení plánovače běhového prostředí.",
+      "invalidRequest": "Neplatný požadavek na plán. Zkontrolujte návrh, identifikátor a možnosti.",
+      "invalidResponse": "Plánovač vrátil neplatnou odpověď.",
+      "consentRequired": "Plánování na pozadí vyžaduje vaše výslovné Ano.",
+      "backgroundUnavailable": "Plánování na pozadí není na tomto hostiteli dostupné.",
+      "backgroundRearmUnavailable": "Plánování na pozadí čeká na dokončení běhu nebo uplynutí intervalu pro vyřazení. Zkuste to za chvíli znovu.",
+      "unsafeLauncher": "Nebezpečná cesta ke spouštěči plánů: {path}",
+      "paidAuthorizationRequired": "Placené plány vyžadují --scheduled-prompts a výslovné --max-budget-usd pokrývající oba finanční limity.",
+      "cleanupFailed": "Požadavek na plán byl dokončen, ale úklid selhal. Uchovejte přijaté ID; návratový kód 3 znamená, že úklid vyžaduje pozornost.",
+      "hostUnavailable": "Hostitel plánů se pro tento pracovní prostor nespustil. Ovládání plánů není dostupné; běžný chat zůstává dostupný.",
+      "wakeBarrierTimeout": "Plánované spuštění překročilo časový limit čekání na synchronizaci běhu na pozadí. Žádná plánovaná práce nezačala."
     }
   }
 }

@@ -30,6 +30,7 @@ const METAFILE_DIR = path.join('dist', 'meta')
 // The ACP agent ships acp.js, the Model API backend's bundle it loads (M57)
 // and the search/page workers (scripts/build.mjs, scripts/package-acp.mjs).
 const ACP_METAFILES = [
+  path.join(METAFILE_DIR, 'scheduleBackground.json'),
   path.join('dist', 'meta-acp', 'acp.json'),
   path.join('dist', 'meta-acp', 'acpQuestions.json'),
   path.join('dist', 'meta-acp', 'runtimeQuestions.json'),

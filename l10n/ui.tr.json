@@ -2564,6 +2564,7 @@
     "allow-contributor-models": "--allow-contributor-models       Katkıda bulunan düzeyindeki modelleri listeler (Meta bunların içeriğiyle eğitim yapabilir)",
     "web-search": "--web-search                     Ücretli web aramasını sunar (Model API arka ucu; önce fiyatı sorulur)",
     "image-generation": "--image-generation               Ücretli görüntü oluşturmayı sunar (Model API arka ucu; önce fiyatı sorulur)",
+    "scheduled-prompts": "--scheduled-prompts              Ücretli zamanlanmış istemleri sunar (Model API arka ucu; önce fiyatı sorulur)",
     "verbose": "--verbose                        Her ayrıntıyı stderr'e kaydeder",
     "questions-defer-after": "--questions-defer-after <seconds>  Soruları varsayılan olarak 60 saniye sonra ertele; 0 hiçbir zaman, 1–9 değeri 10 sayılır, en fazla 3600",
     "help": "help / --help / -h: ACP / CLI. help --all: Açıklamalar ve belgelerle birlikte komutlar, ayarlar ve özellikler.",
@@ -2796,6 +2797,22 @@
       "anchorDate": "Başlangıç tarihi (zamanlamanın saat diliminde)",
       "stateUnknown": "Durum bilinmiyor — Yeniden dene",
       "retry": "Yeniden dene"
+    },
+    "runtime": {
+      "usage": "Kullanım: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Çıkış kodları: 0 başarı, 1 ret, 2 kullanım hatası, 3 temizlik uyarısı.",
+      "accepted": "Zamanlama isteği kabul edildi",
+      "empty": "Zamanlama veya yaklaşan çalıştırma yok.",
+      "unavailable": "Bu ana makinede zamanlamalar kullanılamıyor. Çalışma zamanı zamanlayıcısının bağlantısı gerekiyor.",
+      "invalidRequest": "Geçersiz zamanlama isteği. Taslağı, tanımlayıcıyı ve seçenekleri kontrol edin.",
+      "invalidResponse": "Zamanlayıcı geçersiz bir yanıt döndürdü.",
+      "consentRequired": "Arka plan zamanlaması için açıkça Evet demeniz gerekir.",
+      "backgroundUnavailable": "Bu ana makinede arka plan zamanlaması kullanılamıyor.",
+      "backgroundRearmUnavailable": "Arka plan zamanlaması bir çalışmanın bitmesini veya kaldırma bekleme süresinin dolmasını bekliyor. Kısa bir süre sonra yeniden deneyin.",
+      "unsafeLauncher": "Güvenli olmayan zamanlama başlatıcısı yolu: {path}",
+      "paidAuthorizationRequired": "Ücretli zamanlamalar --scheduled-prompts ve her iki harcama sınırını da karşılayan açık bir --max-budget-usd gerektirir.",
+      "cleanupFailed": "Zamanlama isteği tamamlandı ancak temizlik başarısız oldu. Kabul edilen kimliği saklayın; çıkış kodu 3, temizliğin müdahale gerektirdiğini belirtir.",
+      "hostUnavailable": "Bu çalışma alanı için zamanlama sunucusu başlatılamadı. Zamanlama denetimleri kullanılamıyor; normal sohbet kullanılabilir.",
+      "wakeBarrierTimeout": "Zamanlanmış çalıştırma, arka plan eşitlemesini beklerken zaman aşımına uğradı. Hiçbir zamanlanmış iş başlatılmadı."
     }
   }
 }

@@ -72,6 +72,7 @@
     "src/acp/questionDeferralEntry.ts",
     "src/runtime/questions/questionRegistryEntry.ts",
     "src/core/questions/deferralEntry.ts",
+    "src/runtime/schedules/backgroundEntry.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     "test/e2e/**/*.test.ts",
     // DIET1 production browser smoke, invoked directly as documented in README.

@@ -436,13 +436,19 @@ describe.each(['museCode', 'modelApi'] as const)('%s schedule delivery', (backen
     const second = rig.deliver()
     void second.catch(() => undefined)
     try {
-      await vi.waitFor(() => {
-        expect(rig.release).toHaveBeenCalledOnce()
-      })
+      // The run ledger refuses the duplicate before any target opens, so the
+      // duplicate acquires no lease of its own.
       await expect(second).rejects.toThrow(UI_TEXT.scheduleAlreadyRun)
+      expect(rig.release).not.toHaveBeenCalled()
+      expect(await rig.delivery.lookupRun(rig.context.runId)).toEqual({ status: 'admitted' })
       expect(rig.delivery.skip(rig.context.runId)).toBe(true)
       rig.terminal.resolve({ ...facts, outcome: 'missed' })
       expect(await first).toMatchObject({ outcome: 'missed' })
+      expect(await rig.delivery.lookupRun(rig.context.runId)).toMatchObject({
+        status: 'settled',
+        fire: { outcome: 'missed' },
+      })
+      expect(rig.release).toHaveBeenCalledOnce()
     } finally {
       rig.delivery.skip(rig.context.runId)
       rig.terminal.resolve(facts)

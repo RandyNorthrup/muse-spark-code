@@ -1,0 +1,165 @@
+{
+  "version": 1,
+  "windows": [
+    {
+      "name": "standard drive-root folder-only AppendData",
+      "path": "C:\\",
+      "leafKind": "directory",
+      "isRoot": true,
+      "isDirectory": true,
+      "reparsePoint": false,
+      "sddl": "O:S-1-5-21-1-2-3-1000D:P(A;;0x4;;;AU)",
+      "ok": true
+    },
+    {
+      "name": "intermediate AppendData refused",
+      "path": "C:\\owned",
+      "leafKind": "directory",
+      "isRoot": false,
+      "isDirectory": true,
+      "reparsePoint": false,
+      "sddl": "O:S-1-5-21-1-2-3-1000D:P(A;;0x4;;;AU)",
+      "ok": false
+    },
+    {
+      "name": "file AppendData",
+      "path": "C:\\owned",
+      "leafKind": "file",
+      "isRoot": false,
+      "isDirectory": false,
+      "reparsePoint": false,
+      "sddl": "O:S-1-5-21-1-2-3-1000D:P(A;;0x4;;;AU)",
+      "ok": false
+    },
+    {
+      "name": "untrusted replacement right FW",
+      "path": "C:\\owned",
+      "leafKind": "directory",
+      "isRoot": false,
+      "isDirectory": true,
+      "reparsePoint": false,
+      "sddl": "O:S-1-5-21-1-2-3-1000D:P(A;;FW;;;AU)",
+      "ok": false
+    },
+    {
+      "name": "untrusted replacement right 0x10000",
+      "path": "C:\\owned",
+      "leafKind": "directory",
+      "isRoot": false,
+      "isDirectory": true,
+      "reparsePoint": false,
+      "sddl": "O:S-1-5-21-1-2-3-1000D:P(A;;0x10000;;;AU)",
+      "ok": false
+    },
+    {
+      "name": "untrusted replacement right 0x40",
+      "path": "C:\\owned",
+      "leafKind": "directory",
+      "isRoot": false,
+      "isDirectory": true,
+      "reparsePoint": false,
+      "sddl": "O:S-1-5-21-1-2-3-1000D:P(A;;0x40;;;AU)",
+      "ok": false
+    },
+    {
+      "name": "untrusted replacement right 0x40000",
+      "path": "C:\\owned",
+      "leafKind": "directory",
+      "isRoot": false,
+      "isDirectory": true,
+      "reparsePoint": false,
+      "sddl": "O:S-1-5-21-1-2-3-1000D:P(A;;0x40000;;;AU)",
+      "ok": false
+    },
+    {
+      "name": "untrusted replacement right 0x80000",
+      "path": "C:\\owned",
+      "leafKind": "directory",
+      "isRoot": false,
+      "isDirectory": true,
+      "reparsePoint": false,
+      "sddl": "O:S-1-5-21-1-2-3-1000D:P(A;;0x80000;;;AU)",
+      "ok": false
+    },
+    {
+      "name": "untrusted replacement right GA",
+      "path": "C:\\owned",
+      "leafKind": "directory",
+      "isRoot": false,
+      "isDirectory": true,
+      "reparsePoint": false,
+      "sddl": "O:S-1-5-21-1-2-3-1000D:P(A;;GA;;;AU)",
+      "ok": false
+    },
+    {
+      "name": "untrusted replacement right GW",
+      "path": "C:\\owned",
+      "leafKind": "directory",
+      "isRoot": false,
+      "isDirectory": true,
+      "reparsePoint": false,
+      "sddl": "O:S-1-5-21-1-2-3-1000D:P(A;;GW;;;AU)",
+      "ok": false
+    },
+    {
+      "name": "inheritance-only write does not apply",
+      "path": "C:\\owned",
+      "leafKind": "directory",
+      "isRoot": false,
+      "isDirectory": true,
+      "reparsePoint": false,
+      "sddl": "O:S-1-5-21-1-2-3-1000D:P(A;OICIIO;FW;;;AU)",
+      "ok": true
+    },
+    {
+      "name": "inherited append applies to root child too",
+      "path": "C:\\",
+      "leafKind": "directory",
+      "isRoot": true,
+      "isDirectory": true,
+      "reparsePoint": false,
+      "sddl": "O:S-1-5-21-1-2-3-1000D:P(A;OICI;0x4;;;AU)",
+      "ok": false
+    },
+    {
+      "name": "read-only untrusted ACE",
+      "path": "C:\\owned",
+      "leafKind": "directory",
+      "isRoot": false,
+      "isDirectory": true,
+      "reparsePoint": false,
+      "sddl": "O:S-1-5-21-1-2-3-1000D:P(A;;FR;;;AU)",
+      "ok": true
+    },
+    {
+      "name": "junction is refused",
+      "path": "C:\\owned",
+      "leafKind": "directory",
+      "isRoot": false,
+      "isDirectory": true,
+      "reparsePoint": true,
+      "sddl": "O:S-1-5-21-1-2-3-1000D:P(A;;FR;;;AU)",
+      "ok": false
+    },
+    {
+      "name": "untrusted owner",
+      "path": "C:\\owned",
+      "leafKind": "directory",
+      "isRoot": false,
+      "isDirectory": true,
+      "reparsePoint": false,
+      "sddl": "O:S-1-5-32-545D:P(A;;FR;;;AU)",
+      "ok": false
+    },
+    {
+      "name": "win11 rig real C drive ACL 2026-10-06",
+      "path": "C:\\",
+      "leafKind": "directory",
+      "isRoot": true,
+      "isDirectory": true,
+      "reparsePoint": false,
+      "sddl": "O:S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464G:S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464D:PAI(A;;LC;;;AU)(A;OICIIO;SDGXGWGR;;;AU)(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;0x1200a9;;;BU)(A;;0x1000a1;;;S-1-15-3-65536-1888954469-739942743-1668119174-2468466756-4239452838-1296943325-355587736-700089176)",
+      "ok": true
+    }
+  ]
+}

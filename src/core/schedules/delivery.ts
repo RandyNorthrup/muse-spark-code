@@ -6,6 +6,7 @@ import {
   scheduleRunContextSchema,
   scheduleV2Schema,
   type ScheduleDeliveryResult,
+  type ScheduleDeliveryState,
   type ScheduleHostPort,
   type ScheduleRunContext,
   type ScheduleSessionPort,
@@ -96,6 +97,13 @@ export class ScheduleDelivery implements ScheduleHostPort {
     }
   >()
   private readonly queued = new Map<string, { session: ScheduleSessionPort; messageId: string }>()
+  /** In-memory run ledger for S's scheduler: admitted at dispatch, settled at
+   * final settlement. S's store owns durability across processes; a throw
+   * keeps the admitted marker (like the fake host) so a concurrent duplicate
+   * refuses instead of refiring while the target still owns recovery. This
+   * host never reports uncertain: lost-response ambiguity is settled by S's
+   * outbox reconciliation, never guessed here. */
+  private readonly ledger = new Map<string, ScheduleDeliveryState>()
 
   constructor(private readonly deps: ScheduleDeliveryDeps) {}
 
@@ -135,74 +143,12 @@ export class ScheduleDelivery implements ScheduleHostPort {
       ...(event !== undefined && { event }),
     })
   }
-  now(): number {
-    return this.deps.now()
-  }
-  monotonicNow(): number {
-    return this.deps.monotonicNow()
-  }
-  holds(workspaceKey: string): boolean {
-    return this.deps.holds(workspaceKey)
-  }
-
-  /** S supplies only the most recent missed occurrence, never a backlog. */
-  deliverMissed(
+  private async dispatch(
     schedule: ScheduleV2,
     context: ScheduleRunContext,
     occurrenceMs: number,
-    event?: ScheduleEvent,
+    event: ScheduleEvent | undefined,
   ): Promise<ScheduleDeliveryResult> {
-    if (schedule.catchUp === 'runOnce') return this.deliver(schedule, context, occurrenceMs, event)
-    this.validate(schedule, context)
-    return Promise.resolve(
-      this.record(schedule, context, occurrenceMs, event, {
-        outcome: 'missed',
-        reason: UI_TEXT.scheduleV2.messages.catchUpSkipped,
-        refusedActions: [],
-        cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
-      }),
-    )
-  }
-
-  /** A held fire can be skipped without stopping the user's running turn. */
-  skip(runId: string): boolean {
-    const held = this.held.get(runId)
-    if (held === undefined) return false
-    held.abort.abort()
-    const queued = this.queued.get(runId)
-    if (queued !== undefined && held.withdrawal === undefined) {
-      held.withdrawal = (async () => {
-        try {
-          return await queued.session.withdraw(queued.messageId)
-        } catch (error: unknown) {
-          return { error }
-        }
-      })()
-    }
-    return true
-  }
-
-  /** The composer can withdraw the same backend message, by this run's id. */
-  async withdraw(runId: string): Promise<boolean> {
-    const queued = this.queued.get(runId)
-    return queued !== undefined && (await queued.session.withdraw(queued.messageId))
-  }
-
-  async deliver(
-    schedule: ScheduleV2,
-    context: ScheduleRunContext,
-    occurrenceMs: number,
-    event?: ScheduleEvent,
-  ): Promise<ScheduleDeliveryResult> {
-    if (event !== undefined) {
-      event = scheduleEventSchema.parse(event)
-      // The schema's only nested object is a dictionary of primitive values.
-      Object.freeze(event.fields)
-      Object.freeze(event)
-    }
-    schedule = scheduleV2Schema.parse(schedule)
-    context = scheduleRunContextSchema.parse(context)
-    this.validate(schedule, context)
     // Validate occurrence and event before a target is opened or a prompt is built.
     const notSent: ScheduleRunSettlement = {
       outcome: 'missed',
@@ -359,5 +305,86 @@ export class ScheduleDelivery implements ScheduleHostPort {
       }
       await lease.release()
     }
+  }
+
+  now(): number {
+    return this.deps.now()
+  }
+  monotonicNow(): number {
+    return this.deps.monotonicNow()
+  }
+  holds(workspaceKey: string): boolean {
+    return this.deps.holds(workspaceKey)
+  }
+
+  /** S supplies only the most recent missed occurrence, never a backlog. */
+  deliverMissed(
+    schedule: ScheduleV2,
+    context: ScheduleRunContext,
+    occurrenceMs: number,
+    event?: ScheduleEvent,
+  ): Promise<ScheduleDeliveryResult> {
+    if (schedule.catchUp === 'runOnce') return this.deliver(schedule, context, occurrenceMs, event)
+    this.validate(schedule, context)
+    return Promise.resolve(
+      this.record(schedule, context, occurrenceMs, event, {
+        outcome: 'missed',
+        reason: UI_TEXT.scheduleV2.messages.catchUpSkipped,
+        refusedActions: [],
+        cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+      }),
+    )
+  }
+
+  /** A held fire can be skipped without stopping the user's running turn. */
+  skip(runId: string): boolean {
+    const held = this.held.get(runId)
+    if (held === undefined) return false
+    held.abort.abort()
+    const queued = this.queued.get(runId)
+    if (queued !== undefined && held.withdrawal === undefined) {
+      held.withdrawal = (async () => {
+        try {
+          return await queued.session.withdraw(queued.messageId)
+        } catch (error: unknown) {
+          return { error }
+        }
+      })()
+    }
+    return true
+  }
+
+  /** The composer can withdraw the same backend message, by this run's id. */
+  async withdraw(runId: string): Promise<boolean> {
+    const queued = this.queued.get(runId)
+    return queued !== undefined && (await queued.session.withdraw(queued.messageId))
+  }
+
+  lookupRun(runId: string): Promise<ScheduleDeliveryState> {
+    return Promise.resolve(this.ledger.get(runId) ?? { status: 'absent' })
+  }
+
+  async deliver(
+    schedule: ScheduleV2,
+    context: ScheduleRunContext,
+    occurrenceMs: number,
+    event?: ScheduleEvent,
+  ): Promise<ScheduleDeliveryResult> {
+    if (event !== undefined) {
+      event = scheduleEventSchema.parse(event)
+      // The schema's only nested object is a dictionary of primitive values.
+      Object.freeze(event.fields)
+      Object.freeze(event)
+    }
+    schedule = scheduleV2Schema.parse(schedule)
+    context = scheduleRunContextSchema.parse(context)
+    this.validate(schedule, context)
+    const previous = this.ledger.get(context.runId)
+    if (previous?.status === 'settled' || previous?.status === 'uncertain') return previous.fire
+    if (previous?.status === 'admitted') throw new Error(UI_TEXT.scheduleAlreadyRun)
+    this.ledger.set(context.runId, { status: 'admitted' })
+    const result = await this.dispatch(schedule, context, occurrenceMs, event)
+    this.ledger.set(context.runId, { status: 'settled', fire: result })
+    return result
   }
 }

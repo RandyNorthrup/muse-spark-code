@@ -2660,6 +2660,7 @@
     "allow-contributor-models": "--allow-contributor-models       Lister les modèles de niveau contributeur (Meta peut s’entraîner sur leur contenu)",
     "web-search": "--web-search                     Proposer la recherche web payante (back-end Model API ; son prix est demandé d’abord)",
     "image-generation": "--image-generation               Proposer la génération d’images payante (back-end Model API ; son prix est demandé d’abord)",
+    "scheduled-prompts": "--scheduled-prompts              Proposer les consignes planifiées payantes (back-end Model API ; leur prix est demandé d’abord)",
     "verbose": "--verbose                        Journaliser chaque détail sur stderr",
     "questions-defer-after": "--questions-defer-after <seconds>  Différer les questions après 60 secondes par défaut ; 0 jamais, 1–9 valent 10, maximum 3600",
     "help": "help / --help / -h: ACP / CLI. help --all: Commandes, paramètres et fonctionnalités, avec descriptions et documentation.",
@@ -2894,6 +2895,22 @@
       "anchorDate": "Date de référence (dans le fuseau horaire de la planification)",
       "stateUnknown": "État inconnu — Réessayer",
       "retry": "Réessayer"
+    },
+    "runtime": {
+      "usage": "Utilisation: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Codes de sortie : 0 réussite, 1 refus, 2 erreur d’utilisation, 3 avertissement de nettoyage.",
+      "accepted": "Demande de planification acceptée",
+      "empty": "Aucune planification ni exécution à venir.",
+      "unavailable": "Les planifications sont indisponibles sur cet hôte. La connexion au planificateur du runtime est requise.",
+      "invalidRequest": "Demande de planification non valide. Vérifiez le brouillon, l’identifiant et les options.",
+      "invalidResponse": "Le planificateur a renvoyé une réponse non valide.",
+      "consentRequired": "La planification en arrière-plan nécessite votre Oui explicite.",
+      "backgroundUnavailable": "La planification en arrière-plan est indisponible sur cet hôte.",
+      "backgroundRearmUnavailable": "La planification en arrière-plan attend la fin d’une exécution ou l’expiration du délai de retrait. Réessayez dans un instant.",
+      "unsafeLauncher": "Chemin non sûr du lanceur de tâches planifiées : {path}",
+      "paidAuthorizationRequired": "Les tâches payantes nécessitent --scheduled-prompts et un --max-budget-usd explicite couvrant les deux plafonds de dépenses.",
+      "cleanupFailed": "La demande de planification est terminée, mais le nettoyage a échoué. Conservez l’identifiant accepté ; le code de sortie 3 indique que le nettoyage nécessite une intervention.",
+      "hostUnavailable": "Le service de planification n’a pas pu démarrer pour cet espace de travail. Les commandes de planification sont indisponibles ; le chat habituel reste disponible.",
+      "wakeBarrierTimeout": "Le lancement planifié a dépassé le délai d’attente de la synchronisation en arrière-plan. Aucune tâche planifiée n’a démarré."
     }
   }
 }

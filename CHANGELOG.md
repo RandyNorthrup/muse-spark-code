@@ -78,6 +78,33 @@ happened, not what was planned; superseded entries are kept.
   save, target titles stay accurate, refusal rows preserve their actual reason,
   and background consent choices use equal columns at narrow widths.
   Final host wiring and shipping registration remain with M115 integration.
+- Close the fourth M115 native adapter review: verify all systemd search and
+  applicable drop-in directories at registration and fire, disarm the timer
+  after refused reconciliation, check the Windows task object's own ACL,
+  and disable launchd before publishing its disabled record and retiring it.
+  Native macOS and ordinary-user Windows receipts remain integration work.
+
+- Redesign the internal native schedule trust checks: use the shared path
+  verifier, inspect systemd's effective file set, hash Task Scheduler's
+  exported XML and check its folder ACL, and disable launchd records before
+  deferred retirement. Native background IO now loads in its own runtime
+  chunk. POSIX verifier integration and Linux/macOS native receipts remain
+  required before these adapters ship.
+
+- Close the second M115 adapter review: trust-check and hash native definition
+  files and their directory chains at registration and every fire, recover paid
+  authorization from the verified registration record, break the macOS wake
+  reconciliation lock cycle with immediate busy refusals and a bounded startup
+  barrier, and show ACP cleanup warnings alongside accepted IDs. Production
+  scheduler integration and native platform receipts remain with M115 W.
+
+- Harden the internal M115 schedule adapters after review: verify canonical
+  launcher permissions at registration and wake, reject privileged identities,
+  require explicit paid authorization and budget, start ACP Stop independently
+  of bounded schedule teardown, preserve accepted IDs through cleanup failures,
+  stop disabled Linux units, protect macOS wakes with after-exit maintenance,
+  and report unavailable ACP schedule hosts. Production wiring remains M115 W's
+  integration work; these adapters are not yet a shipped scheduler.
 
 - Correct M115's internal schedule contracts before implementation: stale
   whole-record updates cannot restore revoked grants, crash-receipt migration

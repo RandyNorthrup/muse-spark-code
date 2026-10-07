@@ -2468,6 +2468,7 @@
     "allow-contributor-models": "--allow-contributor-models       列出貢獻者層級模型（Meta 可能會以其內容進行訓練）",
     "web-search": "--web-search                     提供付費網頁搜尋（Model API 後端；會先詢問價格）",
     "image-generation": "--image-generation               提供付費圖片產生（Model API 後端；會先詢問價格）",
+    "scheduled-prompts": "--scheduled-prompts              提供付費定時提示詞（Model API 後端；會先詢問價格）",
     "verbose": "--verbose                        在 stderr 記錄所有細節",
     "questions-defer-after": "--questions-defer-after <seconds>  預設在60秒後暫緩問題；0表示永不暫緩，1–9視為10，最大3600",
     "help": "help / --help / -h: ACP / CLI. help --all: 命令、設定和功能，附有說明和文件。",
@@ -2698,6 +2699,22 @@
       "anchorDate": "基準日期（排程的時區）",
       "stateUnknown": "狀態未知 — 重試",
       "retry": "重試"
+    },
+    "runtime": {
+      "usage": "用法: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] 結束代碼：0 成功，1 拒絕，2 用法錯誤，3 清理警告。",
+      "accepted": "已接受排程要求",
+      "empty": "沒有排程或即將執行的工作。",
+      "unavailable": "此主機無法使用排程。需要連接執行階段排程器。",
+      "invalidRequest": "排程要求無效。請檢查草稿、識別碼和選項。",
+      "invalidResponse": "排程器傳回了無效回應。",
+      "consentRequired": "背景排程需要您明確選擇「是」。",
+      "backgroundUnavailable": "此主機無法使用背景排程。",
+      "backgroundRearmUnavailable": "背景排程正在等待執行結束或停用等待期屆滿。請稍後重試。",
+      "unsafeLauncher": "不安全的排程啟動程式路徑：{path}",
+      "paidAuthorizationRequired": "付費排程需要 --scheduled-prompts 與明確指定的 --max-budget-usd，預算必須涵蓋兩項費用上限。",
+      "cleanupFailed": "排程請求已完成，但清理失敗。請保留已接受的 ID；結束代碼 3 表示清理需要處理。",
+      "hostUnavailable": "無法為此工作區啟動排程服務。排程控制無法使用；一般聊天仍可使用。",
+      "wakeBarrierTimeout": "排程執行在等待背景同步時逾時。未啟動任何排程工作。"
     }
   }
 }

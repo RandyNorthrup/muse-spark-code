@@ -2660,6 +2660,7 @@
     "allow-contributor-models": "--allow-contributor-models       Listar os modelos de nível colaborador (a Meta pode treinar com o conteúdo deles)",
     "web-search": "--web-search                     Oferecer a pesquisa na web paga (back-end da Model API; o preço é perguntado antes)",
     "image-generation": "--image-generation               Oferecer a geração de imagens paga (back-end da Model API; o preço é perguntado antes)",
+    "scheduled-prompts": "--scheduled-prompts              Oferecer as instruções agendadas pagas (back-end da Model API; o preço é perguntado antes)",
     "verbose": "--verbose                        Registrar cada detalhe em stderr",
     "questions-defer-after": "--questions-defer-after <seconds>  Adiar perguntas após 60 segundos por padrão; 0 nunca, 1–9 são lidos como 10, máximo 3600",
     "help": "help / --help / -h: ACP / CLI. help --all: Comandos, configurações e recursos, com descrições e documentação.",
@@ -2894,6 +2895,22 @@
       "anchorDate": "Data de referência (no fuso horário do agendamento)",
       "stateUnknown": "Estado desconhecido — Tentar novamente",
       "retry": "Tentar novamente"
+    },
+    "runtime": {
+      "usage": "Uso: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Códigos de saída: 0 sucesso, 1 recusa, 2 uso incorreto, 3 aviso de limpeza.",
+      "accepted": "Solicitação de agendamento aceita",
+      "empty": "Nenhum agendamento ou execução próxima.",
+      "unavailable": "Os agendamentos não estão disponíveis neste host. É necessária a conexão com o agendador do ambiente de execução.",
+      "invalidRequest": "Solicitação de agendamento inválida. Verifique o rascunho, o identificador e as opções.",
+      "invalidResponse": "O agendador retornou uma resposta inválida.",
+      "consentRequired": "O agendamento em segundo plano exige seu Sim explícito.",
+      "backgroundUnavailable": "O agendamento em segundo plano não está disponível neste host.",
+      "backgroundRearmUnavailable": "O agendamento em segundo plano está aguardando o fim de uma execução ou o intervalo de remoção. Tente novamente em breve.",
+      "unsafeLauncher": "Caminho inseguro do inicializador de agendamentos: {path}",
+      "paidAuthorizationRequired": "Agendamentos pagos exigem --scheduled-prompts e um --max-budget-usd explícito que cubra ambos os limites de gasto.",
+      "cleanupFailed": "A solicitação de agendamento terminou, mas a limpeza falhou. Guarde o ID aceito; o código de saída 3 indica que a limpeza requer atenção.",
+      "hostUnavailable": "Não foi possível iniciar o serviço de agendamento neste espaço de trabalho. Os controles estão indisponíveis; o chat comum continua disponível.",
+      "wakeBarrierTimeout": "A execução agendada excedeu o tempo de espera da sincronização em segundo plano. Nenhuma tarefa agendada foi iniciada."
     }
   }
 }

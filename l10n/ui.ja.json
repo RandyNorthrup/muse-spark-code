@@ -2468,6 +2468,7 @@
     "allow-contributor-models": "--allow-contributor-models       コントリビューター階層のモデルを表示します (Meta がその内容で学習する場合があります)",
     "web-search": "--web-search                     有料の Web 検索を提供します (Model API バックエンド、先に料金を確認します)",
     "image-generation": "--image-generation               有料の画像生成を提供します (Model API バックエンド、先に料金を確認します)",
+    "scheduled-prompts": "--scheduled-prompts              有料のスケジュール済みプロンプトを提供します (Model API バックエンド、先に料金を確認します)",
     "verbose": "--verbose                        すべての詳細を stderr に記録します",
     "questions-defer-after": "--questions-defer-after <seconds>  既定では60秒後に質問を保留；0は保留しない、1～9は10として扱い、上限3600",
     "help": "help / --help / -h: ACP / CLI. help --all: コマンド、設定、機能の説明とドキュメント。",
@@ -2698,6 +2699,22 @@
       "anchorDate": "基準日（スケジュールのタイムゾーン）",
       "stateUnknown": "状態不明 — 再試行",
       "retry": "再試行"
+    },
+    "runtime": {
+      "usage": "使用法: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] 終了コード: 0 成功、1 拒否、2 使用方法の誤り、3 後処理の警告。",
+      "accepted": "スケジュール要求を受け付けました",
+      "empty": "スケジュールや今後の実行はありません。",
+      "unavailable": "このホストではスケジュールを利用できません。ランタイムのスケジューラーとの接続が必要です。",
+      "invalidRequest": "スケジュール要求が無効です。下書き、識別子、オプションを確認してください。",
+      "invalidResponse": "スケジューラーが無効な応答を返しました。",
+      "consentRequired": "バックグラウンド実行には、明示的に「はい」と答える必要があります。",
+      "backgroundUnavailable": "このホストではバックグラウンド実行を利用できません。",
+      "backgroundRearmUnavailable": "バックグラウンドのスケジュールは、起動した処理の終了または停止の待機期間が過ぎるのを待っています。しばらくしてから再試行してください。",
+      "unsafeLauncher": "安全でないスケジュール起動プログラムのパス: {path}",
+      "paidAuthorizationRequired": "有料スケジュールには --scheduled-prompts と、両方の料金上限を満たす明示的な --max-budget-usd が必要です。",
+      "cleanupFailed": "スケジュール要求は完了しましたが、後処理に失敗しました。受理された ID を保存してください。終了コード 3 は後処理への対応が必要であることを示します。",
+      "hostUnavailable": "このワークスペースのスケジュールホストを起動できませんでした。スケジュール操作は利用できませんが、通常のチャットは引き続き利用できます。",
+      "wakeBarrierTimeout": "スケジュール実行はバックグラウンド同期の待機中にタイムアウトしました。スケジュールされた処理は開始されていません。"
     }
   }
 }

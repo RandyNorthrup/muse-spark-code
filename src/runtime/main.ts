@@ -65,6 +65,8 @@ import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { uiLocale } from '../shared/l10n/text'
+import { runtimeSchedulesBinding } from './schedules/binding'
+import { settleScheduleCommand } from './schedules/command'
 
 const EXIT_FAILED = 1
 // The Model API key variable Muse Code reads; the report says only whether it was set.
@@ -329,6 +331,8 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   const runtime = runtimeFor(options, log, {
     remove: (id) => loadQuestions().removeRuntimeQuestions(directory, id, UI_TEXT, uiLocale()),
   })
+  const loadSchedules = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
+  let loadedSchedules: Awaited<ReturnType<typeof loadSchedules>> | undefined
   // A proxy the Model API backend's requests will not use is said at once (Q66).
   const proxyWarning = envProxyWarning({
     backend: options.backend,
@@ -348,6 +352,20 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
   const journal = await reportJournal(log)
   await journal.startup()
   const agent = createAcpAgent({
+    schedules: {
+      async holdWorkspace(cwd) {
+        loadedSchedules ??= await loadSchedules()
+        return await loadedSchedules.holdWorkspace(cwd)
+      },
+      async run(text, context) {
+        try {
+          loadedSchedules ??= await loadSchedules()
+          return await loadedSchedules.run(text, context)
+        } catch {
+          return UI_TEXT.scheduleV2.runtime.unavailable
+        }
+      },
+    },
     backend: runtime.backend,
     version: packageVersion(),
     options: {
@@ -357,6 +375,10 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
       ...(options.questionsDeferAfterSeconds !== undefined && {
         questionsDeferAfterSeconds: options.questionsDeferAfterSeconds,
       }),
+      scheduleAuthorization: {
+        scheduledPrompts: options.scheduledPrompts === true,
+        ...(options.maxBudgetUsd !== undefined && { maxBudgetUsd: options.maxBudgetUsd }),
+      },
     },
     signIn: signInMethod(options),
     defaultCwd: process.cwd(),
@@ -394,8 +416,15 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
       return registry.flush()
     }),
   )
-  await runtime.close()
-  await journal.shutdown()
+  try {
+    await loadedSchedules?.close()
+  } finally {
+    try {
+      await runtime.close()
+    } finally {
+      await journal.shutdown()
+    }
+  }
   return 0
 }
 
@@ -533,6 +562,72 @@ async function main(): Promise<number> {
     log,
   })
   switch (command.command) {
+    case 'schedule': {
+      const load = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
+      let afterWake: (() => Promise<void>) | undefined
+      try {
+        if (
+          command.options.operation === 'run-due' ||
+          command.options.operation === 'background-maintain'
+        ) {
+          try {
+            const { createRuntimeScheduleBackground } = await import('./schedules/backgroundEntry')
+            const { verifyScheduleWake, beginScheduleWake, waitForScheduleWake } =
+              createRuntimeScheduleBackground(UI_TEXT, uiLocale())
+            await verifyScheduleWake(
+              process.execPath,
+              __filename,
+              undefined,
+              command.options.registrationId,
+            )
+            if (process.platform === 'darwin') {
+              const dataDir = agentDataFolder({
+                platform: process.platform,
+                env: process.env,
+                homeDir: homedir(),
+              })
+              if (command.options.operation === 'run-due')
+                afterWake = await beginScheduleWake(dataDir, process.execPath, __filename)
+              else await waitForScheduleWake(dataDir)
+            }
+          } catch (error: unknown) {
+            const reason =
+              error instanceof Error ? error.message : UI_TEXT.scheduleV2.runtime.invalidRequest
+            writeLine(
+              command.options.isJson ? process.stdout : process.stderr,
+              command.options.isJson ? JSON.stringify({ kind: 'refused', reason }) : reason,
+            )
+            return EXIT_FAILED
+          }
+        }
+        const binding = await load()
+        const result = await settleScheduleCommand(
+          () =>
+            binding.command(
+              command.options,
+              path.resolve(command.options.cwd ?? process.cwd()),
+              process.stdin.isTTY,
+            ),
+          async () => {
+            try {
+              await binding.close()
+            } finally {
+              await afterWake?.()
+            }
+          },
+        )
+        writeLine(process.stdout, result.output)
+        if (result.warning !== undefined) writeLine(process.stderr, result.warning)
+        return result.exitCode
+      } catch {
+        const reason = UI_TEXT.scheduleV2.runtime.unavailable
+        writeLine(
+          command.options.isJson ? process.stdout : process.stderr,
+          command.options.isJson ? JSON.stringify({ kind: 'refused', reason }) : reason,
+        )
+        return EXIT_FAILED
+      }
+    }
     case 'setup': {
       return await setupHooks(command.options, command.maintenance, log)
     }
@@ -647,6 +742,7 @@ async function main(): Promise<number> {
         writeLine(process.stdout, reference.all(nls))
       } else {
         writeLine(process.stdout, formatAcpUsage(UI_TEXT, ACP_AGENT_NAME))
+        writeLine(process.stdout, UI_TEXT.scheduleV2.runtime.usage)
       }
       return 0
     }

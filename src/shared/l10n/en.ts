@@ -53,6 +53,8 @@ export const EN = {
       '--web-search                     Offer paid web search (Model API backend; its price is asked first)',
     'image-generation':
       '--image-generation               Offer paid image generation (Model API backend; its price is asked first)',
+    'scheduled-prompts':
+      '--scheduled-prompts              Offer paid scheduled prompts (Model API backend; its price is asked first)',
     verbose: '--verbose                        Log every detail on stderr',
     'questions-defer-after':
       '--questions-defer-after <seconds>  Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600',
@@ -251,6 +253,29 @@ export const EN = {
         revoked: 'Revoked',
         used: 'Used',
       },
+    },
+    runtime: {
+      usage:
+        'Usage: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]. Exit codes: 0 success, 1 refusal, 2 usage, 3 cleanup warning.',
+      accepted: 'Schedule request accepted',
+      empty: 'No schedules or upcoming fires.',
+      unavailable:
+        'Schedules are unavailable in this host. The runtime scheduler binding is required.',
+      invalidRequest: 'Invalid schedule request. Check the draft, identifier and options.',
+      invalidResponse: 'The scheduler returned an invalid response.',
+      consentRequired: 'Background scheduling requires your explicit Yes.',
+      backgroundUnavailable: 'Background scheduling is unavailable on this host.',
+      unsafeLauncher: 'Unsafe schedule launcher path: {path}',
+      paidAuthorizationRequired:
+        'Paid schedules require --scheduled-prompts and an explicit --max-budget-usd covering both paid caps.',
+      cleanupFailed:
+        'Schedule request finished, but cleanup failed. Keep the accepted id; exit code 3 means cleanup needs attention.',
+      hostUnavailable:
+        'The schedule host could not start for this workspace. Schedule controls are unavailable; ordinary chat remains available.',
+      backgroundRearmUnavailable:
+        'Background scheduling is waiting for a wake to finish or for its retirement interval. Try again shortly.',
+      wakeBarrierTimeout:
+        'The schedule wake timed out waiting for background reconciliation. No scheduled work started.',
     },
     settings: {
       enabled:

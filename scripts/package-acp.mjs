@@ -34,6 +34,7 @@ const BUNDLES = [
   'acpQuestions.js',
   'runtimeQuestions.js',
   'questionNotes.js',
+  'scheduleBackground.js',
   'modelApi.js',
   'reviewer.js',
   'schedules.js',

@@ -2468,6 +2468,7 @@
     "allow-contributor-models": "--allow-contributor-models       列出贡献者级模型（Meta 可能使用其内容进行训练）",
     "web-search": "--web-search                     提供付费网页搜索（Model API 后端；会先询问价格）",
     "image-generation": "--image-generation               提供付费图片生成（Model API 后端；会先询问价格）",
+    "scheduled-prompts": "--scheduled-prompts              提供付费定时提示词（Model API 后端；会先询问价格）",
     "verbose": "--verbose                        在 stderr 上记录所有细节",
     "questions-defer-after": "--questions-defer-after <seconds>  默认在60秒后暂缓问题；0表示从不暂缓，1–9按10处理，最大3600",
     "help": "help / --help / -h: ACP / CLI. help --all: 命令、设置和功能，附有说明和文档。",
@@ -2698,6 +2699,22 @@
       "anchorDate": "基准日期（计划的时区）",
       "stateUnknown": "状态未知 — 重试",
       "retry": "重试"
+    },
+    "runtime": {
+      "usage": "用法: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] 退出代码：0 成功，1 拒绝，2 用法错误，3 清理警告。",
+      "accepted": "已接受计划请求",
+      "empty": "没有计划或即将运行的任务。",
+      "unavailable": "此主机无法使用计划任务。需要连接运行时调度器。",
+      "invalidRequest": "计划请求无效。请检查草稿、标识符和选项。",
+      "invalidResponse": "调度器返回了无效响应。",
+      "consentRequired": "后台计划需要您明确选择“是”。",
+      "backgroundUnavailable": "此主机无法使用后台计划。",
+      "backgroundRearmUnavailable": "后台调度正在等待运行结束或停用等待期届满。请稍后重试。",
+      "unsafeLauncher": "不安全的计划启动程序路径：{path}",
+      "paidAuthorizationRequired": "付费计划需要 --scheduled-prompts 和明确指定的 --max-budget-usd，预算必须涵盖两项费用上限。",
+      "cleanupFailed": "计划请求已完成，但清理失败。请保留已接受的 ID；退出代码 3 表示清理需要处理。",
+      "hostUnavailable": "无法为此工作区启动计划服务。计划控制不可用；普通聊天仍可使用。",
+      "wakeBarrierTimeout": "计划执行在等待后台同步时超时。未启动任何计划任务。"
     }
   }
 }

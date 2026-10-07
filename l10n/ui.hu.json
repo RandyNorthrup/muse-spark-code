@@ -2564,6 +2564,7 @@
     "allow-contributor-models": "--allow-contributor-models       A közreműködői szintű modellek listázása (a Meta tanulhat a tartalmukból)",
     "web-search": "--web-search                     Fizetős webes keresés felajánlása (Model API háttérrendszer; előbb az áráról kérdez)",
     "image-generation": "--image-generation               Fizetős képkészítés felajánlása (Model API háttérrendszer; előbb az áráról kérdez)",
+    "scheduled-prompts": "--scheduled-prompts              Fizetős ütemezett utasítások felajánlása (Model API háttérrendszer; előbb az áráról kérdez)",
     "verbose": "--verbose                        Minden részlet naplózása az stderr-re",
     "questions-defer-after": "--questions-defer-after <seconds>  Alapértelmezés szerint 60 másodperc után halassza el a kérdéseket; 0 soha, 1–9 értéke 10, legfeljebb 3600",
     "help": "help / --help / -h: ACP / CLI. help --all: Parancsok, beállítások és funkciók leírással és dokumentációval.",
@@ -2796,6 +2797,22 @@
       "anchorDate": "Kezdőnap (az ütemezés időzónájában)",
       "stateUnknown": "Ismeretlen állapot — Újra",
       "retry": "Újra"
+    },
+    "runtime": {
+      "usage": "Használat: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Kilépési kódok: 0 siker, 1 elutasítás, 2 használati hiba, 3 takarítási figyelmeztetés.",
+      "accepted": "Ütemezési kérés elfogadva",
+      "empty": "Nincsenek ütemezések vagy közelgő futtatások.",
+      "unavailable": "Ezen a gazdagépen az ütemezések nem érhetők el. A futtatókörnyezet ütemezőjének csatlakoztatása szükséges.",
+      "invalidRequest": "Érvénytelen ütemezési kérés. Ellenőrizze a piszkozatot, az azonosítót és a beállításokat.",
+      "invalidResponse": "Az ütemező érvénytelen választ adott.",
+      "consentRequired": "A háttérben történő ütemezéshez kifejezett Igen válasz szükséges.",
+      "backgroundUnavailable": "A háttérben történő ütemezés ezen a gazdagépen nem érhető el.",
+      "backgroundRearmUnavailable": "A háttérbeli ütemezés a futás befejezésére vagy a megszüntetés várakozási idejének lejártára vár. Próbálja újra hamarosan.",
+      "unsafeLauncher": "Nem biztonságos ütemezőindító elérési út: {path}",
+      "paidAuthorizationRequired": "A fizetős ütemezésekhez --scheduled-prompts és mindkét költségkorlátot fedező, kifejezett --max-budget-usd szükséges.",
+      "cleanupFailed": "Az ütemezési kérés befejeződött, de a takarítás sikertelen. Őrizze meg az elfogadott azonosítót; a 3-as kilépési kód takarítási problémát jelez.",
+      "hostUnavailable": "Az ütemező gazdafolyamata nem indult el ehhez a munkaterülethez. Az ütemezési vezérlők nem érhetők el; a szokásos csevegés továbbra is elérhető.",
+      "wakeBarrierTimeout": "Az ütemezett indítás túllépte a háttérbeli egyeztetésre várás időkorlátját. Nem indult el ütemezett munka."
     }
   }
 }

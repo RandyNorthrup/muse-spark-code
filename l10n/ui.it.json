@@ -2660,6 +2660,7 @@
     "allow-contributor-models": "--allow-contributor-models       Elenca i modelli di livello contributor (Meta può addestrarsi sui loro contenuti)",
     "web-search": "--web-search                     Offre la ricerca web a pagamento (back-end Model API; prima ne chiede il prezzo)",
     "image-generation": "--image-generation               Offre la generazione di immagini a pagamento (back-end Model API; prima ne chiede il prezzo)",
+    "scheduled-prompts": "--scheduled-prompts              Offre istruzioni pianificate a pagamento (back-end Model API; prima ne chiede il prezzo)",
     "verbose": "--verbose                        Registra ogni dettaglio su stderr",
     "questions-defer-after": "--questions-defer-after <seconds>  Rimandare le domande dopo 60 secondi per impostazione predefinita; 0 mai, 1–9 valgono 10, massimo 3600",
     "help": "help / --help / -h: ACP / CLI. help --all: Comandi, impostazioni e funzionalità, con descrizioni e documentazione.",
@@ -2894,6 +2895,22 @@
       "anchorDate": "Data di riferimento (nel fuso orario della pianificazione)",
       "stateUnknown": "Stato sconosciuto — Riprova",
       "retry": "Riprova"
+    },
+    "runtime": {
+      "usage": "Uso: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json] Codici di uscita: 0 successo, 1 rifiuto, 2 uso errato, 3 avviso di pulizia.",
+      "accepted": "Richiesta di pianificazione accettata",
+      "empty": "Nessuna pianificazione o esecuzione imminente.",
+      "unavailable": "Le pianificazioni non sono disponibili su questo host. È necessario il collegamento al pianificatore del runtime.",
+      "invalidRequest": "Richiesta di pianificazione non valida. Controlla la bozza, l’identificatore e le opzioni.",
+      "invalidResponse": "Il pianificatore ha restituito una risposta non valida.",
+      "consentRequired": "La pianificazione in background richiede un Sì esplicito.",
+      "backgroundUnavailable": "La pianificazione in background non è disponibile su questo host.",
+      "backgroundRearmUnavailable": "La pianificazione in background attende la fine di un’esecuzione o la scadenza dell’intervallo di rimozione. Riprova tra poco.",
+      "unsafeLauncher": "Percorso non sicuro dell’avviatore delle pianificazioni: {path}",
+      "paidAuthorizationRequired": "Le pianificazioni a pagamento richiedono --scheduled-prompts e un --max-budget-usd esplicito che copra entrambi i limiti di spesa.",
+      "cleanupFailed": "La richiesta di pianificazione è terminata, ma la pulizia non è riuscita. Conserva l’ID accettato; il codice di uscita 3 indica che la pulizia richiede attenzione.",
+      "hostUnavailable": "Il servizio di pianificazione non è stato avviato per questo spazio di lavoro. I controlli non sono disponibili; la chat ordinaria resta disponibile.",
+      "wakeBarrierTimeout": "L’avvio pianificato ha superato il tempo di attesa della sincronizzazione in background. Nessuna attività pianificata è stata avviata."
     }
   }
 }

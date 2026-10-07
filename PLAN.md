@@ -302,6 +302,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 | Webview Tasks import closure          | ≤ 25 KiB (STARTDIET: TasksApp.tsx and its boundary; first split 1.4 KiB by the same rule)                                                                                                                                                                                                                                                                                                              |
 | `.vsix`                               | ≤ 2400 KiB compressed (REL0142 round 3, 2026-10-06: 2,325,575-byte universal package after removing duplicate reference Markdown, +5%, rounded up to 25 KiB; owner-authorized 0.14.2 Help reference rule; `check-vsix-size.mjs` in the package job)                                                                                                                                                    |
 | `dist/acp.js`                         | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
+| `dist/scheduleBackground.js`          | ≤ 50 KiB (REDM115X: native schedule IO, effective definitions, registration and Windows shared path rule, loaded on the first wake/maintenance; initially 44.0 KiB, no ACP growth)                                                                                                                                                                                                                     |
 | `dist/planMarkdown.js`                | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                                                                        |
 | `dist/checkpointStore.js`             | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                   |
 | `dist/uiText.js`                      | ≤ 125 KiB (original cap retained; ACTDIET regional core 116,791 bytes)                                                                                                                                                                                                                                                                                                                                 |
@@ -14047,6 +14048,83 @@ axe coverage. Each finding gets an unmodified-component regression and a
 byte-exact restored red drill in `docs/certification/m115-v.md`.
 No dependency, gate weakening, branch merge or live/paid call. The brief
 reserves aggregate quality and final host/help/shipping bindings for W/lead.
+
+### FIXM115X5 — RVM115X4 repair (2026-10-06)
+
+Keep the native adapter architecture and repair both P1 findings and the P2
+retirement finding. Ask `systemd-analyze --user unit-paths` for every search
+root and verify its existing ancestry plus every applicable unit/type/prefix
+drop-in directory, including absent directories, at registration and each
+launcher fire. Unknown definition files still refuse; failed Linux registration
+must disable/stop the timer. Verify Task Scheduler's task-object descriptor
+through `GetSecurityDescriptor` as well as its folder: only the user, SYSTEM
+and Administrators may own/write scheduler objects. macOS retirement disables
+the native job before publishing the disabled record, then retains the bounded
+grace/marker/idle-print barrier before bootout and plist removal.
+
+Each finding gets a failing regression and a byte-exact restored red drill.
+Run owned suites with repository deadlines, scoped static gates and build on
+Kubuntu. A disposable user unit may be exercised and must be removed; native
+macOS and ordinary-user Windows reruns remain owed. No dependency, merge,
+push, paid/model call, guard widening or aggregate quality run is authorized.
+
+### REDM115X — Native launcher trust redesign (2026-10-06)
+
+Replace X's per-OS ancestry checks with the M104 `TrustedPathVerifier` port:
+`verify(path, { leafKind })` returns a canonical accepted path or a refusal
+with component and reason. X supplies Windows ACL/reparse verification and
+shared JSON vectors; REDM104L3 supplies the POSIX implementation at integration
+(named **M104/TRUSTED-PATH** handoff). Windows drive-root folder-only append
+and inheritance-only ACEs cannot replace an existing child and are safe;
+untrusted intermediate append, write/delete/permission rights and reparse
+points refuse. No unbound verifier returns success.
+
+Ask systemd for FragmentPath, DropInPaths and SourcePath for both units,
+verify every returned path/chain, and record their ordered content digest.
+Unknown additions refuse before activation and on every fire. Export the
+Windows task through its COM API, verify its action and folder security,
+and bind the exported XML digest to the registration. Native definitions
+use a fixed per-user Task Scheduler folder with a protected user/SYSTEM/
+Administrators DACL: the rig's standard scheduler root allows untrusted
+entry creation and cannot itself pass the folder rule. No existing folder's
+ACL is rewritten; an unsafe existing folder refuses. Native definitions
+carry only the launcher and record id; authority remains in the record.
+macOS disables the verified record before removal/replacement and retains
+it until a complete wake interval has elapsed and one locked reconciliation
+finds no starting/running instance. No barrier waits under that lock.
+
+Keep new code outside ACP in a lazy runtime schedules background chunk;
+never raise a cap. Run owned suites with default deadlines, native Windows
+ACL probes, three required byte-exact red drills, scoped static gates and
+build. Kubuntu systemd and Mac mini launchd native receipts remain explicit
+integration handoffs; no model or paid call is authorized.
+
+### FIXM115X3 — RVM115X2 repair (2026-10-06)
+
+Fix all four round-two findings in X's existing files. Trust-check native
+definition files, their complete directory chains and the registration record
+before OS import and every wake; bind the exact definition content hashes to
+that record. Native arguments carry only its id, while the verified record
+supplies the explicit paid flag and hard budget to engine admission. Make
+macOS reconciliation refuse a live wake immediately rather than waiting under
+the consent lock; bound and report the wake startup barrier. Preserve ACP's
+accepted id together with its cleanup warning. Use complete owned suites with
+default deadlines, per-fix failing regressions and byte-exact red drills. No
+new dependency, real OS entry, merge, push or widened guard is authorized.
+
+### FIXM115X — Repair runtime schedule review findings (2026-10-06)
+
+Repair RVM115X's P1 launcher trust and seven P2 findings in X's adapters:
+canonical launcher/script existence and owner/ancestor permissions at registration
+and wake; privileged identity refusal; explicit paid flag and budget with caller
+context through the common surface; independent bounded schedule teardown after
+Stop starts; accepted-id preservation with separate cleanup warning/exit status;
+unconditional verified Linux timer/service removal; active-wake protection and
+after-exit macOS maintenance; visible ACP schedule-host startup failure.
+Use fake OS ports only, no dependency or broader guard, default test deadlines,
+one failing regression and byte-exact restored drill per fix. Record any named
+residual in §9 and `docs/certification/m115-x.md`. The rig brief reserves aggregate
+quality for W/lead; no branch merge, push or real OS registration is authorized.
 
 ### FIXM115L0 — Freeze corrected schedule contracts (2026-10-06)
 
@@ -31111,6 +31189,14 @@ remain available.
 
 M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; full `npm run quality` remains the lead's aggregate gate. After deferring paid review the Model API bundle stayed 2.8 KiB over 400 KiB; the lead revisited its budget to 475 KiB by the repository's rule (Q-M78b). See `docs/certification/m78.md` and the lane's `m78/BUNDLE.md` handoff.
 
+FIXM115X (2026-10-06) follows the rig brief's prohibition on aggregate quality:
+the lane runs complete owned test files, typechecks, changed-file lint/format,
+localization, deadcode, duplication and production build checks. Full quality
+remains W/lead's required integration gate. `check:host-api` exposes the named
+generated-record drift; W owns regeneration. The feature catalogue/reference
+generator is absent on this base, so its gate and shipping documentation are
+also W handoffs. No gate configuration, rule or threshold is weakened.
+
 ## 8. Escape hatches register
 
 | Location                                                                                                            | Escape hatch                                               | Reason                                                                                                                                                                                                                                                   |
@@ -31443,6 +31529,99 @@ before a repaired one loads (2026-09-30).
   its commands and corrected help with the existing integration bindings.
   Aggregate quality/platform/live proof stays with W/lead; no paid or live
   call is authorized here. Receipts: `docs/certification/m115-v.md`.
+- **FIXM115X5 review repair supersedes REDM115X's search/task/retirement claims.**
+  Both RVM115X4 P1 findings and its P2 are fixed without deferral. Registration
+  and launcher fires query all systemd search roots and verify existing
+  ancestry for missing directories too, including unit, type and dash-prefix
+  drop-ins. Unaccounted effective files still refuse; failed reconciliation
+  disables/stops the timer. Windows verifies the task leaf descriptor and its
+  folder with user/SYSTEM/Administrators ownership/write rights; trusted path
+  verification retains its original OS-owner rule. macOS disables the native
+  job before publishing the verified disabled record, keeps the full grace
+  interval and refuses a live/starting/unknown instance before bootout.
+- **FIXM115X5-NATIVE-RECEIPTS.** Kubuntu natively refuses an empty writable
+  disposable drop-in directory and leaves no timer armed. Positive native
+  registration is blocked by the rig's existing writable
+  `/home/randy/.local/share` ancestry; its permissions were not changed and
+  no guard was weakened. Safe for now: the production POSIX binding remains
+  unbound and unsafe/missing paths refuse. Follow-up: W runs positive native
+  Linux registration/fire/removal on a trusted profile, Mac mini disable-first
+  interleavings, and ordinary-user Windows task-descriptor/update/wake tests.
+  The seam's atomic-disable model follows the lead's decision; a native macOS
+  receipt must confirm it. No unconditional native macOS race claim is made.
+  S/U/W production consent/admission/settlement and aggregate quality remain
+  required. No reviewed finding is silently retained.
+
+- **REDM115X supersedes the native trust/lifecycle claims below.** Native
+  paths use `TrustedPathVerifier`; X supplies the Windows implementation
+  and shared vectors, including the actual Win11 C-drive ACL. M104's POSIX
+  implementation is a named integration binding; an absent verifier refuses.
+  systemd's full manager-reported fragment/drop-in/source set is checked;
+  extra definitions refuse before activation and at fire, and ordered content
+  is hashed. Windows verifies the exported task XML, action path and protected
+  per-user task folder; it never rewrites an existing unsafe folder's ACL.
+  launchd retirement publishes and verifies the disabled record before OS
+  disable. Its grace interval starts only after successful native disable,
+  lasts a full calendar wake quantum, and a locked reconciliation refuses a
+  starting/running instance or unknown print. W must arrange the subsequent
+  reconciliation outside the lock with a fresh next wake; the record remains
+  disabled until then. The bounded startup barrier never waits for retirement.
+  Same-user processes and trusted OS owners remain outside the security
+  boundary. Native Kubuntu, Mac mini and ordinary-token Windows task receipts,
+  M104/POSIX binding, production S/U/W wiring and aggregate quality remain
+  integration requirements, not claims made by this lane's fake suites.
+
+- **FIXM115X3 round-two review repair.** All four RVM115X2 findings are
+  repaired; none is deferred. Native definitions and the registration record
+  require trusted owners, no untrusted writable ancestor, and no symlink,
+  junction or reparse point. Parent chains are checked before creation;
+  published bytes are hashed and checked before OS import and at every native
+  fire. The record id must match the per-user registration; the record must
+  name the exact platform definitions and running canonical launcher/script.
+  Native arguments carry only that id. Paid flags and the finite hard budget
+  come from S's explicit persisted authorization at registration and from the
+  verified record at each fire; a missing flag leaves paid features off.
+  W must bind the required authorization and wake-verification ports, including
+  the same home/data folder in every host, before shipping the scheduler.
+  Reconciliation probes a live macOS wake without waiting under the consent
+  lock; it reports busy and releases the lock. The startup barrier has a named
+  five-second deadline and refuses before acquiring controls on failure. Only
+  independent after-exit maintenance waits for kernel exit. ACP preserves both
+  the accepted id and the translated cleanup warning. The existing named
+  OS-receipt and W-binding/help-reference handoffs below remain unchanged in
+  scope; there is still no production schedules bundle or paid-call receipt.
+
+- **FIXM115X review repair.** RVM115X's P1 and all seven P2 findings are
+  repaired in the internal adapters; no review finding is deferred. Paid
+  creation requires trusted caller metadata with the explicit flag and a hard
+  budget covering both caps before engine admission. The same surface serves
+  editor, CLI and ACP requests. Native creation and wakes verify the canonical
+  launcher/script and every named/resolved ancestor's owner and permissions;
+  root, effective root, Windows service identities and elevated tokens refuse.
+  macOS wakes publish PID/start-identity locks and cross the shared consent
+  mutation lock before engine startup, then queue a detached helper only
+  after settlement; that helper waits for kernel exit
+  before reconciliation. Busy/unknown states and bounded retry failures refuse
+  mutation. The scheduling user and trusted OS owners can still change their
+  own installation; this is the explicit trust boundary, not code signing.
+- **FIXM115X-OS-RECEIPTS.** This repair authorizes no real OS entries. Linux's
+  disabled-but-active removal and macOS's running-wake/rearm receipts use fake
+  platform ports. Windows ACL policy uses real native ACL operations on fake
+  security descriptors; the rig itself is elevated and must refuse creation.
+  Safe for now: the shipping factory remains unbound and every unsafe/unknown
+  native state refuses. Follow-up: W runs exact packaged native receipts on
+  Linux, macOS and a normal Windows identity before claiming support.
+- **FIXM115X-W-BINDINGS-HELPREF.** This base has no feature catalogue/reference
+  generator or real schedules bundle. X supplies CLI help (paid flags and
+  exit 3), caller metadata, wake locks and the internal `background-maintain`
+  command. Safe for now: missing bindings explicitly refuse; no manifest or
+  shipping support is added. Follow-up: W binds the shared editor caller's
+  actual gate/budget, S/U consent and settlement, the same per-user data folder
+  in every host, and the helper's ordinary non-wake native adapter; publishes
+  README/ACP/reference entries and regenerates the host API record, then runs
+  aggregate quality and platform certification. After-exit retries are bounded
+  to five minutes; a crashed wake, failed helper or longer exit needs the next
+  editor/CLI reconciliation and never authorizes unloading a live wake.
 
 - **FIXM115L0 contract scope.** All six RVM115L0 findings are repaired;
   none is deferred. These are unshipped internal schedule contracts, not
