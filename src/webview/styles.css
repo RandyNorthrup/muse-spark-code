@@ -6,33 +6,7 @@
    first, then state rules from lowest to highest specificity
    (:disabled and :focus-visible before :hover:enabled). */
 
-:root {
-  --ms-gap: 8px;
-  --ms-radius: 6px;
-  --ms-icon-size: 16px;
-  --ms-control-size: 26px;
-
-  /* The painted height of the toolbar's labelled pills: the model pill and
-     the open-file, reference and shell chips. */
-  --ms-chip-height: 20px;
-
-  /* The shortest the model pill gets in a narrow panel. */
-  --ms-pill-min-width: 2.5rem;
-
-  /* A card's text button (the approval choices): one line, one height. */
-  --ms-button-height: 28px;
-
-  /* The chat column (the owner's requests of 2026-10-04): the transcript, the
-     panes and dock above the composer, and the composer share one centred
-     column this wide, side gutters included, as Claude Code's panel does. */
-  --ms-column-max-width: 760px;
-
-  /* The column's distance from each panel edge once the panel is wider. It is
-     taken from the panel (the webview's viewport), not from the transcript's
-     scroller, so the scrollbar never moves the transcript off the composer. */
-  --ms-column-inset: max(0px, (100vw - var(--ms-column-max-width)) / 2);
-  --ms-column-gutter: calc(var(--ms-column-inset) + var(--ms-gap));
-}
+@import url('tokens.css');
 
 html,
 body {
@@ -125,7 +99,7 @@ body {
   border-radius: 999px;
   background: var(--vscode-button-background);
   color: var(--vscode-button-foreground);
-  box-shadow: 0 2px 8px rgb(0 0 0 / 30%);
+  box-shadow: var(--ms-elevation-raised);
   cursor: pointer;
 }
 
@@ -1131,7 +1105,7 @@ body {
 }
 
 .tool-dot-ok {
-  background: var(--vscode-testing-iconPassed, #3fb950);
+  background: var(--ms-success);
 }
 
 .tool-dot-failed {
@@ -1397,11 +1371,11 @@ body {
 }
 
 .diff-add {
-  background: var(--vscode-diffEditor-insertedLineBackground, rgb(46 160 67 / 20%));
+  background: var(--ms-diff-added);
 }
 
 .diff-remove {
-  background: var(--vscode-diffEditor-removedLineBackground, rgb(248 81 73 / 20%));
+  background: var(--ms-diff-removed);
 }
 
 .diff-hunk {
@@ -1526,9 +1500,9 @@ body {
   border-radius: 50%;
   background: radial-gradient(
     circle at 50% 0%,
-    oklch(11.86% 0.0248 260.66deg),
-    oklch(31.33% 0.1419 260.73deg),
-    oklch(60.61% 0.2122 260.66deg)
+    var(--ms-status-low),
+    var(--ms-status-mid),
+    var(--ms-status-high)
   );
   mix-blend-mode: lighten;
   transform: translate(
@@ -3073,7 +3047,7 @@ li:focus-within > .row-actions .row-actions-button,
   align-items: center;
   justify-content: center;
   padding: var(--ms-gap);
-  background: color-mix(in srgb, var(--vscode-editor-background) 55%, transparent);
+  background: var(--ms-modal-scrim);
 }
 
 .modal {
@@ -3208,7 +3182,7 @@ li:focus-within > .row-actions .row-actions-button,
 }
 
 .agent-dot-failed {
-  background: var(--vscode-testing-iconFailed, #f14c4c);
+  background: var(--vscode-testing-iconFailed, var(--ms-danger-legacy));
 }
 
 @keyframes agent-pulse {

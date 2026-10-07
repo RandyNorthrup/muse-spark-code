@@ -28238,6 +28238,35 @@ N with M110a0.
 Total: about 165 lane-hours: the panel's part (0, A, P1, P2, C, F, S) about
 135, D and N about 30 with their milestones.
 
+- **Lane 0 implementation record (2026-10-06):**
+  [the frozen token contract](design/tokens/README.md) names the DTCG source,
+  generated startup CSS, extended host-role CSS, four-mode palette CSS and
+  resolved TH/TD/native inputs. `check:tokens` checks staleness and declared
+  contrast uses; stylelint and ESLint guard raw colours, including the base's
+  additional SVG paint, OKLCH stops and modal colour mix. The complete current
+  component inventory and golden path contract are in
+  `test/harness/visual-matrix.json`; A owns the grades and S the final goldens.
+  [The lane's certification](docs/certification/m114-0.md) records its red
+  drills, scoped verification, sizes and named integration handoffs.
+  The supplied One Dark Pro 3.20.2 and Dracula 2.25.1 archives now have
+  captures with exact MIT texts and archive/member digests. Omitted colours
+  are resolved from VS Code 1.130.0 in isolated, data-only development themes;
+  neither VSIX is installed. Their matrix rows record 43 contrast comparisons,
+  including nine AA failures for A/P1/P2. These colour captures do not certify
+  polished components. S retains final accessibility and visual certification.
+
+- **Lane 0 review repair completed (RVM114L0, 2026-10-06):** fixed the standalone
+  accessibility cascade by generating palette declarations and every
+  reduced-transparency, reduced-motion, high-contrast and forced-colour
+  override from the same selector list, with overrides after the palettes.
+  The real generated CSS is verified in jsdom with themes on html, body and
+  nested main. The colour guard's hex terminator accepts any non-hex character
+  or end, and one selector checks template raw/cooked values so each offending
+  template reports once. Both findings are fixed, with 76 passing scoped tests
+  and nine byte-exact red drills in `docs/certification/m114-0.md`. Scoped
+  static/build checks pass; the existing S-owned host-API record and changelog
+  handoffs remain, with full quality still assigned to the lead by §7.
+
 - **Lane 0's contracts,** frozen before the other lanes start:
   - the token names and groups, with each role's VS Code variable and its
     Muse palette values;
@@ -30210,6 +30239,22 @@ production build directly on Kubuntu. The frozen Q base's U-owned
 `uiState.ts:2452` reducer and A-owned generated host-API inventory are already
 named integration handoffs in `docs/certification/m112-q.md`; do not weaken
 either gate or claim them green. No review finding is deferred.
+
+**M114 lane 0 scoped gate delegation (2026-10-06).** The rig/shared brief
+prohibits full quality/full unit runs and edits to another lane's owned files.
+The token foundation is checked with its owning suites, deliberate failures,
+all compiler projects, scoped lint/format, dead-code, duplication,
+localization and the production build. Full integrated quality, coverage,
+the polished-surface accessibility/visual matrix and editor bindings remain
+with the lead and lanes A/C/D/N/S. No gate or threshold is weakened.
+
+**M114 lane 0 host-API record handoff to S.** `check:host-api` exits 1 only
+because the source list for the same 61 theme variables now includes the
+generated `src/webview/tokens.css`. The API counts and policy are unchanged.
+M114's file table assigns `docs/ide-compatibility/**` to S, so this lane
+leaves that generated document untouched. S runs
+`npm run check:host-api -- --write`, reviews the source-path-only row and
+reruns the gate. This documentation gate is deferred, never claimed green.
 
 **CIFIX14T verified local result (2026-10-05).** The five owning suites
 pass 113 tests (six existing Windows-only skips); the exact restored monitor

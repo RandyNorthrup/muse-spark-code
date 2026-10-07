@@ -1212,7 +1212,7 @@
   },
   "scripts": {
     "clean": "rimraf dist coverage",
-    "build": "node scripts/build.mjs --production && node scripts/check-bundle-size.mjs && node scripts/check-bundle-split.mjs && node scripts/check-host-globals.mjs && node scripts/third-party-notices.mjs",
+    "build": "node scripts/check-tokens.mjs && node scripts/build.mjs --production && node scripts/check-bundle-size.mjs && node scripts/check-bundle-split.mjs && node scripts/check-host-globals.mjs && node scripts/third-party-notices.mjs",
     "notices": "node scripts/build.mjs --production && node scripts/third-party-notices.mjs --write",
     "build:dev": "node scripts/build.mjs",
     "watch": "node scripts/build.mjs --watch",
@@ -1247,7 +1247,7 @@
     "test:integration:run": "vscode-test",
     "security:audit": "node scripts/audit.mjs",
     "security:secrets": "gitleaks git --redact --no-banner .",
-    "quality:gates": "run-s format:check lint typecheck check:badges check:l10n check:reference check:host-api deadcode cycles duplication test:unit build security:audit",
+    "quality:gates": "run-s format:check lint typecheck check:badges check:tokens check:l10n check:reference check:host-api deadcode cycles duplication test:unit build security:audit",
     "quality": "run-s quality:gates test:a11y security:secrets security:sast",
     "quality:ci": "run-s quality:gates test:a11y test:integration",
     "vscode:prepublish": "npm run build",
@@ -1258,7 +1258,9 @@
     "security:sast": "node scripts/sast.mjs",
     "schema:exec": "node scripts/exec-schema.mjs",
     "reference:generate": "node scripts/gen-reference.mjs",
-    "check:reference": "node scripts/gen-reference.mjs --check"
+    "check:reference": "node scripts/gen-reference.mjs --check",
+    "build:tokens": "node scripts/build-tokens.mjs",
+    "check:tokens": "node scripts/check-tokens.mjs"
   },
   "lint-staged": {
     "{*.{ts,tsx,mjs},!(vendor)/**/*.{ts,tsx,mjs}}": [
