@@ -18856,11 +18856,11 @@ summaries. Update Help & Reference in all 14 languages and README images.
 Sized screenshot captures must wait for the same scenario, fonts and paints
 as wide captures: the existing early locator wait raced lazy question UI.
 
-- [ ] Implement the marker and explicit dock navigation; owning tests and
+- [x] Implement the marker and explicit dock navigation; owning tests and
       a deliberate duplicate-card regression drill with byte-exact restore.
-- [ ] Restore question.png beside approval; regenerate question-related
+- [x] Restore question.png beside approval; regenerate question-related
       README shots and question accessibility scenes in all four themes.
-- [ ] Commit with hooks; verify a fresh clone with npm ci and CI=true:
+- [x] Commit with hooks; verify a fresh clone with npm ci and CI=true:
       complete owning suites three times at default timeouts, five
       typechecks, lint, format, plain knip, duplication, build, reference
       and localization, keeping all thresholds unchanged.
@@ -40927,6 +40927,17 @@ is relaxed. No live or paid calls, push, rebase or merge.
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
+
+### QPIN lane verification (2026-10-07)
+
+The rig brief scopes this repair to fresh-clone owning suites three times at
+default deadlines, five typechecks, lint, formatting, plain knip, duplication,
+unchanged build caps, reference and localization, plus question screenshots
+and four-theme accessibility. All passed; receipts are in
+`docs/certification/question-pinned.md`. Full `npm run quality`, unrelated
+repository coverage and native/installed-editor/live certification remain
+with release integration. This is a scoped run, not a gate relaxation: no
+rule, ignore, threshold, budget or deadline changed.
 
 **CI0150M round 3 aggregate status (2026-10-07).** The attempted unmodified
 `npm run quality` passes static gates, then fails whole-repository tests in

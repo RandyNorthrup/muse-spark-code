@@ -646,11 +646,12 @@ through the ACP agent on both backends are recorded in
 [M112's certification](docs/certification/m112.md); installed-editor checks
 remain with the release lead.
 The integrated panel pins agent questions in the attention dock above the
-composer, after approvals, and keeps the same card in the transcript. After
+composer, after approvals, and keeps only a compact marker in the transcript. After
 one minute Muse continues work that does not depend on the answer. The card
 becomes an **Open question**. Its compact transcript marker keeps the icon,
 title and **Answer** button. Answer reopens the pinned card and focuses its first
-control, even after deferral; the open-question chip also opens it. A card with focus or a draft stays expanded. **Dismiss** closes an open
+control, even after deferral; the open-question chip also opens it. A card with
+focus or a draft stays expanded. **Dismiss** closes an open
 question without guessing an answer. Approvals still wait for your decision;
 MCP forms keep their five-minute expiry and cannot be answered after expiry.
 
