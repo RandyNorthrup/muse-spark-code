@@ -2724,6 +2724,7 @@
   "playbookHelpDescription": "Afficher les cycles de revue, décisions de conception, refus de sécurité et paramètres des règles.",
   "playbookCommandUsage": "Utilisez `playbook status|record|settings`.",
   "playbookSave": "Enregistrer les paramètres",
+  "playbookSaved": "Les paramètres du guide ont été enregistrés.",
   "playbookRules": {
     "threeStrikes": "Refondre après trois échecs",
     "onePassReview": "Examiner toutes les classes en une passe",

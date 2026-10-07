@@ -2628,6 +2628,7 @@
   "playbookHelpDescription": "Felülvizsgálati körök, tervezési döntések, biztonsági elutasítások és szabálybeállítások megjelenítése.",
   "playbookCommandUsage": "Használat: `playbook status|record|settings`.",
   "playbookSave": "Beállítások mentése",
+  "playbookSaved": "A kézikönyv beállításai mentve.",
   "playbookRules": {
     "threeStrikes": "Három sikertelen kör után újratervezés",
     "onePassReview": "Minden osztály áttekintése egy menetben",

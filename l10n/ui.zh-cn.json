@@ -2532,6 +2532,7 @@
   "playbookHelpDescription": "显示审查轮数、设计决策、安全拒绝和规则设置。",
   "playbookCommandUsage": "请使用 `playbook status|record|settings`。",
   "playbookSave": "保存设置",
+  "playbookSaved": "操作手册设置已保存。",
   "playbookRules": {
     "threeStrikes": "三次失败后重新设计",
     "onePassReview": "一次审查所有类别",

@@ -2628,6 +2628,7 @@
   "playbookHelpDescription": "Prüfrunden, Entwurfsentscheidungen, Sicherheitsablehnungen und Regeleinstellungen anzeigen.",
   "playbookCommandUsage": "Verwenden Sie `playbook status|record|settings`.",
   "playbookSave": "Einstellungen speichern",
+  "playbookSaved": "Die Einstellungen des Leitfadens wurden gespeichert.",
   "playbookRules": {
     "threeStrikes": "Nach drei erfolglosen Runden neu entwerfen",
     "onePassReview": "Alle Klassen in einem Durchgang prüfen",

@@ -1362,6 +1362,8 @@ export const PLAYBOOK_LINE_HASH_CHARS = 8
 export const PLAYBOOK_HOOK_NAMES = ['pre-commit', 'commit-msg', 'pre-push'] as const
 export const PLAYBOOK_RECORD_FOLDER = 'playbook/v1'
 export const PLAYBOOK_ID_MAX_CHARS = 128
+// 128 random bits fence each postMessage bridge lifetime, plus its request counter.
+export const PLAYBOOK_BRIDGE_ID_BYTES = 16
 export const PLAYBOOK_FINDING_CLASSES = [
   'validation',
   'security',

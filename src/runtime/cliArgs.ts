@@ -20,6 +20,13 @@ import {
 import { fill } from '../shared/l10n/text'
 import { parseExec, type ExecOptions } from './exec/execArgs'
 import { questionDeferSeconds } from '../shared/questionDeadline'
+import { parsePlaybookCommand } from './playbook/command'
+
+/** U's CLI route; the runtime entry owner binds runPlaybookCommand to P's
+ * journal before the general ACP/auth parser. No model process is needed. */
+export function parsePlaybookCommandLine(argv: readonly string[]) {
+  return argv[0] === 'playbook' ? parsePlaybookCommand(argv.slice(1)) : undefined
+}
 
 export interface ServeOptions {
   /** Which account pays; chosen here, never guessed (D62). */

@@ -2724,6 +2724,7 @@
   "playbookHelpDescription": "Mostrar rodadas de revisão, decisões de projeto, recusas de segurança e configurações das regras.",
   "playbookCommandUsage": "Use o comando `playbook status|record|settings`.",
   "playbookSave": "Salvar configurações",
+  "playbookSaved": "As configurações do manual foram salvas.",
   "playbookRules": {
     "threeStrikes": "Redesenhar após três tentativas malsucedidas",
     "onePassReview": "Revisar todas as classes em uma passagem",

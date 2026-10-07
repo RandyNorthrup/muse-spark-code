@@ -1,0 +1,5762 @@
+[
+  {
+    "locale": "en",
+    "theme": "light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "en",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-cn",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "zh-tw",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ja",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ko",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "de",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "fr",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "es",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pt-br",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "ru",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "it",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "tr",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "pl",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "cs",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "hc-light",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "hc-light",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "hc-dark",
+    "width": 320,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "status",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "record",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "settings",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  },
+  {
+    "locale": "hu",
+    "theme": "hc-dark",
+    "width": 690,
+    "scene": "notes",
+    "violations": [],
+    "geometry": {
+      "overflow": false,
+      "equalButtons": true
+    },
+    "errors": []
+  }
+]

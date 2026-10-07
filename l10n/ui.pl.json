@@ -2820,6 +2820,7 @@
   "playbookHelpDescription": "Pokaż rundy przeglądu, decyzje projektowe, odmowy bezpieczeństwa i ustawienia reguł.",
   "playbookCommandUsage": "Użyj `playbook status|record|settings`.",
   "playbookSave": "Zapisz ustawienia",
+  "playbookSaved": "Ustawienia podręcznika zostały zapisane.",
   "playbookRules": {
     "threeStrikes": "Przeprojektuj po trzech nieudanych rundach",
     "onePassReview": "Sprawdź wszystkie klasy w jednym przebiegu",

@@ -41,6 +41,13 @@ happened, not what was planned; superseded entries are kept.
   member's maximum strikes and lifetime counts. Shared policy is implemented;
   editor/planner bindings remain M116 I/U/W work.
 
+- Fence shared playbook replies by bridge lifetime, request and workspace so
+  late replies from a disposed surface cannot populate another workspace.
+- Show owner failures and unresolved redesigns before warnings and review
+  statistics in playbook badges and selected-agent details. Settings saves
+  preserve other drafts, restore keyboard focus, and announce success politely.
+- Refresh changed playbook fields from each saved server record, including
+  another window's lowered round limit, so stale controls cannot overwrite it.
 
 ## [0.14.3] - 2026-10-06
 ### Added

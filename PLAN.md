@@ -28745,6 +28745,26 @@ Total: about 100 lane-hours.
 
 ### M116 — The orchestrator playbook (D96)
 
+**U second-review repair (RVM116U2, 2026-10-06).** Fix the one P2:
+a successful rule save reconciles every changed settings field with the
+returned authoritative record, including an unedited round-limit selector.
+Reconcile before rendering enabled controls, retain drafts for fields whose
+durable values did not change, and keep the existing focus/live-result
+behavior. Regress saving Offload after another window changes the durable
+round limit and an unrelated rule. Record a named byte-exact red drill and
+scoped default-timeout checks in `docs/certification/m116-u.md`. No redesign,
+new dependency or widened guard is needed; P/I/W handoffs stay unchanged.
+
+**U review repairs (RVM116U, 2026-10-06).** Fix all three P2 findings in
+U's shared surfaces, with no review residuals: match transport replies on a
+random 128-bit bridge lifetime id, request counter and workspace id; use
+the same ordering function for notes, badges and combined agent details
+(owner failures/unresolved redesigns, warnings, statistics); preserve
+unrelated setting drafts when saving a field patch, restore the submitting
+control's focus (or the saved rule heading), and announce successful saves
+through a polite live region. Add regressions and byte-exact red drills in
+`docs/certification/m116-u.md`. Existing P/I/W integration handoffs remain.
+
 **Status 2026-10-06: planned.** Small: about 60 lane-hours in lane 0 and four
 lanes. No model call is needed; every test runs on a fake review loop and a
 fake board. M96's plan is on its own branch, so the playbook's lanes sit here
@@ -29575,6 +29595,14 @@ receipt/generation/merge and round-2 mutation failures with byte-exact restores
 in `docs/certification/m116-p.md`. Full joined-tree quality and trusted
 editor/planner bindings remain the lead/I/U/W integration work; no gate is
 weakened and no round-2 finding is accepted as a residual.
+**M116-U repair certification (RVM116U/RVM116U2).** The rig brief reserves the full
+quality run for the lead and requires scoped local checks with default test
+timeouts. U does not change the inherited failing bundle/knip registration
+gates: W must register the three lazy playbook entries and the two harness
+entrypoints before integration can go green. This is the existing named
+integration deferral, not a cap, ignore or rule change. Repair regressions,
+disk-mutated red drills and their byte-exact restores are recorded in
+`docs/certification/m116-u.md`.
 
 **BADGEFIX bounded rig certification (2026-10-05).** The lane/shared brief
 prohibits aggregate `npm run quality`, pushes, merges and rebases. Run owning
@@ -31039,6 +31067,22 @@ before a repaired one loads (2026-09-30).
   renew reservations while work runs, release canceled work, surface lost
   history's `needsUser` error, and bind override authority to the user's actual
   decision. These planned integrations remain outside P's certification.
+- **M116-U review repair (RVM116U2).** The second review's one P2 is fixed:
+  changed durable fields reconcile before enabled controls render, including
+  the round-limit selector after a rule save. No review residual is retained;
+  regression tests and byte-exact red-drill evidence are in
+  `docs/certification/m116-u.md`. Existing P/I/W integration handoffs below
+  remain open; no gate, budget or safety guard was widened.
+
+- **M116-U review repair (RVM116U).** All three P2 findings are fixed; none
+  is retained as a review residual. Shared bridges require a caller-supplied
+  workspace id and host replies echoing the bridge/workspace correlation
+  fields. The same shared React changes serve VS Code, native hosts and the
+  companion; shared formatting serves CLI/ACP. P/I's authenticated durable
+  bindings and W's bundle/harness/docs/help registration remain the previously
+  named integration handoffs in `docs/certification/m116-u.md`. This base has
+  no feature catalogue or reference generator; W registers the integrated
+  surfaces when those files join. U introduces no released-support claim.
 
 - **M116-L0 enforcement handoff (RVM116L0).** All six lane-0 review findings
   are fixed in the contracts/fixtures; none is deferred as a residual.
