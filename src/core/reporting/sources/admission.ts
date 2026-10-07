@@ -11,7 +11,8 @@ export interface ReportAdmissionState<G> {
 }
 export type ReportAdmissionEvent<G> =
   | {
-      readonly type: 'requested' | 'transportFailed' | 'aborted' | 'timedOut' | 'released'
+      readonly type:
+        'requested' | 'transportFailed' | 'effectFailed' | 'aborted' | 'timedOut' | 'released'
       readonly generation: G
     }
   | {
@@ -123,9 +124,18 @@ export function reportAdmissionStep<G>(
     }
     case 'aborted':
     case 'timedOut':
-    case 'transportFailed': {
+    case 'transportFailed':
+    case 'effectFailed': {
       if (current.phase !== 'releasing')
-        return retire(event.type === 'transportFailed' ? 'source-failed' : 'source-deadline')
+        return retire(
+          event.type === 'transportFailed' || event.type === 'effectFailed'
+            ? 'source-failed'
+            : 'source-deadline',
+        )
+      // A failed refusal still needs a safe rejection; its pending release
+      // effect continues in the shell without retiring the owner twice.
+      if (event.type === 'effectFailed')
+        effects.push({ type: 'refuse', generation, reason: 'source-failed' })
       break
     }
     case 'released': {

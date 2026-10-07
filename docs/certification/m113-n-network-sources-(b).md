@@ -622,3 +622,95 @@ remain named W integration handoffs and are not claimed green.
 The final certification-only commit also uses enabled hooks and explicit
 paths. No live service, model attempt, paid call, dependency install, merge,
 rebase, push, credential access or machine-setting change occurred.
+
+## Final repair RVM113N4 (2026-10-06)
+
+The review confirmed one P2: a finite rate floor outside Date's representable
+range made refusal formatting throw after the reducer entered `releasing`.
+The shell then skipped its sibling release effect, and `transportFailed`
+could not retire an already releasing owner. The new natural-header
+regression failed on reviewed HEAD: two same-host refusals had not settled
+after all immediate work, before the source deadline. The complete cache
+suite returned 1 failed / 51 passed with default timeouts.
+
+The effect loop now catches each synchronous throw, sends a generation-tagged
+`effectFailed` event to the existing reducer, and continues sibling effects.
+In `releasing`, the reducer emits a fixed `source-failed` refusal; the original
+release still runs exactly once. In earlier phases it retires the owner,
+cancels any owned response and releases. Stale failures are ignored by the
+unchanged generation guard. Async transport failures and cancellation
+rejections retain their existing contained paths. No exception detail reaches
+the source result. The numeric rate floor is preserved; an unrepresentable
+reset cannot authorize another dispatch.
+
+Seven added tests cover queued and later same-host refusals, zero retained
+owners/waiters/timers, four reducer phases with stale-failure replay, and a
+throwing dispatch with successful or rejecting body cancellation. The latter
+two prove one cancellation, no failed-response cache write or rate publication,
+and a successful successor. Complete reducer/cache suites pass 145 tests.
+
+No P1 or P3 was reported. **The sole P2 is fixed; no review residuals.**
+Existing N-captures, storage, wiring and lazy-bundle handoffs above remain
+with their named owners. Public CHANGELOG/help/reference documentation remains
+W's assigned handoff: integration must include this refusal/cleanup repair.
+No command, setting, UI text, wire parser, dependency, escape hatch, provider
+capability or path comparison changed. Shared core ports preserve the same
+behavior for every editor and runtime. No live service or model call occurred.
+
+Final drill and gate receipts follow below; local logs are under
+`temp/m113n-final/` (gitignored).
+
+### Final repair deliberate failures
+
+Every drill ran the complete owning cache suite or complete reducer/cache
+suites with `--maxWorkers=3`, default repository timeouts, no name filters,
+and no skips. All three exited 1 at semantic assertions, with no unhandled
+errors. Each production mutation was restored in `finally`, and SHA-256
+matched the saved bytes. The union of failing names covers **7/7 new cases**.
+Receipts: `temp/m113n-final/drills.json` and each named JSON/log file.
+
+| Drill                    | Removed guard                                     | Named failures                                                                                                                     | Failed / passed |
+| ------------------------ | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| `shell-effect-boundary`  | Catch and reducer event at the effect boundary    | `settles throwing rate refusals before the deadline and releases every same-host slot`                                             | 1 / 53          |
+| `releasing-safe-refusal` | Fixed refusal after an effect throws in releasing | The same refusal regression and `reduces an effect failure during releasing without retaining resources or disturbing a successor` | 2 / 143         |
+| `reducer-effect-failure` | Reducer handling of the failure event             | The refusal regression, all four phase cases, and both `cancels a body after dispatch throws … when cleanup succeeds/throws` cases | 7 / 138         |
+
+Restored production SHA-256:
+
+- `cache.ts`: `e155a1fc9accbeb2df0e1abc7e5bf7ef4f5e08e255104b7a73fa87a6b4636d64`
+- `admission.ts`: `20795c76566a9fd61307f9545655c264a4bf8d80cab1920dcc2722d507e455ee`
+
+### RVM113N4 final verification (Kubuntu)
+
+All checks ran sequentially and directly in this worktree after byte-exact
+restoration. The final test runs use the repository's default timeout with
+at most three files per run, no filters and no skips. No gate, rule level,
+ignore, threshold or timeout changed. Commands, exits and timings are in
+`temp/m113n-final/checks.json`; each check has a corresponding log.
+
+| Check                                                    | Result                                                                                                                                |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`                                      | Exit 0, all five projects.                                                                                                            |
+| ESLint `--max-warnings=0`, four changed TypeScript files | Exit 0. Initial test-style lint findings were fixed using public outcomes, without private-member access or an escape hatch.          |
+| Prettier, four TypeScript files, PLAN and certification  | Exit 0; this final documentation append is checked again before commit.                                                               |
+| `npm run deadcode` (plain knip, `JITI_FS_CACHE=0`)       | Exit 0; no cache writes under shared node_modules.                                                                                    |
+| `npx --no-install jscpd`                                 | Exit 0, zero clones, unchanged zero threshold.                                                                                        |
+| `npm run check:reference`                                | Exit 0, generated reference current.                                                                                                  |
+| `node scripts/check-l10n.mjs`                            | Exit 1, the same seven unused report manifest keys, all 14 tables checked. Existing W manifest handoff.                               |
+| `npm run check:host-api`                                 | Exit 1, the same generated-record mismatch: child_process 13→14, crypto 46→47, util 5→6. Existing W handoff; no importing file added. |
+| `npm run build`                                          | Exit 0, including all size/split, host-global and notice checks.                                                                      |
+| Reducer, cache and GitHub suites (`--maxWorkers=3`)      | Exit 0, 181 tests.                                                                                                                    |
+| Store and posting suites (`--maxWorkers=3`)              | Exit 0, 45 tests. **226 total: 219 unchanged, seven new.**                                                                            |
+| Deliberate breaks                                        | Three expected red exits, semantic assertion failures, exact restoration; all seven new cases observed failing.                       |
+| `git diff --check`                                       | Exit 0.                                                                                                                               |
+
+Build receipts: extension **439.5/600 KiB**, Model API **446.9/475 KiB**,
+ACP **821.5/850 KiB**, checkpoint store **76.9/225 KiB**. The future W-owned
+lazy reporting bundle remains unbound and is not certified by this build.
+Aggregate `npm run quality` stays with the lead under the explicit rig/shared
+rules and PLAN §7. The two nonzero gates are named existing integration
+handoffs, never claimed green. No install, paid/live model call, credential
+access, machine setting, merge, rebase or push occurred.
+
+The final commit uses normal worktree hooks and explicit paths; its hook
+output is recorded in `temp/m113n-final/commit.log`.

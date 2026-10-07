@@ -81,6 +81,46 @@ const interleavings = boundaries.flatMap((boundary) =>
 )
 
 describe('report admission reducer interleaving model', () => {
+  it.each(['admission', 'transport', 'dispatch', 'releasing'] as const)(
+    'reduces an effect failure during %s without retaining resources or disturbing a successor',
+    (phase) => {
+      const model = admissionModel()
+      const generation = Symbol('failed')
+      const next = Symbol('next')
+      const response = new Response('unread')
+      model.send({ type: 'requested', generation })
+      model.send({ type: 'requested', generation: next })
+      if (phase === 'releasing')
+        model.send({
+          type: 'admitted',
+          generation,
+          observedAt: networkContext().asOf,
+          refusal: 'network-off',
+        })
+      else if (phase !== 'admission') {
+        model.admit(generation)
+        if (phase === 'dispatch') model.send({ type: 'transportReturned', generation, response })
+      }
+      const failure = model.send({ type: 'effectFailed', generation })
+      expect(failure).toContainEqual({ type: 'refuse', generation, reason: 'source-failed' })
+      expect(model.state().current?.phase).toBe('releasing')
+      model.settle()
+      expect(model.released).toEqual([generation])
+      expect(model.cancelled).toEqual(phase === 'dispatch' ? [response] : [])
+      expect(model.published).toEqual([])
+      expect(model.state().limitedUntil).toBeNull()
+      expect(model.state().current?.generation).toBe(next)
+      const successor = model.state()
+      model.send({ type: 'effectFailed', generation })
+      model.settle()
+      expect(model.state()).toBe(successor)
+      model.send({ type: 'aborted', generation: next })
+      model.settle()
+      expect(model.state().current).toBeNull()
+      expect(model.released).toEqual([generation, next])
+    },
+  )
+
   it('ignores duplicate requests and out-of-phase acknowledgements', () => {
     const model = admissionModel()
     const generation = Symbol('request')

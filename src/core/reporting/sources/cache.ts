@@ -350,7 +350,13 @@ export class ReportNetworkReader {
       event,
     )
     this.admissions.set(origin, result.state)
-    for (const effect of result.effects) this.execute(origin, effect)
+    for (const effect of result.effects) {
+      try {
+        this.execute(origin, effect)
+      } catch {
+        this.step(origin, { type: 'effectFailed', generation: effect.generation })
+      }
+    }
     return result.effects
   }
 

@@ -27544,6 +27544,16 @@ lane T and M111b. One short live check per backend (step 3).
 
 ### M113 — Deterministic reports: `/report` (D93)
 
+**Lane N final repair RVM113N4 (2026-10-06).** Fix the confirmed P2
+throwing refusal effect inside the existing admission reducer design. Catch
+synchronous effect failures at the shell boundary and send generation-tagged
+`effectFailed` events back to the reducer, including the releasing phase;
+continue pending cleanup/release effects. Prove prompt failure and subsequent
+same-host admission for an unrepresentable rate reset, and cancellation of
+a returned body when dispatch throws. Add regressions and byte-exact red
+drills to N's certification. No guard widening, dependency or other-lane edit;
+default test timeouts and existing W integration handoffs remain.
+
 **Lane N lifecycle redesign RVM113N3 (2026-10-06).** Three review rounds
 found defects in admission and response ownership, so replace that path with
 one synchronous per-host reducer, `step(state, event) -> { state, effects }`.
@@ -28747,7 +28757,7 @@ anywhere joined it).
 
 ## 7. Gates
 
-**M113-N-RVM113N/RVM113N2/RVM113N3 bounded rig certification (2026-10-06).** The explicit
+**M113-N-RVM113N/RVM113N2/RVM113N3/RVM113N4 bounded rig certification (2026-10-06).** The explicit
 rig/shared brief reserves aggregate quality for the lead and forbids merges.
 Run complete owned suites (at most three files per run), default timeouts,
 scoped static checks and the production build directly in this worktree.
@@ -30121,6 +30131,18 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **M113-N-final-RVM113N4 (2026-10-06).** The sole P2 throwing-effect
+  finding is fixed; no review residuals. The shell converts synchronous
+  effect throws to generation-tagged reducer events and continues sibling
+  effects. A failed refusal in `releasing` gets a fixed `source-failed`
+  rejection while the original release proceeds once; a failed dispatch
+  retires its owned response through cancellation/refusal/release effects.
+  Stale failures cannot disturb a successor. The existing numeric rate floor
+  remains enforced, including an unrepresentable reset; no guard is widened.
+  Regression and exact-restoration drill receipts are in N's certification.
+  Existing captures/storage/wiring/lazy-bundle and W's public
+  CHANGELOG/reference/localization/host API/quality handoffs remain.
 
 - **M113-N-lifecycle-RVM113N3 (2026-10-06).** The admission reducer owns
   queued/current generations, response ownership and rate publication. Abort,

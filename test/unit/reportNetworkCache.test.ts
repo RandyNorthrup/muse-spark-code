@@ -396,6 +396,45 @@ describe('report network policy and cache', () => {
     expect(transport).toHaveBeenCalledOnce()
   })
 
+  it('settles throwing rate refusals before the deadline and releases every same-host slot', async () => {
+    vi.useFakeTimers()
+    const transport = vi.fn(() =>
+      Promise.resolve(
+        Response.json(
+          { value: 'ok' },
+          {
+            headers: {
+              'x-ratelimit-remaining': '0',
+              'x-ratelimit-reset': '999999999999999999',
+            },
+          },
+        ),
+      ),
+    )
+    const rig = networkRig({ transport })
+    const initial = await read(rig)
+    expect(initial.record.status).toBe('ok')
+    for (const count of [2, 1]) {
+      const completed: Awaited<ReturnType<typeof read>>[] = []
+      const pending = Promise.all(
+        Array.from({ length: count }, async () => {
+          completed.push(await read(rig))
+        }),
+      )
+      await vi.advanceTimersByTimeAsync(0)
+      expect(completed).toHaveLength(count)
+      await pending
+      for (const result of completed) {
+        expect(result).toMatchObject({ data: null, record: { status: 'unavailable' } })
+        expect(result.record.reason).toContain('source-failed')
+        expect(result.record.reason).not.toContain('source-deadline')
+      }
+      expect(vi.getTimerCount()).toBe(0)
+    }
+    expect(transport).toHaveBeenCalledOnce()
+    expect(rig.storage.write).toHaveBeenCalledOnce()
+  })
+
   it('rechecks the rate floor after an awaited cache read', async () => {
     const entered = Promise.withResolvers<undefined>()
     const release = Promise.withResolvers<undefined>()
@@ -455,6 +494,42 @@ describe('report network policy and cache', () => {
     })
     expect(JSON.stringify(await read(refused))).not.toContain(secret)
   })
+
+  it.each(['succeeds', 'throws'] as const)(
+    'cancels a body after dispatch throws and admits the next request when cleanup %s',
+    async (cleanup) => {
+      vi.useFakeTimers()
+      const detail = 'private-transport-detail'
+      const cancel = vi.fn(() => {
+        if (cleanup === 'throws') throw new Error(detail)
+      })
+      const response = new Response(new ReadableStream<Uint8Array>({ cancel }))
+      vi.spyOn(response.headers, 'get').mockImplementationOnce(() => {
+        throw new Error(detail)
+      })
+      const transport = vi
+        .fn<ReportNetworkTransport>()
+        .mockResolvedValueOnce(response)
+        .mockImplementation(() => Promise.resolve(Response.json({ value: 'recovered' })))
+      const rig = networkRig({ transport })
+      const failed = read(rig)
+      const next = read(rig)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(cancel).toHaveBeenCalledOnce()
+      expect(transport).toHaveBeenCalledTimes(2)
+      expect(await failed).toMatchObject({
+        data: null,
+        record: { status: 'unavailable', reason: expect.stringContaining('source-failed') },
+      })
+      expect(JSON.stringify(await failed)).not.toContain(detail)
+      expect(await next).toMatchObject({
+        data: { value: 'recovered' },
+        record: { status: 'ok' },
+      })
+      expect(rig.storage.write).toHaveBeenCalledOnce()
+      expect(vi.getTimerCount()).toBe(0)
+    },
+  )
 
   it('bounds response bytes and validates HTTP payloads', async () => {
     const large = networkRig({ maxBytes: 1 })
