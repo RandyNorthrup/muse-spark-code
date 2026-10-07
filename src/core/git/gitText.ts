@@ -55,7 +55,7 @@ export interface PullRequestText {
  * that same held turn with its live admission, consent and budget guards. */
 export interface GitDraftOutputPort {
   readonly formats: () => SideCallFormats | undefined
-  readonly prepare: (kind: GitDraftKind, attempt: SideCallAttempt) => void
+  readonly prepare: (kind: GitDraftKind, attempt: SideCallAttempt, signal: AbortSignal) => void
   readonly request: (
     kind: GitDraftKind,
     attempt: SideCallAttempt,

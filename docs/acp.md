@@ -501,8 +501,9 @@ Send `/help` in an ACP session for its local command list and the [generated ref
 `exec --output-schema <file>` reads a bounded JSON Schema file through an open
 file descriptor, verifies its identity and confines its real path to the
 workspace. `--output-schema-outside` explicitly permits an external path.
-The strict subset rejects references, regular expressions and unbounded
-containers. Its closed schema and digest are fixed before session dispatch;
+The strict subset supports bounded local `$defs`/`$ref` references. It rejects
+external references, reference-only cycles, regular expressions and unbounded
+containers; recursive object definitions still have bounded answer depth. Its closed schema and digest are fixed before session dispatch;
 a changed model, active session or repeated configuration is refused.
 
 The captured `muse-spark-1.3-contributor` record selects provider strict JSON

@@ -4483,7 +4483,11 @@ retain liability.
 
 Argument previews use a separate lazy chunk and are available only with
 recorded streaming-argument support. Structured side calls prefer a captured
-schema format, allow one repair and retain the text fallback. Retry waits,
+schema format, allow one repair and retain the text fallback. Git commit and
+pull-request drafts apply this contract to the user's own turn, with repairs
+under the session's hooks and budget. Judge uses the selected model's captured
+format. Compaction applies its own summary contract even when a headless final
+answer schema is active. Retry waits,
 idle deadlines and fan-out pacing are bounded and Stop aborts the wait.
 
 The SDK is pinned to 1.4.2. Its effort, manual feedback and permanent deletion

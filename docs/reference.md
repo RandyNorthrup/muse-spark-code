@@ -184,6 +184,10 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 The structured answer could not be validated. Using the text fallback.
 
+The structured answer was invalid. Retrying once…
+
+The structured answer could not be validated. Using the text fallback.
+
 Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
@@ -600,6 +604,10 @@ Commands: `museSpark.hooks`, `museSpark.runSetupHooks`, `museSpark.runHook`, `mu
 ### Git and pull requests
 
 A new branch in its own folder and window; this checkout is untouched.
+
+The structured answer was invalid. Retrying once…
+
+The structured answer could not be validated. Using the text fallback.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -1210,6 +1218,10 @@ Commands: `museSpark.tabTurnOn`, `museSpark.tabTurnOff`, `museSpark.tabSnooze`, 
 ### Judge
 
 Turn paid Judge advice on or off.
+
+The structured answer was invalid. Retrying once…
+
+The structured answer could not be validated. Using the text fallback.
 
 ```json
 {

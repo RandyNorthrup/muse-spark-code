@@ -288,7 +288,7 @@
       "backends": ["modelApi"],
       "paid": false,
       "surfaces": ["vscode:modelApi", "acp:modelApi"],
-      "details": [],
+      "details": [{ "ui": "structuredOutputRepair" }, { "ui": "structuredOutputFallback" }],
       "facts": {},
       "editors": ["vscode", "acp"]
     },
@@ -879,7 +879,7 @@
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi"],
-      "details": [],
+      "details": [{ "ui": "structuredOutputRepair" }, { "ui": "structuredOutputFallback" }],
       "facts": {},
       "editors": ["vscode"]
     },
@@ -1485,7 +1485,7 @@
       "backends": ["modelApi"],
       "paid": true,
       "surfaces": ["vscode:modelApi"],
-      "details": [],
+      "details": [{ "ui": "structuredOutputRepair" }, { "ui": "structuredOutputFallback" }],
       "facts": {
         "paidFeature": "judge",
         "paidSettings": ["museSpark.judge.engine"],

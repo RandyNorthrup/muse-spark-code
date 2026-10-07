@@ -274,3 +274,70 @@ the two newly exposed Transcript awaits are closed. The inherited absent
 capture/provider handoffs, aggregate quality/coverage/accessibility, hosted
 matrix and live/M75/release receipts remain the lead's recorded qualification
 work, as the brief requires.
+
+## FIXM106W — RVM106W repairs (2026-10-06, macmini)
+
+All four P2 and both P3 findings are fixed, with no accepted review residual.
+No branch was merged, no dependency installed or changed, and no live/paid
+model attempt was made. U10's existing captured contributor model supplies the
+structured-format evidence; this repair adds no inferred provider wire shape.
+
+| Finding                                | Root fix                                                                                                                                                                                                                                                                                                      | Regression                                                                                                                                                                          | Red drill                                                                                              |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| P2-1 compaction inherits `exec_answer` | Remove the session answer format before applying the summary's own contract, including its text fallback; keep the answer format for later ordinary turns.                                                                                                                                                    | `m106Wiring`: compaction after two HTTP 400 refusals, followed by another schema-bound answer                                                                                       | `compaction-exec-format`                                                                               |
+| P2-2 search Once asks twice            | Keep memory-only window consent bound to provider, model/revision, exact tariff, revocation and price generation; still approve each fresh quote through the paid authority. Share the first popup; required asks and revocations retain their fences.                                                        | `paidHost`: distinct/concurrent quotes, new window, model, tariff, forced ask and revoked pending answer                                                                            | `search-window-once`, `search-popup-coalescing`                                                        |
+| P2-3 Git draft handoff unbound         | Bind the conversation surface to its session's core draft port after session creation. Snapshot the contract for its user turn; repair/fallback through existing hooks, account/budget admission and Stop. Read the original reply before asynchronous MessageDisplay hooks can let its terminal overtake it. | `conversationController`: production factory/session valid, repair and fallback; one user turn and ordinary next-turn format; `m106Wiring`: changed model and cancelled preparation | `git-controller-port`, `git-original-event-before-display`, `git-model-fence`, `git-cancelled-prepare` |
+| P2-4 Judge never receives formats      | Forward the selected session's captured format and codec in the connection and production Judge constructor. The normal metered transport still owns each reservation and settlement.                                                                                                                         | `judgeSharedBudget`: real session/client, consenting production factory and daily journal; contributor dispatch must name strict `judge_answer`                                     | `judge-connection-formats`, `judge-window-formats`                                                     |
+| P3-5 hosted-search suite red           | Assert the returned fee plus known token cost after the throwing observer, rather than retained reservation. Update only H's stale atomic-edit declaration and its derived cache key; fix the fake clock at local midnight. Existing strict/off golden fixtures are unchanged.                                | Complete `modelApiHostedSearch` file: exact settlement and byte-exact bound-only request comparison                                                                                 | `hosted-settlement-expectation`, `hosted-atomic-fixture`                                               |
+| P3-6 guides reject local references    | Document bounded local `$defs`/`$ref`, recursive object definitions and bounded answers; distinguish external references and reference-only cycles.                                                                                                                                                           | `m106Wiring`: positive compiler reference case and both guide assertions; existing complete `outputSchema` suite                                                                    | `output-schema-reference-docs`                                                                         |
+
+The prior R4 race deliberately requests its Always popup with `requiresAsking`:
+its three prior Once answers now cover this window, so an ordinary request
+would correctly skip that popup. Its stale-save and cheaper-ceiling assertions
+remain unchanged. No test is skipped, filtered or given a larger timeout.
+
+The Git model/turn contract and its repair collector live in the portable core;
+the existing shared conversation/webview bridge supplies the Git form binding.
+Muse Code retains its existing text drafts. ACP/headless sessions use the same
+core compaction isolation; the native editor's existing surface contract is
+unchanged. Uncaptured provider formats and forced-tool codecs remain unavailable
+until their existing M95 capture/binding work is completed.
+
+### Observed red drills and exact restores
+
+Each drill ran the complete named test file in the existing exact-lock private
+snapshot at `temp/m106-w/continuation-install`, inside this worktree. The immutable
+shared install still lacks `pngjs`/`jpeg-js`; the initial root typecheck reported
+those missing modules. All five projects pass against the exact-lock snapshot.
+No install or hook override was needed. Every final test uses repository timeouts,
+`--maxWorkers=3`, and at most three files per command.
+
+Logs are `temp/fixm106w/red-<drill>.log`. Each mutation caused the named regression
+to fail; all twelve drills failed as intended and all files were restored to
+these SHA-256 values, matching the unmodified worktree:
+
+| Drill                               | Mutated file                                      | Restored SHA-256                                                   |
+| ----------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------ |
+| `compaction-exec-format`            | `src/core/backends/modelapi/ModelApiHost.ts`      | `1393f2a694edfb2852b6e5e8d7a67b3ced53d705f06e1042c33533d2faff19ba` |
+| `search-window-once`                | `src/core/paid/paidConsent.ts`                    | `2dbb6c5b20d93e1e23e3a22e08bdeaad15f8660a18b6c4f671210e20b39c4fa3` |
+| `search-popup-coalescing`           | `src/core/paid/paidConsent.ts`                    | `2dbb6c5b20d93e1e23e3a22e08bdeaad15f8660a18b6c4f671210e20b39c4fa3` |
+| `git-controller-port`               | `src/host/conversation/conversationController.ts` | `7d78ca4956db9cfb32db92f812dcaec35d192fd0978a3f0c7929f9b19fa8e60e` |
+| `git-original-event-before-display` | `src/host/conversation/conversationController.ts` | `7d78ca4956db9cfb32db92f812dcaec35d192fd0978a3f0c7929f9b19fa8e60e` |
+| `git-model-fence`                   | `src/core/backends/modelapi/ModelApiHost.ts`      | `1393f2a694edfb2852b6e5e8d7a67b3ced53d705f06e1042c33533d2faff19ba` |
+| `git-cancelled-prepare`             | `src/core/backends/modelapi/ModelApiHost.ts`      | `1393f2a694edfb2852b6e5e8d7a67b3ced53d705f06e1042c33533d2faff19ba` |
+| `judge-connection-formats`          | `src/core/backends/modelapi/ModelApiHost.ts`      | `1393f2a694edfb2852b6e5e8d7a67b3ced53d705f06e1042c33533d2faff19ba` |
+| `judge-window-formats`              | `src/host/judge/judgeEntry.ts`                    | `24cef7f6cd7a3b747e6ebe1059b1487203fe3a27568eec412bc8822fed554876` |
+| `hosted-settlement-expectation`     | `test/unit/modelApiHostedSearch.test.ts`          | `f8e9493810dcf4d3afd5e3c46c0a510457b16df8e9575642d72723fb8b0e32e5` |
+| `hosted-atomic-fixture`             | `test/fixtures/m106/h-search-requests.json`       | `49c1f32a3a36d14741b5b38039f4910b372434269dc1738495596eb6e460abbd` |
+| `output-schema-reference-docs`      | `docs/acp.md`                                     | `7f534d0e4040fb1378bae89590231f3ad7dd4f05922633246be27ec1ad3296dd` |
+| `output-schema-reference-docs`      | `docs/ci.md`                                      | `3c84a8ec9b533523b3ce2c9f77e8d454325df1d7aef85f2d664c4ffc7b5a0638` |
+
+Restored focused runs pass **55** wiring/consent/Judge tests and **732**
+controller/Git/hosted-search tests. Typechecks, changed-file lint and formatting,
+plain knip, zero-clone jscpd, localization, reference, host API, exec-schema
+freshness, cycles and the production build are checked individually. The lane
+brief forbids aggregate `npm run quality`; the lead retains that release gate,
+coverage, accessibility, hosted matrices and live qualification.
+
+The complete M106 and repository batch receipts follow after the local fix
+commit; this focused record makes no aggregate test claim yet.

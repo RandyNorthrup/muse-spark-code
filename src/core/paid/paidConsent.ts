@@ -175,8 +175,8 @@ export interface PaidUseConsentDeps {
   /** Whether the feature may be used at all: its setting on and its price accepted. */
   readonly isOn: (feature: PaidFeature) => boolean
   /**
-   * Features whose "Allow once" covers this window until it closes (Tab,
-   * M94 Q-M94a): kept in memory only, never stored, so nothing persists
+   * Features whose "Allow once" covers this window until it closes (Tab and
+   * hosted search, D48): kept in memory only, never stored, so nothing persists
    * past the window. "Allow always" stays workspace-scoped for every
    * feature, window-once ones included.
    */
@@ -221,6 +221,8 @@ export class PaidUseConsent {
    * that arrive meanwhile share it and its answer instead of asking again.
    */
   private readonly pendingWindowOnce = new Map<PaidFeature, Promise<boolean>>()
+  private readonly searchWindowOnce = new Set<string>()
+  private readonly pendingSearchWindowOnce = new Map<string, Promise<PaidUseAnswer>>()
 
   public readonly authority: PaidAuthority
 
@@ -232,7 +234,7 @@ export class PaidUseConsent {
     return JSON.stringify([this.revocation, this.deps.quoteGeneration?.() ?? 'initial'])
   }
 
-  /** Whether the feature's "Allow once" covers the window (Tab, M94 Q-M94a). */
+  /** Whether the feature's "Allow once" covers the window (D48). */
   private isWindowOnceFeature(feature: PaidFeature): boolean {
     return this.deps.windowOnceFeatures?.has(feature) ?? false
   }
@@ -343,6 +345,14 @@ export class PaidUseConsent {
       },
     )
     const generation = JSON.stringify([localGeneration, storedGeneration])
+    const priceGeneration = this.deps.windowOnceGeneration?.('webSearch')
+    const windowKey = JSON.stringify([
+      paidAuthorityKey(quote),
+      quote.modelRevision,
+      quote.tariffUsd,
+      generation,
+      priceGeneration,
+    ])
     const stored = this.deps.readQuoteGrant?.(quote)
     let remembered: PaidGrant | undefined
     if (this.deps.readQuoteGrant === undefined) remembered = this.authority.grant(quote)
@@ -377,6 +387,7 @@ export class PaidUseConsent {
       }
       const isLive =
         this.isEnabled('webSearch') &&
+        priceGeneration === this.deps.windowOnceGeneration?.('webSearch') &&
         request.isCurrent?.() !== false &&
         this.authority.isCurrent(tag)
       if (!isLive) this.authority.dispatch({ type: 'invalidate', grant: tag })
@@ -385,8 +396,22 @@ export class PaidUseConsent {
     if (!isCurrent()) return undefined
     this.authority.bind(quote, isCurrent)
     if (effects.length === 0) return quote
-    const answer = await ask({ ...request, quote }, this.deps.canRemember())
+    const isWindowUse = !requiresAsking && this.isWindowOnceFeature('webSearch')
+    let answer: PaidUseAnswer
+    if (isWindowUse && this.searchWindowOnce.has(windowKey)) answer = 'once'
+    else {
+      const pending = isWindowUse ? this.pendingSearchWindowOnce.get(windowKey) : undefined
+      const question = pending ?? ask({ ...request, quote }, this.deps.canRemember())
+      if (isWindowUse) this.pendingSearchWindowOnce.set(windowKey, question)
+      try {
+        answer = await question
+      } finally {
+        if (this.pendingSearchWindowOnce.get(windowKey) === question)
+          this.pendingSearchWindowOnce.delete(windowKey)
+      }
+    }
     if (!isCurrent()) return undefined
+    if (answer === 'once' && isWindowUse) this.searchWindowOnce.add(windowKey)
     const approvalOrder =
       answer === 'always' && this.deps.canRemember()
         ? await (this.deps.nextQuoteOrder?.() ?? this.authority.nextOrder(quote, prior))
@@ -505,6 +530,7 @@ export class PaidUseConsent {
    * `windowOnceGeneration`.
    */
   public revokeWindowOnce(feature: PaidFeature): void {
+    if (feature === 'webSearch') this.searchWindowOnce.clear()
     if (this.windowOnce.delete(feature)) {
       this.deps.log.info(`Paid use of ${feature} asks again in this window`)
     }
@@ -512,7 +538,9 @@ export class PaidUseConsent {
 
   /** Account & usage's "Ask again": every feature asks again here. */
   public async forget(): Promise<void> {
-    const hasWindowOnce = this.windowOnce.size > 0 || this.authority.hasGrant()
+    const hasWindowOnce =
+      this.windowOnce.size > 0 || this.searchWindowOnce.size > 0 || this.authority.hasGrant()
+    this.searchWindowOnce.clear()
     this.windowOnce.clear()
     this.revocation += 1
     this.authority.revokeAll(this.quoteGeneration())

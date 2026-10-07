@@ -1,3 +1,4 @@
+import type { StructuredOutputDeps } from '../../backends/modelapi/structuredOutput'
 import { type UsdAmount } from '../../../shared/usd'
 import type { CreateResponseBody } from '../../backends/modelapi/schemas'
 import type { CachedPrefix } from '../../backends/modelapi/promptCache'
@@ -29,7 +30,7 @@ export interface ModelApiJudgeTransport {
   ): Promise<ModelApiSideResponse>
 }
 
-export interface ModelApiJudgeConnection {
+export interface ModelApiJudgeConnection extends StructuredOutputDeps {
   readonly source: ModelApiJudgeSource
   readonly transport: ModelApiJudgeTransport
   readonly keyDigest: string

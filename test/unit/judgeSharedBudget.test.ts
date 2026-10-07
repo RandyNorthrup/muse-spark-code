@@ -5,7 +5,9 @@ import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createWindowJudge } from '../../src/host/judge/judgeEntry'
 import { createPaidFeatures } from '../../src/host/paid/paidHost'
-import { UI_TEXT } from '../../src/shared/constants'
+import { metaSideCallFormats } from '../../src/core/backends/modelapi/modelCapabilities'
+import { estimateCostUsd } from '../../src/core/usage/insights'
+import { M106_CAPTURED_META_MODEL, UI_TEXT } from '../../src/shared/constants'
 import { memento } from './helpers/memento'
 import { confirmModal } from './helpers/vscodeViews'
 import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
@@ -98,7 +100,7 @@ describe('Judge on the real D78 shared journal', () => {
   })
 
   it.each(['complete', 'missing', 'nonsend'] as const)(
-    'uses exactly one shared reservation through the actual Judge source and client: %s receipt',
+    'uses exactly one shared reservation and captured verdict format through the production Judge: %s receipt',
     async (receipt) => {
       const shared = daily()
       const api = fakeModelApi()
@@ -112,12 +114,17 @@ describe('Judge on the real D78 shared journal', () => {
       })
       const host = new ModelApiHost({
         ...fakeModelApiHostDeps({ client, workspaceRoot: '/ws', io: memoryToolIo({}, '/ws'), log }),
+        sideCallFormats: metaSideCallFormats,
       })
       const session = await host.startSession({
         workspaceRoot: '/ws',
-        modelId: 'muse-spark-1.3',
+        modelId: receipt === 'complete' ? M106_CAPTURED_META_MODEL : 'muse-spark-1.3',
         approvalMode: 'allowAll',
       })
+      const settledCost = estimateCostUsd(
+        { inputTokens: 10, outputTokens: 2, cachedTokens: 1 },
+        session.modelId,
+      )
       const watched = watchSessionTurns(session)
       api.script(
         { text: 'Main answer', hold: held.promise },
@@ -229,7 +236,10 @@ describe('Judge on the real D78 shared journal', () => {
               expect(owned).toBeDefined()
               if (owned === undefined) throw new Error('Judge claim absent')
               const settled = await shared.lookupByClaimId('2026-10-5', owned.claimId)
-              expect(settled.settledUsd).toBe(Usd.from(0.0000199).toAmount())
+              expect(settled.settledUsd).toBe(settledCost)
+            })
+            expect(api.responseBodies()[1]?.['text']).toMatchObject({
+              format: { name: 'judge_answer', strict: true },
             })
             expect(confirmModal).toHaveBeenCalledWith(
               expect.any(String),
@@ -249,7 +259,7 @@ describe('Judge on the real D78 shared journal', () => {
         if (receipt === 'missing') expect(snapshot).not.toHaveProperty('settledUsd')
         else
           expect(snapshot.settledUsd).toBe(
-            Usd.from(receipt === 'complete' ? 0.0000199 : 0).toAmount(),
+            receipt === 'complete' ? settledCost : Usd.from(0).toAmount(),
           )
         const latest = await daily().latestDay()
         expect(latest.spentUsd).toBe(

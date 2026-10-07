@@ -265,9 +265,9 @@ export type PaidState = z.infer<typeof paidStateSchema>
 
 /**
  * One paid use the user is asked about (M58, PLAN.md D48): what the popup
- * names before anything is billed. Web search asks once per prompt, since
- * Meta runs the searches inside the response and the model decides whether
- * to search at all.
+ * names before anything is billed. Interactive web search Once covers the window
+ * under the same model and price binding; each response still carries its own
+ * validated quote and bounded search reservation.
  */
 export type PaidUseRequest =
   | { readonly feature: 'judge'; readonly modelId: string; readonly dailyBudgetUsd: UsdAmount }

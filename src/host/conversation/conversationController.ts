@@ -142,6 +142,7 @@ import {
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
 import type { AgentEvent, ApprovalChoice, ItemSnapshot, TodoItem } from '../../shared/agentEvents'
 import { fill, plural } from '../../shared/l10n/text'
+import type { GitDraftOutputPort } from '../../core/git/gitText'
 import type { GitAction, GitDraftKind } from '../../shared/git'
 import { backendLabel } from '../../shared/palette'
 import type { PaidUseRequest } from '../../shared/paid'
@@ -199,6 +200,7 @@ export interface GitSurface {
   /** Dynamic program details stay in the panel. */
   say(level: 'warning' | 'error', text: string): void
   sessionId(): string | undefined
+  readonly draftOutput?: () => GitDraftOutputPort | undefined
 }
 
 /** The pull request form as the user pressed Create on it. */
@@ -1343,6 +1345,7 @@ export class ConversationController {
         }
       },
       sessionId: () => this.session?.sessionId,
+      draftOutput: () => this.session?.gitDraftOutput,
     })
   }
 
@@ -2162,6 +2165,9 @@ export class ConversationController {
   }
 
   private onEvent(event: AgentEvent): void {
+    // Draft parsing reads the original reply before asynchronous display hooks;
+    // its turn can finish while the presentation rewrite is still waiting.
+    this.git.onEvent(event)
     if (event.type === 'itemCompleted' && this.holdForMessageDisplay(event)) {
       return
     }
@@ -2255,7 +2261,6 @@ export class ConversationController {
         : event
     this.forward(shown)
     this.track(shown)
-    this.git.onEvent(shown)
   }
 
   /**
@@ -5899,7 +5904,7 @@ export class ConversationController {
     let seededSession: AgentSession | undefined
     // The running mark this message's turn takes over (M72), dropped if it is not sent.
     let checkpoint: PendingMark | undefined
-    const gitGeneration = gitDraft === undefined ? undefined : this.git.generationStarting(gitDraft)
+    let gitGeneration: number | undefined
     let isGitSubmitted = false
     let hasSubmittedHandoff = false
     try {
@@ -5928,6 +5933,7 @@ export class ConversationController {
       if (session === undefined) {
         return { isAccepted: false, hasSetTodos: false, turnId: undefined }
       }
+      if (gitDraft !== undefined) gitGeneration = this.git.generationStarting(gitDraft)
       this.turnSubmissionsInFlight += 1
       isCountedSubmission = true
       let expectedGeneration = this.attachmentGeneration

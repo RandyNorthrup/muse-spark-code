@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Isolate compaction from headless answer schemas, honor search consent for its
+  window, and bind Git drafts and Judge to captured structured output formats.
+  Refresh hosted-search regression evidence and clarify local schema references.
+
 - Preserve failed turns for cut-short tool replies when output continuation is
   off, including normal and attempt sessions; await the lazy Goal body and
   question-card controls in their row and Transcript regressions.

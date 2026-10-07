@@ -648,7 +648,7 @@ describe('R3 Memento grant races', () => {
         await first.consent.allows(quotedSearch('0.01', 'model-a', id), false, () =>
           Promise.resolve('once'),
         )
-      const pending = first.consent.allows(quotedSearch('0.01'), false, () =>
+      const pending = first.consent.allows(quotedSearch('0.01'), true, () =>
         Promise.resolve('always'),
       )
       await entered.promise
@@ -699,4 +699,60 @@ it('R4 P2-1: incomparable legacy owner orders ask again in the profile chronolog
   const ask = vi.fn(() => Promise.resolve<PaidUseAnswer>('deny'))
   expect(await paid.consent.allows(old, false, ask)).toBeUndefined()
   expect(ask).toHaveBeenCalledOnce()
+})
+
+describe('FIXM106W search window consent', () => {
+  it('covers distinct quotes in this window and asks again on model, price, revocation and required asking', async () => {
+    const { paid } = paidWithSettings(
+      new Map([[GLOBAL_STATE_KEYS.paidConfirmations, ['webSearch']]]),
+      ['webSearch'],
+    )
+    const ask = vi.fn(() => Promise.resolve<PaidUseAnswer>('once'))
+    for (const id of ['first', 'second']) {
+      const request = quotedSearch('0.01', 'model-a', id)
+      expect(await paid.consent.allows(request, false, ask)).toEqual(request.quote)
+      expect(paid.consent.authority.canSpend(request.quote)).toBe(true)
+    }
+    expect(ask).toHaveBeenCalledOnce()
+    expect(paid.consent.remembered()).not.toContain('webSearch')
+    await paid.consent.allows(quotedSearch('0.01', 'model-a', 'required'), true, ask)
+    await paid.consent.allows(quotedSearch('0.01', 'model-b', 'model'), false, ask)
+    await paid.consent.allows(quotedSearch('0.02', 'model-b', 'price'), false, ask)
+    expect(ask).toHaveBeenCalledTimes(4)
+    await paid.consent.forget()
+    await paid.consent.allows(quotedSearch('0.01', 'model-a', 'revoked'), false, ask)
+    expect(ask).toHaveBeenCalledTimes(5)
+    const nextWindow = paidWithSettings(
+      new Map([[GLOBAL_STATE_KEYS.paidConfirmations, ['webSearch']]]),
+      ['webSearch'],
+    ).paid
+    await nextWindow.consent.allows(quotedSearch('0.01', 'model-a', 'new-window'), false, ask)
+    expect(ask).toHaveBeenCalledTimes(6)
+  })
+
+  it('shares the first popup between concurrent quotes and refuses its revoked answer', async () => {
+    const { paid } = paidWithSettings(
+      new Map([[GLOBAL_STATE_KEYS.paidConfirmations, ['webSearch']]]),
+      ['webSearch'],
+    )
+    const held = Promise.withResolvers<PaidUseAnswer>()
+    const ask = vi.fn(() => held.promise)
+    const requests = ['a', 'b'].map((id) => quotedSearch('0.01', 'model-a', id))
+    const answers = requests.map((request) => paid.consent.allows(request, false, ask))
+    await vi.waitFor(() => {
+      expect(ask).toHaveBeenCalledOnce()
+    })
+    held.resolve('once')
+    expect(await Promise.all(answers)).toEqual(requests.map((request) => request.quote))
+    await paid.consent.forget()
+    const stale = Promise.withResolvers<PaidUseAnswer>()
+    const staleAsk = vi.fn(() => stale.promise)
+    const pending = paid.consent.allows(quotedSearch('0.01', 'model-a', 'stale'), false, staleAsk)
+    await vi.waitFor(() => {
+      expect(staleAsk).toHaveBeenCalledOnce()
+    })
+    await paid.consent.forget()
+    stale.resolve('once')
+    expect(await pending).toBeUndefined()
+  })
 })

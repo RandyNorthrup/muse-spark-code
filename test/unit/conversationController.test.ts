@@ -1,3 +1,7 @@
+import { metaSideCallFormats } from '../../src/core/backends/modelapi/modelCapabilities'
+import { M106_CAPTURED_META_MODEL } from '../../src/shared/constants'
+import { conversationGitFactory } from '../../src/host/git/conversationGitBundle'
+import * as gitEntry from '../../src/host/git/conversationGitEntry'
 import { Usd } from '../../src/shared/usd'
 import { MspError } from '@muse-code/sdk'
 import { Buffer } from 'node:buffer'
@@ -6612,6 +6616,9 @@ const bareHostDeps = {
 function modelApiController(
   t: ReturnType<typeof setup>,
   options: {
+    readonly modelId?: string
+    readonly sideCallFormats?: ModelApiHostDeps['sideCallFormats']
+    readonly createGit?: ConversationDeps['createGit']
     readonly workspaceRoot?: string
     readonly platform?: NodeJS.Platform
     readonly io?: ModelApiHostDeps['io']
@@ -6626,6 +6633,7 @@ function modelApiController(
   const api = fakeModelApi()
   const host = new ModelApiHost({
     client: fakeModelApiClient(api, t.log),
+    ...(options.sideCallFormats !== undefined && { sideCallFormats: options.sideCallFormats }),
     workspaceRoot: options.workspaceRoot ?? '/ws',
     platform: options.platform ?? 'linux',
     io: options.io ?? noopToolIo,
@@ -6650,6 +6658,8 @@ function modelApiController(
   })
   const controller = new ConversationController({
     ...t.deps,
+    ...(options.modelId !== undefined && { modelId: options.modelId }),
+    ...(options.createGit !== undefined && { createGit: options.createGit }),
     ensureHost: async () => {
       await options.beforeEnsureHost?.()
       return host
@@ -10136,6 +10146,73 @@ describe('ConversationController: git and pull requests (M71)', () => {
       t.controller.dispose()
     }
   })
+
+  it.each(['valid', 'repair', 'fallback'] as const)(
+    'binds the production Git draft to the capable session and its guarded %s path',
+    async (reply) => {
+      const t = setup({
+        git: { repository: fakeRepository({ indexChanges: [change('src/a.ts')] }) },
+      })
+      const { api, host, controller } = modelApiController(t, {
+        modelId: M106_CAPTURED_META_MODEL,
+        sideCallFormats: metaSideCallFormats,
+        createGit: conversationGitFactory(
+          () => gitEntry,
+          () => ({
+            window: t.gitFake.window,
+            openPullRequestInConversation: () => Promise.resolve(),
+          }),
+        ),
+      })
+      api.script(
+        { text: reply === 'valid' ? '{"message":"Fix parser"}' : 'invalid' },
+        ...(reply === 'valid'
+          ? []
+          : [{ text: reply === 'repair' ? '{"message":"Fix parser"}' : 'invalid' }]),
+        ...(reply === 'fallback' ? [{ text: 'Fix parser' }] : []),
+      )
+      try {
+        await controller.handle({
+          type: 'sendMessage',
+          localId: 'git-draft',
+          text: UI_TEXT.gitAskCommitMessage,
+          attachmentIds: [],
+          gitDraft: 'commitMessage',
+        })
+        await vi.waitFor(() => {
+          expect(t.surface.posted).toContainEqual({
+            type: 'gitDraft',
+            draft: { kind: 'commitMessage', message: 'Fix parser' },
+          })
+        })
+        const bodies = api.responseBodies()
+        expect(bodies).toHaveLength({ valid: 1, repair: 2, fallback: 3 }[reply])
+        expect(bodies[0]?.['text']).toMatchObject({
+          format: { name: 'commit_draft', strict: true },
+        })
+        if (reply === 'fallback') expect(bodies[2]).not.toHaveProperty('text')
+        const started = t.surface.posted.filter(
+          (message) => message.type === 'agentEvent' && message.event.type === 'turnStarted',
+        )
+        expect(started).toHaveLength(1)
+        api.script({ text: 'Ordinary answer' })
+        await controller.handle({
+          type: 'sendMessage',
+          localId: 'ordinary',
+          text: 'hello',
+          attachmentIds: [],
+        })
+        await vi.waitFor(() => {
+          expect(api.responseBodies()).toHaveLength(bodies.length + 1)
+        })
+        expect(api.responseBodies().at(-1)).not.toHaveProperty('text')
+      } finally {
+        controller.dispose()
+        t.controller.dispose()
+        await host.close()
+      }
+    },
+  )
 
   it('asks for a commit message as the user’s own turn and fills the form from the reply', async () => {
     const t = await askedForCommitMessage()

@@ -1108,6 +1108,7 @@ describe('drafts inside the user’s own turn (M71)', () => {
     expect(prepare).toHaveBeenCalledWith(
       'pullRequest',
       expect.objectContaining({ mode: 'strict_schema', name: 'pull_request_draft' }),
+      expect.any(AbortSignal),
     )
     t.git.generationSubmitted('structured')
     const events = completed(

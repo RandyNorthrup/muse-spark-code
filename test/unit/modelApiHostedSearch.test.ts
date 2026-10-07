@@ -166,6 +166,7 @@ async function host(
       log: t.log,
     }),
     store,
+    now: () => new Date(1970, 0, 1).getTime(),
     isPaidFeatureOn: (feature) =>
       (feature === 'webSearch' && (options.isOn?.() ?? true)) ||
       (feature === 'subagents' && options.subagents === true),
@@ -304,14 +305,16 @@ describe('M106 hosted-search bounds', () => {
     const reserved = vi.spyOn(t.store.budget, 'reserve')
     t.api.script({ searches: [{ isDoneOmitted: true }] })
     await t.turn()
-    const claim = reserved.mock.calls[0]?.[2]
-    if (claim === undefined) throw new Error('Missing claim')
-    expect(t.store.saved.get(t.session.sessionId)?.budgetSpentUsd).toBe(
-      sumUsd(claim, Usd.from('-0.0025').toAmount()),
+    expect(reserved).toHaveBeenCalledOnce()
+    const settled = sumUsd(
+      Usd.from('0.0025').toAmount(),
+      estimateCostUsd({ inputTokens: 10, outputTokens: 5, cachedTokens: 0 }, 'muse-spark-1.3'),
     )
-    expect(c.exactSettled).toEqual([
-      sumUsd(Usd.from(c.exactAmounts[0] ?? 0).toAmount(), Usd.from('-0.0025').toAmount()),
-    ])
+    expect(t.store.saved.get(t.session.sessionId)?.budgetSpentUsd).toBe(settled)
+    expect(c.exactSettled).toEqual([settled])
+    expect(t.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+      terminal: 'completed',
+    })
   })
 
   it('asks again and refunds the stale quote when pricing changes during key retrieval', async () => {

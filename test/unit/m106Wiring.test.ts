@@ -1,3 +1,4 @@
+import { gitDraftContract } from '../../src/core/git/gitText'
 import { ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
 import * as z from 'zod/mini'
 import { describe, expect, it, vi } from 'vitest'
@@ -198,6 +199,96 @@ describe('M106 integrated wiring', () => {
       },
     })
     await h.m.dispose()
+  })
+
+  it('compacts with its own schema after two refusals without inheriting the exec answer format', async () => {
+    const { h, host, session } = await schemaSession()
+    try {
+      host.configureOutputSchema(
+        session.sessionId,
+        M106_CAPTURED_META_MODEL,
+        'strict_schema',
+        closedSchema,
+      )
+      h.api.script({ text: '{"ok":true}' })
+      await session.sendTurn([{ type: 'text', text: 'answer' }])
+      await session.settled()
+      h.api.script(
+        { httpError: { status: 400 } },
+        { httpError: { status: 400 } },
+        { text: 'Summary of the actual work' },
+      )
+      await expect(session.compact()).resolves.toMatchObject({ status: 'accepted' })
+      const summaries = h.api.responseBodies().slice(1)
+      expect(summaries).toHaveLength(3)
+      for (const body of summaries.slice(0, 2))
+        expect(body['text']).toMatchObject({ format: { name: 'compaction_summary', strict: true } })
+      expect(summaries[2]).not.toHaveProperty('text')
+      expect(JSON.stringify(session.snapshot().replay)).toContain('Summary of the actual work')
+      h.api.script({ text: '{"ok":true}' })
+      await session.sendTurn([{ type: 'text', text: 'answer again' }])
+      await session.settled()
+      expect(h.api.responseBodies().at(-1)?.['text']).toMatchObject({
+        format: { name: 'exec_answer' },
+      })
+    } finally {
+      await h.m.dispose()
+    }
+  })
+
+  it('documents the compiler-supported bounded local references in both output-schema guides', () => {
+    const schema = compileOutputSchema(
+      new TextEncoder().encode(
+        JSON.stringify({
+          ...closedSchema,
+          properties: { ok: { $ref: '#/$defs/answer' } },
+          $defs: { answer: { type: 'boolean' } },
+        }),
+      ),
+    )
+    expect(schema.parseAnswer('{"ok":true}').ok).toBe(true)
+    for (const file of ['docs/acp.md', 'docs/ci.md']) {
+      const guide = readFileSync(file, 'utf8')
+      expect(guide).toContain('bounded local `$defs`/`$ref` references')
+      expect(guide).toContain('reference-only cycles')
+      expect(guide).not.toContain('strict subset rejects references')
+    }
+  })
+
+  it('refuses a Git repair after a changed model before dispatch', async () => {
+    const { h, session } = await schemaSession()
+    try {
+      const port = session.gitDraftOutput
+      const attempt = gitDraftContract('commitMessage', port.formats())
+      port.prepare('commitMessage', attempt, new AbortController().signal)
+      h.api.script({ text: 'invalid' })
+      await session.sendTurn([{ type: 'text', text: 'draft a commit' }])
+      await session.settled()
+      await session.setModel('muse-spark-1.3')
+      h.api.script({ text: '{"message":"Stale repair"}' })
+      await expect(
+        port.request('commitMessage', { ...attempt, repair: true }, new AbortController().signal),
+      ).rejects.toThrow(UI_TEXT.gitDraftFailed)
+      expect(h.api.responseBodies()).toHaveLength(1)
+    } finally {
+      await h.m.dispose()
+    }
+  })
+
+  it('does not format an ordinary turn from a cancelled pending Git draft', async () => {
+    const { h, session } = await schemaSession()
+    try {
+      const port = session.gitDraftOutput
+      const abort = new AbortController()
+      port.prepare('commitMessage', gitDraftContract('commitMessage', port.formats()), abort.signal)
+      abort.abort()
+      h.api.script({ text: 'Ordinary reply' })
+      await session.sendTurn([{ type: 'text', text: 'ordinary' }])
+      await session.settled()
+      expect(h.api.responseBodies()[0]).not.toHaveProperty('text')
+    } finally {
+      await h.m.dispose()
+    }
   })
 
   it('refuses schema binding while a turn is active and after its replay exists', async () => {

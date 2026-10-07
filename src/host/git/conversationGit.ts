@@ -1444,10 +1444,11 @@ export class ConversationGit implements ConversationGitPort {
   public generationStarting(kind: GitDraftKind): number {
     this.generation?.output?.abort.abort()
     this.generationEpoch += 1
-    const port = this.window.draftOutput
+    const port = this.surface.draftOutput?.() ?? this.window.draftOutput
     const formats = port?.formats()
-    port?.prepare(kind, gitDraftContract(kind, formats))
     const abort = new AbortController()
+    const signal = AbortSignal.any([abort.signal, this.formAbort.signal])
+    port?.prepare(kind, gitDraftContract(kind, formats), signal)
     this.generation = {
       id: this.generationEpoch,
       formEpoch: this.formEpoch,
@@ -1458,7 +1459,7 @@ export class ConversationGit implements ConversationGitPort {
           port,
           formats,
           abort,
-          signal: AbortSignal.any([abort.signal, this.formAbort.signal]),
+          signal,
         },
       }),
     }

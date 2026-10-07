@@ -27523,6 +27523,18 @@ every Model API user in every editor.
 
 ### M106 — Agent-loop wire guarantees (D86)
 
+**FIXM106W review repairs (2026-10-06, macmini).** Close all six RVM106W
+findings: strip the exec answer format before compaction's own structured or
+text request; bind search's window Once to its provider/model/tariff and live
+revocation generation; connect Git drafts to the conversation's guarded
+Model API turn; forward captured output formats and codecs through Judge's
+connection; refresh hosted-search settlement and atomic-edit golden evidence;
+document bounded local schema references accurately. Each fix has a failing
+regression drill and exact restoration receipt in the W certification. Run
+the complete M106 matrix, unchanged strict/off goldens and all test files in
+batches of at most three with repository timeouts. No live call, dependency,
+cap, hook or branch merge is authorized by this repair brief.
+
 **W stopped-path continuation (2026-10-06, macmini).** The lead lifts the
 two-fix stop for exactly the cut-short host turn and the first lazy Goal-body
 assertion. Trace the continuation flag through manager and session creation;
@@ -33456,6 +33468,20 @@ before a repaired one loads (2026-09-30).
 | `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM106W audit outcome (2026-10-06).** All four RVM106W P2 findings and
+  both P3 findings are fixed; none is deferred. Compaction owns its format even
+  with an exec answer schema. Search window Once remains bound to live exact
+  quote/price/revocation evidence. Git drafts bind to the user's portable core
+  session, with original-event ordering, one repair/text fallback and live
+  model/turn/Stop/account/budget guards; Judge receives that session's captured
+  formats and codec through its admitted connection. The hosted-search suite
+  compares returned settlement and the merged atomic declaration, and both
+  schema guides describe bounded local references correctly. Existing caps,
+  dependencies, paid admission and native/provider capture deferrals stay in
+  force. Twelve red drills have byte-exact restoration receipts in
+  `docs/certification/m106-w-wiring,-docs-and-gates-(last).md`; the lead retains
+  aggregate quality and release/live qualification.
 
 - **FIXDIET1 audit outcome (2026-10-06).** RVMDIET1 P2-1, P2-2 and P3 are
   fixed; no review finding is deferred. Retry flushes the existing webview

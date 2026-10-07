@@ -1,3 +1,4 @@
+import type { GitDraftOutputPort } from '../../git/gitText'
 import type * as CodeIntelEntry from './codeIntelEntry'
 import {
   Usd,
@@ -920,6 +921,7 @@ interface ChildTaskGrant {
 }
 
 interface QueuedTurn {
+  readonly draftAttempt?: SideCallAttempt
   readonly turnId: string
   readonly parts: readonly TurnPart[]
   readonly displayText: string | undefined
@@ -948,6 +950,7 @@ const GOAL_REFUSAL_REASONS: Readonly<Record<GoalRefusal, string>> = {
 const GOAL_WAKING_VERBS: ReadonlySet<GoalCommandVerb> = new Set(['set', 'edit', 'resume'])
 
 interface ActiveTurn {
+  readonly draftAttempt?: SideCallAttempt
   readonly turnId: string
   readonly abort: AbortController
   readonly confirmedRequest?: ConfirmedModelRequest
@@ -2299,6 +2302,15 @@ export class ModelApiSession implements AgentSession {
   private readonly strictTools: boolean
   private readonly parallelReads: boolean
   private readonly outputContinuation: boolean
+  private pendingGitDraft:
+    | {
+        readonly attempt: SideCallAttempt
+        readonly signal: AbortSignal
+        readonly model: string
+        readonly revision: number
+        turnId: string | undefined
+      }
+    | undefined
   private outputFormat: CreateResponseBody['text']
   private readonly outputCaps = new Map<string, number>()
   private readonly repeatGuard = new RepeatGuard()
@@ -3525,7 +3537,7 @@ export class ModelApiSession implements AgentSession {
     return cap
   }
 
-  private body(): CreateResponseBody {
+  private body(shouldFormatDraft = true): CreateResponseBody {
     this.drainChildResults()
     const fitted = this.budget.fit(this.replay.map((entry) => entry.item))
     // Packing projects per request only: the replay keeps the originals, so
@@ -3546,7 +3558,7 @@ export class ModelApiSession implements AgentSession {
         content: [{ type: 'input_text', text: progress }],
       })
     }
-    return this.keyed({
+    const body = this.keyed({
       model: this.modelId,
       input,
       ...this.promptAndTools(this.promptDate),
@@ -3561,6 +3573,10 @@ export class ModelApiSession implements AgentSession {
       max_output_tokens: this.outputCap(),
       ...(this.outputFormat !== undefined && { text: this.outputFormat }),
     })
+    const draft = shouldFormatDraft ? this.active?.draftAttempt : undefined
+    return draft === undefined
+      ? body
+      : this.keyed(sideCallBody(body, draft, this.deps.forceSideCallTool))
   }
 
   /** Retain only what a completed request carried; History keeps its file chips separately. */
@@ -11606,6 +11622,7 @@ export class ModelApiSession implements AgentSession {
       goalWakePending: false,
       isWebSearchAllowed: false,
       isReview: queued.isReview === true,
+      ...(queued.draftAttempt !== undefined && { draftAttempt: queued.draftAttempt }),
       ranProcesses: this.hasLiveCommands(),
       ...(queued.confirmedRequest !== undefined && {
         confirmedRequest: queued.confirmedRequest,
@@ -12470,7 +12487,8 @@ export class ModelApiSession implements AgentSession {
           Math.floor(windowTokens * COMPACTION_SUMMARY_WINDOW_FRACTION),
         ),
       )
-      const current = this.body()
+      const { text: _answerFormat, ...current } = this.body(false)
+      // Compaction owns its format, including the unformatted text fallback.
       // The last POST supplies cache metadata only. Stop, fitting and hook
       // rewrites can replace replay entries; its saved input is never replayed.
       const cached = canReuse && prefix?.body.model === modelId ? prefix.body : undefined
@@ -12879,12 +12897,20 @@ export class ModelApiSession implements AgentSession {
     const turnId = this.isSubagent ? `${this.sessionId}:${this.deps.newId()}` : this.deps.newId()
     const userMessageId = this.deps.newId()
     const confirmedRequest = requestFor?.(turnId)
+    const draft = this.pendingGitDraft
+    this.pendingGitDraft = undefined
+    if (draft !== undefined && !draft.signal.aborted) {
+      if (draft.model !== this.modelId || draft.revision !== this.modelRevision)
+        return Promise.reject(new Error(UI_TEXT.gitDraftFailed))
+      draft.turnId = turnId
+    }
     const queued: QueuedTurn = {
       turnId,
       parts,
       displayText,
       userMessageId,
       isGoalWake: false,
+      ...(draft !== undefined && !draft.signal.aborted && { draftAttempt: draft.attempt }),
       ...(isHookContinuation && { isHookContinuation: true }),
       ...(isReview && { isReview }),
       ...(confirmedRequest !== undefined && { confirmedRequest }),
@@ -13154,6 +13180,75 @@ export class ModelApiSession implements AgentSession {
 
   public get approvalMode(): ApprovalMode {
     return this.permissions.currentMode
+  }
+
+  /** The draft uses the accepted user turn; repairs cannot race another turn or model. */
+  public get gitDraftOutput(): GitDraftOutputPort {
+    let draft: typeof this.pendingGitDraft
+    return {
+      formats: () => this.deps.sideCallFormats?.(this.modelId),
+      prepare: (_kind, attempt, signal) => {
+        if (this.active !== undefined || this.compacting !== undefined || this.isDisposed)
+          throw new Error(UI_TEXT.gitDraftFailed)
+        draft = {
+          attempt,
+          signal,
+          model: this.modelId,
+          revision: this.modelRevision,
+          turnId: undefined,
+        }
+        this.pendingGitDraft = draft
+      },
+      request: async (_kind, attempt, signal) => {
+        await unlessStopped(this.settled(), signal)
+        const binding = draft
+        const check = () => {
+          signal.throwIfAborted()
+          if (
+            binding === undefined ||
+            binding.signal.aborted ||
+            this.isDisposed ||
+            this.active !== undefined ||
+            binding.turnId !== this.latestTurnId() ||
+            binding.model !== this.modelId ||
+            binding.revision !== this.modelRevision
+          )
+            throw new Error(UI_TEXT.gitDraftFailed)
+        }
+        check()
+        if (this.compacting !== undefined) throw new Error(UI_TEXT.gitDraftFailed)
+        const abort = new AbortController()
+        this.compacting = abort
+        const lifetime = AbortSignal.any([signal, abort.signal])
+        const work = (async () => {
+          try {
+            const result = await this.collectText(
+              () => {
+                check()
+                const { text: _answerFormat, ...body } = this.body(false)
+                return this.keyed(
+                  sideCallBody({ ...body, tools: [] }, attempt, this.deps.forceSideCallTool),
+                )
+              },
+              lifetime,
+              check,
+            )
+            check()
+            if (binding?.turnId !== undefined)
+              this.appendHookContexts(binding.turnId, result.contexts)
+            if (result.response.output.some((item) => isFunctionCallItem(item)))
+              throw new Error(UI_TEXT.gitDraftFailed)
+            return result.text
+          } finally {
+            this.compacting = undefined
+            this.touch()
+            this.startNextQueued()
+          }
+        })()
+        this.track(work, true)
+        return await work
+      },
+    }
   }
 
   public sendTurn(
@@ -14166,6 +14261,8 @@ export class ModelApiSession implements AgentSession {
     }
     return {
       keyDigest,
+      sideCallFormats: this.deps.sideCallFormats,
+      forceSideCallTool: this.deps.forceSideCallTool,
       source: {
         readMainBody,
         keyPrefix: promptCacheKey,
