@@ -1,3 +1,4 @@
+import type { JudgePanelSnapshot } from '../../shared/judgePanel'
 import type { StartSessionOptions, AgentSession } from '../../core/agent/agentBackend'
 import type { JudgeDailyLedger } from '../../core/judge/admission'
 import type { JudgeEntryParts } from '../../core/judge/entries'
@@ -14,6 +15,7 @@ import type { Logger } from '../logger'
 import type * as JudgeEntry from './judgeEntry'
 
 export interface JudgeWindowDeps {
+  readonly dailyBudgetUsd?: () => number
   readonly engine: () => JudgeEngine
   readonly context: (action: JudgeEntryParts) =>
     | {
@@ -40,6 +42,7 @@ export interface JudgeWindowDeps {
 }
 
 export interface JudgeWindowPort extends JudgeAdvisory {
+  readPanelSnapshot(): JudgePanelSnapshot | undefined
   isSideSession(sessionId: string): boolean
   dispose(): void
 }
@@ -78,6 +81,7 @@ export function judgeWindowPort(
   })
   let judge: JudgeWindowPort | undefined
   return {
+    readPanelSnapshot: () => judge?.readPanelSnapshot(),
     start: (action, text) => {
       if (deps.engine() === 'off') return
       try {

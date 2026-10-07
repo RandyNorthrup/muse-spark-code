@@ -1,3 +1,4 @@
+import { receiveHttpResponse } from './helpers/httpResponse'
 import { Buffer } from 'node:buffer'
 import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises'
 import { createServer, request as httpRequest } from 'node:http'
@@ -94,19 +95,7 @@ async function send(
           ...options.headers,
         },
       },
-      (response) => {
-        const chunks: Buffer[] = []
-        response.on('data', (chunk: Buffer) => {
-          chunks.push(chunk)
-        })
-        response.on('error', reject)
-        response.on('end', () => {
-          resolve({
-            status: response.statusCode ?? 0,
-            body: Buffer.concat(chunks).toString('utf8'),
-          })
-        })
-      },
+      receiveHttpResponse(resolve, reject),
     )
     request.on('error', (error) => {
       clearTimeout(fallback)

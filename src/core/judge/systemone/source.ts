@@ -5,8 +5,11 @@ import {
   JUDGE_MAX_STATE_TOKENS,
   JUDGE_REQUEST_TIMEOUT_MS,
 } from '../../../shared/constants'
-import { systemOneCapability, type SystemOneModelCapability } from '../../providers/capabilities'
-import { systemOnePresetById, type SystemOneServicePreset } from '../../providers/presets'
+import { capabilities, presets } from '../../../host/backend/providersEntry'
+import type { SystemOneModelCapability } from '../../providers/capabilities'
+const { systemOneCapability } = capabilities
+const { systemOnePresetById } = presets
+import type { SystemOneServicePreset } from '../../providers/presets'
 import { redactSecrets } from '../../redact'
 import { unlessAborted } from '../../timeouts'
 import type { JudgeRuntime } from '../engine'

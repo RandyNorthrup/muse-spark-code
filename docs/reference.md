@@ -1392,7 +1392,7 @@ Muse Judge uses your chat model on your Muse subscription and counts against its
 
 Surfaces: vscode:museCode. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: `museSpark.judge.engine`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-judge)
+Commands: —. Settings: `museSpark.judge.engine`, `museSpark.judge.separate`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-judge)
 
 ### Support
 

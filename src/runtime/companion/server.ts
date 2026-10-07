@@ -1,3 +1,4 @@
+import { armHttpServerShutdown, listenHttpServer } from '../httpServer'
 import { randomBytes } from 'node:crypto'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import * as z from 'zod/mini'
@@ -249,20 +250,9 @@ export async function startCompanionServer<Input, Output>(
   }
 
   try {
-    await new Promise<void>((resolve, reject) => {
-      server.once('error', reject)
-      server.listen(0, host, () => {
-        server.off('error', reject)
-        resolve()
-      })
-    })
-    const address = server.address()
-    if (address === null || typeof address === 'string') throw new Error('EPANEL_BIND')
+    const address = await listenHttpServer(server, host, 0, 'EPANEL_BIND')
     origin = `http://${host === '::1' ? '[::1]' : host}:${String(address.port)}`
-    options.signal?.throwIfAborted()
-    process.once('SIGINT', onSignal)
-    process.once('SIGTERM', onSignal)
-    options.signal?.addEventListener('abort', onSignal, { once: true })
+    armHttpServerShutdown(options.signal, onSignal)
     activity()
     return {
       url: `${origin}/`,

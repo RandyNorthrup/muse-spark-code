@@ -1,61 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { setup, latestState, resetModelsPanelMocks } from './helpers/modelsPanelHost'
+import { describe, expect, it, vi } from 'vitest'
 import { window } from 'vscode'
-import { window as fakeWindow, FakeUri } from './mocks/vscode'
-import { createModelsPanel, type ModelsPanelDeps } from '../../src/host/models/modelsPanel'
-import { parseHostToPanelMessage, type ModelsPanelState } from '../../src/shared/modelsPanel'
-import { EN } from '../../src/shared/l10n/en'
+import { parseHostToPanelMessage } from '../../src/shared/modelsPanel'
 import { TEST_ENTRY, testProvidersHost, testRow } from './helpers/m95kFixtures'
-import { FakeWebviewPanel, memoryProvidersStore } from './helpers/fakes'
+import { type FakeWebviewPanel, memoryProvidersStore } from './helpers/fakes'
 
-function setup(overrides: Partial<ModelsPanelDeps> = {}): {
-  panel: FakeWebviewPanel
-  warnings: string[]
-  saved: ReturnType<typeof vi.fn>
-  providers: ModelsPanelDeps['providers']
-} {
-  const { providers } = testProvidersHost({
-    deps: {
-      store: memoryProvidersStore(),
-      fetcher: { fetchModels: () => Promise.resolve({ rows: [testRow('m1')] }) },
-    },
-  })
-  const warnings: string[] = []
-  const saved = vi.fn()
-  createModelsPanel({
-    extensionUri: new FakeUri('/ext'),
-    l10n: { locale: 'en', table: EN },
-    providers,
-    log: {
-      trace: () => undefined,
-      info: () => undefined,
-      error: (message) => {
-        warnings.push(message)
-      },
-      warn: (message) => {
-        warnings.push(message)
-      },
-    },
-    writeExportFile: () => Promise.resolve(),
-    readImportFile: () => Promise.resolve(undefined),
-    confirmImport: () => Promise.resolve(true),
-    onWizardSaved: saved,
-    ...overrides,
-  })
-  const panel = fakeWindow.createWebviewPanel.mock.results[0]?.value
-  if (!(panel instanceof FakeWebviewPanel)) {
-    throw new TypeError('Expected panel')
-  }
-  return { panel, warnings, saved, providers: overrides.providers ?? providers }
-}
-function latestState(panel: FakeWebviewPanel): ModelsPanelState {
-  for (const call of vi.mocked(panel.webview.postMessage).mock.calls.toReversed()) {
-    const parsed = parseHostToPanelMessage(call[0])
-    if (parsed.ok && parsed.message.type === 'modelsPanel/state') {
-      return parsed.message.state
-    }
-  }
-  throw new Error('No valid state')
-}
 async function send(panel: FakeWebviewPanel, message: unknown, done: () => void): Promise<void> {
   panel.webview.messages.fire(message)
   await vi.waitFor(done)
@@ -65,13 +14,7 @@ async function chooseOpenRouter(panel: FakeWebviewPanel): Promise<void> {
     expect(latestState(panel).drafts.wizard?.presetId).toBe('openrouter')
   })
 }
-beforeEach(() => {
-  fakeWindow.createWebviewPanel.mockReset()
-  fakeWindow.createWebviewPanel.mockImplementation(
-    (viewType, title) => new FakeWebviewPanel(viewType, title),
-  )
-  vi.mocked(window.showInputBox).mockReset()
-})
+resetModelsPanelMocks()
 describe('Models host contract', () => {
   it('keeps an OAuth credential bound to its issuer after an edited draft address', async () => {
     const test = vi.fn(() => Promise.resolve({ kind: 'ok' as const, models: 1 }))

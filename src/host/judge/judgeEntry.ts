@@ -1,3 +1,5 @@
+import { projectJudgePanel, type JudgePanelFacts } from '../../shared/judgePanel'
+import type { JudgeStatus } from '../../shared/judge'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -5,6 +7,7 @@ import { randomUUID } from 'node:crypto'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import { redactSecrets } from '../../core/redact'
 import {
+  judgePriceOf,
   admitJudgeCall,
   rebindJudgeClaim,
   verifyJudgeDispatch,
@@ -40,6 +43,42 @@ export function createWindowJudge(
   const cache = new JudgeResultCache()
   const sideSessions = new Set<string>()
   const uses = new Map<string, { action: JudgeEntryParts; use: JudgeUse }>()
+  let panel: { action: JudgeEntryParts; status: JudgeStatus } | undefined
+  const readPanelFacts = (): JudgePanelFacts | undefined => {
+    if (panel === undefined) return
+    const current = deps.context(panel.action)
+    const status = panel.status
+    const engine = deps.engine()
+    const isBound = current?.modelId === status.modelId && current.backend === panel.action.backend
+    const price = status.billing === 'modelApi' ? judgePriceOf(status.modelId) : undefined
+    const canUseSame = engine === 'auto' || engine === 'same'
+    let reason: JudgePanelFacts['reason'] = status.reason
+    if (engine === 'off') reason = 'explicit-off'
+    else if (!isBound || !canUseSame) reason = 'source-unavailable'
+    else if (status.reason === 'auto-same' || status.reason === 'explicit-same') reason = undefined
+    let consent: JudgePanelFacts['consent'] = 'needed'
+    if (status.billing === 'subscription') consent = 'not-required'
+    else if (status.reason === 'consent-declined') consent = 'declined'
+    else if (isBound && canUseSame && status.mode === 'same') consent = 'granted'
+    return {
+      engine,
+      effectiveSource: isBound && canUseSame && status.mode === 'same' ? 'same' : 'none',
+      modelId: status.modelId,
+      reason,
+      locality: 'not-local',
+      experimental: false,
+      confidential: current?.confidential ?? true,
+      billing: status.billing,
+      paidSourceSelected: status.billing === 'modelApi',
+      consent,
+      ...(price !== undefined && {
+        inputPerMillion: price.input,
+        cachedPerMillion: price.cachedInput,
+        outputPerMillion: price.output,
+      }),
+      ...(deps.dailyBudgetUsd !== undefined && { dailyBudgetUsd: deps.dailyBudgetUsd() }),
+    }
+  }
   let sourceKey: string | undefined
   let hasNotice = false
   const onError = () => {
@@ -63,6 +102,10 @@ export function createWindowJudge(
     }
   }
   return {
+    readPanelSnapshot: () => {
+      const facts = readPanelFacts()
+      return facts === undefined ? undefined : projectJudgePanel(facts)
+    },
     start: (action, stateText) => {
       const initial = deps.context(action)
       if (initial?.backend !== action.backend) return
@@ -135,6 +178,7 @@ export function createWindowJudge(
           onError,
           onFence: deps.onFence,
           onStatus: (status) => {
+            panel = { action, status }
             deps.status(action, status)
           },
           notice: (text) => {
@@ -253,6 +297,7 @@ export function createWindowJudge(
     },
     isSideSession: (id) => sideSessions.has(id),
     dispose: () => {
+      panel = undefined
       drop(() => true)
       cache.clear()
       sideSessions.clear()

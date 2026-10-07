@@ -10012,7 +10012,7 @@ export class ConversationController {
   }
 
   public postJudge(
-    message: Extract<HostToWebviewMessage, { type: 'judgeState' | 'agentEvent' }>,
+    message: Extract<HostToWebviewMessage, { type: 'judgeState' | 'judgeUsage' | 'agentEvent' }>,
   ): void {
     this.post(message)
   }

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { usageDialogCallbacks } from './helpers/usageDialog'
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
@@ -586,12 +587,7 @@ describe('M95b shared subscription UI', () => {
         models={[model]}
         paid={{ features: [], tally: EMPTY_PAID_TALLY, isKeyStored: false, alwaysAllowed: [] }}
         auth={initialUiState.auth}
-        onInstallMuseCode={vi.fn()}
-        onSetupSignIn={vi.fn()}
-        onForgetPaidUse={vi.fn()}
-        now={() => 0}
-        onOpenExternal={vi.fn()}
-        onClose={vi.fn()}
+        {...usageDialogCallbacks()}
       />,
     )
     expect(await screen.findByRole('region', { name: UI_TEXT.planUi.usageHeading })).toBeTruthy()

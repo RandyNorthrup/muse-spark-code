@@ -87,16 +87,20 @@ export const judgePanelCapabilitySchema = z.strictObject({
 })
 export type JudgePanelCapability = z.infer<typeof judgePanelCapabilitySchema>
 
-export const judgePanelFactsSchema = z.strictObject({
+const panelIdentityFields = {
   engine: z.enum(JUDGE_PANEL_ENGINES),
   effectiveSource: z.enum(JUDGE_PANEL_SOURCES),
   providerId: z.optional(z.string().check(z.minLength(1))),
   modelId: z.optional(z.string().check(z.minLength(1))),
   technique: z.optional(z.enum(JUDGE_PANEL_TECHNIQUES)),
-  capability: z.optional(judgePanelCapabilitySchema),
   label: z.optional(z.enum(JUDGE_PANEL_LABELS)),
   partial: z.optional(z.boolean()),
   reason: z.optional(z.enum(JUDGE_PANEL_REASONS)),
+}
+
+export const judgePanelFactsSchema = z.strictObject({
+  ...panelIdentityFields,
+  capability: z.optional(judgePanelCapabilitySchema),
   locality: z.enum(['not-local', 'verified', 'unverified']),
   experimental: z.boolean(),
   confidential: z.boolean(),
@@ -117,14 +121,7 @@ export const judgePanelFactsSchema = z.strictObject({
 export type JudgePanelFacts = z.infer<typeof judgePanelFactsSchema>
 
 export const judgePanelSnapshotSchema = z.strictObject({
-  engine: z.enum(JUDGE_PANEL_ENGINES),
-  effectiveSource: z.enum(JUDGE_PANEL_SOURCES),
-  providerId: z.optional(z.string().check(z.minLength(1))),
-  modelId: z.optional(z.string().check(z.minLength(1))),
-  technique: z.optional(z.enum(JUDGE_PANEL_TECHNIQUES)),
-  label: z.optional(z.enum(JUDGE_PANEL_LABELS)),
-  partial: z.optional(z.boolean()),
-  reason: z.optional(z.enum(JUDGE_PANEL_REASONS)),
+  ...panelIdentityFields,
   unverifiedLocal: z.boolean(),
   untested: z.boolean(),
   billing: z.enum(['subscription', 'modelApi', 'free', 'none']),

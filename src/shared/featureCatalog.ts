@@ -778,7 +778,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'paidJudgeName' },
       { ui: 'judgeSubscriptionNotice' },
       [],
-      ['judge.engine'],
+      ['judge.engine', 'judge.separate'],
       'muse-judge',
       ['museCode'],
       false,

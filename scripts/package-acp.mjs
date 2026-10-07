@@ -57,6 +57,7 @@ const BUNDLES = [
   'teamRunners.js',
   'teamScheduler.js',
   'judgeP2.js',
+  'judgeSources.js',
   'judgeLint.js',
   'judgeHook.js',
   'judgeLocal.js',

@@ -42072,6 +42072,22 @@ aggregate certification record.
 
 #### M98 phase 2 — buildable lanes (2026-10-05, planned)
 
+**M98P2Z integration (2026-10-07, Kubuntu).** Integrate the phase-2 base,
+C, E and FP on `9d1ab33c3`, keeping version 0.15.0. Close all inherited
+clones through shared implementations and fixtures, regenerate the host API
+inventory, expose generation-owned source assembly through the lazy factory,
+and project actual judge status into Account & usage. Verify a fresh committed
+clone with CI=true, all five compilers, unchanged static/build/package gates,
+and the complete four-shard unit inventory at repository deadlines.
+No live, paid or local inference is authorized. Native M95 logprob and
+structured-output wrappers remain blocked where no committed capture exists;
+never turn the normalized test seam into a guessed vendor codec. Models-panel
+source injection and installed-host source support depend on those adapters.
+Delivery mutations keep their individual negative controls and restored-byte hashes;
+one final green check covers the complete restored artifact set. Exact receipts,
+gate failures and two byte-restored drills go in
+`docs/certification/m98.md`.
+
 **Goal.** Deliver both the user's own model and a separate judge as
 first-class advisory sources, including the requested local-model opt-in,
 without changing the single-model user's current behaviour. These are
@@ -47699,7 +47715,26 @@ scan is now clean after archive refs moved outside this repository, and
 the shared install now contains the pinned source-map-js 1.2.2. Windows
 proof remains WINPUB on win11 for the lead's release batch.
 
+**M98P2Z source and host deferrals (2026-10-07).** The inherited clone and
+host-API record failures are closed structurally. Native M95 logprob and
+structured-output wrappers without committed captures remain deferred:
+E names the missing captures, and this brief authorizes zero live, paid or
+local inference. Empty/absent logprobs never become a capability. Concrete
+Models/ACP/headless source selection and first-charge binding remain
+unavailable until captured canonical codecs, the existing client/key store
+and D78 ledger are bound and fake and installed-host receipts pass. The
+lazy source assembly alone does not close that acceptance checkbox. No
+new transport, registry, credential store, ledger, ignore or gate weakening.
+A can integrate against the callable source factory and generation contract;
+I can use those contracts for its representation work but still needs named
+embedding captures and independent calibration labels. Receipt:
+`docs/certification/m98.md`.
+
 ## 8. Escape hatches register
+
+| Location                           | Escape hatch                                          | Reason                                                                                                                                                                                         |
+| ---------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/judgeP2Routing.test.ts` | Partial deps asserted as the mocked BYO factory input | The factory is replaced before import and records only generation, wording and output ceiling. No provider reads the empty fixture; real adapter suites retain their full dependency fixtures. |
 
 | 0.15.0 hosted-CI location                                                                               | Escape hatch                                                                                | Reason                                                                                                                                                                                                                                                                                                                                                                                           | Removal                                                                                                                                                   |
 | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -47734,7 +47769,7 @@ proof remains WINPUB on win11 for the lead's release batch.
 
 | Location                                     | Escape hatch                                 | Reason                                                                                                                                                                                                      | Date       |
 | -------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/runtime/judge/judgeEntry.ts:hasFactory` | Same-build callable child factory predicates | Check the four shipped child factories before using their compiler-checked signatures; the established lazy loader rejects malformed modules and retries repaired files. No service/wire shape is inferred. | 2026-10-05 |
+| `src/runtime/judge/judgeEntry.ts:hasFactory` | Same-build callable child factory predicates | Check the five shipped child factories before using their compiler-checked signatures; the established lazy loader rejects malformed modules and retries repaired files. No service/wire shape is inferred. | 2026-10-05 |
 
 | Location                                      | Escape hatch                         | Reason                                                                                                                                                                         | Date       |
 | --------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |

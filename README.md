@@ -5054,3 +5054,15 @@ one-time notice naming each registry and explaining that only package names
 and versions leave over HTTPS. Disable `museSpark.legalRegistryLookups` for
 local-only scans; missing dependency licences remain unknown. Private registry
 configuration is never contacted. CLI lookup still requires `--registry`.
+
+Phase-2 integration keeps the repaired SystemOne and BYO adapters behind the
+explicit `judgeP2.js` → `judgeSources.js` loader. Every source replacement or
+revocation advances the assembly generation; the host still supplies M95's
+client and D78's durable claims. Missing captured native codecs refuse a route.
+No separate provider is auto-selected or certified by this merge. The Models
+panel keeps its honest unavailable state until a source port is connected.
+Account & usage receives the current same-model judge status through the shared
+validated bridge; unavailable accounting amounts remain unknown. The shared
+React rows also apply to hosts using that bridge; ACP/headless expose the
+portable assembly but have no Models panel. Installed-editor receipts remain
+required before claiming those source routes are supported.

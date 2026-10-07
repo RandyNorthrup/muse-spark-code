@@ -202,6 +202,8 @@ const USAGE_WEBVIEW_ENTRY = 'src/webview/usage/usage.tsx'
 const WEBVIEW_OUTDIR = 'dist/webview'
 const JUDGE_P2_ENTRY = 'src/runtime/judge/judgeEntry.ts'
 const JUDGE_P2_OUTFILE = 'dist/judgeP2.js'
+const JUDGE_SOURCES_ENTRY = 'src/runtime/judge/judgeSourcesEntry.ts'
+const JUDGE_SOURCES_OUTFILE = 'dist/judgeSources.js'
 const JUDGE_LINT_ENTRY = 'src/runtime/judge/judgeLintEntry.ts'
 const JUDGE_LINT_OUTFILE = 'dist/judgeLint.js'
 const JUDGE_HOOK_ENTRY = 'src/runtime/judge/judgeHookEntry.ts'
@@ -521,6 +523,13 @@ const judgeP2Options = {
   ...planMarkdownOptions,
   entryPoints: [JUDGE_P2_ENTRY],
   outfile: JUDGE_P2_OUTFILE,
+}
+
+const judgeSourcesOptions = {
+  ...judgeP2Options,
+  plugins: [...judgeP2Options.plugins, deferredCohort],
+  entryPoints: [JUDGE_SOURCES_ENTRY],
+  outfile: JUDGE_SOURCES_OUTFILE,
 }
 
 const judgeLintOptions = {
@@ -945,6 +954,7 @@ if (isWatch) {
     esbuild.context(whatsNewOptions),
     esbuild.context(judgeOptions),
     esbuild.context(judgeP2Options),
+    esbuild.context(judgeSourcesOptions),
     esbuild.context(judgeLintOptions),
     esbuild.context(judgeHookOptions),
     esbuild.context(judgeLocalOptions),
@@ -1042,6 +1052,7 @@ if (isWatch) {
     whatsNew: esbuild.build(whatsNewOptions),
     judge: esbuild.build(judgeOptions),
     judgeP2: esbuild.build(judgeP2Options),
+    judgeSources: esbuild.build(judgeSourcesOptions),
     judgeLint: esbuild.build(judgeLintOptions),
     judgeHook: esbuild.build(judgeHookOptions),
     judgeLocal: esbuild.build(judgeLocalOptions),
@@ -1139,6 +1150,7 @@ if (isWatch) {
   reportSize(WHATS_NEW_CONTENT_OUTFILE)
   reportSize(JUDGE_OUTFILE)
   reportSize(JUDGE_P2_OUTFILE)
+  reportSize(JUDGE_SOURCES_OUTFILE)
   reportSize(JUDGE_LINT_OUTFILE)
   reportSize(JUDGE_HOOK_OUTFILE)
   reportSize(JUDGE_LOCAL_OUTFILE)

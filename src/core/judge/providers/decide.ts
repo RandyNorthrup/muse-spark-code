@@ -3,7 +3,7 @@
 // identity key only: it never selects top-k, top-1, stated or a silent drop.
 // No `vscode` import.
 
-import { type ModelCapabilityRecord } from '../../providers/capabilityRecord'
+import type { ModelCapabilityRecord } from '../../providers/capabilityRecord'
 import { judgeCapabilitySchema, type JudgeCapability, type JudgeQuestion } from '../schema'
 
 /** Structured modes the record can name. Plain text is not a stated path. */

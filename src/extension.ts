@@ -1128,6 +1128,7 @@ async function activateWindow(
     log,
   })
   const judge = judgeWindowPort({
+    dailyBudgetUsd: () => dailyPaid.capUsd(),
     ledger: dailyPaid.judgeLedger,
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', JUDGE_BUNDLE_FILE).fsPath,
     engine: () => currentSettings()['judge.engine'],
@@ -1168,6 +1169,9 @@ async function activateWindow(
       for (const controller of controllers.values()) {
         if (controller.boardSession()?.sessionId === action.sessionId)
           controller.postJudge({ type: 'judgeState', state: status })
+        const facts = judge.readPanelSnapshot()
+        if (facts !== undefined && controller.boardSession()?.sessionId === action.sessionId)
+          controller.postJudge({ type: 'judgeUsage', usage: facts })
       }
     },
     notice: (text) => {

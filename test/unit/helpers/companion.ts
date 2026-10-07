@@ -1,4 +1,5 @@
-import { Buffer } from 'node:buffer'
+import { receiveHttpResponse } from './httpResponse'
+import { type Buffer } from 'node:buffer'
 import { request, type IncomingHttpHeaders } from 'node:http'
 import * as z from 'zod/mini'
 import { afterEach, vi } from 'vitest'
@@ -106,20 +107,7 @@ export function call(
     const outgoing = request(
       new URL(path, panel.url),
       { method, headers: supplied ?? headers(panel), setHost: false },
-      (response) => {
-        const chunks: Buffer[] = []
-        response.on('data', (chunk: Buffer) => {
-          chunks.push(chunk)
-        })
-        response.on('error', reject)
-        response.on('end', () => {
-          resolve({
-            status: response.statusCode ?? 0,
-            headers: response.headers,
-            body: Buffer.concat(chunks).toString('utf8'),
-          })
-        })
-      },
+      receiveHttpResponse(resolve, reject),
     )
     outgoing.on('error', reject)
     outgoing.end(body)

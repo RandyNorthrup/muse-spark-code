@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Integrate the repaired SystemOne and BYO judge libraries and the Judge panel
+  on the 0.15.0 head. Share token protection, server startup and fixtures;
+  expose explicit source assembly with generation fences and bounded wording;
+  send real judge status to Account & usage. Native provider wrappers and
+  Models-panel source injection remain unavailable without their captures.
+
+
 - Keep every long-reply accessibility delta while yielding through a task port,
   avoiding nested timer throttling within the existing readiness deadline.
 

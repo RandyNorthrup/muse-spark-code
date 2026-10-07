@@ -14,19 +14,18 @@ import { UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { fill, setUiText } from '../../src/shared/l10n/text'
 import { paidFeaturePrice } from '../../src/shared/paid'
-import { EMPTY_PAID_TALLY } from '../../src/shared/paidBoundary'
 import {
   judgePanelMoney,
   judgePanelStatusText,
   projectJudgePanel,
   type JudgePanelSnapshot,
 } from '../../src/shared/judgePanel'
-import { initialUiState } from '../../src/webview/state/uiState'
 import dark from '../harness/themes/dark.json'
 import light from '../harness/themes/light.json'
 import hcDark from '../harness/themes/hc-dark.json'
 import hcLight from '../harness/themes/hc-light.json'
 import { makeState } from './modelsPanelFixtures'
+import { emptySubscriptionUsageDialog } from './helpers/usageDialog'
 import { modelApiFacts, subscriptionFacts } from './judgePanelFixtures'
 
 const modelsCss = readFileSync(path.join(process.cwd(), 'src/webview/models/models.css'), 'utf8')
@@ -201,35 +200,7 @@ describe('judge panel view', () => {
     const paid = projectJudgePanel(modelApiFacts())
     render(<JudgeUsageRows snapshot={paid} />)
     expect(screen.getAllByText(UI_TEXT.judgePanel.notKnown).length).toBeGreaterThan(0)
-    render(
-      <UsageDialogContent
-        report={{
-          backend: 'museCode',
-          subscription: undefined,
-          account: undefined,
-          insights: undefined,
-          providers: undefined,
-        }}
-        usage={undefined}
-        context={undefined}
-        modelId={undefined}
-        modelPricing={undefined}
-        paid={{
-          features: [],
-          tally: EMPTY_PAID_TALLY,
-          isKeyStored: false,
-          alwaysAllowed: [],
-        }}
-        judgeUsage={subscription}
-        auth={initialUiState.auth}
-        onInstallMuseCode={vi.fn()}
-        onSetupSignIn={vi.fn()}
-        onForgetPaidUse={vi.fn()}
-        now={() => 0}
-        onOpenExternal={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    )
+    render(<UsageDialogContent {...emptySubscriptionUsageDialog()} judgeUsage={subscription} />)
     expect(await screen.findByRole('heading', { name: UI_TEXT.paidJudgeName })).toBeInTheDocument()
     expect(screen.getAllByText(UI_TEXT.judgeSubscriptionNotice).length).toBeGreaterThan(0)
     expect(screen.queryByRole('button', { name: UI_TEXT.judgePanel.askOnce })).toBeNull()
@@ -282,33 +253,7 @@ describe('judge panel view', () => {
       applyTheme(theme)
       const { container, unmount } = render(
         <div style={{ width: '320px' }}>
-          <UsageDialogContent
-            report={{
-              backend: 'museCode',
-              subscription: undefined,
-              account: undefined,
-              insights: undefined,
-              providers: undefined,
-            }}
-            usage={undefined}
-            context={undefined}
-            modelId={undefined}
-            modelPricing={undefined}
-            paid={{
-              features: [],
-              tally: EMPTY_PAID_TALLY,
-              isKeyStored: false,
-              alwaysAllowed: [],
-            }}
-            judgeUsage={snapshot}
-            auth={initialUiState.auth}
-            onInstallMuseCode={vi.fn()}
-            onSetupSignIn={vi.fn()}
-            onForgetPaidUse={vi.fn()}
-            now={() => 0}
-            onOpenExternal={vi.fn()}
-            onClose={vi.fn()}
-          />
+          <UsageDialogContent {...emptySubscriptionUsageDialog()} judgeUsage={snapshot} />
         </div>,
       )
       expect(

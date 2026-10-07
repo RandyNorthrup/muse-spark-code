@@ -101,6 +101,7 @@
 
     // M98 B/D/CS/G factory and its type-only loader, called by explicit judge surfaces.
     "src/runtime/judge/judgeEntry.ts",
+    "src/runtime/judge/judgeSourcesEntry.ts",
     "src/runtime/judge/judgeLintEntry.ts",
     "src/runtime/judge/judgeHookEntry.ts",
     "src/runtime/judge/judgeLocalEntry.ts",

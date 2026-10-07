@@ -9,6 +9,7 @@ import type * as LintEntry from './judgeLintEntry'
 import type * as HookEntry from './judgeHookEntry'
 import type * as LocalEntry from './judgeLocalEntry'
 import type * as UsesEntry from './judgeUsesEntry'
+import type * as SourcesEntry from './judgeSourcesEntry'
 import { applyCalibration } from '../../core/judge/calibration/apply'
 import { fitCalibration } from '../../core/judge/calibration/fit'
 import { reportCalibration } from '../../core/judge/calibration/report'
@@ -38,6 +39,7 @@ function hasFactory<T>(value: unknown, field: keyof T): value is T {
 const childFactories: {
   current:
     | {
+        readonly sources: () => typeof SourcesEntry
         readonly lint: () => typeof LintEntry
         readonly hook: () => typeof HookEntry
         readonly local: () => typeof LocalEntry
@@ -60,6 +62,11 @@ function children() {
 }
 
 const features = {
+  loadSources() {
+    return Promise.resolve(
+      children().sources().createJudgeSourcesFeatures({ uiText: UI_TEXT, uiLocale: uiLocale() }),
+    )
+  },
   applyCalibration,
   fitCalibration,
   reportCalibration,
@@ -109,6 +116,14 @@ export function createJudgeFeatures(language: {
   // A later host caller can supply its LogOutputChannel adapter directly.
   const log = language.log ?? stderrLogger(writeLog, 'warn')
   childFactories.current = {
+    sources: lazyBundleLoader({
+      bundlePath: path.join(__dirname, 'judgeSources.js'),
+      log,
+      isBundle: (value): value is typeof SourcesEntry =>
+        hasFactory<typeof SourcesEntry>(value, 'createJudgeSourcesFeatures'),
+      label: 'judge sources bundle',
+      unavailable,
+    }),
     local: lazyBundleLoader({
       bundlePath: path.join(__dirname, 'judgeLocal.js'),
       log,

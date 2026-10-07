@@ -7,21 +7,18 @@
 
 import { createHash } from 'node:crypto'
 import { redactSecrets } from '../../redact'
-import { type ProviderIdentity } from '../../backends/modelapi/providerClient'
-import { type ModelCapabilityRecord } from '../../providers/capabilityRecord'
-import {
-  isValidPriceCard,
-  reserveRequestUsd,
-  settleUsageUsd,
-  type ModelPricing,
-} from '../../providers/priceCard'
+import type { ProviderIdentity } from '../../backends/modelapi/providerClient'
+import type { ModelCapabilityRecord } from '../../providers/capabilityRecord'
+import { priceCard } from '../../../host/backend/providersEntry'
+import type { ModelPricing } from '../../providers/priceCard'
+const { isValidPriceCard, reserveRequestUsd, settleUsageUsd } = priceCard
 import {
   JUDGE_MAX_BODY_BYTES,
   JUDGE_MAX_STATE_TOKENS,
   JUDGE_RESULT_CACHE_MAX,
   JUDGE_TOP1_MIN_PROB,
 } from '../../../shared/constants'
-import { type JudgeDailyLedger, type JudgeLedgerClaim } from '../admission'
+import type { JudgeDailyLedger, JudgeLedgerClaim } from '../admission'
 import { labelForTechnique, type AnswerMaterial } from '../judge'
 import { entropyConfidence } from '../math'
 import { planJudgeBatches, type JudgePromptBatch, type JudgePromptWording } from '../prompt'

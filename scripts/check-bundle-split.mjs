@@ -110,6 +110,20 @@ const JUDGE_ONLY = [
 ]
 const JUDGE_CHILDREN = [
   {
+    output: 'dist/judgeSources.js',
+    metafile: 'dist/meta/judgeSources.json',
+    files: [
+      'src/runtime/judge/judgeSourcesEntry.ts',
+      'src/core/judge/routing.ts',
+      'src/core/judge/providers/run.ts',
+      'src/core/judge/providers/decide.ts',
+      'src/core/judge/providers/decode.ts',
+      'src/core/judge/systemone/source.ts',
+      'src/core/judge/systemone/wire.ts',
+      'src/core/judge/systemone/policy.ts',
+    ],
+  },
+  {
     output: 'dist/judgeLocal.js',
     metafile: 'dist/meta/judgeLocal.json',
     files: [
@@ -1163,7 +1177,12 @@ const TEXT_BLOCKS = [
   {
     block: 'JUDGE_MODEL_TEXT',
     sentinels: ['judgeSystemInstruction', 'judgeStandaloneTurn'],
-    readers: ['dist/judge.js'],
+    readers: ['dist/judge.js', 'dist/judgeSources.js'],
+  },
+  {
+    block: 'JUDGE_PROVIDER_MODEL_TEXT',
+    sentinels: ['singleTokenInstruction'],
+    readers: ['dist/judgeSources.js'],
   },
 ].map((entry) => ({
   ...entry,

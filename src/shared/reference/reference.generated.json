@@ -1520,7 +1520,7 @@
       "summary": { "ui": "judgeSubscriptionNotice" },
       "description": { "ui": "judgeSubscriptionNotice" },
       "commands": [],
-      "settings": ["museSpark.judge.engine"],
+      "settings": ["museSpark.judge.engine", "museSpark.judge.separate"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#muse-judge",
       "backends": ["museCode"],
       "paid": false,

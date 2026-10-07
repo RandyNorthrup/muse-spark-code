@@ -7,7 +7,7 @@
 // No `vscode` import.
 
 import * as z from 'zod/mini'
-import { type AnswerMaterial, type JudgeQuestionKind } from '../judge'
+import type { AnswerMaterial, JudgeQuestionKind } from '../judge'
 import { materialForLogprobs, materialForStated, materialForTop1 } from '../techniques'
 
 const alternativeSchema = z.looseObject({

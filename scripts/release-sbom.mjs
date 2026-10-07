@@ -28,6 +28,7 @@ const ACP_META = [
   'dist/meta/judgeHook.json',
   'dist/meta/judgeLocal.json',
   'dist/meta/judgeUses.json',
+  'dist/meta/judgeSources.json',
   'dist/meta/foreignHooks.json',
   'dist/meta/hookRuntime.json',
   'dist/meta/extensionHooks.json',

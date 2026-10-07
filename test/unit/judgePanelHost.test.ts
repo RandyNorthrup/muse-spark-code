@@ -1,61 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { window } from 'vscode'
-import { createModelsPanel, type ModelsPanelDeps } from '../../src/host/models/modelsPanel'
-import { parseHostToPanelMessage, type ModelsPanelState } from '../../src/shared/modelsPanel'
-import { EN } from '../../src/shared/l10n/en'
+import { setup, latestState, resetModelsPanelMocks } from './helpers/modelsPanelHost'
+import { describe, expect, it, vi } from 'vitest'
+import { parseHostToPanelMessage } from '../../src/shared/modelsPanel'
 import type { JudgePanelFacts } from '../../src/shared/judgePanel'
-import { testProvidersHost, testRow } from './helpers/m95kFixtures'
-import { FakeWebviewPanel, memoryProvidersStore } from './helpers/fakes'
-import { window as fakeWindow, FakeUri } from './mocks/vscode'
+import type { FakeWebviewPanel } from './helpers/fakes'
 import { judgeFacts, modelApiFacts, subscriptionFacts } from './judgePanelFixtures'
 
-function setup(overrides: Partial<ModelsPanelDeps> = {}): {
-  panel: FakeWebviewPanel
-  warnings: string[]
-  controller: ReturnType<typeof createModelsPanel>
-} {
-  const { providers } = testProvidersHost({
-    deps: {
-      store: memoryProvidersStore(),
-      fetcher: { fetchModels: () => Promise.resolve({ rows: [testRow('m1')] }) },
-    },
-  })
-  const warnings: string[] = []
-  const controller = createModelsPanel({
-    extensionUri: new FakeUri('/ext'),
-    l10n: { locale: 'en', table: EN },
-    providers,
-    log: {
-      trace: () => undefined,
-      info: () => undefined,
-      error: (message) => {
-        warnings.push(message)
-      },
-      warn: (message) => {
-        warnings.push(message)
-      },
-    },
-    writeExportFile: () => Promise.resolve(),
-    readImportFile: () => Promise.resolve(undefined),
-    confirmImport: () => Promise.resolve(true),
-    onWizardSaved: () => undefined,
-    ...overrides,
-  })
-  const panel = fakeWindow.createWebviewPanel.mock.results.at(-1)?.value
-  if (!(panel instanceof FakeWebviewPanel)) {
-    throw new TypeError('Expected panel')
-  }
-  return { panel, warnings, controller }
-}
-
-function latestState(panel: FakeWebviewPanel): ModelsPanelState {
-  for (const call of vi.mocked(panel.webview.postMessage).mock.calls.toReversed()) {
-    const parsed = parseHostToPanelMessage(call[0])
-    if (parsed.ok && parsed.message.type === 'modelsPanel/state') {
-      return parsed.message.state
-    }
-  }
-  throw new Error('No valid state')
+function navigation(panel: FakeWebviewPanel) {
+  return vi
+    .mocked(panel.webview.postMessage)
+    .mock.calls.map((call) => parseHostToPanelMessage(call[0]))
+    .find((parsed) => parsed.ok && parsed.message.type === 'modelsPanel/navigate')
 }
 
 function stateCount(panel: FakeWebviewPanel): number {
@@ -65,13 +19,7 @@ function stateCount(panel: FakeWebviewPanel): number {
   }).length
 }
 
-beforeEach(() => {
-  fakeWindow.createWebviewPanel.mockReset()
-  fakeWindow.createWebviewPanel.mockImplementation(
-    (viewType, title) => new FakeWebviewPanel(viewType, title),
-  )
-  vi.mocked(window.showInputBox).mockReset()
-})
+resetModelsPanelMocks()
 
 describe('judge panel host', () => {
   it('does not ask on reveal, ready, or a forged message for a subscription', async () => {
@@ -140,10 +88,7 @@ describe('judge panel host', () => {
     })
     controller.reveal({ section: 'judge' })
     expect(requestFirstCharge).not.toHaveBeenCalled()
-    const navigate = vi
-      .mocked(panel.webview.postMessage)
-      .mock.calls.map((call) => parseHostToPanelMessage(call[0]))
-      .find((parsed) => parsed.ok && parsed.message.type === 'modelsPanel/navigate')
+    const navigate = navigation(panel)
     expect(navigate?.ok).toBe(true)
     if (navigate?.ok && navigate.message.type === 'modelsPanel/navigate') {
       expect(navigate.message.section).toBe('judge')
@@ -189,10 +134,7 @@ describe('judge panel host', () => {
     controller.reveal({ section: 'not-a-section' })
     expect(latestState(panel).judge?.reason).toBe('source-unavailable')
     expect(latestState(panel).judge?.askFirstCharge).toBe(false)
-    const navigate = vi
-      .mocked(panel.webview.postMessage)
-      .mock.calls.map((call) => parseHostToPanelMessage(call[0]))
-      .find((parsed) => parsed.ok && parsed.message.type === 'modelsPanel/navigate')
+    const navigate = navigation(panel)
     if (navigate?.ok && navigate.message.type === 'modelsPanel/navigate') {
       expect(navigate.message.section).toBe('providers')
     }

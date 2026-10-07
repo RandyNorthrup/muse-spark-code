@@ -174,6 +174,7 @@ const BUDGETS = [
   // boundary, required on an explicit judge action. 59.6 KiB + 15%, rounded
   // up to 25 KiB; no pre-existing cap changes (PLAN.md D6).
   { path: 'dist/judgeP2.js', budgetKiB: 75 },
+  { path: 'dist/judgeSources.js', budgetKiB: 75 },
   { path: 'dist/judgeLint.js', budgetKiB: 50 },
   { path: 'dist/judgeHook.js', budgetKiB: 100 },
   { path: 'dist/judgeLocal.js', budgetKiB: 75 },

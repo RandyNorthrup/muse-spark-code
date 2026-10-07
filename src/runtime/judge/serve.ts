@@ -1,3 +1,4 @@
+import { armHttpServerShutdown, listenHttpServer } from '../httpServer'
 import { Buffer } from 'node:buffer'
 import { timingSafeEqual } from 'node:crypto'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
@@ -166,20 +167,9 @@ export async function startJudgeServer(options: JudgeServeOptions) {
     })
   }
   try {
-    await new Promise<void>((resolve, reject) => {
-      server.once('error', reject)
-      server.listen(options.port ?? 0, host, () => {
-        server.off('error', reject)
-        resolve()
-      })
-    })
-    const address = server.address()
-    if (address === null || typeof address === 'string') throw new Error('EJUDGE_BIND')
+    const address = await listenHttpServer(server, host, options.port ?? 0, 'EJUDGE_BIND')
     authority = `${host === '::1' ? '[::1]' : host}:${String(address.port)}`
-    options.signal?.throwIfAborted()
-    process.once('SIGINT', onSignal)
-    process.once('SIGTERM', onSignal)
-    options.signal?.addEventListener('abort', onSignal, { once: true })
+    armHttpServerShutdown(options.signal, onSignal)
     return {
       url: `http://${authority}/v1/systemone`,
       tokenPath: credential.path,

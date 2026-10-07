@@ -3,7 +3,7 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 
 const judgeFiles = new Set([
@@ -20,6 +20,19 @@ const judgeFiles = new Set([
   'src/runtime/judge/mcp.ts',
 ])
 const children = [
+  {
+    name: 'judgeSources',
+    sources: [
+      'src/runtime/judge/judgeSourcesEntry.ts',
+      'src/core/judge/routing.ts',
+      'src/core/judge/providers/run.ts',
+      'src/core/judge/providers/decide.ts',
+      'src/core/judge/providers/decode.ts',
+      'src/core/judge/systemone/source.ts',
+      'src/core/judge/systemone/wire.ts',
+      'src/core/judge/systemone/policy.ts',
+    ],
+  },
   {
     name: 'judgeLocal',
     sources: [
@@ -82,7 +95,7 @@ const metaSchema = z.looseObject({
     }),
   ),
 })
-// Real bundle-split gate rereads every production metafile (2.2s on this tree); a child case runs it ten times.
+// Real bundle-split gate rereads every production metafile (2.2s on this tree); a child case runs it five times.
 const REAL_SPLIT_CASE_MS = 60_000
 // `vsce ls` reads the real package inventory (9s on this tree) and these cases list it three times.
 const REAL_VSIX_CASE_MS = 60_000
@@ -95,6 +108,15 @@ const targets = [
 
 beforeAll(() => {
   execFileSync(process.execPath, ['scripts/build.mjs', '--production'], { stdio: 'pipe' })
+})
+// Every mutation restores and checks the original hash. Verify that complete
+// restored artifact set once; rerunning it after each identical restoration
+// repeated hundreds of full metafile parses without adding a distinct control.
+afterAll(() => {
+  for (const script of ['check-bundle-split', 'check-bundle-size', 'check-host-globals']) {
+    const green = gate(script)
+    expect(green.status, green.stderr).toBe(0)
+  }
 })
 
 function output(file: string, bundle: string) {
@@ -132,8 +154,6 @@ function guard(file: string, mutate: () => void, script: string, message: string
     writeFileSync(file, original)
   }
   expect(digest(file)).toBe(hash)
-  const green = gate(script)
-  expect(green.status, green.stderr).toBe(0)
 }
 
 describe('phase-2 judge production delivery', () => {
@@ -221,6 +241,7 @@ describe('phase-2 judge production delivery', () => {
   )
 
   it.each([
+    ['judgeSources', 75],
     ['judgeLint', 50],
     ['judgeHook', 100],
     ['judgeLocal', 75],

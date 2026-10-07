@@ -30,6 +30,20 @@ function features() {
 }
 
 describe('round-4 production J/FU factories', () => {
+  it('loads the production source child and refuses an unselected binding', async () => {
+    const sources = await features().loadSources()
+    const router = sources.createJudgeSourceRouter()
+    await expect(router.judge(useRequest(), new AbortController().signal)).resolves.toEqual({
+      outcome: 'no-answer',
+      reason: 'source-unavailable',
+    })
+    router.invalidate()
+    await expect(router.judge(useRequest(), new AbortController().signal)).resolves.toEqual({
+      outcome: 'no-answer',
+      reason: 'source-unavailable',
+    })
+  })
+
   it('installs current language and refuses local inference without opt-in', async () => {
     setUiText({ ...EN, judgeLocalUnverified: 'Fixture translated local label' }, 'de')
     const root = features()

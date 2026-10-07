@@ -36,6 +36,7 @@ for (const file of [
     'runtime.bundles.json.br',
     'validationSchema.js',
     'judgeP2.js',
+    'judgeSources.js',
     'judgeLint.js',
     'judgeHook.js',
     'judgeLocal.js',
