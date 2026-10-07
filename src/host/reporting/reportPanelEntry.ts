@@ -1,6 +1,8 @@
+import type { ReportingContext } from '../../runtime/reporting/engine'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
-import { createHash } from 'node:crypto'
+import { reportWorkspaceKey } from '../../core/reporting/sources/local'
+import { readSettings } from '../settings'
 import * as vscode from 'vscode'
 import { ReportPanel, type ReportPanelDeps } from './reportPanel'
 import { reportEngineLoader } from './reportEngineBundle'
@@ -20,6 +22,8 @@ export interface ReportingWindowDeps extends Pick<
 > {
   readonly workspaceRoot: string | undefined
   readonly storageRoot: string
+  readonly generatorVersion: string
+  readonly questions?: ReportingContext['questions']
 }
 
 /** Window adapters and engine acquisition live entirely inside the lazy panel bundle. */
@@ -28,10 +32,7 @@ export function createReportingWindow(
   table: UiText,
   locale: string,
 ): ReportPanel {
-  const root = deps.workspaceRoot?.replaceAll('\\', '/') ?? ''
-  const workspaceKey = createHash('sha256')
-    .update(process.platform === 'win32' ? root.toLowerCase() : root)
-    .digest('hex')
+  const workspaceKey = reportWorkspaceKey(deps.workspaceRoot ?? process.cwd(), process.platform)
   const loadEngine = reportEngineLoader({
     bundlePath: vscode.Uri.joinPath(deps.context.extensionUri, 'dist', 'reporting.js').fsPath,
     log: deps.context.log,
@@ -46,6 +47,15 @@ export function createReportingWindow(
           ...deps,
           workspaceKey,
           l10n: deps.context.l10n,
+          generatorVersion: deps.generatorVersion,
+          keepHistory: readSettings(
+            vscode.workspace.getConfiguration('museSpark'),
+            deps.context.log,
+          )['reports.keepHistory'],
+          enabledAgents: readSettings(
+            vscode.workspace.getConfiguration('museSpark'),
+            deps.context.log,
+          )['reports.agentSources'],
         })),
       now: () => new Date().toISOString(),
       theme: () => {

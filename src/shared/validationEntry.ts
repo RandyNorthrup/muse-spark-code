@@ -2,6 +2,8 @@
 // Browser and integration builds retain their inline parser. The split gate
 // checks new member reads against these exports before the package can ship.
 export {
+  globalRegistry,
+  ZodMiniArray,
   array,
   boolean,
   discriminatedUnion,

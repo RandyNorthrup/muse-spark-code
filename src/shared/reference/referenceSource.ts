@@ -115,6 +115,7 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ...['acp'].map((id): [string, readonly string[]] => [id, ['acp:museCode', 'acp:modelApi']]),
   // M112: ACP asks through forms or text and answers with /questions and /answer.
   ['questions', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  ['reports', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ...['web-fetch', 'images'].map((id): [string, readonly string[]] => [
     id,
     ['vscode:museCode', 'vscode:modelApi', 'acp:modelApi'],
@@ -125,6 +126,7 @@ export const REFERENCE_CAPABILITIES = Object.fromEntries<readonly string[]>(capa
 export const REFERENCE_FEATURE_IDS = Object.keys(REFERENCE_CAPABILITIES)
 export { referenceKeyboardActions, WEBVIEW_KEYBINDINGS, webviewKey } from '../keybindings'
 export const REFERENCE_ACTION_FEATURES = {
+  runReport: 'reports',
   openSettings: 'support',
   openKeybindings: 'support',
   openLog: 'support',

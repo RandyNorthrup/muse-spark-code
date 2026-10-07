@@ -63,6 +63,7 @@ import * as esbuild from 'esbuild'
 import {
   sharedUiText,
   sharedValidation,
+  nodeReferenceData,
   deferredCohort,
   sharedWire,
 } from './lib/deferredBundles.mjs'
@@ -211,8 +212,47 @@ const modelApiOptions = {
 
 const referenceOptions = {
   ...modelApiOptions,
+  plugins: [...modelApiOptions.plugins, nodeReferenceData],
   entryPoints: ['src/shared/reference/referenceEntry.ts'],
   outfile: 'dist/reference.js',
+}
+
+const reportValidation = {
+  name: 'report-validation',
+  setup(build) {
+    build.onResolve({ filter: /^zod\/mini$/ }, () => ({
+      path: './reportValidation.js',
+      external: true,
+    }))
+  },
+}
+const reportValidationOptions = {
+  ...modelApiOptions,
+  plugins: [
+    {
+      name: 'shared-report-parser',
+      setup(build) {
+        build.onResolve({ filter: /\/validationEntry$/ }, () => ({
+          path: './validation.js',
+          external: true,
+        }))
+      },
+    },
+  ],
+  entryPoints: ['src/shared/reportValidationEntry.ts'],
+  outfile: 'dist/reportValidation.js',
+}
+const reportingOptions = {
+  ...modelApiOptions,
+  plugins: [sharedUiText, reportValidation, sharedWire],
+  entryPoints: ['src/runtime/reporting/reportsEntry.ts'],
+  outfile: 'dist/reporting.js',
+}
+const reportingPanelOptions = {
+  ...hostOptions,
+  plugins: [sharedUiText, reportValidation, sharedWire],
+  entryPoints: ['src/host/reporting/reportPanelEntry.ts'],
+  outfile: 'dist/reportingPanel.js',
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -537,7 +577,7 @@ const webviewOptions = {
     },
   ],
   charset: 'utf8',
-  entryPoints: [WEBVIEW_ENTRY],
+  entryPoints: { main: WEBVIEW_ENTRY, reportingPage: 'src/webview/reporting/main.tsx' },
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',
   format: 'esm',
@@ -602,6 +642,9 @@ console.log(
 
 if (isWatch) {
   const contexts = await Promise.all([
+    esbuild.context(reportValidationOptions),
+    esbuild.context(reportingOptions),
+    esbuild.context(reportingPanelOptions),
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
     esbuild.context(tabOptions),
@@ -661,6 +704,9 @@ if (isWatch) {
     modelApi: esbuild.build(modelApiOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
+    reportValidation: esbuild.build(reportValidationOptions),
+    reporting: esbuild.build(reportingOptions),
+    reportingPanel: esbuild.build(reportingPanelOptions),
     reference: esbuild.build(referenceOptions),
     reviewer: esbuild.build(reviewerOptions),
     foreignHooks: esbuild.build(foreignHooksOptions),

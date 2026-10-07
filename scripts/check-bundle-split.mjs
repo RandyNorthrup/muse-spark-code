@@ -712,7 +712,7 @@ const TEXT_BLOCKS = [
   {
     block: 'CONVERSATION_MODEL_TEXT',
     sentinels: ['planBriefRequest', 'replyContextLead'],
-    readers: ['dist/conversation.js', BUNDLES.modelApi.output],
+    readers: ['dist/conversation.js', BUNDLES.modelApi.output, 'dist/reporting.js'],
   },
   {
     block: 'TAB_MODEL_TEXT',
@@ -910,6 +910,7 @@ const visitWebview = (file) => {
   for (const imported of output.imports) if (!imported.external) visitWebview(imported.path)
 }
 visitWebview('dist/webview/main.js')
+visitWebview('dist/webview/reportingPage.js')
 const deferredWebviewSources = [
   ...DEFERRED_WEBVIEW_SURFACES.map((surface) => `src/webview/components/${surface}.tsx`),
   ...ADDITIONAL_WEBVIEW_BUDGETS.flatMap(({ entries }) => entries),
@@ -968,9 +969,13 @@ const validationExports = new Set(
 const nodeMetafiles = readdirSync('dist/meta')
   .filter(
     (name) =>
-      !['validation.json', 'webview.json', 'whatsNewPage.json', 'referencePage.json'].includes(
-        name,
-      ),
+      ![
+        'validation.json',
+        'reportValidation.json',
+        'webview.json',
+        'whatsNewPage.json',
+        'referencePage.json',
+      ].includes(name),
   )
   .map((name) => `dist/meta/${name}`)
 nodeMetafiles.push(
@@ -978,7 +983,10 @@ nodeMetafiles.push(
   'dist/meta-acp/acpQuestions.json',
   'dist/meta-acp/runtimeQuestions.json',
 )
-const validationReaders = new Set()
+const reportValidationExports = new Set(
+  Object.keys(createRequire(import.meta.url)(path.resolve('dist/reportValidation.js'))),
+)
+const validationReaders = new Map()
 for (const file of nodeMetafiles) {
   const meta = JSON.parse(readFileSync(file, 'utf8'))
   for (const [output, details] of Object.entries(meta.outputs)) {
@@ -990,10 +998,15 @@ for (const file of nodeMetafiles) {
   }
   const sourceInputs = Object.keys(meta.inputs).filter((name) => name.startsWith('src/'))
   for (const input of sourceInputs) {
-    validationReaders.add(input)
+    const usesReportParser = Object.values(meta.outputs).some((details) =>
+      details.imports.some((entry) => entry.external && entry.path.endsWith('reportValidation.js')),
+    )
+    const exports = usesReportParser ? reportValidationExports : validationExports
+    const prior = validationReaders.get(input) ?? []
+    validationReaders.set(input, [...prior, exports])
   }
 }
-for (const input of validationReaders) {
+for (const [input, readers] of validationReaders) {
   const text = readFileSync(input, 'utf8')
   // A file that never names the module has no alias to check; parsing every
   // source input made this the slowest part of the check.
@@ -1016,7 +1029,7 @@ for (const input of validationReaders) {
       ts.isPropertyAccessExpression(node) &&
       ts.isIdentifier(node.expression) &&
       aliases.has(node.expression.text) &&
-      !validationExports.has(node.name.text)
+      readers.some((exports) => !exports.has(node.name.text))
     ) {
       problems.push(`${input} reads zod/mini.${node.name.text}, absent from validation.js`)
     }

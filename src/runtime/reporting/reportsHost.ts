@@ -44,7 +44,7 @@ export function createReportsHost(
         const document = verifyReport(result.document, deps.redaction)
         if (
           document.header.kind !== options.kind ||
-          document.header.scope !== options.scope ||
+          document.header.scope !== reportScrubber(deps.redaction)(options.scope) ||
           document.header.asOf !== options.asOf
         )
           return failed()
@@ -72,7 +72,8 @@ export function createReportsHost(
           result.status === 'listed' &&
           result.entries.some(
             ({ id, header: { contentHash: _contentHash, ...header } }) =>
-              header.kind !== kind || !redacted({ id, header }),
+              header.kind !== kind ||
+              !redacted({ ...(!/^[a-f0-9]{64}$/.test(id) && { id }), header }),
           )
         )
           return failed()

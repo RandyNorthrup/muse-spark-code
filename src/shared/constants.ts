@@ -56,6 +56,7 @@ export const COMMAND_IDS = {
   showLogs: 'museSpark.showLogs',
   diagnostics: 'museSpark.diagnostics',
   reportProblem: 'museSpark.reportProblem',
+  showReport: 'museSpark.showReport',
   newConversation: 'museSpark.newConversation',
   signOut: 'museSpark.signOut',
   openInTerminal: 'museSpark.openInTerminal',
@@ -355,6 +356,9 @@ export const SETTING_DEFAULTS = {
   // M112 (PLAN.md D92): seconds before an unanswered question defers; the
   // host reads only the user's own value (questionStore.ts).
   'questions.deferAfterSeconds': 60,
+  'reports.network': 'whenSignedIn',
+  'reports.keepHistory': true,
+  'reports.agentSources': [],
   shellSandbox: 'auto' as ShellSandboxMode,
   backend: 'auto' as BackendMode,
   // Claude Code's `enableNewConversationShortcut`: Ctrl+N starts a new
@@ -548,6 +552,9 @@ export const MACHINE_SCOPED_SETTINGS = [
   'showWhatsNewOnUpdate',
   // How long Muse waits for an answer is the user's choice (M112, D92).
   'questions.deferAfterSeconds',
+  'reports.network',
+  'reports.keepHistory',
+  'reports.agentSources',
   // Tab chooses what runs, what is billed and how much is approved (M94,
   // PLAN.md D73): every Tab setting is machine-scoped, so a workspace's
   // settings cannot change what Tab spends.
@@ -4068,6 +4075,8 @@ export const SLASH_COMMAND_NAMES = {
 // M113 / D93: deterministic reports, independent of M93's problem reports.
 export const REPORT_FORMAT_VERSION = 'report-v1'
 export const REPORT_SECTION_ROWS = 10
+export const REPORT_NEXT_STEP_LIMIT = 3
+export const REPORT_EMPTY_HASH = '0'.repeat(64)
 export const REPORT_GIT_MAX_COMMITS = 5000
 export const REPORT_SOURCE_TIMEOUT_MS = 5000
 export const REPORT_GITHUB_RATE_FLOOR = 10

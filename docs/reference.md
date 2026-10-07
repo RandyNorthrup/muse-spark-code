@@ -6,6 +6,14 @@ Open `/help` in the panel or **Muse Spark: Open Help & Reference**. Search the r
 
 ## Features
 
+### Show report…
+
+Generate a deterministic report from named sources, without a model call.
+
+Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: `museSpark.showReport`. Settings: `museSpark.reports.network`, `museSpark.reports.keepHistory`, `museSpark.reports.agentSources`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#report)
+
 ### Best of N
 
 Best of N Apply and stage exactly the selected preview. No commit is created; ignored files are excluded.
@@ -1464,6 +1472,10 @@ Available when: `workspaceFolderCount > 0`.
 
 `museSpark.previousOpenQuestion` — Previous open question
 
+### Muse Spark: Show report…
+
+`museSpark.showReport` — Generate a deterministic report from named sources, without a model call.
+
 ## Settings
 
 ### museSpark.preferredLocation
@@ -2538,6 +2550,55 @@ Type: `"integer"`. Default: `60`. Scope: `machine`.
   "default": 60,
   "minimum": 0,
   "maximum": 3600
+}
+```
+
+### museSpark.reports.network
+
+reportsNetwork&githubSignIn: Choose when reports may read GitHub and public release channels. Terminal reports use the network only with --network.
+
+Type: `"string"`. Default: `"whenSignedIn"`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "enum": ["whenSignedIn", "always", "off"],
+  "default": "whenSignedIn"
+}
+```
+
+- `"whenSignedIn"`: reportsNetwork&githubSignIn: Read GitHub while signed in to GitHub, and public release channels.
+- `"always"`: Allow network sources for reports.
+- `"off"`: Read local sources only.
+
+### museSpark.reports.keepHistory
+
+Keep the newest 50 reports per kind on this machine for history and comparison.
+
+Type: `"boolean"`. Default: `true`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": true
+}
+```
+
+### museSpark.reports.agentSources
+
+Opt in to reading your own Claude Code or Codex usage and limit files. Default: none. Conversation text and credential files are never read as report sources.
+
+Type: `"array"`. Default: `[]`. Scope: `machine`.
+
+```json
+{
+  "type": "array",
+  "items": {
+    "type": "string",
+    "enum": ["claudeCode", "codex"]
+  },
+  "uniqueItems": true,
+  "default": []
 }
 ```
 

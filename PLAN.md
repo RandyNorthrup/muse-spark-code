@@ -27991,6 +27991,18 @@ lane T and M111b. One short live check per backend (step 3).
 
 ### M113 — Deterministic reports: `/report` (D93)
 
+**Lane W integration (2026-10-06, Kubuntu).** Merge the ten ordered lanes,
+retain current release/question records while applying P's grammar repairs,
+and bind the lazy reporting engine, panel, destinations and page. Close the
+manifest, source/history/renderer, composer/palette/usage, runtime, reference,
+documentation and generated-host-record handoffs against available production
+ports. Missing captured services and unmerged host/scheduler/vault milestones
+stay explicitly unavailable and named in certification; no substitute wire
+parser or paid/live call. Measure new bundles by D6's +15% rounding rule,
+keep every existing cap, drill new guards, and run the full default-timeout
+batched suite, accessibility matrix and README screenshots. G8/G22 remain
+M115-owned; reporting uses H's lease authority and Q's destination receipts.
+
 **Lane V review corrections (RVM113V, 2026-10-06).** Fix all three P2s and
 the P3 within the VS Code surface lane: authorize the trusted iframe style
 with the production shell's nonce, scrub decoded diff fields with R's
@@ -29802,6 +29814,8 @@ aggregate certification record.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
 ## 7. Gates
+
+**M113 W rig constraint (2026-10-06).** The explicit rig brief requires individual full gates and the complete test suite in batches of at most three files at default deadlines; its shared rules prohibit aggregate `npm run quality` and public network. This integration runs the named gates individually. Aggregate quality, hosted OS/editor/live receipts and network badge checks remain lead-owned; no threshold, ignore, hook or timeout changes.
 
 **REL0143F release CI repair (2026-10-06, Kubuntu).** The complete configured
 Vitest matrix passes at repository default timeouts (532 files, 11,430 passing

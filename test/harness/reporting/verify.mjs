@@ -1,3 +1,4 @@
+import { sortIncomplete } from '../../../scripts/a11y.mjs'
 import { mkdirSync, readFileSync, writeFileSync, statSync } from 'node:fs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import path from 'node:path'
@@ -12,6 +13,7 @@ import vm from 'node:vm'
 import { Buffer } from 'node:buffer'
 
 const root = fileURLToPath(new URL('../../../', import.meta.url))
+const shipping = process.argv.includes('--shipping')
 const scratch = path.join(root, 'temp/m113-v')
 mkdirSync(scratch, { recursive: true })
 await build({
@@ -69,6 +71,8 @@ scenes.diff = {
   ],
 }
 writeFileSync(path.join(scratch, 'scenes.json'), JSON.stringify(scenes))
+let sizes
+if (!shipping) {
 const nodeBundle = await build({
   entryPoints: ['src/host/reporting/reportPanelEntry.ts'],
   outfile: 'temp/m113-v/reportingPanel.cjs',
@@ -93,17 +97,21 @@ const browserBundle = await build({
 })
 writeFileSync(path.join(scratch, 'node-meta.json'), JSON.stringify(nodeBundle.metafile))
 writeFileSync(path.join(scratch, 'browser-meta.json'), JSON.stringify(browserBundle.metafile))
-const sizes = {
+sizes = {
   reportingPanelKiB: statSync(path.join(scratch, 'reportingPanel.cjs')).size / 1024,
   reportingPageKiB: statSync(path.join(scratch, 'reportingPage.js')).size / 1024,
   reportingCssKiB: statSync(path.join(scratch, 'reportingPage.css')).size / 1024,
+}
+
+} else {
+  sizes = { reportingPanelKiB: statSync(path.join(root, 'dist/reportingPanel.js')).size / 1024, reportingPageKiB: statSync(path.join(root, 'dist/webview/reportingPage.js')).size / 1024, reportingCssKiB: statSync(path.join(root, 'dist/webview/reportingPage.css')).size / 1024 }
 }
 process.stdout.write(`${JSON.stringify(sizes)}\n`)
 const { server, port } = await serveRepo(path.resolve(root))
 // Exercise the compiled host adapter, including its HTML builder and iframe
 // nonce authorization. The browser loads the exact production shell it emits.
 const panels = { current: undefined }
-const require = createRequire(import.meta.url)
+const require = createRequire(shipping ? pathToFileURL(path.join(root, 'dist/reportingPanel.js')) : import.meta.url)
 const exported = { exports: {} }
 const fakeVscode = {
   ViewColumn: { Beside: 2 },
@@ -113,7 +121,7 @@ const fakeVscode = {
       const webview = {
         cspSource: `http://127.0.0.1:${port}`,
         asWebviewUri: (file) => ({
-          toString: () => `http://127.0.0.1:${port}/temp/m113-v/${path.basename(file)}`,
+          toString: () => `http://127.0.0.1:${port}/${shipping ? 'dist/webview' : 'temp/m113-v'}/${path.basename(file)}`,
         }),
         onDidReceiveMessage: (receive) => {
           webview.receive = receive
@@ -128,7 +136,7 @@ const fakeVscode = {
     },
   },
 }
-vm.runInNewContext(readFileSync(path.join(scratch, 'reportingPanel.cjs'), 'utf8'), {
+vm.runInNewContext(readFileSync(shipping ? path.join(root, 'dist/reportingPanel.js') : path.join(scratch, 'reportingPanel.cjs'), 'utf8'), {
   module: exported,
   exports: exported.exports,
   Buffer,
@@ -271,7 +279,13 @@ try {
         )
         const innerViolations = innerResult.violations.map(({ id }) => id)
         await rendered.close()
+        const classify = (findings) => sortIncomplete(findings.map(({ id, nodes }) => ({ id, nodes: nodes.map((node) => ({ ...node, reasons: [...node.any, ...node.all, ...node.none].map((check) => check.data?.messageKey).filter((key) => typeof key === 'string') })) })))
+        const outerIncomplete = classify(result.incomplete.filter(({ id }) => id !== 'frame-tested'))
+        const innerIncomplete = classify(innerResult.incomplete)
         checks.push({
+          undecided: [...outerIncomplete.undecided, ...innerIncomplete.undecided].map(({ id }) => id),
+          unseen: outerIncomplete.unseen + innerIncomplete.unseen,
+          glyphOnly: outerIncomplete.glyphOnly + innerIncomplete.glyphOnly,
           theme,
           width,
           scene,
@@ -305,8 +319,8 @@ writeFileSync(
 )
 if (
   checks.some(
-    ({ violations, innerViolations, errors, overflow }) =>
-      violations.length > 0 || innerViolations.length > 0 || errors.length > 0 || overflow,
+    ({ violations, innerViolations, errors, overflow, undecided }) =>
+      violations.length > 0 || innerViolations.length > 0 || errors.length > 0 || overflow || undecided.length > 0,
   )
 )
   process.exitCode = 1

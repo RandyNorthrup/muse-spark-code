@@ -6,6 +6,7 @@ import { AcpPaidUse } from '../../src/acp/paid'
 import { FakeAgentHost } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
 import { until } from './helpers/acpWaits'
+import { fakeAcpQuestions } from './helpers/questions/acpRegistry'
 import { UI_TEXT } from '../../src/shared/constants'
 
 const cwd = process.platform === 'win32' ? String.raw`C:\reports\workspace` : '/reports/workspace'
@@ -38,6 +39,7 @@ function reportsAgent(port?: AcpReportsPort) {
     options: { initialMode: 'bypassPermissions', canBypass: true, allowsContributorModels: false },
     log,
     paid,
+    questions: fakeAcpQuestions,
     ...(port !== undefined && { reports: port }),
   })
   const client = acp

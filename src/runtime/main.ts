@@ -259,6 +259,22 @@ function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeRepor
       table: UI_TEXT,
       now: () => new Date().toISOString(),
       roots: [homedir()],
+      servicesFor: (cwd, _sessionId, language) =>
+        Promise.resolve({
+          keepHistory: true,
+          services: load().createReportingServices({
+            workspaceRoot: cwd,
+            storageRoot: agentDataFolder({
+              platform: process.platform,
+              env: process.env,
+              homeDir: homedir(),
+            }),
+            l10n: language ?? { table: UI_TEXT, locale: uiLocale() },
+            generatorVersion: packageVersion(),
+            keepHistory: true,
+            enabledAgents: [],
+          }),
+        }),
       resolveSaved: async (cwd, file) => {
         const target = path.resolve(cwd, file)
         const info = await lstat(target)

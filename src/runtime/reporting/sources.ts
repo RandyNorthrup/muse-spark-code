@@ -171,7 +171,11 @@ async function discoverAgentFiles(
   }
   return files
 }
-function runtimeGit(root: string, platform: NodeJS.Platform, env: NodeJS.ProcessEnv): ReportGitIo {
+export function reportGitIo(
+  root: string,
+  platform: NodeJS.Platform,
+  env: NodeJS.ProcessEnv,
+): ReportGitIo {
   const p = pathModule(platform)
   const program = resolveExecutable('git', {
     platform,
@@ -235,7 +239,7 @@ export function createRuntimeReportSources(input: RuntimeSourcesInput) {
       agentFiles: agentFiles ?? ((signal) => discoverAgentFiles(discovery, signal)),
       roots: [workspaceRoot, homeDir],
       files: reportFileIo(workspaceRoot, platform, EXEC_UNTRUSTED_FILE_MAX_BYTES),
-      git: runtimeGit(workspaceRoot, platform, env),
+      git: reportGitIo(workspaceRoot, platform, env),
     }),
   }
 }

@@ -1,16 +1,10 @@
 import * as vscode from 'vscode'
-import {
-  type REPORT_FORMATS,
-  REPORT_KINDS,
-  UI_TEXT,
-  WEBVIEW_DIST_SEGMENTS,
-} from '../../shared/constants'
+import { REPORT_KINDS, UI_TEXT, WEBVIEW_DIST_SEGMENTS } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { reportsMethods, type ReportsHostPort } from '../../shared/hostApi/reports'
+import { reportsMethods } from '../../shared/hostApi/reports'
 import {
   reportDiffSchema,
   type ReportDocument,
-  type ReportRenderer,
   type ReportTheme,
   type ReportOptions,
 } from '../../shared/reportSchema'
@@ -35,12 +29,8 @@ function newestFirst(a: HistoryEntry, b: HistoryEntry): number {
 }
 
 /** K/S/H provide the real operations; R supplies verified, scrubbed output. */
-export interface ReportPanelEngine {
-  readonly reports: Pick<ReportsHostPort, 'run' | 'history' | 'get' | 'compare'>
-  readonly render: Readonly<Record<(typeof REPORT_FORMATS)[number], ReportRenderer>>
-  readonly verify: (input: unknown) => ReportDocument
-  readonly scrub: (text: string) => string
-}
+export type { ReportPanelEngine } from '../../shared/reportingEngine'
+import type { ReportPanelEngine } from '../../shared/reportingEngine'
 export interface ReportPanelDeps {
   readonly context: Pick<WebviewHostContext, 'extensionUri' | 'l10n' | 'log'>
   readonly workspaceKey: string

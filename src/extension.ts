@@ -2,7 +2,8 @@ import { judgeWindowPort } from './host/judge/judgeBundle'
 import { storeErrorCode } from './host/backend/storeErrors'
 import { isReferenceRequest, referenceLoader } from './host/referenceLoader'
 import { REFERENCE_BUNDLE_FILE } from './shared/constants'
-import { reportPanelLoader, SHOW_REPORT_COMMAND } from './host/reporting/reportPanelBundle'
+import { reportingCheckJournal } from './host/reporting/reportCheckBundle'
+import { reportPanelLoader } from './host/reporting/reportPanelBundle'
 import type { ReportPanel } from './host/reporting/reportPanel'
 // Extension host entry point. Kept to registration and adapter wiring; the
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
@@ -2356,6 +2357,11 @@ async function activateWindow(
     memory: memory.store,
     // The settings are read at each use; a repository cannot set them (D15).
     verify: {
+      checkRuns: reportingCheckJournal({
+        bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', 'reporting.js').fsPath,
+        log,
+        context: { workspaceRoot, storageRoot, l10n },
+      }),
       isDiagnosticsOn: () => currentSettings().diagnosticsAfterEdits,
       checkCommands: () => currentSettings().checkCommands,
       isFormatOnEdit: () => currentSettings().formatOnEdit,
@@ -2371,6 +2377,11 @@ async function activateWindow(
         realPath: canonicalPath,
       })
       return {
+        checkRuns: reportingCheckJournal({
+          bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', 'reporting.js').fsPath,
+          log,
+          context: { workspaceRoot: attemptRoot, storageRoot, l10n },
+        }),
         isDiagnosticsOn: () => currentSettings().diagnosticsAfterEdits,
         checkCommands: () => currentSettings().checkCommands,
         isFormatOnEdit: () => currentSettings().formatOnEdit,
@@ -2830,6 +2841,8 @@ async function activateWindow(
       reportingPanel = loadReportingPanel().createReportingWindow(
         {
           context: { extensionUri: context.extensionUri, l10n, log },
+          generatorVersion: version,
+          ...(surface !== undefined && { questions: controllerFor(surface).reportingQuestions() }),
           workspaceRoot,
           storageRoot,
           attachMarkdown: (text) => {
@@ -3601,7 +3614,7 @@ async function activateWindow(
     registerLoggedCommand(log, COMMAND_IDS.showLogs, () => {
       channel.show(true)
     }),
-    registerLoggedCommand(log, SHOW_REPORT_COMMAND, async () => {
+    registerLoggedCommand(log, COMMAND_IDS.showReport, async () => {
       await showDeterministicReport(registry.active)
     }),
     registerLoggedCommand(log, COMMAND_IDS.openHelp, async () => {

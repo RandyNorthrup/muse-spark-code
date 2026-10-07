@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Deterministic `/report` commands and a local report tab with Markdown, HTML, JSON and text exports, saved history and comparisons. The composer, palette and Account & usage open the same lazy engine without starting a model turn. Sources retain their reasons and freshness when evidence is unavailable.
+- A checked plan grammar and report-v1 schema; pure collectors, bounded local readers, canonical redaction and shared report contracts for CLI, ACP and native host adapters.
+
+
 ### Documentation
 
 - A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists

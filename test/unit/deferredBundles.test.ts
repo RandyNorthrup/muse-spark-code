@@ -21,6 +21,7 @@ import {
   deferredCohort,
   sharedUiText,
   sharedValidation,
+  nodeReferenceData,
   sharedWire,
 } from '../../scripts/lib/deferredBundles.mjs'
 import type * as validation from '../../src/shared/validationEntry'
@@ -70,6 +71,8 @@ beforeAll(async () => {
         extension: 'src/extension.ts',
         questionNotes: 'src/core/questions/deferralEntry.ts',
         reference: 'src/shared/reference/referenceEntry.ts',
+        reporting: 'src/runtime/reporting/reportsEntry.ts',
+        reportingPanel: 'src/host/reporting/reportPanelEntry.ts',
         conversation: 'src/host/conversation/conversationEntry.ts',
         modelApi: 'src/host/backend/modelApiEntry.ts',
         sessionBoard: 'src/host/sessionBoardEntry.ts',
@@ -92,7 +95,7 @@ beforeAll(async () => {
         pageWorker: 'src/host/web/pageWorker.ts',
         searchWorker: 'src/host/backend/searchWorker.ts',
       },
-      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, nodeReferenceData],
       external: ['vscode', '@napi-rs/keyring'],
     }),
     build({
@@ -104,7 +107,7 @@ beforeAll(async () => {
         acpQuestions: 'src/acp/questionDeferralEntry.ts',
         runtimeQuestions: 'src/runtime/questions/questionRegistryEntry.ts',
       },
-      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
+      plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire, nodeReferenceData],
       external: ['@napi-rs/keyring'],
     }),
     build({

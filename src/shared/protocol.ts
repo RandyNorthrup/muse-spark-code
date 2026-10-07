@@ -369,6 +369,11 @@ export const reportDraftItemSchema = z.object({
 export type ReportDraftItem = z.infer<typeof reportDraftItemSchema>
 
 const webviewToHostMessageSchema = z.discriminatedUnion('type', [
+  z.strictObject({
+    type: z.literal('runReport'),
+    requestId: z.string(),
+    argumentsText: z.string(),
+  }),
   z.object({ type: z.literal('readReference') }),
   z.object({ type: z.literal('openReferenceSetting'), key: z.string() }),
   z.object({ type: z.literal('runReferenceCommand'), command: z.string() }),
@@ -1005,6 +1010,11 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // A request's or a confirm's admission result. Correlation protects a
   // newer draft or dialog: only an accepted request clears the composer's
   // `/handoff …`, and a refused confirm keeps the dialog.
+  z.strictObject({
+    type: z.literal('reportCommandResult'),
+    requestId: z.string(),
+    accepted: z.boolean(),
+  }),
   z.object({
     type: z.literal('handoffCommandResult'),
     requestId: z.string(),

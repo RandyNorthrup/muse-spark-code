@@ -112,6 +112,14 @@ key to the CLI.
 Earlier releases are in the
 [changelog](https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md).
 
+## /report
+
+Generate a deterministic report from named local sources with `/report project`,
+`/report milestone 12`, `/report release latest`, `/report changes`, or
+`/report quality`. `/report` and **Show report…** open the kind picker.
+Reports run locally without a model call. Missing source bindings are named
+as unavailable; the source and observation time stay visible.
+
 ## Highlights
 
 - **Streaming chat with tools you can see.** Every read, edit, write and shell

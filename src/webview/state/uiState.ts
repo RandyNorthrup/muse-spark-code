@@ -6,6 +6,7 @@ import type { JudgeStatus } from '../../shared/judge'
 // conversation saved across a reload is validated before it comes back (M25).
 
 import * as z from 'zod/mini'
+import { reportCommandArguments } from '../../shared/reportCommand'
 import { redactSecrets } from '../../shared/redact'
 import {
   type AgentEvent,
@@ -235,6 +236,8 @@ export interface CheckpointView {
 }
 
 export interface UiState {
+  readonly pendingReportCommand:
+    { readonly requestId: string; readonly draftRevision: number } | undefined
   readonly judge: JudgeStatus | undefined
   /** Newest resolutions whose tool rows have not arrived yet; never saved. */
   readonly pendingApprovalResolutions: readonly Extract<AgentEvent, { type: 'approvalResolved' }>[]
@@ -491,6 +494,7 @@ export type UiAction =
   | { readonly type: 'goalEditCanceled' }
   | { readonly type: 'goalEditSubmitted'; readonly requestId: string; readonly objective: string }
   /** `/handoff …` sent from the composer (M74), awaiting the host's admission. */
+  | { readonly type: 'reportSubmitted'; readonly requestId: string }
   | { readonly type: 'handoffSubmitted'; readonly requestId: string }
   /** The handoff dialog's edits and Start (M74); Cancel dismisses it. */
   | { readonly type: 'handoffChanged'; readonly draft: string }
@@ -612,6 +616,7 @@ export const initialUiState: UiState = {
   goalEdit: undefined,
   goalEditRevision: 0,
   pendingHandoffCommand: undefined,
+  pendingReportCommand: undefined,
   handoff: undefined,
   focusRequests: 0,
   usageRequests: 0,
@@ -2361,6 +2366,7 @@ function clearedConversation(state: UiState): UiState {
     pendingGoalCommand: undefined,
     goalEdit: undefined,
     pendingHandoffCommand: undefined,
+    pendingReportCommand: undefined,
     handoff: undefined,
     // A handoff dialog that goes with the conversation (its Start took)
     // hands the focus back to the prompt (M74).
@@ -3084,6 +3090,15 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         },
       }
     }
+    case 'reportCommandResult': {
+      const command = state.pendingReportCommand
+      if (command?.requestId !== message.requestId) return state
+      return {
+        ...state,
+        pendingReportCommand: undefined,
+        draft: message.accepted && command.draftRevision === state.draftRevision ? '' : state.draft,
+      }
+    }
     case 'handoffCommandResult': {
       // The request's admission (M74): a refused `/handoff …` stays in the
       // composer, its goal not lost; an accepted one clears it, if unedited.
@@ -3092,6 +3107,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         return {
           ...state,
           pendingHandoffCommand: undefined,
+          pendingReportCommand: undefined,
           draft:
             message.accepted && state.draftRevision === command.draftRevision ? '' : state.draft,
         }
@@ -3470,6 +3486,12 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
         },
       }
     }
+    case 'reportSubmitted': {
+      return {
+        ...state,
+        pendingReportCommand: { requestId: action.requestId, draftRevision: state.draftRevision },
+      }
+    }
     case 'handoffSubmitted': {
       return {
         ...state,
@@ -3550,6 +3572,7 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
             arm === undefined ? state.secretPromptQueue : state.secretPromptQueue.slice(1),
           pendingGoalCommand: undefined,
           pendingHandoffCommand: undefined,
+          pendingReportCommand: undefined,
           attachments:
             arm === undefined
               ? []
@@ -3759,6 +3782,8 @@ export function userShellCommandOf(draft: string): string | undefined {
 
 /** Whether the composer may submit right now (a running turn is steered; `!` needs a command). */
 export function canSend(state: UiState): boolean {
+  if (reportCommandArguments(state.draft) !== undefined)
+    return state.pendingReportCommand === undefined
   if (state.auth.status !== 'signedIn') {
     return false
   }

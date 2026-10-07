@@ -38,7 +38,7 @@ export const DEFERRED = [
     metafile: 'dist/meta/reference.json',
     files: [
       'src/shared/reference/referenceEntry.ts',
-      'src/shared/reference/reference.generated.ts',
+      'src/runtime/reference.node.generated.ts',
       'src/shared/reference/text.ts',
     ],
   },
@@ -79,6 +79,27 @@ export const DEFERRED = [
 // Split out of activation on 2026-10-03 (D6): each loads on its first use.
 // The Model API backend keeps its own copy of code intelligence.
 export const ON_FIRST_USE = [
+  {
+    output: 'dist/reporting.js',
+    metafile: 'dist/meta/reporting.json',
+    use: 'the first deterministic report',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/runtime/reporting/reportsEntry.ts',
+      'src/runtime/reporting/engine.ts',
+      'src/core/reporting/collect/index.ts',
+      'src/core/reporting/render/index.ts',
+      'src/core/reporting/history.ts',
+      'src/core/reporting/plan/reader.ts',
+    ],
+  },
+  {
+    output: 'dist/reportingPanel.js',
+    metafile: 'dist/meta/reportingPanel.json',
+    use: 'the first report tab',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: ['src/host/reporting/reportPanelEntry.ts', 'src/host/reporting/reportPanel.ts'],
+  },
   {
     output: 'dist/questionNotes.js',
     metafile: 'dist/meta/questionNotes.json',
@@ -305,6 +326,14 @@ export function checkDeferredBundles(inputsOf) {
         problems.push(`${bundle.output} duplicates shared wire schemas in ${file}`)
     }
   }
+  for (const output of ['dist/reporting.js', 'dist/reportingPanel.js']) {
+    const bundle = ON_FIRST_USE.find((entry) => entry.output === output)
+    for (const input of inputsOf(bundle).keys()) {
+      const normalized = input.replaceAll('\\', '/')
+      if (normalized.startsWith('src/core/backends/') || normalized.startsWith('src/host/backend/'))
+        problems.push(`${output} carries a backend: ${normalized}`)
+    }
+  }
   return problems
 }
 
@@ -381,5 +410,15 @@ export const sharedWire = {
       const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
       return WIRE_SOURCES.has(source) ? { path: './wire.js', external: true } : undefined
     })
+  },
+}
+
+/** Node-only compressed reference data; the browser keeps its portable schema. */
+export const nodeReferenceData = {
+  name: 'node-reference-data',
+  setup(build) {
+    build.onResolve({ filter: /\/reference\.generated$/ }, () => ({
+      path: path.resolve('src/runtime/reference.node.generated.ts'),
+    }))
   },
 }

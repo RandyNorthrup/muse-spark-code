@@ -54,6 +54,10 @@ export function parseReportRequest(argumentsText: string, asOf: string): ReportR
       throw new Error(UI_TEXT.reportUi.invalidArguments)
     values[field] = value
   }
+  if (kind === 'changes' && scope[0] === 'since') {
+    if (scope.length !== 2) throw new Error(UI_TEXT.reportUi.invalidArguments)
+    scope.shift()
+  }
   values['scope'] = scope.join(' ')
   if ((kind === 'milestone' || kind === 'release') && scope.length !== 1)
     throw new Error(UI_TEXT.reportUi.invalidArguments)

@@ -28,6 +28,11 @@ export function webviewStartupOutputs(meta) {
 // Additional lazy closures have measured caps. The original optional surfaces
 // and every unclassified deferred output retain the existing 50 KiB total cap.
 export const ADDITIONAL_WEBVIEW_BUDGETS = [
+  {
+    name: 'reporting UI',
+    entries: ['src/webview/reporting/main.tsx', 'src/webview/reporting/UsageReportAction.tsx'],
+    budgetKiB: 25,
+  },
   ...[
     'SignIn',
     'GoalPanel',

@@ -24,5 +24,3 @@ export function reportPanelLoader(
     unavailable: () => UI_TEXT.reportUi.generationFailed,
   })
 }
-
-export const SHOW_REPORT_COMMAND = 'museSpark.showReport'

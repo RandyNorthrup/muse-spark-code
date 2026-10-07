@@ -312,6 +312,11 @@
         "command": "museSpark.previousOpenQuestion",
         "title": "%command.previousOpenQuestion.title%",
         "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.showReport",
+        "title": "%command.showReport.title%",
+        "category": "%command.category%"
       }
     ],
     "keybindings": [
@@ -1154,6 +1159,42 @@
           "maximum": 3600,
           "description": "%config.questions.deferAfterSeconds.description%",
           "scope": "machine"
+        },
+        "museSpark.reports.network": {
+          "type": "string",
+          "enum": [
+            "whenSignedIn",
+            "always",
+            "off"
+          ],
+          "default": "whenSignedIn",
+          "scope": "machine",
+          "description": "%config.reports.network.description%",
+          "enumDescriptions": [
+            "%config.reports.network.enumDescriptions.whenSignedIn%",
+            "%config.reports.network.enumDescriptions.always%",
+            "%config.reports.network.enumDescriptions.off%"
+          ]
+        },
+        "museSpark.reports.keepHistory": {
+          "type": "boolean",
+          "default": true,
+          "scope": "machine",
+          "description": "%config.reports.keepHistory.description%"
+        },
+        "museSpark.reports.agentSources": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "claudeCode",
+              "codex"
+            ]
+          },
+          "uniqueItems": true,
+          "default": [],
+          "scope": "machine",
+          "description": "%config.reports.agentSources.description%"
         }
       }
     },
@@ -1237,7 +1278,7 @@
     "typecheck:e2e": "tsc -p test/e2e/tsconfig.json --noEmit",
     "typecheck:integration": "tsc -p test/integration/tsconfig.json --noEmit",
     "deadcode": "knip",
-    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/shared/wireEntry.ts src/extension.ts src/host/conversation/conversationEntry.ts src/host/judge/judgeEntry.ts src/host/tab/tabEntry.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/core/backends/modelapi/foreignHooksEntry.ts src/core/backends/modelapi/pluginHooksEntry.ts src/core/backends/modelapi/hookRuntimeEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts src/acp/questionDeferralEntry.ts src/host/browser/browserCheckEntry.ts src/host/browser/browserRuntimeEntry.ts src/host/whatsNew/whatsNewEntry.ts src/webview/whatsNew/main.ts src/host/git/conversationGitEntry.ts src/runtime/questions/questionRegistryEntry.ts",
+    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/shared/wireEntry.ts src/extension.ts src/host/conversation/conversationEntry.ts src/host/judge/judgeEntry.ts src/host/tab/tabEntry.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/core/backends/modelapi/foreignHooksEntry.ts src/core/backends/modelapi/pluginHooksEntry.ts src/core/backends/modelapi/hookRuntimeEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts src/acp/questionDeferralEntry.ts src/host/browser/browserCheckEntry.ts src/host/browser/browserRuntimeEntry.ts src/host/whatsNew/whatsNewEntry.ts src/webview/whatsNew/main.ts src/host/git/conversationGitEntry.ts src/runtime/questions/questionRegistryEntry.ts src/runtime/reporting/reportsEntry.ts src/host/reporting/reportPanelEntry.ts src/webview/reporting/main.tsx",
     "duplication": "jscpd",
     "test": "run-s test:unit test:integration",
     "test:unit": "vitest run --coverage",

@@ -17,7 +17,9 @@
 // that lost it mid-scan closed the composer's menus under axe (the
 // slash-commands race, docs/certification/a11y-focus.md).
 
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
+import { spawn } from 'node:child_process'
+import { pathToFileURL } from 'node:url'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { availableParallelism, tmpdir } from 'node:os'
 import path from 'node:path'
@@ -151,7 +153,7 @@ function elementCount(findings) {
  * glyph-only content. Everything else axe could not decide fails, as a
  * violation does.
  */
-function sortIncomplete(findings) {
+export function sortIncomplete(findings) {
   const undecided = []
   let unseen = 0
   let glyphOnly = 0
@@ -285,9 +287,19 @@ async function main() {
   console.log(
     `\na11y: ${String(results.length)} pages (${String(scenarios.length)} scenarios × ${String(THEMES.length)} themes${lang === undefined ? '' : `, in ${lang}`}), ${String(byRule.size)} rules violated on ${String(nodes)} elements, ${String(undecidedByRule.size)} rules undecided on ${String(elementCount(undecided))} elements, ${String(exempt.length)} exempt, ${String(failed.length)} pages without a result`,
   )
+  if (requested.length === 0 && lang === undefined) {
+    const code = await new Promise((resolve, reject) => {
+      const child = spawn(process.execPath, ['test/harness/reporting/verify.mjs', '--shipping'], { stdio: 'inherit' })
+      child.once('error', reject)
+      child.once('exit', (status) => resolve(status))
+    })
+    if (code !== 0) process.exitCode = 1
+    const reports = JSON.parse(readFileSync('docs/certification/m113-v-a11y.json', 'utf8'))
+    console.log(`report a11y: ${reports.checks.length} production pages, ${reports.checks.filter((entry) => entry.errors.length > 0).length} pages without a result; outer frames and exact standalone content both measured`)
+  }
   if (byRule.size > 0 || undecidedByRule.size > 0 || failed.length > 0) {
     process.exitCode = 1
   }
 }
 
-await main()
+if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) await main()

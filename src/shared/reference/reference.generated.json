@@ -1,6 +1,25 @@
 {
   "features": [
     {
+      "id": "reports",
+      "name": { "ui": "reportShowCommand" },
+      "summary": { "ui": "reportSlashDescription" },
+      "description": { "ui": "reportSlashDescription" },
+      "commands": ["museSpark.showReport"],
+      "settings": [
+        "museSpark.reports.network",
+        "museSpark.reports.keepHistory",
+        "museSpark.reports.agentSources"
+      ],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#report",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "best-of-n",
       "name": { "ui": "bestOfNTitle" },
       "summary": { "ui": "referenceBestOfN" },
@@ -1823,6 +1842,16 @@
       "description": "Previous open question",
       "text": { "ui": "questionPreviousOpen" },
       "canRun": false
+    },
+    {
+      "id": "museSpark.showReport",
+      "name": "Show report…",
+      "nameKey": "command.showReport.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Generate a deterministic report from named sources, without a model call.",
+      "text": { "ui": "reportSlashDescription" },
+      "canRun": true
     }
   ],
   "settings": [
@@ -2924,6 +2953,77 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "integer", "default": 60, "minimum": 0, "maximum": 3600 }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "reportsNetwork&githubSignIn", "text": { "setting": "reports.network" } }
+        ]
+      },
+      "id": "museSpark.reports.network",
+      "name": "museSpark.reports.network",
+      "description": "Choose when reports may read GitHub and public release channels. Terminal reports use the network only with --network.",
+      "descriptionKey": "config.reports.network.description",
+      "type": "string",
+      "default": "whenSignedIn",
+      "enum": ["whenSignedIn", "always", "off"],
+      "enumDescriptions": [
+        "Read GitHub while signed in to GitHub, and public release channels.",
+        "Allow network sources for reports.",
+        "Read local sources only."
+      ],
+      "enumDescriptionKeys": [
+        "config.reports.network.enumDescriptions.whenSignedIn",
+        "config.reports.network.enumDescriptions.always",
+        "config.reports.network.enumDescriptions.off"
+      ],
+      "enumTexts": {
+        "0": {
+          "conditions": [
+            {
+              "when": "reportsNetwork&githubSignIn",
+              "text": {
+                "fallbackKey": "config.reports.network.enumDescriptions.whenSignedIn",
+                "fallback": "Read GitHub while signed in to GitHub, and public release channels."
+              }
+            }
+          ]
+        }
+      },
+      "scope": "machine",
+      "refinements": [],
+      "schema": {
+        "type": "string",
+        "enum": ["whenSignedIn", "always", "off"],
+        "default": "whenSignedIn"
+      }
+    },
+    {
+      "id": "museSpark.reports.keepHistory",
+      "name": "museSpark.reports.keepHistory",
+      "description": "Keep the newest 50 reports per kind on this machine for history and comparison.",
+      "descriptionKey": "config.reports.keepHistory.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.reports.agentSources",
+      "name": "museSpark.reports.agentSources",
+      "description": "Opt in to reading your own Claude Code or Codex usage and limit files. Default: none. Conversation text and credential files are never read as report sources.",
+      "descriptionKey": "config.reports.agentSources.description",
+      "type": "array",
+      "default": [],
+      "scope": "machine",
+      "refinements": [],
+      "schema": {
+        "type": "array",
+        "items": { "type": "string", "enum": ["claudeCode", "codex"] },
+        "uniqueItems": true,
+        "default": []
+      }
     }
   ],
   "slash": [

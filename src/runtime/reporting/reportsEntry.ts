@@ -8,6 +8,11 @@ import { parseReportsArguments, reportArguments, reportsUsage } from './reportsA
 import { runReportsCommand, type ReportsCommandDeps, type ReportsServices } from './reportsCommand'
 
 export { createReportsHost } from './reportsHost'
+export {
+  createReportingServices,
+  createReportingEngine,
+  createReportingCheckJournal,
+} from './engine'
 
 export interface RuntimeReportsInput {
   readonly cwd: string
@@ -26,6 +31,7 @@ export interface RuntimeReportsInput {
     | ((
         cwd: string,
         sessionId?: string,
+        language?: { readonly table: UiText; readonly locale: string },
       ) => Promise<{
         readonly services: ReportsServices
         readonly keepHistory: boolean
@@ -80,7 +86,7 @@ export function createRuntimeReports(input: RuntimeReportsInput) {
           request.diff === undefined &&
           request.options.failOn.length === 0)
           ? undefined
-          : await input.servicesFor?.(cwd, sessionId)
+          : await input.servicesFor?.(cwd, sessionId, { table, locale })
     } catch {
       stderr(table.reportUi.generationFailed)
       return REPORT_EXIT_CODES.failed

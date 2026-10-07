@@ -101,7 +101,10 @@ import {
 import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
 import { Modal } from './components/Modal'
+import { reportCommandArguments } from '../shared/reportCommand'
 import { deferred } from './components/DeferredSurface'
+
+const UsageReportAction = deferred(() => import('./reporting/UsageReportAction'))
 
 const SignIn = deferred(async () => {
   const module = await import('./components/SignIn')
@@ -704,6 +707,14 @@ export function App({
     if (current.draft.trim() === `/${SLASH_COMMAND_NAMES.help}`) {
       dispatch({ type: 'draftChanged', draft: '' })
       setOverlay('help')
+      return
+    }
+    const reportArguments = reportCommandArguments(current.draft)
+    if (reportArguments !== undefined) {
+      if (current.pendingReportCommand !== undefined) return
+      const requestId = newLocalId()
+      dispatch({ type: 'reportSubmitted', requestId })
+      postMessage({ type: 'runReport', requestId, argumentsText: reportArguments })
       return
     }
     if (!canSend(current)) {
@@ -1704,6 +1715,11 @@ export function App({
           closeOverlay()
           break
         }
+        case 'showReport': {
+          closeOverlay()
+          postMessage({ type: 'runReport', requestId: newLocalId(), argumentsText: '' })
+          break
+        }
         case 'openReport': {
           // The same dialog every entry point opens (M93): the host builds it.
           closeOverlay()
@@ -1819,6 +1835,7 @@ export function App({
       store,
       dispatch,
       postMessage,
+      newLocalId,
       closeOverlay,
       openOverlay,
       onNewConversation,
@@ -2306,6 +2323,14 @@ export function App({
         onForgetPaidUse={() => {
           postMessage({ type: 'forgetPaidUse' })
         }}
+        reportAction={
+          <UsageReportAction
+            onUsageReport={() => {
+              closeOverlay()
+              postMessage({ type: 'runReport', requestId: newLocalId(), argumentsText: 'usage' })
+            }}
+          />
+        }
         report={state.usageReport}
         usage={state.usage}
         context={state.context}
