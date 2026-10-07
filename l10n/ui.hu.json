@@ -3033,6 +3033,7 @@
   "providerImport": "Importálás",
   "providerImportPreviewTitle": "Importálási előnézet",
   "importNeedsKey": "kulcsot igényel",
+  "providerOpenRouterServices": "Az OpenRouter-fiók csatlakoztatása és a kulcshasználat lekérdezése még nem érhető el. A modellek használatához illesszen be egy kulcsot.",
   "refreshModels": "Modellek frissítése",
   "scanNewModels": {
     "one": "{count} új modell az utolsó átvizsgálás óta",

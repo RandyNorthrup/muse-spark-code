@@ -17,7 +17,13 @@
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
-      "details": [],
+      "details": [
+        {
+          "conditions": [
+            { "when": "openRouterServices=absent", "text": { "ui": "providerOpenRouterServices" } }
+          ]
+        }
+      ],
       "facts": {
         "management": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
         "modelRequests": "modelApi"

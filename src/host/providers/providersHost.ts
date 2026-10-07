@@ -69,8 +69,8 @@ export interface ProvidersHostDeps {
   readonly policy: AddressPolicy
   readonly tester: KeyTester
   readonly fetcher: ModelFetcher
-  readonly exchanger: CodeExchanger
-  readonly usage: KeyUsageReader
+  readonly exchanger: CodeExchanger | undefined
+  readonly usage: KeyUsageReader | undefined
   readonly onKeyUsage?: (snapshot: KeyUsageSnapshot) => void
   readonly pkce: PkceSource
   readonly suggest: SuggestionEngine
@@ -123,7 +123,7 @@ export interface ProvidersHost {
     shouldImport: (preview: ImportPreview) => Promise<boolean>,
   ) => Promise<number>
   readonly connectOpenRouter: (isRemote: boolean) => Promise<{ key: string } | undefined>
-  readonly openRouterUsage: (credential: string) => Promise<KeyUsageSnapshot>
+  readonly openRouterUsage: (credential: string) => Promise<KeyUsageSnapshot | undefined>
   readonly probe: (preset: PresetInfo) => Promise<readonly LocalProbeResult[]>
   readonly suggestDefaultModel: (
     candidates: readonly ProviderModelRow[],
@@ -214,7 +214,7 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
     suggestedPreset: (settingValue) =>
       workspaceSuggestedPreset(settingValue, (id) => deps.catalog.has(id)),
     confirmAddress: async (address) => {
-      const verdict = deps.policy.check(address)
+      const verdict = await deps.policy.check(address)
       if (verdict.kind !== 'private') {
         return verdict
       }
@@ -269,7 +269,7 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
     completePendingRemovals: () => removal.completePending(),
     exportConfig: () => exportProviders(deps.store),
     previewImport: async (text) =>
-      previewProvidersImport(
+      await previewProvidersImport(
         await deps.store.list(),
         text,
         deps.policy,
@@ -280,6 +280,7 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
         importProviders(
           {
             store: deps.store,
+            credentials: deps.credentials,
             policy: deps.policy,
             confirm: shouldImport,
             presetAddress: (preset) => deps.catalog.get(preset)?.origin,
@@ -288,6 +289,7 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
         ),
       ),
     connectOpenRouter: async (isRemote) => {
+      if (deps.exchanger === undefined) return
       const connection = await connectOpenRouterAccount({
         pkce: deps.pkce,
         exchange: deps.exchanger,
@@ -307,6 +309,7 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
       return connection === undefined ? undefined : { key: connection.key }
     },
     openRouterUsage: async (credential) => {
+      if (deps.usage === undefined) return
       const snapshot = await readOpenRouterKeyUsage(deps.usage, credential)
       deps.onKeyUsage?.(snapshot)
       return snapshot

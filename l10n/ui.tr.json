@@ -3033,6 +3033,7 @@
   "providerImport": "İçe aktar",
   "providerImportPreviewTitle": "İçe aktarma önizlemesi",
   "importNeedsKey": "anahtar gerekli",
+  "providerOpenRouterServices": "OpenRouter hesabı bağlantısı ve anahtar kullanım bilgileri henüz kullanılamıyor. Modelleri kullanmak için bir anahtar yapıştırın.",
   "refreshModels": "Modelleri yenile",
   "scanNewModels": {
     "one": "Son taramadan beri {count} yeni model",

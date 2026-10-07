@@ -10,6 +10,8 @@ Open `/help` in the panel or **Muse Spark: Open Help & Reference**. Search the r
 
 Add a model provider with an API key and pick a model.
 
+openRouterServices=absent: OpenRouter account connection and key usage are not available yet. Paste a key to use models.
+
 ```json
 {
   "management": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],

@@ -2930,6 +2930,7 @@
   "providerImport": "导入",
   "providerImportPreviewTitle": "导入预览",
   "importNeedsKey": "需要密钥",
+  "providerOpenRouterServices": "OpenRouter 账户连接和密钥用量查询尚不可用。请粘贴密钥以使用模型。",
   "refreshModels": "刷新模型",
   "scanNewModels": {
     "other": "自上次扫描以来新增 {count} 个模型"

@@ -631,6 +631,14 @@ installed-editor and live provider certification are still open. MiniMax
 and Alibaba plan presets await captures, and Hugging Face OAuth awaits
 application registration.
 
+OpenRouter models accept pasted keys. Account connection and key-usage reads
+are not available yet; Models & Agents hides those actions and says why.
+Scan this computer probes each local preset's loopback port and model-list path.
+Provider exports include subscription configuration without credentials. A
+confirmed import requires credentials to be entered again, clears credentials
+for imported and removed ids, and replaces providers and the validated default
+model together. Cancelled or invalid imports leave configuration and keys intact.
+
 ## Questions
 
 The integrated question paths, fake-only checks and the 2026-10-06 live checks

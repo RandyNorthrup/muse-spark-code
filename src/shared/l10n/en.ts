@@ -3967,6 +3967,8 @@ export const EN = {
   providerImport: 'Import',
   providerImportPreviewTitle: 'Import preview',
   importNeedsKey: 'needs a key',
+  providerOpenRouterServices:
+    'OpenRouter account connection and key usage are not available yet. Paste a key to use models.',
   refreshModels: 'Refresh models',
   scanNewModels: forms({
     one: '{count} new model since the last scan',

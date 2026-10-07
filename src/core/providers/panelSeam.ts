@@ -2,9 +2,11 @@ function unavailable(): never {
   throw new Error(UI_TEXT.modelsPanelUnavailable)
 }
 // Compose the panel's existing ports with the nonsecret providers file.
+import { lookup } from 'node:dns/promises'
+import { isIP } from 'node:net'
 import type { ModelsPanelSeam, ProviderEntry, PresetInfo } from '../../host/providers/providerPorts'
 import { emptyProvidersFile, readProvidersFile, writeProvidersFileAtomic } from './providersFile'
-import { listedPresets, PLAN_KEY_PRESETS, isKeyShape } from './presets'
+import { listedPresets, PRESETS, PLAN_KEY_PRESETS, isKeyShape } from './presets'
 import { checkEndpointUrl } from './endpointPolicy'
 import { createPkcePair } from './pkce'
 import { UI_TEXT } from '../../shared/constants'
@@ -12,6 +14,7 @@ import { UI_TEXT } from '../../shared/constants'
 export function createModelsPanelSeam(options: {
   readonly configFile: string
   readonly subscriptionModels: (id: string) => Promise<readonly string[]>
+  readonly resolve?: (host: string) => Promise<readonly string[]>
 }): ModelsPanelSeam {
   const read = async () => {
     const result = await readProvidersFile(options.configFile)
@@ -82,14 +85,24 @@ export function createModelsPanelSeam(options: {
           providers: [...file.providers.filter((old) => old.id !== row.id), row],
         })
       }),
-    replaceAll: (rows) =>
+    replaceAll: (rows, replacement) =>
       mutate(async (file) => {
-        await save({ ...file, providers: rows })
+        const { defaultModel, ...rest } = file
+        const nextDefault = replacement === undefined ? defaultModel : replacement.defaultModel
+        await save({
+          ...rest,
+          providers: rows,
+          ...(nextDefault !== undefined && { defaultModel: nextDefault }),
+        })
         return file.providers.map((row) => entry(row))
       }),
   }
   const catalog = new Map<string, PresetInfo>()
-  for (const preset of [...listedPresets(), ...PLAN_KEY_PRESETS]) {
+  for (const preset of [
+    ...listedPresets(),
+    ...PRESETS.filter((row) => row.category === 'local'),
+    ...PLAN_KEY_PRESETS,
+  ]) {
     const origin = preset.origin.kind === 'fixed' ? preset.origin.origin : ''
     let kind: PresetInfo['kind'] = preset.category === 'custom' ? 'cloud' : preset.category
     if (PLAN_KEY_PRESETS.some((plan) => plan.id === preset.id)) kind = 'subscription'
@@ -105,7 +118,10 @@ export function createModelsPanelSeam(options: {
       keyPage: preset.keyPage ?? '',
       isKeyShape: (value) => isKeyShape(preset.keyShape, value),
       freeTest: preset.keyTest.kind === 'models-list' ? 'modelsList' : 'none',
-      localProbes: [],
+      localProbes:
+        preset.origin.kind === 'loopback'
+          ? [{ host: '127.0.0.1', port: preset.origin.defaultPort, path: preset.modelsList.path }]
+          : [],
     })
   }
   for (const [id, address, format] of [
@@ -142,8 +158,25 @@ export function createModelsPanelSeam(options: {
       },
     },
     policy: {
-      check: (address) => {
-        const verdict = checkEndpointUrl(address, [])
+      check: async (address) => {
+        const initial = checkEndpointUrl(address, [])
+        if (initial.kind === 'refused' && initial.reason !== 'unresolved-address')
+          return { kind: 'refused', detail: initial.reason }
+        const host = new URL(address).hostname.replaceAll(/^\[|\]$/g, '')
+        let answers: readonly string[] = [host]
+        try {
+          if (isIP(host) === 0) {
+            if (options.resolve === undefined) {
+              const records = await lookup(host, { all: true })
+              answers = records.map(({ address }) => address)
+            } else {
+              answers = await options.resolve(host)
+            }
+          }
+        } catch {
+          return { kind: 'refused', detail: 'unresolved-address' }
+        }
+        const verdict = checkEndpointUrl(address, answers)
         if (verdict.kind === 'ok') return { kind: 'ok' }
         return verdict.kind === 'confirm-private'
           ? { kind: 'private', address }
@@ -152,8 +185,8 @@ export function createModelsPanelSeam(options: {
     },
     // The host composes key tests and scans from the shared pinned transport.
     tester: { test: unavailable },
-    exchanger: { exchange: unavailable },
-    usage: { read: unavailable },
+    exchanger: undefined,
+    usage: undefined,
     fetcher: {
       fetchModels: async (provider) => {
         if (provider.auth !== 'subscription') return unavailable()

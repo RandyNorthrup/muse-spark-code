@@ -506,7 +506,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         const preset = providers.preset(entry.preset)
         if (
           preset === undefined ||
-          (message.type === 'providers/connect' && preset.id !== 'openrouter')
+          (message.type === 'providers/connect' &&
+            (preset.id !== 'openrouter' || preset.connectLabel === undefined))
         ) {
           throw new Error(UI_TEXT.actionFailed)
         }
