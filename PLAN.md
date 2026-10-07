@@ -28821,7 +28821,7 @@ Each finished piece commits with hooks; final verification uses a fresh clone,
 TypeScript projects and the scoped lane gates. Browser gates unavailable on
 this rig remain named lead-owned commands in `docs/certification/m117.md`.
 
-Repair plan: [~] packaging; [ ] engine/evidence; [ ] UI/session/CLI;
+Repair plan: [x] packaging; [x] engine/evidence; [~] UI/session/CLI;
 [ ] size/portable tests; [ ] fresh-clone verification and certification.
 
 **Lane P implementation (2026-10-06).** After the explicitly required

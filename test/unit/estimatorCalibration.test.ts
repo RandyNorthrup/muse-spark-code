@@ -72,6 +72,59 @@ afterEach(() => {
 })
 
 describe('M117 calibration and its honest prior', () => {
+  it('collects engine tags and ships finding profiles per engine, kind and class', async () => {
+    const journal = new FakeEstimateHistory()
+    const result = await collectHistory(
+      journal,
+      [{ ...lane(), engine: 'codex' }],
+      ports(),
+      ESTIMATOR_AS_OF,
+    )
+    expect(result.records[0]?.engine).toBe('codex')
+    const collected = await journal.list()
+    const tagged = collected[0]!
+    const history: HistoryRecord[] = [
+      tagged,
+      { ...tagged, laneId: 'M117:unknown', review: { status: 'unknown' } },
+      {
+        ...tagged,
+        laneId: 'M117:other-kind',
+        kind: 'ui',
+        review: { status: 'known', rounds: 0, modules: [], redesigns: [] },
+      },
+      {
+        ...tagged,
+        laneId: 'M117:other-class',
+        machineClassId: 'macos',
+        review: { status: 'known', rounds: 0, modules: [], redesigns: [] },
+      },
+      {
+        ...tagged,
+        laneId: 'M117:other-engine',
+        engine: 'grok',
+        review: { status: 'known', rounds: 0, modules: [], redesigns: [] },
+      },
+    ]
+    const query = () =>
+      fitCalibration(history, 'core', 'linux-x64-builder', ESTIMATOR_AS_OF, 'agentTime', 'codex')
+    expect(query().calibration.firstPassFindingRate).toMatchObject({
+      status: 'known',
+      value: 1,
+      basis: 'history',
+      samples: 1,
+    })
+    history.push({
+      ...tagged,
+      laneId: 'M117:clean',
+      review: { status: 'known', rounds: 0, modules: [], redesigns: [] },
+    })
+    expect(query().calibration.firstPassFindingRate).toMatchObject({ value: 0.5, samples: 2 })
+    expect(
+      fitCalibration([], 'core', 'linux-x64-builder', ESTIMATOR_AS_OF, 'agentTime', 'grok')
+        .calibration.firstPassFindingRate,
+    ).toMatchObject({ status: 'unknown', value: null, samples: 0 })
+  })
+
   it('uses the documented prior below twenty samples and reports the available count', () => {
     for (const count of [0, 1, 19]) {
       const result = fit(samples(count))

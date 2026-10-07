@@ -49,6 +49,14 @@ export interface EstimateScheduler {
   run(durations?: ReadonlyMap<string, ReadonlyMap<string, number>>): EstimateSchedule
 }
 
+/** Resource infeasibility is distinct from corrupt inputs and engine faults. */
+export class EstimateSchedulingError extends Error {
+  constructor(readonly reason: string) {
+    super(fill(UI_TEXT.estimateFailed, { detail: reason }))
+    this.name = 'EstimateSchedulingError'
+  }
+}
+
 function refuse(detail: string): never {
   throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
 }
@@ -807,7 +815,7 @@ export function prepareEstimateSchedule(
           )
             best = candidate
         }
-        if (!best) refuse(`unschedulable:${lane.id}`)
+        if (!best) throw new EstimateSchedulingError(`unschedulable:${lane.id}`)
         if (best.approximate) runUnknownLimits.add(`${lane.id}:account-selection-approximate`)
         if (relaxation !== 'disk')
           for (const volume of usedVolumes(lane, best.machine))

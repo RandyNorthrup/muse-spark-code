@@ -9,6 +9,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Fit candidate fleets before setup search, preserve infeasible current-fleet results and
+  unknown limits, and disclose calibration parameters using their own evidence.
+- Collect engine-tagged history and report first-pass finding profiles by engine, lane
+  kind and machine class.
 - Include the lazy capacity estimator engine in VSIX, ACP and private test packages.
 
 ### Added

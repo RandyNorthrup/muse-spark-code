@@ -14,8 +14,10 @@ const laneSchema = z.strictObject({
   kind: historyRecordSchema.shape.kind,
   estimatedHours: z.nullable(historyRecordSchema.shape.estimatedHours),
   state: estimateLaneSchema.shape.state,
+  engine: historyRecordSchema.shape.engine,
 })
 const durationFields = {
+  engine: historyRecordSchema.shape.engine,
   machineClassId: historyRecordSchema.shape.machineClassId,
   startedAt: historyRecordSchema.shape.startedAt,
   finishedAt: historyRecordSchema.shape.finishedAt,
@@ -94,6 +96,12 @@ export async function buildHistory(
     const ciResult = ci === undefined ? undefined : ciSchema.safeParse(ci)
     if (!duration.success || !reviewResult.success || (ciResult && !ciResult.success))
       throw calibrationFailure('invalidHistorySource')
+    if (
+      lane.engine !== undefined &&
+      duration.data.engine !== undefined &&
+      lane.engine !== duration.data.engine
+    )
+      throw calibrationFailure('conflictingEngineHistory')
     if (Date.parse(duration.data.finishedAt) > Date.parse(asOf)) {
       excluded.push({ laneId: lane.laneId, reason: 'afterSnapshot' })
       continue
@@ -104,6 +112,7 @@ export async function buildHistory(
         kind: lane.kind,
         estimatedHours: lane.estimatedHours,
         ...duration.data,
+        engine: duration.data.engine ?? lane.engine,
         actualHours:
           'actualHours' in duration.data
             ? duration.data.actualHours
