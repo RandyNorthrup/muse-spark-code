@@ -980,10 +980,28 @@ export const MAX_ATTACHMENTS_PER_MESSAGE = 20
 // not evidence that a model supports a modality or that storage is free.
 export const MEDIA_FILE_ID_MIN_BYTES = 1024 * 1024
 export const MEDIA_SNIFF_MAX_BYTES = 1024 * 1024
+export const MEDIA_CONVERTER_PROBE_TIMEOUT_MS = 2000
+export const MEDIA_CONVERTER_PROBE_MAX_BYTES = 16 * 1024
+export const MEDIA_CONVERSION_MAX_RSS_BYTES = 512 * 1024 * 1024
+export const MEDIA_CONVERSION_WATCHDOG_INTERVAL_MS = 25
+export const MEDIA_CONVERSION_SAMPLE_TIMEOUT_MS = 100
+export const MEDIA_PROC_RSS_UNIT_BYTES = 1024
+export const MEDIA_PROC_RSS_PATTERN = /^VmRSS:\s+(\d+)\s+kB$/mu
+export const MEDIA_PROC_EXITED_PATTERN = /^State:\s+[ZX]\b/mu
+// Release-version banners only; development/unknown versions refuse conversion.
+export const MEDIA_FFMPEG_VERSION_PATTERN =
+  /^ffmpeg version (\d+\.\d+(?:\.\d+)?(?:-[\w.+-]+)?) Copyright \(c\) \d{4}(?:-\d{4})? the FFmpeg developers$/u
+export const MEDIA_AVCONVERT_VERSION_PATTERN = /^avconvert version (\d+\.\d+(?:\.\d+)?)$/u
+export const MEDIA_CONVERTER_INSTALL_PATHS = {
+  linux: ['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg'],
+  darwin: ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg'],
+  win32: ['C:/Program Files/ffmpeg/bin/ffmpeg.exe'],
+} as const
 export const MEDIA_FILE_EXPIRY_MIN_S = 3600
 export const MEDIA_FILE_EXPIRY_MAX_S = 2_592_000
 export const MEDIA_FILE_EXPIRY_DEFAULT_S = 604_800
 export const MEDIA_MAX_UPLOAD_DEFAULT_MIB = 200
+export const MEDIA_CONVERSION_DEFAULT_OUTPUT_BYTES = MEDIA_MAX_UPLOAD_DEFAULT_MIB * 1024 * 1024
 export const MEDIA_MAX_UPLOAD_MIB = 1024
 export const MEDIA_NAME_MAX_CHARS = 256
 export const MEDIA_ID_MAX_CHARS = 256

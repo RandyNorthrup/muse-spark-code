@@ -50,6 +50,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- M105 conversion waits for pending and final resource samples after encoder
+  close and refuses unavailable RSS instead of treating it as zero. Media
+  sniffing rejects duplicate unique ISO-BMFF boxes and unreadable top-level
+  boundaries, so a conflicting movie cannot bypass audio/video admission.
+
 - Problem reports retain frames from the shipped question deferral bundle.
 - Release checks cover crash recovery through the shared reload helper, await
   deferred question commands and menus, and verify Cline shell quoting on all

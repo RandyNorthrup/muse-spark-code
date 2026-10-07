@@ -6564,14 +6564,18 @@ The owner's standing rulings apply:
    - WebM and Matroska (EBML), which U5 shows Meta refuses at upload and
      inline, and m4a (not captured) are refused with a conversion hint;
    - wav (RIFF `WAVE`) and mp3 (ID3 or frame sync) are audio;
-   - a file whose `moov` is not found within the window is "duration
-     unknown", allowed unless the model's record sets a maximum duration (and
-     refused in a capped session, decision 6).
+   - `vide` and `soun` track handlers establish the kind, independently of
+     the brand. Audio-only MP4 is audio. A file whose tracks cannot be read
+     within the bounded windows is refused, since the metadata contract has
+     no unknown-kind state. Unknown duration with known tracks remains allowed
+     unless the model sets a maximum or the session is capped (decision 6).
 
    **Convert to mp4** is offered only when a converter is already on the
-   machine (`avconvert`, which macOS ships, or an `ffmpeg` on PATH, found by
-   absolute path and run with an argument array into an owner-only temporary
-   file). Nothing is bundled or installed.
+   machine at an explicit configured path or a documented install location.
+   Each probe and launch requires the shared trusted-path verifier, and a
+   bounded probe must yield a strictly parsed release version. Unversioned
+   converters refuse. Conversion runs with an argument array into an owner-only
+   temporary file. Nothing is bundled or installed.
 
 5. **Sound, routed to where it is heard.**
    - **A video with a soundtrack, on a model that does not hear it** (Muse
@@ -25213,6 +25217,33 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M105 — Multimodal input: video, audio, documents, screen recordings and the Files API (D85)
 
+**M1 second review corrections (RVM105M12, 2026-10-06).** Resolve both P2
+findings inside the media core. Encoding close waits for a bounded in-flight
+resource check, then a final output/RSS sample; failures still count after
+close, and unavailable RSS cannot become zero or successful conversion.
+ISO-BMFF rejects duplicate unique structural boxes before classifying from
+one movie, and refuses a top-level header outside the bounded windows rather
+than assuming the rest contains no conflicting movie. Regression tests cover
+close races, unavailable/stalled/final readings, duplicate movies in both
+orders, other unique boxes and valid single-movie controls. Each guard gets
+a byte-exact red drill in `docs/certification/m105-m1-media-core-(a).md`.
+Existing localized refusal templates are retained. No new dependency, editor
+binding, gate change, branch merge or live/paid call is in scope.
+
+**M1 review corrections (RVM105M1, 2026-10-06).** Resolve all three findings:
+discover converters only at explicit configured paths or documented installation
+locations, require the shared StrictModes/safe_path verifier before each version
+probe and encoding launch, and strictly parse a bounded version probe. The
+verifier is a required integration port while REDM104L3's `trustedPath.ts` is
+absent; an absent binding refuses conversion. Enforce the output-byte cap,
+RSS watchdog and deadline during encoding, with a portable RSS/governor binding
+required where the Linux kernel sampler is unavailable. Classify ISO-BMFF from
+`vide`/`soun` track handlers; unknown tracks refuse rather than claim video,
+and audio-only output cannot satisfy a video conversion. Lane A still owns
+wrapping audio with a still frame. Tests and byte-exact red drills are recorded
+in `docs/certification/m105-m1-media-core-(a).md`; no new dependency or wider
+guard. W owns the shipped docs, reference and host/bundle binding updates.
+
 **Lane F review corrections (RVM105F, 2026-10-05).** Serialize each session's
 saves and removals, check save generations before releasing references, and
 hold the account storage lock across ownership and session publication. Persist
@@ -29632,6 +29663,22 @@ checks. The lead retains the integrated quality/coverage/release gate. No gate
 or budget is weakened; the exact evidence is recorded in
 `docs/certification/help-reference.md`.
 
+**M105-M1 second follow-up gate scope (RVM105M12, 2026-10-06).** The
+same rig override applies to these two P2 corrections: direct focused suites
+at default timeouts, no full quality/full unit run or branch merge. The eight
+resource/structure red drills restore source byte-exact. W's existing host
+record, browser-size and split-classification failures remain enforced and
+are reported in the lane certification; the lead owns the integrated gates.
+
+**M105-M1 follow-up gate scope (RVM105M1, 2026-10-06).** The rig brief
+requires direct focused suites and forbids full quality/full unit runs and
+merging another branch. Full quality and cross-platform gates remain the
+lead's integrated-tree responsibility. Keep the existing W-owned host-record,
+deferred-browser-size and `files.ts` split blockers enforced; this lane fixes
+the three media-core findings with regressions and red drills, without
+changing a gate or cap. Results and exact commands are in
+`docs/certification/m105-m1-media-core-(a).md`.
+
 **M105-F gate deferral (RVM105F corrections, 2026-10-05).** The lane brief
 reserves full quality and integration for the lead. Required local checks are
 recorded in `docs/certification/m105-f.md`; the unchanged lane W blockers
@@ -30945,6 +30992,31 @@ before a repaired one loads (2026-09-30).
   claim ships. Follow-up: integrate and certify actual native/phone adapters
   under the IDE compatibility milestones. RVHELPREF 1–23 retain no false-claim
   residual; this boundary is recorded explicitly for finding 16.
+
+- **M105-M1-resource-monitor-binding (M107/W/E1/E2).** RVM105M1's encoding
+  resource finding is fixed by the growing-output watcher, hard RSS watchdog
+  and encoding/sample deadlines. On this base M107's process ticket is absent;
+  Linux uses its kernel RSS sampler and other platforms require the native
+  sampler port. Without it encoding refuses. Integration binds the governor
+  ticket where available and provides equivalent monitoring in every editor.
+  The alternate process port must enforce the same limits and await close,
+  settle any in-flight sample and supply a final output/RSS sample before
+  success (RVM105M12). A reaped Linux PID whose `/proc` reading is unavailable
+  refuses; it is never substituted with zero. Integration must retain a
+  verifiable final reading through the governor/native sampler to enable
+  successful conversion after reaping. This safe refusal is part of the
+  existing monitor binding handoff, not a deferred review finding.
+  Certification: `docs/certification/m105-m1-media-core-(a).md`. No review
+  finding is deferred.
+- **M105-M1-trusted-converter-binding (REDM104L3/W/E1/E2).** All RVM105M1
+  converter-trust guards consume the shared `TrustedPathVerifier` seam. This
+  base lacks `src/runtime/trustedPath.ts`; without a verified binding discovery
+  and conversion refuse. Integration binds its canonical-path/component
+  owner/mode/symlink checks for every editor, before each probe and encoding
+  launch. Unversioned avconvert is unavailable until a real version probe is
+  captured and supported; verified ffmpeg remains the alternative. Tests and
+  drills: `docs/certification/m105-m1-media-core-(a).md`. No review finding is
+  deferred and no gate is weakened.
 
 - **M105-F-integration-gates (RVM105F corrections).** All four review findings
   are fixed with regressions and red drills (`docs/certification/m105-f.md`).
