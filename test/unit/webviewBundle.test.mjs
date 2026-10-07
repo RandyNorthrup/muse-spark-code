@@ -165,6 +165,12 @@ describe('the production webview chunks (FIX78W)', () => {
     'GooeyMenuContent',
     'UsageDialogContent',
     'AgentMapContent',
+    // FIXM116I: the startup diet's directly-imported on-demand bodies. (The
+    // task list and effort control share one merged chunk, so the named
+    // closure below — not this per-entry assertion — locks their placement.)
+    'SlashMenu',
+    'MentionMenu',
+    'DiffTally',
   ])('loads %s only through its dynamic import', (name) => {
     const source = `src/webview/components/${name}.tsx`
     const owners = Object.entries(built.outputs).filter(([, output]) =>

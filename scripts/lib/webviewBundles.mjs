@@ -84,8 +84,23 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
       'src/webview/playbook/PlaybookPanel.tsx',
       'src/webview/playbook/PlaybookRows.tsx',
       'src/webview/playbook/PlaybookMap.tsx',
+      'src/webview/playbook/DeferredPlaybook.tsx',
     ],
     budgetKiB: 25,
+  },
+  // FIXM116I: the startup diet's on-demand overlays (measured 5.5 KiB
+  // unregistered; +15% rounded up to 10 KiB). The chat's first paint keeps
+  // none of them: composer menus, edit totals, task list, effort control.
+  {
+    name: 'deferred overlays',
+    entries: [
+      'src/webview/components/SlashMenu.tsx',
+      'src/webview/components/MentionMenu.tsx',
+      'src/webview/components/DiffTally.tsx',
+      'src/webview/components/TodoPanel.tsx',
+      'src/webview/components/EffortSlider.tsx',
+    ],
+    budgetKiB: 10,
   },
 ]
 

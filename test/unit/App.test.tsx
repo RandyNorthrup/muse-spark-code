@@ -296,7 +296,8 @@ describe('App shell', () => {
     expect(screen.getByText('Restored title')).toBeInTheDocument()
     expect(screen.getByText('Restored answer')).toBeInTheDocument()
     expect(await screen.findByText('Restored title goal')).toBeInTheDocument()
-    expect(screen.getByText('Restored title todo')).toBeInTheDocument()
+    // The task list loads on first use, like the goal above it.
+    expect(await screen.findByText('Restored title todo')).toBeInTheDocument()
   })
 
   it('renders the empty state once signed in and focuses the composer', () => {
@@ -809,13 +810,14 @@ describe('App conversation', () => {
       await Promise.resolve()
     })
     expect(postMessage).toHaveBeenCalledWith({ type: 'searchMentions', requestId: 1, query: '' })
-    expect(screen.getByText('No matching files')).toBeInTheDocument()
+    // The mention menu body loads on first open.
+    expect(await screen.findByText('No matching files')).toBeInTheDocument()
     deliver({
       type: 'mentionResults',
       requestId: 1,
       items: [{ path: 'src/app.ts', isFolder: false }],
     })
-    expect(screen.getByRole('option', { name: 'src/app.ts' })).toBeInTheDocument()
+    expect(await screen.findByRole('option', { name: 'src/app.ts' })).toBeInTheDocument()
   })
 
   it('routes mention searches and attachment removal', () => {
@@ -1146,7 +1148,7 @@ describe('App palette', () => {
 
   // M38: `/` alone shows the palette attached to the prompt; a character
   // more, the slash commands. The prompt keeps the focus and the text.
-  it('shows the palette for a typed "/" and the slash commands after a character more', () => {
+  it('shows the palette for a typed "/" and the slash commands after a character more', async () => {
     const postMessage = renderReady()
     deliver({ type: 'modelList', models })
     const box = textarea()
@@ -1177,7 +1179,8 @@ describe('App palette', () => {
     // A character more: the slash commands, the skill among them.
     fireEvent.change(box, { target: { value: '/fi' } })
     expect(screen.queryByRole('dialog')).toBeNull()
-    const list = screen.getByRole('listbox', { name: 'Slash commands' })
+    // The slash menu body loads on first open.
+    const list = await screen.findByRole('listbox', { name: 'Slash commands' })
     expect(within(list).getAllByRole('option')[0]).toHaveTextContent('/fix-bug')
     fireEvent.keyDown(box, { key: 'Enter' })
     expect(box.value).toBe('/fix-bug ')

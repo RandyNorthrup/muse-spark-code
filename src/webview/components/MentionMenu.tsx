@@ -5,18 +5,13 @@ import { UI_TEXT } from '../../shared/constants'
 import type { MentionItem } from '../../shared/protocol'
 import { FileIcon, FolderIcon } from './icons'
 import { MenuOption } from './MenuOption'
+import { mentionOptionId } from './menuIds'
 
 export interface MentionMenuProps {
   readonly items: readonly MentionItem[]
   readonly activeIndex: number
   readonly onSelect: (item: MentionItem) => void
   readonly onHover: (index: number) => void
-}
-
-export const MENTION_OPTION_ID_PREFIX = 'mention-option-'
-
-export function mentionOptionId(index: number): string {
-  return `${MENTION_OPTION_ID_PREFIX}${String(index)}`
 }
 
 export function MentionMenu({ items, activeIndex, onSelect, onHover }: MentionMenuProps) {

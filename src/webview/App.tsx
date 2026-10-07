@@ -64,8 +64,37 @@ import type { ApprovalDecisionInput } from './components/ApprovalCard'
 import { AttentionDock } from './components/AttentionDock'
 import { QuestionSurface } from './components/QuestionSurface'
 import { Composer, type ImageData, type SlashPaletteSlot } from './components/Composer'
-import { DiffTally } from './components/DiffTally'
-import { EffortSlider } from './components/EffortSlider'
+// The conversation's edit totals load on first use: an empty conversation
+// paints nothing while the tally chunk loads, and a populated one gets an
+// announced loading status with a local retry instead of the panel boundary.
+const DiffTally = deferred(
+  async () => {
+    const { DiffTally } = await import('./components/DiffTally')
+    return { default: DiffTally }
+  },
+  false,
+  (props) =>
+    props.counts === undefined ? null : (
+      <span role="status" data-deferred-loading>
+        {UI_TEXT.loadingOutput}
+      </span>
+    ),
+)
+// The Modes menu's effort control loads with the menu's first open. No
+// close control is wired: the menu owns dismissal, the boundary only
+// announces loading and retries a failed chunk.
+const EffortSlider = deferred(
+  async () => {
+    const { EffortSlider } = await import('./components/EffortSlider')
+    return { default: EffortSlider }
+  },
+  false,
+  () => (
+    <span role="status" data-deferred-loading>
+      {UI_TEXT.loadingOutput}
+    </span>
+  ),
+)
 import { EmptyState } from './components/EmptyState'
 import { Header } from './components/Header'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
@@ -73,7 +102,22 @@ import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
 import type { PaletteKeys, PaletteView } from './components/Palette'
 import type { MenuEntry } from './components/PopoverMenu'
-import { TodoPanel } from './components/TodoPanel'
+// The task list loads on first use: an empty list paints nothing while its
+// chunk loads, and a populated one gets an announced loading status with a
+// local retry instead of the panel boundary.
+const TodoPanel = deferred(
+  async () => {
+    const { TodoPanel } = await import('./components/TodoPanel')
+    return { default: TodoPanel }
+  },
+  false,
+  (props) =>
+    props.items.length === 0 ? null : (
+      <span role="status" data-deferred-loading>
+        {UI_TEXT.loadingOutput}
+      </span>
+    ),
+)
 import { type QueuedCardRef, Transcript } from './components/Transcript'
 import { diffTally } from './diffTally'
 import { type ErrorReporter, webviewErrorReport } from './errorReport'

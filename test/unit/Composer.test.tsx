@@ -279,20 +279,22 @@ function withResults(paths: readonly string[], requestId = 1) {
 }
 
 describe('Composer mention menu', () => {
-  it('asks the host for matches while typing an @ token and lists them', () => {
+  it('asks the host for matches while typing an @ token and lists them', async () => {
     const { props, view } = renderComposer()
     type(view, props, 'see @ap')
     expect(props.onSearchMentions).toHaveBeenLastCalledWith(1, 'ap')
     type(view, props, 'see @ap', { mentionResults: withResults(['src/app.ts', 'src/']) })
-    const options = screen.getAllByRole('option')
+    // The menu body loads on first open; later assertions run against it.
+    const options = await screen.findAllByRole('option')
     expect(options.map((node) => node.textContent)).toEqual(['src/app.ts', 'src/'])
     expect(options[0]).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('navigates with the arrows and applies the choice on Enter or Tab', () => {
+  it('navigates with the arrows and applies the choice on Enter or Tab', async () => {
     const { props, view } = renderComposer()
     type(view, props, '@a')
     const textarea = type(view, props, '@a', { mentionResults: withResults(['a.ts', 'b/a.ts']) })
+    await screen.findByRole('listbox')
     expect(fireEvent.keyDown(textarea, { key: 'ArrowDown' })).toBe(false)
     expect(screen.getAllByRole('option')[1]).toHaveAttribute('aria-selected', 'true')
     fireEvent.keyDown(textarea, { key: 'ArrowUp' })
@@ -302,28 +304,28 @@ describe('Composer mention menu', () => {
     expect(props.onSubmit).not.toHaveBeenCalled()
   })
 
-  it('selects a row by click and dismisses on Escape', () => {
+  it('selects a row by click and dismisses on Escape', async () => {
     const { props, view } = renderComposer()
     type(view, props, '@a')
     const textarea = type(view, props, '@a', { mentionResults: withResults(['a.ts']) })
-    fireEvent.click(screen.getByRole('option'))
+    fireEvent.click(await screen.findByRole('option'))
     expect(props.onDraftChange).toHaveBeenLastCalledWith('@a.ts ')
     expect(fireEvent.keyDown(textarea, { key: 'Escape' })).toBe(false)
     expect(screen.queryByRole('listbox')).toBeNull()
   })
 
-  it('searches a quoted name with its space and inserts a spaced path quoted (D27)', () => {
+  it('searches a quoted name with its space and inserts a spaced path quoted (D27)', async () => {
     const { props, view } = renderComposer()
     type(view, props, 'see @"my no')
     expect(props.onSearchMentions).toHaveBeenLastCalledWith(1, 'my no')
     type(view, props, 'see @"my no', { mentionResults: withResults(['my notes/a b.md']) })
-    fireEvent.click(screen.getByRole('option'))
+    fireEvent.click(await screen.findByRole('option'))
     expect(props.onDraftChange).toHaveBeenLastCalledWith('see @"my notes/a b.md" ')
   })
 
   // The box keeps the focus (aria-activedescendant), so the list never
   // scrolls by itself: the active row must be brought into view (WCAG 2.1.1).
-  it('scrolls the active match into view as the arrows move', () => {
+  it('scrolls the active match into view as the arrows move', async () => {
     const scroll = vi.spyOn(Element.prototype, 'scrollIntoView')
     try {
       const { props, view } = renderComposer()
@@ -331,6 +333,7 @@ describe('Composer mention menu', () => {
       const textarea = type(view, props, '@a', {
         mentionResults: withResults(['a.ts', 'b/a.ts', 'c/a.ts']),
       })
+      await screen.findByRole('listbox')
       expect(scroll.mock.contexts.at(-1)).toBe(screen.getAllByRole('option')[0])
       // Up wraps to the last row, the one a short list hides first.
       fireEvent.keyDown(textarea, { key: 'ArrowUp' })
@@ -800,13 +803,13 @@ describe('Composer input methods (M25)', () => {
     expect(props.onSubmit).toHaveBeenCalledOnce()
   })
 
-  it('does not pick a mention with the Enter that ends a composition', () => {
+  it('does not pick a mention with the Enter that ends a composition', async () => {
     const { props, view } = renderComposer()
     type(view, props, '@a')
     const textarea = type(view, props, '@a', { mentionResults: withResults(['a.ts']) })
     expect(fireEvent.keyDown(textarea, { key: 'Enter', isComposing: true })).toBe(true)
     expect(props.onDraftChange).not.toHaveBeenCalled()
-    expect(screen.getByRole('listbox')).toBeInTheDocument()
+    expect(await screen.findByRole('listbox')).toBeInTheDocument()
   })
 })
 
@@ -860,7 +863,7 @@ describe('Composer chrome', () => {
     expect(props.onCompact).toHaveBeenCalledOnce()
   })
 
-  it('gives slash rows the same pointer and accessible tip (M87)', () => {
+  it('gives slash rows the same pointer and accessible tip (M87)', async () => {
     const { view, props, textarea } = renderComposer({
       slashCommands: [
         {
@@ -873,7 +876,7 @@ describe('Composer chrome', () => {
     })
     textarea.focus()
     type(view, props, '/co')
-    const row = screen.getByRole('option', { name: /compact/ })
+    const row = await screen.findByRole('option', { name: /compact/ })
     expect(row).toHaveAttribute('title', 'Free context now.')
     expect(row).toHaveAttribute('aria-describedby', 'slash-option-0-tip')
     expect(row).toHaveAccessibleDescription('Free context now.')
@@ -1048,9 +1051,9 @@ describe('Composer reference chip (M17)', () => {
   })
 })
 
-/** The "/" list's command names, in order. */
-function slashNames(): readonly (string | undefined)[] {
-  const list = screen.getByRole('listbox', { name: 'Slash commands' })
+/** The "/" list's command names, in order (the menu body loads on first open). */
+async function slashNames(): Promise<readonly (string | undefined)[]> {
+  const list = await screen.findByRole('listbox', { name: 'Slash commands' })
   return within(list)
     .getAllByRole('option')
     .map((option) => option.querySelector('.palette-item-label')?.textContent)
@@ -1082,25 +1085,26 @@ describe('Composer "/" menus (M38)', () => {
     expect(document.activeElement).toBe(typed)
   })
 
-  it('turns into the command list once a character follows, ranked as the name is typed', () => {
+  it('turns into the command list once a character follows, ranked as the name is typed', async () => {
     const { props, view, textarea } = renderComposer()
     textarea.focus()
     const typed = type(view, props, '/co')
     expect(screen.queryByRole('dialog')).toBeNull()
     // Name matches first; "Clear conversation" holds "co" in its description.
-    expect(slashNames()).toEqual(['/code-review', '/compact', '/clear'])
+    expect(await slashNames()).toEqual(['/code-review', '/compact', '/clear'])
     expect(typed).toHaveAttribute('aria-controls', 'slash-listbox')
     expect(typed).toHaveAttribute('aria-activedescendant', 'slash-option-0')
     type(view, props, '/com')
-    expect(slashNames()).toEqual(['/compact'])
+    expect(await slashNames()).toEqual(['/compact'])
     type(view, props, '/cl')
-    expect(slashNames()).toEqual(['/clear'])
+    expect(await slashNames()).toEqual(['/clear'])
   })
 
-  it('runs a command with Enter, completes a skill for its arguments, and completes a name with Tab', () => {
+  it('runs a command with Enter, completes a skill for its arguments, and completes a name with Tab', async () => {
     const { props, view, textarea } = renderComposer()
     textarea.focus()
     const typed = type(view, props, '/co')
+    await screen.findByRole('listbox')
     // Enter on a skill completes it; nothing runs and nothing is sent.
     expect(fireEvent.keyDown(typed, { key: 'Enter' })).toBe(false)
     expect(props.onDraftChange).toHaveBeenLastCalledWith('/code-review ')
@@ -1128,12 +1132,13 @@ describe('Composer "/" menus (M38)', () => {
 
   // The list outgrows its height (M70 added /review): the box keeps the
   // focus, so the active command is scrolled into view (WCAG 2.1.1).
-  it('scrolls the active command into view as the arrows move, and only then', () => {
+  it('scrolls the active command into view as the arrows move, and only then', async () => {
     const scroll = vi.spyOn(Element.prototype, 'scrollIntoView')
     try {
       const { props, view, textarea } = renderComposer()
       textarea.focus()
       const typed = type(view, props, '/co')
+      await screen.findByRole('listbox')
       expect(scroll.mock.contexts.at(-1)).toBe(screen.getAllByRole('option')[0])
       // Up wraps to the last row, the one a full list hides first.
       fireEvent.keyDown(typed, { key: 'ArrowUp' })
@@ -1149,14 +1154,14 @@ describe('Composer "/" menus (M38)', () => {
     }
   })
 
-  it('leaves `/handoff ` in the prompt for its goal (M74)', () => {
+  it('leaves `/handoff ` in the prompt for its goal (M74)', async () => {
     const commands: readonly SlashCommand[] = [
       { name: 'handoff', detail: 'Distil this conversation', action: { type: 'startHandoff' } },
     ]
     const { props, view, textarea } = renderComposer({ slashCommands: commands })
     textarea.focus()
     const typed = type(view, props, '/han')
-    expect(slashNames()).toEqual(['/handoff'])
+    expect(await slashNames()).toEqual(['/handoff'])
     // Enter and Tab both ready the command for its goal; nothing runs.
     expect(fireEvent.keyDown(typed, { key: 'Enter' })).toBe(false)
     expect(props.onDraftChange).toHaveBeenLastCalledWith('/handoff ')
@@ -1168,10 +1173,11 @@ describe('Composer "/" menus (M38)', () => {
     expect(props.onSubmit).not.toHaveBeenCalled()
   })
 
-  it('closes on Escape keeping the text, and with no match Enter sends the text', () => {
+  it('closes on Escape keeping the text, and with no match Enter sends the text', async () => {
     const { props, view, textarea } = renderComposer()
     textarea.focus()
     let typed = type(view, props, '/co')
+    await screen.findByRole('listbox')
     fireEvent.keyDown(typed, { key: 'Escape' })
     expect(screen.queryByRole('listbox')).toBeNull()
     expect(props.onDraftChange).not.toHaveBeenCalled()
@@ -1179,16 +1185,16 @@ describe('Composer "/" menus (M38)', () => {
     expect(props.onSubmit).toHaveBeenCalledOnce()
     // Typing on brings it back.
     type(view, props, '/com')
-    expect(slashNames()).toEqual(['/compact'])
+    expect(await slashNames()).toEqual(['/compact'])
     // A dismissal holds for its draft only: the same "/com" later opens again.
     fireEvent.keyDown(typed, { key: 'Escape' })
     expect(screen.queryByRole('listbox')).toBeNull()
     type(view, props, '')
     type(view, props, '/com')
-    expect(slashNames()).toEqual(['/compact'])
+    expect(await slashNames()).toEqual(['/compact'])
     typed = type(view, props, '/zzz')
     expect(
-      screen.getByText('No matching commands; Enter sends the text as it is'),
+      await screen.findByText('No matching commands; Enter sends the text as it is'),
     ).toBeInTheDocument()
     expect(typed).not.toHaveAttribute('aria-controls')
     expect(typed).not.toHaveAttribute('aria-activedescendant')
@@ -1197,7 +1203,7 @@ describe('Composer "/" menus (M38)', () => {
     expect(props.onSubmit).toHaveBeenCalledTimes(2)
   })
 
-  it('stays closed without the focus, under another menu, with the caret inside, or with text after the name', () => {
+  it('stays closed without the focus, under another menu, with the caret inside, or with text after the name', async () => {
     const { props, view, textarea } = renderComposer()
     type(view, props, '/co')
     expect(screen.queryByRole('listbox')).toBeNull()
@@ -1211,7 +1217,7 @@ describe('Composer "/" menus (M38)', () => {
     type(view, props, '/compact now')
     expect(screen.queryByRole('listbox')).toBeNull()
     type(view, props, '/co')
-    expect(screen.getByRole('listbox')).toBeInTheDocument()
+    expect(await screen.findByRole('listbox')).toBeInTheDocument()
     fireEvent.blur(typed, { relatedTarget: document.body })
     expect(screen.queryByRole('listbox')).toBeNull()
     // Each opening says so (the list opened twice above); App asks for the
