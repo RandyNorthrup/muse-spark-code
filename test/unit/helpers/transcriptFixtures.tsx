@@ -1,6 +1,6 @@
 // A tool row entry and the transcript's props, for the tests that render the
 // conversation (Transcript, the tool rows of M43).
-import { fireEvent, render } from '@testing-library/react'
+import { fireEvent, render, waitFor } from '@testing-library/react'
 import { vi } from 'vitest'
 import { Transcript, type TranscriptProps } from '../../../src/webview/components/Transcript'
 import type { TranscriptEntry } from '../../../src/webview/state/uiState'
@@ -150,4 +150,30 @@ export async function warmRowMenus(): Promise<void> {
   fireEvent.click(view.getByRole('button', { name: 'More actions' }))
   await view.findByRole('menu')
   view.unmount()
+  // Share each detail renderer's cold import across synchronous row assertions.
+  const entries = [
+    'add_memory',
+    'get_goal',
+    'cron_list',
+    'web_search',
+    'generate_image',
+    'Workflow',
+    'read_file',
+  ].map((name, index) =>
+    tool({
+      id: `warm-${String(index)}`,
+      tool: name,
+      args: '{"path":"warm.png"}',
+      output: 'Warm detail',
+    }),
+  )
+  const details = render(<Transcript {...transcriptProps(entries, {})} />)
+  openStepGroups()
+  for (const control of details.container.querySelectorAll('.tool-toggle[aria-expanded="false"]'))
+    fireEvent.click(control)
+  await waitFor(() => {
+    if (details.container.querySelector('[data-deferred-loading]') !== null)
+      throw new Error('Detail renderer is still loading')
+  })
+  details.unmount()
 }

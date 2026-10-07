@@ -1,0 +1,67 @@
+[
+  {
+    "artifact": "dist/extension.js",
+    "bytes": 450008,
+    "cap": 614400
+  },
+  {
+    "artifact": "dist/conversation.js",
+    "bytes": 199857,
+    "cap": 256000
+  },
+  {
+    "artifact": "dist/prompts.js",
+    "bytes": 167355,
+    "cap": 204800
+  },
+  {
+    "artifact": "dist/sharingRuntime.js",
+    "bytes": 155727,
+    "cap": 179200
+  },
+  {
+    "artifact": "dist/modelApi.js",
+    "bytes": 457656,
+    "cap": 486400
+  },
+  {
+    "artifact": "dist/acp.js",
+    "bytes": 846457,
+    "cap": 870400
+  },
+  {
+    "artifact": "webview startup JS",
+    "bytes": 819327,
+    "cap": 921600
+  },
+  {
+    "artifact": "webview deferred JS",
+    "bytes": 51188,
+    "cap": 51200
+  },
+  {
+    "artifact": "webview code highlighting",
+    "bytes": 95366,
+    "cap": 128000
+  },
+  {
+    "artifact": "webview action dialogs",
+    "bytes": 21926,
+    "cap": 25600
+  },
+  {
+    "artifact": "webview chat sharing",
+    "bytes": 13702,
+    "cap": 25600
+  },
+  {
+    "artifact": "webview tasks tab",
+    "bytes": 1375,
+    "cap": 25600
+  },
+  {
+    "artifact": "VSIX",
+    "bytes": 2247710,
+    "cap": 2252800
+  }
+]

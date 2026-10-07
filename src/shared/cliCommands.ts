@@ -69,6 +69,43 @@ export function cliCommands() {
       description: UI_TEXT.referenceBriefHelp,
       text: { ui: 'referenceBriefHelp' },
     },
+    ...(
+      [
+        [
+          'share',
+          'share chat SESSION_ID [--mode full|conversation] [--format md|html|json]',
+          'shareReviewPrivacy',
+        ],
+        [
+          'prompts',
+          'prompts save --title TITLE [--scope user|workspace] [--cwd FOLDER] < prompt.txt',
+          'promptSecretsNote',
+        ],
+        ['prompts', 'prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER]', 'promptLibrary'],
+        [
+          'prompts',
+          'prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER]',
+          'promptRun',
+        ],
+        [
+          'prompts',
+          'prompts share ID [--scope user|workspace] [--format md|html|json] [--destination copy|file|browser] [--out FILE]',
+          'shareReviewPrivacy',
+        ],
+      ] as const
+    ).map(([route, name, key]) => ({ route, name, description: UI_TEXT[key], text: { ui: key } })),
+    {
+      route: 'acp',
+      name: '/prompt save|list|use|share',
+      description: UI_TEXT.promptRun,
+      text: { ui: 'promptRun' },
+    },
+    {
+      route: 'acp',
+      name: '/share chat [--mode full|conversation] [--format md|html|json]',
+      description: UI_TEXT.shareReviewPrivacy,
+      text: { ui: 'shareReviewPrivacy' },
+    },
     {
       route: 'version',
       name: '--version / -v',

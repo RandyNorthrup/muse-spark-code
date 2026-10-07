@@ -131,6 +131,7 @@ function packagingFixture() {
   )
   for (const bundle of [
     'acp',
+    'sharingRuntime',
     // M112: the lazy ACP forms, the private registry and the deferral note.
     'acpQuestions',
     'runtimeQuestions',
@@ -176,7 +177,11 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     expect(run.status, run.stderr).toBe(0)
     const stage = path.join(dir, 'dist', 'acp-package')
     const packed = path.join(dir, 'dist', 'muse-spark-code-acp-0.0.0.tgz')
-    for (const schema of ['exec-result-v1.schema.json', 'exec-event-v1.schema.json']) {
+    for (const schema of [
+      'exec-result-v1.schema.json',
+      'exec-event-v1.schema.json',
+      'share-v1.schema.json',
+    ]) {
       expect(readFileSync(path.join(stage, 'schemas', schema))).toEqual(
         readFileSync(path.join(ROOT, 'docs', 'schemas', schema)),
       )
@@ -192,6 +197,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     const manifest: unknown = JSON.parse(readFileSync(path.join(stage, 'package.json'), 'utf8'))
     expect(manifest).toMatchObject({ bin: { 'muse-spark-code-acp': 'dist/acp.js' } })
     expect(existsSync(path.join(stage, 'dist', 'validation.js'))).toBe(true)
+    expect(existsSync(path.join(stage, 'dist', 'sharingRuntime.js'))).toBe(true)
     expect(existsSync(path.join(stage, 'dist', 'exec-test-launcher.js'))).toBe(false)
   })
 
@@ -246,48 +252,50 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     expect(existsSync(path.join(dir, 'dist', 'muse-spark-code-acp-test-0.0.0.tgz'))).toBe(false)
   })
 
-  it.each(['exec-result-v1.schema.json', 'exec-event-v1.schema.json'])(
-    'build tarball guard rejects missing %s',
-    (missing) => {
-      const dir = packagingFixture()
-      expect(command(path.join(dir, 'scripts', 'package-acp.mjs'), dir).status).toBe(0)
-      const workflow = readFileSync(path.join(ROOT, '.github/workflows/build.yml'), 'utf8')
-      const step = workflow.split(
-        "- name: the agent's package carries its bundles, tables, notices and manifest",
-        2,
-      )[1]
-      const block = step?.split('run: |\n', 2)[1]?.split('\n      #', 1)[0]
-      if (block === undefined) throw new Error('missing build tarball verification step')
-      const script = block
-        .split('\n')
-        .map((line) => line.replace(/^ {10}/, ''))
-        .join('\n')
-      const check = () =>
-        spawnSync(BASH, ['-c', script], {
-          cwd: dir,
-          env: SHELL_ENV,
-          encoding: 'utf8',
-          timeout: TIMEOUT,
-        })
-      const valid = check()
-      expect(valid.error, valid.stderr).toBeUndefined()
-      expect(valid.status, valid.stderr).toBe(0)
-      const staging = path.join(dir, 'repack')
-      mkdirSync(staging)
-      cpSync(path.join(dir, 'dist', 'acp-package'), path.join(staging, 'package'), {
-        recursive: true,
+  it.each([
+    'schemas/exec-result-v1.schema.json',
+    'schemas/exec-event-v1.schema.json',
+    'schemas/share-v1.schema.json',
+    'dist/sharingRuntime.js',
+  ])('build tarball guard rejects missing %s', (missing) => {
+    const dir = packagingFixture()
+    expect(command(path.join(dir, 'scripts', 'package-acp.mjs'), dir).status).toBe(0)
+    const workflow = readFileSync(path.join(ROOT, '.github/workflows/build.yml'), 'utf8')
+    const step = workflow.split(
+      "- name: the agent's package carries its bundles, tables, notices and manifest",
+      2,
+    )[1]
+    const block = step?.split('run: |\n', 2)[1]?.split('\n      #', 1)[0]
+    if (block === undefined) throw new Error('missing build tarball verification step')
+    const script = block
+      .split('\n')
+      .map((line) => line.replace(/^ {10}/, ''))
+      .join('\n')
+    const check = () =>
+      spawnSync(BASH, ['-c', script], {
+        cwd: dir,
+        env: SHELL_ENV,
+        encoding: 'utf8',
+        timeout: TIMEOUT,
       })
-      rmSync(path.join(staging, 'package', 'schemas', missing))
-      const packed = path.join(dir, 'dist', 'muse-spark-code-acp-0.0.0.tgz')
-      expect(
-        spawnSync(TAR, ['-czf', packed, '-C', staging, 'package'], { timeout: TIMEOUT }).status,
-      ).toBe(0)
-      const refused = check()
-      expect(refused.error, refused.stderr).toBeUndefined()
-      expect(refused.status).toBe(1)
-      expect(refused.stderr).toContain(`package/schemas/${missing} is missing`)
-    },
-  )
+    const valid = check()
+    expect(valid.error, valid.stderr).toBeUndefined()
+    expect(valid.status, valid.stderr).toBe(0)
+    const staging = path.join(dir, 'repack')
+    mkdirSync(staging)
+    cpSync(path.join(dir, 'dist', 'acp-package'), path.join(staging, 'package'), {
+      recursive: true,
+    })
+    rmSync(path.join(staging, 'package', missing))
+    const packed = path.join(dir, 'dist', 'muse-spark-code-acp-0.0.0.tgz')
+    expect(
+      spawnSync(TAR, ['-czf', packed, '-C', staging, 'package'], { timeout: TIMEOUT }).status,
+    ).toBe(0)
+    const refused = check()
+    expect(refused.error, refused.stderr).toBeUndefined()
+    expect(refused.status).toBe(1)
+    expect(refused.stderr).toContain(`package/${missing} is missing`)
+  })
 
   it.each(['name', 'bin', 'version'])(
     'refuses wrong production %s before test staging',

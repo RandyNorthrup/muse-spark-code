@@ -299,7 +299,7 @@ properties, and retain all existing caps. No new artifact or dependency.
 | Webview action-dialog import closures | ≤ 25 KiB aggregate (STARTDIET: ShareView, SessionBoardDialog, HandoffDialog, SecretPromptDialog; first split 11.2 KiB by the same rule)                                                                                                                                                                                                                                                                |
 | Webview question UI import closure    | ≤ 25 KiB (FIXM112U: first question; 10.8 KiB +15%, rounded up to 25 KiB; separate from the unchanged unclassified deferred group)                                                                                                                                                                                                                                                                      |
 | Webview Tasks import closure          | ≤ 25 KiB (STARTDIET: TasksApp.tsx and its boundary; first split 1.4 KiB by the same rule)                                                                                                                                                                                                                                                                                                              |
-| `.vsix`                               | ≤ 2400 KiB compressed (REL0142 round 3, 2026-10-06: 2,325,575-byte universal package after removing duplicate reference Markdown, +5%, rounded up to 25 KiB; owner-authorized 0.14.2 Help reference rule; `check-vsix-size.mjs` in the package job)                                                                                                                                                    |
+| `.vsix`                               | ≤ 2525 KiB compressed (0.14.4, 2026-10-06: the 2,457,606-byte universal package with M118 sharing, +5%, rounded up to 25 KiB, by the same owner-authorized rule; earlier 2400 KiB from REL0142's 2,325,575-byte package; `check-vsix-size.mjs` in the package job)                                                                                                                                     |
 | `dist/acp.js`                         | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
 | `dist/planMarkdown.js`                | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                                                                        |
 | `dist/checkpointStore.js`             | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                   |
@@ -13452,6 +13452,167 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
   extension must track the child PID and kill the tree on dispose.
 
 ## 6. Milestones
+
+### REL0144 — Release 0.14.4 preparation (2026-10-06)
+
+**Hosted CI repair (run 37558466658, 2026-10-06).** Fast-forward the rig to
+`sync/rel0144-host` (`99163bd10`). Make the browser fixture build every page
+and metafile its package assertion reads, and prove it after deleting `dist`.
+Replace chained HTML sanitization with one encoding pass; audit literal regex
+escaping and document only specific Semgrep false positives in §8. Validate
+the complete installed ACP help table without stripping M118's keys. Re-run
+all configured Vitest files in batches of at most three at default timeouts,
+the production build, both packages, reference and universal-artifact checks,
+and CI's pinned Semgrep 1.178.0. No paid/live calls, push or extra merge.
+
+Rig repair certified on `b881f932f`: 557 files, 11,815 passed tests, zero
+failures and 72 existing skips at repository default timeouts; both packages,
+all named static checks, zero Semgrep findings and installed ACP help in all
+15 languages pass. The universal job's installed-package fake guards pass
+38/38. Receipts and scanner warnings are in
+`docs/certification/m118.md#hosted-ci-repair-for-0144`; hosted CI remains with
+the lead.
+
+Merge only `sync/main-0144` into the reviewed M118 integration, preserving
+M112 questions, Help and STARTDIET deferred surfaces. Give M118 optional
+surfaces the diet's accessible loading/retry pattern and independent measured
+caps (size plus 15%, rounded up to 25 KiB). To retain the diet regression
+baseline, defer existing tool bodies and review findings, and the history row
+with its M118 Save menu; preserve their rendering and actions. Load the effort
+slider on first model-menu use too. Pack the generated Node reference at build
+time with native Brotli, retaining the decoded model and zod checks; keep
+startup at 900 KiB, original
+deferred UI at 50 KiB and VSIX at 2400 KiB. Join both help inventories and
+regenerate all derived references. Prepare the manifests and release notes
+for 0.14.4; certify every configured Vitest file at repository defaults, all
+accessibility scenarios in four themes, static gates, production builds and
+packages, and live public badges. No model calls: Use prepares text and never
+submits. Hosted run IDs remain the lead's release-record fields. Pack the manifest
+localization tables needed by standalone full Help into the ACP tarball, and
+prove staged full Help for every shipped language before npm packing.
+
+### FIXM118INT — RVM118INT corrections (2026-10-06)
+
+Repair all five reviewed P2s within the existing M118 ownership and budgets:
+use confinement's canonical `checkedAbsolute` for every atomic sharing writer;
+make prompt cancellation invalidate an in-flight release after the Save picker
+and at each write admission; reuse `usePrompt` in the terminal for whitespace
+placeholders and literal single-pass substitutions; observe Settings Sync changes
+at activation before the lazy sharing bundle is used; show prompt-action failures
+through the shared response reducer on composer, message/history and palette
+routes. No new dependency, wire shape, guard relaxation or paid/live call.
+The activation shim reuses the existing configuration listener and constructs
+its loader/raw ports only on demand, retaining M118's 1 KiB growth limit.
+Each correction gets a failing regression and a byte-exact restored red drill
+in `docs/certification/m118.md`. Rig runs use repository-default test timeouts.
+The sprint rig brief forbids aggregate quality and unlisted merges; the lead
+owns hosted full quality. The common M72 merge target is absent on this rig and
+is superseded by the already-integrated M118 base; this repair adds no merge.
+
+### FIXM118C — RVM118C corrections (2026-10-06)
+
+The lane brief authorizes all four P2 fixes in C's existing regions: one
+boundary-aware path tokenizer for both modes/all formats (P2-1/P2-3), full
+displayed outcome and citation material from the existing transcript item
+projection (P2-2), and session/unmount generation invalidation for pending
+dialog confirmation (P2-4). Conversation's allow-list and D98's explicitly
+selected scrubbed attachment policy stay unchanged. No dependency or guard
+expansion. Each finding gets a failing regression, a byte-exact restored red
+drill and receipts in `docs/certification/m118-c.md`. The authoritative rig
+brief prohibits merge/push/rebase and aggregate quality; bounded owning tests
+and static/build checks run directly on Kubuntu, with hooks-on local commits.
+
+### FIXM118P — RVM118P correction lane (2026-10-06)
+
+The rig brief authorizes the seven reviewed corrections within P: machine-only
+sync consent; one explicit destination chooser for native imports, saves and
+copies (workspace first under confidential/unknown policy); merge before every
+mirror write; recheck newest revisions under the disk lock; bind queued loads
+to the id returned by opening the requested surface; successful draft saves
+return the persisted prompt and continue as edits; and per-scope list results
+that report damage while preserving the healthy picker. Each receives a
+regression and byte-exact deliberate-failure receipt in `m118-p.md`.
+No dependencies, paid/live calls, caps, guard widening, merges or pushes.
+The shared core and React ports carry the corrections to W/X's editor bindings.
+Bounded local checks run here; the lead owns full integrated quality.
+
+### M118 lane 0 — Prompt and chat sharing contracts (2026-10-05)
+
+The authoritative rig brief stages D98/M118 for P (prompt library), C (chat
+sharing) and X (ACP/CLI/TUI/MHP). This lane adds only validated contracts,
+translations, fake fixtures and integration handoffs. D67's unimplemented
+VS Code state storage is superseded here by portable user prompts in
+`agentDataFolder()/prompts/` and workspace prompts in `.muse/prompts/`.
+Loading inserts into the active chat, creating one if needed, never sends.
+Right-click Save prompt covers own transcript messages, composer text and
+editor selections; the composer also offers Use saved prompt. Both scopes
+remain visible, user first, preserving duplicates across scopes.
+
+Saved prompts use versioned JSON front matter (a YAML-compatible subset)
+followed by verbatim Markdown, with declared built-in/named variables and
+an imported-untrusted flag. Sharing has inclusive message-id ranges,
+full/conversation modes, explicit final confirmation, local phase-one
+destinations and reserved hosted destinations. Conversation mode uses an
+allow-list beside each existing transcript representation; future kinds
+stay excluded. Privacy ports reuse registered-secret and shared redaction,
+normalise workspace/home/absolute paths and recheck the existing
+confidential-workspace setting immediately before release. Attachment
+contents require explicit selection. These are our own formats, not new
+provider wire shapes; no live or paid captures are needed.
+
+- [x] Contracts, round trips, default-deny guards and all-kind fakes.
+- [x] Fourteen real translations, pending manifest patch and strict checks.
+- [x] Deterministic share JSON Schema/check; P/C/X entry-point handoffs.
+- [x] Bounded rig checks and 45 byte-exact deliberate-failure controls;
+      `docs/certification/m118-l0.md` records receipts and integration limits.
+
+`src/shared/featureCatalog.ts` and its generation/check scripts do not exist
+on base `81a5ccfa`; no commands are registered by this lane. P/C/X must add
+their actual commands to the help reference when that parallel feature lands.
+
+### M118 lane X — ACP, CLI and editor sharing adapters (2026-10-06)
+
+Authority: `C:/lanes/_ctx/M118X.rig.md`, D98/M118 on
+`plan/m105-m107`, and `docs/certification/m118-handoff-x.md`.
+Implement `/share chat`, `/prompt save|list|use|share` and the CLI
+`share`/`prompts` parser and runner against lane 0's portable contracts.
+Prompt storage and the scrubbed renderer are injected P/C ports, shared across
+workspaces through `agentDataFolder`; never a separate library or a model turn.
+ACP command interception is opt-in through a runtime binding, with reserved
+commands failing explicitly when that binding is absent. A preview's exact
+bytes/request are held in memory, bound to its one-use final action, and the
+live confidential setting is checked again at release. Cancellation or session
+replacement invalidates pending actions. Prompt use returns insert-only text.
+
+The base lacks P/C implementations, M110a0's TUI, M104's MHP and the feature
+catalog. Supply tested adapters and named integration handoffs for their actual
+runtime/main, bridge, menus, TUI, help, README/ACP guide and changelog bindings.
+Do not edit those other lanes' files or invent a protocol method. Lane X's
+certification records exact parser syntax, lifecycle and final-confirmation
+drills. Scoped checks run directly on win11; full quality and native editor
+certification remain with W. No paid/live/network calls or new dependencies.
+
+- [x] X parser/runner, ACP local interception and native-menu adapters behind
+      injected P/C/UI ports; no model send and no fake production bindings.
+- [x] Win11 owning/regression tests and static/build checks recorded in
+      `docs/certification/m118-x.md`; 67 named red drills, byte-exact restores.
+- [x] Missing runtime, TUI, MHP, help/docs and lazy-bundle bindings named in
+      `docs/certification/m118-x-handoff.md`; installed/native parity remains W's.
+
+**FIXM118X / RVM118X (2026-10-06, Kubuntu).** Repair all four reviewed P2
+adapter defects within X's files: reuse workspace-path confinement for the
+resolved output and allowed root at release; require explicit headless
+destination and file output flags; abort every pending sharing UI when ACP
+cancels/releases/exits; reuse the shared skill/slash parser for reserved
+commands with leading whitespace. Interactive defaults stay unchanged.
+No new dependency, model call or production P/C/native binding is in scope.
+Record regression failures, byte-exact red drills and bounded checks in
+`docs/certification/m118-x.md`, and update W's integration contracts there.
+
+- [x] P2-1 output confinement and resolved path/root release contract.
+- [x] P2-2 explicit headless destination and file output admission.
+- [x] P2-3 abortable sharing UI and immediate ACP prompt/session cleanup.
+- [x] P2-4 shared leading-whitespace local-command interception.
 
 ### REL0143F — Repair release PR #129 CI failures (2026-10-06)
 
@@ -28951,8 +29112,26 @@ cloudInit)`, `status(id)`, `delete(id)`, and nothing else; each adapter's
 
 ### M118 — Prompt and chat sharing (D98)
 
-**Status 2026-10-06: planned, as soon as possible.** At the front of the
-queue, beside M112. Small: about 34 lane-hours. No model call is needed.
+**Status 2026-10-06: phase 1 integrated on M118INT; bounded rig certification complete.**
+**FIX0144W follow-up (2026-10-06).** Give the lazy prompt host one lifetime
+owner that rejects new operations during disposal and awaits admitted work,
+including startup/configuration mirror merges. Extension deactivation and
+Windows test cleanup await that owner before storage is removed. Prove the
+drain and admission guards with paused-write regressions and restored red
+drills; run the M118 prompt/sharing files three times at repository defaults.
+**FIX0144W D89.5 continuation (2026-10-06).** Compare three complete native
+origin/admission runs on release `555a95158` and main `8c6351d73` before
+editing. The unchanged origin regression fails on both at its one-second
+polling deadline. Await the matching shell-completion event before assertions
+and cleanup, preserving the repository's five-second test deadline. Read raw
+native environment values in the real-shell probes instead of PowerShell's
+display table. Retain every positive/negative credential assertion, deliberately
+break the production fence once, restore byte-exact, and rerun both files
+three times plus the prompt/sharing regressions. Record bounded Windows checks
+and the baseline comparison in `docs/certification/envfence.md`; no paid calls.
+The shared React/VS Code and CLI/ACP bindings are implemented. Native/companion
+MHP mounting waits for M104; the TUI waits for M110a0 lane T. Installed-editor
+parity and the hosted full gate remain unclaimed. About 34 lane-hours. No model call is needed.
 Phase 1 targets the next patch release after 0.14.3, phase 2 the one after;
 phase 3 waits for M110, M96, M113 and M115.
 
@@ -29037,15 +29216,16 @@ anywhere joined it).
   the user's click under a size cap. PLAN §9 records the residual: a secret
   in a shape the scrub does not know can reach a share; the preview is the
   user's last check.
-- **Performance and bundles.** The library and the share dialog are lazy
-  chunks (each well inside the 50 KiB optional total); `dist/extension.js`
-  gains at most 1 KiB for the commands; no cap rises.
+- **Performance and bundles.** The library joins the existing 25 KiB
+  action-dialog group; the chat dialog has its own measured 25 KiB cap.
+  The original deferred UI total remains capped at 50 KiB. `dist/extension.js`
+  gains at most 1 KiB for the commands; no existing cap rises.
 - **Size.** S: about 34 lane-hours.
 - **Certification checklist** (§6.0, plus):
-  - [ ] The allow-list goldens and the new-kind drill
-  - [ ] The scrub, range, round-trip and untrusted-import drills
+  - [x] The allow-list goldens and the new-kind drill
+  - [x] The scrub, range, round-trip and untrusted-import drills
   - [ ] The menus on each surface; prompts in every workspace
-  - [ ] Phase 2's gists and phase 3's destinations named as planned
+  - [x] Phase 2's gists and phase 3's destinations named as planned
   - [ ] Editor rows recorded; strings in all 14 tables; the `/help` rows;
         budgets measured; the full gate green
 
@@ -29318,6 +29498,83 @@ Authority: the rig brief and lead decisions, refining D92/M112 from
       Q/A/editor integration handoffs. No merge, push, dependency or gate widening.
 
 ## 7. Gates
+
+**FIX0144W bounded Windows repair (2026-10-06).** The rig/shared brief
+prohibits aggregate quality and unlisted merges. Scoped default-timeout M118/D89.5
+tests, typecheck, changed-file lint/format and individual static/build checks
+certify this local commit; the lead retains full hosted quality and release
+publication. No timeout, retry, threshold, rule or cap is widened. See
+`docs/certification/m118.md` for the lifetime regression and drill receipts.
+The continuation's unchanged release/main comparison, completion-event wait,
+raw environment probes and restored controls are in `docs/certification/envfence.md`.
+
+**REL0144 bounded release verification (2026-10-06, Kubuntu).** The rig brief
+requires the complete configured Vitest suite in at-most-three-file batches
+with repository-default timeouts, every accessibility scenario in four themes,
+all named individual static gates, production and package caps, and live public
+badges. The shared rig rule prohibits aggregate `npm run quality`; the lead
+retains integrated coverage/quality, hosted CI and cross-platform publication
+checks. No threshold, timeout, ignore or cap is widened. Exact receipts and
+byte-restored intentional failures are in `docs/certification/m118.md`.
+
+**FIXM118INT repair certification (2026-10-06).** All five RVM118INT P2s
+have regressions and restored red drills; the owning files run directly on
+Kubuntu at repository-default timeouts. The repair brief/shared rules prohibit
+aggregate quality and unlisted merges, so the lead retains full hosted quality.
+No existing gate, budget, timeout, ignore or guard is relaxed. See
+`docs/certification/m118.md` for exact results and byte-exact drill receipts.
+
+**M118INT bounded integration certification (2026-10-06).** The rig brief
+explicitly prohibits aggregate `npm run quality` and requires at most three
+Vitest files with three workers per run. This override permits local integration
+commits after scoped checks; hosted CI remains the required full release gate.
+W binds the P/C/X production consumers and records actual checks, cap measurements,
+byte-exact gate-fire drills and editor waits in `docs/certification/m118.md`.
+`check:reference` is included in the hosted `quality:gates` sequence.
+Runtime sharing scrubs the agent's already-known credential-variable values and,
+only on an active Model API ACP backend, its current stored key. Preview and
+release refresh those values; a newly sensitive document refuses release.
+Local save/list/use never load a key. This closes D98's registered-value contract.
+No threshold, ignore, rule level or existing budget is weakened.
+
+**FIXM118C bounded repair certification (2026-10-06).** All four RVM118C P2s
+are fixed with 140 passing tests in 12 owning files and eight deliberately red,
+byte-exact restored mutations. All five typecheck projects, scoped lint/format,
+plain Knip, zero-clone duplication, localization, host API, schema consistency,
+cycles and production build pass on Kubuntu under unchanged caps and gates.
+The authoritative lane brief reserves aggregate quality and integration for
+the lead and prohibits merge/push/rebase. Receipts and existing W/X handoffs:
+`docs/certification/m118-c.md`. No reviewed finding is deferred.
+
+**FIXM118P bounded rig certification (2026-10-06).** Follow the rig/shared
+rules: complete owning test files (at most three per invocation), byte-exact
+red controls, typecheck, changed-file ESLint/Prettier, localization, deadcode,
+duplication, host API and build directly on macmini. Do not run aggregate
+quality or merge/push. W owns full integrated quality, its stale host inventory,
+prompt bundle packaging, deferred-surface registration and size recovery;
+record actual failures in `docs/certification/m118-p.md` rather than weaken
+any threshold. W also owns the integrated CHANGELOG, README and help reference
+(the catalog/generator are absent here).
+
+**M118 lane X bounded certification.** The rig brief prohibits aggregate
+quality, merges, pushes and other lanes' edits. Run at most three owning test
+files per invocation, all typechecks, scoped lint/format, localization,
+deadcode, duplication, host API and production build directly on win11. Keep
+unbound P/C/TUI/MHP and main/help wiring explicit in the handoff; no fake
+production implementation, gate weakening or quality claim.
+
+FIXM118X's review repair checks run directly on Kubuntu under the same bounds.
+README/changelog/ACP guide and feature-reference changes remain W's handoff
+because the fix brief restricts edits to X-owned files; no installed command
+or native-binding claim is made. Full integrated quality remains W/lead's.
+
+**M118 lane 0 bounded certification.** The rig brief and shared rules prohibit
+aggregate quality, merges and pushes. Run the owning contracts, typecheck,
+scoped lint/format, localization, deadcode, duplication, host API and build
+directly on macmini. Full integrated quality remains the lead's. No caps,
+thresholds, ignores or rule levels change. Contract-only exports have test
+and schema-generator consumers until P/C/X merge; the lead must then check
+production consumers and remove any unused contract instead of adding ignores.
 
 **REL0143F release CI repair (2026-10-06, Kubuntu).** The complete configured
 Vitest matrix passes at repository default timeouts (532 files, 11,430 passing
@@ -30701,6 +30958,15 @@ M78b (2026-10-02) runs scoped gates on Kubuntu per the implementation brief; ful
 
 ## 8. Escape hatches register
 
+| REL0144 location                                                | Escape hatch                                                                                                   | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/core/prompts/promptPrivacy.ts` (workspace, home, username) | Three `nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp` comments | Every variable fragment passes through `escapePattern`; `pathPattern` splits separators and escapes each literal segment before joining fixed separator syntax. Boundaries, tails and flags are fixed. Names cannot introduce regex operators or groups. Literal-metacharacter regressions cover workspace/home/username and Windows separators; removing escaping must fail them. CI's generic dynamic-RegExp audit does not follow these local escaping helpers. |
+| `src/core/sharing/privacy.ts` (workspace, home, username)       | Three `nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp` comments | `rootPattern` escapes each path segment with `escaped`, and username uses `escaped` directly; only fixed Unicode boundaries, separator/tail syntax and flags are added. Literal-metacharacter regressions and escape-removal drills cover these sites. Keep the existing root, UNC, case and space semantics rather than replacing the scrubber with an unrelated path parser.                                                                                     |
+
+| M118INT location                                   | Escape hatch                   | Reason                                                                                                                                                                                                                             |
+| -------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/runtime/sharing/sharingEntry.ts` localProgram | `nosemgrep` child-process rule | Fixed platform clipboard/browser binaries and fixed switches; only scrubbed preview text on stdin or a canonically confined local file argument, no shell, credential variables removed and an abort signal terminates the helper. |
+
 | Location                                                                                                            | Escape hatch                                               | Reason                                                                                                                                                                                                                                                   |
 | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/acp/questionDeferralBundle.ts` (FIXM112A)                                                                      | `isAcpQuestionBundle` trusts the checked factory signature | The entry, loader and ACP package come from the same build; the export is checked as a function and loader tests reject missing/malformed modules. The factory installs the caller's language table before constructing a session's question controller. |
@@ -30828,6 +31094,53 @@ before a repaired one loads (2026-09-30).
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **FIXM118INT / RVM118INT (closed, 2026-10-06).** All five reviewed P2s
+  are fixed: sharing writers bind the canonical confinement result for target
+  and identity; prompt cancellation fences in-flight Save dialogs and atomic
+  admissions; terminal variables use the same single-pass resolver; activation
+  observes machine sync consent before first use; shared action errors become
+  visible conversation notices. Regression tests and valid red drills cover
+  each. No P1/P2/P3 review residual is left; existing M118 editor/CI dependencies
+  below remain unclaimed. No new dependency, wire shape or paid/live call.
+
+- **M118INT remaining dependency/CI work.** Shared React/VS Code and installed
+  CLI/ACP bindings are certified with bounded fake-only checks and unchanged
+  existing caps. Native/companion validated MHP mounting waits for M104 and the
+  TUI's prepare/insert/final-click ports wait for M110a0 lane T. ACP shares preview
+  only and cancels without a final-click port; Use returns prepared text. Exact
+  envelopes/actions and per-editor waits are in `docs/certification/m118.md` and
+  `docs/ide-compatibility/hosts.md`. Hosted full quality and online badge-image
+  verification remain release requirements. No installed-editor parity is implied.
+
+- **FIXM118C / RVM118C.** All four reviewed P2 findings are fixed: colon-path
+  privacy, non-path text preservation, displayed outcome/citation completeness
+  and late confirmation lifecycle. No P1/P2/P3 from that review is deferred.
+  Existing C/W/X wiring and editor certification handoffs remain as named in
+  `docs/certification/m118-c.md`; the unknown-secret-shape preview limitation
+  and explicitly selected scrubbed attachment policy are unchanged.
+
+- **FIXM118P-P3-BUDGET / FIXM118P-ROW-SAVE (closed by M118INT).**
+  The library/search closure is classified in the existing 25 KiB action-dialog
+  group; history's new Save action stays within the original 50 KiB group.
+  Credential, policy, chat and sync adapters are in `dist/prompts.js` behind raw
+  activation ports. App binds exact own-message text and history's native picker;
+  row actions are retained. Final measurements and tests are in
+  `docs/certification/m118.md`; installed native-editor parity still waits on M104.
+
+- **FIXM118X / RVM118X (2026-10-06).** All four reviewed P2 adapter
+  findings are fixed; no P1/P2/P3 finding is deferred. Regression failures,
+  byte-exact red drills and bounded Kubuntu checks are recorded in
+  `docs/certification/m118-x.md`.
+  **M118-X-production-bindings (closed by M118INT for this base).** Runtime/main
+  lazily binds the shared P/C stores and renderers; validated React envelopes,
+  native VS Code commands, real local destinations, feature catalog/reference
+  and public docs are implemented. ACP emits the exact preview and cancels
+  because this base has no final-click or composer port; it never submits a
+  prepared prompt. Native/companion MHP and TUI mounting remain named waits for
+  M104/M110a0, with exact local DTOs and existing envelope names in the integrated
+  certification. CLI policy reads strict JSON `.vscode/settings.json`; unreadable
+  or JSONC policy refuses sharing. Unknown secret shapes still depend on review.
 
 - **M112 integration (2026-10-06, Windows rig).** Bind the real question store and registry to the extension and ACP launcher, with an owner-only bounded durable late-answer queue and session removal. ACP owns its deadline timer; the registry accepts its frozen arrival timing without another timer. History carries per-session counts from authenticated listed sessions. Move question UI and runtime implementation to guarded lazy closures; preserve every existing cap. Reconcile model-text readers with actual lazy ownership, prove changed guards with red controls, and record all acceptance evidence in docs/certification/m112.md. Round 2 integrates U's authoritative open set, retained history and newest-waiting dock priority while preserving session-generation delivery guards and settled outcomes. HELPREF and M104 sources are absent on this base: their named handoffs stay explicit; no substitute protocol or full catalog is invented. Live checks and hosted full quality remain with the lead; the startup growth waiver follows below.
 
@@ -31910,3 +32223,28 @@ deferral live, installed editors and screenshots, the lead's integrated full
 quality and hosted CI, remote badges and universal-package/platform checks.
 Evidence: `docs/certification/rel0143.md`. Release run, tag commit and channel
 results: pending.
+
+**0.14.4 prepared (2026-10-06, draft; PR, tag and run ids to be filled by the lead).**
+
+`release/0.14.4` merges `sync/main-0144` (`582af0470`, 0.14.3) into the
+reviewed M118 integration (`fe171b665`) additively: question deferral, full
+Help & Reference and startup diet remain, with local prompt libraries and
+confirmed prompt/chat shares. Use prepares text and sends no model request.
+No live model checks are needed or run. ACP local commands and terminal routes
+ship; ACP composer/final-action UI and installed-editor parity retain the
+M104/M110a0 dependencies recorded in M118.
+
+The extension and generated ACP package use version `0.14.4`. Both landing
+pages have one current What's New section and retain 0.14.3 as Earlier.
+Default-timeout full Vitest, all four accessibility themes, production build,
+packages and individual static gate receipts are recorded in
+`docs/certification/m118.md#release-0144`. Existing size caps and diet baselines
+are unchanged. Kubuntu: all 557 configured Vitest files, 11,884 tests
+(11,812 passed, zero failed, 72 existing skips); accessibility 732/732 pages
+with zero violations and zero missing results. Named individual gates, build,
+VSIX and ACP packages pass. Startup is 750,733 bytes, legacy deferred 32,865,
+prompt library 10,120, chat sharing 13,795 and VSIX 2,375,405. All nine red
+drill runs restore exact hashes; standalone full Help is checked in all 15
+shipped languages, including the actual tarball. Hosted CI, cross-platform universal-package validation, release
+run IDs, tag commit and publication channels remain for the lead. No push or
+publication was performed on this rig.

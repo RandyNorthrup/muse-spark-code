@@ -75,6 +75,9 @@ export type PaletteAction =
   | { readonly type: 'importSession' }
   /** "Open share file…" (M84): a portable JSON file read-only in the panel. */
   | { readonly type: 'openShareFile' }
+  /** M118-P-REACT-BRIDGE: supplied only after the host binds these actions. */
+  | { readonly type: 'shareChat' }
+  | { readonly type: 'promptCommand'; readonly command: 'library' | 'use' | 'share' }
   | { readonly type: 'openLog' }
   /** "Report an issue…" (M93, PLAN.md D72): the scrubbed report's preview, never a bare link. */
   | { readonly type: 'openReport' }
@@ -122,6 +125,7 @@ export interface UsageTotals {
 }
 
 export interface PaletteContext {
+  readonly arePromptCommandsBound?: boolean
   readonly currentModel:
     { readonly modelId: string; readonly contextLimit: number | undefined } | undefined
   readonly models: readonly ModelOption[]
@@ -449,6 +453,33 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           action: { type: 'openHistory' },
         },
         ...continueItems(context.skills),
+        ...(context.arePromptCommandsBound === true
+          ? ([
+              {
+                id: 'shareChat',
+                label: UI_TEXT.shareChat,
+                action: { type: 'shareChat' },
+              },
+              {
+                id: 'promptLibrary',
+                label: UI_TEXT.promptLibrary,
+                tip: UI_TEXT.promptSecretsNote,
+                action: { type: 'promptCommand', command: 'library' },
+              },
+              {
+                id: 'promptUseSaved',
+                label: UI_TEXT.promptUseSaved,
+                tip: UI_TEXT.promptRun,
+                action: { type: 'promptCommand', command: 'use' },
+              },
+              {
+                id: 'sharePrompt',
+                label: UI_TEXT.sharePrompt,
+                tip: UI_TEXT.shareReviewPrivacy,
+                action: { type: 'promptCommand', command: 'share' },
+              },
+            ] satisfies readonly PaletteItem[])
+          : []),
         // Saved plans (M79): the same on both backends.
         {
           id: 'plans',

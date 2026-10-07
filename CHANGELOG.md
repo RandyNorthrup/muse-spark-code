@@ -7,12 +7,76 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Windows shell credential regressions await the matching background completion
+  before cleanup and probe raw environment values within the default test deadline.
+- Prompt host shutdown awaits mirror merges and other admitted operations
+  before releasing storage, preventing Windows cleanup from racing a sync write.
+- Browser package tests build the chat, Help and What's New pages themselves,
+  so a clean CI shard needs no artifacts from an earlier production build.
+- The installed ACP help check validates its complete localization table,
+  retaining prompt and sharing labels in its exact output comparison.
+- Chat-share HTML encodes markup delimiters in one pass. Privacy regexes have
+  literal-metacharacter controls and documented, specific audit exceptions
+  for their escaped workspace, home and username fragments.
+
 ### Documentation
 
 - A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
   what went wrong while a fleet of agents built this project. For each one it
   gives the rule that prevents it and the milestone that will enforce that
   rule in the app's own orchestrator (D100).
+
+## [0.14.4] - 2026-10-06
+
+### Added
+
+- Save your own messages, composer text and editor selections into a personal
+  prompt library usable across workspaces, or a project-local library. Search,
+  tags, literal variable substitution and reviewed portable imports prepare
+  text for insertion without submitting a model request.
+- Share prompts and conversations as Markdown, HTML or versioned JSON with an
+  exact preview and confirmation before copy, file or browser destinations.
+  Conversation-only shares use an allow-list; confidential or unknown content
+  is refused with an explanation, and secrets and private paths are scrubbed.
+- Local ACP `/prompt` and `/share chat` commands and terminal `prompts` and
+  `share chat` routes use the shared stores and renderer. Help & Reference
+  includes all six editor commands, both features and the opt-in sync setting.
+  ACP composer insertion and final-action UI still depend on M104/M110a0;
+  installed-editor parity is not claimed.
+
+### Fixed
+
+- History Save menus stay keyboard reachable beside listbox options, and
+  composer prompt actions and the input meet minimum target sizes.
+- Cold prompt and chat dialogs retain modal loading, Escape dismissal and
+  focus restoration; a late import cannot reopen a dismissed dialog.
+- Exports from symlinked workspaces bind atomic writes to checked canonical
+  targets. Cancellation covers a pending Save dialog; prompt sync changes
+  activate the mirror before first use, and action failures appear as notices.
+- Full shares retain displayed command outcomes, verification failures, status,
+  exit codes and citations. Late confirmation cannot close another session's
+  dialog; colon-prefixed absolute paths are scrubbed without damaging URLs,
+  slash commands, division, HTML tags or regex literals.
+- Standalone ACP full Help ships its manifest localization tables and is
+  checked from the staged package in every shipped language before packing.
+- Panel `/help` uses the complete Help & Reference catalog through one palette
+  route while retaining all prompt and chat actions.
+- Problem reports recognize the shipped prompt bundle alongside the question
+  deferral bundle. Translated ACP compact help includes the sharing routes.
+
+### Performance
+
+- Prompt library and chat preview load on first use with their own measured
+  25 KiB budgets. Optional tool details, review findings, effort controls and
+  History rows also load lazily, preserving the existing startup regression
+  baseline, 900 KiB startup cap and 50 KiB original deferred cap.
+- The Node Help bundle packs its complete reference with a native lossless
+  codec while keeping the browser schema and every reference field intact.
+  Its existing 100 KiB cap and the 2400 KiB VSIX cap are unchanged.
+- Bundle tests build only the production browser fixture they inspect, keeping
+  verification within the repository's default timeouts.
 
 ## [0.14.3] - 2026-10-06
 

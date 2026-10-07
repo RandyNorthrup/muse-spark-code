@@ -6,6 +6,22 @@ Open `/help` in the panel or **Muse Spark: Open Help & Reference**. Search the r
 
 ## Features
 
+### Prompt library
+
+Prompts are stored as plain text. Do not save passwords or keys.
+
+Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: `museSpark.savePrompt`, `museSpark.useSavedPrompt`, `museSpark.promptLibrary`, `museSpark.copyToMyPrompts`. Settings: `museSpark.syncPromptsAndBookmarks`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#sharing)
+
+### Share chat…
+
+Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
+
+Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: `museSpark.shareChat`, `museSpark.sharePrompt`. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#sharing)
+
 ### Best of N
 
 Best of N Apply and stage exactly the selected preview. No commit is created; ignored files are excluded.
@@ -255,7 +271,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 ### Help & Reference
 
-Installed skills add dynamic slash commands. This static reference does not list them. ACP handles only local /help, /questions, /answer and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
+Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /questions, /answer, /prompt and /share plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
 
 ```json
 {
@@ -1214,7 +1230,7 @@ Commands: —. Settings: `museSpark.judge.engine`. [Documentation](https://githu
 
 Report an issue.
 
-Installed skills add dynamic slash commands. This static reference does not list them. ACP handles only local /help, /questions, /answer and installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
+Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /questions, /answer, /prompt and /share plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.
 
 Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -1450,6 +1466,30 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 `museSpark.openPullRequestInConversation` — Check a pull request out in its own worktree and window
 
 Available when: `workspaceFolderCount > 0`.
+
+### Muse Spark: Share prompt…
+
+`museSpark.sharePrompt` — Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
+
+### Muse Spark: Prompt library
+
+`museSpark.promptLibrary` — Prompt library
+
+### Muse Spark: Save prompt
+
+`museSpark.savePrompt` — Prompts are stored as plain text. Do not save passwords or keys.
+
+### Muse Spark: Use saved prompt…
+
+`museSpark.useSavedPrompt` — Review variables and insert
+
+### Muse Spark: Copy to my prompts
+
+`museSpark.copyToMyPrompts` — All workspaces
+
+### Muse Spark: Share chat…
+
+`museSpark.shareChat` — Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
 
 ### Muse Spark: Open Help & Reference
 
@@ -2525,6 +2565,19 @@ Type: `"array"`. Default: `[]`. Scope: `machine`.
 }
 ```
 
+### museSpark.syncPromptsAndBookmarks
+
+Mirror prompts for all workspaces into Settings Sync. Workspace prompts stay local.
+
+Type: `"boolean"`. Default: `false`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": false
+}
+```
+
 ### museSpark.questions.deferAfterSeconds
 
 Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.
@@ -2597,6 +2650,13 @@ These are defaults; editor customizations take precedence.
   --no-events Leave the recent events out
 - `help --all`: Commands, settings and features, with descriptions and documentation.
 - `help / --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.
+- `share chat SESSION_ID [--mode full|conversation] [--format md|html|json]`: Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
+- `prompts save --title TITLE [--scope user|workspace] [--cwd FOLDER] < prompt.txt`: Prompts are stored as plain text. Do not save passwords or keys.
+- `prompts list [--search TEXT] [--tag TAG] [--cwd FOLDER]`: Prompt library
+- `prompts use ID [--scope user|workspace] [--chat active|new] [--cwd FOLDER]`: Review variables and insert
+- `prompts share ID [--scope user|workspace] [--format md|html|json] [--destination copy|file|browser] [--out FILE]`: Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
+- `/prompt save|list|use|share`: Review variables and insert
+- `/share chat [--mode full|conversation] [--format md|html|json]`: Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
 - `--version / -v`: Print the installed agent version.
 - `serve: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode"}`
 - `serve: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false}`

@@ -267,6 +267,14 @@ function withoutCredentials(text: string): string {
   return redactSecrets(text).replaceAll(KEY_DIGEST, () => REDACTED_MARK)
 }
 
+/** M118 reuses M84's credential, digest and account scrub before path normalisation. */
+export function scrubTransferIdentifiers(text: string): string {
+  return withoutCredentials(text).replaceAll(
+    EMAIL_ADDRESS,
+    () => CONVERSATION_MODEL_TEXT.exportRedactedAccount,
+  )
+}
+
 /**
  * Text as local roots are looked up in it: lower case, and every run of
  * separators one `/`, so `C:\Users`, `c:/users` and the JSON-escaped
