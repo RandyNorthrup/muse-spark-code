@@ -93,15 +93,18 @@ interface Accumulator {
   measurements: UsageMeasurements
   histogram: number[]
 }
+export function emptyUsageMeasurements(): UsageMeasurements {
+  return {
+    cache: { records: 0, input: 0, cached: 0 },
+    speed: { records: 0, output: 0, durationMs: 0 },
+    latency: { records: 0, durationMs: 0 },
+    firstToken: { records: 0, firstTokenMs: 0 },
+  }
+}
 function accumulator(): Accumulator {
   return {
     totals: { records: 0, tokens: {}, units: {}, costs: [], retries: 0, rateLimited: 0 },
-    measurements: {
-      cache: { records: 0, input: 0, cached: 0 },
-      speed: { records: 0, output: 0, durationMs: 0 },
-      latency: { records: 0, durationMs: 0 },
-      firstToken: { records: 0, firstTokenMs: 0 },
-    },
+    measurements: emptyUsageMeasurements(),
     histogram: Array.from({ length: USAGE_HISTOGRAM_EDGES_MS.length + 1 }, () => 0),
   }
 }
@@ -109,7 +112,7 @@ function accumulator(): Accumulator {
  * Accumulators keep integers; only completed page/export totals use USD.
  * Refuse an unsafe amount rather than silently losing monetary precision.
  */
-function usdUnits(usd: number): number {
+export function usdUnits(usd: number): number {
   const units = Math.round(usd * EXEC_USD_UNITS)
   if (!Number.isSafeInteger(units) || units < 0) throw new Error('unsafe usage amount')
   return units

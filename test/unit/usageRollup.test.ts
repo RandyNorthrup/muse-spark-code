@@ -6,11 +6,21 @@ import {
   UsageJournalStore,
   USAGE_JOURNAL_ROOT,
   rollupUsageRecords,
+  usageRollupRowSchema,
 } from '../../src/core/usage/journalStore'
+import { aggregateUsage } from '../../src/core/usage/aggregate'
+import { createUsageAccess } from '../../src/runtime/usage/usageServiceEntry'
+import { EN } from '../../src/shared/l10n/en'
+import { FakeLogOutputChannel } from './helpers/fakes'
 import { createUsageRecord } from '../../src/core/usage/journalRecord'
-import type { UsageRecord } from '../../src/shared/usageJournal'
+import { USAGE_CERTAINTIES, type UsageRecord } from '../../src/shared/usageJournal'
+import type { UsagePageState, UsageTotals } from '../../src/shared/usagePage'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
-import { USAGE_HISTOGRAM_EDGES_MS, USAGE_ROLLUP_LOCK_STALE_MS } from '../../src/shared/constants'
+import {
+  EXEC_USD_UNITS,
+  USAGE_HISTOGRAM_EDGES_MS,
+  USAGE_ROLLUP_LOCK_STALE_MS,
+} from '../../src/shared/constants'
 
 function record(day: string, id = day) {
   const at = new Date(`${day}T12:00:00`).getTime()
@@ -48,7 +58,210 @@ async function rig() {
   return { root, fs, store, record }
 }
 
+function comparableTotals(value: UsageTotals) {
+  return { ...value, costs: value.costs.toSorted((a, b) => a.certainty.localeCompare(b.certainty)) }
+}
+function comparableGroups(rows: UsagePageState['breakdown']) {
+  return rows.map((row) => ({ ...row, totals: comparableTotals(row.totals) }))
+}
+function access(root: string) {
+  // The production service retains on read; keep these historical fixtures within its horizon.
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(new Date(2026, 9, 5, 12).getTime())
+  onTestFinished(() => {
+    clock.mockRestore()
+  })
+  return createUsageAccess({
+    dataFolder: root,
+    packageRoot: process.cwd(),
+    host: 'fixture',
+    locale: 'en',
+    uiText: EN,
+    log: new FakeLogOutputChannel(),
+  })
+}
+// Encounter order can change across day files; compare every total by its category identity.
+function comparable(
+  state: Pick<UsagePageState, 'totals' | 'previousTotals' | 'buckets' | 'breakdown' | 'features'>,
+) {
+  return {
+    totals: comparableTotals(state.totals),
+    previousTotals: comparableTotals(state.previousTotals),
+    buckets: state.buckets.map((bucket) => ({
+      ...bucket,
+      totals: comparableTotals(bucket.totals),
+      groups: comparableGroups(bucket.groups),
+    })),
+    breakdown: comparableGroups(state.breakdown),
+    features: state.features
+      .toSorted((a, b) => a.kind.localeCompare(b.kind))
+      .map((row) => ({ ...row, totals: comparableTotals(row.totals) })),
+  }
+}
+
 describe('usage rollup and retention', () => {
+  const query = {
+    range: 'custom',
+    from: '2026-09-01',
+    to: '2026-09-05',
+    groupBy: 'provider',
+    metric: 'cost',
+  } as const
+  it('persists paired observations and coverage through retention and a fresh service', async () => {
+    const { store, root, fs } = await rig()
+    const records: UsageRecord[] = [
+      {
+        ...record('2026-09-01', 'paired'),
+        tokens: { input: 100, cached: 20, output: 10 },
+        durationMs: 1000,
+        firstTokenMs: 100,
+      },
+      {
+        ...record('2026-09-01', 'tokens-only'),
+        tokens: { input: 900, output: 990 },
+        durationMs: undefined,
+        firstTokenMs: undefined,
+      },
+      {
+        ...record('2026-09-01', 'duration-only'),
+        tokens: { cached: 800 },
+        durationMs: 9000,
+        firstTokenMs: 200,
+      },
+      {
+        ...record('2026-09-01', 'zero'),
+        tokens: { input: 0, cached: 0, output: 0 },
+        durationMs: 0,
+        firstTokenMs: 0,
+      },
+    ]
+    for (const entry of records) store.append(entry)
+    await store.flush()
+    const raw = aggregateUsage(records, [], query, Date.now())
+    expect(await store.retain()).toBe(true)
+    const journal = await store.read()
+    expect(journal.records).toEqual([])
+    expect(journal.rollups[0]).toHaveProperty('measurements', raw.measurements)
+    expect(
+      usageRollupRowSchema.safeParse({
+        ...journal.rollups[0],
+        measurements: { ...raw.measurements, cache: { records: -1, input: 100, cached: 20 } },
+      }).success,
+    ).toBe(false)
+    const state = await access(root).read(query)
+    expect(state.totals).toEqual(raw.totals)
+    expect(state.totals).toMatchObject({ cacheHitPercent: 20, tokensPerSecond: 10 })
+    expect(state.buckets).toEqual(raw.buckets)
+    expect(state.breakdown).toEqual(raw.breakdown)
+    expect(state.features).toEqual(raw.features)
+    // Existing v1 rollups have no paired observations; never infer rates from independent totals.
+    const { measurements: _measurements, ...legacy } = usageRollupRowSchema.parse(
+      journal.rollups[0],
+    )
+    await fs.writeFileAtomically(
+      `${USAGE_JOURNAL_ROOT}/rollups/2026-09.json`,
+      JSON.stringify({
+        v: 1,
+        month: '2026-09',
+        days: ['2026-09-01'],
+        rows: [legacy],
+        limits: [],
+      }),
+    )
+    const historical = await access(root).read(query)
+    expect(historical.totals.cacheHitPercent).toBeUndefined()
+    expect(historical.totals.tokensPerSecond).toBeUndefined()
+    expect(historical.totals.p50Ms).toBe(raw.totals.p50Ms)
+  })
+  it('settles each cost to micro-dollars before rolling up fractional USD amounts', async () => {
+    const { store, root } = await rig()
+    const records = ['one', 'two'].map(
+      (id) =>
+        ({
+          ...record('2026-09-01', id),
+          cost: { certainty: 'reported', usd: 0.0000004, apiEquivalentUsd: 0.0000004 },
+        }) satisfies UsageRecord,
+    )
+    for (const entry of records) store.append(entry)
+    await store.flush()
+    await store.retain()
+    const journal = await store.read()
+    expect(journal.rollups[0]?.cost).toEqual({
+      certainty: 'reported',
+      usd: 0,
+      apiEquivalentUsd: 0,
+    })
+    const state = await access(root).read(query)
+    expect(state.totals).toEqual(aggregateUsage(records, [], query, Date.now()).totals)
+  })
+  it('refuses unsafe rollup amounts and accumulated micro-dollar sums', () => {
+    for (const field of ['usd', 'apiEquivalentUsd'] as const) {
+      const cost = { certainty: 'reported', [field]: Number.MAX_SAFE_INTEGER } as const
+      expect(() => rollupUsageRecords([{ ...record('2026-09-01'), cost }])).toThrow(
+        'unsafe usage amount',
+      )
+      const safe = Math.floor(Number.MAX_SAFE_INTEGER / EXEC_USD_UNITS)
+      const records = ['one', 'two'].map(
+        (id) =>
+          ({
+            ...record('2026-09-01', id),
+            cost: { certainty: 'reported', [field]: safe },
+          }) satisfies UsageRecord,
+      )
+      expect(() => rollupUsageRecords(records)).toThrow('unsafe usage sum')
+    }
+  })
+  it.each(Array.from({ length: 50 }, (_, index) => index))(
+    'keeps raw and persisted rollup totals identical for randomized partial usage: trial %s',
+    async (sample) => {
+      const { store, root } = await rig()
+      let seed = 150 + sample
+      const random = (limit: number) => {
+        seed = (seed * 16_807) % 2_147_483_647
+        return seed % limit
+      }
+      const optionalCount = () => (random(2) === 0 ? undefined : random(1001))
+      const optionalUsd = () => (random(2) === 0 ? undefined : random(10_001) / 10_000_000)
+      const records = Array.from(
+        { length: 1 + random(20) },
+        (_, index) =>
+          ({
+            ...record(`2026-09-0${String(1 + random(5))}`, `property-${String(index)}`),
+            client: random(2) === 0 ? 'Zed' : 'VS Code',
+            backend: random(2) === 0 ? 'modelApi' : 'museCode',
+            provider: random(2) === 0 ? 'openai' : 'ollama',
+            model: random(2) === 0 ? 'one' : 'two',
+            kind: random(2) === 0 ? 'turn' : 'tab',
+            tokens: {
+              input: optionalCount(),
+              cached: optionalCount(),
+              output: optionalCount(),
+              estimated: random(2) === 0,
+            },
+            durationMs: optionalCount(),
+            firstTokenMs: optionalCount(),
+            cost: {
+              certainty: USAGE_CERTAINTIES[random(USAGE_CERTAINTIES.length)]!,
+              usd: optionalUsd(),
+              apiEquivalentUsd: optionalUsd(),
+            },
+            retries: optionalCount(),
+            rateLimited: random(2) === 0,
+          }) satisfies UsageRecord,
+      )
+      for (const entry of records) store.append(entry)
+      await store.flush()
+      await store.retain()
+      const journal = await store.read()
+      expect(journal.records).toEqual([])
+      const restored = access(root)
+      for (const groupBy of ['provider', 'model', 'kind', 'client'] as const) {
+        const selected = { ...query, groupBy }
+        const raw = aggregateUsage(records, [], selected, Date.now())
+        const historical = await restored.read(selected)
+        expect(comparable(historical)).toEqual(comparable(raw))
+      }
+    },
+  )
   it('retries a snapshot when retention reclaims its generation between rollups and raw days', async () => {
     const { store, root, record } = await rig()
     store.append(record('2026-09-01'))

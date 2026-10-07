@@ -15,6 +15,7 @@ import {
   USAGE_ROLLUP_LOCK_STALE_MS,
   USAGE_HISTOGRAM_EDGES_MS,
   USAGE_WINDOW_DAY_MS,
+  EXEC_USD_UNITS,
 } from '../../shared/constants'
 import {
   usageJournalEntrySchema,
@@ -34,6 +35,7 @@ import {
 } from '../../shared/usageJournal'
 import { createUsageRecord, usageLocalDay, type UsageRecordContext } from './journalRecord'
 import type { Usage } from '../backends/modelapi/schemas'
+import { emptyUsageMeasurements, usdUnits } from './aggregate'
 
 export interface UsageFileStat {
   readonly size: number
@@ -87,6 +89,23 @@ export const usageRollupRowSchema = z.strictObject({
   latencyHistogram: histogramSchema,
   durationSamples: usageCountSchema,
   firstTokenSamples: usageCountSchema,
+  // Optional for existing v1 files, whose independent sums cannot recover paired rates.
+  measurements: z.optional(
+    z.strictObject({
+      cache: z.strictObject({
+        records: usageCountSchema,
+        input: usageCountSchema,
+        cached: usageCountSchema,
+      }),
+      speed: z.strictObject({
+        records: usageCountSchema,
+        output: usageCountSchema,
+        durationMs: usageAmountSchema,
+      }),
+      latency: z.strictObject({ records: usageCountSchema, durationMs: usageAmountSchema }),
+      firstToken: z.strictObject({ records: usageCountSchema, firstTokenMs: usageAmountSchema }),
+    }),
+  ),
 })
 export type UsageRollupRow = z.infer<typeof usageRollupRowSchema>
 const rollupSchema = z
@@ -200,8 +219,22 @@ export function rollupUsageRecords(records: readonly UsageRecord[]): UsageRollup
       if (value !== undefined) row.units[field] = value
     }
     for (const field of ['usd', 'apiEquivalentUsd'] as const) {
-      const value = sum(row.cost[field], record.cost[field])
-      if (value !== undefined) row.cost[field] = value
+      if (record.cost[field] === undefined) continue
+      // As in raw aggregation, these fields hold integer micro-dollars until completion.
+      const value = (row.cost[field] ?? 0) + usdUnits(record.cost[field])
+      if (!Number.isSafeInteger(value)) throw new Error('unsafe usage sum')
+      row.cost[field] = value
+    }
+    const measurements = (row.measurements ??= emptyUsageMeasurements())
+    if (record.tokens.input !== undefined && record.tokens.cached !== undefined) {
+      measurements.cache.records += 1
+      measurements.cache.input += record.tokens.input
+      measurements.cache.cached += record.tokens.cached
+    }
+    if (record.tokens.output !== undefined && record.durationMs !== undefined) {
+      measurements.speed.records += 1
+      measurements.speed.output += record.tokens.output
+      measurements.speed.durationMs += record.durationMs
     }
     row.durationMs = sum(row.durationMs, record.durationMs)
     row.firstTokenMs = sum(row.firstTokenMs, record.firstTokenMs)
@@ -215,11 +248,18 @@ export function rollupUsageRecords(records: readonly UsageRecord[]): UsageRollup
       const bucket = index === -1 ? USAGE_HISTOGRAM_EDGES_MS.length : index
       row.latencyHistogram[bucket] = (row.latencyHistogram[bucket] ?? 0) + 1
       row.durationSamples += 1
+      measurements.latency.records += 1
+      measurements.latency.durationMs += record.durationMs
     }
-    if (record.firstTokenMs !== undefined) row.firstTokenSamples += 1
+    if (record.firstTokenMs === undefined) continue
+    row.firstTokenSamples += 1
+    measurements.firstToken.records += 1
+    measurements.firstToken.firstTokenMs += record.firstTokenMs
   }
   const result: UsageRollupRow[] = []
   rows.forEach((row) => {
+    for (const field of ['usd', 'apiEquivalentUsd'] as const)
+      if (row.cost[field] !== undefined) row.cost[field] /= EXEC_USD_UNITS
     result.push(row)
   })
   return result

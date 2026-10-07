@@ -94,6 +94,8 @@ happened, not what was planned; superseded entries are kept.
 
 - Strip credential-shaped environment variables from runner setup, checks, Git
   and SSH children, and refuse credential names in remote forwarding configuration.
+- Preserve measured cache-hit percentages and token speeds after usage retention;
+  roll up costs with the same micro-dollar rounding as detailed usage totals.
 - Keep deferred question controls and team-worker attention labels together
   after the release merge. Local ACP compaction preserves queued late answers.
 - Preserve safe Windows team storage aliases, publish private

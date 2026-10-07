@@ -23,7 +23,7 @@ import {
   TEAM_WRITE_SET_MAX,
   UI_TEXT,
 } from './constants'
-import { isCredentialVariable } from '../core/credentialEnvironment'
+import { isCredentialVariable } from './credentialEnvironment'
 // The team: agents, roles, pools, tasks and the ledger (M96, PLAN.md D75),
 // as the host, the wire protocol and the webview share them. Lane 0 owns
 // these shapes; the lanes that fill them (R: configuration, A: pools and

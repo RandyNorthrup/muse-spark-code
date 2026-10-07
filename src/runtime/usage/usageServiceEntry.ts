@@ -92,6 +92,7 @@ function aggregateRows(journal: StoredJournal): UsageAggregateRow[] {
     model: row.model,
     kind: row.kind,
     histogram: row.latencyHistogram,
+    ...(row.measurements !== undefined && { measurements: row.measurements }),
     totals: {
       records: row.records,
       tokens: row.tokens,

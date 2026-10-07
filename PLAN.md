@@ -18798,6 +18798,9 @@ with the existing translated explanation. Retention persists paired cache/input
 and output/duration sums and observation coverage, and the shared runtime adapter
 restores them for every editor. Legacy rollups keep unknown paired rates.
 Rollup monetary sums use the same integer micro-dollar settlement as raw totals.
+Browser validation shares the pure predicate from a Node-free module, retaining
+the existing core import API. The duplication gate requires raw and retained
+usage to share their empty-measurement initializer in the existing aggregate file.
 Prove each regression fails against release head `0113c131e`, then passes;
 record byte-exact restored guard drills in `docs/certification/fix0150r.md`.
 Verify complete owning files three times after the brief's clean checkout,
