@@ -6,7 +6,7 @@
 
 import * as z from 'zod/mini'
 import { uploadedMediaRefSchema, type UploadedMediaRef } from '../../../shared/media'
-import { storedReplayMediaSchema } from '../../media/replayMedia'
+import { storedReplayMediaSchema } from '../../../shared/media'
 import type { StoredMediaPart } from '../../media/replayMedia'
 import {
   type ItemSnapshot,

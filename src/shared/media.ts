@@ -109,6 +109,39 @@ export const mediaAttachmentActionSchema = z.strictObject({
   action: z.enum(MEDIA_AUDIO_ACTIONS),
 })
 
+/** Durable per-part media record: metadata plus its provider upload refs. */
+export const storedMediaPartSchema = z
+  .strictObject({
+    name,
+    info: mediaInfoSchema,
+    sha256: z.string().check(z.regex(MEDIA_SHA256_PATTERN)),
+    fps: z.optional(z.number().check(z.gt(0))),
+    isScreenRecording: z.optional(z.boolean()),
+    file: z.optional(uploadedMediaRefSchema),
+    files: z.optional(z.array(uploadedMediaRefSchema)),
+    delivered: z.optional(z.literal(true)),
+  })
+  .check(
+    z.refine((part) => {
+      const files = [...(part.files ?? []), ...(part.file === undefined ? [] : [part.file])]
+      return (
+        new Set((part.files ?? []).map((file) => file.provider)).size ===
+          (part.files?.length ?? 0) &&
+        files.every(
+          (file) =>
+            file.sha256 === part.sha256 &&
+            file.bytes === part.info.sizeBytes &&
+            file.mime === part.info.mediaType,
+        )
+      )
+    }),
+  )
+export type StoredMediaPart = z.infer<typeof storedMediaPartSchema>
+export const storedReplayMediaSchema = z.strictObject({
+  index: z.int().check(z.gte(0)),
+  media: storedMediaPartSchema,
+})
+
 export const mediaContributorChoiceSchema = z.strictObject({
   type: z.literal('mediaContributorChoice'),
   id,

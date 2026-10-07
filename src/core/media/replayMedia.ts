@@ -1,16 +1,14 @@
 // Durable metadata and per-request projections. Bytes/approved sources stay
 // transient; a model switch never overwrites the original upload reference.
-import * as z from 'zod/mini'
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
-import {
-  MEDIA_FILE_ID_MIN_BYTES,
-  MEDIA_NAME_MAX_CHARS,
-  MEDIA_SHA256_PATTERN,
-  UI_TEXT,
-} from '../../shared/constants'
+import { MEDIA_FILE_ID_MIN_BYTES, UI_TEXT } from '../../shared/constants'
 import { fill, formatBytes, formatUnit } from '../../shared/l10n/text'
-import { mediaInfoSchema, uploadedMediaRefSchema, type UploadedMediaRef } from '../../shared/media'
+import {
+  storedMediaPartSchema,
+  type StoredMediaPart,
+  type UploadedMediaRef,
+} from '../../shared/media'
 import type { TurnPart } from '../agent/agentBackend'
 import type { UploadSource } from '../backends/modelapi/files'
 import type { InputContentPart, InputItem } from '../backends/modelapi/schemas'
@@ -20,37 +18,11 @@ import type { MediaBudget } from '../backends/modelapi/mediaBudget'
 import type { UploadLedger } from './uploadLedger'
 import { modalityGate, type MediaModelCapabilities, type MediaGateResult } from './modalityGate'
 
-export const storedMediaPartSchema = z
-  .strictObject({
-    name: z.string().check(z.minLength(1), z.maxLength(MEDIA_NAME_MAX_CHARS)),
-    info: mediaInfoSchema,
-    sha256: z.string().check(z.regex(MEDIA_SHA256_PATTERN)),
-    fps: z.optional(z.number().check(z.gt(0))),
-    isScreenRecording: z.optional(z.boolean()),
-    file: z.optional(uploadedMediaRefSchema),
-    files: z.optional(z.array(uploadedMediaRefSchema)),
-    delivered: z.optional(z.literal(true)),
-  })
-  .check(
-    z.refine((part) => {
-      const files = [...(part.files ?? []), ...(part.file === undefined ? [] : [part.file])]
-      return (
-        new Set((part.files ?? []).map((file) => file.provider)).size ===
-          (part.files?.length ?? 0) &&
-        files.every(
-          (file) =>
-            file.sha256 === part.sha256 &&
-            file.bytes === part.info.sizeBytes &&
-            file.mime === part.info.mediaType,
-        )
-      )
-    }),
-  )
-export type StoredMediaPart = z.infer<typeof storedMediaPartSchema>
-export const storedReplayMediaSchema = z.strictObject({
-  index: z.int().check(z.gte(0)),
-  media: storedMediaPartSchema,
-})
+export {
+  storedMediaPartSchema,
+  storedReplayMediaSchema,
+  type StoredMediaPart,
+} from '../../shared/media'
 
 export interface ReplayMediaDeps {
   readonly capabilities: (modelId: string) => MediaModelCapabilities

@@ -110,7 +110,11 @@ const ENTRY = 'src/host/backend/modelApiEntry.ts'
 const TYPES_ONLY = new Set(['hookFormats/contract.ts'])
 // M91 lane X's Cline discovery, which no bundle carries until its dispatcher
 // wiring lands (PLAN.md M91, lane X; the lead's call).
-const UNBUNDLED = new Set(['hookFormats/clineDiscover.ts'])
+// M105 lane W: the Files transport (lane F) and the Responses media codec
+// (lane M2) ship no production construction yet; the video/audio upload
+// binding (U6c, A-PAID follow-ups) lands them in dist/modelApi.js. Until
+// then no bundle carries them (PLAN.md M105, lane W).
+const UNBUNDLED = new Set(['hookFormats/clineDiscover.ts', 'files.ts', 'codecs/responses.ts'])
 
 // The backend's files the activation bundle may carry, each with its reason.
 const ACTIVATION_ALLOWED = new Map([
