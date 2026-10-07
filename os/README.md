@@ -25,6 +25,8 @@ Build products, package manifests, checksums and input receipts go only into
 downloads and package caches are reused and removed after qualification.
 
 Installer media boots with a volatile overlay and no persistent `/var` partition.
+The initrd rebinds verified `/usr` read-only above that overlay before
+switch-root; its vendor dependency survives mkosi's final unit presets.
 It never writes a target disk on boot. OS3 owns the authenticated browser's
 disk selection and write; OS1 supplies the bootable media and raw disk payload.
 Secure Boot is off pending the owner's signing ceremony (OS4); dm-verity
@@ -49,10 +51,13 @@ Node lifecycle and readiness function against synthetic state in a disposable
 image copy; no authentication, engine, tools binding or setup page is claimed.
 It checks sealed keys, no sessions, read-only verified `/usr`, network service
 startup and denial of private state to the tools UID. Optical and block-corrupt
-variants exercise actual devices. The rig has no KVM; these receipts use TCG.
+variants exercise actual devices. The rig has no KVM; these receipts use TCG. ARM qualification uses the
+Cortex-A72 CPU; the rig's `max` CPU stalled in firmware. `test/e2e/os-image-postinst.py`
+executes the actual final shell admission checks against isolated empty and
+forbidden-content fixtures.
 The certificate contains executed commands, image sizes/digests and red drills.
 
-Two clean x86 builds matched for root, `/usr`, verity, UKI, kernel and initrd,
+Two clean x86 builds before the final installer-initrd fix matched for root, `/usr`, verity, UKI, kernel and initrd,
 but differed in `/var` and thus the whole raw image. The images remain **not
 yet reproducible**; OS6 owns the blocking comparison once it demonstrates
 identical whole images.

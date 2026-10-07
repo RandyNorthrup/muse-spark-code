@@ -116,3 +116,45 @@ The post-log-exclusion comparison is `m110-os1-repro-final.json`: immutable
 root, usr/hash, boot and kernel artifacts match, persistent `/var` and the
 whole raw still do not. OS6 must investigate the remaining mutable-filesystem
 difference; no reproducibility claim or blocking comparison is weakened.
+
+## Archive metadata and installer overlay
+
+Archive review found that a content-size sum alone lets the tar library
+parse oversized PAX metadata before our member checks. `BoundedArchive`
+now checks decoded read lengths and seek positions before calling the decoder;
+member enumeration stops at its fixed count limit instead of unbounded
+`getmembers()`. Small malformed metadata/seek/member fixtures fail before any
+extraction writes, and each guard has a fail-and-restore source drill.
+
+Actual optical boot after the executable-path correction found all six GPT
+partitions, mounted the verity-protected usr and applied the overlay, but
+failed at switch-root. Debian 257's `make_overlay` covers the root without
+preserving child mounts. The initrd now binds `/sysusr/usr` back on top of
+`/sysroot/usr`, explicitly read-only, after the overlay and before parsing the
+real root/switching. This is a production recipe correction; the qualification
+clone still receives only test code and units, never repaired mounts or fstab.
+The new initrd post-install hook enables that conditional unit. Source:
+[systemd v257 implementation](https://raw.githubusercontent.com/systemd/systemd/v257/src/volatile-root/volatile-root.c).
+
+Current boundary suite: **57 passed** with default timeouts. **48** source
+drills have named failures and byte-exact restoration. Oversized metadata,
+forward seeks, member count and unsafe Win32 path components are covered before
+any extraction write. The initrd's first `/etc` enablement was removed by
+mkosi's final presets; the dependency is now registered in the vendor `/usr`
+`.wants` directory and awaits the rebuilt optical receipt. ARM raw composition
+succeeded; its first QEMU `max` CPU boot timed out in UEFI, so the bounded
+Cortex-A72 retry is pending. No product-service or hardware pass is claimed.
+
+The final owned suite is **59 passed** at the repository's default timeout.
+The refreshed source receipt includes the read-only installer bind and surviving
+vendor dependency, plus three real shell-admission checks. The latter execute
+unchanged final statements against isolated roots; removing each statement
+made its named test fail, and restored hashes match. The Cortex-A72 ARM raw
+boot now passes `/readyz`, verified read-only usr, network-service startup and
+tools-UID state denial. Final image rebuilding and optical qualification are
+pending; none of these test-only receipts claims C/OS3 production integration.
+
+Final boundary evidence: **59 unit tests pass**, three shell-admission fixtures
+pass, and **53 source drills** fail by name and restore exact hashes. The test
+HTTP response is parsed with zod before use. All committed source hashes were
+rechecked after the last restoration; final media rebuilding follows.

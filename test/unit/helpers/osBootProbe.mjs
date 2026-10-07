@@ -4,6 +4,7 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { execFileSync } from 'node:child_process'
 import { createServer, get } from 'node:http'
+import { z } from 'zod'
 import { NodeStateStore } from '../../../src/runtime/node/state'
 import { nodeState } from './node/records'
 import { FixtureCodec } from './nodeVaultCodec'
@@ -54,7 +55,14 @@ export async function runOsBootProbe({ NodeService, nodeHealth }) {
       response.on('data', (bytes) => {
         word += String(bytes)
       })
-      response.on('end', () => resolve(response.statusCode === 200 && word === 'ready'))
+      response.on('end', () =>
+        resolve(
+          z.object({ status: z.literal(200), word: z.literal('ready') }).safeParse({
+            status: response.statusCode,
+            word,
+          }).success,
+        ),
+      )
       response.on('error', reject)
     }).on('error', reject)
   })

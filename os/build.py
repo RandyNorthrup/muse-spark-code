@@ -2,6 +2,7 @@
 """OS1 image composer; inputs are pinned, no owner data is accepted."""
 
 import argparse
+import gzip
 import hashlib
 import json
 from pathlib import Path
@@ -15,7 +16,30 @@ from pi.compose import prepare as prepare_pi, finish as finish_pi
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT.parent / "out"
 DOWNLOAD_LIMIT = 64 * 1024 * 1024
+ARCHIVE_MEMBER_LIMIT = 1024
+ARCHIVE_STREAM_LIMIT = DOWNLOAD_LIMIT * 4 + ARCHIVE_MEMBER_LIMIT * 1024
 TARGETS = {"x86-64", "arm64", "pi4", "pi5"}
+
+
+class BoundedArchive:
+    """Bound metadata reads and forward seeks before tarfile allocates/decodes."""
+
+    def __init__(self, source):
+        self.source = source
+
+    def tell(self):
+        return self.source.tell()
+
+    def read(self, size):
+        if size < 0 or self.tell() + size > ARCHIVE_STREAM_LIMIT:
+            raise ValueError("OS1 decoded archive exceeds limit")
+        return self.source.read(size)
+
+    def seek(self, offset, whence=0):
+        position = offset if whence == 0 else self.tell() + offset
+        if whence not in (0, 1) or position < 0 or position > ARCHIVE_STREAM_LIMIT:
+            raise ValueError("OS1 archive seek exceeds limit")
+        return self.source.seek(offset, whence)
 
 
 def digest(file):
@@ -47,15 +71,29 @@ def download(url, expected, dest):
 def extract(archive, destination, prefix, allowed):
     # Validate the whole archive BEFORE any write. Links, special files and
     # Windows-style paths are never build inputs (H10/H11/H17).
-    with tarfile.open(archive) as source:
-        members = source.getmembers()
+    with archive.open("rb") as header:
+        compressed = header.read(2) == b"\x1f\x8b"
+    # npm packages are gzip tarballs; plain tar is useful for isolated fixtures.
+    with (
+        gzip.open(archive, "rb") if compressed else archive.open("rb")
+    ) as decoded, tarfile.open(fileobj=BoundedArchive(decoded), mode="r:") as source:
+        members = []
         total = 0
-        for member in members:
-            parts = member.name.replace("\\", "/").split("/")
+        for member in source:
+            if len(members) >= ARCHIVE_MEMBER_LIMIT:
+                raise ValueError("OS1 archive member limit")
+            members.append(member)
+            parts = member.name.replace("\\", "/").rstrip("/").split("/")
             if (
                 "\\" in member.name
                 or parts[0] != prefix
-                or any(p in (".", "..") for p in parts)
+                or any(
+                    not p
+                    or ":" in p
+                    or p != p.rstrip(" .")
+                    or any(ord(c) < 32 or ord(c) == 127 for c in p)
+                    for p in parts
+                )
                 or not (member.isfile() or member.isdir())
             ):
                 raise ValueError("OS1 unsafe archive member")
@@ -93,6 +131,7 @@ def stage(args):
         for name in (
             "mkosi.conf",
             "mkosi.initrd.conf",
+            "mkosi.initrd.postinst",
             "mkosi.postinst",
             "mkosi.profiles",
             "repart",

@@ -46,6 +46,18 @@ describe('M110-OS1 immutable image inputs', () => {
     ['mkosi.conf', '8821992e-4707-4882-96ce-a8b16b671a09', 'random', 'partition seed'],
     ['mkosi.conf', 'Checksum=yes', 'Checksum=no', 'artifact digests'],
     [
+      'initrd-overlay/usr/lib/systemd/system/muse-overlay-usr.service',
+      'remount,bind,ro',
+      'remount,bind,rw',
+      'verified installer usr',
+    ],
+    [
+      'mkosi.initrd.postinst',
+      '/usr/lib/systemd/system/initrd-root-fs.target.wants',
+      '/etc/systemd/system/initrd-root-fs.target.wants',
+      'initrd vendor dependency',
+    ],
+    [
       'overlay/usr/lib/systemd/system/systemd-resolved.service.d/muse-var.conf',
       'RequiresMountsFor=/var/tmp',
       'RequiresMountsFor=/tmp',
@@ -353,5 +365,84 @@ else:
 `)
     expect(result.status).toBe(0)
     expect(result.stdout).toContain('refused truncated partition')
+  })
+  it.each([
+    ['members', 'archive member limit'],
+    ['metadata', 'decoded archive exceeds limit'],
+    ['seek', 'archive seek exceeds limit'],
+  ])('bounds archive %s before decoding or writing', (kind, reason) => {
+    const dir = directory()
+    const result = python(`
+import sys, tarfile, io
+from pathlib import Path
+sys.path.insert(0, ${JSON.stringify(root)})
+import build
+base = Path(${JSON.stringify(dir)})
+archive = base / 'input.tar'
+dest = base / 'image'
+kind = ${JSON.stringify(kind)}
+if kind == 'metadata':
+    build.ARCHIVE_STREAM_LIMIT = 1024
+    header = tarfile.TarInfo('package/metadata')
+    header.type = tarfile.XHDTYPE
+    header.size = 2048
+    archive.write_bytes(header.tobuf() + b'junk' * 512)
+else:
+    with tarfile.open(archive, 'w:gz' if kind == 'seek' else 'w') as output:
+        if kind == 'members':
+            build.ARCHIVE_MEMBER_LIMIT = 1
+            for name in ('package', 'package/extra'):
+                member = tarfile.TarInfo(name)
+                member.type = tarfile.DIRTYPE
+                output.addfile(member)
+        else:
+            build.ARCHIVE_STREAM_LIMIT = 1536
+            member = tarfile.TarInfo('package/dist/node.js')
+            member.size = 2048
+            output.addfile(member, io.BytesIO(b'x' * 2048))
+try:
+    build.extract(archive, dest, 'package', lambda name: True)
+except ValueError as error:
+    assert ${JSON.stringify(reason)} in str(error)
+    assert not dest.exists()
+    print('bounded before decoding/writing')
+else:
+    raise AssertionError('accepted unbounded archive')
+`)
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('bounded before decoding/writing')
+  })
+  it.each([
+    'package//outside',
+    'package/C:/outside',
+    'package/C:outside',
+    'package/.. /outside',
+    'package/../outside',
+    'package/folder\nother',
+  ])('refuses an ambiguous archive directory %s before filesystem access', (name) => {
+    const dir = directory()
+    const result = python(`
+import sys, tarfile
+from pathlib import Path
+sys.path.insert(0, ${JSON.stringify(root)})
+from build import extract
+archive = Path(${JSON.stringify(path.join(dir, 'directory.tar'))})
+with tarfile.open(archive, 'w') as output:
+    member = tarfile.TarInfo(${JSON.stringify(name)})
+    member.type = tarfile.DIRTYPE
+    output.addfile(member)
+class NoWrites:
+    def __truediv__(self, relative):
+        raise AssertionError('unsafe directory reached filesystem')
+try:
+    extract(archive, NoWrites(), 'package', lambda name: True)
+except ValueError as error:
+    assert 'unsafe archive member' in str(error)
+    print('refused directory before filesystem')
+else:
+    raise AssertionError('accepted ambiguous directory')
+`)
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('refused directory before filesystem')
   })
 })

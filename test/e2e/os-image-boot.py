@@ -14,6 +14,8 @@ parser.add_argument("--optical", action="store_true")
 parser.add_argument("--corrupt-usr", action="store_true")
 args = parser.parse_args()
 image = args.image.resolve(strict=True)
+with image.open("rb") as source:
+    image_digest = hashlib.file_digest(source, "sha256").hexdigest()
 arch = args.architecture
 name = (
     arch
@@ -135,7 +137,7 @@ else:
         "-accel",
         "tcg",
         "-cpu",
-        "max",
+        "cortex-a72",
     ]
 shutil.copyfile(vars, qual / "vars.fd")
 command += [
@@ -202,9 +204,12 @@ passed = (
     else not timed_out and markers["OS1_READY_OK"] and markers["OS1_TOOLS_DENIED_OK"]
 )
 receipt = {
+    "image": str(image.relative_to(base)),
+    "imageSha256": image_digest,
     "testOnly": True,
     "acceleration": "TCG",
     "architecture": arch,
+    "cpu": "cortex-a72" if arch == "arm64" else "max",
     "optical": args.optical,
     "corruptUsr": args.corrupt_usr,
     "timeoutSeconds": timeout,

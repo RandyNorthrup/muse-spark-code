@@ -36,6 +36,23 @@ def check(root):
     require(
         resolver["Unit"]["RequiresMountsFor"] == "/var/tmp", "resolver mount ordering"
     )
+    overlay = config(
+        root / "initrd-overlay/usr/lib/systemd/system/muse-overlay-usr.service"
+    )
+    require(
+        overlay["Unit"]["ConditionKernelCommandLine"] == "systemd.volatile=overlay"
+        and overlay["Unit"]["After"] == "sysusr-usr.mount systemd-volatile-root.service"
+        and overlay["Service"]["ExecStart"]
+        == "/usr/bin/mount --bind /sysusr/usr /sysroot/usr"
+        and overlay["Service"]["ExecStartPost"]
+        == "/usr/bin/mount -o remount,bind,ro /sysroot/usr",
+        "verified installer usr",
+    )
+    require(
+        "/usr/lib/systemd/system/initrd-root-fs.target.wants"
+        in (root / "mkosi.initrd.postinst").read_text(),
+        "initrd vendor dependency",
+    )
     parts = {
         file.stem: config(file)["Partition"]
         for file in (root / "repart").glob("*.conf")

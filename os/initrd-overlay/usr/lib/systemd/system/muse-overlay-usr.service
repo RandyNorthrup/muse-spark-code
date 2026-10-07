@@ -1,0 +1,16 @@
+[Unit]
+Description=Preserve verified usr under the installer overlay
+DefaultDependencies=no
+ConditionKernelCommandLine=systemd.volatile=overlay
+Requires=sysusr-usr.mount
+After=sysusr-usr.mount systemd-volatile-root.service
+Before=initrd-root-fs.target initrd-parse-etc.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/mount --bind /sysusr/usr /sysroot/usr
+ExecStartPost=/usr/bin/mount -o remount,bind,ro /sysroot/usr
+
+[Install]
+WantedBy=initrd-root-fs.target
