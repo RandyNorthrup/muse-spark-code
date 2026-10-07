@@ -21,6 +21,11 @@ const project = {
   'src/ok.ts': headed,
 }
 
+// The case scans one file past the scan cap; a hosted runner with coverage
+// took 3.5 s, near the default deadline.
+// PLAN.md §8 (2026-10-07).
+const LEGAL_CAP_SCAN_TIMEOUT_MS = 15_000
+
 describe('scanLegal', () => {
   it('cancels before invoking any supplied reader', () => {
     let reads = 0
@@ -69,26 +74,30 @@ describe('scanLegal', () => {
     ).toBe(true)
   })
 
-  it('stops an oversize file list at the cap with an incomplete marker', () => {
-    const files: Record<string, string> = { ...project }
-    for (let index = 0; index < LEGAL_FILES_SCANNED_MAX + 5; index += 1) {
-      files[`src/many${String(index)}.ts`] = headed
-    }
-    const { snapshot, readPaths } = countingSnapshot(files)
-    const result = scanLegal(snapshot, { headerPolicy: 'optional' })
-    expect(
-      result.incompleteChecks.some((entry) =>
-        entry.includes(`after reading ${formatNumber(LEGAL_FILES_SCANNED_MAX)} files`),
-      ),
-    ).toBe(true)
-    const allowed = new Set(
-      Object.keys(files)
-        .toSorted((a, b) => a.localeCompare(b, 'en'))
-        .slice(0, LEGAL_FILES_SCANNED_MAX),
-    )
-    expect(readPaths().every((path) => allowed.has(path))).toBe(true)
-    expect(new Set(readPaths()).size).toBeLessThanOrEqual(LEGAL_FILES_SCANNED_MAX)
-  })
+  it(
+    'stops an oversize file list at the cap with an incomplete marker',
+    () => {
+      const files: Record<string, string> = { ...project }
+      for (let index = 0; index < LEGAL_FILES_SCANNED_MAX + 5; index += 1) {
+        files[`src/many${String(index)}.ts`] = headed
+      }
+      const { snapshot, readPaths } = countingSnapshot(files)
+      const result = scanLegal(snapshot, { headerPolicy: 'optional' })
+      expect(
+        result.incompleteChecks.some((entry) =>
+          entry.includes(`after reading ${formatNumber(LEGAL_FILES_SCANNED_MAX)} files`),
+        ),
+      ).toBe(true)
+      const allowed = new Set(
+        Object.keys(files)
+          .toSorted((a, b) => a.localeCompare(b, 'en'))
+          .slice(0, LEGAL_FILES_SCANNED_MAX),
+      )
+      expect(readPaths().every((path) => allowed.has(path))).toBe(true)
+      expect(new Set(readPaths()).size).toBeLessThanOrEqual(LEGAL_FILES_SCANNED_MAX)
+    },
+    LEGAL_CAP_SCAN_TIMEOUT_MS,
+  )
 
   it('caps findings with blockers kept first and a truncation marker', () => {
     const files: Record<string, string> = { ...project }
