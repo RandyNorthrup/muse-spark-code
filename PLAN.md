@@ -7618,8 +7618,18 @@ It builds on:
      the broker does. The panel names the tier in force in those words, for
      example "Protected by this PC's TPM. It unlocks silently when you sign in,
      so programs running as you can unlock it too."
-   - **Rollback.** The slot records hold the last generation. A vault file
-     older than that is refused, and the panel says so.
+   - **Rollback (FIXM109C, 2026-10-05).** The slot document MAC binds the
+     generation, canonical ciphertext document digest and previous committed
+     state's keyed digest. The independently protected anchor holds that exact
+     MAC as `stateDigest` with the generation and audit state, and advances
+     only after an atomic comparison of its complete prior state. Older files,
+     same-generation forks and reordered ciphertext entries are refused.
+     Restore requires the user's explicit confirmation, publishes a fresh
+     generation and admits only the exact existing anchor or a new device
+     without history; a different backup cannot revive revoked policies or
+     removed material. Its authenticated write-ahead intent binds the exact
+     prior anchor and source digest, so a prepared restore jump can recover
+     before advancement and retry without advancing twice.
    - **Platform limits, said plainly:**
      - This slot uses the documented P-256 signing/key-agreement API, which
        imports no raw private key. Passwords and Ed25519 keys are vault items
@@ -26233,6 +26243,36 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M109 — A credential vault and broker for agents (D89)
 
+**FIXM109C2 review repair (2026-10-06, Mac mini).** RVM109C2's remaining
+P2 is accepted before code: a confirmed backup that matches the independent
+anchor must repair a damaged or unreadable destination document without
+authenticating that replaceable document. Authenticate the backup and its
+complete anchored history, retain slot/destination identity admission, and
+quarantine the displaced ciphertext before atomic replacement. The Node file
+port retains the original inode with an exclusive owner-only hard link, so
+quarantine needs no document read and leaves the old path visible until rename.
+All backup items authenticate before quarantine or publication; a quarantine
+failure refuses without advancing the anchor. The mandatory file-port method
+and generated-only fake stay in C-owned files. Regression/red-drill receipts
+go into the existing C certification without replacing prior KATs or drills.
+No dependency, new surface, history bypass or gate change is authorized.
+
+**FIXM109C review repair (2026-10-05, Mac mini).** Before code, the lane
+accepts all five RVM109C findings: bind the independent anchor to a keyed
+committed-state digest chained to the previous digest; authenticate a
+write-ahead intent with its exact prior anchor for deterministic recovery of
+confirmed restore jumps; sign validated canonical JSON (sorted object keys,
+JSON-normalized numbers); erase owned keys when RNG throws; and give native
+tests their own temporary parent. Restore requires explicit caller confirmation
+and a fresh generation. An existing anchor admits only its exact current
+snapshot, even for a newer backup, so a fork or revoked policy/material cannot
+return through restore. A new device without history may import a confirmed
+backup. All logic remains shared core for every editor; B/W must bind confirmation
+only to the user's trusted surface. Regression tests and byte-exact red drills
+belong in `docs/certification/m109-c.md`; the lane introduces no dependency,
+command or surface. The rig brief reserves aggregate quality for the lead and
+prohibits merges, pushes and live/paid calls.
+
 **Status 2026-10-05: planned.** The research is
 `docs/research/credential-vault-2026-10-05.md`.
 
@@ -29628,6 +29668,38 @@ checks. The lead retains the integrated quality/coverage/release gate. No gate
 or budget is weakened; the exact evidence is recorded in
 `docs/certification/help-reference.md`.
 
+**FIXM109C2 review repair (2026-10-06, Mac mini).** The remaining RVM109C2
+P2 is fixed: exact-anchor backups repair damaged/unreadable destination
+documents without authenticating them, retaining owner-only diagnostic
+ciphertext before atomic replacement. Backup authentication, complete-state
+history admission, destination identity and single-advance pending recovery
+remain enforced. All five owned suites pass 71 tests, including the existing
+RFC/NIST KATs; focused coverage meets unchanged thresholds. Eight distinct
+red mutations fail their named regressions and restore the source byte-exact.
+All 79 prior drill receipts remain, with eight appended in the C record.
+Test-only fixture consolidation fixes two new duplication-gate findings;
+the zero-clone threshold stays unchanged. Records: `docs/certification/m109-c.md`
+and `m109-c-drills.json`. Aggregate quality stays lead-owned under the rig
+brief; the existing W-owned generated host-API count deferral is unchanged
+(crypto 46 → 50, fs 33 → 34, fs/promises 47 → 48, path 84 → 85). The mandatory
+native quarantine/diagnostic integration binding is named in §9. No review
+finding, gate threshold or file-security guard is deferred or weakened.
+
+**FIXM109C review repair (2026-10-05, Mac mini).** All five RVM109C findings
+are fixed: exact committed-state/hash-chain anchoring, explicitly confirmed
+restore with revocation-preserving admission, authenticated write-ahead restore
+intent and idempotent recovery, canonical validated MAC serialization, RNG
+failure erasure and independent native fixture parents. The five complete
+owned suites pass 61 tests and focused coverage meets unchanged thresholds;
+20 red executions of 15 distinct mutations fail their named regressions and
+restore sources byte-exact. Records: `docs/certification/m109-c.md` and its
+existing drills JSON. The rig brief reserves aggregate quality for the lead.
+The W-owned host API record remains an explicit deferral: crypto imports
+46 → 50, fs 33 → 34, fs/promises 47 → 48, path 84 → 85. No host API or built-in
+is added; W must regenerate after integration. No review finding is deferred;
+P/B's protected complete-state anchor and W's trusted confirmation bindings
+are mandatory before this unwired core ships (named in §9).
+
 **FIXM109L0 review repair (2026-10-05, Mac mini).** RVM109L0's two P2
 contract findings and its P3 fake ownership finding are fixed. A distinct
 HTTPS issuer identifier schema allows paths and preserves exact spelling,
@@ -30967,6 +31039,35 @@ before a repaired one loads (2026-09-30).
   claim ships. Follow-up: integrate and certify actual native/phone adapters
   under the IDE compatibility milestones. RVHELPREF 1–23 retain no false-claim
   residual; this boundary is recorded explicitly for finding 16.
+
+- **M109C-quarantine-binding (FIXM109C2, unmerged integration contract).**
+  RVM109C2's damaged-destination restore finding is repaired in shared core.
+  Every file adapter must durably retain a displaced document without reading
+  it or removing its current path before atomic replacement, and refuse when
+  retention fails. Node uses a unique hard link in the same owner-only vault
+  directory, verifies both file identities/security, and syncs the directory.
+  Diagnostic copies remain ciphertext, are never opened as current state,
+  and are retained rather than automatically pruned. Safe for now: this core
+  is unwired, the port is mandatory, and unsupported linking fails explicitly.
+  Follow-up: P/B bind and certify retention on Windows/Linux; W exposes the
+  diagnostic location and explicit cleanup when it wires restore. No RVM109C2
+  finding is deferred.
+- **M109C-anchor-binding (FIXM109C, unmerged integration contract).** RVM109C's
+  five findings are repaired in shared core. P/B must persist generation,
+  audit state and `stateDigest` independently of the replaceable vault files,
+  and atomically compare the complete prior state on every advance. Restoring
+  that protected anchor with all files is D89 V11's existing limit. Safe for
+  now: this core remains unwired and the adapter is mandatory, with no silent
+  fallback. Follow-up: P/B prove durable anchor binding before W ships it.
+- **M109C-restore-history (FIXM109C, deliberate admission policy).** Confirmed
+  restore imports onto a new device without history, or restores the exact
+  snapshot matching an existing device's complete anchor. A different or
+  newer fork is refused even after user confirmation: no backup can revive
+  that device's revoked policy or removed material. Safe for now: no
+  cross-history merge or rollback is admitted. Follow-up: W binds the trusted
+  confirmation action in every editor; any future cross-history import needs
+  separately designed revocation proof, never a weaker generation guard.
+  No RVM109C finding is deferred.
 
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the
