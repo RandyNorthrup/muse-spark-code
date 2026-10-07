@@ -1,5 +1,15 @@
 # Shared policy help reference
 
+## Orchestrator playbook: bundled skill and reviewer charter
+
+Skill available through the existing bundled-skills paths; orchestrated reviewer bindings belong to M116 I/W.
+
+The orchestrator-playbook skill teaches all nine rules, the third-strike design-decision template and two redesigns from this repository. The Model API discovers it as orchestrator_playbook while museSpark.bundledSkills is on; a project or personal skill with that id takes precedence. Muse Code receives it through Muse Spark: Install Bundled Skills for Muse Code, with the existing explicit install/update/remove actions. No installation or model call happens just because the skill ships.
+
+The Muse Code installer copies first-party skills and their references into its marked package beside the vendored workflows. A content digest makes a first-party-only release offer Update. Existing personal ids are skipped; removal deletes only links into the marked copy. The reviewer charter is exposed as bundledSkillsLoader(...)().playbookReviewerCharter() from dist/bundledSkills.js, under its unchanged 50 KiB cap. PLAYBOOK_MODEL_TEXT has that bundle as its sole declared reader. No ordinary conversation or M70 review prefix is changed.
+
+Only an orchestrated playbook review uses this charter: all eight finding classes and coverage, dispositions for every prior finding, and exact prior-id redesign resolutions. Only impossible closes a strike; caught and remains require the user. M116 I must inject the charter loader into its trusted review port and supply structured prior findings; W and runtime/editor owners must bind and certify equivalent charter and packaged-skill discovery for ACP and other editors. This entry does not claim those integrations shipped.
+
 ## Orchestrator playbook: commit verification
 
 Shared policy implemented; editor/planner bindings belong to M116 I/U/W.

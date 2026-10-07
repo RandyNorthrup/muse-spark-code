@@ -745,6 +745,12 @@ const TEXT_BLOCKS = [
     sentinels: ['reviewerRole', 'reviewMuseCodeRole'],
     readers: [REVIEW.output, BUNDLES.modelApi.output],
   },
+  // M116 K's charter is read through the existing lazy skills bundle only.
+  {
+    block: 'PLAYBOOK_MODEL_TEXT',
+    sentinels: ['playbookReviewInstructions'],
+    readers: ['dist/bundledSkills.js'],
+  },
   {
     block: 'REVIEW_COMMENT_MODEL_TEXT',
     sentinels: ['reviewRemovedLine'],
