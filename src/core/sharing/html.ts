@@ -11,7 +11,7 @@ const HTML_ESCAPES: Readonly<Record<string, string>> = {
 }
 
 /** One encoding pass keeps text inert in elements and quoted attributes. */
-function escapeHtml(text: string): string {
+export function escapeHtml(text: string): string {
   return text.replaceAll(/[&<>"']/g, (character) => HTML_ESCAPES[character] ?? character)
 }
 

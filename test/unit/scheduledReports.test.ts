@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { mkdtemp, readdir, rm } from 'node:fs/promises'
+import { realpath, mkdtemp, readdir, rm } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import * as atomic from '../../src/host/fsAtomic'
@@ -176,7 +176,7 @@ describe('scheduled report occurrence runner', () => {
   it.each(['revoked', 'roots removed'])(
     'records refused when the workspace grant is revoked after report staging (%s)',
     async (change) => {
-      const root = await mkdtemp(path.join(os.tmpdir(), 'm113-q-run-save-'))
+      const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm113-q-run-save-')))
       const rig = runnerRig()
       const authorize = vi.spyOn(rig.ports.authority, 'authorize')
       authorize.mockResolvedValue({ allowed: true, roots: [root], network: false, creator: 'user' })
@@ -220,7 +220,7 @@ describe('scheduled report occurrence runner', () => {
   )
   it('binds save effects to the serialized owner generation on local and node storage', async () => {
     for (const storage of ['local', 'node'] as const) {
-      const root = await mkdtemp(path.join(os.tmpdir(), 'report-owner-generation-'))
+      const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'report-owner-generation-')))
       try {
         const rig = runnerRig()
         const assertion = vi.fn(() => {

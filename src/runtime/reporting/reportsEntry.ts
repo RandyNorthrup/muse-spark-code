@@ -1,3 +1,4 @@
+import reportThemes from '../../../design/tokens/generated/report-themes.json'
 import type { UiText } from '../../shared/l10n/en'
 import { EN } from '../../shared/l10n/en'
 import { tableProblems } from '../../shared/l10n/check'
@@ -98,13 +99,7 @@ export function createRuntimeReports(input: RuntimeReportsInput) {
       keepHistory: binding?.keepHistory ?? true,
       locale,
       localePort: { textForLocale: () => table },
-      theme: {
-        background: '#ffffff',
-        foreground: '#1f1f1f',
-        muted: '#404040',
-        border: '#707070',
-        accent: '#005fb8',
-      },
+      theme: reportThemes.light,
       now: input.now,
       redaction: { workspaceRoot: cwd, localRoots: input.roots },
       readSaved: async (file) => {

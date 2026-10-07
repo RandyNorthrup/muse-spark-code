@@ -36,18 +36,13 @@ const snapshotSchema = z.strictObject({
   ),
 })
 
-const themeClasses = [
-  'vscode-light',
-  'vscode-dark',
-  'vscode-high-contrast-light',
-  'vscode-high-contrast',
-]
 const modeClasses = {
   light: 'vscode-light',
   dark: 'vscode-dark',
   'hc-light': 'vscode-high-contrast-light',
   'hc-dark': 'vscode-high-contrast',
 }
+const themeClasses = Object.values(modeClasses)
 
 // Only literal colours cross this internal port: no URLs, variable references
 // or CSS-wide keywords. The browser then checks the actual colour syntax.
@@ -153,25 +148,21 @@ export function mountThemeBridge(
 
   // Subscribe before reading so a change during startup cannot be missed.
   let unsubscribe: (() => void) | undefined
-  try {
-    unsubscribe = port.subscribe(receive)
-    receive(port.current())
-  } catch (error) {
+  const dispose = () => {
+    if (!isActive) return
     isActive = false
     try {
       unsubscribe?.()
     } finally {
       restore()
     }
+  }
+  try {
+    unsubscribe = port.subscribe(receive)
+    receive(port.current())
+  } catch (error) {
+    dispose()
     throw error
   }
-  return () => {
-    if (!isActive) return
-    isActive = false
-    try {
-      unsubscribe()
-    } finally {
-      restore()
-    }
-  }
+  return dispose
 }

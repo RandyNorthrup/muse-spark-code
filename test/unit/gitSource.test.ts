@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { realpath, mkdtemp, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import * as childProcess from 'node:child_process'
@@ -24,7 +24,7 @@ describe('local Git report source', () => {
   let repo: Awaited<ReturnType<typeof buildFixtureRepository>>
   let io: ReportGitIo
   beforeAll(async () => {
-    root = await mkdtemp(path.join(os.tmpdir(), 'm113-git-'))
+    root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm113-git-')))
     repo = await buildFixtureRepository(path.join(root, 'repository'))
     repo.git(['branch', 'm12/s'])
     repo.git(['tag', '-a', 'v0.14.3', '-m', 'Fixture annotated tag'])

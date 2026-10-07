@@ -1,12 +1,10 @@
+import { escapeHtml } from '../../core/sharing/html'
 import { IDE_MCP_TOKEN_BYTES } from '../../shared/constants'
 import { UI_TEXT, uiLocale } from '../../shared/l10n/text'
 
 /** The bearer stays in this page's fetch closure, including after installing the trusted UI. */
 export function launchPage(nonce: string): string {
-  const failure = UI_TEXT.companionLaunchFailed
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
+  const failure = escapeHtml(UI_TEXT.companionLaunchFailed)
   return String.raw`<!doctype html><html lang="${uiLocale()}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${failure}</title></head><body><main><p id="launch-error" role="alert" tabindex="-1" hidden>${failure}</p></main><script nonce="${nonce}">
 (() => {
   const code = new URLSearchParams(location.hash.slice(1)).get('k');

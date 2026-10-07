@@ -56,7 +56,7 @@ export const STATUS_PHRASES: Readonly<Record<string, PlanMilestone['status'] | u
     'built',
   "built and joined on the integration branch `m87/l0` (`feature/m87-panel-polish`); native VS Code Tasks acceptance and hosted CI on the milestone PR's exact head remain open":
     'built',
-  'PR #104, after two independent review rounds and a live recheck; record in `docs/certification/m90.md`':
+  'after two independent review rounds and a live recheck; record in `docs/certification/m90.md`':
     'built',
   'integrated on `feature/m91-hooks-parity`; pull request next, in the 0.14.0 batch': 'built',
   'done on `m91/w-plugins` (`5a2aa619` and its docs commit); it ships with M91 in the 0.14.0 batch, not as a separate pull request':

@@ -1,13 +1,9 @@
+import { escapeHtml } from '../../sharing/html'
 import type { ReportDocument, ReportTheme } from '../../../shared/reportSchema'
 import { printable, type ReportDisplay } from './display'
 
 function escape(text: string): string {
-  return printable(text)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;')
+  return escapeHtml(printable(text))
 }
 
 /** Theme input is data too: only color literals or host color variables enter CSS. */

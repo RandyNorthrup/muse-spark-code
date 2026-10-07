@@ -762,9 +762,12 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
         'src',
         'scripts',
         'vendor',
+        'design',
+        'first-party-skills',
         'native',
         'l10n',
         'docs',
+        'media',
         'test/integration',
         'test/packaging',
       ]) {
@@ -773,6 +776,7 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
       for (const file of [
         'package.json',
         'tsconfig.json',
+        'tsconfig.base.json',
         'LICENSE',
         'CHANGELOG.md',
         'README.md',

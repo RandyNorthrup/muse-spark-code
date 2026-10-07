@@ -2195,7 +2195,8 @@
       "id": "museSpark.shareChat",
       "name": "Share chat…",
       "nameKey": "command.shareChat.title",
-      "category": "",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
       "description": "Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.",
       "text": { "ui": "shareReviewPrivacy" },
       "canRun": false

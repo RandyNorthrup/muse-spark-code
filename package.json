@@ -376,7 +376,8 @@
       },
       {
         "command": "museSpark.shareChat",
-        "title": "%command.shareChat.title%"
+        "title": "%command.shareChat.title%",
+        "category": "%command.category%"
       },
       {
         "command": "museSpark.showReport",

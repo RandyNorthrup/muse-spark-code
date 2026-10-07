@@ -1,3 +1,4 @@
+import reportThemes from '../../../design/tokens/generated/report-themes.json'
 import { homedir } from 'node:os'
 import {
   UI_TEXT,
@@ -436,13 +437,7 @@ export function createReportingEngine(
     ...(context.workspaceRoot !== undefined && { workspaceRoot: context.workspaceRoot }),
     localRoots: [homedir()],
   }
-  const theme = {
-    background: '#ffffff',
-    foreground: '#1f1f1f',
-    muted: '#404040',
-    border: '#707070',
-    accent: '#005fb8',
-  }
+  const theme = reportThemes.light
   return {
     reports: createReportsHost({
       services,

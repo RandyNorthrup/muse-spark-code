@@ -1,8 +1,15 @@
+import { execFileSync } from 'node:child_process'
 import { readFile } from 'node:fs/promises'
 import { beforeAll, beforeEach, expect, it } from 'vitest'
 import { captureMatrix } from '../harness/goldens/capture.mjs'
 import { comparePixels, decodePng } from '../../scripts/lib/visualImages.mjs'
 
+// Build the real browser graph before captures; clean CI provides no dist artifacts.
+beforeAll(() => {
+  execFileSync(process.execPath, ['scripts/build.mjs', '--production', '--webview-only'], {
+    stdio: 'pipe',
+  })
+})
 const frames = new Map()
 const repeated = new Map()
 const inputs = { audit: undefined, matrix: undefined }

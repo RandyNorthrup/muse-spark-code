@@ -1,3 +1,4 @@
+import { UI_TEXT } from '../../src/shared/l10n/text'
 import * as acp from '@agentclientprotocol/sdk'
 import { describe, expect, it, vi } from 'vitest'
 import { createAcpAgent } from '../../src/acp/agent'
@@ -107,6 +108,11 @@ describe('ACP local usage command', () => {
         },
         { name: 'compact', description: 'Summarise older context to free the window', input: null },
         {
+          name: 'report',
+          description: UI_TEXT.reportSlashDescription,
+          input: { hint: '<kind> [args] | history' },
+        },
+        {
           name: 'usage',
           description: 'Show usage and cost across models, or open the usage page.',
           input: null,
@@ -185,6 +191,7 @@ describe('ACP local usage command', () => {
         expect(update.availableCommands.map((item) => item.name)).toEqual([
           'help',
           'compact',
+          'report',
           'usage',
         ])
   })

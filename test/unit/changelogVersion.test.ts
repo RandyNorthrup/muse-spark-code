@@ -24,6 +24,12 @@ const manifestJson: unknown = JSON.parse(
 const manifest = z.object({ version: z.string() }).parse(manifestJson)
 const changelog = readFileSync(new URL('../../CHANGELOG.md', import.meta.url), 'utf8')
 
+const releases = parseChangelog(
+  changelog,
+  contributedIds(manifestJson),
+  repositoryUrl(manifestJson),
+)
+
 describe('CHANGELOG and the manifest version', () => {
   it(`has a dated section for ${manifest.version}`, () => {
     const heading = new RegExp(
@@ -36,11 +42,6 @@ describe('CHANGELOG and the manifest version', () => {
   })
 
   it(`gives ${manifest.version} the Highlights What's New opens with, when it is a minor or major release`, () => {
-    const releases = parseChangelog(
-      changelog,
-      contributedIds(manifestJson),
-      repositoryUrl(manifestJson),
-    )
     expect(highlightsProblem(releases, manifest.version)).toBeUndefined()
   })
 })

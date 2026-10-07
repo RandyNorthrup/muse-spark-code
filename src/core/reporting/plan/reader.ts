@@ -98,7 +98,10 @@ function milestone(
       drift.push({ code: 'status-form', line: row.line, detail: id })
       continue
     }
-    const phrase = compact(match[3]).replace(/\.$/, '')
+    // A PR number is citation metadata, not the reviewed status prose.
+    const phrase = compact(match[3])
+      .replace(/^PR #\d+,\s*/u, '')
+      .replace(/\.$/, '')
     const status = Object.hasOwn(STATUS_PHRASES, phrase) ? STATUS_PHRASES[phrase] : undefined
     if (!status) {
       drift.push({ code: 'status-phrase', line: row.line, detail: `${id}: ${phrase}` })

@@ -43,18 +43,38 @@ full quality and installed-editor/platform certification stay with the lead.
 
 ## 1. Assumptions
 
-| #   | Assumption                                                                                                                                       | Why                                                                                                                                                                                                                                                                                                                                                | Reversal cost                                   |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| A1  | Stack: TypeScript, Node ≥ 22, npm 11, esbuild bundling, React 19 webview.                                                                        | The VS Code extension API is TypeScript-first; esbuild is Microsoft's documented bundler; React is the de-facto webview framework and what the Claude Code extension appears to use.                                                                                                                                                               | Medium (webview components are React-specific). |
-| A2  | Package manager is npm with `package-lock.json`, exact version pins (`save-exact=true`).                                                         | npm 11.19 is installed; pnpm is not. Exact pins make "latest" impossible by accident.                                                                                                                                                                                                                                                              | Trivial.                                        |
-| A3  | Extension is **unofficial** and must say so in its name, README and marketplace listing.                                                         | Meta Model API ToS / AUP forbid implying Meta endorsement; "Muse Code" and "Muse Spark" are Meta trademarks.                                                                                                                                                                                                                                       | None.                                           |
-| A4  | Publisher id `RandyNorthrup` (confirmed 2026-09-22 on marketplace.visualstudio.com/manage: existing publisher, one extension already published). | The marketplace shows the publisher as RandyNorthrup; the URL form is lower-case.                                                                                                                                                                                                                                                                  | None.                                           |
-| A5  | License: MIT.                                                                                                                                    | Standard for VS Code extensions; matches `@muse-code/sdk`.                                                                                                                                                                                                                                                                                         | Trivial before first release.                   |
-| A6  | Settings/command namespace `museSpark.*`, view container id `museSpark`.                                                                         | Mirrors `claudeCode.*` structure users already know.                                                                                                                                                                                                                                                                                               | Low (rename before first release).              |
-| A7  | CI provider: GitHub Actions.                                                                                                                     | `gh` CLI is installed; repo will live on GitHub.                                                                                                                                                                                                                                                                                                   | Low.                                            |
-| A8  | Target VS Code `^1.99.0` (September 2026 stable is 1.138.0; `^1.134.0` until 0.1.1, `^1.125.0` until M62).                                       | Needs only long-stable APIs. M62's audit: the host typechecks against every `@types/vscode` from 1.85 on, and 1.99 is the first release on Node 20.18 and Chromium 132, which the host and webview bundles target. Tested in VSCodium 1.99.3 and code-server 4.99.4 (VS Code 1.99.3), which refused the 1.125 floor (`docs/certification/m62.md`). | Trivial.                                        |
-| A9  | Pre-commit hooks via **husky + lint-staged**, not the Python `pre-commit` tool.                                                                  | `pre-commit` is not installed; a Node project should not require a Python toolchain to commit. gitleaks is invoked directly from the husky hook.                                                                                                                                                                                                   | Low.                                            |
-| A10 | **Fully cross-platform (owner requirement 2026-09-22):** Windows, macOS and Linux are all first-class. Windows is the primary dev machine.       | CI matrix runs the full gate set on ubuntu, windows and macos; every OS-specific path (binary discovery, process spawning, paths, line endings) has a unit test per platform branch. Meta documents the `muse` CLI for macOS and Windows; Linux users fall back to the Model API backend if the CLI is unavailable there (Q6).                     | None.                                           |
+| #   | Assumption                                                                                                                                       |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A1  | Stack: TypeScript, Node ≥ 22, npm 11, esbuild bundling, React 19 webview.                                                                        |
+| A2  | Package manager is npm with `package-lock.json`, exact version pins (`save-exact=true`).                                                         |
+| A3  | Extension is **unofficial** and must say so in its name, README and marketplace listing.                                                         |
+| A4  | Publisher id `RandyNorthrup` (confirmed 2026-09-22 on marketplace.visualstudio.com/manage: existing publisher, one extension already published). |
+| A5  | License: MIT.                                                                                                                                    |
+| A6  | Settings/command namespace `museSpark.*`, view container id `museSpark`.                                                                         |
+| A7  | CI provider: GitHub Actions.                                                                                                                     |
+| A8  | Target VS Code `^1.99.0` (September 2026 stable is 1.138.0; `^1.134.0` until 0.1.1, `^1.125.0` until M62).                                       |
+| A9  | Pre-commit hooks via **husky + lint-staged**, not the Python `pre-commit` tool.                                                                  |
+| A10 | **Fully cross-platform (owner requirement 2026-09-22):** Windows, macOS and Linux are all first-class. Windows is the primary dev machine.       |
+
+**A1 rationale.** The VS Code extension API is TypeScript-first; esbuild is Microsoft's documented bundler; React is the de-facto webview framework and what the Claude Code extension appears to use. Reversal cost: Medium (webview components are React-specific).
+
+**A2 rationale.** npm 11.19 is installed; pnpm is not. Exact pins make "latest" impossible by accident. Reversal cost: Trivial.
+
+**A3 rationale.** Meta Model API ToS / AUP forbid implying Meta endorsement; "Muse Code" and "Muse Spark" are Meta trademarks. Reversal cost: None.
+
+**A4 rationale.** The marketplace shows the publisher as RandyNorthrup; the URL form is lower-case. Reversal cost: None.
+
+**A5 rationale.** Standard for VS Code extensions; matches `@muse-code/sdk`. Reversal cost: Trivial before first release.
+
+**A6 rationale.** Mirrors `claudeCode.*` structure users already know. Reversal cost: Low (rename before first release).
+
+**A7 rationale.** `gh` CLI is installed; repo will live on GitHub. Reversal cost: Low.
+
+**A8 rationale.** Needs only long-stable APIs. M62's audit: the host typechecks against every `@types/vscode` from 1.85 on, and 1.99 is the first release on Node 20.18 and Chromium 132, which the host and webview bundles target. Tested in VSCodium 1.99.3 and code-server 4.99.4 (VS Code 1.99.3), which refused the 1.125 floor (`docs/certification/m62.md`). Reversal cost: Trivial.
+
+**A9 rationale.** `pre-commit` is not installed; a Node project should not require a Python toolchain to commit. gitleaks is invoked directly from the husky hook. Reversal cost: Low.
+
+**A10 rationale.** CI matrix runs the full gate set on ubuntu, windows and macos; every OS-specific path (binary discovery, process spawning, paths, line endings) has a unit test per platform branch. Meta documents the `muse` CLI for macOS and Windows; Linux users fall back to the Model API backend if the CLI is unavailable there (Q6). Reversal cost: None.
 
 ## 2. Resolved decisions
 
@@ -158,40 +178,104 @@ tested on chunk splits inside frames and inside multi-byte characters.
 
 ### D3 — Quality toolchain versions (verified against the npm registry 2026-09-21)
 
-| Package                                                                                              | Pinned                            | Why this version                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ---------------------------------------------------------------------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `typescript`                                                                                         | **6.0.3**                         | Registry latest is 7.0.2, but `typescript-eslint@8.70.1` declares `peerDependencies.typescript: ">=4.8.4 <6.1.0"`. TS 7 installs cleanly and silently disables every type-aware lint rule. 6.0.3 is the highest release inside the supported range.                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `eslint`                                                                                             | 10.11.0                           | `typescript-eslint` accepts `^10.0.0`; `eslint-plugin-unicorn@76` requires `>=10.4`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `typescript-eslint`                                                                                  | 8.70.1                            | Latest; `strictTypeChecked` + `stylisticTypeChecked`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `@eslint/js`                                                                                         | 10.0.1                            | Separate package from eslint; required by the flat config.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `eslint-plugin-unicorn`                                                                              | 76.0.0                            | Latest; needs eslint ≥ 10.4 (satisfied).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `eslint-plugin-react-hooks`                                                                          | 7.1.1                             | Declares eslint `^10.0.0`. `eslint-plugin-react` (7.37.5) and `eslint-plugin-jsx-a11y` (6.10.2) only declare up to eslint `^9`, so they are **not** installed; a11y is covered by manual checks in visual certification and revisited when the plugins add eslint 10 peers.                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `dpdm`                                                                                               | 4.3.0                             | Circular-import gate (`--exit-code circular:1`). `madge` is incompatible with TS 6+. `eslint-plugin-import-x` was considered and dropped: its `no-cycle` rule is known not to fire, and unresolved imports are already a hard `tsc` error (TS2307) in every project here.                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `knip`                                                                                               | 6.37.0                            | Unused files/exports/deps. Config is `knip.jsonc` (knip 6 rejects `"//"` pseudo-comments). Run without `--strict`: strict implies production mode, which needs `!`-suffixed entries and otherwise analyses nothing.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `prettier`                                                                                           | 3.9.9                             | Formatter.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `stylelint` + `stylelint-config-standard`                                                            | 17.15.0 / 40.0.0                  | Webview CSS gate (`--max-warnings=0`).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `vitest` + `@vitest/coverage-v8`                                                                     | 5.0.1                             | Unit tests (node env for extension code, jsdom for webview). Peer `@types/node ^22                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |     | >=24` satisfied. |
-| `jsdom`                                                                                              | 30.1.1                            | Webview component tests.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `@testing-library/react` / `dom` / `jest-dom`                                                        | 16.3.3 / 10.4.2 / 7.0.1           | Component assertions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `@vscode/test-cli` + `@vscode/test-electron` + `mocha` + `@types/mocha`                              | 0.0.15 / 3.1.0 / 12.0.2 / 10.0.10 | Integration tests inside the Extension Development Host. `@vscode/test-electron` is an unlisted peer of test-cli, so knip ignores it explicitly.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `esbuild`                                                                                            | 0.28.2                            | Bundles extension (cjs, node platform) and webview (esm/iife, browser platform).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `@types/vscode`                                                                                      | 1.99.0                            | Matches `engines.vscode` (test/unit/manifest.test.ts enforces the pairing).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `@types/vscode-webview`                                                                              | 1.57.5                            | Types for `acquireVsCodeApi()` inside the webview.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| `@types/node`                                                                                        | 22.20.4                           | Extension host on VS Code 1.138 is Electron 42 (Node ≥ 22). Typing against 22 keeps code portable to older hosts.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `@vscode/vsce`                                                                                       | 4.0.0                             | Packaging. Needs Node ≥ 22.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `react` / `react-dom` / `@types/react` / `@types/react-dom`                                          | 19.3.0                            | Webview UI.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `zod`                                                                                                | 4.6.5                             | Runtime validation of every webview ⇄ extension message and every HTTP/MSP boundary.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `@muse-code/sdk`                                                                                     | 1.3.0                             | Official MSP client. Developer Preview: "minor releases may alter APIs before 1.0" → exact pin, adapter isolated in one module, schema fingerprint checked at handshake. Installed with a one-off `--min-release-age=0` on 2026-09-22 (published 2026-09-18, inside the 7-day window); the lockfile pins it so `npm ci` is unaffected. Only its `Connection`/`spawnMspConnection` surface is used; `Connection.onNotification` holds a single handler, so the facade (`MuseClient`) is not composed.                                                                                                                                                                          |
-| `husky` / `lint-staged`                                                                              | 9.1.7 / 17.5.1                    | Pre-commit gates.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `jscpd`                                                                                              | 5.3.1                             | Copy-paste detection.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `npm-run-all2`                                                                                       | 9.0.3                             | Runs gate scripts in sequence/parallel.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `rimraf`                                                                                             | 6.1.3                             | Cross-platform clean.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `axe-core`                                                                                           | 4.13.0                            | The accessibility gate (M37, D32): WCAG 2.0 to 2.2, levels A and AA, run inside the harness page. MPL-2.0; a dev dependency, never bundled.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| `parse5`                                                                                             | 8.0.1                             | M69 (D49): web fetch parses a page with the HTML standard's own parsing algorithm (the implementation jsdom uses), after four review rounds found a hand-written tokenizer short of it. MIT; one dependency, `entities` ^8 (BSD-2-Clause, 8.1.0 locked, formerly our direct dependency); no peers; published 2026-04-19; already in the lockfile through jsdom and @vscode/vsce; `npm audit` clean. Quadratic on hostile nesting (40,000 nested lists in 73 s), so it runs only in `dist/pageWorker.js`, a worker per page (at most two at once) stopped at 10 s or 512 MiB (D6). `entities` 8 says Node ≥ 20.19 for `require(esm)`; bundled, the worker ran on Node 20.18.3. |
-| `html-encoding-sniffer`                                                                              | 7.0.0                             | PR #60: retain HTML BOM/header certainty and tentative meta/XML prescan when upgrading M69's decoder. MIT; no peers; one dependency, `@exodus/bytes` ^1.15.1 (existing 1.15.2 lock unchanged; its optional hash peer is not used by `encoding-lite`); canonical security:audit exits 0, with one later low advisory in existing dev-only serialize-javascript recorded separately. v7 declares Node ^22.13 or >=24; installed on supported tooling Node with no engine bypass, bundled only into `dist/pageWorker.js`. Proved bundled on VS Code 1.99.0 (Node 20.18.3), integration `minimum`. Ships no types: `src/core/web/html-encoding-sniffer.d.ts`.                     |
-| `playwright-core`                                                                                    | 1.63.0                            | The host checks' browser driver (hosts.yml, M62): code-server, Theia and JupyterLab driven in Chrome. Apache-2.0; a dev dependency, never bundled; it uses the installed Chrome, never downloads one.                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `mdast-util-from-markdown` / `micromark-extension-gfm` / `mdast-util-gfm` / `mdast-util-to-markdown` | 2.0.3 / 3.0.0 / 3.1.0 / 2.1.2     | M79: the host reads a plan with the panel's own Markdown grammar (what react-markdown 10.1.0 and remark-gfm 4.0.1 resolve to; no peers; 0 advisories). Its own lazily loaded bundle, `dist/planMarkdown.js` (139.0 KiB with the brief writer, `character-entities` among it), so `dist/extension.js` carries none of it (464.8 KiB after merging `main`, D6).                                                                                                                                                                                                                                                                                                                 |
-| `smol-toml`                                                                                          | 1.8.0                             | Codex `config.toml` for the import from other agents (M83): a TOML 1.0 parser with no dependencies, BSD-3-Clause, bundled only in the lazily loaded `dist/agentImport.js`. No peer dependencies; `npm audit` clean; 1.9.0 was inside the seven-day release window, and 1.8.0 was already in the lockfile through knip. A hand-written subset (the first draft) misread sub-tables such as `[mcp_servers.x.env]` and multi-line arrays, both in real Codex files.                                                                                                                                                                                                              |
+| Package                                                                                              | Pinned                            |
+| ---------------------------------------------------------------------------------------------------- | --------------------------------- |
+| `typescript`                                                                                         | **6.0.3**                         |
+| `eslint`                                                                                             | 10.11.0                           |
+| `typescript-eslint`                                                                                  | 8.70.1                            |
+| `@eslint/js`                                                                                         | 10.0.1                            |
+| `eslint-plugin-unicorn`                                                                              | 76.0.0                            |
+| `eslint-plugin-react-hooks`                                                                          | 7.1.1                             |
+| `dpdm`                                                                                               | 4.3.0                             |
+| `knip`                                                                                               | 6.37.0                            |
+| `prettier`                                                                                           | 3.9.9                             |
+| `stylelint` + `stylelint-config-standard`                                                            | 17.15.0 / 40.0.0                  |
+| `vitest` + `@vitest/coverage-v8`                                                                     | 5.0.1                             |
+| `jsdom`                                                                                              | 30.1.1                            |
+| `@testing-library/react` / `dom` / `jest-dom`                                                        | 16.3.3 / 10.4.2 / 7.0.1           |
+| `@vscode/test-cli` + `@vscode/test-electron` + `mocha` + `@types/mocha`                              | 0.0.15 / 3.1.0 / 12.0.2 / 10.0.10 |
+| `esbuild`                                                                                            | 0.28.2                            |
+| `@types/vscode`                                                                                      | 1.99.0                            |
+| `@types/vscode-webview`                                                                              | 1.57.5                            |
+| `@types/node`                                                                                        | 22.20.4                           |
+| `@vscode/vsce`                                                                                       | 4.0.0                             |
+| `react` / `react-dom` / `@types/react` / `@types/react-dom`                                          | 19.3.0                            |
+| `zod`                                                                                                | 4.6.5                             |
+| `@muse-code/sdk`                                                                                     | 1.3.0                             |
+| `husky` / `lint-staged`                                                                              | 9.1.7 / 17.5.1                    |
+| `jscpd`                                                                                              | 5.3.1                             |
+| `npm-run-all2`                                                                                       | 9.0.3                             |
+| `rimraf`                                                                                             | 6.1.3                             |
+| `axe-core`                                                                                           | 4.13.0                            |
+| `parse5`                                                                                             | 8.0.1                             |
+| `html-encoding-sniffer`                                                                              | 7.0.0                             |
+| `playwright-core`                                                                                    | 1.63.0                            |
+| `mdast-util-from-markdown` / `micromark-extension-gfm` / `mdast-util-gfm` / `mdast-util-to-markdown` | 2.0.3 / 3.0.0 / 3.1.0 / 2.1.2     |
+| `smol-toml`                                                                                          | 1.8.0                             |
+
+**`typescript`** — Registry latest is 7.0.2, but `typescript-eslint@8.70.1` declares `peerDependencies.typescript: ">=4.8.4 <6.1.0"`. TS 7 installs cleanly and silently disables every type-aware lint rule. 6.0.3 is the highest release inside the supported range.
+
+**`eslint`** — `typescript-eslint` accepts `^10.0.0`; `eslint-plugin-unicorn@76` requires `>=10.4`.
+
+**`typescript-eslint`** — Latest; `strictTypeChecked` + `stylisticTypeChecked`.
+
+**`@eslint/js`** — Separate package from eslint; required by the flat config.
+
+**`eslint-plugin-unicorn`** — Latest; needs eslint ≥ 10.4 (satisfied).
+
+**`eslint-plugin-react-hooks`** — Declares eslint `^10.0.0`. `eslint-plugin-react` (7.37.5) and `eslint-plugin-jsx-a11y` (6.10.2) only declare up to eslint `^9`, so they are **not** installed; a11y is covered by manual checks in visual certification and revisited when the plugins add eslint 10 peers.
+
+**`dpdm`** — Circular-import gate (`--exit-code circular:1`). `madge` is incompatible with TS 6+. `eslint-plugin-import-x` was considered and dropped: its `no-cycle` rule is known not to fire, and unresolved imports are already a hard `tsc` error (TS2307) in every project here.
+
+**`knip`** — Unused files/exports/deps. Config is `knip.jsonc` (knip 6 rejects `"//"` pseudo-comments). Run without `--strict`: strict implies production mode, which needs `!`-suffixed entries and otherwise analyses nothing.
+
+**`prettier`** — Formatter.
+
+**`stylelint` + `stylelint-config-standard`** — Webview CSS gate (`--max-warnings=0`).
+
+**`vitest` + `@vitest/coverage-v8`** — Unit tests (node env for extension code, jsdom for webview). Peer `@types/node ^22                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |     | >=24` satisfied.
+
+**`jsdom`** — Webview component tests.
+
+**`@testing-library/react` / `dom` / `jest-dom`** — Component assertions.
+
+**`@vscode/test-cli` + `@vscode/test-electron` + `mocha` + `@types/mocha`** — Integration tests inside the Extension Development Host. `@vscode/test-electron` is an unlisted peer of test-cli, so knip ignores it explicitly.
+
+**`esbuild`** — Bundles extension (cjs, node platform) and webview (esm/iife, browser platform).
+
+**`@types/vscode`** — Matches `engines.vscode` (test/unit/manifest.test.ts enforces the pairing).
+
+**`@types/vscode-webview`** — Types for `acquireVsCodeApi()` inside the webview.
+
+**`@types/node`** — Extension host on VS Code 1.138 is Electron 42 (Node ≥ 22). Typing against 22 keeps code portable to older hosts.
+
+**`@vscode/vsce`** — Packaging. Needs Node ≥ 22.
+
+**`react` / `react-dom` / `@types/react` / `@types/react-dom`** — Webview UI.
+
+**`zod`** — Runtime validation of every webview ⇄ extension message and every HTTP/MSP boundary.
+
+**`@muse-code/sdk`** — Official MSP client. Developer Preview: "minor releases may alter APIs before 1.0" → exact pin, adapter isolated in one module, schema fingerprint checked at handshake. Installed with a one-off `--min-release-age=0` on 2026-09-22 (published 2026-09-18, inside the 7-day window); the lockfile pins it so `npm ci` is unaffected. Only its `Connection`/`spawnMspConnection` surface is used; `Connection.onNotification` holds a single handler, so the facade (`MuseClient`) is not composed.
+
+**`husky` / `lint-staged`** — Pre-commit gates.
+
+**`jscpd`** — Copy-paste detection.
+
+**`npm-run-all2`** — Runs gate scripts in sequence/parallel.
+
+**`rimraf`** — Cross-platform clean.
+
+**`axe-core`** — The accessibility gate (M37, D32): WCAG 2.0 to 2.2, levels A and AA, run inside the harness page. MPL-2.0; a dev dependency, never bundled.
+
+**`parse5`** — M69 (D49): web fetch parses a page with the HTML standard's own parsing algorithm (the implementation jsdom uses), after four review rounds found a hand-written tokenizer short of it. MIT; one dependency, `entities` ^8 (BSD-2-Clause, 8.1.0 locked, formerly our direct dependency); no peers; published 2026-04-19; already in the lockfile through jsdom and @vscode/vsce; `npm audit` clean. Quadratic on hostile nesting (40,000 nested lists in 73 s), so it runs only in `dist/pageWorker.js`, a worker per page (at most two at once) stopped at 10 s or 512 MiB (D6). `entities` 8 says Node ≥ 20.19 for `require(esm)`; bundled, the worker ran on Node 20.18.3.
+
+**`html-encoding-sniffer`** — PR #60: retain HTML BOM/header certainty and tentative meta/XML prescan when upgrading M69's decoder. MIT; no peers; one dependency, `@exodus/bytes` ^1.15.1 (existing 1.15.2 lock unchanged; its optional hash peer is not used by `encoding-lite`); canonical security:audit exits 0, with one later low advisory in existing dev-only serialize-javascript recorded separately. v7 declares Node ^22.13 or >=24; installed on supported tooling Node with no engine bypass, bundled only into `dist/pageWorker.js`. Proved bundled on VS Code 1.99.0 (Node 20.18.3), integration `minimum`. Ships no types: `src/core/web/html-encoding-sniffer.d.ts`.
+
+**`playwright-core`** — The host checks' browser driver (hosts.yml, M62): code-server, Theia and JupyterLab driven in Chrome. Apache-2.0; a dev dependency, never bundled; it uses the installed Chrome, never downloads one.
+
+**`mdast-util-from-markdown` / `micromark-extension-gfm` / `mdast-util-gfm` / `mdast-util-to-markdown`** — M79: the host reads a plan with the panel's own Markdown grammar (what react-markdown 10.1.0 and remark-gfm 4.0.1 resolve to; no peers; 0 advisories). Its own lazily loaded bundle, `dist/planMarkdown.js` (139.0 KiB with the brief writer, `character-entities` among it), so `dist/extension.js` carries none of it (464.8 KiB after merging `main`, D6).
+
+**`smol-toml`** — Codex `config.toml` for the import from other agents (M83): a TOML 1.0 parser with no dependencies, BSD-3-Clause, bundled only in the lazily loaded `dist/agentImport.js`. No peer dependencies; `npm audit` clean; 1.9.0 was inside the seven-day release window, and 1.8.0 was already in the lockfile through knip. A hand-written subset (the first draft) misread sub-tables such as `[mcp_servers.x.env]` and multi-line arrays, both in real Codex files.
 
 M96INT3C audit update (2026-10-05): pin the existing development-only
 `source-map-js` leaf to 1.2.2 for GHSA-68fv-2mgg-jv7q. Registry metadata
@@ -395,93 +479,137 @@ stay unchanged; package/member and drill receipts are in
 `docs/certification/vsix-diet-2.md`. This is shared Node packaging for VS Code
 hosts and ACP/headless editors; browser fallback and editor features are unchanged.
 
-| Artifact                                                                            | Budget (minified, uncompressed)                                                                                                                                                                                   |
-| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dist/extension.js`                                                                 | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                       |
-| `dist/modelApi.js`                                                                  | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)                                                                                         |
-| `dist/providers.js`                                                                 | ≤ 150 KiB (TRAIN15E: 128.4 KiB +15%, rounded up to 25 KiB)                                                                                                                                                        |
-| `dist/modelsPanel.js`                                                               | ≤ 125 KiB (TRAIN15E: 90.3 KiB +15%, rounded up to 25 KiB)                                                                                                                                                         |
-| `dist/webview/models.js`                                                            | ≤ 500 KiB (TRAIN15E: 424.9 KiB including static imports +15%, rounded up to 25 KiB)                                                                                                                               |
-| `dist/review.js`                                                                    | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                   |
-| `dist/searchWorker.js`                                                              | ≤ 50 KiB                                                                                                                                                                                                          |
-| `dist/pageWorker.js`                                                                | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                        |
-| `dist/webview/main.js`                                                              | ≤ 900 KiB including React, the markdown renderer, highlight.js and every static startup chunk                                                                                                                     |
-| `.vsix`                                                                             | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job) |
-| `dist/acp.js`                                                                       | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                 |
-| `dist/planMarkdown.js`                                                              | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                   |
-| `dist/checkpointStore.js`                                                           | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                              |
-| `dist/uiText.js`                                                                    | ≤ 125 KiB (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)       |
-| `dist/validation.js`                                                                | ≤ 50 KiB (M95INT2: shared used Node mini-parser API, initially 39.5 KiB + 15%, rounded up to 25 KiB)                                                                                                              |
-| Deferred Account & usage chunk                                                      | ≤ 25 KiB (M95INT2: 12.6 KiB + 15%, rounded up to 25 KiB; startup still counts its shared static chunks)                                                                                                           |
-| `dist/sessionBoard.js`                                                              | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                   |
-| `dist/reviewer.js`                                                                  | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                 |
-| `dist/agentImport.js`                                                               | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                                                                            |
-| `dist/bundledSkills.js`                                                             | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                        |
-| `dist/codeIntel.js`                                                                 | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                             |
-| `dist/voice.js`                                                                     | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                               |
-| `dist/museCodeReviewer.js`                                                          | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                             |
-| **VSIXDIET2 (2026-10-05).** Package staging solid-compresses the existing           |
-| language-major translation matrix and all three lazy English regions at Brotli      |
-| quality 11; a separate solid archive holds exact lazy CommonJS sources so           |
-| translation damage never disables a backend. Node's built-in                        |
-| decoder retains the existing 14-MiB archive bound; only requested locale            |
-| tables, English regions and modules are installed/compiled. SHA-256 guards          |
-| every executable/English member; CommonJS compilation retains its original          |
-| filename and relative imports. Inert static export declarations preserve            |
-| native `import()` discovery; the reader stays on the private cached Module,         |
-| so public `import()`/`require()` exports remain exact. Both packaging jobs          |
-| check every Node module against the unpacked build; ACP checks the actual           |
-| tarball. English regions keep independent inline                                    |
-| fallbacks, so missing/corrupt translation archives preserve today's English         |
-| behavior. Activation, recorder, shared parsers and ACP entry remain ordinary        |
-| CommonJS; compressed regional key lists offset the eager reader's bytes.            |
-| Both packages check exact staged translations against source JSON. Manifest         |
-| tables, licences/notices, helpers and browser chunks remain ordinary files.         |
-| Lossless PNG filtering preserves every walkthrough pixel. All existing caps         |
-| stay unchanged; package/member and drill receipts are in                            |
-| `docs/certification/vsix-diet-2.md`. This is shared Node packaging for VS Code      |
-| hosts and ACP/headless editors; browser fallback and editor features are unchanged. |
-| **VSIXDIET2 (2026-10-05).** Package staging solid-compresses the existing           |
-| language-major translation matrix and all three lazy English regions at Brotli      |
-| quality 11; a separate solid archive holds exact lazy CommonJS sources so           |
-| translation damage never disables a backend. Node's built-in                        |
-| decoder retains the existing 14-MiB archive bound; only requested locale            |
-| tables, English regions and modules are installed/compiled. SHA-256 guards          |
-| every executable/English member; CommonJS compilation retains its original          |
-| filename and relative imports. Inert static export declarations preserve            |
-| native `import()` discovery; the reader stays on the private cached Module,         |
-| so public `import()`/`require()` exports remain exact. Both packaging jobs          |
-| check every Node module against the unpacked build; ACP checks the actual           |
-| tarball. English regions keep independent inline                                    |
-| fallbacks, so missing/corrupt translation archives preserve today's English         |
-| behavior. Activation, recorder, shared parsers and ACP entry remain ordinary        |
-| CommonJS; compressed regional key lists offset the eager reader's bytes.            |
-| Both packages check exact staged translations against source JSON. Manifest         |
-| tables, licences/notices, helpers and browser chunks remain ordinary files.         |
-| Lossless PNG filtering preserves every walkthrough pixel. All existing caps         |
-| stay unchanged; package/member and drill receipts are in                            |
-| `docs/certification/vsix-diet-2.md`. This is shared Node packaging for VS Code      |
-| hosts and ACP/headless editors; browser fallback and editor features are unchanged. |
-| **DIET1 (2026-10-06, main `e56b795a`).** The production baseline is                 |
-| 813,180 B (794.1 KiB) for chat startup and 51,157 B (49.96 KiB) for the original    |
-| deferred aggregate. After DIET1, startup is 751,392 B (733.8 KiB), down             |
-| 61,788 B (60.3 KiB), and the original deferred aggregate is 32,875 B                |
-| (32.1 KiB). Optional sign-in, goal/schedule panels, palette/popover and             |
-| radial menus now load on use. Account & usage and Agent map retain their public     |
-| entrypoints and load independently budgeted content chunks. Each new surface        |
-| has a 25 KiB physical and import-closure cap: measured size plus 15%, rounded       |
-| up to 25 KiB. Legacy/shared/unclassified deferred bytes keep their original         |
-| 50 KiB cap, and startup keeps 900 KiB. The complete browser English fallback        |
-| stays inline, encoded losslessly as DEFLATE/base85 and decoded by the native        |
-| DecompressionStream before dependent ESM modules run; Node and integration          |
-| fallbacks and all table checks remain unchanged. FIXDIET1 replaces dynamic-root     |
-| query retries with the existing host document rebuild after a synchronous state     |
-| flush: the browser refetches failed static dependencies too. React.lazy caches      |
-| successes and shared static dependencies retain canonical URLs.                     |
-| All editor shells use the shared CSP/asset-origin path. Receipts and final          |
-| before/after sizes: `docs/certification/diet1.md`. FIXDIET1 holds startup           |
-| at 750,942 B (733.3 KiB) and the original deferred group at 32,835 B                |
-| (32.1 KiB), within the review baseline targets.                                     |
+| Artifact                                                                            | Budget (minified, uncompressed) |
+| ----------------------------------------------------------------------------------- | ------------------------------- |
+| `dist/extension.js`                                                                 | ≤ 600 KiB                       |
+| `dist/modelApi.js`                                                                  | ≤ 475 KiB                       |
+| `dist/providers.js`                                                                 | ≤ 150 KiB                       |
+| `dist/modelsPanel.js`                                                               | ≤ 125 KiB                       |
+| `dist/webview/models.js`                                                            | ≤ 500 KiB                       |
+| `dist/review.js`                                                                    | ≤ 50 KiB                        |
+| `dist/searchWorker.js`                                                              | ≤ 50 KiB                        |
+| `dist/pageWorker.js`                                                                | ≤ 300 KiB                       |
+| `dist/webview/main.js`                                                              | ≤ 900 KiB                       |
+| `.vsix`                                                                             | ≤ 2200 KiB                      |
+| `dist/acp.js`                                                                       | ≤ 850 KiB                       |
+| `dist/planMarkdown.js`                                                              | ≤ 150 KiB                       |
+| `dist/checkpointStore.js`                                                           | ≤ 225 KiB                       |
+| `dist/uiText.js`                                                                    | ≤ 125 KiB                       |
+| `dist/validation.js`                                                                | ≤ 50 KiB                        |
+| Deferred Account & usage chunk                                                      | ≤ 25 KiB                        |
+| `dist/sessionBoard.js`                                                              | ≤ 75 KiB                        |
+| `dist/reviewer.js`                                                                  | ≤ 75 KiB                        |
+| `dist/agentImport.js`                                                               | ≤ 125 KiB                       |
+| `dist/bundledSkills.js`                                                             | ≤ 50 KiB                        |
+| `dist/codeIntel.js`                                                                 | ≤ 100 KiB                       |
+| `dist/voice.js`                                                                     | ≤ 50 KiB                        |
+| `dist/museCodeReviewer.js`                                                          | ≤ 75 KiB                        |
+| **VSIXDIET2 (2026-10-05).** Package staging solid-compresses the existing           |                                 |
+| language-major translation matrix and all three lazy English regions at Brotli      |                                 |
+| quality 11; a separate solid archive holds exact lazy CommonJS sources so           |                                 |
+| translation damage never disables a backend. Node's built-in                        |                                 |
+| decoder retains the existing 14-MiB archive bound; only requested locale            |                                 |
+| tables, English regions and modules are installed/compiled. SHA-256 guards          |                                 |
+| every executable/English member; CommonJS compilation retains its original          |                                 |
+| filename and relative imports. Inert static export declarations preserve            |                                 |
+| native `import()` discovery; the reader stays on the private cached Module,         |                                 |
+| so public `import()`/`require()` exports remain exact. Both packaging jobs          |                                 |
+| check every Node module against the unpacked build; ACP checks the actual           |                                 |
+| tarball. English regions keep independent inline                                    |                                 |
+| fallbacks, so missing/corrupt translation archives preserve today's English         |                                 |
+| behavior. Activation, recorder, shared parsers and ACP entry remain ordinary        |                                 |
+| CommonJS; compressed regional key lists offset the eager reader's bytes.            |                                 |
+| Both packages check exact staged translations against source JSON. Manifest         |                                 |
+| tables, licences/notices, helpers and browser chunks remain ordinary files.         |                                 |
+| Lossless PNG filtering preserves every walkthrough pixel. All existing caps         |                                 |
+| stay unchanged; package/member and drill receipts are in                            |                                 |
+| `docs/certification/vsix-diet-2.md`. This is shared Node packaging for VS Code      |                                 |
+| hosts and ACP/headless editors; browser fallback and editor features are unchanged. |                                 |
+| **VSIXDIET2 (2026-10-05).** Package staging solid-compresses the existing           |                                 |
+| language-major translation matrix and all three lazy English regions at Brotli      |                                 |
+| quality 11; a separate solid archive holds exact lazy CommonJS sources so           |                                 |
+| translation damage never disables a backend. Node's built-in                        |                                 |
+| decoder retains the existing 14-MiB archive bound; only requested locale            |                                 |
+| tables, English regions and modules are installed/compiled. SHA-256 guards          |                                 |
+| every executable/English member; CommonJS compilation retains its original          |                                 |
+| filename and relative imports. Inert static export declarations preserve            |                                 |
+| native `import()` discovery; the reader stays on the private cached Module,         |                                 |
+| so public `import()`/`require()` exports remain exact. Both packaging jobs          |                                 |
+| check every Node module against the unpacked build; ACP checks the actual           |                                 |
+| tarball. English regions keep independent inline                                    |                                 |
+| fallbacks, so missing/corrupt translation archives preserve today's English         |                                 |
+| behavior. Activation, recorder, shared parsers and ACP entry remain ordinary        |                                 |
+| CommonJS; compressed regional key lists offset the eager reader's bytes.            |                                 |
+| Both packages check exact staged translations against source JSON. Manifest         |                                 |
+| tables, licences/notices, helpers and browser chunks remain ordinary files.         |                                 |
+| Lossless PNG filtering preserves every walkthrough pixel. All existing caps         |                                 |
+| stay unchanged; package/member and drill receipts are in                            |                                 |
+| `docs/certification/vsix-diet-2.md`. This is shared Node packaging for VS Code      |                                 |
+| hosts and ACP/headless editors; browser fallback and editor features are unchanged. |                                 |
+| **DIET1 (2026-10-06, main `e56b795a`).** The production baseline is                 |                                 |
+| 813,180 B (794.1 KiB) for chat startup and 51,157 B (49.96 KiB) for the original    |                                 |
+| deferred aggregate. After DIET1, startup is 751,392 B (733.8 KiB), down             |                                 |
+| 61,788 B (60.3 KiB), and the original deferred aggregate is 32,875 B                |                                 |
+| (32.1 KiB). Optional sign-in, goal/schedule panels, palette/popover and             |                                 |
+| radial menus now load on use. Account & usage and Agent map retain their public     |                                 |
+| entrypoints and load independently budgeted content chunks. Each new surface        |                                 |
+| has a 25 KiB physical and import-closure cap: measured size plus 15%, rounded       |                                 |
+| up to 25 KiB. Legacy/shared/unclassified deferred bytes keep their original         |                                 |
+| 50 KiB cap, and startup keeps 900 KiB. The complete browser English fallback        |                                 |
+| stays inline, encoded losslessly as DEFLATE/base85 and decoded by the native        |                                 |
+| DecompressionStream before dependent ESM modules run; Node and integration          |                                 |
+| fallbacks and all table checks remain unchanged. FIXDIET1 replaces dynamic-root     |                                 |
+| query retries with the existing host document rebuild after a synchronous state     |                                 |
+| flush: the browser refetches failed static dependencies too. React.lazy caches      |                                 |
+| successes and shared static dependencies retain canonical URLs.                     |                                 |
+| All editor shells use the shared CSP/asset-origin path. Receipts and final          |                                 |
+| before/after sizes: `docs/certification/diet1.md`. FIXDIET1 holds startup           |                                 |
+| at 750,942 B (733.3 KiB) and the original deferred group at 32,835 B                |                                 |
+| (32.1 KiB), within the review baseline targets.                                     |                                 |
+
+**`dist/extension.js` budget rationale.** (the M7 Model API client fit without raising it; the activation bundle since M57)
+
+**`dist/modelApi.js` budget rationale.** (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)
+
+**`dist/providers.js` budget rationale.** (TRAIN15E: 128.4 KiB +15%, rounded up to 25 KiB)
+
+**`dist/modelsPanel.js` budget rationale.** (TRAIN15E: 90.3 KiB +15%, rounded up to 25 KiB)
+
+**`dist/webview/models.js` budget rationale.** (TRAIN15E: 424.9 KiB including static imports +15%, rounded up to 25 KiB)
+
+**`dist/review.js` budget rationale.** (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)
+
+**`dist/pageWorker.js` budget rationale.** (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)
+
+**`dist/webview/main.js` budget rationale.** including React, the markdown renderer, highlight.js and every static startup chunk
+
+**`.vsix` budget rationale.** compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job)
+
+**`dist/acp.js` budget rationale.** (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)
+
+**`dist/planMarkdown.js` budget rationale.** (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)
+
+**`dist/checkpointStore.js` budget rationale.** (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/uiText.js` budget rationale.** (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)
+
+**`dist/validation.js` budget rationale.** (M95INT2: shared used Node mini-parser API, initially 39.5 KiB + 15%, rounded up to 25 KiB)
+
+**Deferred Account & usage chunk budget rationale.** (M95INT2: 12.6 KiB + 15%, rounded up to 25 KiB; startup still counts its shared static chunks)
+
+**`dist/sessionBoard.js` budget rationale.** (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/reviewer.js` budget rationale.** (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/agentImport.js` budget rationale.** (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)
+
+**`dist/bundledSkills.js` budget rationale.** (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)
+
+**`dist/codeIntel.js` budget rationale.** (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/voice.js` budget rationale.** (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/museCodeReviewer.js` budget rationale.** (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)
 
 **REL0143M (2026-10-06).** Questions retain their eager arrival and draft
 context while controls and MCP form fields use the shared local retry boundary.
@@ -508,54 +636,144 @@ unchanged. Verify exact
 round-trip values, loading/retry/localization and client dispatch, drill these
 properties, and retain all existing caps. No new artifact or dependency.
 
-| Artifact                              | Budget (minified, uncompressed)                                                                                                                                                                                                                                                                                                                                                                        |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `dist/conversation.js`                | ≤ 250 KiB (ACTDIET: first chat surface, 216.0 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                                                         |
-| `dist/tab.js`                         | ≤ 75 KiB (M94: first request/menu; status/provider registration stays eager)                                                                                                                                                                                                                                                                                                                           |
-| `dist/extension.js`                   | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                                                                                                                                                                                                            |
-| `dist/modelApi.js`                    | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b; M91 brought it to 486.1 KiB, and moving the hook and MCP-form runtime and the imported records' reader out took it to 463.7 KiB, 466.8 KiB on 0.13.0, 2026-10-05: the cap held)                                                                                              |
-| `dist/modelApiBoundaries.js`          | ≤ 25 KiB (TRAIN15C: captured Model API validators and pure team admission; first shared build 16,991 bytes +15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                 |
-| `dist/team.js`                        | ≤ 75 KiB (M96 integration: first team action; original 44.6 KiB measured +15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                   |
-| `dist/teamRunners.js`                 | ≤ 75 KiB (M96c: first runner action; original 44.6 KiB measured by the same rule)                                                                                                                                                                                                                                                                                                                      |
-| `dist/teamScheduler.js`               | ≤ 75 KiB (M96c: first scheduler action; original 57.8 KiB measured by the same rule)                                                                                                                                                                                                                                                                                                                   |
-| `dist/review.js`                      | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                                                                                                                                                                                                        |
-| `dist/searchWorker.js`                | ≤ 50 KiB                                                                                                                                                                                                                                                                                                                                                                                               |
-| `dist/pageWorker.js`                  | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                                                                                                                                                                                                             |
-| `dist/webview/main.js`                | ≤ 900 KiB including React, Markdown and highlighting; all transitively eager ESM chunks count                                                                                                                                                                                                                                                                                                          |
-| Webview original deferred surfaces    | ≤ 50 KiB aggregate for the original seven surfaces and unclassified/shared deferred helpers (TRAIN13B; unchanged in STARTDIET)                                                                                                                                                                                                                                                                         |
-| Webview provider-usage import closure | ≤ 25 KiB (TRAIN15C: provider tallies only for a nonempty report; 1,683 bytes measured + 15%, rounded up to 25 KiB; original 50 KiB cap unchanged)                                                                                                                                                                                                                                                      |
-| Webview paid usage import closure     | ≤ 25 KiB (TRAIN15C: nonempty paid-feature usage section, including team workers; first split 4,018 bytes +15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                   |
-| Webview highlighting import closure   | ≤ 125 KiB (STARTDIET: HighlightedCode.tsx, engine and eighteen grammars; 93.1 KiB plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                         |
-| Webview action-dialog import closures | ≤ 25 KiB aggregate (STARTDIET: ShareView, SessionBoardDialog, HandoffDialog, SecretPromptDialog; first split 11.2 KiB by the same rule)                                                                                                                                                                                                                                                                |
-| Webview question UI import closure    | ≤ 25 KiB (FIXM112U: first question; 10.8 KiB +15%, rounded up to 25 KiB; separate from the unchanged unclassified deferred group)                                                                                                                                                                                                                                                                      |
-| Webview Tasks import closure          | ≤ 25 KiB (STARTDIET: TasksApp.tsx and its boundary; first split 1.4 KiB by the same rule)                                                                                                                                                                                                                                                                                                              |
-| Webview team UI import closure        | ≤ 25 KiB (M96: exclusive deferred TeamUi closure, 16,132 bytes in the composed graph; existing incoming cap)                                                                                                                                                                                                                                                                                           |
-| `.vsix`                               | ≤ 2775 KiB compressed (TRAIN15G lead decision, 2026-10-06: universal 2,688,776 bytes +5%, rounded up to 25 KiB = 2,841,600 bytes; “0.15.0 ships M95 providers, M96 teams, M101 compaction and M102 usage; caps for every individual bundle are unchanged”; `check-vsix-size.mjs` in the package job)                                                                                                   |
-| `dist/acp.js`                         | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                                                                                                                      |
-| `dist/planMarkdown.js`                | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                                                                                                                        |
-| `dist/checkpointStore.js`             | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                   |
-| `dist/uiText.js`                      | ≤ 125 KiB (original cap retained; ACTDIET regional core 116,791 bytes)                                                                                                                                                                                                                                                                                                                                 |
-| `dist/wire.js`                        | ≤ 50 KiB (TRAIN14B: shared existing Node protocol and agent-event schemas; 41,370 bytes plus 15%, rounded to 25 KiB; browser and integration parsers stay inline)                                                                                                                                                                                                                                      |
-| `dist/uiTextRuntime.js`               | ≤ 25 KiB (ACTDIET: ACP/headless English, 8,338 bytes plus 15%, rounded to 25 KiB)                                                                                                                                                                                                                                                                                                                      |
-| `dist/uiTextHooks.js`                 | ≤ 25 KiB (ACTDIET: hooks/import English, 12,176 bytes by the same rule)                                                                                                                                                                                                                                                                                                                                |
-| `dist/uiTextSurfaces.js`              | ≤ 25 KiB (ACTDIET: Tab/report/What's New English, 5,893 bytes by the same rule)                                                                                                                                                                                                                                                                                                                        |
-| `dist/sessionBoard.js`                | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                        |
-| `dist/reviewer.js`                    | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                                                      |
-| `dist/foreignHooks.js`                | ≤ 100 KiB (M91 lane W: the adapters for hooks imported from other agents, lane P's contracts and engine, loaded the first time a session holding one runs a hook; measured 64.9 KiB, 68.0 KiB with lane X's Cline contract, 85.7 KiB once the imported records' reader moved in from `dist/modelApi.js`; 2026-10-05 on 0.13.0's shared `dist/validation.js`: 65.4 KiB, plus 15%, rounded up to 25 KiB) |
-| `dist/hookRuntime.js`                 | ≤ 50 KiB (M91: the hook and MCP-form runtime, lane E's spark-hooks.json reader and dispatcher, lane H's typed handlers and lane M's form checks, moved out of `dist/modelApi.js` and loaded when a spark-hooks.json exists, a typed handler runs or a server asks for a form; 67.1 KiB when split out, 41.7 KiB on 0.13.0's shared `dist/validation.js` (2026-10-05), plus 15%, rounded up to 25 KiB)  |
-| `dist/pluginHooks.js`                 | ≤ 50 KiB (M91b: the Amp and OpenCode plugin host, loaded on the first plugin hook; 51.6 KiB when split out, 33.8 KiB on 0.13.0's shared `dist/validation.js` (2026-10-05), plus 15%, rounded up to 25 KiB)                                                                                                                                                                                             |
-| `dist/agentImport.js`                 | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import; M91 lane I's readers for every agent's hooks: 147.7 KiB on 2026-10-04, 108.1 KiB on 0.13.0's shared `dist/validation.js` on 2026-10-05, within the unchanged budget)                                                                                                                            |
-| `dist/bundledSkills.js`               | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                             |
-| `dist/codeIntel.js`                   | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                  |
-| `dist/voice.js`                       | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                    |
-| `dist/museCodeReviewer.js`            | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                  |
-| `dist/extensionHooks.js`              | ≤ 75 KiB (M91 E: both-backend window hooks, loaded on first use; Kubuntu measured 48.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
-| `dist/browserCheck.js`                | ≤ 75 KiB (M81: the browser check's pipe, run, proxy, canaries and processes, loaded on the first check; 50.5 KiB after A1's first review round plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                         |
-| `dist/browserRuntime.js`              | ≤ 50 KiB (M81 A1: the browser check runtime's pin, download, ZIP reader and store, loaded only to prepare it; 37.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                 |
-| `dist/whatsNew.js`                    | ≤ 50 KiB (M99, D79: What's New's renderer, content schema and tab, loaded on the first page or notice; measured 34.8 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                               |
-| `dist/whatsNew.json`                  | ≤ 40 KiB on-disk JSON, independent of ZIP compression; bounded lossless envelope with 75 KiB decoded maximum (M99, D79: newest two releases' full notes and the newest earlier Highlights when needed; hard content cap independent of VSIX compression)                                                                                                                                               |
-| `dist/webview/whatsNew.js`            | ≤ 25 KiB (M99: What's New's page script, which only passes clicks back; 0.7 KiB when made, plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                                                                                             |
-| `dist/tab.js`                         | ≤ 75 KiB (M94: provider, completion engine and daily ledger, loaded on first request or menu; status item stays in activation)                                                                                                                                                                                                                                                                         |
+| Artifact                              | Budget (minified, uncompressed) |
+| ------------------------------------- | ------------------------------- |
+| `dist/conversation.js`                | ≤ 250 KiB                       |
+| `dist/tab.js`                         | ≤ 75 KiB                        |
+| `dist/extension.js`                   | ≤ 600 KiB                       |
+| `dist/modelApi.js`                    | ≤ 475 KiB                       |
+| `dist/modelApiBoundaries.js`          | ≤ 25 KiB                        |
+| `dist/team.js`                        | ≤ 75 KiB                        |
+| `dist/teamRunners.js`                 | ≤ 75 KiB                        |
+| `dist/teamScheduler.js`               | ≤ 75 KiB                        |
+| `dist/review.js`                      | ≤ 50 KiB                        |
+| `dist/searchWorker.js`                | ≤ 50 KiB                        |
+| `dist/pageWorker.js`                  | ≤ 300 KiB                       |
+| `dist/webview/main.js`                | ≤ 900 KiB                       |
+| Webview original deferred surfaces    | ≤ 50 KiB                        |
+| Webview provider-usage import closure | ≤ 25 KiB                        |
+| Webview paid usage import closure     | ≤ 25 KiB                        |
+| Webview highlighting import closure   | ≤ 125 KiB                       |
+| Webview action-dialog import closures | ≤ 25 KiB                        |
+| Webview question UI import closure    | ≤ 25 KiB                        |
+| Webview Tasks import closure          | ≤ 25 KiB                        |
+| Webview team UI import closure        | ≤ 25 KiB                        |
+| `.vsix`                               | ≤ 2775 KiB                      |
+| `dist/acp.js`                         | ≤ 850 KiB                       |
+| `dist/planMarkdown.js`                | ≤ 150 KiB                       |
+| `dist/checkpointStore.js`             | ≤ 225 KiB                       |
+| `dist/uiText.js`                      | ≤ 125 KiB                       |
+| `dist/wire.js`                        | ≤ 50 KiB                        |
+| `dist/uiTextRuntime.js`               | ≤ 25 KiB                        |
+| `dist/uiTextHooks.js`                 | ≤ 25 KiB                        |
+| `dist/uiTextSurfaces.js`              | ≤ 25 KiB                        |
+| `dist/sessionBoard.js`                | ≤ 75 KiB                        |
+| `dist/reviewer.js`                    | ≤ 75 KiB                        |
+| `dist/foreignHooks.js`                | ≤ 100 KiB                       |
+| `dist/hookRuntime.js`                 | ≤ 50 KiB                        |
+| `dist/pluginHooks.js`                 | ≤ 50 KiB                        |
+| `dist/agentImport.js`                 | ≤ 125 KiB                       |
+| `dist/bundledSkills.js`               | ≤ 50 KiB                        |
+| `dist/codeIntel.js`                   | ≤ 100 KiB                       |
+| `dist/voice.js`                       | ≤ 50 KiB                        |
+| `dist/museCodeReviewer.js`            | ≤ 75 KiB                        |
+| `dist/extensionHooks.js`              | ≤ 75 KiB                        |
+| `dist/browserCheck.js`                | ≤ 75 KiB                        |
+| `dist/browserRuntime.js`              | ≤ 50 KiB                        |
+| `dist/whatsNew.js`                    | ≤ 50 KiB                        |
+| `dist/whatsNew.json`                  | ≤ 40 KiB                        |
+| `dist/webview/whatsNew.js`            | ≤ 25 KiB                        |
+| `dist/tab.js`                         | ≤ 75 KiB                        |
+
+**`dist/conversation.js` budget rationale.** (ACTDIET: first chat surface, 216.0 KiB plus 15%, rounded to 25 KiB)
+
+**`dist/tab.js` budget rationale.** (M94: first request/menu; status/provider registration stays eager)
+
+**`dist/extension.js` budget rationale.** (the M7 Model API client fit without raising it; the activation bundle since M57)
+
+**`dist/modelApi.js` budget rationale.** (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b; M91 brought it to 486.1 KiB, and moving the hook and MCP-form runtime and the imported records' reader out took it to 463.7 KiB, 466.8 KiB on 0.13.0, 2026-10-05: the cap held)
+
+**`dist/modelApiBoundaries.js` budget rationale.** (TRAIN15C: captured Model API validators and pure team admission; first shared build 16,991 bytes +15%, rounded up to 25 KiB)
+
+**`dist/team.js` budget rationale.** (M96 integration: first team action; original 44.6 KiB measured +15%, rounded up to 25 KiB)
+
+**`dist/teamRunners.js` budget rationale.** (M96c: first runner action; original 44.6 KiB measured by the same rule)
+
+**`dist/teamScheduler.js` budget rationale.** (M96c: first scheduler action; original 57.8 KiB measured by the same rule)
+
+**`dist/review.js` budget rationale.** (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)
+
+**`dist/pageWorker.js` budget rationale.** (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)
+
+**`dist/webview/main.js` budget rationale.** including React, Markdown and highlighting; all transitively eager ESM chunks count
+
+**Webview original deferred surfaces budget rationale.** aggregate for the original seven surfaces and unclassified/shared deferred helpers (TRAIN13B; unchanged in STARTDIET)
+
+**Webview provider-usage import closure budget rationale.** (TRAIN15C: provider tallies only for a nonempty report; 1,683 bytes measured + 15%, rounded up to 25 KiB; original 50 KiB cap unchanged)
+
+**Webview paid usage import closure budget rationale.** (TRAIN15C: nonempty paid-feature usage section, including team workers; first split 4,018 bytes +15%, rounded up to 25 KiB)
+
+**Webview highlighting import closure budget rationale.** (STARTDIET: HighlightedCode.tsx, engine and eighteen grammars; 93.1 KiB plus 15%, rounded to 25 KiB)
+
+**Webview action-dialog import closures budget rationale.** aggregate (STARTDIET: ShareView, SessionBoardDialog, HandoffDialog, SecretPromptDialog; first split 11.2 KiB by the same rule)
+
+**Webview question UI import closure budget rationale.** (FIXM112U: first question; 10.8 KiB +15%, rounded up to 25 KiB; separate from the unchanged unclassified deferred group)
+
+**Webview Tasks import closure budget rationale.** (STARTDIET: TasksApp.tsx and its boundary; first split 1.4 KiB by the same rule)
+
+**Webview team UI import closure budget rationale.** (M96: exclusive deferred TeamUi closure, 16,132 bytes in the composed graph; existing incoming cap)
+
+**`.vsix` budget rationale.** compressed (TRAIN15G lead decision, 2026-10-06: universal 2,688,776 bytes +5%, rounded up to 25 KiB = 2,841,600 bytes; “0.15.0 ships M95 providers, M96 teams, M101 compaction and M102 usage; caps for every individual bundle are unchanged”; `check-vsix-size.mjs` in the package job)
+
+**`dist/acp.js` budget rationale.** (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)
+
+**`dist/planMarkdown.js` budget rationale.** (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)
+
+**`dist/checkpointStore.js` budget rationale.** (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/uiText.js` budget rationale.** (original cap retained; ACTDIET regional core 116,791 bytes)
+
+**`dist/wire.js` budget rationale.** (TRAIN14B: shared existing Node protocol and agent-event schemas; 41,370 bytes plus 15%, rounded to 25 KiB; browser and integration parsers stay inline)
+
+**`dist/uiTextRuntime.js` budget rationale.** (ACTDIET: ACP/headless English, 8,338 bytes plus 15%, rounded to 25 KiB)
+
+**`dist/uiTextHooks.js` budget rationale.** (ACTDIET: hooks/import English, 12,176 bytes by the same rule)
+
+**`dist/uiTextSurfaces.js` budget rationale.** (ACTDIET: Tab/report/What's New English, 5,893 bytes by the same rule)
+
+**`dist/sessionBoard.js` budget rationale.** (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/reviewer.js` budget rationale.** (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/foreignHooks.js` budget rationale.** (M91 lane W: the adapters for hooks imported from other agents, lane P's contracts and engine, loaded the first time a session holding one runs a hook; measured 64.9 KiB, 68.0 KiB with lane X's Cline contract, 85.7 KiB once the imported records' reader moved in from `dist/modelApi.js`; 2026-10-05 on 0.13.0's shared `dist/validation.js`: 65.4 KiB, plus 15%, rounded up to 25 KiB)
+
+**`dist/hookRuntime.js` budget rationale.** (M91: the hook and MCP-form runtime, lane E's spark-hooks.json reader and dispatcher, lane H's typed handlers and lane M's form checks, moved out of `dist/modelApi.js` and loaded when a spark-hooks.json exists, a typed handler runs or a server asks for a form; 67.1 KiB when split out, 41.7 KiB on 0.13.0's shared `dist/validation.js` (2026-10-05), plus 15%, rounded up to 25 KiB)
+
+**`dist/pluginHooks.js` budget rationale.** (M91b: the Amp and OpenCode plugin host, loaded on the first plugin hook; 51.6 KiB when split out, 33.8 KiB on 0.13.0's shared `dist/validation.js` (2026-10-05), plus 15%, rounded up to 25 KiB)
+
+**`dist/agentImport.js` budget rationale.** (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import; M91 lane I's readers for every agent's hooks: 147.7 KiB on 2026-10-04, 108.1 KiB on 0.13.0's shared `dist/validation.js` on 2026-10-05, within the unchanged budget)
+
+**`dist/bundledSkills.js` budget rationale.** (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)
+
+**`dist/codeIntel.js` budget rationale.** (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/voice.js` budget rationale.** (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/museCodeReviewer.js` budget rationale.** (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/extensionHooks.js` budget rationale.** (M91 E: both-backend window hooks, loaded on first use; Kubuntu measured 48.8 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/browserCheck.js` budget rationale.** (M81: the browser check's pipe, run, proxy, canaries and processes, loaded on the first check; 50.5 KiB after A1's first review round plus 15%, rounded up to 25 KiB)
+
+**`dist/browserRuntime.js` budget rationale.** (M81 A1: the browser check runtime's pin, download, ZIP reader and store, loaded only to prepare it; 37.2 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/whatsNew.js` budget rationale.** (M99, D79: What's New's renderer, content schema and tab, loaded on the first page or notice; measured 34.8 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/whatsNew.json` budget rationale.** on-disk JSON, independent of ZIP compression; bounded lossless envelope with 75 KiB decoded maximum (M99, D79: newest two releases' full notes and the newest earlier Highlights when needed; hard content cap independent of VSIX compression)
+
+**`dist/webview/whatsNew.js` budget rationale.** (M99: What's New's page script, which only passes clicks back; 0.7 KiB when made, plus 15%, rounded up to 25 KiB)
+
+**`dist/tab.js` budget rationale.** (M94: provider, completion engine and daily ledger, loaded on first request or menu; status item stays in activation)
 
 **TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
 Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by
@@ -591,30 +809,72 @@ plus 15% rounded to 25 KiB. It contains the sources, latch, admission and
 usage and is required only at an eligible approval. Every existing cap
 stays unchanged; `JUDGE_MODEL_TEXT` is guarded in that bundle alone.
 
-| Artifact                   | Budget (minified, uncompressed)                                                                                                                                                                                   |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dist/extension.js`        | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                       |
-| `dist/modelApi.js`         | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)                                                                                         |
-| `dist/review.js`           | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                   |
-| `dist/searchWorker.js`     | ≤ 50 KiB                                                                                                                                                                                                          |
-| `dist/pageWorker.js`       | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                        |
-| `dist/webview/main.js`     | ≤ 900 KiB including React, the markdown renderer and highlight.js (one bundle)                                                                                                                                    |
-| `.vsix`                    | ≤ 2200 KiB compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job) |
-| `dist/acp.js`              | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                 |
-| `dist/planMarkdown.js`     | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                   |
-| `dist/checkpointStore.js`  | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                              |
-| `dist/uiText.js`           | ≤ 125 KiB (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)       |
-| `dist/sessionBoard.js`     | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                   |
-| `dist/reviewer.js`         | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                 |
-| `dist/agentImport.js`      | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                                                                            |
-| `dist/bundledSkills.js`    | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                        |
-| `dist/legalScan.js`        | ≤ 150 KiB (M97 integration proposal before wiring: lane S shared-English probe 130,608 bytes; +15%, rounded up to 25 KiB; real adapter and Plan hold measured at delivery)                                        |
-| `dist/codeIntel.js`        | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                             |
-| `dist/voice.js`            | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                               |
-| `dist/museCodeReviewer.js` | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                             |
-| `dist/providers.js`        | ≤ 150 KiB (TRAIN15E: 128.4 KiB +15%, rounded up to 25 KiB)                                                                                                                                                        |
-| `dist/modelsPanel.js`      | ≤ 125 KiB (TRAIN15E: 90.3 KiB +15%, rounded up to 25 KiB)                                                                                                                                                         |
-| `dist/webview/models.js`   | ≤ 500 KiB (TRAIN15E: 424.9 KiB including static imports +15%, rounded up to 25 KiB)                                                                                                                               |
+| Artifact                   | Budget (minified, uncompressed) |
+| -------------------------- | ------------------------------- |
+| `dist/extension.js`        | ≤ 600 KiB                       |
+| `dist/modelApi.js`         | ≤ 475 KiB                       |
+| `dist/review.js`           | ≤ 50 KiB                        |
+| `dist/searchWorker.js`     | ≤ 50 KiB                        |
+| `dist/pageWorker.js`       | ≤ 300 KiB                       |
+| `dist/webview/main.js`     | ≤ 900 KiB                       |
+| `.vsix`                    | ≤ 2200 KiB                      |
+| `dist/acp.js`              | ≤ 850 KiB                       |
+| `dist/planMarkdown.js`     | ≤ 150 KiB                       |
+| `dist/checkpointStore.js`  | ≤ 225 KiB                       |
+| `dist/uiText.js`           | ≤ 125 KiB                       |
+| `dist/sessionBoard.js`     | ≤ 75 KiB                        |
+| `dist/reviewer.js`         | ≤ 75 KiB                        |
+| `dist/agentImport.js`      | ≤ 125 KiB                       |
+| `dist/bundledSkills.js`    | ≤ 50 KiB                        |
+| `dist/legalScan.js`        | ≤ 150 KiB                       |
+| `dist/codeIntel.js`        | ≤ 100 KiB                       |
+| `dist/voice.js`            | ≤ 50 KiB                        |
+| `dist/museCodeReviewer.js` | ≤ 75 KiB                        |
+| `dist/providers.js`        | ≤ 150 KiB                       |
+| `dist/modelsPanel.js`      | ≤ 125 KiB                       |
+| `dist/webview/models.js`   | ≤ 500 KiB                       |
+
+**`dist/extension.js` budget rationale.** (the M7 Model API client fit without raising it; the activation bundle since M57)
+
+**`dist/modelApi.js` budget rationale.** (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)
+
+**`dist/review.js` budget rationale.** (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)
+
+**`dist/pageWorker.js` budget rationale.** (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)
+
+**`dist/webview/main.js` budget rationale.** including React, the markdown renderer and highlight.js (one bundle)
+
+**`.vsix` budget rationale.** compressed (2026-10-03, M77/M78/M82 cohort: 1,938,910 bytes with its four lazy bundles; +15%, rounded up to 25 KiB; was 1850 KiB from REL's 1,633,017 bytes; `check-vsix-size.mjs` in the package job)
+
+**`dist/acp.js` budget rationale.** (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)
+
+**`dist/planMarkdown.js` budget rationale.** (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)
+
+**`dist/checkpointStore.js` budget rationale.** (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/uiText.js` budget rationale.** (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)
+
+**`dist/sessionBoard.js` budget rationale.** (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/reviewer.js` budget rationale.** (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/agentImport.js` budget rationale.** (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)
+
+**`dist/bundledSkills.js` budget rationale.** (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)
+
+**`dist/legalScan.js` budget rationale.** (M97 integration proposal before wiring: lane S shared-English probe 130,608 bytes; +15%, rounded up to 25 KiB; real adapter and Plan hold measured at delivery)
+
+**`dist/codeIntel.js` budget rationale.** (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/voice.js` budget rationale.** (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/museCodeReviewer.js` budget rationale.** (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/providers.js` budget rationale.** (TRAIN15E: 128.4 KiB +15%, rounded up to 25 KiB)
+
+**`dist/modelsPanel.js` budget rationale.** (TRAIN15E: 90.3 KiB +15%, rounded up to 25 KiB)
+
+**`dist/webview/models.js` budget rationale.** (TRAIN15E: 424.9 KiB including static imports +15%, rounded up to 25 KiB)
 
 `npm run build` prints bundle sizes; `scripts/check-bundle-size.mjs` holds their
 numbers and fails over budget or when a bundle is missing. The compressed VSIX
@@ -998,31 +1258,75 @@ picker closure below 25 KiB → 25 KiB, each measured plus 15% and rounded to
 25 KiB. The engine remains under its 175 KiB cap and never carries a backend.
 Reports share the existing 50 KiB mini-parser; every runtime API read is guarded.
 
-| Artifact                       | Budget (minified, uncompressed)                                                                                                                                                                                                                                                                      |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dist/extension.js`            | ≤ 600 KiB (the M7 Model API client fit without raising it; the activation bundle since M57)                                                                                                                                                                                                          |
-| `dist/modelApi.js`             | ≤ 475 KiB (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)                                                                                                                                                                            |
-| `dist/providers.js`            | ≤ 150 KiB (TRAIN15E: 128.4 KiB +15%, rounded up to 25 KiB)                                                                                                                                                                                                                                           |
-| `dist/modelsPanel.js`          | ≤ 125 KiB (TRAIN15E: 90.3 KiB +15%, rounded up to 25 KiB)                                                                                                                                                                                                                                            |
-| `dist/webview/models.js`       | ≤ 500 KiB (TRAIN15E: 424.9 KiB including static imports +15%, rounded up to 25 KiB)                                                                                                                                                                                                                  |
-| `dist/review.js`               | ≤ 50 KiB (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)                                                                                                                                                                                      |
-| `dist/searchWorker.js`         | ≤ 50 KiB                                                                                                                                                                                                                                                                                             |
-| `dist/pageWorker.js`           | ≤ 300 KiB (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)                                                                                                                                                                           |
-| `dist/webview/main.js`         | ≤ 900 KiB including React, the markdown renderer, highlight.js and every static startup chunk                                                                                                                                                                                                        |
-| `.vsix`                        | ≤ 2775 KiB compressed (TRAIN15G lead decision, 2026-10-06: universal 2,688,776 bytes +5%, rounded up to 25 KiB = 2,841,600 bytes; “0.15.0 ships M95 providers, M96 teams, M101 compaction and M102 usage; caps for every individual bundle are unchanged”; `check-vsix-size.mjs` in the package job) |
-| `dist/acp.js`                  | ≤ 850 KiB (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)                                                                                                                                                                                                    |
-| `dist/planMarkdown.js`         | ≤ 150 KiB (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)                                                                                                                                                                      |
-| `dist/checkpointStore.js`      | ≤ 225 KiB (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                 |
-| `dist/uiText.js`               | ≤ 125 KiB (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)                                                                                          |
-| `dist/validation.js`           | ≤ 50 KiB (M95INT2: shared used Node mini-parser API, initially 39.5 KiB + 15%, rounded up to 25 KiB)                                                                                                                                                                                                 |
-| Deferred Account & usage chunk | ≤ 25 KiB (M95INT2: 12.6 KiB + 15%, rounded up to 25 KiB; startup still counts its shared static chunks)                                                                                                                                                                                              |
-| `dist/sessionBoard.js`         | ≤ 75 KiB (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                      |
-| `dist/reviewer.js`             | ≤ 75 KiB (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                                                    |
-| `dist/agentImport.js`          | ≤ 125 KiB (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)                                                                                                                                                                                               |
-| `dist/bundledSkills.js`        | ≤ 50 KiB (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)                                                                                                                                           |
-| `dist/codeIntel.js`            | ≤ 100 KiB (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                |
-| `dist/voice.js`                | ≤ 50 KiB (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)                                                                                                                                                                  |
-| `dist/museCodeReviewer.js`     | ≤ 75 KiB (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)                                                                                                                |
+| Artifact                       | Budget (minified, uncompressed) |
+| ------------------------------ | ------------------------------- |
+| `dist/extension.js`            | ≤ 600 KiB                       |
+| `dist/modelApi.js`             | ≤ 475 KiB                       |
+| `dist/providers.js`            | ≤ 150 KiB                       |
+| `dist/modelsPanel.js`          | ≤ 125 KiB                       |
+| `dist/webview/models.js`       | ≤ 500 KiB                       |
+| `dist/review.js`               | ≤ 50 KiB                        |
+| `dist/searchWorker.js`         | ≤ 50 KiB                        |
+| `dist/pageWorker.js`           | ≤ 300 KiB                       |
+| `dist/webview/main.js`         | ≤ 900 KiB                       |
+| `.vsix`                        | ≤ 2775 KiB                      |
+| `dist/acp.js`                  | ≤ 850 KiB                       |
+| `dist/planMarkdown.js`         | ≤ 150 KiB                       |
+| `dist/checkpointStore.js`      | ≤ 225 KiB                       |
+| `dist/uiText.js`               | ≤ 125 KiB                       |
+| `dist/validation.js`           | ≤ 50 KiB                        |
+| Deferred Account & usage chunk | ≤ 25 KiB                        |
+| `dist/sessionBoard.js`         | ≤ 75 KiB                        |
+| `dist/reviewer.js`             | ≤ 75 KiB                        |
+| `dist/agentImport.js`          | ≤ 125 KiB                       |
+| `dist/bundledSkills.js`        | ≤ 50 KiB                        |
+| `dist/codeIntel.js`            | ≤ 100 KiB                       |
+| `dist/voice.js`                | ≤ 50 KiB                        |
+| `dist/museCodeReviewer.js`     | ≤ 75 KiB                        |
+
+**`dist/extension.js` budget rationale.** (the M7 Model API client fit without raising it; the activation bundle since M57)
+
+**`dist/modelApi.js` budget rationale.** (M57: the Model API backend, loaded when it first starts; revisited after M77/M78/M82 at 402.8 KiB, see Q-M78b)
+
+**`dist/providers.js` budget rationale.** (TRAIN15E: 128.4 KiB +15%, rounded up to 25 KiB)
+
+**`dist/modelsPanel.js` budget rationale.** (TRAIN15E: 90.3 KiB +15%, rounded up to 25 KiB)
+
+**`dist/webview/models.js` budget rationale.** (TRAIN15E: 424.9 KiB including static imports +15%, rounded up to 25 KiB)
+
+**`dist/review.js` budget rationale.** (M70: git's material, the review turn's text, the Plan-mode hold and edit review; 40.8 KiB when split)
+
+**`dist/pageWorker.js` budget rationale.** (M69: web fetch's page converter, parse5 and its parts, on a worker started for each page; 212.3 KiB when split)
+
+**`dist/webview/main.js` budget rationale.** including React, the markdown renderer, highlight.js and every static startup chunk
+
+**`.vsix` budget rationale.** compressed (TRAIN15G lead decision, 2026-10-06: universal 2,688,776 bytes +5%, rounded up to 25 KiB = 2,841,600 bytes; “0.15.0 ships M95 providers, M96 teams, M101 compaction and M102 usage; caps for every individual bundle are unchanged”; `check-vsix-size.mjs` in the package job)
+
+**`dist/acp.js` budget rationale.** (the ACP agent, installed once, never loaded by VS Code; 713.2 KiB when set, see below)
+
+**`dist/planMarkdown.js` budget rationale.** (M79: the plan reader, the panel's Markdown parser, loaded on the first plan action; 139.0 KiB with the brief writer)
+
+**`dist/checkpointStore.js` budget rationale.** (M72: synchronous checkpoint factory and legacy reader; measured 187.0 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/uiText.js` budget rationale.** (shared English fallback for Node bundles; 2026-10-04: measured 104.9 KiB plus 15%, rounded up to 25 KiB; was 100 KiB from 72.7 KiB on the build-only baseline; lazy, so activation is unchanged)
+
+**`dist/validation.js` budget rationale.** (M95INT2: shared used Node mini-parser API, initially 39.5 KiB + 15%, rounded up to 25 KiB)
+
+**Deferred Account & usage chunk budget rationale.** (M95INT2: 12.6 KiB + 15%, rounded up to 25 KiB; startup still counts its shared static chunks)
+
+**`dist/sessionBoard.js` budget rationale.** (M78b: first board/best-of-N action; measured 61.0 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/reviewer.js` budget rationale.** (M78b: paid Auto review after consent; measured 55.2 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/agentImport.js` budget rationale.** (M83: import scan, converters, file access, native UI and smol-toml, loaded on first import)
+
+**`dist/bundledSkills.js` budget rationale.** (M89: the bundled skills installer for Muse Code, loaded on first install, removal or offer; 22.6 KiB when split, plus 15%, rounded up to 25 KiB)
+
+**`dist/codeIntel.js` budget rationale.** (2026-10-03: code intelligence's `ide` answers, loaded on the first call; measured 80.3 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/voice.js` budget rationale.** (2026-10-03: both voice engines' drivers, loaded on the first recording; measured 34.5 KiB plus 15%, rounded up to 25 KiB)
+
+**`dist/museCodeReviewer.js` budget rationale.** (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)
 
 ### D7 — Permission modes map onto MSP approval modes; prompting modes wait for M4
 
@@ -1680,31 +1984,97 @@ ownership; M21–M24 share their files and run in order. Section A's rows:
 
 Section B of the audit (D24), plus the lifecycle rows of section G.
 
-| Report                                                                              | Finding                                                                                                                                                                                                                                                                                                                                                                                                          | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| A shell timeout or Stop hangs the turn                                              | `child.kill` ended bash or PowerShell only; the result waited for the pipes to close, so a background grandchild (`server &`) held the tool call open for its whole life; Stop never reached the command (Claude Code #90672 is the same bug).                                                                                                                                                                   | `runCommand`: POSIX commands lead their own process group and the group is killed; Windows uses `taskkill /T /F` (`processTree.ts`), never on a process that has exited. The result settles on exit plus a 250 ms drain; the turn's abort signal reaches the command; the result says "stopped by the user". Output is kept head and tail per stream (`BoundedText`, a `StringDecoder` per stream).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| `taskkill /T` misses a child started during the kill (M27, found at the 0.6.0 gate) | `taskkill` kills the tree it enumerated: a child PowerShell started between that enumeration and its own end survived, orphaned. Under load it happened on every kill (the gate's `toolIo.test.ts` folder stayed held by the ping); one orphan was left suspended for good. A launcher that exits (`cmd /c start`, a nested shell) leaves its child with no parent link to follow at all (the review of PR #12). | Each Windows command joins a named job object first (`shellJob.ts`: a C# helper compiled once into the extension's storage by `Add-Type`, self-tested), so everything it starts belongs to the job from its creation; Stop and timeouts call `TerminateJobObject`, which ends them all at once. No kill-on-close, so a command that ends normally leaves its background processes running, as on POSIX. Where no job can be made (Constrained Language Mode forbids `Add-Type`; the log says so), the fallback is `taskkill /T` and then a sweep of the process table (`Get-CimInstance Win32_Process` by `ParentProcessId`, Windows PowerShell with one `PSModulePath` spelling), one generation per round, five at most: a child counts only if it was created after the shell started and before its parent died, and each is killed in the same PowerShell run that checks its creation time. A killed command's result waits for all of it. |
-| A deliberate restart is treated as a crash                                          | Trust granted, a sandbox or backend change, a sign-in: the extension disposed every controller and the host's exit listeners called `markBackendError`, so every panel refused to send; one exit listener was added per message.                                                                                                                                                                                 | `MuseCodeHost.close()` marks its exit expected; `HostExit { description, isExpected, isPersistent }` goes to the listeners (one per host, a `WeakSet`). Before a restart each controller cancels its running turn, ends it in the webview and remembers its session; the next message resumes it (`resumeAfterRestart`), on the same backend kind only; a sign-out ends the conversations. A crash ends the running turn the same way and says the next message continues; only a persistent exit (configuration, usage, SDK surface) shows the sign-in gate's error. `museBinaryPath`, `environmentVariables` and VS Code's proxy settings now restart the host too.                                                                                                                                                                                                                                                                            |
-| No handshake or command timeout                                                     | The SDK waits for ever (its INV-006).                                                                                                                                                                                                                                                                                                                                                                            | `withDeadline`: 30 s for the handshake (the process is closed when it misses it), 60 s per command, 180 s for resume, fork, read and compact. The fake CLI's `silent` mode proves the handshake case end to end.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| A replaced host's late exit orphans the new one                                     | The exit handler cleared `hostPromise` whatever it held; a wrapper that failed to build left `muse serve` running.                                                                                                                                                                                                                                                                                               | A generation per spawn: an attempt clears only its own slot; a wrapper failure closes the process.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Mid-turn death, restart or sign-out leaves the UI running                           | No terminal event reached the webview; the next message started a new session with no context; Clear and Resume left the CLI's turn running.                                                                                                                                                                                                                                                                     | A synthetic `turnCompleted` (cancelled or failed, with the reason) ends the turn; the session is resumed; dropping a session cancels its running turn first.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| An exception in the notification handler                                            | The SDK's single handler threw on a bad payload and the connection went deaf; a bad stored archive list threw on every read.                                                                                                                                                                                                                                                                                     | The handler catches and logs; a connection that closes while the process lives closes the host so the exit is reported; the archive list is `safeParse`d.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| Races                                                                               | Two quick sends created two sessions; a panel closed during a start kept the session; two panels on one session shared a handle and closing one deafened (Model API: cancelled) the other.                                                                                                                                                                                                                       | A shared start (`openSessionOnce`); `isDisposed` checked after every await; handles are reference-counted on both backends.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| The host closes the panel's own session                                             | `session/closed` was only heard by the History dialog; the next command failed `sessionNotLoaded`.                                                                                                                                                                                                                                                                                                               | The controller watches its own session; `sessionNotLoaded` becomes `SessionNotLoadedError`, answered by resuming and retrying the message once.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| The Model API host before its sessions are read                                     | Published before `load()` finished; a failed load was cached.                                                                                                                                                                                                                                                                                                                                                    | One build shared by every caller, forgotten on failure; a build that finishes after a dispose closes itself.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| Sign-in accepts a stale credential file                                             | Success was "the file exists", so an expired sign-in counted at once; each click opened another terminal.                                                                                                                                                                                                                                                                                                        | Success is a credential file written after the login started (its modification time); a second click joins the first.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| Secret storage failing blocks the CLI backend                                       | On Linux without a keyring `SecretStorage.get` throws; the backend selection awaited it.                                                                                                                                                                                                                                                                                                                         | `getApiKey` reads a failure as "no key" and logs it once.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| CLI resolution probes PATH on every message                                         | Synchronous `existsSync` over every PATH entry per send (a dead UNC share blocks the host).                                                                                                                                                                                                                                                                                                                      | Resolved once per inputs (setting, PATH, flags), re-checked with one probe, invalidated by the sign-in gate and the settings that change it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| The Windows launcher fallback                                                       | Without `.muse-version` the CLI was started through its PowerShell launcher; Windows ends only the direct child, so closing it left `muse-bin` running.                                                                                                                                                                                                                                                          | The newest `muse-bin-*.exe` in the folder (version order); the launcher is never the command.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| No `deactivate`; shutdown fire-and-forget                                           | Hosts were closed from a disposable nobody awaited.                                                                                                                                                                                                                                                                                                                                                              | `deactivate()` awaits the same stop, conversations ended.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| The IDE tool server                                                                 | No error listener after `listen`; a failed start was never retried; a rejected request handler was unhandled.                                                                                                                                                                                                                                                                                                    | A permanent error listener; a shared, retryable start; a failed request answers 500.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| Model API retries                                                                   | The retry sleep ignored Stop; an HTTP-date `Retry-After` was ignored; the transcript never said a request was being retried; the model list had no deadline.                                                                                                                                                                                                                                                     | An abortable wait; both `Retry-After` forms; `turnRetry` events as Muse Code's; 30 s deadlines on the model list and the token count.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| The CLI and VS Code's proxy                                                         | `muse serve` did not see `http.proxy`.                                                                                                                                                                                                                                                                                                                                                                           | `HTTPS_PROXY` / `HTTP_PROXY` (and `NO_PROXY` from `http.noProxy`) when the environment has none.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| The login terminal off Windows                                                      | `"path" login` in the user's default shell breaks under pwsh or nushell.                                                                                                                                                                                                                                                                                                                                         | The terminal runs `/bin/sh`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| The CLI's config root drifts from the sign-in check (Claude Code #66499)            | An `XDG_CONFIG_HOME` in `museSpark.environmentVariables` moved the CLI's credentials and settings, but the extension looked under the host's own environment.                                                                                                                                                                                                                                                    | The credential file, `settings.json` and the personal skill root are read under the CLI's environment.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| The terminal environment (Cline #7793)                                              | The Model API shell ignored `terminal.integrated.env.*`.                                                                                                                                                                                                                                                                                                                                                         | Applied as VS Code's terminal applies it (`${env:…}`, `${workspaceFolder}`, `null` removes).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `windowsHide` on every spawn                                                        | Every spawn the extension makes hides its window; the SDK's own `spawnMspConnection` has no such option and spawns without it (VS Code's extension host has a hidden console, which children inherit, so no window shows). Filed as meta-models/muse-code-sdk#34 (2026-09-23).                                                                                                                                   | Recorded; nothing the extension can pass.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| A slow start is killed, and its failure shown by every waiter (0.10.1)              | On a CPU-starved machine (an activation that took 211 s) `muse serve` missed the 30 s handshake deadline and was killed though its process still ran; each caller waiting on that one start (six skill listings from the palette and slash menu, the warm-up) showed its own "That did not work" card for the same failure.                                                                                      | A process still running at 30 s gets one longer wait, 120 s in all (`withSlowDeadline`, `MSP_SLOW_HANDSHAKE_TIMEOUT_MS`); one that exits fails at once. The controller shows a failure once (`shownFailures`, by the error the shared start rejected every waiter with): a message on its own card, another action's card, else the warm-up's notice after every other waiter had its turn; skill listings only log. The next action starts afresh.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+- **Report:** A shell timeout or Stop hangs the turn
+  **Finding:** `child.kill` ended bash or PowerShell only; the result waited for the pipes to close, so a background grandchild (`server &`) held the tool call open for its whole life; Stop never reached the command (Claude Code #90672 is the same bug).
+  **Change:** `runCommand`: POSIX commands lead their own process group and the group is killed; Windows uses `taskkill /T /F` (`processTree.ts`), never on a process that has exited. The result settles on exit plus a 250 ms drain; the turn's abort signal reaches the command; the result says "stopped by the user". Output is kept head and tail per stream (`BoundedText`, a `StringDecoder` per stream).
+
+- **Report:** `taskkill /T` misses a child started during the kill (M27, found at the 0.6.0 gate)
+  **Finding:** `taskkill` kills the tree it enumerated: a child PowerShell started between that enumeration and its own end survived, orphaned. Under load it happened on every kill (the gate's `toolIo.test.ts` folder stayed held by the ping); one orphan was left suspended for good. A launcher that exits (`cmd /c start`, a nested shell) leaves its child with no parent link to follow at all (the review of PR #12).
+  **Change:** Each Windows command joins a named job object first (`shellJob.ts`: a C# helper compiled once into the extension's storage by `Add-Type`, self-tested), so everything it starts belongs to the job from its creation; Stop and timeouts call `TerminateJobObject`, which ends them all at once. No kill-on-close, so a command that ends normally leaves its background processes running, as on POSIX. Where no job can be made (Constrained Language Mode forbids `Add-Type`; the log says so), the fallback is `taskkill /T` and then a sweep of the process table (`Get-CimInstance Win32_Process` by `ParentProcessId`, Windows PowerShell with one `PSModulePath` spelling), one generation per round, five at most: a child counts only if it was created after the shell started and before its parent died, and each is killed in the same PowerShell run that checks its creation time. A killed command's result waits for all of it.
+
+- **Report:** A deliberate restart is treated as a crash
+  **Finding:** Trust granted, a sandbox or backend change, a sign-in: the extension disposed every controller and the host's exit listeners called `markBackendError`, so every panel refused to send; one exit listener was added per message.
+  **Change:** `MuseCodeHost.close()` marks its exit expected; `HostExit { description, isExpected, isPersistent }` goes to the listeners (one per host, a `WeakSet`). Before a restart each controller cancels its running turn, ends it in the webview and remembers its session; the next message resumes it (`resumeAfterRestart`), on the same backend kind only; a sign-out ends the conversations. A crash ends the running turn the same way and says the next message continues; only a persistent exit (configuration, usage, SDK surface) shows the sign-in gate's error. `museBinaryPath`, `environmentVariables` and VS Code's proxy settings now restart the host too.
+
+- **Report:** No handshake or command timeout
+  **Finding:** The SDK waits for ever (its INV-006).
+  **Change:** `withDeadline`: 30 s for the handshake (the process is closed when it misses it), 60 s per command, 180 s for resume, fork, read and compact. The fake CLI's `silent` mode proves the handshake case end to end.
+
+- **Report:** A replaced host's late exit orphans the new one
+  **Finding:** The exit handler cleared `hostPromise` whatever it held; a wrapper that failed to build left `muse serve` running.
+  **Change:** A generation per spawn: an attempt clears only its own slot; a wrapper failure closes the process.
+
+- **Report:** Mid-turn death, restart or sign-out leaves the UI running
+  **Finding:** No terminal event reached the webview; the next message started a new session with no context; Clear and Resume left the CLI's turn running.
+  **Change:** A synthetic `turnCompleted` (cancelled or failed, with the reason) ends the turn; the session is resumed; dropping a session cancels its running turn first.
+
+- **Report:** An exception in the notification handler
+  **Finding:** The SDK's single handler threw on a bad payload and the connection went deaf; a bad stored archive list threw on every read.
+  **Change:** The handler catches and logs; a connection that closes while the process lives closes the host so the exit is reported; the archive list is `safeParse`d.
+
+- **Report:** Races
+  **Finding:** Two quick sends created two sessions; a panel closed during a start kept the session; two panels on one session shared a handle and closing one deafened (Model API: cancelled) the other.
+  **Change:** A shared start (`openSessionOnce`); `isDisposed` checked after every await; handles are reference-counted on both backends.
+
+- **Report:** The host closes the panel's own session
+  **Finding:** `session/closed` was only heard by the History dialog; the next command failed `sessionNotLoaded`.
+  **Change:** The controller watches its own session; `sessionNotLoaded` becomes `SessionNotLoadedError`, answered by resuming and retrying the message once.
+
+- **Report:** The Model API host before its sessions are read
+  **Finding:** Published before `load()` finished; a failed load was cached.
+  **Change:** One build shared by every caller, forgotten on failure; a build that finishes after a dispose closes itself.
+
+- **Report:** Sign-in accepts a stale credential file
+  **Finding:** Success was "the file exists", so an expired sign-in counted at once; each click opened another terminal.
+  **Change:** Success is a credential file written after the login started (its modification time); a second click joins the first.
+
+- **Report:** Secret storage failing blocks the CLI backend
+  **Finding:** On Linux without a keyring `SecretStorage.get` throws; the backend selection awaited it.
+  **Change:** `getApiKey` reads a failure as "no key" and logs it once.
+
+- **Report:** CLI resolution probes PATH on every message
+  **Finding:** Synchronous `existsSync` over every PATH entry per send (a dead UNC share blocks the host).
+  **Change:** Resolved once per inputs (setting, PATH, flags), re-checked with one probe, invalidated by the sign-in gate and the settings that change it.
+
+- **Report:** The Windows launcher fallback
+  **Finding:** Without `.muse-version` the CLI was started through its PowerShell launcher; Windows ends only the direct child, so closing it left `muse-bin` running.
+  **Change:** The newest `muse-bin-*.exe` in the folder (version order); the launcher is never the command.
+
+- **Report:** No `deactivate`; shutdown fire-and-forget
+  **Finding:** Hosts were closed from a disposable nobody awaited.
+  **Change:** `deactivate()` awaits the same stop, conversations ended.
+
+- **Report:** The IDE tool server
+  **Finding:** No error listener after `listen`; a failed start was never retried; a rejected request handler was unhandled.
+  **Change:** A permanent error listener; a shared, retryable start; a failed request answers 500.
+
+- **Report:** Model API retries
+  **Finding:** The retry sleep ignored Stop; an HTTP-date `Retry-After` was ignored; the transcript never said a request was being retried; the model list had no deadline.
+  **Change:** An abortable wait; both `Retry-After` forms; `turnRetry` events as Muse Code's; 30 s deadlines on the model list and the token count.
+
+- **Report:** The CLI and VS Code's proxy
+  **Finding:** `muse serve` did not see `http.proxy`.
+  **Change:** `HTTPS_PROXY` / `HTTP_PROXY` (and `NO_PROXY` from `http.noProxy`) when the environment has none.
+
+- **Report:** The login terminal off Windows
+  **Finding:** `"path" login` in the user's default shell breaks under pwsh or nushell.
+  **Change:** The terminal runs `/bin/sh`.
+
+- **Report:** The CLI's config root drifts from the sign-in check (Claude Code #66499)
+  **Finding:** An `XDG_CONFIG_HOME` in `museSpark.environmentVariables` moved the CLI's credentials and settings, but the extension looked under the host's own environment.
+  **Change:** The credential file, `settings.json` and the personal skill root are read under the CLI's environment.
+
+- **Report:** The terminal environment (Cline #7793)
+  **Finding:** The Model API shell ignored `terminal.integrated.env.*`.
+  **Change:** Applied as VS Code's terminal applies it (`${env:…}`, `${workspaceFolder}`, `null` removes).
+
+- **Report:** `windowsHide` on every spawn
+  **Finding:** Every spawn the extension makes hides its window; the SDK's own `spawnMspConnection` has no such option and spawns without it (VS Code's extension host has a hidden console, which children inherit, so no window shows). Filed as meta-models/muse-code-sdk#34 (2026-09-23).
+  **Change:** Recorded; nothing the extension can pass.
+
+- **Report:** A slow start is killed, and its failure shown by every waiter (0.10.1)
+  **Finding:** On a CPU-starved machine (an activation that took 211 s) `muse serve` missed the 30 s handshake deadline and was killed though its process still ran; each caller waiting on that one start (six skill listings from the palette and slash menu, the warm-up) showed its own "That did not work" card for the same failure.
+  **Change:** A process still running at 30 s gets one longer wait, 120 s in all (`withSlowDeadline`, `MSP_SLOW_HANDSHAKE_TIMEOUT_MS`); one that exits fails at once. The controller shows a failure once (`shownFailures`, by the error the shared start rejected every waiter with): a message on its own card, another action's card, else the warm-up's notice after every other waiter had its turn; skill listings only log. The next action starts afresh.
 
 ### D26 — The audit: protocol and backend semantics (2026-09-23)
 
@@ -9665,228 +10035,6 @@ have equivalent functionality even if we need to develop it ourselves".
   qualification (M104g). The research is
   `docs/certification/m104-research.md` (this file, moved in).
 
-## 3. Open questions (need the owner)
-
-- **Q-TRAIN15G-DIET1 (2026-10-06):** main’s exact 733.8/32.1-KiB
-  regression capture does not fit the integrated train, although unchanged
-  900/50-KiB production gates pass. The rig brief approves only the universal
-  VSIX formula. Does the lead want an additional startup diet, or a separately
-  reviewed train measurement expectation? Keep the existing assertion enabled
-  and unchanged pending that decision; the scoped result is in section 7.
-
-  **Resolved by TRAIN15H:** the lead requires startup compaction, keeping the
-  diet ratchet by default. Only certified first-paint additions can justify
-  a measured baseline update after reaching the 745-KiB target.
-
-- **Q-REL0150M-UNIVERSAL (2026-10-07):** linuxlt has Darwin helper source but
-  no certified executable or local universal archive. The lead must supply the
-  previously certified 289,568-byte, mode-0755 helper at SHA-256
-  `f42e757a0d78a6bc6a6af22c3bcf34fc7d082eb9e8130d9336024a55c19f0f36`,
-  or a new certified native receipt. Its path was requested asynchronously;
-  no response has arrived. Actual helperless VSIX is 2,651,561 bytes and ACP is
-  1,928,065 bytes, but neither proves the new universal size. Preserve the
-  2,841,600-byte cap until an actual universal package supplies the brief's
-  measured-plus-5-percent, rounded-up-to-25-KiB calculation. No projection or
-  synthetic helper is accepted as that measurement.
-
-- **Q-TRAIN15E-D78 (2026-10-06):** the train's immutable Meta golden requests
-  declare `recall_output` from the first packing-enabled request; M102's D78
-  unused-default-flip test requires its absence until packed output exists.
-  Both cannot have identical request bytes. Preserve the train fixtures per
-  the rig brief; the incoming test stays enabled and its one failure is held
-  for the owner's canonical-baseline decision. An asynchronous question is
-  pending. The universal package also awaits an authorized built Darwin helper.
-
-  **Resolved in TRAIN15F:** the lead chose the immutable goldens. Packing-off
-  omits recall; packing-on declares it from the first request. Daily admission
-  changes neither request. The corrected assertion and all 89 golden cases
-  pass. The certified Darwin helper is available and measured in a real VSIX;
-  the remaining issue is its final package size, recorded under gates.
-
-- **Q-M102INT3 (2026-10-06):** the joined universal VSIX exceeds the
-  unchanged 2,252,800-byte cap; helperless fits. The exact round-three
-  measurements are in `docs/certification/m102.md`. Further package scope or
-  a cap decision belongs to the owner. Production headless BYO accounting
-  and ACP/headless shared paid-daily admission also remain open after the
-  shared two-failed-fixes stop; they need a separately scoped follow-up.
-
-- **Q-M95-I transport prerequisite (2026-10-05):** which completed lane T
-  commit supplies ProviderClient/transport/authSource for this checkout?
-  Those modules are absent at `60bf96aa`; the local `rt-fixm95t` rig snapshot
-  is on a different base. The rig brief forbids main merges and network
-  fetches. The injected host/registry contract is tested offline; production
-  assembly awaits the lead's exact dependency and W's configured sources.
-
-- **Q-M95INT2 release prerequisite (2026-10-05):** the rig brief says
-  `m95/scfix` contains `928a9200` (0.13.0), but its actual `e5a114b4` tip
-  contains only `a95f24cf`. May the exact local release commit be merged
-  separately, despite the rig note's main-merge prohibition? Until answered,
-  keep the five authorized merges and independent cap repairs only.
-- **Q-M95INT2 universal helper (2026-10-05):** what approved local path supplies
-  the real universal macOS helper, or is downloading a released VSIX solely
-  to verify/extract that binary authorized? The binary is absent and the
-  common rule prohibits downloads. A helper-free package cannot certify the
-  requested universal-helper VSIX budget.
-
-- **Q-M95R3 transport size (closed by M95R4 brief, 2026-10-05):** the
-  continuation explicitly requires completion of the shared transport and
-  host/ACP composition. Its scope paragraph in M95b records this authorization;
-  the shared configured-provider implementation is installed and tested offline.
-
-- **Q-M95-I transport prerequisite (2026-10-05):** which completed lane T
-  commit supplies ProviderClient/transport/authSource for this checkout?
-  Those modules are absent at `60bf96aa`; the local `rt-fixm95t` rig snapshot
-  is on a different base. The rig brief forbids main merges and network
-  fetches. The injected host/registry contract is tested offline; production
-  assembly awaits the lead's exact dependency and W's configured sources.
-- **Q-M95BINT live receipts (2026-10-05):** the supplied findings identify
-  `acdc0f60…` and `577bc807…` (0 + 1 model attempts), but do not name the
-  exact raw-capture workspace or provide a successful plan tool/reasoning/
-  cached-token response. Supply those receipts when Subscription Sharing
-  headroom returns; also confirm the scrubbed usage-limit code and test an
-  installed Copilot host/remote callback. No new live call is authorized here.
-
-- **Q-M95INT2 release prerequisite (2026-10-05):** the rig brief says
-  `m95/scfix` contains `928a9200` (0.13.0), but its actual `e5a114b4` tip
-  contains only `a95f24cf`. May the exact local release commit be merged
-  separately, despite the rig note's main-merge prohibition? Until answered,
-  keep the five authorized merges and independent cap repairs only.
-- **Q-M95INT2 universal helper (2026-10-05):** what approved local path supplies
-  the real universal macOS helper, or is downloading a released VSIX solely
-  to verify/extract that binary authorized? The binary is absent and the
-  common rule prohibits downloads. A helper-free package cannot certify the
-  requested universal-helper VSIX budget.
-
-- **Q-TRAIN14 universal helper artifact (2026-10-05).** The worktree has no
-  `native/darwin/muse-dictate`. The lane's shared rules forbid network except
-  `npm ci` and reads from other worktrees without authorization. An existing
-  helper/VSIX location was requested; none was supplied. All production caps
-  and helperless packages pass, and estimates use the prior train's actual
-  119,506-byte ZIP contribution. Actual CI-shaped VSIX certification requires
-  an authorized real universal helper; no placeholder substitutes for it.
-
-- **Q-M100 — Optional expansion after the paired desktop slice.** Short-code
-  PAKE, remote-host key placement, approval forwarding, persistent receivers,
-  VPN/public-address routes and machine-wide caps need their own design and
-  qualification. Defaults: public QR/text exchange with fingerprint checks,
-  local desktop windows, receiver-local approvals, chosen private LAN address,
-  one offered window's caps. M100's lane 0 must settle the certificate/QR
-  implementation, bounded protocol constants and durable journal retention
-  before implementation; uncertain records have no time-based deletion.
-
-- **DEFLAKE3 hosted failure receipt (2026-10-05):** what exact assertion,
-  timeout and stack did PR #116's Windows checkpoint-copy count/cursor test
-  report? The lane brief names the failure without its output; 100 normal
-  and 100 CPU-loaded original-file runs did not reproduce it. The old test
-  accepts a deliberately broken cursor restart, and its large real-file
-  fixture adds a latency dependency to CI's five-second test deadline.
-  Default: retain production behavior, reduce only the test fixture and prove
-  exact bounds/cursor identity; leave the original hosted trigger unconfirmed
-  until its receipt is available. Evidence: `docs/certification/deflake3.md`.
-
-- **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
-  flag/hard cap, required real Action receipt, and hosted-search refusal are
-  settled. F1 uses micro-USD and upward rounding; F2 preserves observed stream
-  metadata on failure. D-M6 correction: fake W spends $0 actual money;
-  text/review simulates $0.000004, one returned image makes $0.010004, about
-  one cent, under $1.00. No claim of a sub-cent successful image.
-
-- **CLI recovery, the steer refusal's reason:** which `commandRejected`
-  reason does Muse Code send for a `turn/steer` whose `expectedTurnId` is no
-  longer the running turn? It was not captured live (this lane had no model
-  call): the 1.4.2 binary documents "an id that is not the running turn is
-  refused", and its CommandRejectionReason vocabulary holds
-  `invalid_target`, `missing_run` and `already_terminal`, which the
-  extension takes as "no turn took it" (D26, CLI recovery). A different
-  reason now fails the message in its own words instead of sending it as a
-  new turn. Default: those three, until one short live turn (start a turn,
-  let it end, steer it) captures the real one.
-- **M72 native/process exclusion:** what upstream pre-edit fence and locally
-  owned full-descendant shutdown proof can make native/command/hook snapshots
-  destructively restorable? Current availability refuses unproved process
-  state; no wire field, primary exit, pipe drain or dead window PID supplies
-  that proof. Explicit confirmed removal of only a stale unsafe presence file
-  preserves saved checkpoints. No paid/live capture is authorized by this
-  implementation; investigate a bounded future proof separately.
-- **M72 hooks:** should a hook get a final admission of its own? Today none:
-  SessionEnd hooks run on purpose while the Host closes, hook settings are
-  user-global and not trust gated, and Stop is honoured through the signal; the
-  wrapper's activity mark still fences Restore. Default: unchanged.
-- **M72 long storage paths:** should a checkpoint folder over 240 characters
-  (Windows) be served by moving the repository? That would change the hashed
-  namespace. Default: refuse with the `checkpointPathTooLong` message.
-- **M72 dirty buffers in other windows:** a restore refuses a file with unsaved
-  changes in the window that restores, but an idle peer window on the same folder
-  publishes only that it is open, so its unsaved buffer of a file the restore
-  overwrites or deletes is not known. VS Code keeps that buffer and reports the
-  file changed on disk at its next save (it asks before overwriting), so nothing
-  is silently lost. Should every window publish its unsaved paths in its
-  presence file, so a restore refuses them too? Default: unchanged, recorded as
-  a limit (Codex, `a424e526`).
-- **M73/M75 live key (answered 2026-10-02):** the owner approved the spend
-  and this handling for M73's run: the test key decrypted from its DPAPI
-  file in memory and piped to `auth set`'s standard input only, the run, and
-  `auth clear` in a `finally` (`docs/certification/m73.md`). The harness's
-  key source is unchanged.
-- **M73 Evidence-Preserving Reducer:** a paid model call (D48), but the M75
-  evaluation fails any task on which a paid use happens. Should the
-  evaluation gain a priced, counted paid arm for it, or should the reducer be
-  judged by its own D48 consent without an M75 run? Default: not built.
-- **M87 queued messages on Muse Code (D66, item 12).** **Resolved 2026-10-03 (owner): keep steering.** A message typed during a Muse Code turn still goes into that turn. Edit is offered only for messages Muse Code really queued (a handoff, a message with a text file, a refused steer).
-- **M88 saved prompts and Settings Sync (D67, item 13).** **Resolved 2026-10-03 (owner): optional sync.** One setting, off by default, adds saved prompts and bookmarks to Settings Sync (`globalState.setKeysForSync`). Off, they stay on this machine.
-- **M88 one-shot confirmation on the Model API (D67, item 15).** **Resolved 2026-10-03 (owner): confirm when scheduling.** The D48 popup is shown once at scheduling, for that run only, bound to its prompt, model, session and key digest. At its time all of these are checked again; any change sends it back to Run, and nothing is billed without a match.
-- **M88 unattended timed sends on Muse Code (D67, items 15 and 16).** **Resolved 2026-10-03 (owner): yes, on both backends.** A Muse Code timed send or resume goes at its time without Send now. It runs in the conversation's current mode, so Manual still stops at each approval. The Model API follows the scheduling-time confirmation above.
-- **M88 Muse Code usage-limit capture (D67, item 16).** **Resolved 2026-10-03 (lead, under the owner's live-spend authorisation of 2026-09-25 and 2026-10-02): capture it.** The next time the owner's window is full, run one short contributor-model turn in an empty workspace and record the error.
-- **Q-M94a: Tab's paid-use question (D73, D48).** D48 asks before every paid
-  use; Tab would ask on every keystroke pause. **Decided 2026-10-04 (owner):
-  yes, once per window, as Tab's form of D48** — Allow once this window (until
-  it closes), Allow always in this workspace, or Deny (snoozes Tab in this
-  window).
-- **Q-M94b: Tab's default model (D73, D4).** On Standard (`muse-spark-1.3`) Meta
-  does not train on the code, and typing costs about $0.80 an hour (from $0.40
-  to $2.00; research §7). On the contributor model it costs about $0.05 an
-  hour, and Meta trains on every file window Tab sends. **Decided 2026-10-04
-  (owner): Standard; the contributor model is a setting the user chooses,
-  with the training said in the setting and the confirmation.**
-- **Q-M94c: Tab's default daily budget (D73).** $1.00 a day is about 75
-  minutes of typical typing on Standard, or a full working day and more on the
-  contributor model. **Decided 2026-10-04 (owner): $1.00, from $0.05 to $50.**
-- **Q-M94d (watch, not a question): next edit suggestions.** These wait for
-  `isInlineEdit`/`showRange` to reach a stable `vscode.d.ts` (D73, research
-  V16 and V17). Each VS Code release's notes are read for it. When it lands,
-  M94b is planned against that release and the engine floor it needs.
-- **M91 Cursor's Tab hooks (D70).** **Resolved 2026-10-04 (owner): (a), a Tab-completions milestone.** M94 builds inline completions on `feature/m94-tab`, and its lane K wires `beforeTabFileRead` and `afterTabFileEdit` to them. Until then M91 imports them as "waiting for inline completions", where they run nothing.
-
-- **M93:** No new owner choice blocks the shipped workflow. Last 50 entries,
-  a 2,000-character encoded URL and 20 recorded failures a window a minute are
-  conservative implementation defaults, tunable after browser receipts. Still
-  open as receipts, not design questions: the installed-editor runs (engine
-  floor 1.99 and current VS Code, a remote window, two live windows, a real
-  crash), the browser's new-issue page at the cap, and an aggregate on-disk
-  budget across windows (§9, FIXM93R-R7).
-
-| #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Default until answered                                                                  |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Q1  | **Resolved 2026-09-22:** owner authorised installing anything needed; Muse Code CLI 1.3.0 installed via the official installer. The owner reported Muse Code CLI device sign-in and a pay-as-you-go Model API key; M7 keeps them apart (D1 amendment). A separate current Muse Code paid entitlement or tier is unverified; the personal Muse Power/Maximum screenshot is not CLI entitlement proof.                                                                                                                                                                                                                                                                                         | Closed.                                                                                 |
-| Q2  | **Resolved 2026-09-22:** publisher `RandyNorthrup` read from the signed-in marketplace management page. Display name stays "Muse Spark Code (Unofficial)" unless the owner asks otherwise.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Closed.                                                                                 |
-| Q3  | **Resolved 2026-09-22:** owner wants both the CLI (MSP) backend and the Model API backend in the first release. M7 is required for v0.1.0.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | M7 required; see §10.                                                                   |
-| Q4  | **Resolved 2026-09-22 (M9, superseding the M8 answer):** voice dictation ships through the operating system's own recogniser, at no API cost and with no third-party code (owner's constraints): Windows PowerShell 5.1 + `System.Speech` on Windows, a Swift helper on Apple's Speech framework on macOS (owner chose this over an `osascript` bridge), and a dimmed button with the reason on Linux (no distribution ships a recogniser; the owner may revisit). The M8 finding stands for the webview itself: Electron's Web Speech recogniser is dead, so recognition runs in a helper process.                                                                                          | Closed; see M9.                                                                         |
-| Q5  | **Resolved (M4):** `highlight.js` 11.12.0 core with a fixed language set, in the webview bundle; `shiki` was not taken (grammar weight).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Closed.                                                                                 |
-| Q6  | **Partly answered (M55):** Meta's Muse Code overview (checked 2026-09-25) documents `curl -fsSL https://dev.meta.ai/install.sh \| sh` for macOS and Linux, and the panel offers it; `muse` itself has not been run on Linux.                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Offer the installer; the Model API key remains the fallback if `muse` is absent.        |
-| Q7  | **Resolved 2026-09-22:** owner pressed F5 and confirmed the Muse Spark chat shell renders in the Extension Development Host (verbal confirmation; no screenshot filed).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Closed.                                                                                 |
-| Q8  | **Resolved 2026-09-22:** owner signed in; publisher is `RandyNorthrup`. Publishing ran by hand from the CI artifact with a clipboard PAT for 0.1.0–0.5.0; since 2026-09-23 the `VSCE_PAT` repository secret lets `release.yml` publish every `v*` tag.                                                                                                                                                                                                                                                                                                                                                                                                                                       | Closed.                                                                                 |
-| Q9  | The Muse Code user rules file: `/rules import` writes one into the config root and the model is told "if user and project rules conflict, project rules win", but its file name is not printed by `muse --help`, `muse skills`, the settings skill or the binary's strings. The Model API backend cannot mirror what it cannot name.                                                                                                                                                                                                                                                                                                                                                         | Not loaded on the Model API backend; the CLI backend loads it itself.                   |
-| Q10 | M67's repo map on Muse Code: the plan asks for it "as an opt-in section of the system prompt", but Muse Code's instructions are its own (D13: nothing installed into its folders). It could ride as a hidden note on the first turn of a conversation (as the question-card hint does), billed to the subscription as prompt tokens. Wanted?                                                                                                                                                                                                                                                                                                                                                 | The `repoMap` tool only; no note in Muse Code turns.                                    |
-| Q11 | M67's prompt repo map setting: its name (`museSpark.modelApiRepoMap`), its default (off, since every request pays its tokens) and its fixed ~1,000-token budget, and whether the model should see the map by default once the M75 evaluation measures it.                                                                                                                                                                                                                                                                                                                                                                                                                                    | Off by default, machine-scoped, 1,024 tokens, no budget setting.                        |
-| Q60 | **Answered 2026-09-26:** the owner set up the Open VSX account: the Eclipse Publisher Agreement signed, the namespace `RandyNorthrup` created, the token in `OVSX_PAT`. The release workflow publishes there from the next tag (M62).                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| Q61 | **Resolved 2026-09-26:** the owner approved the ACP SDK. `@agentclientprotocol/sdk` 1.4.0 is pinned: 1.5.0 (2026-09-21) is inside `.npmrc`'s 7-day `min-release-age`, and 1.4.0 speaks the same ACP v1 (D62). **Superseded 2026-10-01 (PR #65):** 1.5.0, past the window, is pinned; it speaks the same ACP v1 and only adds optional notice schemas (`docs/certification/pr61-dependencies.md`).                                                                                                                                                                                                                                                                                            |
-| Q62 | **Resolved 2026-09-26:** "you can install whatever you need". What this container's network lets in is recorded per editor (D62); the rest is qualified in CI or on the owner's machines.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| Q63 | **Resolved 2026-09-26:** the owner left the design to us: D61, the operating system's credential store, in-process.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| Q64 | **Resolved 2026-09-26:** "the top editors come first but i want them all or as close to all as possible": the order is D62's.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| Q65 | **Answered 2026-09-26:** after npm held the owner's account for suspicious activity, the owner set `NPM_TOKEN` in the `marketplace` environment. The name `muse-spark-code-acp` was free that day; the next tag publishes it, and each GitHub Release still carries the package.                                                                                                                                                                                                                                                                                                                                                                                                             |
-| Q66 | **Resolved 2026-09-27: loud, not re-routed.** The ACP agent's own requests (the Model API backend) use Node's `fetch`, which ignores `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1` (Node 22.21+ or 24+; measured on seven releases). The owner: the agent does not re-route by itself or add undici. It warns once at start, in its log, when a proxy variable is set for the Model API backend and Node's switch is off or missing (`src/runtime/proxyWarning.ts`), and a request that never reaches Meta gets advice naming the agent's environment variables instead of VS Code's `http.*` settings (M56's classifier, told by the runtime which host it serves: `networkAdvice: 'agent'`). | Closed; `docs/acp.md` "Networks and proxies", `docs/certification/pr32-integration.md`. |
-| Q12 | Should a shell tool session rule ("Always allow in this session" for a shell command) lapse when the model edits a file the command names or that decides what it runs, as the verify loop's rules do since M68? Today the shell tool keeps its pre-M68 behaviour: its rules are keyed on the exact command line and answer whatever the model edited. The verify loop's grants are kept apart from it (PR #54).                                                                                                                                                                                                                                                                             | The shell tool's rules keep answering; only the verify loop's lapse.                    |
-
 ### D73 — Inline completions (Tab), billed to the Model API key (M94, 2026-10-04)
 
 The owner, 2026-10-04: "yes plan and build the feature". Inline code
@@ -15708,6 +15856,255 @@ The owner, 2026-10-05:
 
 ---
 
+#### Preserved integration notes: D92 — Questions that never block (M112, 2026-10-05)
+
+The owner, 2026-10-05:
+
+- "verify the questions get pinned same as the allow reject stuff so they
+  dont get lost and if the question times out it should just proceed with
+  other stuff and ask again later but it should not block lets say the
+  question stays up for like 1 minute then collapses but if the user scrolls
+  back in the chat they can answer anytime"
+- "in the chat unanswered questions should be easily identifiable so a user
+  scrolling through the chat can pick them out easily, re-expand them and
+  answer the question"
+
+**What exists** (read on main at `2d4d72bd3`):
+
+- **Approvals are pinned; questions are not.** The approvals Muse waits on
+  sit in a dock above the composer (`ApprovalDock.tsx:40–84`, D26), which
+  takes focus unless the user is typing (`DOCK_TYPING_GRACE_MS`,
+  `ApprovalDock.tsx:25–62`). A question card renders only inside its tool
+  row (`ToolRow.tsx:646–653`), and so does an MCP server's form
+  (`ToolRow.tsx:654–662`), so both scroll away.
+- **A question blocks its turn with no deadline.**
+  - Model API: `askUser` awaits `waitFor(signal, …)` until the user answers
+    or Stop aborts the signal (`ModelApiHost.ts:4828–4865`).
+  - Muse Code: `userInput/requested` becomes `questionRequested`
+    (`mapNotification.ts:362–367`), admitted once by the prompt ledger
+    (`promptLedger.ts:191–197`). The answers are `userInput/answer`,
+    `userInput/cancel` and `userInput/clarify` (`MuseCodeHost.ts:1088–1117`);
+    a clarification holds at most `CLARIFICATION_MAX_CHARS` (500) characters
+    (`constants.ts:3172–3176`).
+  - Only an MCP form has a deadline: `MCP_ELICITATION_TIMEOUT_MS`, 300
+    seconds (`constants.ts:717`), after which it is cancelled
+    (`ModelApiHost.ts:4982`, `mcp/connection.ts:274`).
+- **A settled question can no longer be answered.** The outcomes are
+  answered, cancelled and clarified (`ModelApiHost.ts:4851–4855`), and the
+  settled row drops the card (`uiState.ts:2075–2093`).
+- **What tells the user.** A question raises one notice while the window is
+  unfocused (`turnNotifications.ts:64–71`, under
+  `museSpark.notifyOnBackgroundTurn`). The view's badge is the unread dot
+  only (`ChatViewProvider.ts:27–33`).
+- **A message can reach a running turn.** The controller's `submit` steers
+  into the running turn, and sends a new turn only when the steer was
+  refused with nothing taken (`conversationController.ts:5724–5765`).
+- **Runs nobody watches answer at once.** Headless `exec` counts
+  `question_declined` (`runExec.ts:249–251`); best-of-N candidates and
+  worktree conversations cancel (`worktreeConversationHost.ts:211–215`); the
+  M75 evaluation clarifies with a fixed text (`eval/driver.ts:202–205`).
+  **Scheduled prompts are not among them:** a schedule runs as a turn of the
+  open conversation after the user confirms it
+  (`conversationController.ts:7015–7046`), so its questions are interactive
+  and block today.
+- **ACP.** A client with forms gets the question as `elicitation/create`,
+  and the agent waits for its answer; a client without forms gets the text
+  and an immediate decline (`acp/agent.ts:560–600`). The pinned SDK (1.5.0)
+  withdraws a request it sent, by `$/cancel_request`, when given a
+  `cancellationSignal` (`@agentclientprotocol/sdk/dist/jsonrpc.d.ts:84–92`,
+  `acp.d.ts:172`).
+
+1. **One attention dock.**
+   - `ApprovalDock` becomes `AttentionDock`, still above the composer.
+   - **Approvals come first and are unchanged.** They block, never defer and
+     never collapse. D26's order, D48's paid popup and the focus rule are as
+     today.
+   - **Below them, the question group:** newest waiting questions first
+     (2026-10-06 review ruling), then MCP forms, then the open questions
+     (decision 3) as one compact
+     chip, "N open questions", with **Answer**, **Previous** and **Next**.
+   - **One card is full at a time.** While an approval waits, the question
+     group is one line. The dock stays within
+     `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION` (half the view) with its own
+     scroll, so the composer and the newest reply stay in sight.
+   - **The dock and the row are two views of one question.** The transcript
+     row keeps its card (decision 7); answering either settles both.
+   - **MCP forms join the dock** (a lead addition: they are questions too,
+     and get lost the same way). They keep their 300-second deadline and
+     their cancel. MCP has no late answer, so an expired form says so and
+     cannot be sent.
+
+2. **A question defers instead of blocking.**
+   - **The setting.** `museSpark.questions.deferAfterSeconds`, machine-scoped
+     (D15), so a repository can make questions neither block nor vanish:
+     - 60 by default (`QUESTION_DEFER_DEFAULT_SECONDS`);
+     - 0 means never;
+     - otherwise 10 to 3,600 (`QUESTION_DEFER_MIN_SECONDS`,
+       `QUESTION_DEFER_MAX_SECONDS`), and a value from 1 to 9 is read as 10.
+   - **The clock** starts when the question arrives, in the process that
+     holds the session: the extension host in VS Code; the runtime for the
+     companion page, the native plugins, the TUI, Muse Desktop and ACP
+     clients. It is injected, so the tests drive it.
+   - **At the deadline the backend settles the tool call with a deferral,**
+     and the agent goes on:
+     - **Model API:** `askUser`'s wait resolves with a fourth reply,
+       `deferred`. The tool's output is `QUESTION_MODEL_TEXT.deferred`.
+     - **Muse Code:** `userInput/clarify` with
+       `QUESTION_MODEL_TEXT.deferredClarification`, the shape captured for
+       M46 (2026-09-25). The host keeps the ids it deferred, so the
+       `userInput/settled` that follows (`clarified`) is shown as
+       `deferred`. An explanation the user typed stays `clarified`.
+     - **The text** is fixed English, filled with the question's id, and at
+       most 500 characters for Muse Code's limit: "<harness_note>The user
+       has not answered question {id} yet. Continue with work that does not
+       depend on the answer. Do not guess the answer and do not ask again.
+       The answer will arrive later as a user message that begins "Answer to
+       your earlier question {id}".</harness_note>"
+   - **The cache stays warm.** The system prompt, the tool declarations and
+     `instructions.ts:107`'s line on `ask_user` do not change. Every request
+     before a deferral is byte-identical (the SoL-Pi invariants); the
+     deferral's own request differs only in that tool output.
+   - **Nothing collapses under the user's hands.**
+     - The deferral happens on time, even while the user types in the card.
+     - The card stays full while it holds focus or a draft, and collapses
+       when focus leaves. The draft is kept.
+     - A draft sent after the deferral goes as a late answer (decision 4).
+   - **The dock card says it once.** A quiet line, "Muse keeps working in
+     {seconds} s if you don't answer", is announced on arrival only, never
+     as a ticking live region.
+   - **Stop** settles a waiting question as today (cancelled). A turn that
+     ends any other way (interrupted, failed, the window reloaded) leaves its
+     waiting question open, never lost.
+
+3. **Open questions are kept until settled.**
+   - **States.** `waiting` → `open` (deferred) → `answeredLater`,
+     `answeredOnReask`, `dismissed` or `expired`. A waiting question still
+     settles `answered`, `cancelled` or `clarified` as today.
+   - **One portable registry** (`src/core/questions/**`, no `vscode`) holds
+     them per session, written through a port: the extension's global
+     storage in VS Code, the runtime's data folder elsewhere.
+     - Owner-only files, zod-validated, deleted with their session.
+     - Never exported or logged (ids only), and sent nowhere but to the model
+       inside the answer.
+   - **Bounded.** At most `OPEN_QUESTIONS_MAX` (20) are open per session.
+     Past it the oldest becomes `expired`, and its row says so.
+   - **They survive** a reload, a resume and another editor. The host posts
+     the open set when a surface attaches. A row found by its item id shows
+     its card; one whose row is not in the loaded history shows in the dock
+     alone.
+   - **Dismiss** (in the card's ⋯ menu) settles an open question without an
+     answer. The agent is told lazily: steered into the running turn if
+     there is one, otherwise put in front of the next message the user
+     sends; never as a turn of its own.
+
+4. **A late answer reaches the agent exactly once.**
+   - It is given from the transcript row or the dock chip, at any time.
+   - **While a turn runs** in that session, it is steered into the turn
+     (`submit`'s steer). A steer refused with nothing taken goes as a new
+     turn, as `submit` already does.
+   - **While the session is idle,** it starts a turn.
+     - The transcript shows the user's own row: "Answer to your earlier
+       question: {header}".
+     - The model reads `QUESTION_DELIVERY_MODEL_TEXT.lateAnswer`: the question's id,
+       its text (at most `LATE_ANSWER_QUESTION_MAX_CHARS`), and the answers
+       in the shape `questionResultText` already sends
+       (`ModelApiHost.ts:1294–1306`).
+   - **Both backends alike.** It is the user's own message: it runs in the
+     session's current mode, bills as any user turn, and approves nothing.
+   - **Once.** The registry marks the question before sending, and puts it
+     back only when nothing was taken. A second click or a second surface
+     never sends it twice.
+
+5. **Asked again, answered once.** A question's key is the text of its
+   questions and their option labels: NFC-normalised, trimmed, runs of white
+   space folded, letters lower-cased (`toLowerCase`, no locale), the options
+   as a sorted set.
+   - A new request whose key matches an open question reuses that card,
+     back in the dock as waiting. The answer goes to the new request in its
+     own turn, and the open one becomes `answeredOnReask`, with no late
+     message.
+   - Two waiting requests with one key (two calls in flight) share one card,
+     and one answer settles both.
+
+6. **"Ask again later", bounded.** When a turn of the session ends with open
+   questions:
+   - the dock expands the oldest open question once, unless an approval
+     waits;
+   - `attentionNotice` raises `notifyOpenQuestions`, keyed by session and
+     turn, under the existing setting and only while the window is
+     unfocused (`BackgroundNotifier`'s rule).
+
+   Each question is expanded again at most `QUESTION_REMINDERS_MAX` (2)
+   times in all, and at most one question per turn end. The model is never
+   asked to ask again.
+
+7. **Easy to pick out in the transcript.**
+   - **Waiting and open rows** carry a left accent, the `question` codicon
+     and the label **Open question** before the header. An open row is
+     folded to one line (the header, **Answer** and an expand chevron) and
+     opens in place.
+   - **Settled rows** each have their own label and icon: Answered, Answered
+     later, Answered when asked again, Explained, Declined, Dismissed,
+     Expired. None is told by colour alone; high-contrast themes use
+     `contrastBorder`.
+   - **Moving between them.** **Next open question** and **Previous open
+     question** (`museSpark.nextOpenQuestion`,
+     `museSpark.previousOpenQuestion`) in the palette, on the dock chip and
+     as keys. Proposed: `Ctrl+Alt+J` and `Ctrl+Alt+Shift+J` (`Cmd+Alt+J` and
+     `Cmd+Alt+Shift+J` on macOS), with a `when` on the chat's focus (D15's
+     hygiene). Lane 0 checks them against each editor's default keymap
+     first.
+   - **Counts outside the panel.**
+     - The view's badge shows the open count (tooltip "N open questions"),
+       taking precedence over the unread dot.
+     - An editor tab's title gains "· N open"; the companion page's
+       `document.title` likewise.
+     - The History dialog marks conversations with open questions.
+   - **Screen readers.** The live region speaks the arrival (as today), the
+     deferral ("Moved to open questions; you can answer any time"), a
+     reminder, and a late answer sent. The chip is a button whose name
+     carries the count.
+
+8. **Runs nobody watches keep what they do.** Headless `exec`, best-of-N
+   candidates, worktree conversations and the M75 evaluation still decline
+   or clarify at once; M96's workers, when they merge, decline as unattended
+   work does. Scheduled prompts are interactive (above) and get decision 2.
+   `docs/ci.md` and the README say so.
+   - **Amended 2026-10-06 by D95:** scheduled prompts become unattended
+     (M115). Their questions defer at once, without the minute, and stay open
+     and answerable like any other.
+
+9. **Every editor** (D84):
+
+   | Surface                                                                                                           | The question                                                                                                | Deferral clock                                                                            | Late answer                                                                                                                        | Counts and keys                                                             | When                                           |
+   | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------- |
+   | VS Code, VSCodium, Cursor, Windsurf, Kiro, Positron, Theia; Remote SSH, WSL, Dev Containers, Codespaces           | `AttentionDock` in the sidebar and every editor tab; the row's card                                         | the extension host                                                                        | steered, or a new turn (`submit`)                                                                                                  | the view badge, the tab title, the History marker; the commands and keys    | M112                                           |
+   | JetBrains IDEs, Visual Studio, Eclipse (M104b–d)                                                                  | the same panel through the bridges                                                                          | the runtime                                                                               | as VS Code                                                                                                                         | MHP's status item carries the count; each bridge maps it to its tool window | contract and fakes in M112; wired by M104b–d   |
+   | The companion page                                                                                                | the same panel                                                                                              | the runtime                                                                               | as VS Code                                                                                                                         | `document.title`; the page's keys                                           | M112 once M104 lane C has merged, else with it |
+   | ACP clients with forms (Zed, Xcode 27, JetBrains AI Assistant, Neovim, Emacs, Sublime and the rest of D62's list) | `elicitation/create`, as today                                                                              | the agent: at the deadline it defers the call and withdraws the form (`$/cancel_request`) | `/answer <n> <text>`; a form returned after the deadline is a late answer: steered into a running prompt, else put before the next | `/questions` lists the open ones; one notice per deferral                   | M112                                           |
+   | ACP clients without forms                                                                                         | the text, then deferred at once (today: declined), so the agent goes on and the user answers with `/answer` | —                                                                                         | `/answer <n> <text>`                                                                                                               | `/questions`                                                                | M112                                           |
+   | Headless `exec`                                                                                                   | declined at once (unchanged)                                                                                | —                                                                                         | —                                                                                                                                  | `question_declined`                                                         | unchanged                                      |
+   | The TUI (M110a0 lane T)                                                                                           | its question view, pinned above the input line                                                              | the runtime                                                                               | as the runtime                                                                                                                     | the status line's count; a key for the next open question                   | with lane T, on lane 0's MHP messages          |
+   | Muse Desktop (M111b)                                                                                              | the panel inside the workbench                                                                              | the node                                                                                  | as the runtime                                                                                                                     | the bar's agents item shows the count                                       | with M111b                                     |
+   | The Muse Code backend, in any editor                                                                              | as its editor                                                                                               | its host                                                                                  | `turn/steer`, or a new turn                                                                                                        | as its editor                                                               | M112                                           |
+
+10. **Text, help and docs.**
+    - Every string is in `en.ts` and the 14 tables.
+    - The deferral text is `QUESTION_MODEL_TEXT`, read only by the lazy
+      `dist/questionNotes.js`. Late-answer and dismissal text is
+      `QUESTION_DELIVERY_MODEL_TEXT`, read by `dist/conversation.js` and
+      `dist/runtimeQuestions.js`. The split check guards both blocks.
+      This ownership was measured at M112 integration; neither backend
+      startup carries the note or registry delivery templates.
+    - The setting, the two commands, the dock and `/answer` join the `/help`
+      reference (`src/shared/featureCatalog.ts`, `check:reference`).
+
+11. **No dependency, nothing new at startup.** The dock replaces a component
+    already in the webview's startup bundle; the registry is small and pure;
+    nothing loads at activation that did not before; no cap rises (D6).
+
+---
+
 ### D93 — Deterministic reports: `/report` (M113, 2026-10-05)
 
 The owner, 2026-10-05: "we also need some sort of deterministic report
@@ -16591,42 +16988,6 @@ initial filing of the issue".
       orchestrator's Agent map, with its stage and what it waits for, and a
       row in `/report issues` (D93); those waiting on the owner come first.
 
-### D89.5 — Credential variables stay out of model-run processes (ENVFENCE, 2026-10-05)
-
-The VS Code Model API shell inherited credential variables from the extension
-host and terminal overrides. The shared, case-insensitive credential-name
-matcher now fences shell commands, verification/`then_run`, background and
-scheduled runs, child/team workers, hooks/plugins, Git and native helpers.
-MCP stdio servers keep their narrow host projection and their explicitly
-configured `env`; browser checks keep their private projection. Image tools
-use in-process HTTP and file IO, with no child process. Muse Code's own
-`serve`, account, skills and login processes keep D1's credential path.
-
-`museSpark.shell.passEnvironmentVariables` is an empty-by-default,
-machine-scoped array of variable names, never values. Only an interactive
-top-level shell command (including the user's `!` command) may pass a named
-credential. Unattended verification/`then_run`, schedules, child/team workers,
-hooks/plugins and helpers never honor it. Moving an already admitted
-interactive shell to the background preserves its starting environment.
-The setting warns that a command can expose the value to the conversation
-and model provider. ACP/headless keep their existing credential-free tool
-environments in every editor; no pass-through flag is added there.
-
-The base lacks `src/shared/featureCatalog.ts`: add the setting to HELPREF's
-catalogue when that lane merges. No paid/live calls are authorized.
-
-**FIXENVFENCE review repair (2026-10-05).** RVENVFENCE found two P1s:
-common credential names escaped the matcher, and a scheduled shell delayed
-in directory preparation could read a later active-turn state as interactive.
-Cover the standard credential suffix families and known exact/prefix names,
-with an explicit harmless-name allow-list. Capture interactive admission when
-the command is created, before hooks or directory waits; the native spawn
-still rechecks the captured owner's admission. Regressions must include a
-real shell, ACP startup removal, safe-name preservation, and a backgrounded
-scheduled command released after its turn ends. Deliberately break each fix,
-observe the named tests fail, restore byte-exact and record the evidence in
-`docs/certification/envfence.md`. No new dependency or broader exception.
-
 ### D74 — Bring-your-own model providers and subscription sign-in (M95, M95b, M95c, 2026-10-04)
 
 The owner (2026-10-04): "i want to make sure we have the harness properly
@@ -17281,264 +17642,6 @@ every line of ours it cites, is `docs/research/pi-solpi-2026-10-05.md`.
    Shared ACP/headless packing is enabled too, and explicit-off sessions retain
    their feature-off request goldens.
 
-## 3. Open questions (need the owner)
-
-- **Q-M101IMAGE-DIMENSIONS (2026-10-06).** Which checked-in provider capture or
-  authorized documentation supplies each vision model's maximum width/height?
-  This base has no M95 N records for them, and the lane rules permit no network
-  lookup beyond npm ci. The portable PNG/JPEG mechanism is proved with explicit
-  injected limits; production records must use documented limits, never a guess.
-  FIXM101T-IMAGE21 remains open until those records and their ingress proof land.
-
-### D92 — Questions that never block (M112, 2026-10-05)
-
-The owner, 2026-10-05:
-
-- "verify the questions get pinned same as the allow reject stuff so they
-  dont get lost and if the question times out it should just proceed with
-  other stuff and ask again later but it should not block lets say the
-  question stays up for like 1 minute then collapses but if the user scrolls
-  back in the chat they can answer anytime"
-- "in the chat unanswered questions should be easily identifiable so a user
-  scrolling through the chat can pick them out easily, re-expand them and
-  answer the question"
-
-**What exists** (read on main at `2d4d72bd3`):
-
-- **Approvals are pinned; questions are not.** The approvals Muse waits on
-  sit in a dock above the composer (`ApprovalDock.tsx:40–84`, D26), which
-  takes focus unless the user is typing (`DOCK_TYPING_GRACE_MS`,
-  `ApprovalDock.tsx:25–62`). A question card renders only inside its tool
-  row (`ToolRow.tsx:646–653`), and so does an MCP server's form
-  (`ToolRow.tsx:654–662`), so both scroll away.
-- **A question blocks its turn with no deadline.**
-  - Model API: `askUser` awaits `waitFor(signal, …)` until the user answers
-    or Stop aborts the signal (`ModelApiHost.ts:4828–4865`).
-  - Muse Code: `userInput/requested` becomes `questionRequested`
-    (`mapNotification.ts:362–367`), admitted once by the prompt ledger
-    (`promptLedger.ts:191–197`). The answers are `userInput/answer`,
-    `userInput/cancel` and `userInput/clarify` (`MuseCodeHost.ts:1088–1117`);
-    a clarification holds at most `CLARIFICATION_MAX_CHARS` (500) characters
-    (`constants.ts:3172–3176`).
-  - Only an MCP form has a deadline: `MCP_ELICITATION_TIMEOUT_MS`, 300
-    seconds (`constants.ts:717`), after which it is cancelled
-    (`ModelApiHost.ts:4982`, `mcp/connection.ts:274`).
-- **A settled question can no longer be answered.** The outcomes are
-  answered, cancelled and clarified (`ModelApiHost.ts:4851–4855`), and the
-  settled row drops the card (`uiState.ts:2075–2093`).
-- **What tells the user.** A question raises one notice while the window is
-  unfocused (`turnNotifications.ts:64–71`, under
-  `museSpark.notifyOnBackgroundTurn`). The view's badge is the unread dot
-  only (`ChatViewProvider.ts:27–33`).
-- **A message can reach a running turn.** The controller's `submit` steers
-  into the running turn, and sends a new turn only when the steer was
-  refused with nothing taken (`conversationController.ts:5724–5765`).
-- **Runs nobody watches answer at once.** Headless `exec` counts
-  `question_declined` (`runExec.ts:249–251`); best-of-N candidates and
-  worktree conversations cancel (`worktreeConversationHost.ts:211–215`); the
-  M75 evaluation clarifies with a fixed text (`eval/driver.ts:202–205`).
-  **Scheduled prompts are not among them:** a schedule runs as a turn of the
-  open conversation after the user confirms it
-  (`conversationController.ts:7015–7046`), so its questions are interactive
-  and block today.
-- **ACP.** A client with forms gets the question as `elicitation/create`,
-  and the agent waits for its answer; a client without forms gets the text
-  and an immediate decline (`acp/agent.ts:560–600`). The pinned SDK (1.5.0)
-  withdraws a request it sent, by `$/cancel_request`, when given a
-  `cancellationSignal` (`@agentclientprotocol/sdk/dist/jsonrpc.d.ts:84–92`,
-  `acp.d.ts:172`).
-
-1. **One attention dock.**
-   - `ApprovalDock` becomes `AttentionDock`, still above the composer.
-   - **Approvals come first and are unchanged.** They block, never defer and
-     never collapse. D26's order, D48's paid popup and the focus rule are as
-     today.
-   - **Below them, the question group:** newest waiting questions first
-     (2026-10-06 review ruling), then MCP forms, then the open questions
-     (decision 3) as one compact
-     chip, "N open questions", with **Answer**, **Previous** and **Next**.
-   - **One card is full at a time.** While an approval waits, the question
-     group is one line. The dock stays within
-     `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION` (half the view) with its own
-     scroll, so the composer and the newest reply stay in sight.
-   - **The dock and the row are two views of one question.** The transcript
-     row keeps its card (decision 7); answering either settles both.
-   - **MCP forms join the dock** (a lead addition: they are questions too,
-     and get lost the same way). They keep their 300-second deadline and
-     their cancel. MCP has no late answer, so an expired form says so and
-     cannot be sent.
-
-2. **A question defers instead of blocking.**
-   - **The setting.** `museSpark.questions.deferAfterSeconds`, machine-scoped
-     (D15), so a repository can make questions neither block nor vanish:
-     - 60 by default (`QUESTION_DEFER_DEFAULT_SECONDS`);
-     - 0 means never;
-     - otherwise 10 to 3,600 (`QUESTION_DEFER_MIN_SECONDS`,
-       `QUESTION_DEFER_MAX_SECONDS`), and a value from 1 to 9 is read as 10.
-   - **The clock** starts when the question arrives, in the process that
-     holds the session: the extension host in VS Code; the runtime for the
-     companion page, the native plugins, the TUI, Muse Desktop and ACP
-     clients. It is injected, so the tests drive it.
-   - **At the deadline the backend settles the tool call with a deferral,**
-     and the agent goes on:
-     - **Model API:** `askUser`'s wait resolves with a fourth reply,
-       `deferred`. The tool's output is `QUESTION_MODEL_TEXT.deferred`.
-     - **Muse Code:** `userInput/clarify` with
-       `QUESTION_MODEL_TEXT.deferredClarification`, the shape captured for
-       M46 (2026-09-25). The host keeps the ids it deferred, so the
-       `userInput/settled` that follows (`clarified`) is shown as
-       `deferred`. An explanation the user typed stays `clarified`.
-     - **The text** is fixed English, filled with the question's id, and at
-       most 500 characters for Muse Code's limit: "<harness_note>The user
-       has not answered question {id} yet. Continue with work that does not
-       depend on the answer. Do not guess the answer and do not ask again.
-       The answer will arrive later as a user message that begins "Answer to
-       your earlier question {id}".</harness_note>"
-   - **The cache stays warm.** The system prompt, the tool declarations and
-     `instructions.ts:107`'s line on `ask_user` do not change. Every request
-     before a deferral is byte-identical (the SoL-Pi invariants); the
-     deferral's own request differs only in that tool output.
-   - **Nothing collapses under the user's hands.**
-     - The deferral happens on time, even while the user types in the card.
-     - The card stays full while it holds focus or a draft, and collapses
-       when focus leaves. The draft is kept.
-     - A draft sent after the deferral goes as a late answer (decision 4).
-   - **The dock card says it once.** A quiet line, "Muse keeps working in
-     {seconds} s if you don't answer", is announced on arrival only, never
-     as a ticking live region.
-   - **Stop** settles a waiting question as today (cancelled). A turn that
-     ends any other way (interrupted, failed, the window reloaded) leaves its
-     waiting question open, never lost.
-
-3. **Open questions are kept until settled.**
-   - **States.** `waiting` → `open` (deferred) → `answeredLater`,
-     `answeredOnReask`, `dismissed` or `expired`. A waiting question still
-     settles `answered`, `cancelled` or `clarified` as today.
-   - **One portable registry** (`src/core/questions/**`, no `vscode`) holds
-     them per session, written through a port: the extension's global
-     storage in VS Code, the runtime's data folder elsewhere.
-     - Owner-only files, zod-validated, deleted with their session.
-     - Never exported or logged (ids only), and sent nowhere but to the model
-       inside the answer.
-   - **Bounded.** At most `OPEN_QUESTIONS_MAX` (20) are open per session.
-     Past it the oldest becomes `expired`, and its row says so.
-   - **They survive** a reload, a resume and another editor. The host posts
-     the open set when a surface attaches. A row found by its item id shows
-     its card; one whose row is not in the loaded history shows in the dock
-     alone.
-   - **Dismiss** (in the card's ⋯ menu) settles an open question without an
-     answer. The agent is told lazily: steered into the running turn if
-     there is one, otherwise put in front of the next message the user
-     sends; never as a turn of its own.
-
-4. **A late answer reaches the agent exactly once.**
-   - It is given from the transcript row or the dock chip, at any time.
-   - **While a turn runs** in that session, it is steered into the turn
-     (`submit`'s steer). A steer refused with nothing taken goes as a new
-     turn, as `submit` already does.
-   - **While the session is idle,** it starts a turn.
-     - The transcript shows the user's own row: "Answer to your earlier
-       question: {header}".
-     - The model reads `QUESTION_DELIVERY_MODEL_TEXT.lateAnswer`: the question's id,
-       its text (at most `LATE_ANSWER_QUESTION_MAX_CHARS`), and the answers
-       in the shape `questionResultText` already sends
-       (`ModelApiHost.ts:1294–1306`).
-   - **Both backends alike.** It is the user's own message: it runs in the
-     session's current mode, bills as any user turn, and approves nothing.
-   - **Once.** The registry marks the question before sending, and puts it
-     back only when nothing was taken. A second click or a second surface
-     never sends it twice.
-
-5. **Asked again, answered once.** A question's key is the text of its
-   questions and their option labels: NFC-normalised, trimmed, runs of white
-   space folded, letters lower-cased (`toLowerCase`, no locale), the options
-   as a sorted set.
-   - A new request whose key matches an open question reuses that card,
-     back in the dock as waiting. The answer goes to the new request in its
-     own turn, and the open one becomes `answeredOnReask`, with no late
-     message.
-   - Two waiting requests with one key (two calls in flight) share one card,
-     and one answer settles both.
-
-6. **"Ask again later", bounded.** When a turn of the session ends with open
-   questions:
-   - the dock expands the oldest open question once, unless an approval
-     waits;
-   - `attentionNotice` raises `notifyOpenQuestions`, keyed by session and
-     turn, under the existing setting and only while the window is
-     unfocused (`BackgroundNotifier`'s rule).
-
-   Each question is expanded again at most `QUESTION_REMINDERS_MAX` (2)
-   times in all, and at most one question per turn end. The model is never
-   asked to ask again.
-
-7. **Easy to pick out in the transcript.**
-   - **Waiting and open rows** carry a left accent, the `question` codicon
-     and the label **Open question** before the header. An open row is
-     folded to one line (the header, **Answer** and an expand chevron) and
-     opens in place.
-   - **Settled rows** each have their own label and icon: Answered, Answered
-     later, Answered when asked again, Explained, Declined, Dismissed,
-     Expired. None is told by colour alone; high-contrast themes use
-     `contrastBorder`.
-   - **Moving between them.** **Next open question** and **Previous open
-     question** (`museSpark.nextOpenQuestion`,
-     `museSpark.previousOpenQuestion`) in the palette, on the dock chip and
-     as keys. Proposed: `Ctrl+Alt+J` and `Ctrl+Alt+Shift+J` (`Cmd+Alt+J` and
-     `Cmd+Alt+Shift+J` on macOS), with a `when` on the chat's focus (D15's
-     hygiene). Lane 0 checks them against each editor's default keymap
-     first.
-   - **Counts outside the panel.**
-     - The view's badge shows the open count (tooltip "N open questions"),
-       taking precedence over the unread dot.
-     - An editor tab's title gains "· N open"; the companion page's
-       `document.title` likewise.
-     - The History dialog marks conversations with open questions.
-   - **Screen readers.** The live region speaks the arrival (as today), the
-     deferral ("Moved to open questions; you can answer any time"), a
-     reminder, and a late answer sent. The chip is a button whose name
-     carries the count.
-
-8. **Runs nobody watches keep what they do.** Headless `exec`, best-of-N
-   candidates, worktree conversations and the M75 evaluation still decline
-   or clarify at once; M96's workers, when they merge, decline as unattended
-   work does. Scheduled prompts are interactive (above) and get decision 2.
-   `docs/ci.md` and the README say so.
-   - **Amended 2026-10-06 by D95:** scheduled prompts become unattended
-     (M115). Their questions defer at once, without the minute, and stay open
-     and answerable like any other.
-
-9. **Every editor** (D84):
-
-   | Surface                                                                                                           | The question                                                                                                | Deferral clock                                                                            | Late answer                                                                                                                        | Counts and keys                                                             | When                                           |
-   | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------- |
-   | VS Code, VSCodium, Cursor, Windsurf, Kiro, Positron, Theia; Remote SSH, WSL, Dev Containers, Codespaces           | `AttentionDock` in the sidebar and every editor tab; the row's card                                         | the extension host                                                                        | steered, or a new turn (`submit`)                                                                                                  | the view badge, the tab title, the History marker; the commands and keys    | M112                                           |
-   | JetBrains IDEs, Visual Studio, Eclipse (M104b–d)                                                                  | the same panel through the bridges                                                                          | the runtime                                                                               | as VS Code                                                                                                                         | MHP's status item carries the count; each bridge maps it to its tool window | contract and fakes in M112; wired by M104b–d   |
-   | The companion page                                                                                                | the same panel                                                                                              | the runtime                                                                               | as VS Code                                                                                                                         | `document.title`; the page's keys                                           | M112 once M104 lane C has merged, else with it |
-   | ACP clients with forms (Zed, Xcode 27, JetBrains AI Assistant, Neovim, Emacs, Sublime and the rest of D62's list) | `elicitation/create`, as today                                                                              | the agent: at the deadline it defers the call and withdraws the form (`$/cancel_request`) | `/answer <n> <text>`; a form returned after the deadline is a late answer: steered into a running prompt, else put before the next | `/questions` lists the open ones; one notice per deferral                   | M112                                           |
-   | ACP clients without forms                                                                                         | the text, then deferred at once (today: declined), so the agent goes on and the user answers with `/answer` | —                                                                                         | `/answer <n> <text>`                                                                                                               | `/questions`                                                                | M112                                           |
-   | Headless `exec`                                                                                                   | declined at once (unchanged)                                                                                | —                                                                                         | —                                                                                                                                  | `question_declined`                                                         | unchanged                                      |
-   | The TUI (M110a0 lane T)                                                                                           | its question view, pinned above the input line                                                              | the runtime                                                                               | as the runtime                                                                                                                     | the status line's count; a key for the next open question                   | with lane T, on lane 0's MHP messages          |
-   | Muse Desktop (M111b)                                                                                              | the panel inside the workbench                                                                              | the node                                                                                  | as the runtime                                                                                                                     | the bar's agents item shows the count                                       | with M111b                                     |
-   | The Muse Code backend, in any editor                                                                              | as its editor                                                                                               | its host                                                                                  | `turn/steer`, or a new turn                                                                                                        | as its editor                                                               | M112                                           |
-
-10. **Text, help and docs.**
-    - Every string is in `en.ts` and the 14 tables.
-    - The deferral text is `QUESTION_MODEL_TEXT`, read only by the lazy
-      `dist/questionNotes.js`. Late-answer and dismissal text is
-      `QUESTION_DELIVERY_MODEL_TEXT`, read by `dist/conversation.js` and
-      `dist/runtimeQuestions.js`. The split check guards both blocks.
-      This ownership was measured at M112 integration; neither backend
-      startup carries the note or registry delivery templates.
-    - The setting, the two commands, the dock and `/answer` join the `/help`
-      reference (`src/shared/featureCatalog.ts`, `check:reference`).
-
-11. **No dependency, nothing new at startup.** The dock replaces a component
-    already in the webview's startup bundle; the registry is small and pure;
-    nothing loads at activation that did not before; no cap rises (D6).
-
----
-
 ### D96 — The orchestrator playbook (M116, 2026-10-06)
 
 The owner, 2026-10-06: "and the orchestrator will be trained to use our three
@@ -17737,28 +17840,6 @@ repository's own working rule (AGENTS.md rule 14).
     in `docs/certification/m116-p.md`. No new dependency or relaxed gate.
 
 ---
-
-### FIXM116P4 — Final outcome verification repairs (2026-10-06)
-
-The final lane follows the lead's native-Git contract: delete all Husky
-startup/layout/body emulation. Only `git hook run` in the verification
-worktree, with the source repository's resolved absolute hooksPath and
-HUSKY/HUSKY_SKIP_HOOKS/GIT_* variables deleted, supplies the hook verdict.
-Git's missing-hook error fails closed for a configured hook set. Native
-Husky v9 passing/failing layouts receive real Git regressions and red drills.
-Invalidate pre-repair receipts with a new hook-digest epoch.
-
-Enumerate every worktree and snapshot its HEAD and private refs/worktree,
-refs/bisect and refs/rewritten alongside shared refs. New and moved private
-refs require receipts even when the worktree HEAD stays unchanged.
-
-Contain detached descendants through parent-chain enumeration and start-time
-identity checks in the existing process-tree module; the synchronous policy
-needs a bounded supervisor because spawnSync cannot enumerate while blocked.
-The process-tree module is the necessary shared-file extension of lane P's
-scope. Prefer a prepared Linux cgroup/scope runner when the harness provides
-one. Record the M107 governed-tree binding as an I/W integration handoff.
-No dependency, hook rewrite, gate weakening, paid call or branch merge.
 
 ### D97 — The capacity estimator (M117, 2026-10-06)
 
@@ -18073,7 +18154,422 @@ test that fails without the rule:
 Rows marked **covered** keep their existing decision as the owner: D87.14,
 D90.25, D96, D88 and D97.
 
+### D76 — `/legal`: evidence first, fixes only after selection (M97, 2026-10-04)
+
+The owner asked for a read-only codebase scan of licensing, legal risks and
+copyright/header hygiene, followed by recommendations and an optional,
+authorized fix phase. **Planned; this lane writes documentation only.** D70–D75
+and M91–M96 belong to other drafts; their absence here does not release those
+numbers. Research: `docs/certification/m97-research.md`.
+
+- **Two phases, with a real boundary.** `/legal` and a command-palette entry
+  run the deterministic scanner locally, without a model, writes or network.
+  The report appears before any optional explanation or repair. Scan takes the
+  existing Plan-mode hold (M70) only for a live conversation, restored only
+  while it still owns that hold. A scan never starts a backend;
+  no edit, formatter, hook, verify-loop check, install, build, package-manager
+  evaluation or arbitrary shell command runs. Read files directly; any needed
+  read-only command must pass the existing admission guard. `legal_scan` never
+  exposes a write operation. A skill is guidance, not the security boundary.
+  Muse Code's native tools cannot be disabled through `SessionConfig` (D69):
+  certify its Plan-mode behavior, including standing allow rules, before a
+  model explanation can run. If read-only admission cannot be proved, keep the
+  deterministic report available and refuse that explanation with a reason.
+- **Facts, not a legal certificate.** A versioned, zod-validated result carries
+  stable finding ids, rule/data versions, distribution assumptions, scan scope,
+  exclusions, incomplete checks and sorted evidence. Each finding has severity
+  (`blocker`, `should-fix`, `advice`), workspace-relative file:line when available,
+  package@version and license expression where applicable, its evidence source,
+  confidence, explanation, recommendation and fixable flag. Missing evidence
+  remains unknown; a heuristic never becomes a proven violation or a clean bill
+  of health. Every panel, JSON and requested Markdown export says:
+  “not legal advice; for distribution decisions consult a lawyer”.
+- **Across ecosystems, without running their build files.** Read manifests,
+  locks and installed metadata already present within the chosen workspace;
+  cover direct and transitive packages, preserving conflicting evidence.
+  Missing locks, unresolved versions, dynamic metadata, absent installed data,
+  unsupported lock versions or an unreadable subtree make coverage incomplete.
+  No resolver, lifecycle script, `setup.py`, Gradle/Maven plugin or helper is run.
+
+| Ecosystem         | Local evidence to recognize                                                                                                                                                   |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| npm / pnpm / Yarn | `package.json`, npm locks, `pnpm-lock.yaml`, Yarn classic/Berry locks, present package license/NOTICE files; absent PnP/install metadata stays unknown                        |
+| pip / uv / Poetry | `pyproject.toml`, requirements, `uv.lock`, `poetry.lock`, present distribution `METADATA` and license files; requirements without resolved transitive versions are incomplete |
+| Cargo             | `Cargo.toml`, `Cargo.lock`, present crate manifests, `license` / `license-file` and vendored licenses                                                                         |
+| Go modules        | `go.mod`, `go.sum`, `vendor/modules.txt`, present module/vendor license files; checksums alone are not license metadata                                                       |
+| Maven / Gradle    | POMs, Gradle declarations/locks and present artifact POM/license metadata; do not evaluate executable build logic                                                             |
+| NuGet             | project/package declarations, `packages.lock.json`, `project.assets.json`, present `.nuspec`, license expressions/files                                                       |
+| Composer          | `composer.json`, `composer.lock`, present package licenses                                                                                                                    |
+| Ruby gems         | `Gemfile`, `Gemfile.lock`, static gemspec declarations and present gem metadata; never execute a gemspec                                                                      |
+
+- **Project and dependency licenses.** Recognize LICENSE/COPYING and SPDX
+  declarations using pinned matching data; compare project manifest and README
+  declarations. Preserve custom `LicenseRef` text and unknown/UNLICENSED or
+  proprietary declarations. Parse `AND`, `OR`, `WITH` and parentheses; an `OR`
+  alternative is a choice, not two mandatory licenses, and an exception changes
+  the analysis. Flag possible GPL/AGPL obligations when an MIT/Apache project
+  combines or distributes that code, LGPL linking/source/relinking questions,
+  and MPL file-level obligations, with version and usage evidence. Do not call
+  permissive-to-GPL combination categorically incompatible. Flag SSPL,
+  Business Source License (`BUSL-1.1`, distinct from Boost `BSL-1.0`), Commons
+  Clause and CC-BY-NC restrictions; SPDX recognition is not OSI approval.
+- **What actually ships.** Separate development, production, optional and
+  transitive dependencies, then identify distributed ones from existing bundle
+  metafiles and package manifests/inventories. A dev dependency can still ship.
+  Reuse the approach in `scripts/third-party-notices.mjs`, which reads esbuild
+  inputs and actual license/NOTICE files; its permissive allow-list is not a
+  universal compatibility engine. Check upstream Apache NOTICE obligations
+  when a NOTICE exists, complete `THIRD_PARTY_NOTICES` for bundled/vendored
+  code, and inclusion through `.vscodeignore` / package `files`. Absent or stale
+  build evidence leaves distribution unknown; scanning never rebuilds or packs.
+- **Copied code and assets.** Find vendor folders, foreign headers and source
+  references such as “adapted from”, CodePen and Stack Overflow. Preserve source
+  URLs, attribution and license evidence; a source mention is only a lead.
+  Stack Overflow uses CC BY-SA versions tied to contribution dates, not one
+  guessed version. Check fonts, icons, images and sounds for adjacent license
+  files, `.license` sidecars or REUSE declarations; known restricted families
+  need provenance evidence, not a verdict from their filenames.
+- **The owner's code-quality scope is header hygiene.** Check SPDX identifiers
+  against the applicable license and existing copyright holders/year format.
+  `museSpark.legalHeaderPolicy` is a workspace enum `required` / `optional` /
+  `off`, default `optional`, honoring the detected project style and REUSE
+  declarations. Generated files are excluded from header checks and the report
+  names that exclusion; shipped generated code still counts for notices.
+  Multiple upstream holders can be legitimate. An earlier year alone is not
+  stale; flag conflicting/impossible dates or a breach of the chosen policy.
+  Never invent ownership or replace third-party headers with the project owner.
+- **Other risks are explicitly heuristic.** Third-party marks in names, icons
+  and README, and missing disclaimers (this product remains Unofficial / not
+  endorsed by Meta); apparent data collection without a privacy policy; store
+  README/LICENSE and npm license-field omissions; crypto/export indicators;
+  model-weight/config license conditions such as Llama community terms. No
+  assertion of trademark permission, export clearance or worldwide compliance.
+  Reuse `src/core/redact.ts` and the existing secret-scan rules (`security:secrets`)
+  for secret/PII indicators; list location/type only, never their values.
+- **Offline first; enrichment is a separate choice.** “Fetch missing license
+  metadata” first lists registry hosts, exact package/version queries, request
+  count and the identifiers that will leave the machine. Confirm before any
+  public registry API call; obey D43's proxy/TLS/network posture, bounded
+  responses, cancellation and public-address checks. No credentials, source
+  upload, arbitrary URL fetch, install or persistent cache. Private names are
+  not queried without explicit disclosure/consent. Capture each real response
+  shape before writing its parser (rule 13); failures remain unknown.
+- **An accessible report, saved only on request.** Summary and severity groups
+  show evidence, limitations, suggestions and fixable markers. Labelled
+  checkboxes select findings; “Fix all safe ones” previews the exact eligible
+  findings and patches before confirmation. Nothing is pre-authorized by scan.
+  Preserve keyboard operation, screen-reader status/labels, focus return,
+  narrow-panel wrapping, zoom and all four themes (D32). Markdown is created
+  only after the user requests export and chooses a destination; exported
+  text has the same scrub/disclaimer policy.
+- **Fix is optional and bounded.** After explicit selection/patch confirmation,
+  use normal edit tools and the current permission mode's approvals; Plan or
+  Restricted Mode cannot write. Recheck trust, workspace, permission state and
+  evidence hashes before each selected patch; a changed file needs a fresh
+  report/preview. Batch authorization names only the selected paths; formatting
+  stays within them, and installs/builds/check scripts need their normal
+  independent approval rather than inheriting that authorization. Add LICENSE,
+  NOTICE/THIRD_PARTY_NOTICES, SPDX/copyright headers,
+  attribution comments or project-owned manifest license metadata only from
+  verified evidence and confirmed ownership. A supported dependency-license
+  declaration in a project manifest is a correction of metadata, never a grant
+  of rights. No dependency-code edits, guessed licenses, automatic removal,
+  overwriting existing notices or silent change of the chosen project license.
+  Missing or changed project license needs separate explicit confirmation and
+  cannot enter “safe ones”; unknown ownership/terms are recommendations only.
+- **One scanner, both backends and CI.** Pure `src/core/legal/`, no `vscode`;
+  host/runtime adapters load it lazily as `dist/legalScan.js`, with a measured
+  D6 budget proposed before implementation merges and no existing cap raised.
+  Model API gets native `legal_scan`; Muse Code gets the same read-only tool
+  over the authenticated loopback `ide` MCP bridge (as code-intelligence tools
+  do today, `readOnlyHint` plus actual guards). Missing `sessionMcp` capability
+  is reported, never a guessed protocol fallback. The bundled `/legal` skill
+  uses D68's loading/install mechanism without modifying its pinned upstream
+  vendor package; report authorization stays host-owned even if a user skill
+  shadows it. Headless/ACP exposes `muse-spark-code-acp exec legal-scan --json`
+  as a reserved deterministic subcommand before prompt parsing: no backend,
+  sign-in, credential-store access, model call or ACP-frame stdout mixing.
+  Exit 0 = complete/no blockers, 1 = complete/blockers, 2 = incomplete/input or
+  operational failure; advice alone does not fail CI. No headless auto-fix.
+- **Cost.** The deterministic scan and report cost nothing. An explicit Explain
+  choice permits at most one short, bounded turn over scrubbed findings, never
+  raw source or secret/PII snippets. Muse Code uses the user's subscription;
+  Model API states its estimated cost and cap before consent and follows
+  D30/D48's paid gate, per-use popup, badge, paid row and PaidUsage. Denial or
+  unavailable consent leaves the free report usable; no automatic paid fallback.
+  Fixing through a model is the user's separately requested normal coding turn,
+  with its backend's existing billing and approvals.
+- **Data provenance.** Vendor a pinned, checksummed SPDX identifier/matching
+  dataset only with its own verified redistribution terms and recorded source.
+  CC0 identifier lists are available; exception lists and tools may have other
+  licenses. Preserve their notices, review updates in a PR and build offline;
+  a CC0 dataset does not relicense the licenses it describes. No new package or
+  tool installation is approved by this design record (D3/D9 apply at delivery).
+
 ## 3. Open questions (need the owner)
+
+- **Q-TRAIN15G-DIET1 (2026-10-06):** main’s exact 733.8/32.1-KiB
+  regression capture does not fit the integrated train, although unchanged
+  900/50-KiB production gates pass. The rig brief approves only the universal
+  VSIX formula. Does the lead want an additional startup diet, or a separately
+  reviewed train measurement expectation? Keep the existing assertion enabled
+  and unchanged pending that decision; the scoped result is in section 7.
+
+  **Resolved by TRAIN15H:** the lead requires startup compaction, keeping the
+  diet ratchet by default. Only certified first-paint additions can justify
+  a measured baseline update after reaching the 745-KiB target.
+
+- **Q-REL0150M-UNIVERSAL (2026-10-07):** linuxlt has Darwin helper source but
+  no certified executable or local universal archive. The lead must supply the
+  previously certified 289,568-byte, mode-0755 helper at SHA-256
+  `f42e757a0d78a6bc6a6af22c3bcf34fc7d082eb9e8130d9336024a55c19f0f36`,
+  or a new certified native receipt. Its path was requested asynchronously;
+  no response has arrived. Actual helperless VSIX is 2,651,561 bytes and ACP is
+  1,928,065 bytes, but neither proves the new universal size. Preserve the
+  2,841,600-byte cap until an actual universal package supplies the brief's
+  measured-plus-5-percent, rounded-up-to-25-KiB calculation. No projection or
+  synthetic helper is accepted as that measurement.
+
+- **Q-TRAIN15E-D78 (2026-10-06):** the train's immutable Meta golden requests
+  declare `recall_output` from the first packing-enabled request; M102's D78
+  unused-default-flip test requires its absence until packed output exists.
+  Both cannot have identical request bytes. Preserve the train fixtures per
+  the rig brief; the incoming test stays enabled and its one failure is held
+  for the owner's canonical-baseline decision. An asynchronous question is
+  pending. The universal package also awaits an authorized built Darwin helper.
+
+  **Resolved in TRAIN15F:** the lead chose the immutable goldens. Packing-off
+  omits recall; packing-on declares it from the first request. Daily admission
+  changes neither request. The corrected assertion and all 89 golden cases
+  pass. The certified Darwin helper is available and measured in a real VSIX;
+  the remaining issue is its final package size, recorded under gates.
+
+- **Q-M102INT3 (2026-10-06):** the joined universal VSIX exceeds the
+  unchanged 2,252,800-byte cap; helperless fits. The exact round-three
+  measurements are in `docs/certification/m102.md`. Further package scope or
+  a cap decision belongs to the owner. Production headless BYO accounting
+  and ACP/headless shared paid-daily admission also remain open after the
+  shared two-failed-fixes stop; they need a separately scoped follow-up.
+
+- **Q-M95-I transport prerequisite (2026-10-05):** which completed lane T
+  commit supplies ProviderClient/transport/authSource for this checkout?
+  Those modules are absent at `60bf96aa`; the local `rt-fixm95t` rig snapshot
+  is on a different base. The rig brief forbids main merges and network
+  fetches. The injected host/registry contract is tested offline; production
+  assembly awaits the lead's exact dependency and W's configured sources.
+
+- **Q-M95INT2 release prerequisite (2026-10-05):** the rig brief says
+  `m95/scfix` contains `928a9200` (0.13.0), but its actual `e5a114b4` tip
+  contains only `a95f24cf`. May the exact local release commit be merged
+  separately, despite the rig note's main-merge prohibition? Until answered,
+  keep the five authorized merges and independent cap repairs only.
+- **Q-M95INT2 universal helper (2026-10-05):** what approved local path supplies
+  the real universal macOS helper, or is downloading a released VSIX solely
+  to verify/extract that binary authorized? The binary is absent and the
+  common rule prohibits downloads. A helper-free package cannot certify the
+  requested universal-helper VSIX budget.
+
+- **Q-M95R3 transport size (closed by M95R4 brief, 2026-10-05):** the
+  continuation explicitly requires completion of the shared transport and
+  host/ACP composition. Its scope paragraph in M95b records this authorization;
+  the shared configured-provider implementation is installed and tested offline.
+
+- **Q-M95-I transport prerequisite (2026-10-05):** which completed lane T
+  commit supplies ProviderClient/transport/authSource for this checkout?
+  Those modules are absent at `60bf96aa`; the local `rt-fixm95t` rig snapshot
+  is on a different base. The rig brief forbids main merges and network
+  fetches. The injected host/registry contract is tested offline; production
+  assembly awaits the lead's exact dependency and W's configured sources.
+- **Q-M95BINT live receipts (2026-10-05):** the supplied findings identify
+  `acdc0f60…` and `577bc807…` (0 + 1 model attempts), but do not name the
+  exact raw-capture workspace or provide a successful plan tool/reasoning/
+  cached-token response. Supply those receipts when Subscription Sharing
+  headroom returns; also confirm the scrubbed usage-limit code and test an
+  installed Copilot host/remote callback. No new live call is authorized here.
+
+- **Q-M95INT2 release prerequisite (2026-10-05):** the rig brief says
+  `m95/scfix` contains `928a9200` (0.13.0), but its actual `e5a114b4` tip
+  contains only `a95f24cf`. May the exact local release commit be merged
+  separately, despite the rig note's main-merge prohibition? Until answered,
+  keep the five authorized merges and independent cap repairs only.
+- **Q-M95INT2 universal helper (2026-10-05):** what approved local path supplies
+  the real universal macOS helper, or is downloading a released VSIX solely
+  to verify/extract that binary authorized? The binary is absent and the
+  common rule prohibits downloads. A helper-free package cannot certify the
+  requested universal-helper VSIX budget.
+
+- **Q-TRAIN14 universal helper artifact (2026-10-05).** The worktree has no
+  `native/darwin/muse-dictate`. The lane's shared rules forbid network except
+  `npm ci` and reads from other worktrees without authorization. An existing
+  helper/VSIX location was requested; none was supplied. All production caps
+  and helperless packages pass, and estimates use the prior train's actual
+  119,506-byte ZIP contribution. Actual CI-shaped VSIX certification requires
+  an authorized real universal helper; no placeholder substitutes for it.
+
+- **Q-M100 — Optional expansion after the paired desktop slice.** Short-code
+  PAKE, remote-host key placement, approval forwarding, persistent receivers,
+  VPN/public-address routes and machine-wide caps need their own design and
+  qualification. Defaults: public QR/text exchange with fingerprint checks,
+  local desktop windows, receiver-local approvals, chosen private LAN address,
+  one offered window's caps. M100's lane 0 must settle the certificate/QR
+  implementation, bounded protocol constants and durable journal retention
+  before implementation; uncertain records have no time-based deletion.
+
+- **DEFLAKE3 hosted failure receipt (2026-10-05):** what exact assertion,
+  timeout and stack did PR #116's Windows checkpoint-copy count/cursor test
+  report? The lane brief names the failure without its output; 100 normal
+  and 100 CPU-loaded original-file runs did not reproduce it. The old test
+  accepts a deliberately broken cursor restart, and its large real-file
+  fixture adds a latency dependency to CI's five-second test deadline.
+  Default: retain production behavior, reduce only the test fixture and prove
+  exact bounds/cursor identity; leave the original hosted trigger unconfirmed
+  until its receipt is available. Evidence: `docs/certification/deflake3.md`.
+
+- **M80 accepted rulings (2026-10-02):** memory/stdin CI key, explicit paid
+  flag/hard cap, required real Action receipt, and hosted-search refusal are
+  settled. F1 uses micro-USD and upward rounding; F2 preserves observed stream
+  metadata on failure. D-M6 correction: fake W spends $0 actual money;
+  text/review simulates $0.000004, one returned image makes $0.010004, about
+  one cent, under $1.00. No claim of a sub-cent successful image.
+
+- **CLI recovery, the steer refusal's reason:** which `commandRejected`
+  reason does Muse Code send for a `turn/steer` whose `expectedTurnId` is no
+  longer the running turn? It was not captured live (this lane had no model
+  call): the 1.4.2 binary documents "an id that is not the running turn is
+  refused", and its CommandRejectionReason vocabulary holds
+  `invalid_target`, `missing_run` and `already_terminal`, which the
+  extension takes as "no turn took it" (D26, CLI recovery). A different
+  reason now fails the message in its own words instead of sending it as a
+  new turn. Default: those three, until one short live turn (start a turn,
+  let it end, steer it) captures the real one.
+- **M72 native/process exclusion:** what upstream pre-edit fence and locally
+  owned full-descendant shutdown proof can make native/command/hook snapshots
+  destructively restorable? Current availability refuses unproved process
+  state; no wire field, primary exit, pipe drain or dead window PID supplies
+  that proof. Explicit confirmed removal of only a stale unsafe presence file
+  preserves saved checkpoints. No paid/live capture is authorized by this
+  implementation; investigate a bounded future proof separately.
+- **M72 hooks:** should a hook get a final admission of its own? Today none:
+  SessionEnd hooks run on purpose while the Host closes, hook settings are
+  user-global and not trust gated, and Stop is honoured through the signal; the
+  wrapper's activity mark still fences Restore. Default: unchanged.
+- **M72 long storage paths:** should a checkpoint folder over 240 characters
+  (Windows) be served by moving the repository? That would change the hashed
+  namespace. Default: refuse with the `checkpointPathTooLong` message.
+- **M72 dirty buffers in other windows:** a restore refuses a file with unsaved
+  changes in the window that restores, but an idle peer window on the same folder
+  publishes only that it is open, so its unsaved buffer of a file the restore
+  overwrites or deletes is not known. VS Code keeps that buffer and reports the
+  file changed on disk at its next save (it asks before overwriting), so nothing
+  is silently lost. Should every window publish its unsaved paths in its
+  presence file, so a restore refuses them too? Default: unchanged, recorded as
+  a limit (Codex, `a424e526`).
+- **M73/M75 live key (answered 2026-10-02):** the owner approved the spend
+  and this handling for M73's run: the test key decrypted from its DPAPI
+  file in memory and piped to `auth set`'s standard input only, the run, and
+  `auth clear` in a `finally` (`docs/certification/m73.md`). The harness's
+  key source is unchanged.
+- **M73 Evidence-Preserving Reducer:** a paid model call (D48), but the M75
+  evaluation fails any task on which a paid use happens. Should the
+  evaluation gain a priced, counted paid arm for it, or should the reducer be
+  judged by its own D48 consent without an M75 run? Default: not built.
+- **M87 queued messages on Muse Code (D66, item 12).** **Resolved 2026-10-03 (owner): keep steering.** A message typed during a Muse Code turn still goes into that turn. Edit is offered only for messages Muse Code really queued (a handoff, a message with a text file, a refused steer).
+- **M88 saved prompts and Settings Sync (D67, item 13).** **Resolved 2026-10-03 (owner): optional sync.** One setting, off by default, adds saved prompts and bookmarks to Settings Sync (`globalState.setKeysForSync`). Off, they stay on this machine.
+- **M88 one-shot confirmation on the Model API (D67, item 15).** **Resolved 2026-10-03 (owner): confirm when scheduling.** The D48 popup is shown once at scheduling, for that run only, bound to its prompt, model, session and key digest. At its time all of these are checked again; any change sends it back to Run, and nothing is billed without a match.
+- **M88 unattended timed sends on Muse Code (D67, items 15 and 16).** **Resolved 2026-10-03 (owner): yes, on both backends.** A Muse Code timed send or resume goes at its time without Send now. It runs in the conversation's current mode, so Manual still stops at each approval. The Model API follows the scheduling-time confirmation above.
+- **M88 Muse Code usage-limit capture (D67, item 16).** **Resolved 2026-10-03 (lead, under the owner's live-spend authorisation of 2026-09-25 and 2026-10-02): capture it.** The next time the owner's window is full, run one short contributor-model turn in an empty workspace and record the error.
+- **Q-M94a: Tab's paid-use question (D73, D48).** D48 asks before every paid
+  use; Tab would ask on every keystroke pause. **Decided 2026-10-04 (owner):
+  yes, once per window, as Tab's form of D48** — Allow once this window (until
+  it closes), Allow always in this workspace, or Deny (snoozes Tab in this
+  window).
+- **Q-M94b: Tab's default model (D73, D4).** On Standard (`muse-spark-1.3`) Meta
+  does not train on the code, and typing costs about $0.80 an hour (from $0.40
+  to $2.00; research §7). On the contributor model it costs about $0.05 an
+  hour, and Meta trains on every file window Tab sends. **Decided 2026-10-04
+  (owner): Standard; the contributor model is a setting the user chooses,
+  with the training said in the setting and the confirmation.**
+- **Q-M94c: Tab's default daily budget (D73).** $1.00 a day is about 75
+  minutes of typical typing on Standard, or a full working day and more on the
+  contributor model. **Decided 2026-10-04 (owner): $1.00, from $0.05 to $50.**
+- **Q-M94d (watch, not a question): next edit suggestions.** These wait for
+  `isInlineEdit`/`showRange` to reach a stable `vscode.d.ts` (D73, research
+  V16 and V17). Each VS Code release's notes are read for it. When it lands,
+  M94b is planned against that release and the engine floor it needs.
+- **M91 Cursor's Tab hooks (D70).** **Resolved 2026-10-04 (owner): (a), a Tab-completions milestone.** M94 builds inline completions on `feature/m94-tab`, and its lane K wires `beforeTabFileRead` and `afterTabFileEdit` to them. Until then M91 imports them as "waiting for inline completions", where they run nothing.
+
+- **M93:** No new owner choice blocks the shipped workflow. Last 50 entries,
+  a 2,000-character encoded URL and 20 recorded failures a window a minute are
+  conservative implementation defaults, tunable after browser receipts. Still
+  open as receipts, not design questions: the installed-editor runs (engine
+  floor 1.99 and current VS Code, a remote window, two live windows, a real
+  crash), the browser's new-issue page at the cap, and an aggregate on-disk
+  budget across windows (§9, FIXM93R-R7).
+
+| #   | Question                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Default until answered                                                                  |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Q1  | **Resolved 2026-09-22:** owner authorised installing anything needed; Muse Code CLI 1.3.0 installed via the official installer. The owner reported Muse Code CLI device sign-in and a pay-as-you-go Model API key; M7 keeps them apart (D1 amendment). A separate current Muse Code paid entitlement or tier is unverified; the personal Muse Power/Maximum screenshot is not CLI entitlement proof.                                                                                                                                                                                                                                                                                         | Closed.                                                                                 |
+| Q2  | **Resolved 2026-09-22:** publisher `RandyNorthrup` read from the signed-in marketplace management page. Display name stays "Muse Spark Code (Unofficial)" unless the owner asks otherwise.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Closed.                                                                                 |
+| Q3  | **Resolved 2026-09-22:** owner wants both the CLI (MSP) backend and the Model API backend in the first release. M7 is required for v0.1.0.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | M7 required; see §10.                                                                   |
+| Q4  | **Resolved 2026-09-22 (M9, superseding the M8 answer):** voice dictation ships through the operating system's own recogniser, at no API cost and with no third-party code (owner's constraints): Windows PowerShell 5.1 + `System.Speech` on Windows, a Swift helper on Apple's Speech framework on macOS (owner chose this over an `osascript` bridge), and a dimmed button with the reason on Linux (no distribution ships a recogniser; the owner may revisit). The M8 finding stands for the webview itself: Electron's Web Speech recogniser is dead, so recognition runs in a helper process.                                                                                          | Closed; see M9.                                                                         |
+| Q5  | **Resolved (M4):** `highlight.js` 11.12.0 core with a fixed language set, in the webview bundle; `shiki` was not taken (grammar weight).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Closed.                                                                                 |
+| Q6  | **Partly answered (M55):** Meta's Muse Code overview (checked 2026-09-25) documents `curl -fsSL https://dev.meta.ai/install.sh \| sh` for macOS and Linux, and the panel offers it; `muse` itself has not been run on Linux.                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Offer the installer; the Model API key remains the fallback if `muse` is absent.        |
+| Q7  | **Resolved 2026-09-22:** owner pressed F5 and confirmed the Muse Spark chat shell renders in the Extension Development Host (verbal confirmation; no screenshot filed).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | Closed.                                                                                 |
+| Q8  | **Resolved 2026-09-22:** owner signed in; publisher is `RandyNorthrup`. Publishing ran by hand from the CI artifact with a clipboard PAT for 0.1.0–0.5.0; since 2026-09-23 the `VSCE_PAT` repository secret lets `release.yml` publish every `v*` tag.                                                                                                                                                                                                                                                                                                                                                                                                                                       | Closed.                                                                                 |
+| Q9  | The Muse Code user rules file: `/rules import` writes one into the config root and the model is told "if user and project rules conflict, project rules win", but its file name is not printed by `muse --help`, `muse skills`, the settings skill or the binary's strings. The Model API backend cannot mirror what it cannot name.                                                                                                                                                                                                                                                                                                                                                         | Not loaded on the Model API backend; the CLI backend loads it itself.                   |
+| Q10 | M67's repo map on Muse Code: the plan asks for it "as an opt-in section of the system prompt", but Muse Code's instructions are its own (D13: nothing installed into its folders). It could ride as a hidden note on the first turn of a conversation (as the question-card hint does), billed to the subscription as prompt tokens. Wanted?                                                                                                                                                                                                                                                                                                                                                 | The `repoMap` tool only; no note in Muse Code turns.                                    |
+| Q11 | M67's prompt repo map setting: its name (`museSpark.modelApiRepoMap`), its default (off, since every request pays its tokens) and its fixed ~1,000-token budget, and whether the model should see the map by default once the M75 evaluation measures it.                                                                                                                                                                                                                                                                                                                                                                                                                                    | Off by default, machine-scoped, 1,024 tokens, no budget setting.                        |
+| Q60 | **Answered 2026-09-26:** the owner set up the Open VSX account: the Eclipse Publisher Agreement signed, the namespace `RandyNorthrup` created, the token in `OVSX_PAT`. The release workflow publishes there from the next tag (M62).                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Q61 | **Resolved 2026-09-26:** the owner approved the ACP SDK. `@agentclientprotocol/sdk` 1.4.0 is pinned: 1.5.0 (2026-09-21) is inside `.npmrc`'s 7-day `min-release-age`, and 1.4.0 speaks the same ACP v1 (D62). **Superseded 2026-10-01 (PR #65):** 1.5.0, past the window, is pinned; it speaks the same ACP v1 and only adds optional notice schemas (`docs/certification/pr61-dependencies.md`).                                                                                                                                                                                                                                                                                            |
+| Q62 | **Resolved 2026-09-26:** "you can install whatever you need". What this container's network lets in is recorded per editor (D62); the rest is qualified in CI or on the owner's machines.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Q63 | **Resolved 2026-09-26:** the owner left the design to us: D61, the operating system's credential store, in-process.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Q64 | **Resolved 2026-09-26:** "the top editors come first but i want them all or as close to all as possible": the order is D62's.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Q65 | **Answered 2026-09-26:** after npm held the owner's account for suspicious activity, the owner set `NPM_TOKEN` in the `marketplace` environment. The name `muse-spark-code-acp` was free that day; the next tag publishes it, and each GitHub Release still carries the package.                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Q66 | **Resolved 2026-09-27: loud, not re-routed.** The ACP agent's own requests (the Model API backend) use Node's `fetch`, which ignores `HTTPS_PROXY` unless `NODE_USE_ENV_PROXY=1` (Node 22.21+ or 24+; measured on seven releases). The owner: the agent does not re-route by itself or add undici. It warns once at start, in its log, when a proxy variable is set for the Model API backend and Node's switch is off or missing (`src/runtime/proxyWarning.ts`), and a request that never reaches Meta gets advice naming the agent's environment variables instead of VS Code's `http.*` settings (M56's classifier, told by the runtime which host it serves: `networkAdvice: 'agent'`). | Closed; `docs/acp.md` "Networks and proxies", `docs/certification/pr32-integration.md`. |
+| Q12 | Should a shell tool session rule ("Always allow in this session" for a shell command) lapse when the model edits a file the command names or that decides what it runs, as the verify loop's rules do since M68? Today the shell tool keeps its pre-M68 behaviour: its rules are keyed on the exact command line and answer whatever the model edited. The verify loop's grants are kept apart from it (PR #54).                                                                                                                                                                                                                                                                             | The shell tool's rules keep answering; only the verify loop's lapse.                    |
+
+### D89.5 — Credential variables stay out of model-run processes (ENVFENCE, 2026-10-05)
+
+The VS Code Model API shell inherited credential variables from the extension
+host and terminal overrides. The shared, case-insensitive credential-name
+matcher now fences shell commands, verification/`then_run`, background and
+scheduled runs, child/team workers, hooks/plugins, Git and native helpers.
+MCP stdio servers keep their narrow host projection and their explicitly
+configured `env`; browser checks keep their private projection. Image tools
+use in-process HTTP and file IO, with no child process. Muse Code's own
+`serve`, account, skills and login processes keep D1's credential path.
+
+`museSpark.shell.passEnvironmentVariables` is an empty-by-default,
+machine-scoped array of variable names, never values. Only an interactive
+top-level shell command (including the user's `!` command) may pass a named
+credential. Unattended verification/`then_run`, schedules, child/team workers,
+hooks/plugins and helpers never honor it. Moving an already admitted
+interactive shell to the background preserves its starting environment.
+The setting warns that a command can expose the value to the conversation
+and model provider. ACP/headless keep their existing credential-free tool
+environments in every editor; no pass-through flag is added there.
+
+The base lacks `src/shared/featureCatalog.ts`: add the setting to HELPREF's
+catalogue when that lane merges. No paid/live calls are authorized.
+
+**FIXENVFENCE review repair (2026-10-05).** RVENVFENCE found two P1s:
+common credential names escaped the matcher, and a scheduled shell delayed
+in directory preparation could read a later active-turn state as interactive.
+Cover the standard credential suffix families and known exact/prefix names,
+with an explicit harmless-name allow-list. Capture interactive admission when
+the command is created, before hooks or directory waits; the native spawn
+still rechecks the captured owner's admission. Regressions must include a
+real shell, ACP startup removal, safe-name preservation, and a backgrounded
+scheduled command released after its turn ends. Deliberately break each fix,
+observe the named tests fail, restore byte-exact and record the evidence in
+`docs/certification/envfence.md`. No new dependency or broader exception.
+
+- **Q-M101IMAGE-DIMENSIONS (2026-10-06).** Which checked-in provider capture or
+  authorized documentation supplies each vision model's maximum width/height?
+  This base has no M95 N records for them, and the lane rules permit no network
+  lookup beyond npm ci. The portable PNG/JPEG mechanism is proved with explicit
+  injected limits; production records must use documented limits, never a guess.
+  FIXM101T-IMAGE21 remains open until those records and their ingress proof land.
 
 - **Q-M115 — What M115 needs from the owner (2026-10-06).** Nothing here
   blocks a lane; each default is built.
@@ -18367,160 +18863,6 @@ D90.25, D96, D88 and D97.
   Default: retain production behavior, reduce only the test fixture and prove
   exact bounds/cursor identity; leave the original hosted trigger unconfirmed
   until its receipt is available. Evidence: `docs/certification/deflake3.md`.
-
-### D76 — `/legal`: evidence first, fixes only after selection (M97, 2026-10-04)
-
-The owner asked for a read-only codebase scan of licensing, legal risks and
-copyright/header hygiene, followed by recommendations and an optional,
-authorized fix phase. **Planned; this lane writes documentation only.** D70–D75
-and M91–M96 belong to other drafts; their absence here does not release those
-numbers. Research: `docs/certification/m97-research.md`.
-
-- **Two phases, with a real boundary.** `/legal` and a command-palette entry
-  run the deterministic scanner locally, without a model, writes or network.
-  The report appears before any optional explanation or repair. Scan takes the
-  existing Plan-mode hold (M70) only for a live conversation, restored only
-  while it still owns that hold. A scan never starts a backend;
-  no edit, formatter, hook, verify-loop check, install, build, package-manager
-  evaluation or arbitrary shell command runs. Read files directly; any needed
-  read-only command must pass the existing admission guard. `legal_scan` never
-  exposes a write operation. A skill is guidance, not the security boundary.
-  Muse Code's native tools cannot be disabled through `SessionConfig` (D69):
-  certify its Plan-mode behavior, including standing allow rules, before a
-  model explanation can run. If read-only admission cannot be proved, keep the
-  deterministic report available and refuse that explanation with a reason.
-- **Facts, not a legal certificate.** A versioned, zod-validated result carries
-  stable finding ids, rule/data versions, distribution assumptions, scan scope,
-  exclusions, incomplete checks and sorted evidence. Each finding has severity
-  (`blocker`, `should-fix`, `advice`), workspace-relative file:line when available,
-  package@version and license expression where applicable, its evidence source,
-  confidence, explanation, recommendation and fixable flag. Missing evidence
-  remains unknown; a heuristic never becomes a proven violation or a clean bill
-  of health. Every panel, JSON and requested Markdown export says:
-  “not legal advice; for distribution decisions consult a lawyer”.
-- **Across ecosystems, without running their build files.** Read manifests,
-  locks and installed metadata already present within the chosen workspace;
-  cover direct and transitive packages, preserving conflicting evidence.
-  Missing locks, unresolved versions, dynamic metadata, absent installed data,
-  unsupported lock versions or an unreadable subtree make coverage incomplete.
-  No resolver, lifecycle script, `setup.py`, Gradle/Maven plugin or helper is run.
-
-| Ecosystem         | Local evidence to recognize                                                                                                                                                   |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| npm / pnpm / Yarn | `package.json`, npm locks, `pnpm-lock.yaml`, Yarn classic/Berry locks, present package license/NOTICE files; absent PnP/install metadata stays unknown                        |
-| pip / uv / Poetry | `pyproject.toml`, requirements, `uv.lock`, `poetry.lock`, present distribution `METADATA` and license files; requirements without resolved transitive versions are incomplete |
-| Cargo             | `Cargo.toml`, `Cargo.lock`, present crate manifests, `license` / `license-file` and vendored licenses                                                                         |
-| Go modules        | `go.mod`, `go.sum`, `vendor/modules.txt`, present module/vendor license files; checksums alone are not license metadata                                                       |
-| Maven / Gradle    | POMs, Gradle declarations/locks and present artifact POM/license metadata; do not evaluate executable build logic                                                             |
-| NuGet             | project/package declarations, `packages.lock.json`, `project.assets.json`, present `.nuspec`, license expressions/files                                                       |
-| Composer          | `composer.json`, `composer.lock`, present package licenses                                                                                                                    |
-| Ruby gems         | `Gemfile`, `Gemfile.lock`, static gemspec declarations and present gem metadata; never execute a gemspec                                                                      |
-
-- **Project and dependency licenses.** Recognize LICENSE/COPYING and SPDX
-  declarations using pinned matching data; compare project manifest and README
-  declarations. Preserve custom `LicenseRef` text and unknown/UNLICENSED or
-  proprietary declarations. Parse `AND`, `OR`, `WITH` and parentheses; an `OR`
-  alternative is a choice, not two mandatory licenses, and an exception changes
-  the analysis. Flag possible GPL/AGPL obligations when an MIT/Apache project
-  combines or distributes that code, LGPL linking/source/relinking questions,
-  and MPL file-level obligations, with version and usage evidence. Do not call
-  permissive-to-GPL combination categorically incompatible. Flag SSPL,
-  Business Source License (`BUSL-1.1`, distinct from Boost `BSL-1.0`), Commons
-  Clause and CC-BY-NC restrictions; SPDX recognition is not OSI approval.
-- **What actually ships.** Separate development, production, optional and
-  transitive dependencies, then identify distributed ones from existing bundle
-  metafiles and package manifests/inventories. A dev dependency can still ship.
-  Reuse the approach in `scripts/third-party-notices.mjs`, which reads esbuild
-  inputs and actual license/NOTICE files; its permissive allow-list is not a
-  universal compatibility engine. Check upstream Apache NOTICE obligations
-  when a NOTICE exists, complete `THIRD_PARTY_NOTICES` for bundled/vendored
-  code, and inclusion through `.vscodeignore` / package `files`. Absent or stale
-  build evidence leaves distribution unknown; scanning never rebuilds or packs.
-- **Copied code and assets.** Find vendor folders, foreign headers and source
-  references such as “adapted from”, CodePen and Stack Overflow. Preserve source
-  URLs, attribution and license evidence; a source mention is only a lead.
-  Stack Overflow uses CC BY-SA versions tied to contribution dates, not one
-  guessed version. Check fonts, icons, images and sounds for adjacent license
-  files, `.license` sidecars or REUSE declarations; known restricted families
-  need provenance evidence, not a verdict from their filenames.
-- **The owner's code-quality scope is header hygiene.** Check SPDX identifiers
-  against the applicable license and existing copyright holders/year format.
-  `museSpark.legalHeaderPolicy` is a workspace enum `required` / `optional` /
-  `off`, default `optional`, honoring the detected project style and REUSE
-  declarations. Generated files are excluded from header checks and the report
-  names that exclusion; shipped generated code still counts for notices.
-  Multiple upstream holders can be legitimate. An earlier year alone is not
-  stale; flag conflicting/impossible dates or a breach of the chosen policy.
-  Never invent ownership or replace third-party headers with the project owner.
-- **Other risks are explicitly heuristic.** Third-party marks in names, icons
-  and README, and missing disclaimers (this product remains Unofficial / not
-  endorsed by Meta); apparent data collection without a privacy policy; store
-  README/LICENSE and npm license-field omissions; crypto/export indicators;
-  model-weight/config license conditions such as Llama community terms. No
-  assertion of trademark permission, export clearance or worldwide compliance.
-  Reuse `src/core/redact.ts` and the existing secret-scan rules (`security:secrets`)
-  for secret/PII indicators; list location/type only, never their values.
-- **Offline first; enrichment is a separate choice.** “Fetch missing license
-  metadata” first lists registry hosts, exact package/version queries, request
-  count and the identifiers that will leave the machine. Confirm before any
-  public registry API call; obey D43's proxy/TLS/network posture, bounded
-  responses, cancellation and public-address checks. No credentials, source
-  upload, arbitrary URL fetch, install or persistent cache. Private names are
-  not queried without explicit disclosure/consent. Capture each real response
-  shape before writing its parser (rule 13); failures remain unknown.
-- **An accessible report, saved only on request.** Summary and severity groups
-  show evidence, limitations, suggestions and fixable markers. Labelled
-  checkboxes select findings; “Fix all safe ones” previews the exact eligible
-  findings and patches before confirmation. Nothing is pre-authorized by scan.
-  Preserve keyboard operation, screen-reader status/labels, focus return,
-  narrow-panel wrapping, zoom and all four themes (D32). Markdown is created
-  only after the user requests export and chooses a destination; exported
-  text has the same scrub/disclaimer policy.
-- **Fix is optional and bounded.** After explicit selection/patch confirmation,
-  use normal edit tools and the current permission mode's approvals; Plan or
-  Restricted Mode cannot write. Recheck trust, workspace, permission state and
-  evidence hashes before each selected patch; a changed file needs a fresh
-  report/preview. Batch authorization names only the selected paths; formatting
-  stays within them, and installs/builds/check scripts need their normal
-  independent approval rather than inheriting that authorization. Add LICENSE,
-  NOTICE/THIRD_PARTY_NOTICES, SPDX/copyright headers,
-  attribution comments or project-owned manifest license metadata only from
-  verified evidence and confirmed ownership. A supported dependency-license
-  declaration in a project manifest is a correction of metadata, never a grant
-  of rights. No dependency-code edits, guessed licenses, automatic removal,
-  overwriting existing notices or silent change of the chosen project license.
-  Missing or changed project license needs separate explicit confirmation and
-  cannot enter “safe ones”; unknown ownership/terms are recommendations only.
-- **One scanner, both backends and CI.** Pure `src/core/legal/`, no `vscode`;
-  host/runtime adapters load it lazily as `dist/legalScan.js`, with a measured
-  D6 budget proposed before implementation merges and no existing cap raised.
-  Model API gets native `legal_scan`; Muse Code gets the same read-only tool
-  over the authenticated loopback `ide` MCP bridge (as code-intelligence tools
-  do today, `readOnlyHint` plus actual guards). Missing `sessionMcp` capability
-  is reported, never a guessed protocol fallback. The bundled `/legal` skill
-  uses D68's loading/install mechanism without modifying its pinned upstream
-  vendor package; report authorization stays host-owned even if a user skill
-  shadows it. Headless/ACP exposes `muse-spark-code-acp exec legal-scan --json`
-  as a reserved deterministic subcommand before prompt parsing: no backend,
-  sign-in, credential-store access, model call or ACP-frame stdout mixing.
-  Exit 0 = complete/no blockers, 1 = complete/blockers, 2 = incomplete/input or
-  operational failure; advice alone does not fail CI. No headless auto-fix.
-- **Cost.** The deterministic scan and report cost nothing. An explicit Explain
-  choice permits at most one short, bounded turn over scrubbed findings, never
-  raw source or secret/PII snippets. Muse Code uses the user's subscription;
-  Model API states its estimated cost and cap before consent and follows
-  D30/D48's paid gate, per-use popup, badge, paid row and PaidUsage. Denial or
-  unavailable consent leaves the free report usable; no automatic paid fallback.
-  Fixing through a model is the user's separately requested normal coding turn,
-  with its backend's existing billing and approvals.
-- **Data provenance.** Vendor a pinned, checksummed SPDX identifier/matching
-  dataset only with its own verified redistribution terms and recorded source.
-  CC0 identifier lists are available; exception lists and tools may have other
-  licenses. Preserve their notices, review updates in a PR and build offline;
-  a CC0 dataset does not relicense the licenses it describes. No new package or
-  tool installation is approved by this design record (D3/D9 apply at delivery).
-
-## 3. Open questions (need the owner)
 
 - **Q-CI0150W-RESIDUALS (2026-10-07):** the scoped Windows repairs pass
   in full committed-clone shards, but the complete job set remains red.
@@ -18989,7 +19331,353 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### Delivery order (2026-10-06)
+
+The owner, 2026-10-05: "make sure you prioritize all of the remaining stuff
+properly so smaller things get done quicker if able and in such a way that we
+dont put the cart before the horse … do things in a proper logical order".
+
+The rule: nothing starts before what it depends on, and where two items are
+free to go, the smaller goes first. Each **Needs** below was read from that
+milestone's own **Depends on** and lanes table. M113's plan reader (lane P)
+reads this list for `/report project`'s next steps, so each entry keeps the
+form `N. **Item** — reason. Needs: items.` Milestones already in a release
+train, and those waiting on outside events, keep their own status lines.
+
+1. **0.14.1** — in CI: the shell credential fence, the third startup diet and
+   the badge fixes. Needs: nothing.
+2. **0.14.2: the `/help` reference** (lane HELPREF) — small, and the owner
+   asked for it as soon as possible; M112 to M115 add their rows to its
+   `featureCatalog`. Needs: 0.14.1.
+3. **M112: questions that never block** (D92) — small (about 48
+   lane-hours), in 0.14.3, or folded into 0.14.2 when both are ready
+   together. Needs: main only; its native-host, TUI and desktop rows wait for
+   M104, M110a0 and M111b and block nothing.
+4. **M118: prompt and chat sharing** (D98) — as soon as possible, at the
+   front beside M112 and in parallel with it (about 34 lane-hours).
+   Phase 1 ships in the next patch after 0.14.3, phase 2 (gists) in the
+   one after. Needs: main; the native hosts' menus with M104, the TUI
+   with M110a0's T, phase 3 with M110, M96, M113 and M115.
+5. **M115: scheduled prompts v2** (D95) — right after M112: it shares the
+   deferral and the unattended machinery, and it replaces M52's per-run
+   modal and M88's lane C (timed sends). About 134 lane-hours; ships in the
+   first train after M112 that it is ready for. Needs: M112; event sources,
+   targets and editor rows join as M96, M103, M104, M107, M108, M109, M110
+   and M113 merge, and none blocks the rest. Its phase M115w (the issue
+   watchdog, about 100 lane-hours) follows M96, M113's network sources and
+   M109's taint lane.
+6. **M116: the orchestrator playbook** (D96) — small (about 60
+   lane-hours) and foundational: every orchestrating milestone after it
+   (M96's team, M110's hosts, M115w's watchdog) is held to it. Its policy
+   module, skill and the panel's own orchestration need only main; the
+   team, node and watchdog hooks join as M96, M110a and M115w merge.
+   Needs: main.
+7. **M114: design language and polish** (D94) — next after M116: its lane 0
+   (the token source and the raw-colour rule) is the prerequisite of every
+   UI-building lane that follows, M111's and M110's web UI and TUI design
+   among them. The panel's part ships in a 0.16.x patch, after 0.16.0's M104
+   so that the companion page and the native webviews are polished in the
+   same pass; the desktop's and the node's parts ship with M111 and M110a0.
+   Needs: main for lanes 0, A, P1, P2, F and S; M104 for C.
+8. **0.15.0: M95, M96, M97, M101 and M102** — the provider registry, roles
+   and the team, the usage journal and the rest of the batch; most later
+   milestones build on M95 and M102. Needs: main.
+9. **0.16.0: M98 phase 2, M103 and M104** — the maker guard, MHP, the
+   companion server and the native bridges, which every later editor row
+   uses. Needs: 0.15.0.
+10. **M100: paired devices, first slice** (D80) — missing from the order as
+    given; added here. Its lanes S and E gate M107's relocation, M108's
+    devices (now the main multi-account path, D88's placement amendment),
+    M109's device part and M110a. Needs: M95, M96 and M96c (0.15.0).
+11. **M106: agent-loop wire guarantees** (D86) — moved before M108: its lane R
+    (the rate-limit bucket, `pacing.ts`) is what M108's thresholds read, and
+    M110r's Y1 builds on it. Needs: M95, M101 and M102 (0.15.0); lane T also
+    needs FIXM101P2.
+12. **M107: the resource governor** (D87) — lanes S, T, G, A, C1, U and H need
+    only main and lane 0. Needs: M96 and M96c for C2, M100's S and E for R,
+    M102 for J.
+13. **M109: the vault and broker** (D89) — lanes 0, C, P, B and U need
+    nothing unmerged, so it can run beside M107. Needs: M81's A1 for L; M96
+    for R, and M100 and M107's R for R's device part; lane M moves each store
+    as its owner merges (M95 K, M108 K, M100 P, M103, M85).
+14. **M108: several accounts per provider** (D88) — corrected: it does not
+    need M109; M109's lane M moves M108's account secrets into the vault
+    whichever lands first. Needs: M95 and M102 for lanes 0, K, T, U and J;
+    M106's lane R for T; K and P for X (developer options); M100 and M107's R
+    for D.
+15. **M105: multimodal input** (D85) — after the governor, vault and accounts
+    by size only; nothing in it waits for M107–M109, and delivery a (the
+    Files API and the media core) can move up if a slot frees. Needs: M95's
+    lane N, M101's C1, P2 and T, M102, and M104's lanes 0, B, C and D.
+16. **M113: deterministic reports** (D93) — runs beside everything from
+    M112's lane 0 on. Needs: nothing new for the engine and the project,
+    milestone, release, changes, session and editor keybindings kinds; M102
+    for usage; M108 for accounts; M109 for security; M96 and, for nodes,
+    M110a for fleet; M115 for schedules; M110a0's lane T for the TUI; M111a
+    and M111b for the desktop.
+17. **M117: the capacity estimator** (D97) — after M113 and M116, whose
+    plan reader and review-round record it needs (about 107
+    lane-hours). Needs: M113 and M116; M107, M100, M108, M96 and M110
+    join as they land; provisioning rented servers waits for M109,
+    M110d and M110f.
+18. **M110a0: the home node, then M110os's first image** (D90) — placed by
+    size (about 360 lane-hours), not by dependency: it needs none of M100,
+    M107, M108 or M109, and can start right after 0.16.0 when the owner wants
+    it sooner. M110os follows M110a0. Needs: M104a's lanes B, C and D, M63,
+    M80 and M89; M114's lane 0 for U1, U2 and TD.
+19. **M110's later phases** — each phase's row in M110's roadmap names its
+    own: M110r's Y1 any time after M106's R and M101's C1 and C2; M110t after
+    M110a0; M110a with M100 and M96c; M110b with M107's G and M109; M110c
+    after M110a and M110b; M110d to M110h after them. Needs: M110a0.
+20. **M111: Muse Desktop** (D91) — corrected: only M111os and M111i wait for
+    M110os (OS1, OS2 and OS4). M111a0 needs only M114's lane 0; M111a is
+    built on a Debian 13 virtual machine; M111b runs on fakes and is wired on
+    M104a and M110a0; M111c's sections join as M96, M100, M102, M103, M108,
+    M109 and M110b merge; M111x's experiences each join with their own
+    dependency (M103X, OS5, KVM on the image, M110b, M110g, M111w). Needs:
+    M114's lane 0; M104a and M110a0 for M111b's wiring; M110os for M111os and
+    M111i.
+
+### 6.0 Standard certification checklist (applies to every milestone)
+
+- [ ] `npm run quality` exits 0 on a clean checkout (format:check, lint incl. lint:ps,
+      typecheck, check:l10n, deadcode, cycles, duplication, test:unit with coverage
+      thresholds, build with bundle budget, host globals and notices, security:audit,
+      test:a11y, security:secrets, security:sast).
+- [ ] Each new gate or test was seen to **fail** on a deliberate break, then
+      pass again (record the break in the milestone notes).
+- [ ] No new `eslint-disable`, `@ts-expect-error`, `as unknown as`, or `any`
+      without an inline reason **and** a row in §8.
+- [ ] No magic literals outside `src/shared/constants.ts` (and tests).
+- [ ] No placeholder / mock / fallback code outside `test/**`.
+- [ ] `README.md` updated for any new command, setting, or script; every
+      documented command was run.
+- [ ] `CHANGELOG.md` entry under `[Unreleased]`.
+- [ ] Security review of new surfaces (inputs validated, secrets never logged,
+      CSP intact, spawn args explicit).
+- [ ] Visual milestones: screenshot or manual-check record in
+      `docs/certification/<milestone>.md`.
+- [ ] Commit with a message describing what changed and why.
+
+### M26 follow-up — Refresh README badges after publication (BADGES)
+
+**Status 2026-10-05: built.** Status evidence: `docs/certification/badges.md`.
+
+The 0.13.0 release exposed stale badge-service and GitHub image-proxy caches.
+Extend the existing release workflow and scripts without changing publication:
+BADGES-A waits at most 15 minutes, polling every 30 seconds, for all four public
+channel versions; BADGES-B requests README badge URLs and retries older version
+answers with a cache-busting query; BADGES-C purges the repository page's camo
+images and logs statuses. Every failure warns only, with no credential required.
+The final job requires the summary's successful, all-published outcome.
+Fake-fetch tests and red drills cover parsing, version ordering, retries,
+polling bounds and warning-only failures; hosted public-service proof remains
+the lead's next release check. Implemented: 40 focused tests and 14 red drills
+passed, with typecheck and required focused gates green on the worktree merged
+with `8c894b60a`. Evidence: [BADGES](docs/certification/badges.md).
+
+### M43–M56 — Parity with everything Muse Code and the Model API offer (D36)
+
+**Status 2026-09-27: M43–M56 merged (M56 as PR #44). All ship in
+0.9.0.** The program the owner asked for (2026-09-25): one pull request per
+milestone, each with its tests, red drills, documents and fourteen
+translations. The order is D36's table:
+
+| Milestone | What reaches the panel                                                                                                                | State                                                |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| M43       | A row for every tool Muse Code runs (memory, goals, schedules, workflows, web, background work, reminders, input), tool-result images | merged, PR #29                                       |
+| M44       | Images on the Muse Code backend through the `ide` session server with the key (paid, loud); image edits                               | merged, PR #30 (web fetch moved to M44b)             |
+| M45       | Goals: set, see, pause, clear                                                                                                         | merged, PR #31                                       |
+| M46       | Background work and stop; the `!` user shell; clarifying questions                                                                    | merged, PR #33                                       |
+| M47       | Workflows: captured run and children as read-only cards; owner controls deferred until a live success capture                         | merged, PR #34                                       |
+| M48       | Model API subagents with staged paid child admission; Muse Code read/reopen deferred until live success capture and certification     | merged, PR #35                                       |
+| M49       | Memory: see and edit; memory tools on the Model API backend                                                                           | merged, PR #36                                       |
+| M50       | MCP servers on the Model API backend                                                                                                  | merged, PR #37                                       |
+| M51       | Hooks on the Model API backend                                                                                                        | merged, PR #39                                       |
+| M52       | Scheduled prompts (`/loop`): list and cancel                                                                                          | merged, PR #40                                       |
+| M53       | Rewind a conversation; a side chat                                                                                                    | merged, PR #41 (with the usage follow-up)            |
+| M54       | PDFs and other files as input                                                                                                         | merged, PR #42                                       |
+| M55       | Sign in and install Muse Code from the panel (M41 folded in)                                                                          | merged, PR #43 (with the sign-in reducer review fix) |
+| M56       | Enterprise network: proxy and certificates, the sandbox network switch, no session log, the CLI's config status                       | merged, PR #44                                       |
+
+### M53 follow-up — Account & usage reset accuracy
+
+**Status 2026-09-26: integrated in M53 PR #41, merged as `be34ee8`
+(tree `5757e29`).** Its seven hosted jobs passed in PR run
+`36298748478`; the follow-up used that M53 gate, with no separate hosted
+run. Certification record:
+`docs/certification/m53-usage-timing.md`.
+
+- Use Muse Code's `usage/read` and `usage/changed` account percentages and
+  absolute reset timestamps as reported. Its SDK has one account-level usage
+  payload, not model-specific quota or plan-name fields. Meta's public Muse
+  Code subscription page publishes an Everyday five-hour allowance, with
+  High 5× and Power 20× capacity, but no per-model conversion or weekly reset
+  rule. The owner's personal Muse Power/Maximum Upgrade screen is separate
+  from Muse Code CLI usage; its weekly token grants do not establish the CLI's
+  `usage/read` entitlement. Do not derive countdowns or usage weights from
+  either plan table, selected model or opaque MSP tier.
+- Recompute visible countdowns while Account & usage stays open, at least
+  once per minute. When a reported reset has passed without a newer frame,
+  label that row as awaiting fresh usage and hide its old percentage and
+  countdown. Retain the observation's age so the user can see why.
+- Drop the global last-usage fallback and attempt to erase its legacy stored
+  value on activation. Cleanup failure does not block activation because no
+  code reads the old value. It has no account identity, so a new sign-in must not inherit
+  another account's plan, percentages or reset time. Clear the webview's
+  report on authentication changes. An empty `usage/read` also clears a
+  same-host observation because the account may have changed. Within one
+  live host, prefer the newest `observedAtMs`; an older or empty read begun
+  before a newer `usage/changed` must not overwrite that event. Discard
+  results from a host stopped or replaced.
+- The timer, expired row, authentication boundary and out-of-order delivery
+  red drills failed before correction and passed after. Exact integrated
+  quality and hosted gates passed before PR #41 merged; the isolated
+  checkpoint alone was never used as certification.
+
+### M67–M85 — Coding quality first (D49, D50)
+
+**Status 2026-10-05: building.**
+
+The program D49 ranks, and D50's M85. Each milestone follows AGENTS.md:
+tests first, red drills, docs landing with the change, strings in all 14
+tables, and the full gate. A paid item follows D30/D48. New UI gets a
+harness scenario, which is what the accessibility gate checks (D32).
+
+### M87–M88 — The owner's panel requests of 2026-10-03 (D66, D67)
+
+**Status 2026-10-04: M87 built and joined (its status below); M88
+planned, nothing built.** These are the owner's sixteen requests of
+2026-10-03, which came with screenshots of the Codex app as inspiration. The design decisions are D66 (M87) and D67 (M88); the
+owner's answers to their questions (2026-10-03) are in §3 and applied in D66
+and D67.
+
+| #   | Request                                    | Where              | Reuses                                                                |
+| --- | ------------------------------------------ | ------------------ | --------------------------------------------------------------------- |
+| 1   | Context meter, percent inside the ring     | M87 lane A         | `contextUsage`, `CONTEXT_PRESSURE_*`, compact on click (M14)          |
+| 2   | In/Out boxes joined, five lines, Show more | M87 lane B         | `Clipped`, `ShellBody`, `UserShellRow`                                |
+| 3   | Consecutive steps under one summary row    | M87 lane C         | Focus view's `segment()` and `StepsGroup` (M16)                       |
+| 4   | Bullet with a blue pulse, heartbeat trace  | M87 lane B         | `.tool-dot-running` and its `pulse`                                   |
+| 5   | Tasks pane collapses to two lines          | M87 lane D         | `TodoPanel`                                                           |
+| 6   | Tasks pane in its own window               | M87 lanes P, D     | `chatPanel.ts`, `html.ts`, VS Code's floating windows for editors     |
+| 7   | Tooltips on the command and "/" menus      | M87 lane A         | `PaletteItem`, skill descriptions                                     |
+| 8   | Stop red on hover                          | M87 lane A         | —                                                                     |
+| 9   | Timestamp on hover                         | M87 lanes P, C     | Muse Code's captured `recordedAt`                                     |
+| 10  | Diff tally row with Review                 | M87 lane E         | `patchSummary`, M70's review pane                                     |
+| 11  | Notice when a thread ends or waits         | built: M82, PR #89 | `BackgroundNotifier`, `museSpark.notifyOnBackgroundTurn`              |
+| 12  | Edit on a queued prompt                    | M87 lanes P, C     | `turnWithdrawn`, `turn/unqueued`, M53's prompt back into the composer |
+| 13  | Saved prompts and prompt sequences         | M88 lane A         | PR #89's `paletteDialog.tsx`; skills stay as they are                 |
+| 14  | Bookmarks                                  | M88 lane B         | the archived ids (M6), `shared/sessions.ts` groups                    |
+| 15  | Timed send at a date and time              | M88 lane C         | M52's store, claim, paid gate and the D48 popup, asked at scheduling  |
+| 16  | Resume after a limit                       | M88 lane C         | timed sends, the client's `Retry-After`, Muse Code's usage report     |
+
+**Found already built.**
+
+- Item 11 is M82 (PR #89).
+- The grouping behind item 3 is Focus view (M16).
+- The prompt going back into the composer (item 12) is M53's rewind.
+- Reusable prompts exist as skills: they run as slash commands, and M83
+  imports other agents' commands as skills (item 13).
+- Scheduled prompts are M52 (item 15).
+
+**Not feasible as asked.**
+
+- A floating window for the sidebar view, or one an extension opens (item
+  6). M87 offers an editor tab that the user moves instead (D66).
+- Tooltips in VS Code's own Command Palette (item 7).
+- Any send while VS Code is closed (items 15 and 16). A missed send shows
+  as due at the next start (D67).
+
+**When they start.** Every lane edits the stylesheet and the harness, and
+most edit `App.tsx`, `uiState.ts` or the conversation controller. These open
+branches change the same files:
+
+| Open branch                                                          | Files it shares with M87 and M88                                                                                                                                                                                                                                                                                                    | Rule                                                                                                                                                                                                 |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fix/approval-decisions`: the approval dock and single-decision lock | `src/webview/App.tsx`, `Transcript.tsx`, `ToolRow.tsx`, `ApprovalCard.tsx`, the new `ApprovalDock.tsx`, `uiState.ts`, `transcriptEntries.ts`, `styles.css`, `protocol.ts`, `agentEvents.ts`, `agentBackend.ts`, `MuseCodeHost.ts`, `conversationController.ts`, `extension.ts`, `constants.ts`, the strings, the harness            | M87's integration branch starts after it merges. Lanes A and E share only region-owned files with it, so their work may begin earlier in their own worktrees and rebase onto the integration branch. |
+| PR #89 (M77, M78, M82)                                               | `App.tsx`, `Transcript.tsx`, `Header.tsx`, `HistoryDialog.tsx` (moved onto `paletteDialog.tsx`), `uiState.ts`, `transcriptEntries.ts`, `toolPresentation.ts`, `styles.css`, `protocol.ts`, `agentEvents.ts`, `sessionStore.ts`, `MuseCodeHost.ts`, `conversationController.ts`, `turnNotifications.ts`, `extension.ts`, the harness | M87 starts after it. M88 needs it: `paletteDialog.tsx`, `BackgroundNotifier`, the session budget.                                                                                                    |
+| PR #69 (M70)                                                         | `App.tsx`, `Composer.tsx`, `palette.ts`, `uiState.ts`, `protocol.ts`, `conversationController.ts`, `styles.css`, the harness                                                                                                                                                                                                        | M87 starts after it. The tally's Review button needs M70.                                                                                                                                            |
+| PR #78 (M71)                                                         | `App.tsx`, `palette.ts`, `uiState.ts`, `protocol.ts`, `conversationController.ts`, `styles.css`, the harness; its `GitPanel` sits above the composer                                                                                                                                                                                | M87 starts after it.                                                                                                                                                                                 |
+| PR #84 (M74 follow-ups)                                              | `conversationController.ts`, `uiState.ts`                                                                                                                                                                                                                                                                                           | M87 starts after it: lanes P and C share its files.                                                                                                                                                  |
+| PR #70 (M76)                                                         | `sessionStore.ts`, `agentEvents.ts`                                                                                                                                                                                                                                                                                                 | M87 starts after it: lanes P and C share its files.                                                                                                                                                  |
+
+So M87's integration branch starts from main once those six have merged
+or closed. M88's starts from main after M87 merges, because both
+milestones edit the strings, the controller, `palette.ts` and the
+stylesheet. Within a milestone, the "Starts" column below gives the order
+of the lanes.
+
+**Lane rules (both milestones).**
+
+1. **Branches.** Each milestone has an integration branch
+   (`feature/m87-panel-polish`, `feature/m88-prompts-timed-sends`) and one
+   worktree per lane. The lead reviews every lane's diff before merging it
+   into the integration branch. One pull request per milestone goes to
+   main, and hosted CI is the gate.
+2. **Lane 0 goes first.** It writes every new English string below and its
+   14 translations. A key nobody reads yet passes every gate. A lane that
+   needs a new or changed string asks the lead. Lane W deletes the keys that
+   go, once nothing reads them.
+3. **Lane P (plumbing) goes next.** It lands the shared schemas, the
+   controller's cases and the ports. The backends' new methods are
+   optional, so every later lane compiles on its own.
+4. **One owner per file at a time** (the tables below).
+   - Five files cannot be split without restructuring the codebase:
+     - `src/shared/constants.ts`: AGENTS.md rule 5 keeps every tunable
+       there.
+     - `src/webview/styles.css`: one stylesheet, ordered by specificity.
+     - `test/harness/index.html` and `scripts/lib/harnessServer.mjs`: one
+       scenario list.
+     - In M88, `src/shared/palette.ts`.
+   - These are region-owned. A lane edits only the region named for it,
+     beside the related existing block and never at the file's end, so the
+     merges never touch the same lines. A harness scenario goes after the
+     existing scenario its table row names.
+   - Any other shared edit goes through the lead.
+5. **Lane W (wiring) goes last.** It owns `App.tsx`, the theme capture, the
+   docs, the milestone record and the full gate.
+6. **Records.** Each lane records its red drills, captures and bundle delta
+   in `docs/certification/m87-<lane>.md` (as M83's lanes did), and Lane W
+   writes `m87.md`. M88 does the same.
+
+### M60–M66 — Muse Spark Code beyond VS Code (D60)
+
+**Status 2026-09-26: the program the owner handed over**
+(`docs/ide-compatibility.md`), built beside M45–M56. The phases are the
+plan's §8 (A–G); a phase that needs another editor installed waits for Q62.
+
+| Milestone | Phase | What it delivers                                                                                                                                             |
+| --------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| M60       | A     | The host API inventory: every VS Code API, Node built-in, webview host call and theme variable the extension uses, recorded and gated; the `vscode` boundary |
+| M61       | B     | Shared boundaries: the webview's host bridge, the surface and controller free of VS Code types, theme tokens, the editor-services contract, a Node runtime   |
+| M62       | A, C  | The VS Code family: probes and qualification in VSCodium, Cursor, Kiro, Positron and Theia; code-server and Codespaces profiles; Open VSX (Q60)              |
+| M63       | D     | The ACP agent: `muse-spark-code-acp` on ACP v1 (Q61); Zed, then one JetBrains IDE (Q64), then Xcode 27, Qt Creator, Neovim, Emacs, Sublime and Devin         |
+| M64       | E     | Native full interfaces: the IntelliJ plugin on JCEF with Android Studio qualified separately; Visual Studio on VSSDK and WebView2                            |
+| M65       | F     | Eclipse, NetBeans, JupyterLab 4 and Notebook 7, then Spyder and RStudio                                                                                      |
+| M66       | G     | Conditional hosts: vscode.dev and github.dev, Xcode 26.3's external route, Vim, Kate, MATLAB, Replit, StackBlitz, CodeSandbox and Ona; the companion's media |
+
+#### M102 J review repair — FIXM102J (2026-10-05)
+
+Repair all four RVM102J findings inside J's store, Node adapter and recorder.
+Readers take the maintenance lock and verify its generation before returning;
+a lost generation permits one fresh snapshot attempt, then an explicit failure.
+Rollups are read through one open handle without a prior path-size bound, and
+published with a private temporary file, fsync and atomic replacement (including
+Windows rename retries). Lock claims use immutable numbered generations and
+owner-token release markers: a predecessor never unlinks a successor's claim.
+Claim paths also contain an immutable history epoch, published completely by
+the existing exclusive-file helper. Reset chooses a new epoch, so delayed
+predecessor cleanup cannot delete a reused generation in the new history.
+Incomplete usage with a known price keeps `uncertain`, with the reported part
+priced while missing counters stay absent. Each finding gets a deterministic
+regression and a byte-exact guard-break drill in `docs/certification/m102-j.md`.
+No new dependency or editor-specific behavior; all shared journal consumers
+receive these fixes. Full quality and combined editor wiring remain lead/W work
+as required by the rig brief; do not run full quality or merge in this lane.
+
 ### INT0170 — Pre-integrate reports, design polish and playbook (2026-10-07)
+
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
 
 Merge `int-m113-w`, `int-m114-w` and `int-m116-w` in that order with
 `--no-ff` onto candidate `2b9059676`. Preserve both sides of every feature,
@@ -19004,14 +19692,29 @@ under its unchanged 50 KiB cap; retain direct surface readers in their current
 region and validate every installed table against the complete canonical shape. No push,
 rebase or paid/live model calls. Report status and next slice in
 `docs/certification/int0170.md`.
+**INT0170 clean-CI corrections (2026-10-07, before code).** The first four
+clean coverage shards expose duplicate Help entries, missing manifest metadata,
+outdated command/schema expectations and fixture build inputs. Canonicalize
+test-owned Mac grants before native path assertions; share cold ESLint setup and
+reserve each real process/format scenario its own existing deadline. Keep every
+assertion and coverage threshold. Convert wide explanatory plan tables to compact
+pin/cap indexes with their complete rationale beside them, retaining all active
+lane/status data under the existing 4 MiB parser bound. Derive report palettes
+from generated tokens, keep the raw-paint guard, and normalize technical PR
+citations separately from reviewed status prose. Recover the measured VSIX
+overflow losslessly with the existing localization codec; no cap increases.
+Historical M114 audit/source evidence needs a current recapture, never merely
+new hashes. Exact failure receipts remain in `docs/certification/int0170.md`.
 
 - [x] M113 reports merged (`9a449170`), current workflows retained.
 - [x] M114 design merged (`bdf277a3`), captures inspected, caps unchanged.
-- [~] M116 resolved: focused 119 tests, typechecks/build and 480 harness scans pass.
+- [x] M116 merged (`3dbc8be4`): focused 119 tests, typechecks/build and 480 harness scans pass.
 - [ ] Final committed-tree fresh-clone macOS workflow jobs and full accessibility.
 - [ ] Release lane: 0.17.0 version/README summary, hosted cross-platform CI and publication.
 
 ### CI0150M — Round 3 macOS CI repairs (2026-10-07, macmini)
+
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
 
 - [x] Reproduce the journal coverage timeout and companion authentication race;
       replace per-byte JavaScript newline scanning with typed-array searches,
@@ -19040,6 +19743,8 @@ rebase or paid/live model calls. Report status and next slice in
 
 ### FIX0150R — Release review repairs for runners and usage (2026-10-07, macmini)
 
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
+
 Repair PR #136 threads PRRT_kwDOUkzj5M6p1xVd, PRRT_kwDOUkzj5M6p1xVm
 and PRRT_kwDOUkzj5M6p1xVs only. Runner children use D89.5's shared credential
 predicate; runner configuration refuses credential-shaped environment names
@@ -19058,6 +19763,8 @@ Run all five typecheck projects and the scoped static/build gates. No dependency
 new feature, provider-wire shape, paid/live call, merge or push is authorized.
 
 ### CI0150W — Round 3 Windows CI verification (2026-10-07, win11)
+
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
 
 Scope: reproduce every Windows pull-request job from committed fresh clones,
 using CI's Node 22, `CI=true`, four coverage shards and repository deadlines.
@@ -19107,6 +19814,8 @@ listener and cleanup assertion. No new retry, launch delay, timeout or skip.
 
 ### CI0150C — Clean-checkout platform and logic CI repairs (2026-10-07, macmini)
 
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
+
 - [x] Repair the lane's journal canonical-root checks, Windows short-name fixture,
       native child priority observation, ACP model fixture, legal focus readiness,
       prompt-menu harness readiness, pending release note and browser resolution.
@@ -19122,6 +19831,8 @@ listener and cleanup assertion. No new retry, launch delay, timeout or skip.
 
 ### CI0150B — Hosted CI test setup repair (2026-10-07, win11)
 
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
+
 - [x] Profile the ten lane-owned suites from a clean checkout with `CI=true`.
       Share invariant transforms, source fixtures and cold setup; build only the
       Usage browser artifacts required by its real CSP and chunk test.
@@ -19134,6 +19845,8 @@ listener and cleanup assertion. No new retry, launch delay, timeout or skip.
       Commit locally with hooks; no push, merge, rebase or live/paid calls.
 
 ### REL0150M — Bring 0.14.4 and 0.14.5 into 0.15.0 (2026-10-06, linuxlt)
+
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
 
 - [x] Merge `rel-0145` then `chore/infra-0150-m`, each with `git merge --no-ff`;
       preserve all train and sharing features, newer translated text and both
@@ -19224,6 +19937,8 @@ the release train's existing 2775-KiB cap remains until fresh measurement.
 
 ### TRAIN15E — Join M95/M102 and finish bounded accounting (2026-10-06)
 
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
+
 The cold-start profile finds eager runtime imports through `providersEntry`
 loading the captured codecs and Model API transport on a Meta-only command.
 A small provider-policy entry exposes only pure model references and credential
@@ -19271,7 +19986,11 @@ Hosted search remains unavailable in the runtime under this hard daily budget: i
 
 ### TRAIN15D — Complete the authorized size recovery and held merges (2026-10-06)
 
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
+
 ### VSIXDIET2 — Universal package headroom for 0.15.0 (2026-10-05)
+
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
 
 Scope and the sole conditional cap decision are recorded in D6 above.
 Receipts: `docs/certification/train-0.15.0.md` and the TRAIN15D JSON record.
@@ -19313,7 +20032,54 @@ M97 here, with that later reference-system integration left to its owning lane.
 - [x] Merge and measure `m96/ifix-win4`, then `m97/sr`; resolve by meaning.
 - [x] Complete scoped compiler/lint/l10n/host/schema/owning-suite checks and drills.
 
+#### Preserved integration notes: VSIXDIET2 — Universal package headroom for 0.15.0 (2026-10-05)
+
+**FIXVSIX2 review repair (2026-10-05, RVMVSIX2).** Fix P1 by retaining
+Node's static named-export declarations in each archived CommonJS wrapper,
+while compiling the exact digest-checked original source. Keep the archive
+reader on the private cached CommonJS Module, preserving uiText's public
+export surface too. Compare native
+`import()` and `require()` exports for every packaged Node module with the
+unpacked build in both VSIX and ACP, and exercise hooks, reviewer, session
+board, report and plugin functions without model calls. Fix P2 by building
+the packaging suite's English fixtures in memory from source, so unit CI needs
+no `dist/`. Register the packaging child test as a Knip entry (not an ignore),
+so the dead-code gate analyses this runtime entrypoint. Prove each repair red,
+restore byte-exact, remeasure universal
+headroom (at least 150,000 bytes) and byte-identical activation. No dependency,
+guard widening, paid/live call, merge, push or rebase; 90-minute repair box.
+
+- [x] Repair P2, run the complete suite without checkout build output, drill.
+- [x] Repair P1, compare every packaged module and callable regression, drill.
+- [x] Run scoped static/build/package gates and record sizes and receipts.
+
+- [x] Reproduce the 0.14.0 universal VSIX with the checksum-verified published
+      helper and rank every member by compressed bytes. Keep the 2,252,800-byte cap.
+- [x] Pack runtime translations and generated lazy English regions together at
+      Brotli quality 11, using Node's built-in bounded decoder and today's table
+      validation. Use the same archive in ACP; keep manifest translations readable
+      by VS Code and source JSON checked by the localization gate.
+- [x] Measure deterministic lossless package improvements, targeting at least
+      150,000 bytes of universal headroom with no activation growth or text changes.
+      Preserve all licences/notices, runtime assets and editor behavior.
+- [x] Solid-compress the exact existing lazy CommonJS bundle sources in an
+      independent archive: translation damage must preserve backend availability.
+      Keep activation, recorder, shared parsers and
+      ACP entry code ordinary CommonJS. Compile each selected, SHA-256-checked
+      original through Node's CommonJS module loader with its original filename;
+      retain independent inline English-region fallbacks for archive damage.
+- [x] Prove every locale's exact compact JSON round-trip, English-region lazy
+      loading, missing/corrupt fallback, and packaged ACP/CLI loading. Drill new
+      guards and restore each file byte-exact with SHA-256 receipts.
+- [x] Run scoped owning/importing suites in batches of at most three files,
+      static gates, all production caps and universal packaging on Kubuntu. Record
+      before/after members in `docs/certification/vsix-diet-2.md`; hook-on local
+      commits only, no network/live/paid calls, merge, push or rebase. The lane's
+      shared rules reserve aggregate quality/coverage for the lead; 120-minute box.
+
 ### TRAIN15B — Resume the 0.15.0 batch within the existing caps (2026-10-05)
+
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
 
 The lead authorizes a fresh bounded size recovery on the TRAIN15A worktree:
 build chat, Models and What's New as entries in one ESM splitting build,
@@ -19355,6 +20121,8 @@ and its existing JSON receipt. Full quality and native/hosted/live proof stay
 external; no new tool or dependency was installed.
 
 ### TRAIN15A — Start the 0.15.0 release batch (2026-10-05)
+
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
 
 M101's merged Model API is 486,502 bytes, 102 bytes above its unchanged
 486,400-byte cap. Reuse one build-generated lossless model-text decoder for
@@ -19403,6 +20171,8 @@ continuation.
 
 ### PR132M — Verify the 0.14.4 merge into infrastructure (2026-10-06)
 
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
+
 Starting at merge `3e58f1568` on `chore/infra-0150-m`, verify the complete
 App suite at repository-default deadlines, then every configured Vitest file
 in sequential batches of at most three files with `--maxWorkers=3`. Include
@@ -19438,6 +20208,8 @@ cross-platform quality remain with the lead. No live or paid model calls.
 
 ### PR132W — Diagnose the Windows built-exec failure (2026-10-06)
 
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
+
 On the Windows 11 rig, reproduce the complete `execStdio.e2e.test.ts` file
 at repository-default timeouts and compare with `sync/main-0170`. Isolate
 the expected pre-release external badge failure from any Windows process
@@ -19463,6 +20235,8 @@ Evidence: `docs/certification/pr132w.md`. Full quality, hosted CI and external
 badges remain lead-owned; no Windows process/encoding defect was reproduced.
 
 ### INFRA015 — Integrate screenshot refresh and test infrastructure (2026-10-06)
+
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
 
 Completed on `linuxlt`: three ordered no-fast-forward merges preserve all
 incoming heads; npm STAR regression and two integrated guards fail deliberately
@@ -19499,6 +20273,8 @@ owns full quality and hosted cross-platform certification after this handoff.
 
 ### TESTWARM — Warm deferred surfaces before behavior tests (2026-10-06)
 
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
+
 Add one test-only helper that imports every deferred webview surface before
 behavior suites run. Check its import set against the webview source so a new
 deferred import cannot silently miss warm-up. Keep dedicated loading/failure
@@ -19517,6 +20293,8 @@ Compiler projects, scoped lint/format, Knip, duplication, localization, host API
 reference and production build pass. Evidence: `docs/certification/testwarm.md`.
 
 ### HARNESSWAIT — Harness scenes wait for their controls (2026-10-06)
+
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
 
 Scope: replace every fixed-delay DOM interaction in `test/harness/index.html`
 with `whenFound`, nesting dependent steps. Retain only explained host-event,
@@ -19568,6 +20346,8 @@ build pass without changing caps; aggregate quality remains lead-owned (§7).
 
 ### SHOTS — README screenshot refresh (2026-10-06)
 
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
+
 Refresh the README and Marketplace screenshots from this release's actual
 webview harness. Build dev, capture every existing mapping to a preview,
 inspect each committed/captured pair, and replace shots whose UI changed.
@@ -19596,6 +20376,8 @@ grows by 254 bytes (2,289,534 → 2,289,788), below its unchanged 2400 KiB cap.
 The full receipt and per-image verdicts are in the certification record.
 
 ### PROMPTMENU2 — Composer context menu across panel hosts (2026-10-06)
+
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
 
 Scope: reuse the compact Prompt library popover at the pointer in panel hosts
 without VS Code's contributed context menu. The VS Code HTML marks its native
@@ -19626,6 +20408,8 @@ ACP/editor-owned chat UIs do not render this composer and retain their editor's
 context menus. Evidence lives in `docs/certification/promptmenu-hosts.md`.
 
 ### REL0144 — Release 0.14.4 preparation (2026-10-06)
+
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
 
 **Hosted CI repair (run 37558466658, 2026-10-06).** Fast-forward the rig to
 `sync/rel0144-host` (`99163bd10`). Make the browser fixture build every page
@@ -19665,6 +20449,8 @@ prove staged full Help for every shipped language before npm packing.
 
 ### FIXM118INT — RVM118INT corrections (2026-10-06)
 
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
+
 Repair all five reviewed P2s within the existing M118 ownership and budgets:
 use confinement's canonical `checkedAbsolute` for every atomic sharing writer;
 make prompt cancellation invalidate an in-flight release after the Save picker
@@ -19683,6 +20469,8 @@ is superseded by the already-integrated M118 base; this repair adds no merge.
 
 ### FIXM118C — RVM118C corrections (2026-10-06)
 
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
+
 The lane brief authorizes all four P2 fixes in C's existing regions: one
 boundary-aware path tokenizer for both modes/all formats (P2-1/P2-3), full
 displayed outcome and citation material from the existing transcript item
@@ -19696,6 +20484,8 @@ and static/build checks run directly on Kubuntu, with hooks-on local commits.
 
 ### FIXM118P — RVM118P correction lane (2026-10-06)
 
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
+
 The rig brief authorizes the seven reviewed corrections within P: machine-only
 sync consent; one explicit destination chooser for native imports, saves and
 copies (workspace first under confidential/unknown policy); merge before every
@@ -19707,84 +20497,6 @@ regression and byte-exact deliberate-failure receipt in `m118-p.md`.
 No dependencies, paid/live calls, caps, guard widening, merges or pushes.
 The shared core and React ports carry the corrections to W/X's editor bindings.
 Bounded local checks run here; the lead owns full integrated quality.
-
-### M118 lane 0 — Prompt and chat sharing contracts (2026-10-05)
-
-The authoritative rig brief stages D98/M118 for P (prompt library), C (chat
-sharing) and X (ACP/CLI/TUI/MHP). This lane adds only validated contracts,
-translations, fake fixtures and integration handoffs. D67's unimplemented
-VS Code state storage is superseded here by portable user prompts in
-`agentDataFolder()/prompts/` and workspace prompts in `.muse/prompts/`.
-Loading inserts into the active chat, creating one if needed, never sends.
-Right-click Save prompt covers own transcript messages, composer text and
-editor selections; the composer also offers Use saved prompt. Both scopes
-remain visible, user first, preserving duplicates across scopes.
-
-Saved prompts use versioned JSON front matter (a YAML-compatible subset)
-followed by verbatim Markdown, with declared built-in/named variables and
-an imported-untrusted flag. Sharing has inclusive message-id ranges,
-full/conversation modes, explicit final confirmation, local phase-one
-destinations and reserved hosted destinations. Conversation mode uses an
-allow-list beside each existing transcript representation; future kinds
-stay excluded. Privacy ports reuse registered-secret and shared redaction,
-normalise workspace/home/absolute paths and recheck the existing
-confidential-workspace setting immediately before release. Attachment
-contents require explicit selection. These are our own formats, not new
-provider wire shapes; no live or paid captures are needed.
-
-- [x] Contracts, round trips, default-deny guards and all-kind fakes.
-- [x] Fourteen real translations, pending manifest patch and strict checks.
-- [x] Deterministic share JSON Schema/check; P/C/X entry-point handoffs.
-- [x] Bounded rig checks and 45 byte-exact deliberate-failure controls;
-      `docs/certification/m118-l0.md` records receipts and integration limits.
-
-`src/shared/featureCatalog.ts` and its generation/check scripts do not exist
-on base `81a5ccfa`; no commands are registered by this lane. P/C/X must add
-their actual commands to the help reference when that parallel feature lands.
-
-### M118 lane X — ACP, CLI and editor sharing adapters (2026-10-06)
-
-Authority: `C:/lanes/_ctx/M118X.rig.md`, D98/M118 on
-`plan/m105-m107`, and `docs/certification/m118-handoff-x.md`.
-Implement `/share chat`, `/prompt save|list|use|share` and the CLI
-`share`/`prompts` parser and runner against lane 0's portable contracts.
-Prompt storage and the scrubbed renderer are injected P/C ports, shared across
-workspaces through `agentDataFolder`; never a separate library or a model turn.
-ACP command interception is opt-in through a runtime binding, with reserved
-commands failing explicitly when that binding is absent. A preview's exact
-bytes/request are held in memory, bound to its one-use final action, and the
-live confidential setting is checked again at release. Cancellation or session
-replacement invalidates pending actions. Prompt use returns insert-only text.
-
-The base lacks P/C implementations, M110a0's TUI, M104's MHP and the feature
-catalog. Supply tested adapters and named integration handoffs for their actual
-runtime/main, bridge, menus, TUI, help, README/ACP guide and changelog bindings.
-Do not edit those other lanes' files or invent a protocol method. Lane X's
-certification records exact parser syntax, lifecycle and final-confirmation
-drills. Scoped checks run directly on win11; full quality and native editor
-certification remain with W. No paid/live/network calls or new dependencies.
-
-- [x] X parser/runner, ACP local interception and native-menu adapters behind
-      injected P/C/UI ports; no model send and no fake production bindings.
-- [x] Win11 owning/regression tests and static/build checks recorded in
-      `docs/certification/m118-x.md`; 67 named red drills, byte-exact restores.
-- [x] Missing runtime, TUI, MHP, help/docs and lazy-bundle bindings named in
-      `docs/certification/m118-x-handoff.md`; installed/native parity remains W's.
-
-**FIXM118X / RVM118X (2026-10-06, Kubuntu).** Repair all four reviewed P2
-adapter defects within X's files: reuse workspace-path confinement for the
-resolved output and allowed root at release; require explicit headless
-destination and file output flags; abort every pending sharing UI when ACP
-cancels/releases/exits; reuse the shared skill/slash parser for reserved
-commands with leading whitespace. Interactive defaults stay unchanged.
-No new dependency, model call or production P/C/native binding is in scope.
-Record regression failures, byte-exact red drills and bounded checks in
-`docs/certification/m118-x.md`, and update W's integration contracts there.
-
-- [x] P2-1 output confinement and resolved path/root release contract.
-- [x] P2-2 explicit headless destination and file output admission.
-- [x] P2-3 abortable sharing UI and immediate ACP prompt/session cleanup.
-- [x] P2-4 shared leading-whitespace local-command interception.
 
 ### REL0143F — Repair release PR #129 CI failures (2026-10-06)
 
@@ -19922,113 +20634,6 @@ headless process guards, SBOMs and source/hash receipt. Keep repository test
 timeouts, hooks and all budgets unchanged; no merge, push, tag, publication,
 live/paid calls or aggregate quality. Record baseline failure and deliberate
 guard failures in `docs/certification/rel0142.md`.
-
-### Delivery order (2026-10-06)
-
-The owner, 2026-10-05: "make sure you prioritize all of the remaining stuff
-properly so smaller things get done quicker if able and in such a way that we
-dont put the cart before the horse … do things in a proper logical order".
-
-The rule: nothing starts before what it depends on, and where two items are
-free to go, the smaller goes first. Each **Needs** below was read from that
-milestone's own **Depends on** and lanes table. M113's plan reader (lane P)
-reads this list for `/report project`'s next steps, so each entry keeps the
-form `N. **Item** — reason. Needs: items.` Milestones already in a release
-train, and those waiting on outside events, keep their own status lines.
-
-1. **0.14.1** — in CI: the shell credential fence, the third startup diet and
-   the badge fixes. Needs: nothing.
-2. **0.14.2: the `/help` reference** (lane HELPREF) — small, and the owner
-   asked for it as soon as possible; M112 to M115 add their rows to its
-   `featureCatalog`. Needs: 0.14.1.
-3. **M112: questions that never block** (D92) — small (about 48
-   lane-hours), in 0.14.3, or folded into 0.14.2 when both are ready
-   together. Needs: main only; its native-host, TUI and desktop rows wait for
-   M104, M110a0 and M111b and block nothing.
-4. **M118: prompt and chat sharing** (D98) — as soon as possible, at the
-   front beside M112 and in parallel with it (about 34 lane-hours).
-   Phase 1 ships in the next patch after 0.14.3, phase 2 (gists) in the
-   one after. Needs: main; the native hosts' menus with M104, the TUI
-   with M110a0's T, phase 3 with M110, M96, M113 and M115.
-5. **M115: scheduled prompts v2** (D95) — right after M112: it shares the
-   deferral and the unattended machinery, and it replaces M52's per-run
-   modal and M88's lane C (timed sends). About 134 lane-hours; ships in the
-   first train after M112 that it is ready for. Needs: M112; event sources,
-   targets and editor rows join as M96, M103, M104, M107, M108, M109, M110
-   and M113 merge, and none blocks the rest. Its phase M115w (the issue
-   watchdog, about 100 lane-hours) follows M96, M113's network sources and
-   M109's taint lane.
-6. **M116: the orchestrator playbook** (D96) — small (about 60
-   lane-hours) and foundational: every orchestrating milestone after it
-   (M96's team, M110's hosts, M115w's watchdog) is held to it. Its policy
-   module, skill and the panel's own orchestration need only main; the
-   team, node and watchdog hooks join as M96, M110a and M115w merge.
-   Needs: main.
-7. **M114: design language and polish** (D94) — next after M116: its lane 0
-   (the token source and the raw-colour rule) is the prerequisite of every
-   UI-building lane that follows, M111's and M110's web UI and TUI design
-   among them. The panel's part ships in a 0.16.x patch, after 0.16.0's M104
-   so that the companion page and the native webviews are polished in the
-   same pass; the desktop's and the node's parts ship with M111 and M110a0.
-   Needs: main for lanes 0, A, P1, P2, F and S; M104 for C.
-8. **0.15.0: M95, M96, M97, M101 and M102** — the provider registry, roles
-   and the team, the usage journal and the rest of the batch; most later
-   milestones build on M95 and M102. Needs: main.
-9. **0.16.0: M98 phase 2, M103 and M104** — the maker guard, MHP, the
-   companion server and the native bridges, which every later editor row
-   uses. Needs: 0.15.0.
-10. **M100: paired devices, first slice** (D80) — missing from the order as
-    given; added here. Its lanes S and E gate M107's relocation, M108's
-    devices (now the main multi-account path, D88's placement amendment),
-    M109's device part and M110a. Needs: M95, M96 and M96c (0.15.0).
-11. **M106: agent-loop wire guarantees** (D86) — moved before M108: its lane R
-    (the rate-limit bucket, `pacing.ts`) is what M108's thresholds read, and
-    M110r's Y1 builds on it. Needs: M95, M101 and M102 (0.15.0); lane T also
-    needs FIXM101P2.
-12. **M107: the resource governor** (D87) — lanes S, T, G, A, C1, U and H need
-    only main and lane 0. Needs: M96 and M96c for C2, M100's S and E for R,
-    M102 for J.
-13. **M109: the vault and broker** (D89) — lanes 0, C, P, B and U need
-    nothing unmerged, so it can run beside M107. Needs: M81's A1 for L; M96
-    for R, and M100 and M107's R for R's device part; lane M moves each store
-    as its owner merges (M95 K, M108 K, M100 P, M103, M85).
-14. **M108: several accounts per provider** (D88) — corrected: it does not
-    need M109; M109's lane M moves M108's account secrets into the vault
-    whichever lands first. Needs: M95 and M102 for lanes 0, K, T, U and J;
-    M106's lane R for T; K and P for X (developer options); M100 and M107's R
-    for D.
-15. **M105: multimodal input** (D85) — after the governor, vault and accounts
-    by size only; nothing in it waits for M107–M109, and delivery a (the
-    Files API and the media core) can move up if a slot frees. Needs: M95's
-    lane N, M101's C1, P2 and T, M102, and M104's lanes 0, B, C and D.
-16. **M113: deterministic reports** (D93) — runs beside everything from
-    M112's lane 0 on. Needs: nothing new for the engine and the project,
-    milestone, release, changes, session and editor keybindings kinds; M102
-    for usage; M108 for accounts; M109 for security; M96 and, for nodes,
-    M110a for fleet; M115 for schedules; M110a0's lane T for the TUI; M111a
-    and M111b for the desktop.
-17. **M117: the capacity estimator** (D97) — after M113 and M116, whose
-    plan reader and review-round record it needs (about 107
-    lane-hours). Needs: M113 and M116; M107, M100, M108, M96 and M110
-    join as they land; provisioning rented servers waits for M109,
-    M110d and M110f.
-18. **M110a0: the home node, then M110os's first image** (D90) — placed by
-    size (about 360 lane-hours), not by dependency: it needs none of M100,
-    M107, M108 or M109, and can start right after 0.16.0 when the owner wants
-    it sooner. M110os follows M110a0. Needs: M104a's lanes B, C and D, M63,
-    M80 and M89; M114's lane 0 for U1, U2 and TD.
-19. **M110's later phases** — each phase's row in M110's roadmap names its
-    own: M110r's Y1 any time after M106's R and M101's C1 and C2; M110t after
-    M110a0; M110a with M100 and M96c; M110b with M107's G and M109; M110c
-    after M110a and M110b; M110d to M110h after them. Needs: M110a0.
-20. **M111: Muse Desktop** (D91) — corrected: only M111os and M111i wait for
-    M110os (OS1, OS2 and OS4). M111a0 needs only M114's lane 0; M111a is
-    built on a Debian 13 virtual machine; M111b runs on fakes and is wired on
-    M104a and M110a0; M111c's sections join as M96, M100, M102, M103, M108,
-    M109 and M110b merge; M111x's experiences each join with their own
-    dependency (M103X, OS5, KVM on the image, M110b, M110g, M111w). Needs:
-    M114's lane 0; M104a and M110a0 for M111b's wiring; M110os for M111os and
-    M111i.
 
 ### BADGEFIX — Exact package versions on store pages (2026-10-05)
 
@@ -20243,51 +20848,6 @@ The explicit lane brief authorizes full shard coverage but shared rules prohibit
 timeout, retry or skip policy is changed. Evidence is recorded in
 `docs/certification/cifix14-macos.md`.
 
-### VSIXDIET2 — Universal package headroom for 0.15.0 (2026-10-05)
-
-**FIXVSIX2 review repair (2026-10-05, RVMVSIX2).** Fix P1 by retaining
-Node's static named-export declarations in each archived CommonJS wrapper,
-while compiling the exact digest-checked original source. Keep the archive
-reader on the private cached CommonJS Module, preserving uiText's public
-export surface too. Compare native
-`import()` and `require()` exports for every packaged Node module with the
-unpacked build in both VSIX and ACP, and exercise hooks, reviewer, session
-board, report and plugin functions without model calls. Fix P2 by building
-the packaging suite's English fixtures in memory from source, so unit CI needs
-no `dist/`. Register the packaging child test as a Knip entry (not an ignore),
-so the dead-code gate analyses this runtime entrypoint. Prove each repair red,
-restore byte-exact, remeasure universal
-headroom (at least 150,000 bytes) and byte-identical activation. No dependency,
-guard widening, paid/live call, merge, push or rebase; 90-minute repair box.
-
-- [x] Repair P2, run the complete suite without checkout build output, drill.
-- [x] Repair P1, compare every packaged module and callable regression, drill.
-- [x] Run scoped static/build/package gates and record sizes and receipts.
-
-- [x] Reproduce the 0.14.0 universal VSIX with the checksum-verified published
-      helper and rank every member by compressed bytes. Keep the 2,252,800-byte cap.
-- [x] Pack runtime translations and generated lazy English regions together at
-      Brotli quality 11, using Node's built-in bounded decoder and today's table
-      validation. Use the same archive in ACP; keep manifest translations readable
-      by VS Code and source JSON checked by the localization gate.
-- [x] Measure deterministic lossless package improvements, targeting at least
-      150,000 bytes of universal headroom with no activation growth or text changes.
-      Preserve all licences/notices, runtime assets and editor behavior.
-- [x] Solid-compress the exact existing lazy CommonJS bundle sources in an
-      independent archive: translation damage must preserve backend availability.
-      Keep activation, recorder, shared parsers and
-      ACP entry code ordinary CommonJS. Compile each selected, SHA-256-checked
-      original through Node's CommonJS module loader with its original filename;
-      retain independent inline English-region fallbacks for archive damage.
-- [x] Prove every locale's exact compact JSON round-trip, English-region lazy
-      loading, missing/corrupt fallback, and packaged ACP/CLI loading. Drill new
-      guards and restore each file byte-exact with SHA-256 receipts.
-- [x] Run scoped owning/importing suites in batches of at most three files,
-      static gates, all production caps and universal packaging on Kubuntu. Record
-      before/after members in `docs/certification/vsix-diet-2.md`; hook-on local
-      commits only, no network/live/paid calls, merge, push or rebase. The lane's
-      shared rules reserve aggregate quality/coverage for the lead; 120-minute box.
-
 ### TRAIN14B — Complete the 0.14.0 release train (2026-10-05)
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/train-0.14.0.md`.
@@ -20396,27 +20956,6 @@ in this base; their integrated-tree proof remains the lead's next step.
 
 Every milestone carries the same certification checklist (§6.0) plus its own
 acceptance criteria. **A milestone is not complete until its checklist passes.**
-
-### 6.0 Standard certification checklist (applies to every milestone)
-
-- [ ] `npm run quality` exits 0 on a clean checkout (format:check, lint incl. lint:ps,
-      typecheck, check:l10n, deadcode, cycles, duplication, test:unit with coverage
-      thresholds, build with bundle budget, host globals and notices, security:audit,
-      test:a11y, security:secrets, security:sast).
-- [ ] Each new gate or test was seen to **fail** on a deliberate break, then
-      pass again (record the break in the milestone notes).
-- [ ] No new `eslint-disable`, `@ts-expect-error`, `as unknown as`, or `any`
-      without an inline reason **and** a row in §8.
-- [ ] No magic literals outside `src/shared/constants.ts` (and tests).
-- [ ] No placeholder / mock / fallback code outside `test/**`.
-- [ ] `README.md` updated for any new command, setting, or script; every
-      documented command was run.
-- [ ] `CHANGELOG.md` entry under `[Unreleased]`.
-- [ ] Security review of new surfaces (inputs validated, secrets never logged,
-      CSP intact, spawn args explicit).
-- [ ] Visual milestones: screenshot or manual-check record in
-      `docs/certification/<milestone>.md`.
-- [ ] Commit with a message describing what changed and why.
 
 ### SDK142 — Muse Code 1.4.2 fingerprint and documentation (2026-10-02)
 
@@ -20854,9 +21393,11 @@ direction?}` pages the raw view events when history came back `none`;
 
 ### M7 — Model API backend (bring-your-own key)
 
-**Status 2026-09-22: complete against a fake server; live certification of
+**Status 2026-09-22: complete.**
+
+Status detail retained: complete against a fake server; live certification of
 the Model API path pending the owner's go (each live turn is billed to the
-owner's key).** Certification record: `docs/certification/m7.md`.
+owner's key). Certification record: `docs/certification/m7.md`.
 
 - **Scope**: `ModelApiBackend` on `POST /v1/responses` streaming; tool harness
   (read, write, edit, glob, grep, shell) with a permission engine implementing
@@ -20971,7 +21512,9 @@ owner's key).** Certification record: `docs/certification/m7.md`.
 
 ### M9 — Voice dictation on the operating system's recogniser
 
-**Status 2026-09-22: built; certified on Windows through the real
+**Status 2026-09-22: built.**
+
+Status detail retained: built; certified on Windows through the real
 recogniser twice (a synthesised recording, then a real webcam microphone
 hearing text-to-speech across the room, with text back), and on the
 owner's Mac mini for the helper's permissions, engine, capture (levels
@@ -20979,7 +21522,7 @@ metered) and recognition lifecycle (three defects found and fixed there).
 macOS recognised text arrived once the recognition mode was left to Apple
 (forced on-device gives empty results on an Intel Mac without the model)
 and the mini's speech daemons were restarted after Dictation was enabled.
-Pending: a person speaking for the accuracy check on each platform.**
+Pending: a person speaking for the accuracy check on each platform.
 Certification record: `docs/certification/m9.md`.
 
 - **Goal**: Claude Code's microphone ("Tap or hold to record Ctrl+D")
@@ -21083,7 +21626,9 @@ Certification record: `docs/certification/m9.md`.
 
 ### M10 — Workspace context: rules, skills and memory on both backends
 
-**Status 2026-09-22: built and certified** (`docs/certification/m10.md`):
+**Status 2026-09-22: built.**
+
+Status detail retained: built and certified (`docs/certification/m10.md`):
 the CLI path proved live before and after the trust flag (rule ignored,
 skill `skillNotFound` → rule followed, skill ran), the Model API path
 against the fake server, seven checks fired on purpose.
@@ -21157,7 +21702,9 @@ against the fake server, seven checks fired on purpose.
 
 ### M11 — Production hardening (D14)
 
-**Status 2026-09-22: built and certified** (`docs/certification/m11.md`);
+**Status 2026-09-22: built.**
+
+Status detail retained: built and certified (`docs/certification/m11.md`);
 the release workflow is proved by the 0.2.0 tag itself (§10).
 
 - **Goal**: the D14 table, every row either done or deferred with a reason.
@@ -21192,7 +21739,9 @@ the release workflow is proved by the 0.2.0 tag itself (§10).
 
 ### M12 — Harness parity (D15)
 
-**Status 2026-09-22: built and certified** (`docs/certification/m12.md`);
+**Status 2026-09-22: built.**
+
+Status detail retained: built and certified (`docs/certification/m12.md`);
 version 0.3.0.
 
 - **Goal**: the D15 table, every "M12" row built and certified; version
@@ -21237,7 +21786,9 @@ version 0.3.0.
 
 ### M13 — Verification fixes, process-level e2e, the rewind menu (D16)
 
-**Status 2026-09-22: built and certified** (`docs/certification/m13.md`);
+**Status 2026-09-22: built.**
+
+Status detail retained: built and certified (`docs/certification/m13.md`);
 version 0.3.1.
 
 - **Goal**: every D16 row marked "M13".
@@ -21265,7 +21816,9 @@ version 0.3.1.
 
 ### M14 — Subagents, the Agent map, the Account & Usage modal, choices as pickers, the banner, the compact button (D17)
 
-**Status 2026-09-22: built and certified** (`docs/certification/m14.md`);
+**Status 2026-09-22: built.**
+
+Status detail retained: built and certified (`docs/certification/m14.md`);
 version 0.4.0.
 
 - **Goal**: every D17 row.
@@ -21294,7 +21847,9 @@ version 0.4.0.
 
 ### M15 — The first F5 round: model warm-up, transcript scrolling, chevrons, response copy, outputs in the editor (D18)
 
-**Status 2026-09-22: built and certified** (`docs/certification/m15.md`);
+**Status 2026-09-22: built.**
+
+Status detail retained: built and certified (`docs/certification/m15.md`);
 version 0.4.1.
 
 - **Goal**: every D18 row that changed code.
@@ -21314,7 +21869,9 @@ version 0.4.1.
 
 ### M16 — The second F5 round: the pill's model, thinking rows, file links, Click to expand everywhere, the last usage window (D19)
 
-**Status 2026-09-22: built and certified** (`docs/certification/m16.md`);
+**Status 2026-09-22: built.**
+
+Status detail retained: built and certified (`docs/certification/m16.md`);
 version 0.4.2.
 
 - **Goal**: every D19 row that changed code.
@@ -21338,7 +21895,9 @@ version 0.4.2.
 
 ### M17 — Reply to an output, ask about or comment on highlighted chat text (D20)
 
-**Status 2026-09-22: built and certified** (`docs/certification/m17.md`);
+**Status 2026-09-22: built.**
+
+Status detail retained: built and certified (`docs/certification/m17.md`);
 version 0.4.3.
 
 - **Goal**: every D20 row.
@@ -21359,7 +21918,9 @@ version 0.4.3.
 
 ### M18 — The verification round (D21)
 
-**Status 2026-09-23: built and certified** (`docs/certification/m18.md`);
+**Status 2026-09-23: built.**
+
+Status detail retained: built and certified (`docs/certification/m18.md`);
 version 0.5.0.
 
 - **Goal**: every D21 row.
@@ -21378,7 +21939,9 @@ version 0.5.0.
 
 ### M19 — Issue #4: the prompt box auto-grows (D22)
 
-**Status 2026-09-23: built and certified** (`docs/certification/m19.md`);
+**Status 2026-09-23: built.**
+
+Status detail retained: built and certified (`docs/certification/m19.md`);
 merged through pull request #5 from `fix/composer-autogrow`, shipped in
 0.5.2.
 
@@ -21397,7 +21960,9 @@ merged through pull request #5 from `fix/composer-autogrow`, shipped in
 
 ### M20 — Rewind across subagents (D23)
 
-**Status 2026-09-23: built and certified** (`docs/certification/m20.md`);
+**Status 2026-09-23: built.**
+
+Status detail retained: built and certified (`docs/certification/m20.md`);
 shipped in 0.5.5.
 
 - **Goal**: the D23 rows.
@@ -21415,7 +21980,9 @@ shipped in 0.5.5.
 
 ### M21 — The audit: security and confinement (D24)
 
-**Status 2026-09-23: built and certified** (`docs/certification/m21.md`);
+**Status 2026-09-23: built.**
+
+Status detail retained: built and certified (`docs/certification/m21.md`);
 merged through pull request #6 from `hardening/m21-security`, shipped in
 0.6.0.
 
@@ -21444,7 +22011,9 @@ merged through pull request #6 from `hardening/m21-security`, shipped in
 
 ### M22 — The audit: processes and lifecycle (D25)
 
-**Status 2026-09-23: built and certified** (`docs/certification/m22.md`);
+**Status 2026-09-23: built.**
+
+Status detail retained: built and certified (`docs/certification/m22.md`);
 merged through pull request #9 from `hardening/m22-lifecycle`, shipped in
 0.6.0.
 
@@ -21471,7 +22040,9 @@ merged through pull request #9 from `hardening/m22-lifecycle`, shipped in
 
 ### M23 — The audit: protocol and backend semantics (D26)
 
-**Status 2026-09-23: built and certified** (`docs/certification/m23.md`);
+**Status 2026-09-23: built.**
+
+Status detail retained: built and certified (`docs/certification/m23.md`);
 merged through pull request #10 from `hardening/m23-protocol`, shipped in
 0.6.0.
 
@@ -21502,7 +22073,9 @@ merged through pull request #10 from `hardening/m23-protocol`, shipped in
 
 ### M24 — The audit: editing correctness (D27)
 
-**Status 2026-09-23: built and certified** (`docs/certification/m24.md`,
+**Status 2026-09-23: built.**
+
+Status detail retained: built and certified (`docs/certification/m24.md`,
 the context rows in `docs/certification/m24-context.md`); merged through
 pull request #11 from `hardening/m24-editing`, shipped in 0.6.0.
 
@@ -21531,7 +22104,9 @@ pull request #11 from `hardening/m24-editing`, shipped in 0.6.0.
 
 ### M25 — The audit: webview and UI state (D28)
 
-**Status 2026-09-23: built and certified** (`docs/certification/m25.md`);
+**Status 2026-09-23: built.**
+
+Status detail retained: built and certified (`docs/certification/m25.md`);
 merged through pull request #8 from `hardening/m25-webview`, shipped in
 0.6.0.
 
@@ -21625,7 +22200,9 @@ workflow lint, scoped local checks and a universal package. The lead owns
 aggregate quality and hosted release verification. Existing build, package,
 esbuild metafiles, tag/environment policy and release ledger are reused.
 
-**Status 2026-09-23: built and certified** (`docs/certification/m26.md`);
+**Status 2026-09-23: built.**
+
+Status detail retained: built and certified (`docs/certification/m26.md`);
 merged through pull request #7 from `hardening/m26-platform`, shipped in
 0.6.0.
 
@@ -21639,23 +22216,6 @@ merged through pull request #7 from `hardening/m26-platform`, shipped in
 - **Security**: the PAT is confined to one step; tags must be on `main`; no
   tokens persisted; the audit has no silent bypass; no new dependencies; no
   signing credentials created.
-
-### M26 follow-up — Refresh README badges after publication (BADGES)
-
-**Status 2026-10-05: built.** Status evidence: `docs/certification/badges.md`.
-
-The 0.13.0 release exposed stale badge-service and GitHub image-proxy caches.
-Extend the existing release workflow and scripts without changing publication:
-BADGES-A waits at most 15 minutes, polling every 30 seconds, for all four public
-channel versions; BADGES-B requests README badge URLs and retries older version
-answers with a cache-busting query; BADGES-C purges the repository page's camo
-images and logs statuses. Every failure warns only, with no credential required.
-The final job requires the summary's successful, all-published outcome.
-Fake-fetch tests and red drills cover parsing, version ordering, retries,
-polling bounds and warning-only failures; hosted public-service proof remains
-the lead's next release check. Implemented: 40 focused tests and 14 red drills
-passed, with typecheck and required focused gates green on the worktree merged
-with `8c894b60a`. Evidence: [BADGES](docs/certification/badges.md).
 
 ### M27 — The tree kill's orphans (D25)
 
@@ -21698,7 +22258,9 @@ localization and production build passed. Both recovery controls failed
 with the old cache and passed after exact-byte restoration. Aggregate
 quality and the unchanged pins' npm audit triage remain with the lead.
 
-**Status 2026-09-23: built and certified** (`docs/certification/m27.md`);
+**Status 2026-09-23: built.**
+
+Status detail retained: built and certified (`docs/certification/m27.md`);
 merged through pull request #12 from `hardening/m27-orphans`, shipped in
 0.6.0.
 
@@ -21738,7 +22300,9 @@ primary path, the sweep staying as the fallback.
 
 ### M28 — macOS dictation asks under its own name (D29)
 
-**Status 2026-09-23: built and certified** (`docs/certification/m28.md`);
+**Status 2026-09-23: built.**
+
+Status detail retained: built and certified (`docs/certification/m28.md`);
 pull request #15 from `hardening/m28-release-hygiene`, shipped in 0.7.0.
 
 The owner's go-ahead (2026-09-23) on the route M26 recorded: macOS charges
@@ -21768,7 +22332,9 @@ asking.
 
 ### M29 — `.muse/` is a protected path (D30)
 
-**Status 2026-09-24: built and certified** (`docs/certification/m29.md`);
+**Status 2026-09-24: built.**
+
+Status detail retained: built and certified (`docs/certification/m29.md`);
 pull request #16 from `features/m29-m30-skills-export`, shipped in 0.7.0.
 
 - **Goal**: a write under `.muse/` on the Model API backend asks in every
@@ -21786,7 +22352,9 @@ pull request #16 from `features/m29-m30-skills-export`, shipped in 0.7.0.
 
 ### M30 — Skills, imports and export (D30)
 
-**Status 2026-09-24: built and certified** (`docs/certification/m30.md`);
+**Status 2026-09-24: built.**
+
+Status detail retained: built and certified (`docs/certification/m30.md`);
 pull request #16 from `features/m29-m30-skills-export`, shipped in 0.7.0.
 
 - **Goal**: manage Muse Code's skills and import Claude Code's or Codex's
@@ -21815,7 +22383,9 @@ pull request #16 from `features/m29-m30-skills-export`, shipped in 0.7.0.
 
 ### M31 — MCP servers and hooks, read-only (D30)
 
-**Status 2026-09-24: built and certified** (`docs/certification/m31.md`);
+**Status 2026-09-24: built.**
+
+Status detail retained: built and certified (`docs/certification/m31.md`);
 pull request #17 from `features/m31-m32-mcp-hooks-worktrees`, shipped in
 0.7.0. Found on the way
 and fixed with it: PowerShell reads the typographic quotes U+2018 to U+201B
@@ -21841,7 +22411,9 @@ extension opens now use for the CLI's path and every argument.
 
 ### M32 — Worktrees (D30)
 
-**Status 2026-09-24: built and certified** (`docs/certification/m32.md`);
+**Status 2026-09-24: built.**
+
+Status detail retained: built and certified (`docs/certification/m32.md`);
 pull request #17 from `features/m31-m32-mcp-hooks-worktrees`, shipped in
 0.7.0.
 
@@ -21862,7 +22434,9 @@ pull request #17 from `features/m31-m32-mcp-hooks-worktrees`, shipped in
 
 ### M33 — Web search on the Model API backend (D30)
 
-**Status 2026-09-25: built and certified** (`docs/certification/m33-m35.md`,
+**Status 2026-09-25: built.**
+
+Status detail retained: built and certified (`docs/certification/m33-m35.md`,
 D34); merged as PR #27 (`f52312b`, run 36166385587, seven jobs green) with
 M34 and M35; ships in 0.9.0.
 
@@ -21891,7 +22465,9 @@ M34 and M35; ships in 0.9.0.
 
 ### M34 — Image generation on the Model API backend (D30)
 
-**Status 2026-09-25: built and certified** (`docs/certification/m33-m35.md`,
+**Status 2026-09-25: built.**
+
+Status detail retained: built and certified (`docs/certification/m33-m35.md`,
 D34), merged with M33 in PR #27 (`f52312b`).
 
 - **Goal**: let the key backend create an image file when asked (icons,
@@ -21919,7 +22495,9 @@ D34), merged with M33 in PR #27 (`f52312b`).
 
 ### M35 — Muse Voice dictation, paid and opt-in (D30)
 
-**Status 2026-09-25: built and certified** (`docs/certification/m33-m35.md`,
+**Status 2026-09-25: built.**
+
+Status detail retained: built and certified (`docs/certification/m33-m35.md`,
 D34), merged with M33 in PR #27 (`f52312b`). As built, the Windows recorder is
 compiled when its resident helper starts (no assembly in storage), the
 stream is the realtime WebSocket with the key in its first frame, and the
@@ -21955,7 +22533,9 @@ end-to-end check with a real key and a real microphone waits for the owner
 
 ### M36 — Rewind finds a hunk that only moved (D31)
 
-**Status 2026-09-24: built and certified** (`docs/certification/m36.md`);
+**Status 2026-09-24: built.**
+
+Status detail retained: built and certified (`docs/certification/m36.md`);
 pull request #17 from `features/m31-m32-mcp-hooks-worktrees`, stacked with
 M31 and M32 so the gate runs once; shipped in 0.7.0.
 
@@ -21978,7 +22558,9 @@ M31 and M32 so the gate runs once; shipped in 0.7.0.
 
 ### M37 — The accessibility gate (D32)
 
-**Status 2026-09-24: built and certified** (`docs/certification/m37.md`);
+**Status 2026-09-24: built.**
+
+Status detail retained: built and certified (`docs/certification/m37.md`);
 pull request #18 from `features/m37-accessibility`, shipped in 0.7.0.
 
 - **Goal**: every screen the harness can show passes WCAG 2.2 AA's
@@ -22003,7 +22585,9 @@ pull request #18 from `features/m37-accessibility`, shipped in 0.7.0.
 
 ### M38 — "/" in the prompt: the palette, then slash commands
 
-**Status 2026-09-24: built and certified** (`docs/certification/m38.md`);
+**Status 2026-09-24: built.**
+
+Status detail retained: built and certified (`docs/certification/m38.md`);
 pull request #19 from `features/m38-slash-autocomplete`, shipped in 0.7.0.
 
 The owner asked for this on 2026-09-24: "when the user types a slash to
@@ -22063,7 +22647,9 @@ change to the slash commands menu".
 
 ### M39 — Logging and performance you can see
 
-**Status 2026-09-24: built and certified** (`docs/certification/m39.md`);
+**Status 2026-09-24: built.**
+
+Status detail retained: built and certified (`docs/certification/m39.md`);
 pull request #20 from `features/m39-logging-performance`, shipped in 0.7.0.
 Owner (2026-09-24): "as far as o11y for errors etc we are good? … really i
 mean logging and performance everywhere". An audit of the code that day answered: not yet. The CLI
@@ -22151,7 +22737,9 @@ never reach the host, and nothing measures time at runtime.
 
 ### M40 — The panel in VS Code's display languages (built)
 
-**Status 2026-09-25: built and certified** (`docs/certification/m40.md`):
+**Status 2026-09-25: built.**
+
+Status detail retained: built and certified (`docs/certification/m40.md`):
 M40a merged in pull request #23, M40b in its own pull request. Owner (2026-09-24): "yes" to the
 languages VS Code itself ships. The design is D33.
 
@@ -22233,7 +22821,9 @@ the shared table, helpers and checks):
 
 ### M42 — Replay as Meta validates it (D35)
 
-**Status 2026-09-25: built and certified** (`docs/certification/m42.md`);
+**Status 2026-09-25: built.**
+
+Status detail retained: built and certified (`docs/certification/m42.md`);
 merged as PR #28 (`0e09b63`).
 
 - **Goal**: every request the Model API backend sends is a conversation
@@ -22246,33 +22836,11 @@ merged as PR #28 (`0e09b63`).
 - **Acceptance**: each rule has a test from the documented shape and a red
   drill; the gate green.
 
-### M43–M56 — Parity with everything Muse Code and the Model API offer (D36)
-
-**Status 2026-09-27: M43–M56 merged (M56 as PR #44). All ship in
-0.9.0.** The program the owner asked for (2026-09-25): one pull request per
-milestone, each with its tests, red drills, documents and fourteen
-translations. The order is D36's table:
-
-| Milestone | What reaches the panel                                                                                                                | State                                                |
-| --------- | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| M43       | A row for every tool Muse Code runs (memory, goals, schedules, workflows, web, background work, reminders, input), tool-result images | merged, PR #29                                       |
-| M44       | Images on the Muse Code backend through the `ide` session server with the key (paid, loud); image edits                               | merged, PR #30 (web fetch moved to M44b)             |
-| M45       | Goals: set, see, pause, clear                                                                                                         | merged, PR #31                                       |
-| M46       | Background work and stop; the `!` user shell; clarifying questions                                                                    | merged, PR #33                                       |
-| M47       | Workflows: captured run and children as read-only cards; owner controls deferred until a live success capture                         | merged, PR #34                                       |
-| M48       | Model API subagents with staged paid child admission; Muse Code read/reopen deferred until live success capture and certification     | merged, PR #35                                       |
-| M49       | Memory: see and edit; memory tools on the Model API backend                                                                           | merged, PR #36                                       |
-| M50       | MCP servers on the Model API backend                                                                                                  | merged, PR #37                                       |
-| M51       | Hooks on the Model API backend                                                                                                        | merged, PR #39                                       |
-| M52       | Scheduled prompts (`/loop`): list and cancel                                                                                          | merged, PR #40                                       |
-| M53       | Rewind a conversation; a side chat                                                                                                    | merged, PR #41 (with the usage follow-up)            |
-| M54       | PDFs and other files as input                                                                                                         | merged, PR #42                                       |
-| M55       | Sign in and install Muse Code from the panel (M41 folded in)                                                                          | merged, PR #43 (with the sign-in reducer review fix) |
-| M56       | Enterprise network: proxy and certificates, the sandbox network switch, no session log, the CLI's config status                       | merged, PR #44                                       |
-
 ### M43 — A row for every tool Muse Code runs (D36)
 
-**Status 2026-09-25: built and certified** (`docs/certification/m43.md`);
+**Status 2026-09-25: built.**
+
+Status detail retained: built and certified (`docs/certification/m43.md`);
 merged as PR #29 (`03ca4da`).
 
 - **Goal**: every tool Muse Code can run has a named row, and the ones that
@@ -22299,7 +22867,9 @@ merged as PR #29 (`03ca4da`).
 
 ### M44 — Images on both backends, and image edits (D37)
 
-**Status 2026-09-25: built and certified** (`docs/certification/m44.md`);
+**Status 2026-09-25: built.**
+
+Status detail retained: built and certified (`docs/certification/m44.md`);
 merged as PR #30 (`bdaede4`).
 
 - **Goal**: the owner's "images … on each": the model can make and edit
@@ -22344,7 +22914,9 @@ the model may read a page:
 
 ### M45 — Goals (D38)
 
-**Status 2026-09-26: built, certified and merged** as PR #31 (`1908673`,
+**Status 2026-09-26: built.**
+
+Status detail retained: built, certified and merged as PR #31 (`1908673`,
 run 36219311056) (`docs/certification/m45.md`).
 
 - **Goal**: a session goal the user can set, see, pause, resume, change
@@ -22517,7 +23089,9 @@ owner commands; accepted control shapes remain uncaptured.
 
 ### M48 — Model API subagents and captured Muse Code controls (D45)
 
-**Status 2026-09-26: merged as PR #35** (`docs/certification/m48.md`).
+**Status 2026-09-26: merged.**
+
+Status detail retained: merged as PR #35 (`docs/certification/m48.md`).
 Child requests use a default-off paid gate, one-use task consent and a final
 HTTP admission check with a four-attempt limit. The two P1 review threads (a
 child's `turnStarted` stealing the parent's steering; the persist guard
@@ -22563,8 +23137,10 @@ no callable panel path until a bounded live success capture is available.
 
 ### M49 — Memory: see and edit; memory tools on the Model API backend (D36, D41)
 
-**Status 2026-09-26: merged as PR #36 at `4694803`; native writer-lock
-parity unproved** (`docs/certification/m49.md`). The isolated M49 worktree was based on M47's
+**Status 2026-09-26: merged.**
+
+Status detail retained: merged as PR #36 at `4694803`; native writer-lock
+parity unproved (`docs/certification/m49.md`). The isolated M49 worktree was based on M47's
 main merge `34002ab` (pre-move index tree preserved at
 `refs/codex-backups/m49-pre-m47-20260926`), then merged with M48 (`a9dec5a`).
 The first full local quality gate
@@ -22610,8 +23186,10 @@ attempts stopped in unit tests.
 
 ### M50 — MCP servers on the Model API backend (D36, D42)
 
-**Status 2026-09-26: merged as PR #37 at `fa370ee`; local and all seven
-hosted checks passed**
+**Status 2026-09-26: merged.**
+
+Status detail retained: merged as PR #37 at `fa370ee`; local and all seven
+hosted checks passed
 (`docs/certification/m50.md`). The
 isolated M50 branch passed `npm run quality` on exact M47-base staged tree
 `9a2399aa4b15f401c5e0c73d5f21846af3fff06c`: 1,820 unit tests passed
@@ -22703,8 +23281,10 @@ later passed its exact-tree local and hosted gates before merge.
 
 ### M51 — Hooks on the Model API backend (D36)
 
-**Status 2026-09-27: merged as PR #39 at `eb0ce56`; all seven hosted jobs
-passed (run 36291432546)** (`docs/certification/m51.md`). Still open: live
+**Status 2026-09-27: merged.**
+
+Status detail retained: merged as PR #39 at `eb0ce56`; all seven hosted jobs
+passed (run 36291432546) (`docs/certification/m51.md`). Still open: live
 hook parity beyond the captured PreLLMCall/PostLLMCall echo frames, and the
 complete event-specific output contract. For 0.9.0 every hook source
 (managed, user and project) loads only in a trusted workspace, so no hook
@@ -22991,8 +23571,10 @@ frames are unchanged; no new live hook capture is claimed here.
 delivery modes, the shared store and every editor; M52's per-run Run modal
 and loaded-session rule are replaced (D95.12).
 
-**Status 2026-09-27: merged as PR #40 at `93ea81c`; all seven hosted jobs
-passed (run 36294862598)** (`docs/certification/m52.md`). No live model
+**Status 2026-09-27: merged.**
+
+Status detail retained: merged as PR #40 at `93ea81c`; all seven hosted jobs
+passed (run 36294862598) (`docs/certification/m52.md`). No live model
 attempt or paid call was made; the cron day-field rule is a standard-cron
 inference, not captured Muse parity. The dated paragraphs below are
 checkpoints from before the merge.
@@ -23192,8 +23774,10 @@ integration and full gates on the later tree remain open.
 
 ### M53 — Conversation rewind and side chat (D46)
 
-**Status 2026-09-27: merged as PR #41 at `be34ee8` with the Account & usage
-follow-up; all seven hosted jobs passed (run 36298748478)**
+**Status 2026-09-27: merged.**
+
+Status detail retained: merged as PR #41 at `be34ee8` with the Account & usage
+follow-up; all seven hosted jobs passed (run 36298748478)
 (`docs/certification/m53.md`, "Final PR #41 integration receipt"). Limits
 stand: Muse Code 1.3.0 refuses forks on Windows, and the Plan-mode side fork
 elsewhere is not certified strictly read only. The dated paragraphs below
@@ -23318,45 +23902,12 @@ its own exact-tree gate.
   platforms the Plan-mode side fork may inherit allow rules; unlike Model
   API Plan mode, it is not certified as strictly read only.
 
-### M53 follow-up — Account & usage reset accuracy
-
-**Status 2026-09-26: integrated in M53 PR #41, merged as `be34ee8`
-(tree `5757e29`).** Its seven hosted jobs passed in PR run
-`36298748478`; the follow-up used that M53 gate, with no separate hosted
-run. Certification record:
-`docs/certification/m53-usage-timing.md`.
-
-- Use Muse Code's `usage/read` and `usage/changed` account percentages and
-  absolute reset timestamps as reported. Its SDK has one account-level usage
-  payload, not model-specific quota or plan-name fields. Meta's public Muse
-  Code subscription page publishes an Everyday five-hour allowance, with
-  High 5× and Power 20× capacity, but no per-model conversion or weekly reset
-  rule. The owner's personal Muse Power/Maximum Upgrade screen is separate
-  from Muse Code CLI usage; its weekly token grants do not establish the CLI's
-  `usage/read` entitlement. Do not derive countdowns or usage weights from
-  either plan table, selected model or opaque MSP tier.
-- Recompute visible countdowns while Account & usage stays open, at least
-  once per minute. When a reported reset has passed without a newer frame,
-  label that row as awaiting fresh usage and hide its old percentage and
-  countdown. Retain the observation's age so the user can see why.
-- Drop the global last-usage fallback and attempt to erase its legacy stored
-  value on activation. Cleanup failure does not block activation because no
-  code reads the old value. It has no account identity, so a new sign-in must not inherit
-  another account's plan, percentages or reset time. Clear the webview's
-  report on authentication changes. An empty `usage/read` also clears a
-  same-host observation because the account may have changed. Within one
-  live host, prefer the newest `observedAtMs`; an older or empty read begun
-  before a newer `usage/changed` must not overwrite that event. Discard
-  results from a host stopped or replaced.
-- The timer, expired row, authentication boundary and out-of-order delivery
-  red drills failed before correction and passed after. Exact integrated
-  quality and hosted gates passed before PR #41 merged; the isolated
-  checkpoint alone was never used as certification.
-
 ### M54 — PDFs and other files as input (D47)
 
-**Status 2026-09-27: merged as PR #42 at `cf33cb2`; all seven hosted jobs
-passed (run 36345148020)** (`docs/certification/m54.md`). Live paid PDF
+**Status 2026-09-27: merged.**
+
+Status detail retained: merged as PR #42 at `cf33cb2`; all seven hosted jobs
+passed (run 36345148020) (`docs/certification/m54.md`). Live paid PDF
 delivery on the Model API is unverified (no key; fake-API tests only).
 Conversation rewind of a PDF or named text-file card stays refused until
 exact file-byte restoration exists. The paragraphs below are dated
@@ -23627,12 +24178,14 @@ paid PDF delivery remains unverified; no paid request ran.
 
 ### M55 — Install and sign in from the panel (D36, M41)
 
-**Status 2026-09-27: merged as PR #43 at `0cf5e7e`, with the review fix to
+**Status 2026-09-27: merged.**
+
+Status detail retained: merged as PR #43 at `0cf5e7e`, with the review fix to
 the sign-in reducer (`e489ed8`: a device sign-in started from a live Model
 API session keeps that session until it succeeds). All seven hosted jobs
 passed on head `d50ce40` (run 36346755802) and again on the review fix
 (run 36348351793). A live Meta install and a completed device sign-in are
-owner steps.** Ships in 0.9.0 (`docs/certification/m55.md`).
+owner steps. Ships in 0.9.0 (`docs/certification/m55.md`).
 
 Earlier checkpoints (historical): the full gate passed on the then-final
 tree (2,454 tests, 328 accessibility pages, the host bundle 593.5 KiB within
@@ -23945,7 +24498,9 @@ is first built, instead of riding in the host bundle as a 12 KiB string;
 
 ### M56 — Enterprise network and posture (D43)
 
-**Status 2026-09-27: built, and joined onto M55 as branch
+**Status 2026-09-27: built.**
+
+Status detail retained: built, and joined onto M55 as branch
 `codex/m56-enterprise-final`. Its commit `f7dc40f` sits on
 `codex/m55-install` `b98c05b`. A merge then brings in M55's `d50ce40`, which
 carries main's merged M54 (PR #42, `cf33cb2`). Both trees passed local
@@ -23955,7 +24510,7 @@ passed `npm run quality` too (2,497 unit tests passed, 5 skipped; 328
 accessibility pages; `dist/extension.js` 596.7 KiB). Merged as PR #44
 (`890e37b`) after all seven hosted jobs passed (run 36350220096, the Windows
 job on its second attempt); ships in 0.9.0. Still open: live proof behind a
-real enterprise proxy with a private root, including Muse Code's IDE route**
+real enterprise proxy with a private root, including Muse Code's IDE route
 (`docs/certification/m56.md`, "Final join onto M55").
 
 That join keeps M54's and M55's records as they were. It restores
@@ -24142,15 +24697,6 @@ joins, combined M56 gates and live enterprise proxy/private-root proof.
 - **Security.** Grants hold feature names only; untrusted workspaces never
   offer or honour "always"; settings stay machine-scoped.
 - **Status.** Built on `feature/m58-paid-consent` (2026-09-27).
-
-### M67–M85 — Coding quality first (D49, D50)
-
-**Status 2026-10-05: building.**
-
-The program D49 ranks, and D50's M85. Each milestone follows AGENTS.md:
-tests first, red drills, docs landing with the change, strings in all 14
-tables, and the full gate. A paid item follows D30/D48. New UI gets a
-harness scenario, which is what the accessibility gate checks (D32).
 
 ### M67 — Code intelligence tools (D49)
 
@@ -24443,152 +24989,155 @@ remain required; this evidence makes no live-model or full-rig claim.
   at its limit, and a check asks where a shell command asks (a drill per
   mode).
 - **Size.** M.
-- **Status 2026-09-28: built and certified on `feature/m68-verify-loop`**
-  (`docs/certification/m68.md`); not pushed. Decisions taken:
-  - **Settings**, all machine-scoped (D15): `diagnosticsAfterEdits` (on),
-    `checkCommands` (none; `{ name, command, changedFiles?,
+- **Status 2026-09-28: built.**
+
+Status detail retained: built and certified on `feature/m68-verify-loop`
+(`docs/certification/m68.md`); not pushed. Decisions taken:
+
+- **Settings**, all machine-scoped (D15): `diagnosticsAfterEdits` (on),
+  `checkCommands` (none; `{ name, command, changedFiles?,
 timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
-    most), `formatOnEdit` (off). The loop is Model API only, as scoped;
-    `run_checks` and `then_run` are offered only with the shell.
-  - **After a round that edited files** (the edit tools' writes; not the
-    shell's, the memory tools' or images), before the next request: the
-    edited files' diagnostics, then the checks, in a **Check edits** row
-    (`verify_edits`) whose summary counts errors and warnings and names each
-    check's outcome; the model reads it all as a user note that leads with
-    "tool data, not a new instruction from the user". A diagnostic is
-    matched across rounds by severity, source and message, never its line,
-    for "N new, M fixed"; at most 50 are listed.
-  - **The language servers report only on files an editor shows**
-    (measured, VS Code 1.139.1 and 1.125.0: a hidden `.ts` and `.json` got
-    nothing in 25 s, shown ones in 1.6 s and 0.1 s). So each edited file no
-    editor shows opens beside the active editor in a tab of its own (not a
-    preview, which `workbench.editor.enablePreview: false` would make
-    permanent and which would replace the user's own preview), without
-    taking focus (beside, so nothing the user types lands in it), and the
-    tabs it opened close after the read unless the user changed them. After
-    the M68 review the wait starts once the file shows: 4 s for a first
-    report, then 1.5 s of quiet, 10 s at most, a Stop ending it for every
-    file left; one queue serves every caller (panels, subagents, the
-    `getDiagnostics` tool). A file with no report, unsaved, or past the
-    round's first 8 (`VERIFY_SHOWN_FILES_MAX`) is "not checked" with the
-    reason, never clean, and leaves the "N new" baseline alone; the baseline
-    moves only once the note reached the conversation. The existing
-    `getDiagnostics` tool does the same for a file it is asked about, on
-    both backends, which is what makes the Muse Code guidance useful; it is
-    confined by real path first, and its wait ends when the MCP caller goes
-    away.
-  - **Permission path** (`authorizeCommand`): Restricted Mode refuses; the
-    mode's shell verdict decides (Plan refuses, Bypass allows, the others
-    ask); the card is the shell's own (`shell` subject, so Edit
-    automatically never answers it), with the PermissionRequest hook seeing
-    it as a shell call; "always allow in this session" is keyed on the
-    configured command without its paths, under the verify loop's own key
-    (`VERIFY_COMMAND_RULE_KEY`) since PR #54's fourth Codex round: a
-    check's or `then_run`'s grant never answers for the model's own shell
-    call of the same command, nor the shell's for them. A check the
-    user rejects is not asked again until their next message. In Restricted
-    Mode the automatic checks are left out rather than refused one by one.
-    Superseded by the M68 review: checks, `run_checks` and `then_run` go
-    through the user's PreToolUse, PostToolUse and PostToolUseFailure hooks
-    as calls of the shell tool (`runVerifyCommand`: a block is "a hook
-    denied it" with the hook's words, `updatedInput.command` replaces the
-    line and the rule key, a demanded question asks even in Bypass, a
-    PostToolUse context or reason follows the output, and `continue: false`
-    ends the turn); a PermissionRequest hook's denial is told apart from the
-    user's Reject, whose feedback is kept. The session rule stays keyed on
-    the configured command, which is safe because a path can no longer
-    inject (below), but it does not answer after the conversation, since
-    the user's message, edited a file that decides what the command runs
-    (`canChangeWhatRuns`: `COMMAND_DEFINING_FILES`, code-loading files, a
-    file whose path occurs in the command's text or a plain word of it
-    names, or, since PR #54's fourth Codex round, any edited file when the
-    command holds shell syntax that makes its words uncertain: quotes,
-    escapes, variables, substitutions, globs, operators). The judgement is
-    made on the command the rule is keyed on, a hook's rewrite included.
-  - **Paths reaching a check** (the M68 review, P1): only edited files that
-    exist, or `run_checks` paths that exist in the workspace; a leading `-`
-    or `@`, or a control character, refuses the check, and on Windows so do
-    `"`, `&`, `|`, `<`, `>`, `^`, `%` and `!` (`WINDOWS_ARGUMENT_SYNTAX`):
-    measured, Windows PowerShell 5.1 passed `["a\"","b --inject"]` to
-    node.exe as `a b`, `--inject`, and a `.cmd` ran `x&echo.INJECTED` as a
-    second command, expanded `%OS%` and dropped `^`, while spaces, both
-    quotes, `$`, `;`, `,`, `=`, parentheses, braces and non-ASCII passed
-    intact through both.
-  - **Code the editor runs** (the M68 review): a linter's or formatter's
-    JavaScript config, `package.json`, `node_modules`
-    (`CODE_LOADING_FILE_PATTERNS`) is never shown or formatted, and once the
-    conversation writes one nothing more is shown or formatted until the
-    user's next message ("not checked" with the reason).
-  - **One budget**: the verify note, diagnostics and every check together,
-    is at most `VERIFY_NOTE_MAX_CHARS` (64,000), shared equally; so is a
-    `run_checks` result. A check the model ran since the round's last edit
-    (`run_checks` over the edits, or a `then_run` of its own command) is not
-    run again after the round, and nothing runs after the turn's last round.
-  - **The fix loop**: `CHECK_FIX_MAX_ROUNDS` (3) failing verdicts in a row
-    stop the checks until the user's next message. Since PR #54's third
-    review the state is one `VerifyLedger` per session: every check that
-    ran is recorded against the file state it ran on, a round is judged
-    when a run since the previous verdict is current, and it passes only
-    when no current run of any check failed. A user's message, once
-    admitted, resets it all; a steered message resets the count, the
-    rejections and the runs, but not what the conversation wrote; a goal's
-    wake, and a parent model's message to a subagent, reset nothing.
-    `run_checks` honours the stop and the rejections too. The model is told
-    to stop fixing and say what still fails; the panel shows a warning. The
-    diagnostics go on.
-  - **`then_run`** (SoL-Pi's Action Fusion, reimplemented from its public
-    description, no code ported, so the notices generator is unchanged and
-    M73 stays the first milestone that may port): after the edit (and its
-    format), the command takes the permission path above (a hook's forced
-    question carries over), then runs only if the file's SHA-256 still
-    equals the fingerprint the edit left; else "not run: the file changed".
-    The row keeps the edit's diff and adds a **Then ran** block (command,
-    output, exit or reason). A Stop at its card keeps the edit's result and
-    diff. The shell's default 120 s cap applies.
-  - **Format on edit**: `vscode.executeFormatDocumentProvider` over the
-    document once it shows what the tool wrote (2 s to catch up, else
-    skipped), within 5 s; edits applied to the written text (BOM kept, the
-    file's CRLF kept), written back by the tool, the patch and fingerprint
-    taken after. A formatter that fails or overlaps leaves the edit as
-    written and is logged; so does a write-back that fails (the M68 review),
-    and a formatter that does not answer in time is logged too.
-  - **Muse Code**: a second `<harness_note>` with each message, from
-    `MODEL_TEXT`: call `mcp__ide__getDiagnostics` on each edited file (only
-    when the session got the `ide` server) and fix what the edit broke, and
-    run the named check commands (named only in a trusted workspace). The template AGENTS.md is unchanged; no skill is
-    installed. Automatic checks after Muse Code's own edits need an MSP
-    event ("a turn's edits finished", or an edit completion hook), still to
-    be asked of Meta upstream: the owner's to file.
-  - **Evidence**: 27 unit tests over the fake Model API (a fixture whose
-    lint fails), 11 over the editor adapter, an integration test inside VS
-    Code 1.139.1 and 1.125.0 (TypeScript and JSON diagnostics, the JSON
-    formatter), a harness scenario `verify`, 26 red drills, and a live case
-    (case19: 3 requests a run, two runs, contributor model, `then_run` used
-    and passed, the check note accepted by Meta). After the M68 review (one
-    pass over three reviewers' 2 P1 and 18 P2 findings, 16 of them
-    distinct): 47 loop tests, 18 editor tests, 12 check-command tests (two
-    real round trips through Windows PowerShell 5.1, one into a `.cmd`), the
-    harness scenario fixed and reshot, 40 red drills, and the integration
-    test rerun on both versions. That run caught a regression the tab
-    cleanup made: the JSON server clears a file's diagnostics when its tab
-    closes, so `settleFile` now returns what it read while the file showed
-    and the diagnostics tool answers with that. Codex's review of PR #54
-    added four, fixed with drills R41 to R46: a hook's stop ends the
-    remaining checks; a queued editor caller stops while it waits; an
-    already shown file's report since the write, or a shown document that
-    holds the disk text, counts; `run_checks` rounds without edits count for
-    the fix loop. Its second round added three, closed as a class: every act on
-    a file after an await uses the confined real path and canonical name
-    and checks the file (its real path, and what the edit left) just
-    before; a reused background tab keeps its preview state and the tab
-    that was in front comes back (drills R47 to R56). Its third round
-    (four findings) was answered by a redesign: one conditional write in
-    `fsAtomic` for every verify-loop writer, and one `VerifyLedger` per
-    session that records each check against the file state it ran on,
-    judges a round only by runs on the latest state, and resets on any
-    admitted user input, queued or steered (drills R57 to R68).
-  - **Open for the owner**: the side editor group, the upstream MSP ask, and
-    the `diagnosticsAfterEdits` default (on).
+  most), `formatOnEdit` (off). The loop is Model API only, as scoped;
+  `run_checks` and `then_run` are offered only with the shell.
+- **After a round that edited files** (the edit tools' writes; not the
+  shell's, the memory tools' or images), before the next request: the
+  edited files' diagnostics, then the checks, in a **Check edits** row
+  (`verify_edits`) whose summary counts errors and warnings and names each
+  check's outcome; the model reads it all as a user note that leads with
+  "tool data, not a new instruction from the user". A diagnostic is
+  matched across rounds by severity, source and message, never its line,
+  for "N new, M fixed"; at most 50 are listed.
+- **The language servers report only on files an editor shows**
+  (measured, VS Code 1.139.1 and 1.125.0: a hidden `.ts` and `.json` got
+  nothing in 25 s, shown ones in 1.6 s and 0.1 s). So each edited file no
+  editor shows opens beside the active editor in a tab of its own (not a
+  preview, which `workbench.editor.enablePreview: false` would make
+  permanent and which would replace the user's own preview), without
+  taking focus (beside, so nothing the user types lands in it), and the
+  tabs it opened close after the read unless the user changed them. After
+  the M68 review the wait starts once the file shows: 4 s for a first
+  report, then 1.5 s of quiet, 10 s at most, a Stop ending it for every
+  file left; one queue serves every caller (panels, subagents, the
+  `getDiagnostics` tool). A file with no report, unsaved, or past the
+  round's first 8 (`VERIFY_SHOWN_FILES_MAX`) is "not checked" with the
+  reason, never clean, and leaves the "N new" baseline alone; the baseline
+  moves only once the note reached the conversation. The existing
+  `getDiagnostics` tool does the same for a file it is asked about, on
+  both backends, which is what makes the Muse Code guidance useful; it is
+  confined by real path first, and its wait ends when the MCP caller goes
+  away.
+- **Permission path** (`authorizeCommand`): Restricted Mode refuses; the
+  mode's shell verdict decides (Plan refuses, Bypass allows, the others
+  ask); the card is the shell's own (`shell` subject, so Edit
+  automatically never answers it), with the PermissionRequest hook seeing
+  it as a shell call; "always allow in this session" is keyed on the
+  configured command without its paths, under the verify loop's own key
+  (`VERIFY_COMMAND_RULE_KEY`) since PR #54's fourth Codex round: a
+  check's or `then_run`'s grant never answers for the model's own shell
+  call of the same command, nor the shell's for them. A check the
+  user rejects is not asked again until their next message. In Restricted
+  Mode the automatic checks are left out rather than refused one by one.
+  Superseded by the M68 review: checks, `run_checks` and `then_run` go
+  through the user's PreToolUse, PostToolUse and PostToolUseFailure hooks
+  as calls of the shell tool (`runVerifyCommand`: a block is "a hook
+  denied it" with the hook's words, `updatedInput.command` replaces the
+  line and the rule key, a demanded question asks even in Bypass, a
+  PostToolUse context or reason follows the output, and `continue: false`
+  ends the turn); a PermissionRequest hook's denial is told apart from the
+  user's Reject, whose feedback is kept. The session rule stays keyed on
+  the configured command, which is safe because a path can no longer
+  inject (below), but it does not answer after the conversation, since
+  the user's message, edited a file that decides what the command runs
+  (`canChangeWhatRuns`: `COMMAND_DEFINING_FILES`, code-loading files, a
+  file whose path occurs in the command's text or a plain word of it
+  names, or, since PR #54's fourth Codex round, any edited file when the
+  command holds shell syntax that makes its words uncertain: quotes,
+  escapes, variables, substitutions, globs, operators). The judgement is
+  made on the command the rule is keyed on, a hook's rewrite included.
+- **Paths reaching a check** (the M68 review, P1): only edited files that
+  exist, or `run_checks` paths that exist in the workspace; a leading `-`
+  or `@`, or a control character, refuses the check, and on Windows so do
+  `"`, `&`, `|`, `<`, `>`, `^`, `%` and `!` (`WINDOWS_ARGUMENT_SYNTAX`):
+  measured, Windows PowerShell 5.1 passed `["a\"","b --inject"]` to
+  node.exe as `a b`, `--inject`, and a `.cmd` ran `x&echo.INJECTED` as a
+  second command, expanded `%OS%` and dropped `^`, while spaces, both
+  quotes, `$`, `;`, `,`, `=`, parentheses, braces and non-ASCII passed
+  intact through both.
+- **Code the editor runs** (the M68 review): a linter's or formatter's
+  JavaScript config, `package.json`, `node_modules`
+  (`CODE_LOADING_FILE_PATTERNS`) is never shown or formatted, and once the
+  conversation writes one nothing more is shown or formatted until the
+  user's next message ("not checked" with the reason).
+- **One budget**: the verify note, diagnostics and every check together,
+  is at most `VERIFY_NOTE_MAX_CHARS` (64,000), shared equally; so is a
+  `run_checks` result. A check the model ran since the round's last edit
+  (`run_checks` over the edits, or a `then_run` of its own command) is not
+  run again after the round, and nothing runs after the turn's last round.
+- **The fix loop**: `CHECK_FIX_MAX_ROUNDS` (3) failing verdicts in a row
+  stop the checks until the user's next message. Since PR #54's third
+  review the state is one `VerifyLedger` per session: every check that
+  ran is recorded against the file state it ran on, a round is judged
+  when a run since the previous verdict is current, and it passes only
+  when no current run of any check failed. A user's message, once
+  admitted, resets it all; a steered message resets the count, the
+  rejections and the runs, but not what the conversation wrote; a goal's
+  wake, and a parent model's message to a subagent, reset nothing.
+  `run_checks` honours the stop and the rejections too. The model is told
+  to stop fixing and say what still fails; the panel shows a warning. The
+  diagnostics go on.
+- **`then_run`** (SoL-Pi's Action Fusion, reimplemented from its public
+  description, no code ported, so the notices generator is unchanged and
+  M73 stays the first milestone that may port): after the edit (and its
+  format), the command takes the permission path above (a hook's forced
+  question carries over), then runs only if the file's SHA-256 still
+  equals the fingerprint the edit left; else "not run: the file changed".
+  The row keeps the edit's diff and adds a **Then ran** block (command,
+  output, exit or reason). A Stop at its card keeps the edit's result and
+  diff. The shell's default 120 s cap applies.
+- **Format on edit**: `vscode.executeFormatDocumentProvider` over the
+  document once it shows what the tool wrote (2 s to catch up, else
+  skipped), within 5 s; edits applied to the written text (BOM kept, the
+  file's CRLF kept), written back by the tool, the patch and fingerprint
+  taken after. A formatter that fails or overlaps leaves the edit as
+  written and is logged; so does a write-back that fails (the M68 review),
+  and a formatter that does not answer in time is logged too.
+- **Muse Code**: a second `<harness_note>` with each message, from
+  `MODEL_TEXT`: call `mcp__ide__getDiagnostics` on each edited file (only
+  when the session got the `ide` server) and fix what the edit broke, and
+  run the named check commands (named only in a trusted workspace). The template AGENTS.md is unchanged; no skill is
+  installed. Automatic checks after Muse Code's own edits need an MSP
+  event ("a turn's edits finished", or an edit completion hook), still to
+  be asked of Meta upstream: the owner's to file.
+- **Evidence**: 27 unit tests over the fake Model API (a fixture whose
+  lint fails), 11 over the editor adapter, an integration test inside VS
+  Code 1.139.1 and 1.125.0 (TypeScript and JSON diagnostics, the JSON
+  formatter), a harness scenario `verify`, 26 red drills, and a live case
+  (case19: 3 requests a run, two runs, contributor model, `then_run` used
+  and passed, the check note accepted by Meta). After the M68 review (one
+  pass over three reviewers' 2 P1 and 18 P2 findings, 16 of them
+  distinct): 47 loop tests, 18 editor tests, 12 check-command tests (two
+  real round trips through Windows PowerShell 5.1, one into a `.cmd`), the
+  harness scenario fixed and reshot, 40 red drills, and the integration
+  test rerun on both versions. That run caught a regression the tab
+  cleanup made: the JSON server clears a file's diagnostics when its tab
+  closes, so `settleFile` now returns what it read while the file showed
+  and the diagnostics tool answers with that. Codex's review of PR #54
+  added four, fixed with drills R41 to R46: a hook's stop ends the
+  remaining checks; a queued editor caller stops while it waits; an
+  already shown file's report since the write, or a shown document that
+  holds the disk text, counts; `run_checks` rounds without edits count for
+  the fix loop. Its second round added three, closed as a class: every act on
+  a file after an await uses the confined real path and canonical name
+  and checks the file (its real path, and what the edit left) just
+  before; a reused background tab keeps its preview state and the tab
+  that was in front comes back (drills R47 to R56). Its third round
+  (four findings) was answered by a redesign: one conditional write in
+  `fsAtomic` for every verify-loop writer, and one `VerifyLedger` per
+  session that records each check against the file state it ran on,
+  judges a round only by runs on the latest state, and resets on any
+  admitted user input, queued or steered (drills R57 to R68).
+- **Open for the owner**: the side editor group, the upstream MSP ask, and
+  the `diagnosticsAfterEdits` default (on).
 
 ### M69 — Web fetch (D49; folds in M44b)
 
@@ -24620,207 +25169,210 @@ timeoutSeconds? }`, at most 8, names unique, 300 s unless set, 600 s at
   one, and a proxy that cannot take a pinned address; a harness scenario
   for its row; the gate green; a certification record.
 - **Size.** S.
-- **Status 2026-09-29: built on `feature/m69-web-fetch`, PR #52 open**
-  (`docs/certification/m69.md`); the resumed picture repair passes focused
-  tests and red drills; final review and integration gates are pending.
-  Integration retains M67's separate language services, binds the existing
-  web fetcher to the standalone ACP Model API runtime, and ships its converter
-  worker/notices. Independent review found missing permission checks on later
-  address attempts and the Node 24.0–24.4 HTTPS proxy warning gap; both have
-  focused regressions and intended red/restored proofs. The standalone transport
-  remains Node's, without automatic proxy rerouting or VS Code settings.
-  Built to M44b's safeguards
-  and the plan review's six rules:
-  - **Destinations** (`src/core/web/publicAddress.ts`, `pageUrl.ts`):
-    `https:` only, no credentials, 2,048 characters at most; local and
-    reserved names (`localhost`, `local`, `internal`, `home.arpa`, `test`,
-    `invalid`, `example`, `onion`, `alt`, and any single-label name) refused
-    before any lookup. IPv4 is public outside IANA's special-purpose blocks
-    and Azure's WireServer (so 169.254.169.254, 100.100.100.200 and
-    192.0.0.192 are refused); IPv6 only inside 2000::/3 and outside
-    2001::/23, 2001:db8::/32 and 3fff::/20, with IPv4-mapped, -compatible,
-    NAT64 and 6to4 judged by the IPv4 inside. Every DNS answer is checked:
-    one non-public answer refuses the name.
-  - **Pinning** (`src/host/web/pinnedRequest.ts`): Node's `https` connects
-    to the checked address, with `servername` and `Host` carrying the name,
-    so TLS still verifies it. VS Code's patched `fetch` cannot pin (it
-    replaces a caller's dispatcher with its own agent, keeping only CA and
-    HTTP/2 options: @vscode/proxy-agent `createFetchPatch`, read
-    2026-09-27); its patched `https` can, and does so through the proxy:
-    the integration test shows a loopback proxy receiving
-    `CONNECT 203.0.113.7:443` and a ClientHello naming the host, on VS Code
-    1.139.1 and 1.125.0. Only an answer that arrived over TLS is read: a proxy's
-    own refusal of the tunnel is reported as `Proxy response (N)`, M56's
-    proxy failure, never read as the page. The checked addresses are raced
-    in the resolver's order (ADDRCONFIG) as RFC 8305 says, never
-    re-resolved.
-  - **Redirects**: same host (host and port) followed, each hop checked,
-    resolved and pinned again, at most `WEB_FETCH_MAX_REDIRECTS` (5); a
-    redirect to another host is handed back to the model as a URL to fetch
-    in a new call, so each host is approved on its own; into a refused URL
-    it fails naming the redirect.
-  - **Bounds**: 5 MiB after decompression (gzip, deflate, br; another
-    coding refused), declared or streamed; 30 s for the whole fetch; an
-    allow-list of text types; the header's charset, else HTML's `<meta>`,
-    else UTF-8. HTML becomes Markdown in one linear pass
-    (`htmlToMarkdown.ts`, with `entities` for character references, the
-    one new dependency, D3); inline nesting, list and quote indents and
-    table width are capped so a hostile page stays linear. The model reads
-    the first 50,000 characters and is told the total.
-  - **Approvals**: a new `network` tool class. Bypass allows, Plan
-    (`denyUnmatched`) refuses (its rules allow workspace reads, not network
-    reads), Manual, Edit automatically and Auto ask, per host: the card
-    (`webFetch` subject) names the URL as it will be fetched, and "Always
-    allow in this session" is keyed on the host. Restricted Mode: not
-    offered, refused if called; a side chat (always Plan) is not offered
-    it. A URL refused on its face (scheme, credentials, length, a reserved
-    name, a non-public literal address) is refused before any card; a name
-    is resolved only after approval, since the lookup itself carries the
-    name out, so one that resolves to a private address is refused after
-    the card and before any connection.
-  - **Untrusted content**: the model's text is the header line, a notice
-    that the page is untrusted data, and the content between markers with
-    8 random bytes the page cannot know; the instructions say the same.
-  - **Muse Code**: `webFetch` on the `ide` server, listed only while the
-    workspace is trusted and `museSpark.sandboxNetwork` is not
-    `restricted` (the list is read per request), with MCP annotations
-    `readOnlyHint: false, openWorldHint: true`, and the extension's own
-    modal (Allow once / Reject, naming host and URL) before every call,
-    whatever Muse Code's mode. Live (4 model attempts, contributor model,
-    empty folder): Muse Code listed and called it, asked its own approval in
-    on-request mode, and passed our text through verbatim as the row's
-    output, which the row's size line reads (AGENTS rule 13).
-  - **Row**: the URL beside the label, "Fetched 48.2 kB (text/html)" under
-    it, and what the model read in the body; harness scenario `web-fetch`.
-  - **Review round** (three class reviewers over `c3d7702c`, all fixed in
-    one commit): the `ide` call gets an `AbortSignal` aborted when Muse Code
-    closes the request or sends `notifications/cancelled` (both captured
-    from Muse Code 1.4.0 on a stopped turn, 2 model attempts), raced against
-    the modal, with `isOffered` checked again after it and one modal per URL
-    at a time; the checked addresses are raced as RFC 8305 says (250 ms);
-    connection failures in web fetch's own words naming the host and the
-    addresses (not M56's Meta advice), a proxy's refusal of the tunnel
-    included, the detail only as error codes (a name mismatch's message
-    lists the certificate's names); server text outside the markers only as short tokens, the
-    final URL, the title and a moved target inside them; the converter
-    bounded at 100,000 characters (prefix depth 4, rows unpadded); all
-    trailing dots stripped and empty labels refused; RFC 7050 NAT64 prefix
-    discovery; damaged compression is the coding's failure; the charset only
-    from `<meta>`, an unknown label ignored; sentences name "this tool";
-    Model API rows localized for a moved page and Restricted Mode;
-    `sandboxNetwork` described in fifteen manifest tables. PAC and
-    `http.noProxy` see the pinned address, not the name (@vscode/proxy-agent
-    0.45.0 `agent.js` builds the proxy URL from `opts.host`): kept, since the
-    name would let the proxy resolve it again; documented.
-  - **PR #52 review** (Codex): NAT64 discovery fails closed (only a
-    definite "no AAAA" from the page's own resolver means no DNS64; a
-    timeout, SERVFAIL or an answer without a prefix leaves it unknown, and
-    then no IPv6 answer is used, a name with only IPv6 answers refused as
-    `nat64Unknown`); a `PermissionRequest` hook's allow no longer replaces
-    the per-host card (it may still deny or ask). Swept: every other failed
-    lookup or check already refuses.
-  - **PR #52 second review** (Codex): what allowed a fetch is asked again
-    after every await: after the card or hook (the turn, trust, a mode that
-    now refuses), before each hop's lookup and connection (a caller's
-    `isStillAllowed`, ending the fetch as `withdrawn`), and once the page is
-    in, before the model gets it; on Muse Code the offer (trust,
-    `sandboxNetwork`) is that check.
-  - **PR #52 third review** (Codex): NAT64 absence is proven only by a DNS
-    query's own NXDOMAIN or NODATA (c-ares), while the system resolver's
-    answers still reveal a prefix; the converter hides an element a page
-    left open (`<p hidden>`, `<li aria-hidden>`, cells, rows) up to where a
-    browser ends it, tracking what is open inside and around it, and, from
-    the sweep, a hidden image's alt text, a self-closed hidden element, an
-    unopened dialog, ruby's `rp` and `datalist`.
-  - **PR #52 fourth review** (Codex, a self-closed `<template/>` shown):
-    the converter's hiding now follows the WHATWG parsing algorithm as a
-    whole: one stack of open elements with the algorithm's scopes, special
-    and formatting elements, implied ends, the adoption agency (a hidden
-    formatting element reopens until its own end tag), `</form>`, foreign
-    content (breakouts, integration points, CDATA), select, tables,
-    headings and `<body>` attribute merging; the tokenizer ends comments
-    (`<!-->`, `--!>`), bogus comments (`</ x>`), CDATA and script escapes as
-    HTML does, honours a slash only right before `>` and only on void and
-    foreign elements, and keeps attribute names that begin with `=`.
-    parse5 8.0.1 (MIT, already in the tree through jsdom) was measured and
-    not adopted: quadratic on hostile nesting (40,000 nested `<div>` in 25 s,
-    40,000 nested lists in 73 s, where the converter takes 34 and 127 ms), so
-    a 5 MiB page could hold the extension host for hours; no dependency
-    changes.
-  - **Redesign after the fifth review** (Codex: `<base href>` ignored, the
-    charset sniff reading `<meta>` text in comments and other attributes,
-    `display:/**/none` passing the hidden check; the fourth round on the
-    hand-written path, so the owner's rule applied: redesign, not patch).
-    The page is parsed by parse5, decoded by html-encoding-sniffer (the
-    standard's sniffing) and Node's `TextDecoder`, and its inline styles
-    read by @csstools/css-tokenizer (D3); the converter walks the tree,
-    leaving out exactly what HTML hides, and resolves links against the
-    first `<base href>`. parse5's time on hostile nesting is contained by
-    running it on a worker of its own bundle, `dist/pageWorker.js` (D6), one
-    per page (never at activation; the bundle-split gate checks it), at most
-    two at once, stopped at 10 s or 512 MiB, which refuses the page with the
-    reason.
-  - **Redesign review** (two class reviewers): the sniffer's crash on a
-    malformed `<meta>` content read past; `replacement` encodings read as one
-    U+FFFD; XHTML sniffed as XML; a later `<meta>` changes a tentative
-    encoding (the standard's reparse); the header's charset read as a MIME
-    parameter; at most two conversion workers at once, the wait honouring
-    the fetch's signal; a deadline passing during conversion named as the
-    conversion's; failure details as short codes, crashes logged by name,
-    code and frames; `popover`, closed `<details>` and declarative shadow
-    roots read as they render; inline `display` by its real grammar, a
-    bracket stack, and a `var()` on a hiding property counted as hiding;
-    the `.vsix` check and an integration test for `dist/pageWorker.js`.
-    Grok Build's review of the same diff added: the title only from the first
-    `<title>` child of `<head>` (one the parser put inside a hidden element
-    no longer reaches the model), and an encoding the runtime cannot decode
-    refuses the page (`undecodable`) instead of reading it as UTF-8, with
-    `x-user-defined` and `replacement` decoded by the Encoding standard's own
-    definitions (Node 20.18 has no decoder for the first, no Node for the
-    second).
-  - **PR #52 review of `19f843f3`** (Codex): XHTML is refused
-    (`application/xhtml+xml` read by an HTML parser misreads its XML syntax,
-    `<script src="x"/>` swallowing what follows, and no XML parser is
-    bundled; it is no longer in the Accept header either); `visibility` is
-    inherited, so the walk carries it down instead of dropping the subtree:
-    a descendant with `visibility: visible` shows, an invisible element keeps
-    its tags (a shown item stays in its list) but writes no text or void
-    element. Swept: `display: none`, `content-visibility: hidden`, `hidden`,
-    `inert`, `aria-hidden`, `popover`, a closed dialog or `<details>` hide
-    all they hold, which no descendant can undo; `visibility` was the only
-    inherited one.
-  - **PR #52 review of `83eedf26`** (Codex: a `<col>` styled
-    `visibility: collapse` hides a column whose cells are not its
-    descendants; the third round on the converter's hiding, so the owner's
-    rule applied: redesign, not patch): the converter no longer emulates
-    rendering. It cannot do so completely (a stylesheet, a class, a `<col>`,
-    a script, a font or a colour can hide text), and the attempt protects
-    nothing, since a page can put the same words in visible small print; the
-    defence is the untrusted markers around everything a page returns. Left
-    out now is only what is never page text by structure: the head (the
-    title is read from it), scripts, styles, template content (a declarative
-    shadow root's is written where it stands), `<noscript>`, embedded frames
-    and media, form controls, SVG and MathML. `hidden`, `inert`,
-    `aria-hidden`, `popover`, closed dialogs and `<details>`, `rp` and
-    inline styles are no longer read, for one consistent rule. The result is
-    the page's text as served, which can include text a browser would not
-    show, all of it marked untrusted, and the tool description and the
-    notice before the markers say so. `inlineStyle.ts` and
-    @csstools/css-tokenizer (D3) are removed; the worker bundle is
-    201.2 KiB. This supersedes the earlier bullets' hiding.
-  - **PR #52 resume repair (2026-09-29, focused verification complete)**: traverse
-    `<picture>` so its fallback `<img>` keeps the existing safe-source and
-    nonempty-alt rules. `<source>` contributes no image or attributes;
-    no `srcset`, media-query or browser rendering selection is emulated.
-    Regression coverage must keep document order, relative fallback URLs
-    and alt text, refuse unsafe or wordless images, and still exclude
-    images inside inert templates and embedded media. Reuse the converter
-    and its unit suite, with a red drill restoring `picture` to `OMITTED`
-    in a disposable copy. Final reviewed-tree quality remains required.
-  - **Left**: a machine-scoped switch to turn web fetch off entirely,
-    whether Muse Code's "Always allow this MCP tool" should also silence the
-    extension's own modal, and whether Plan should allow fetches as reads,
-    are the owner's (§3 is untouched until asked).
+- **Status 2026-09-29: built.**
+
+Status detail retained: built on `feature/m69-web-fetch`, PR #52 open
+(`docs/certification/m69.md`); the resumed picture repair passes focused
+tests and red drills; final review and integration gates are pending.
+Integration retains M67's separate language services, binds the existing
+web fetcher to the standalone ACP Model API runtime, and ships its converter
+worker/notices. Independent review found missing permission checks on later
+address attempts and the Node 24.0–24.4 HTTPS proxy warning gap; both have
+focused regressions and intended red/restored proofs. The standalone transport
+remains Node's, without automatic proxy rerouting or VS Code settings.
+Built to M44b's safeguards
+and the plan review's six rules:
+
+- **Destinations** (`src/core/web/publicAddress.ts`, `pageUrl.ts`):
+  `https:` only, no credentials, 2,048 characters at most; local and
+  reserved names (`localhost`, `local`, `internal`, `home.arpa`, `test`,
+  `invalid`, `example`, `onion`, `alt`, and any single-label name) refused
+  before any lookup. IPv4 is public outside IANA's special-purpose blocks
+  and Azure's WireServer (so 169.254.169.254, 100.100.100.200 and
+  192.0.0.192 are refused); IPv6 only inside 2000::/3 and outside
+  2001::/23, 2001:db8::/32 and 3fff::/20, with IPv4-mapped, -compatible,
+  NAT64 and 6to4 judged by the IPv4 inside. Every DNS answer is checked:
+  one non-public answer refuses the name.
+- **Pinning** (`src/host/web/pinnedRequest.ts`): Node's `https` connects
+  to the checked address, with `servername` and `Host` carrying the name,
+  so TLS still verifies it. VS Code's patched `fetch` cannot pin (it
+  replaces a caller's dispatcher with its own agent, keeping only CA and
+  HTTP/2 options: @vscode/proxy-agent `createFetchPatch`, read
+  2026-09-27); its patched `https` can, and does so through the proxy:
+  the integration test shows a loopback proxy receiving
+  `CONNECT 203.0.113.7:443` and a ClientHello naming the host, on VS Code
+  1.139.1 and 1.125.0. Only an answer that arrived over TLS is read: a proxy's
+  own refusal of the tunnel is reported as `Proxy response (N)`, M56's
+  proxy failure, never read as the page. The checked addresses are raced
+  in the resolver's order (ADDRCONFIG) as RFC 8305 says, never
+  re-resolved.
+- **Redirects**: same host (host and port) followed, each hop checked,
+  resolved and pinned again, at most `WEB_FETCH_MAX_REDIRECTS` (5); a
+  redirect to another host is handed back to the model as a URL to fetch
+  in a new call, so each host is approved on its own; into a refused URL
+  it fails naming the redirect.
+- **Bounds**: 5 MiB after decompression (gzip, deflate, br; another
+  coding refused), declared or streamed; 30 s for the whole fetch; an
+  allow-list of text types; the header's charset, else HTML's `<meta>`,
+  else UTF-8. HTML becomes Markdown in one linear pass
+  (`htmlToMarkdown.ts`, with `entities` for character references, the
+  one new dependency, D3); inline nesting, list and quote indents and
+  table width are capped so a hostile page stays linear. The model reads
+  the first 50,000 characters and is told the total.
+- **Approvals**: a new `network` tool class. Bypass allows, Plan
+  (`denyUnmatched`) refuses (its rules allow workspace reads, not network
+  reads), Manual, Edit automatically and Auto ask, per host: the card
+  (`webFetch` subject) names the URL as it will be fetched, and "Always
+  allow in this session" is keyed on the host. Restricted Mode: not
+  offered, refused if called; a side chat (always Plan) is not offered
+  it. A URL refused on its face (scheme, credentials, length, a reserved
+  name, a non-public literal address) is refused before any card; a name
+  is resolved only after approval, since the lookup itself carries the
+  name out, so one that resolves to a private address is refused after
+  the card and before any connection.
+- **Untrusted content**: the model's text is the header line, a notice
+  that the page is untrusted data, and the content between markers with
+  8 random bytes the page cannot know; the instructions say the same.
+- **Muse Code**: `webFetch` on the `ide` server, listed only while the
+  workspace is trusted and `museSpark.sandboxNetwork` is not
+  `restricted` (the list is read per request), with MCP annotations
+  `readOnlyHint: false, openWorldHint: true`, and the extension's own
+  modal (Allow once / Reject, naming host and URL) before every call,
+  whatever Muse Code's mode. Live (4 model attempts, contributor model,
+  empty folder): Muse Code listed and called it, asked its own approval in
+  on-request mode, and passed our text through verbatim as the row's
+  output, which the row's size line reads (AGENTS rule 13).
+- **Row**: the URL beside the label, "Fetched 48.2 kB (text/html)" under
+  it, and what the model read in the body; harness scenario `web-fetch`.
+- **Review round** (three class reviewers over `c3d7702c`, all fixed in
+  one commit): the `ide` call gets an `AbortSignal` aborted when Muse Code
+  closes the request or sends `notifications/cancelled` (both captured
+  from Muse Code 1.4.0 on a stopped turn, 2 model attempts), raced against
+  the modal, with `isOffered` checked again after it and one modal per URL
+  at a time; the checked addresses are raced as RFC 8305 says (250 ms);
+  connection failures in web fetch's own words naming the host and the
+  addresses (not M56's Meta advice), a proxy's refusal of the tunnel
+  included, the detail only as error codes (a name mismatch's message
+  lists the certificate's names); server text outside the markers only as short tokens, the
+  final URL, the title and a moved target inside them; the converter
+  bounded at 100,000 characters (prefix depth 4, rows unpadded); all
+  trailing dots stripped and empty labels refused; RFC 7050 NAT64 prefix
+  discovery; damaged compression is the coding's failure; the charset only
+  from `<meta>`, an unknown label ignored; sentences name "this tool";
+  Model API rows localized for a moved page and Restricted Mode;
+  `sandboxNetwork` described in fifteen manifest tables. PAC and
+  `http.noProxy` see the pinned address, not the name (@vscode/proxy-agent
+  0.45.0 `agent.js` builds the proxy URL from `opts.host`): kept, since the
+  name would let the proxy resolve it again; documented.
+- **PR #52 review** (Codex): NAT64 discovery fails closed (only a
+  definite "no AAAA" from the page's own resolver means no DNS64; a
+  timeout, SERVFAIL or an answer without a prefix leaves it unknown, and
+  then no IPv6 answer is used, a name with only IPv6 answers refused as
+  `nat64Unknown`); a `PermissionRequest` hook's allow no longer replaces
+  the per-host card (it may still deny or ask). Swept: every other failed
+  lookup or check already refuses.
+- **PR #52 second review** (Codex): what allowed a fetch is asked again
+  after every await: after the card or hook (the turn, trust, a mode that
+  now refuses), before each hop's lookup and connection (a caller's
+  `isStillAllowed`, ending the fetch as `withdrawn`), and once the page is
+  in, before the model gets it; on Muse Code the offer (trust,
+  `sandboxNetwork`) is that check.
+- **PR #52 third review** (Codex): NAT64 absence is proven only by a DNS
+  query's own NXDOMAIN or NODATA (c-ares), while the system resolver's
+  answers still reveal a prefix; the converter hides an element a page
+  left open (`<p hidden>`, `<li aria-hidden>`, cells, rows) up to where a
+  browser ends it, tracking what is open inside and around it, and, from
+  the sweep, a hidden image's alt text, a self-closed hidden element, an
+  unopened dialog, ruby's `rp` and `datalist`.
+- **PR #52 fourth review** (Codex, a self-closed `<template/>` shown):
+  the converter's hiding now follows the WHATWG parsing algorithm as a
+  whole: one stack of open elements with the algorithm's scopes, special
+  and formatting elements, implied ends, the adoption agency (a hidden
+  formatting element reopens until its own end tag), `</form>`, foreign
+  content (breakouts, integration points, CDATA), select, tables,
+  headings and `<body>` attribute merging; the tokenizer ends comments
+  (`<!-->`, `--!>`), bogus comments (`</ x>`), CDATA and script escapes as
+  HTML does, honours a slash only right before `>` and only on void and
+  foreign elements, and keeps attribute names that begin with `=`.
+  parse5 8.0.1 (MIT, already in the tree through jsdom) was measured and
+  not adopted: quadratic on hostile nesting (40,000 nested `<div>` in 25 s,
+  40,000 nested lists in 73 s, where the converter takes 34 and 127 ms), so
+  a 5 MiB page could hold the extension host for hours; no dependency
+  changes.
+- **Redesign after the fifth review** (Codex: `<base href>` ignored, the
+  charset sniff reading `<meta>` text in comments and other attributes,
+  `display:/**/none` passing the hidden check; the fourth round on the
+  hand-written path, so the owner's rule applied: redesign, not patch).
+  The page is parsed by parse5, decoded by html-encoding-sniffer (the
+  standard's sniffing) and Node's `TextDecoder`, and its inline styles
+  read by @csstools/css-tokenizer (D3); the converter walks the tree,
+  leaving out exactly what HTML hides, and resolves links against the
+  first `<base href>`. parse5's time on hostile nesting is contained by
+  running it on a worker of its own bundle, `dist/pageWorker.js` (D6), one
+  per page (never at activation; the bundle-split gate checks it), at most
+  two at once, stopped at 10 s or 512 MiB, which refuses the page with the
+  reason.
+- **Redesign review** (two class reviewers): the sniffer's crash on a
+  malformed `<meta>` content read past; `replacement` encodings read as one
+  U+FFFD; XHTML sniffed as XML; a later `<meta>` changes a tentative
+  encoding (the standard's reparse); the header's charset read as a MIME
+  parameter; at most two conversion workers at once, the wait honouring
+  the fetch's signal; a deadline passing during conversion named as the
+  conversion's; failure details as short codes, crashes logged by name,
+  code and frames; `popover`, closed `<details>` and declarative shadow
+  roots read as they render; inline `display` by its real grammar, a
+  bracket stack, and a `var()` on a hiding property counted as hiding;
+  the `.vsix` check and an integration test for `dist/pageWorker.js`.
+  Grok Build's review of the same diff added: the title only from the first
+  `<title>` child of `<head>` (one the parser put inside a hidden element
+  no longer reaches the model), and an encoding the runtime cannot decode
+  refuses the page (`undecodable`) instead of reading it as UTF-8, with
+  `x-user-defined` and `replacement` decoded by the Encoding standard's own
+  definitions (Node 20.18 has no decoder for the first, no Node for the
+  second).
+- **PR #52 review of `19f843f3`** (Codex): XHTML is refused
+  (`application/xhtml+xml` read by an HTML parser misreads its XML syntax,
+  `<script src="x"/>` swallowing what follows, and no XML parser is
+  bundled; it is no longer in the Accept header either); `visibility` is
+  inherited, so the walk carries it down instead of dropping the subtree:
+  a descendant with `visibility: visible` shows, an invisible element keeps
+  its tags (a shown item stays in its list) but writes no text or void
+  element. Swept: `display: none`, `content-visibility: hidden`, `hidden`,
+  `inert`, `aria-hidden`, `popover`, a closed dialog or `<details>` hide
+  all they hold, which no descendant can undo; `visibility` was the only
+  inherited one.
+- **PR #52 review of `83eedf26`** (Codex: a `<col>` styled
+  `visibility: collapse` hides a column whose cells are not its
+  descendants; the third round on the converter's hiding, so the owner's
+  rule applied: redesign, not patch): the converter no longer emulates
+  rendering. It cannot do so completely (a stylesheet, a class, a `<col>`,
+  a script, a font or a colour can hide text), and the attempt protects
+  nothing, since a page can put the same words in visible small print; the
+  defence is the untrusted markers around everything a page returns. Left
+  out now is only what is never page text by structure: the head (the
+  title is read from it), scripts, styles, template content (a declarative
+  shadow root's is written where it stands), `<noscript>`, embedded frames
+  and media, form controls, SVG and MathML. `hidden`, `inert`,
+  `aria-hidden`, `popover`, closed dialogs and `<details>`, `rp` and
+  inline styles are no longer read, for one consistent rule. The result is
+  the page's text as served, which can include text a browser would not
+  show, all of it marked untrusted, and the tool description and the
+  notice before the markers say so. `inlineStyle.ts` and
+  @csstools/css-tokenizer (D3) are removed; the worker bundle is
+  201.2 KiB. This supersedes the earlier bullets' hiding.
+- **PR #52 resume repair (2026-09-29, focused verification complete)**: traverse
+  `<picture>` so its fallback `<img>` keeps the existing safe-source and
+  nonempty-alt rules. `<source>` contributes no image or attributes;
+  no `srcset`, media-query or browser rendering selection is emulated.
+  Regression coverage must keep document order, relative fallback URLs
+  and alt text, refuse unsafe or wordless images, and still exclude
+  images inside inert templates and embedded media. Reuse the converter
+  and its unit suite, with a red drill restoring `picture` to `OMITTED`
+  in a disposable copy. Final reviewed-tree quality remains required.
+- **Left**: a machine-scoped switch to turn web fetch off entirely,
+  whether Muse Code's "Always allow this MCP tool" should also silence the
+  extension's own modal, and whether Plan should allow fetches as reads,
+  are the owner's (§3 is untouched until asked).
 
 ### M70 — Review (D49)
 
@@ -27028,15 +27580,18 @@ agents failed: …`), and the other roots load. Each root also reports
   Read the canonical file that confinement approved, rather than resolving
   the project alias again after a symlink/junction may have changed; a link
   swap regression must keep outside prompt text out of the catalogue.
-- **Status 2026-09-30: built on `feature/m76-agents`** over the M72 release
-  candidate (`1fd98aaf`), after a first build on 2026-09-28 (Muse Code) and
-  a resume that ported it over main `32709441`; the record is
-  `docs/certification/m76.md`. Reviewed in three classes (concurrency and
-  lifecycle; validation, confinement, trust and the paid rule; failure
-  paths, honesty and docs), with the findings below fixed. M70's Reviewer
-  joins the built-ins when M70 lands, and M83 imports Claude Code's and
-  Codex's formats through `parseAgentFile`; neither is part of this
-  milestone.
+- **Status 2026-09-30: built.**
+
+Status detail retained: built on `feature/m76-agents` over the M72 release
+candidate (`1fd98aaf`), after a first build on 2026-09-28 (Muse Code) and
+a resume that ported it over main `32709441`; the record is
+`docs/certification/m76.md`. Reviewed in three classes (concurrency and
+lifecycle; validation, confinement, trust and the paid rule; failure
+paths, honesty and docs), with the findings below fixed. M70's Reviewer
+joins the built-ins when M70 lands, and M83 imports Claude Code's and
+Codex's formats through `parseAgentFile`; neither is part of this
+milestone.
+
 - **Decisions taken while building.**
   - **Lead decision 2, resumed 2026-10-01.** Withdraw the empty English
     table substitution and its test/gate/docs as a separate commit. Merge
@@ -27494,7 +28049,9 @@ join must wrap actual canonical plan publication in shared WorkspaceEdits
 begin/finally-end for all ledgers and note the owning round only when
 no-clobber creation returns true; that API is not copied into this base.
 
-**Status 2026-09-29: built on `feature/m79-plans-as-files`, reviewed and
+**Status 2026-09-29: built.**
+
+Status detail retained: built on `feature/m79-plans-as-files`, reviewed and
 pushed as draft PR #53; certification and review fixes are in
 `docs/certification/m79.md`. Hosted Windows quality failed when the
 100-name exhaustion test exceeded its unchanged 5-second timeout. Resume
@@ -27503,7 +28060,7 @@ with the existing in-memory file port, including the last free name,
 exhaustion without replacement and
 reuse at the last name; retain the real-file-system publication,
 collision, cleanup, bounds and junction tests. Latest-main integration,
-independent review and the full candidate gates remain required.**
+independent review and the full candidate gates remain required.
 
 - **Goal.** A plan the user approved survives and can drive a clean run.
 - **Scope.**
@@ -28525,193 +29082,196 @@ remain the lead's.
 - **Tests.** Round trips with zod on both ends, and drills for each
   dropped field.
 - **Size.** S.
-- **Status 2026-09-28: built on `feature/m84-export`; `docs/certification/m84.md`.**
-  A Muse Code instance drafted it (contributor model); Claude reviewed and
-  reworked the draft. Decisions taken:
-  - **One format** (`muse-spark-session-export`, version 1,
-    `src/core/export/sessionTransfer.ts`) for export, import and share. It
-    holds the history the Markdown export reads (`readSession`, both
-    backends) with only the fields a reader needs. Live state (stored
-    outputs and patches, child sessions, background and workflow handles,
-    `modelVisibleContent`, `children`) and the Model API replay stay out.
-  - **Scrubbing.** Every string in the document, ids included, goes
-    through `redactSecrets` and a 64-hex digest pattern,
-    always. By default paths and e-mail addresses are redacted too:
-    `file://` URIs, then this machine's own roots (workspace folders and the
-    home folder, matched in either separator and any case, to the path's
-    end, so a user name with a space goes), then absolute POSIX, drive and
-    UNC paths. Placeholders are English (`MODEL_TEXT`), since the model reads
-    them after an import. The e-mail pattern is bounded (RFC 5321 lengths)
-    and `redact.ts`'s URL user-info scheme is bounded, so a long run of
-    word characters scans in linear time.
-    Ordinary UUIDs and enum words remain unchanged. Share section keys
-    include their position; import remints ids, and live-state references
-    stay excluded, so redacting a sensitive id needs no identity mapping.
-  - **Preview first.** The redacted file opens as a read-only in-memory
-    document (the output-document scheme, never on disk), then a modal
-    names what was redacted and offers **Save redacted…**, **Save without
-    redaction…** or close. The suggested file name comes from the redacted
-    title. A file over the import cap is not written (`tooLarge`).
-  - **Every imported byte parsed.** The file is read only under 16 MiB
-    (bounded through one checked descriptor) and as strict UTF-8; the header
-    names another format or version by name; the schema caps the
-    transcript at 20,000 items and wants an ISO 8601 date; and any field
-    the schema does not keep, anywhere, refuses the whole file (the parse
-    is compared with what was read, as zod strips unknown keys).
-    - **Independent file-reader repair, 2026-09-29:** picker reads use the
-      existing checked descriptor reader on local `file:` URIs. The JSON
-      cap applies even when bytes resemble a PDF; other providers fail with
-      an explicit localized refusal instead of whole-file allocation.
-      Draft real-file cases cover growth after metadata, opened-path
-      replacement, oversize input, strict UTF-8 and unchanged source bytes.
-      Tests and red drills remain queued until verifier allocation.
-      (Run 2026-10-01: drills R4a, R4b and R5 in
-      `docs/certification/m84.md`; a file gone before the read is now
-      reported as missing, RV84 #6, and one that is not UTF-8 gets the
-      translated `textFileInvalid`, RV84 #7.)
-  - **Import** (`ModelApiHost.importSession`, Model API only): fresh
-    session, turn and item ids (turns start at each user message), the
-    user's current model (the file's model id is informational; D49: nothing
-    in it picks a model), the default effort, no goal, todos, outputs,
-    children or usage; session rules are per session in memory, so none
-    survive. The model is handed each imported turn as one user-role
-    message: a lead marking it untrusted (the first also carries the full
-    note) and the turn's items as JSON, never as assistant, developer,
-    reasoning or tool-call items, so nothing in the file speaks with more
-    authority than the user's data.
-  - **Asking every time.** The stored session keeps `imported: true`, and a
-    fork copies it. The controller's `adopt` opens such a session in
-    `untrustedStartMode`: the current mode when it already asks (Manual or
-    Plan), else Manual, or Plan when the initial mode is Plan. That covers
-    the import itself and every later resume, restore after a reload and
-    fork; the restart-recovery path keeps the panel's own mode, which the
-    user chose. A notice says why.
-    - **Plans from imported history (lead decision, 2026-10-01, RV84 #2).**
-      A Plan-mode reply written in a conversation that holds imported
-      history is untrusted content, as a plan picked from a file is:
-      "Implement in a fresh conversation" builds its brief as not approved
-      (`planBriefFromFile` for the model) and starts in
-      `untrustedBriefMode()`, with its own notice (`planFromImportedMode`).
-      The controller knows such sessions from `adopt`
-      (`importedSessionIds`). M74's `/handoff` must take the same flag when
-      it lands.
-    - **Export scrub cost (RV84 #9).** The scrub ran synchronously on the
-      extension host. Measured 2026-10-01 on the Mac mini, a 4 MiB
-      conversation (paths under a local root) held the event loop 1.4 s in
-      one go, 0.35 ms/KiB (Windows 11 VM: 2.5 s), so 16 MiB was seconds of a
-      frozen window. Three changes: `foldText` stopped allocating an array
-      per character (half the time); a literal prefilter in `redactSecrets`
-      (`MAY_HOLD_SECRET`) lets text with no credential literal skip the 24
-      patterns in one scan, the e-mail pattern runs only on text with an
-      `@`, and the digest pattern starts only at a hex run's start; and
-      `buildSessionExport` is async and yields (`setImmediate`, not a timer:
-      Windows' ~15 ms tick) after each 64 KiB of text. The same 4 MiB now
-      takes 0.37 s, holding the loop at most 11 ms (Windows VM: 0.42 s, at
-      most 14 ms). A long string is cut too (2026-10-02,
-      `redactableSlices`), but only just after a line break that no
-      credential runs across, so each pattern sees whole what it would see
-      in the whole string; a single line longer than a slice (a pasted
-      16 MiB line) still holds the loop for its own scrub, about 0.5 s.
-    - **No Insert or Apply on imported history (RV84 #11).** `historyLoaded`
-      carries `imported: true` for such a session, and the panel offers Copy
-      only on its code blocks, as the share view does. The mark is the
-      session's, not a turn's: a reply after the import was written over the
-      same untrusted history, so its code blocks are Copy only too.
-  - **Share view.** The file's items render in a modal through the Markdown
-    export's per-item sections (`transcriptItemMarkdown`); `MarkdownView`
-    and `CodeBlock` take Insert and Apply as optional, and the share view
-    passes neither. Links go through the host's http, https and mailto
-    filter; relative links are refused.
-  - No paid call is involved (local files only), so D48 needs no consent.
-    No live model check was run: the import sends user-role `input_text`
-    messages, a shape the backend already sends (`noteItem`).
-  - **Port to the release candidate, 2026-10-01** (`feature/m84-export`,
-    from `temp/port.patch` against main `32709441`): applied with
-    `--exclude` for the six files `git apply --3way` cannot take (five new
-    files plus `docs/certification/m84.md`, applied directly; the
-    `m84-share.png` hunk is a content-less stub, so the capture is marked
-    to-retake in `docs/certification/m84.md`). Four conflicts kept both
-    sides: the candidate's 0.10.0/M72 entries and the patch's M84 entries in
-    `CHANGELOG.md`; `editFile` (M72 checkpoint lease, kept: a workspace
-    Markdown export still goes through `withCheckpointEditAt`; the JSON
-    export did not until RV84 #5) beside `openPreview`
-    (M84) in `CliFeatureDeps`, its tests and their setups. Decisions taken
-    in the port: `Promise.withResolvers<void>` became `<undefined>` with
-    `resolve(undefined)` (the gate's `no-invalid-void-type`); the
-    remote-provider refusal test uses a literal remote URI (the shared mock's
-    `Uri.parse` keeps `file`); the two new ACP load tests share a
-    `loadOldSession` helper (the duplication gate); and the `vscode`
-    dialogs moved to `src/host/conversation/transferDialogs.ts`, leaving
-    `sessionImport.ts` portable for the host-API gate (its tests split the
-    same way). `docs/ide-compatibility/host-api.md` regenerated: 26
-    commands, 17 adapter files, 264 APIs. No new escape hatches (PLAN.md
-    §8 needs no row). Checks that ran green: format, ESLint (incl. css),
-    PSScriptAnalyzer, all five typechecks, knip, jscpd, dpdm, check:host-api,
-    and the M84 unit suites. `check:l10n`'s own code reports 0 problems over
-    14 tables, 104 manifest strings and 328 sources when its l10n modules are
-    loaded via tsc instead of esbuild. Not runnable in this sandbox:
-    `npm run check:l10n` (the esbuild binary's file reads are denied),
-    `npm run build`/integration tests/`test:a11y`/harness shots (same cause,
-    no browser), and seven unit tests that fail identically on pristine HEAD
-    here: six real-git checkpoint captures plus the esbuild-bundled M57
-    goal test (environmental, unrelated to M84). These checks ran on the
-    port tree in that sandbox; the record for the tree after RV84 is
-    `docs/certification/m84.md` (2026-10-01).
-  - **Independent review RV84, 2026-10-01.** Fourteen findings; the fixes
-    are one commit each on `feature/m84-export` (#1 credential shapes and
-    honest claims, #2 lead decision on plan briefs, #4 changelog, #5 JSON
-    export lease, #6 missing file, #7 UTF-8 refusal, #8 share-view claim,
-    #9 scrub cost, #11 Insert and Apply on imported history, #12 dead CSS),
-    #3 is the rewritten certification, and #13 needs no change: the D60
-    gate (`check:host-api`) holds only `src/core`, `src/shared`,
-    `src/webview`, `src/acp`, `src/runtime` and the `PORTABLE_HOST` files
-    to the boundary, so an adapter file in `src/host/conversation/` is
-    allowed and recorded (17 files, 0 problems). Sibling dialogs live in
-    `src/host/*Features.ts`; moving `transferDialogs.ts` beside the export
-    dialogs in `cliFeatures.ts` is a tidy-up for the lead to choose. #10
-    and #14 were left open that day and fixed on 2026-10-02 (below).
-  - **Follow-up reviews, 2026-10-02 (RV84c, Codex; the Muse review).**
-    Fixed with a test and a red drill each (`docs/certification/m84.md`):
-    - **C1, import after sign-out or close.** `importSession` loads the
-      hooks, then checks the account and the host's closing again before
-      the session exists, and the closing once more after its SessionStart
-      hook, as `startSession` checks the account.
-    - **C2, Unicode paths.** An absolute POSIX path's segments take any
-      character outside ASCII that is not white space (`/srv/私密`,
-      `/Users/José`, emoji folders); drive and UNC paths already did.
-    - **C3, a share file that crashed the panel.** The fence's length is
-      found in a loop (`Math.max(...runs)` threw a RangeError on 200,000
-      runs), and each share section renders inside its own error boundary,
-      which says so in its place and logs the error.
-    - **Imported mode on a stale opening (Muse).** `adopt` applies the
-      imported mode and mark only once the opening is still current, so an
-      imported session overtaken by another opening leaves neither. The
-      mark goes with its session when the panel drops it; a restart's resume
-      reads it again from the record, and a plan reply carries the flag it
-      was read with.
-    - **RV84 #10, an import past the window.** Decision: refuse, not cut.
-      The text an import hands the model is counted high, one token per
-      UTF-8 byte, against `MODEL_API_IMPORT_MAX_REPLAY_BYTES` (the window
-      less the reserve named text attachments keep, 786,432 bytes). A file
-      over it is refused before the confirmation, naming both sizes
-      (`importReplayTooLarge`, 14 tables), and `sanitizeImportedSession`
-      refuses it too. Importing only the latest turns would show history
-      the model never saw; the file can still be read as a share file.
-    - **RV84 #14, the share view's single pass.** It renders
-      `SHARE_VIEW_PAGE_ITEMS` (200) items at a time, with Show more.
-    - **RV84 #9's residual.** Long strings are scrubbed in line-break
-      slices (above).
-    - **Lead decisions on the same class (released behaviour, one
-      CHANGELOG Fixed entry).** `startSession`, `resumeSession` (its
-      `revive`) and `forkSession` check the account and the closing after
-      their hooks load and again after their SessionStart hook, as the
-      import does; a SessionStart hook that fails in `revive` leaves no
-      session. `adopt` switches a side chat to Plan only after its last
-      currency check, beside the imported mode.
-    - **0.10.1's JWT fix carried in.** The JWT rule is 0.10.1's linear
-      dotted-words scan (`redactTokens`), so a token glued after `-` is
-      redacted again; its tests (glued tokens, the differential against the
-      old pattern, 128,000-character timing) are kept.
+- **Status 2026-09-28: built.**
+
+Status detail retained: built on `feature/m84-export`; `docs/certification/m84.md`.
+A Muse Code instance drafted it (contributor model); Claude reviewed and
+reworked the draft. Decisions taken:
+
+- **One format** (`muse-spark-session-export`, version 1,
+  `src/core/export/sessionTransfer.ts`) for export, import and share. It
+  holds the history the Markdown export reads (`readSession`, both
+  backends) with only the fields a reader needs. Live state (stored
+  outputs and patches, child sessions, background and workflow handles,
+  `modelVisibleContent`, `children`) and the Model API replay stay out.
+- **Scrubbing.** Every string in the document, ids included, goes
+  through `redactSecrets` and a 64-hex digest pattern,
+  always. By default paths and e-mail addresses are redacted too:
+  `file://` URIs, then this machine's own roots (workspace folders and the
+  home folder, matched in either separator and any case, to the path's
+  end, so a user name with a space goes), then absolute POSIX, drive and
+  UNC paths. Placeholders are English (`MODEL_TEXT`), since the model reads
+  them after an import. The e-mail pattern is bounded (RFC 5321 lengths)
+  and `redact.ts`'s URL user-info scheme is bounded, so a long run of
+  word characters scans in linear time.
+  Ordinary UUIDs and enum words remain unchanged. Share section keys
+  include their position; import remints ids, and live-state references
+  stay excluded, so redacting a sensitive id needs no identity mapping.
+- **Preview first.** The redacted file opens as a read-only in-memory
+  document (the output-document scheme, never on disk), then a modal
+  names what was redacted and offers **Save redacted…**, **Save without
+  redaction…** or close. The suggested file name comes from the redacted
+  title. A file over the import cap is not written (`tooLarge`).
+- **Every imported byte parsed.** The file is read only under 16 MiB
+  (bounded through one checked descriptor) and as strict UTF-8; the header
+  names another format or version by name; the schema caps the
+  transcript at 20,000 items and wants an ISO 8601 date; and any field
+  the schema does not keep, anywhere, refuses the whole file (the parse
+  is compared with what was read, as zod strips unknown keys).
+  - **Independent file-reader repair, 2026-09-29:** picker reads use the
+    existing checked descriptor reader on local `file:` URIs. The JSON
+    cap applies even when bytes resemble a PDF; other providers fail with
+    an explicit localized refusal instead of whole-file allocation.
+    Draft real-file cases cover growth after metadata, opened-path
+    replacement, oversize input, strict UTF-8 and unchanged source bytes.
+    Tests and red drills remain queued until verifier allocation.
+    (Run 2026-10-01: drills R4a, R4b and R5 in
+    `docs/certification/m84.md`; a file gone before the read is now
+    reported as missing, RV84 #6, and one that is not UTF-8 gets the
+    translated `textFileInvalid`, RV84 #7.)
+- **Import** (`ModelApiHost.importSession`, Model API only): fresh
+  session, turn and item ids (turns start at each user message), the
+  user's current model (the file's model id is informational; D49: nothing
+  in it picks a model), the default effort, no goal, todos, outputs,
+  children or usage; session rules are per session in memory, so none
+  survive. The model is handed each imported turn as one user-role
+  message: a lead marking it untrusted (the first also carries the full
+  note) and the turn's items as JSON, never as assistant, developer,
+  reasoning or tool-call items, so nothing in the file speaks with more
+  authority than the user's data.
+- **Asking every time.** The stored session keeps `imported: true`, and a
+  fork copies it. The controller's `adopt` opens such a session in
+  `untrustedStartMode`: the current mode when it already asks (Manual or
+  Plan), else Manual, or Plan when the initial mode is Plan. That covers
+  the import itself and every later resume, restore after a reload and
+  fork; the restart-recovery path keeps the panel's own mode, which the
+  user chose. A notice says why.
+  - **Plans from imported history (lead decision, 2026-10-01, RV84 #2).**
+    A Plan-mode reply written in a conversation that holds imported
+    history is untrusted content, as a plan picked from a file is:
+    "Implement in a fresh conversation" builds its brief as not approved
+    (`planBriefFromFile` for the model) and starts in
+    `untrustedBriefMode()`, with its own notice (`planFromImportedMode`).
+    The controller knows such sessions from `adopt`
+    (`importedSessionIds`). M74's `/handoff` must take the same flag when
+    it lands.
+  - **Export scrub cost (RV84 #9).** The scrub ran synchronously on the
+    extension host. Measured 2026-10-01 on the Mac mini, a 4 MiB
+    conversation (paths under a local root) held the event loop 1.4 s in
+    one go, 0.35 ms/KiB (Windows 11 VM: 2.5 s), so 16 MiB was seconds of a
+    frozen window. Three changes: `foldText` stopped allocating an array
+    per character (half the time); a literal prefilter in `redactSecrets`
+    (`MAY_HOLD_SECRET`) lets text with no credential literal skip the 24
+    patterns in one scan, the e-mail pattern runs only on text with an
+    `@`, and the digest pattern starts only at a hex run's start; and
+    `buildSessionExport` is async and yields (`setImmediate`, not a timer:
+    Windows' ~15 ms tick) after each 64 KiB of text. The same 4 MiB now
+    takes 0.37 s, holding the loop at most 11 ms (Windows VM: 0.42 s, at
+    most 14 ms). A long string is cut too (2026-10-02,
+    `redactableSlices`), but only just after a line break that no
+    credential runs across, so each pattern sees whole what it would see
+    in the whole string; a single line longer than a slice (a pasted
+    16 MiB line) still holds the loop for its own scrub, about 0.5 s.
+  - **No Insert or Apply on imported history (RV84 #11).** `historyLoaded`
+    carries `imported: true` for such a session, and the panel offers Copy
+    only on its code blocks, as the share view does. The mark is the
+    session's, not a turn's: a reply after the import was written over the
+    same untrusted history, so its code blocks are Copy only too.
+- **Share view.** The file's items render in a modal through the Markdown
+  export's per-item sections (`transcriptItemMarkdown`); `MarkdownView`
+  and `CodeBlock` take Insert and Apply as optional, and the share view
+  passes neither. Links go through the host's http, https and mailto
+  filter; relative links are refused.
+- No paid call is involved (local files only), so D48 needs no consent.
+  No live model check was run: the import sends user-role `input_text`
+  messages, a shape the backend already sends (`noteItem`).
+- **Port to the release candidate, 2026-10-01** (`feature/m84-export`,
+  from `temp/port.patch` against main `32709441`): applied with
+  `--exclude` for the six files `git apply --3way` cannot take (five new
+  files plus `docs/certification/m84.md`, applied directly; the
+  `m84-share.png` hunk is a content-less stub, so the capture is marked
+  to-retake in `docs/certification/m84.md`). Four conflicts kept both
+  sides: the candidate's 0.10.0/M72 entries and the patch's M84 entries in
+  `CHANGELOG.md`; `editFile` (M72 checkpoint lease, kept: a workspace
+  Markdown export still goes through `withCheckpointEditAt`; the JSON
+  export did not until RV84 #5) beside `openPreview`
+  (M84) in `CliFeatureDeps`, its tests and their setups. Decisions taken
+  in the port: `Promise.withResolvers<void>` became `<undefined>` with
+  `resolve(undefined)` (the gate's `no-invalid-void-type`); the
+  remote-provider refusal test uses a literal remote URI (the shared mock's
+  `Uri.parse` keeps `file`); the two new ACP load tests share a
+  `loadOldSession` helper (the duplication gate); and the `vscode`
+  dialogs moved to `src/host/conversation/transferDialogs.ts`, leaving
+  `sessionImport.ts` portable for the host-API gate (its tests split the
+  same way). `docs/ide-compatibility/host-api.md` regenerated: 26
+  commands, 17 adapter files, 264 APIs. No new escape hatches (PLAN.md
+  §8 needs no row). Checks that ran green: format, ESLint (incl. css),
+  PSScriptAnalyzer, all five typechecks, knip, jscpd, dpdm, check:host-api,
+  and the M84 unit suites. `check:l10n`'s own code reports 0 problems over
+  14 tables, 104 manifest strings and 328 sources when its l10n modules are
+  loaded via tsc instead of esbuild. Not runnable in this sandbox:
+  `npm run check:l10n` (the esbuild binary's file reads are denied),
+  `npm run build`/integration tests/`test:a11y`/harness shots (same cause,
+  no browser), and seven unit tests that fail identically on pristine HEAD
+  here: six real-git checkpoint captures plus the esbuild-bundled M57
+  goal test (environmental, unrelated to M84). These checks ran on the
+  port tree in that sandbox; the record for the tree after RV84 is
+  `docs/certification/m84.md` (2026-10-01).
+- **Independent review RV84, 2026-10-01.** Fourteen findings; the fixes
+  are one commit each on `feature/m84-export` (#1 credential shapes and
+  honest claims, #2 lead decision on plan briefs, #4 changelog, #5 JSON
+  export lease, #6 missing file, #7 UTF-8 refusal, #8 share-view claim,
+  #9 scrub cost, #11 Insert and Apply on imported history, #12 dead CSS),
+  #3 is the rewritten certification, and #13 needs no change: the D60
+  gate (`check:host-api`) holds only `src/core`, `src/shared`,
+  `src/webview`, `src/acp`, `src/runtime` and the `PORTABLE_HOST` files
+  to the boundary, so an adapter file in `src/host/conversation/` is
+  allowed and recorded (17 files, 0 problems). Sibling dialogs live in
+  `src/host/*Features.ts`; moving `transferDialogs.ts` beside the export
+  dialogs in `cliFeatures.ts` is a tidy-up for the lead to choose. #10
+  and #14 were left open that day and fixed on 2026-10-02 (below).
+- **Follow-up reviews, 2026-10-02 (RV84c, Codex; the Muse review).**
+  Fixed with a test and a red drill each (`docs/certification/m84.md`):
+  - **C1, import after sign-out or close.** `importSession` loads the
+    hooks, then checks the account and the host's closing again before
+    the session exists, and the closing once more after its SessionStart
+    hook, as `startSession` checks the account.
+  - **C2, Unicode paths.** An absolute POSIX path's segments take any
+    character outside ASCII that is not white space (`/srv/私密`,
+    `/Users/José`, emoji folders); drive and UNC paths already did.
+  - **C3, a share file that crashed the panel.** The fence's length is
+    found in a loop (`Math.max(...runs)` threw a RangeError on 200,000
+    runs), and each share section renders inside its own error boundary,
+    which says so in its place and logs the error.
+  - **Imported mode on a stale opening (Muse).** `adopt` applies the
+    imported mode and mark only once the opening is still current, so an
+    imported session overtaken by another opening leaves neither. The
+    mark goes with its session when the panel drops it; a restart's resume
+    reads it again from the record, and a plan reply carries the flag it
+    was read with.
+  - **RV84 #10, an import past the window.** Decision: refuse, not cut.
+    The text an import hands the model is counted high, one token per
+    UTF-8 byte, against `MODEL_API_IMPORT_MAX_REPLAY_BYTES` (the window
+    less the reserve named text attachments keep, 786,432 bytes). A file
+    over it is refused before the confirmation, naming both sizes
+    (`importReplayTooLarge`, 14 tables), and `sanitizeImportedSession`
+    refuses it too. Importing only the latest turns would show history
+    the model never saw; the file can still be read as a share file.
+  - **RV84 #14, the share view's single pass.** It renders
+    `SHARE_VIEW_PAGE_ITEMS` (200) items at a time, with Show more.
+  - **RV84 #9's residual.** Long strings are scrubbed in line-break
+    slices (above).
+  - **Lead decisions on the same class (released behaviour, one
+    CHANGELOG Fixed entry).** `startSession`, `resumeSession` (its
+    `revive`) and `forkSession` check the account and the closing after
+    their hooks load and again after their SessionStart hook, as the
+    import does; a SessionStart hook that fails in `revive` leaves no
+    session. `adopt` switches a side chat to Plan only after its last
+    currency check, beside the imported mode.
+  - **0.10.1's JWT fix carried in.** The JWT rule is 0.10.1's linear
+    dotted-words scan (`redactTokens`), so a token glued after `-` is
+    redacted again; its tests (glued tokens, the differential against the
+    old pattern, 128,000-character timing) are kept.
 
 ### M85 — TypeSafe assist, experimental and opt in (D50; folded into M98)
 
@@ -28778,6 +29338,52 @@ The original text follows for the record; where it differs, M98 wins.
   The capture needs a TypeSafe key only the owner can create, so M85 waits
   for it.
 - **Size.** M.
+
+#### Preserved integration notes: M85 — TypeSafe assist, experimental and opt in (D50)
+
+- **Goal.** Cheaper, better-calibrated small decisions around the Muse
+  model: which skill fits, how risky a command is, what context still
+  matters. The Muse model stays the one that answers and acts.
+- **Scope.**
+  - A thin client over TypeSafe's HTTP API, zod-validated like the Model
+    API client (D2).
+  - The key is kept in SecretStorage; a machine-scoped
+    `museSpark.experimental.typesafeAssist` setting is off by default and
+    labelled Experimental.
+  - It is disclosed in PRIVACY: the user's message and skill or agent
+    descriptions for suggestion; the command or path for a risk score;
+    for context relevance and grading, the tool output or file text
+    judged. TypeSafe keeps
+    data except on enterprise plans, so credential-shaped strings are
+    redacted before a call, and the assist is off while
+    `museSpark.confidentialWorkspace` is on.
+  - It is a paid feature under AGENTS.md rule 12 with D50's one
+    exception, the TypeSafe key: `typesafeAssist` in the `PaidFeature`
+    union, `PaidFeatureGate` with its price, the badge, a paid row,
+    `PaidUsage`, and D48's paid-use popup.
+  - Timeouts are short; on failure there is no assist, and the failure is
+    logged.
+  - Uses:
+    - skill suggestion first, and the same for a custom agent (M76);
+    - then the Auto risk score, as M78's optional advisory layer: it can
+      only add caution, never allow;
+    - context relevance and evaluation grading, gated like M73: no path
+      reaches them until their own M75 run passes, whatever the setting.
+- **Backends.** Model API. Muse Code only where the extension decides.
+- **Acceptance.**
+  - With the setting off, nothing changes and nothing is sent.
+  - With it on, every call is visible in the log (question ids and timing,
+    never the content) and tallied in Account & usage.
+  - No path lets a TypeSafe answer skip a question, allow an action, skip a
+    deterministic rule, or answer the user. A test proves that a "safe"
+    score leaves the verdict unchanged.
+- **Tests.** A fake TypeSafe endpoint with Choice, Score and Noul shapes
+  taken from the live API (AGENTS.md rule 13), plus the paired runs in M75.
+  The capture needs a TypeSafe key only the owner can create, so M85 waits
+  for it.
+- **Size.** M.
+
+---
 
 ### M86 — Restore by the tools' own writes (D63)
 
@@ -28878,102 +29484,6 @@ The original text follows for the record; where it differs, M98 wins.
 - **Release.** `museSpark.turnCheckpoints` defaults on again with M86.
 - **Size.** L.
 
-### M87–M88 — The owner's panel requests of 2026-10-03 (D66, D67)
-
-**Status 2026-10-04: M87 built and joined (its status below); M88
-planned, nothing built.** These are the owner's sixteen requests of
-2026-10-03, which came with screenshots of the Codex app as inspiration. The design decisions are D66 (M87) and D67 (M88); the
-owner's answers to their questions (2026-10-03) are in §3 and applied in D66
-and D67.
-
-| #   | Request                                    | Where              | Reuses                                                                |
-| --- | ------------------------------------------ | ------------------ | --------------------------------------------------------------------- |
-| 1   | Context meter, percent inside the ring     | M87 lane A         | `contextUsage`, `CONTEXT_PRESSURE_*`, compact on click (M14)          |
-| 2   | In/Out boxes joined, five lines, Show more | M87 lane B         | `Clipped`, `ShellBody`, `UserShellRow`                                |
-| 3   | Consecutive steps under one summary row    | M87 lane C         | Focus view's `segment()` and `StepsGroup` (M16)                       |
-| 4   | Bullet with a blue pulse, heartbeat trace  | M87 lane B         | `.tool-dot-running` and its `pulse`                                   |
-| 5   | Tasks pane collapses to two lines          | M87 lane D         | `TodoPanel`                                                           |
-| 6   | Tasks pane in its own window               | M87 lanes P, D     | `chatPanel.ts`, `html.ts`, VS Code's floating windows for editors     |
-| 7   | Tooltips on the command and "/" menus      | M87 lane A         | `PaletteItem`, skill descriptions                                     |
-| 8   | Stop red on hover                          | M87 lane A         | —                                                                     |
-| 9   | Timestamp on hover                         | M87 lanes P, C     | Muse Code's captured `recordedAt`                                     |
-| 10  | Diff tally row with Review                 | M87 lane E         | `patchSummary`, M70's review pane                                     |
-| 11  | Notice when a thread ends or waits         | built: M82, PR #89 | `BackgroundNotifier`, `museSpark.notifyOnBackgroundTurn`              |
-| 12  | Edit on a queued prompt                    | M87 lanes P, C     | `turnWithdrawn`, `turn/unqueued`, M53's prompt back into the composer |
-| 13  | Saved prompts and prompt sequences         | M88 lane A         | PR #89's `paletteDialog.tsx`; skills stay as they are                 |
-| 14  | Bookmarks                                  | M88 lane B         | the archived ids (M6), `shared/sessions.ts` groups                    |
-| 15  | Timed send at a date and time              | M88 lane C         | M52's store, claim, paid gate and the D48 popup, asked at scheduling  |
-| 16  | Resume after a limit                       | M88 lane C         | timed sends, the client's `Retry-After`, Muse Code's usage report     |
-
-**Found already built.**
-
-- Item 11 is M82 (PR #89).
-- The grouping behind item 3 is Focus view (M16).
-- The prompt going back into the composer (item 12) is M53's rewind.
-- Reusable prompts exist as skills: they run as slash commands, and M83
-  imports other agents' commands as skills (item 13).
-- Scheduled prompts are M52 (item 15).
-
-**Not feasible as asked.**
-
-- A floating window for the sidebar view, or one an extension opens (item
-  6). M87 offers an editor tab that the user moves instead (D66).
-- Tooltips in VS Code's own Command Palette (item 7).
-- Any send while VS Code is closed (items 15 and 16). A missed send shows
-  as due at the next start (D67).
-
-**When they start.** Every lane edits the stylesheet and the harness, and
-most edit `App.tsx`, `uiState.ts` or the conversation controller. These open
-branches change the same files:
-
-| Open branch                                                          | Files it shares with M87 and M88                                                                                                                                                                                                                                                                                                    | Rule                                                                                                                                                                                                 |
-| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `fix/approval-decisions`: the approval dock and single-decision lock | `src/webview/App.tsx`, `Transcript.tsx`, `ToolRow.tsx`, `ApprovalCard.tsx`, the new `ApprovalDock.tsx`, `uiState.ts`, `transcriptEntries.ts`, `styles.css`, `protocol.ts`, `agentEvents.ts`, `agentBackend.ts`, `MuseCodeHost.ts`, `conversationController.ts`, `extension.ts`, `constants.ts`, the strings, the harness            | M87's integration branch starts after it merges. Lanes A and E share only region-owned files with it, so their work may begin earlier in their own worktrees and rebase onto the integration branch. |
-| PR #89 (M77, M78, M82)                                               | `App.tsx`, `Transcript.tsx`, `Header.tsx`, `HistoryDialog.tsx` (moved onto `paletteDialog.tsx`), `uiState.ts`, `transcriptEntries.ts`, `toolPresentation.ts`, `styles.css`, `protocol.ts`, `agentEvents.ts`, `sessionStore.ts`, `MuseCodeHost.ts`, `conversationController.ts`, `turnNotifications.ts`, `extension.ts`, the harness | M87 starts after it. M88 needs it: `paletteDialog.tsx`, `BackgroundNotifier`, the session budget.                                                                                                    |
-| PR #69 (M70)                                                         | `App.tsx`, `Composer.tsx`, `palette.ts`, `uiState.ts`, `protocol.ts`, `conversationController.ts`, `styles.css`, the harness                                                                                                                                                                                                        | M87 starts after it. The tally's Review button needs M70.                                                                                                                                            |
-| PR #78 (M71)                                                         | `App.tsx`, `palette.ts`, `uiState.ts`, `protocol.ts`, `conversationController.ts`, `styles.css`, the harness; its `GitPanel` sits above the composer                                                                                                                                                                                | M87 starts after it.                                                                                                                                                                                 |
-| PR #84 (M74 follow-ups)                                              | `conversationController.ts`, `uiState.ts`                                                                                                                                                                                                                                                                                           | M87 starts after it: lanes P and C share its files.                                                                                                                                                  |
-| PR #70 (M76)                                                         | `sessionStore.ts`, `agentEvents.ts`                                                                                                                                                                                                                                                                                                 | M87 starts after it: lanes P and C share its files.                                                                                                                                                  |
-
-So M87's integration branch starts from main once those six have merged
-or closed. M88's starts from main after M87 merges, because both
-milestones edit the strings, the controller, `palette.ts` and the
-stylesheet. Within a milestone, the "Starts" column below gives the order
-of the lanes.
-
-**Lane rules (both milestones).**
-
-1. **Branches.** Each milestone has an integration branch
-   (`feature/m87-panel-polish`, `feature/m88-prompts-timed-sends`) and one
-   worktree per lane. The lead reviews every lane's diff before merging it
-   into the integration branch. One pull request per milestone goes to
-   main, and hosted CI is the gate.
-2. **Lane 0 goes first.** It writes every new English string below and its
-   14 translations. A key nobody reads yet passes every gate. A lane that
-   needs a new or changed string asks the lead. Lane W deletes the keys that
-   go, once nothing reads them.
-3. **Lane P (plumbing) goes next.** It lands the shared schemas, the
-   controller's cases and the ports. The backends' new methods are
-   optional, so every later lane compiles on its own.
-4. **One owner per file at a time** (the tables below).
-   - Five files cannot be split without restructuring the codebase:
-     - `src/shared/constants.ts`: AGENTS.md rule 5 keeps every tunable
-       there.
-     - `src/webview/styles.css`: one stylesheet, ordered by specificity.
-     - `test/harness/index.html` and `scripts/lib/harnessServer.mjs`: one
-       scenario list.
-     - In M88, `src/shared/palette.ts`.
-   - These are region-owned. A lane edits only the region named for it,
-     beside the related existing block and never at the file's end, so the
-     merges never touch the same lines. A harness scenario goes after the
-     existing scenario its table row names.
-   - Any other shared edit goes through the lead.
-5. **Lane W (wiring) goes last.** It owns `App.tsx`, the theme capture, the
-   docs, the milestone record and the full gate.
-6. **Records.** Each lane records its red drills, captures and bundle delta
-   in `docs/certification/m87-<lane>.md` (as M83's lanes did), and Lane W
-   writes `m87.md`. M88 does the same.
-
 ### M87 — Panel polish (D66)
 
 **Status 2026-10-04 (integration): joined on `m87/int` with main at
@@ -29009,9 +29519,11 @@ seven red/restored drills match their saved bytes. The port to newer main's
 M70 Revert is done on `m87/int` (the integration status above); native Tasks
 acceptance and hosted CI remain open.
 
-**Status 2026-10-04: built and joined on the integration branch `m87/l0`
+**Status 2026-10-04: built.**
+
+Status detail retained: built and joined on the integration branch `m87/l0`
 (`feature/m87-panel-polish`); native VS Code Tasks acceptance and hosted CI on the
-milestone PR's exact head remain open.** Every lane is merged: 0 (strings), P
+milestone PR's exact head remain open. Every lane is merged: 0 (strings), P
 (plumbing), A (composer and menus), B (rows and status line), C
 (transcript and backends, with the `turn/unqueue` live capture), D (tasks),
 E (diff tally), F1 and F2 (the gooey menu and its rows), the plural gate
@@ -30484,8 +30996,10 @@ Each finding gets a regression and a byte-exact restored red drill in
 `docs/certification/m96-k.md`. No dependency, guard widening, live/paid call,
 product wiring or other lane's source change is part of this correction.
 
-**Status 2026-10-04: planned on `feature/m96-agent-roles` from main
-`1e93c67c`.** The plan is D75 (with its decisions on the open questions),
+**Status 2026-10-04: planned.**
+
+Status detail retained: planned on `feature/m96-agent-roles` from main
+`1e93c67c`. The plan is D75 (with its decisions on the open questions),
 M96b, M96c and this section. The research is
 `docs/certification/m96-research.md`. Implementation lanes start after the
 lead reviews the plan.
@@ -32369,7 +32883,9 @@ serve`."
 
 ### M96b — The team in the ACP agent and headless runs (D75)
 
-**Status 2026-10-04: planned; starts after M96 merges.**
+**Status 2026-10-04: planned.**
+
+Status detail retained: planned; starts after M96 merges.
 
 - **Goal.** The same team, roles, pools and caps work in the ACP agent (D62)
   and in headless `exec` (D65), with each surface's own way of asking.
@@ -32493,8 +33009,10 @@ and the PowerShell job statement separator plus a native parser/run test.
 Regressions and byte-exact red drills are recorded in `docs/certification/m96c-o.md`.
 No dependency, paid call, remote connection, or guard widening is authorized.
 
-**Status 2026-10-04: planned, round 3 (redesign), amended in round 4 for
-Codex's third review (`RVM96C3`: three P1, five P2, one P3).** This milestone
+**Status 2026-10-04: planned.**
+
+Status detail retained: planned, round 3 (redesign), amended in round 4 for
+Codex's third review (`RVM96C3`: three P1, five P2, one P3). This milestone
 builds
 D75's **Scheduler and traffic** part, inside one window. M96's lane K gives
 it process lifetime, the journal, hints and the load guard. The research is
@@ -33405,7 +33923,9 @@ it process lifetime, the journal, hints and the load guard. The research is
 
 ### M96d — The machine coordinator spike, and the scheduler optimisations (D75)
 
-**Status 2026-10-04: planned; starts after M96c merges.** M96c's first
+**Status 2026-10-04: planned.**
+
+Status detail retained: planned; starts after M96c merges. M96c's first
 delivery left these out:
 
 - the machine coordinator, on the lead's round-3 ruling after Codex's
@@ -34176,7 +34696,7 @@ No dependency merge or live/paid call is implied.
 Focused gates and byte-exact red drills are recorded in `m95-i.md`; the lead
 owns full quality and release certification.
 
-### M95 — Bring-your-own model providers (D74)
+#### Preserved integration notes: M95 — Bring-your-own model providers (D74)
 
 **DEFLAKE5 scope (2026-10-05, kubuntu).** Audit the five failures in
 M95INT's recorded full unit sweep against `ad13e83a`, including the fixture
@@ -34376,13 +34896,15 @@ RVM95SC-R-host-api-record (§§7, 9); full quality/package and the separate
 RVM95SC-R-shell-env item remain open for the lead. No numbered review finding
 is deferred; all five fix drills fired and restored SHA-256-exact source.
 
-**Status 2026-10-04: planned on `feature/m95-byo-providers` from main
+**Status 2026-10-04: planned.**
+
+Status detail retained: planned on `feature/m95-byo-providers` from main
 `1e93c67c`; research in `docs/certification/m95-research.md`. Step 13's
 wire captures were recorded 2026-10-04 for the twelve cloud presets the
 owner gave keys for (`docs/certification/m95-captures.md`: 46 model-call
 attempts, 44 billed, about $0.07). Completed lanes 0/P/G/A/R/K/M/U are integrated on
 `m95/int` as of 2026-10-05; remaining lanes, final composition and
-release acceptance are still pending.**
+release acceptance are still pending.
 
 - **FIXM95A review repair (2026-10-05).** Lane A repairs RVM95AO findings
   3, 4 (Anthropic), 5, 6, 7, 11 and 13 (Anthropic): codecs may occur only
@@ -35083,8 +35605,10 @@ the unchanged provider-core exclusion guard; the factory installs the caller's
 language table before use. Parser-only grammar stays in cliArgs, so help,
 invalid arguments and headless/Meta-only command parsing load no provider core.
 
-**Status 2026-10-05: ChatGPT/Copilot production paths integrated with
-fake-server evidence; release certification remains open.** The account
+**Status 2026-10-05: built.**
+
+Status detail retained: ChatGPT/Copilot production paths integrated with
+fake-server evidence; release certification remains open. The account
 catalogue, headerless SSE, limit recovery, plan tallies, VS Code actions and
 ACP dispatch now compose. Plan-key transports/Hugging Face registration and
 the owner/live/installed-editor receipts remain prerequisites; see
@@ -35205,11 +35729,136 @@ the owner/live/installed-editor receipts remain prerequisites; see
   - [ ] Acceptance 1–10 with tests and drills (`docs/certification/m95b.md`).
   - [x] README, PRIVACY, CHANGELOG and this record updated.
 
+#### Preserved integration notes: M95b — Subscription sign-in: ChatGPT plan, Copilot models, plan keys (D74)
+
+**Status 2026-10-04: planned.**
+
+Status detail retained: planned with M95; research in
+`docs/certification/m95-research.md` §6. Starts when M95's seam (lanes P, T
+and I) has merged.
+
+- **Goal.** A user with a ChatGPT Plus or Pro plan, or a Copilot plan, runs
+  the harness on that plan's inference with one click in the same panel,
+  through flows the provider sanctions; the UI says which plan pays.
+- **Scope.**
+  - **ChatGPT plan** (`chatgpt`): OpenAI's Sign in with ChatGPT with plan
+    usage, the dynamic client, the token store, refresh and revocation, the
+    preview rules in a `responses` codec profile, OpenAI's required UI.
+  - **Copilot's models** (`copilot`, VS Code only): a host-side
+    `ProviderClient` over `vscode.lm`, opt-in and labelled reduced.
+  - **Plan-key presets**: MiniMax M Plan, Alibaba Model Studio Coding Plan
+    and Mistral's plans as API-key presets whose models are marked "plan".
+  - **Hugging Face sign-in** (OAuth with PKCE and the `inference-api` scope)
+    once the owner has registered the app; the token preset is M95's.
+  - Plan tallies in Account & usage; the picker's and pill's plan marks;
+    strings in all 14 tables; README, PRIVACY, CHANGELOG, this plan,
+    `docs/certification/m95b.md`.
+  - **Not here**: Anthropic and Google plans (prohibited; D74); xAI's,
+    Z.ai's and Kimi Code's plan sign-ins (D74, settled); the Claude Code
+    backend (its own milestone after this one, D74).
+- **Lanes and file ownership.**
+
+| Lane           | Owns                                                                                                                                                                                                                                                                                                                                  |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 Strings      | `en.ts`, the 14 tables, `package.nls*.json`                                                                                                                                                                                                                                                                                           |
+| S Sign-in core | new `src/core/providers/subscriptions/chatgpt.ts` (authorize URL, token exchange, refresh, revoke, the ID-token check against the JWKS with `node:crypto`, the record schema), `huggingface.ts` (its OAuth with PKCE, once the app is registered), `planUsage.ts` (plan tallies), the plan-key presets' region of `presets.ts`; tests |
+| C Codec        | the `chatgpt` profile of `modelapi/codecs/responses.ts` (preview rules, tool namespaces, the client-side output cap); goldens                                                                                                                                                                                                         |
+| V VS Code side | `src/host/providers/chatgptSignIn.ts` (the loopback helper from M95, `openExternal`, the cross-window refresh lock in global storage, SecretStorage), `src/host/providers/copilotClient.ts` (the `vscode.lm` client, consent, feature detection), their rows in the Providers section; the command region of `src/extension.ts`       |
+| U UI           | the pill's plan mark and **Manage usage**, the one-time plan notice, the usage-limit screen, Account & usage's plan rows, the Copilot AI-content note and report link; harness scenarios                                                                                                                                              |
+| X ACP          | `muse-spark-code-acp providers add chatgpt` (a loopback server in the agent, the URL printed for the user's browser), the OS store record; no Copilot (no VS Code)                                                                                                                                                                    |
+| W Wiring       | `package.json`, README (**Subscriptions**: who may use which plan, Plus and Pro only, what is reduced on Copilot), PRIVACY (what OpenAI and GitHub receive), CHANGELOG, PLAN, `docs/certification/m95b.md`                                                                                                                            |
+
+- **Steps.**
+  1. **Capture first, with the owner's own Plus or Pro sign-in** (Owner
+     step; it spends his plan, not money): one short turn in an empty
+     workspace with a tool call, to settle what the docs leave open: plain
+     top-level function tools or namespaces; whether `reasoning` with
+     encrypted content, `prompt_cache_key` and usage with cached tokens
+     come back; the `models[]` list; a usage-limit error if one can be had.
+     Counted from the request log. Also whether `vscode.env.asExternalUri`
+     can give a remote window a `127.0.0.1` callback (else remote windows
+     say to sign in from a local one).
+  2. The sign-in core and record (lane S), then the codec profile (lane C),
+     then the VS Code side and UI (lanes V, U), the ACP agent (X), docs
+     (W).
+  3. Copilot: consent from the panel's click,
+     the canonical-to-`vscode.lm` mapping, feature detection for images,
+     usage from the reported data part where present and `countTokens`
+     otherwise.
+- **Acceptance.**
+  1. **Continue with ChatGPT** signs a Plus or Pro user in through the
+     system browser and a `127.0.0.1` callback, stores the issued client
+     and tokens in SecretStorage, and a turn with tools runs on the plan.
+  2. A Free or ineligible account gets OpenAI's refusal in plain words
+     before any conversation starts.
+  3. The access token refreshes before it expires, once across two open
+     windows; a revoked or disconnected grant asks to sign in again.
+  4. **Remove** revokes the refresh token and deletes the record; nothing
+     of Codex CLI's, Claude Code's, Gemini CLI's or Copilot's own storage is
+     ever read (a test that the code names none of their paths).
+  5. The request follows the preview rules (no `max_output_tokens`, no
+     `prompt_cache_retention`, `store: false`, `stream: true`, full
+     history), and a reply that passes the output cap is ended by the host.
+  6. The one-time plan notice, the "Using ChatGPT plan" mark with **Manage
+     usage**, and the usage-limit screen on
+     `subscription_sharing_usage_limit_exceeded` appear as OpenAI's UI rules
+     ask.
+  7. Plan use asks no paid-use popup, is tallied per provider in Account &
+     usage (tokens where reported, requests always), and is never counted
+     against a dollar cap; the notice says when the provider can spend
+     credits beyond the plan.
+  8. Copilot: consent comes from the click; the tool loop runs;
+     the model is marked reduced; budgets show estimated tokens; quota
+     errors are said plainly; a confidential workspace hides it; the
+     AI-content note and report link are shown.
+  9. A plan-key preset shows "plan" instead of a price and links the plan's
+     limits.
+  10. Every hook event fires with the provider id and qualified model.
+- **Tests.** The authorize URL's parameters; `state` and nonce refusals; the
+  ID token's signature, issuer, audience, expiry and nonce checks (each
+  drilled); the scope check (`chatgpt.tokens.use.direct` missing refuses);
+  refresh rotation and the lock; revocation on remove; the preview-rule
+  golden; the client-side output cap; the Copilot mapping against a fake
+  `vscode.lm` (tools, tool results, consent refused, quota errors); the
+  guard that no other application's credential path is read. Each with a
+  red drill in `docs/certification/m95b.md`.
+- **Gates.** As M95's; the sign-in code in `dist/modelsPanel.js` and the
+  codec profile in `dist/providers.js`, both within their caps.
+- **Security.** PKCE `S256`, `state` and nonce; the callback server on
+  `127.0.0.1` only, one use, ten minutes; the ID token verified before a
+  scope is trusted; the refresh token bound to `https://auth.openai.com`
+  and sent nowhere else, the access token to `https://api.openai.com`;
+  tokens never in the webview, logs, hooks, tools or children; the
+  persistent host id opaque (never an e-mail or a user id); revocation on
+  remove; Copilot's grant held by VS Code, never by us. Threat additions:
+  a local process racing for the callback port gains nothing (PKCE); a
+  phishing page cannot complete the flow without the verifier; a stolen
+  token is bounded by its hour and by revocation.
+- **Cost controls.** Plan use spends the user's plan, said before sign-in
+  and in the one-time notice, with the credit caveat where it applies; the
+  capture is one counted turn on the owner's plan; no background calls;
+  Copilot's AI credits named in its consent step.
+- **Docs.** README **Subscriptions**; PRIVACY (OpenAI receives the
+  conversation as with an OpenAI key; Copilot's requests carry Copilot's
+  own rules and GitHub's training terms for individual plans); CHANGELOG;
+  `docs/certification/m95b.md`.
+- **Owner steps** (credentials and registrations only): sign in once with
+  his Plus or Pro account for step 1's capture, and allow Copilot once for
+  step 3's live check (both spend his plans, not money); register the Hugging Face
+  OAuth app on huggingface.co; optionally ask xAI, Z.ai and Moonshot to
+  list the extension for their plan sign-ins.
+- **Certification checklist.**
+  - [ ] Step 1 capture recorded with its counted calls.
+  - [ ] Acceptance 1–10 with tests and drills (`docs/certification/m95b.md`).
+  - [ ] README, PRIVACY, CHANGELOG and this record updated.
+
 ### M95c — More providers and integrations after the first release (D74)
 
-**Status 2026-10-04: planned with M95; each part starts when M95 has merged
+**Status 2026-10-04: planned.**
+
+Status detail retained: planned with M95; each part starts when M95 has merged
 and is its own pull request, with its own capture and certification
-(`docs/certification/m95c.md`).**
+(`docs/certification/m95c.md`).
 
 - **Goal.** The provider list and its integrations grow past the first
   release without changing M95's seam: every part is a preset, a codec
@@ -35270,8 +35919,10 @@ and is its own pull request, with its own capture and certification
 
 ### M99 — What's New after an update (D79)
 
-**Status 2026-10-04: built on `feature/m99-whats-new`; record in
-`docs/certification/m99.md`.** Activation's side is
+**Status 2026-10-04: built.**
+
+Status detail retained: built on `feature/m99-whats-new`; record in
+`docs/certification/m99.md`. Activation's side is
 `src/host/whatsNew/whatsNew.ts` (the check, the claim, the wait for a quiet
 window, the loader) over `src/core/whatsNew/whatsNewVersions.ts` (semver,
 the install or upgrade decision, the releases a page shows, page or notice).
@@ -35669,7 +36320,9 @@ the exact redacted prompt reservation before the engine receives it.
 
 ### M94b — Next edit suggestions (D73; waits)
 
-**Status 2026-10-04: waiting for a stable API (Q-M94d).** Edits away from the
+**Status 2026-10-04: waiting.**
+
+Status detail retained: waiting for a stable API (Q-M94d). Edits away from the
 cursor, which Copilot's NES and Cursor's Tab jumps offer, need
 `isInlineEdit`/`showRange` or an equivalent in a stable `vscode.d.ts`. Today
 they are only in the `inlineCompletionsAdditions` proposal. A Marketplace
@@ -35802,9 +36455,11 @@ The CLI itself is not bundled: it is Meta's closed-source binary.
 
 ### M57 — The Model API backend out of the activation bundle (D6)
 
-**Status 2026-09-27: built on `feature/m57-bundle-split` from main
+**Status 2026-09-27: built.**
+
+Status detail retained: built on `feature/m57-bundle-split` from main
 `2f4f669` (0.9.0); local `npm run quality` recorded in
-`docs/certification/m57.md`. Not pushed; no pull request yet.**
+`docs/certification/m57.md`. Not pushed; no pull request yet.
 
 - **Goal**: `dist/extension.js` was 596.8 KiB of its 600 KiB budget, 180.7
   KiB of it the Model API backend, which only a conversation on that backend
@@ -35848,25 +36503,11 @@ The CLI itself is not bundled: it is Meta's closed-source binary.
   test builds a manager of its own over the same path. The live sweep now
   loads `dist/modelApi.js` and was not run for this milestone (no live calls).
 
-### M60–M66 — Muse Spark Code beyond VS Code (D60)
-
-**Status 2026-09-26: the program the owner handed over**
-(`docs/ide-compatibility.md`), built beside M45–M56. The phases are the
-plan's §8 (A–G); a phase that needs another editor installed waits for Q62.
-
-| Milestone | Phase | What it delivers                                                                                                                                             |
-| --------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| M60       | A     | The host API inventory: every VS Code API, Node built-in, webview host call and theme variable the extension uses, recorded and gated; the `vscode` boundary |
-| M61       | B     | Shared boundaries: the webview's host bridge, the surface and controller free of VS Code types, theme tokens, the editor-services contract, a Node runtime   |
-| M62       | A, C  | The VS Code family: probes and qualification in VSCodium, Cursor, Kiro, Positron and Theia; code-server and Codespaces profiles; Open VSX (Q60)              |
-| M63       | D     | The ACP agent: `muse-spark-code-acp` on ACP v1 (Q61); Zed, then one JetBrains IDE (Q64), then Xcode 27, Qt Creator, Neovim, Emacs, Sublime and Devin         |
-| M64       | E     | Native full interfaces: the IntelliJ plugin on JCEF with Android Studio qualified separately; Visual Studio on VSSDK and WebView2                            |
-| M65       | F     | Eclipse, NetBeans, JupyterLab 4 and Notebook 7, then Spyder and RStudio                                                                                      |
-| M66       | G     | Conditional hosts: vscode.dev and github.dev, Xcode 26.3's external route, Vim, Kate, MATLAB, Replit, StackBlitz, CodeSandbox and Ona; the companion's media |
-
 ### M60 — The host API inventory and the `vscode` boundary (D60, phase A)
 
-**Status 2026-09-26: built and certified** (`docs/certification/m60.md`).
+**Status 2026-09-26: built.**
+
+Status detail retained: built and certified (`docs/certification/m60.md`).
 
 - **Goal**: know exactly what the extension asks of its host, so each
   editor in D60's matrix can be checked against it (Theia's API
@@ -36099,8 +36740,10 @@ joined with M57, M58 and PR #49's sign-in
 
 ### M101 — Upstream sync: Pi and SoL-Pi ports, automatic compaction (D81)
 
-**Status 2026-10-05: planned; lanes start from `m101/base` (the M95
-integration branch plus this plan).** The item numbers below are the
+**Status 2026-10-05: planned.**
+
+Status detail retained: planned; lanes start from `m101/base` (the M95
+integration branch plus this plan). The item numbers below are the
 research report's (`docs/research/pi-solpi-2026-10-05.md`): plain numbers are
 its sections 1–2 (harness), "BYO n" its section 3 (providers).
 
@@ -36278,7 +36921,480 @@ its sections 1–2 (harness), "BYO n" its section 3 (providers).
   - [ ] Lane E's live counts and cached-token results
   - [ ] Provider × item table complete; full gate green
 
+#### Preserved integration notes: M101 — Upstream sync: Pi and SoL-Pi ports, automatic compaction (D81)
+
+**M101INT scope (2026-10-05, kubuntu).** Merge released main and reviewed
+A/T/P1/P2 into C1/C2/O, preserve every lane and all caps, and run full quality.
+Close image ingress with a portable PNG/JPEG pixel resizer in a bounded worker,
+gated by selected-model vision and documented limits, before encoding and
+retaining replay. Pin jpeg-js 0.4.4 and pngjs 7.0.0 (pure JS, no runtime
+dependencies); @types/pngjs 6.0.5 is compiler-only. Scratch npm ci audit finds
+zero vulnerabilities and installed manifests declare no peers. Preserve the
+original shared node_modules contents and use a fresh private install.
+Recover browser budget with lossless lz-string 1.5.0 fallback compression
+(also pure JS, no peers/dependencies), and retain all translated/English bytes.
+Release plus lanes exceed Model API and deferred-webview caps too: production
+Model API text uses Node Brotli, preserving literal keys for unchanged text
+readership checks and exact model bytes, and UsageDialog shares repeated
+markup. No existing cap changes. The new lazy raster worker alone gets 75 KiB
+(measured 58.7 KiB + 15%, rounded up by 25); parent bundles cannot carry its
+codecs. Shipping/notices/host API gates cover it in both editor/runtime packages.
+Bind strict tools from the selected model capability; Meta support is owner
+confirmed 2026-10-05, strict argument deltas and missing additionalProperties 400. Preserve and validate recall minLength/maxLength in the strict subset.
+The combined A/C2 goal tests expose a request-metadata mismatch: goal progress
+is a request-only trailing item while C2 records replay-only turn ids. Attribute
+that transient item to the owning current turn in the dispatched snapshot;
+retain exact sent bytes and never count the retained progress as removable.
+The existing five failing goal-summary budget/steer tests must pass, with a
+byte-exact reversal drill. The M91 hooks-off harness explicitly has packing on;
+its seven request fixtures must adopt A's stable recall declaration, T's
+multi-edit schema and C1's structured cached summary, with a reviewed JSON path
+and byte-delta record. Its injected clock starts at local 1970-01-01 midnight
+so A's local-date fix does not make captures depend on the rig's timezone;
+Meta feature-off codec fixtures remain byte-identical. Leave live acceptance and production automatic-
+compaction activation to E.
+
+The one authorized full quality run exposes merge-only regressions: restore
+the release's contributor check before confirmation shortcuts alongside M95
+privacy checks, restore picker/palette host actions, add all shipped graphs to
+the report/browser package records, and include the raster worker in fake ACP
+packaging fixtures. Strict conversion must preserve and validate the browser
+tool's existing array bounds. The tool-less hook fixture explicitly selects
+tool-less compaction; daily-budget comparisons hold packing fixed, since A's
+stable recall declaration intentionally changes packing-on requests. The ACP
+environment test checks its complete fake credential values, since "placeholder"
+is also ordinary text in recall's description. Rerun every affected file without
+filters, then the remaining gates; do not rerun the authorized-once aggregate.
+
+Final audit finds new high GHSA-68fv-2mgg-jv7q in development-only source-map-js
+1.2.1; npm's report marks versions below 1.2.2 affected and a fix available.
+Fetch and verify the exact 1.2.2 patch in an isolated npm-ci fixture, then pin
+the transitive override and tarball integrity. All four parent ranges are
+`^1.2.1`; no new runtime dependency, peer or security exception is intended.
+Preserve existing installs intact and use another fresh private root install.
+Recheck audit and build/package outputs after this required gate repair.
+The full accessibility gate exposes one more conflict: the harness stylesheet
+selects Models, but the merged script tag always loads chat. Restore the M95
+dynamic bundle loader while retaining M87's Tasks surface setup, then remeasure
+all 181 scenarios across four themes; do not suppress or filter failed pages.
+
+**Status 2026-10-06: built.**
+
+Status detail retained: reviewed A/C1/C2/O/T/P1/P2 mechanisms integrated with
+release 0.14.0 on Kubuntu. The five requested merges are complete. Strict
+capability is bound for named Meta models and authoritative codec/host seams;
+portable real PNG/JPEG resize is implemented and tested with injected limits.
+Production image dimensions remain undocumented on this base (M95 N absent),
+so FIXM101T-IMAGE21 stays open for those model records. Live E, automatic paid
+admission/evaluated activation, installed-editor matrix and absent BYO
+transport/catalogue binding remain required. Full gate receipts and the complete
+item/provider tables live in `docs/certification/m101.md`. The item numbers below are the
+research report's (`docs/research/pi-solpi-2026-10-05.md`): plain numbers are
+its sections 1–2 (harness), "BYO n" its section 3 (providers).
+
+- **Goal.** Take every upstream improvement that fits our design, on every
+  provider that can use it; finish M74's automatic compaction, memory flush
+  and todo follow-up under D78's consent contract and SoL-Pi's corrected
+  cost model.
+- **Depends on.** M95 (model/preset capability records, codecs, price cards)
+  for the provider gates; M73 (packing) and M74 (`/compact`, `/handoff`);
+  M75 (eval arms); D78's paid gate and ledger (wired in 0.14.0).
+- **Capability gates (D81.2).** Each lane names, per item, the capability it
+  reads and the providers where it is on; the certification record carries a
+  provider × item table (Meta Muse Responses, OpenAI, xAI, Azure, Anthropic,
+  Gemini, OpenRouter/chat, Ollama/local, custom), with "on / off: reason" in
+  every cell.
+
+**Lane C1 status (2026-10-05, kubuntu; implemented; scoped static/owning checks passed).**
+Implemented cache-readable compaction, host-owned todo snapshots, structured
+summary/update prompts and replay-derived file lists, window-scaled output
+and verbatim recent whole turns, refusal/NOOP/retry guards, and opt-in
+summary forks. This base has neither M95's host/client registry wiring nor
+D78's paid gate: compaction consumes an injected model-record reader and
+summary forks require an injected paid-admission guard; absent admission
+refuses before dispatch. A last request offering paid hosted search uses
+the tool-less compaction path, because its earlier consent does not cover
+a new search. Preserve manual hook behavior and expose the compaction core
+for C2. Meta and Gemini compaction request goldens intentionally adopt the
+structured prompt; other request goldens retain their bytes. No live calls;
+certification is `docs/certification/m101-c1.md`.
+
+**FIXM101C1 review repair (2026-10-05, kubuntu).**
+Resolved all six RVM101C1 P2s before C2 builds on this branch: build summary
+input from current replay, resolve model/window/tools/reasoning/tail after
+hooks at the final request snapshot, roll back nondispatched summary-fork
+history without erasing dispatched liability, derive file metadata from
+successful effective tool results, allow summary forks of already compacted
+sources, and route ACP/headless `/compact` through the shared session core.
+Each finding gets an owning regression and a byte-exact restored red drill;
+no dependency, gate, cap or wire shape changes. The full quality/platform/live
+receipts remain the lead's checks under the rig brief.
+
+**Lanes and file ownership** (so lanes merge without overlapping hunks):
+
+- **Lane A — cache-stable prefix** (items 1, 2 with 22, 7, 16, 17).
+  1. Goal progress (tokens, percentage, current/next work, reminder) leaves
+     `instructions` and the `prompt_cache_key` digest; it rides as a trailing
+     input item rebuilt per request and never saved into the replay. The
+     Anthropic codec puts its rolling breakpoint before that item. All
+     providers.
+  2. `recall_output` (with item 22's literal search inside a packed output)
+     is declared on every request of a packing session
+     (`this.packing !== undefined`), so the tool list changes once, not when
+     the first output packs. Reviewer turns stay unpacked. Tool-calling
+     models only.
+  3. `StoredSession.packedCallIds` (optional) persists across resume, fork
+     and rewind; `copyInto` keeps the ids that survive the cut, so a
+     restored session re-sends the same placeholders. Old session files load
+     as today.
+  4. The prompt's date is the local date, fixed once per session (goldens
+     inject `now`).
+  5. A cache-miss detector logs (log only) when
+     `min(previous, current) − cached > 1024` tokens; on where the format's
+     `cachedUsageFields` is non-empty.
+     Files: `goals.ts`, `instructions.ts`, `promptCache.ts`, the request builder
+     and session copy paths in `ModelApiHost.ts`, the recall paging and search
+     region of `observationPack.ts`, the `recall_output` declaration in
+     `tools.ts`, the session store schema, the Anthropic codec's breakpoint
+     placement.
+- **Lane C1 — compaction quality** (items 3, 5, 10, 11, 19; BYO 17). 3. `/compact` sends the last turn's exact body (instructions, tools, key,
+  packed input) with the compaction prompt appended, so it reads the
+  conversation's cache; a reply holding a function call is discarded and
+  today's tool-less request is the fallback. Honour
+  `FormatQuirks.keepToolsWithHistory`. 5. The exact open todos (host data, never the model's guess) are appended
+  to the compaction prompt and the summary entry, snapshotted at
+  compaction time. 10. Pi's structured summary (Goal / Constraints / Progress / Decisions /
+  Next steps / Critical context; exact paths and errors kept), its update
+  prompt when the replay already starts with a summary, and file lists
+  built from the replay's read/write/edit calls; the summary budget
+  scales with `contextTokens`. 11. Guards: a summary blank after trimming is refused and the replay kept;
+  NOOP when everything is already the previous compaction; the summary
+  call retries like a turn (backoff, budget re-reserved). 19. The recent tail (whole trailing turns up to about 20k tokens, scaled by
+  window) stays verbatim; reasoning items stay byte-exact where
+  `reasoningReplay` applies.
+  BYO 17. "Fork with summary", off by default (one extra call when chosen,
+  through the D78 gate).
+  Files: the compaction path in `ModelApiHost.ts` (`compactNow`,
+  `collectText`), the compaction prompt constants, the fork command.
+- **Lane C2 — automatic compaction, memory flush, todo follow-up** (Q-M74
+  items 1–4, D81.3–4), after C1 is reviewed. A pure cost model module
+  (`autoCompact.ts`: removable tokens, debt, break-even, cooldown, occupancy
+  floor, r from the price card per pricing kind), decided once at a settled
+  tool-loop boundary inside the user's turn; the memory flush through
+  MemoryStore and the permission engine (Manual asks, Plan and Restricted
+  Mode refuse, untrusted labels kept); the D78 gate and ledger for every
+  call; Stop honoured; one guarded automatic compact-and-retry on a
+  classified overflow (from lane O). The M75 arm is frozen before it runs.
+  **Lane C2 implementation contract (2026-10-05, kubuntu).** One pure
+  decision/state module measures only the last dispatched request, prices the
+  retained context's write premium plus summary input/output and request fees,
+  and carries/retires debt. Only registered unfinished-to-completed transitions
+  teach its request horizon; cost decisions require the occupancy floor and
+  two dispatched ordinary requests since compaction. Near-window and classified
+  overflow bypass those economic guards, but never consent, Stop or M82 fences.
+  A failed attempt clears debt and waits for real tool work or new user input.
+  Memory flush is a deterministic, explicitly untrusted host snapshot of exact
+  todos, goal, file metadata and the previous real summary through add_memory's
+  existing permission/MemoryStore path; it adds no separate model request.
+  The hidden continuation restores the full exact todo list and goal from host
+  data as a trailing replay entry; it never adopts generated todos.
+
+  This branch lacks D78 (confirmed by C1's record and the paid implementation),
+  so no second gate is invented. An injected automatic-compaction admission
+  returns the shared gate's actual-send guard and per-attempt usage/uncertainty
+  settlement port; absent/declined admission refuses all extra dispatch. Panel,
+  ACP and headless share this same core and fail-closed dependency. The setting
+  defaults on, but IS_AUTO_COMPACTION_EVALUATED stays false and reports awaiting
+  evaluation. Lane E may inject evaluation admission into its bounded trace
+  harness; production flips the named constant only after a current frozen M75
+  pair with real compaction evidence and both 0.75 floors, and after connecting
+  D78 admission/ledger in ModelApiBackendManager for every runtime. No live
+  call is authorized in C2. The local time path requires measured seconds per
+  prefill/read/output token; absent measurements allow only near-window safety.
+
+  **C2 mechanism built, 2026-10-05.** The overflow lane is merged in
+  `68ca19f5`. Economics, owned boundary/recovery, per-attempt admission and
+  settlement, memory policy, full exact todo restoration, all-editor options
+  and translated awaiting-evaluation notice are implemented. All 23 deliberate
+  mutations produce assertion failures and restore byte-exact; final gate and
+  importing-suite receipts live in `docs/certification/m101-c2.md`. The M75 pair
+  and absent shared D78/registry binding keep production inactive; the milestone
+  checkbox remains open until those integration receipts exist.
+
+  **C2 final-review accounting correction.** If shared settlement throws during
+  an HTTP retry notice, mark that attempt consumed before invoking settlement
+  so cleanup cannot settle it a second time. A complete-file regression must
+  first fail on the implementation commit, then pass with the small ordering
+  fix; deliberately reverse the order once and restore byte-exact. Every
+  importing suite for this correction and the final static/build gates rerun.
+  The regression first fails with duplicate rate-limited/uncertain settlement
+  on `8d9bb54f`; the ordering fix passes 646 owning tests and all 27 importing
+  files (1,745 tests). R23 deliberately reverses it, fails and restores exact
+  bytes. Final static gates, every unchanged production cap and the corrected
+  installed-editor bundle's 11 tests pass. Production remains inactive.
+
+  **FIXM101C2 / RVM101C2 repair scope (2026-10-05, kubuntu).** Repair all four
+  P2s: race automatic-compaction dependencies against the owned turn signal,
+  including admission, memory, summary work and recount (which also receives
+  that signal); keep a committed manual summary accepted when its courtesy
+  recount is stopped while the owning automatic turn remains cancelled;
+  observe dependency rejections even when Stop wins before the
+  wait; preserve iterator cleanup without waiting on an uncooperative stream;
+  retire settled attempt callbacks so a late notice cannot tally it twice;
+  release a reservation that arrives after Stop before dispatch;
+  honour the memory tool runner's stopping-hook result; recheck
+  goal spending after each summary before retry/fallback/recount/continuation while
+  preserving separately steered user input; and select summary and retained
+  context tariffs from their respective new input sizes. Correct P3's packing
+  default claims against this candidate's actual manifest/runtime defaults.
+  Each repair requires a failing owning regression and a deliberate guard
+  break restored byte-exact in `docs/certification/m101-c2.md`. Keep production
+  inactive, existing gates unchanged and introduce no dependency. The required
+  release-base merge awaits clarification of the overriding rig merge ban.
+  Meanwhile, carry only the five named test repairs already present in
+  `3e04f6f5` and prove those complete files pass; no release-base integration
+  or default change is implied by fixture/expectation repairs.
+
+- **Lane O — context overflow** (item 6, item 13's budget scaling).
+  A pure `providers/overflow.ts` with Pi's per-format patterns (429 and rate
+  limits and quota/billing failures never count) and the two silent-overflow signals; the model's
+  `contextTokens` replaces the fixed window; until C2 lands the user sees
+  "Context window full: /compact or /handoff"; a pre-request lower-bound check
+  against the full window. `read_file`'s character budget scales with
+  `contextTokens`.
+
+  **Lane O status (2026-10-05, win11):** implement the pure per-format
+  classifier and classified engine event, reject 429/rate-limit errors,
+  detect the two completed-reply usage signals, and protect ordinary sends
+  with lower-bound admission against the selected full window, never the
+  dollar-budget upper estimate. Read pressure, model-list limits, compaction's
+  pressure and the read-file budget from the injected model row; leave
+  compaction exempt from the ordinary-send fence. Only the named verified
+  legacy Muse ids retain their documented window when no resolver is installed;
+  an authoritative missing row stays unknown. Keep the final check after key
+  retrieval, then retain that attempt's window/format for pressure, completion,
+  error classification and the recovery event. RVM101O's four findings are the
+  scope of FIXM101O, with individual failing regressions and byte-exact drills.
+  The base lacks the M95
+  registry/client integration: the new `contextModel` dependency is its
+  owned integration seam, not proof of reachable BYO dispatch. Keep the
+  classifier implementation in core context, used by the lazy engine, with the requested
+  `providers/overflow.ts` public facade, to preserve D6's provider-core
+  isolation. C2 owns automatic recovery; E owns real overflow-text captures.
+  No dependency, paid/live call or native wire parser is added. Tests,
+  restored guard drills, provider eligibility and gates are recorded in
+  `docs/certification/m101-o.md`.
+
+- **Lane T — tool and packing correctness** (items 4, 8, 9, 12, 13, 14, 15,
+  18, 20, 21). 4. The packed placeholder trims the tail from its front and always keeps
+  the final line (the exit code) when it fits. 8. Tool calls in a cut-short reply are answered with an error, never run
+  (every codec's stop mapping). 9. One `normalizeModelPath(given, platform)` at every place a model-given
+  path is resolved (Unicode spaces, leading `@`, `file://`, `/c/…`,
+  `/mnt/c/…`, `/cygdrive/c/…` on win32; `~` refused); permission check and
+  write resolve the same path. 12. `edit_file` falls back to a normalised unique match (NFKC, trailing
+  whitespace, quotes, dashes, Unicode spaces) and copies untouched lines
+  from the original; `find` equal to `replace` is refused. 13. `read_file` truncation names the next offset; an offset past the end is
+  an error. 14. One search hit is capped at about 500 characters with a note. 15. Shell output elided in the middle stays recoverable through
+  `recall_output` when packing is on (or an owner-only temp file). 18. A single long line packs to about a 1k excerpt and packing is skipped
+  when it saves under half; a non-string `then_run` reports "not run";
+  `clip` and `clipOutput` never split a surrogate pair. 20. `edit_file` takes `edits[]`, all or nothing, overlaps refused (one tool
+  schema change, M75 re-run). 21. Images are downscaled once when they enter history, gated on
+  `capabilities.vision` and the preset's image limits, inside the bundle
+  caps.
+  Files: the placeholder region of `observationPack.ts`, `tools.ts` (edit,
+  read, shell), `workspacePath.ts`, `searchWorker.ts`, `verifyTools.ts`, the
+  incomplete-reply branch in `ModelApiHost.ts`.
+- **Lane P1 — provider codecs** (BYO 1, 2, 3, 4, 7, 8, 9, 11, 13).
+  Bad history items no longer break later requests; Responses replay ids per
+  model; tool-call ids per target format; Gemini thought signatures returned;
+  Gemini usage with omitted zeros; a tolerant Anthropic decoder; Anthropic
+  `thinking.display: "summarized"`; Gemini 3 images in tool results and full
+  schemas; lone surrogates removed. Files: `codecs/*`.
+  Status 2026-10-05: implemented on `m101/p1` with a unit test per item,
+  golden re-baselines (Anthropic `display`, Gemini full-schema fixtures,
+  Mistral compliant ids), and `docs/certification/m101-p1.md` holding the
+  provider x item table, byte diffs, and residuals (session-store signature
+  stripping for lane A, replay origins for lane I, id-heuristic generation
+  for lane N). Original lane gates and red drills ran after its shell
+  recovered; three local commits ended at `05ab4f30`. Original production
+  build receipts remained environment-blocked; RVM101P1 later reproduced
+  bundle sizes but found nine defects (one P1, seven P2, one P3).
+  **FIXM101P1 repair scope (2026-10-05):** correct Gemini 3's
+  `parametersJsonSchema` field, retain signed empty text on replay, gate
+  and nest tool-result media, preserve `$ref` sibling constraints, assign
+  response-salted fallback ids after late response ids, reject invalid
+  usage explicitly, select Mistral ids by preset, preserve own `__proto__`
+  JSON keys (shared and Anthropic), and reconcile the documentation.
+  Each finding gets a regression and deliberate red drill in
+  `docs/certification/m101-p1.md`; only Gemini request goldens move, with
+  cited provider contracts. Meta request fixtures stay byte-identical.
+  Rig rules require local hooked commits and focused direct tests; no
+  push, integration merge, new dependency, live/paid call or gate change.
+  All nine review findings are now repaired with regressions and twelve red
+  drills; no assigned P1/P2/P3 residual remains. Existing integration
+  follow-ups remain named in §9. Final rig verification is recorded in the
+  certification: 330 tests, all five typechecks, changed-file lint/format,
+  deadcode, duplication, cycles, localization, host API, production size/split/
+  globals/notices and secret scans pass on Kubuntu. The combined full-quality/
+  platform receipt remains lead-owned; no gate or Meta fixture was changed.
+- **Lane P2 — provider pricing, limits and retry** (BYO 5, 6, 10, 12, 14, 15,
+  16; item 24's per-model strict schemas and the llama.cpp grammar check).
+  Retry classification moves into `FormatQuirks`; price cards read long
+  context tiers (cache rates included) and 1-hour writes, and the loop stops
+  pricing every model at Meta's rates; per-model effort levels from the
+  catalogue's `reasoning_options`; the ChatGPT loopback fixes; compatibility
+  overrides for custom servers; per-model image limits into the media
+  budget; coalesced session saves and listing without full parses. Files:
+  `priceCard.ts`, `presets.ts`, the catalogue sync script, `oauthLoopback.ts`,
+  `fileSessionStore.ts`, the retry constants.
+- **Lane E — evaluation.** Live checks on the contributor model in an empty
+  workspace: one `/compact` and one budgeted goal round, reading
+  `cached_tokens` (about 4 model calls) to confirm items 1–3; Meta's overflow
+  text and cut-off function-call marking captured for lane O's table; the M75
+  pair for C2 (and item 20's schema change). Calls counted from the trace log
+  and reported.
+- **Not ported** (recorded in the research report): item 23 (cache warming;
+  extra billed calls for little gain) unless the eval shows a saving, and
+  everything in the report's "not applicable" list.
+
+- **Acceptance.** Every item above is implemented on the providers its
+  capability names and refused or absent elsewhere, with the provider × item
+  table complete; goldens are byte-identical where a feature is off and
+  re-baselined with recorded diffs where a fix changes bytes; compaction
+  keeps the exact todos and untrusted labels; automatic compaction passes
+  its M75 pair before it is available by default.
+- **Tests.** Unit tests per item with a red drill each; codec goldens per
+  provider; the fake Model API across a compaction, an overflow and a resume;
+  the M75 pair.
+- **Gates.** The full quality gate, check-l10n, host-API, every bundle cap
+  (no cap raise on a startup bundle, D6), VSIX size.
+- **Security.** Paths normalised once and shared by check and write; no
+  temp file readable by other users; no credential in a fixture; the D78 gate
+  for every extra call.
+- **Docs.** README (compaction and packing sections), CHANGELOG, this record,
+  `docs/certification/m101-<lane>.md` per lane and `m101.md` for the whole.
+- **Size.** L.
+- **Certification checklist.**
+  - [x] Lane A, with drills and the golden diffs (integrated fake evidence)
+  - [x] Lane C1, with drills (integrated fake evidence)
+  - [ ] Lane C2, with drills and its M75 pair
+  - [ ] Lane O, with drills and captured overflow texts
+  - [ ] Lane T, with drills
+  - [x] Lanes P1 and P2 mechanisms, with drills and codec goldens; BYO binding tracked below
+  - [ ] Lane E's live counts and cached-token results
+  - [ ] Provider × item table complete; full gate green
+
+**Lane A status (2026-10-05, Kubuntu):** Items 1, 2+22, 7, 16 and 17
+are implemented in their owned regions: request-only goal progress and native
+Anthropic breakpoint exclusion, stable capability-gated recall with literal
+search, sticky ids across resume/fork/rewind, a persisted local session date,
+and log-only capability-gated cache diagnostics. Twenty red drills restore
+byte-exact; deliberate golden changes, the provider matrix and production
+byte deltas are in `docs/certification/m101-a.md`. Owning suites, all five compiler projects and static/bundle gates pass;
+the complete 282-file importing sweep has five reproducible pre-existing
+UI failures, recorded in §7 and the certification. Integration must supply the new `modelFacts` callback from M95's
+pending host registry seam and reconcile this base's off-by-default panel manifest with
+D81.6. FIXM101A repairs the separate Chat/OpenRouter breakpoints and Gemini
+context role, preserves pending-approval sticky ids, and enables shared packing
+in ACP/headless; its six additional red drills are recorded below. The
+remaining integration owners' files stay untouched; full quality and live M75/cache receipts
+are delegated by the rig brief to the integrator and Lane E.
+
+**FIXM101A review repair scope (2026-10-05).** Repair all three RVM101A
+P2s with minimal codec hunks: Gemini maps developer context to a trailing
+user-role part; Chat/OpenRouter excludes the trailing progress item from both
+rolling cache modes; pending-tool persistence merges newly sticky packed ids
+only for outputs retained in its safe replay and compares those ids before
+skipping a save. Add a Manual-mode crash/resume regression. Under the owner's
+all-editors rule, enable the same shared packing and literal `recall_output`
+in the ACP/headless runtime (no VS Code setting is available there). Tests,
+byte-exact red drills and named integration residuals go in
+`docs/certification/m101-a.md` and §9. No dependency, gate or paid-call change.
+
+FIXM101T review repair (2026-10-05): address RVM101T findings 1–15 in
+this lane's tool, resolver, packing and incomplete-response paths, with ACP
+path parity and regression/drill records. No dependencies, paid/live calls,
+guard widening, main merge or push. Run lane gates directly on macmini;
+the lead owns full quality. Item 21 requires the preset limits/capability
+seam and a cross-platform pixel decoder; assess that redesign explicitly
+and record a named residual if it cannot fit the no-dependency constraint.
+
+Lane T review repair (FIXM101T, 2026-10-05): RVM101T findings 1–12,
+14 and 15 are fixed with named regression tests and byte-exact red drills.
+Every incomplete-envelope call is refused visibly; schema-valid atomic
+edits, cancellable linear fuzzy matching, complete-line read paging, decoded
+confined paths and ACP target parity, retained shell originals and packable
+background completions are verified. All new UI failures are translated.
+Items 4, 8, 9, 12, 13, 14, 15, 18 and 20 are re-verified against research
+acceptance; item 21/finding 13 remains the named FIXM101T-IMAGE21 redesign
+residual in §9. The inherited packing default/runtime gap and M75 live pair
+are named there too. Original fabricated evidence is withdrawn; the shared
+schema pin, actual bundle deltas, 18-file/1,230-test results and drills are
+in `docs/certification/m101-t.md`. No paid/live calls or dependencies added.
+
+Status 2026-10-05: implemented on `m101/p1` with a unit test per item,
+golden re-baselines (Anthropic `display`, Gemini full-schema fixtures,
+Mistral compliant ids), and `docs/certification/m101-p1.md` holding the
+provider x item table, byte diffs, and residuals (session-store signature
+stripping for lane A, replay origins for lane I, id-heuristic generation
+for lane N). Original lane gates and red drills ran after its shell
+recovered; three local commits ended at `05ab4f30`. Original production
+build receipts remained environment-blocked; RVM101P1 later reproduced
+bundle sizes but found nine defects (one P1, seven P2, one P3).
+**FIXM101P1 repair scope (2026-10-05):** correct Gemini 3's
+`parametersJsonSchema` field, retain signed empty text on replay, gate
+and nest tool-result media, preserve `$ref` sibling constraints, assign
+response-salted fallback ids after late response ids, reject invalid
+usage explicitly, select Mistral ids by preset, preserve own `__proto__`
+JSON keys (shared and Anthropic), and reconcile the documentation.
+Each finding gets a regression and deliberate red drill in
+`docs/certification/m101-p1.md`; only Gemini request goldens move, with
+cited provider contracts. Meta request fixtures stay byte-identical.
+Rig rules require local hooked commits and focused direct tests; no
+push, integration merge, new dependency, live/paid call or gate change.
+All nine review findings are now repaired with regressions and twelve red
+drills; no assigned P1/P2/P3 residual remains. Existing integration
+follow-ups remain named in §9. Final rig verification is recorded in the
+certification: 330 tests, all five typechecks, changed-file lint/format,
+deadcode, duplication, cycles, localization, host API, production size/split/
+globals/notices and secret scans pass on Kubuntu. The combined full-quality/
+platform receipt remains lead-owned; no gate or Meta fixture was changed.
+
+- **FIXM101P2 review repair scope (2026-10-05).** RVM101P2 findings 1–7:
+  observe save rejections at creation; classify normalized spend/quota codes;
+  preserve and validate custom compat at host import/export; finish the strict
+  subset rewrite and gate codec requests through `supportsStrictTools`; reject
+  malformed grammar types; repair scoped lint/format and release notes. Every
+  fix gets a regression and byte-exact red drill in `docs/certification/m101-p2.md`.
+  No dependency, live call, guard widening or unrelated refactor. The base has
+  no per-model strict capability; its integration binding must be a named
+  residual. Host round-trips also retain the custom model limits required
+  by the core schema. The existing shared non-secret provider-option module
+  carries their schemas and compat together so both boundaries validate the
+  same shape without pulling provider core into a startup bundle.
+  Full quality runs belong to the lead under this lane brief.
+- **Lane P2 status (2026-10-05).** Done: BYO 5 (shared retry tables in
+  `FormatQuirks`, normalized quota/spend-cap codes refused by the classifier,
+  `Retry-After` over 60 s fails naming the wait; non-Meta transport binding is
+  `M101P2-RETRY-BINDING`), BYO 6 (1-hour writes settled disjointly, tier cache rates,
+  dearest-write reservations; lane I wires the host lookup and
+  `StoredUsage.cacheWriteTokens`), BYO 12 (every callback parameter,
+  `closeAllConnections`; refresh-outside-abort is a constraint on the
+  not-yet-built M95b refresh), BYO 14 (strict custom-server compat
+  overrides), BYO 16 (latest-wins save queue, header-only listing), item 24
+  (conservative strict-subset rewrite, every property required, optional
+  values nullable, closed objects, unsupported keywords refused; Responses
+  and Chat codec request gates read injected `supportsStrictTools`; malformed
+  grammar types refused). The missing selected-model capability/transport
+  binding is named `M101P2-STRICT-BINDING` in §9; item 24 is not certified
+  end-to-end until that integration passes. Scope
+  change: BYO 10 and BYO 15 moved to M95 lane N; the host price lookup,
+  `insights.ts`, `sessionBudget.ts`, `shared/paid.ts` and `effort.ts` are
+  lane I's. Record: `docs/certification/m101-p2.md`.
+
 ### M102 — Usage & cost in every editor (D82)
+
+**Status 2026-10-07: waiting.** Certification metadata remains incomplete; retained requirements and receipts follow.
 
 **M102INT3 (2026-10-06, Win11).** The rig brief authorizes the no-ff
 merge of M95 round 5 (`5ab3eb2c`), moving usage observations onto its
@@ -36597,7 +37713,7 @@ Acceptance and the exact composed gate receipts live in
   - CHANGELOG, PLAN, and `docs/certification/m102.md`.
 - **Size estimate.**
 
-  | Lane                       |                  Code |  Tests |
+  | Workstream                 |                  Code |  Tests |
   | -------------------------- | --------------------: | -----: |
   | 0 (plus ~110 English keys) |                  ~450 |      — |
   | J                          |                  ~700 |   ~900 |
@@ -36646,25 +37762,6 @@ Acceptance and the exact composed gate receipts live in
   - [ ] README screenshots refreshed, and docs updated per Docs above.
 
 ---
-
-### M102 J review repair — FIXM102J (2026-10-05)
-
-Repair all four RVM102J findings inside J's store, Node adapter and recorder.
-Readers take the maintenance lock and verify its generation before returning;
-a lost generation permits one fresh snapshot attempt, then an explicit failure.
-Rollups are read through one open handle without a prior path-size bound, and
-published with a private temporary file, fsync and atomic replacement (including
-Windows rename retries). Lock claims use immutable numbered generations and
-owner-token release markers: a predecessor never unlinks a successor's claim.
-Claim paths also contain an immutable history epoch, published completely by
-the existing exclusive-file helper. Reset chooses a new epoch, so delayed
-predecessor cleanup cannot delete a reused generation in the new history.
-Incomplete usage with a known price keeps `uncertain`, with the reported part
-priced while missing counters stay absent. Each finding gets a deterministic
-regression and a byte-exact guard-break drill in `docs/certification/m102-j.md`.
-No new dependency or editor-specific behavior; all shared journal consumers
-receive these fixes. Full quality and combined editor wiring remain lead/W work
-as required by the rig brief; do not run full quality or merge in this lane.
 
 ### M93 — Report a problem after a crash or reload (D72, implemented 2026-10-05)
 
@@ -36887,52 +37984,6 @@ as required by the rig brief; do not run full quality or merge in this lane.
   - [x] M92e: prompt and shell secret guards, with drills
         (`docs/certification/m92.md`); the commit guard skipped, no
         commit-writing path exists
-
-### M85 — TypeSafe assist, experimental and opt in (D50)
-
-- **Goal.** Cheaper, better-calibrated small decisions around the Muse
-  model: which skill fits, how risky a command is, what context still
-  matters. The Muse model stays the one that answers and acts.
-- **Scope.**
-  - A thin client over TypeSafe's HTTP API, zod-validated like the Model
-    API client (D2).
-  - The key is kept in SecretStorage; a machine-scoped
-    `museSpark.experimental.typesafeAssist` setting is off by default and
-    labelled Experimental.
-  - It is disclosed in PRIVACY: the user's message and skill or agent
-    descriptions for suggestion; the command or path for a risk score;
-    for context relevance and grading, the tool output or file text
-    judged. TypeSafe keeps
-    data except on enterprise plans, so credential-shaped strings are
-    redacted before a call, and the assist is off while
-    `museSpark.confidentialWorkspace` is on.
-  - It is a paid feature under AGENTS.md rule 12 with D50's one
-    exception, the TypeSafe key: `typesafeAssist` in the `PaidFeature`
-    union, `PaidFeatureGate` with its price, the badge, a paid row,
-    `PaidUsage`, and D48's paid-use popup.
-  - Timeouts are short; on failure there is no assist, and the failure is
-    logged.
-  - Uses:
-    - skill suggestion first, and the same for a custom agent (M76);
-    - then the Auto risk score, as M78's optional advisory layer: it can
-      only add caution, never allow;
-    - context relevance and evaluation grading, gated like M73: no path
-      reaches them until their own M75 run passes, whatever the setting.
-- **Backends.** Model API. Muse Code only where the extension decides.
-- **Acceptance.**
-  - With the setting off, nothing changes and nothing is sent.
-  - With it on, every call is visible in the log (question ids and timing,
-    never the content) and tallied in Account & usage.
-  - No path lets a TypeSafe answer skip a question, allow an action, skip a
-    deterministic rule, or answer the user. A test proves that a "safe"
-    score leaves the verdict unchanged.
-- **Tests.** A fake TypeSafe endpoint with Choice, Score and Noul shapes
-  taken from the live API (AGENTS.md rule 13), plus the paired runs in M75.
-  The capture needs a TypeSafe key only the owner can create, so M85 waits
-  for it.
-- **Size.** M.
-
----
 
 ### M105 — Multimodal input: video, audio, documents, screen recordings and the Files API (D85)
 
@@ -38266,7 +39317,9 @@ Each joins when its dependency merges, and none blocks the others.
 
 ### M110 — Muse Node: headless worker and orchestrator host (D90)
 
-**Status 2026-10-05: planned, documentation only.** Nothing is implemented,
+**Status 2026-10-05: planned.**
+
+Status detail retained: planned, documentation only. Nothing is implemented,
 and no lane is launched by this record. The research is
 `docs/research/muse-node-2026-10-05.md`. Each phase's part of lane 0's threat
 model is reviewed and accepted before that phase's listener, relay or sign-in
@@ -38824,7 +39877,9 @@ security` threshold; the OS images' QEMU boot test and their reproducibility
 
 ### M111 — Muse Desktop: the host edition's own shell (D91)
 
-**Status 2026-10-05: planned, documentation only.** Nothing is implemented,
+**Status 2026-10-05: planned.**
+
+Status detail retained: planned, documentation only. Nothing is implemented,
 and no lane is launched by this record. The research is
 `docs/research/muse-desktop-2026-10-05.md`. Lane 0's threat model is reviewed
 and accepted by Codex and Claude before any greeter, lock-screen, portal,
@@ -39418,6 +40473,238 @@ merges before its contracts freeze.
 ### M112 — Questions that never block (D92)
 
 **Status 2026-10-06: built.** Fake-only integration complete; live checks and full
+quality remain with the lead. Small: about 48 lane-hours in lane 0 and
+three lanes, for a 0.14.x patch (0.14.3, or folded into 0.14.2 when both are
+ready together). Lanes Q, U and A start together once lane 0's contracts
+freeze, and none waits on an unmerged milestone. The native-host, TUI and
+desktop rows certify on lane 0's fakes and are wired by M104b–d, M110a0's
+lane T and M111b. One short live check per backend (step 3).
+
+- **Goal.** A question from the agent is pinned above the composer like an
+  approval, so it is never lost. If the user has not answered after a minute,
+  the agent carries on with work that does not depend on the answer, and the
+  question folds into a chip. It stays easy to find and answer at any time,
+  from the dock or the transcript, and the answer reaches the agent exactly
+  once. Approvals stay exactly as they are.
+- **Depends on.** Main only:
+  - D26's dock (`ApprovalDock.tsx`) and M25's card locking;
+  - M16's question card and M46's `userInput/clarify`;
+  - M82's background notices and M6's view badge;
+  - the controller's steer path (`conversationController.ts:5724–5765`);
+  - M63's ACP agent, and M91 lane M's MCP forms;
+  - the `/help` reference (0.14.2) for its rows. If M112 lands first, its
+    rows land with lane HELPREF.
+- **Scope.** D92 entire; strings in all 14 tables; README (a "Questions"
+  section), CHANGELOG, AGENTS.md's layout (`src/core/questions/**`),
+  CONTRIBUTING (a new kind of prompt joins the attention dock), `docs/acp.md`
+  (`/answer`, `/questions`, `--questions-defer-after`), `docs/ci.md` (headless
+  runs still decline), `docs/ide-compatibility/**` rows, the `/help` rows,
+  harness screenshots, certification.
+- **Settings.** `museSpark.questions.deferAfterSeconds` (60; 0, or 10 to
+  3,600), machine-scoped. The runtime reads the same key from its settings
+  store once M104 lane B has one, and `--questions-defer-after <seconds>`
+  until then.
+- **Commands.** **Next open question** and **Previous open question**, with
+  keys; ACP's `/answer <n> <text>` and `/questions`.
+- **Lanes and file ownership.** One integration branch,
+  `feature/m112-questions`, under M87's region rules. Muse implements U and
+  A, Codex reviews each in one pass by class, and the lead integrates. Q
+  (timers, settle races, exactly-once delivery) goes to Claude or Codex.
+  **Order:**
+  1. Lane 0.
+  2. Q, U and A in parallel against lane 0's fakes.
+  3. The lead's integration, the live checks and the full gate.
+
+| Lane                                      | Items                                                                                                                                                                                                                                                                                                                                                                                             | Files it owns                                                                                                                                    | Its regions in shared files                                                                                                                                                                                                                                                                                                                                                                                                                                 | Starts  | Rig      | Hours |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------- | ----: |
+| 0 Contracts, strings, fakes (lead)        | The contracts below; every string; the keymap check (the proposed keys against VS Code's default keymaps on the three operating systems, and JetBrains', Visual Studio's and Eclipse's defaults for M104's bridges); the fakes: a clock and timers, a scripted session that records `steer`, `sendTurn` and `deferQuestions`, a fake store, a fake ACP client with and without `$/cancel_request` | new `src/shared/questions.ts`, `test/unit/helpers/questions/**`, `docs/certification/m112-contracts.md`                                          | `constants.ts` (`QUESTION_*`, `OPEN_QUESTIONS_MAX`, `LATE_ANSWER_QUESTION_MAX_CHARS`, `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION`, and `QUESTION_MODEL_TEXT` with its declared readers); `src/shared/agentEvents.ts` (`deferred`); `src/shared/protocol.ts` (the question messages); `src/core/agent/agentBackend.ts` (`deferQuestions`); `en.ts`, the 14 tables, `package.nls*.json`; `src/shared/hostApi/**` (the question messages, with M104 lane 0's owner) | day 0   | Kubuntu  |     6 |
+| Q Registry, backends, delivery            | D92.2–6: the registry's states, clock and store port; the key; reminders; the late-answer and dismissal texts; delivery through `submit`; the Model API's `deferred` reply; Muse Code's deferral through `userInput/clarify` and its id set; the store adapters for VS Code and the runtime; the controller's question region; the reminder notice                                                | new `src/core/questions/{registry,key,lateAnswer,reminders}.ts`, `src/host/questions/questionStore.ts`, `src/runtime/questions/questionStore.ts` | `ModelApiHost.ts` (`askUser`, `QuestionReply`, `questionResultText`); `MuseCodeHost.ts` (the question commands); `mapNotification.ts` and `promptLedger.ts` (the settled mapping); `conversationController.ts` (the question region: the registry, the open set on attach, the late answer through `submit`); `turnNotifications.ts` (`notifyOpenQuestions`); the session-delete hooks in `fileSessionStore.ts`                                             | after 0 | Kubuntu  |    14 |
+| U The dock, the transcript and VS Code    | D92.1, 2 and 7: `AttentionDock` in place of `ApprovalDock`; the open-questions chip; the card's states (folded, labels, Dismiss, the countdown line, never folding under focus or a draft); MCP forms in the dock; the reducer's question cases and the row schema; the jump commands and keys; the view badge, the tab title and the History marker; harness scenes and axe                      | new `src/webview/components/AttentionDock.tsx` (replacing `ApprovalDock.tsx`), `src/webview/components/OpenQuestionsChip.tsx`                    | `QuestionCard.tsx`; `ElicitationCard.tsx` (the dock slot); `ToolRow.tsx` (the question region); `uiState.ts` and `transcriptEntries.ts` (the question cases and state); `App.tsx` (the mount); `styles.css` (its region); `ChatViewProvider.ts` and `chatPanel.ts` (the count); `HistoryDialog.tsx` (the marker); `extension.ts` (commands, loaders only); `package.json` (commands and keys); `test/harness` scenes                                        | after 0 | Mac mini |    16 |
+| A ACP, the runtime, docs and help         | D92.9's ACP rows: the agent's clock, the form withdrawn by `cancellationSignal`, a late form answer, deferral at once for clients without forms, `/answer` and `/questions`, the notices; the runtime's `--questions-defer-after`; the `/help` rows; README, `docs/acp.md`, `docs/ci.md`, CONTRIBUTING, AGENTS.md's layout, the editor matrix rows, CHANGELOG                                     | new `src/acp/questionDeferral.ts`                                                                                                                | `src/acp/agent.ts` (`ask`, the commands); `src/acp/questions.ts`; `src/runtime/cliArgs.ts`; `src/shared/featureCatalog.ts` (with HELPREF's owner); README; `docs/acp.md`; `docs/ci.md`; CONTRIBUTING; AGENTS.md; `docs/ide-compatibility/**`; CHANGELOG                                                                                                                                                                                                     | after 0 | Win11 VM |     8 |
+| Integration, live checks, the gate (lead) | The merges in the order Q, U, A; the live checks (step 3); the full gate; README shots; certification                                                                                                                                                                                                                                                                                             | `docs/certification/m112.md`                                                                                                                     | PLAN (D92 and M112 only)                                                                                                                                                                                                                                                                                                                                                                                                                                    | last    | Kubuntu  |     4 |
+
+- **Lane 0's contracts,** frozen before Q, U and A start, so each can work
+  alone against them:
+  - **`src/shared/questions.ts`:** the `OpenQuestion` schema (the
+    `userInputId`, session, item and turn ids, the questions, the key, the
+    state, `askedAt`, `deferredAt`, the reminders given, the backend) and
+    `QUESTION_STATES`; the signatures of `questionKey(questions)` and of the
+    registry's port (`load`, `save` and `remove` per session; `now`;
+    `setTimer`; `deliver`).
+  - **`agentEvents.ts`:** `questionSettled.outcome` gains
+    `QUESTION_OUTCOME_DEFERRED`.
+  - **`agentBackend.ts`:** `AgentSession.deferQuestions(userInputId)`,
+    resolving once the tool call is settled. Both hosts implement it.
+  - **`protocol.ts`:** host to webview, the `openQuestions` snapshot per
+    session; webview to host, `answerOpenQuestion` (answers or an
+    explanation), `dismissOpenQuestion` and `jumpToOpenQuestion` (next or
+    previous). Each zod-parsed (rule 7).
+  - **MHP** (with M104 lane 0's owner): `questions/open` (a notification),
+    `questions/answer`, `questions/dismiss`, and the count on the status
+    item, for the bridges and the TUI.
+  - **Constants:** `QUESTION_DEFER_DEFAULT_SECONDS` (60),
+    `QUESTION_DEFER_MIN_SECONDS` (10), `QUESTION_DEFER_MAX_SECONDS` (3,600),
+    `QUESTION_REMINDERS_MAX` (2), `OPEN_QUESTIONS_MAX` (20),
+    `LATE_ANSWER_QUESTION_MAX_CHARS` (2,000),
+    `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION` (0.5).
+  - **`QUESTION_MODEL_TEXT`:** `deferred`, `deferredClarification` (at most
+    500 characters once filled). `QUESTION_DELIVERY_MODEL_TEXT` holds
+    `lateAnswer`, `dismissed` and the exact existing answer-format prefixes.
+  - **Strings:** every UI string of D92 in `en.ts` and the 14 tables; the
+    setting and the two commands in `package.nls*.json`.
+- **Steps.**
+  1. Lane 0. No capture is needed (AGENTS rule 13): the deferral rides
+     `userInput/clarify`'s shape captured on 2026-09-25 (M46) and the
+     `ask_user` tool output the Model API already sends.
+  2. Q, U and A against the fakes, each with its drills.
+  3. **The live checks** (owner-authorized live spend, the contributor model,
+     an empty `C:\muse-live-ws`, counted from the trace logs afterwards,
+     CLAUDE.md's rule), with the deadline at 10 seconds:
+     - **Model API:** one turn that asks, defers and carries on, then a late
+       answer as a new turn. Expected: 3 inference requests.
+     - **Muse Code:** the same in two turns, counted from the CLI's trace
+       log.
+     - The record states what the model did after the deferral: carried on,
+       did not guess, did not ask again. If it guessed or asked again, lane 0
+       revises the text and the check runs once more.
+  4. The lead's integration, the full gate and the README shots.
+- **Acceptance** (fakes unless named; no model call outside step 3):
+  1. **Pinned.**
+     - A question's card appears in the dock and in its row. Answering in
+       either settles both.
+     - Approvals stay first, block and never defer (a red drill lets the
+       clock defer an approval, and the test fails).
+     - An MCP form sits in the dock with its 300-second deadline unchanged.
+  2. **Deferral.**
+     - At 60 seconds on the fake clock, the Model API's tool output is
+       `QUESTION_MODEL_TEXT.deferred` with the id filled in.
+     - Muse Code receives `userInput/clarify` with at most 500 characters,
+       and the settled row reads Deferred. A user's own explanation stays
+       Explained (a red drill maps every clarification to deferred, and the
+       test fails).
+     - 0 never defers; 5 is read as 10; a workspace value changes nothing (a
+       red drill reads it, and the test fails).
+  3. **The cache.** Every request before a deferral is byte-identical to
+     today's goldens; the deferral's request differs only in that tool
+     output.
+  4. **Under the user's hands.** A card holding focus or a draft does not
+     fold; the draft survives the fold and is sent as a late answer.
+  5. **Late answers.**
+     - During a turn: one steer. A refused steer: one new turn. Idle: one new
+       turn showing "Answer to your earlier question".
+     - Exactly once: a double click, and the same answer from two surfaces,
+       send one message (a red drill drops the mark, and the test fails).
+  6. **Asked again.** A re-asked question shows one card; one answer settles
+     both requests; the open one becomes Answered when asked again, with no
+     late message.
+  7. **Reminders.** A turn ending with open questions expands the oldest once
+     and raises one notice (window unfocused, setting on). No question is
+     expanded more than twice, and no model request follows (a spy counts
+     none; a red drill removes the bound, and the test fails).
+  8. **Kept.**
+     - Open questions survive a reload, a resume and a second surface.
+     - The 21st open question expires the oldest, which says so.
+     - Deleting the session deletes them.
+     - No question text reaches a log (a planted canary).
+  9. **Easy to pick out.**
+     - The accent, icon and label on waiting and open rows; each settled
+       state's own label.
+     - Next and Previous cycle in transcript order; the keys work only with
+       the chat focused.
+     - The badge's count and tooltip, the tab title, the History marker.
+     - The live region's texts for arrival, deferral, reminder and late
+       answer.
+     - axe passes in VS Code's four themes and at 320 px for: waiting,
+       open, the chip, an approval with a question, and each settled state.
+  10. **Runs nobody watches.** `exec` still emits `question_declined` and
+      starts no clock; best-of-N and worktree conversations cancel; the M75
+      evaluation clarifies; a scheduled prompt's question defers.
+  11. **ACP.**
+      - With forms: at the deadline the call defers and the fake client
+        records `$/cancel_request`.
+      - A client that answers anyway after the deadline delivers a late
+        answer: steered into a running prompt, else put before the next one.
+      - Without forms: the question as text, deferred at once, answered by
+        `/answer`. `/questions` lists the open ones.
+  12. **Editors.** The companion page; the native hosts' count through fake
+      JCEF, WebView2 and SWT bridges; the TUI's and the desktop's rows on
+      lane 0's MHP fakes, or named as waiting for their lanes.
+  13. **Budgets.** As below; activation unchanged.
+- **Tests.** Every test can fail: each runs against a fake that can be made
+  to lie (the clock, the session, the store, the ACP client), and each has a
+  red drill recorded in `docs/certification/m112-<lane>.md`:
+  - `questionRegistry.test.ts` (states, the clock, the bound, persistence);
+  - `questionKey.test.ts`;
+  - `lateAnswer.test.ts` (steer, refused steer, idle, once, dismissal);
+  - `modelApiQuestionDeferral.test.ts` and the request goldens;
+  - `museCodeQuestionDeferral.test.ts` (the clarification's length, the id
+    set);
+  - `attentionDock.test.tsx` and `questionCard.test.tsx` (order, folding,
+    focus and drafts, jumps);
+  - `openQuestionNotices.test.ts` (reminders and their bound);
+  - `acpQuestionDeferral.test.ts`;
+  - the e2e `questions.e2e.test.ts`: the fake Muse Code CLI and the fake
+    Model API through a deferral, a late steer and a late new turn.
+
+  **Red drills:**
+  - remove the clock (the turn blocks);
+  - defer an approval;
+  - show a user's explanation as deferred;
+  - send a late answer twice;
+  - fold a card under focus;
+  - remove the reminder bound;
+  - start a clock in `exec`;
+  - fill the clarification past 500 characters;
+  - drop the Open question label;
+  - read the workspace setting.
+
+- **Gates.** The full `npm run quality`, `check:l10n`, the host API record,
+  D6's budgets and the split guard (`QUESTION_MODEL_TEXT`'s readers),
+  `test:a11y`, the request goldens, `check:reference`.
+- **Security.**
+  - An answer is the user's own message: it approves nothing, changes no
+    mode and grants no rule. Approvals and D48's paid popup never enter the
+    question path.
+  - The registry holds question text and the user's drafts: owner-only,
+    deleted with the session, never in a log, an export or a report beyond
+    counts.
+  - A noisy agent is bounded: one card per key, 20 open per session, two
+    reminders per question.
+  - Agent-written text is rendered as text, as today.
+  - PLAN §9 records the residual: an agent that ignores the deferral note and
+    guesses an answer is not stopped by this milestone; the live check
+    records how the contributor model behaves.
+- **Docs.** README ("Questions": the dock, the minute, open questions,
+  answering later, the keys, the setting, what headless runs do); CHANGELOG;
+  `docs/acp.md`; `docs/ci.md`; CONTRIBUTING; AGENTS.md; the `/help` rows; this
+  plan; certification.
+- **Performance and bundles.**
+
+  | Artifact               |                    M112 adds (target) | Cap                                                            |
+  | ---------------------- | ------------------------------------: | -------------------------------------------------------------- |
+  | `dist/extension.js`    | ≤ 2 KiB (the registry and the region) | 600 KiB, unchanged                                             |
+  | `dist/modelApi.js`     |                             ≤ 0.5 KiB | 475 KiB, unchanged                                             |
+  | `dist/acp.js`          |                               ≤ 2 KiB | 850 KiB, unchanged                                             |
+  | Webview startup bundle |   ≤ 3 KiB (the dock replaces its own) | 900 KiB, unchanged                                             |
+  | `dist/uiText.js`       |                             ≤ 1.5 KiB | 125 KiB, unchanged (strings in a regional block if it is near) |
+
+- **Size.** S: about 48 lane-hours.
+- **Certification checklist** (§6.0, plus):
+  - [ ] Lane 0's contracts and the keymap check recorded
+  - [ ] Lanes Q, U and A with their drills
+  - [ ] The live checks counted from the trace logs, with what the model did
+        after the deferral
+  - [ ] Harness scenes in four themes and at 320 px; README shots refreshed
+  - [ ] Editor rows recorded; strings in all 14 tables; the `/help` rows;
+        budgets measured; the full gate green
+
+---
+
+#### Preserved integration notes: M112 — Questions that never block (D92)
+
+**Status 2026-10-06: built.**
+
+Status detail retained: fake-only integration complete; live checks and full
 quality remain with the lead. Small: about 48 lane-hours in lane 0 and
 three lanes, for a 0.14.x patch (0.14.3, or folded into 0.14.2 when both are
 ready together). Lanes Q, U and A start together once lane 0's contracts
@@ -40743,7 +42030,9 @@ control's focus (or the saved rule heading), and announce successful saves
 through a polite live region. Add regressions and byte-exact red drills in
 `docs/certification/m116-u.md`. Existing P/I/W integration handoffs remain.
 
-**Status 2026-10-07: lane W integrated.** All five lanes merged (`m116/w`;
+**Status 2026-10-07: built.**
+
+Status detail retained: lane W integrated All five lanes merged (`m116/w`;
 `docs/certification/m116.md`); every P1/P2 finding verified fixed; the D100
 M116 amendments (G3, G17, G20, G24) implemented with tests and red drills;
 ACP `/playbook` and CLI `playbook` bound to the journal-backed surface;
@@ -41059,7 +42348,9 @@ cloudInit)`, `status(id)`, `delete(id)`, and nothing else; each adapter's
 
 ### M118 — Prompt and chat sharing (D98)
 
-**Status 2026-10-06: phase 1 integrated on M118INT; bounded rig certification complete.**
+**Status 2026-10-06: built.**
+
+Status detail retained: phase 1 integrated on M118INT; bounded rig certification complete
 **FIX0144W follow-up (2026-10-06).** Give the lazy prompt host one lifetime
 owner that rejects new operations during disposal and awaits admitted work,
 including startup/configuration mirror merges. Extension deactivation and
@@ -41176,6 +42467,84 @@ anywhere joined it).
   - [ ] Editor rows recorded; strings in all 14 tables; the `/help` rows;
         budgets measured; the full gate green
 
+#### M118 lane 0 — Prompt and chat sharing contracts (2026-10-05)
+
+The authoritative rig brief stages D98/M118 for P (prompt library), C (chat
+sharing) and X (ACP/CLI/TUI/MHP). This lane adds only validated contracts,
+translations, fake fixtures and integration handoffs. D67's unimplemented
+VS Code state storage is superseded here by portable user prompts in
+`agentDataFolder()/prompts/` and workspace prompts in `.muse/prompts/`.
+Loading inserts into the active chat, creating one if needed, never sends.
+Right-click Save prompt covers own transcript messages, composer text and
+editor selections; the composer also offers Use saved prompt. Both scopes
+remain visible, user first, preserving duplicates across scopes.
+
+Saved prompts use versioned JSON front matter (a YAML-compatible subset)
+followed by verbatim Markdown, with declared built-in/named variables and
+an imported-untrusted flag. Sharing has inclusive message-id ranges,
+full/conversation modes, explicit final confirmation, local phase-one
+destinations and reserved hosted destinations. Conversation mode uses an
+allow-list beside each existing transcript representation; future kinds
+stay excluded. Privacy ports reuse registered-secret and shared redaction,
+normalise workspace/home/absolute paths and recheck the existing
+confidential-workspace setting immediately before release. Attachment
+contents require explicit selection. These are our own formats, not new
+provider wire shapes; no live or paid captures are needed.
+
+- [x] Contracts, round trips, default-deny guards and all-kind fakes.
+- [x] Fourteen real translations, pending manifest patch and strict checks.
+- [x] Deterministic share JSON Schema/check; P/C/X entry-point handoffs.
+- [x] Bounded rig checks and 45 byte-exact deliberate-failure controls;
+      `docs/certification/m118-l0.md` records receipts and integration limits.
+
+`src/shared/featureCatalog.ts` and its generation/check scripts do not exist
+on base `81a5ccfa`; no commands are registered by this lane. P/C/X must add
+their actual commands to the help reference when that parallel feature lands.
+
+#### M118 lane X — ACP, CLI and editor sharing adapters (2026-10-06)
+
+Authority: `C:/lanes/_ctx/M118X.rig.md`, D98/M118 on
+`plan/m105-m107`, and `docs/certification/m118-handoff-x.md`.
+Implement `/share chat`, `/prompt save|list|use|share` and the CLI
+`share`/`prompts` parser and runner against lane 0's portable contracts.
+Prompt storage and the scrubbed renderer are injected P/C ports, shared across
+workspaces through `agentDataFolder`; never a separate library or a model turn.
+ACP command interception is opt-in through a runtime binding, with reserved
+commands failing explicitly when that binding is absent. A preview's exact
+bytes/request are held in memory, bound to its one-use final action, and the
+live confidential setting is checked again at release. Cancellation or session
+replacement invalidates pending actions. Prompt use returns insert-only text.
+
+The base lacks P/C implementations, M110a0's TUI, M104's MHP and the feature
+catalog. Supply tested adapters and named integration handoffs for their actual
+runtime/main, bridge, menus, TUI, help, README/ACP guide and changelog bindings.
+Do not edit those other lanes' files or invent a protocol method. Lane X's
+certification records exact parser syntax, lifecycle and final-confirmation
+drills. Scoped checks run directly on win11; full quality and native editor
+certification remain with W. No paid/live/network calls or new dependencies.
+
+- [x] X parser/runner, ACP local interception and native-menu adapters behind
+      injected P/C/UI ports; no model send and no fake production bindings.
+- [x] Win11 owning/regression tests and static/build checks recorded in
+      `docs/certification/m118-x.md`; 67 named red drills, byte-exact restores.
+- [x] Missing runtime, TUI, MHP, help/docs and lazy-bundle bindings named in
+      `docs/certification/m118-x-handoff.md`; installed/native parity remains W's.
+
+**FIXM118X / RVM118X (2026-10-06, Kubuntu).** Repair all four reviewed P2
+adapter defects within X's files: reuse workspace-path confinement for the
+resolved output and allowed root at release; require explicit headless
+destination and file output flags; abort every pending sharing UI when ACP
+cancels/releases/exits; reuse the shared skill/slash parser for reserved
+commands with leading whitespace. Interactive defaults stay unchanged.
+No new dependency, model call or production P/C/native binding is in scope.
+Record regression failures, byte-exact red drills and bounded checks in
+`docs/certification/m118-x.md`, and update W's integration contracts there.
+
+- [x] P2-1 output confinement and resolved path/root release contract.
+- [x] P2-2 explicit headless destination and file output admission.
+- [x] P2-3 abortable sharing UI and immediate ACP prompt/session cleanup.
+- [x] P2-4 shared leading-whitespace local-command interception.
+
 ### ENVFENCE — Shell credential fence (D89.5, security fix for 0.14.1)
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/envfence.md`.
@@ -41194,6 +42563,8 @@ anywhere joined it).
       `docs/certification/envfence.md`; aggregate quality remains the lead's gate.
 
 ### M97 — Read-only legal scan, then selected fixes (D76, integrated candidate; certification incomplete)
+
+**Status 2026-10-07: waiting.** Certification metadata remains incomplete; retained requirements and receipts follow.
 
 - **Goal.** Both backends offer an evidence-based legal/licensing and header
   hygiene report without modifying the project; the user can then authorize
@@ -41373,6 +42744,8 @@ anywhere joined it).
 
 ### TRAIN15F — Close the 0.15.0 train holds (2026-10-06, win11)
 
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
+
 Merge main 2aa9cbff7 additively, retain immutable feature-off request goldens,
 correct the D78 assertion to their contract, and make exec locale fixtures explicit.
 Audit generated Help reference coverage for all train features. Measure helperless
@@ -41467,6 +42840,8 @@ the gate still checks the same decoded bytes and ordinary five-second deadline.
 
 ### TRAIN15G — Shared webview payload and final train package budget (2026-10-06, win11)
 
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
+
 Merge sync/main-0150 (61d8647c2) with --no-ff, preserving every train feature
 and the startup/deferred diet. Regenerate Help reference from merged sources.
 Audit the combined browser graph for one emitted React/shared UI owner across
@@ -41482,6 +42857,8 @@ static/build/reference gates, VSIX/ACP packaging and affected accessibility
 pages. No version bump or README What’s New changes; no paid/live calls.
 
 ### TRAIN15H — Restore the inherited startup ratchet (2026-10-06, win11)
+
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
 
 - [x] Compare emitted startup input bytes against main `61d8647c2` and train
       `fe3c3fe16`; retain the complete module measurement with milestone owners.
@@ -41502,6 +42879,8 @@ pages. No version bump or README What’s New changes; no paid/live calls.
 
 ### CI0150A — Clean-shard artifacts and portable certification (2026-10-07)
 
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
+
 Scope: six owning suites in the CI0150A brief. Clean hosted shards have no
 `dist/`; tests must own their required source-derived artifacts and avoid
 rig-only Git objects. No production budget, timeout, retry, skip or assertion
@@ -41519,427 +42898,29 @@ is relaxed. No live or paid calls, push, rebase or merge.
 - [x] Deliberately regress one fixed behavior, observe failure, restore exact
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
-## 7. Gates
+### FIXM116P4 — Final outcome verification repairs (2026-10-06)
 
-**CI0150M round 3 aggregate status (2026-10-07).** The attempted unmodified
-`npm run quality` passes static gates, then fails whole-repository tests in
-unowned clean-artifact/localization suites and load-sensitive cases. The common
-OS brief assigns cross-platform failures to the Linux lane. Certify this lane
-with every exact macOS workflow command in fresh committed clones; record all
-remaining failures rather than weaken gates or edit another lane's suites.
-Aggregate release quality remains deferred to joined integration. Standalone
-secret scanning passes; the inherited SAST wrapper supplies duplicate `--jobs`
-options and is a shared failure, also deferred without changing its invocation.
-See this lane's round 3 section in `docs/certification/train-0.15.0.md`.
+**Status 2026-10-07: built.** Implementation/integration receipts remain below; this is not full certification.
 
-**CI0150W round 3 certification.** Whole-shard and whole-job reproductions
-are explicitly required by `CI0150-os-common.md`; they run with unchanged
-default deadlines in fresh clones of local hooked commits. Targeted runs
-retain the three-file cap. Early scoped commits can precede aggregate
-`npm run quality` while the cross-platform failures assigned to the Linux
-lane remain; every failure and final Windows job result is recorded without
-weakening gates, assertions or deadlines. A complete quality claim requires
-the actual aggregate to exit zero.
+The final lane follows the lead's native-Git contract: delete all Husky
+startup/layout/body emulation. Only `git hook run` in the verification
+worktree, with the source repository's resolved absolute hooksPath and
+HUSKY/HUSKY_SKIP_HOOKS/GIT_* variables deleted, supplies the hook verdict.
+Git's missing-hook error fails closed for a configured hook set. Native
+Husky v9 passing/failing layouts receive real Git regressions and red drills.
+Invalidate pre-repair receipts with a new hook-digest epoch.
 
-The final implementation run at `2548f459` passes the static CI job and all
-scoped test files in four complete shards. Aggregate quality stays deferred:
-clean/package fixtures remain red, integration has an external release-lookup
-timeout, and dedicated browser/credential-store checks have the exact residuals
-listed in §3 and the train record. Original coverage thresholds are exceeded;
-the merge command still fails because it replays failed package suite setup.
-No gate, refusal, assertion, timeout, retry or skip is weakened to claim green.
+Enumerate every worktree and snapshot its HEAD and private refs/worktree,
+refs/bisect and refs/rewritten alongside shared refs. New and moved private
+refs require receipts even when the worktree HEAD stays unchanged.
 
-**FIX0150R scoped certification.** The rig brief requires complete owning test
-files in batches of at most three, with three clean `CI=true` repetitions and
-individual static/build gates. Shared lane rules reserve aggregate
-`npm run quality` for the lead; its whole-repository coverage invocation exceeds
-this lane's test-file limit. Defer that aggregate to release integration without
-changing any threshold or gate. Receipts are in `docs/certification/fix0150r.md`.
-
-**FIX0150P scoped release-review verification (2026-10-07, linuxlt).**
-The rig/common briefs prohibit a full quality run in this lane. Full quality
-and cross-platform release certification remain with the lead; this lane
-runs the prescribed complete owning suites and scoped static/build gates
-without weakening thresholds, timeouts, isolation or hooks. Detailed red/base
-and restored-green receipts belong in `docs/certification/fix0150p.md`.
-
-**CI0150A scoped certification.** CI0150-common.md requires three clean
-repetitions of complete owning files and individual static gates; the rig note
-caps each test run at three files. Aggregate `npm run quality` includes an
-unbounded whole-repository test/coverage run, so it is deferred to integration
-under this scoped repair. Hosted OS/release checks also include CI0150B/C work
-and are not certified here. This justified deferral changes no gate or threshold.
-
-**CI0150C scoped repair certification (2026-10-07, macmini).** The rig brief
-requires clean `CI=true` verification in batches of at most three test files,
-three times at repository default deadlines, plus all five typechecks, lint,
-changed-file formatting, plain knip and duplication. The aggregate
-`npm run quality` is deferred to the joined release repair: its all-file Vitest
-invocation exceeds this lane's explicit three-file limit, and the other lanes
-own the remaining hosted failures. This is a scoped certification record, not
-a full-release quality claim; no threshold, rule, assertion or CI gate is
-disabled. The badge gate still performs real public network checks in CI.
-The extra `security:audit` run reports the pre-existing, now-unreported
-`GHSA-68fv-2mgg-jv7q` (`source-map-js`) exception in
-`.github/audit-exceptions.json`; that unowned cleanup is deferred to the lead,
-without changing an exception or suppressing the audit failure in this lane.
-
-**CI0150B scoped verification (2026-10-07).** This lane owns the ten slow suites
-in its brief. The shared CI0150 rules require three clean-tree whole-file runs,
-all compiler projects, lint, formatting, plain knip and duplication. Full
-`npm run quality` certification is deferred to the integrated CI repair: the
-other lanes own clean-checkout artifact failures in configured-provider,
-headless/package and other suites, and this lane must not edit their files.
-No threshold, assertion, retry or global timeout is relaxed. This branch's
-receipts certify only its named suites and checks, not a complete release gate.
-
-**TRAIN15H scoped certification.** The lead's rig brief and shared common.md
-reserve aggregate quality for the lead. This lane runs complete owning files
-under default deadlines and individual gates, including every accessibility
-page. No baseline increase, new feature, command, setting or escape hatch.
-
-**TRAIN15G inherited DIET1 measurement hold (resolved by TRAIN15H).** Main adds
-a regression assertion for its own 733.8-KiB startup and 32.1-KiB deferred
-measurement. The integrated train measures 815,775 startup bytes (796.7 KiB)
-and about 32.5 KiB deferred, within unchanged 900/50-KiB production caps.
-The assertion remains enabled and unchanged. Shared ownership, deferred
-loads, and package membership assertions pass. The brief authorizes only
-the universal VSIX cap formula; an additional startup diet or revision of
-this main-only measurement expectation needed a lead decision. TRAIN15H's
-lead decision requires compaction; the restored production graph passes both
-inherited assertions. The final receipt records exact bytes and all new
-closure budgets. No startup baseline or existing cap is raised.
-
-**TRAIN15G scoped certification.** The rig brief and shared common.md prohibit
-aggregate quality here. Run owning default-timeout suites and individual gates;
-the lead retains aggregate quality, hosted matrices and native/live receipts.
-The sole authorized cap decision is the measured universal VSIX formula above.
-
-**TRAIN15F final package cap hold (resolved in TRAIN15G).** The lead’s new
-brief authorizes measured universal +5%, rounded up to 25 KiB after the
-shared-browser audit. Actual TRAIN15G packages pass the resulting cap; the
-measurements below retain the earlier hold’s history.
-
-**Original TRAIN15F package cap hold (2026-10-06, win11).** Actual post-diet
-helperless VSIX is 2,600,909 bytes (66,509 over);
-verified-helper universal is 2,680,457 (146,057 over).
-The existing 2,534,400-byte / 2475-KiB cap is unchanged. Raw bundle,
-split/global, staged localization/badges and native export checks pass. The
-lead explicitly requires recording this remaining decision after excluding
-unneeded payload, rather than raising the cap. Full quality is reserved under
-the scoped-certification rule below. Exact inventories and default-timeout
-owning receipts: docs/certification/train-0.15.0-train15f.json.
-
-**TRAIN15F scoped certification (2026-10-06, win11).** The continuation brief
-requires the 132 complete owning files, default Vitest deadlines and individual
-static/build/package checks. Its shared common.md explicitly prohibits full
-`npm run quality` on this rig; full quality, hosted matrices, native macOS and
-live paid receipts remain the lead's release checks. No gate is weakened.
-The lead lifted the exec fixture's two-fix stop and authorized the exact
-2aa9cbff7 main merge and correcting D78 to immutable request goldens.
-
-**TRAIN15E exec fixture stop (2026-10-06, win11).** Exec stdio now passes
-38 cases, with three existing Windows exclusions, but its first packaging
-fixture expects the former single `de` table while using all fourteen real
-production tables. After the missing-directory and catalog-cache fixes this
-is its third failure. The common brief requires stopping after two distinct
-fixes; retain the assertion and record the remaining fixture mismatch. ACP
-stdio passes all ten cases, and production package/native checks pass. The
-one cold packaging case now has the specifically authorized 60-second limit;
-its measured 41.466 seconds includes archive compression and native checks.
-Ordinary packaging and exec deadlines remain 30 seconds.
-
-**TRAIN15E universal cap hold (2026-10-06, win11).** The real helperless VSIX is
-2,505,428 / 2,534,400 bytes. The certified prior helper contributes 81,327
-compressed bytes; adding that contribution alone projects 2,586,755 bytes,
-at least 52,355 over the unchanged cap before its ZIP entry headers. The
-289,568-byte macOS helper is absent on this rig; no placeholder is fabricated
-and no universal receipt is claimed. Further universal size recovery and an
-actual helper-bearing package remain for the lead. Helperless packaging and
-all native export checks pass; they do not certify the universal archive.
-
-**TRAIN15E D78 deferral (2026-10-06, win11).** Restoring M102's delayed recall
-declaration passes its unused-packing-default test but fails 72 train golden
-assertions by changing a tool declaration and cache key. Preserve the train's
-fixture bytes: all 89 golden assertions pass, while that one D78 test remains
-red. No fixture, assertion, timeout or gate is weakened. The precise conflict
-and both outcomes are in the train certification; the owner's decision is pending.
-
-**TRAIN15C M96 bounded size stop (2026-10-05, kubuntu).** The first composed
-Model API build is 494,346 / 486,400 bytes. Sharing captured validators and pure
-team admission brings it to 486,677 (+277); sharing the existing team bootstrap
-text through that same boundary brings it to 486,463 (+63). The same raw-size
-gate remains red after two distinct fixes. Under the owner's shared `common.md`
-stop rule, hold further Model API recovery and subsequent ordered merges pending
-an explicit continuation decision. The original deferred cohort is recovered
-by conditionally lazy paid usage; no cap, threshold or feature is changed.
-Independent M96 tests and packaging measurements continue for a reviewable
-candidate, not release certification. The universal archive is 2,397,730 /
-2,252,800 (+144,930), with exact largest-20 entry deltas retained. Static,
-source and native export checks do not excuse either cap. A local review
-checkpoint preserves the candidate with these explicit §7 deferrals; subsequent
-merges and release remain blocked. The inherited committed-source binding is
-checked after that checkpoint, because the pre-merge HEAD lacks its worker files. Full quality remains delegated to the
-lead after M95/M102 join. Receipts: `docs/certification/train-0.15.0.md`.
-
-**TRAIN15B raw-cap deferral (2026-10-05).** The resumed integration recovers
-the VSIX, with universal 2,213,704 and helperless 2,132,213 bytes, both under
-the unchanged 2,252,800 cap. The shared graph's original deferred cohort starts
-at 51,452 bytes; the first usage reduction still prints 50.1 KiB over 50 KiB,
-and the second leaves an exact 51,226 bytes (26 over). common.md requires
-stopping a path after two failed fixes, and the integration brief requires
-all caps to hold. Record the candidate with hooks and defer `m96/int3d`,
-`m96/ifix-win4` and `m97/sr`; no further raw-cap optimization or merge is tried.
-The source build completes and all other caps pass, but `npm run package`
-exits 1 before its packager. Running the actual packager separately measures
-exact archives and exercises strict staging, badges and native exports; that
-successful measurement does not certify the failing package command. All
-scoped checks and eight restored red drills are recorded in the train receipt.
-No full quality, cap increase, ignore, skip, feature removal or dependency change.
-This supersedes the first run's VSIX blocker below, preserving its history.
-
-**TRAIN15A budget stop (2026-10-05).** The integration brief explicitly
-forbids full quality and requires stopping after M101 if its unchanged universal
-VSIX cap cannot be met without a product decision. The first M101 candidate is
-2,368,627 bytes, 115,827 over. An existing-ESM shared-entry experiment preserves
-startup and model-text readership but leaves the original deferred cohort over
-its hard cap after two bounded fixes (57 bytes, then 10); common.md requires
-stopping that path. Restore the separate Models graph and retain every shipped
-feature and cap. Finish scoped checks, record the fresh artifact and exact largest
-twenty base deltas in `docs/certification/train-0.15.0.md`, commit the blocked
-integration locally with hooks, and do not merge steps 3–5. This is a justified
-review-candidate deferral under rule 2, never a green release claim. The lead
-owns a further size-recovery decision and the later continuation/full gate.
-
-### M112 — Questions that never block (D92)
-
-**Status 2026-10-06: fake-only integration complete; live checks and full
-quality remain with the lead.** Small: about 48 lane-hours in lane 0 and
-three lanes, for a 0.14.x patch (0.14.3, or folded into 0.14.2 when both are
-ready together). Lanes Q, U and A start together once lane 0's contracts
-freeze, and none waits on an unmerged milestone. The native-host, TUI and
-desktop rows certify on lane 0's fakes and are wired by M104b–d, M110a0's
-lane T and M111b. One short live check per backend (step 3).
-
-- **Goal.** A question from the agent is pinned above the composer like an
-  approval, so it is never lost. If the user has not answered after a minute,
-  the agent carries on with work that does not depend on the answer, and the
-  question folds into a chip. It stays easy to find and answer at any time,
-  from the dock or the transcript, and the answer reaches the agent exactly
-  once. Approvals stay exactly as they are.
-- **Depends on.** Main only:
-  - D26's dock (`ApprovalDock.tsx`) and M25's card locking;
-  - M16's question card and M46's `userInput/clarify`;
-  - M82's background notices and M6's view badge;
-  - the controller's steer path (`conversationController.ts:5724–5765`);
-  - M63's ACP agent, and M91 lane M's MCP forms;
-  - the `/help` reference (0.14.2) for its rows. If M112 lands first, its
-    rows land with lane HELPREF.
-- **Scope.** D92 entire; strings in all 14 tables; README (a "Questions"
-  section), CHANGELOG, AGENTS.md's layout (`src/core/questions/**`),
-  CONTRIBUTING (a new kind of prompt joins the attention dock), `docs/acp.md`
-  (`/answer`, `/questions`, `--questions-defer-after`), `docs/ci.md` (headless
-  runs still decline), `docs/ide-compatibility/**` rows, the `/help` rows,
-  harness screenshots, certification.
-- **Settings.** `museSpark.questions.deferAfterSeconds` (60; 0, or 10 to
-  3,600), machine-scoped. The runtime reads the same key from its settings
-  store once M104 lane B has one, and `--questions-defer-after <seconds>`
-  until then.
-- **Commands.** **Next open question** and **Previous open question**, with
-  keys; ACP's `/answer <n> <text>` and `/questions`.
-- **Lanes and file ownership.** One integration branch,
-  `feature/m112-questions`, under M87's region rules. Muse implements U and
-  A, Codex reviews each in one pass by class, and the lead integrates. Q
-  (timers, settle races, exactly-once delivery) goes to Claude or Codex.
-  **Order:**
-  1. Lane 0.
-  2. Q, U and A in parallel against lane 0's fakes.
-  3. The lead's integration, the live checks and the full gate.
-
-| Lane                                      | Items                                                                                                                                                                                                                                                                                                                                                                                             | Files it owns                                                                                                                                    | Its regions in shared files                                                                                                                                                                                                                                                                                                                                                                                                                                 | Starts  | Rig      | Hours |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- | -------- | ----: |
-| 0 Contracts, strings, fakes (lead)        | The contracts below; every string; the keymap check (the proposed keys against VS Code's default keymaps on the three operating systems, and JetBrains', Visual Studio's and Eclipse's defaults for M104's bridges); the fakes: a clock and timers, a scripted session that records `steer`, `sendTurn` and `deferQuestions`, a fake store, a fake ACP client with and without `$/cancel_request` | new `src/shared/questions.ts`, `test/unit/helpers/questions/**`, `docs/certification/m112-contracts.md`                                          | `constants.ts` (`QUESTION_*`, `OPEN_QUESTIONS_MAX`, `LATE_ANSWER_QUESTION_MAX_CHARS`, `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION`, and `QUESTION_MODEL_TEXT` with its declared readers); `src/shared/agentEvents.ts` (`deferred`); `src/shared/protocol.ts` (the question messages); `src/core/agent/agentBackend.ts` (`deferQuestions`); `en.ts`, the 14 tables, `package.nls*.json`; `src/shared/hostApi/**` (the question messages, with M104 lane 0's owner) | day 0   | Kubuntu  |     6 |
-| Q Registry, backends, delivery            | D92.2–6: the registry's states, clock and store port; the key; reminders; the late-answer and dismissal texts; delivery through `submit`; the Model API's `deferred` reply; Muse Code's deferral through `userInput/clarify` and its id set; the store adapters for VS Code and the runtime; the controller's question region; the reminder notice                                                | new `src/core/questions/{registry,key,lateAnswer,reminders}.ts`, `src/host/questions/questionStore.ts`, `src/runtime/questions/questionStore.ts` | `ModelApiHost.ts` (`askUser`, `QuestionReply`, `questionResultText`); `MuseCodeHost.ts` (the question commands); `mapNotification.ts` and `promptLedger.ts` (the settled mapping); `conversationController.ts` (the question region: the registry, the open set on attach, the late answer through `submit`); `turnNotifications.ts` (`notifyOpenQuestions`); the session-delete hooks in `fileSessionStore.ts`                                             | after 0 | Kubuntu  |    14 |
-| U The dock, the transcript and VS Code    | D92.1, 2 and 7: `AttentionDock` in place of `ApprovalDock`; the open-questions chip; the card's states (folded, labels, Dismiss, the countdown line, never folding under focus or a draft); MCP forms in the dock; the reducer's question cases and the row schema; the jump commands and keys; the view badge, the tab title and the History marker; harness scenes and axe                      | new `src/webview/components/AttentionDock.tsx` (replacing `ApprovalDock.tsx`), `src/webview/components/OpenQuestionsChip.tsx`                    | `QuestionCard.tsx`; `ElicitationCard.tsx` (the dock slot); `ToolRow.tsx` (the question region); `uiState.ts` and `transcriptEntries.ts` (the question cases and state); `App.tsx` (the mount); `styles.css` (its region); `ChatViewProvider.ts` and `chatPanel.ts` (the count); `HistoryDialog.tsx` (the marker); `extension.ts` (commands, loaders only); `package.json` (commands and keys); `test/harness` scenes                                        | after 0 | Mac mini |    16 |
-| A ACP, the runtime, docs and help         | D92.9's ACP rows: the agent's clock, the form withdrawn by `cancellationSignal`, a late form answer, deferral at once for clients without forms, `/answer` and `/questions`, the notices; the runtime's `--questions-defer-after`; the `/help` rows; README, `docs/acp.md`, `docs/ci.md`, CONTRIBUTING, AGENTS.md's layout, the editor matrix rows, CHANGELOG                                     | new `src/acp/questionDeferral.ts`                                                                                                                | `src/acp/agent.ts` (`ask`, the commands); `src/acp/questions.ts`; `src/runtime/cliArgs.ts`; `src/shared/featureCatalog.ts` (with HELPREF's owner); README; `docs/acp.md`; `docs/ci.md`; CONTRIBUTING; AGENTS.md; `docs/ide-compatibility/**`; CHANGELOG                                                                                                                                                                                                     | after 0 | Win11 VM |     8 |
-| Integration, live checks, the gate (lead) | The merges in the order Q, U, A; the live checks (step 3); the full gate; README shots; certification                                                                                                                                                                                                                                                                                             | `docs/certification/m112.md`                                                                                                                     | PLAN (D92 and M112 only)                                                                                                                                                                                                                                                                                                                                                                                                                                    | last    | Kubuntu  |     4 |
-
-- **Lane 0's contracts,** frozen before Q, U and A start, so each can work
-  alone against them:
-  - **`src/shared/questions.ts`:** the `OpenQuestion` schema (the
-    `userInputId`, session, item and turn ids, the questions, the key, the
-    state, `askedAt`, `deferredAt`, the reminders given, the backend) and
-    `QUESTION_STATES`; the signatures of `questionKey(questions)` and of the
-    registry's port (`load`, `save` and `remove` per session; `now`;
-    `setTimer`; `deliver`).
-  - **`agentEvents.ts`:** `questionSettled.outcome` gains
-    `QUESTION_OUTCOME_DEFERRED`.
-  - **`agentBackend.ts`:** `AgentSession.deferQuestions(userInputId)`,
-    resolving once the tool call is settled. Both hosts implement it.
-  - **`protocol.ts`:** host to webview, the `openQuestions` snapshot per
-    session; webview to host, `answerOpenQuestion` (answers or an
-    explanation), `dismissOpenQuestion` and `jumpToOpenQuestion` (next or
-    previous). Each zod-parsed (rule 7).
-  - **MHP** (with M104 lane 0's owner): `questions/open` (a notification),
-    `questions/answer`, `questions/dismiss`, and the count on the status
-    item, for the bridges and the TUI.
-  - **Constants:** `QUESTION_DEFER_DEFAULT_SECONDS` (60),
-    `QUESTION_DEFER_MIN_SECONDS` (10), `QUESTION_DEFER_MAX_SECONDS` (3,600),
-    `QUESTION_REMINDERS_MAX` (2), `OPEN_QUESTIONS_MAX` (20),
-    `LATE_ANSWER_QUESTION_MAX_CHARS` (2,000),
-    `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION` (0.5).
-  - **`QUESTION_MODEL_TEXT`:** `deferred`, `deferredClarification` (at most
-    500 characters once filled). `QUESTION_DELIVERY_MODEL_TEXT` holds
-    `lateAnswer`, `dismissed` and the exact existing answer-format prefixes.
-  - **Strings:** every UI string of D92 in `en.ts` and the 14 tables; the
-    setting and the two commands in `package.nls*.json`.
-- **Steps.**
-  1. Lane 0. No capture is needed (AGENTS rule 13): the deferral rides
-     `userInput/clarify`'s shape captured on 2026-09-25 (M46) and the
-     `ask_user` tool output the Model API already sends.
-  2. Q, U and A against the fakes, each with its drills.
-  3. **The live checks** (owner-authorized live spend, the contributor model,
-     an empty `C:\muse-live-ws`, counted from the trace logs afterwards,
-     CLAUDE.md's rule), with the deadline at 10 seconds:
-     - **Model API:** one turn that asks, defers and carries on, then a late
-       answer as a new turn. Expected: 3 inference requests.
-     - **Muse Code:** the same in two turns, counted from the CLI's trace
-       log.
-     - The record states what the model did after the deferral: carried on,
-       did not guess, did not ask again. If it guessed or asked again, lane 0
-       revises the text and the check runs once more.
-  4. The lead's integration, the full gate and the README shots.
-- **Acceptance** (fakes unless named; no model call outside step 3):
-  1. **Pinned.**
-     - A question's card appears in the dock and in its row. Answering in
-       either settles both.
-     - Approvals stay first, block and never defer (a red drill lets the
-       clock defer an approval, and the test fails).
-     - An MCP form sits in the dock with its 300-second deadline unchanged.
-  2. **Deferral.**
-     - At 60 seconds on the fake clock, the Model API's tool output is
-       `QUESTION_MODEL_TEXT.deferred` with the id filled in.
-     - Muse Code receives `userInput/clarify` with at most 500 characters,
-       and the settled row reads Deferred. A user's own explanation stays
-       Explained (a red drill maps every clarification to deferred, and the
-       test fails).
-     - 0 never defers; 5 is read as 10; a workspace value changes nothing (a
-       red drill reads it, and the test fails).
-  3. **The cache.** Every request before a deferral is byte-identical to
-     today's goldens; the deferral's request differs only in that tool
-     output.
-  4. **Under the user's hands.** A card holding focus or a draft does not
-     fold; the draft survives the fold and is sent as a late answer.
-  5. **Late answers.**
-     - During a turn: one steer. A refused steer: one new turn. Idle: one new
-       turn showing "Answer to your earlier question".
-     - Exactly once: a double click, and the same answer from two surfaces,
-       send one message (a red drill drops the mark, and the test fails).
-  6. **Asked again.** A re-asked question shows one card; one answer settles
-     both requests; the open one becomes Answered when asked again, with no
-     late message.
-  7. **Reminders.** A turn ending with open questions expands the oldest once
-     and raises one notice (window unfocused, setting on). No question is
-     expanded more than twice, and no model request follows (a spy counts
-     none; a red drill removes the bound, and the test fails).
-  8. **Kept.**
-     - Open questions survive a reload, a resume and a second surface.
-     - The 21st open question expires the oldest, which says so.
-     - Deleting the session deletes them.
-     - No question text reaches a log (a planted canary).
-  9. **Easy to pick out.**
-     - The accent, icon and label on waiting and open rows; each settled
-       state's own label.
-     - Next and Previous cycle in transcript order; the keys work only with
-       the chat focused.
-     - The badge's count and tooltip, the tab title, the History marker.
-     - The live region's texts for arrival, deferral, reminder and late
-       answer.
-     - axe passes in VS Code's four themes and at 320 px for: waiting,
-       open, the chip, an approval with a question, and each settled state.
-  10. **Runs nobody watches.** `exec` still emits `question_declined` and
-      starts no clock; best-of-N and worktree conversations cancel; the M75
-      evaluation clarifies; a scheduled prompt's question defers.
-  11. **ACP.**
-      - With forms: at the deadline the call defers and the fake client
-        records `$/cancel_request`.
-      - A client that answers anyway after the deadline delivers a late
-        answer: steered into a running prompt, else put before the next one.
-      - Without forms: the question as text, deferred at once, answered by
-        `/answer`. `/questions` lists the open ones.
-  12. **Editors.** The companion page; the native hosts' count through fake
-      JCEF, WebView2 and SWT bridges; the TUI's and the desktop's rows on
-      lane 0's MHP fakes, or named as waiting for their lanes.
-  13. **Budgets.** As below; activation unchanged.
-- **Tests.** Every test can fail: each runs against a fake that can be made
-  to lie (the clock, the session, the store, the ACP client), and each has a
-  red drill recorded in `docs/certification/m112-<lane>.md`:
-  - `questionRegistry.test.ts` (states, the clock, the bound, persistence);
-  - `questionKey.test.ts`;
-  - `lateAnswer.test.ts` (steer, refused steer, idle, once, dismissal);
-  - `modelApiQuestionDeferral.test.ts` and the request goldens;
-  - `museCodeQuestionDeferral.test.ts` (the clarification's length, the id
-    set);
-  - `attentionDock.test.tsx` and `questionCard.test.tsx` (order, folding,
-    focus and drafts, jumps);
-  - `openQuestionNotices.test.ts` (reminders and their bound);
-  - `acpQuestionDeferral.test.ts`;
-  - the e2e `questions.e2e.test.ts`: the fake Muse Code CLI and the fake
-    Model API through a deferral, a late steer and a late new turn.
-
-  **Red drills:**
-  - remove the clock (the turn blocks);
-  - defer an approval;
-  - show a user's explanation as deferred;
-  - send a late answer twice;
-  - fold a card under focus;
-  - remove the reminder bound;
-  - start a clock in `exec`;
-  - fill the clarification past 500 characters;
-  - drop the Open question label;
-  - read the workspace setting.
-
-- **Gates.** The full `npm run quality`, `check:l10n`, the host API record,
-  D6's budgets and the split guard (`QUESTION_MODEL_TEXT`'s readers),
-  `test:a11y`, the request goldens, `check:reference`.
-- **Security.**
-  - An answer is the user's own message: it approves nothing, changes no
-    mode and grants no rule. Approvals and D48's paid popup never enter the
-    question path.
-  - The registry holds question text and the user's drafts: owner-only,
-    deleted with the session, never in a log, an export or a report beyond
-    counts.
-  - A noisy agent is bounded: one card per key, 20 open per session, two
-    reminders per question.
-  - Agent-written text is rendered as text, as today.
-  - PLAN §9 records the residual: an agent that ignores the deferral note and
-    guesses an answer is not stopped by this milestone; the live check
-    records how the contributor model behaves.
-- **Docs.** README ("Questions": the dock, the minute, open questions,
-  answering later, the keys, the setting, what headless runs do); CHANGELOG;
-  `docs/acp.md`; `docs/ci.md`; CONTRIBUTING; AGENTS.md; the `/help` rows; this
-  plan; certification.
-- **Performance and bundles.**
-
-  | Artifact               |                    M112 adds (target) | Cap                                                            |
-  | ---------------------- | ------------------------------------: | -------------------------------------------------------------- |
-  | `dist/extension.js`    | ≤ 2 KiB (the registry and the region) | 600 KiB, unchanged                                             |
-  | `dist/modelApi.js`     |                             ≤ 0.5 KiB | 475 KiB, unchanged                                             |
-  | `dist/acp.js`          |                               ≤ 2 KiB | 850 KiB, unchanged                                             |
-  | Webview startup bundle |   ≤ 3 KiB (the dock replaces its own) | 900 KiB, unchanged                                             |
-  | `dist/uiText.js`       |                             ≤ 1.5 KiB | 125 KiB, unchanged (strings in a regional block if it is near) |
-
-- **Size.** S: about 48 lane-hours.
-- **Certification checklist** (§6.0, plus):
-  - [ ] Lane 0's contracts and the keymap check recorded
-  - [ ] Lanes Q, U and A with their drills
-  - [ ] The live checks counted from the trace logs, with what the model did
-        after the deferral
-  - [ ] Harness scenes in four themes and at 320 px; README shots refreshed
-  - [ ] Editor rows recorded; strings in all 14 tables; the `/help` rows;
-        budgets measured; the full gate green
-
----
+Contain detached descendants through parent-chain enumeration and start-time
+identity checks in the existing process-tree module; the synchronous policy
+needs a bounded supervisor because spawnSync cannot enumerate while blocked.
+The process-tree module is the necessary shared-file extension of lane P's
+scope. Prefer a prepared Linux cgroup/scope runner when the harness provides
+one. Record the M107 governed-tree binding as an I/W integration handoff.
+No dependency, hook rewrite, gate weakening, paid call or branch merge.
 
 ### FIXM112U — RVM112U surface repairs (2026-10-06)
 
@@ -42508,7 +43489,1034 @@ aggregate certification record.
   - [ ] Each phase-2 section certified on its own when it ships.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
+#### Preserved integration notes: M98 — Muse Judge: a calibrated judge for any agent (D77, phase 1 integration)
+
+Lane D integration (2026-10-05, Kubuntu): merge A's review fixes and G's
+M91-G goldens into U, activate the same-model sources through a lazy window
+bundle, retain A's live binding and dispatch guards, and connect dispatch
+receipts to U's separate usage rows. Repair the recorded 320 px tool-row
+overflow. Document and certify only the behaviour exercised on this tree.
+D78's `paidDailyBudget.ts` and setting are absent from this checkout; its
+historical `3db0ef37` factory exposes `capUsd`/`reserve`, not A's complete
+daily-ledger interface. Metered Judge stays unavailable until that real
+adapter and D77's entry-criteria receipts land; no competing store is added.
+The exact handoff is recorded in `docs/certification/m98.md`. Prefixes with
+hosted billable tools use a standalone body with no tools: Judge token
+consent cannot authorize a separate hosted-search charge.
+The full rig gate also exposes Chrome CLI `--dump-dom` stalls on ordinary
+pages. Use the existing Playwright page driver for every accessibility
+scenario, preserving the four themes, real 690/320 px viewports, 120-second
+page timeout and every axe finding rule; prove the ordinary-page failure
+and the restored driver before rerunning the complete quality command.
+Lane D's final Kubuntu `npm run quality` exits 0 (7,317 passing tests;
+464 accessibility pages). Package and raw size check exit 0 at 2,113,751
+bytes against the unchanged 2,252,800 cap. The universal macOS helper is
+absent; CI's exact presence check fails only for that helper. The combined
+final-tree checkbox stays open. Receipts and the D78 handoff are in the
+aggregate certification record.
+
+- **Goal.** Small, calibrated, advisory decisions, on out of the box (D78),
+  from the user's own chat model first, with separate judges later. The Muse
+  model, or a deterministic rule, still decides.
+  - Redesigned after the third review round (RVM98C): **phase 1 is the
+    same-model judge only.**
+  - Every other part is a named phase-2 section that stays planned.
+- **Phase 1 scope.**
+  - **The same-model judge** on the Model API and on Muse Code:
+    - stated confidence on every model, batched;
+    - logprobs where a model offers them, with binary-from-top-1 under its
+      floor;
+    - results labelled "uncalibrated" or "approximate (top-1)".
+  - **Speed:**
+    - Model API side requests that share the main cached prefix exactly
+      (redaction first);
+    - Muse Code redacted standalone prompts in a fresh hidden session per
+      batch;
+    - background calls with stale results dropped, and a memory-only result
+      cache.
+  - **One use:** the Auto risk advisory, through the synchronous caution
+    latch at the reviewer-held and card-held fences only (D77, "Where
+    phase 1 intervenes"). Not started on immediate allows.
+  - **Admission** through D78's daily ledger; the ask-once consent;
+    confidential rules; privacy.
+  - **Modes:** `auto` (= `same`), `same`, `off`.
+  - **Per-backend invariance goldens:** M91-G's raw-body harness for the
+    Model API, MSP frames for Muse Code.
+- **Phase 2 sections**, each with its own lanes, acceptance, drills and
+  certification when it starts:
+  - 2a cascade and `both`;
+  - 2b calibration fitting;
+  - 2c SystemOne adapters and `judge serve` (M85);
+  - 2d sampling and contrastive framing;
+  - 2e BYO providers;
+  - 2f the other uses, the Judge panel section, and pre-execution fences;
+  - 2g the CLI and MCP;
+  - 2h lint;
+  - 2i the embedding fast path;
+  - 2j the local judge, after its design spike.
+- **Depends on.**
+  - **Phase 1:**
+    - M78 and M90 (the reviewer-held approval paths, `reviewedApprovals.ts`,
+      and the CLI settings reader);
+    - D78's daily ledger and M82's claim journal (FIXDEF);
+    - M91-G's raw-body harness (`6cfb19e4`, not yet on main);
+    - D48 and D78 (consent).
+  - **Phase 2:**
+    - M95 (2c keys, 2e, the 2f panel);
+    - M91 (2f pre-execution hooks, 2g `judge hook`);
+    - M96 (2f hints);
+    - M75 (2a, 2b, 2d, 2f, 2i);
+    - D68 (2h).
+- **Phase 1 lanes and file ownership.** Muse codes each lane. Codex
+  independently reviews each lane's finished diff and gate-fire evidence. The
+  lead serializes shared files, integration and the aggregate gates; no lane
+  rewrites another's region.
+  - **Start now on the rigs:** lanes 0, J and A. They are pure or
+    interface-level, and need no host integration.
+  - **After them:** S needs J. U needs S and A. G needs S and M91-G's
+    merge. D runs alongside, closing last.
+
+| Lane                  | Starts                        | Muse implementation ownership                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Codex review / acceptance focus                                                                                                                                                                |
+| --------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 Contract / strings  | now                           | new `src/core/judge/schema.ts` (zod request/answer/`muse` schemas, bounds, labels); named limits in `src/shared/constants.ts` (`JUDGE_TOP1_MIN_PROB`, `JUDGE_MIN_READY_RATE`, the advisory threshold, deadlines, caps); the `judge` paid feature in `PAID_FEATURES`; `museSpark.judge.engine` (`auto`, `same`, `off`) in `package.json` and `package.nls*.json`; English and the 14 `l10n/ui.*.json`                                                                                                           | Byte-compatible `answers`; option letters `A`–`Z`; no content in log fields; complete real translations                                                                                        |
+| J Judge core          | now                           | new `src/core/judge/{judge,math,techniques,prompt,resolve,entries}.ts`: the entropy confidence, logprob renormalization over distinct alternatives, `partial`, binary-from-top-1 with its floor and stated fallback, the stated-confidence parser, the state-first prompt builder, batching (questions split, never the state), the over-context refusal, the phase-1 mode resolver, and the exact-action entry store (key, states, discard rules, the synchronous latch read); new `test/unit/judge*.test.ts` | The RVM98 top-1 counterexample; variants counted once; top-1 never a distribution; a missing field read as failure; no state split; a late result never readable after its fence               |
+| A Admission           | now (against D78's interface) | new `src/core/judge/admission.ts`: worst-case uncached reservation per call, refusal of unpriced and over-budget calls, settlement, refunds of known non-sends, liability for uncertain outcomes, re-binding after waits; the adapter onto `src/host/paid/paidDailyBudget.ts` (D78), with no store of its own; integration tests against the real ledger once FIXDEF merges                                                                                                                                    | Entry criteria 1–7 of D77 verified, or a gap filed against FIXDEF; kill after dispatch, corrupt store, lock contention, network-home refusal, two windows, held modal; M80 and D78 regressions |
+| S Same-model source   | after J                       | new `src/core/judge/same/**` and host adapters: the Model API side request built from `ModelApiHost`'s own request builder (prefix copied only when redaction leaves it unchanged; standalone otherwise); Muse Code's fresh hidden session per batch (`session/start`, an empty temporary folder deleted after, Plan, no MCP servers, the user-settings allow-rule check, the M90 item guard); background scheduling and the memory-only result cache                                                          | No model switch; main request or session untouched; redaction first; no reuse of M90's session; judge off on standing allow rules; Muse Spark never awaited                                    |
+| U Use / UI            | after S and A                 | the latch reads at M78's reviewer fence (Model API) and in `src/host/review/reviewedApprovals.ts` (Muse Code, extension-owned held approvals); the caution note on cards; no start on immediate allows; the ready-rate and precision recorder for M75 replays; the Judge status line; the ask-once modal hook-up; usage rows; harness and accessibility cases                                                                                                                                                  | A ready caution turns ALLOW into ask; a pending one leaves it; the card never waits; never an allow; results kept out of the ALLOW parsers; themes, narrow panel, keyboard and screen reader   |
+| G Golden / invariants | after S, and M91-G's merge    | the Model API: an extension of M91-G's raw-body harness (`test/unit/modelApiGoldenRequests.test.ts` at `6cfb19e4`), with the full body byte-identical when `off` or with no hint, the side prefix equal to the main cached prefix, and the redaction case standalone; Muse Code: main-session MSP frames unchanged through the real adapter and fake CLI, and the judge session carrying only the standalone prompt; the SoL-Pi regression files rerun                                                         | Red on any main-body byte change, a side-prefix divergence, a prefix reused despite redaction, or a changed main-session frame; no independent baseline; no claim about the CLI's HTTP bytes   |
+| D Docs / integration  | alongside; closes last        | README, `docs/judge.md` (phase 1), `docs/PRIVACY.md`, SECURITY, CHANGELOG, PLAN, `docs/certification/m98.md`, the bundle and package scripts, knip and dpdm entries                                                                                                                                                                                                                                                                                                                                            | Documented behaviour only after real runs; costs from receipts; Muse Code's narrowed claim stated                                                                                              |
+
+- **Phase 1 acceptance.**
+  - **FIXM98J review repairs (RVM98J, 2026-10-04).** Findings 1–10
+    corrected within lanes J/0: finite JSON booleans; generation-bound entry handles;
+    complete-request context admission and splitting; single-character
+    answer tokens; no judge in the legacy activation paid review; explicit
+    `same` below the automatic ready-rate floor; singular `logprob` metadata;
+    ask-once wording with the shared daily budget in every language; a
+    schema-free engine predicate; and honest top-1 `partial` metadata.
+    Each fix has a regression and a byte-exact red drill in
+    `docs/certification/m98-j.md` (16 drills, full hashes beside it).
+    Lane U retains first-charge consent;
+    no judge call runs in this repair lane.
+  1. **Invariance, per backend.**
+     - When `off`: no request, no file, no log line, no bundle load.
+     - Model API with no hint: the main body is byte-identical (the M91-G
+       harness), and side prefixes are exact or standalone under redaction.
+     - Muse Code: main-session MSP frames unchanged, and the judge frames
+       carry only the standalone prompt.
+  2. **The contract.**
+     - Jev shapes for noul, choice and score.
+     - `muse` carries the source, technique, model, label, our confidence,
+       `vendorConfidence`, `partial`, and the reserved and settled cost.
+     - The bounds refuse 65 questions, 27 options, 11 levels and an oversized
+       body.
+  3. **Techniques.**
+     - **Stated:** batched and labelled "uncalibrated".
+     - **Logprobs:** renormalized over distinct variants.
+     - **Top-1:** only for a noul with a yes/no token at or above the floor,
+       labelled "approximate (top-1)"; the RVM98 counterexample falls back.
+     - **A missing field** is a failure.
+  4. **Fences** (C3).
+     - A ready caution at the reviewer's verdict turns ALLOW into ask.
+     - A fast reviewer with a delayed judge: ALLOW stands, and the late
+       result is dropped.
+     - An immediate native or Auto allow: no judge started, nothing charged.
+     - A card with a caution ready before the answer gets a note; after the
+       answer, nothing.
+     - A replaced session, turn or action discards the entry.
+     - The card never waits.
+     - Ready rate and precision recorded per backend; under
+       `JUDGE_MIN_READY_RATE`, the backend's default is off, with the reason.
+  5. **Muse Code isolation** (C4).
+     - A fresh session per batch, never M90's or the main one.
+     - An empty temporary folder, removed after.
+     - Plan mode with no MCP servers.
+     - The judge is off when user-level always-allow rules exist.
+     - The tool-item guard cancels.
+     - The residual and the narrowed claim appear in §9, in PRIVACY and in
+       the first-use note.
+  6. **Admission** (C5). Through D78's ledger only:
+     - worst-case reservation before dispatch;
+     - kill after dispatch, then restart: the liability is kept;
+     - a corrupt store or a lock failure: refused;
+     - a network home: refused;
+     - two windows: one admitted;
+     - a held modal: re-checked;
+     - unpriced: refused;
+     - re-binding after every wait.
+  7. **State size.** An over-context state gets an explicit no-answer, and
+     questions split across requests each carry the full state.
+  8. **Consent and billing.** Model API asks once (D78) with the price and
+     daily budget; Muse Code shows the subscription note.
+  9. **Confidential.** Same-model calls run exactly when the chat model may.
+  10. **Advisory only.** A "safe" answer leaves every verdict unchanged
+      (D50's test); results never reach the ALLOW parsers.
+  11. **Privacy.** Redaction before any remote call wins over prefix reuse.
+      Logs carry ids, source, technique, model, timing and cost only.
+- **Phase 1 tests and red drills.** Fakes only under `test/**`:
+  - a fake provider with stated-JSON, top-5, top-1, silent-drop,
+    reasoning-forced and cache modes;
+  - a fake Muse CLI with a hidden-session recorder, an always-allow settings
+    fixture and a tool-item emitter;
+  - fake reviewers with controllable delays.
+
+  Each new assertion and guard is broken once on purpose, observed failing,
+  restored byte-exact (SHA-256), and its whole test file rerun. The record
+  goes in `docs/certification/m98.md`. The required drills:
+  - **Invariance:** a main-body byte change; a side-prefix divergence; a
+    prefix reused despite redaction; a changed main-session MSP frame.
+  - **Math:** the top-1 complement under the floor; variants counted twice;
+    top-1 used for a choice; a dropped field read as certainty; a state
+    split.
+  - **Fences:**
+    - the latch awaiting the judge;
+    - a late result applied after its fence;
+    - a judge started on an immediate allow;
+    - a judge result parsed as ALLOW;
+    - an entry surviving a turn replacement.
+  - **Isolation:** reuse of M90's session; judging in the workspace folder;
+    running despite a user-level always-allow rule.
+  - **Admission:** a dispatch before the durable reservation; a liability
+    dropped on restart; two windows admitted for the last claim; dispatch
+    after a held modal without re-checking.
+  - **Behaviour:** a "safe" score that allows; a user path awaiting Muse
+    Spark; the judge doing anything while `off`; contributor tier in a
+    confidential workspace.
+
+  Never drill against a user's repository.
+
+- **Phase 2 sections.** Planned, not dropped. Each starts after its
+  dependency and the evidence it names.
+  - **2a — Cascade, `both`, and `auto` → `both`.**
+    - **Design:** the separate judge first; the same model under the entropy
+      `JUDGE_CASCADE_CONFIDENCE` or for a high-stakes family;
+      profile-weighted combination; disagreement only adds caution.
+    - **Needs:** 2b, a verified separate judge (2c or 2j), and M75's
+      families. The round-2 numbers are offline prototypes.
+  - **2b — Calibration fitting and the report.**
+    - Platt first, isotonic at 200 or more labels.
+    - Per-family targets with independent labels; outcome signals kept
+      apart.
+    - Disjoint grouped splits; metrics from the evaluation set only.
+  - **2c — SystemOne adapters and `judge serve`** (M85).
+    - **Adapters:** OpenRouter Jev (tested), TypeSafe (untested), Clef
+      (after a key), over M95's keys.
+    - **`serve`:** an IP-literal bind, a per-start token in a user-only file
+      deleted on exit, Host and `Origin` refusal (an absent `Origin` never
+      skips the token), 64 KiB, per-request admission.
+  - **2d — Sampling and contrastive framing,** under the cost gate,
+    measured first.
+  - **2e — BYO providers** after M95, with per-model capability blocks from
+    captures.
+  - **2f — The other uses, the Judge panel section and pre-execution
+    fences.**
+    - **Uses:** skill suggestion, relevance and grading, M96's hints, M90's
+      signal, and the three testing uses, each measured first.
+    - **Fences:** a deadline-bounded or hook-based fence for immediate
+      allows, only with a captured pre-execution hook (M91) and a measured
+      ready rate.
+    - **The panel section** sits in M95's panel.
+  - **2g — The CLI and MCP.** `judge ask`, `calibrate`, `report` and `mcp`,
+    plus `judge hook` after M91; exit codes 0, 2 and 4; `--budget-usd`
+    defaults to 0; hooks emit caution only.
+  - **2h — Lint,** within D77's declared limits: a strict, pinned
+    `jevlint.json`; a separate Muse config; Tree-sitter for the kinds
+    symbols cannot cover; a "not checked" coverage report; the first-party
+    pack.
+  - **2i — The embedding fast path,** after a measurement with hundreds of
+    labels.
+  - **2j — The local judge.** First, a design spike answering C1 and C2
+    (D77): verified local inference checked per connection, against the
+    named fixtures, or else only a user-configured, unverified endpoint
+    that is never confidential and never auto-selected. The build follows
+    the spike's verdict, starting from D77's carried design: the pinned
+    `node:net` transport, provenance, consented pulls and `tev1:4b`.
+- **Gates.**
+  - The lead runs the full `npm run quality` and the required CI checks on
+    the final integrated tree. Lane tests and builds run on the rigs; local
+    work is limited to changed-file formatting and lint.
+  - All existing budgets are preserved.
+  - New external shapes need counted captures before their parsers: for
+    phase 1, Muse Code's hidden-session frames and the CLI's user-settings
+    allow-rule format.
+  - This planning lane authorizes no paid or live call beyond its recorded
+    probes.
+- **Security.**
+  - Inputs are bounded by named constants.
+  - State is data, and the judge can only add caution.
+  - Keys stay in SecretStorage or the OS store.
+  - Muse Code's judge session carries M90's recorded residual (§9), with
+    the narrowed claim.
+  - No local endpoint is contacted in phase 1.
+- **Docs and owner steps.** None for phase 1. The owner-only keys (TypeSafe,
+  Cloudflare) are needed only for 2c. Each surface is documented only after
+  a real successful run.
+- **Certification checklist.**
+  - [x] Owner requests and rulings; D77's policy of record; research and
+        probes (41 live attempts, ≈ $0.015; local CPU and GPU runs; round-2
+        prototypes labelled).
+  - [x] RVM98 (12 findings) answered in `96d7b669`; RVM98C (C1–C6) answered
+        by this redesign. C1 and C2 move with the local judge to the 2j
+        spike; C3–C6 are fixed for phase 1.
+  - [x] RVM98J findings 1–10 repaired in FIXM98J with owning regressions
+        and byte-exact red drills; no finding remains as an accepted residual.
+  - [ ] Phase 1 acceptance 1–11, each with its failing drill and passing
+        receipt.
+  - [x] M91-G's harness merged with `--no-ff` in `e64ced28`; lane G's
+        golden and MSP receipts are linked in `docs/certification/m98.md`.
+  - [ ] D78's ledger meets entry criteria 1–7, or FIXDEF gaps are closed.
+  - [ ] Phase-1 final tree: full quality, a11y, package and bundle caps,
+        installed-host receipts.
+  - [ ] Each phase-2 section certified on its own when it ships.
+- **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
+
+**M96INT3C full-profile timing deferral (2026-10-05).** The one requested
+`VITEST_MAX_WORKERS=3 npm run quality` finishes red at coverage tests:
+12,514 pass, 69 fail, 151 existing/platform/setup skips. Besides the
+product/fixture repairs in M96's record, the fixed 5 s test profile times
+out real SSH, native retirement, landing/batch, detached descendants,
+HTML expansion and a VSCE inventory call. A staging hook also exceeds
+its unchanged 10 s deadline under this concurrent coverage profile.
+The rig brief prescribes scoped runs at at most three files with
+`--maxWorkers=3 --testTimeout=120000`; receipts of those runs are separate
+from full-quality certification. Gates remain unchanged. Full-quality
+certification requires a fresh owner-authorized run after these repairs
+and resolution of the shared archived-ref history blocker; round 3c's
+single invocation is never relabelled green. Windows proof belongs to
+REDWINI96/round 3d. No live/paid attempts.
+
+The later standalone audit is repaired by pinning the existing dev-only
+source-map-js leaf to 1.2.2; private script-free leaf/full-lock installs and
+the unchanged audit pass. The shared worktree tooling stays at 1.2.1 under
+the lane rule. Refresh an isolated development install to the committed
+lock before the next full-profile run. Final complete accessibility,
+SAST and localization pass; their receipts do not replace that full run.
+
+**M96INT3D single aggregate receipt (2026-10-05).** On `79b6589c`,
+`VITEST_MAX_WORKERS=3 npm run quality` exits 1 at the zero-duplication
+gate: two paid-consent tests repeat the same six-line, 61-token observation
+block. Formatting, JavaScript/CSS lint, all five typecheck projects,
+localization, host API, knip and cycles pass first; PowerShell lint retains
+its existing Windows-only policy. Share the exact test assertions, then
+the affected paid-budget file passes all 17 cases and the unchanged
+duplication gate reports zero clones. Coverage tests and later aggregate
+gates were not reached. The twelve prescribed files separately pass 306
+assertions; they are not a green coverage-profile receipt. No second full
+run is authorized in this lane; the lead decides it. The default history
+scan is now clean after archive refs moved outside this repository, and
+the shared install now contains the pinned source-map-js 1.2.2. Windows
+proof remains WINPUB on win11 for the lead's release batch.
+
+**M113 W integration boundaries (2026-10-06).** The rig note explicitly
+requires the complete configured Vitest suite in three-file batches, overriding
+common.md's normal scoped-suite rule. Aggregate `npm run quality` remains
+forbidden by that shared brief; the named component gates run separately.
+Public badge/audit traffic and live captures are also forbidden on this lane.
+The supported package badge check uses its existing documented network-skip
+reason solely for offline packaging; its local badge/template checks remain.
+Coverage aggregation, installed editor/live service/platform receipts and the
+hosted M80 matrix stay with the lead. No threshold, timeout, rule or size cap
+is lowered or raised to replace one of these receipts.
+
+M113 dependency handoffs remain explicit: S session activity and usage need
+M84's retained activity/M102's actual aggregate; native/companion/TUI/desktop
+hosts and runtime settings need M104/M110/M111; N stores, workflow/release and
+posting await approved captures; Q scheduling/occurrences, vault mail, node
+browser and editor/CLI creation need M115/M109/M110/M104; H check-slot records
+await M96c and the runtime verify adapter, which is absent on this base.
+The shipped portable bindings reject missing adapters or report unavailable
+sources. The shared engine, private cache/history/check journal, manifest,
+reference, lazy entries, budgets, docs and host inventory are W's scope.
+
+M113 W keeps schema-derived comparison bounds without importing Zod's JSON
+schema processors into browser first paint: the pinned, typed max-length
+check definitions supply the minimum actual bound. The structural section-key
+coverage and unbounded-array refusal remain; schema generation still uses
+`toJSONSchema` in its lazy/script reader. The existing 733.8 KiB startup
+regression and every production cap remain unchanged. CI's static job also
+runs P's new `check:plan` gate, matching `quality:gates`.
+
+### M103 — Makers: boards, firmware and machines (D83)
+
+**Q-M103a–h resolved 2026-10-05 (lead, under the owner's standing
+authorization: "any recommendation you come up with you are authorized").**
+(a) Plain HTTP on the LAN only for a machine the user registered by command,
+with the warning; model servers keep D74. (b) Model-proposed actuation for
+3D printers only, each send approved; CNC, lasers and robots get read-only
+status and Stop. (c) The Auto reviewer never answers shell commands in a
+hardware workspace. (d) Certify on fakes and simulators, plus the owner's
+Raspberry Pi and ESP32 in a supervised session (2026-10-05 evening). (e)
+Wokwi only with the user's own `WOKWI_CLI_TOKEN`, never on by itself. (f)
+Headless hardware-in-the-loop is built, but only from an allowlist file the
+user writes (device identity, action, payload digest, limits, expiry), never
+the model; every run's log is kept. (g) The companion page is the whole
+panel (M104); M103's maker pages are built on the same server and bridge.
+(h) Publishing accounts (PyPI, ACP registry, Eclipse update site) are the
+owner's; release assets and install docs ship meanwhile.
+
+**Status 2026-10-05: planned.** Sub-milestones land in order a → f; a's
+guard ships first and alone if the others slip, because it closes H1–H5 for
+every user.
+
+- **Goal.** Makers get skills, detection, simulation and offline tools that
+  work out of the box, and device and machine access that never moves,
+  heats, powers or flashes anything without a person approving exactly what
+  is sent.
+- **Depends on.** M92 (bounded runs, first-party skills, the secret-guard
+  settle), M68 (check commands), M69 (the in-tool modal), M89 (the
+  installer), M91 (hooks: their allow must not answer a device action), M95
+  (capability records) for D83.12, M96/M100 only for the refusals in D83.8.
+  For D83.16: M60's portable list and host API record, M61's `HostBridge`,
+  M63's ACP agent and package. The JetBrains, Visual Studio and Eclipse
+  surfaces arrive with M64 and M65; M103 freezes the protocol they
+  implement, so they need no maker code of their own beyond a dialog and a
+  toolbar action.
+- **Scope.** D83: the guard table and settle on both backends and in the ACP
+  agent and headless; the hardware switch, device log and machine registry;
+  detection and catalogue gating; the maker skills and the installer
+  change; the device list, flash identity check and irreversible refusals;
+  the G-code analyser; simulator and EDA check presets; the OpenSCAD tool
+  and STL preview; the serial tool and helpers; printer status, send and
+  stop; GRBL/FluidNC status and stop; physical MCP marking; the arm64 CI job
+  and the Pi, local-model and simulator guides; D83.16's portable engine,
+  `MakerHost` port and protocol, the VS Code adapter, the runtime's maker
+  host with its CLI subcommands, loopback MCP tool server and companion
+  page, the ACP prompts and commands, and the shared React maker views;
+  strings in all 14 tables;
+  README (a Makers section with the safety box), SECURITY, PRIVACY,
+  CHANGELOG, this plan, `docs/research/makers-2026-10-05.md`,
+  `docs/certification/m103*.md`.
+
+**Lanes and file ownership.** One integration branch
+(`feature/m103-makers`). Sub-milestone **f** is the maker editors (lanes A
+and T, and the Eclipse and JetBrains qualification rows); the owner has
+authorised plugins and bridges for every editor. New code lives in new folders split by lane, so
+lanes touch shared files only in their named regions (M87's region rules for
+`constants.ts`, `en.ts`, styles and the harness). Order:
+
+1. Lanes 0 and I first (about a day): the strings and the frozen
+   interfaces.
+2. Then up to six lanes in parallel against fakes of I's ports:
+   - core lanes G, D, S, P and M;
+   - surface lane U.
+3. Then V and R, the host adapters, which may overlap with step 2 once I is
+   frozen.
+4. W last.
+
+Everything a lane builds in `src/core/maker/**` is portable: no `vscode`
+import, and it goes on M60's portable list. The only VS Code code is lane V.
+
+| Lane                           | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 Strings                      | `src/shared/l10n/en.ts` (maker region), the 14 `l10n/ui.*.json`, `package.nls*.json` (commands, settings).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| I Interfaces (first)           | `src/core/maker/ports.ts`: the `MakerHost` port (`confirm`, `notify`, `stopControls`, `openPreview`, `storage`, `secrets`, `isTrusted`), `ApprovalRequest` (id, digest, target identity, expiry) and the answer check. `src/shared/makerProtocol.ts`: zod messages between the engine and any surface (webview, companion page, native plugin). The constants region. Tests for the answer check (a stale, mismatched or replayed answer is refused).                                                                                                                                                                                                                                                                                                                                                                  |
+| G Guard (a)                    | New `src/core/maker/guard/`: `hardwareCommands.ts` (the table below, both esptool spellings) and `actionClass.ts`. `src/core/agent/approvalHardware.ts` (Muse Code approvals, like `approvalSecrets.ts`). In `src/core/backends/modelapi/permissions.ts`, the `hardwareDetected` settle and the `device` class. The settled-ask list in `ModelApiHost.ts` (`askApproval`). `isReviewableApproval` in `approvalRules.ts`. The Bypass refusal in `src/shared/permissionModes.ts`. The subagent, worker, best-of-N, remote-lane and headless refusals at their call sites (one line each). Tests: `hardwareCommands.test.ts`, maker cases in `permissions.test.ts`, `approvalHardware.test.ts`, exec cases.                                                                                                               |
+| S Skills (a)                   | New `first-party-skills/maker_*/**`: each `SKILL.md` plus topic files read on demand. The installer change in `src/host/skills/bundledSkillsInstall.ts` (the first-party folder copied and marked). `.vscodeignore` if needed. Tests: `bundledSkillsInstall.test.ts`, and a skill lint test (front matter, ids, links, no secrets, every recipe command on the recipe-check list).                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| D Detection and presets (a, b) | New `src/core/maker/detect/`: `projectKinds.ts` (markers → kinds, bounded file reads), `checkPresets.ts`, and `onPi.ts` (facts from `/proc/device-tree/model`, `vcgencmd`). The catalogue gate in `src/core/context/skills.ts`. A `presetsOffered` event the hosts render. Tests over fixture workspaces.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| P Ports, serial, lease (a, c)  | New `src/core/maker/serial/`: port-list parsers per OS (CIM, sysfs and `by-id`, `ioreg`, `pio`/`arduino-cli` JSON), the VID:PID table, the session over helpers (the pyserial script, `stty` plus a killable reader child, the platform-tool adapters), and framing. `src/core/maker/lease.ts`: one holder per port or machine, through a lock file in the per-user data folder that names the holder's owner-only socket or pipe. `src/core/maker/flashIdentity.ts`. New `native/windows/MuseSparkSerial.cs` with its `JobBuild` entry (`jobBuild.ts` is already portable), and `native/posix/serial.py`. Tests: socat pairs on the rigs, a fake helper, parser fixtures.                                                                                                                                             |
+| M Machines and G-code (b, d)   | New `src/core/maker/gcode/`: tokenizer, analyser, Klipper macro and Marlin/GRBL dialect tables, limits check. New `src/core/maker/machines/`: Moonraker, OctoPrint, PrusaLink, GRBL/FluidNC and Marlin adapters behind one `Machine` interface; limits readers; stop sequences. New `src/core/maker/registry.ts`: machine records with no secrets; the LAN address rule over `endpointPolicy.ts`'s classifier; keys through `MakerHost.secrets`. New `src/core/maker/deviceLog.ts`. New `src/core/maker/cad.ts` (OpenSCAD and `kicad-cli` runners, the STL bounds and size check). Tests against fake Moonraker, OctoPrint and GRBL servers.                                                                                                                                                                           |
+| U Shared UI (a, b, d)          | New `src/webview/maker/**`, all lazy chunks: the approval dialog (surfaces without a native one), the Stop chip, the device panel, the machine wizard, the device log view, and the STL viewer (in-house WebGL, ≤ 25 KiB, its own page entry). Each speaks only `makerProtocol.ts` through `HostBridge`. The panel's mount points in their component regions. Harness scenes, and axe on every new view.                                                                                                                                                                                                                                                                                                                                                                                                               |
+| V VS Code adapter              | New `src/host/maker/`: `vscodeMakerHost.ts` (native modal, notifications, status bar Stop, SecretStorage, `workspaceState`/`globalState`, trust), `makerPreviewPanel.ts` (the webview tab for the preview page), the hardware-switch and machine commands, and the `ide` server's maker tools (`src/host/ide/makerTools.ts`). Tests with the `vscode` mock.                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| R Runtime, ACP, companion      | New `src/runtime/maker/`: `runtimeMakerHost.ts` (data folder, the OS credential store via `keyStore.ts`, workspace grants keyed like the ACP agent's paid grants); the CLI subcommands `hardware enable\|disable\|status`, `machines add\|list\|remove` and `stop-machine [--all]` (keys only from stdin, rule 8); a loopback MCP tool server for Muse Code (`muse serve` gets the maker tools as the extension's `ide` server gives them); the companion server (loopback, token, Host/Origin checks, CSP, serving the shared panel's maker pages). In `src/acp/maker.ts`: permission prompts with allow-once and reject-once only, the `/stop-machine`, `/hardware` and `/machines` commands, and `--hardware`. Tests over stdio against the fake CLI, and companion-server tests (token, Origin, LAN bind refused). |
+| W Wiring (last)                | The esbuild entries `dist/maker.js` (portable; added to the ACP package beside `dist/modelApi.js`), the preview page, and the webview's maker chunks. Their budgets in `scripts/check-bundle-size.mjs` and the split guard. The tool-definitions region in `tools.ts` (`hasDevices`, `hasCad`, `hasGcode`). The command region in `src/extension.ts` (loaders only). `package.json` (commands, settings, keybinding). The M60 portable list and the host API record. README (with the editor matrix), SECURITY, PRIVACY, CHANGELOG, PLAN, `docs/research/makers-2026-10-05.md`, `docs/certification/m103.md`, `docs/ide-compatibility/hosts.md` rows. The arm64 CI job in `.github/workflows/`. The full gate.                                                                                                         |
+| A Arduino IDE build (f)        | A second VSIX build: `engines.vscode ^1.96.0`, host `node20.14`, webview `chrome124` (`scripts/build.mjs` variant, `scripts/package-arduino.mjs`). A typecheck job against `@types/vscode` 1.96. Reading the IDE's board API (`vscode-arduino-api`) when present. The Arduino IDE row in `hosts.yml`: install into `~/.arduinoIDE/plugins/` and run the integration tests. Install docs.                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| T Thonny plugin (f)            | New `integrations/thonny/` (Python package `thonnycontrib.muse_spark`, Apache-2.0 or MIT like the repository): menu items (Open Muse Spark, Stop machine), starting and stopping the runtime, opening the companion page, and the serial-provider bridge (Thonny's `get_runner()` behind the runtime's owner-only socket). Python tests against a fake runner; a PyPI release job (owner's token, Q-M103h).                                                                                                                                                                                                                                                                                                                                                                                                            |
+| E Evidence (after W)           | The rig runs, the ACP clients (Zed, Neovim, Emacs, JupyterLab, CLion) through the device flows against fakes, Arduino IDE 2 and Thonny on a rig, and the one live capture (below). No source files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+
+**Lane G's table (initial; each row and each near-miss is a fixture).**
+esptool v5 uses dashes (`write-flash`) and keeps the underscore forms
+(`write_flash`) with a warning; both spellings are rows.
+
+| Class                                   | Shell patterns (any OS, after `commandShape` splitting)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Near-misses that stay ordinary                                                                                                                                                       |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| program                                 | `pio`/`platformio` `run` with `-t`/`--target` `upload`, `uploadfs` or `erase`; `pio test` without `--without-uploading`. `idf.py … flash`, `app-flash`, `erase-flash`, `dfu-flash`. `esptool` `write-flash`, `erase-flash`, `erase-region`. `arduino-cli upload`, `burn-bootloader`. `avrdude -U flash:w`/`eeprom:w`. `picotool load`/`reboot`. `mpremote` `cp`/`fs cp` to `:`, `rm :`, `run`, `exec`, `mount`, `reset`. `ampy put`/`rm`/`run`. `dfu-util -D`. `st-flash write`. `openocd … program`. `nrfjprog --program`/`--recover`. `esphome run`/`upload`. `espota.py`. `west flash`. A copy to a mounted `CIRCUITPY` or `RPI-RP2` volume. An HTTP `PUT`/`DELETE`/`MOVE` to a CircuitPython `/fs/`.                                                                                                                                | `pio run`, `pio test -e native`, `idf.py build`/`menuconfig`/`qemu …`, `arduino-cli compile`, `esptool merge-bin`/`image-info`, `espsecure …` (local files), `mpremote connect list` |
+| connect                                 | `pio device monitor`, `pio run -t monitor`, `idf.py monitor`, `arduino-cli monitor`, `mpremote` (bare, `repl`, `connect <port>`), `screen`/`minicom`/`picocom`/`cu` on a device, `stty -F`/`-f` on a device, `cat` of a device, `python -m serial.tools.miniterm`, `esptool` `chip-id`/`read-mac`/`flash-id`, `picotool info`, any open of a port at 1200 baud (it reboots CircuitPython and Arduino-class boards into their bootloader)                                                                                                                                                                                                                                                                                                                                                                                                | `pio device list`, `arduino-cli board list`, `python -m serial.tools.list_ports`, `ls /dev/serial/by-id`                                                                             |
+| actuate                                 | A write to a serial device node (`> /dev/tty*`, `> /dev/cu.*`, `> COMn`, `Set-Content -Path COMn`, `.Write(` on `System.IO.Ports`). `gpioset`, `pinctrl set`/`op`, `raspi-gpio set`. `ros2 topic pub`, `ros2 action send_goal`, `ros2 service call`. HTTP that changes a printer or CNC by `curl`, `wget`, `Invoke-WebRequest`, `Invoke-RestMethod` or `http`, over TCP or Moonraker's unix socket (`--unix-socket …moonraker.sock`, which skips auth): Moonraker `/printer/gcode/script`, `/printer/print/*`, `/machine/device_power/*`, `/server/files/upload` with `print=true`; OctoPrint `/api/printer/*` POST, `/api/job` POST, `/api/files` upload with `print=true`, `/api/connection` POST; PrusaLink `/api/v1/job/*` PUT/DELETE and file PUT with `Print-After-Upload`; FluidNC `/command`; a CNCjs socket `command`/`write`. | `curl …/printer/objects/query`, `GET /printer/info`, `GET /api/printer`, `GET /api/v1/status`, `ros2 topic echo`, `ros2 bag info`, `gpioinfo`, `gpiodetect`, `vcgencmd`              |
+| refused (irreversible, or machine-side) | `espefuse` `burn-efuse`/`burn_efuse`, `burn-key`, `burn-key-digest`, `burn-block-data`, `burn-bit`, `write-protect-efuse`, `read-protect-efuse`, `set-flash-voltage`. `avrdude -U lfuse:w`/`hfuse:w`/`efuse:w`/`lock:w`. `STM32_Programmer_CLI … -ob RDP=0xCC` (level 2). `picotool otp set`/`otp load`. Machine-side refusals (D83.2), so the shell cannot do what the tools refuse: Moonraker `/printer/restart`, `/printer/firmware_restart`, `/machine/shutdown\|reboot\|services/*`, uploads with `root=config`; G-code or HTTP carrying M997, M502, M500, `SAVE_CONFIG`, M80/M81, M42, M303; GRBL `$X`, `$RST`, `$N…=`, `$<n>=` writes.                                                                                                                                                                                           | `espefuse summary`/`dump`, `picotool otp list`/`get`                                                                                                                                 |
+
+Lane G records each row's source (the tool's own documentation) in its
+certification file. A row it cannot confirm there stays out and is listed
+as such, never guessed in. Stop endpoints and stop bytes (`/printer/emergency_stop`,
+`M112`, GRBL `!` and 0x18) are never blocked or asked in the shell; they are
+logged.
+
+- **Acceptance.**
+  1. **Guard, Model API.** Every row of lane G's table asks in Manual, Edit
+     automatically, Auto and Bypass, with no session choice; an allow rule, a
+     session rule, a hook's allow and the Auto reviewer never answer it; Plan
+     refuses it; every near-miss is judged as today. Refused rows are denied
+     in every mode with the run-it-yourself reply.
+  2. **Guard, Muse Code (fake CLI).** A guarded approval is scrubbed of
+     standing choices and never reaches the reviewer. In a hardware workspace
+     Bypass is not offered on either backend, an existing Bypass session
+     drops to Auto with a notice, and the Auto reviewer answers no shell
+     command. Lane E's capture records which table rows Muse Code's own Auto
+     skip lets through without an approval; if any, Auto is capped to Manual
+     in hardware workspaces on Muse Code and the README says why.
+  3. **Unattended.** In a subagent, a team worker, a best-of-N candidate,
+     headless `exec` and an M100 remote lane a guarded command and every
+     device tool are refused, not asked; a timed send meets the modal, which
+     expires as Reject.
+  4. **Switch.** Off: no device tool is offered (request bytes and goldens
+     identical to the base); untrusted: refused; a `museSpark.*` workspace or
+     folder setting cannot turn it on; enabling asks for a reason, which the
+     device log records; revoking removes the tools at the next request.
+  5. **Detection.** Fixture workspaces (PlatformIO, ESP-IDF, Arduino CLI,
+     MicroPython, CircuitPython incl. a CIRCUITPY root, Pico SDK, Zephyr,
+     ESPHome, ROS 2, Klipper config, Marlin, G-code, OpenSCAD, CadQuery,
+     KiCad, Wokwi) give the right kinds, skills and presets; a workspace
+     without a marker sends byte-identical requests and catalogue; detection
+     reads at most `MAKER_DETECT_MAX_FILES` names and `MAKER_DETECT_MAX_BYTES`
+     per sniffed file.
+  6. **CIRCUITPY and machine config (H2).** A CIRCUITPY workspace root, a
+     Klipper config folder and a Marlin `Configuration*.h` are detected; on
+     the Model API an edit there asks in every mode but Plan with the safety
+     keys highlighted (`max_temp`, `min_temp`, `verify_heater`, thermal
+     protection, position limits); on Muse Code the panel shows a notice that
+     the CLI edits without asking and suggests a working copy plus an
+     approved deploy (the stated residual).
+  7. **Device list.** Fixtures of Windows CIM output, Linux sysfs and
+     `/dev/serial/by-id`, and macOS `ioreg` give port, VID:PID, serial and a
+     board guess; nothing opens a port (asserted by the fake).
+  8. **Flash identity.** A known mismatch is refused; an unknown identity is
+     shown as unknown on the card; a match is shown.
+  9. **Serial.** On socat pairs (Kubuntu, Mac mini) and the fake helper (all
+     OSes; com0com if installable on the Win11 VM): a bounded read returns
+     the bytes and leaves no process; a write shows exact bytes (hex for
+     non-printables) and sends only after Send once; connect warns about
+     resets; every action is logged.
+  10. **Printer status and send (fake Moonraker and OctoPrint servers).**
+      Status reads need no modal; a send is analysed, refused without asking
+      when outside limits or with unknown limits, asks with the exact lines
+      otherwise, expires, and asks again when the state changed; plain HTTP
+      to a registered private address works, to an unregistered or public
+      address is refused, and a name that later resolves elsewhere is
+      refused.
+  11. **Stop.** Stop machine sends each kind's stop sequence with no
+      approval, within `MACHINE_STOP_DEADLINE_MS`, from the panel, the status
+      bar, the palette and the keybinding; the turn's Stop ends a stream; the
+      model's `machine_stop` needs no approval and is logged.
+  12. **CNC/laser.** On a fake GRBL over a pty (grbl-sim where it builds): `?` status and
+      `$$` parse; any motion, spindle or laser command from the model is
+      refused; stop sends `!` then 0x18.
+  13. **G-code analyser.** Fixtures (absolute/relative, mm/inch, arcs,
+      Klipper macros, Marlin and GRBL dialects, unknown commands) give the
+      expected bounds, maximum temperatures and feeds, and classes.
+  14. **CAD and EDA.** A fake `openscad` produces STL and PNG; the preview
+      tab opens with its CSP and passes axe; malformed or oversize STL is
+      refused; the PNG goes back only to vision models. `kicad-cli` JSON
+      captured on a rig becomes the check summary.
+  15. **ACP.** Device tools appear only with `--hardware`; each action's
+      permission prompt offers only allow once and reject once.
+  16. **Installer.** Install for Muse Code copies and marks the first-party
+      skills; Remove deletes only what it marked.
+  17. **Budgets.** `dist/extension.js` and the webview's startup bundle do
+      not grow over the base (D6). `dist/maker.js`, the preview page and the
+      webview's maker chunks are lazy and under their new budgets (measured
+      - 15 %, rounded up to 25 KiB). The VSIX and the ACP tarball are within
+        their budgets.
+  18. **Portable engine.** `src/core/maker/**` is on M60's portable list and
+      the gate fails a `vscode` import there, red-drilled. The same
+      `dist/maker.js` loads in the extension host and in the ACP agent's
+      package.
+  19. **Every surface, one decision.** The same approval request is shown by
+      the VS Code modal, an ACP permission prompt and the companion page's
+      dialog. Each test drives a surface that answers late, with a wrong
+      digest, twice, or for another request; the engine refuses all of them
+      and sends nothing.
+  20. **ACP on both backends.** With `--hardware`, the device tools exist on
+      the Model API backend (in process) and on Muse Code (the runtime's
+      loopback MCP server, fake CLI). `/stop-machine` stops between turns.
+      During a turn, `session/cancel` ends the agent's streams, and
+      `muse-spark-code-acp stop-machine` from a second terminal stops a port
+      held by the agent (through the lease socket) and an HTTP machine
+      directly.
+  21. **Companion page.** It binds loopback only and refuses a LAN address.
+      It refuses requests without the token or with a foreign Origin or
+      Host. It renders the maker views under its own `HostBridge` and passes
+      axe in the harness.
+  22. **Editor matrix.** Every "now" row of the matrix in D83.16 has its
+      flows run against fakes (VS Code family in CI, the ACP clients in
+      `hosts.yml`), recorded in `docs/ide-compatibility/hosts.md`. The rows
+      that wait name the milestone they wait for.
+  23. **Lease.** A second conversation, window or agent asking for a port or
+      machine that another holds is told who holds it and gets nothing. A
+      holder that died leaves a lock the next claim proves stale (no
+      process, no socket) before taking it. A platform tool already holding
+      the port (an IDE's serial monitor) is reported as busy, never fought
+      over.
+  24. **Stop paths.** Against the fakes:
+      - Moonraker's Stop is `POST /printer/emergency_stop` and never
+        `gcode/script` (a drill swaps it and fails);
+      - GRBL's is `!`, 0x85, 0x18 as bytes ahead of any queued line;
+      - Marlin without `EMERGENCY_PARSER` shows the switch notice.
+
+      Klipper `PAUSE`/`CANCEL_PRINT` and OctoPrint job pause or cancel ask
+      as _actuate_. The refused set (D83.2) is refused with the reason,
+      approval or not.
+
+  25. **Approval is the host's.** A tool argument or result carrying a
+      `confirm`, a token or an approval id never counts. A fake MCP server
+      that hands the model a token gets its call asked by our surface all
+      the same.
+  26. **Homing.** An unhomed Klipper fake, GRBL in alarm, or FluidNC with
+      `soft_limits: false` refuses model motion with the reason, and allows
+      stop and status.
+  27. **Maker editors (f).**
+      - The Arduino IDE build loads in Arduino IDE 2.3.10 (Linux, CI or
+        Kubuntu) and runs the integration tests.
+      - The Thonny plugin starts the runtime, opens the companion page, and
+        routes a device read through a fake Thonny runner without opening
+        the port.
+      - The Eclipse rows wait for M65; the beta ACP Connector route for
+        Espressif-IDE is recorded if it installs.
+      - CLion 2026.1 runs the ACP flows against fakes.
+- **Tests.** Unit tests per lane with a red drill for every guard row and
+  every refusal, recorded in `docs/certification/m103-<lane>.md`; fake CLI
+  e2e for the Muse Code paths; fake machine servers in `test/unit/helpers`;
+  socat-pair serial tests on Kubuntu and the Mac mini; the Windows helper on
+  the host and the Win11 VM; the ACP package on the arm64 CI runner. No
+  hardware is needed for the gate.
+- **Gates.** The full quality gate, check-l10n, host API record, bundle
+  budgets and the split guard, VSIX size, test:a11y (the preview page), the
+  PSScriptAnalyzer gate if a PowerShell helper is added, semgrep.
+- **Security and physical safety.** D83.3–D83.11 are the rules. No
+  credential in a fixture (built at run time, M92's rule); machine keys in
+  SecretStorage only and redacted by value; the guard table and redaction
+  table are each the one shared table; no listener, no discovery, no port
+  scan, no network access from a workspace file; the preview page has
+  `default-src 'none'` and no network.
+- **Docs.** README "Makers" section (what works per backend and provider,
+  the switch, the stop, the safety box with the physical E-stop sentence,
+  simulator and Pi guides, the CIRCUITPY and Muse Code edit notice),
+  SECURITY (device classes and the residuals), PRIVACY (device log, machine
+  list, Wokwi), CHANGELOG, this plan, the research report, certification.
+- **Size.** XL across a–f; a is M.
+- **Certification checklist.**
+  - [ ] M103a: guard (both backends, ACP, headless), switch, log, detection,
+        skills and installer, device list, flash identity — with drills
+  - [ ] M103b: G-code analyser, simulator and EDA presets, OpenSCAD tool and
+        preview, photo review gating — with drills
+  - [ ] M103c: serial tool on socat pairs, the Windows helper, resets
+        documented — with drills
+  - [ ] M103d: machine registry and LAN rule, printer status/send/stop,
+        GRBL status/stop, physical MCP marking — with drills against the
+        fakes and the virtual Klipper and OctoPrint virtual printer
+  - [ ] M103e: arm64 CI job green, Pi and local-model guides run as written
+  - [ ] M103f: Arduino IDE 2 build loaded and tested; Thonny plugin with
+        drills; CLion ACP row; Eclipse vendor IDE rows with M65 (or named
+        as waiting)
+  - [ ] Stop paths, refused set, host-only approval and homing drills
+        (acceptance 24–26)
+  - [ ] D83.16: the portable engine in the extension and the ACP package;
+        approval surfaces (VS Code modal, ACP prompt, companion dialog)
+        with drills; the runtime's MCP tool server on Muse Code; CLI and ACP
+        stop; the companion page; the editor matrix's "now" rows recorded in
+        `docs/ide-compatibility/hosts.md`
+  - [ ] Lane E's live capture (Muse Code Auto skip) with its call count
+  - [ ] The owner-hardware items in §7, or each named as open
+  - [ ] Strings in all 14 tables; full gate green; budgets measured
+
+---
+
+### M104 — Every editor, every feature (D84)
+
+**Status 2026-10-07: waiting.** Certification metadata remains incomplete; retained requirements and receipts follow.
+
+Lane C review remediation (FIXM104C, 2026-10-05): replace host-wide cookies
+with one-use fragment launch codes exchanged for independent per-window
+bearers held only in page memory. Every privileged request, including the
+fetch-based event stream, carries Authorization and retains exact Host/Origin,
+Fetch-Metadata and CSP checks. Packaged assets require the bearer too.
+Regression coverage must prove no credential reaches another loopback service,
+two windows have independent streams, two runtimes cannot overwrite credentials,
+and rejected launches show localized accessible reopen guidance. Evidence and
+byte-exact red drills belong in `docs/certification/m104-c.md`.
+
+**M104 is split** because it is large: a foundation and seven parallel
+parts. All of them build against the MHP v1 contract frozen at the end of
+lane A's first step.
+
+| Milestone | Delivers                                                                                                                                  | Depends on                                   |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| M104a     | MHP v1; the VS Code adapter refactor; the runtime `panel` mode; UI bridges, tokens and fallbacks; the companion server; the registry gate | M95, M96c, M98 merged (or rebased onto them) |
+| M104b     | JetBrains plugin (IntelliJ-based IDEs and Android Studio)                                                                                 | M104a contract freeze                        |
+| M104c     | Visual Studio extension                                                                                                                   | M104a contract freeze                        |
+| M104d     | Eclipse plugin (with Espressif IDE)                                                                                                       | M104a contract freeze                        |
+| M104e     | ACP on the controller, plus the shims: Zed, Xcode app, Qt Creator, Neovim, Emacs, Sublime; LSP broker; `lsp` server                       | M104a contract freeze; companion server      |
+| M104f     | Distribution: the release workflow for every channel; signing; registries                                                                 | M104b–e artifacts                            |
+| M104g     | Qualification: the conformance suite green per editor; Arduino IDE 2 and the remaining VS Code-family rows                                | all                                          |
+| M104h     | Docs and certification (runs throughout)                                                                                                  | —                                            |
+
+- **Goal.** Every feature in the registry (F1–F56, and every one added
+  later) works in every editor in §1.3, through the editor's own APIs or
+  our own implementation. Every future feature lands in all of them in the
+  PR that adds it.
+- **Depends on.**
+  - D84.
+  - The M60 gate and the M61 steps.
+  - M98's `tokenFile.ts` and its serve guard (merged, or this milestone
+    takes ownership of a copy).
+  - M95 (providers) and M96c (Traffic), so their webviews join the bridge
+    at once.
+  - Toolchains on the rigs, all installs authorised:
+    - Kubuntu: JDK 21 and 25, Gradle 9, Maven 3.9.9, Tycho 5.0.4, Xvfb,
+      Neovim 0.12, Emacs 29 and 30, Sublime build 4205 or later, Qt
+      Creator 20;
+    - Win11 VM: VS 2022 (17.14) and VS 2026 with the VSSDK workload;
+    - Mac mini: Xcode 26.6 and 27.
+- **Lanes and file ownership.** One integration branch, `feature/m104`.
+  Lane 0 lands the contract skeleton (one day). Then lanes A–J run in
+  parallel, and the lead integrates.
+
+| Lane     | Items                                                                                                                                                                                                                                                                            | Files it owns                                                                                                                                                     | Its regions in shared files                                                      | Starts                      |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | --------------------------- |
+| 0 (lead) | MHP v1 skeleton: method table, zod schemas, capability names, error codes, version range; feature registry skeleton (F1–F56)                                                                                                                                                     | `src/shared/hostApi/**`, `src/shared/hostApi/features.ts`                                                                                                         | `src/shared/constants.ts` (MHP block)                                            | day 0                       |
+| A        | VS Code adapter: `HostServices` implemented with `vscode`; `extension.ts` composes from it; the 24 `vscode` files moved to `src/host/vscode/**`; behaviour unchanged                                                                                                             | `src/host/vscode/**`, `src/host/compose/**`, `src/extension.ts`                                                                                                   | `scripts/check-host-api.mjs` (new allowed roots)                                 | after 0                     |
+| B        | Runtime panel: `panel --stdio` and `--companion`; controller registry; ACP sessions on the controller (re-basing `src/acp/agent.ts` on the registry); settings and storage stores                                                                                                | `src/runtime/panel/**`, `src/runtime/settingsStore.ts`, `src/acp/**`                                                                                              | `src/runtime/main.ts`, `src/runtime/cliArgs.ts` (the `panel` and `lsp` commands) | after 0                     |
+| C        | Companion server: launch code, memory bearer, Host/Origin/Fetch-Metadata guard, SSE, CSP, static assets, idle exit; shared token-file module                                                                                                                                     | `src/runtime/companion/**`, `src/runtime/tokenFile.ts` (moved from `judge/`, coordinated with the M98 owner)                                                      | —                                                                                | after 0                     |
+| D        | UI: the three bridges; `main.tsx`, Tasks and What's New on the bridge; `--muse-*` tokens (M61.3); React fallbacks (Confirm, Picker, Input, Toasts, StatusStrip, SettingsPage, Walkthrough, DiffPage, TerminalOutput); manager pages for skills, MCP, hooks, memory and worktrees | `src/webview/bridges/**`, `src/webview/fallbacks/**`, `src/webview/main.tsx`, `src/webview/whatsNew/main.ts`, `src/webview/tokens.css`, `src/host/ui/pageHtml.ts` | `src/webview/styles.css` (variables only), `l10n/*` (new keys, all 15 tables)    | after 0                     |
+| E        | JetBrains plugin (M104b)                                                                                                                                                                                                                                                         | `hosts/jetbrains/**`                                                                                                                                              | —                                                                                | after the contract freeze   |
+| F        | Visual Studio extension (M104c)                                                                                                                                                                                                                                                  | `hosts/visualstudio/**`                                                                                                                                           | —                                                                                | after the contract freeze   |
+| G        | Eclipse plugin (M104d)                                                                                                                                                                                                                                                           | `hosts/eclipse/**`                                                                                                                                                | —                                                                                | after the contract freeze   |
+| H        | Shims and editor routes (M104e): Zed extension, Xcode app and XcodeKit, Qt Creator Lua, `muse.nvim`, `muse-spark.el`, Sublime package; the LSP broker and the `lsp` server; the Zed completions endpoint                                                                         | `hosts/{zed,xcode,qtcreator,neovim,emacs,sublime}/**`, `src/runtime/lsp/**`, `src/runtime/tabServe.ts`                                                            | —                                                                                | after lane C's first commit |
+| I        | Distribution and CI (M104f): `hosts-native.yml` (path-filtered on PRs, weekly full), release jobs per channel, packaging scripts, the Node runtime pin manifest, the conformance runner                                                                                          | `.github/workflows/hosts-native.yml`, `scripts/package-hosts/**`, `src/runtime/nodeRuntime.json`, `test/hostApi/**`                                               | `.github/workflows/release.yml` (new jobs after `npm`), `package.json` scripts   | after 0                     |
+| J        | Docs (M104h): README "Every editor", `docs/ide-compatibility/{hosts,matrix,host-api-v1}.md`, `docs/acp.md`, CONTRIBUTING, AGENTS.md rule 14, CHANGELOG, PLAN, certification                                                                                                      | `docs/ide-compatibility/**`, `docs/certification/m104*.md`                                                                                                        | README, AGENTS.md, CHANGELOG, PLAN (M104 and D84 only)                           | throughout                  |
+
+- **Acceptance (all with fakes, no model calls).** Fakes: the fake Muse Code
+  CLI and the fake Model API server.
+  1. **VS Code unchanged.** Every existing gate and integration test passes,
+     and the harness screenshots are pixel-identical before and after lanes
+     A and D. The host API record lists only `src/host/vscode/**` and
+     `src/extension.ts` as importing `vscode`.
+  2. **MHP conformance.** The scenario suite passes against:
+     - (a) the in-process VS Code adapter;
+     - (b) a fake host in `test/hostApi/fakeHost.ts`;
+     - (c) each native plugin, in its own headless harness: IntelliJ's
+       `BasePlatformTestCase` and `HeavyPlatformTestCase` plus the
+       Starter/Driver UI tests, plus `CodeInsightTestFixture.testInlineCompletion`;
+       the VS experimental instance, with `[IdeFact]` tests pinned (the
+       harness is archived upstream, so hosted-runner reliability is measured
+       before it gates); tycho-surefire
+       with the UI harness under Xvfb; headless Neovim with plenary; Emacs
+       batch ERT; Sublime UnitTesting; Qt Creator Lua tests; XCTest.
+     - The scenarios cover:
+       - a conversation;
+       - an approval allowed, denied and cancelled;
+       - a dirty-buffer edit refused, and an edit applied once with one
+         undo;
+       - a diff reviewed hunk by hunk;
+       - diagnostics read by the verify loop;
+       - a checkpoint restore;
+       - the paid popup (Allow once, Always, Deny) and the budget limit;
+       - a Tab completion accepted;
+       - settings changed and seen;
+       - a session resumed after a reload.
+  3. **Matrix.** Every row is W for every editor's adapter in the registry,
+     or an exception is recorded with an approved reason and an equivalent.
+  4. **Companion security.** These are refused:
+     - a wrong `Host`;
+     - a foreign `Origin`, including a Playwright page served from another
+       port that tries a form POST, a fetch, an EventSource and a WebSocket;
+     - a missing bearer or a missing custom header;
+     - a replayed launch code;
+     - a non-loopback bind;
+     - an over-cap body.
+       Also: no CORS header in any response, and the CSP present on every
+       page.
+  5. **ACP.** M63's acceptance re-runs unchanged on the controller-based
+     agent, and the new slash commands, boolean options and `fs/*` routing
+     are tested against the SDK client. In Zed, Neovim and Emacs (hosts.yml)
+     a `/panel` command opens the same session in the companion.
+  6. **Rule 8 drills.** The key is absent from every MHP frame, every
+     companion response, the logs and every child environment, checked by
+     a grep test.
+- **Tests.**
+  - Unit tests: MHP schemas (round trip, rejection), capability selection
+    and fallback, the registry gate, the companion guard (each header case),
+    the launch-code lifecycle, the bridges, the token mapping, every React
+    fallback (including axe), the LSP broker against a fake LSP server, the
+    `lsp` server's `inlineCompletion`, and the Node runtime pin's checksum.
+  - Per plugin: unit tests in its own language (JUnit 5, MSTest or xUnit,
+    JUnit with Tycho, busted or plenary, ERT, Python `unittest`, XCTest).
+  - Integration: `test/e2e` drives `panel --stdio` with the fake host, and
+    `--companion` with Playwright.
+- **Gates.**
+  - New: `check:editor-matrix`; the tightened M60 import gate; the MHP
+    schema snapshot (a breaking change needs a version bump); Plugin
+    Verifier for the declared IDE range (IC, IU, PC, WS, GO, CL, RR, RD,
+    AS); `verifyPlugin`; ktlint and detekt; `dotnet format` and analyzers;
+    Checkstyle or SpotBugs for Eclipse; luacheck and stylua; `package-lint`
+    and checkdoc; ruff for the Sublime package; SwiftLint; actionlint for
+    the new workflows.
+  - Every new gate gets a red drill (CLAUDE.md), recorded in
+    `docs/certification/m104*.md`.
+  - D6 bundle budgets: the runtime `panel` entry is new (measured plus 15%).
+    The VSIX budget does not grow, because the plugins carry the bundle and
+    the VSIX does not.
+- **Security.**
+  - Covered by §3.8: the companion guard, launch codes, CSP, rule 8 (no key
+    over MHP, the UI or the companion), and rule 12 (decision in the
+    runtime).
+  - Node and language-server downloads only with consent and a pinned
+    SHA-256.
+  - The plugins never spawn with the key in their environment, and the
+    runtime strips credential variables as today
+    (`credentialVariables.ts`).
+  - JCEF, WebView2 and SWT pages get the same CSP and no remote origins:
+    `JBCefBrowser` with no devtools in release builds, WebView2 with
+    `AreDevToolsEnabled=false` and `AreDefaultContextMenusEnabled=false`,
+    and navigation outside the asset scheme blocked.
+  - PLAN §9 records the residual risks for same-user processes.
+- **Docs.**
+  - README: an "Every editor" section, plus install sections per editor.
+  - `docs/ide-compatibility/matrix.md` (generated), `hosts.md` (routes and
+    statuses updated: Xcode ACP from 26.6, Qt Creator's built-in client) and
+    `host-api-v1.md` (generated from the schemas).
+  - `docs/acp.md` (`/panel`, the options, `fs/*`), CONTRIBUTING (the
+    toolchains, how to run each harness), AGENTS.md rule 14, CHANGELOG, and
+    PLAN D84, M104 and §8/§9 rows.
+- **Size.** L overall. Rough sizes:
+  - M104a, 9–12k lines of TypeScript including tests (A about 3k of moves,
+    B 3k, C 1.5k, D 3k);
+  - JetBrains 7–9k Kotlin;
+  - Visual Studio 6–8k C#;
+  - Eclipse 6–8k Java;
+  - shims 1–2.5k each;
+  - LSP broker 2k;
+  - workflows and packaging 1.5k.
+    With 8–10 lanes in parallel, the critical path is lane A plus one plugin
+    (M104b).
+- **Certification checklist** (§6.0, plus):
+  - [ ] Lane 0's contract is frozen and versioned (`mhp/1.0.0`), with a
+        schema snapshot committed.
+  - [ ] VS Code is pixel-identical (harness) and every integration test
+        passes.
+  - [ ] Conformance is green per adapter, with a receipt per editor and
+        version, filed in `docs/certification/m104-<host>.md`.
+  - [ ] `matrix.md` is generated, and each editor's status is moved only on
+        that evidence.
+  - [ ] Companion security tests pass, including the Playwright
+        cross-origin drill.
+  - [ ] Red drills for `check:editor-matrix`, the tightened import gate,
+        the schema snapshot and the companion guard.
+  - [ ] Rule 8 grep tests and rule 12 popup tests pass in every host.
+  - [ ] Every artifact is built from one tag and attached to the GitHub
+        Release. Registry publishes run where the owner's accounts exist, and
+        each one missing is listed at the top of the report (loud failures).
+  - [ ] No live or paid call. Any live smoke follows CLAUDE.md: state the
+        count first, use an empty workspace, count from the trace log.
+  - [ ] Codex review in one pass per lane class before push.
+
+---
+
 ## 7. Gates
+
+**INT0170 integration certification (2026-10-07).** The lane brief requires
+exact macOS workflow jobs in fresh clones, with Node 22 and `CI=true`; these
+replace the common brief's scoped-only test restriction for final verification.
+Do not run the forbidden aggregate `npm run quality`. All original gate levels,
+assertions, coverage thresholds, timeouts and byte caps remain. The first merged
+clone exposes inherited M114 audit/source receipts and cold package fixtures in
+addition to structural merge bugs. Package-fixture repair stops after two failed
+approaches, as the common brief requires: isolated production setup exceeded
+the existing 60-second hook, and fake HTTP validation rejected its incomplete
+public-tree response. The unproven setup helper and compressor preload are
+removed; only actual required fixture inputs remain. Historical M114 receipts
+are not rehashed without recapture. These are explicit certification blockers,
+not exemptions or a green release claim. Full results and the next repair slice
+belong in `docs/certification/int0170.md`; hosted Windows/Linux, editor receipts
+and release publication remain the release lane's responsibility.
+
+**CI0150M round 3 aggregate status (2026-10-07).** The attempted unmodified
+`npm run quality` passes static gates, then fails whole-repository tests in
+unowned clean-artifact/localization suites and load-sensitive cases. The common
+OS brief assigns cross-platform failures to the Linux lane. Certify this lane
+with every exact macOS workflow command in fresh committed clones; record all
+remaining failures rather than weaken gates or edit another lane's suites.
+Aggregate release quality remains deferred to joined integration. Standalone
+secret scanning passes; the inherited SAST wrapper supplies duplicate `--jobs`
+options and is a shared failure, also deferred without changing its invocation.
+See this lane's round 3 section in `docs/certification/train-0.15.0.md`.
+
+**CI0150W round 3 certification.** Whole-shard and whole-job reproductions
+are explicitly required by `CI0150-os-common.md`; they run with unchanged
+default deadlines in fresh clones of local hooked commits. Targeted runs
+retain the three-file cap. Early scoped commits can precede aggregate
+`npm run quality` while the cross-platform failures assigned to the Linux
+lane remain; every failure and final Windows job result is recorded without
+weakening gates, assertions or deadlines. A complete quality claim requires
+the actual aggregate to exit zero.
+
+The final implementation run at `2548f459` passes the static CI job and all
+scoped test files in four complete shards. Aggregate quality stays deferred:
+clean/package fixtures remain red, integration has an external release-lookup
+timeout, and dedicated browser/credential-store checks have the exact residuals
+listed in §3 and the train record. Original coverage thresholds are exceeded;
+the merge command still fails because it replays failed package suite setup.
+No gate, refusal, assertion, timeout, retry or skip is weakened to claim green.
+
+**FIX0150R scoped certification.** The rig brief requires complete owning test
+files in batches of at most three, with three clean `CI=true` repetitions and
+individual static/build gates. Shared lane rules reserve aggregate
+`npm run quality` for the lead; its whole-repository coverage invocation exceeds
+this lane's test-file limit. Defer that aggregate to release integration without
+changing any threshold or gate. Receipts are in `docs/certification/fix0150r.md`.
+
+**FIX0150P scoped release-review verification (2026-10-07, linuxlt).**
+The rig/common briefs prohibit a full quality run in this lane. Full quality
+and cross-platform release certification remain with the lead; this lane
+runs the prescribed complete owning suites and scoped static/build gates
+without weakening thresholds, timeouts, isolation or hooks. Detailed red/base
+and restored-green receipts belong in `docs/certification/fix0150p.md`.
+
+**CI0150A scoped certification.** CI0150-common.md requires three clean
+repetitions of complete owning files and individual static gates; the rig note
+caps each test run at three files. Aggregate `npm run quality` includes an
+unbounded whole-repository test/coverage run, so it is deferred to integration
+under this scoped repair. Hosted OS/release checks also include CI0150B/C work
+and are not certified here. This justified deferral changes no gate or threshold.
+
+**CI0150C scoped repair certification (2026-10-07, macmini).** The rig brief
+requires clean `CI=true` verification in batches of at most three test files,
+three times at repository default deadlines, plus all five typechecks, lint,
+changed-file formatting, plain knip and duplication. The aggregate
+`npm run quality` is deferred to the joined release repair: its all-file Vitest
+invocation exceeds this lane's explicit three-file limit, and the other lanes
+own the remaining hosted failures. This is a scoped certification record, not
+a full-release quality claim; no threshold, rule, assertion or CI gate is
+disabled. The badge gate still performs real public network checks in CI.
+The extra `security:audit` run reports the pre-existing, now-unreported
+`GHSA-68fv-2mgg-jv7q` (`source-map-js`) exception in
+`.github/audit-exceptions.json`; that unowned cleanup is deferred to the lead,
+without changing an exception or suppressing the audit failure in this lane.
+
+**CI0150B scoped verification (2026-10-07).** This lane owns the ten slow suites
+in its brief. The shared CI0150 rules require three clean-tree whole-file runs,
+all compiler projects, lint, formatting, plain knip and duplication. Full
+`npm run quality` certification is deferred to the integrated CI repair: the
+other lanes own clean-checkout artifact failures in configured-provider,
+headless/package and other suites, and this lane must not edit their files.
+No threshold, assertion, retry or global timeout is relaxed. This branch's
+receipts certify only its named suites and checks, not a complete release gate.
+
+**TRAIN15H scoped certification.** The lead's rig brief and shared common.md
+reserve aggregate quality for the lead. This lane runs complete owning files
+under default deadlines and individual gates, including every accessibility
+page. No baseline increase, new feature, command, setting or escape hatch.
+
+**TRAIN15G inherited DIET1 measurement hold (resolved by TRAIN15H).** Main adds
+a regression assertion for its own 733.8-KiB startup and 32.1-KiB deferred
+measurement. The integrated train measures 815,775 startup bytes (796.7 KiB)
+and about 32.5 KiB deferred, within unchanged 900/50-KiB production caps.
+The assertion remains enabled and unchanged. Shared ownership, deferred
+loads, and package membership assertions pass. The brief authorizes only
+the universal VSIX cap formula; an additional startup diet or revision of
+this main-only measurement expectation needed a lead decision. TRAIN15H's
+lead decision requires compaction; the restored production graph passes both
+inherited assertions. The final receipt records exact bytes and all new
+closure budgets. No startup baseline or existing cap is raised.
+
+**TRAIN15G scoped certification.** The rig brief and shared common.md prohibit
+aggregate quality here. Run owning default-timeout suites and individual gates;
+the lead retains aggregate quality, hosted matrices and native/live receipts.
+The sole authorized cap decision is the measured universal VSIX formula above.
+
+**TRAIN15F final package cap hold (resolved in TRAIN15G).** The lead’s new
+brief authorizes measured universal +5%, rounded up to 25 KiB after the
+shared-browser audit. Actual TRAIN15G packages pass the resulting cap; the
+measurements below retain the earlier hold’s history.
+
+**Original TRAIN15F package cap hold (2026-10-06, win11).** Actual post-diet
+helperless VSIX is 2,600,909 bytes (66,509 over);
+verified-helper universal is 2,680,457 (146,057 over).
+The existing 2,534,400-byte / 2475-KiB cap is unchanged. Raw bundle,
+split/global, staged localization/badges and native export checks pass. The
+lead explicitly requires recording this remaining decision after excluding
+unneeded payload, rather than raising the cap. Full quality is reserved under
+the scoped-certification rule below. Exact inventories and default-timeout
+owning receipts: docs/certification/train-0.15.0-train15f.json.
+
+**TRAIN15F scoped certification (2026-10-06, win11).** The continuation brief
+requires the 132 complete owning files, default Vitest deadlines and individual
+static/build/package checks. Its shared common.md explicitly prohibits full
+`npm run quality` on this rig; full quality, hosted matrices, native macOS and
+live paid receipts remain the lead's release checks. No gate is weakened.
+The lead lifted the exec fixture's two-fix stop and authorized the exact
+2aa9cbff7 main merge and correcting D78 to immutable request goldens.
+
+**TRAIN15E exec fixture stop (2026-10-06, win11).** Exec stdio now passes
+38 cases, with three existing Windows exclusions, but its first packaging
+fixture expects the former single `de` table while using all fourteen real
+production tables. After the missing-directory and catalog-cache fixes this
+is its third failure. The common brief requires stopping after two distinct
+fixes; retain the assertion and record the remaining fixture mismatch. ACP
+stdio passes all ten cases, and production package/native checks pass. The
+one cold packaging case now has the specifically authorized 60-second limit;
+its measured 41.466 seconds includes archive compression and native checks.
+Ordinary packaging and exec deadlines remain 30 seconds.
+
+**TRAIN15E universal cap hold (2026-10-06, win11).** The real helperless VSIX is
+2,505,428 / 2,534,400 bytes. The certified prior helper contributes 81,327
+compressed bytes; adding that contribution alone projects 2,586,755 bytes,
+at least 52,355 over the unchanged cap before its ZIP entry headers. The
+289,568-byte macOS helper is absent on this rig; no placeholder is fabricated
+and no universal receipt is claimed. Further universal size recovery and an
+actual helper-bearing package remain for the lead. Helperless packaging and
+all native export checks pass; they do not certify the universal archive.
+
+**TRAIN15E D78 deferral (2026-10-06, win11).** Restoring M102's delayed recall
+declaration passes its unused-packing-default test but fails 72 train golden
+assertions by changing a tool declaration and cache key. Preserve the train's
+fixture bytes: all 89 golden assertions pass, while that one D78 test remains
+red. No fixture, assertion, timeout or gate is weakened. The precise conflict
+and both outcomes are in the train certification; the owner's decision is pending.
+
+**TRAIN15C M96 bounded size stop (2026-10-05, kubuntu).** The first composed
+Model API build is 494,346 / 486,400 bytes. Sharing captured validators and pure
+team admission brings it to 486,677 (+277); sharing the existing team bootstrap
+text through that same boundary brings it to 486,463 (+63). The same raw-size
+gate remains red after two distinct fixes. Under the owner's shared `common.md`
+stop rule, hold further Model API recovery and subsequent ordered merges pending
+an explicit continuation decision. The original deferred cohort is recovered
+by conditionally lazy paid usage; no cap, threshold or feature is changed.
+Independent M96 tests and packaging measurements continue for a reviewable
+candidate, not release certification. The universal archive is 2,397,730 /
+2,252,800 (+144,930), with exact largest-20 entry deltas retained. Static,
+source and native export checks do not excuse either cap. A local review
+checkpoint preserves the candidate with these explicit §7 deferrals; subsequent
+merges and release remain blocked. The inherited committed-source binding is
+checked after that checkpoint, because the pre-merge HEAD lacks its worker files. Full quality remains delegated to the
+lead after M95/M102 join. Receipts: `docs/certification/train-0.15.0.md`.
+
+**TRAIN15B raw-cap deferral (2026-10-05).** The resumed integration recovers
+the VSIX, with universal 2,213,704 and helperless 2,132,213 bytes, both under
+the unchanged 2,252,800 cap. The shared graph's original deferred cohort starts
+at 51,452 bytes; the first usage reduction still prints 50.1 KiB over 50 KiB,
+and the second leaves an exact 51,226 bytes (26 over). common.md requires
+stopping a path after two failed fixes, and the integration brief requires
+all caps to hold. Record the candidate with hooks and defer `m96/int3d`,
+`m96/ifix-win4` and `m97/sr`; no further raw-cap optimization or merge is tried.
+The source build completes and all other caps pass, but `npm run package`
+exits 1 before its packager. Running the actual packager separately measures
+exact archives and exercises strict staging, badges and native exports; that
+successful measurement does not certify the failing package command. All
+scoped checks and eight restored red drills are recorded in the train receipt.
+No full quality, cap increase, ignore, skip, feature removal or dependency change.
+This supersedes the first run's VSIX blocker below, preserving its history.
+
+**TRAIN15A budget stop (2026-10-05).** The integration brief explicitly
+forbids full quality and requires stopping after M101 if its unchanged universal
+VSIX cap cannot be met without a product decision. The first M101 candidate is
+2,368,627 bytes, 115,827 over. An existing-ESM shared-entry experiment preserves
+startup and model-text readership but leaves the original deferred cohort over
+its hard cap after two bounded fixes (57 bytes, then 10); common.md requires
+stopping that path. Restore the separate Models graph and retain every shipped
+feature and cap. Finish scoped checks, record the fresh artifact and exact largest
+twenty base deltas in `docs/certification/train-0.15.0.md`, commit the blocked
+integration locally with hooks, and do not merge steps 3–5. This is a justified
+review-candidate deferral under rule 2, never a green release claim. The lead
+owns a further size-recovery decision and the later continuation/full gate.
 
 **M113 W rig constraint (2026-10-06).** The explicit rig brief requires individual full gates and the complete test suite in batches of at most three files at default deadlines; its shared rules prohibit aggregate `npm run quality` and public network. This integration runs the named gates individually. Aggregate quality, hosted OS/editor/live receipts and network badge checks remain lead-owned; no threshold, ignore, hook or timeout changes.
 
@@ -42852,495 +44860,6 @@ The exact universal VSIX listing therefore fails only that helper entry; hosted
 artifact operations and full integrated quality remain with the lead. No check
 is weakened. Receipts and deliberate failures are in
 `docs/certification/cifix14-acp-usage.md`.
-
-### M95 — Bring-your-own model providers (D74)
-
-**M95INT round-two scope (2026-10-05, kubuntu).** The rig brief authorizes
-ordered `--no-ff` merges of `m95/kfix`, `m95/mufix`, `m95/hfix`, `m95/ofix`
-and `m95/scfix`; the last brings the 0.13.0 release at `928a9200`. Preserve
-all lane behavior and translations, use one shared Models panel contract,
-regenerate generated records, and close the round-one four blocking SAST
-findings, scan timeout warnings, selected-description contrast and harness
-readiness failures. Keep every bundle and the universal-helper VSIX within
-the existing caps by lazy loading where necessary. Run every offline unit
-file in sequential batches of at most three, all static/build/package gates,
-and a final complete `npm run quality`. T/X/I/W remain owned by their lanes;
-no live or paid calls, credential reads, push, rebase or separate main merge.
-The 150-minute timebox and actual receipts belong in `docs/certification/m95-int.md`.
-
-### M103 — Makers: boards, firmware and machines (D83)
-
-**Q-M103a–h resolved 2026-10-05 (lead, under the owner's standing
-authorization: "any recommendation you come up with you are authorized").**
-(a) Plain HTTP on the LAN only for a machine the user registered by command,
-with the warning; model servers keep D74. (b) Model-proposed actuation for
-3D printers only, each send approved; CNC, lasers and robots get read-only
-status and Stop. (c) The Auto reviewer never answers shell commands in a
-hardware workspace. (d) Certify on fakes and simulators, plus the owner's
-Raspberry Pi and ESP32 in a supervised session (2026-10-05 evening). (e)
-Wokwi only with the user's own `WOKWI_CLI_TOKEN`, never on by itself. (f)
-Headless hardware-in-the-loop is built, but only from an allowlist file the
-user writes (device identity, action, payload digest, limits, expiry), never
-the model; every run's log is kept. (g) The companion page is the whole
-panel (M104); M103's maker pages are built on the same server and bridge.
-(h) Publishing accounts (PyPI, ACP registry, Eclipse update site) are the
-owner's; release assets and install docs ship meanwhile.
-
-**Status 2026-10-05: planned.** Sub-milestones land in order a → f; a's
-guard ships first and alone if the others slip, because it closes H1–H5 for
-every user.
-
-- **Goal.** Makers get skills, detection, simulation and offline tools that
-  work out of the box, and device and machine access that never moves,
-  heats, powers or flashes anything without a person approving exactly what
-  is sent.
-- **Depends on.** M92 (bounded runs, first-party skills, the secret-guard
-  settle), M68 (check commands), M69 (the in-tool modal), M89 (the
-  installer), M91 (hooks: their allow must not answer a device action), M95
-  (capability records) for D83.12, M96/M100 only for the refusals in D83.8.
-  For D83.16: M60's portable list and host API record, M61's `HostBridge`,
-  M63's ACP agent and package. The JetBrains, Visual Studio and Eclipse
-  surfaces arrive with M64 and M65; M103 freezes the protocol they
-  implement, so they need no maker code of their own beyond a dialog and a
-  toolbar action.
-- **Scope.** D83: the guard table and settle on both backends and in the ACP
-  agent and headless; the hardware switch, device log and machine registry;
-  detection and catalogue gating; the maker skills and the installer
-  change; the device list, flash identity check and irreversible refusals;
-  the G-code analyser; simulator and EDA check presets; the OpenSCAD tool
-  and STL preview; the serial tool and helpers; printer status, send and
-  stop; GRBL/FluidNC status and stop; physical MCP marking; the arm64 CI job
-  and the Pi, local-model and simulator guides; D83.16's portable engine,
-  `MakerHost` port and protocol, the VS Code adapter, the runtime's maker
-  host with its CLI subcommands, loopback MCP tool server and companion
-  page, the ACP prompts and commands, and the shared React maker views;
-  strings in all 14 tables;
-  README (a Makers section with the safety box), SECURITY, PRIVACY,
-  CHANGELOG, this plan, `docs/research/makers-2026-10-05.md`,
-  `docs/certification/m103*.md`.
-
-**Lanes and file ownership.** One integration branch
-(`feature/m103-makers`). Sub-milestone **f** is the maker editors (lanes A
-and T, and the Eclipse and JetBrains qualification rows); the owner has
-authorised plugins and bridges for every editor. New code lives in new folders split by lane, so
-lanes touch shared files only in their named regions (M87's region rules for
-`constants.ts`, `en.ts`, styles and the harness). Order:
-
-1. Lanes 0 and I first (about a day): the strings and the frozen
-   interfaces.
-2. Then up to six lanes in parallel against fakes of I's ports:
-   - core lanes G, D, S, P and M;
-   - surface lane U.
-3. Then V and R, the host adapters, which may overlap with step 2 once I is
-   frozen.
-4. W last.
-
-Everything a lane builds in `src/core/maker/**` is portable: no `vscode`
-import, and it goes on M60's portable list. The only VS Code code is lane V.
-
-| Lane                           | Owns                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0 Strings                      | `src/shared/l10n/en.ts` (maker region), the 14 `l10n/ui.*.json`, `package.nls*.json` (commands, settings).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| I Interfaces (first)           | `src/core/maker/ports.ts`: the `MakerHost` port (`confirm`, `notify`, `stopControls`, `openPreview`, `storage`, `secrets`, `isTrusted`), `ApprovalRequest` (id, digest, target identity, expiry) and the answer check. `src/shared/makerProtocol.ts`: zod messages between the engine and any surface (webview, companion page, native plugin). The constants region. Tests for the answer check (a stale, mismatched or replayed answer is refused).                                                                                                                                                                                                                                                                                                                                                                  |
-| G Guard (a)                    | New `src/core/maker/guard/`: `hardwareCommands.ts` (the table below, both esptool spellings) and `actionClass.ts`. `src/core/agent/approvalHardware.ts` (Muse Code approvals, like `approvalSecrets.ts`). In `src/core/backends/modelapi/permissions.ts`, the `hardwareDetected` settle and the `device` class. The settled-ask list in `ModelApiHost.ts` (`askApproval`). `isReviewableApproval` in `approvalRules.ts`. The Bypass refusal in `src/shared/permissionModes.ts`. The subagent, worker, best-of-N, remote-lane and headless refusals at their call sites (one line each). Tests: `hardwareCommands.test.ts`, maker cases in `permissions.test.ts`, `approvalHardware.test.ts`, exec cases.                                                                                                               |
-| S Skills (a)                   | New `first-party-skills/maker_*/**`: each `SKILL.md` plus topic files read on demand. The installer change in `src/host/skills/bundledSkillsInstall.ts` (the first-party folder copied and marked). `.vscodeignore` if needed. Tests: `bundledSkillsInstall.test.ts`, and a skill lint test (front matter, ids, links, no secrets, every recipe command on the recipe-check list).                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| D Detection and presets (a, b) | New `src/core/maker/detect/`: `projectKinds.ts` (markers → kinds, bounded file reads), `checkPresets.ts`, and `onPi.ts` (facts from `/proc/device-tree/model`, `vcgencmd`). The catalogue gate in `src/core/context/skills.ts`. A `presetsOffered` event the hosts render. Tests over fixture workspaces.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| P Ports, serial, lease (a, c)  | New `src/core/maker/serial/`: port-list parsers per OS (CIM, sysfs and `by-id`, `ioreg`, `pio`/`arduino-cli` JSON), the VID:PID table, the session over helpers (the pyserial script, `stty` plus a killable reader child, the platform-tool adapters), and framing. `src/core/maker/lease.ts`: one holder per port or machine, through a lock file in the per-user data folder that names the holder's owner-only socket or pipe. `src/core/maker/flashIdentity.ts`. New `native/windows/MuseSparkSerial.cs` with its `JobBuild` entry (`jobBuild.ts` is already portable), and `native/posix/serial.py`. Tests: socat pairs on the rigs, a fake helper, parser fixtures.                                                                                                                                             |
-| M Machines and G-code (b, d)   | New `src/core/maker/gcode/`: tokenizer, analyser, Klipper macro and Marlin/GRBL dialect tables, limits check. New `src/core/maker/machines/`: Moonraker, OctoPrint, PrusaLink, GRBL/FluidNC and Marlin adapters behind one `Machine` interface; limits readers; stop sequences. New `src/core/maker/registry.ts`: machine records with no secrets; the LAN address rule over `endpointPolicy.ts`'s classifier; keys through `MakerHost.secrets`. New `src/core/maker/deviceLog.ts`. New `src/core/maker/cad.ts` (OpenSCAD and `kicad-cli` runners, the STL bounds and size check). Tests against fake Moonraker, OctoPrint and GRBL servers.                                                                                                                                                                           |
-| U Shared UI (a, b, d)          | New `src/webview/maker/**`, all lazy chunks: the approval dialog (surfaces without a native one), the Stop chip, the device panel, the machine wizard, the device log view, and the STL viewer (in-house WebGL, ≤ 25 KiB, its own page entry). Each speaks only `makerProtocol.ts` through `HostBridge`. The panel's mount points in their component regions. Harness scenes, and axe on every new view.                                                                                                                                                                                                                                                                                                                                                                                                               |
-| V VS Code adapter              | New `src/host/maker/`: `vscodeMakerHost.ts` (native modal, notifications, status bar Stop, SecretStorage, `workspaceState`/`globalState`, trust), `makerPreviewPanel.ts` (the webview tab for the preview page), the hardware-switch and machine commands, and the `ide` server's maker tools (`src/host/ide/makerTools.ts`). Tests with the `vscode` mock.                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| R Runtime, ACP, companion      | New `src/runtime/maker/`: `runtimeMakerHost.ts` (data folder, the OS credential store via `keyStore.ts`, workspace grants keyed like the ACP agent's paid grants); the CLI subcommands `hardware enable\|disable\|status`, `machines add\|list\|remove` and `stop-machine [--all]` (keys only from stdin, rule 8); a loopback MCP tool server for Muse Code (`muse serve` gets the maker tools as the extension's `ide` server gives them); the companion server (loopback, token, Host/Origin checks, CSP, serving the shared panel's maker pages). In `src/acp/maker.ts`: permission prompts with allow-once and reject-once only, the `/stop-machine`, `/hardware` and `/machines` commands, and `--hardware`. Tests over stdio against the fake CLI, and companion-server tests (token, Origin, LAN bind refused). |
-| W Wiring (last)                | The esbuild entries `dist/maker.js` (portable; added to the ACP package beside `dist/modelApi.js`), the preview page, and the webview's maker chunks. Their budgets in `scripts/check-bundle-size.mjs` and the split guard. The tool-definitions region in `tools.ts` (`hasDevices`, `hasCad`, `hasGcode`). The command region in `src/extension.ts` (loaders only). `package.json` (commands, settings, keybinding). The M60 portable list and the host API record. README (with the editor matrix), SECURITY, PRIVACY, CHANGELOG, PLAN, `docs/research/makers-2026-10-05.md`, `docs/certification/m103.md`, `docs/ide-compatibility/hosts.md` rows. The arm64 CI job in `.github/workflows/`. The full gate.                                                                                                         |
-| A Arduino IDE build (f)        | A second VSIX build: `engines.vscode ^1.96.0`, host `node20.14`, webview `chrome124` (`scripts/build.mjs` variant, `scripts/package-arduino.mjs`). A typecheck job against `@types/vscode` 1.96. Reading the IDE's board API (`vscode-arduino-api`) when present. The Arduino IDE row in `hosts.yml`: install into `~/.arduinoIDE/plugins/` and run the integration tests. Install docs.                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| T Thonny plugin (f)            | New `integrations/thonny/` (Python package `thonnycontrib.muse_spark`, Apache-2.0 or MIT like the repository): menu items (Open Muse Spark, Stop machine), starting and stopping the runtime, opening the companion page, and the serial-provider bridge (Thonny's `get_runner()` behind the runtime's owner-only socket). Python tests against a fake runner; a PyPI release job (owner's token, Q-M103h).                                                                                                                                                                                                                                                                                                                                                                                                            |
-| E Evidence (after W)           | The rig runs, the ACP clients (Zed, Neovim, Emacs, JupyterLab, CLion) through the device flows against fakes, Arduino IDE 2 and Thonny on a rig, and the one live capture (below). No source files.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-
-**Lane G's table (initial; each row and each near-miss is a fixture).**
-esptool v5 uses dashes (`write-flash`) and keeps the underscore forms
-(`write_flash`) with a warning; both spellings are rows.
-
-| Class                                   | Shell patterns (any OS, after `commandShape` splitting)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Near-misses that stay ordinary                                                                                                                                                       |
-| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| program                                 | `pio`/`platformio` `run` with `-t`/`--target` `upload`, `uploadfs` or `erase`; `pio test` without `--without-uploading`. `idf.py … flash`, `app-flash`, `erase-flash`, `dfu-flash`. `esptool` `write-flash`, `erase-flash`, `erase-region`. `arduino-cli upload`, `burn-bootloader`. `avrdude -U flash:w`/`eeprom:w`. `picotool load`/`reboot`. `mpremote` `cp`/`fs cp` to `:`, `rm :`, `run`, `exec`, `mount`, `reset`. `ampy put`/`rm`/`run`. `dfu-util -D`. `st-flash write`. `openocd … program`. `nrfjprog --program`/`--recover`. `esphome run`/`upload`. `espota.py`. `west flash`. A copy to a mounted `CIRCUITPY` or `RPI-RP2` volume. An HTTP `PUT`/`DELETE`/`MOVE` to a CircuitPython `/fs/`.                                                                                                                                | `pio run`, `pio test -e native`, `idf.py build`/`menuconfig`/`qemu …`, `arduino-cli compile`, `esptool merge-bin`/`image-info`, `espsecure …` (local files), `mpremote connect list` |
-| connect                                 | `pio device monitor`, `pio run -t monitor`, `idf.py monitor`, `arduino-cli monitor`, `mpremote` (bare, `repl`, `connect <port>`), `screen`/`minicom`/`picocom`/`cu` on a device, `stty -F`/`-f` on a device, `cat` of a device, `python -m serial.tools.miniterm`, `esptool` `chip-id`/`read-mac`/`flash-id`, `picotool info`, any open of a port at 1200 baud (it reboots CircuitPython and Arduino-class boards into their bootloader)                                                                                                                                                                                                                                                                                                                                                                                                | `pio device list`, `arduino-cli board list`, `python -m serial.tools.list_ports`, `ls /dev/serial/by-id`                                                                             |
-| actuate                                 | A write to a serial device node (`> /dev/tty*`, `> /dev/cu.*`, `> COMn`, `Set-Content -Path COMn`, `.Write(` on `System.IO.Ports`). `gpioset`, `pinctrl set`/`op`, `raspi-gpio set`. `ros2 topic pub`, `ros2 action send_goal`, `ros2 service call`. HTTP that changes a printer or CNC by `curl`, `wget`, `Invoke-WebRequest`, `Invoke-RestMethod` or `http`, over TCP or Moonraker's unix socket (`--unix-socket …moonraker.sock`, which skips auth): Moonraker `/printer/gcode/script`, `/printer/print/*`, `/machine/device_power/*`, `/server/files/upload` with `print=true`; OctoPrint `/api/printer/*` POST, `/api/job` POST, `/api/files` upload with `print=true`, `/api/connection` POST; PrusaLink `/api/v1/job/*` PUT/DELETE and file PUT with `Print-After-Upload`; FluidNC `/command`; a CNCjs socket `command`/`write`. | `curl …/printer/objects/query`, `GET /printer/info`, `GET /api/printer`, `GET /api/v1/status`, `ros2 topic echo`, `ros2 bag info`, `gpioinfo`, `gpiodetect`, `vcgencmd`              |
-| refused (irreversible, or machine-side) | `espefuse` `burn-efuse`/`burn_efuse`, `burn-key`, `burn-key-digest`, `burn-block-data`, `burn-bit`, `write-protect-efuse`, `read-protect-efuse`, `set-flash-voltage`. `avrdude -U lfuse:w`/`hfuse:w`/`efuse:w`/`lock:w`. `STM32_Programmer_CLI … -ob RDP=0xCC` (level 2). `picotool otp set`/`otp load`. Machine-side refusals (D83.2), so the shell cannot do what the tools refuse: Moonraker `/printer/restart`, `/printer/firmware_restart`, `/machine/shutdown\|reboot\|services/*`, uploads with `root=config`; G-code or HTTP carrying M997, M502, M500, `SAVE_CONFIG`, M80/M81, M42, M303; GRBL `$X`, `$RST`, `$N…=`, `$<n>=` writes.                                                                                                                                                                                           | `espefuse summary`/`dump`, `picotool otp list`/`get`                                                                                                                                 |
-
-Lane G records each row's source (the tool's own documentation) in its
-certification file. A row it cannot confirm there stays out and is listed
-as such, never guessed in. Stop endpoints and stop bytes (`/printer/emergency_stop`,
-`M112`, GRBL `!` and 0x18) are never blocked or asked in the shell; they are
-logged.
-
-- **Acceptance.**
-  1. **Guard, Model API.** Every row of lane G's table asks in Manual, Edit
-     automatically, Auto and Bypass, with no session choice; an allow rule, a
-     session rule, a hook's allow and the Auto reviewer never answer it; Plan
-     refuses it; every near-miss is judged as today. Refused rows are denied
-     in every mode with the run-it-yourself reply.
-  2. **Guard, Muse Code (fake CLI).** A guarded approval is scrubbed of
-     standing choices and never reaches the reviewer. In a hardware workspace
-     Bypass is not offered on either backend, an existing Bypass session
-     drops to Auto with a notice, and the Auto reviewer answers no shell
-     command. Lane E's capture records which table rows Muse Code's own Auto
-     skip lets through without an approval; if any, Auto is capped to Manual
-     in hardware workspaces on Muse Code and the README says why.
-  3. **Unattended.** In a subagent, a team worker, a best-of-N candidate,
-     headless `exec` and an M100 remote lane a guarded command and every
-     device tool are refused, not asked; a timed send meets the modal, which
-     expires as Reject.
-  4. **Switch.** Off: no device tool is offered (request bytes and goldens
-     identical to the base); untrusted: refused; a `museSpark.*` workspace or
-     folder setting cannot turn it on; enabling asks for a reason, which the
-     device log records; revoking removes the tools at the next request.
-  5. **Detection.** Fixture workspaces (PlatformIO, ESP-IDF, Arduino CLI,
-     MicroPython, CircuitPython incl. a CIRCUITPY root, Pico SDK, Zephyr,
-     ESPHome, ROS 2, Klipper config, Marlin, G-code, OpenSCAD, CadQuery,
-     KiCad, Wokwi) give the right kinds, skills and presets; a workspace
-     without a marker sends byte-identical requests and catalogue; detection
-     reads at most `MAKER_DETECT_MAX_FILES` names and `MAKER_DETECT_MAX_BYTES`
-     per sniffed file.
-  6. **CIRCUITPY and machine config (H2).** A CIRCUITPY workspace root, a
-     Klipper config folder and a Marlin `Configuration*.h` are detected; on
-     the Model API an edit there asks in every mode but Plan with the safety
-     keys highlighted (`max_temp`, `min_temp`, `verify_heater`, thermal
-     protection, position limits); on Muse Code the panel shows a notice that
-     the CLI edits without asking and suggests a working copy plus an
-     approved deploy (the stated residual).
-  7. **Device list.** Fixtures of Windows CIM output, Linux sysfs and
-     `/dev/serial/by-id`, and macOS `ioreg` give port, VID:PID, serial and a
-     board guess; nothing opens a port (asserted by the fake).
-  8. **Flash identity.** A known mismatch is refused; an unknown identity is
-     shown as unknown on the card; a match is shown.
-  9. **Serial.** On socat pairs (Kubuntu, Mac mini) and the fake helper (all
-     OSes; com0com if installable on the Win11 VM): a bounded read returns
-     the bytes and leaves no process; a write shows exact bytes (hex for
-     non-printables) and sends only after Send once; connect warns about
-     resets; every action is logged.
-  10. **Printer status and send (fake Moonraker and OctoPrint servers).**
-      Status reads need no modal; a send is analysed, refused without asking
-      when outside limits or with unknown limits, asks with the exact lines
-      otherwise, expires, and asks again when the state changed; plain HTTP
-      to a registered private address works, to an unregistered or public
-      address is refused, and a name that later resolves elsewhere is
-      refused.
-  11. **Stop.** Stop machine sends each kind's stop sequence with no
-      approval, within `MACHINE_STOP_DEADLINE_MS`, from the panel, the status
-      bar, the palette and the keybinding; the turn's Stop ends a stream; the
-      model's `machine_stop` needs no approval and is logged.
-  12. **CNC/laser.** On a fake GRBL over a pty (grbl-sim where it builds): `?` status and
-      `$$` parse; any motion, spindle or laser command from the model is
-      refused; stop sends `!` then 0x18.
-  13. **G-code analyser.** Fixtures (absolute/relative, mm/inch, arcs,
-      Klipper macros, Marlin and GRBL dialects, unknown commands) give the
-      expected bounds, maximum temperatures and feeds, and classes.
-  14. **CAD and EDA.** A fake `openscad` produces STL and PNG; the preview
-      tab opens with its CSP and passes axe; malformed or oversize STL is
-      refused; the PNG goes back only to vision models. `kicad-cli` JSON
-      captured on a rig becomes the check summary.
-  15. **ACP.** Device tools appear only with `--hardware`; each action's
-      permission prompt offers only allow once and reject once.
-  16. **Installer.** Install for Muse Code copies and marks the first-party
-      skills; Remove deletes only what it marked.
-  17. **Budgets.** `dist/extension.js` and the webview's startup bundle do
-      not grow over the base (D6). `dist/maker.js`, the preview page and the
-      webview's maker chunks are lazy and under their new budgets (measured
-      - 15 %, rounded up to 25 KiB). The VSIX and the ACP tarball are within
-        their budgets.
-  18. **Portable engine.** `src/core/maker/**` is on M60's portable list and
-      the gate fails a `vscode` import there, red-drilled. The same
-      `dist/maker.js` loads in the extension host and in the ACP agent's
-      package.
-  19. **Every surface, one decision.** The same approval request is shown by
-      the VS Code modal, an ACP permission prompt and the companion page's
-      dialog. Each test drives a surface that answers late, with a wrong
-      digest, twice, or for another request; the engine refuses all of them
-      and sends nothing.
-  20. **ACP on both backends.** With `--hardware`, the device tools exist on
-      the Model API backend (in process) and on Muse Code (the runtime's
-      loopback MCP server, fake CLI). `/stop-machine` stops between turns.
-      During a turn, `session/cancel` ends the agent's streams, and
-      `muse-spark-code-acp stop-machine` from a second terminal stops a port
-      held by the agent (through the lease socket) and an HTTP machine
-      directly.
-  21. **Companion page.** It binds loopback only and refuses a LAN address.
-      It refuses requests without the token or with a foreign Origin or
-      Host. It renders the maker views under its own `HostBridge` and passes
-      axe in the harness.
-  22. **Editor matrix.** Every "now" row of the matrix in D83.16 has its
-      flows run against fakes (VS Code family in CI, the ACP clients in
-      `hosts.yml`), recorded in `docs/ide-compatibility/hosts.md`. The rows
-      that wait name the milestone they wait for.
-  23. **Lease.** A second conversation, window or agent asking for a port or
-      machine that another holds is told who holds it and gets nothing. A
-      holder that died leaves a lock the next claim proves stale (no
-      process, no socket) before taking it. A platform tool already holding
-      the port (an IDE's serial monitor) is reported as busy, never fought
-      over.
-  24. **Stop paths.** Against the fakes:
-      - Moonraker's Stop is `POST /printer/emergency_stop` and never
-        `gcode/script` (a drill swaps it and fails);
-      - GRBL's is `!`, 0x85, 0x18 as bytes ahead of any queued line;
-      - Marlin without `EMERGENCY_PARSER` shows the switch notice.
-
-      Klipper `PAUSE`/`CANCEL_PRINT` and OctoPrint job pause or cancel ask
-      as _actuate_. The refused set (D83.2) is refused with the reason,
-      approval or not.
-
-  25. **Approval is the host's.** A tool argument or result carrying a
-      `confirm`, a token or an approval id never counts. A fake MCP server
-      that hands the model a token gets its call asked by our surface all
-      the same.
-  26. **Homing.** An unhomed Klipper fake, GRBL in alarm, or FluidNC with
-      `soft_limits: false` refuses model motion with the reason, and allows
-      stop and status.
-  27. **Maker editors (f).**
-      - The Arduino IDE build loads in Arduino IDE 2.3.10 (Linux, CI or
-        Kubuntu) and runs the integration tests.
-      - The Thonny plugin starts the runtime, opens the companion page, and
-        routes a device read through a fake Thonny runner without opening
-        the port.
-      - The Eclipse rows wait for M65; the beta ACP Connector route for
-        Espressif-IDE is recorded if it installs.
-      - CLion 2026.1 runs the ACP flows against fakes.
-- **Tests.** Unit tests per lane with a red drill for every guard row and
-  every refusal, recorded in `docs/certification/m103-<lane>.md`; fake CLI
-  e2e for the Muse Code paths; fake machine servers in `test/unit/helpers`;
-  socat-pair serial tests on Kubuntu and the Mac mini; the Windows helper on
-  the host and the Win11 VM; the ACP package on the arm64 CI runner. No
-  hardware is needed for the gate.
-- **Gates.** The full quality gate, check-l10n, host API record, bundle
-  budgets and the split guard, VSIX size, test:a11y (the preview page), the
-  PSScriptAnalyzer gate if a PowerShell helper is added, semgrep.
-- **Security and physical safety.** D83.3–D83.11 are the rules. No
-  credential in a fixture (built at run time, M92's rule); machine keys in
-  SecretStorage only and redacted by value; the guard table and redaction
-  table are each the one shared table; no listener, no discovery, no port
-  scan, no network access from a workspace file; the preview page has
-  `default-src 'none'` and no network.
-- **Docs.** README "Makers" section (what works per backend and provider,
-  the switch, the stop, the safety box with the physical E-stop sentence,
-  simulator and Pi guides, the CIRCUITPY and Muse Code edit notice),
-  SECURITY (device classes and the residuals), PRIVACY (device log, machine
-  list, Wokwi), CHANGELOG, this plan, the research report, certification.
-- **Size.** XL across a–f; a is M.
-- **Certification checklist.**
-  - [ ] M103a: guard (both backends, ACP, headless), switch, log, detection,
-        skills and installer, device list, flash identity — with drills
-  - [ ] M103b: G-code analyser, simulator and EDA presets, OpenSCAD tool and
-        preview, photo review gating — with drills
-  - [ ] M103c: serial tool on socat pairs, the Windows helper, resets
-        documented — with drills
-  - [ ] M103d: machine registry and LAN rule, printer status/send/stop,
-        GRBL status/stop, physical MCP marking — with drills against the
-        fakes and the virtual Klipper and OctoPrint virtual printer
-  - [ ] M103e: arm64 CI job green, Pi and local-model guides run as written
-  - [ ] M103f: Arduino IDE 2 build loaded and tested; Thonny plugin with
-        drills; CLion ACP row; Eclipse vendor IDE rows with M65 (or named
-        as waiting)
-  - [ ] Stop paths, refused set, host-only approval and homing drills
-        (acceptance 24–26)
-  - [ ] D83.16: the portable engine in the extension and the ACP package;
-        approval surfaces (VS Code modal, ACP prompt, companion dialog)
-        with drills; the runtime's MCP tool server on Muse Code; CLI and ACP
-        stop; the companion page; the editor matrix's "now" rows recorded in
-        `docs/ide-compatibility/hosts.md`
-  - [ ] Lane E's live capture (Muse Code Auto skip) with its call count
-  - [ ] The owner-hardware items in §7, or each named as open
-  - [ ] Strings in all 14 tables; full gate green; budgets measured
-
----
-
-### M104 — Every editor, every feature (D84)
-
-Lane C review remediation (FIXM104C, 2026-10-05): replace host-wide cookies
-with one-use fragment launch codes exchanged for independent per-window
-bearers held only in page memory. Every privileged request, including the
-fetch-based event stream, carries Authorization and retains exact Host/Origin,
-Fetch-Metadata and CSP checks. Packaged assets require the bearer too.
-Regression coverage must prove no credential reaches another loopback service,
-two windows have independent streams, two runtimes cannot overwrite credentials,
-and rejected launches show localized accessible reopen guidance. Evidence and
-byte-exact red drills belong in `docs/certification/m104-c.md`.
-
-**M104 is split** because it is large: a foundation and seven parallel
-parts. All of them build against the MHP v1 contract frozen at the end of
-lane A's first step.
-
-| Milestone | Delivers                                                                                                                                  | Depends on                                   |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| M104a     | MHP v1; the VS Code adapter refactor; the runtime `panel` mode; UI bridges, tokens and fallbacks; the companion server; the registry gate | M95, M96c, M98 merged (or rebased onto them) |
-| M104b     | JetBrains plugin (IntelliJ-based IDEs and Android Studio)                                                                                 | M104a contract freeze                        |
-| M104c     | Visual Studio extension                                                                                                                   | M104a contract freeze                        |
-| M104d     | Eclipse plugin (with Espressif IDE)                                                                                                       | M104a contract freeze                        |
-| M104e     | ACP on the controller, plus the shims: Zed, Xcode app, Qt Creator, Neovim, Emacs, Sublime; LSP broker; `lsp` server                       | M104a contract freeze; companion server      |
-| M104f     | Distribution: the release workflow for every channel; signing; registries                                                                 | M104b–e artifacts                            |
-| M104g     | Qualification: the conformance suite green per editor; Arduino IDE 2 and the remaining VS Code-family rows                                | all                                          |
-| M104h     | Docs and certification (runs throughout)                                                                                                  | —                                            |
-
-- **Goal.** Every feature in the registry (F1–F56, and every one added
-  later) works in every editor in §1.3, through the editor's own APIs or
-  our own implementation. Every future feature lands in all of them in the
-  PR that adds it.
-- **Depends on.**
-  - D84.
-  - The M60 gate and the M61 steps.
-  - M98's `tokenFile.ts` and its serve guard (merged, or this milestone
-    takes ownership of a copy).
-  - M95 (providers) and M96c (Traffic), so their webviews join the bridge
-    at once.
-  - Toolchains on the rigs, all installs authorised:
-    - Kubuntu: JDK 21 and 25, Gradle 9, Maven 3.9.9, Tycho 5.0.4, Xvfb,
-      Neovim 0.12, Emacs 29 and 30, Sublime build 4205 or later, Qt
-      Creator 20;
-    - Win11 VM: VS 2022 (17.14) and VS 2026 with the VSSDK workload;
-    - Mac mini: Xcode 26.6 and 27.
-- **Lanes and file ownership.** One integration branch, `feature/m104`.
-  Lane 0 lands the contract skeleton (one day). Then lanes A–J run in
-  parallel, and the lead integrates.
-
-| Lane     | Items                                                                                                                                                                                                                                                                            | Files it owns                                                                                                                                                     | Its regions in shared files                                                      | Starts                      |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | --------------------------- |
-| 0 (lead) | MHP v1 skeleton: method table, zod schemas, capability names, error codes, version range; feature registry skeleton (F1–F56)                                                                                                                                                     | `src/shared/hostApi/**`, `src/shared/hostApi/features.ts`                                                                                                         | `src/shared/constants.ts` (MHP block)                                            | day 0                       |
-| A        | VS Code adapter: `HostServices` implemented with `vscode`; `extension.ts` composes from it; the 24 `vscode` files moved to `src/host/vscode/**`; behaviour unchanged                                                                                                             | `src/host/vscode/**`, `src/host/compose/**`, `src/extension.ts`                                                                                                   | `scripts/check-host-api.mjs` (new allowed roots)                                 | after 0                     |
-| B        | Runtime panel: `panel --stdio` and `--companion`; controller registry; ACP sessions on the controller (re-basing `src/acp/agent.ts` on the registry); settings and storage stores                                                                                                | `src/runtime/panel/**`, `src/runtime/settingsStore.ts`, `src/acp/**`                                                                                              | `src/runtime/main.ts`, `src/runtime/cliArgs.ts` (the `panel` and `lsp` commands) | after 0                     |
-| C        | Companion server: launch code, memory bearer, Host/Origin/Fetch-Metadata guard, SSE, CSP, static assets, idle exit; shared token-file module                                                                                                                                     | `src/runtime/companion/**`, `src/runtime/tokenFile.ts` (moved from `judge/`, coordinated with the M98 owner)                                                      | —                                                                                | after 0                     |
-| D        | UI: the three bridges; `main.tsx`, Tasks and What's New on the bridge; `--muse-*` tokens (M61.3); React fallbacks (Confirm, Picker, Input, Toasts, StatusStrip, SettingsPage, Walkthrough, DiffPage, TerminalOutput); manager pages for skills, MCP, hooks, memory and worktrees | `src/webview/bridges/**`, `src/webview/fallbacks/**`, `src/webview/main.tsx`, `src/webview/whatsNew/main.ts`, `src/webview/tokens.css`, `src/host/ui/pageHtml.ts` | `src/webview/styles.css` (variables only), `l10n/*` (new keys, all 15 tables)    | after 0                     |
-| E        | JetBrains plugin (M104b)                                                                                                                                                                                                                                                         | `hosts/jetbrains/**`                                                                                                                                              | —                                                                                | after the contract freeze   |
-| F        | Visual Studio extension (M104c)                                                                                                                                                                                                                                                  | `hosts/visualstudio/**`                                                                                                                                           | —                                                                                | after the contract freeze   |
-| G        | Eclipse plugin (M104d)                                                                                                                                                                                                                                                           | `hosts/eclipse/**`                                                                                                                                                | —                                                                                | after the contract freeze   |
-| H        | Shims and editor routes (M104e): Zed extension, Xcode app and XcodeKit, Qt Creator Lua, `muse.nvim`, `muse-spark.el`, Sublime package; the LSP broker and the `lsp` server; the Zed completions endpoint                                                                         | `hosts/{zed,xcode,qtcreator,neovim,emacs,sublime}/**`, `src/runtime/lsp/**`, `src/runtime/tabServe.ts`                                                            | —                                                                                | after lane C's first commit |
-| I        | Distribution and CI (M104f): `hosts-native.yml` (path-filtered on PRs, weekly full), release jobs per channel, packaging scripts, the Node runtime pin manifest, the conformance runner                                                                                          | `.github/workflows/hosts-native.yml`, `scripts/package-hosts/**`, `src/runtime/nodeRuntime.json`, `test/hostApi/**`                                               | `.github/workflows/release.yml` (new jobs after `npm`), `package.json` scripts   | after 0                     |
-| J        | Docs (M104h): README "Every editor", `docs/ide-compatibility/{hosts,matrix,host-api-v1}.md`, `docs/acp.md`, CONTRIBUTING, AGENTS.md rule 14, CHANGELOG, PLAN, certification                                                                                                      | `docs/ide-compatibility/**`, `docs/certification/m104*.md`                                                                                                        | README, AGENTS.md, CHANGELOG, PLAN (M104 and D84 only)                           | throughout                  |
-
-- **Acceptance (all with fakes, no model calls).** Fakes: the fake Muse Code
-  CLI and the fake Model API server.
-  1. **VS Code unchanged.** Every existing gate and integration test passes,
-     and the harness screenshots are pixel-identical before and after lanes
-     A and D. The host API record lists only `src/host/vscode/**` and
-     `src/extension.ts` as importing `vscode`.
-  2. **MHP conformance.** The scenario suite passes against:
-     - (a) the in-process VS Code adapter;
-     - (b) a fake host in `test/hostApi/fakeHost.ts`;
-     - (c) each native plugin, in its own headless harness: IntelliJ's
-       `BasePlatformTestCase` and `HeavyPlatformTestCase` plus the
-       Starter/Driver UI tests, plus `CodeInsightTestFixture.testInlineCompletion`;
-       the VS experimental instance, with `[IdeFact]` tests pinned (the
-       harness is archived upstream, so hosted-runner reliability is measured
-       before it gates); tycho-surefire
-       with the UI harness under Xvfb; headless Neovim with plenary; Emacs
-       batch ERT; Sublime UnitTesting; Qt Creator Lua tests; XCTest.
-     - The scenarios cover:
-       - a conversation;
-       - an approval allowed, denied and cancelled;
-       - a dirty-buffer edit refused, and an edit applied once with one
-         undo;
-       - a diff reviewed hunk by hunk;
-       - diagnostics read by the verify loop;
-       - a checkpoint restore;
-       - the paid popup (Allow once, Always, Deny) and the budget limit;
-       - a Tab completion accepted;
-       - settings changed and seen;
-       - a session resumed after a reload.
-  3. **Matrix.** Every row is W for every editor's adapter in the registry,
-     or an exception is recorded with an approved reason and an equivalent.
-  4. **Companion security.** These are refused:
-     - a wrong `Host`;
-     - a foreign `Origin`, including a Playwright page served from another
-       port that tries a form POST, a fetch, an EventSource and a WebSocket;
-     - a missing bearer or a missing custom header;
-     - a replayed launch code;
-     - a non-loopback bind;
-     - an over-cap body.
-       Also: no CORS header in any response, and the CSP present on every
-       page.
-  5. **ACP.** M63's acceptance re-runs unchanged on the controller-based
-     agent, and the new slash commands, boolean options and `fs/*` routing
-     are tested against the SDK client. In Zed, Neovim and Emacs (hosts.yml)
-     a `/panel` command opens the same session in the companion.
-  6. **Rule 8 drills.** The key is absent from every MHP frame, every
-     companion response, the logs and every child environment, checked by
-     a grep test.
-- **Tests.**
-  - Unit tests: MHP schemas (round trip, rejection), capability selection
-    and fallback, the registry gate, the companion guard (each header case),
-    the launch-code lifecycle, the bridges, the token mapping, every React
-    fallback (including axe), the LSP broker against a fake LSP server, the
-    `lsp` server's `inlineCompletion`, and the Node runtime pin's checksum.
-  - Per plugin: unit tests in its own language (JUnit 5, MSTest or xUnit,
-    JUnit with Tycho, busted or plenary, ERT, Python `unittest`, XCTest).
-  - Integration: `test/e2e` drives `panel --stdio` with the fake host, and
-    `--companion` with Playwright.
-- **Gates.**
-  - New: `check:editor-matrix`; the tightened M60 import gate; the MHP
-    schema snapshot (a breaking change needs a version bump); Plugin
-    Verifier for the declared IDE range (IC, IU, PC, WS, GO, CL, RR, RD,
-    AS); `verifyPlugin`; ktlint and detekt; `dotnet format` and analyzers;
-    Checkstyle or SpotBugs for Eclipse; luacheck and stylua; `package-lint`
-    and checkdoc; ruff for the Sublime package; SwiftLint; actionlint for
-    the new workflows.
-  - Every new gate gets a red drill (CLAUDE.md), recorded in
-    `docs/certification/m104*.md`.
-  - D6 bundle budgets: the runtime `panel` entry is new (measured plus 15%).
-    The VSIX budget does not grow, because the plugins carry the bundle and
-    the VSIX does not.
-- **Security.**
-  - Covered by §3.8: the companion guard, launch codes, CSP, rule 8 (no key
-    over MHP, the UI or the companion), and rule 12 (decision in the
-    runtime).
-  - Node and language-server downloads only with consent and a pinned
-    SHA-256.
-  - The plugins never spawn with the key in their environment, and the
-    runtime strips credential variables as today
-    (`credentialVariables.ts`).
-  - JCEF, WebView2 and SWT pages get the same CSP and no remote origins:
-    `JBCefBrowser` with no devtools in release builds, WebView2 with
-    `AreDevToolsEnabled=false` and `AreDefaultContextMenusEnabled=false`,
-    and navigation outside the asset scheme blocked.
-  - PLAN §9 records the residual risks for same-user processes.
-- **Docs.**
-  - README: an "Every editor" section, plus install sections per editor.
-  - `docs/ide-compatibility/matrix.md` (generated), `hosts.md` (routes and
-    statuses updated: Xcode ACP from 26.6, Qt Creator's built-in client) and
-    `host-api-v1.md` (generated from the schemas).
-  - `docs/acp.md` (`/panel`, the options, `fs/*`), CONTRIBUTING (the
-    toolchains, how to run each harness), AGENTS.md rule 14, CHANGELOG, and
-    PLAN D84, M104 and §8/§9 rows.
-- **Size.** L overall. Rough sizes:
-  - M104a, 9–12k lines of TypeScript including tests (A about 3k of moves,
-    B 3k, C 1.5k, D 3k);
-  - JetBrains 7–9k Kotlin;
-  - Visual Studio 6–8k C#;
-  - Eclipse 6–8k Java;
-  - shims 1–2.5k each;
-  - LSP broker 2k;
-  - workflows and packaging 1.5k.
-    With 8–10 lanes in parallel, the critical path is lane A plus one plugin
-    (M104b).
-- **Certification checklist** (§6.0, plus):
-  - [ ] Lane 0's contract is frozen and versioned (`mhp/1.0.0`), with a
-        schema snapshot committed.
-  - [ ] VS Code is pixel-identical (harness) and every integration test
-        passes.
-  - [ ] Conformance is green per adapter, with a receipt per editor and
-        version, filed in `docs/certification/m104-<host>.md`.
-  - [ ] `matrix.md` is generated, and each editor's status is moved only on
-        that evidence.
-  - [ ] Companion security tests pass, including the Playwright
-        cross-origin drill.
-  - [ ] Red drills for `check:editor-matrix`, the tightened import gate,
-        the schema snapshot and the companion guard.
-  - [ ] Rule 8 grep tests and rule 12 popup tests pass in every host.
-  - [ ] Every artifact is built from one tag and attached to the GitHub
-        Release. Registry publishes run where the owner's accounts exist, and
-        each one missing is listed at the top of the report (loud failures).
-  - [ ] No live or paid call. Any live smoke follows CLAUDE.md: state the
-        count first, use an empty workspace, count from the trace log.
-  - [ ] Codex review in one pass per lane class before push.
-
----
-
-## 7. Gates
 
 **M102INT3 round 3 (2026-10-06, Win11).** The rig brief forbids the full
 quality wrapper and authorizes bounded owning suites and individual gates.
@@ -44766,659 +46285,6 @@ Never drill against a user's repository.
   - [ ] README, PRIVACY, SECURITY, AGENTS.md, CHANGELOG, `docs/acp.md`,
         `docs/ci.md` and this record updated.
 
-### M95b — Subscription sign-in: ChatGPT plan, Copilot models, plan keys (D74)
-
-**Status 2026-10-04: planned with M95; research in
-`docs/certification/m95-research.md` §6. Starts when M95's seam (lanes P, T
-and I) has merged.**
-
-- **Goal.** A user with a ChatGPT Plus or Pro plan, or a Copilot plan, runs
-  the harness on that plan's inference with one click in the same panel,
-  through flows the provider sanctions; the UI says which plan pays.
-- **Scope.**
-  - **ChatGPT plan** (`chatgpt`): OpenAI's Sign in with ChatGPT with plan
-    usage, the dynamic client, the token store, refresh and revocation, the
-    preview rules in a `responses` codec profile, OpenAI's required UI.
-  - **Copilot's models** (`copilot`, VS Code only): a host-side
-    `ProviderClient` over `vscode.lm`, opt-in and labelled reduced.
-  - **Plan-key presets**: MiniMax M Plan, Alibaba Model Studio Coding Plan
-    and Mistral's plans as API-key presets whose models are marked "plan".
-  - **Hugging Face sign-in** (OAuth with PKCE and the `inference-api` scope)
-    once the owner has registered the app; the token preset is M95's.
-  - Plan tallies in Account & usage; the picker's and pill's plan marks;
-    strings in all 14 tables; README, PRIVACY, CHANGELOG, this plan,
-    `docs/certification/m95b.md`.
-  - **Not here**: Anthropic and Google plans (prohibited; D74); xAI's,
-    Z.ai's and Kimi Code's plan sign-ins (D74, settled); the Claude Code
-    backend (its own milestone after this one, D74).
-- **Lanes and file ownership.**
-
-| Lane           | Owns                                                                                                                                                                                                                                                                                                                                  |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0 Strings      | `en.ts`, the 14 tables, `package.nls*.json`                                                                                                                                                                                                                                                                                           |
-| S Sign-in core | new `src/core/providers/subscriptions/chatgpt.ts` (authorize URL, token exchange, refresh, revoke, the ID-token check against the JWKS with `node:crypto`, the record schema), `huggingface.ts` (its OAuth with PKCE, once the app is registered), `planUsage.ts` (plan tallies), the plan-key presets' region of `presets.ts`; tests |
-| C Codec        | the `chatgpt` profile of `modelapi/codecs/responses.ts` (preview rules, tool namespaces, the client-side output cap); goldens                                                                                                                                                                                                         |
-| V VS Code side | `src/host/providers/chatgptSignIn.ts` (the loopback helper from M95, `openExternal`, the cross-window refresh lock in global storage, SecretStorage), `src/host/providers/copilotClient.ts` (the `vscode.lm` client, consent, feature detection), their rows in the Providers section; the command region of `src/extension.ts`       |
-| U UI           | the pill's plan mark and **Manage usage**, the one-time plan notice, the usage-limit screen, Account & usage's plan rows, the Copilot AI-content note and report link; harness scenarios                                                                                                                                              |
-| X ACP          | `muse-spark-code-acp providers add chatgpt` (a loopback server in the agent, the URL printed for the user's browser), the OS store record; no Copilot (no VS Code)                                                                                                                                                                    |
-| W Wiring       | `package.json`, README (**Subscriptions**: who may use which plan, Plus and Pro only, what is reduced on Copilot), PRIVACY (what OpenAI and GitHub receive), CHANGELOG, PLAN, `docs/certification/m95b.md`                                                                                                                            |
-
-- **Steps.**
-  1. **Capture first, with the owner's own Plus or Pro sign-in** (Owner
-     step; it spends his plan, not money): one short turn in an empty
-     workspace with a tool call, to settle what the docs leave open: plain
-     top-level function tools or namespaces; whether `reasoning` with
-     encrypted content, `prompt_cache_key` and usage with cached tokens
-     come back; the `models[]` list; a usage-limit error if one can be had.
-     Counted from the request log. Also whether `vscode.env.asExternalUri`
-     can give a remote window a `127.0.0.1` callback (else remote windows
-     say to sign in from a local one).
-  2. The sign-in core and record (lane S), then the codec profile (lane C),
-     then the VS Code side and UI (lanes V, U), the ACP agent (X), docs
-     (W).
-  3. Copilot: consent from the panel's click,
-     the canonical-to-`vscode.lm` mapping, feature detection for images,
-     usage from the reported data part where present and `countTokens`
-     otherwise.
-- **Acceptance.**
-  1. **Continue with ChatGPT** signs a Plus or Pro user in through the
-     system browser and a `127.0.0.1` callback, stores the issued client
-     and tokens in SecretStorage, and a turn with tools runs on the plan.
-  2. A Free or ineligible account gets OpenAI's refusal in plain words
-     before any conversation starts.
-  3. The access token refreshes before it expires, once across two open
-     windows; a revoked or disconnected grant asks to sign in again.
-  4. **Remove** revokes the refresh token and deletes the record; nothing
-     of Codex CLI's, Claude Code's, Gemini CLI's or Copilot's own storage is
-     ever read (a test that the code names none of their paths).
-  5. The request follows the preview rules (no `max_output_tokens`, no
-     `prompt_cache_retention`, `store: false`, `stream: true`, full
-     history), and a reply that passes the output cap is ended by the host.
-  6. The one-time plan notice, the "Using ChatGPT plan" mark with **Manage
-     usage**, and the usage-limit screen on
-     `subscription_sharing_usage_limit_exceeded` appear as OpenAI's UI rules
-     ask.
-  7. Plan use asks no paid-use popup, is tallied per provider in Account &
-     usage (tokens where reported, requests always), and is never counted
-     against a dollar cap; the notice says when the provider can spend
-     credits beyond the plan.
-  8. Copilot: consent comes from the click; the tool loop runs;
-     the model is marked reduced; budgets show estimated tokens; quota
-     errors are said plainly; a confidential workspace hides it; the
-     AI-content note and report link are shown.
-  9. A plan-key preset shows "plan" instead of a price and links the plan's
-     limits.
-  10. Every hook event fires with the provider id and qualified model.
-- **Tests.** The authorize URL's parameters; `state` and nonce refusals; the
-  ID token's signature, issuer, audience, expiry and nonce checks (each
-  drilled); the scope check (`chatgpt.tokens.use.direct` missing refuses);
-  refresh rotation and the lock; revocation on remove; the preview-rule
-  golden; the client-side output cap; the Copilot mapping against a fake
-  `vscode.lm` (tools, tool results, consent refused, quota errors); the
-  guard that no other application's credential path is read. Each with a
-  red drill in `docs/certification/m95b.md`.
-- **Gates.** As M95's; the sign-in code in `dist/modelsPanel.js` and the
-  codec profile in `dist/providers.js`, both within their caps.
-- **Security.** PKCE `S256`, `state` and nonce; the callback server on
-  `127.0.0.1` only, one use, ten minutes; the ID token verified before a
-  scope is trusted; the refresh token bound to `https://auth.openai.com`
-  and sent nowhere else, the access token to `https://api.openai.com`;
-  tokens never in the webview, logs, hooks, tools or children; the
-  persistent host id opaque (never an e-mail or a user id); revocation on
-  remove; Copilot's grant held by VS Code, never by us. Threat additions:
-  a local process racing for the callback port gains nothing (PKCE); a
-  phishing page cannot complete the flow without the verifier; a stolen
-  token is bounded by its hour and by revocation.
-- **Cost controls.** Plan use spends the user's plan, said before sign-in
-  and in the one-time notice, with the credit caveat where it applies; the
-  capture is one counted turn on the owner's plan; no background calls;
-  Copilot's AI credits named in its consent step.
-- **Docs.** README **Subscriptions**; PRIVACY (OpenAI receives the
-  conversation as with an OpenAI key; Copilot's requests carry Copilot's
-  own rules and GitHub's training terms for individual plans); CHANGELOG;
-  `docs/certification/m95b.md`.
-- **Owner steps** (credentials and registrations only): sign in once with
-  his Plus or Pro account for step 1's capture, and allow Copilot once for
-  step 3's live check (both spend his plans, not money); register the Hugging Face
-  OAuth app on huggingface.co; optionally ask xAI, Z.ai and Moonshot to
-  list the extension for their plan sign-ins.
-- **Certification checklist.**
-  - [ ] Step 1 capture recorded with its counted calls.
-  - [ ] Acceptance 1–10 with tests and drills (`docs/certification/m95b.md`).
-  - [ ] README, PRIVACY, CHANGELOG and this record updated.
-
-### M95c — More providers and integrations after the first release (D74)
-
-**Status 2026-10-04: planned with M95; each part starts when M95 has merged
-and is its own pull request, with its own capture and certification
-(`docs/certification/m95c.md`).**
-
-- **Goal.** The provider list and its integrations grow past the first
-  release without changing M95's seam: every part is a preset, a codec
-  profile or a host feature over the same `ProviderClient`.
-- **Parts.**
-  1. **Amazon Bedrock.** Claude through the `anthropic` codec at
-     `https://bedrock-runtime.{region}.amazonaws.com/anthropic/v1/messages`
-     (`x-api-key` with a Bedrock API key), GPT models through `responses`
-     at `/openai/v1` (`store: false` always); AWS access keys signed with
-     SigV4 in-process; region chosen in the panel; a static model table
-     from the catalogue (Bedrock has no models list); the quota note that
-     input plus `max_tokens` is reserved at the start.
-  2. **Exposing models to VS Code's chat.** `contributes.languageModelChatProviders`
-     and `vscode.lm.registerLanguageModelChatProvider` (stable since 1.104;
-     registered only where the API exists): a model is exposed only when
-     the user turns it on in the Models section, it is priced or local, and
-     a daily dollar cap is set; each call runs through our transport and
-     budget, is tallied under "VS Code chat", and stops at the cap.
-  3. **OpenAI's explicit breakpoints** (GPT-5.6 and later):
-     `prompt_cache_breakpoint` and `prompt_cache_options` placed by the same
-     rule as Anthropic's (the stable prefix and the rolling end), gated by
-     model family (a 400 on older models), with a golden test; on only if an
-     M75-style paired run on OpenAI shows it lowers cost at equal capability.
-  4. **Providers' hosted search** (OpenAI's web search tool, Anthropic's
-     server-side search, Gemini's Google Search grounding, OpenRouter's web
-     plugin): each a paid feature under D48, priced from the provider's own
-     page, asked before each use, tallied, off by default; Meta's web
-     search rules (no budget cap while on) apply to each.
-  5. **More presets**: Ollama Cloud (`https://ollama.com`, an API key),
-     Moonshot's pay-as-you-go API (Z.ai's moved into M95 on 2026-10-04), and
-     each further provider the
-     catalogue lists with a Chat, Responses or Messages endpoint, each after
-     its research note and capture.
-  6. **Custom request headers** (user scope; values in SecretStorage bound
-     to the origin; auth and content headers refused).
-  7. **Tab on BYO providers** (after M94 merges): fill-in-the-middle where
-     the provider has it (Mistral's Codestral FIM, DeepSeek's FIM, Ollama's
-     `/api/generate` with `suffix`), else M94's chat-shaped hole, with M94's
-     daily budget and the provider's price card.
-- **Lanes.** One per part, each owning its preset or codec profile, its
-  panel rows, its strings and its tests; part 2 owns
-  `src/host/models/lmProvider.ts` and its `package.json` contribution;
-  part 4 owns its paid-feature id beside `PAID_FEATURES`.
-- **Acceptance.** Each part's turn runs every harness feature as M95's
-  acceptance 2 to 12 describe; part 2 never serves an unpriced model or
-  passes its cap; part 3 keeps the golden and prefix tests and ships only
-  with its paired run; part 4's search asks before every use and is tallied
-  as paid.
-- **Tests.** As M95's (goldens, prefix, decoding, origin binding, endpoint
-  policy, keys never leak), per part, each with a red drill; SigV4 against
-  AWS's published test vectors; the exposure cap and tally against a fake
-  `vscode.lm` caller.
-- **Gates.** As M95's; part 2's code loads only once a model is exposed, so
-  activation carries its registration call and loader alone.
-- **Owner steps.** Keys for each part's capture: an AWS account with
-  Bedrock access, an Ollama Cloud key, a Moonshot key (a few cents each); part 4's capture spends search fees, a new kind of spend, so it
-  waits for his go.
-
-### M101 — Upstream sync: Pi and SoL-Pi ports, automatic compaction (D81)
-
-**M101INT scope (2026-10-05, kubuntu).** Merge released main and reviewed
-A/T/P1/P2 into C1/C2/O, preserve every lane and all caps, and run full quality.
-Close image ingress with a portable PNG/JPEG pixel resizer in a bounded worker,
-gated by selected-model vision and documented limits, before encoding and
-retaining replay. Pin jpeg-js 0.4.4 and pngjs 7.0.0 (pure JS, no runtime
-dependencies); @types/pngjs 6.0.5 is compiler-only. Scratch npm ci audit finds
-zero vulnerabilities and installed manifests declare no peers. Preserve the
-original shared node_modules contents and use a fresh private install.
-Recover browser budget with lossless lz-string 1.5.0 fallback compression
-(also pure JS, no peers/dependencies), and retain all translated/English bytes.
-Release plus lanes exceed Model API and deferred-webview caps too: production
-Model API text uses Node Brotli, preserving literal keys for unchanged text
-readership checks and exact model bytes, and UsageDialog shares repeated
-markup. No existing cap changes. The new lazy raster worker alone gets 75 KiB
-(measured 58.7 KiB + 15%, rounded up by 25); parent bundles cannot carry its
-codecs. Shipping/notices/host API gates cover it in both editor/runtime packages.
-Bind strict tools from the selected model capability; Meta support is owner
-confirmed 2026-10-05, strict argument deltas and missing additionalProperties 400. Preserve and validate recall minLength/maxLength in the strict subset.
-The combined A/C2 goal tests expose a request-metadata mismatch: goal progress
-is a request-only trailing item while C2 records replay-only turn ids. Attribute
-that transient item to the owning current turn in the dispatched snapshot;
-retain exact sent bytes and never count the retained progress as removable.
-The existing five failing goal-summary budget/steer tests must pass, with a
-byte-exact reversal drill. The M91 hooks-off harness explicitly has packing on;
-its seven request fixtures must adopt A's stable recall declaration, T's
-multi-edit schema and C1's structured cached summary, with a reviewed JSON path
-and byte-delta record. Its injected clock starts at local 1970-01-01 midnight
-so A's local-date fix does not make captures depend on the rig's timezone;
-Meta feature-off codec fixtures remain byte-identical. Leave live acceptance and production automatic-
-compaction activation to E.
-
-The one authorized full quality run exposes merge-only regressions: restore
-the release's contributor check before confirmation shortcuts alongside M95
-privacy checks, restore picker/palette host actions, add all shipped graphs to
-the report/browser package records, and include the raster worker in fake ACP
-packaging fixtures. Strict conversion must preserve and validate the browser
-tool's existing array bounds. The tool-less hook fixture explicitly selects
-tool-less compaction; daily-budget comparisons hold packing fixed, since A's
-stable recall declaration intentionally changes packing-on requests. The ACP
-environment test checks its complete fake credential values, since "placeholder"
-is also ordinary text in recall's description. Rerun every affected file without
-filters, then the remaining gates; do not rerun the authorized-once aggregate.
-
-Final audit finds new high GHSA-68fv-2mgg-jv7q in development-only source-map-js
-1.2.1; npm's report marks versions below 1.2.2 affected and a fix available.
-Fetch and verify the exact 1.2.2 patch in an isolated npm-ci fixture, then pin
-the transitive override and tarball integrity. All four parent ranges are
-`^1.2.1`; no new runtime dependency, peer or security exception is intended.
-Preserve existing installs intact and use another fresh private root install.
-Recheck audit and build/package outputs after this required gate repair.
-The full accessibility gate exposes one more conflict: the harness stylesheet
-selects Models, but the merged script tag always loads chat. Restore the M95
-dynamic bundle loader while retaining M87's Tasks surface setup, then remeasure
-all 181 scenarios across four themes; do not suppress or filter failed pages.
-
-**Status 2026-10-06: reviewed A/C1/C2/O/T/P1/P2 mechanisms integrated with
-release 0.14.0 on Kubuntu.** The five requested merges are complete. Strict
-capability is bound for named Meta models and authoritative codec/host seams;
-portable real PNG/JPEG resize is implemented and tested with injected limits.
-Production image dimensions remain undocumented on this base (M95 N absent),
-so FIXM101T-IMAGE21 stays open for those model records. Live E, automatic paid
-admission/evaluated activation, installed-editor matrix and absent BYO
-transport/catalogue binding remain required. Full gate receipts and the complete
-item/provider tables live in `docs/certification/m101.md`. The item numbers below are the
-research report's (`docs/research/pi-solpi-2026-10-05.md`): plain numbers are
-its sections 1–2 (harness), "BYO n" its section 3 (providers).
-
-- **Goal.** Take every upstream improvement that fits our design, on every
-  provider that can use it; finish M74's automatic compaction, memory flush
-  and todo follow-up under D78's consent contract and SoL-Pi's corrected
-  cost model.
-- **Depends on.** M95 (model/preset capability records, codecs, price cards)
-  for the provider gates; M73 (packing) and M74 (`/compact`, `/handoff`);
-  M75 (eval arms); D78's paid gate and ledger (wired in 0.14.0).
-- **Capability gates (D81.2).** Each lane names, per item, the capability it
-  reads and the providers where it is on; the certification record carries a
-  provider × item table (Meta Muse Responses, OpenAI, xAI, Azure, Anthropic,
-  Gemini, OpenRouter/chat, Ollama/local, custom), with "on / off: reason" in
-  every cell.
-
-**Lane C1 status (2026-10-05, kubuntu; implemented; scoped static/owning checks passed).**
-Implemented cache-readable compaction, host-owned todo snapshots, structured
-summary/update prompts and replay-derived file lists, window-scaled output
-and verbatim recent whole turns, refusal/NOOP/retry guards, and opt-in
-summary forks. This base has neither M95's host/client registry wiring nor
-D78's paid gate: compaction consumes an injected model-record reader and
-summary forks require an injected paid-admission guard; absent admission
-refuses before dispatch. A last request offering paid hosted search uses
-the tool-less compaction path, because its earlier consent does not cover
-a new search. Preserve manual hook behavior and expose the compaction core
-for C2. Meta and Gemini compaction request goldens intentionally adopt the
-structured prompt; other request goldens retain their bytes. No live calls;
-certification is `docs/certification/m101-c1.md`.
-
-**FIXM101C1 review repair (2026-10-05, kubuntu).**
-Resolved all six RVM101C1 P2s before C2 builds on this branch: build summary
-input from current replay, resolve model/window/tools/reasoning/tail after
-hooks at the final request snapshot, roll back nondispatched summary-fork
-history without erasing dispatched liability, derive file metadata from
-successful effective tool results, allow summary forks of already compacted
-sources, and route ACP/headless `/compact` through the shared session core.
-Each finding gets an owning regression and a byte-exact restored red drill;
-no dependency, gate, cap or wire shape changes. The full quality/platform/live
-receipts remain the lead's checks under the rig brief.
-
-**Lanes and file ownership** (so lanes merge without overlapping hunks):
-
-- **Lane A — cache-stable prefix** (items 1, 2 with 22, 7, 16, 17).
-  1. Goal progress (tokens, percentage, current/next work, reminder) leaves
-     `instructions` and the `prompt_cache_key` digest; it rides as a trailing
-     input item rebuilt per request and never saved into the replay. The
-     Anthropic codec puts its rolling breakpoint before that item. All
-     providers.
-  2. `recall_output` (with item 22's literal search inside a packed output)
-     is declared on every request of a packing session
-     (`this.packing !== undefined`), so the tool list changes once, not when
-     the first output packs. Reviewer turns stay unpacked. Tool-calling
-     models only.
-  3. `StoredSession.packedCallIds` (optional) persists across resume, fork
-     and rewind; `copyInto` keeps the ids that survive the cut, so a
-     restored session re-sends the same placeholders. Old session files load
-     as today.
-  4. The prompt's date is the local date, fixed once per session (goldens
-     inject `now`).
-  5. A cache-miss detector logs (log only) when
-     `min(previous, current) − cached > 1024` tokens; on where the format's
-     `cachedUsageFields` is non-empty.
-     Files: `goals.ts`, `instructions.ts`, `promptCache.ts`, the request builder
-     and session copy paths in `ModelApiHost.ts`, the recall paging and search
-     region of `observationPack.ts`, the `recall_output` declaration in
-     `tools.ts`, the session store schema, the Anthropic codec's breakpoint
-     placement.
-- **Lane C1 — compaction quality** (items 3, 5, 10, 11, 19; BYO 17). 3. `/compact` sends the last turn's exact body (instructions, tools, key,
-  packed input) with the compaction prompt appended, so it reads the
-  conversation's cache; a reply holding a function call is discarded and
-  today's tool-less request is the fallback. Honour
-  `FormatQuirks.keepToolsWithHistory`. 5. The exact open todos (host data, never the model's guess) are appended
-  to the compaction prompt and the summary entry, snapshotted at
-  compaction time. 10. Pi's structured summary (Goal / Constraints / Progress / Decisions /
-  Next steps / Critical context; exact paths and errors kept), its update
-  prompt when the replay already starts with a summary, and file lists
-  built from the replay's read/write/edit calls; the summary budget
-  scales with `contextTokens`. 11. Guards: a summary blank after trimming is refused and the replay kept;
-  NOOP when everything is already the previous compaction; the summary
-  call retries like a turn (backoff, budget re-reserved). 19. The recent tail (whole trailing turns up to about 20k tokens, scaled by
-  window) stays verbatim; reasoning items stay byte-exact where
-  `reasoningReplay` applies.
-  BYO 17. "Fork with summary", off by default (one extra call when chosen,
-  through the D78 gate).
-  Files: the compaction path in `ModelApiHost.ts` (`compactNow`,
-  `collectText`), the compaction prompt constants, the fork command.
-- **Lane C2 — automatic compaction, memory flush, todo follow-up** (Q-M74
-  items 1–4, D81.3–4), after C1 is reviewed. A pure cost model module
-  (`autoCompact.ts`: removable tokens, debt, break-even, cooldown, occupancy
-  floor, r from the price card per pricing kind), decided once at a settled
-  tool-loop boundary inside the user's turn; the memory flush through
-  MemoryStore and the permission engine (Manual asks, Plan and Restricted
-  Mode refuse, untrusted labels kept); the D78 gate and ledger for every
-  call; Stop honoured; one guarded automatic compact-and-retry on a
-  classified overflow (from lane O). The M75 arm is frozen before it runs.
-  **Lane C2 implementation contract (2026-10-05, kubuntu).** One pure
-  decision/state module measures only the last dispatched request, prices the
-  retained context's write premium plus summary input/output and request fees,
-  and carries/retires debt. Only registered unfinished-to-completed transitions
-  teach its request horizon; cost decisions require the occupancy floor and
-  two dispatched ordinary requests since compaction. Near-window and classified
-  overflow bypass those economic guards, but never consent, Stop or M82 fences.
-  A failed attempt clears debt and waits for real tool work or new user input.
-  Memory flush is a deterministic, explicitly untrusted host snapshot of exact
-  todos, goal, file metadata and the previous real summary through add_memory's
-  existing permission/MemoryStore path; it adds no separate model request.
-  The hidden continuation restores the full exact todo list and goal from host
-  data as a trailing replay entry; it never adopts generated todos.
-
-  This branch lacks D78 (confirmed by C1's record and the paid implementation),
-  so no second gate is invented. An injected automatic-compaction admission
-  returns the shared gate's actual-send guard and per-attempt usage/uncertainty
-  settlement port; absent/declined admission refuses all extra dispatch. Panel,
-  ACP and headless share this same core and fail-closed dependency. The setting
-  defaults on, but IS_AUTO_COMPACTION_EVALUATED stays false and reports awaiting
-  evaluation. Lane E may inject evaluation admission into its bounded trace
-  harness; production flips the named constant only after a current frozen M75
-  pair with real compaction evidence and both 0.75 floors, and after connecting
-  D78 admission/ledger in ModelApiBackendManager for every runtime. No live
-  call is authorized in C2. The local time path requires measured seconds per
-  prefill/read/output token; absent measurements allow only near-window safety.
-
-  **C2 mechanism built, 2026-10-05.** The overflow lane is merged in
-  `68ca19f5`. Economics, owned boundary/recovery, per-attempt admission and
-  settlement, memory policy, full exact todo restoration, all-editor options
-  and translated awaiting-evaluation notice are implemented. All 23 deliberate
-  mutations produce assertion failures and restore byte-exact; final gate and
-  importing-suite receipts live in `docs/certification/m101-c2.md`. The M75 pair
-  and absent shared D78/registry binding keep production inactive; the milestone
-  checkbox remains open until those integration receipts exist.
-
-  **C2 final-review accounting correction.** If shared settlement throws during
-  an HTTP retry notice, mark that attempt consumed before invoking settlement
-  so cleanup cannot settle it a second time. A complete-file regression must
-  first fail on the implementation commit, then pass with the small ordering
-  fix; deliberately reverse the order once and restore byte-exact. Every
-  importing suite for this correction and the final static/build gates rerun.
-  The regression first fails with duplicate rate-limited/uncertain settlement
-  on `8d9bb54f`; the ordering fix passes 646 owning tests and all 27 importing
-  files (1,745 tests). R23 deliberately reverses it, fails and restores exact
-  bytes. Final static gates, every unchanged production cap and the corrected
-  installed-editor bundle's 11 tests pass. Production remains inactive.
-
-  **FIXM101C2 / RVM101C2 repair scope (2026-10-05, kubuntu).** Repair all four
-  P2s: race automatic-compaction dependencies against the owned turn signal,
-  including admission, memory, summary work and recount (which also receives
-  that signal); keep a committed manual summary accepted when its courtesy
-  recount is stopped while the owning automatic turn remains cancelled;
-  observe dependency rejections even when Stop wins before the
-  wait; preserve iterator cleanup without waiting on an uncooperative stream;
-  retire settled attempt callbacks so a late notice cannot tally it twice;
-  release a reservation that arrives after Stop before dispatch;
-  honour the memory tool runner's stopping-hook result; recheck
-  goal spending after each summary before retry/fallback/recount/continuation while
-  preserving separately steered user input; and select summary and retained
-  context tariffs from their respective new input sizes. Correct P3's packing
-  default claims against this candidate's actual manifest/runtime defaults.
-  Each repair requires a failing owning regression and a deliberate guard
-  break restored byte-exact in `docs/certification/m101-c2.md`. Keep production
-  inactive, existing gates unchanged and introduce no dependency. The required
-  release-base merge awaits clarification of the overriding rig merge ban.
-  Meanwhile, carry only the five named test repairs already present in
-  `3e04f6f5` and prove those complete files pass; no release-base integration
-  or default change is implied by fixture/expectation repairs.
-
-- **Lane O — context overflow** (item 6, item 13's budget scaling).
-  A pure `providers/overflow.ts` with Pi's per-format patterns (429 and rate
-  limits and quota/billing failures never count) and the two silent-overflow signals; the model's
-  `contextTokens` replaces the fixed window; until C2 lands the user sees
-  "Context window full: /compact or /handoff"; a pre-request lower-bound check
-  against the full window. `read_file`'s character budget scales with
-  `contextTokens`.
-
-  **Lane O status (2026-10-05, win11):** implement the pure per-format
-  classifier and classified engine event, reject 429/rate-limit errors,
-  detect the two completed-reply usage signals, and protect ordinary sends
-  with lower-bound admission against the selected full window, never the
-  dollar-budget upper estimate. Read pressure, model-list limits, compaction's
-  pressure and the read-file budget from the injected model row; leave
-  compaction exempt from the ordinary-send fence. Only the named verified
-  legacy Muse ids retain their documented window when no resolver is installed;
-  an authoritative missing row stays unknown. Keep the final check after key
-  retrieval, then retain that attempt's window/format for pressure, completion,
-  error classification and the recovery event. RVM101O's four findings are the
-  scope of FIXM101O, with individual failing regressions and byte-exact drills.
-  The base lacks the M95
-  registry/client integration: the new `contextModel` dependency is its
-  owned integration seam, not proof of reachable BYO dispatch. Keep the
-  classifier implementation in core context, used by the lazy engine, with the requested
-  `providers/overflow.ts` public facade, to preserve D6's provider-core
-  isolation. C2 owns automatic recovery; E owns real overflow-text captures.
-  No dependency, paid/live call or native wire parser is added. Tests,
-  restored guard drills, provider eligibility and gates are recorded in
-  `docs/certification/m101-o.md`.
-
-- **Lane T — tool and packing correctness** (items 4, 8, 9, 12, 13, 14, 15,
-  18, 20, 21). 4. The packed placeholder trims the tail from its front and always keeps
-  the final line (the exit code) when it fits. 8. Tool calls in a cut-short reply are answered with an error, never run
-  (every codec's stop mapping). 9. One `normalizeModelPath(given, platform)` at every place a model-given
-  path is resolved (Unicode spaces, leading `@`, `file://`, `/c/…`,
-  `/mnt/c/…`, `/cygdrive/c/…` on win32; `~` refused); permission check and
-  write resolve the same path. 12. `edit_file` falls back to a normalised unique match (NFKC, trailing
-  whitespace, quotes, dashes, Unicode spaces) and copies untouched lines
-  from the original; `find` equal to `replace` is refused. 13. `read_file` truncation names the next offset; an offset past the end is
-  an error. 14. One search hit is capped at about 500 characters with a note. 15. Shell output elided in the middle stays recoverable through
-  `recall_output` when packing is on (or an owner-only temp file). 18. A single long line packs to about a 1k excerpt and packing is skipped
-  when it saves under half; a non-string `then_run` reports "not run";
-  `clip` and `clipOutput` never split a surrogate pair. 20. `edit_file` takes `edits[]`, all or nothing, overlaps refused (one tool
-  schema change, M75 re-run). 21. Images are downscaled once when they enter history, gated on
-  `capabilities.vision` and the preset's image limits, inside the bundle
-  caps.
-  Files: the placeholder region of `observationPack.ts`, `tools.ts` (edit,
-  read, shell), `workspacePath.ts`, `searchWorker.ts`, `verifyTools.ts`, the
-  incomplete-reply branch in `ModelApiHost.ts`.
-- **Lane P1 — provider codecs** (BYO 1, 2, 3, 4, 7, 8, 9, 11, 13).
-  Bad history items no longer break later requests; Responses replay ids per
-  model; tool-call ids per target format; Gemini thought signatures returned;
-  Gemini usage with omitted zeros; a tolerant Anthropic decoder; Anthropic
-  `thinking.display: "summarized"`; Gemini 3 images in tool results and full
-  schemas; lone surrogates removed. Files: `codecs/*`.
-  Status 2026-10-05: implemented on `m101/p1` with a unit test per item,
-  golden re-baselines (Anthropic `display`, Gemini full-schema fixtures,
-  Mistral compliant ids), and `docs/certification/m101-p1.md` holding the
-  provider x item table, byte diffs, and residuals (session-store signature
-  stripping for lane A, replay origins for lane I, id-heuristic generation
-  for lane N). Original lane gates and red drills ran after its shell
-  recovered; three local commits ended at `05ab4f30`. Original production
-  build receipts remained environment-blocked; RVM101P1 later reproduced
-  bundle sizes but found nine defects (one P1, seven P2, one P3).
-  **FIXM101P1 repair scope (2026-10-05):** correct Gemini 3's
-  `parametersJsonSchema` field, retain signed empty text on replay, gate
-  and nest tool-result media, preserve `$ref` sibling constraints, assign
-  response-salted fallback ids after late response ids, reject invalid
-  usage explicitly, select Mistral ids by preset, preserve own `__proto__`
-  JSON keys (shared and Anthropic), and reconcile the documentation.
-  Each finding gets a regression and deliberate red drill in
-  `docs/certification/m101-p1.md`; only Gemini request goldens move, with
-  cited provider contracts. Meta request fixtures stay byte-identical.
-  Rig rules require local hooked commits and focused direct tests; no
-  push, integration merge, new dependency, live/paid call or gate change.
-  All nine review findings are now repaired with regressions and twelve red
-  drills; no assigned P1/P2/P3 residual remains. Existing integration
-  follow-ups remain named in §9. Final rig verification is recorded in the
-  certification: 330 tests, all five typechecks, changed-file lint/format,
-  deadcode, duplication, cycles, localization, host API, production size/split/
-  globals/notices and secret scans pass on Kubuntu. The combined full-quality/
-  platform receipt remains lead-owned; no gate or Meta fixture was changed.
-- **Lane P2 — provider pricing, limits and retry** (BYO 5, 6, 10, 12, 14, 15,
-  16; item 24's per-model strict schemas and the llama.cpp grammar check).
-  Retry classification moves into `FormatQuirks`; price cards read long
-  context tiers (cache rates included) and 1-hour writes, and the loop stops
-  pricing every model at Meta's rates; per-model effort levels from the
-  catalogue's `reasoning_options`; the ChatGPT loopback fixes; compatibility
-  overrides for custom servers; per-model image limits into the media
-  budget; coalesced session saves and listing without full parses. Files:
-  `priceCard.ts`, `presets.ts`, the catalogue sync script, `oauthLoopback.ts`,
-  `fileSessionStore.ts`, the retry constants.
-- **Lane E — evaluation.** Live checks on the contributor model in an empty
-  workspace: one `/compact` and one budgeted goal round, reading
-  `cached_tokens` (about 4 model calls) to confirm items 1–3; Meta's overflow
-  text and cut-off function-call marking captured for lane O's table; the M75
-  pair for C2 (and item 20's schema change). Calls counted from the trace log
-  and reported.
-- **Not ported** (recorded in the research report): item 23 (cache warming;
-  extra billed calls for little gain) unless the eval shows a saving, and
-  everything in the report's "not applicable" list.
-
-- **Acceptance.** Every item above is implemented on the providers its
-  capability names and refused or absent elsewhere, with the provider × item
-  table complete; goldens are byte-identical where a feature is off and
-  re-baselined with recorded diffs where a fix changes bytes; compaction
-  keeps the exact todos and untrusted labels; automatic compaction passes
-  its M75 pair before it is available by default.
-- **Tests.** Unit tests per item with a red drill each; codec goldens per
-  provider; the fake Model API across a compaction, an overflow and a resume;
-  the M75 pair.
-- **Gates.** The full quality gate, check-l10n, host-API, every bundle cap
-  (no cap raise on a startup bundle, D6), VSIX size.
-- **Security.** Paths normalised once and shared by check and write; no
-  temp file readable by other users; no credential in a fixture; the D78 gate
-  for every extra call.
-- **Docs.** README (compaction and packing sections), CHANGELOG, this record,
-  `docs/certification/m101-<lane>.md` per lane and `m101.md` for the whole.
-- **Size.** L.
-- **Certification checklist.**
-  - [x] Lane A, with drills and the golden diffs (integrated fake evidence)
-  - [x] Lane C1, with drills (integrated fake evidence)
-  - [ ] Lane C2, with drills and its M75 pair
-  - [ ] Lane O, with drills and captured overflow texts
-  - [ ] Lane T, with drills
-  - [x] Lanes P1 and P2 mechanisms, with drills and codec goldens; BYO binding tracked below
-  - [ ] Lane E's live counts and cached-token results
-  - [ ] Provider × item table complete; full gate green
-
-**Lane A status (2026-10-05, Kubuntu):** Items 1, 2+22, 7, 16 and 17
-are implemented in their owned regions: request-only goal progress and native
-Anthropic breakpoint exclusion, stable capability-gated recall with literal
-search, sticky ids across resume/fork/rewind, a persisted local session date,
-and log-only capability-gated cache diagnostics. Twenty red drills restore
-byte-exact; deliberate golden changes, the provider matrix and production
-byte deltas are in `docs/certification/m101-a.md`. Owning suites, all five compiler projects and static/bundle gates pass;
-the complete 282-file importing sweep has five reproducible pre-existing
-UI failures, recorded in §7 and the certification. Integration must supply the new `modelFacts` callback from M95's
-pending host registry seam and reconcile this base's off-by-default panel manifest with
-D81.6. FIXM101A repairs the separate Chat/OpenRouter breakpoints and Gemini
-context role, preserves pending-approval sticky ids, and enables shared packing
-in ACP/headless; its six additional red drills are recorded below. The
-remaining integration owners' files stay untouched; full quality and live M75/cache receipts
-are delegated by the rig brief to the integrator and Lane E.
-
-**FIXM101A review repair scope (2026-10-05).** Repair all three RVM101A
-P2s with minimal codec hunks: Gemini maps developer context to a trailing
-user-role part; Chat/OpenRouter excludes the trailing progress item from both
-rolling cache modes; pending-tool persistence merges newly sticky packed ids
-only for outputs retained in its safe replay and compares those ids before
-skipping a save. Add a Manual-mode crash/resume regression. Under the owner's
-all-editors rule, enable the same shared packing and literal `recall_output`
-in the ACP/headless runtime (no VS Code setting is available there). Tests,
-byte-exact red drills and named integration residuals go in
-`docs/certification/m101-a.md` and §9. No dependency, gate or paid-call change.
-
-FIXM101T review repair (2026-10-05): address RVM101T findings 1–15 in
-this lane's tool, resolver, packing and incomplete-response paths, with ACP
-path parity and regression/drill records. No dependencies, paid/live calls,
-guard widening, main merge or push. Run lane gates directly on macmini;
-the lead owns full quality. Item 21 requires the preset limits/capability
-seam and a cross-platform pixel decoder; assess that redesign explicitly
-and record a named residual if it cannot fit the no-dependency constraint.
-
-Lane T review repair (FIXM101T, 2026-10-05): RVM101T findings 1–12,
-14 and 15 are fixed with named regression tests and byte-exact red drills.
-Every incomplete-envelope call is refused visibly; schema-valid atomic
-edits, cancellable linear fuzzy matching, complete-line read paging, decoded
-confined paths and ACP target parity, retained shell originals and packable
-background completions are verified. All new UI failures are translated.
-Items 4, 8, 9, 12, 13, 14, 15, 18 and 20 are re-verified against research
-acceptance; item 21/finding 13 remains the named FIXM101T-IMAGE21 redesign
-residual in §9. The inherited packing default/runtime gap and M75 live pair
-are named there too. Original fabricated evidence is withdrawn; the shared
-schema pin, actual bundle deltas, 18-file/1,230-test results and drills are
-in `docs/certification/m101-t.md`. No paid/live calls or dependencies added.
-
-Status 2026-10-05: implemented on `m101/p1` with a unit test per item,
-golden re-baselines (Anthropic `display`, Gemini full-schema fixtures,
-Mistral compliant ids), and `docs/certification/m101-p1.md` holding the
-provider x item table, byte diffs, and residuals (session-store signature
-stripping for lane A, replay origins for lane I, id-heuristic generation
-for lane N). Original lane gates and red drills ran after its shell
-recovered; three local commits ended at `05ab4f30`. Original production
-build receipts remained environment-blocked; RVM101P1 later reproduced
-bundle sizes but found nine defects (one P1, seven P2, one P3).
-**FIXM101P1 repair scope (2026-10-05):** correct Gemini 3's
-`parametersJsonSchema` field, retain signed empty text on replay, gate
-and nest tool-result media, preserve `$ref` sibling constraints, assign
-response-salted fallback ids after late response ids, reject invalid
-usage explicitly, select Mistral ids by preset, preserve own `__proto__`
-JSON keys (shared and Anthropic), and reconcile the documentation.
-Each finding gets a regression and deliberate red drill in
-`docs/certification/m101-p1.md`; only Gemini request goldens move, with
-cited provider contracts. Meta request fixtures stay byte-identical.
-Rig rules require local hooked commits and focused direct tests; no
-push, integration merge, new dependency, live/paid call or gate change.
-All nine review findings are now repaired with regressions and twelve red
-drills; no assigned P1/P2/P3 residual remains. Existing integration
-follow-ups remain named in §9. Final rig verification is recorded in the
-certification: 330 tests, all five typechecks, changed-file lint/format,
-deadcode, duplication, cycles, localization, host API, production size/split/
-globals/notices and secret scans pass on Kubuntu. The combined full-quality/
-platform receipt remains lead-owned; no gate or Meta fixture was changed.
-
-- **FIXM101P2 review repair scope (2026-10-05).** RVM101P2 findings 1–7:
-  observe save rejections at creation; classify normalized spend/quota codes;
-  preserve and validate custom compat at host import/export; finish the strict
-  subset rewrite and gate codec requests through `supportsStrictTools`; reject
-  malformed grammar types; repair scoped lint/format and release notes. Every
-  fix gets a regression and byte-exact red drill in `docs/certification/m101-p2.md`.
-  No dependency, live call, guard widening or unrelated refactor. The base has
-  no per-model strict capability; its integration binding must be a named
-  residual. Host round-trips also retain the custom model limits required
-  by the core schema. The existing shared non-secret provider-option module
-  carries their schemas and compat together so both boundaries validate the
-  same shape without pulling provider core into a startup bundle.
-  Full quality runs belong to the lead under this lane brief.
-- **Lane P2 status (2026-10-05).** Done: BYO 5 (shared retry tables in
-  `FormatQuirks`, normalized quota/spend-cap codes refused by the classifier,
-  `Retry-After` over 60 s fails naming the wait; non-Meta transport binding is
-  `M101P2-RETRY-BINDING`), BYO 6 (1-hour writes settled disjointly, tier cache rates,
-  dearest-write reservations; lane I wires the host lookup and
-  `StoredUsage.cacheWriteTokens`), BYO 12 (every callback parameter,
-  `closeAllConnections`; refresh-outside-abort is a constraint on the
-  not-yet-built M95b refresh), BYO 14 (strict custom-server compat
-  overrides), BYO 16 (latest-wins save queue, header-only listing), item 24
-  (conservative strict-subset rewrite, every property required, optional
-  values nullable, closed objects, unsupported keywords refused; Responses
-  and Chat codec request gates read injected `supportsStrictTools`; malformed
-  grammar types refused). The missing selected-model capability/transport
-  binding is named `M101P2-STRICT-BINDING` in §9; item 24 is not certified
-  end-to-end until that integration passes. Scope
-  change: BYO 10 and BYO 15 moved to M95 lane N; the host price lookup,
-  `insights.ts`, `sessionBudget.ts`, `shared/paid.ts` and `effort.ts` are
-  lane I's. Record: `docs/certification/m101-p2.md`.
-
 ### M95 K repair residuals (2026-10-05)
 
 - **K22 resolved:** final comparable activation is 608,089 bytes against
@@ -45683,8 +46549,6 @@ platform receipt remains lead-owned; no gate or Meta fixture was changed.
   repository admin bypasses both for direct pushes and releases, and every
   bypass is logged by GitHub. A moved tag, as with 0.5.2, is then a
   deliberate bypass rather than a habit.
-
-## 7. Gates
 
 **M95INT round-one whole-chain receipt — historical 120-minute rig brief.**
 The browser and SAST failures below are historical and repaired in round two.
@@ -46295,293 +47159,6 @@ The lead must resolve that runner before full quality certification; no
 gate, threshold, timeout, hook or skip is changed. The existing Windows
 8.3 fixture also needs a genuine short-name TEMP for its native proof.
 See `docs/certification/m71.md`, M71m main join.
-
-### M98 — Muse Judge: a calibrated judge for any agent (D77, phase 1 integration)
-
-Lane D integration (2026-10-05, Kubuntu): merge A's review fixes and G's
-M91-G goldens into U, activate the same-model sources through a lazy window
-bundle, retain A's live binding and dispatch guards, and connect dispatch
-receipts to U's separate usage rows. Repair the recorded 320 px tool-row
-overflow. Document and certify only the behaviour exercised on this tree.
-D78's `paidDailyBudget.ts` and setting are absent from this checkout; its
-historical `3db0ef37` factory exposes `capUsd`/`reserve`, not A's complete
-daily-ledger interface. Metered Judge stays unavailable until that real
-adapter and D77's entry-criteria receipts land; no competing store is added.
-The exact handoff is recorded in `docs/certification/m98.md`. Prefixes with
-hosted billable tools use a standalone body with no tools: Judge token
-consent cannot authorize a separate hosted-search charge.
-The full rig gate also exposes Chrome CLI `--dump-dom` stalls on ordinary
-pages. Use the existing Playwright page driver for every accessibility
-scenario, preserving the four themes, real 690/320 px viewports, 120-second
-page timeout and every axe finding rule; prove the ordinary-page failure
-and the restored driver before rerunning the complete quality command.
-Lane D's final Kubuntu `npm run quality` exits 0 (7,317 passing tests;
-464 accessibility pages). Package and raw size check exit 0 at 2,113,751
-bytes against the unchanged 2,252,800 cap. The universal macOS helper is
-absent; CI's exact presence check fails only for that helper. The combined
-final-tree checkbox stays open. Receipts and the D78 handoff are in the
-aggregate certification record.
-
-- **Goal.** Small, calibrated, advisory decisions, on out of the box (D78),
-  from the user's own chat model first, with separate judges later. The Muse
-  model, or a deterministic rule, still decides.
-  - Redesigned after the third review round (RVM98C): **phase 1 is the
-    same-model judge only.**
-  - Every other part is a named phase-2 section that stays planned.
-- **Phase 1 scope.**
-  - **The same-model judge** on the Model API and on Muse Code:
-    - stated confidence on every model, batched;
-    - logprobs where a model offers them, with binary-from-top-1 under its
-      floor;
-    - results labelled "uncalibrated" or "approximate (top-1)".
-  - **Speed:**
-    - Model API side requests that share the main cached prefix exactly
-      (redaction first);
-    - Muse Code redacted standalone prompts in a fresh hidden session per
-      batch;
-    - background calls with stale results dropped, and a memory-only result
-      cache.
-  - **One use:** the Auto risk advisory, through the synchronous caution
-    latch at the reviewer-held and card-held fences only (D77, "Where
-    phase 1 intervenes"). Not started on immediate allows.
-  - **Admission** through D78's daily ledger; the ask-once consent;
-    confidential rules; privacy.
-  - **Modes:** `auto` (= `same`), `same`, `off`.
-  - **Per-backend invariance goldens:** M91-G's raw-body harness for the
-    Model API, MSP frames for Muse Code.
-- **Phase 2 sections**, each with its own lanes, acceptance, drills and
-  certification when it starts:
-  - 2a cascade and `both`;
-  - 2b calibration fitting;
-  - 2c SystemOne adapters and `judge serve` (M85);
-  - 2d sampling and contrastive framing;
-  - 2e BYO providers;
-  - 2f the other uses, the Judge panel section, and pre-execution fences;
-  - 2g the CLI and MCP;
-  - 2h lint;
-  - 2i the embedding fast path;
-  - 2j the local judge, after its design spike.
-- **Depends on.**
-  - **Phase 1:**
-    - M78 and M90 (the reviewer-held approval paths, `reviewedApprovals.ts`,
-      and the CLI settings reader);
-    - D78's daily ledger and M82's claim journal (FIXDEF);
-    - M91-G's raw-body harness (`6cfb19e4`, not yet on main);
-    - D48 and D78 (consent).
-  - **Phase 2:**
-    - M95 (2c keys, 2e, the 2f panel);
-    - M91 (2f pre-execution hooks, 2g `judge hook`);
-    - M96 (2f hints);
-    - M75 (2a, 2b, 2d, 2f, 2i);
-    - D68 (2h).
-- **Phase 1 lanes and file ownership.** Muse codes each lane. Codex
-  independently reviews each lane's finished diff and gate-fire evidence. The
-  lead serializes shared files, integration and the aggregate gates; no lane
-  rewrites another's region.
-  - **Start now on the rigs:** lanes 0, J and A. They are pure or
-    interface-level, and need no host integration.
-  - **After them:** S needs J. U needs S and A. G needs S and M91-G's
-    merge. D runs alongside, closing last.
-
-| Lane                  | Starts                        | Muse implementation ownership                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Codex review / acceptance focus                                                                                                                                                                |
-| --------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0 Contract / strings  | now                           | new `src/core/judge/schema.ts` (zod request/answer/`muse` schemas, bounds, labels); named limits in `src/shared/constants.ts` (`JUDGE_TOP1_MIN_PROB`, `JUDGE_MIN_READY_RATE`, the advisory threshold, deadlines, caps); the `judge` paid feature in `PAID_FEATURES`; `museSpark.judge.engine` (`auto`, `same`, `off`) in `package.json` and `package.nls*.json`; English and the 14 `l10n/ui.*.json`                                                                                                           | Byte-compatible `answers`; option letters `A`–`Z`; no content in log fields; complete real translations                                                                                        |
-| J Judge core          | now                           | new `src/core/judge/{judge,math,techniques,prompt,resolve,entries}.ts`: the entropy confidence, logprob renormalization over distinct alternatives, `partial`, binary-from-top-1 with its floor and stated fallback, the stated-confidence parser, the state-first prompt builder, batching (questions split, never the state), the over-context refusal, the phase-1 mode resolver, and the exact-action entry store (key, states, discard rules, the synchronous latch read); new `test/unit/judge*.test.ts` | The RVM98 top-1 counterexample; variants counted once; top-1 never a distribution; a missing field read as failure; no state split; a late result never readable after its fence               |
-| A Admission           | now (against D78's interface) | new `src/core/judge/admission.ts`: worst-case uncached reservation per call, refusal of unpriced and over-budget calls, settlement, refunds of known non-sends, liability for uncertain outcomes, re-binding after waits; the adapter onto `src/host/paid/paidDailyBudget.ts` (D78), with no store of its own; integration tests against the real ledger once FIXDEF merges                                                                                                                                    | Entry criteria 1–7 of D77 verified, or a gap filed against FIXDEF; kill after dispatch, corrupt store, lock contention, network-home refusal, two windows, held modal; M80 and D78 regressions |
-| S Same-model source   | after J                       | new `src/core/judge/same/**` and host adapters: the Model API side request built from `ModelApiHost`'s own request builder (prefix copied only when redaction leaves it unchanged; standalone otherwise); Muse Code's fresh hidden session per batch (`session/start`, an empty temporary folder deleted after, Plan, no MCP servers, the user-settings allow-rule check, the M90 item guard); background scheduling and the memory-only result cache                                                          | No model switch; main request or session untouched; redaction first; no reuse of M90's session; judge off on standing allow rules; Muse Spark never awaited                                    |
-| U Use / UI            | after S and A                 | the latch reads at M78's reviewer fence (Model API) and in `src/host/review/reviewedApprovals.ts` (Muse Code, extension-owned held approvals); the caution note on cards; no start on immediate allows; the ready-rate and precision recorder for M75 replays; the Judge status line; the ask-once modal hook-up; usage rows; harness and accessibility cases                                                                                                                                                  | A ready caution turns ALLOW into ask; a pending one leaves it; the card never waits; never an allow; results kept out of the ALLOW parsers; themes, narrow panel, keyboard and screen reader   |
-| G Golden / invariants | after S, and M91-G's merge    | the Model API: an extension of M91-G's raw-body harness (`test/unit/modelApiGoldenRequests.test.ts` at `6cfb19e4`), with the full body byte-identical when `off` or with no hint, the side prefix equal to the main cached prefix, and the redaction case standalone; Muse Code: main-session MSP frames unchanged through the real adapter and fake CLI, and the judge session carrying only the standalone prompt; the SoL-Pi regression files rerun                                                         | Red on any main-body byte change, a side-prefix divergence, a prefix reused despite redaction, or a changed main-session frame; no independent baseline; no claim about the CLI's HTTP bytes   |
-| D Docs / integration  | alongside; closes last        | README, `docs/judge.md` (phase 1), `docs/PRIVACY.md`, SECURITY, CHANGELOG, PLAN, `docs/certification/m98.md`, the bundle and package scripts, knip and dpdm entries                                                                                                                                                                                                                                                                                                                                            | Documented behaviour only after real runs; costs from receipts; Muse Code's narrowed claim stated                                                                                              |
-
-- **Phase 1 acceptance.**
-  - **FIXM98J review repairs (RVM98J, 2026-10-04).** Findings 1–10
-    corrected within lanes J/0: finite JSON booleans; generation-bound entry handles;
-    complete-request context admission and splitting; single-character
-    answer tokens; no judge in the legacy activation paid review; explicit
-    `same` below the automatic ready-rate floor; singular `logprob` metadata;
-    ask-once wording with the shared daily budget in every language; a
-    schema-free engine predicate; and honest top-1 `partial` metadata.
-    Each fix has a regression and a byte-exact red drill in
-    `docs/certification/m98-j.md` (16 drills, full hashes beside it).
-    Lane U retains first-charge consent;
-    no judge call runs in this repair lane.
-  1. **Invariance, per backend.**
-     - When `off`: no request, no file, no log line, no bundle load.
-     - Model API with no hint: the main body is byte-identical (the M91-G
-       harness), and side prefixes are exact or standalone under redaction.
-     - Muse Code: main-session MSP frames unchanged, and the judge frames
-       carry only the standalone prompt.
-  2. **The contract.**
-     - Jev shapes for noul, choice and score.
-     - `muse` carries the source, technique, model, label, our confidence,
-       `vendorConfidence`, `partial`, and the reserved and settled cost.
-     - The bounds refuse 65 questions, 27 options, 11 levels and an oversized
-       body.
-  3. **Techniques.**
-     - **Stated:** batched and labelled "uncalibrated".
-     - **Logprobs:** renormalized over distinct variants.
-     - **Top-1:** only for a noul with a yes/no token at or above the floor,
-       labelled "approximate (top-1)"; the RVM98 counterexample falls back.
-     - **A missing field** is a failure.
-  4. **Fences** (C3).
-     - A ready caution at the reviewer's verdict turns ALLOW into ask.
-     - A fast reviewer with a delayed judge: ALLOW stands, and the late
-       result is dropped.
-     - An immediate native or Auto allow: no judge started, nothing charged.
-     - A card with a caution ready before the answer gets a note; after the
-       answer, nothing.
-     - A replaced session, turn or action discards the entry.
-     - The card never waits.
-     - Ready rate and precision recorded per backend; under
-       `JUDGE_MIN_READY_RATE`, the backend's default is off, with the reason.
-  5. **Muse Code isolation** (C4).
-     - A fresh session per batch, never M90's or the main one.
-     - An empty temporary folder, removed after.
-     - Plan mode with no MCP servers.
-     - The judge is off when user-level always-allow rules exist.
-     - The tool-item guard cancels.
-     - The residual and the narrowed claim appear in §9, in PRIVACY and in
-       the first-use note.
-  6. **Admission** (C5). Through D78's ledger only:
-     - worst-case reservation before dispatch;
-     - kill after dispatch, then restart: the liability is kept;
-     - a corrupt store or a lock failure: refused;
-     - a network home: refused;
-     - two windows: one admitted;
-     - a held modal: re-checked;
-     - unpriced: refused;
-     - re-binding after every wait.
-  7. **State size.** An over-context state gets an explicit no-answer, and
-     questions split across requests each carry the full state.
-  8. **Consent and billing.** Model API asks once (D78) with the price and
-     daily budget; Muse Code shows the subscription note.
-  9. **Confidential.** Same-model calls run exactly when the chat model may.
-  10. **Advisory only.** A "safe" answer leaves every verdict unchanged
-      (D50's test); results never reach the ALLOW parsers.
-  11. **Privacy.** Redaction before any remote call wins over prefix reuse.
-      Logs carry ids, source, technique, model, timing and cost only.
-- **Phase 1 tests and red drills.** Fakes only under `test/**`:
-  - a fake provider with stated-JSON, top-5, top-1, silent-drop,
-    reasoning-forced and cache modes;
-  - a fake Muse CLI with a hidden-session recorder, an always-allow settings
-    fixture and a tool-item emitter;
-  - fake reviewers with controllable delays.
-
-  Each new assertion and guard is broken once on purpose, observed failing,
-  restored byte-exact (SHA-256), and its whole test file rerun. The record
-  goes in `docs/certification/m98.md`. The required drills:
-  - **Invariance:** a main-body byte change; a side-prefix divergence; a
-    prefix reused despite redaction; a changed main-session MSP frame.
-  - **Math:** the top-1 complement under the floor; variants counted twice;
-    top-1 used for a choice; a dropped field read as certainty; a state
-    split.
-  - **Fences:**
-    - the latch awaiting the judge;
-    - a late result applied after its fence;
-    - a judge started on an immediate allow;
-    - a judge result parsed as ALLOW;
-    - an entry surviving a turn replacement.
-  - **Isolation:** reuse of M90's session; judging in the workspace folder;
-    running despite a user-level always-allow rule.
-  - **Admission:** a dispatch before the durable reservation; a liability
-    dropped on restart; two windows admitted for the last claim; dispatch
-    after a held modal without re-checking.
-  - **Behaviour:** a "safe" score that allows; a user path awaiting Muse
-    Spark; the judge doing anything while `off`; contributor tier in a
-    confidential workspace.
-
-  Never drill against a user's repository.
-
-- **Phase 2 sections.** Planned, not dropped. Each starts after its
-  dependency and the evidence it names.
-  - **2a — Cascade, `both`, and `auto` → `both`.**
-    - **Design:** the separate judge first; the same model under the entropy
-      `JUDGE_CASCADE_CONFIDENCE` or for a high-stakes family;
-      profile-weighted combination; disagreement only adds caution.
-    - **Needs:** 2b, a verified separate judge (2c or 2j), and M75's
-      families. The round-2 numbers are offline prototypes.
-  - **2b — Calibration fitting and the report.**
-    - Platt first, isotonic at 200 or more labels.
-    - Per-family targets with independent labels; outcome signals kept
-      apart.
-    - Disjoint grouped splits; metrics from the evaluation set only.
-  - **2c — SystemOne adapters and `judge serve`** (M85).
-    - **Adapters:** OpenRouter Jev (tested), TypeSafe (untested), Clef
-      (after a key), over M95's keys.
-    - **`serve`:** an IP-literal bind, a per-start token in a user-only file
-      deleted on exit, Host and `Origin` refusal (an absent `Origin` never
-      skips the token), 64 KiB, per-request admission.
-  - **2d — Sampling and contrastive framing,** under the cost gate,
-    measured first.
-  - **2e — BYO providers** after M95, with per-model capability blocks from
-    captures.
-  - **2f — The other uses, the Judge panel section and pre-execution
-    fences.**
-    - **Uses:** skill suggestion, relevance and grading, M96's hints, M90's
-      signal, and the three testing uses, each measured first.
-    - **Fences:** a deadline-bounded or hook-based fence for immediate
-      allows, only with a captured pre-execution hook (M91) and a measured
-      ready rate.
-    - **The panel section** sits in M95's panel.
-  - **2g — The CLI and MCP.** `judge ask`, `calibrate`, `report` and `mcp`,
-    plus `judge hook` after M91; exit codes 0, 2 and 4; `--budget-usd`
-    defaults to 0; hooks emit caution only.
-  - **2h — Lint,** within D77's declared limits: a strict, pinned
-    `jevlint.json`; a separate Muse config; Tree-sitter for the kinds
-    symbols cannot cover; a "not checked" coverage report; the first-party
-    pack.
-  - **2i — The embedding fast path,** after a measurement with hundreds of
-    labels.
-  - **2j — The local judge.** First, a design spike answering C1 and C2
-    (D77): verified local inference checked per connection, against the
-    named fixtures, or else only a user-configured, unverified endpoint
-    that is never confidential and never auto-selected. The build follows
-    the spike's verdict, starting from D77's carried design: the pinned
-    `node:net` transport, provenance, consented pulls and `tev1:4b`.
-    **Amended 2026-10-06** (D90.27's amendment): M110t's lane TJ owns the
-    hardware scan and recommendation table that 2j's setup in every editor
-    also uses, and the OS installers install and register the judge on hosts
-    and nodes once 2j has merged with outcome (a).
-- **Gates.**
-  - The lead runs the full `npm run quality` and the required CI checks on
-    the final integrated tree. Lane tests and builds run on the rigs; local
-    work is limited to changed-file formatting and lint.
-  - All existing budgets are preserved.
-  - New external shapes need counted captures before their parsers: for
-    phase 1, Muse Code's hidden-session frames and the CLI's user-settings
-    allow-rule format.
-  - This planning lane authorizes no paid or live call beyond its recorded
-    probes.
-- **Security.**
-  - Inputs are bounded by named constants.
-  - State is data, and the judge can only add caution.
-  - Keys stay in SecretStorage or the OS store.
-  - Muse Code's judge session carries M90's recorded residual (§9), with
-    the narrowed claim.
-  - No local endpoint is contacted in phase 1.
-- **Docs and owner steps.** None for phase 1. The owner-only keys (TypeSafe,
-  Cloudflare) are needed only for 2c. Each surface is documented only after
-  a real successful run.
-- **Certification checklist.**
-  - [x] Owner requests and rulings; D77's policy of record; research and
-        probes (41 live attempts, ≈ $0.015; local CPU and GPU runs; round-2
-        prototypes labelled).
-  - [x] RVM98 (12 findings) answered in `96d7b669`; RVM98C (C1–C6) answered
-        by this redesign. C1 and C2 move with the local judge to the 2j
-        spike; C3–C6 are fixed for phase 1.
-  - [x] RVM98J findings 1–10 repaired in FIXM98J with owning regressions
-        and byte-exact red drills; no finding remains as an accepted residual.
-  - [ ] Phase 1 acceptance 1–11, each with its failing drill and passing
-        receipt.
-  - [x] M91-G's harness merged with `--no-ff` in `e64ced28`; lane G's
-        golden and MSP receipts are linked in `docs/certification/m98.md`.
-  - [ ] D78's ledger meets entry criteria 1–7, or FIXDEF gaps are closed.
-  - [ ] Phase-1 final tree: full quality, a11y, package and bundle caps,
-        installed-host receipts.
-  - [ ] Each phase-2 section certified on its own when it ships.
-- **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
-
-## 7. Gates
 
 **TRAIN15E release preparation gate scope (2026-10-06, win11).** The
 continuation brief explicitly requires the entire Vitest suite in batches of
@@ -47651,353 +48228,6 @@ actual receipts in `docs/certification/m101-p2.md`. The lead must run the
 aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
 
-### M98 — Muse Judge: a calibrated judge for any agent (D77, phase 1 integration)
-
-Lane D integration (2026-10-05, Kubuntu): merge A's review fixes and G's
-M91-G goldens into U, activate the same-model sources through a lazy window
-bundle, retain A's live binding and dispatch guards, and connect dispatch
-receipts to U's separate usage rows. Repair the recorded 320 px tool-row
-overflow. Document and certify only the behaviour exercised on this tree.
-D78's `paidDailyBudget.ts` and setting are absent from this checkout; its
-historical `3db0ef37` factory exposes `capUsd`/`reserve`, not A's complete
-daily-ledger interface. Metered Judge stays unavailable until that real
-adapter and D77's entry-criteria receipts land; no competing store is added.
-The exact handoff is recorded in `docs/certification/m98.md`. Prefixes with
-hosted billable tools use a standalone body with no tools: Judge token
-consent cannot authorize a separate hosted-search charge.
-The full rig gate also exposes Chrome CLI `--dump-dom` stalls on ordinary
-pages. Use the existing Playwright page driver for every accessibility
-scenario, preserving the four themes, real 690/320 px viewports, 120-second
-page timeout and every axe finding rule; prove the ordinary-page failure
-and the restored driver before rerunning the complete quality command.
-Lane D's final Kubuntu `npm run quality` exits 0 (7,317 passing tests;
-464 accessibility pages). Package and raw size check exit 0 at 2,113,751
-bytes against the unchanged 2,252,800 cap. The universal macOS helper is
-absent; CI's exact presence check fails only for that helper. The combined
-final-tree checkbox stays open. Receipts and the D78 handoff are in the
-aggregate certification record.
-
-- **Goal.** Small, calibrated, advisory decisions, on out of the box (D78),
-  from the user's own chat model first, with separate judges later. The Muse
-  model, or a deterministic rule, still decides.
-  - Redesigned after the third review round (RVM98C): **phase 1 is the
-    same-model judge only.**
-  - Every other part is a named phase-2 section that stays planned.
-- **Phase 1 scope.**
-  - **The same-model judge** on the Model API and on Muse Code:
-    - stated confidence on every model, batched;
-    - logprobs where a model offers them, with binary-from-top-1 under its
-      floor;
-    - results labelled "uncalibrated" or "approximate (top-1)".
-  - **Speed:**
-    - Model API side requests that share the main cached prefix exactly
-      (redaction first);
-    - Muse Code redacted standalone prompts in a fresh hidden session per
-      batch;
-    - background calls with stale results dropped, and a memory-only result
-      cache.
-  - **One use:** the Auto risk advisory, through the synchronous caution
-    latch at the reviewer-held and card-held fences only (D77, "Where
-    phase 1 intervenes"). Not started on immediate allows.
-  - **Admission** through D78's daily ledger; the ask-once consent;
-    confidential rules; privacy.
-  - **Modes:** `auto` (= `same`), `same`, `off`.
-  - **Per-backend invariance goldens:** M91-G's raw-body harness for the
-    Model API, MSP frames for Muse Code.
-- **Phase 2 sections**, each with its own lanes, acceptance, drills and
-  certification when it starts:
-  - 2a cascade and `both`;
-  - 2b calibration fitting;
-  - 2c SystemOne adapters and `judge serve` (M85);
-  - 2d sampling and contrastive framing;
-  - 2e BYO providers;
-  - 2f the other uses, the Judge panel section, and pre-execution fences;
-  - 2g the CLI and MCP;
-  - 2h lint;
-  - 2i the embedding fast path;
-  - 2j the local judge, after its design spike.
-- **Depends on.**
-  - **Phase 1:**
-    - M78 and M90 (the reviewer-held approval paths, `reviewedApprovals.ts`,
-      and the CLI settings reader);
-    - D78's daily ledger and M82's claim journal (FIXDEF);
-    - M91-G's raw-body harness (`6cfb19e4`, not yet on main);
-    - D48 and D78 (consent).
-  - **Phase 2:**
-    - M95 (2c keys, 2e, the 2f panel);
-    - M91 (2f pre-execution hooks, 2g `judge hook`);
-    - M96 (2f hints);
-    - M75 (2a, 2b, 2d, 2f, 2i);
-    - D68 (2h).
-- **Phase 1 lanes and file ownership.** Muse codes each lane. Codex
-  independently reviews each lane's finished diff and gate-fire evidence. The
-  lead serializes shared files, integration and the aggregate gates; no lane
-  rewrites another's region.
-  - **Start now on the rigs:** lanes 0, J and A. They are pure or
-    interface-level, and need no host integration.
-  - **After them:** S needs J. U needs S and A. G needs S and M91-G's
-    merge. D runs alongside, closing last.
-
-| Lane                  | Starts                        | Muse implementation ownership                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Codex review / acceptance focus                                                                                                                                                                |
-| --------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0 Contract / strings  | now                           | new `src/core/judge/schema.ts` (zod request/answer/`muse` schemas, bounds, labels); named limits in `src/shared/constants.ts` (`JUDGE_TOP1_MIN_PROB`, `JUDGE_MIN_READY_RATE`, the advisory threshold, deadlines, caps); the `judge` paid feature in `PAID_FEATURES`; `museSpark.judge.engine` (`auto`, `same`, `off`) in `package.json` and `package.nls*.json`; English and the 14 `l10n/ui.*.json`                                                                                                           | Byte-compatible `answers`; option letters `A`–`Z`; no content in log fields; complete real translations                                                                                        |
-| J Judge core          | now                           | new `src/core/judge/{judge,math,techniques,prompt,resolve,entries}.ts`: the entropy confidence, logprob renormalization over distinct alternatives, `partial`, binary-from-top-1 with its floor and stated fallback, the stated-confidence parser, the state-first prompt builder, batching (questions split, never the state), the over-context refusal, the phase-1 mode resolver, and the exact-action entry store (key, states, discard rules, the synchronous latch read); new `test/unit/judge*.test.ts` | The RVM98 top-1 counterexample; variants counted once; top-1 never a distribution; a missing field read as failure; no state split; a late result never readable after its fence               |
-| A Admission           | now (against D78's interface) | new `src/core/judge/admission.ts`: worst-case uncached reservation per call, refusal of unpriced and over-budget calls, settlement, refunds of known non-sends, liability for uncertain outcomes, re-binding after waits; the adapter onto `src/host/paid/paidDailyBudget.ts` (D78), with no store of its own; integration tests against the real ledger once FIXDEF merges                                                                                                                                    | Entry criteria 1–7 of D77 verified, or a gap filed against FIXDEF; kill after dispatch, corrupt store, lock contention, network-home refusal, two windows, held modal; M80 and D78 regressions |
-| S Same-model source   | after J                       | new `src/core/judge/same/**` and host adapters: the Model API side request built from `ModelApiHost`'s own request builder (prefix copied only when redaction leaves it unchanged; standalone otherwise); Muse Code's fresh hidden session per batch (`session/start`, an empty temporary folder deleted after, Plan, no MCP servers, the user-settings allow-rule check, the M90 item guard); background scheduling and the memory-only result cache                                                          | No model switch; main request or session untouched; redaction first; no reuse of M90's session; judge off on standing allow rules; Muse Spark never awaited                                    |
-| U Use / UI            | after S and A                 | the latch reads at M78's reviewer fence (Model API) and in `src/host/review/reviewedApprovals.ts` (Muse Code, extension-owned held approvals); the caution note on cards; no start on immediate allows; the ready-rate and precision recorder for M75 replays; the Judge status line; the ask-once modal hook-up; usage rows; harness and accessibility cases                                                                                                                                                  | A ready caution turns ALLOW into ask; a pending one leaves it; the card never waits; never an allow; results kept out of the ALLOW parsers; themes, narrow panel, keyboard and screen reader   |
-| G Golden / invariants | after S, and M91-G's merge    | the Model API: an extension of M91-G's raw-body harness (`test/unit/modelApiGoldenRequests.test.ts` at `6cfb19e4`), with the full body byte-identical when `off` or with no hint, the side prefix equal to the main cached prefix, and the redaction case standalone; Muse Code: main-session MSP frames unchanged through the real adapter and fake CLI, and the judge session carrying only the standalone prompt; the SoL-Pi regression files rerun                                                         | Red on any main-body byte change, a side-prefix divergence, a prefix reused despite redaction, or a changed main-session frame; no independent baseline; no claim about the CLI's HTTP bytes   |
-| D Docs / integration  | alongside; closes last        | README, `docs/judge.md` (phase 1), `docs/PRIVACY.md`, SECURITY, CHANGELOG, PLAN, `docs/certification/m98.md`, the bundle and package scripts, knip and dpdm entries                                                                                                                                                                                                                                                                                                                                            | Documented behaviour only after real runs; costs from receipts; Muse Code's narrowed claim stated                                                                                              |
-
-- **Phase 1 acceptance.**
-  - **FIXM98J review repairs (RVM98J, 2026-10-04).** Findings 1–10
-    corrected within lanes J/0: finite JSON booleans; generation-bound entry handles;
-    complete-request context admission and splitting; single-character
-    answer tokens; no judge in the legacy activation paid review; explicit
-    `same` below the automatic ready-rate floor; singular `logprob` metadata;
-    ask-once wording with the shared daily budget in every language; a
-    schema-free engine predicate; and honest top-1 `partial` metadata.
-    Each fix has a regression and a byte-exact red drill in
-    `docs/certification/m98-j.md` (16 drills, full hashes beside it).
-    Lane U retains first-charge consent;
-    no judge call runs in this repair lane.
-  1. **Invariance, per backend.**
-     - When `off`: no request, no file, no log line, no bundle load.
-     - Model API with no hint: the main body is byte-identical (the M91-G
-       harness), and side prefixes are exact or standalone under redaction.
-     - Muse Code: main-session MSP frames unchanged, and the judge frames
-       carry only the standalone prompt.
-  2. **The contract.**
-     - Jev shapes for noul, choice and score.
-     - `muse` carries the source, technique, model, label, our confidence,
-       `vendorConfidence`, `partial`, and the reserved and settled cost.
-     - The bounds refuse 65 questions, 27 options, 11 levels and an oversized
-       body.
-  3. **Techniques.**
-     - **Stated:** batched and labelled "uncalibrated".
-     - **Logprobs:** renormalized over distinct variants.
-     - **Top-1:** only for a noul with a yes/no token at or above the floor,
-       labelled "approximate (top-1)"; the RVM98 counterexample falls back.
-     - **A missing field** is a failure.
-  4. **Fences** (C3).
-     - A ready caution at the reviewer's verdict turns ALLOW into ask.
-     - A fast reviewer with a delayed judge: ALLOW stands, and the late
-       result is dropped.
-     - An immediate native or Auto allow: no judge started, nothing charged.
-     - A card with a caution ready before the answer gets a note; after the
-       answer, nothing.
-     - A replaced session, turn or action discards the entry.
-     - The card never waits.
-     - Ready rate and precision recorded per backend; under
-       `JUDGE_MIN_READY_RATE`, the backend's default is off, with the reason.
-  5. **Muse Code isolation** (C4).
-     - A fresh session per batch, never M90's or the main one.
-     - An empty temporary folder, removed after.
-     - Plan mode with no MCP servers.
-     - The judge is off when user-level always-allow rules exist.
-     - The tool-item guard cancels.
-     - The residual and the narrowed claim appear in §9, in PRIVACY and in
-       the first-use note.
-  6. **Admission** (C5). Through D78's ledger only:
-     - worst-case reservation before dispatch;
-     - kill after dispatch, then restart: the liability is kept;
-     - a corrupt store or a lock failure: refused;
-     - a network home: refused;
-     - two windows: one admitted;
-     - a held modal: re-checked;
-     - unpriced: refused;
-     - re-binding after every wait.
-  7. **State size.** An over-context state gets an explicit no-answer, and
-     questions split across requests each carry the full state.
-  8. **Consent and billing.** Model API asks once (D78) with the price and
-     daily budget; Muse Code shows the subscription note.
-  9. **Confidential.** Same-model calls run exactly when the chat model may.
-  10. **Advisory only.** A "safe" answer leaves every verdict unchanged
-      (D50's test); results never reach the ALLOW parsers.
-  11. **Privacy.** Redaction before any remote call wins over prefix reuse.
-      Logs carry ids, source, technique, model, timing and cost only.
-- **Phase 1 tests and red drills.** Fakes only under `test/**`:
-  - a fake provider with stated-JSON, top-5, top-1, silent-drop,
-    reasoning-forced and cache modes;
-  - a fake Muse CLI with a hidden-session recorder, an always-allow settings
-    fixture and a tool-item emitter;
-  - fake reviewers with controllable delays.
-
-  Each new assertion and guard is broken once on purpose, observed failing,
-  restored byte-exact (SHA-256), and its whole test file rerun. The record
-  goes in `docs/certification/m98.md`. The required drills:
-  - **Invariance:** a main-body byte change; a side-prefix divergence; a
-    prefix reused despite redaction; a changed main-session MSP frame.
-  - **Math:** the top-1 complement under the floor; variants counted twice;
-    top-1 used for a choice; a dropped field read as certainty; a state
-    split.
-  - **Fences:**
-    - the latch awaiting the judge;
-    - a late result applied after its fence;
-    - a judge started on an immediate allow;
-    - a judge result parsed as ALLOW;
-    - an entry surviving a turn replacement.
-  - **Isolation:** reuse of M90's session; judging in the workspace folder;
-    running despite a user-level always-allow rule.
-  - **Admission:** a dispatch before the durable reservation; a liability
-    dropped on restart; two windows admitted for the last claim; dispatch
-    after a held modal without re-checking.
-  - **Behaviour:** a "safe" score that allows; a user path awaiting Muse
-    Spark; the judge doing anything while `off`; contributor tier in a
-    confidential workspace.
-
-  Never drill against a user's repository.
-
-- **Phase 2 sections.** Planned, not dropped. Each starts after its
-  dependency and the evidence it names.
-  - **2a — Cascade, `both`, and `auto` → `both`.**
-    - **Design:** the separate judge first; the same model under the entropy
-      `JUDGE_CASCADE_CONFIDENCE` or for a high-stakes family;
-      profile-weighted combination; disagreement only adds caution.
-    - **Needs:** 2b, a verified separate judge (2c or 2j), and M75's
-      families. The round-2 numbers are offline prototypes.
-  - **2b — Calibration fitting and the report.**
-    - Platt first, isotonic at 200 or more labels.
-    - Per-family targets with independent labels; outcome signals kept
-      apart.
-    - Disjoint grouped splits; metrics from the evaluation set only.
-  - **2c — SystemOne adapters and `judge serve`** (M85).
-    - **Adapters:** OpenRouter Jev (tested), TypeSafe (untested), Clef
-      (after a key), over M95's keys.
-    - **`serve`:** an IP-literal bind, a per-start token in a user-only file
-      deleted on exit, Host and `Origin` refusal (an absent `Origin` never
-      skips the token), 64 KiB, per-request admission.
-  - **2d — Sampling and contrastive framing,** under the cost gate,
-    measured first.
-  - **2e — BYO providers** after M95, with per-model capability blocks from
-    captures.
-  - **2f — The other uses, the Judge panel section and pre-execution
-    fences.**
-    - **Uses:** skill suggestion, relevance and grading, M96's hints, M90's
-      signal, and the three testing uses, each measured first.
-    - **Fences:** a deadline-bounded or hook-based fence for immediate
-      allows, only with a captured pre-execution hook (M91) and a measured
-      ready rate.
-    - **The panel section** sits in M95's panel.
-  - **2g — The CLI and MCP.** `judge ask`, `calibrate`, `report` and `mcp`,
-    plus `judge hook` after M91; exit codes 0, 2 and 4; `--budget-usd`
-    defaults to 0; hooks emit caution only.
-  - **2h — Lint,** within D77's declared limits: a strict, pinned
-    `jevlint.json`; a separate Muse config; Tree-sitter for the kinds
-    symbols cannot cover; a "not checked" coverage report; the first-party
-    pack.
-  - **2i — The embedding fast path,** after a measurement with hundreds of
-    labels.
-  - **2j — The local judge.** First, a design spike answering C1 and C2
-    (D77): verified local inference checked per connection, against the
-    named fixtures, or else only a user-configured, unverified endpoint
-    that is never confidential and never auto-selected. The build follows
-    the spike's verdict, starting from D77's carried design: the pinned
-    `node:net` transport, provenance, consented pulls and `tev1:4b`.
-- **Gates.**
-  - The lead runs the full `npm run quality` and the required CI checks on
-    the final integrated tree. Lane tests and builds run on the rigs; local
-    work is limited to changed-file formatting and lint.
-  - All existing budgets are preserved.
-  - New external shapes need counted captures before their parsers: for
-    phase 1, Muse Code's hidden-session frames and the CLI's user-settings
-    allow-rule format.
-  - This planning lane authorizes no paid or live call beyond its recorded
-    probes.
-- **Security.**
-  - Inputs are bounded by named constants.
-  - State is data, and the judge can only add caution.
-  - Keys stay in SecretStorage or the OS store.
-  - Muse Code's judge session carries M90's recorded residual (§9), with
-    the narrowed claim.
-  - No local endpoint is contacted in phase 1.
-- **Docs and owner steps.** None for phase 1. The owner-only keys (TypeSafe,
-  Cloudflare) are needed only for 2c. Each surface is documented only after
-  a real successful run.
-- **Certification checklist.**
-  - [x] Owner requests and rulings; D77's policy of record; research and
-        probes (41 live attempts, ≈ $0.015; local CPU and GPU runs; round-2
-        prototypes labelled).
-  - [x] RVM98 (12 findings) answered in `96d7b669`; RVM98C (C1–C6) answered
-        by this redesign. C1 and C2 move with the local judge to the 2j
-        spike; C3–C6 are fixed for phase 1.
-  - [x] RVM98J findings 1–10 repaired in FIXM98J with owning regressions
-        and byte-exact red drills; no finding remains as an accepted residual.
-  - [ ] Phase 1 acceptance 1–11, each with its failing drill and passing
-        receipt.
-  - [x] M91-G's harness merged with `--no-ff` in `e64ced28`; lane G's
-        golden and MSP receipts are linked in `docs/certification/m98.md`.
-  - [ ] D78's ledger meets entry criteria 1–7, or FIXDEF gaps are closed.
-  - [ ] Phase-1 final tree: full quality, a11y, package and bundle caps,
-        installed-host receipts.
-  - [ ] Each phase-2 section certified on its own when it ships.
-- **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
-
-**M96INT3C full-profile timing deferral (2026-10-05).** The one requested
-`VITEST_MAX_WORKERS=3 npm run quality` finishes red at coverage tests:
-12,514 pass, 69 fail, 151 existing/platform/setup skips. Besides the
-product/fixture repairs in M96's record, the fixed 5 s test profile times
-out real SSH, native retirement, landing/batch, detached descendants,
-HTML expansion and a VSCE inventory call. A staging hook also exceeds
-its unchanged 10 s deadline under this concurrent coverage profile.
-The rig brief prescribes scoped runs at at most three files with
-`--maxWorkers=3 --testTimeout=120000`; receipts of those runs are separate
-from full-quality certification. Gates remain unchanged. Full-quality
-certification requires a fresh owner-authorized run after these repairs
-and resolution of the shared archived-ref history blocker; round 3c's
-single invocation is never relabelled green. Windows proof belongs to
-REDWINI96/round 3d. No live/paid attempts.
-
-The later standalone audit is repaired by pinning the existing dev-only
-source-map-js leaf to 1.2.2; private script-free leaf/full-lock installs and
-the unchanged audit pass. The shared worktree tooling stays at 1.2.1 under
-the lane rule. Refresh an isolated development install to the committed
-lock before the next full-profile run. Final complete accessibility,
-SAST and localization pass; their receipts do not replace that full run.
-
-**M96INT3D single aggregate receipt (2026-10-05).** On `79b6589c`,
-`VITEST_MAX_WORKERS=3 npm run quality` exits 1 at the zero-duplication
-gate: two paid-consent tests repeat the same six-line, 61-token observation
-block. Formatting, JavaScript/CSS lint, all five typecheck projects,
-localization, host API, knip and cycles pass first; PowerShell lint retains
-its existing Windows-only policy. Share the exact test assertions, then
-the affected paid-budget file passes all 17 cases and the unchanged
-duplication gate reports zero clones. Coverage tests and later aggregate
-gates were not reached. The twelve prescribed files separately pass 306
-assertions; they are not a green coverage-profile receipt. No second full
-run is authorized in this lane; the lead decides it. The default history
-scan is now clean after archive refs moved outside this repository, and
-the shared install now contains the pinned source-map-js 1.2.2. Windows
-proof remains WINPUB on win11 for the lead's release batch.
-
-**M113 W integration boundaries (2026-10-06).** The rig note explicitly
-requires the complete configured Vitest suite in three-file batches, overriding
-common.md's normal scoped-suite rule. Aggregate `npm run quality` remains
-forbidden by that shared brief; the named component gates run separately.
-Public badge/audit traffic and live captures are also forbidden on this lane.
-The supported package badge check uses its existing documented network-skip
-reason solely for offline packaging; its local badge/template checks remain.
-Coverage aggregation, installed editor/live service/platform receipts and the
-hosted M80 matrix stay with the lead. No threshold, timeout, rule or size cap
-is lowered or raised to replace one of these receipts.
-
-M113 dependency handoffs remain explicit: S session activity and usage need
-M84's retained activity/M102's actual aggregate; native/companion/TUI/desktop
-hosts and runtime settings need M104/M110/M111; N stores, workflow/release and
-posting await approved captures; Q scheduling/occurrences, vault mail, node
-browser and editor/CLI creation need M115/M109/M110/M104; H check-slot records
-await M96c and the runtime verify adapter, which is absent on this base.
-The shipped portable bindings reject missing adapters or report unavailable
-sources. The shared engine, private cache/history/check journal, manifest,
-reference, lazy entries, budgets, docs and host inventory are W's scope.
-
-M113 W keeps schema-derived comparison bounds without importing Zod's JSON
-schema processors into browser first paint: the pinned, typed max-length
-check definitions supply the minimum actual bound. The structural section-key
-coverage and unbounded-array refusal remain; schema generation still uses
-`toJSONSchema` in its lazy/script reader. The existing 733.8 KiB startup
-regression and every production cap remain unchanged. CI's static job also
-runs P's new `check:plan` gate, matching `quality:gates`.
-
 ## 8. Escape hatches register
 
 | REL0144 location                                                | Escape hatch                                                                                                   | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -48027,29 +48257,30 @@ runs P's new `check:plan` gate, matching `quality:gates`.
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
 
-## 8. Escape hatches register
-
 | File                                       | Construct                                             | Reason                                                                                                                                                                                                                                                           | Added      |
 | ------------------------------------------ | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/runtime/main.ts` (`openUsageBrowser`) | `nosemgrep` on Linux `spawn` (`detect-child-process`) | Only the fixed OS opener receives a validated loopback companion URL, in an argument array without a shell, after credential variables have been removed. Detached spawn acknowledgement avoids waiting for a foreground browser handler (FIXM102E / RVM102E 2). | 2026-10-05 |
 
-| M95 K repair file                                         | Construct                                                    | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                | Added      |
-| --------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/models/modelsPanelEntry.ts`                     | `eslint-disable-next-line @typescript-eslint/unbound-method` | Capture the exact surface method for restoration and invoke it with its original receiver through `call`; the receipt test covers forwarding and refusal.                                                                                                                                                                                                                                                                             | 2026-10-05 |
-| Location                                                  | Escape hatch                                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| -----------------------------------                       | -----------------------------------                          | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                                                                                                                                                                                    |
-| `src/shared/l10n/text.ts` (ACTDIET)                       | `as UiText` on the descriptor clone                          | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement.                                                                                                                                                                                    |
-| M95R4 operation                                           | Escape hatch                                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                | Added      |
-| --------------------------------------------------------- | -------------------------------------------------------      | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| Lock-only security patch resolution                       | One command's `--min-release-age-exclude=source-map-js`      | Resolve upstream 1.2.2 for high GHSA-68fv-2mgg-jv7q; exact override/integrity pinned, no lifecycle script or shared-install write, no persistent release-age change.                                                                                                                                                                                                                                                                  | 2026-10-05 |
-| `src/core/backends/modelapi/pluginHost.ts` POSIX launcher | `nosemgrep` for `detect-child-process` on `nodeSpawn`        | `resolvePluginRuntime` supplies the absolute user Node/Bun/prlimit executable, host-owned arguments are passed as an array without a shell, the plugin request travels over stdin, and `withoutCredentials` removes credentials before launch. The existing process-tree, timeout, lifecycle and runtime-refusal tests exercise this deliberate subprocess boundary. The full preflight SAST scan first reports exactly this finding. | 2026-10-05 |
+| M95 K repair file                     | Construct                                                    | Reason                                                                                                                                                    | Added      |
+| ------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/models/modelsPanelEntry.ts` | `eslint-disable-next-line @typescript-eslint/unbound-method` | Capture the exact surface method for restoration and invoke it with its original receiver through `call`; the receipt test covers forwarding and refusal. | 2026-10-05 |
 
-| M95 K repair file                                                              | Construct                                                    | Reason                                                                                                                                                                                                                                             | Added      |
-| ------------------------------------------------------------------------------ | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/models/modelsPanelEntry.ts`                                          | `eslint-disable-next-line @typescript-eslint/unbound-method` | Capture the exact surface method for restoration and invoke it with its original receiver through `call`; the receipt test covers forwarding and refusal.                                                                                          | 2026-10-05 |
-| Location                                                                       | Escape hatch                                                 | Reason                                                                                                                                                                                                                                             |
-| -----------------------------------                                            | -----------------------------------                          | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/shared/l10n/text.ts` (ACTDIET)                                            | `as UiText` on the descriptor clone                          | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
+| Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
+| ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
+
+| M95R4 operation                                           | Escape hatch                                            | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                | Added      |
+| --------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| Lock-only security patch resolution                       | One command's `--min-release-age-exclude=source-map-js` | Resolve upstream 1.2.2 for high GHSA-68fv-2mgg-jv7q; exact override/integrity pinned, no lifecycle script or shared-install write, no persistent release-age change.                                                                                                                                                                                                                                                                  | 2026-10-05 |
+| `src/core/backends/modelapi/pluginHost.ts` POSIX launcher | `nosemgrep` for `detect-child-process` on `nodeSpawn`   | `resolvePluginRuntime` supplies the absolute user Node/Bun/prlimit executable, host-owned arguments are passed as an array without a shell, the plugin request travels over stdin, and `withoutCredentials` removes credentials before launch. The existing process-tree, timeout, lifecycle and runtime-refusal tests exercise this deliberate subprocess boundary. The full preflight SAST scan first reports exactly this finding. | 2026-10-05 |
+
+| M95 K repair file                     | Construct                                                    | Reason                                                                                                                                                    | Added      |
+| ------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/models/modelsPanelEntry.ts` | `eslint-disable-next-line @typescript-eslint/unbound-method` | Capture the exact surface method for restoration and invoke it with its original receiver through `call`; the receipt test covers forwarding and refusal. | 2026-10-05 |
+
+| Location                                                                       | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------------------------ | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/l10n/text.ts` (ACTDIET)                                            | `as UiText` on the descriptor clone | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
 | M95BINT extends the existing Models bundle predicate to require both callable  |
 | factories (`createModelsPanelFeatures`, `createSubscriptionFeatures`). Their   |
 | signatures are trusted only within one typed source/build/package; the         |
@@ -48075,15 +48306,16 @@ Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemg
 | ------------------------------------------------ | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/host/teamViewBundle.ts`, `isTeamViewBundle` | Factory signature trusted after export/function validation | The Node proxy and `team.js` are built and shipped together. The owning compiled-bundle test uses the actual factory; a missing or malformed export refuses. No unchecked wire value crosses this boundary. | 2026-10-05 |
 
-| M96 lane W location                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Escape hatch                                                      | Reason                                                                                                                                                                                                                                                                                                                                 | Date       |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/team/acpProcess.ts`, `loosenClientRouter`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Reflection of pinned SDK 1.5.0's private `builder.handlers`       | This client uses `request()` and custom loose notification parsers, without active-session helpers. Remove only the single constructor router after checking its exact `client-session-update-router` descriptor; refuse SDK shape changes. The real SDK/fake-stdio tests prove the boundary. No SDK source or dependency is modified. | 2026-10-05 |
-| M94 staged exports (`src/shared/constants.ts`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Owner                                                             | Deferral and removal condition                                                                                                                                                                                                                                                                                                         |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                              |
-| `TAB_FAST_PREFIX_CHARS`, `TAB_FAST_SUFFIX_CHARS`, `TAB_MULTILINE_PREFIX_CHARS`, `TAB_MULTILINE_SUFFIX_CHARS`, `TAB_CONTEXT_CHARS`, `TAB_PREFIX_ANCHOR_LINES`, `TAB_FAST_MAX_LINES`, `TAB_MULTILINE_MAX_LINES`, `TAB_MAX_COMPLETION_CHARS`, `TAB_DEBOUNCE_MS`, `TAB_FAST_MAX_OUTPUT_TOKENS`, `TAB_MULTILINE_MAX_OUTPUT_TOKENS`, `TAB_REQUEST_TIMEOUT_MS`, `TAB_CACHE_ENTRIES`, `TAB_AUTOMATIC_LATENCY_CEILING_MS`, `TAB_MAX_IN_FLIGHT`, `TAB_MAX_REQUESTS_PER_MINUTE`, `TAB_PROMPT_CACHE_KEY_PREFIX`, `TAB_HOLE_MARKER`, `TAB_REPLY_OPEN_TAG`, `TAB_REPLY_CLOSE_TAG`, `TAB_MODEL_TEXT`, `TAB_MODELS`, `TabModel`, `TAB_MULTILINE_MODES`, `TabMultiline` | C (H reads latency/model/mode domains; P retunes measured values) | Lane 0 stages the agreed contract before runtime consumers merge. Tests are Knip entrypoints and keep these exports referenced, but do not prove production use. Remove this deferral after C/H/P merge and W verifies production references; remove any export still unused instead of adding an ignore.                              |
-| `TAB_DAILY_BUDGET_DEFAULT_USD`, `TAB_DAILY_BUDGET_MIN_USD`, `TAB_DAILY_BUDGET_MAX_USD`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | L                                                                 | Remove after ledger/budget readers merge and W verifies production use.                                                                                                                                                                                                                                                                |
-| `TAB_FILE_MAX_BYTES`, `TAB_SNOOZE_SHORT_MINUTES`, `TAB_SNOOZE_LONG_MINUTES`, `TAB_TRIGGER_MODES`, `TabTrigger`, `TAB_WITH_COPILOT_MODES`, `TabWithCopilot`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | H                                                                 | Remove after provider/status/settings consumers merge and W verifies production use.                                                                                                                                                                                                                                                   |
-| `TAB_HOOK_TIMEOUT_MS`, `TAB_HOOK_VERDICT_CACHE`, `TAB_EDIT_HOOK_QUEUE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | K                                                                 | Remove after the two Tab hooks merge and W verifies production use. No Knip configuration exception is added.                                                                                                                                                                                                                          |
+| M96 lane W location                                 | Escape hatch                                                | Reason                                                                                                                                                                                                                                                                                                                                 | Date       |
+| --------------------------------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/team/acpProcess.ts`, `loosenClientRouter` | Reflection of pinned SDK 1.5.0's private `builder.handlers` | This client uses `request()` and custom loose notification parsers, without active-session helpers. Remove only the single constructor router after checking its exact `client-session-update-router` descriptor; refuse SDK shape changes. The real SDK/fake-stdio tests prove the boundary. No SDK source or dependency is modified. | 2026-10-05 |
+
+| M94 staged exports (`src/shared/constants.ts`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Owner                                                             | Deferral and removal condition                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TAB_FAST_PREFIX_CHARS`, `TAB_FAST_SUFFIX_CHARS`, `TAB_MULTILINE_PREFIX_CHARS`, `TAB_MULTILINE_SUFFIX_CHARS`, `TAB_CONTEXT_CHARS`, `TAB_PREFIX_ANCHOR_LINES`, `TAB_FAST_MAX_LINES`, `TAB_MULTILINE_MAX_LINES`, `TAB_MAX_COMPLETION_CHARS`, `TAB_DEBOUNCE_MS`, `TAB_FAST_MAX_OUTPUT_TOKENS`, `TAB_MULTILINE_MAX_OUTPUT_TOKENS`, `TAB_REQUEST_TIMEOUT_MS`, `TAB_CACHE_ENTRIES`, `TAB_AUTOMATIC_LATENCY_CEILING_MS`, `TAB_MAX_IN_FLIGHT`, `TAB_MAX_REQUESTS_PER_MINUTE`, `TAB_PROMPT_CACHE_KEY_PREFIX`, `TAB_HOLE_MARKER`, `TAB_REPLY_OPEN_TAG`, `TAB_REPLY_CLOSE_TAG`, `TAB_MODEL_TEXT`, `TAB_MODELS`, `TabModel`, `TAB_MULTILINE_MODES`, `TabMultiline` | C (H reads latency/model/mode domains; P retunes measured values) | Lane 0 stages the agreed contract before runtime consumers merge. Tests are Knip entrypoints and keep these exports referenced, but do not prove production use. Remove this deferral after C/H/P merge and W verifies production references; remove any export still unused instead of adding an ignore. |
+| `TAB_DAILY_BUDGET_DEFAULT_USD`, `TAB_DAILY_BUDGET_MIN_USD`, `TAB_DAILY_BUDGET_MAX_USD`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | L                                                                 | Remove after ledger/budget readers merge and W verifies production use.                                                                                                                                                                                                                                   |
+| `TAB_FILE_MAX_BYTES`, `TAB_SNOOZE_SHORT_MINUTES`, `TAB_SNOOZE_LONG_MINUTES`, `TAB_TRIGGER_MODES`, `TabTrigger`, `TAB_WITH_COPILOT_MODES`, `TabWithCopilot`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | H                                                                 | Remove after provider/status/settings consumers merge and W verifies production use.                                                                                                                                                                                                                      |
+| `TAB_HOOK_TIMEOUT_MS`, `TAB_HOOK_VERDICT_CACHE`, `TAB_EDIT_HOOK_QUEUE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | K                                                                 | Remove after the two Tab hooks merge and W verifies production use. No Knip configuration exception is added.                                                                                                                                                                                             |
 
 | M80 lane A location                      | Escape hatch                                   | Reason                                                                                                                                                                                                                                               | Date       |
 | ---------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -48154,34 +48386,37 @@ before a repaired one loads (2026-09-30).
 | `src/host/review/reviewBundle.ts`               | `value is ReviewBundle`                                                    | Checks the factory function from the same build and package; its signature is trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                                                                  | 2026-09-30 |
 | `src/host/git/conversationGitBundle.ts`         | `value is ConversationGitBundle`                                           | MG78: checks the packaged factory is a function; its signature is trusted only across one source/build/package. The shipped-bundle test verifies installed language, trust refusal, loader repair and activation's error identities.                                                                                                                                                                                                                                                              | 2026-10-02 |
 
-| File                                        | Construct                                                                                               | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
+| File                                     | Construct                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
+| ---------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/backend/toolIo.ts`             | `nosemgrep` on `spawn`, in `startProcess` (`detect-child-process`) | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string. The comment moved with the call into `startProcess` (M72, 2026-09-30), which catches `spawn`'s synchronous throw and reports an unstarted shell; no suppression was added.                                                                                                                                                                                                                                         | 2026-09-22 |
+| `src/host/backend/searchWorker.ts`       | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`) | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                                                                                                                                                                                                                                                                                                                                                             | 2026-09-22 |
+| `src/host/voice/dictationHost.ts`        | `nosemgrep` on two `spawn` calls (`detect-child-process`)          | The dictation and capture helpers' command lines are fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with a bundled script, or the bundled macOS binary with VS Code's own app name (`--app-name`)); M35's Linux recorder is `arecord` or `parec` found by absolute path on PATH, with fixed arguments. Argument arrays; no user, model or workspace input reaches them.                                                                                                                                                                                         | 2026-09-25 |
+| `native/darwin/Dictation.swift`          | `unsafeBitCast(symbol, to: SetDisclaim.self)`                      | `responsibility_spawnattrs_setdisclaim` is a private libsystem call with no header, so it is resolved with `dlsym` and cast to its C signature, `int (posix_spawnattr_t *, int)`, the one Chromium and Qt declare (M28). A missing symbol is handled before the cast (the helper then asks as before); the signature has been stable since macOS 10.14.                                                                                                                                                                                                                                | 2026-09-23 |
+| `src/host/backend/shellJob.ts`           | `catch { }` in the join statement each Windows command starts with | A command whose job cannot be joined (the assembly removed since the self-test, a policy change) must still run as it would without one; its kill then finds no job, logs that, and falls back to taskkill and the sweep (M27), so the failure is reported where it matters.                                                                                                                                                                                                                                                                                                           | 2026-09-23 |
+| `test/unit/App.test.tsx`                 | `as unknown as Selection` (four stubs)                             | jsdom offers no usable `Selection`; the quote-menu tests stub the two members the code reads (`toString`, `anchorNode`) and nothing else, so a structural cast is the honest shape. Test-only.                                                                                                                                                                                                                                                                                                                                                                                         | 2026-09-23 |
+| `scripts/capture-themes.mjs`             | `nosemgrep` on `spawn` (`detect-child-process`)                    | A developer script (M37): it starts the VS Code build `@vscode/test-electron` downloaded, with its own fixed arguments, as an argument array with no shell. Nothing from a user, the model or a workspace reaches it, and it never ships.                                                                                                                                                                                                                                                                                                                                              | 2026-09-24 |
+| `scripts/sast.mjs`                       | `nosemgrep` on two `spawnSync` calls (`detect-child-process`)      | The SAST gate's own launcher (M40): it runs `semgrep` or the semgrep executable found in a Python's user Scripts folder, and asks the interpreters in a fixed list (`python`, `python3`, `py`) where that folder is. Every command and argument is the script's own, passed as an argument array with no shell; nothing from a user, the model or a workspace reaches them, and the script never ships.                                                                                                                                                                                | 2026-09-25 |
+| `src/host/backend/mcpProcess.ts`         | `nosemgrep` on `spawn` (`detect-child-process`)                    | A stdio MCP server the user configured in Muse Code's own settings file (M50, D42), started only in a trusted workspace: its command found by absolute path (D24), its arguments passed as an array. A `.cmd`/`.bat` launcher goes through `cmd.exe /d /v:off /s /c` with every part quoted and `"`, `%` and line breaks refused. Nothing the model writes reaches the command line.                                                                                                                                                                                                   | 2026-09-25 |
+| `src/host/backend/mcpJobLaunch.ts`       | `nosemgrep` on `spawn` (`detect-child-process`)                    | On Windows M50 starts only its compiled C# executable in extension storage, with no arguments. The configured command, arguments and allowlisted environment are in a private encoded environment value; C# removes it and builds the server's exact environment before `CreateProcessW`. The server is assigned to its job before its first instruction. Since M56 the launcher's C# ships as `native/windows/MuseSparkMcpLauncher.cs` and the shared `MuseSparkMcpJob.cs`, is read by `jobSourceReader`, and compiles to an executable named by its source's digest (`jobBuild.ts`). | 2026-09-26 |
+| `test/unit/helpers/fakeMcpOrphan.mjs`    | `nosemgrep` on `spawn` (`detect-child-process`)                    | The M50 Windows regression fixture starts only this Node with its own fixed file to test an MCP server whose child outlives it. The child self-exits after 12 seconds; no model or workspace input reaches its command line, and the fixture never ships.                                                                                                                                                                                                                                                                                                                              | 2026-09-25 |
+| `src/host/backend/modelApiBundle.ts`     | `value is KeyClientBundle` (`isKeyClientBundle`)                   | Checks the stored-key factory function from the same source/build/package; its parameter and result signature is trusted like the existing host factory. The real built module is tested for lazy loading, retry and language handoff in modelApiBundle.test.ts.                                                                                                                                                                                                                                                                                                                       | 2026-10-05 |
+| `src/host/backend/modelApiBundle.ts`     | `value is ModelApiBundle` (`isModelApiBundle`, a type predicate)   | `require` of `dist/modelApi.js` returns `unknown`; the guard checks that `createModelApiHost` is a function, but not its parameter and result types, which no run-time check can see. Both bundles come from one source tree in one `npm run build` and ship in one package, this module types the factory on both sides, and `modelApiBundle.test.ts` builds the real bundle and runs a turn through it (M57).                                                                                                                                                                        | 2026-09-27 |
+| `src/host/codeIntel/languageServices.ts` | `Reflect.get(edit, '_allEntries')`, an undocumented member         | VS Code's `WorkspaceEdit` API lists only text edits (`entries()`, and `size` counts them), so a rename that also moves or creates files looks plain. The internal `_allEntries()` (1.99.0 to 1.139.0) lists every entry with its `_type`; it is read as `unknown` and parsed with zod, and a missing member or a changed shape answers `unknown`, which refuses the rename rather than applying half of it (M67). `languageServices.test.ts` and the integration suite cover both.                                                                                                     | 2026-09-28 |
+| `src/runtime/main.ts`                    | `nosemgrep` on `spawn` (`detect-child-process`)                    | The ACP agent's `login` (M63, D62) runs `muse login` in the user's terminal the way the agent starts `muse serve`: the command is the CLI `MuseCodeBackendManager.resolveLaunch` found (the install layout, `PATH`, or an absolute `--muse-binary` that must exist, D1a, D4), the arguments its launcher's fixed prefix and `MUSE_LOGIN_ARGS`, passed as an array with no shell. Nothing from an editor, the model or a workspace reaches it. Found by the first local SAST run on PR #32's code (2026-09-27).                                                                         | 2026-09-27 |
+
+| `src/webview/components/HeartbeatTrace.tsx` | `eslint-disable-next-line unicorn/prefer-path2d` on the tick segment path    | The beam draws a new 0.5 px segment at its current position every 6 ms tick; a reused `Path2D` would freeze the beam at its first segment. The suppression covers only this `beginPath`, with the reason inline.                                                                                                                                                                                                                                                                                                                   | 2026-10-04 |
+| ------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/verifyEditor.test.ts`            | `as unknown as` on five `vscode` stubs                                       | The `vscode` mock has no `TextDocument`, `TextEditor`, `Diagnostic`, `TextEdit` or `WorkspaceConfiguration` classes; the M68 verify editor's tests stub only the members it reads (a document's `uri`, `isDirty`, `eol`, `getText`, `offsetAt`; an editor's `document.uri`; a diagnostic's severity, range start, message and source; an edit's range and text; a configuration's `get`), so a structural cast is the honest shape. Test-only.                                                                                     | 2026-09-28 |
+| `src/core/browser/canaries.ts`              | `nosemgrep` on a plain WebSocket URL (`detect-insecure-websocket`)           | Canary C2 (M81 A1, design spec v4 §7): the probe page opens a plain WebSocket to a reserved `.invalid` nonce name so that its CONNECT can be seen refused at the check's own proxy; it never connects and nothing is sent over it. Canary C5w (review round 1): a plain WebSocket to a loopback host the user did not widen, at the phase's own fixture port, refused the same way.                                                                                                                                                | 2026-10-02 |
+| `src/host/browser/browserProcess.ts`        | `nosemgrep` on `spawn` (`detect-child-process`)                              | The browser check (M81 A1, D49) starts only the pinned Chrome for Testing headless shell at the absolute path the runtime bundle verified against `browserRuntime.json` in the extension's own storage (never PATH, a system browser or a workspace file), its identity read again just before, as an argument array with no shell: the fixed flags of `BROWSER_LAUNCH_FLAGS`, the check's own proxy endpoint and profile, and a projected environment. The model's URL and steps go over the CDP pipe, never on the command line. | 2026-10-02 |
+| `src/host/browser/browserProcess.ts`        | `nosemgrep` on `execFile` (`detect-child-process`)                           | The tree kill of the check's own browser on Windows: `taskkill.exe` by its absolute path under `SystemRoot` with `/PID <the browser's pid> /T /F`, an argument array, no shell. POSIX kills the browser's own process group instead.                                                                                                                                                                                                                                                                                               | 2026-10-02 |
+| `src/host/browser/browserChecks.ts`         | `value is BrowserCheckBundle` (`isBrowserCheckBundle`, a type predicate)     | `require` of `dist/browserCheck.js` returns `unknown`; the guard checks that `runBrowserCheck` is a function, not its parameter and result types. Entry, loader and package come from one source tree and one `npm run build` (M81, the checkpoint store's pattern); the real runner is exercised against real browsers by `browserCheckLive.test.ts`, and a missing or malformed bundle refuses the check and is read again later.                                                                                                | 2026-10-01 |
+| `src/host/browser/browserChecks.ts`         | `value is BrowserRuntimeBundle` (`isBrowserRuntimeBundle`, a type predicate) | `require` of `dist/browserRuntime.js` returns `unknown`; the guard checks that `prepareRuntime` is a function. The same build, pattern and refusal as the check's bundle (M81 A1); the real store is exercised end to end by `runtimeStore.test.ts` on real folders and by the rigs' runs of the built bundles.                                                                                                                                                                                                                    | 2026-10-02 |
+
+| File | Construct | Reason | Added |
+
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/backend/toolIo.ts`                | `nosemgrep` on `spawn`, in `startProcess` (`detect-child-process`)                                      | The command line is the tool's payload by design: the user approved it on a card, and it runs through PowerShell / bash as an argument array, never a shell string. The comment moved with the call into `startProcess` (M72, 2026-09-30), which catches `spawn`'s synchronous throw and reports an unstarted shell; no suppression was added.                                                                                                                                                                                                                                         | 2026-09-22 |
-| `src/host/backend/searchWorker.ts`          | `nosemgrep` on `new RegExp(pattern)` (`detect-non-literal-regexp`)                                      | The model's search pattern is evaluated on a worker thread that `toolIo.searchOnWorker` terminates at `SEARCH_TIMEOUT_MS`, and the pattern is capped at `SEARCH_PATTERN_MAX_LENGTH`; a runaway match cannot hang the host.                                                                                                                                                                                                                                                                                                                                                             | 2026-09-22 |
-| `src/host/voice/dictationHost.ts`           | `nosemgrep` on two `spawn` calls (`detect-child-process`)                                               | The dictation and capture helpers' command lines are fixed by `helperLocation.ts` (Windows PowerShell under `%SystemRoot%` with a bundled script, or the bundled macOS binary with VS Code's own app name (`--app-name`)); M35's Linux recorder is `arecord` or `parec` found by absolute path on PATH, with fixed arguments. Argument arrays; no user, model or workspace input reaches them.                                                                                                                                                                                         | 2026-09-25 |
-| `native/darwin/Dictation.swift`             | `unsafeBitCast(symbol, to: SetDisclaim.self)`                                                           | `responsibility_spawnattrs_setdisclaim` is a private libsystem call with no header, so it is resolved with `dlsym` and cast to its C signature, `int (posix_spawnattr_t *, int)`, the one Chromium and Qt declare (M28). A missing symbol is handled before the cast (the helper then asks as before); the signature has been stable since macOS 10.14.                                                                                                                                                                                                                                | 2026-09-23 |
-| `src/host/backend/shellJob.ts`              | `catch { }` in the join statement each Windows command starts with                                      | A command whose job cannot be joined (the assembly removed since the self-test, a policy change) must still run as it would without one; its kill then finds no job, logs that, and falls back to taskkill and the sweep (M27), so the failure is reported where it matters.                                                                                                                                                                                                                                                                                                           | 2026-09-23 |
-| `test/unit/App.test.tsx`                    | `as unknown as Selection` (four stubs)                                                                  | jsdom offers no usable `Selection`; the quote-menu tests stub the two members the code reads (`toString`, `anchorNode`) and nothing else, so a structural cast is the honest shape. Test-only.                                                                                                                                                                                                                                                                                                                                                                                         | 2026-09-23 |
-| `scripts/capture-themes.mjs`                | `nosemgrep` on `spawn` (`detect-child-process`)                                                         | A developer script (M37): it starts the VS Code build `@vscode/test-electron` downloaded, with its own fixed arguments, as an argument array with no shell. Nothing from a user, the model or a workspace reaches it, and it never ships.                                                                                                                                                                                                                                                                                                                                              | 2026-09-24 |
-| `scripts/sast.mjs`                          | `nosemgrep` on two `spawnSync` calls (`detect-child-process`)                                           | The SAST gate's own launcher (M40): it runs `semgrep` or the semgrep executable found in a Python's user Scripts folder, and asks the interpreters in a fixed list (`python`, `python3`, `py`) where that folder is. Every command and argument is the script's own, passed as an argument array with no shell; nothing from a user, the model or a workspace reaches them, and the script never ships.                                                                                                                                                                                | 2026-09-25 |
-| `src/host/backend/mcpProcess.ts`            | `nosemgrep` on `spawn` (`detect-child-process`)                                                         | A stdio MCP server the user configured in Muse Code's own settings file (M50, D42), started only in a trusted workspace: its command found by absolute path (D24), its arguments passed as an array. A `.cmd`/`.bat` launcher goes through `cmd.exe /d /v:off /s /c` with every part quoted and `"`, `%` and line breaks refused. Nothing the model writes reaches the command line.                                                                                                                                                                                                   | 2026-09-25 |
-| `src/host/backend/mcpJobLaunch.ts`          | `nosemgrep` on `spawn` (`detect-child-process`)                                                         | On Windows M50 starts only its compiled C# executable in extension storage, with no arguments. The configured command, arguments and allowlisted environment are in a private encoded environment value; C# removes it and builds the server's exact environment before `CreateProcessW`. The server is assigned to its job before its first instruction. Since M56 the launcher's C# ships as `native/windows/MuseSparkMcpLauncher.cs` and the shared `MuseSparkMcpJob.cs`, is read by `jobSourceReader`, and compiles to an executable named by its source's digest (`jobBuild.ts`). | 2026-09-26 |
-| `test/unit/helpers/fakeMcpOrphan.mjs`       | `nosemgrep` on `spawn` (`detect-child-process`)                                                         | The M50 Windows regression fixture starts only this Node with its own fixed file to test an MCP server whose child outlives it. The child self-exits after 12 seconds; no model or workspace input reaches its command line, and the fixture never ships.                                                                                                                                                                                                                                                                                                                              | 2026-09-25 |
-| `src/host/backend/modelApiBundle.ts`        | `value is KeyClientBundle` (`isKeyClientBundle`)                                                        | Checks the stored-key factory function from the same source/build/package; its parameter and result signature is trusted like the existing host factory. The real built module is tested for lazy loading, retry and language handoff in modelApiBundle.test.ts.                                                                                                                                                                                                                                                                                                                       | 2026-10-05 |
-| `src/host/backend/modelApiBundle.ts`        | `value is ModelApiBundle` (`isModelApiBundle`, a type predicate)                                        | `require` of `dist/modelApi.js` returns `unknown`; the guard checks that `createModelApiHost` is a function, but not its parameter and result types, which no run-time check can see. Both bundles come from one source tree in one `npm run build` and ship in one package, this module types the factory on both sides, and `modelApiBundle.test.ts` builds the real bundle and runs a turn through it (M57).                                                                                                                                                                        | 2026-09-27 |
-| `src/host/codeIntel/languageServices.ts`    | `Reflect.get(edit, '_allEntries')`, an undocumented member                                              | VS Code's `WorkspaceEdit` API lists only text edits (`entries()`, and `size` counts them), so a rename that also moves or creates files looks plain. The internal `_allEntries()` (1.99.0 to 1.139.0) lists every entry with its `_type`; it is read as `unknown` and parsed with zod, and a missing member or a changed shape answers `unknown`, which refuses the rename rather than applying half of it (M67). `languageServices.test.ts` and the integration suite cover both.                                                                                                     | 2026-09-28 |
-| `src/runtime/main.ts`                       | `nosemgrep` on `spawn` (`detect-child-process`)                                                         | The ACP agent's `login` (M63, D62) runs `muse login` in the user's terminal the way the agent starts `muse serve`: the command is the CLI `MuseCodeBackendManager.resolveLaunch` found (the install layout, `PATH`, or an absolute `--muse-binary` that must exist, D1a, D4), the arguments its launcher's fixed prefix and `MUSE_LOGIN_ARGS`, passed as an array with no shell. Nothing from an editor, the model or a workspace reaches it. Found by the first local SAST run on PR #32's code (2026-09-27).                                                                         | 2026-09-27 |
-| `src/webview/components/HeartbeatTrace.tsx` | `eslint-disable-next-line unicorn/prefer-path2d` on the tick segment path                               | The beam draws a new 0.5 px segment at its current position every 6 ms tick; a reused `Path2D` would freeze the beam at its first segment. The suppression covers only this `beginPath`, with the reason inline.                                                                                                                                                                                                                                                                                                                                                                       | 2026-10-04 |
-| -------------------------------------       | ------------------------------------------------------------------                                      | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `test/unit/verifyEditor.test.ts`            | `as unknown as` on five `vscode` stubs                                                                  | The `vscode` mock has no `TextDocument`, `TextEditor`, `Diagnostic`, `TextEdit` or `WorkspaceConfiguration` classes; the M68 verify editor's tests stub only the members it reads (a document's `uri`, `isDirty`, `eol`, `getText`, `offsetAt`; an editor's `document.uri`; a diagnostic's severity, range start, message and source; an edit's range and text; a configuration's `get`), so a structural cast is the honest shape. Test-only.                                                                                                                                         | 2026-09-28 |
-| `src/core/browser/canaries.ts`              | `nosemgrep` on a plain WebSocket URL (`detect-insecure-websocket`)                                      | Canary C2 (M81 A1, design spec v4 §7): the probe page opens a plain WebSocket to a reserved `.invalid` nonce name so that its CONNECT can be seen refused at the check's own proxy; it never connects and nothing is sent over it. Canary C5w (review round 1): a plain WebSocket to a loopback host the user did not widen, at the phase's own fixture port, refused the same way.                                                                                                                                                                                                    | 2026-10-02 |
-| `src/host/browser/browserProcess.ts`        | `nosemgrep` on `spawn` (`detect-child-process`)                                                         | The browser check (M81 A1, D49) starts only the pinned Chrome for Testing headless shell at the absolute path the runtime bundle verified against `browserRuntime.json` in the extension's own storage (never PATH, a system browser or a workspace file), its identity read again just before, as an argument array with no shell: the fixed flags of `BROWSER_LAUNCH_FLAGS`, the check's own proxy endpoint and profile, and a projected environment. The model's URL and steps go over the CDP pipe, never on the command line.                                                     | 2026-10-02 |
-| `src/host/browser/browserProcess.ts`        | `nosemgrep` on `execFile` (`detect-child-process`)                                                      | The tree kill of the check's own browser on Windows: `taskkill.exe` by its absolute path under `SystemRoot` with `/PID <the browser's pid> /T /F`, an argument array, no shell. POSIX kills the browser's own process group instead.                                                                                                                                                                                                                                                                                                                                                   | 2026-10-02 |
-| `src/host/browser/browserChecks.ts`         | `value is BrowserCheckBundle` (`isBrowserCheckBundle`, a type predicate)                                | `require` of `dist/browserCheck.js` returns `unknown`; the guard checks that `runBrowserCheck` is a function, not its parameter and result types. Entry, loader and package come from one source tree and one `npm run build` (M81, the checkpoint store's pattern); the real runner is exercised against real browsers by `browserCheckLive.test.ts`, and a missing or malformed bundle refuses the check and is read again later.                                                                                                                                                    | 2026-10-01 |
-| `src/host/browser/browserChecks.ts`         | `value is BrowserRuntimeBundle` (`isBrowserRuntimeBundle`, a type predicate)                            | `require` of `dist/browserRuntime.js` returns `unknown`; the guard checks that `prepareRuntime` is a function. The same build, pattern and refusal as the check's bundle (M81 A1); the real store is exercised end to end by `runtimeStore.test.ts` on real folders and by the rigs' runs of the built bundles.                                                                                                                                                                                                                                                                        | 2026-10-02 |
-| File                                        | Construct                                                                                               | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Added      |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| -------------------------------------       | ------------------------------------------------------------------                                      | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/host/git/gitExtension.ts`              | `value is GitRepository` and two more type predicates (`isGitExtension`, `isGitApi`, `isGitRepository`) | VS Code's Git extension exports are `unknown` to this extension; the guards check that each member it calls is there (functions, the change lists as arrays), not the members' parameter and result types, which no run-time check can see. It is VS Code's own API (`git.d.ts` version 1, the same from 1.99 to 1.139), and `test/integration` commits and pushes through the real one on the floor version and the latest (M71).                                                                                                                                                     | 2026-09-28 |
 
 | File                               | Construct                                                                      | Reason                                                                                                                                                                                                                                                                                                      | Added      |
@@ -48200,14 +48435,16 @@ before a repaired one loads (2026-09-30).
 | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `test/harness/index.html` (`isActiveDescendantList`), printed by `scripts/a11y.mjs` | The accessibility gate exempts axe's `scrollable-region-focusable` | The composer's `/` and `@` lists follow WAI-ARIA's combobox pattern: the box keeps the focus and moves `aria-activedescendant` through the listbox's options, and `Composer.tsx` scrolls the active option into view, so the list is keyboard operable (WCAG 2.1.1) without being a Tab stop. axe cannot see activedescendant-driven scrolling. The exemption holds only for a region that contains a listbox whose id is in the `aria-controls` of a focused or focusable element whose active descendant is one of that listbox's options; drills show a plain scrollable region and a listbox no control drives are still reported, and removing the exemption reports the composer's list again. Every exempt element is printed under its own "Exempt:" heading and counted. No `tabindex` was added to the list. | 2026-10-04 |
 
-| M95 K repair file                     | Construct                                                       | Reason                                                                                                                                                                                 | Added      |
-| ------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/host/models/modelsPanelEntry.ts` | `eslint-disable-next-line @typescript-eslint/unbound-method`    | Capture the exact surface method for restoration and invoke it with its original receiver through `call`; the receipt test covers forwarding and refusal.                              | 2026-10-05 |
-| File                                  | Construct                                                       | Reason                                                                                                                                                                                 | Added      |
-| -------------------------------       | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| File                                  | Construct                                                       | Reason                                                                                                                                                                                 | Added      |
-| ----                                  | ---------                                                       | ------                                                                                                                                                                                 | -----      |
-| `test/unit/walkthrough.test.ts`       | `JSON.parse(…) as Record<string, string>` on `package.nls.json` | The manifest's locale table maps string keys to strings; the cast names that shape for the own-model description/command-link assertions only (mirrors `manifest.test.ts`). Test-only. | 2026-10-05 |
+| M95 K repair file                     | Construct                                                    | Reason                                                                                                                                                    | Added      |
+| ------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/host/models/modelsPanelEntry.ts` | `eslint-disable-next-line @typescript-eslint/unbound-method` | Capture the exact surface method for restoration and invoke it with its original receiver through `call`; the receipt test covers forwarding and refusal. | 2026-10-05 |
+
+| File | Construct | Reason | Added |
+| ---- | --------- | ------ | ----- |
+
+| File                            | Construct                                                       | Reason                                                                                                                                                                                 | Added      |
+| ------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/walkthrough.test.ts` | `JSON.parse(…) as Record<string, string>` on `package.nls.json` | The manifest's locale table maps string keys to strings; the cast names that shape for the own-model description/command-link assertions only (mirrors `manifest.test.ts`). Test-only. | 2026-10-05 |
 
 | `test/unit/providersPolicy.test.ts` (`checkEndpointUrl`) | `eslint-disable-next-line unicorn/prefer-https` | The regression deliberately supplies insecure HTTP to prove off-loopback transport is refused. | 2026-10-05 |
 | `test/unit/providersPolicy.test.ts` (`isCredentialBound`) | `eslint-disable-next-line unicorn/prefer-https` | The regression deliberately changes HTTPS to HTTP to prove credentials bind the scheme as well as host and port. | 2026-10-05 |

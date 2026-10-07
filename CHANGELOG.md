@@ -9,6 +9,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Preserve reports, provider/team workflows and playbook together during candidate
+  integration; remove the duplicate Help action and preserve validated prompt scope
+  when a local username is `user`. Generate report palettes from the shared tokens.
+- Keep the universal package inside its existing size budget using lossless
+  localization leaf archives, with complete English fallback and legacy archive
+  decoding retained. Canonical translation ordering changes no translated values.
+- Normalize the integrated planning document under its existing parser bound,
+  retaining decisions, rationale, milestone status detail and delivery order.
+
+### Fixed
+
 - Preserve provider, team, legal, sharing and local usage workflows when integrating
   reports, design polish and the orchestrator playbook. Keep existing bundle caps.
 - Load optional English before the first slash-command registry resolves, while

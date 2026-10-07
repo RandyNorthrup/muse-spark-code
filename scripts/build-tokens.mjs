@@ -16,6 +16,7 @@ export const TOKEN_OUTPUTS = [
   'design/tokens/generated/host-roles.css',
   'design/tokens/generated/muse.css',
   'design/tokens/generated/consumers.json',
+  'design/tokens/generated/report-themes.json',
 ]
 const MODES = ['light', 'dark', 'hc-light', 'hc-dark']
 const dimension = z
@@ -340,7 +341,28 @@ export async function renderTokens(input) {
     ),
     contrastPairs: meta.contrastPairs,
   }
-  const outputs = [web, hostRoles, palettes, JSON.stringify(consumers)]
+  const reportRoles = {
+    background: 'colour.surface',
+    foreground: 'colour.text',
+    muted: 'colour.muted',
+    border: 'colour.border',
+    accent: 'colour.accent',
+  }
+  const reportThemes = Object.fromEntries(
+    MODES.map((mode) => [
+      mode,
+      Object.fromEntries(
+        Object.entries(reportRoles).map(([name, role]) => [name, consumers.modes[mode][role].css]),
+      ),
+    ]),
+  )
+  const outputs = [
+    web,
+    hostRoles,
+    palettes,
+    JSON.stringify(consumers),
+    JSON.stringify(reportThemes),
+  ]
   return Object.fromEntries(
     await Promise.all(
       TOKEN_OUTPUTS.map(async (file, index) => [file, await formatOutput(file, outputs[index])]),

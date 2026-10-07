@@ -1,3 +1,4 @@
+import reportThemes from '../../../design/tokens/generated/report-themes.json'
 import type { ReportingContext } from '../../runtime/reporting/engine'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
@@ -134,40 +135,16 @@ export function createReportingWindow(
       theme: () => {
         switch (vscode.window.activeColorTheme.kind) {
           case vscode.ColorThemeKind.Dark: {
-            return {
-              background: '#1f1f1f',
-              foreground: '#cccccc',
-              muted: '#a6a6a6',
-              border: '#848484',
-              accent: '#4daafc',
-            }
+            return reportThemes.dark
           }
           case vscode.ColorThemeKind.HighContrast: {
-            return {
-              background: '#000000',
-              foreground: '#ffffff',
-              muted: '#ffffff',
-              border: '#ffffff',
-              accent: '#ffff00',
-            }
+            return reportThemes['hc-dark']
           }
           case vscode.ColorThemeKind.HighContrastLight: {
-            return {
-              background: '#ffffff',
-              foreground: '#000000',
-              muted: '#000000',
-              border: '#000000',
-              accent: '#000080',
-            }
+            return reportThemes['hc-light']
           }
           default: {
-            return {
-              background: '#ffffff',
-              foreground: '#1f1f1f',
-              muted: '#404040',
-              border: '#707070',
-              accent: '#005fb8',
-            }
+            return reportThemes.light
           }
         }
       },

@@ -56,6 +56,10 @@ export async function makeFixtures(auditRoot, port) {
   const { renderWhatsNewPage } = await import(
     pathToFileURL(path.join(directory, 'whatsNew.mjs')).href
   )
+  const { writeWhatsNewContent } = await import(
+    pathToFileURL(path.join(auditRoot, 'scripts/lib/whatsNewContent.mjs')).href
+  )
+  writeWhatsNewContent(auditRoot)
   const content = JSON.parse(await readFile(path.join(auditRoot, 'dist/whatsNew.json'), 'utf8'))
   const releases = Array.isArray(content) ? content : content.releases
   const rendered = renderWhatsNewPage({

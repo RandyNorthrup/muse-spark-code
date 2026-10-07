@@ -1,5 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
+import {
+  realpath,
+  mkdtemp,
+  mkdir,
+  readFile,
+  readdir,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import { createHash } from 'node:crypto'
@@ -23,7 +32,7 @@ vi.mock('node:fs/promises', { spy: true })
 
 const folders: string[] = []
 async function fixture() {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'm113-q-save-'))
+  const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm113-q-save-')))
   folders.push(root)
   return root
 }

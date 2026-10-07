@@ -111,6 +111,10 @@ function fixture() {
     'pageWorker',
     'usageService',
     'usageCompanion',
+    'fontsInstall',
+    'reporting',
+    'reportingNetwork',
+    'reportingDestinations',
   ])
     cpSync(path.join('dist', `${name}.js`), path.join(dir, 'dist', `${name}.js`))
   cpSync('dist/legal-data', path.join(dir, 'dist/legal-data'), { recursive: true })
@@ -120,6 +124,9 @@ function fixture() {
   cpSync('dist/meta/usageWebview.json', path.join(dir, 'dist/meta/usageWebview.json'))
   for (const name of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs'])
     writeFileSync(path.join(dir, 'native/windows', name), '// test-owned native fixture\n')
+  mkdirSync(path.join(dir, 'design/fonts'), { recursive: true })
+  cpSync('design/fonts/manifest.json', path.join(dir, 'design/fonts/manifest.json'))
+  cpSync('media', path.join(dir, 'media'), { recursive: true })
   cpSync('docs/schemas', path.join(dir, 'docs/schemas'), { recursive: true })
   cpSync('l10n', path.join(dir, 'l10n'), { recursive: true })
   writeFileSync(path.join(dir, 'LICENSE'), 'test-owned licence\n')

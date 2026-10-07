@@ -615,8 +615,8 @@ describe('slashCommandsOf', () => {
       'review',
       'security-review',
       'changes',
-      'report',
       'help',
+      'report',
     ])
     // A row named for the prompt describes itself by its label.
     expect(commands.find((command) => command.name === 'model')).toMatchObject({

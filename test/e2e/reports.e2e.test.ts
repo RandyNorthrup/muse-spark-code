@@ -72,8 +72,9 @@ async function cli(args: readonly string[]) {
 }
 
 describe('reports CLI subprocess', () => {
-  it('re-renders all saved formats byte for byte and saves exact output', async () => {
-    for (const format of ['md', 'html', 'json', 'text']) {
+  it.each(['md', 'html', 'json', 'text'])(
+    're-renders saved %s byte for byte and saves exact output',
+    async (format) => {
       const expected = await readFile(
         path.join(sourceRoot, 'test/fixtures/reports', `project.${format}.golden`),
         'utf8',
@@ -87,8 +88,8 @@ describe('reports CLI subprocess', () => {
         stderr: '',
       })
       expect(await readFile(path.join(state.root, out), 'utf8')).toBe(expected)
-    }
-  })
+    },
+  )
 
   it('returns each exit code, honors a fixed as-of, and prints no model output', async () => {
     expect(await cli(['project', '--as-of', '2026-10-06T12:00:00+00:00'])).toMatchObject({

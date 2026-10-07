@@ -1722,7 +1722,7 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 
 `museSpark.copyToMyPrompts` — All workspaces
 
-### : Share chat…
+### Muse Spark: Share chat…
 
 `museSpark.shareChat` — Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
 

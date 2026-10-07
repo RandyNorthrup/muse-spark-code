@@ -14,7 +14,8 @@ const COVERAGE_THRESHOLDS = {
 
 // V8 coverage and the native Git/process suites contend with large DOM/PDF
 // fixtures on macOS. Bound simultaneous files; deadlines and gates stay intact.
-const MACOS_TEST_WORKERS = 4
+// INT0170 clean-shard runs show CPU contention at four workers (default deadlines).
+const MACOS_TEST_WORKERS = 3
 
 export default defineConfig({
   resolve: {
