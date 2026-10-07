@@ -43,6 +43,8 @@ import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
 import { agentDataFolder } from './dataFolder'
+import { runPlaybookCli } from './playbook/command'
+import { createPlaybookSurface } from './playbook/surface'
 import { runReportCommand } from './reportCommand'
 import { readSecretLine } from './hiddenInput'
 import { credentialStoreName, keyringSecretStore } from './keyStore'
@@ -361,6 +363,17 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
     signIn: signInMethod(options),
     defaultCwd: process.cwd(),
     paid: runtime.paid,
+    playbookFor: (cwd) =>
+      createPlaybookSurface({
+        agentDataFolder: agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        }),
+        workspaceFolder: cwd,
+        teamId: 'panel',
+        laneId: 'surface',
+      }),
     questions: (input) => {
       const registry = loadQuestions().createRuntimeQuestionRegistry(
         input,
@@ -635,6 +648,29 @@ async function main(): Promise<number> {
     case 'version': {
       writeLine(process.stdout, packageVersion())
       return 0
+    }
+    case 'playbook': {
+      // No backend, no model startup: the journal-backed settings/record
+      // surface for the current workspace (M116).
+      const homeDir = homedir()
+      return await runPlaybookCli(command.argv, {
+        port: createPlaybookSurface({
+          agentDataFolder: agentDataFolder({
+            platform: process.platform,
+            env: process.env,
+            homeDir,
+          }),
+          workspaceFolder: process.cwd(),
+          teamId: 'panel',
+          laneId: 'surface',
+        }),
+        writeStdout: (text) => {
+          writeLine(process.stdout, text)
+        },
+        printError: (line) => {
+          writeLine(process.stderr, line)
+        },
+      })
     }
     case 'help': {
       if (command.all === true) {
