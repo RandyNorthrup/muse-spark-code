@@ -303,7 +303,11 @@ export class AttachmentStore {
   }
 
   /** Host sniffed a confined file. Keep metadata and the injected wire binding, never bytes. */
-  public addMedia(name: string, info: MediaFileInfo): AddAttachmentResult {
+  public addMedia(
+    name: string,
+    info: MediaFileInfo,
+    isScreenRecording = false,
+  ): AddAttachmentResult {
     if (this.entries.size >= MAX_ATTACHMENTS_PER_MESSAGE)
       return { ok: false, reason: UI_TEXT.attachmentLimit }
     const media = this.media
@@ -317,7 +321,9 @@ export class AttachmentStore {
       name,
       mediaType: info.mediaType,
       sizeBytes: info.sizeBytes,
-      media: { info },
+      // The recording classification rides with the chip: cost and the
+      // upload lifecycle read it (M105 E1 recording binding).
+      media: { info, ...(isScreenRecording && { isScreenRecording: true as const }) },
     }
     this.entries.set(summary.id, { summary, part: () => media.part(summary, info) })
     return { ok: true, attachment: summary }

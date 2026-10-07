@@ -307,6 +307,7 @@ export const EN = {
     recordingBrowserUnsupported: '{browser} cannot record mp4. Choose an mp4 recording file.',
     recordingUserOnly: 'Only an interactive user can start a screen recording.',
     recordingNoRecent: 'No recent screen recording was found.',
+    recorderUnavailable: 'No screen recorder is available on this host.',
     uploadStorageUnknown:
       'Storage billing has not been verified. Uploads are unavailable until it is recorded.',
     attachmentUnknownType: 'Unsupported attachment type: {type}',

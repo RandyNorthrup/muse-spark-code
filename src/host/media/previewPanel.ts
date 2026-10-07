@@ -4,7 +4,11 @@ import path from 'node:path'
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import type { ScreenRecordingPreview } from '../../core/media/record/driver'
-import { UI_TEXT } from '../../shared/constants'
+import {
+  SCREEN_RECORDING_MAX_SECONDS,
+  SCREEN_RECORDING_MIN_SECONDS,
+  UI_TEXT,
+} from '../../shared/constants'
 import { fill, formatUnit, setUiText } from '../../shared/l10n/text'
 import { screenRecordingOptionsSchema } from '../../shared/media'
 import { createNonce } from '../html'
@@ -73,8 +77,15 @@ button:focus-visible{outline:2px solid var(--vscode-focusBorder);outline-offset:
     try {
       isTransferred = await deps.attach(preview, true)
       if (isTransferred) panel.dispose()
-    } catch {
+      // A refusal keeps the preview: the banner said why (M105 E1 review).
+    } catch (error: unknown) {
+      // A thrown attach is silent without this: say it (M105 E1 review).
       deps.log.warn('Recording preview attachment failed')
+      await vscode.window.showErrorMessage(
+        fill(UI_TEXT.media.uploadFailed, {
+          reason: error instanceof Error ? error.message : String(error),
+        }),
+      )
     } finally {
       isPending = false
       if (isClosed && !isTransferred) await discard()
@@ -118,8 +129,9 @@ export async function runScreenRecordingCommand(
   }
   const driver = deps.driver
   if (driver === undefined) {
+    // No driver is a missing recorder, never the user's fault (M105 E1/E2 review).
     await vscode.window.showInformationMessage(
-      fill(UI_TEXT.media.recordingUnavailable, { reason: UI_TEXT.media.recordingUserOnly }),
+      fill(UI_TEXT.media.recordingUnavailable, { reason: UI_TEXT.media.recorderUnavailable }),
     )
     return
   }
@@ -138,32 +150,58 @@ export async function runScreenRecordingCommand(
     { canPickMany: true, title: UI_TEXT.media.recordingStart },
   )
   if (selected === undefined) return
+  // A setting outside the schema range clamps instead of failing the
+  // command with a raw schema error (M105 E1 review).
   const options = screenRecordingOptionsSchema.parse({
-    maxSeconds: deps.maxSeconds,
+    maxSeconds: Math.min(
+      SCREEN_RECORDING_MAX_SECONDS,
+      Math.max(SCREEN_RECORDING_MIN_SECONDS, deps.maxSeconds),
+    ),
     microphone: selected.some((item) => item.audio === 'microphone'),
     systemAudio: selected.some((item) => item.audio === 'systemAudio'),
   })
+  const isLive = deps.isLive ?? (() => true)
   const status = vscode.window.createStatusBarItem()
   // One Stop command per invocation; no tool/bridge can invoke the driver.
   const stopCommand = `museSpark.stopScreenRecording.${createNonce()}`
   status.command = stopCommand
   status.tooltip = UI_TEXT.media.recordingStop
   let stopping: vscode.Disposable | undefined
+  // A countdown tick after the result settled must not touch the disposed
+  // status item (M105 E1 review).
+  let isSettled = false
   try {
     const run = await driver.start(options, (remaining) => {
+      if (isSettled) return
       status.text = fill(UI_TEXT.media.recordingCountdown, {
         remaining: formatUnit(remaining, 'second'),
       })
       status.show()
     })
-    stopping = vscode.commands.registerCommand(stopCommand, () => run.stop())
-    const result = await run.result
-    if (result.ok) openRecordingPreview(result.preview, deps)
-    else
-      await vscode.window.showInformationMessage(
-        fill(UI_TEXT.media.recordingUnavailable, { reason: result.reason }),
-      )
+    // The conversation went away while the driver started: the run is
+    // cancelled, never previewed (M105 E1 review).
+    if (!isLive()) {
+      await run.cancel()
+      return
+    }
+    const untrack = deps.trackRun?.(() => run.cancel())
+    try {
+      stopping = vscode.commands.registerCommand(stopCommand, () => run.stop())
+      const result = await run.result
+      if (!result.ok)
+        await vscode.window.showInformationMessage(
+          fill(UI_TEXT.media.recordingUnavailable, { reason: result.reason }),
+        )
+      else if (isLive()) {
+        openRecordingPreview(result.preview, deps)
+      } else {
+        await result.preview.dispose()
+      }
+    } finally {
+      untrack?.()
+    }
   } finally {
+    isSettled = true
     stopping?.dispose()
     status.dispose()
   }

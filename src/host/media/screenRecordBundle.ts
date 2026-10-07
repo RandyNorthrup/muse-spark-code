@@ -24,6 +24,18 @@ export interface RecordingCommandDeps extends RecordingPreviewDeps {
   readonly driver?: ScreenRecordingDriver
   readonly maxSeconds: number
   readonly latest?: () => Promise<ScreenRecordingPreview | undefined>
+  /**
+   * False once the conversation that started the recording cleared or
+   * closed: the bundle cancels the run instead of previewing it (M105 E1
+   * review). Absent means the caller owns liveness (tests, other hosts).
+   */
+  readonly isLive?: () => boolean
+  /**
+   * The bundle registers the driver's cancel here right after start and
+   * unregisters when the result settles; clear/dispose cancels what is
+   * still registered. Absent means nobody can cancel from outside.
+   */
+  readonly trackRun?: (cancel: () => Promise<void>) => () => void
 }
 
 interface ScreenRecordBundle {
@@ -54,6 +66,8 @@ export function screenRecordLoader(
     ...(loadBundle !== undefined && { loadBundle }),
     isBundle: isScreenRecordBundle,
     label: 'screen recording',
-    unavailable: () => UI_TEXT.media.recordingUserOnly,
+    // A missing bundle is a broken install with the cause in the log, never
+    // the user's fault (M105 E1 review).
+    unavailable: () => UI_TEXT.media.recordingFailed,
   })
 }

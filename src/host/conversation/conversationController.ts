@@ -18,6 +18,7 @@ import { Buffer } from 'node:buffer'
 import { AttachmentStore } from '../../core/attachments'
 import type { MediaAttachmentPort } from '../media/mediaAttach'
 import type { RecordingCommandDeps } from '../media/screenRecordBundle'
+import type { ScreenRecordingPreview } from '../../core/media/record/driver'
 import { isProtectedPath } from '../../core/protectedPaths'
 import {
   type AgentHost,
@@ -160,6 +161,7 @@ import type { MuseCodeReviewerPort } from '../review/museCodeReviewerBundle'
 import type { JudgeAdvisory, JudgeFence } from '../../core/judge/use'
 import type { ReviewedApprovals } from '../review/reviewedApprovals'
 import type {
+  AttachmentSummary,
   ChatReference,
   EditRef,
   HostAction,
@@ -1318,6 +1320,13 @@ export class ConversationController {
   private tasksTabFor: { readonly sessionId: string | undefined } | undefined
   private mediaAttachments: MediaAttachmentPort | undefined
   private mediaLoading: Promise<MediaAttachmentPort> | undefined
+  /** In-progress screen recordings' cancels; clear/dispose cancels them. */
+  private recordingCancels = new Set<() => Promise<void>>()
+  /** Admitted recordings' temp-file disposals, by attachment id. */
+  private recordingDisposals = new Map<
+    string,
+    { readonly generation: number; readonly dispose: () => Promise<void> }
+  >()
 
   public constructor(private readonly deps: ConversationDeps) {
     this.modelId = deps.modelId
@@ -7684,6 +7693,10 @@ export class ConversationController {
     // New Conversation (it spends the echo) or a keybinding (M25, D28).
     this.post({ type: 'conversationCleared' })
     this.attachments.clear()
+    // A new conversation cancels in-progress recordings and drops admitted
+    // temp files: both belonged to the old one (M105 E1 review).
+    this.cancelRecordingRuns()
+    void this.disposeRecordings()
     this.git.sessionChanged(undefined)
     this.setTitle(undefined)
     // No session any more: the webview forgets the id it keeps for the
@@ -8064,11 +8077,12 @@ export class ConversationController {
     token?: string,
     requestId?: string,
     requestEpoch?: number,
-  ): Promise<void> {
+    isScreenRecording = false,
+  ): Promise<AttachmentSummary | undefined> {
     const isCurrent = () =>
       this.isCurrentAttachmentGeneration(generation) &&
       (requestEpoch === undefined || requestEpoch === this.webviewAttachmentEpoch)
-    const rejected = (reason: string) => {
+    const rejected = (reason: string): void => {
       if (isCurrent())
         this.post({
           type: 'attachmentRejected',
@@ -8077,10 +8091,10 @@ export class ConversationController {
           ...(requestId !== undefined && { requestId }),
         })
     }
-    if (!isCurrent()) return
+    if (!isCurrent()) return undefined
     try {
       const host = await this.deps.ensureHost()
-      if (!isCurrent()) return
+      if (!isCurrent()) return undefined
       if (host.info.kind !== 'modelApi') {
         rejected(UI_TEXT.media.museCodeRefusal)
         return
@@ -8096,7 +8110,7 @@ export class ConversationController {
       } finally {
         if (this.mediaLoading === loading) this.mediaLoading = undefined
       }
-      if (!isCurrent()) return
+      if (!isCurrent()) return undefined
       if (port === undefined) {
         // No port is an unbound pipeline, not an unreadable file (M105 E1 review).
         rejected(UI_TEXT.media.uploadStorageUnknown)
@@ -8109,7 +8123,7 @@ export class ConversationController {
         return
       }
       const prepared = await port.prepare(pathToken, host.info.kind, this.modelId)
-      if (!isCurrent()) return
+      if (!isCurrent()) return undefined
       if (!prepared.ok) {
         rejected(prepared.reason)
         return
@@ -8119,14 +8133,21 @@ export class ConversationController {
         this.notice('warning', prepared.soundtrackWarning)
       }
       this.attachments.installMediaPort(prepared.attachment.store)
-      const result = this.attachments.addMedia(prepared.attachment.name, prepared.attachment.info)
-      if (result.ok)
+      const result = this.attachments.addMedia(
+        prepared.attachment.name,
+        prepared.attachment.info,
+        isScreenRecording,
+      )
+      if (result.ok) {
         this.post({
           type: 'attachmentAdded',
           attachment: result.attachment,
           ...(requestId !== undefined && { requestId }),
         })
-      else rejected(result.reason)
+        return result.attachment
+      }
+      rejected(result.reason)
+      return
     } catch (error: unknown) {
       // The unbound pipeline (W's throwing bind until U6c) keeps its own
       // words; only a genuine read failure is unreadable (M105 E1 review).
@@ -8135,6 +8156,84 @@ export class ConversationController {
           ? UI_TEXT.media.uploadStorageUnknown
           : UI_TEXT.attachmentUnreadable,
       )
+      return
+    }
+  }
+
+  /**
+   * The preview's Attach admission (E1 recording binding): the trusted
+   * driver's owner-only temp file skips the picker's workspace confinement
+   * (open() still rechecks identity at prepare). True only when the chip
+   * was installed; the temp file's cleanup transfers to the upload
+   * lifecycle then, and is disposed with the attachment otherwise.
+   */
+  private async admitRecording(preview: ScreenRecordingPreview): Promise<boolean> {
+    const file: PickedFile = {
+      name: path.posix.basename(preview.path.replaceAll('\\', '/')),
+      fsPath: preview.path,
+      relativePath: undefined,
+    }
+    const generation = this.attachmentGeneration
+    const summary = await this.addMediaAttachment(
+      file,
+      generation,
+      undefined,
+      undefined,
+      undefined,
+      true,
+    )
+    if (summary === undefined || !this.isCurrentAttachmentGeneration(generation)) {
+      return false
+    }
+    this.recordingDisposals.set(summary.id, { generation, dispose: () => preview.dispose() })
+    return true
+  }
+
+  /** Drop one recording's temp file: remove, clear, dispose or failed admission. */
+  private async disposeRecording(id: string): Promise<void> {
+    const entry = this.recordingDisposals.get(id)
+    if (entry === undefined) return
+    this.recordingDisposals.delete(id)
+    try {
+      await entry.dispose()
+    } catch (error: unknown) {
+      this.deps.log.warn(`Recording cleanup failed: ${describeForLog(error)}`)
+    }
+  }
+
+  /**
+   * Drop every recording of an ended conversation. Entries carry the
+   * generation that admitted them, so one the new conversation admits
+   * mid-drain survives; a disposed controller drops everything.
+   */
+  private async disposeRecordings(): Promise<void> {
+    const current = this.attachmentGeneration
+    for (const [id, entry] of this.recordingDisposals) {
+      if (!this.isDisposed && entry.generation === current) continue
+      this.recordingDisposals.delete(id)
+      try {
+        await entry.dispose()
+      } catch (error: unknown) {
+        this.deps.log.warn(`Recording cleanup failed: ${describeForLog(error)}`)
+      }
+    }
+  }
+
+  private trackRecordingRun(cancel: () => Promise<void>): () => void {
+    this.recordingCancels.add(cancel)
+    return () => {
+      this.recordingCancels.delete(cancel)
+    }
+  }
+
+  /** Clear/dispose cancels in-progress recordings: their conversation is gone. */
+  private cancelRecordingRuns(): void {
+    const runs = [...this.recordingCancels]
+    this.recordingCancels.clear()
+    for (const cancel of runs) {
+      void cancel().catch((error: unknown) => {
+        this.deps.log.warn(`Recording cancel failed: ${describeForLog(error)}`)
+      })
     }
   }
 
@@ -9251,6 +9350,8 @@ export class ConversationController {
       }
       case 'removeAttachment': {
         this.attachments.remove(message.id)
+        // A removed recording's temp file goes with its chip.
+        void this.disposeRecording(message.id)
         break
       }
       case 'droppedUris': {
@@ -9900,7 +10001,15 @@ export class ConversationController {
     if (this.isDisposed) return
     const generation = this.attachmentGeneration
     const deps = await this.deps.recordingCommandDeps?.()
-    return this.isCurrentAttachmentGeneration(generation) ? deps : undefined
+    if (deps === undefined || !this.isCurrentAttachmentGeneration(generation)) return undefined
+    // The run belongs to this conversation: liveness, cancel tracking and
+    // Attach admission close over it (M105 E1 review).
+    return {
+      ...deps,
+      isLive: () => !this.isDisposed && this.isCurrentAttachmentGeneration(generation),
+      trackRun: (cancel) => this.trackRecordingRun(cancel),
+      attach: (preview) => this.admitRecording(preview),
+    }
   }
 
   /**
@@ -9944,6 +10053,10 @@ export class ConversationController {
     clearTimeout(this.deltaTimer)
     this.deltaTimer = undefined
     this.pendingDelta = undefined
+    // A closed chat cancels in-progress recordings and drops admitted temp
+    // files instead of previewing them later (M105 E1 review).
+    this.cancelRecordingRuns()
+    void this.disposeRecordings()
     this.dropSession()
     this.endTasksTab()
     this.forgetModels()

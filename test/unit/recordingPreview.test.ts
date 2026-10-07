@@ -10,6 +10,7 @@ import type {
   ScreenRecordingPreview,
 } from '../../src/core/media/record/driver'
 import { SCREEN_RECORDING_DEFAULT_MAX_SECONDS, UI_TEXT } from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 import { FakeLogOutputChannel, FakeWebviewPanel, fakeHostContext } from './helpers/fakes'
 import { commands, Disposable, FakeStatusBarItem, window } from './mocks/vscode'
 
@@ -206,7 +207,8 @@ describe('M105 E1 recording command loader', () => {
       .mockReturnValue({ runScreenRecordingCommand: run })
     const load = screenRecordLoader('/dist/screenRecord.js', log, module)
     expect(module).not.toHaveBeenCalled()
-    expect(load).toThrow(UI_TEXT.media.recordingUserOnly)
+    // A missing bundle is a broken install, never the user's fault (M105 E1 review).
+    expect(load).toThrow(UI_TEXT.media.recordingFailed)
     await load().runScreenRecordingCommand(commandRig().port, false)
     load()
     expect(module).toHaveBeenCalledTimes(2)
@@ -221,6 +223,10 @@ describe('M105 E1 recording command loader', () => {
     const { driver: _driver, ...withoutDriver } = remote.port
     await runScreenRecordingCommand({ ...withoutDriver, isRemote: false }, false)
     expect(remote.start).not.toHaveBeenCalled()
+    // No driver names the missing recorder, never the user (M105 E1/E2 review).
+    expect(window.showInformationMessage).toHaveBeenCalledWith(
+      fill(UI_TEXT.media.recordingUnavailable, { reason: UI_TEXT.media.recorderUnavailable }),
+    )
     const unavailable = commandRig({
       driver: {
         available: () => Promise.resolve({ ok: false, reason: 'permission denied' }),
@@ -246,7 +252,7 @@ describe('M105 E1 recording command loader', () => {
     expect(status.text).toContain('10s')
   })
 
-  it('honors selected sound, cancellation, invalid bounds and latest-recording preview', async () => {
+  it('honors selected sound, cancellation, clamped bounds and latest-recording preview', async () => {
     const selected = [
       { label: 'Microphone', audio: 'microphone' },
       { label: 'System audio', audio: 'systemAudio' },
@@ -262,9 +268,19 @@ describe('M105 E1 recording command loader', () => {
     const cancelled = commandRig()
     await runScreenRecordingCommand(cancelled.port, false)
     expect(cancelled.start).not.toHaveBeenCalled()
+    // Out-of-range settings clamp into the schema instead of failing raw (M105 E1 review).
     const invalid = commandRig({ maxSeconds: 1 })
-    await expect(runScreenRecordingCommand(invalid.port, false)).rejects.toThrow()
-    expect(invalid.start).not.toHaveBeenCalled()
+    await runScreenRecordingCommand(invalid.port, false)
+    expect(invalid.start).toHaveBeenCalledWith(
+      expect.objectContaining({ maxSeconds: 10 }),
+      expect.any(Function),
+    )
+    const huge = commandRig({ maxSeconds: 3600 })
+    await runScreenRecordingCommand(huge.port, false)
+    expect(huge.start).toHaveBeenCalledWith(
+      expect.objectContaining({ maxSeconds: 600 }),
+      expect.any(Function),
+    )
     window.createWebviewPanel.mockClear()
     await runScreenRecordingCommand(commandRig().port, true)
     expect(window.createWebviewPanel).not.toHaveBeenCalled()
@@ -299,5 +315,85 @@ describe('M105 E1 recording command loader', () => {
     await running
     expect(disposed).toHaveBeenCalledOnce()
     expect(window.createWebviewPanel).not.toHaveBeenCalled()
+  })
+
+  it('ties the run to its conversation: stale runs cancel, stale previews dispose, tracking ends', async () => {
+    const t = commandRig()
+    const cancel = vi.fn(() => Promise.resolve())
+    const trackCalls: (() => Promise<void>)[] = []
+    let untracks = 0
+    const untrack = (): void => {
+      untracks += 1
+    }
+    const live = { current: true }
+    const port = {
+      ...t.port,
+      isLive: () => live.current,
+      trackRun: (stop: () => Promise<void>) => {
+        trackCalls.push(stop)
+        return untrack
+      },
+    }
+    // Gone before start resolves: cancel, no panel, no tracking.
+    const cancelStart = vi.fn<ScreenRecordingDriver['start']>((_options, _countdown) =>
+      Promise.resolve({
+        stop: t.stop,
+        cancel,
+        result: Promise.resolve({ ok: true as const, preview: t.media }),
+      }),
+    )
+    live.current = false
+    await runScreenRecordingCommand({ ...port, driver: { ...t.driver, start: cancelStart } }, false)
+    expect(cancel).toHaveBeenCalledOnce()
+    expect(window.createWebviewPanel).not.toHaveBeenCalled()
+    expect(trackCalls).toHaveLength(0)
+    // Live at start, gone at result: preview disposed, tracking ended.
+    live.current = true
+    const dispose = vi.spyOn(t.media, 'dispose')
+    const { promise: late, resolve: resolveLate } = Promise.withResolvers<{
+      readonly ok: true
+      readonly preview: typeof t.media
+    }>()
+    const lateStart = vi.fn(() => Promise.resolve({ stop: t.stop, cancel, result: late }))
+    const running = runScreenRecordingCommand(
+      { ...port, driver: { ...t.driver, start: lateStart } },
+      false,
+    )
+    await vi.waitFor(() => {
+      expect(trackCalls).toHaveLength(1)
+    })
+    live.current = false
+    resolveLate({ ok: true, preview: t.media })
+    await running
+    expect(dispose).toHaveBeenCalledOnce()
+    expect(window.createWebviewPanel).not.toHaveBeenCalled()
+    expect(untracks).toBe(1)
+  })
+
+  it('ignores countdown ticks after the result settles', async () => {
+    const t = commandRig()
+    await runScreenRecordingCommand(t.port, false)
+    const countdown = t.start.mock.calls[0]?.[1]
+    if (typeof countdown !== 'function') throw new Error('expected countdown')
+    const status: unknown = window.createStatusBarItem.mock.results.at(-1)?.value
+    if (!(status instanceof FakeStatusBarItem)) throw new Error('expected status')
+    const text = status.text
+    countdown(5)
+    expect(status.text).toBe(text)
+  })
+
+  it('says a thrown preview attach instead of silently reloading', async () => {
+    window.showErrorMessage.mockReset()
+    const media = preview()
+    const attach = vi.fn(() => Promise.reject(new Error('upload exploded')))
+    openRecordingPreview(media, deps({ attach }))
+    panel().webview.messages.fire({ type: 'attach' })
+    await settle()
+    expect(window.showErrorMessage).toHaveBeenCalledWith('Upload failed: upload exploded')
+    expect(media.dispose).not.toHaveBeenCalled()
+    // The preview stays usable: a retry reaches attach again.
+    panel().webview.messages.fire({ type: 'attach' })
+    await settle()
+    expect(attach).toHaveBeenCalledTimes(2)
   })
 })

@@ -16075,10 +16075,97 @@ describe('M105 E1 attachment handler', () => {
     await controller.handle({ type: 'clearConversation' })
     resolve(recording)
     expect(await pending).toBeUndefined()
-    expect(await controller.recordingCommandDeps()).toBe(recording)
+    // The seam binds the run to its conversation: liveness, cancel tracking
+    // and Attach admission close over it (M105 E1 review).
+    const bound = await controller.recordingCommandDeps()
+    expect(bound).toMatchObject({
+      isRemote: false,
+      maxSeconds: SCREEN_RECORDING_DEFAULT_MAX_SECONDS,
+    })
+    expect(bound?.isLive?.()).toBe(true)
+    expect(typeof bound?.trackRun).toBe('function')
+    expect(bound?.attach).not.toBe(recording.attach)
+    // Clearing the conversation ends liveness; dispose ends the seam.
+    await controller.handle({ type: 'clearConversation' })
+    expect(bound?.isLive?.()).toBe(false)
+    expect(await controller.recordingCommandDeps()).not.toBe(recording)
     controller.dispose()
     expect(await controller.recordingCommandDeps()).toBeUndefined()
-    expect(load).toHaveBeenCalledTimes(2)
+    expect(load).toHaveBeenCalledTimes(3)
+    t.controller.dispose()
+  })
+
+  it('cancels a tracked recording when its conversation clears or closes', async () => {
+    for (const end of ['clear', 'dispose'] as const) {
+      const t = mediaRig()
+      const recording = {
+        l10n: fakeHostContext().l10n,
+        log: new FakeLogOutputChannel(),
+        isRemote: false,
+        maxSeconds: SCREEN_RECORDING_DEFAULT_MAX_SECONDS,
+        attach: vi.fn(() => Promise.resolve(false)),
+      }
+      const controller = new ConversationController({
+        ...t.deps,
+        recordingCommandDeps: () => Promise.resolve(recording),
+      })
+      const bound = await controller.recordingCommandDeps()
+      const cancel = vi.fn(() => Promise.resolve())
+      const untrack = bound?.trackRun?.(cancel)
+      expect(typeof untrack).toBe('function')
+      if (end === 'clear') await controller.handle({ type: 'clearConversation' })
+      else controller.dispose()
+      expect(cancel).toHaveBeenCalledOnce()
+      expect(bound?.isLive?.()).toBe(false)
+      untrack?.()
+      controller.dispose()
+      t.controller.dispose()
+    }
+  })
+
+  it('admits a recording preview as a flagged chip and drops its temp file with the chip', async () => {
+    const t = mediaRig(videoFixture({ brand: 'qt  ' }))
+    const recording = {
+      l10n: fakeHostContext().l10n,
+      log: new FakeLogOutputChannel(),
+      isRemote: false,
+      maxSeconds: SCREEN_RECORDING_DEFAULT_MAX_SECONDS,
+      attach: vi.fn(() => Promise.resolve(false)),
+    }
+    const controller = new ConversationController({
+      ...t.deps,
+      files: t.files,
+      mediaAttachments: t.load,
+      recordingCommandDeps: () => Promise.resolve(recording),
+    })
+    const bound = await controller.recordingCommandDeps()
+    if (bound?.attach === undefined) throw new Error('expected bound attach')
+    const dispose = vi.fn(() => Promise.resolve())
+    const isAdmitted = await bound.attach(
+      {
+        path: '/private/recording/clip.mp4',
+        info: {
+          kind: 'video',
+          mediaType: 'video/mp4',
+          sizeBytes: 512,
+          durationSeconds: 10,
+          hasSoundtrack: false,
+        },
+        dispose,
+      },
+      true,
+    )
+    expect(isAdmitted).toBe(true)
+    const added = t.surface.posted.find((message) => message.type === 'attachmentAdded')
+    expect(added).toMatchObject({
+      attachment: { media: { info: { kind: 'video' }, isScreenRecording: true } },
+    })
+    // The host attach (unwrapped) is never the admission path.
+    expect(recording.attach).not.toHaveBeenCalled()
+    const id = added?.type === 'attachmentAdded' ? added.attachment.id : 'missing'
+    await controller.handle({ type: 'removeAttachment', id })
+    expect(dispose).toHaveBeenCalledOnce()
+    controller.dispose()
     t.controller.dispose()
   })
 
