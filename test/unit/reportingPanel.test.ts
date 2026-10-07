@@ -479,7 +479,7 @@ describe('M113 VS Code report tab', () => {
     expect(t.state().diff).toBeNull()
   })
 
-  it('sorts saved history by instant, then id, and scrubs source text before display', async () => {
+  it('sorts saved history by instant, keeps the port order for ties, and scrubs source text', async () => {
     const t = setup()
     t.reports.history.mockResolvedValue({
       status: 'listed',
@@ -498,7 +498,7 @@ describe('M113 VS Code report tab', () => {
     })
     await t.ready()
     await t.act({ type: 'reportingAction', action: 'history' })
-    expect(t.state().history?.map((entry) => entry.id)).toEqual(['a', 'z', 'early'])
+    expect(t.state().history?.map((entry) => entry.id)).toEqual(['z', 'a', 'early'])
     expect(JSON.stringify(t.state())).not.toContain('owner@example.com')
   })
 
