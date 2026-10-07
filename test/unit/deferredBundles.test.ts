@@ -103,6 +103,7 @@ beforeAll(async () => {
         acp: 'src/runtime/main.ts',
         acpQuestions: 'src/acp/questionDeferralEntry.ts',
         runtimeQuestions: 'src/runtime/questions/questionRegistryEntry.ts',
+        runtimeAccounts: 'src/runtime/providers/accountsEntry.ts',
       },
       plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
       external: ['@napi-rs/keyring'],
@@ -142,7 +143,7 @@ beforeAll(async () => {
         outputs: { [`dist/${name}.js`]: details },
       })
       fixtures.set(
-        `dist/${['acp', 'acpQuestions', 'runtimeQuestions'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
+        `dist/${['acp', 'acpQuestions', 'runtimeQuestions', 'runtimeAccounts'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
         {
           bytes: Buffer.from(JSON.stringify(meta)),
           meta,
