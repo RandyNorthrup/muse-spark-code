@@ -8,6 +8,7 @@ import { type AcpAgentDeps, type BackendReadiness, createAcpAgent } from '../../
 import * as questionFactories from '../../src/acp/questionDeferralEntry'
 import { AcpPaidUse } from '../../src/acp/paid'
 import type { AcpQuestionRegistryFactory } from '../../src/acp/questionDeferral'
+import type { QuestionDelivery } from '../../src/shared/questions'
 import { parsePlaybookCommand, runPlaybookCommand } from '../../src/runtime/playbook/command'
 import type { AgentHost, AgentSession, ModelSummary } from '../../src/core/agent/agentBackend'
 import type {
@@ -724,7 +725,7 @@ describe('the ACP agent (M63)', () => {
     // is restored only by acknowledging it `notTaken`. A local /playbook
     // command starts no model turn, so it must restore the lease it took.
     let registry: FakeAcpQuestionRegistry | undefined
-    let held: { readonly text: string }[] = []
+    let held: QuestionDelivery[] = []
     const h = harness({
       playbookFor: () => surfacePort(),
       questions: (input) => {
