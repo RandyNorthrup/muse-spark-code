@@ -2565,6 +2565,7 @@
     "recordingDiscard": "捨棄",
     "recordingPermissionDenied": "螢幕錄製權限遭拒。請在系統設定中允許，然後重試。",
     "recordingAccessDenied": "存取螢幕錄製遭到拒絕。請檢查權限後再試一次。",
+    "recordingFailed": "螢幕錄製失敗。請檢查可用儲存空間及錄製支援情況，然後再試一次。",
     "recordingOpenPermissions": "開啟螢幕錄製設定",
     "recordingUnavailable": "螢幕錄製無法使用：{reason}",
     "recordingRemote": "此視窗在沒有本機螢幕的遠端主機上執行。請使用配套頁面或選擇錄製檔案。",

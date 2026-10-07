@@ -50,6 +50,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Linux encoder exits and automatic Stop failures now show the translated
+  recording-failure guidance; only requested cancellation uses the cancelled
+  result. Failed recordings still close the portal and delete private output.
+
 - Windows screen-recording preparation now observes host shutdown before
   asynchronous work, and private-preview deletion retries temporary locks
   with a bound while allowing later cleanup to retry an exhausted failure.
