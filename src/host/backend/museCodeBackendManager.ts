@@ -17,9 +17,11 @@ import { homedir } from 'node:os'
 import path from 'node:path'
 import { type FingerprintWarning, spawnMspConnection } from '@muse-code/sdk'
 import type { CredentialFileVerdict } from '../../core/backends/musecode/credentialFile'
+import type { MuseCodeAccountHome } from '../../core/backends/musecode/accountHomes'
 import {
   type CommandTimeouts,
   MuseCodeHost,
+  spawnAccountMspConnection,
   type MspHost,
 } from '../../core/backends/musecode/MuseCodeHost'
 import {
@@ -86,6 +88,8 @@ export interface UnresponsiveHostDeps {
 }
 
 export interface BackendManagerDeps {
+  /** One manager per capture-gated CLI account. Absent preserves today's single account. */
+  readonly accountHome?: MuseCodeAccountHome
   /** Awaited before any agent host process can edit this workspace. */
   readonly beforeWorkspaceHostStart: () => Promise<void>
   /**
@@ -244,17 +248,21 @@ export class MuseCodeBackendManager {
     this.deps.log.info(`Spawning ${launch.command} ${launch.args.join(' ')}`)
     // Spawn to handshake, for the log (M39).
     const spawnedAt = Date.now()
-    const handshake = spawnMspConnection({
+    const spawnOptions = {
       command: launch.command,
       args: [...launch.args],
       ...(this.deps.workspaceRoot !== undefined && { cwd: this.deps.workspaceRoot }),
       env,
-      onStderr: (chunk) => {
+      onStderr: (chunk: string) => {
         // A chatty or looping CLI must not flood the log (PLAN.md D24), and
         // its free text is named in fixed words (the review of PR #49).
         this.deps.log.warn(`muse serve stderr: ${clipForLog(stderrForLog(chunk))}`)
       },
-    })
+    }
+    const handshake =
+      this.deps.accountHome === undefined
+        ? spawnMspConnection(spawnOptions)
+        : spawnAccountMspConnection(spawnOptions, this.deps.accountHome)
     const firstMs = this.deps.handshakeTimeoutMs ?? MSP_HANDSHAKE_TIMEOUT_MS
     const totalMs = this.deps.slowHandshakeTimeoutMs ?? MSP_SLOW_HANDSHAKE_TIMEOUT_MS
     const seconds = (ms: number) => String(Math.round(ms / MILLISECONDS_PER_SECOND))
@@ -267,7 +275,7 @@ export class MuseCodeBackendManager {
     void handshake.exited.then(noteExit).catch(noteExit)
     let spawned: Awaited<ReturnType<typeof handshake.initialize>>
     try {
-      spawned = await withSlowDeadline(
+      spawned = await withSlowDeadline<Awaited<ReturnType<typeof handshake.initialize>>>(
         handshake.initialize({
           clientInfo: { name: MSP_CLIENT_NAME, version: this.deps.extensionVersion },
           // The panel renders question cards (M4), so the host may send
@@ -299,25 +307,32 @@ export class MuseCodeBackendManager {
       }
       throw error
     }
-    if (!spawned.initializeResult.grantedCapabilities.includes(IDE_MCP_CAPABILITY)) {
-      this.deps.log.warn(
-        `muse serve did not grant ${IDE_MCP_CAPABILITY}; the IDE diagnostics tool is unavailable (granted: ${spawned.initializeResult.grantedCapabilities.join(', ')})`,
-      )
-    }
     this.logFingerprint(spawned.fingerprintWarning)
     const mspHost: MspHost = {
       connection: spawned.connection,
+      ...('commandOwner' in spawned && { commandOwner: spawned.commandOwner }),
       initializeResult: spawned.initializeResult,
       exited: spawned.exited,
       close: () => spawned.close(),
     }
     let host: MuseCodeHost
     try {
-      host = new MuseCodeHost(mspHost, this.deps.log, this.deps.commandTimeouts)
+      this.deps.accountHome?.assertCurrent()
+      host = new MuseCodeHost(
+        mspHost,
+        this.deps.log,
+        this.deps.commandTimeouts,
+        this.deps.accountHome,
+      )
     } catch (error: unknown) {
       // An initialize result the wrapper cannot read: the process goes too.
       await spawned.close()
       throw error
+    }
+    if (!host.info.grantedCapabilities.includes(IDE_MCP_CAPABILITY)) {
+      this.deps.log.warn(
+        `muse serve did not grant ${IDE_MCP_CAPABILITY}; the IDE diagnostics tool is unavailable (granted: ${host.info.grantedCapabilities.join(', ')})`,
+      )
     }
     this.deps.log.info(
       `Connected to ${host.info.serverName} ${host.info.serverVersion} in ${String(Date.now() - spawnedAt)} ms (museHome ${host.info.museHome})`,
@@ -386,6 +401,7 @@ export class MuseCodeBackendManager {
         extraVariables: [...this.proxyVariables(), ...this.deps.getEnvironmentVariables()],
         systemRoot: process.env['SystemRoot'],
         programFiles: process.env['ProgramFiles'],
+        ...(this.deps.accountHome !== undefined && { accountHome: this.deps.accountHome }),
       }),
       process.platform,
     )
@@ -493,6 +509,13 @@ export class MuseCodeBackendManager {
 
   /** The running host, spawning it on first use. Rejects when the CLI is absent. */
   public ensureHost(): Promise<MuseCodeHost> {
+    try {
+      this.deps.accountHome?.assertCurrent()
+    } catch (error: unknown) {
+      return Promise.reject(
+        error instanceof Error ? error : new Error(UI_TEXT.accounts.invalidAccount),
+      )
+    }
     if (this.hostPromise !== undefined) {
       return this.hostPromise
     }

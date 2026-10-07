@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as sdk from '@muse-code/sdk'
+import * as museHost from '../../src/core/backends/musecode/MuseCodeHost'
 import {
   MSP_KNOWN_SCHEMA_FINGERPRINTS,
   MSP_UNRESPONSIVE_MISSES,
@@ -16,8 +17,14 @@ import type {
   UnresponsiveHostDeps,
 } from '../../src/host/backend/museCodeBackendManager'
 import { readProxySettings } from '../../src/host/networkPosture'
+import { isSamePath } from '../../src/core/paths'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { fakeMuseCodeManager } from './helpers/museCodeManager'
+import { fakeAccountHome } from './helpers/accountHome'
+
+vi.mock('../../src/core/backends/musecode/MuseCodeHost', async (importOriginal) => ({
+  ...(await importOriginal<typeof museHost>()),
+}))
 
 // Real SDK exports; each test controls the spawn boundary.
 vi.mock('@muse-code/sdk', async (importOriginal) => ({
@@ -36,6 +43,11 @@ const PROXY_NAMES = [
   'NO_PROXY',
   'no_proxy',
 ]
+
+/** Even a deliberately broken admission guard cannot start a real CLI. */
+function unexpectedNativeSpawn(): never {
+  throw new Error('unexpected native spawn')
+}
 
 /** A manager with test-owned settings and startup dependencies. */
 function managerWith(
@@ -172,6 +184,178 @@ describe('MuseCodeBackendManager: checkpoint native startup admission (M72)', ()
     await expect(manager.ensureHost()).rejects.toThrow('injected native fence refusal')
     expect(spawn).not.toHaveBeenCalled()
     expect(manager.isRunning).toBe(false)
+  })
+})
+
+describe('MuseCodeBackendManager: immutable account launch (M108)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllEnvs()
+  })
+
+  it.each(['win32', 'darwin', 'linux'] as const)(
+    'uses one %s account home for serve and credential inspection, ignoring account overrides',
+    (platform) => {
+      vi.stubEnv('META_API_KEY', 'shell-account-canary')
+      const accountHome = fakeAccountHome(
+        'work',
+        platform === 'win32'
+          ? path.win32.resolve(String.raw`C:\fixtures\no-muse-config\work`)
+          : path.posix.resolve('/fixtures/no-muse-config/work'),
+      )
+      const manager = managerWith(
+        [{ name: 'XDG_CONFIG_HOME', value: '/different-home' }],
+        '',
+        new FakeLogOutputChannel(),
+        { accountHome },
+      )
+      expect(manager.childEnvironment()['XDG_CONFIG_HOME']).toBe(accountHome.configHome)
+      const actual = manager.credentialFilePath().replaceAll('\\', '/')
+      const expected = `${accountHome.configHome}/muse/auth.json`.replaceAll('\\', '/')
+      expect(isSamePath(actual, expected, platform)).toBe(true)
+      expect(isSamePath(actual, expected.toUpperCase(), platform)).toBe(platform === 'win32')
+      expect(manager.hasEnvironmentKey()).toBe(false)
+    },
+  )
+
+  it('refuses revoked homes at ensureHost before native startup', async () => {
+    const accountHome = fakeAccountHome()
+    accountHome.assertCurrent.mockImplementation(() => {
+      throw new Error('account revoked')
+    })
+    const spawn = vi.spyOn(sdk, 'spawnMspConnection').mockImplementation(unexpectedNativeSpawn)
+    const manager = managerWith([], '', new FakeLogOutputChannel(), {
+      accountHome,
+      getConfiguredBinaryPath: () => process.execPath,
+    })
+    vi.spyOn(manager, 'credentialFileVerdict').mockReturnValue('absent')
+    await expect(manager.ensureHost()).rejects.toThrow('account revoked')
+    expect(spawn).not.toHaveBeenCalled()
+  })
+
+  it('rechecks the account after the workspace startup fence before spawning', async () => {
+    const accountHome = fakeAccountHome()
+    const spawn = vi.spyOn(sdk, 'spawnMspConnection').mockImplementation(unexpectedNativeSpawn)
+    const manager = managerWith([], '', new FakeLogOutputChannel(), {
+      accountHome,
+      getConfiguredBinaryPath: () => process.execPath,
+      beforeWorkspaceHostStart: () => {
+        accountHome.assertCurrent.mockImplementation(() => {
+          throw new Error('removed during admission')
+        })
+        return Promise.resolve()
+      },
+    })
+    vi.spyOn(manager, 'credentialFileVerdict').mockReturnValue('absent')
+    await expect(manager.ensureHost()).rejects.toThrow('removed during admission')
+    expect(spawn).not.toHaveBeenCalled()
+    expect(manager.isRunning).toBe(false)
+  })
+
+  it('serves two accounts in separate fake CLI processes with their own environment and usage', async () => {
+    const spawn = museHost.spawnAccountMspConnection
+    const launches: Parameters<typeof sdk.spawnMspConnection>[0][] = []
+    vi.spyOn(museHost, 'spawnAccountMspConnection').mockImplementation((options, home) => {
+      launches.push(options)
+      return spawn({ ...options, args: [path.resolve('test/e2e/fake-muse/serve.mjs')] }, home)
+    })
+    const work = fakeAccountHome('work')
+    const personal = fakeAccountHome('personal')
+    const manager = (accountHome: typeof work) => {
+      const result = managerWith([], '', new FakeLogOutputChannel(), {
+        accountHome,
+        getConfiguredBinaryPath: () => process.execPath,
+      })
+      vi.spyOn(result, 'credentialFileVerdict').mockReturnValue('absent')
+      return result
+    }
+    const a = manager(work)
+    const b = manager(personal)
+    try {
+      const hostA = await a.ensureHost()
+      const hostB = await b.ensureHost()
+      expect(hostA).not.toBe(hostB)
+      expect(launches.map((options) => options.env?.['XDG_CONFIG_HOME'])).toEqual([
+        work.configHome,
+        personal.configHome,
+      ])
+      const session = await hostA.startSession({
+        workspaceRoot: '/fake/workspace',
+        modelId: 'muse-spark-1.3',
+        approvalMode: 'acceptEdits',
+      })
+      const done = Promise.withResolvers<undefined>()
+      session.onEvent((event) => {
+        if (event.type === 'turnCompleted') done.resolve(undefined)
+      })
+      await session.sendTurn([{ type: 'text', text: 'fake-only usage' }])
+      await done.promise
+      expect(work.observeUsage).toHaveBeenCalled()
+      expect(personal.observeUsage).not.toHaveBeenCalled()
+      expect(await hostB.readUsage()).toBeUndefined()
+      work.assertCurrent.mockImplementation(() => {
+        throw new Error('revoked cached host')
+      })
+      const releaseClose = Promise.withResolvers<undefined>()
+      const closeHost = hostA.close.bind(hostA)
+      vi.spyOn(hostA, 'close').mockImplementation(async () => {
+        await releaseClose.promise
+        await closeHost()
+      })
+      const disposing = a.dispose()
+      try {
+        await expect(
+          session.sendTurn([{ type: 'text', text: 'retained while switching' }]),
+        ).rejects.toThrow('revoked cached host')
+      } finally {
+        releaseClose.resolve(undefined)
+        await disposing
+      }
+      await expect(a.ensureHost()).rejects.toThrow('revoked cached host')
+      expect(await b.ensureHost()).toBe(hostB)
+      expect(launches).toHaveLength(2)
+    } finally {
+      await a.dispose()
+      await b.dispose()
+    }
+  })
+
+  it('closes a fake CLI whose account is revoked during initialization', async () => {
+    const spawn = museHost.spawnAccountMspConnection
+    const accountHome = fakeAccountHome()
+    const close = vi.fn(() => Promise.resolve())
+    vi.spyOn(museHost, 'spawnAccountMspConnection').mockImplementation((options, home) => {
+      const pending = spawn(
+        { ...options, args: [path.resolve('test/e2e/fake-muse/serve.mjs')] },
+        home,
+      )
+      const initialize = pending.initialize.bind(pending)
+      vi.spyOn(pending, 'initialize').mockImplementation(async (params) => {
+        const host = await initialize(params)
+        accountHome.assertCurrent.mockImplementation(() => {
+          throw new Error('revoked during initialize')
+        })
+        const closeHost = host.close.bind(host)
+        vi.spyOn(host, 'close').mockImplementation(async () => {
+          await close()
+          return await closeHost()
+        })
+        return host
+      })
+      return pending
+    })
+    const manager = managerWith([], '', new FakeLogOutputChannel(), {
+      accountHome,
+      getConfiguredBinaryPath: () => process.execPath,
+    })
+    vi.spyOn(manager, 'credentialFileVerdict').mockReturnValue('absent')
+    try {
+      await expect(manager.ensureHost()).rejects.toThrow('revoked during initialize')
+      expect(close).toHaveBeenCalledOnce()
+      expect(manager.isRunning).toBe(false)
+    } finally {
+      await manager.dispose()
+    }
   })
 })
 
