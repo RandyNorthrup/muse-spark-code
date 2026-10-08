@@ -3,6 +3,7 @@ import { chmod, lstat, mkdtemp, open, realpath, rename, rm, stat, symlink } from
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
+import { afterEach, beforeEach } from 'vitest'
 import type { DeviceStore } from '../../../src/host/devices/deviceStore'
 import type { DeviceStorageProtection } from '../../../src/core/devices/storageProtection'
 import { startWindowsStorageProtection } from '../../../src/host/devices/windowsStorageProtection'
@@ -143,6 +144,22 @@ export async function privateDeviceRoot(prefix: string): Promise<string> {
   await storage?.secureFresh(root, true)
   return root
 }
+/** Per test: a fresh private root, this OS's storage binding, and store cleanup. */
+export function useDeviceStorageRoot(prefix: string) {
+  const fixture: { parent: string; storage: DeviceStorageProtection | undefined } = {
+    parent: '',
+    storage: undefined,
+  }
+  const stores: DeviceStore[] = []
+  beforeEach(async () => {
+    fixture.storage = await deviceStorage()
+    fixture.parent = await privateDeviceRoot(prefix)
+  })
+  afterEach(async () => {
+    await removeDeviceFixture(stores, fixture.parent)
+  })
+  return { fixture, stores }
+}
 // Windows' Everyone group: a principal other than the owner.
 const EVERYONE = '*S-1-1-0'
 /**
@@ -191,13 +208,16 @@ export async function reparseAlias(target: string, at: string): Promise<void> {
 }
 /**
  * Each OS's independent reading of owner-only access: POSIX mode bits, or
- * PowerShell's SDDL (owner and one explicit, protected full-control rule).
+ * .NET's SDDL through Windows PowerShell (owner and one explicit, protected
+ * full-control rule). .NET, not Get-Acl: a runner's PowerShell 7 module path
+ * can stop Windows PowerShell autoloading its security module.
  */
 export async function ownerOnlyEvidence(target: string, isDirectory: boolean): Promise<string> {
   if (process.platform !== 'win32') {
     const info = await stat(target)
     return (info.mode & 0o777).toString(8)
   }
+  const reader = isDirectory ? 'Directory' : 'File'
   const { stdout } = await run(
     'powershell.exe',
     [
@@ -205,7 +225,7 @@ export async function ownerOnlyEvidence(target: string, isDirectory: boolean): P
       '-NoProfile',
       '-NonInteractive',
       '-Command',
-      String.raw`$sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value; $sddl = (Get-Acl -LiteralPath $env:MUSE_TEST_TARGET).Sddl; if ($sddl -match ('^O:' + $sid + 'G:[^:]+D:PA?I?\(A;' + $env:MUSE_TEST_FLAGS + ';FA;;;' + $sid + '\)$')) { 'owner-only' } else { $sddl }`,
+      String.raw`$sid = [Security.Principal.WindowsIdentity]::GetCurrent().User.Value; $sddl = [IO.${reader}]::GetAccessControl($env:MUSE_TEST_TARGET).GetSecurityDescriptorSddlForm('Owner, Access'); if ($sddl -match ('^O:' + $sid + 'D:PA?I?\(A;' + $env:MUSE_TEST_FLAGS + ';FA;;;' + $sid + '\)$')) { 'owner-only' } else { 'not owner-only: ' + $sddl }`,
     ],
     {
       env: { ...process.env, MUSE_TEST_TARGET: target, MUSE_TEST_FLAGS: isDirectory ? 'OICI' : '' },

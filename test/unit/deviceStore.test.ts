@@ -1,17 +1,15 @@
 import { link, readFile, writeFile, rm, stat, readdir, open } from 'node:fs/promises'
 import path from 'node:path'
 import type * as FileSystem from 'node:fs/promises'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { DeviceStore, type DeviceStorageProtection } from '../../src/host/devices/deviceStore'
+import { describe, expect, it, vi } from 'vitest'
+import { DeviceStore } from '../../src/host/devices/deviceStore'
 import { DevicePairingError } from '../../src/core/devices/pairing'
 import {
-  deviceStorage,
   fakeDeviceStorage,
   grantOthers,
   ownerOnlyEvidence,
-  privateDeviceRoot,
-  removeDeviceFixture,
   reparseAlias,
+  useDeviceStorageRoot,
 } from './helpers/deviceFixtures'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
 
@@ -19,18 +17,7 @@ vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof FileSystem>()
   return { ...actual, open: vi.fn(actual.open) }
 })
-const fixture: { parent: string; storage: DeviceStorageProtection | undefined } = {
-  parent: '',
-  storage: undefined,
-}
-const stores: DeviceStore[] = []
-beforeEach(async () => {
-  fixture.storage = await deviceStorage()
-  fixture.parent = await privateDeviceRoot('m100-p-store-')
-})
-afterEach(async () => {
-  await removeDeviceFixture(stores, fixture.parent)
-})
+const { fixture, stores } = useDeviceStorageRoot('m100-p-store-')
 async function create() {
   const directory = path.join(fixture.parent, 'devices')
   const store = await DeviceStore.create(directory, 'a'.repeat(32), fixture.storage)

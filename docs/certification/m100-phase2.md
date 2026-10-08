@@ -1040,12 +1040,10 @@ and after each):
   and `teamHarness.test.mjs` cannot build production bundles. These three
   files need a lockfile-exact install or a rig before this head is called
   verified.
-- **Windows device storage (P-I-WINDOWS-STORAGE).** `deviceStore` (14 of 15),
-  `devicePairingAdapter` (51 of 51) and `deviceIntegration` (11 of 11) fail
-  at `DeviceStore.create` with `storage`. On win32 the store refuses without
-  a `DeviceStorageProtection` binding, and those fixtures pass none. The code
-  is unchanged since phase 1 (`0a92cb94f`). Hosted Windows CI fails these
-  76 tests until a Windows binding or fixture lands.
+- **Windows device storage (P-I-WINDOWS-STORAGE): fixed by a native binding**,
+  see "Windows device storage binding" below. It was not a fixture gap:
+  production had no `DeviceStorageProtection` for any platform, so pairing
+  could never open on Windows.
 - **Hooks.** This worktree had no generated `.husky/_`, so the three merge
   commits ran without hooks. Afterwards gitleaks, ESLint and Prettier were
   run over the same changes; Prettier found this record's conflict table
@@ -1062,3 +1060,104 @@ fails 2. `deviceQrInvite`, `deviceMdns` and `deviceDiscoverySwitch` pass 37,
 `deviceDiscovery` 16, and `check-l10n` finds 14 tables with 0 problems, all
 at repository-default timeouts. Lane D merged into `m100/p2-int-lead` with
 `docs/ide-compatibility/host-api.md` regenerated (0 problems).
+
+## Windows device storage binding (P-I-WINDOWS-STORAGE), 2026-10-08
+
+**Cause.** On win32 `DeviceStore` (`deviceStore.ts` `checkFile`) and
+`AttemptJournal` refuse without a `DeviceStorageProtection`, and no production
+code supplied one for any platform. So Devices pairing could never open on
+Windows. The 76 failing tests (94 once lane D's `deviceDiscoverySwitch` 17/17
+and `deviceMdns` 1/15 joined) were correct signals, not fixture mistakes.
+
+**Fix.** `src/host/devices/windowsStorageProtection.ts`, in the lazy Devices
+bundle, implements the shared interface `src/core/devices/storageProtection.ts`
+(the journal's `AttemptJournalProtection` is now the same type). A C# helper is
+compiled once per source by `jobBuild.compileJob`, like the job helpers. It
+runs as one long-lived child answering one request per line, and is unreferenced
+while idle. It reads owner, DACL, attributes and link count from one handle
+(`CreateFile` with backup semantics and open-reparse-point, `GetSecurityInfo`).
+It installs a protected, owner-only DACL plus owner on paths the store has just
+created exclusively (`SetSecurityInfo`, `:116`). It replaces files with
+`MoveFileEx(REPLACE_EXISTING | WRITE_THROUGH)` (`:132`) and flushes folders with
+`FlushFileBuffers` (`:137`). TypeScript makes every decision:
+
+- `isPrivateReading` (`:229`) accepts only the shape `secureFresh` installs. It
+  uses the token file's rule, now shared as `src/core/fs/ownerOnlyAcl.ts`. Any
+  extra, inherited or deny ACE, another owner, an unprotected DACL, a reparse
+  point or a second hard link refuses.
+- `isSafeAncestorReading` (`:279`) runs over the whole chain in one request
+  (`:314`). It refuses a folder another account owns, can rewrite (WRITE_DAC,
+  WRITE_OWNER or GENERIC_ALL), can empty and refill (DELETE_CHILD plus add), or
+  can rename away and replace (`:295`). A folder others may add to but not
+  delete from passes. That is the case for `%TEMP%` on this host, where
+  CodexSandboxUsers holds Modify. A fresh `mkdtemp` folder under it inherits
+  that DELETE, so the guard refuses it until it is claimed.
+- The helper protocol fails closed on a mismatched or missing answer (`:424`),
+  on exit, on a relative path or on any error code.
+
+`deviceStore.ts` and `attemptJournal.ts` now take an injected platform
+(default `process.platform`). They claim every fresh folder, file, lock and
+stage through `secureFresh` (store `:74`, `:98`, `:102`, `:222`; journal `:144`,
+`:152`, `:157`, `:251`) and replace through the binding (store `:229`, journal
+`:265`). The win32 no-binding refusal stays (store `:307`, journal `:510`). The
+store now checks ancestors on Windows too (`:330`; before, it returned early)
+and refuses hard-linked files on every OS (`:303`), as the journal already did.
+`deviceStorageProtection()` (`deviceBundle.ts:42`) is the seam the bundle's
+`dependencies` callback uses to hand one binding to both stores: Windows needs
+the binding and a system root, and other platforms get none. The C# handle
+declarations are shared with team hints through `src/host/windowsHandleInterop.ts`.
+
+**Tests.** On Windows the store, pairing, integration, discovery and mDNS
+suites run against the real binding (`deviceStorage()` and `privateDeviceRoot()`
+in `test/unit/helpers/deviceFixtures.ts`). Elsewhere they run with POSIX rules.
+Permission tampering goes through each OS's own model (`grantOthers`: chmod, or
+`icacls` on Everyone), and so do reparse aliases (symlink, or junction) and the
+owner-only evidence (mode bits, or .NET SDDL). One shared fake
+(`fakeDeviceStorage`) records and refuses steps, and runs the Windows rules on
+every OS through the injected platform: no binding refuses, and a refused
+`assertPrivate`, `secureFresh`, `assertSafeAncestor`, `syncDirectory` or
+`replace` refuses or latches the store. `windowsStorageProtection.test.ts` (32)
+covers the decisions from recorded readings, plus the line protocol through a
+Node stand-in, on every OS. The journal's win32 pass-through
+(`deviceExecutionFixtures.ts`) still serves the receiver and journal suites; its
+retirement to the real binding is the next step. `deviceIntegration` already
+journals through the real binding.
+
+| Run (default timeouts)                                                                 | Before                         | After                                                                                                                           |
+| -------------------------------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Windows 11 host, `deviceStore`/`PairingAdapter`/`Integration`                          | 76 failed of 77                | 19/19, 51/51 pass; `deviceIntegration` see below                                                                                |
+| Windows 11 host, all `device*` files                                                   | 94 failed, 618 passed, 6 files | 27 of 29 pass; `deviceStore`, `devicePairingAdapter`, binding rerun 102/102 at the final tree; `deviceIntegration` 4/11 (below) |
+| Win11 VM `f03957dd`, 29 files (device*, Devices views, journal, binding, hints, token) | not run                        | **827 passed, 0 failed**                                                                                                        |
+| Kubuntu `6503a6f4` and final tree, same 29 files                                       | green before                   | **833 passed, 0 failed**                                                                                                        |
+
+This host ran at 78% CPU from other sessions. Here `deviceIntegration` passes
+4 of 11: seven flows miss `vi.waitFor`'s default 1 s while each durable journal
+write takes about 100 ms. The same file passes 11/11 on the VM. A final VM rerun
+under load (724 s against 112 s before) timed out in untouched `DevicesView` and
+`tokenFile` cases and failed one `deviceRecovery` capacity assertion; one worker
+did not start. Run it again on an idle VM before merging.
+
+**Cost (this host, real binding).** Helper start about 0.5 to 0.7 s once per
+process. `assertPrivate` 1.6 ms, whole-chain ancestor check 6.7 ms, folder flush
+1.9 ms, claim plus write-through replace 19 ms. `readNow` was 25 ms with one
+request per ancestor, and is **16 ms** with the one-request chain. `update` is
+97 ms, mostly durability flushes.
+
+**Red drills (each restored byte-exact, `git diff --quiet`).**
+
+1. Removing the store's win32 no-binding refusal turns the binding test red (1
+   failed, 18 passed).
+2. Removing the owner-only DACL rule from `isPrivateReading` fails 8 tests,
+   including the real-binding `icacls` tamper test on Windows.
+3. Replacing through `rename` instead of the binding fails "replaces only
+   through the binding".
+4. Removing the rename-away-and-replace ancestor rule fails 3 tests.
+
+**Gates.** All five typechecks exit 0. ESLint `--max-warnings=0` and Prettier
+are clean on the 19 changed files. `knip`, `jscpd` (0 clones) and `check:l10n`
+(0 problems) exit 0. `check:host-api` exits 0 after `--write`: four Node
+built-in counts each go up by 1, with no new VS Code API. **`npm run build`
+exits 1:** `dist/devices.js` is 107.1 KiB against its 100 KiB cap. The binding
+adds 10.6 KiB, about 6 KiB of it the C# source. The lead decides between a D6
+re-measure (+15%, giving 125 KiB) and shipping the C# outside the bundle; even
+moving the C# out leaves the bundle just over 100 KiB.

@@ -1,9 +1,9 @@
 import { readFile, writeFile, open, rename } from 'node:fs/promises'
 import path from 'node:path'
 import type * as FileSystem from 'node:fs/promises'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DevicePairing } from '../../src/host/devices/devicePairing'
-import { DeviceStore, type DeviceStorageProtection } from '../../src/host/devices/deviceStore'
+import { DeviceStore } from '../../src/host/devices/deviceStore'
 import { DeviceSecrets, type DeviceExecutionHost } from '../../src/host/devices/deviceSecrets'
 import type { DeviceWebviewRequest } from '../../src/shared/devicesPanel'
 import type { DeviceInvitation } from '../../src/shared/devices'
@@ -13,10 +13,8 @@ import {
   deviceCheck,
   deviceTestNow,
   deviceTestExpiry,
-  deviceStorage,
   fakeDeviceStorage,
-  privateDeviceRoot,
-  removeDeviceFixture,
+  useDeviceStorageRoot,
 } from './helpers/deviceFixtures'
 
 vi.mock('node:fs/promises', async (importOriginal) => {
@@ -29,18 +27,7 @@ const localHost: DeviceExecutionHost = {
   execution: 'local',
   secretLocation: 'execution-host',
 }
-const fixture: { parent: string; storage: DeviceStorageProtection | undefined } = {
-  parent: '',
-  storage: undefined,
-}
-const stores: DeviceStore[] = []
-beforeEach(async () => {
-  fixture.storage = await deviceStorage()
-  fixture.parent = await privateDeviceRoot('m100-p-adapter-')
-})
-afterEach(async () => {
-  await removeDeviceFixture(stores, fixture.parent)
-})
+const { fixture, stores } = useDeviceStorageRoot('m100-p-adapter-')
 async function harness(id: string, host = localHost, protection = fixture.storage) {
   const directory = path.join(fixture.parent, id)
   const store = await DeviceStore.create(directory, id.repeat(32), protection)
