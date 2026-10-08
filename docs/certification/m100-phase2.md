@@ -292,4 +292,11 @@ test/unit/channel.test.ts test/unit/deviceMultiplexedChannel.test.ts
   **0 problems**. `npm run check:host-api`: exit **0**, **0 problems**.
 - `npm run build`: exit **0**, caps unchanged (Devices **81.6/100 KiB**,
   activation **441.6/600 KiB**).
-- Fresh-clone receipt: recorded below after the doc commit.
+- Fresh-clone receipt: `/tmp/fixm100p2c-verify`, cloned from this
+  worktree at `196aabe36`, `CI=true npm ci` exit **0** (Node **24.18.0**,
+  npm **12.0.1**). Three consecutive runs of the two owning files:
+  **43 passed each**, default timeouts. `npm run typecheck` (0 errors),
+  `npm run lint`, prettier on the four changed files, plain knip
+  (0 errors), duplication (**0 clones**), `check:l10n` (**14 tables**,
+  **0 problems**), `check:host-api` (**0 problems**), `npm run build`
+  (all budgets ok, Devices **81.6/100 KiB**): all exit **0**.
