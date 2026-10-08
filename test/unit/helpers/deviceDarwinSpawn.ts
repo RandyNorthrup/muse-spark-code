@@ -24,7 +24,7 @@ export const darwinSpawnSites = [
 type DarwinSpawnSite = (typeof darwinSpawnSites)[number]
 interface DarwinSpawnFailure {
   name: string
-  delivery: 'throw' | 'error' | 'exit' | 'timeout' | 'stdout' | 'stderr'
+  delivery: 'throw' | 'error' | 'exit' | 'signal' | 'timeout' | 'stdout' | 'stderr'
   code: string
   kind: 'spawn' | 'exit' | 'timeout' | 'output'
   detail: 'capacity' | 'helper'
@@ -66,6 +66,14 @@ export const darwinSpawnFailures: DarwinSpawnFailure[] = [
     kind: 'exit',
     detail: 'helper',
     retryable: false,
+  },
+  {
+    name: 'signal exit',
+    delivery: 'signal',
+    code: '',
+    kind: 'exit',
+    detail: 'helper',
+    retryable: true,
   },
   {
     name: 'timeout',
@@ -228,6 +236,10 @@ export async function darwinSpawnFixture(site: DarwinSpawnSite, failure: DarwinS
           }
           case 'exit': {
             child.emit('close', 1)
+            break
+          }
+          case 'signal': {
+            child.emit('close', null)
             break
           }
           case 'stdout':
