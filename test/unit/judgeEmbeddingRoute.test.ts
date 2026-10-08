@@ -9,6 +9,7 @@ import {
 } from '../../src/core/judge/embedding/route'
 import { JUDGE_EMBED_FALLBACK_CONFIDENCE } from '../../src/shared/constants'
 import type { JudgeRequest } from '../../src/core/judge/schema'
+import { embeddingHeadDigest } from '../../src/core/judge/embedding/schema'
 import {
   confidentVectors,
   noulRequest,
@@ -72,11 +73,20 @@ describe('embedding fast path', () => {
     ['model', { model: 'other-model' }],
     ['provider', { providerId: 'other-provider' }],
     ['family', { family: 'skill.fit' }],
-    ['dimension', { dimension: 4 }],
   ])('falls back on a head bound to another %s without embedding', async (_case, changed) => {
     const head = trainedHead()
+    // Re-digest so the head verifies: only the source binding may refuse it.
+    const rebound = { ...head, identity: { ...head.identity, ...changed } }
     const { deps, fallbackCalls, claims, embed } = routeDependencies({
-      head: { ...head, identity: { ...head.identity, ...changed } },
+      head: { ...rebound, digest: embeddingHeadDigest(rebound) },
+    })
+    await expectQuietFallback(deps, fallbackCalls, embed, claims)
+  })
+
+  it('falls back on a head whose dimension disagrees with its weights', async () => {
+    const head = trainedHead()
+    const { deps, fallbackCalls, claims, embed } = routeDependencies({
+      head: { ...head, identity: { ...head.identity, dimension: 4 } },
     })
     await expectQuietFallback(deps, fallbackCalls, embed, claims)
   })
