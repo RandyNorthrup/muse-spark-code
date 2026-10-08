@@ -13,7 +13,7 @@
 //   node scripts/third-party-notices.mjs --write  regenerate it (npm run notices)
 //   node scripts/third-party-notices.mjs --acp <file>
 //                                                 the ACP agent's package (M63,
-//                                                 PLAN.md D62): its four bundles'
+//                                                 PLAN.md D62): its staged bundles'
 //                                                 packages, written to <file>
 //                                                 by scripts/package-acp.mjs
 //
@@ -25,47 +25,11 @@
 
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { noticePackageDir } from './lib/noticesInput.mjs'
+import { contributedPackageDirs, noticePackageDir } from './lib/noticesInput.mjs'
 
 const METAFILE_DIR = path.join('dist', 'meta')
 const ACP_METAFILE_DIR = path.join('dist', 'meta-acp')
-// The ACP agent ships acp.js, the Model API backend's bundle it loads (M57)
-// and the search/page workers (scripts/build.mjs, scripts/package-acp.mjs).
-const ACP_METAFILES = [
-  path.join(ACP_METAFILE_DIR, 'headless.json'),
-  path.join(METAFILE_DIR, 'runtimeEngine.json'),
-  path.join(METAFILE_DIR, 'runtimeAccounting.json'),
-  path.join(METAFILE_DIR, 'providerPolicy.json'),
-  path.join(METAFILE_DIR, 'modelApiHooks.json'),
-  path.join(METAFILE_DIR, 'modelApiMcp.json'),
-  path.join(ACP_METAFILE_DIR, 'acp.json'),
-  path.join('dist', 'meta-acp', 'acpQuestions.json'),
-  path.join('dist', 'meta-acp', 'runtimeQuestions.json'),
-  path.join(METAFILE_DIR, 'questionNotes.json'),
-  path.join('dist', 'meta-acp', 'exec.json'),
-  ...['mcpPool', 'modelApiCodeIntel', 'structuredSchema', 'reference', 'imageResizeWorker'].map(
-    (name) => path.join(METAFILE_DIR, `${name}.json`),
-  ),
-  path.join(METAFILE_DIR, 'modelApi.json'),
-  path.join(METAFILE_DIR, 'resourceGovernor.json'),
-  path.join(METAFILE_DIR, 'resourceAdmission.json'),
-  path.join(METAFILE_DIR, 'providers.json'),
-  path.join(METAFILE_DIR, 'usageService.json'),
-  path.join(METAFILE_DIR, 'usageCompanion.json'),
-  path.join(METAFILE_DIR, 'usageWebview.json'),
-  path.join(METAFILE_DIR, 'validation.json'),
-  path.join(METAFILE_DIR, 'wire.json'),
-  path.join(METAFILE_DIR, 'legalScan.json'),
-  path.join(METAFILE_DIR, 'reviewer.json'),
-  path.join(METAFILE_DIR, 'team.json'),
-  path.join(METAFILE_DIR, 'teamRunners.json'),
-  path.join(METAFILE_DIR, 'teamScheduler.json'),
-  path.join(METAFILE_DIR, 'foreignHooks.json'),
-  path.join(METAFILE_DIR, 'hookRuntime.json'),
-  path.join(METAFILE_DIR, 'recorder.json'),
-  path.join(METAFILE_DIR, 'searchWorker.json'),
-  path.join(METAFILE_DIR, 'pageWorker.json'),
-]
+const ACP_STAGE = path.join('dist', 'acp-package')
 const ACP_FLAG = '--acp'
 const LICENCE_FILE = /^(licen[cs]e|copying)(\.(md|txt|markdown))?$/i
 const NOTICE_FILE = /^notice(\.(md|txt))?$/i
@@ -209,12 +173,26 @@ function acpOutputFile() {
 }
 
 const acpOutput = acpOutputFile()
+const extensionMeta = readdirSync(METAFILE_DIR).map((file) => path.join(METAFILE_DIR, file))
+if (acpOutput !== undefined && !existsSync(path.join(ACP_STAGE, 'dist', 'acp.js')))
+  throw new Error('ACP bundle stage is missing: stage the package before generating notices')
 const metafiles =
   acpOutput === undefined
-    ? readdirSync(METAFILE_DIR).map((file) => path.join(METAFILE_DIR, file))
-    : ACP_METAFILES
+    ? extensionMeta
+    : [
+        ...extensionMeta,
+        ...readdirSync(ACP_METAFILE_DIR).map((file) => path.join(ACP_METAFILE_DIR, file)),
+      ]
+const directories =
+  acpOutput === undefined
+    ? shippedPackageDirs(extensionMeta)
+    : [
+        ...contributedPackageDirs(metafiles, readFileSync, (file) =>
+          existsSync(path.join(ACP_STAGE, file)),
+        ),
+      ].map((directory) => path.resolve(directory))
 const problems = []
-const packages = shippedPackageDirs(metafiles).map((dir) => describePackage(dir, problems))
+const packages = directories.map((dir) => describePackage(dir, problems))
 if (acpOutput === undefined) {
   packages.push(
     {

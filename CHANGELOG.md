@@ -18,6 +18,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Include all 35 bundled ACP runtime dependencies in its third-party notices,
+  selecting the actual staged shared/lazy bundles and usage browser chunks.
 - Include esbuild's namespaced resource-validation dependencies in release
   CycloneDX inventories using normalized POSIX and Windows package paths.
 - Inventory ACP's actual staged shared/lazy bundles and usage browser assets,

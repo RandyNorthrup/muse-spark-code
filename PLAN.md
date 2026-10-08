@@ -52550,3 +52550,30 @@ pages, no leaks across 2,314 commits, and pinned SAST's 533 rules / 2,259 target
 / zero findings. Commit the validated bytes with normal hooks and repeat the
 independent committed-source macOS job matrix. Preserve the explicit stopped
 cold-checkout deferral and report qualification as blocked while it remains.
+
+**REL0160B ACP notice composition (2026-10-07).** The committed replay's
+package job passes, but comparing its repaired ACP SBOM with the actual notice
+headings exposes 22 bundled Markdown dependencies omitted by the older ACP
+metafile list. The installed keyring carries its own licence; it is not one
+of these missing bundled notices. Select ACP licence contributors from all
+production metafiles by actual staged output membership, including shared
+usage-browser chunks. Share that contribution traversal with the SBOM reader
+in the existing notices-input helper; preserve extension notice generation,
+licence allow-list, native/vendor attribution and every package gate. Refuse
+an absent ACP stage. Add cold, owned-fixture CLI regressions for the physical
+shared chunk, exclusion of extension-only outputs and missing-stage refusal;
+prove deliberate mutations fail and restore byte-exact. Regenerate the actual
+ACP notice artifact and verify every bundled SBOM dependency has its heading,
+then rerun quality and committed packaging. Browser/runtime source is unchanged;
+retain the completed fresh static/shards/native/UI receipts for those bytes.
+
+**REL0160B final release-candidate continuation (2026-10-07).** The revised
+rig brief replaces further local self-qualification with hosted full gates on
+all three operating systems. Verify and commit the pending ACP notices repair,
+then merge only `main-0150` (`c22be5d0d`) and `int/0160-ux` (`d7837b659`), each
+with `--no-ff`, retaining both trains and their translated keys. Keep version
+0.16.0, include pinned questions and agent outcomes in its release notes,
+regenerate generated records, and run format, lint, typecheck, localization,
+reference, host API, production build and every conflict-owning test file at
+repository deadlines. Normal hooks and explicit staging remain required; no
+push, live calls or publication. Full release qualification stays with hosted CI.

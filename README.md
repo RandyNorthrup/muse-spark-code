@@ -4980,7 +4980,7 @@ and every pull request until the queue is on) runs the full tier:
   packages the ACP agent with every locale table, and writes both CycloneDX
   inventories (the `muse-spark-code-sboms` artifact).
 
-The ACP inventory follows the package's staged shared/lazy bundles and usage
+The ACP inventory and third-party notices follow the package's staged shared/lazy bundles and usage
 browser assets, including code kept in the runtime archive. It excludes
 extension-only outputs and retains the locked optional native dependencies.
 `node scripts/release-sbom.mjs` requires the ACP package stage produced by

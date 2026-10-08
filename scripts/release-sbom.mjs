@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { z } from 'zod'
-import { noticePackageDir } from './lib/noticesInput.mjs'
+import { contributedPackageDirs } from './lib/noticesInput.mjs'
 
 const COMPONENT = z
   .object({ name: z.string(), version: z.string().optional(), 'bom-ref': z.string() })
@@ -22,17 +22,9 @@ const ACP_STAGE = 'dist/acp-package'
 
 export function bundledPackages(metafiles, read = readFileSync, includesOutput = () => true) {
   const packages = new Set()
-  for (const file of metafiles) {
-    const meta = JSON.parse(read(file, 'utf8'))
-    for (const [file, output] of Object.entries(meta.outputs)) {
-      if (!includesOutput(file.replaceAll('\\', '/'))) continue
-      for (const [input, contribution] of Object.entries(output.inputs)) {
-        const dir = noticePackageDir(input)
-        if (dir === undefined || contribution.bytesInOutput <= 0) continue
-        const manifest = JSON.parse(read(`${dir}/package.json`, 'utf8'))
-        packages.add(`${manifest.name}@${manifest.version}`)
-      }
-    }
+  for (const dir of contributedPackageDirs(metafiles, read, includesOutput)) {
+    const manifest = JSON.parse(read(`${dir}/package.json`, 'utf8'))
+    packages.add(`${manifest.name}@${manifest.version}`)
   }
   return packages
 }
