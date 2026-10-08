@@ -156,6 +156,13 @@ describe('SECWINPATH native storage and hold ancestry', () => {
     const uncRoot = `\\\\localhost\\${h.root.charAt(0)}$${h.root.slice(2)}`
     expect(resolveWorkspacePath(uncRoot, 'new.txt', 'win32').ok).toBe(true)
     expect(resolveWorkspacePath(uncRoot, 'escape/new.txt', 'win32').ok).toBe(false)
+    const store = h.reopenAt(h.storage, uncRoot)
+    const destination = String.raw`${uncRoot}\new.txt`
+    expect(store.isStoragePath(destination)).toBe(false)
+    expect(() => {
+      checkpointPort({ store }).refuseStorageWrite(destination)
+    }).not.toThrow()
+    expect(store.isStoragePath(String.raw`${uncRoot}\escape\journal.jsonl`)).toBe(true)
   })
 
   it.each(['dev', 'ino'] as const)(

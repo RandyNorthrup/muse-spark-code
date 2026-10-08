@@ -124,7 +124,7 @@ import {
   ShadowStorageInWorkspaceError,
 } from './shadowGit'
 import { pathIdentityRelation } from '../../core/pathIdentity'
-import { windowsPathProblem } from '../../core/windowsPathSpelling'
+import { isUncPath, windowsPathProblem } from '../../core/windowsPathSpelling'
 import { isLegacyWindow, WindowPresence } from './windowPresence'
 import { WriteJournal } from './writeJournal'
 import { innermostFolders, type WriteLanes } from './writeRecorder'
@@ -1966,7 +1966,10 @@ export class CheckpointStore {
   /** Whether a path is in the checkpoint storage of any namespace (tools never write there). */
   public isStoragePath(absolutePath: string): boolean {
     return (
-      windowsPathProblem(absolutePath, process.platform) !== undefined ||
+      windowsPathProblem(absolutePath, process.platform, this.deps.workspaceRoot) !== undefined ||
+      (process.platform === 'win32' &&
+        isUncPath(absolutePath) &&
+        pathIdentityRelation(absolutePath, this.deps.workspaceRoot) !== 'inside') ||
       isInShadowRepository(absolutePath) ||
       pathIdentityRelation(absolutePath, this.deps.storageDir) !== 'outside' ||
       (this.deps.storageRoot !== undefined &&

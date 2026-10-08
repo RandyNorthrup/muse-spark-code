@@ -154,3 +154,14 @@ spelling `9A2CDC5A72E14B06B746C682BDC879074D792A69A9C5BD121AB6FE32ADFA0FCE`,
 storage `F11B4B6E05BAC30C93E2046F6C3D82B03B1C3F018CFCE422F1AEB05363A70E26`,
 identity `3967D59DB674F3DF5AA22D606882A4C97FD834883D82A92DFC5AA17CBF1C918A`.
 These are the bytes at drill time, before the final lint/format hook.
+
+### Proven UNC workspace writes
+
+Checkpoint admission now carries its existing workspace root into the shared
+UNC exception. A proven descendant of a UNC workspace can be excluded from
+storage and passed through the port; a junction from it into storage remains
+refused. With no store/root authority, the port still refuses flagged names.
+This is covered in the UNC-junction regression without dropping any assertion.
+All 34 new tests pass. The owning suites and static gates are restarted on
+the complete committed correction; interrupted preparations are not final
+qualification receipts.

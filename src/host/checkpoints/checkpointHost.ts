@@ -238,8 +238,9 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
     },
     refuseStorageWrite: (absolutePath) => {
       if (
-        windowsPathProblem(absolutePath, process.platform) !== undefined ||
-        deps.store?.isStoragePath(absolutePath) === true
+        deps.store === undefined
+          ? windowsPathProblem(absolutePath, process.platform) !== undefined
+          : deps.store.isStoragePath(absolutePath)
       ) {
         throw new Error(MODEL_TEXT.checkpointStorageWrite)
       }
