@@ -19684,6 +19684,29 @@ and replay provenance. Account consent now carries exact decimal budgets.
 Eight deliberate guard/precision/provenance drills fired and restored byte-exact;
 fresh-clone receipts and lead-owned integrated gates are in that record.
 
+### M121 — Exact money everywhere (current money ports) (2026-10-08)
+
+**Status 2026-10-08 (lead decision): planned.** PORTS017D's honest guard
+(`test/unit/paidMoneyStructure.test.ts`) inventories every remaining numeric
+money field as `trackedDebt`: the usage journal and usage page, `usage.ts`,
+the models panel (including its spread-copies), `accountUsage` internals, the
+usage aggregate, team and team view costs and budgets, the schedule v2 caps
+and liabilities, the codec-normalized provider cost, and the team preview
+totals. This milestone converts every `trackedDebt` field to `UsdAmount`, with
+versioned persisted reads (the usage journal and team records), UI and text
+formatting through the exact formatters, and the guard emptying the
+`trackedDebt` category (each conversion removes its entry; a leftover entry
+fails as stale).
+
+**Order:** right after 0.17.0. M121 must be complete before M110/M111 resume,
+as part of the owner's certification rule.
+
+**Why:** the debt predates 0.17, and the old regex guard could not see it: its
+pre-filter missed snake_case keys, its line scanner missed semicolon-joined
+members, and its initializer exemption missed numeric pipes, transforms,
+defaults, imported aliases, quoted keys and records. The runtime walk sees
+all of them; the `trackedDebt` category is the complete inventory it found.
+
 ### INT0180B — Complete the 0.18.0 integration (2026-10-07, linuxlt)
 
 **Status 2026-10-07: built.** Linux receipts in `docs/certification/int0180.md`; the package job stays red without genuine macOS artifacts.
@@ -41215,10 +41238,11 @@ threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
 
-| PORTS017 escape                                                      | Reason                                                                                                                                                    |
-| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `test/unit/helpers/malformedUsd.ts`: `input as unknown as UsdAmount` | Existing negative, NaN, infinity and overflow probes deliberately violate the typed port so their runtime refusals still execute.                         |
-| `test/unit/transcribeBatch.test.ts`: `'NaN' as UsdAmount`            | Intentional malformed canonical port; constructors refuse it, so the existing runtime refusal probe bypasses the brand without a credential or paid call. |
+| PORTS017 escape                                                                           | Reason                                                                                                                                                                                                                          |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/helpers/malformedUsd.ts`: `input as unknown as UsdAmount`                      | Existing negative, NaN, infinity and overflow probes deliberately violate the typed port so their runtime refusals still execute.                                                                                               |
+| `test/unit/transcribeBatch.test.ts`: `'NaN' as UsdAmount`                                 | Intentional malformed canonical port; constructors refuse it, so the existing runtime refusal probe bypasses the brand without a credential or paid call.                                                                       |
+| `test/unit/paidMoneyStructure.test.ts` `trackedDebt` allow-list (41 numeric money fields) | Numeric current money the 0.17 ports did not convert; each entry names milestone M121, which converts it to `UsdAmount` and empties the category. The guard fails on any unlisted money leaf, so the list cannot grow silently. |
 
 | Location                                              | Escape hatch         | Reason                                                                                                                                                                                                                                                                                                                                 |
 | ----------------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
