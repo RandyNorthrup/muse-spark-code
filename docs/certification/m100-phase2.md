@@ -1288,3 +1288,15 @@ Kubuntu, the 32 files: **889 passed, 0 failed**.
 
 **Gates.** All five typechecks, `knip`, `jscpd` (0 clones), `npm run build`
 (devices 100.4 of 125 KiB), `check:host-api` (0 problems) and `check:l10n` exit 0. ESLint `--max-warnings=0` and Prettier are clean on the changed files.
+
+### RVM100WSC (Codex) re-review: one P3, 2026-10-08
+
+The late-registration test asserted its immediate disposal inside the
+`dependencies` callback. A failed expect there only rejected the preparation,
+which settles as `revoked`, so the test could not fail. The callback now just
+records how many disposals had happened when `own` returned, and the test body
+asserts that count is 1 (`windowsStorageProtection.test.ts:429`). Drill:
+removing the guard at `deviceBundle.ts:112` now fails that test (1 failed, 38
+passed). It was restored from a backup, with SHA-256 identical before and after.
+No other test added on this branch asserts inside a callback whose error is
+discarded.

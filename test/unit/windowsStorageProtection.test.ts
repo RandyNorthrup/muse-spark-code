@@ -408,6 +408,9 @@ describe('the Devices bundle storage seam', () => {
     it('disposes a resource registered after revocation immediately, once', async () => {
       const late = vi.fn()
       const gate = deferred<undefined>()
+      // Read inside the callback, asserted out here: a failed expect in the
+      // callback would only reject the preparation, which settles as revoked.
+      const observed = { callsWhenOwnReturned: -1 }
       const methods = deviceMethods({
         bundlePath: 'devices.js',
         log: new FakeLogOutputChannel(),
@@ -415,7 +418,7 @@ describe('the Devices bundle storage seam', () => {
         async dependencies(_loaded, scope) {
           await gate.promise
           scope.own(late)
-          expect(late).toHaveBeenCalledOnce()
+          observed.callsWhenOwnReturned = late.mock.calls.length
           return {} as DeviceServiceDeps
         },
       })
@@ -423,6 +426,7 @@ describe('the Devices bundle storage seam', () => {
       methods.dispose()
       gate.resolve(undefined)
       await expect(serving).rejects.toThrow('revoked')
+      expect(observed.callsWhenOwnReturned).toBe(1)
       methods.dispose()
       expect(late).toHaveBeenCalledOnce()
     })
