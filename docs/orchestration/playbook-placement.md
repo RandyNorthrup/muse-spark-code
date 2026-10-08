@@ -202,28 +202,28 @@ Each lesson here cost real time during the runs of 2026-10-06 and 2026-10-07. Th
     - _Control:_ M96c bulk-edit legs carry a verification step and report false positives; G48.
 21. **Completion comes from the runner, never from what a lane prints.**
     - _What happened:_ a lane's build tool printed its own status line ending in `exit=1`. The fleet watcher took that line for the runner's exit marker and reported a running lane as done.
-    - _Rule:_ completion comes only from an out-of-band record that the runner alone writes (a whole-line marker or an exit file). Text a lane can print never decides its state.
-    - _Control:_ M96c dispatch writes the record; the M107 device watcher reads only that record; G53.
+    - _Rule:_ completion comes only from the runner's own observation of the lane process's exit (the exit status the runner gets from waiting on the process), recorded by the runner in a runner-owned record. Nothing a lane can write to (stdout, stderr, its log, its worktree) can mark it complete, not even a line shaped exactly like the runner's marker.
+    - _Control:_ M96c dispatch records the observed exit; the M107 device watcher reads only that record; G53.
 22. **A report nobody routed is not "no report".**
     - _What happened:_ an integration lane certified "no reports" for two lanes. Their reviews (2 P1, 5 P2) sat in a separate findings file that nobody routed to the integration.
     - _Rule:_ every review report is attached to its lane's ledger record when it lands. An integration brief lists each lane's report path explicitly. "No report" is checked against the ledger, never taken from the integrating lane's own search.
     - _Control:_ M96c board (reports on the ledger record); M116 integration charter; G54.
 23. **Cleanup stays inside its own root and never changes permissions.**
     - _What happened:_ a macOS temp sweep selected folders by the shape of their names. It matched three operating-system daemon folders (21-letter names that looked like random ids, and a word-dash-six-letter name) and ran a recursive permission change on them before the deletion was refused. Nothing inside changed.
-    - _Rule:_ test temp lives under one harness-owned root, and cleanup deletes only there. Cleanup never changes permissions. A name's shape alone never selects anything for deletion.
-    - _Control:_ M107 governor cleanup; M100/M110 worker teardown; extends lesson 7 and G11; G55.
+    - _Rule:_ test temp lives under one harness-owned root, which cleanup removes. Outside that root, cleanup deletes only an exact path the harness recorded with its identity (device and inode, or file ID) when it created it, re-checked just before deletion; anything else outside the root is reported, never deleted. Cleanup never changes permissions. A name's shape never selects anything for deletion.
+    - _Control:_ M107 governor cleanup, which narrows its outside-root leftover rule (D87.14) to recorded identities; M100/M110 worker teardown; extends lesson 7 and G11; G55.
 24. **Measure what a delete frees, not what `du` adds up.**
     - _What happened:_ on macOS, `du` reported 49 GB in a browser's code-sign clone folders. Deleting all of them freed nothing, because APFS clones share blocks.
-    - _Rule:_ measure reclaimable space as the volume's free space (`df`) before and after, or with a clone-aware tool, before choosing what to delete.
+    - _Rule:_ choose what to delete by a clone-aware estimate of what deleting each item would free (on APFS, its unique or private allocation). An item with no such estimate does not count as reclaimable. Validate the result with the volume's free space (`df`) before and after. Never delete as a trial to find out.
     - _Control:_ M107 governor disk floors; G56.
 25. **Heavy gates take a machine slot, whoever starts them.**
     - _What happened:_ an integration lane's own verification script ran the accessibility harness (six headless browsers) and full lint in parallel on a 12-thread laptop while another lane was linting. Load reached 317.
-    - _Rule:_ heavy gates (the browser harness, full lint, the full suite) each take a per-machine slot sized from measured cores and memory, whether the orchestrator or a lane starts them. Lanes never run heavy gates in parallel themselves. Section 3's "one full gate per device at a time" binds lane scripts too.
+    - _Rule:_ heavy gates (the browser harness, full lint, the full suite) each take a per-machine slot sized from measured cores and memory, whether the orchestrator or a lane starts them. A slot belongs to the run's process tree: heavy gates nested in that tree (a quality script that runs lint and then the browser harness) inherit it, so one run never deadlocks waiting on its own slot, while separate runs queue. Lanes never run heavy gates in parallel themselves. Section 3's "one full gate per device at a time" binds lane scripts too.
     - _Control:_ M107 governor slots; M96c dispatch routes lane-started gates through them; G57.
 26. **Re-read what the hook left behind.**
     - _What happened:_ a pre-commit hook's lint auto-fix silently rewrote a correctness fix, twice. An auto-fixable type-aware rule reverted `!== true` on a value of unknown type.
-    - _Rule:_ after every hook run, the lane re-reads its own staged diff. Hook auto-fix is limited to formatting; for anything else the hook fails instead of rewriting logic.
-    - _Control:_ M96c lane runner (staged diff re-read after hooks); the repository's hook configuration; G58.
+    - _Rule:_ after every hook run, the lane re-reads its own staged diff and the committed diff. Hook auto-fix is limited to formatting; for anything else the hook fails instead of rewriting logic. Where a repository's hook still rewrites logic, the re-read is the only guard, and changing the hook is the repository owner's decision.
+    - _Control:_ M96c lane runner (staged and committed diff re-read after hooks); G58.
 27. **Lanes never stash.**
     - _What happened:_ a lane ran `git stash` and `git stash pop` in its worktree. Stashes are shared by every worktree of a repository, so the pop applied another lane's lint-staged backup into it.
     - _Rule:_ lanes never stash. Lint-staged backups are dropped or namespaced per worktree, and the lane runner refuses a stash command.
