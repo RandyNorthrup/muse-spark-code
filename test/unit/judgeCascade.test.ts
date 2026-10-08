@@ -379,6 +379,17 @@ async function answeredMulti(
   return outcome.result
 }
 
+/** A failed-separate run answered by same: the verdict names same. */
+async function answeredSameOnly(separate: FakeSide, same: FakeSide): Promise<JudgeResult> {
+  const outcome = await cascadeJudge(request, options, depsFor(separate, same), signal())
+  expect(outcome.outcome).toBe('answered')
+  if (outcome.outcome !== 'answered') {
+    throw new Error('expected the same follow-up to answer')
+  }
+  expect(outcome.result.muse['risk']?.source).toBe('same')
+  return outcome.result
+}
+
 /** One cascade run that must dispatch both sides exactly once. */
 async function runBothOnce(
   separate: FakeSide,
@@ -858,14 +869,9 @@ describe('cascadeJudge', () => {
       { answer: { outcome: 'no-answer', reason: 'timeout' } },
     )
     const same = looseSide(sameCap, { risk: [0.7, 0.3] })
-    const outcome = await cascadeJudge(request, options, depsFor(separate, same), signal())
-    expect(outcome.outcome).toBe('answered')
-    if (outcome.outcome !== 'answered') {
-      return
-    }
-    expect(outcome.result.muse['risk']?.source).toBe('same')
-    expect(outcome.result.usage).toEqual({ input_tokens: 40, output_tokens: 1 })
-    expectNoLooseKeys(outcome.result)
+    const result = await answeredSameOnly(separate, same)
+    expect(result.usage).toEqual({ input_tokens: 40, output_tokens: 1 })
+    expectNoLooseKeys(result)
   })
 
   it('drops the separate loose keys when the high-stakes follow-up serves the verdict (RVM98P2AD P3)', async () => {
@@ -926,13 +932,8 @@ describe('cascadeJudge', () => {
       { answer: { outcome: 'no-answer', reason: 'timeout' } },
     )
     const same = fakeSide(sameCap, { risk: [0.7, 0.3] })
-    const outcome = await cascadeJudge(request, options, depsFor(separate, same), signal())
-    expect(outcome.outcome).toBe('answered')
-    if (outcome.outcome !== 'answered') {
-      return
-    }
-    expect(outcome.result.muse['risk']?.source).toBe('same')
-    expect(outcome.result.muse['risk']?.technique).toBe('stated')
+    const result = await answeredSameOnly(separate, same)
+    expect(result.muse['risk']?.technique).toBe('stated')
   })
 
   it('lets a failed same follow-up leave the separate answer standing', async () => {
