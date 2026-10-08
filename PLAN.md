@@ -35996,7 +35996,7 @@ execution beyond phase 1 is implemented or certified by this record.
     which its owner must repair before W binds the selector. Full joined
     quality, coverage, production/doc binding and installed hosts remain W's
     responsibility; this lane does not claim shipped Linux support.
-    **Linux review M100P2HL3 (2026-10-08), implementation verified.** Fix both
+    **Linux review M100P2HL3 (2026-10-08), qualified.** Fix both
     RVM100P2HL P2 findings without changing the shared receiver contracts:
     attempt-owned launch slots release exactly once on every failed path;
     worker units bind to their pipe-owned inhibitor with BindsTo/After.
@@ -36013,8 +36013,14 @@ execution beyond phase 1 is implemented or certified by this record.
     regressions and seven intentional guard drills fail as expected; receiver
     recovery records the original attempts as uncertain without releasing
     occupancy or liability. Local owning tests pass 78 cases (13 native Linux),
-    with seven Windows cases unrun; receiver/recovery passes 86. Fresh-clone
-    qualification is pending in docs/certification/m100-phase2.md.
+    with seven Windows cases unrun; receiver/recovery passes 86. Fresh CI clone
+    at 64c7ea757 passes owning tests three times, receiver/recovery, all five
+    typechecks, full lint/format, plain knip, duplication, reference/localization,
+    default cycles and production caps. Host API exits 1 for the unchanged
+    W-owned inventory; targeted host-port cycles exits 1 for the inherited
+    M96 refFence/workerFence/workerEnv cycle. No finding is deferred. W owns
+    those integration blockers and final quality/coverage/installed hosts.
+    Both private clones are removed. Receipts: docs/certification/m100-phase2.md.
   - **Lane A.** Every admission binds the sender's role/mode ceiling to the
     receiver's repository grant, role/tools, workspace trust, protected
     paths and current approval policy under an explicit receiver-side

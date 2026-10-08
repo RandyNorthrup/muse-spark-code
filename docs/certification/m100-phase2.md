@@ -1245,7 +1245,56 @@ Every mutation restored byte-exact in finally. Final SHA-256:
 - Linux driver: `95021905a67aa843bb77062e3f62dd1bc477629319886d2a080f8713b087a900`.
 - Host: `78bbee1ebcedb4118025748fd063922509023b9faa1a1896ae646856c909beeb`.
 
-Fresh committed-clone qualification follows. W continues to own production
-binding, README/CHANGELOG/reference integration, joined quality and installed
-hosts. No dependency, translated text, setting, command, shared contract,
-escape hatch or policy change was added.
+#### Final committed-clone qualification and handoff
+
+Implementation commits: **603bd7089** (slots), **64c7ea757** (containment and
+recovery). Hooks ran normally on explicit paths; post-hook committed diffs were
+re-read and source hashes match the drilled bytes. No push, stash command or
+extra merge. Final documentation-only commit preserves those tested bytes.
+
+Fresh clone `$TMPDIR/verify`, committed HEAD **64c7ea757**, `npm ci`,
+`CI=true`, Node **v24.21.0**, npm **11.19.0**, systemd **257.9-0ubuntu2.5**.
+The literal base clone `$TMPDIR/base-regression` checked out **625d95ecb**,
+installed with `npm ci`, and copied only the two new owning test files:
+**7 failed / 43 nonselected**, exit **1**, confirming the initial source-swap
+base result above. The extra nonselected case is the final unproved-Stop guard.
+Both private clones were removed after qualification; original worktree stays
+clean. All support and deliberate-failure units were stopped/collected; final
+`systemctl --user list-units --all --output=json 'muse-spark-*.service'` is `[]`.
+
+| Verification                                                                                                                                                | Exit   | Result                                                                                                            |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------- |
+| `npm ci`                                                                                                                                                    | 0      | Fresh committed install.                                                                                          |
+| Three runs: `npx vitest run test/unit/deviceWorkerHost.test.ts test/unit/deviceWorkerHostNative.test.ts test/unit/deviceWorkerLinux.test.ts --maxWorkers=3` | 0 each | 78 passed each; all 13 Linux native cases execute; 7 Windows cases unrun. Default deadlines, no timeout override. |
+| `npx vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3`                                                           | 0      | 86 passed.                                                                                                        |
+| Five `npm run typecheck:<host,webview,unit,e2e,integration>` projects                                                                                       | 0 each | All five compiler projects.                                                                                       |
+| `npm run lint`                                                                                                                                              | 0      | Full JS/TS and CSS; unchanged Windows-only PowerShell skip. 224.81 s.                                             |
+| `npx prettier --check` on all six changed files                                                                                                             | 0      | PLAN, certification, driver, host, two owning tests.                                                              |
+| Plain `npx knip`                                                                                                                                            | 0      | Two existing configuration hints only.                                                                            |
+| `npx jscpd`                                                                                                                                                 | 0      | Zero clones; thresholds unchanged.                                                                                |
+| `npm run check:reference`                                                                                                                                   | 0      | Generated reference current.                                                                                      |
+| `npm run check:l10n`                                                                                                                                        | 0      | 14 UI/14 usage tables; zero problems.                                                                             |
+| `npm run check:host-api`                                                                                                                                    | 1      | Same inherited W-owned inventory deltas listed in M100P2HL2; no extra delta from this repair.                     |
+| `npm run cycles`                                                                                                                                            | 0      | Unchanged production entry graph.                                                                                 |
+| Host-port `npx dpdm --no-warning --no-tree --exit-code circular:1 -T src/host/devices/deviceWorkerHost.ts`                                                  | 1      | Existing refFence -> workerFence -> workerEnv -> refFence cycle; all three files byte unchanged from base.        |
+| `npm run build`                                                                                                                                             | 0      | Production budgets, split, globals and notices pass with unchanged caps.                                          |
+
+Build: activation **462.8/600 KiB**, Devices **81.8/100 KiB**, Model API
+**456.0/475 KiB**. The driver remains outside production callers on this base,
+so these budgets do not qualify W's future binding or shipped Linux support.
+No full-quality/coverage or Windows/macOS/installed-host receipt is claimed.
+
+| Reviewed finding                        | Fixed code                                                                              | Regression                                                                                                                        |
+| --------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| P2 readiness slot leak                  | `src/host/backend/deviceWorkerLinux.ts:383`, `:385`, `:538`                             | `test/unit/deviceWorkerLinux.test.ts:180`: both 200-refusal cases reach launch 201.                                               |
+| P2 kill-on-host-loss                    | `src/host/backend/deviceWorkerLinux.ts:432`                                             | `test/unit/deviceWorkerHostNative.test.ts:410`: both real parent-SIGKILL cases.                                                   |
+| P2 restart recovery and journal honesty | `src/host/backend/deviceWorkerLinux.ts:174`; `src/host/devices/deviceWorkerHost.ts:197` | `test/unit/deviceWorkerHostNative.test.ts:410` (leftover=true); `test/unit/deviceWorkerLinux.test.ts:521` (real durable journal). |
+
+**Lead next steps / blockers.** Both review findings are repaired, none deferred.
+W must regenerate/review its host API inventory, arrange repair of the inherited
+M96 cycle before binding this port, bind the Linux selector and durable environment
+record, and complete README/CHANGELOG/reference integration, joined quality,
+coverage and installed-host qualification. No shared-contract request is needed.
+No dependency, translated text, setting, command, shared contract, escape hatch
+or policy change was added. Detailed temporary logs remain under this lane's
+private `$TMPDIR`; the certification above is the durable handoff.
