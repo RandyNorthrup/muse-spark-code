@@ -68,6 +68,30 @@ retry or a registry change. Remote commands run with an explicit recorded
 environment, stdin closed explicitly, results on a structured
 exit-code-plus-JSON channel (G14, G15).
 
+On macOS, an unprivileged per-attempt launchd helper uses the resource
+coalition inherited across fork/exec, setsid and double-fork reparenting.
+It samples whole-coalition counts every `POSIX_TREE_EXIT_POLL_MS` (**20 ms**)
+and SIGKILLs every enumerated member when the admitted process limit is
+exceeded, settling typed `capacity` only after observed whole-membership
+exit. The helper and final retirement observer use the same coalition ID;
+process groups and parent walks cannot replace this proof. Windows job
+objects and Linux cgroup `TasksMax` enforce caps in the kernel at fork;
+macOS enforces by supervised termination on the next sample, subject to
+scheduler delay and scan cost. Short-lived excess processes may execute
+between samples. The unchanged UID-wide `RLIMIT_NPROC` is only the outer
+bound. The native HM3 probe measured a UID membership scan at **0.037930 ms**
+mean over 100 scans (about **0.19%** of the interval, excluding I/O/accounting).
+The full native sample (counts, enumeration, memory/power accounting and
+atomic query-file write) averaged **1.221855 ms**, median **1.210392 ms**,
+maximum **2.027655 ms** over 100 samples with three coalition tasks: **6.11%**
+of the 20 ms interval in wall time. The loop subtracts that work from its
+sleep; an overrun samples again immediately. These are measured costs on
+this Mac, not a guarantee against scheduler stalls or transient overflow.
+H's `deviceWorkerDarwin.test.ts` proves cap-2 overflow termination including
+a setsid/double-fork escapee, cap-3 completion and no retirement while an
+escapee lives. Unsupported private ABI or GUI-manager observations fail
+closed; lost observations retain uncertainty and occupancy.
+
 ### Per-action control (lane A reads)
 
 Every admission binds the sender's role/mode ceiling to the receiver's

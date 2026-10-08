@@ -35818,6 +35818,86 @@ paid/live call or physical-device qualification is introduced.
 
 ### M100 phase 2 — bound owners, discovery, hardened hosts, per-action control (D80, planned)
 
+**M100P2HM9 lifecycle review repair (2026-10-08, before implementation).**
+Keep HM8's recorded lifecycle. Reclaim signals every bootstrapped helper with an
+idempotent stop file, records the successful write, then bootouts, proves empty
+membership and removes only the owned directory. Signal even unobserved
+bootstraps conservatively: a published but unreadable readiness file may hide a
+live helper. Every sweep visits all pending attempts and returns all retained
+errors, including definitive failures; query surfaces them as typed uncertainty.
+D80 item 7 and M96's uncertain-attempt rule keep their directories/slots counted
+until local retirement proof; definitive program failure is never free capacity.
+Prove context/schema/read-timeout with failed bootout and native assertion release,
+plus definitive/retryable oldest failures with two reclaimable newer attempts.
+Run each regression on `ed3c06cbb`, drill stop removal and early sweep return,
+then fresh-clone owning suites three times and all requested scoped gates within
+60 minutes. W-owned product changelog, host inventory and aggregate quality
+remain integration obligations under §7; no shared contract or gate changes.
+
+**M100P2HM8 lifecycle redesign (2026-10-08, before implementation).**
+Replace readiness-file/pending booleans with one driver-owned attempt record:
+allocated → bootstrapping → running → retiring → reclaimed, with pendingReclaim
+retaining the furthest progress and observed membership. Every probe and ordinary
+attempt uses the same transitions. Never-bootstrap attempts remove directly;
+pre-ready attempts boot out and prove any observed PID/coalition empty; running
+attempts retain whole-membership proof. Unavailable observations retain explicit
+pending evidence for the sweep; query visits running records only. Centralize
+launchctl print 113 / bootout 3 as absence. Cover allocation, bootstrap deliveries,
+pre-ready print/write, retirement, bootout and removal in a delivery matrix,
+prove regressions on `78e72664f`, preserve 200/128 stress cases, drill all three
+guards, then fresh-clone H three times, receiver, five compilers/static/build
+at unchanged repository deadlines. Hooks remain installed; product changelog,
+inventory and aggregate quality remain W's integration obligations (§7).
+
+**M100P2HM7 probe reclamation (2026-10-08, before implementation).**
+Always boot out the preparation probe, treating launchd's absent-job status as
+idempotent success, and reclaim only after observed empty coalition membership.
+Retain failed observations as pending reclamation with exact factory-owned
+root/attempt identities. Sweep at preparation entry and before capacity refusal;
+never remove unowned, renamed or substituted directories. Prove 200 consecutive
+retryable observation failures, a full 128-pending-probe recovery, and empty
+attempt stores in every observing cell of the 288-cell table. Run both regressions
+on `bf57f638b`, reclaim/sweep red drills, and fresh-clone H/receiver/static/build
+gates at default deadlines within the 45-minute brief. W-owned product docs and
+inventories remain integration requests; no cap or gate is weakened.
+
+**M100P2HM6 round-3 redesign (2026-10-08, before implementation).** Replace
+both Darwin process wrappers with one bounded, injected-spawn primitive. It
+classifies synchronous throws, error events, exits, deadlines and output bounds
+before any caller sees them; one errno table makes EAGAIN/ENOMEM/EMFILE/ENFILE
+retryable capacity and missing/inaccessible executables definitive helper errors.
+Preparation is explicit unknown/preparing/ready/notGui/broken state, shares an
+in-flight preparation, and retains only definitive outcomes. Capacity, timeout
+and lost observations return to unknown. Keep all native macOS cases; add the
+failure-mode-by-spawn-site table, baseline proofs on `c94ddce3c`, bypass/cache
+red drills, and fresh-clone three-run static/build qualification. Shared W-owned
+docs/inventories remain lead requests; no deadline, cap or assertion changes.
+
+**M100P2HM5 review closure (2026-10-08, before implementation).** Share the
+Darwin runner's spawn-error mapping with the bounded Aqua probe: `EAGAIN`
+and `ENOMEM` reject as transient `capacity`, so preparation retries instead
+of caching an unsupported GUI session. Inject process pressure before the
+first launch, then prove the same factory reaches real launchctl and succeeds.
+Audit the driver's remaining spawn sites, prove the regression on `407025f16`
+and a deliberate guard break, and qualify the committed source in a fresh clone
+under the existing H scoped gate. Shared W-owned product docs and inventories
+remain integration requests; no deadline, assertion or cap changes.
+The audit also covers the primitive native self-test's own `posix_spawn`:
+return a validated optional capacity failure instead of caching pressure as a
+failed capability probe, and prove retry with a subprocess-only UID limit.
+
+**M100P2HM4 review closure (2026-10-08, before implementation).** Settle an
+observed whole-membership capacity exit as a typed local retirement with usage
+and existing localized recovery prose. The receiver durably records `retired`
+with optional `failure: capacity`, then releases once; unknown exits remain
+uncertain. Preserve that failure in compact terminal records. This narrow
+review-required result amendment preserves all existing journal states and
+failure vocabulary; lane 0/W must reconcile the additive result field during
+integration. Bound the Aqua-domain probe to its session line (the rig shell's
+manager is Background), and clear only rejected preparation promises so a
+transient capacity failure retries. Prove baseline failures and guard drills;
+verify H and receiver/recovery in a fresh committed clone at default deadlines.
+
 **M100P2BASE integration scope (2026-10-07, macmini).** Merge only
 `23c67925f` into release head `9d1ab33c3` with `--no-ff`, preserving both
 branches and 0.15.0. Rebuild generated inventories. Verify committed work
@@ -41543,6 +41623,22 @@ is relaxed. No live or paid calls, push, rebase or merge.
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
+
+**M100P2HM4/HM5/HM6/HM7/HM8/HM9 scoped review gate (2026-10-08, macmini).** Hooked commits are
+local checkpoints; the owner's 60-minute H brief requires fresh-clone scoped
+tests and static/build gates. HM5's 30-minute, HM6's 60-minute, HM7's 45-minute
+and HM8's 75-minute/HM9's 60-minute lifecycle follow-ups use the same scope.
+Full `npm run quality` and integrated platform
+qualification remain W's required gate before integration. No threshold,
+timeout, assertion or ignore changes. The inherited stale host API inventory
+remains W-owned and is reported separately in the macOS certification record.
+Final-source receiver/recovery verification also exposes the unchanged E test
+`RVM100E3-P2 reset starts Stop despite a stalled journal and held cancellation
+confirmation`: its final reconciliation can precede the asynchronously queued
+uncertain-state write, so fixture removal races that write (`ENOTEMPTY`).
+Per the shared file-ownership rule, E must await that durable state before its
+existing reconciliation/teardown; H records the actual three-run exits without
+editing E's test, suppressing the failure or changing an assertion/deadline.
 
 **MACSLOW bounded certification (2026-10-07, macmini).** The lane's shared
 rules prohibit aggregate quality and delegate it to the lead. Run complete

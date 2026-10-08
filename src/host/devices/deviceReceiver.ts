@@ -46,10 +46,17 @@ export interface DeviceLocalAttempt {
   /**
    * Resolves only after requests AND all admitted tool/descendant processes settle. `refused`
    * says no job/unit ever existed, so nothing ran: journaled `refused`, never `retired` work.
+   * A capacity result proves whole-membership exit, with usage and localized recovery prose.
    */
   readonly retirement: Promise<
     | { usage: DeviceOutcome['usage']; artifact?: DeviceOutcome['artifact'] }
     | { refused: true; usage: DeviceOutcome['usage'] }
+    | {
+        failure: 'capacity'
+        wholeMembershipExited: true
+        usage: DeviceOutcome['usage']
+        message: string
+      }
   >
   /** Releases execution occupancy after durable retirement; retained paid liability stays local. */
   release(): Promise<void>
@@ -339,6 +346,7 @@ export class DeviceReceiver implements DeviceExecutionPort {
                       artifactBytes: 0,
                     },
                     usage: result.usage,
+                    ...('failure' in result && { failure: result.failure }),
                     ...('artifact' in result &&
                       result.artifact !== undefined && { artifact: result.artifact }),
                   }),

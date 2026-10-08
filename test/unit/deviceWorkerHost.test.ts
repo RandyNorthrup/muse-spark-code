@@ -7,6 +7,7 @@ import {
   DeviceWorkerHost,
   DeviceWorkerHostError,
   type DeviceWorkerAttempt,
+  selectDeviceWorkerDriver,
   type DeviceWorkerHostDeps,
   type DeviceWorkerJob,
 } from '../../src/host/devices/deviceWorkerHost'
@@ -16,9 +17,10 @@ import { deviceWorkerNative } from '../../src/host/backend/deviceWorkerNative'
 import type { RunProgram } from '../../src/host/processTree'
 import type { DeviceDispatch } from '../../src/shared/devices'
 import { AttemptJournal } from '../../src/core/devices/attemptJournal'
-import { DeviceReceiver } from '../../src/host/devices/deviceReceiver'
+import type { DeviceReceiver } from '../../src/host/devices/deviceReceiver'
 import { deviceCheck, deviceGrant } from './helpers/deviceFixtures'
 import { executionProtection, signedDispatch } from './helpers/deviceExecutionFixtures'
+import { openWorkerReceiver } from './helpers/deviceWorkerReceiver'
 
 const usage = {
   settlementId: 'a'.repeat(32),
@@ -141,15 +143,7 @@ async function throughReceiver(
       executionProtection,
     )
     const grant = deviceGrant('a'.repeat(32))
-    const receiver = await DeviceReceiver.open(grant.offer.receiverIncarnationId, journal, host, {
-      currentGrant: () => Promise.resolve(grant),
-      assertAllowed: () => Promise.resolve(),
-      approve: () => Promise.resolve(true),
-      paidGate: { isOn: () => true },
-      paidConsent: { allows: () => Promise.resolve(true) },
-      assertPaidBinding: () => Promise.resolve(),
-    })
-    receiver.resumeQueue()
+    const receiver = await openWorkerReceiver(journal, host, grant)
     await body(receiver, journal)
   } finally {
     await rm(parent, { recursive: true, force: true })
@@ -166,6 +160,71 @@ async function inStorage(body: (directory: string) => Promise<void>): Promise<vo
 const helperRequestSchema = z.object({ cwd: z.string(), maxProcesses: z.number() })
 
 describe('M100/H worker host', () => {
+  it('selects exactly one lazy native factory and refuses other platforms', () => {
+    const darwin = fixture('darwin').deps.driver
+    const win32 = fixture('win32').deps.driver
+    const factories = { darwin: vi.fn(() => darwin), win32: vi.fn(() => win32) }
+    expect(selectDeviceWorkerDriver('darwin', factories)).toBe(darwin)
+    expect(factories.win32).not.toHaveBeenCalled()
+    expect(selectDeviceWorkerDriver('win32', factories)).toBe(win32)
+    expect(() => selectDeviceWorkerDriver('linux', factories)).toThrow(DeviceWorkerHostError)
+    expect(factories.darwin).toHaveBeenCalledOnce()
+    expect(factories.win32).toHaveBeenCalledOnce()
+  })
+  it('returns typed host pressure with recovery prose after a bounded job exit', async () => {
+    const f = fixture('darwin')
+    const attempt = await f.host.admit(request)
+    await attempt.start(boundary)
+    f.retired.resolve({ exitCode: 1, stdout: '', failure: 'capacity' })
+    await expect(attempt.retirement).resolves.toMatchObject({
+      failure: 'capacity',
+      wholeMembershipExited: true,
+      usage,
+      message: UI_TEXT.devices.capacityHelp,
+    })
+    expect(f.deps.driver.launch).toHaveBeenCalledOnce()
+    await attempt.release()
+  })
+  it.each(['win32', 'linux'] as const)(
+    'journals observed %s capacity through the real receiver and releases exactly once',
+    async (platform) => {
+      const f = fixture(platform)
+      await throughReceiver(f.host, async (receiver, journal) => {
+        const sent = signedDispatch(request)
+        const dispatched = await receiver.dispatch(sent)
+        expect(dispatched.body).toMatchObject({ kind: 'outcome' })
+        f.retired.resolve({ exitCode: 1, stdout: '', failure: 'capacity' })
+        await expect
+          .poll(() => journal.lookup(sent.identity))
+          .toMatchObject({
+            kind: 'receiver-record',
+            outcome: {
+              state: 'retired',
+              failure: 'capacity',
+              occupied: { workers: 0, processes: 0, heavyChecks: 0 },
+              usage,
+            },
+          })
+        await expect.poll(() => f.reservation.release.mock.calls.length).toBe(1)
+        const replay = await receiver.dispatch(sent)
+        expect(replay.body).toMatchObject({
+          kind: 'reconciled',
+          outcomes: [{ state: 'retired', failure: 'capacity', usage }],
+        })
+        expect(f.deps.driver.launch).toHaveBeenCalledOnce()
+        expect(f.job.remove).toHaveBeenCalledOnce()
+        expect(f.reservation.release).toHaveBeenCalledOnce()
+        await journal.acknowledge(sent.identity, sent.payloadDigest, usage.settlementId)
+        await journal.compact(Date.now() + DEVICE_LIMITS.terminalRetentionMs)
+        const compacted = await receiver.dispatch(sent)
+        expect(compacted.body).toMatchObject({
+          kind: 'tombstone',
+          record: { state: 'retired', failure: 'capacity', usage },
+        })
+        expect(f.reservation.release).toHaveBeenCalledOnce()
+      })
+    },
+  )
   it.each(['win32', 'linux', 'darwin'] as const)(
     'reserves without starting on %s and starts exactly once',
     async (platform) => {
