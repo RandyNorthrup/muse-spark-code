@@ -9,6 +9,8 @@ import {
   writeFile,
   lstat,
   realpath,
+  rename,
+  symlink,
 } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -232,10 +234,157 @@ async function spawnBoundaryFixture(...args: Parameters<typeof darwinSpawnFixtur
   return { ...fixture, driver, start }
 }
 
+const attemptNames = async (directory: string) => {
+  const names = await readdir(path.join(directory, 'device-workers-darwin'))
+  return names.filter((name) => name.startsWith('attempt-'))
+}
+const reclamationFixture = async (site: 'retirement-print' | 'count') => {
+  const failure = darwinSpawnFailures[0]
+  if (failure === undefined) throw new Error('failure fixture missing')
+  const fixture = await spawnBoundaryFixture(site, failure)
+  fixture.repeatFailure()
+  fixture.immediateProbes()
+  return fixture
+}
+const restoreFixture = async (fixture: Awaited<ReturnType<typeof reclamationFixture>>) => {
+  vi.mocked(spawn).mockRestore()
+  vi.mocked(execFile).mockRestore()
+  vi.mocked(lstat).mockRestore()
+  await fixture.clean()
+}
 describe('M100/H spawn boundary', () => {
   const cases = darwinSpawnSites.flatMap((site) =>
     darwinSpawnFailures.map((failure) => ({ site, failure, name: `${site}: ${failure.name}` })),
   )
+  it('reclaims the probe after 200 consecutive retryable observation failures', async () => {
+    const fixture = await reclamationFixture('retirement-print')
+    try {
+      for (let index = 0; index < 200; index += 1) {
+        await expect(fixture.start()).rejects.toMatchObject({ reason: 'uncertain' })
+        expect(await attemptNames(fixture.directory)).toEqual([])
+        expect(fixture.jobs.size).toBe(0)
+      }
+      const calls = fixture.calls.length
+      fixture.disableFailure()
+      const job = await fixture.start()
+      expect(fixture.calls.slice(calls)).toContain('bootstrap')
+      await complete(job)
+      expect(await attemptNames(fixture.directory)).toEqual([])
+      expect(await fixture.driver.query()).toMatchObject({ activeProcesses: 0 })
+    } finally {
+      await restoreFixture(fixture)
+    }
+  })
+  it('sweeps 128 dead pending probes before a recovered preparation and launch', async () => {
+    const fixture = await reclamationFixture('count')
+    try {
+      for (let index = 0; index < DEVICE_LIMITS.unresolvedAttempts; index += 1)
+        await expect(fixture.start()).rejects.toMatchObject({ reason: 'uncertain' })
+      expect(await attemptNames(fixture.directory)).toHaveLength(DEVICE_LIMITS.unresolvedAttempts)
+      expect(fixture.jobs.size).toBe(0)
+      const calls = fixture.calls.length
+      fixture.disableFailure()
+      const job = await fixture.start()
+      expect(fixture.calls.slice(calls)).toContain('bootstrap')
+      await complete(job)
+      expect(await attemptNames(fixture.directory)).toEqual([])
+      expect(await fixture.driver.query()).toMatchObject({ activeProcesses: 0 })
+    } finally {
+      await restoreFixture(fixture)
+    }
+  })
+  it('sweeps gone ordinary attempts before allocation refuses capacity', async () => {
+    const fixture = await reclamationFixture('count')
+    try {
+      fixture.disableFailure()
+      expect(await fixture.driver.selfTest()).toBe(true)
+      fixture.repeatFailure()
+      for (let index = 0; index < DEVICE_LIMITS.unresolvedAttempts; index += 1) {
+        const job = await fixture.start()
+        await expect(job.retirement).rejects.toMatchObject({ reason: 'uncertain' })
+      }
+      expect(await attemptNames(fixture.directory)).toHaveLength(DEVICE_LIMITS.unresolvedAttempts)
+      // The manager has lost every job, independently of the driver's store.
+      fixture.jobs.clear()
+      fixture.disableFailure()
+      await complete(await fixture.start())
+      expect(await attemptNames(fixture.directory)).toEqual([])
+      expect(await fixture.driver.query()).toMatchObject({ activeProcesses: 0 })
+    } finally {
+      await restoreFixture(fixture)
+    }
+  })
+  it.each(['coalition', 'group'])(
+    'retains a pending probe while its %s membership lives',
+    async (kind) => {
+      const fixture = await reclamationFixture('retirement-print')
+      try {
+        fixture.membership(kind === 'coalition' ? 1 : 0, kind === 'group' ? '2\n' : '')
+        await expect(fixture.start()).rejects.toMatchObject({ reason: 'uncertain' })
+        expect(await attemptNames(fixture.directory)).toHaveLength(1)
+        expect(fixture.jobs.size).toBe(0)
+        fixture.membership(0)
+        fixture.disableFailure()
+        await complete(await fixture.start())
+        expect(await attemptNames(fixture.directory)).toEqual([])
+      } finally {
+        await restoreFixture(fixture)
+      }
+    },
+  )
+  it.each(['directory', 'symlink'])(
+    'leaves an identity-substituted %s and unowned attempts untouched',
+    async (kind) => {
+      const fixture = await reclamationFixture('count')
+      try {
+        await expect(fixture.start()).rejects.toMatchObject({ reason: 'uncertain' })
+        const root = path.join(fixture.directory, 'device-workers-darwin')
+        const names = await attemptNames(fixture.directory)
+        const name = names[0]
+        if (name === undefined) throw new Error('pending attempt missing')
+        const directory = path.join(root, name)
+        const held = path.join(fixture.directory, 'held')
+        await rename(directory, held)
+        if (kind === 'symlink') await symlink(held, directory, 'junction')
+        else await mkdir(directory)
+        const unowned = path.join(
+          root,
+          'attempt-com.musespark.device.00000000000000000000000000000000',
+        )
+        await mkdir(unowned)
+        await writeFile(path.join(unowned, 'sentinel'), 'keep')
+        fixture.disableFailure()
+        await complete(await fixture.start())
+        expect(await attemptNames(fixture.directory)).toHaveLength(2)
+        expect(await readFile(path.join(unowned, 'sentinel'), 'utf8')).toBe('keep')
+        expect(await readFile(path.join(held, 'ready.json'), 'utf8')).toContain('coalition')
+      } finally {
+        await restoreFixture(fixture)
+      }
+    },
+  )
+  it('refuses a substituted store identity without touching the held attempts', async () => {
+    const fixture = await reclamationFixture('count')
+    try {
+      await expect(fixture.start()).rejects.toMatchObject({ reason: 'uncertain' })
+      const root = path.join(fixture.directory, 'device-workers-darwin')
+      const held = path.join(fixture.directory, 'held-store')
+      const names = await attemptNames(fixture.directory)
+      const name = names[0]
+      if (name === undefined) throw new Error('pending attempt missing')
+      await rename(root, held)
+      await mkdir(root, { mode: 0o700 })
+      fixture.disableFailure()
+      const calls = fixture.calls.length
+      await expect(fixture.start()).rejects.toMatchObject({ detail: 'preflight' })
+      expect(fixture.calls.slice(calls)).not.toContain('bootout')
+      expect(fixture.calls.slice(calls)).not.toContain('bootstrap')
+      expect(await readdir(root)).toEqual([])
+      expect(await readFile(path.join(held, name, 'ready.json'), 'utf8')).toContain('coalition')
+    } finally {
+      await restoreFixture(fixture)
+    }
+  })
   it('concurrent launches share preparation, then retry one transient outcome together', async () => {
     const failure = darwinSpawnFailures[0]
     if (failure === undefined) throw new Error('failure fixture missing')
@@ -306,6 +455,7 @@ describe('M100/H spawn boundary', () => {
         const calls = fixture.calls.length
         fixture.disableFailure()
         vi.useRealTimers()
+        if (isObserving) expect(await attemptNames(fixture.directory)).toEqual([])
         const isCached =
           !failure.retryable && !isObserving && site !== 'query' && site !== 'active-print'
         if (isCached) {
@@ -874,6 +1024,32 @@ int main(int argc, char **argv) {
       } finally {
         vi.mocked(spawn).mockRestore()
       }
+    },
+  )
+  it.each(['once', 'until recovery'])(
+    'reclaims a real probe after count pressure %s, including a reaped coalition',
+    async (delivery) => {
+      const actual = await vi.importActual<typeof ChildProcessModule>('node:child_process')
+      let isArmed = true
+      const driver = deviceWorkerDarwin({
+        storageDir: state.directory,
+        environment: process.env,
+        spawn: (file, args, options) => {
+          if (isArmed && args[0] === '--count') {
+            isArmed = delivery !== 'once'
+            throw Object.assign(new Error('injected count pressure'), { code: 'ENOMEM' })
+          }
+          if (args[0] === 'bootstrap' && args[2] !== undefined)
+            state.labels.add(path.basename(path.dirname(args[2])).slice('attempt-'.length))
+          return actual.spawn(file, [...args], options)
+        },
+      })
+      await expect(launch('process.exit(0)', driver)).rejects.toMatchObject({ reason: 'uncertain' })
+      expect(await attempts()).toHaveLength(delivery === 'once' ? 0 : 1)
+      isArmed = false
+      await complete(await launch('process.exit(0)', driver))
+      expect(await attempts()).toEqual([])
+      expect(await driver.query()).toMatchObject({ activeProcesses: 0 })
     },
   )
   it('closes stdin and validates JSON stdout despite stderr banners and a hostile inherited variable', async () => {

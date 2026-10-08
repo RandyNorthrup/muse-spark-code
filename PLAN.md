@@ -35818,6 +35818,18 @@ paid/live call or physical-device qualification is introduced.
 
 ### M100 phase 2 — bound owners, discovery, hardened hosts, per-action control (D80, planned)
 
+**M100P2HM7 probe reclamation (2026-10-08, before implementation).**
+Always boot out the preparation probe, treating launchd's absent-job status as
+idempotent success, and reclaim only after observed empty coalition membership.
+Retain failed observations as pending reclamation with exact factory-owned
+root/attempt identities. Sweep at preparation entry and before capacity refusal;
+never remove unowned, renamed or substituted directories. Prove 200 consecutive
+retryable observation failures, a full 128-pending-probe recovery, and empty
+attempt stores in every observing cell of the 288-cell table. Run both regressions
+on `bf57f638b`, reclaim/sweep red drills, and fresh-clone H/receiver/static/build
+gates at default deadlines within the 45-minute brief. W-owned product docs and
+inventories remain integration requests; no cap or gate is weakened.
+
 **M100P2HM6 round-3 redesign (2026-10-08, before implementation).** Replace
 both Darwin process wrappers with one bounded, injected-spawn primitive. It
 classifies synchronous throws, error events, exits, deadlines and output bounds
@@ -41514,10 +41526,10 @@ is relaxed. No live or paid calls, push, rebase or merge.
 
 ## 7. Gates
 
-**M100P2HM4/HM5/HM6 scoped review gate (2026-10-08, macmini).** Hooked commits are
+**M100P2HM4/HM5/HM6/HM7 scoped review gate (2026-10-08, macmini).** Hooked commits are
 local checkpoints; the owner's 60-minute H brief requires fresh-clone scoped
 tests and static/build gates; HM5's 30-minute and HM6's 60-minute follow-ups
-use the same scope.
+and HM7's 45-minute follow-up use the same scope.
 Full `npm run quality` and integrated platform
 qualification remain W's required gate before integration. No threshold,
 timeout, assertion or ignore changes. The inherited stale host API inventory

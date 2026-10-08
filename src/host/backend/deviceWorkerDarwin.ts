@@ -6,7 +6,13 @@ import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import { workerEnvironment } from '../../core/team/refFence'
-import { handleIdentity, lstatIdentity, sameFile } from '../../core/fs/fileIdentity'
+import {
+  handleIdentity,
+  identityOf,
+  lstatIdentity,
+  sameFile,
+  type FileIdentity,
+} from '../../core/fs/fileIdentity'
 import {
   DEVICE_LIMITS,
   MILLISECONDS_PER_SECOND,
@@ -95,7 +101,7 @@ static BOOL capacity(int error) { return ${Object.entries(spawnErrnos)
   .filter(([, detail]) => detail === 'capacity')
   .map(([code]) => `error == ${code}`)
   .join(' || ')}; }
-static BOOL members(uint64_t id, BOOL stop, uint64_t *memory) {
+static BOOL members(uint64_t id, BOOL stop, uint64_t *memory, uint64_t *active) {
   int bytes = proc_listpids(PROC_UID_ONLY, getuid(), NULL, 0);
   if (bytes <= 0) return NO;
   // proc_listpids returns bytes. A full/truncated snapshot cannot prove membership.
@@ -104,12 +110,14 @@ static BOOL members(uint64_t id, BOOL stop, uint64_t *memory) {
   int size = proc_listpids(PROC_UID_ONLY, getuid(), pids, capacity);
   if (size <= 0 || size >= capacity || size % sizeof(pid_t)) { free(pids); return NO; }
   *memory = 0;
+  *active = 0;
   for (int i = 0; i < size / sizeof(pid_t); i++) {
     if (pids[i] <= 0 || pids[i] == getpid()) continue;
     errno = 0;
     uint64_t member = coalition(pids[i]);
     if (!member && errno != ESRCH) { free(pids); return NO; }
     if (member != id) continue;
+    (*active)++;
     struct rusage_info_v2 usage = {0};
     if (proc_pid_rusage(pids[i], RUSAGE_INFO_V2, (rusage_info_t *)&usage) == 0) *memory += usage.ri_resident_size;
     // Recheck coalition membership immediately before signalling a member.
@@ -154,7 +162,10 @@ int main(int argc, const char **argv) { @autoreleasepool {
     return write(STDOUT_FILENO, data.bytes, data.length) == data.length ? 0 : 1;
   }
   if (argc == 3 && !strcmp(argv[1], "--count")) {
-    uint64_t active, cpu; if (!counts(strtoull(argv[2], NULL, 10), &active, &cpu)) return 1;
+    uint64_t active, cpu, memory, id = strtoull(argv[2], NULL, 10);
+    // bootout may reap the resource-usage record. A complete successful UID
+    // membership scan still proves whether any task belongs to that coalition.
+    if (!counts(id, &active, &cpu) && !members(id, NO, &memory, &active)) return 1;
     printf("{\"active\":%llu}", active); return 0;
   }
   if (argc != 3 || strcmp(argv[1], "--run")) return 1;
@@ -221,7 +232,7 @@ int main(int argc, const char **argv) { @autoreleasepool {
     if (overflow || active - 1 > [config[@"maxProcesses"] unsignedLongLongValue]) failure = @"capacity";
     BOOL stop = present(file(@"stop")) || ![failure isEqualToString:@"none"];
     uint64_t memory;
-    if (!members(id,stop,&memory)) return 1;
+    uint64_t observed; if (!members(id,stop,&memory,&observed)) return 1;
     if (memory > peak) peak = memory;
     if (!save(file(@"query.json"), query(label,active-1,cpu,peak,awake))) return 1;
     // Kernel counts include every descendant, even setsid/double-fork escapees.
@@ -269,9 +280,17 @@ class DarwinProgramError extends DeviceWorkerHostError {
     public readonly kind: ProgramFailureKind,
     detail: 'capacity' | 'helper',
     public readonly isRetryable: boolean,
+    public readonly exitCode?: number | null,
   ) {
     super(detail)
   }
+}
+
+// Native launchctl statuses captured on this rig; ABI values, not tunables.
+const LAUNCHCTL_ABSENT_BOOTOUT = 3
+const LAUNCHCTL_ABSENT_PRINT = 113
+function isAbsent(error: unknown, code: number): boolean {
+  return error instanceof DarwinProgramError && error.kind === 'exit' && error.exitCode === code
 }
 
 type SpawnChild = (file: string, args: readonly string[], options: SpawnOptions) => ChildProcess
@@ -321,7 +340,10 @@ function program(
       finish(
         code === 0 && !isSessionOnly && child.stdout !== null && child.stderr !== null
           ? { kind: 'success', stdout: Buffer.concat(chunks).toString('utf8') }
-          : { kind: 'failure', error: new DarwinProgramError('exit', 'helper', code === null) },
+          : {
+              kind: 'failure',
+              error: new DarwinProgramError('exit', 'helper', code === null, code),
+            },
         false,
       )
     })
@@ -361,6 +383,14 @@ type PreparationState =
   | { kind: 'preparing'; result: Promise<PreparationOutcome> }
   | { kind: 'ready' | 'notGui' }
   | { kind: 'broken'; error: DeviceWorkerHostError }
+
+interface DarwinAttempt {
+  readonly directory: string
+  readonly identity: FileIdentity
+  readonly isProbe: boolean
+  pending: boolean
+  ready?: z.infer<typeof readySchema>
+}
 
 export interface DeviceWorkerDarwinDeps {
   readonly storageDir: string
@@ -431,7 +461,8 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
     root,
     `worker-${createHash('sha256').update(helperSource).digest('hex')}`,
   )
-  const jobs = new Map<string, { directory: string; pid: number }>()
+  const jobs = new Map<string, DarwinAttempt>()
+  let rootIdentity: FileIdentity | undefined
   let preparation: PreparationState = { kind: 'unknown' }
   let allocating = Promise.resolve()
   const call = (args: string[]) => invoke('/bin/launchctl', args, env)
@@ -445,8 +476,81 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
       (info.mode & Number('0o077')) !== 0
     )
       throw new DeviceWorkerHostError('preflight')
+    const identity = await lstatIdentity(root)
+    if (rootIdentity !== undefined && !sameFile(identity, rootIdentity))
+      throw new DeviceWorkerHostError('preflight')
+    rootIdentity ??= identityOf(identity)
   }
-  const allocate = async (directory: string): Promise<void> => {
+  const ownedDirectory = async (attempt: DarwinAttempt): Promise<void> => {
+    await prepareRoot()
+    const name = path.basename(attempt.directory)
+    const info = await lstatIdentity(attempt.directory)
+    if (
+      !/^attempt-com\.musespark\.device\.[a-f0-9]{32}$/.test(name) ||
+      path.dirname(attempt.directory) !== root ||
+      !info.isDirectory() ||
+      info.isSymbolicLink() ||
+      !sameFile(info, attempt.identity)
+    )
+      throw new DeviceWorkerHostError('preflight')
+  }
+  const bootout = async (service: string): Promise<void> => {
+    try {
+      await call(['bootout', service])
+    } catch (error) {
+      if (!isAbsent(error, LAUNCHCTL_ABSENT_BOOTOUT)) throw error
+    }
+  }
+  const isMembershipEmpty = async (attempt: DarwinAttempt): Promise<boolean> => {
+    attempt.ready ??= readySchema.parse(
+      await readBounded(path.join(attempt.directory, 'ready.json')),
+    )
+    const counts = countSchema.parse(
+      JSON.parse(await invoke(target, ['--count', String(attempt.ready.coalition)], env)),
+    )
+    const groups = await invoke('/bin/ps', ['-axo', 'pgid='], env)
+    return (
+      counts.active === 0 &&
+      groups.split(/\r?\n/).every((line) => line.trim() !== String(attempt.ready?.pid))
+    )
+  }
+  const reclaim = async (service: string, attempt: DarwinAttempt): Promise<void> => {
+    await ownedDirectory(attempt)
+    await bootout(service)
+    if (!(await isMembershipEmpty(attempt))) throw new DeviceWorkerHostError('result')
+    // Recheck immediately before removal; never follow a substituted directory.
+    await ownedDirectory(attempt)
+    await rm(attempt.directory, { recursive: true, force: true })
+    jobs.delete(service)
+  }
+  const pendingReclaim = async (service: string, attempt: DarwinAttempt): Promise<void> => {
+    attempt.pending = true
+    try {
+      await reclaim(service, attempt)
+    } catch {
+      // Failed inspection retains evidence for the next preparation/capacity sweep.
+    }
+  }
+  const sweep = async (): Promise<void> => {
+    for (const [service, attempt] of jobs) {
+      if (attempt.pending && attempt.isProbe) {
+        try {
+          await reclaim(service, attempt)
+        } catch (error) {
+          // Process pressure affects the sweep too; do not amplify it with one
+          // failed inspection per retained probe. Retry on the next entry.
+          if (error instanceof DarwinProgramError) return
+        }
+        continue
+      }
+      try {
+        await call(['print', service])
+      } catch (error) {
+        if (isAbsent(error, LAUNCHCTL_ABSENT_PRINT)) await pendingReclaim(service, attempt)
+      }
+    }
+  }
+  const allocate = async (directory: string): Promise<FileIdentity> => {
     const previous = allocating
     let unlock: { resolve(): void } | undefined
     allocating = new Promise<void>((resolve) => {
@@ -457,10 +561,20 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
       await previous
       await prepareRoot()
       const names = await readdir(root)
-      const entries = names.filter((name) => name.startsWith('attempt-'))
-      if (entries.length >= DEVICE_LIMITS.unresolvedAttempts)
-        throw new DeviceWorkerHostError('capacity')
+      if (
+        names.filter((name) => name.startsWith('attempt-')).length >=
+        DEVICE_LIMITS.unresolvedAttempts
+      ) {
+        await sweep()
+        const remaining = await readdir(root)
+        if (
+          remaining.filter((name) => name.startsWith('attempt-')).length >=
+          DEVICE_LIMITS.unresolvedAttempts
+        )
+          throw new DeviceWorkerHostError('capacity')
+      }
       await mkdir(directory, { mode: Number('0o700') })
+      return identityOf(await lstatIdentity(directory))
     } finally {
       unlock.resolve()
     }
@@ -469,10 +583,14 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
     command: DeviceWorkerCommand,
     environment: NodeJS.ProcessEnv,
     maxProcesses: number,
-  ): Promise<DeviceWorkerJob> => {
+    isProbe = false,
+  ): Promise<DeviceWorkerJob & { reclaim(): Promise<void> }> => {
     const label = `com.musespark.device.${randomUUID().replaceAll('-', '')}`
     const directory = path.join(root, `attempt-${label}`)
-    await allocate(directory)
+    const identity = await allocate(directory)
+    const attempt: DarwinAttempt = { directory, identity, isProbe, pending: false }
+    const service = `${domain}/${label}`
+    jobs.set(service, attempt)
     const file = (name: string) => path.join(directory, name)
     const config = {
       directory,
@@ -494,7 +612,6 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
       .join('')
     const plist = `<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>Label</key><string>${label}</string><key>ProgramArguments</key><array><string>${xml(target)}</string><string>--run</string><string>${xml(file('request.json'))}</string></array><key>EnvironmentVariables</key><dict>${variables}</dict><key>RunAtLoad</key><true/><key>AbandonProcessGroup</key><false/><key>LimitLoadToSessionType</key><string>Aqua</string></dict></plist>`
     await writeFile(file('job.plist'), plist, { flag: 'wx', mode: Number('0o600') })
-    const service = `${domain}/${label}`
     let ready: z.infer<typeof readySchema>
     let query: ReturnType<typeof parseDeviceWorkerQuery>
     try {
@@ -520,13 +637,15 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
       // any manager failure. No readiness deadline ever resolves retirement.
       await writeFile(file('stop'), '', { mode: Number('0o600') })
       try {
-        await call(['bootout', service])
+        await bootout(service)
       } catch {
         /* Keep this attempt for local recovery. */
       }
+      attempt.pending = true
+      if (isProbe) await pendingReclaim(service, attempt)
       throw error instanceof DeviceWorkerHostError ? error : new DeviceWorkerHostError('helper')
     }
-    jobs.set(service, { directory, pid: ready.pid })
+    attempt.ready = ready
     let isObserved = false
     let isRemoved = false
     const retirement = (async (): Promise<unknown> => {
@@ -570,19 +689,20 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
       cancel: async () => {
         if (!isRemoved && !isObserved) await writeFile(file('stop'), '', { mode: Number('0o600') })
       },
+      reclaim: () => pendingReclaim(service, attempt),
       remove: async () => {
         if (!isObserved) throw new DeviceWorkerHostError('result')
         if (isRemoved) return
-        await call(['bootout', service])
+        attempt.pending = true
+        await reclaim(service, attempt)
         isRemoved = true
-        jobs.delete(service)
-        await rm(directory, { recursive: true, force: true })
       },
     }
   }
   const prepareWorker = async (): Promise<PreparationOutcome> => {
     try {
       if (uid === undefined) return { kind: 'notGui' }
+      await sweep()
       const domainInfo = await invoke('/bin/launchctl', ['print', domain], env, true)
       if (!/^\s*session = Aqua\s*$/m.test(domainInfo)) return { kind: 'notGui' }
       await prepareRoot()
@@ -619,6 +739,7 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
         { executable: '/usr/bin/true', args: [], cwd: root, requiredTools: [] },
         env,
         1,
+        true,
       )
       let hasRetired = false
       try {
@@ -630,8 +751,12 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
           throw new DeviceWorkerHostError('helper')
         return { kind: 'ready' }
       } finally {
-        await job.cancel()
-        if (hasRetired) await job.remove()
+        try {
+          await job.cancel()
+        } finally {
+          if (hasRetired) await job.remove()
+          else await job.reclaim()
+        }
       }
     } catch (error) {
       const failure =
@@ -675,6 +800,7 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
           : new DeviceWorkerHostError('helper')
       const query = parseDeviceWorkerQuery(JSON.parse(await invoke(target, ['--query'], env)))
       for (const [service, job] of jobs) {
+        if (job.ready === undefined || job.pending) continue
         const printed = await call(['print', service])
         if (!/^\s*pid = \d+\s*$/m.test(printed)) continue
         const value = await readBounded(

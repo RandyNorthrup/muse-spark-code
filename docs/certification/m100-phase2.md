@@ -1676,3 +1676,72 @@ All commits ran lint-staged and staged gitleaks with explicit paths; post-hook
 staged snapshots were reviewed. No push, merge, rebase, stash, credential read,
 paid/live model call or nonloopback listener. Temporary verification clones
 and hook copies are removed after final documentation validation.
+
+#### M100P2HM7 — macOS review round 4: probe reclamation (2026-10-08)
+
+Branch `m100/p2-h-darwin7`, base **`bf57f638b`**, review
+`RVM100P2HME`. This round closes its P2: failed probe retirement observations
+left launchd registrations and private attempt directories until the 128-entry
+cap permanently refused a recovered factory.
+
+The factory retains exact BigInt identities for its store and every directory
+it creates, together with readiness and pending-reclamation state. Probe cleanup
+always attempts bootout, including when cancellation fails; absence is idempotent.
+Deletion requires an observed empty resource coalition and no matching process
+group, followed by another directory-identity check. Failed inspections retain
+pending evidence. Sweeps run at preparation entry and before allocation refuses
+capacity, reclaiming pending probes and owned attempts with an observed absent
+launchd job. Unowned names, replaced directories, symlinks and replaced stores
+are never deleted. A sweep stops on inspection-process pressure instead of
+multiplying that pressure by the retained-attempt count. Removed attempts leave
+the factory map as well as the filesystem.
+
+**Native capture:** on this Mac (UID 502), credential-free
+`launchctl print gui/502/com.musespark.device.00000000000000000000000000000000`
+returned exit **113**; bootout of that absent service returned **3 / ESRCH**.
+Only those exit statuses supply absence; spawn errors, deadlines and other
+failures remain uncertainty. No new wire shape is introduced. Bootout can reap
+the coalition's resource-usage record. The native `--count` helper therefore
+falls back to a complete, successful UID membership scan using the same
+coalition IDs when that record cannot be read. Enumeration failures still
+refuse proof; process groups never replace coalition membership.
+
+| Acceptance                                                               | Test                                                                                                                                                                              |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Probe reclaimed after repeated retryable observation failure             | One factory, **200 consecutive** failures, zero attempt directories and fake-manager registrations after every failure, then bootstrap, real launch completion and a clean query. |
+| Recovery after the full retained-attempt ceiling                         | **128 dead pending probes** with count inspection held unavailable, then restored inspection, sweep, preparation/bootstrap, completion and an empty store/map.                    |
+| Capacity sweep also handles ordinary attempts                            | A ready factory accumulates **128 ordinary attempts**, loses their manager registrations, and reclaims observed empty membership before refusing the next allocation.             |
+| Every observing-site matrix cell checks cleanup                          | All **72 retirement-print/count/ps cells** in the unchanged **288-cell** delivery/site table assert an empty attempt store after recovery.                                        |
+| Retain live or unprovable membership; bound deletion to factory identity | Coalition/group-live cases retain the pending attempt; replaced directory, symlink, unowned sentinel and replaced-store cases preserve the held evidence.                         |
+| Actual launchd and reaped-coalition recovery                             | Two native count-pressure cases: one-shot pressure reclaims immediately; pressure through cleanup retains one probe until recovery, then sweeps and launches on the same factory. |
+
+**Base and required red drills:** repository default timeouts, no raised deadline.
+Final production SHA-256:
+`1b82565beaddd90699603e7cc7ebe58e2d2c8a08f02ce25614756e45bf93653b`.
+Every mutation was restored in finally and its SHA-256 checked byte-exact.
+
+| Mutation                                                                                        | Result                                                                                                     |
+| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Production file from `bf57f638b`, new 200/128/ordinary regressions and observing cells retained | **Exit 1: 75 failed, 0 passed, 256 filtered**, 4.106 s.                                                    |
+| Same base, native one-shot count-pressure regression                                            | **Exit 1: 1 failed, 0 passed, 330 filtered**, 0.397 s.                                                     |
+| Same base, native pending-count recovery regression                                             | **Exit 1: 1 failed, 0 passed, 330 filtered**, 1.227 s.                                                     |
+| Skip the failed-observation reclaim in preparation's finally                                    | **Exit 1: 2 failed, 0 passed, 329 filtered**, 0.062 s (200 stress and retirement-print ENOMEM).            |
+| Skip the sweep                                                                                  | **Exit 1: 2 failed, 0 passed, 329 filtered**, 0.881 s (128 pending probes and ordinary capacity recovery). |
+
+Additional guard drills used the final 332-test file: ignoring the membership
+proof failed **2** live-membership cases; skipping owned-directory identity
+checks failed **2** substitution cases; skipping the pinned store identity
+failed **1** replaced-store case. All exited **1**, with exact source restoration.
+The restored source's complete three-file checkpoint run exited **0**:
+**371 passed, 0 failed, 7 Windows-native skipped**; all **29 macOS-native cases**
+ran and passed, including the two new reaped-coalition cases.
+
+The initial stress fixtures exceeded 5 s by accumulating real polling sleeps;
+ready/exited fake jobs now remove those sleeps from the reclamation stress
+fixtures. The full 288-cell handshake and every native case remain intact.
+No timeout, assertion, cap, ignore or gate was weakened. No added string,
+dependency, setting, command or shared contract. W owns the product changelog
+and inventory: carry an Unreleased note that macOS probe failures no longer
+leave attempts that permanently exhaust preparation capacity. Aggregate quality
+and installed cross-platform qualification remain W's integration obligations
+under PLAN §7; this lane runs the brief's scoped fresh-clone gates.

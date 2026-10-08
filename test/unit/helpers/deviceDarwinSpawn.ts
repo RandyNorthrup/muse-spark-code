@@ -111,6 +111,10 @@ export async function darwinSpawnFixture(site: DarwinSpawnSite, failure: DarwinS
   let phase: 'preparing' | 'ready' = 'preparing'
   let isArmed = site !== 'query' && site !== 'active-print'
   let isInjected = false
+  let isRepeatedFailure = false
+  let active = 0
+  let groups = ''
+  let isImmediateProbe = false
   const { promise: injected, resolve: notify } = Promise.withResolvers<undefined>()
   const query = (label = 'transport', isAwake = false) => ({
     context: { session: owner.uid, station: 'gui', desktop: label },
@@ -162,15 +166,30 @@ export async function darwinSpawnFixture(site: DarwinSpawnSite, failure: DarwinS
       const config = configSchema.parse(
         JSON.parse(await readFile(path.join(path.dirname(plist), 'request.json'), 'utf8')),
       )
-      jobs.set(`${args[1] ?? ''}/${config.label}`, { ...config, ready: false })
+      jobs.set(`${args[1] ?? ''}/${config.label}`, { ...config, ready: isImmediateProbe })
+      if (isImmediateProbe) {
+        // Reclamation stress tests need ready/exited jobs, not 328 real poll
+        // sleeps. Native cases and the site table retain the full handshake.
+        await Promise.all([
+          writeFile(
+            path.join(config.directory, 'ready.json'),
+            JSON.stringify({ pid: 2, coalition: 1, query: query(config.label, true) }),
+          ),
+          writeFile(
+            path.join(config.directory, 'result.json'),
+            '{"exitCode":0,"stdout":"","failure":"none"}',
+          ),
+        ])
+      }
       return ''
     }
-    if (current === 'count') return '{"active":0}'
-    if (current === 'ps') return ''
+    if (current === 'count') return JSON.stringify({ active })
+    if (current === 'ps') return groups
     const job = jobs.get(args[1] ?? '')
     if (job === undefined) {
-      if (current === 'bootout') return ''
-      throw new Error('fake launchd job missing')
+      throw Object.assign(new Error('fake launchd job missing'), {
+        exitCode: current === 'bootout' ? 3 : 113,
+      })
     }
     if (current === 'bootout') {
       jobs.delete(args[1] ?? '')
@@ -183,7 +202,7 @@ export async function darwinSpawnFixture(site: DarwinSpawnSite, failure: DarwinS
       )
       job.ready = true
     }
-    let isActivated = false
+    let isActivated = isImmediateProbe
     for (const name of ['go', 'stop']) {
       try {
         await access(path.join(job.directory, name))
@@ -204,7 +223,7 @@ export async function darwinSpawnFixture(site: DarwinSpawnSite, failure: DarwinS
   const spawn = vi.fn((file: string, args: readonly string[], _options: SpawnOptions) => {
     const current = classify(file, args)
     calls.push(current)
-    const shouldFail = isArmed && !isInjected && current === site
+    const shouldFail = isArmed && (!isInjected || isRepeatedFailure) && current === site
     if (shouldFail) {
       isInjected = true
       notify(undefined)
@@ -256,7 +275,11 @@ export async function darwinSpawnFixture(site: DarwinSpawnSite, failure: DarwinS
           stdout.end(answer)
           child.emit('close', 0)
         })
-        .catch((error: unknown) => child.emit('error', error))
+        .catch((error: unknown) => {
+          if (typeof error === 'object' && error !== null && 'exitCode' in error)
+            child.emit('close', error.exitCode)
+          else child.emit('error', error)
+        })
     }
     return child
   })
@@ -265,6 +288,7 @@ export async function darwinSpawnFixture(site: DarwinSpawnSite, failure: DarwinS
     uid: owner.uid,
     spawn,
     calls,
+    jobs,
     injected,
     ready: () => {
       phase = 'ready'
@@ -272,6 +296,17 @@ export async function darwinSpawnFixture(site: DarwinSpawnSite, failure: DarwinS
     },
     disableFailure: () => {
       isArmed = false
+    },
+    repeatFailure: () => {
+      isArmed = true
+      isRepeatedFailure = true
+    },
+    membership: (count: number, processGroups = '') => {
+      active = count
+      groups = processGroups
+    },
+    immediateProbes: () => {
+      isImmediateProbe = true
     },
     clean: () => rm(directory, { recursive: true, force: true }),
   }
