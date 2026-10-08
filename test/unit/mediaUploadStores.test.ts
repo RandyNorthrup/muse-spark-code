@@ -326,7 +326,7 @@ describe('session store ownership over the real ledger', () => {
       currentAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
       directory: uploadLedgerDir,
       log,
-      attachment: () => undefined,
+      isCapped: () => true,
       source: () => Promise.resolve(undefined),
       authorize: () => Promise.resolve(),
     })
@@ -409,7 +409,7 @@ describe('per-account upload ledgers', () => {
         currentAccountId: () => Promise.resolve(accountId),
         directory: root,
         log,
-        attachment: () => undefined,
+        isCapped: () => true,
         source: () => Promise.resolve(undefined),
         authorize: () => Promise.resolve(),
       })

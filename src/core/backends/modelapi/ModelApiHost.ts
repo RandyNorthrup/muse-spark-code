@@ -418,8 +418,8 @@ import type {
   ContextOverflowKind,
 } from '../../providers/overflow'
 import type { MediaRequestAccounting } from '../../media/mediaCost'
-import type { MediaReplayPort } from '../../media/replayMedia'
-import type { StoredMediaPart, UploadedMediaRef } from '../../../shared/media'
+import type { MediaReplayPort, MediaReplaySession } from '../../media/replayMedia'
+import type { UploadedMediaRef } from '../../../shared/media'
 import { mcpFunctionDefinition, mcpFunctionName } from './mcp/functions'
 import {
   ALLOW_ELICITATION_SEAM,
@@ -768,7 +768,7 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   /** A smaller replay cap for focused media-budget verification. */
   readonly mediaBudgetMaxEncodedChars?: number
   /** W installs the portable lazy media implementation; absent preserves existing request bytes. */
-  readonly createMediaReplay?: (sessionId: string) => MediaReplayPort
+  readonly createMediaReplay?: (sessionId: string, session: MediaReplaySession) => MediaReplayPort
   /**
    * Where the production replay keeps its upload ledger and local
    * calibration observations (MONEY017D, D85.2/D85.6). The bundle builds
@@ -2782,7 +2782,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       deps.platform,
     )
     this.budget = new MediaBudget(deps.mediaBudgetMaxEncodedChars)
-    this.media = deps.createMediaReplay?.(sessionId)
+    // One production media service per session (M105 W): the session tells
+    // it, per request, whether spending is capped, so an unknown rate
+    // refuses only under a cap (D85.6).
+    this.media = deps.createMediaReplay?.(sessionId, { isCapped: () => this.isMediaCapped() })
     if (agent !== undefined) {
       this.effort = agent.effort
     }
@@ -3798,6 +3801,15 @@ export class ModelApiSession implements ScheduledAgentSession {
     return this.isSubagent
       ? Usd.from(0).toAmount()
       : (this.deps.budgetScope?.capUsd() ?? this.deps.sessionBudgetUsd())
+  }
+
+  /** Whether media spends under a cap now: the M82 session cap, or a D95.3
+   * scheduled run, whose hard cap admits every request. */
+  private isMediaCapped(): boolean {
+    return (
+      this.getScheduledRun() !== undefined ||
+      Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0
+    )
   }
 
   private budgetJournal(): SessionStore['budget'] {
@@ -7318,10 +7330,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (sent === undefined) {
         continue
       }
-      // A vetted inline visual registers for reservation at the calibrated
-      // envelope while its bytes stay inline; the vet at tool time already
-      // refused the unmeasurable, so this re-estimate cannot go unbilled.
-      if (file.priced !== undefined) this.media?.priceInlineVisual(sent, file.priced, this.modelId)
       const lead: InputContentPart = { type: 'input_text', text: file.lead }
       pending.push({
         notDelivered: file.notDelivered,
@@ -8488,12 +8496,12 @@ export class ModelApiSession implements ScheduledAgentSession {
               this.modelId,
               toolSignal ?? signal,
             ),
-          // Production pricing for inline visuals (image/PDF reads): the
-          // bytes stay inline, but the calibrated envelope governs the
-          // reservation and an unmeasurable document refuses under a cap.
-          priceVisual: (visual: StoredMediaPart) => {
-            media.vetVisual(visual, this.modelId)
-            return Promise.resolve()
+          // An image/PDF read is admitted through the same path as an
+          // attachment before the model is told the file follows: priced at
+          // the seeded bound, refused with the honest reason when capped and
+          // unmeasurable. It stays an inline record, never an upload.
+          admitVisual: (visual: ImagePart | DocumentPart) => {
+            media.admitInline(mediaPartFor(visual), this.modelId)
           },
         },
       }),

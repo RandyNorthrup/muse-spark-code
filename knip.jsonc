@@ -31,6 +31,7 @@
     "src/host/backend/providerPolicyEntry.ts",
     "src/core/backends/modelapi/modelApiHooksEntry.ts",
     "src/core/backends/modelapi/modelApiMcpEntry.ts",
+    "src/host/backend/productionMediaEntry.ts",
     "src/runtime/usage/usageServiceEntry.ts",
     "src/runtime/usage/usageCompanionEntry.ts",
     "src/host/usage/usagePanelEntry.ts",

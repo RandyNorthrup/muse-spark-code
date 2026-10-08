@@ -145,6 +145,24 @@ export const DEFERRED = [
     files: ['src/core/backends/modelapi/modelApiHooksEntry.ts'],
   },
   {
+    // M105 W: one production media service per session (D85.13). Neither
+    // activation, the Model API bundle nor ACP carries its closure.
+    output: 'dist/productionMedia.js',
+    metafile: 'dist/meta/productionMedia.json',
+    files: [
+      'src/host/backend/productionMediaEntry.ts',
+      'src/host/backend/sessionUploads.ts',
+      'src/core/media/productionMedia.ts',
+      'src/core/media/replayMedia.ts',
+      'src/core/media/mediaCost.ts',
+      'src/core/media/mediaCalibration.ts',
+      'src/core/media/metaMediaCapabilities.ts',
+      'src/core/media/responsesMediaCodec.ts',
+      'src/core/media/uploadLedger.ts',
+      'src/core/media/uploadLedgerStorage.ts',
+    ],
+  },
+  {
     output: 'dist/modelApiMcp.js',
     metafile: 'dist/meta/modelApiMcp.json',
     files: [
@@ -894,6 +912,7 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/backends/modelapi/hookRuntimeEntry.ts'), 'dist/hookRuntime.js'],
   [path.resolve('src/host/web/webFetchEntry.ts'), 'dist/webFetch.js'],
   [path.resolve('src/core/backends/modelapi/pluginHooksEntry.ts'), 'dist/pluginHooks.js'],
+  [path.resolve('src/host/backend/productionMediaEntry.ts'), 'dist/productionMedia.js'],
 ])
 /** @type {import('esbuild').Plugin} */
 export const deferredCohort = {
@@ -917,7 +936,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|productionMediaEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

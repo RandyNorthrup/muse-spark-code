@@ -42,7 +42,6 @@ import type { UsageBudgetRead } from '../core/usage/usageService'
 import { fileContextIo } from '../host/backend/contextIo'
 import { describeEnvironment } from '../host/backend/environment'
 import { createFileSessionStore } from '../host/backend/fileSessionStore'
-import { createSessionUploads } from '../host/backend/sessionUploads'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { createMemoryIo, systemPath } from '../host/backend/memoryIo'
 import { ModelApiBackendManager } from '../host/backend/modelApiBackendManager'
@@ -324,17 +323,22 @@ function modelApiManager(
           // Production media (P1, D85.2/D85.6): the upload ledger binds
           // the real session store, so a media turn saves and reopens
           // and deletion/purge releases that session's provider uploads.
+          // It loads from dist/productionMedia.js on first use.
           ...(uploadLedgerDir !== undefined && {
-            uploads: createSessionUploads({
-              uploadLedgerDir,
-              currentAccountId: async () => {
-                const key = await credentials.getApiKey()
-                return key === undefined
-                  ? undefined
-                  : createHash('sha256').update(key).digest('hex')
-              },
-              filesClient: () => filesClient(),
-            }),
+            uploads: async (accountId: string) => {
+              const media = await import('../host/backend/productionMediaEntry')
+              media.setUiText(UI_TEXT, uiLocale())
+              return await media.createSessionUploads({
+                uploadLedgerDir,
+                currentAccountId: async () => {
+                  const key = await credentials.getApiKey()
+                  return key === undefined
+                    ? undefined
+                    : createHash('sha256').update(key).digest('hex')
+                },
+                filesClient: () => filesClient(),
+              })(accountId)
+            },
           }),
         })
   // Snapshot copies are plain structured data. Keep their type/shape while

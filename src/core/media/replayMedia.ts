@@ -1,9 +1,25 @@
 // Durable metadata and per-request projections. Bytes/approved sources stay
 // transient; a model switch never overwrites the original upload reference.
+//
+// One admission path (M105 W redesign): every media input a request carries
+// is priced here, through one function, at the calibrated estimator's seeded
+// upper bound. Two kinds of record exist and never mix:
+// - upload records (`parts`): host-issued attachments and adopted tool
+//   uploads, whose sources reopen and whose file ids replay;
+// - inline records (`inlineVisuals`): images and PDFs carried as data URLs
+//   (attached, read by a tool, or restored with the session). They are
+//   identified from the bytes on the wire, priced on every request that
+//   carries them, and never registered for upload, so pricing one can never
+//   make a later turn reopen a source that does not exist (the RVMEDIAW P1).
+// "Unknown rate → refused" applies only while the session is capped
+// (D85.6); uncapped sessions price at the seeded bound where one exists and
+// otherwise keep the established byte count.
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
-import { MEDIA_FILE_ID_MIN_BYTES, UI_TEXT } from '../../shared/constants'
+import { MEDIA_FILE_ID_MIN_BYTES, MEDIA_NAME_MAX_CHARS, UI_TEXT } from '../../shared/constants'
 import { fill, formatBytes, formatUnit } from '../../shared/l10n/text'
+import { readImageInfo } from '../imageDimensions'
+import { pdfPageCount } from '../pdf'
 import {
   storedMediaPartSchema,
   type MediaInfo,
@@ -32,8 +48,14 @@ export interface ReplayMediaDeps {
   readonly ledger: (provider: string) => Pick<UploadLedger, 'ensure'>
   /** M101 C1 chooses complete recent turns; this lane preserves their canonical media. */
   readonly compactionTail: (entries: readonly StoredReplayItem[]) => readonly string[]
-  /** E1/E2 resolve host-issued tokens or approved legacy attachments, never guessed paths. */
-  readonly attachment: (part: TurnPart) => StoredMediaPart | undefined
+  /** E1/E2 resolve host-issued tokens or approved legacy attachments, never guessed paths.
+   * Images and PDFs carried inline need no resolver: their identity is read
+   * from the bytes on the wire. Absent until lane V binds attach tokens. */
+  readonly attachment?: (part: TurnPart) => StoredMediaPart | undefined
+  /** Whether this session spends under a cap now (M82 session cap, a D95.3
+   * scheduled run). Only then does an unknown rate refuse. Absent means
+   * capped, the fail-safe reading. */
+  readonly isCapped?: () => boolean
   /** Each open repeats confinement and approval checks. No source path is stored. */
   readonly source: (
     media: StoredMediaPart,
@@ -65,6 +87,73 @@ function metadataPart(media: StoredMediaPart): Extract<InputContentPart, { type:
   }
 }
 
+/** The data URL of an inline image or PDF part, as the request builder writes it. */
+const DATA_URL_PREFIX = /^data:([^;,]+);base64,/u
+/** Inline images carry no file name; the record names them generically. */
+const INLINE_IMAGE_NAME = 'image'
+const INLINE_PDF_NAME = 'document.pdf'
+
+/**
+ * An inline visual's calibrated identity, read from the bytes on the wire:
+ * kind, media type, size, dimensions or page count, and digest. Undefined
+ * for anything that is not a decodable inline image or PDF.
+ */
+function inlineVisualIdentity(part: InputContentPart): StoredMediaPart | undefined {
+  let url: string
+  let name: string
+  if (part.type === 'input_image' && 'image_url' in part) {
+    url = part.image_url
+    name = INLINE_IMAGE_NAME
+  } else if (part.type === 'input_file' && 'file_data' in part) {
+    url = part.file_data
+    // The name only labels the record; a name the schema cannot hold never
+    // leaves the bytes unpriced.
+    name = part.filename.length > 0 ? part.filename.slice(0, MEDIA_NAME_MAX_CHARS) : INLINE_PDF_NAME
+  } else {
+    return undefined
+  }
+  const prefix = DATA_URL_PREFIX.exec(url)
+  if (prefix === null) return undefined
+  const bytes = Buffer.from(url.slice(prefix[0].length), 'base64')
+  const sha256 = createHash('sha256').update(bytes).digest('hex')
+  let candidate: unknown
+  if (part.type === 'input_image') {
+    const image = readImageInfo(bytes)
+    if (image === undefined) return undefined
+    candidate = {
+      name,
+      sha256,
+      info: {
+        kind: 'image',
+        mediaType: image.mediaType,
+        sizeBytes: bytes.length,
+        width: image.width,
+        height: image.height,
+      },
+    }
+  } else {
+    if (prefix[1] !== 'application/pdf') return undefined
+    const pageCount = pdfPageCount(bytes)
+    candidate = {
+      name,
+      sha256,
+      info: {
+        kind: 'document',
+        mediaType: 'application/pdf',
+        sizeBytes: bytes.length,
+        ...(pageCount !== undefined && { pageCount }),
+      },
+    }
+  }
+  const parsed = storedMediaPartSchema.safeParse(candidate)
+  return parsed.success ? parsed.data : undefined
+}
+
+/** What the session tells its one media service, read per request. */
+export interface MediaReplaySession {
+  readonly isCapped: () => boolean
+}
+
 /** Structural host seam: W can bind a lazy adapter without inheriting this implementation. */
 export interface MediaReplayPort {
   readonly budgetParts: ReplayMedia['budgetParts']
@@ -78,8 +167,7 @@ export interface MediaReplayPort {
   readonly content: ReplayMedia['content']
   readonly restore: ReplayMedia['restore']
   readonly prepare: ReplayMedia['prepare']
-  readonly vetVisual: ReplayMedia['vetVisual']
-  readonly priceInlineVisual: ReplayMedia['priceInlineVisual']
+  readonly admitInline: ReplayMedia['admitInline']
   readonly project: ReplayMedia['project']
   readonly retain: ReplayMedia['retain']
   readonly delivered: ReplayMedia['delivered']
@@ -97,8 +185,9 @@ export class ReplayMedia {
   private readonly restored = new WeakSet<InputContentPart>()
   private readonly inline = new WeakMap<InputContentPart, InputContentPart>()
   private readonly replacements = new Set<string>()
-  /** Inline-priced visuals: registered for reservation but never observed. */
-  private readonly inlinePriced = new WeakSet<InputContentPart>()
+  /** Inline records: each part's identity read once from its wire bytes
+   * (null: not a decodable visual). Never consulted for upload or replay. */
+  private readonly inlineVisuals = new WeakMap<InputContentPart, StoredMediaPart | null>()
 
   public constructor(
     private readonly sessionId: string,
@@ -109,6 +198,68 @@ export class ReplayMedia {
     const model = this.deps.capabilities(modelId)
     if (model.modelId !== modelId) throw new Error('Media capability model mismatch')
     return model
+  }
+
+  private isCapped(): boolean {
+    return this.deps.isCapped?.() ?? true
+  }
+
+  /**
+   * The inline record for a user-message image or PDF the selected model's
+   * captured record prices. A model with no captured record for the kind
+   * keeps the established inline path (D85.1: unknown support never becomes
+   * a rate, and the request builder's own limits still apply).
+   */
+  private inlineVisual(
+    part: InputContentPart,
+    model: MediaModelCapabilities,
+  ): StoredMediaPart | undefined {
+    if (this.parts.has(part)) return undefined
+    let media = this.inlineVisuals.get(part)
+    if (media === undefined) {
+      media = inlineVisualIdentity(part) ?? null
+      this.inlineVisuals.set(part, media)
+    }
+    if (media === null) return undefined
+    const kind = media.info.kind === 'image' ? 'image' : 'document'
+    return model.modalities[kind].support === 'yes' ? media : undefined
+  }
+
+  /**
+   * The one pricing function every input goes through: the estimator's
+   * seeded upper bound; a named refusal when the session is capped and the
+   * rate or duration is unknown; undefined when uncapped and unknown, which
+   * keeps the established byte count.
+   */
+  private price(
+    media: MediaCostItem,
+    model: MediaModelCapabilities,
+  ): { readonly upperBoundInputTokens: number } | undefined {
+    const isCapped = this.isCapped()
+    const estimator = this.deps.estimator
+    if (estimator === undefined) {
+      if (isCapped) throw new Error(fill(UI_TEXT.media.cappedRateUnknown, { model: model.modelId }))
+      return undefined
+    }
+    return estimator.estimate(model.provider, model.modelId, media, isCapped)
+  }
+
+  /** Every media item a request body carries: upload records and inline visuals. */
+  private requestMedia(body: CreateResponseBody): MediaCostItem[] {
+    let model: MediaModelCapabilities | undefined
+    return body.input.flatMap((item) =>
+      item.type === 'message' && item.role === 'user'
+        ? item.content.flatMap((part): MediaCostItem[] => {
+            const upload = this.parts.get(part)
+            if (upload !== undefined) return [upload]
+            model ??= this.model(body.model)
+            const visual = this.inlineVisual(part, model)
+            // Inline bytes are counted by the provider as sent; the bound
+            // reserves, but the bill never becomes a calibration point.
+            return visual === undefined ? [] : [{ ...visual, inlinePriced: true }]
+          })
+        : [],
+    )
   }
 
   private managed(input: readonly InputItem[]): InputContentPart[] {
@@ -150,69 +301,53 @@ export class ReplayMedia {
   /** Detached metadata follows the actual projection, including replayed file IDs. */
   public budgetParts(body: CreateResponseBody): readonly (string | BudgetMediaPart)[] {
     const parts: (string | BudgetMediaPart)[] = [...requestParts({ ...body, input: [] })]
+    let model: MediaModelCapabilities | undefined
     for (const item of body.input) {
       if (item.type !== 'message') {
         parts.push(JSON.stringify(item))
         continue
       }
-      const content = item.content.filter((part) => !this.parts.has(part))
-      parts.push(JSON.stringify({ ...item, content }))
-      for (const part of item.content) {
-        const media = this.parts.get(part)
-        if (media === undefined) continue
-        const estimate = this.deps.estimator?.estimate(
-          this.model(body.model).provider,
-          body.model,
-          media,
-          true,
-        )
-        if (estimate === undefined)
-          throw new Error(fill(UI_TEXT.media.cappedRateUnknown, { model: body.model }))
-        parts.push({
+      const priced: BudgetMediaPart[] = []
+      const content = item.content.filter((part) => {
+        const upload = this.parts.get(part)
+        let media: StoredMediaPart | undefined = upload
+        if (media === undefined && item.role === 'user') {
+          model ??= this.model(body.model)
+          media = this.inlineVisual(part, model)
+        }
+        if (media === undefined) return true
+        model ??= this.model(body.model)
+        const estimate = this.price(media, model)
+        // Uncapped with no rate: the part's own bytes stay in the count.
+        if (estimate === undefined) return true
+        priced.push({
           mediaIdentity: JSON.stringify(media),
           upperBoundInputTokens: estimate.upperBoundInputTokens,
         })
-      }
+        return false
+      })
+      parts.push(JSON.stringify({ ...item, content }), ...priced)
     }
     return parts
   }
 
-  /** A scheduled or interactive image/PDF read stays inline on the wire but
-   * is priced through the calibrated estimator: the image envelope governs
-   * the reservation, and a document with no page rate refuses under a cap
-   * with the existing honest reason. The bytes are never uploaded here. */
-  public vetVisual(media: StoredMediaPart, modelId: string): void {
-    const parsed = storedMediaPartSchema.parse(media)
-    if (parsed.info.kind !== 'image' && parsed.info.kind !== 'document') return
-    // A replay without an estimator keeps the established byte-counted path.
-    if (this.deps.estimator === undefined) return
+  /**
+   * Admission for an inline image or PDF (attached, or read by a tool before
+   * it tells the model the file follows): the same pricing every request
+   * repeats, so a capped session refuses an unmeasurable visual with the
+   * honest reason before anything queues. Nothing is recorded for upload.
+   */
+  public admitInline(inline: InputContentPart, modelId: string): void {
     const model = this.model(modelId)
-    // Throws the honest reason when the visual is unmeasurable under a cap.
-    this.deps.estimator.estimate(model.provider, modelId, parsed, true)
-  }
-
-  /** Registers a vetted inline visual for reservation (never for upload). */
-  public priceInlineVisual(part: InputContentPart, media: StoredMediaPart, modelId: string): void {
-    const parsed = storedMediaPartSchema.parse(media)
-    if (parsed.info.kind !== 'image' && parsed.info.kind !== 'document') return
-    if (this.deps.estimator === undefined) return
-    const model = this.model(modelId)
-    // Re-estimates the vetted visual; a changed calibration that
-    // unmeasures it fails the send loudly rather than sending unbilled.
-    this.deps.estimator.estimate(model.provider, modelId, parsed, true)
-    this.parts.set(part, parsed)
-    this.inlinePriced.add(part)
+    const media = this.inlineVisual(inline, model)
+    if (media !== undefined) this.price(media, model)
   }
 
   public async reserveRequest(
     body: CreateResponseBody,
     request: Omit<Parameters<typeof reserveMediaRequest>[0], 'items' | 'estimator'>,
   ) {
-    const items: MediaCostItem[] = this.managed(body.input).flatMap((part) => {
-      const media = this.parts.get(part)
-      if (media === undefined) return []
-      return [this.inlinePriced.has(part) ? { ...media, inlinePriced: true } : media]
-    })
+    const items = this.requestMedia(body)
     if (items.length === 0) return
     const estimator = this.deps.estimator
     if (estimator === undefined)
@@ -312,8 +447,13 @@ export class ReplayMedia {
     modelId: string,
     budget: MediaBudget,
   ): InputContentPart {
-    const raw = this.deps.attachment(part)
-    if (raw === undefined) return inline
+    const raw = this.deps.attachment?.(part)
+    if (raw === undefined) {
+      // An inline image or PDF: priced through the one admission path, kept
+      // as an inline record, never registered for upload.
+      this.admitInline(inline, modelId)
+      return inline
+    }
     const media = storedMediaPartSchema.parse(raw)
     const model = this.model(modelId)
     const route = this.route(media, model, inline)
@@ -530,7 +670,7 @@ export class ReplayMedia {
 
   public transcriptMetadata(parts: readonly TurnPart[]): readonly string[] {
     return parts.flatMap((part) => {
-      const media = this.deps.attachment(part)
+      const media = this.deps.attachment?.(part)
       return media === undefined ? [] : [metadataPart(storedMediaPartSchema.parse(media)).text]
     })
   }

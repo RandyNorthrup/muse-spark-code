@@ -274,7 +274,7 @@ function productionReplay() {
     currentAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
     directory: ledgerDir,
     log,
-    attachment: () => undefined,
+    isCapped: () => true,
     source: () => Promise.resolve(undefined),
     authorize: () => Promise.resolve(),
   })

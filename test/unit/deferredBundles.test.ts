@@ -109,6 +109,7 @@ beforeAll(async () => {
       providerPolicy: 'src/host/backend/providerPolicyEntry.ts',
       modelApiHooks: 'src/core/backends/modelapi/modelApiHooksEntry.ts',
       modelApiMcp: 'src/core/backends/modelapi/modelApiMcpEntry.ts',
+      productionMedia: 'src/host/backend/productionMediaEntry.ts',
       runtimeAccounting: 'src/runtime/runtimeAccountingEntry.ts',
       legalScan: 'src/core/legal/entry.ts',
       imageResizeWorker: 'src/core/imageResizeWorker.ts',
@@ -491,6 +492,30 @@ describe('deferred cohort bundles', () => {
       ).toContain(`${bundle.output} no longer carries ${file}`)
     },
   )
+  it('keeps production media in its own bundle, out of activation, the Model API and ACP (RVMEDIAW 7, 8)', () => {
+    // The CommonJS build once inlined the factory's dynamic imports into
+    // dist/modelApi.js (590.2/525 KiB), and the session store's upload
+    // binding pulled the Files client into activation.
+    const owned = [
+      'src/core/media/replayMedia.ts',
+      'src/core/media/productionMedia.ts',
+      'src/core/media/mediaCalibration.ts',
+      'src/core/media/uploadLedger.ts',
+      'src/host/backend/sessionUploads.ts',
+    ]
+    for (const source of owned) {
+      expect(inputs('productionMedia')).toContain(source)
+      for (const parent of ['extension', 'modelApi', 'acp']) {
+        expect(inputs(parent)).not.toContain(source)
+      }
+    }
+    for (const parent of ['extension', 'modelApi', 'acp'])
+      expect(bundleText(parent)).toContain('./productionMedia.js')
+    // No transcription port ships until lane V binds its seams.
+    for (const bundle of ['extension', 'modelApi', 'acp', 'productionMedia'])
+      expect(inputs(bundle)).not.toContain('src/core/voice/transcribeBatchHttp.ts')
+  })
+
   it('loads media inspection only on first use and rejects an ACP inline copy', async () => {
     const source = 'src/core/media/limits.ts'
     expect(inputs('media')).toContain(source)

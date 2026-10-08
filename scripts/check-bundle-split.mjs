@@ -1047,7 +1047,12 @@ const TEXT_BLOCKS = [
   {
     block: 'MODEL_API_MODEL_TEXT',
     sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyUncheckedCodeLoading'],
-    readers: [BUNDLES.modelApi.output, 'dist/mcpPool.js', 'dist/modelApiMcp.js'],
+    readers: [
+      BUNDLES.modelApi.output,
+      'dist/mcpPool.js',
+      'dist/modelApiMcp.js',
+      'dist/productionMedia.js',
+    ],
   },
   {
     block: 'CODE_INTEL_MODEL_TEXT',

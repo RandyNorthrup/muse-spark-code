@@ -53,6 +53,7 @@ const BUNDLES = [
   'resourceGovernor.js',
   'modelApiHooks.js',
   'modelApiMcp.js',
+  'productionMedia.js',
   'runtimeAccounting.js',
   'providerPolicy.js',
   'runtimeEngine.js',

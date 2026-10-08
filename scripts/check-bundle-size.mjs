@@ -65,6 +65,10 @@ const BUDGETS = [
   // rounded up to 25 KiB. Existing Model API cap stays fixed.
   { path: 'dist/modelApiHooks.js', budgetKiB: 50 },
   { path: 'dist/modelApiMcp.js', budgetKiB: 75 },
+  // M105 W production media (replay, estimator, seeds, codec, upload ledger,
+  // session uploads): 66.2 KiB measured +15%, rounded up to 25 KiB. It
+  // returned dist/modelApi.js under its unchanged 525 KiB cap.
+  { path: 'dist/productionMedia.js', budgetKiB: 100 },
   { path: 'dist/runtimeAccounting.js', budgetKiB: 50 },
   // TRAIN15E: credentials/model references only; 7.7 KiB +15%, rounded to 25 KiB.
   { path: 'dist/providerPolicy.js', budgetKiB: 25 },

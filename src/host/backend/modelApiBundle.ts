@@ -14,7 +14,6 @@ import type {
 } from '../../core/backends/modelapi/client'
 import type { McpPoolDeps, McpToolSource } from '../../core/backends/modelapi/mcp/pool'
 import type { ModelApiHost, ModelApiHostDeps } from '../../core/backends/modelapi/ModelApiHost'
-import type { AudioMessageSeams } from '../../core/voice/audioMessagePreparation'
 import type { ModelResolver } from '../../core/backends/modelapi/modelPolicy'
 import type { UiText } from '../../shared/l10n/en'
 import { UI_TEXT } from '../../shared/constants'
@@ -39,13 +38,6 @@ export interface ModelApiBundleDeps {
   readonly client: ModelApiClientDeps
   readonly createProviders?: (() => Promise<ModelResolver>) | undefined
   readonly createProviderClient?: (meta: ProviderClient) => Promise<ProviderClient>
-  /**
-   * Transcription seams for the factory's `prepareAudioMessage` (lane V
-   * binds attach-port tokens, the host-owned transcription POST, converter
-   * presence and the paid seams). Without them no audio port is supplied
-   * and the turn keeps the established refusal.
-   */
-  readonly audioPreparation?: AudioMessageSeams
   /** The host's, but for what the bundle makes itself: the client, the hooks and the MCP pool. */
   readonly host: Omit<ModelApiHostDeps, 'client' | 'loadHooks' | 'mcpServers'>
   /** Muse Code's settings file, read for hooks while `host.isHooksEnabled` says so (M51). */

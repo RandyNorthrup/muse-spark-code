@@ -170,7 +170,6 @@ import { SandboxSetup } from './host/backend/sandboxSetup'
 import { fileContextIo } from './host/backend/contextIo'
 import { describeEnvironment } from './host/backend/environment'
 import { createFileSessionStore } from './host/backend/fileSessionStore'
-import { createSessionUploads } from './host/backend/sessionUploads'
 import type { QuestionStore } from './shared/questions'
 import { modelApiMcpPoolDeps } from './host/backend/mcpServers'
 import { type JobHelper, jobSourceReader } from './host/backend/jobSource'
@@ -2605,11 +2604,17 @@ async function activateWindow(
             // Production media (P1, D85.2/D85.6): the upload ledger binds
             // the real session store, so a media turn saves and reopens
             // and deletion/purge releases that session's provider uploads.
-            uploads: createSessionUploads({
-              uploadLedgerDir: path.join(storageRoot, MODEL_API_UPLOADS_DIR),
-              currentAccountId: () => modelApi.accountId(),
-              filesClient: () => keyClient(),
-            }),
+            // The binding loads from dist/productionMedia.js on the first
+            // save or delete that references an upload, never at activation.
+            uploads: async (accountId) => {
+              const media = await import('./host/backend/productionMediaEntry.js')
+              media.setUiText(UI_TEXT, uiLocale())
+              return await media.createSessionUploads({
+                uploadLedgerDir: path.join(storageRoot, MODEL_API_UPLOADS_DIR),
+                currentAccountId: () => modelApi.accountId(),
+                filesClient: () => keyClient(),
+              })(accountId)
+            },
           }),
     scheduleStore:
       context.storageUri === undefined

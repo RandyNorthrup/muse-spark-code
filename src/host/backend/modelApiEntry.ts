@@ -40,7 +40,7 @@ import {
 import { sparkHooksFiles } from '../../core/backends/modelapi/hookNames'
 
 import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
-import type { StoredMediaPart } from '../../core/media/replayMedia'
+import type { MediaReplaySession } from '../../core/media/replayMedia'
 
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
@@ -141,28 +141,22 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
   const filesClient = requestFile === undefined ? undefined : { requestFile }
   const mediaDirectory = hostDeps.uploadLedgerDir
   const mediaAccountId = mediaDirectory === undefined ? undefined : await hostDeps.getAccountId()
-  // Production media loads behind the existing lazy boundary, never with
-  // the entry: the Model API bundle stays under its cap without it.
+  // One production media service per session, built by one factory in its
+  // own deferred bundle (dist/productionMedia.js, D85.13): the Model API
+  // bundle never carries it. Attaching video or audio and transcription
+  // stay unbound until lane V supplies their seams; no port is installed.
   const productionMedia =
     mediaDirectory !== undefined && filesClient !== undefined && mediaAccountId !== undefined
-      ? await import('../../core/media/productionMedia.js')
+      ? await import('./productionMediaEntry.js')
       : undefined
-  // The transcription adapters ride the same lazy boundary: they bind only
-  // when the caller supplies the lane-V seams (attach-port tokens, the
-  // host-owned transcription POST, converter presence and the paid consent
-  // and reserve), so the product carries no dormant port.
-  const seams = deps.audioPreparation
-  const audioModule =
-    seams === undefined ? undefined : await import('../../core/voice/audioMessagePreparation.js')
-  const transcriptionModule =
-    seams === undefined ? undefined : await import('../../core/voice/transcribeBatchHttp.js')
+  productionMedia?.setUiText(deps.uiText, deps.uiLocale)
   const host = new ModelApiHost({
     ...hostDeps,
     ...(productionMedia !== undefined &&
       filesClient !== undefined &&
       mediaAccountId !== undefined &&
       mediaDirectory !== undefined && {
-        createMediaReplay: (sessionId: string) =>
+        createMediaReplay: (sessionId: string, session: MediaReplaySession) =>
           productionMedia.createProductionMediaReplay({
             sessionId,
             client: filesClient,
@@ -170,13 +164,7 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
             currentAccountId: hostDeps.getAccountId,
             directory: mediaDirectory,
             log: hostDeps.log,
-            // Interactive media tokens arrive with the attach port's bind
-            // (E1); scheduled reads adopt through read_file instead, so no
-            // TurnPart resolves here yet.
-            attachment: () => {
-              const resolved: StoredMediaPart | undefined = undefined
-              return resolved
-            },
+            isCapped: session.isCapped,
             source: productionMedia.workspaceMediaSource({
               workspaceRoot: hostDeps.workspaceRoot,
               platform: hostDeps.platform,
@@ -192,42 +180,6 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
               return Promise.resolve()
             },
           }),
-      }),
-    ...(audioModule !== undefined &&
-      transcriptionModule !== undefined &&
-      seams !== undefined && {
-        prepareAudioMessage: audioModule.createPrepareAudioMessage({
-          contextFor: (modelId) =>
-            transcriptionModule.createModelApiAudioContext({
-              modelId,
-              canExtractWav: seams.canExtractWav,
-              isVoiceOn: hostDeps.isPaidFeatureOn('voice'),
-            }),
-          ...transcriptionModule.createTranscriptionPorts({
-            postTranscription: seams.postTranscription,
-            readAudioBytes: seams.readAudioBytes,
-            resolveSourcePath: seams.resolveSourcePath,
-            ...(seams.conversionOptions !== undefined && {
-              conversionOptions: seams.conversionOptions,
-            }),
-            ...(seams.locateConverter !== undefined && { locateConverter: seams.locateConverter }),
-          }),
-          gate: { isOn: (feature) => hostDeps.isPaidFeatureOn(feature) },
-          usage: seams.usage ?? {
-            addVoiceBatch: (seconds: number) => {
-              hostDeps.notePaidUse('voice', seconds)
-            },
-          },
-          resolveSource: seams.resolveSource,
-          assertCurrent:
-            seams.assertCurrent ??
-            (() => {
-              // The host re-checks its model revision around the prepare
-              // call; without lane V there is no owner context to assert.
-            }),
-          consent: seams.consent,
-          reserve: seams.reserve,
-        }),
       }),
     modelFacts: hostDeps.modelFacts ?? metaModelFacts,
     sideCallFormats: hostDeps.sideCallFormats ?? metaSideCallFormats,

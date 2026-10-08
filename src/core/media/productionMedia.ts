@@ -3,8 +3,10 @@
 // captured Files wire), the calibrated estimator (the 23 capture seeds plus
 // locally settled observations), the captured Responses codec and the
 // captured model capabilities. The host supplies only what it owns: the
-// HTTP client, the account digest, the storage directory, and the
-// attachment/source/authorize seams.
+// HTTP client, the account digest, the storage directory, the session's cap
+// and the source/authorize seams. No attach-token resolver is bound: inline
+// images and PDFs are identified from their own bytes (replayMedia.ts), and
+// attaching video or audio waits for lane V's seams.
 //
 // Authorization (D85.6 U6c, D85.7): uploads are not billed, so the Files
 // authorizer asks nothing beyond decision 7. A scheduled upload follows an
@@ -126,10 +128,11 @@ export interface ProductionMediaDeps {
   readonly currentAccountId: () => Promise<string | undefined>
   readonly directory: string
   readonly log: Pick<CoreLogger, 'warn'>
-  readonly attachment: ReplayMediaDeps['attachment']
   readonly source: ReplayMediaDeps['source']
   readonly authorize: ReplayMediaDeps['authorize']
   readonly compactionTail?: ReplayMediaDeps['compactionTail']
+  /** The session's cap, read per request (D85.6: unknown refuses only when capped). */
+  readonly isCapped: () => boolean
   readonly now?: () => number
   readonly lock?: MediaStoreLock
 }
@@ -185,9 +188,9 @@ export function createProductionMediaReplay(deps: ProductionMediaDeps): ReplayMe
         const newest = entries.at(-1)
         return newest === undefined ? [] : [newest.turnId]
       }),
-    attachment: deps.attachment,
     source: deps.source,
     authorize: deps.authorize,
+    isCapped: deps.isCapped,
   })
 }
 

@@ -7,7 +7,6 @@
 
 import type { ContentSource } from '../../schedules/provenance'
 import { Buffer } from 'node:buffer'
-import { createHash } from 'node:crypto'
 import path from 'node:path'
 import type { ResourceKind } from '../../../shared/resources'
 import { setImmediate as yieldToHost } from 'node:timers/promises'
@@ -56,11 +55,7 @@ import {
 } from '../../../shared/constants'
 import { ADD_MARKER, type PatchFile, REMOVE_MARKER } from '../../../shared/patchDocument'
 import { fill, formatBytes, formatNumber, formatUnit, plural } from '../../../shared/l10n/text'
-import {
-  uploadedMediaRefSchema,
-  type StoredMediaPart,
-  type UploadedMediaRef,
-} from '../../../shared/media'
+import { uploadedMediaRefSchema, type UploadedMediaRef } from '../../../shared/media'
 import type { MediaFileInfo } from '../../media/limits'
 import type { UploadSource } from './files'
 import type { DocumentPart, ImagePart } from '../../agent/agentBackend'
@@ -389,9 +384,9 @@ export interface ToolContext {
   readonly media?:
     | {
         readonly prepare: (file: ReadMediaFile, signal?: AbortSignal) => Promise<UploadedMediaRef>
-        /** Production pricing for inline visuals: vets the read through the
-         * calibrated estimator, throwing the honest refusal when capped. */
-        readonly priceVisual?: (visual: StoredMediaPart) => Promise<void>
+        /** The session's one media admission for an inline image/PDF read:
+         * throws the honest refusal when capped and unmeasurable. */
+        readonly admitVisual?: (visual: ImagePart | DocumentPart) => void
       }
     | { readonly reason: string }
   readonly workspaceRoot: string
@@ -477,8 +472,6 @@ export interface VisibleFile {
   /** The model's line in its place when the round ended before it was sent. */
   readonly notDelivered: string
   readonly part: ImagePart | DocumentPart
-  /** The calibrated identity for reservation when production media is bound. */
-  readonly priced?: StoredMediaPart
 }
 
 /** Private approved source, never serialized with a tool outcome. */
@@ -1381,59 +1374,20 @@ async function readVisual(
   const outcome =
     kind === 'pdf' ? pdfOutcome(file.relative, bytes) : imageOutcome(file.relative, bytes)
   if (outcome.visibleFile === undefined) return outcome
-  // Production pricing: the read stays inline on the wire, but the image
-  // envelope governs the reservation and a document with no page rate
-  // refuses under a cap with the estimator's honest reason.
+  // The read stays inline on the wire, admitted through the session's one
+  // media path before the model reads "the file follows": priced at the
+  // seeded bound, refused with the honest reason when capped and
+  // unmeasurable. The same admission runs again when the bytes are sent.
   if (context.media === undefined || 'reason' in context.media) return outcome
-  const priceVisual = context.media.priceVisual
-  if (priceVisual === undefined) return outcome
-  const visual = visualMediaPart(file.relative, kind, bytes)
-  if (visual === undefined) return outcome
+  const admitVisual = context.media.admitVisual
+  if (admitVisual === undefined) return outcome
   try {
-    await priceVisual(visual)
+    admitVisual(outcome.visibleFile.part)
   } catch (error: unknown) {
     const reason = error instanceof Error ? error.message : String(error)
     return failure(reason)
   }
-  return {
-    ...outcome,
-    visibleFile: { ...outcome.visibleFile, priced: visual },
-  }
-}
-
-/** The calibrated identity of an image/PDF read whole for inline pricing. */
-function visualMediaPart(
-  relative: string,
-  kind: 'pdf' | 'image',
-  bytes: Uint8Array,
-): StoredMediaPart | undefined {
-  const sha256 = createHash('sha256').update(bytes).digest('hex')
-  if (kind === 'image') {
-    const info = readImageInfo(bytes)
-    if (info === undefined) return undefined
-    return {
-      name: relative,
-      info: {
-        kind: 'image',
-        mediaType: info.mediaType,
-        sizeBytes: bytes.length,
-        width: info.width,
-        height: info.height,
-      },
-      sha256,
-    }
-  }
-  const pageCount = pdfPageCount(bytes)
-  return {
-    name: relative,
-    info: {
-      kind: 'document',
-      mediaType: 'application/pdf',
-      sizeBytes: bytes.length,
-      ...(pageCount !== undefined && { pageCount }),
-    },
-    sha256,
-  }
+  return outcome
 }
 
 /** Whether the permission settings deny the tools this confined path (M78). */

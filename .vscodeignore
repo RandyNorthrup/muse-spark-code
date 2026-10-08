@@ -111,6 +111,7 @@
 
 !dist/modelApiHooks.js
 !dist/modelApiMcp.js
+!dist/productionMedia.js
 
 !dist/reporting.js
 !dist/reportingPanel.js
