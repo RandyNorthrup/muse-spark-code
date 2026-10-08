@@ -14,8 +14,8 @@ section, before M41) and this record. No code, no tests, no model calls.
 - Lane inputs: `OLP-requirements.md` (ten must-haves from the 2026-10-06
   fleet run), `ssh-limits-research.md` (MaxStartups/MaxSessions/
   PerSourcePenalties soft limits; Windows desktop-heap hard limit; proposed
-  G34–G36), `playbook-placement.md` (leg profiles, capability records,
-  never-duplicate rule).
+  as G29–G31, now the register's G50–G52), `playbook-placement.md` (leg
+  profiles, capability records, never-duplicate rule).
 - Lead's phase-2 note: owner binding, QR/mDNS discovery, Windows store
   protection, concrete per-action controls, installed-host plus
   four-device qualification with the simulators rule.
@@ -28,8 +28,9 @@ it lands — D101 is not in `PLAN.md` yet, so no lane waits on it), and ten
 lanes with exclusive file ownership, rig placement, and per-lane
 acceptance plus red drills. Order: lane 0 (contracts/threat model, lead)
 first, D/C/R/V after 0, H/A/K on their dependencies, U against fakes,
-W last. D100 amendments are marked on their lanes; G34–G36 are flagged as
-proposed rows lane 0 adds to the register before lane C enforces them.
+W last. D100 amendments are marked on their lanes; the SSH-limit rules are
+flagged for the register before lane C enforces them, and now live in its
+G50–G52 rows.
 
 ## Checks
 

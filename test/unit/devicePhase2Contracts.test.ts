@@ -206,7 +206,7 @@ describe('M100 phase-2 channel contracts (lane C reads)', () => {
       expect(JSON.stringify(message).length).toBeLessThanOrEqual(DEVICE_LIMITS.channelFrameBytes)
     }
   })
-  it('paces handshakes and stops after one failed authentication (G34, G36)', () => {
+  it('paces handshakes and stops after one failed authentication (G50, G52)', () => {
     expect(DEVICE_LIMITS.pendingHandshakes).toBe(3)
     expect(canOpenHandshake(0)).toBe(true)
     expect(canOpenHandshake(2)).toBe(true)
@@ -216,7 +216,7 @@ describe('M100 phase-2 channel contracts (lane C reads)', () => {
     expect(canRetryAuth(1)).toBe(false)
     expect(canRetryAuth(2)).toBe(false)
   })
-  it('jitters the backoff from an injected source within the stated bound (G34)', () => {
+  it('jitters the backoff from an injected source within the stated bound (G50)', () => {
     expect(DEVICE_LIMITS.handshakeBackoffJitter).toBe(0.25)
     expect(handshakeBackoffMs(1, noJitter)).toBe(DEVICE_LIMITS.handshakeBackoffBaseMs)
     expect(handshakeBackoffMs(2, noJitter)).toBe(DEVICE_LIMITS.handshakeBackoffBaseMs * 2)
@@ -258,7 +258,7 @@ describe('M100 phase-2 capability contracts (lane V reads)', () => {
   it('parses a measured Windows advertisement with pressure signals', () => {
     expect(deviceCapabilitySchema.parse(capability)).toEqual(capability)
   })
-  it('refuses a wrong version, stale platform or missing G35 truth', () => {
+  it('refuses a wrong version, stale platform or missing G51 truth', () => {
     expect(deviceCapabilitySchema.safeParse({ ...capability, version: 2 }).success).toBe(false)
     expect(deviceCapabilitySchema.safeParse({ ...capability, platform: 'freebsd' }).success).toBe(
       false,
@@ -615,20 +615,24 @@ describe('M100 phase-2 model text (declared lazy readers)', () => {
 })
 
 describe('M100 phase-2 D100 amendments (lane 0 adds first)', () => {
-  it('registers G34, G35 and G36 against M100 before lane C enforces them', () => {
-    const register = readFileSync(
+  it('binds each SSH-limit rule to one M100 row (G50, G51, G52) under unique ids', () => {
+    const lines = readFileSync(
       new URL('../../docs/orchestration-gotchas.md', import.meta.url),
       'utf8',
-    )
-    for (const row of ['G34', 'G35', 'G36']) expect(register).toContain(`| ${row} `)
-    expect(register).toContain('at most 3 pending handshakes')
-    expect(register).toContain('STATUS_DLL_INIT_FAILED')
-    expect(register).toContain('never retry in a loop')
-    const owners = register.split('\n').filter((line) => /\| G(34|35|36) /.test(line))
-    expect(owners).toHaveLength(3)
-    for (const line of owners) {
-      expect(line).toContain('M100')
-      expect(line).toContain('amend')
+    ).split('\n')
+    const rowIds = lines.flatMap((line) => /^\| (G\d+) /.exec(line)?.[1] ?? [])
+    expect(new Set(rowIds).size).toBe(rowIds.length)
+    const rules = {
+      G50: 'at most 3 pending handshakes',
+      G51: 'STATUS_DLL_INIT_FAILED',
+      G52: 'never retry in a loop',
+    }
+    for (const [row, rule] of Object.entries(rules)) {
+      const holders = lines.filter((line) => line.includes(rule))
+      expect(holders).toHaveLength(1)
+      expect(holders[0]?.startsWith(`| ${row} `)).toBe(true)
+      expect(holders[0]).toContain('M100')
+      expect(holders[0]).toContain('amend')
     }
   })
   it('covers owner binding, QR/mDNS, Windows store and per-action control with a D101 reconcile note', () => {
@@ -643,9 +647,9 @@ describe('M100 phase-2 D100 amendments (lane 0 adds first)', () => {
       'Windows store',
       'per-action',
       'D101',
-      'G34',
-      'G35',
-      'G36',
+      'G50',
+      'G51',
+      'G52',
     ])
       expect(model).toContain(obligation)
   })

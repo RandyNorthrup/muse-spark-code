@@ -1,3 +1,4 @@
+import { availableParallelism } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
@@ -14,7 +15,18 @@ const COVERAGE_THRESHOLDS = {
 
 // V8 coverage and the native Git/process suites contend with large DOM/PDF
 // fixtures on macOS. Bound simultaneous files; deadlines and gates stay intact.
-const MACOS_TEST_WORKERS = 4
+// Hosted macOS runners have 3 vCPUs: four workers plus coverage oversubscribed
+// them and test times swung past deadlines between runs (2026-10-07). Leave
+// one core to the main process; rigs keep the measured cap of four.
+const MACOS_MAX_TEST_WORKERS = 4
+const MACOS_TEST_WORKERS = Math.max(1, Math.min(MACOS_MAX_TEST_WORKERS, availableParallelism() - 1))
+// Windows runs files one at a time (below), and its tests that do real OS work
+// start PowerShell, icacls or job helpers, each a cold process start. Hosted
+// Windows shards varied from 456 s to 727 s between runs (2026-10-07), so
+// such cases passed 5 s in one run and not the next. Windows gets a wider
+// default for every case and hook; assertions are unchanged. PLAN.md §8.
+const WINDOWS_TEST_TIMEOUT_MS = 15_000
+const WINDOWS_HOOK_TIMEOUT_MS = 30_000
 
 export default defineConfig({
   resolve: {
@@ -33,6 +45,10 @@ export default defineConfig({
     fileParallelism: process.platform !== 'win32',
     // Spread, not `maxWorkers: undefined`: exactOptionalPropertyTypes rejects it.
     ...(process.platform === 'darwin' && { maxWorkers: MACOS_TEST_WORKERS }),
+    ...(process.platform === 'win32' && {
+      testTimeout: WINDOWS_TEST_TIMEOUT_MS,
+      hookTimeout: WINDOWS_HOOK_TIMEOUT_MS,
+    }),
     coverage: {
       provider: 'v8',
       // Source files only: a bare `src/**` also feeds src/webview/tsconfig.json

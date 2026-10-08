@@ -28,6 +28,10 @@ happened, not what was planned; superseded entries are kept.
 - Keep the badge checker's conditional CI-token header within the existing
   lint rule while preserving its GitHub-only request binding.
 
+- Start browser harness scenarios after the webview's ready handshake, keeping
+  cold bundle loading outside their DOM deadline and exposing bounded browser
+  diagnostics before a team test times out.
+
 - Accept Windows short temp-path spellings for team hints while refusing linked
   folders; avoid broad PowerShell module discovery in team native helpers and
   await unconfirmed helper closure before cleaning up its files.
@@ -119,8 +123,8 @@ happened, not what was planned; superseded entries are kept.
   owner-bound grants with device-answered step-up, typed refusals and result
   acknowledgements, plus injected channel/capability/grant/result ports with
   fakes. Phase-2 model guidance rides the declared lazy reader; seven status
-  strings ship in all 14 tables. Register G29–G31 first and add the
-  phase-2 threat model with the D101 reconcile note.
+  strings ship in all 14 tables. Bind the SSH-limit rules to gotchas
+  G50–G52 and add the phase-2 threat model with the D101 reconcile note.
 
 ### Fixed
 
@@ -175,6 +179,32 @@ happened, not what was planned; superseded entries are kept.
   deadlines check monotonic and wall clocks at progress transitions, including
   backwards wall jumps and delayed timer callbacks. Frame reassembly copies
   once per completed frame and refuses more than 4,096 fragments.
+
+### Documentation
+
+- New orchestration docs: `docs/orchestration/ssh-limits.md` (SSH connection
+  limits, how they apply, per-platform handling) backing gotchas G50–G52, and
+  `docs/orchestration/playbook-placement.md` (placement, load balancing and
+  moving work, model-agnostic) for the M116 playbook skill to adopt.
+- Orchestration gotcha rows numbered after the rows 0.15.0 shipped: key
+  installs G49, handshake throttling G50, the Windows desktop heap G51,
+  password and probe penalties G52. New rows G34 (smoke call per engine per
+  machine), G35 (launch liveness probe), G36 (done means a clean tree, listed
+  steps and a moved head) and G37 (fail-closed safety checks, per-run caches
+  in the run's workspace).
+- Eleven orchestration gotcha rows G38–G48 (orphan process trees, the
+  completion ledger with a 15-minute alarm, cadence pulls of critical-path
+  heads, one owning lane per file, pipelined releases, clean-tree
+  certification, early draft PRs, hotfixes running full prep checks,
+  reviewer inputs inside the workspace, one repair per failure class,
+  sweep hits checked before a bulk edit), with D100 amendments for M96c,
+  M107, M116 and M117. The playbook placement chapter gains lessons 11–20
+  covering the same failures, still model-agnostic.
+- M100 phase 2 records its SSH-limit rules (one paced channel per pair, the
+  Windows worker context, one failed authentication stops) in G50–G52 rather
+  than duplicate rows, and its verification rules as G53 (shard membership
+  from the execution sequencer) and G54 (bounded report reduction).
+
 ## [0.15.0] - 2026-10-06
 
 ### Highlights

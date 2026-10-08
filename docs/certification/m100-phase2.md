@@ -82,7 +82,7 @@ Devices remains unshipped. Model attempts **0**, inference spend **0**.
 | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CHANGELOG.md`                                                                                                      | Preserve release history and existing Unreleased fixes; place all incoming Devices entries under Unreleased.                                                              |
 | `PLAN.md`                                                                                                           | Preserve both branches' phase-2 plan, gate records, escape-hatch register and residual-risk records.                                                                      |
-| `docs/orchestration-gotchas.md`                                                                                     | Retain every release rule/id, including G29–G33; add incoming channel, Windows host and auth rules as G34–G36 to avoid duplicate ids.                                     |
+| `docs/orchestration-gotchas.md`                                                                                     | Retain every release rule/id, including G29–G33; add incoming channel, Windows host and auth rules as G34–G36 to avoid duplicate ids (now main's G50–G52; see the lead integration).                                     |
 | `knip.jsonc`, `package.json`                                                                                        | Union entry inventories, retain the release's compiler/quality/reference scripts, add both Devices cycle entries.                                                         |
 | `scripts/build.mjs`, `scripts/check-bundle-split.mjs`, `scripts/lib/deferredBundles.mjs`, `scripts/package-acp.mjs` | Keep every release bundle, lazy mapping and text guard; add Devices with its inherited independent budgets. Existing caps are unchanged.                                  |
 | `scripts/gen-reference.mjs`                                                                                         | Run the complete release reference generator, the incoming Devices inventory and the release sharing inventory together.                                                  |
@@ -111,6 +111,8 @@ All five compiler projects passed. The first complete three-file run
 register assertion found six G29/G30/G31 rows because the release already
 used those ids. Preserve those release ids and assign the incoming rules
 G34/G35/G36, updating their plan, threat model, comments and test references.
+(Main later released its own G34–G38; the lead integration below moves these
+rules into main's G50–G52 and the two verification rows to G53/G54.)
 The legal cap drill's green control failed because its synthetic browser
 metafile omitted Devices; add that exact entry beside its existing Models
 and Usage fixtures. No assertion, gate, budget or deadline is removed.
@@ -202,7 +204,7 @@ The recorder repair changes covered source, so the final qualification uses
 another fresh clone and complete four-shard coverage collection at the repair
 commit. Maps from the first source revision are not used in that final result.
 
-### Verification orchestration discoveries (G37, G38)
+### Verification orchestration discoveries (now G53, G54)
 
 Vitest 5.0.2's `list --filesOnly --shard=N/4` returned the whole manifest for
 each shard. The complete/disjoint preflight rejected it before execution;
@@ -211,9 +213,9 @@ Vitest also refuses `--merge-reports` with its blob reporter. Those attempted
 intermediate collation commands failed; test collection continued. Final
 collation retains every test/error/module graph and uses the same pinned
 coverage-map merge in bounded groups, with an official direct/reduced-map
-equivalence check and final official threshold merge. G37/G38 and D100 record
-these rules; the final receipt records the successful direct-map equivalence
-proof and unchanged-threshold merge.
+equivalence check and final official threshold merge. G53/G54 (first G37/G38)
+and D100 record these rules; the final receipt records the successful
+direct-map equivalence proof and unchanged-threshold merge.
 
 ### Joined guard-fire proofs
 

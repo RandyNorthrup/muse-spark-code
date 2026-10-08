@@ -62,7 +62,7 @@ port scan or automatic firewall change is added.
 ### Windows store and worker context (lane H reads)
 
 Windows workers run in their own scheduled-task or service context, never
-under the transport session (G35). A desktop-heap failure surfaces the
+under the transport session (G51). A desktop-heap failure surfaces the
 `STATUS_DLL_INIT_FAILED` diagnostic with recovery steps, never a silent
 retry or a registry change. Remote commands run with an explicit recorded
 environment, stdin closed explicitly, results on a structured
@@ -87,9 +87,9 @@ One long-lived authenticated channel per pair with control over
 status/events over logs over bulk. At most `pendingHandshakes` pending
 handshakes per host with jittered exponential backoff from
 `handshakeBackoffBaseMs` capped at `handshakeBackoffMaxMs`; refusal reads
-throttled or **Unknown since {time}**, never down (G34). No port probes:
+throttled or **Unknown since {time}**, never down (G50). No port probes:
 health is the authenticated ready call. One failed authentication stops and
-asks; retries never loop (G36). Every new envelope carries the protocol
+asks; retries never loop (G52). Every new envelope carries the protocol
 version and refuses unknown fields rather than dropping them; the receiver
 surfaces the refused shape for display (D36). Results return
 content-addressed through the result channel and are acknowledged once
@@ -145,7 +145,7 @@ fail, and restores the file byte-exact (SHA-256 checked before and after):
 
 - Drop the `version` literal on `deviceReadySchema`: the channel version
   test fails.
-- Raise `pendingHandshakes` past the burst the pacing test asserts: the G34
+- Raise `pendingHandshakes` past the burst the pacing test asserts: the G50
   pacing test fails.
 - Loosen `deviceGrantRequestSchema` to a non-strict object: the planted
   secret parses and the no-credential test fails.

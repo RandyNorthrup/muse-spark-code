@@ -503,7 +503,7 @@ export const DEVICE_STREAMS = ['control', 'status', 'events', 'logs', 'bulk'] as
 export type DeviceStream = (typeof DEVICE_STREAMS)[number]
 
 // The authenticated ready call: health is this call, never a port probe
-// (G34). No probe message kind exists; a probe refuses to parse.
+// (G52). No probe message kind exists; a probe refuses to parse.
 export const deviceReadySchema = z.strictObject({
   version: z.literal(DEVICE_LIMITS.protocolVersion),
   pairId: id,
@@ -526,7 +526,7 @@ export const deviceHeartbeatSchema = z
   .check(z.refine((value) => value.ackSequence <= value.sequence))
 export type DeviceHeartbeat = z.infer<typeof deviceHeartbeatSchema>
 
-// G34: refusal reads as throttled or unknown since a time, never down. The
+// G50: refusal reads as throttled or unknown since a time, never down. The
 // closed reason set has no offline state.
 export const DEVICE_THROTTLE_REASONS = ['handshake-backoff', 'peer-penalty', 'pressure'] as const
 export const deviceThrottledSchema = z.strictObject({
@@ -545,7 +545,7 @@ export const deviceChannelSchema = z.discriminatedUnion('kind', [
 ])
 export type DeviceChannelMessage = z.infer<typeof deviceChannelSchema>
 
-// G34 pacing, pure so lane C and its tests share the exact contract: at
+// G50 pacing, pure so lane C and its tests share the exact contract: at
 // most pendingHandshakes open handshakes per host, jittered exponential
 // backoff from the base capped at the ten-minute maximum. The jitter is
 // one-sided: randomSource removes up to handshakeBackoffJitter of the
@@ -571,7 +571,7 @@ export function handshakeBackoffMs(
   const draw = Math.min(Math.max(randomSource(), 0), 1)
   return nominal - nominal * DEVICE_LIMITS.handshakeBackoffJitter * draw
 }
-// G36: one failed authentication stops and asks; retries never loop.
+// G52: one failed authentication stops and asks; retries never loop.
 export function canRetryAuth(failures: number): boolean {
   return (
     Number.isSafeInteger(failures) &&
@@ -582,7 +582,7 @@ export function canRetryAuth(failures: number): boolean {
 
 // Lane V reads: measured capability and capacity advertisement, kept current
 // by the device. Slot caps come from measured headroom; transport failure
-// and pressure feed the governor as signals (G12). G35 needs platform,
+// and pressure feed the governor as signals (G12). G51 needs platform,
 // power and slot truth before a Windows worker is admitted.
 const engineBudget = z.enum(['ok', 'low', 'exhausted', 'unknown'])
 const percent = z.number().check(z.gte(0), z.lte(100))

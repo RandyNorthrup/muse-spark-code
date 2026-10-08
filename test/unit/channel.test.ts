@@ -431,7 +431,7 @@ it('rejects duplicate inner keys and caps assembly bytes before parsing', () => 
   expect(bulk.target.takeIncoming(false)).toBeUndefined()
 })
 
-describe('host handshake pacing G29–G31', () => {
+describe('host handshake pacing G50 and G52', () => {
   it('refuses a ready promise whose connected callback closed the channel before publication', async () => {
     pacingClock()
     const fixture = fakeChannelSocket()

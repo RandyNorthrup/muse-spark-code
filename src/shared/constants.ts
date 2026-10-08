@@ -70,7 +70,7 @@ export const DEVICE_LIMITS = {
   terminalRetentionMs: 2_592_000_000,
   tombstones: 65_536,
   // M100 phase 2 (lane 0): channel, capability, grant and result contracts.
-  // G34 caps one long-lived paced channel per pair: at most 3 pending
+  // G50 caps one long-lived paced channel per pair: at most 3 pending
   // handshakes per host, jittered backoff from 15 s capped at 10 minutes.
   channelStreams: 5,
   channelFrameBytes: 4096,
@@ -81,7 +81,7 @@ export const DEVICE_LIMITS = {
   // of 0 keeps the nominal delay, a draw of 1 removes a quarter of it. The
   // jittered delay never exceeds the nominal delay or the ten-minute cap.
   handshakeBackoffJitter: 0.25,
-  // G36: one failed authentication stops and asks; retries never loop.
+  // G52: one failed authentication stops and asks; retries never loop.
   authFailuresBeforeAsk: 1,
   capabilityBytes: 8192,
   capabilityTools: 64,

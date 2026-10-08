@@ -333,38 +333,50 @@ describe('harness scenario event readiness', () => {
 })
 
 describe('harness scenes wait for the controls they touch', () => {
-  it.each([
-    { harnessBundle: 'main', surface: 'textarea, .gate, .todo-surface, [role="alert"]' },
-    { harnessBundle: 'models', surface: '.models-panel section' },
-  ])('starts $harnessBundle after loading, exactly once', ({ harnessBundle, surface }) => {
-    const html = readFileSync(new URL('../harness/index.html', import.meta.url), 'utf8')
-    const start = html.indexOf('let hasPlayedScenario =')
-    const end = html.indexOf('// `?theme=', start)
-    expect(start).toBeGreaterThan(0)
-    expect(end).toBeGreaterThan(start)
-    const window = new EventTarget()
-    const selectors: string[] = []
-    const context = {
-      window,
-      harnessBundle,
-      scenario: 'example',
-      steps: {
-        example: () => {
-          selectors.push('played')
+  it.each(
+    [
+      { harnessBundle: 'main', surface: 'textarea, .gate, .todo-surface, [role="alert"]' },
+      { harnessBundle: 'models', surface: '.models-panel section' },
+    ].flatMap((bundle) => [false, true].map((readyBeforeLoad) => ({ ...bundle, readyBeforeLoad }))),
+  )(
+    'starts $harnessBundle after loading and ready ($readyBeforeLoad), exactly once',
+    ({ harnessBundle, surface, readyBeforeLoad }) => {
+      const html = readFileSync(new URL('../harness/index.html', import.meta.url), 'utf8')
+      const start = html.indexOf('let hasPlayedScenario =')
+      const end = html.indexOf('// `?theme=', start)
+      expect(start).toBeGreaterThan(0)
+      expect(end).toBeGreaterThan(start)
+      const window = new EventTarget()
+      const selectors: string[] = []
+      const context = {
+        window,
+        harnessBundle,
+        hasWebviewReady: readyBeforeLoad,
+        scenario: 'example',
+        steps: {
+          example: () => {
+            selectors.push('played')
+          },
         },
-      },
-      whenFound: (selector: string, run: () => void) => {
-        selectors.push(selector)
-        run()
-      },
-    }
-    runInNewContext(html.slice(start, end), context)
-    expect(selectors).toEqual([])
-    window.dispatchEvent(new Event('DOMContentLoaded'))
-    expect(selectors).toEqual([surface, 'played'])
-    window.dispatchEvent(new Event('DOMContentLoaded'))
-    expect(selectors).toHaveLength(2)
-  })
+        whenFound: (selector: string, run: () => void) => {
+          selectors.push(selector)
+          run()
+        },
+      }
+      runInNewContext(`${html.slice(start, end)}; playScenario()`, context)
+      expect(selectors).toEqual([])
+      window.dispatchEvent(new Event('DOMContentLoaded'))
+      if (!readyBeforeLoad) {
+        expect(selectors).toEqual([])
+        context.hasWebviewReady = true
+        runInNewContext('playScenario()', context)
+      }
+      expect(selectors).toEqual([surface, 'played'])
+      window.dispatchEvent(new Event('DOMContentLoaded'))
+      runInNewContext('playScenario()', context)
+      expect(selectors).toHaveLength(2)
+    },
+  )
 
   it.each([
     { initialTop: 0, isRepinned: false },
