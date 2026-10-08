@@ -7,6 +7,7 @@ import { shellJobAssembly } from '../../../src/host/backend/shellJob'
 import { loadJobAssembly } from '../../../src/host/processTree'
 import { readJobSource } from './jobSource'
 import { removeFolder } from './temporaryFolders'
+import { windowsCreatedVariant } from './createdNativeWindows'
 
 function run(file: string, args: readonly string[], env: NodeJS.ProcessEnv = {}): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -19,6 +20,7 @@ function run(file: string, args: readonly string[], env: NodeJS.ProcessEnv = {})
 const state: {
   scratch?: string
   call?: (args: readonly string[]) => Promise<string>
+  windows?: (assembly: string, args: readonly string[]) => Promise<string>
 } = {}
 export function useCreatedNative(): void {
   beforeAll(async () => {
@@ -47,15 +49,17 @@ export function useCreatedNative(): void {
         throw new Error(`Native test helper unavailable: ${errors.join('\n')}`)
       const prefix = ['-NoProfile', '-NonInteractive', '-Command']
       const prepared = new Set<string>()
-      state.call = (args) =>
+      const call = (assemblyPath: string, args: readonly string[]) =>
         run(
           powershell,
           [
             ...prefix,
-            `$ErrorActionPreference='Stop'; ${prepareFixtureOwner(args, prepared)} ${loadJobAssembly(assembly)}; [MuseSparkCreated]::Execute([string[]]@(${args.map((arg) => powerShellQuoted(arg)).join(',')}))`,
+            `$ErrorActionPreference='Stop'; ${prepareFixtureOwner(args, prepared)} ${loadJobAssembly(assemblyPath)}; [MuseSparkCreated]::Execute([string[]]@(${args.map((arg) => powerShellQuoted(arg)).join(',')}))`,
           ],
           { SystemRoot: systemRoot, TMP: scratch, TEMP: scratch },
         )
+      state.windows = call
+      state.call = (args) => call(assembly, args)
     } else {
       const binary = path.join(scratch, 'created')
       await run(
@@ -104,6 +108,18 @@ export async function compileCreatedVariant(
   source: string,
 ): Promise<(args: readonly string[]) => Promise<string>> {
   if (state.scratch === undefined) throw new Error('Native test helper is not prepared')
+  if (process.platform === 'win32') {
+    const call = state.windows
+    if (call === undefined) throw new Error('Windows native fixture is not prepared')
+    const assembly = await shellJobAssembly({
+      storageDir: path.join(state.scratch, path.basename(source, '.c')),
+      systemRoot: process.env['SystemRoot']!,
+      readJobSource: async (helper) => windowsCreatedVariant(await readJobSource(helper), source),
+      log: () => undefined,
+    })()
+    if (assembly === undefined) throw new Error('Windows native fixture compilation failed')
+    return (args) => call(assembly, args)
+  }
   const binary = path.join(state.scratch, path.basename(source, '.c'))
   await run(
     '/usr/bin/cc',

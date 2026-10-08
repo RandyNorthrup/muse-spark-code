@@ -12,6 +12,9 @@ happened, not what was planned; superseded entries are kept.
 - Restore the merged Windows job helper's compilation for shell commands,
   resource controls and team process containment. Resource job holders load
   the same assembly directly without PowerShell module discovery.
+- Keep Windows resource creation, manifest rotation and cleanup bound to
+  verified native handles, including current-user ownership, missing-root
+  completion and preservation of raced directory replacements.
 
 ### Pending
 

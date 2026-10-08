@@ -14,6 +14,13 @@ Native creation qualification also requires explicit current-user ownership on
 new Win32 objects when an elevated token defaults to the Administrators group;
 prepare only owned test fixtures with that SID, retaining existing-object
 ownership refusals and every native identity/rename guard.
+The registry's Windows race cases must interpose inside the existing C# helper,
+as Darwin already does inside its C helper, preserving all assertions. Cover
+missing-root completion and reopen a newly created name before stamping it.
+Windows' final disposition uses its held handle, so the final-name test must
+prove preservation of both empty and populated replacement directories there.
+D100 G55: independently retained native test variants own separate compiler
+storage roots, so normal stale-build retirement cannot invalidate one another.
 
 A VS Code extension that lets a developer sign in and use Meta's **Muse Spark**
 model as a coding agent inside the IDE, with a chat experience at feature parity
