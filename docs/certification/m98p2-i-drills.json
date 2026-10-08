@@ -1,0 +1,126 @@
+[
+  {
+    "exit": 1,
+    "file": "src/core/judge/embedding/fit.ts",
+    "greenExit": 0,
+    "guard": "40-label prototype enabling bar",
+    "mutation": "drop the minLabels refusal so 40 fit labels train",
+    "namedFailures": [
+      "test/unit/judgeEmbeddingFit.test.ts > embedding head fitting > refuses to enable on the 40-label prototype below the evidence bar"
+    ],
+    "sha256": {
+      "after": "0badd0b8ff0dafee09169d8e2ce23b1f29b196e165a7a415755895b6b24a317f",
+      "before": "0badd0b8ff0dafee09169d8e2ce23b1f29b196e165a7a415755895b6b24a317f"
+    },
+    "test": "test/unit/judgeEmbeddingFit.test.ts"
+  },
+  {
+    "exit": 1,
+    "file": "src/core/judge/embedding/route.ts",
+    "greenExit": 0,
+    "guard": "cross-model head binding",
+    "mutation": "isMatchingHead always true so any verifying head is accepted",
+    "namedFailures": [
+      "test/unit/judgeEmbeddingRoute.test.ts > embedding fast path > falls back on a head bound to another model without embedding",
+      "test/unit/judgeEmbeddingRoute.test.ts > embedding fast path > falls back on a head bound to another provider without embedding",
+      "test/unit/judgeEmbeddingRoute.test.ts > embedding fast path > falls back on a head bound to another family without embedding"
+    ],
+    "sha256": {
+      "after": "03a7f8fc89d104bd72e18312a4a57f4c7a6db574a8fb1759c65f233f0b2fb531",
+      "before": "03a7f8fc89d104bd72e18312a4a57f4c7a6db574a8fb1759c65f233f0b2fb531"
+    },
+    "test": "test/unit/judgeEmbeddingRoute.test.ts"
+  },
+  {
+    "exit": 1,
+    "file": "src/core/judge/embedding/route.ts",
+    "greenExit": 0,
+    "guard": "low-confidence fallback",
+    "mutation": "confidence floor replaced with 0 so every head answers",
+    "namedFailures": [
+      "test/unit/judgeEmbeddingRoute.test.ts > embedding fast path > falls back below the confidence floor and reserves each leg separately"
+    ],
+    "sha256": {
+      "after": "03a7f8fc89d104bd72e18312a4a57f4c7a6db574a8fb1759c65f233f0b2fb531",
+      "before": "03a7f8fc89d104bd72e18312a4a57f4c7a6db574a8fb1759c65f233f0b2fb531"
+    },
+    "test": "test/unit/judgeEmbeddingRoute.test.ts"
+  },
+  {
+    "exit": 1,
+    "file": "src/core/judge/embedding/route.ts",
+    "greenExit": 0,
+    "guard": "separate embedding reservation",
+    "mutation": "hardcode a zero receipt instead of reserving the embedding leg",
+    "namedFailures": [
+      "test/unit/judgeEmbeddingRoute.test.ts > embedding fast path > answers from the head with its own reservation when confident",
+      "test/unit/judgeEmbeddingRoute.test.ts > embedding fast path > falls back below the confidence floor and reserves each leg separately"
+    ],
+    "sha256": {
+      "after": "03a7f8fc89d104bd72e18312a4a57f4c7a6db574a8fb1759c65f233f0b2fb531",
+      "before": "03a7f8fc89d104bd72e18312a4a57f4c7a6db574a8fb1759c65f233f0b2fb531"
+    },
+    "test": "test/unit/judgeEmbeddingRoute.test.ts"
+  },
+  {
+    "exit": 1,
+    "file": "src/core/judge/embedding/fit.ts",
+    "greenExit": 0,
+    "guard": "opt-in training",
+    "mutation": "ignore the optedIn flag so training runs unasked",
+    "namedFailures": [
+      "test/unit/judgeEmbeddingFit.test.ts > embedding head fitting > refuses training without an explicit opt-in"
+    ],
+    "sha256": {
+      "after": "0badd0b8ff0dafee09169d8e2ce23b1f29b196e165a7a415755895b6b24a317f",
+      "before": "0badd0b8ff0dafee09169d8e2ce23b1f29b196e165a7a415755895b6b24a317f"
+    },
+    "test": "test/unit/judgeEmbeddingFit.test.ts"
+  },
+  {
+    "exit": 1,
+    "file": "src/core/judge/embedding/schema.ts",
+    "greenExit": 0,
+    "guard": "global-storage-only weights",
+    "mutation": "envelope location accepts vsix beside global-storage",
+    "namedFailures": [
+      "test/unit/judgeEmbeddingFit.test.ts > embedding head fitting > loads weights only from the global-storage envelope, never a package"
+    ],
+    "sha256": {
+      "after": "047c3eba369593bc4e5a76991becc653704d4d603ac6f92b2eac1a3ef4982c91",
+      "before": "047c3eba369593bc4e5a76991becc653704d4d603ac6f92b2eac1a3ef4982c91"
+    },
+    "test": "test/unit/judgeEmbeddingFit.test.ts"
+  },
+  {
+    "exit": 1,
+    "file": "src/core/judge/embedding/route.ts",
+    "greenExit": 0,
+    "guard": "confidential embedding permission",
+    "mutation": "isEmbeddingPermitted always true so blocked legs send",
+    "namedFailures": [
+      "test/unit/judgeEmbeddingRoute.test.ts > embedding confidentiality > never embeds remotely in a confidential workspace without provider permission",
+      "test/unit/judgeEmbeddingRoute.test.ts > embedding confidentiality > never uses an unverified local endpoint in a confidential workspace"
+    ],
+    "sha256": {
+      "after": "03a7f8fc89d104bd72e18312a4a57f4c7a6db574a8fb1759c65f233f0b2fb531",
+      "before": "03a7f8fc89d104bd72e18312a4a57f4c7a6db574a8fb1759c65f233f0b2fb531"
+    },
+    "test": "test/unit/judgeEmbeddingRoute.test.ts"
+  },
+  {
+    "exit": 1,
+    "file": "src/core/judge/embedding/route.ts",
+    "greenExit": 0,
+    "guard": "missing full source refusal",
+    "mutation": "replace the source-unavailable refusal with a throwing stub",
+    "namedFailures": [
+      "test/unit/judgeEmbeddingRoute.test.ts > embedding fast path > refuses without an allowed full source and spends nothing"
+    ],
+    "sha256": {
+      "after": "03a7f8fc89d104bd72e18312a4a57f4c7a6db574a8fb1759c65f233f0b2fb531",
+      "before": "03a7f8fc89d104bd72e18312a4a57f4c7a6db574a8fb1759c65f233f0b2fb531"
+    },
+    "test": "test/unit/judgeEmbeddingRoute.test.ts"
+  }
+]
