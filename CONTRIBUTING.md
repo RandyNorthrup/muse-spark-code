@@ -108,7 +108,10 @@ Use this order for a candidate branch:
   polling, with a `// kept-timing: <reason>` comment immediately before it.
   The source guard in `test/unit/harnessWaits.test.ts` checks every timer,
   including DOM work through helpers. Axe waits for outstanding control
-  waits before scanning. The M87 scenarios:
+  waits before scanning. Once a scene's steps and every wait they scheduled
+  have run, `<html>` carries `data-scenario-played="<name>"`; a browser test
+  starts the deadline for what the scene renders there, not at page load
+  (`test/unit/teamHarness.test.mjs`). The M87 scenarios:
   `context-meter`, `context-meter-warning`, `context-meter-full`,
   `palette-tips`, `slash-tips`, `stop-running`, `tool-io`,
   `tool-io-expanded`, `status-heartbeat`, `status-heartbeat-narrow`,

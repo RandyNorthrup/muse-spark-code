@@ -19855,6 +19855,21 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FLAKEMERGE — Start the team harness target wait at the played scene (2026-10-08)
+
+- [x] Explain the hosted Windows pseudo-locale merge-card timeout from CI
+      durations and phase measurements under CPU starvation.
+- [x] Mark the scene played in the harness (`data-scenario-played`) once its
+      steps, waits and events have run; never after a failed step.
+- [x] Start the merge-card and tree deadline there; navigation and playback
+      share the existing bounded wait. No deadline, retry, skip or assertion
+      changes; same targets at 320 px in the pseudo-locale.
+- [x] Prove the new unit and browser regressions fail on purpose; record
+      repro rates before and after (at least 20 runs after) in
+      docs/certification/flake-team-merge-wait.md; commit with hooks.
+
+Scope is the browser harness and its owning tests. No push; the lead pushes.
+
 ### FIX0160X — Repair release CI composition (2026-10-07, macmini)
 
 Preserve M106/M107, pinned questions and agent outcomes while repairing the

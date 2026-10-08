@@ -24,6 +24,11 @@ happened, not what was planned; superseded entries are kept.
   in their fake origin: the fixture turns off receive auto-gc and plain-git
   auto maintenance, and a witness test proves none runs.
 
+- Start the team browser tests' card and tree deadline once the harness reports
+  the scene played, keeping bundle start-up, the ready handshake and the
+  steps' settle time outside that wait, and list still-open requests when a
+  team test's wait fails.
+
 ### Documentation
 
 - Outside contributions are vetted before they run or land:

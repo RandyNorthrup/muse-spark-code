@@ -29,7 +29,8 @@ const REAL_HARNESS_PREPARE_TIMEOUT_MS = 60_000
 // a loaded hosted Windows shard with coverage needs longer than the unit
 // default. PLAN.md §8 (2026-10-07).
 const REAL_HARNESS_CASE_TIMEOUT_MS = 20_000
-// Navigation plus readiness must fail with evidence before the case deadline.
+// Navigation with the scene's playback, then the scene's target, must each
+// fail with evidence before the case deadline.
 const REAL_HARNESS_WAIT_TIMEOUT_MS = 8000
 const HARNESS_DIAGNOSTIC_LIMIT = 8192
 const HARNESS_BODY_DIAGNOSTIC_LIMIT = 4096
@@ -104,20 +105,33 @@ async function harness(scenario, theme, lang, run, prepare) {
       -HARNESS_DIAGNOSTIC_LIMIT,
     )
   }
+  // Requests still open when a wait fails: a held lazy chunk shows here.
+  const open = new Set()
   page.on('console', (message) => record(`console ${message.type()}: ${message.text()}`))
   page.on('pageerror', (error) => record(`pageerror: ${error.message}`))
-  page.on('requestfailed', (request) =>
-    record(`requestfailed: ${request.url()} ${request.failure()?.errorText ?? ''}`),
-  )
+  page.on('request', (request) => open.add(request))
+  page.on('requestfinished', (request) => open.delete(request))
+  page.on('requestfailed', (request) => {
+    open.delete(request)
+    record(`requestfailed: ${request.url()} ${request.failure()?.errorText ?? ''}`)
+  })
   page.on('response', (response) => {
     if (response.status() >= 400) record(`HTTP ${response.status()}: ${response.url()}`)
   })
   try {
     if (prepare !== undefined) await prepare(page)
+    // Navigation and the scene's playback share one bounded wait. The target's
+    // own deadline starts once the harness says every step was played, so the
+    // cold bundle, its ready handshake and the steps' settle time do not spend
+    // the merge card's or the tree's budget.
+    const playedBy = Date.now() + REAL_HARNESS_WAIT_TIMEOUT_MS
     await page.goto(
       `${rig.origin}/test/harness/index.html?scenario=${scenario}&theme=${theme}${lang === undefined ? '' : `&lang=${lang}`}`,
       { timeout: REAL_HARNESS_WAIT_TIMEOUT_MS },
     )
+    await page
+      .locator(`html[data-scenario-played="${scenario}"]`)
+      .waitFor({ state: 'attached', timeout: Math.max(1, playedBy - Date.now()) })
     await page
       .locator(scenario === 'team-cards' ? '.activity-team-merge' : '.team-tree')
       .waitFor({ timeout: REAL_HARNESS_WAIT_TIMEOUT_MS })
@@ -129,6 +143,7 @@ async function harness(scenario, theme, lang, run, prepare) {
     } catch (error_) {
       body = `root unavailable: ${error_.message}`
     }
+    record(`open requests: ${[...open].map((request) => request.url()).join(' ') || 'none'}`)
     record(`root: ${body.slice(0, HARNESS_BODY_DIAGNOSTIC_LIMIT)}`)
     throw new Error(
       `Harness ${scenario}/${theme}/${lang ?? 'en'} failed: ${String(error).slice(0, HARNESS_ERROR_DIAGNOSTIC_LIMIT)}${diagnostics}`,
@@ -224,6 +239,43 @@ describe('RVM96B browser regressions', { timeout: REAL_HARNESS_CASE_TIMEOUT_MS }
             await page.clock.runFor(4000)
           } catch (error) {
             errors.push(error.message)
+          }
+          await route.continue()
+        })
+      },
+    )
+  })
+
+  it('reports the team scene played before its lazy cards load, so their deadline starts there', async () => {
+    const meta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
+    const [chunk] =
+      Object.entries(meta.outputs).find(
+        ([, output]) => output.entryPoint === 'src/webview/components/TeamUi.tsx',
+      ) ?? []
+    expect(chunk).toBeDefined()
+    const held = []
+    await harness(
+      'team-cards',
+      'light',
+      undefined,
+      async (page) => {
+        expect(held).toEqual([{ played: 'team-cards', cards: 0 }])
+        expect(await page.locator('.activity-team-merge').count()).toBe(1)
+      },
+      async (page) => {
+        await page.route(`**/${chunk}`, async (route) => {
+          // Hold the real team UI chunk until the harness reports the scene
+          // played: the signal follows the steps, not what they render.
+          try {
+            await page
+              .locator('html[data-scenario-played]')
+              .waitFor({ state: 'attached', timeout: REAL_HARNESS_WAIT_TIMEOUT_MS })
+            held.push({
+              played: await page.locator('html').getAttribute('data-scenario-played'),
+              cards: await page.locator('.activity-team-merge').count(),
+            })
+          } catch (error) {
+            held.push(error.message)
           }
           await route.continue()
         })

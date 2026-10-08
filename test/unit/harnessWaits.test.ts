@@ -139,6 +139,25 @@ function scenarioClock() {
   }
 }
 
+/** The scheduling helpers on a page whose controls are the `rendered` selectors. */
+function playedScene(rendered: ReadonlySet<string>) {
+  const { timers, context } = scenarioClock()
+  const dataset: Record<string, string> = {}
+  const page = {
+    ...context,
+    document: {
+      querySelector: (selector: string) => (rendered.has(selector) ? {} : null),
+      documentElement: { dataset },
+    },
+  }
+  return {
+    source: harnessSection('let pendingScenarioEvents =', 'const files = ['),
+    timers,
+    dataset,
+    page,
+  }
+}
+
 function readinessPage(now: () => number) {
   return {
     performance: { now },
@@ -196,6 +215,8 @@ function longStream() {
   const report = vi.fn()
   const context = {
     pendingScenarioEvents: 0,
+    hasScenarioFailed: false,
+    notePlayed: vi.fn(),
     window,
     setDraft: vi.fn(),
     key: vi.fn(),
@@ -226,6 +247,7 @@ describe('harness scenario event readiness', () => {
     expect(fixture.delivered).toHaveBeenCalledTimes(21)
     expect(fixture.context.pendingScenarioEvents).toBe(1)
     expect(fixture.report).not.toHaveBeenCalled()
+    expect(fixture.context.notePlayed).not.toHaveBeenCalled()
     expect(fixture.port2.postMessage).toHaveBeenCalledOnce()
     runNext(fixture.timers)
     expect(fixture.delivered.mock.calls.map(([message]) => message)).toEqual([
@@ -246,6 +268,9 @@ describe('harness scenario event readiness', () => {
     ])
     expect(fixture.context.pendingScenarioEvents).toBe(0)
     expect(fixture.report).toHaveBeenCalledWith('long: 21 deltas rendered')
+    // The stream ends outside `later`, so it reports the scene played itself.
+    expect(fixture.context.notePlayed).toHaveBeenCalledOnce()
+    expect(fixture.context.hasScenarioFailed).toBe(false)
     expect(fixture.window.removeEventListener).toHaveBeenCalledOnce()
     expect(fixture.port1.close).toHaveBeenCalledOnce()
     expect(fixture.port2.close).toHaveBeenCalledOnce()
@@ -283,6 +308,8 @@ describe('harness scenario event readiness', () => {
       runNext(fixture.timers)
     }).toThrow('stream delta failed')
     expect(fixture.context.pendingScenarioEvents).toBe(0)
+    expect(fixture.context.hasScenarioFailed).toBe(true)
+    expect(fixture.context.notePlayed).not.toHaveBeenCalled()
     expect(fixture.timers).toHaveLength(0)
     expect(fixture.report).not.toHaveBeenCalled()
     expect(fixture.window.removeEventListener).toHaveBeenCalledOnce()
@@ -329,6 +356,45 @@ describe('harness scenario event readiness', () => {
     }).toThrow('scheduled failure')
     runInNewContext('observe(pendingScenarioEvents)', context)
     expect(counts).toEqual([1, 0])
+  })
+
+  it('reports a scene played only once its nested waits and events have run', () => {
+    const rendered = new Set(['surface'])
+    const scene = playedScene(rendered)
+    runInNewContext(
+      `${scene.source}\n playingScenario = 'example'; whenFound('surface', () => { later(50, () => { whenFound('pill', () => {}) }) })`,
+      scene.page,
+    )
+    runNext(scene.timers)
+    expect(scene.dataset).toEqual({})
+    runNext(scene.timers)
+    expect(scene.dataset).toEqual({})
+    rendered.add('pill')
+    runNext(scene.timers)
+    expect(scene.dataset).toEqual({ scenarioPlayed: 'example' })
+    expect(scene.timers).toHaveLength(0)
+  })
+
+  it('never reports a scene played once one of its steps has failed', () => {
+    const scene = playedScene(new Set())
+    runInNewContext(
+      `${scene.source}\n playingScenario = 'example'; whenFound('missing', () => {})`,
+      scene.page,
+    )
+    const errors: string[] = []
+    while (scene.timers.length > 0) {
+      try {
+        runNext(scene.timers)
+      } catch (error) {
+        // The page's own Error, from another realm: compare its text.
+        errors.push(String(error))
+      }
+    }
+    expect(errors).toEqual(['Error: never rendered: missing'])
+    // Nothing is pending any more; only the failure keeps the scene unplayed.
+    runInNewContext('later(10, () => {})', scene.page)
+    runNext(scene.timers)
+    expect(scene.dataset).toEqual({})
   })
 
   it('holds readiness until scheduled events finish, then still waits for both paints', async () => {
@@ -403,6 +469,7 @@ describe('harness scenes wait for the controls they touch', () => {
         window,
         harnessBundle,
         hasWebviewReady: readyBeforeLoad,
+        playingScenario: undefined as string | undefined,
         scenario: 'example',
         steps: {
           example: () => {
@@ -419,10 +486,13 @@ describe('harness scenes wait for the controls they touch', () => {
       window.dispatchEvent(new Event('DOMContentLoaded'))
       if (!readyBeforeLoad) {
         expect(selectors).toEqual([])
+        expect(context.playingScenario).toBeUndefined()
         context.hasWebviewReady = true
         runInNewContext('playScenario()', context)
       }
       expect(selectors).toEqual([surface, 'played'])
+      // Claimed for its played signal (data-scenario-played) as it starts.
+      expect(context.playingScenario).toBe('example')
       window.dispatchEvent(new Event('DOMContentLoaded'))
       runInNewContext('playScenario()', context)
       expect(selectors).toHaveLength(2)

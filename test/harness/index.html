@@ -143,14 +143,31 @@
         window.postMessage(message, '*')
       }
       let pendingScenarioEvents = 0
+      // A scenario has been played once its steps, and every wait and event
+      // they scheduled, have run: <html data-scenario-played> then names it.
+      // A test starts the deadline for what those steps render there, not at
+      // page load (the merge card's wait used to cover the cold bundle too).
+      // A step that throws leaves it unset; its error names the step.
+      let playingScenario
+      let hasScenarioFailed = false
+      const notePlayed = () => {
+        if (playingScenario === undefined || hasScenarioFailed) return
+        if (pendingScenarioEvents > 0 || pendingFinds > 0) return
+        document.documentElement.dataset.scenarioPlayed = playingScenario
+        playingScenario = undefined
+      }
       const later = (ms, fn) => {
         pendingScenarioEvents += 1
         return setTimeout(() => {
           try {
             fn()
+          } catch (error) {
+            hasScenarioFailed = true
+            throw error
           } finally {
             pendingScenarioEvents -= 1
           }
+          notePlayed()
         }, ms)
       }
       const readinessLater = (ms, fn) => setTimeout(fn, ms)
@@ -3234,12 +3251,14 @@
                   pendingScenarioEvents -= 1
                   report(`long: ${String(chunks.length)} deltas rendered`)
                   close()
+                  notePlayed()
                   return
                 }
                 deliver({ type: 'textDelta', itemId: 'long', field: 'text', delta: chunk })
               }
               continuation.port2.postMessage(null)
             } catch (error) {
+              hasScenarioFailed = true
               pendingScenarioEvents -= 1
               close()
               throw error
@@ -6145,6 +6164,7 @@
         )
           return
         hasPlayedScenario = true
+        playingScenario = scenario
         const surface =
           harnessBundle === 'models' ? '.models-panel section' : '.composer textarea, .todo-surface'
         whenFound(surface, () => steps[scenario]())
