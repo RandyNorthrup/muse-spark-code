@@ -19081,6 +19081,8 @@ fabricated native artifacts.
       SAST repairs replace SSH wildcard regex construction with direct matching,
       restrict estimator pointer traversal to own data properties, and reuse
       the existing one-pass HTML encoder. No suppression or scanner downgrade.
+      Direct SSH matching retains the former Unicode case equivalences (long s,
+      Greek final sigma); regressions cover these alongside literal punctuation.
 - [ ] Recover startup through first-use chunks and deduplication, retaining
       its 751,411-byte regression cap. Shrink VSIX/account closure first;
       only their caps may use measured universal bytes +5%, rounded up to

@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Vault output scanning runs faster while retaining its redactions and stream
+  boundaries. SSH host wildcards preserve Unicode case matching without
+  constructing wildcard regexes. Estimator HTML exports reuse the common encoder.
+
 - Vault settings use `museSpark.vault.enabled` so VS Code exposes their nested
   defaults; existing explicit vault opt-outs remain effective. Request baseline
   fixtures retain the accepted release captures rather than mixed retry traces.

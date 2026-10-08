@@ -248,6 +248,8 @@ describe('vault SSH keys and RFC 9987 boundary', () => {
     )
     expect(() => resolveKnownHost(`host+[id].example ${key}`, blob, 'hostid.example')).toThrow()
     expect(resolveKnownHost(`??.example ${key}`, blob, '🦄x.example')).toBe('🦄x.example')
+    expect(resolveKnownHost(`ſ.example ${key}`, blob, 's.example')).toBe('s.example')
+    expect(resolveKnownHost(`Σ.example ${key}`, blob, 'ς.example')).toBe('ς.example')
     expect(resolveKnownHost(`*a*b*.example,!bad*.example ${key}`, blob, 'aaabz.example')).toBe(
       'aaabz.example',
     )

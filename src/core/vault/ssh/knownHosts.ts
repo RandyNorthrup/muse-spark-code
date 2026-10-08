@@ -4,6 +4,14 @@ import { parsePublicKey } from './keys'
 import { sshFailure } from './wire'
 
 const HASHED_PARTS = { length: 4 }.length
+function foldedCharacters(text: string): readonly string[] {
+  return (text.match(/[\s\S]/gu) ?? []).map((char) => {
+    const upper = char.toUpperCase()
+    // Uppercase first joins long s and final sigma. Multi-letter expansions
+    // remain one original code point, preserving wildcard width.
+    return upper.length === 1 ? upper.toLowerCase() : char.toLowerCase()
+  })
+}
 function isPatternMatch(pattern: string, host: string): boolean {
   if (pattern.startsWith('|1|')) {
     const fields = pattern.split('|'),
@@ -18,8 +26,8 @@ function isPatternMatch(pattern: string, host: string): boolean {
   }
   // Match glob tokens directly: regex metacharacters are literal, and a
   // wildcard never creates a regex with attacker-controlled backtracking.
-  const tokens = pattern.toLowerCase().match(/[\s\S]/gu) ?? []
-  const chars = host.toLowerCase().match(/[\s\S]/gu) ?? []
+  const tokens = foldedCharacters(pattern)
+  const chars = foldedCharacters(host)
   let token = 0
   let char = 0
   let star = -1
