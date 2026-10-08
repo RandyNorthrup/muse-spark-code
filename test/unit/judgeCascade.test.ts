@@ -545,16 +545,18 @@ describe('cascadeJudge', () => {
     }
     expect(outcome.outcome).toBe('answered')
     if (outcome.outcome !== 'answered') throw new Error('expected settled answer')
+    const expectedSame: { status: string; reason?: string } = { status: 'answered' }
+    if (isSkippedSame) {
+      expectedSame.status = 'not-run'
+      expectedSame.reason = kind === 'separate only' ? 'not-needed' : 'source-unavailable'
+    }
+    if (isFailedSame) {
+      expectedSame.status = 'failed'
+      expectedSame.reason = 'timeout'
+    }
     expect(outcome.result['cascade']).toEqual({
       separate: isFailedSeparate ? { status: 'failed', reason: 'timeout' } : { status: 'answered' },
-      same: isSkippedSame
-        ? {
-            status: 'not-run',
-            reason: kind === 'separate only' ? 'not-needed' : 'source-unavailable',
-          }
-        : isFailedSame
-          ? { status: 'failed', reason: 'timeout' }
-          : { status: 'answered' },
+      same: expectedSame,
       refusedQuestions: [],
     })
     expect(outcome.result.model).toBe(isFailedSeparate ? sameCap.model : separateCap.model)
