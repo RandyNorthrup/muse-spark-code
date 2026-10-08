@@ -23,9 +23,8 @@ import {
 import { createJudgeRuntime, judgeRuntimeContext } from '../../src/core/judge/runtime'
 import { resolveJudgeMode2a } from '../../src/core/judge/resolve'
 import { JUDGE_MIN_READY_RATE } from '../../src/shared/constants'
-import type { JudgeCascadeSide } from '../../src/core/judge/cascade'
-import type { JudgeRuntime } from '../../src/core/judge/engine'
 import type { JudgeCapability } from '../../src/core/judge/schema'
+import { toRuntime } from './helpers/judgeBinding'
 import { wiringFixture, wiringLimits } from './helpers/judgeWiring'
 import { REQUEST } from './judgeCliFixtures'
 
@@ -48,16 +47,6 @@ const BASE_CONTEXT = {
   paidConsent: 'not-required' as const,
   readyRate: undefined,
   minReadyRate: JUDGE_MIN_READY_RATE,
-}
-
-/** Adapts a fixture side's run into the lane-runtime shape the factory takes. */
-function toRuntime(side: JudgeCascadeSide): Pick<JudgeRuntime, 'judge'> {
-  return {
-    judge: async (request, signal) => {
-      const receipt = await side.run(request, signal)
-      return receipt.outcome
-    },
-  }
 }
 
 /** Clearly labelled test fixtures: memory evidence for one wiring family. */

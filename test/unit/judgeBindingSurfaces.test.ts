@@ -15,20 +15,21 @@ import {
   phase2ProfileSlug,
   type Phase2EvidenceStore,
 } from '../../src/core/judge/binding'
-import { createJudgeRuntime } from '../../src/core/judge/runtime'
+import {
+  createJudgeRuntime,
+  type JudgeRuntimeBinding,
+  type JudgeRuntimeDeps,
+} from '../../src/core/judge/runtime'
 import { createJudgeCommandDeps } from '../../src/runtime/judge/assembly'
 import { runJudgeCommand } from '../../src/runtime/judge/commands'
 import { createWindowJudge } from '../../src/host/judge/judgeEntry'
 import { createHostPhase2 } from '../../src/host/judge/judgeBinding'
-import { createPaidFeatures } from '../../src/host/paid/paidHost'
 import { JUDGE_MIN_READY_RATE, type JudgeEngine } from '../../src/shared/constants'
 import type { JudgeEntryParts } from '../../src/core/judge/entries'
 import type { JudgeStatus } from '../../src/shared/judge'
-import type { JudgeCascadeSide } from '../../src/core/judge/cascade'
-import type { JudgeRuntime } from '../../src/core/judge/engine'
+import { bindingWindowBase, toRuntime } from './helpers/judgeBinding'
 import { wiringFixture, wiringLimits } from './helpers/judgeWiring'
 import { FakeLogOutputChannel } from './helpers/fakes'
-import { memento } from './helpers/memento'
 import { command, io, REQUEST } from './judgeCliFixtures'
 
 const OPTIONS = {
@@ -38,14 +39,31 @@ const OPTIONS = {
   highStakes: true,
 }
 
-/** Adapts a fixture side's run into the lane-runtime shape the factory takes. */
-function toRuntime(side: JudgeCascadeSide): Pick<JudgeRuntime, 'judge'> {
+/** A window phase-2 pair that shares one production binding. */
+function windowPhase2(binding: JudgeRuntimeBinding | undefined) {
   return {
-    judge: async (request, signal) => {
-      const receipt = await side.run(request, signal)
-      return receipt.outcome
-    },
+    binding: () => binding,
+    createRuntime: (deps: JudgeRuntimeDeps) => Promise.resolve(createJudgeRuntime(deps)),
   }
+}
+
+/** Runs CLI ask through the real command assembly and dispatcher. */
+async function runAsk(
+  binding: JudgeRuntimeBinding | undefined,
+  engine: string,
+): Promise<{ code: number; output: string }> {
+  const deps = createJudgeCommandDeps({
+    binding: () => binding,
+    billing: 'free',
+    worstCaseUsd: () => 0,
+  })
+  const streams = io(JSON.stringify({ ...REQUEST, model: 'chosen' }))
+  const code = await runJudgeCommand(
+    command('ask', ['--engine', engine, '--model', 'chosen']),
+    streams,
+    deps,
+  )
+  return { code, output: streams.output() }
 }
 
 /** Clearly labelled test fixtures: one wiring family with file evidence. */
@@ -155,35 +173,13 @@ function windowDeps(overrides: {
   phase2?: Parameters<typeof createWindowJudge>[0]['phase2']
   onStatus?: ((action: JudgeEntryParts, status: JudgeStatus) => void) | undefined
 }) {
-  const paid = createPaidFeatures({
-    globalState: memento(new Map()),
-    workspaceState: memento(new Map()),
-    isSettingOn: () => false,
-    isJudgeOn: () => true,
-    isKeyStored: () => false,
-    canRememberPaidUse: () => false,
-    log: new FakeLogOutputChannel(),
-  })
   return {
+    ...bindingWindowBase(),
     phase2: overrides.phase2,
     engine: overrides.engine,
-    context: () => ({
-      backend: 'museCode' as const,
-      modelId: 'chosen',
-      ownerId: 'owner-1',
-      contextLimit: 32_000,
-      confidential: false,
-    }),
-    readSettingsText: () => undefined,
-    startSession: vi.fn(),
-    modelApi: () => undefined,
-    paid,
-    emit: vi.fn(),
     status: (action: JudgeEntryParts, status: JudgeStatus) => {
       overrides.onStatus?.(action, status)
     },
-    notice: vi.fn(),
-    log: new FakeLogOutputChannel(),
   }
 }
 
@@ -195,46 +191,30 @@ describe('production binding through the real factories', () => {
       expect(binding).toBeDefined()
       // Window through the real window factory.
       const onStatus = vi.fn<(action: JudgeEntryParts, status: JudgeStatus) => void>()
-      const judge = createWindowJudge(
-        windowDeps({
-          engine: () => 'auto',
-          onStatus,
-          phase2: {
-            binding: () => binding,
-            createRuntime: (deps) => Promise.resolve(createJudgeRuntime(deps)),
-          },
-        }),
+      const window = createWindowJudge(
+        windowDeps({ engine: () => 'auto', onStatus, phase2: windowPhase2(binding) }),
         EN,
         'en',
       )
-      const fence = judge.start(
+      const fence = window.start(
         { backend: 'museCode', sessionId: 's1', turnId: 'turn-1', tool: 'bash', args: {} },
         'state',
       )
+      const separateRun = fixtures.wired.separate.run
       await vi.waitFor(() => {
-        expect(fixtures.wired.separate.run).toHaveBeenCalled()
+        expect(separateRun).toHaveBeenCalledTimes(1)
       })
       expect(fence?.read()).toBe('caution')
       expect(onStatus).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({ mode: 'both', reason: 'auto-both' }),
       )
-      expect(judge.readPanelSnapshot()?.effectiveSource).toBe('both')
-      judge.dispose()
+      expect(window.readPanelSnapshot()?.effectiveSource).toBe('both')
+      window.dispose()
       // CLI ask through the real command assembly and dispatcher.
-      const askDeps = createJudgeCommandDeps({
-        binding: () => binding,
-        billing: 'free',
-        worstCaseUsd: () => 0,
-      })
-      const askStreams = io(JSON.stringify({ ...REQUEST, model: 'chosen' }))
-      const askCode = await runJudgeCommand(
-        command('ask', ['--engine', 'both', '--model', 'chosen']),
-        askStreams,
-        askDeps,
-      )
-      expect(askCode).toBe(0)
-      expect(askStreams.output()).toContain('cascade')
+      const ask = await runAsk(binding, 'both')
+      expect(ask.code).toBe(0)
+      expect(ask.output).toContain('cascade')
       // MCP through the same dispatcher.
       const mcpInput = `${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'judge', arguments: { ...REQUEST, model: 'chosen' } } })}\n`
       const mcpStreams = io(mcpInput)
@@ -265,10 +245,7 @@ describe('production binding through the real factories', () => {
         windowDeps({
           engine: () => 'auto',
           onStatus,
-          phase2: {
-            binding: () => bindingOf(fixtures, 'auto', empty),
-            createRuntime: (deps) => Promise.resolve(createJudgeRuntime(deps)),
-          },
+          phase2: windowPhase2(bindingOf(fixtures, 'auto', empty)),
         }),
         EN,
         'en',
@@ -288,21 +265,11 @@ describe('production binding through the real factories', () => {
       expect(fixtures.wired.separate.run).not.toHaveBeenCalled()
       judge.dispose()
       // CLI ask refuses with the named reason, never an empty success.
-      const askDeps = createJudgeCommandDeps({
-        binding: () => bindingOf(fixtures, 'both', empty),
-        billing: 'free',
-        worstCaseUsd: () => 0,
-      })
-      const askStreams = io(JSON.stringify({ ...REQUEST, model: 'chosen' }))
-      const askCode = await runJudgeCommand(
-        command('ask', ['--engine', 'both', '--model', 'chosen']),
-        askStreams,
-        askDeps,
-      )
-      expect(askCode).not.toBe(0)
       // G's dispatcher reports an unusable source without inventing one;
       // the exact gap (profile-missing here) is the window status line's.
-      expect(askStreams.output()).toContain('source-unavailable')
+      const refused = await runAsk(bindingOf(fixtures, 'both', empty), 'both')
+      expect(refused.code).not.toBe(0)
+      expect(refused.output).toContain('source-unavailable')
     } finally {
       fixtures.cleanup()
     }
