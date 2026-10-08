@@ -5082,15 +5082,35 @@ differ). Suites that do not touch a real journal run green directly.
 
 ### Final gates on the joined tree (this worktree)
 
-| Gate                                    | Exit | Result                                                                |
-| --------------------------------------- | ---- | --------------------------------------------------------------------- |
-| `node scripts/check-host-api.mjs`       | 0    | 0 problems (regenerated)                                              |
-| `npm run check:reference`               | 0    | current, Devices 18 entries                                           |
-| `node scripts/check-l10n.mjs`           | 0    | 14 UI + 14 usage tables, 197 manifest strings, 1012 files, 0 problems |
-| five typechecks                         | —    | final-gate run below                                                  |
-| eslint `--max-warnings=0` changed files | —    | final-gate run below                                                  |
-| `npm run format:check`                  | —    | final-gate run below                                                  |
-| knip / jscpd / cycles / build / quality | —    | final-gate run below                                                  |
+| Gate                                                 | Exit | Result                                                                                                                                                                                                                                         |
+| ---------------------------------------------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `node scripts/check-host-api.mjs`                    | 0    | 0 problems (regenerated)                                                                                                                                                                                                                       |
+| `npm run check:reference`                            | 0    | current, Devices 18 entries                                                                                                                                                                                                                    |
+| `node scripts/check-l10n.mjs`                        | 0    | 14 UI + 14 usage tables, 197 manifest strings, 1012 files, 0 problems                                                                                                                                                                          |
+| `npm run typecheck` (five projects)                  | 0    | host, webview, unit, e2e, integration clean                                                                                                                                                                                                    |
+| eslint `--max-warnings=0` (changed TS/TSX + scripts) | 0    | clean                                                                                                                                                                                                                                          |
+| `npm run format:check`                               | 0    | clean (one `.vitest/` run-cache file removed first)                                                                                                                                                                                            |
+| plain `npx knip`                                     | 0    | two pre-existing configuration hints only                                                                                                                                                                                                      |
+| `npm run duplication`                                | 0    | 0 clones                                                                                                                                                                                                                                       |
+| `npm run cycles`                                     | 0    | no cycles                                                                                                                                                                                                                                      |
+| `npm run build`                                      | 0    | all caps pass; `dist/devices.js` **102.4 KiB / 125 KiB** (win-storage moved the cap under D6, no cap raised), webview Devices 40.4/50, Devices QR 0.9/25, surface English 24.1/25, deferred 31.9/50, activation 462.8/600, Model API 456.0/475 |
+| `npm run quality` (once)                             | 1    | stops at `test:unit`; every earlier gate green (tail below)                                                                                                                                                                                    |
 
-Devices cap note: win-storage moved the devices cap to 125 KiB under D6
-(`scripts/check-bundle-size.mjs`); the production build re-measures below.
+Fresh clone (`/var/tmp/l-M100JOIN/join-clone`, `npm ci`, `CI=true`) repeats:
+typecheck 0, host-api 0 problems, reference current, l10n 0 problems,
+device sample (capability, inputManifest, workerDarwin) 554 passed /
+32 skipped / 0 failed, build 0 (devices.js 102.4/125 KiB), knip 0 (same two
+hints), duplication/cycles clean, prettier + changed-file eslint 0.
+
+`npm run quality` tail: `test:unit` 43 files failed / 819 passed,
+446 tests failed / 17759 passed / 162 skipped, 20 unhandled errors, then
+`ERROR: "test:unit" exited with 1` / `ERROR: "quality:gates" exited with 1`
+(aggregate exit **1**; build, audit, a11y, secrets and sast never ran).
+Every failing file was re-run on the unmerged base `2a0636760` (and every
+device file on its unmerged lane tip): all fail identically there — this
+container's `/` ancestry is uid-nobody (journal ownership checks), and its
+sandbox blocks interface enumeration, Chrome launch, the systemd user bus
+and npm-cache writes. No join regression: 17759 passing tests include the
+whole non-device tree, and all device suites that can run here pass
+(432 darwin, 58 storage/store, 83 lane-D, 78 U views/panels, 130 V, 24
+native Linux driver cases).
