@@ -116,6 +116,8 @@ Repository deadlines, no `--testTimeout`, retry or skip.
 | `harnessWaits.test.ts` (Windows workstation)                                 | 33/33, exit 0             |
 | `harnessCapture.test.mjs` (Windows workstation; slices the same harness)     | 7/7, exit 0               |
 | `teamHarness.test.mjs` + `harnessWaits.test.ts`, CI coverage flags, Mac mini | 57/57 three times, exit 0 |
+| The same on the commit rebased onto `67099ce1b`, Win11 VM                    | 57/57 three times, exit 0 |
+| The same on the rebased commit, Kubuntu                                      | 57/57 three times, exit 0 |
 | `typecheck:unit`                                                             | exit 0                    |
 | ESLint `--max-warnings=0` on the changed test files                          | exit 0                    |
 | Prettier on every changed file                                               | exit 0                    |
@@ -123,4 +125,7 @@ Repository deadlines, no `--testTimeout`, retry or skip.
 
 The Windows workstation was too loaded to finish the browser file's 60 s
 setup (its production build alone took 63 s), so the real file ran on rigs.
+On the VM and on Kubuntu the first run after installing the rebased lockfile
+hit that unchanged 60 s setup deadline before any case ran (cold caches, as
+the baseline's first runs did); the three runs after it are the ones counted.
 Hosted CI remains the merge gate.
