@@ -666,3 +666,161 @@ Windows CI may still fail this case.
 Cleanup: the scratch probes, the base worktree, and the win11 one-off task
 with its command file are removed. Raw receipts stay in the session
 scratchpad.
+
+## Spawn governance redesign (SPAWN017C)
+
+Windows 11 host and rigs, branch `rel017/spawn4` from `fb0b12aa3`, answering
+RVSPAWN017B; the stopped Codex lane's work in progress was reviewed and
+finished. Commits: `867d9d7cf` (profiles, typed pause, sampling deadline,
+share hand-off), `16d98a640` (inventory guard), `ff7176110` (merge of
+`rel017/spawn3` `be70bcb35` as the `probe` profile), then this record. No
+push, dependency, hook, threshold, timeout, credential or live-model change.
+
+### Launch profiles
+
+Every portable launch names one profile (`src/core/resources/process.ts`);
+no call site chooses `detached`, `stdio` or `shell`.
+
+| Profile     | Contains and why                                                                                                                                                                                                                                                                                                  | Call sites                                                                                                                                                                     |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| contained   | Pipes; own POSIX process group (session) or a Windows job; a temp root. Cancel, deadline, root exit and host disposal stop the whole tree (disposal kills, it no longer only releases the lease).                                                                                                                 | media converter, vault peer verifier, vault slot transports (mac, Windows), schedule maintenance child and schedule OS commands (they change scheduler state)                  |
+| probe       | As contained, but no temp root: bounded and read-only, so nothing needs one (D87.14's dated narrowing, lead decision). Admission, deadline, output cap, containment and tree retirement unchanged.                                                                                                                | scheduled Git ref reads (3), report Git reads, gh reads, report-writer birth probe, media version probe                                                                        |
+| handoff     | Background admission (pause refuses at once); RESOURCE_HANDOFF_TIMEOUT_MS (10 s) over admission and run; output to the null device; the caller's environment, never the lease's temp root; waits for the adapter's own exit; at the deadline only the adapter root is killed. What it opened belongs to the user. | `handoffResourceFile`: usage companion opener (xdg-open, open, rundll32), `share` / `prompts share` copy (xclip, pbcopy, Set-Clipboard) and browser (xdg-open, open, explorer) |
+| interactive | Inherited stdio in the terminal's own session, group and TTY, so Ctrl+C reaches it; exit observed; root killed if the CLI shuts down first.                                                                                                                                                                       | runtime `login` (`muse login`)                                                                                                                                                 |
+| bootstrap   | Compilers that build the containment helpers, and the governor's own fixed, bounded, credential-free probes and emergency terminators: they cannot be admitted through what they build or verify. Compilers keep heavy background admission, one combined output cap, a deadline and OS whole-tree stop.          | `runBootstrap` (job helper, vault guard and compiler, runtime self-tests); taskkill stop; `runProgram`; sampler and tree probes                                                |
+
+### Findings, fixes and regressions
+
+| Finding (RVSPAWN017B)                           | Fix                                                                                                                                                                          | Regression (fails on `fb0b12aa3`)                                                                                                                                                                               |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2 lifecycle: dispose only released the lease   | `launchHost.ts` `stopOnDispose` (stop, then retire)                                                                                                                          | `resourceLaunchHost.test.ts` "kills active work on dispose"                                                                                                                                                     |
+| P2 lifecycle: Linux opener detached and unref'd | `main.ts:639` `handoffResourceFile`; `commands.ts:26`; `process.ts` `spawnHandoff`                                                                                           | `spawnProfiles.test.ts` hand-off cases (bounded wait, root-only kill at deadline, returns while the opened program lives, adapter failure); `spawnBoundaries.test.ts`                                           |
+| P2 lifecycle: login not in the terminal         | `main.ts:1329` `spawnResourceProcess('interactive', …)`; `process.ts` `spawnInteractive`                                                                                     | `spawnProfiles.test.ts` interactive spy and the POSIX session/group/TTY proof (Kubuntu)                                                                                                                         |
+| P2 honesty: pause waited out a deadline         | `queue.ts:188` typed `ResourcePausedError` ("Resources: Paused"); `paused.ts` structural check across bundles; `shellJob.ts:105`, `windowsVaultBuild.ts:94`, `toolIo.ts:965` | `spawnRuntimeAdmission.test.ts` pause case: paused bootstrap, first Windows shell refused with no fallback log, shell helper and vault each refuse once, zero spawns; `queue.test.ts`, `spawnBootstrap.test.ts` |
+| P2 share command raw spawn                      | `sharingEntry.ts:72` `handoffResourceFile`                                                                                                                                   | `spawnBoundaries.test.ts` "routes clipboard and browser sharing through the handoff profile"; inventory guard                                                                                                   |
+| P3 deadline excluded sampling                   | `load.ts:89` caller deadline armed before load, settings and sampling; `governor.ts:428` `refresh(signal)` ends one caller's wait without cancelling the shared sample       | `spawnRuntimeAdmission.test.ts` never-returning sampler; `governor.test.ts` "ends one caller's wait at its signal without cancelling the shared sample"                                                         |
+| P3 inventory incomplete                         | `scripts/lib/spawn-inventory.mjs`, `docs/certification/spawn-inventory.json`, table above                                                                                    | `spawnInventory.test.mjs` (scan equals JSON; test-only proofs; literal profiles; probe set; table equals JSON)                                                                                                  |
+| Lead: probe, never a blanket rule               | `process.ts` `admitProfile`; `commands.ts` `execResourceFile(profile: 'contained' \| 'probe')`; PLAN D87.14 note                                                             | `spawnProfiles.test.ts` "skips the temp root only for a named probe"; `spawnRuntimeAdmission.test.ts` "contained commands get a temp root"; inventory probe-set check                                           |
+
+Other repairs found while finishing the WIP: the hand-off first waited for
+`close` on piped output, which a browser or xclip's selection daemon keeps
+open (hang), and handed the browser the lease's temp root; bootstrap's
+taskkill now treats an already-exited root as stopped; one execResourceFile
+deadline covers admission and run; `sharingRuntime.js` externalizes the
+admission shim (it had inlined it, 274 KiB against 175).
+
+### Inventory guard
+
+101 sites under `src`: contained 66, bootstrap 10, test-only 7,
+probe 7, handoff 5, interactive 3, honestly-unavailable 3. The test-only
+entries are proved by reachability, transitively: the native team lifetime
+driver (`createNativeTeamProcessDriver`, `windowsTeamDriver`, reached only
+from `startNativeTeamLifetime`), the M75 eval verifier (`runEvalVerifier`)
+and the macOS lsof probe in `WORKER_NATIVE_IO`; each is also used by a test.
+Scanning is syntax-only with a sound text prefilter, at the repository's
+own hook and test timeouts (about 2.6 s on Kubuntu).
+
+### Merge of `rel017/spawn3`
+
+`spawnResourceCommand` and the rule that every bounded command is temp-free
+are replaced by the `probe` profile, chosen per site; schedule OS commands
+and converters stay `contained`. spawn3's `tempFree` rename, once-per-binding
+Windows job preparation with retry, and the Git `cause` are kept with the
+caller deadline. spawn3's three regressions are kept; its bounded-command
+case now names `probe`. Its hookless commit was audited: gitleaks over
+`fb0b12aa3..HEAD` finds no leaks; eslint and prettier pass on every file it
+changed, as merged.
+
+### Red drills
+
+Each drill was applied in a scratch worktree at the merge commit, run on
+Kubuntu, and restored with a byte comparison; the scratch worktree was clean
+afterwards. Every drill exited 1; the restored control passed 19/19.
+
+| Drill                                                 | Failing regression                                                                           |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| raw `spawn` in a new file `src/core/drillRawSpawn.ts` | spawnInventory: scan no longer equals the inventory                                          |
+| dispose releases instead of stopping                  | resourceLaunchHost: "kills active work on dispose"                                           |
+| pause queues background work again                    | queue (5 cases) and spawnRuntimeAdmission pause case                                         |
+| interactive profile detached                          | spawnProfiles: interactive spy and the POSIX session/group/TTY proof                         |
+| `contained` silently temp-free (probe as default)     | spawnProfiles "named probe only"; spawnRuntimeAdmission "contained commands get a temp root" |
+
+Before the merge, the first four drills were also run at `16d98a640`'s
+tree with the same results.
+
+### Gates
+
+In the lane worktree (its node_modules is a junction to an `npm ci`
+install from a byte-identical lockfile; not a fresh clone), `CI=true`,
+Windows host, merged tree `ff7176110`:
+
+| Gate                                            | Exit | Receipt                                                                                                                                  |
+| ----------------------------------------------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| typecheck host, webview, unit, e2e, integration | 0    | 172 s, 108 s, 435 s, 185 s, 65 s                                                                                                         |
+| ESLint --max-warnings=0, Prettier (changed)     | 0    | every changed file; installed lint-staged and gitleaks hooks on `16d98a640` and `ff7176110`; `867d9d7cf` audited by hand (see below)     |
+| knip (plain)                                    | 0    | two existing configuration hints                                                                                                         |
+| jscpd                                           | 1    | only the four inherited clones (acp agent, exactUsd/text, queuedAnswerBackend/modelApiElicitation, paidDailyBudget); this lane adds none |
+| cycles (dpdm)                                   | 1    | the same five cycles as `fb0b12aa3` (also exit 1 there)                                                                                  |
+| check:l10n, check:host-api, check:reference     | 0    | host-api record regenerated: one fewer `node:child_process` importer                                                                     |
+| build                                           | 1    | inherited caps only (below)                                                                                                              |
+
+Sizes: resourceGovernor 115.8/125 KiB (112.9 at SPAWN017B), extension
+581.9/600 KiB, resourceAdmission 2.6/25 KiB, sharingRuntime 168.5/175 KiB.
+Inherited overs, none raised: reporting 258.4/175, reportingNetwork
+170.7/75 (both about 3 KiB larger: they inline the admission facade, which
+grew; externalizing it there belongs to the caps lane), runtimeQuestions
+25.5/25, conversation 255.0/250, runtimeEngine 894.9/875, usagePanel
+83.3/75, headless 100.7/100, runtimeAccounts 340.5/300, webview surface
+English 26.9/25, Palette 25.7/25, estimator panel 25.0/25.
+
+Suites (default timeouts, at most three files per run): spawnBootstrap,
+spawnRuntimeAdmission, spawnBoundaries, spawnProfiles, spawnInventory,
+spawnGovernance, queue, governor, resourceLaunchHost, reportHistory,
+runtimeSharing, shellJob, mediaConvert and scheduleEvents.local pass on
+Kubuntu; spawnRuntimeAdmission, spawnProfiles, spawnInventory, spawnBootstrap,
+shellJob and spawnGovernance pass natively on Windows (here and on the
+win11 rig). Inherited failures, identical at `fb0b12aa3`: three
+windowsVaultTransport compiler cases (they assert the pre-bootstrap
+`execFile` compiler path) and two nativeScheduleBackground cases (that file
+runs without configured admission). Their assertions are unchanged.
+
+### Windows cost (lead item 3): not done
+
+`scheduleEvents.local`'s real-Git case on Windows, merged tree, default
+15 s test deadline (unchanged): pinned to 4 CPUs (`start /affinity F`),
+timed out at 15.05 s (11 passed, 1 failed); unpinned on this 20-CPU host at
+79 % load from other work, timed out at 15.17 s. It passes on Kubuntu (12/12,
+0.45 s for the file). No "after" exists: the job-object redesign was not
+implemented. Each governed Windows launch still starts the compiled
+launcher and up to six cold PowerShell queries (bind, contains, members,
+usage, gone). The launcher already creates the job with
+`KILL_ON_JOB_CLOSE` and the helper reads `JobObjectBasicAccountingInformation`,
+but the launcher has no channel after the owner's GO (Node ends the control
+socket) and passes the payload's exit code through, and the registry's
+per-ticket reader (members, usage, signal) also feeds D100 G13's process
+caps and resource history. Moving those onto a launcher-served job query
+(kept connected on the nonce-authenticated control pipe) is a redesign of
+the reader protocol, not of retirement alone; it needs its own review and
+native qualification.
+
+### Hooks, hangs and cleanup
+
+- `867d9d7cf` ran no hooks: the lane worktree's `.husky/_` was missing
+  (node_modules is a junction, so `prepare` never ran). `npm run prepare`
+  then installed them; later commits ran lint-staged and gitleaks. For
+  `867d9d7cf` and spawn3's `be70bcb35` (also hookless): gitleaks over
+  `fb0b12aa3..HEAD` finds no leaks; ESLint and Prettier pass on every file
+  they changed. Staged and committed diffs were compared after each commit.
+- A silent hang: a local run of windowsVaultTransport, spawnInventory and
+  reportHistory produced nothing for 20 minutes, as did the same files on
+  the win11 rig (slot `spawn4x1`, which later ended with the helper's
+  timeout, exit 99). Cause: an uncommitted test change whose `vi.mock`
+  factory for the admission facade awaited `import('…/process')`, which
+  imports the mocked facade, so the factory waited on itself. No product
+  code was involved; the change was reverted (the test file equals
+  `fb0b12aa3`'s). The stopping of that vitest (PID 75380, this lane's) was
+  first refused by the auto-mode classifier and later done by exact PID
+  with the owner's go.
+- Coordination: `src/core/schedules/events/git.ts` changed only by the
+  profile argument (and spawn3's cause, merged); no ref-reading or
+  created-file publication logic changed here.

@@ -25,6 +25,10 @@ profile (`src/core/resources/process.ts`), and no call site chooses
 - `contained` (payloads, tools, helpers): pipes, its own POSIX process group
   (session) or a Windows job. Cancel, deadline, root exit and host disposal
   stop the whole tree; disposal kills, it never only releases the lease.
+- `probe` (bounded, read-only commands: Git ref and report reads, gh reads,
+  birth and version probes): contained like the above but with no temp root,
+  because it writes nothing. Each call site names it and the inventory records
+  it with its reason; a command that might write stays `contained`.
 - `handoff` (OS openers and clipboard programs): background admission, so a
   pause refuses it at once. Its output goes to the null device, so nothing is
   buffered and a browser the OS starts never holds the CLI's pipes. It gets
