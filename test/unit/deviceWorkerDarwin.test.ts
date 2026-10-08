@@ -53,14 +53,24 @@ function native() {
   if (state.native === undefined) throw new Error('native fixture not prepared')
   return state.native
 }
-function launch(script: string) {
-  return native().launch(
-    { executable: process.execPath, args: ['-e', script], cwd: state.directory, requiredTools: [] },
+function freshDriver(invoke: RunProgram = run) {
+  return deviceWorkerDarwin({ storageDir: state.directory, environment: process.env, run: invoke })
+}
+function launch(
+  script: string,
+  driver: DeviceWorkerDriver = native(),
+  environment?: Record<string, string>,
+) {
+  const env =
+    environment ??
     Object.fromEntries(
       Object.entries(workerEnvironment(process.env, 'darwin')).flatMap(([name, value]) =>
         value === undefined ? [] : [[name, value]],
       ),
-    ),
+    )
+  return driver.launch(
+    { executable: process.execPath, args: ['-e', script], cwd: state.directory, requiredTools: [] },
+    env,
   )
 }
 async function ready(marker: string) {
@@ -87,6 +97,14 @@ async function clean(job: DeviceWorkerJob) {
   await job.cancel()
   await job.retirement
   await job.remove()
+}
+async function recover(job: DeviceWorkerJob) {
+  const context = parseDeviceWorkerQuery(job.query).context
+  await run('/bin/launchctl', ['bootout', `gui/${String(uid())}/${context.desktop}`], {})
+  await rm(path.join(state.directory, 'device-workers-darwin', `attempt-${context.desktop}`), {
+    recursive: true,
+    force: true,
+  })
 }
 
 describe('M100/H Darwin unsupported manager port', () => {
@@ -171,8 +189,7 @@ describe.skipIf(process.platform !== 'darwin')('M100/H actual launchd GUI job', 
   beforeAll(async () => {
     state.directory = await mkdtemp(path.join(tmpdir(), 'm100-darwin-native-'))
     state.native = selectDeviceWorkerDriver('darwin', {
-      darwin: () =>
-        deviceWorkerDarwin({ storageDir: state.directory, environment: process.env, run }),
+      darwin: () => freshDriver(),
       win32: () => {
         throw new Error('wrong platform factory')
       },
@@ -356,20 +373,8 @@ describe.skipIf(process.platform !== 'darwin')('M100/H actual launchd GUI job', 
         const query = parseDeviceWorkerQuery(JSON.parse(stdout))
         return JSON.stringify({ ...query, power })
       }
-      const driver = deviceWorkerDarwin({
-        storageDir: state.directory,
-        environment: process.env,
-        run: invoke,
-      })
-      const job = await driver.launch(
-        {
-          executable: process.execPath,
-          args: ['-e', 'setInterval(()=>{},100)'],
-          cwd: state.directory,
-          requiredTools: [],
-        },
-        {},
-      )
+      const driver = freshDriver(invoke)
+      const job = await launch('setInterval(()=>{},100)', driver, {})
       try {
         await job.activate()
         expect(await driver.query()).toMatchObject({ power, sleepInhibited: true })
@@ -405,23 +410,14 @@ describe.skipIf(process.platform !== 'darwin')('M100/H actual launchd GUI job', 
       if (child !== undefined) process.kill(child, 'SIGKILL')
       // Deliberately uncertain attempts are recovered by this test's exact unit;
       // the production driver never marks them observed or removes them.
-      const context = parseDeviceWorkerQuery(job.query).context
-      await run('/bin/launchctl', ['bootout', `gui/${String(uid())}/${context.desktop}`], {})
-      await rm(path.join(state.directory, 'device-workers-darwin', `attempt-${context.desktop}`), {
-        recursive: true,
-        force: true,
-      })
+      await recover(job)
     }
   })
   it('an injected unavailable manager refuses natively without starting a worker', async () => {
     const invoke = vi.fn<RunProgram>((file, args, env) =>
       args[0] === 'print' ? Promise.reject(new Error('manager unavailable')) : run(file, args, env),
     )
-    const driver = deviceWorkerDarwin({
-      storageDir: state.directory,
-      environment: process.env,
-      run: invoke,
-    })
+    const driver = freshDriver(invoke)
     await expect(
       driver.launch(
         {
@@ -443,21 +439,8 @@ describe.skipIf(process.platform !== 'darwin')('M100/H actual launchd GUI job', 
         ? Promise.reject(new Error('manager lost'))
         : run(file, args, env)
     }
-    const driver = deviceWorkerDarwin({
-      storageDir: state.directory,
-      environment: process.env,
-      run: invoke,
-    })
-    const job = await driver.launch(
-      {
-        executable: process.execPath,
-        args: ['-e', 'setInterval(()=>{},100)'],
-        cwd: state.directory,
-        requiredTools: [],
-      },
-      {},
-    )
-    const context = parseDeviceWorkerQuery(job.query).context
+    const driver = freshDriver(invoke)
+    const job = await launch('setInterval(()=>{},100)', driver, {})
     try {
       await job.activate()
       isUnavailable = true
@@ -466,11 +449,7 @@ describe.skipIf(process.platform !== 'darwin')('M100/H actual launchd GUI job', 
     } finally {
       isUnavailable = false
       await job.cancel()
-      await run('/bin/launchctl', ['bootout', `gui/${String(uid())}/${context.desktop}`], {})
-      await rm(path.join(state.directory, 'device-workers-darwin', `attempt-${context.desktop}`), {
-        recursive: true,
-        force: true,
-      })
+      await recover(job)
     }
   })
   it('a corrupt cached helper fails a new factory self-test and never falls back', async () => {
@@ -480,11 +459,7 @@ describe.skipIf(process.platform !== 'darwin')('M100/H actual launchd GUI job', 
     if (name === undefined) throw new Error('native helper missing')
     await writeFile(path.join(root, name), 'corrupted native helper')
     const invoke = vi.fn<RunProgram>(run)
-    const driver = deviceWorkerDarwin({
-      storageDir: state.directory,
-      environment: process.env,
-      run: invoke,
-    })
+    const driver = freshDriver(invoke)
     expect(await driver.selfTest()).toBe(false)
     await expect(
       driver.launch(
