@@ -1,6 +1,6 @@
 import { rm } from 'node:fs/promises'
 import path from 'node:path'
-import { vi, beforeEach, afterEach } from 'vitest'
+import { vi, afterAll, beforeEach, afterEach } from 'vitest'
 import {
   AttemptJournal,
   deviceDispatchDigest,
@@ -18,6 +18,7 @@ import {
   deviceCheck,
   deviceLane,
   deviceStorageBinding,
+  endDeviceStorage,
   privateDeviceRoot,
 } from './deviceFixtures'
 import type { DeviceDispatch, DeviceFrame } from '../../../src/shared/devices'
@@ -133,6 +134,7 @@ export function useExecutionFixture(kind: 'check' | 'lane', prepare?: () => Prom
     vi.unstubAllGlobals()
     if (current !== undefined) await rm(current.parent, { recursive: true, force: true })
   })
+  afterAll(endDeviceStorage)
   return () => {
     if (current === undefined) throw new Error('missing test fixture')
     return current

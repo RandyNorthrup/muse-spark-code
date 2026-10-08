@@ -7,14 +7,22 @@
 // fixed golden, so every refusal is proven against third-party bytes.
 import { hostname } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
 import { DeviceDiscovery, type DeviceDiscoveryStatus } from '../../src/host/devices/deviceDiscovery'
 import { createDeviceMdnsPort, decodeDeviceMdnsPacket } from '../../src/host/devices/deviceMdns'
 import { DeviceStore } from '../../src/host/devices/deviceStore'
-import { deviceStorage, privateDeviceRoot, removeDeviceFixture } from './helpers/deviceFixtures'
+import {
+  deviceStorage,
+  endDeviceStorage,
+  privateDeviceRoot,
+  removeDeviceFixture,
+} from './helpers/deviceFixtures'
 import { completeLaneMutualPairing, startLaneTestHost } from './helpers/deviceLaneHosts'
 import { FakeMdnsSocket as FakeSocket } from './helpers/deviceMdnsFakes'
+
+// The shared native storage helper ends with this file.
+afterAll(endDeviceStorage)
 
 // dns-packet 5.6.1 encoding of PTR + SRV(port 4321) + TXT(id, v=1) for
 // instance d-aaa…a under _musespark._tcp.local, TTL 120.

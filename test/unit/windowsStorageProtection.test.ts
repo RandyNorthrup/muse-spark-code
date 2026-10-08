@@ -5,10 +5,15 @@ import {
   isSafeAncestorReading,
   parseStorageReading,
   startStorageHelper,
+  supervisedStorageHelper,
   windowsStorageProtection,
+  type StorageHelper,
   type StorageHelperRequest,
 } from '../../src/host/devices/windowsStorageProtection'
-import { deviceStorageProtection } from '../../src/host/devices/deviceBundle'
+import { deviceMethods, deviceStorageProtection } from '../../src/host/devices/deviceBundle'
+import type { DeviceServiceDeps } from '../../src/host/devices/deviceEntry'
+import { FakeLogOutputChannel } from './helpers/fakes'
+import { ownedDeviceStorage, STORAGE_HELPER_STAND_IN } from './helpers/deviceFixtures'
 
 // Readings in the helper's wire format, recorded on a Windows 11 host.
 const ME = 'S-1-5-21-2150206276-3426440022-602146264-1001'
@@ -172,26 +177,16 @@ describe('the binding over a helper port', () => {
 })
 
 // A stand-in helper speaking the same line protocol, so every OS runs this.
-function fakeHelper(script: string) {
-  return startStorageHelper(process.execPath, ['-e', script], process.env)
+const echo = STORAGE_HELPER_STAND_IN
+function fakeHelper(script: string, deadlineMs?: number) {
+  return startStorageHelper(process.execPath, ['-e', script], process.env, deadlineMs)
+}
+// A request this test sends although the helper protocol has no such operation.
+function untyped(helper: { request: StorageHelperRequest }) {
+  return helper.request as (operation: string, paths: readonly string[]) => Promise<string>
 }
 
 describe('the long-lived helper protocol', () => {
-  const echo = String.raw`
-    let buffer = ''
-    process.stdin.setEncoding('utf8')
-    process.stdin.on('data', (chunk) => {
-      buffer += chunk
-      for (let end = buffer.indexOf('\n'); end !== -1; end = buffer.indexOf('\n')) {
-        const [id, operation, ...fields] = buffer.slice(0, end).split('\t')
-        buffer = buffer.slice(end + 1)
-        const paths = fields.map((field) => field.length === 1 ? field : Buffer.from(field, 'base64').toString('utf8'))
-        if (operation === 'swap') process.stdout.write('999\tok\t\n')
-        else if (operation === 'sync') process.stdout.write(id + '\terr\t5\n')
-        else if (operation === 'replace') process.exit(3)
-        else process.stdout.write(id + '\tok\t' + operation + ':' + paths.join('+') + '\n')
-      }
-    })`
   const absolute = String.raw`C:\store\pairs.json`
   it('answers requests in order, encodes paths and reports helper errors', async () => {
     const helper = fakeHelper(echo)
@@ -211,11 +206,7 @@ describe('the long-lived helper protocol', () => {
   })
   it('fails every request after a mismatched answer or the helper exiting', async () => {
     const swapped = fakeHelper(echo)
-    const request = swapped.request as (
-      operation: string,
-      paths: readonly string[],
-    ) => Promise<string>
-    await expect(request('swap', [])).rejects.toThrow('storage-protection')
+    await expect(untyped(swapped)('swap', [])).rejects.toThrow('storage-protection')
     await expect(swapped.request('ping', [])).rejects.toThrow('storage-protection')
     swapped.dispose()
     const exiting = fakeHelper(echo)
@@ -230,29 +221,129 @@ describe('the long-lived helper protocol', () => {
   })
 })
 
-describe('the Devices bundle storage seam', () => {
-  it('binds Windows only, never without a system root', async () => {
-    const protection = windowsStorageProtection(() => Promise.resolve(''))
-    const startWindowsStorageProtection = vi.fn(() =>
-      Promise.resolve({ protection, dispose: () => undefined }),
+describe('a helper that stops answering', () => {
+  it('fails every waiting request at the deadline, ends that helper, and the next request starts afresh', async () => {
+    const started: StorageHelper[] = []
+    const supervised = supervisedStorageHelper(() => {
+      // Only the first, hanging helper gets a short deadline; its successor the default.
+      const helper = started.length === 0 ? fakeHelper(echo, 200) : fakeHelper(echo)
+      started.push(helper)
+      return helper
+    })
+    try {
+      const hung = untyped(supervised)('hang', [])
+      const waiting = untyped(supervised)('hang', [])
+      await expect(hung).rejects.toThrow('storage-protection')
+      await expect(waiting).rejects.toThrow('storage-protection')
+      await started[0]?.exited
+      await expect(supervised.request('ping', [])).resolves.toBe('ping:')
+      expect(started).toHaveLength(2)
+    } finally {
+      supervised.dispose()
+      await Promise.all(started.map((helper) => helper.exited))
+    }
+    await expect(supervised.request('ping', [])).rejects.toThrow('storage-protection')
+  })
+  it('refuses the store operation instead of leaving it pending', async () => {
+    const helper = fakeHelper(echo, 200)
+    const protection = windowsStorageProtection((_operation, paths) =>
+      untyped(helper)('hang', paths),
     )
-    const bundle = { startWindowsStorageProtection }
+    await expect(protection.assertPrivate(String.raw`C:\store\pairs.json`, false)).rejects.toThrow(
+      'storage-protection',
+    )
+    await helper.exited
+  })
+})
+
+describe('the Devices bundle storage seam', () => {
+  it('ends the helper process of an owned binding when it is disposed', async () => {
+    const binding = await ownedDeviceStorage()
+    // Any request starts the helper; this folder does not exist, so it is refused.
+    await expect(binding.protection.syncDirectory(path.resolve('store'))).rejects.toThrow(
+      'storage-protection',
+    )
+    const helper = binding.current()
+    expect(helper).toBeDefined()
+    binding.dispose()
+    await helper?.exited
+    await expect(binding.protection.assertPrivate(path.resolve('store'), true)).rejects.toThrow(
+      'storage-protection',
+    )
+  })
+  it('ends the helpers of failed preparations and of the disposed methods', async () => {
+    const helpers: StorageHelper[] = []
+    const startWindowsStorageProtection = vi.fn(() => {
+      const helper = fakeHelper(echo)
+      helpers.push(helper)
+      return Promise.resolve({
+        protection: windowsStorageProtection(helper.request),
+        current: () => helper,
+        dispose: helper.dispose,
+      })
+    })
+    const service = { dispose: vi.fn() }
+    const bundle = {
+      createDeviceService: vi.fn(() => Promise.resolve(service)),
+      DeviceStore: vi.fn(),
+      DeviceSecrets: vi.fn(),
+      AttemptJournal: vi.fn(),
+      DeviceDiscovery: vi.fn(),
+      startWindowsStorageProtection,
+    }
     const options = {
       helperDirectory: path.resolve('helpers'),
       systemRoot: String.raw`C:\Windows`,
       extensionPath: process.cwd(),
     }
-    await expect(deviceStorageProtection(bundle, options, 'linux')).resolves.toBeUndefined()
-    await expect(deviceStorageProtection(bundle, options, 'darwin')).resolves.toBeUndefined()
+    let attempts = 0
+    const methods = deviceMethods({
+      bundlePath: 'devices.js',
+      log: new FakeLogOutputChannel(),
+      loadBundle: () => bundle,
+      async dependencies(loaded, scope) {
+        await deviceStorageProtection(loaded, options, scope, 'win32')
+        attempts += 1
+        if (attempts < 3) throw new Error('damaged-state-sentinel')
+        return {} as DeviceServiceDeps
+      },
+    })
+    await expect(methods.service()).rejects.toThrow('damaged-state-sentinel')
+    await expect(methods.service()).rejects.toThrow('damaged-state-sentinel')
+    await Promise.all(helpers.map((helper) => helper.exited))
+    await expect(methods.service()).resolves.toBe(service)
+    expect(helpers).toHaveLength(3)
+    expect(helpers[2]?.hasFailed()).toBe(false)
+    methods.dispose()
+    expect(service.dispose).toHaveBeenCalledOnce()
+    await helpers[2]?.exited
+    expect(helpers.every((helper) => helper.hasFailed())).toBe(true)
+  })
+  it('binds Windows only, never without a system root, and hands its disposer to the scope', async () => {
+    const protection = windowsStorageProtection(() => Promise.resolve(''))
+    const dispose = vi.fn()
+    const startWindowsStorageProtection = vi.fn(() =>
+      Promise.resolve({ protection, current: () => undefined, dispose }),
+    )
+    const bundle = { startWindowsStorageProtection }
+    const scope = { own: vi.fn() }
+    const options = {
+      helperDirectory: path.resolve('helpers'),
+      systemRoot: String.raw`C:\Windows`,
+      extensionPath: process.cwd(),
+    }
+    await expect(deviceStorageProtection(bundle, options, scope, 'linux')).resolves.toBeUndefined()
+    await expect(deviceStorageProtection(bundle, options, scope, 'darwin')).resolves.toBeUndefined()
     expect(startWindowsStorageProtection).not.toHaveBeenCalled()
-    await expect(deviceStorageProtection(bundle, options, 'win32')).resolves.toBe(protection)
+    await expect(deviceStorageProtection(bundle, options, scope, 'win32')).resolves.toBe(protection)
+    expect(scope.own).toHaveBeenCalledExactlyOnceWith(dispose)
     expect(startWindowsStorageProtection).toHaveBeenCalledWith({
       directory: options.helperDirectory,
       systemRoot: options.systemRoot,
       extensionPath: options.extensionPath,
     })
     await expect(
-      deviceStorageProtection(bundle, { ...options, systemRoot: undefined }, 'win32'),
+      deviceStorageProtection(bundle, { ...options, systemRoot: undefined }, scope, 'win32'),
     ).rejects.toThrow('storage')
   })
 })

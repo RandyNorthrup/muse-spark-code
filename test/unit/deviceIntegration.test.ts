@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi, type Mock } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { createElement } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { DevicesView } from '../../src/webview/models/sections/agents/DevicesView'
@@ -32,9 +32,18 @@ import type {
   DeviceExecutionBoundary,
   DeviceLocalAttempt,
 } from '../../src/host/devices/deviceReceiver'
-import { deviceGrant, deviceLane, deviceStorage, privateDeviceRoot } from './helpers/deviceFixtures'
+import {
+  deviceGrant,
+  deviceLane,
+  deviceStorage,
+  endDeviceStorage,
+  privateDeviceRoot,
+} from './helpers/deviceFixtures'
 import { deferred, executionUsage, signedDispatch } from './helpers/deviceExecutionFixtures'
 import { transportHandler, transportPort } from './helpers/deviceTransportFixtures'
+
+// The shared native storage helper ends with this file.
+afterAll(endDeviceStorage)
 
 type Service = Awaited<ReturnType<typeof createDeviceService>>
 const resources: { parent: string; store: DeviceStore; service?: Service }[] = []

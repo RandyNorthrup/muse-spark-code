@@ -34,10 +34,20 @@ function isDeviceBundle(value: unknown): value is DeviceBundle {
 }
 
 /**
+ * What a `dependencies` callback starts that must end with it: `own` hands a
+ * disposer to `deviceMethods`, which calls it when that preparation fails or
+ * when the methods are disposed (at once, if they already are).
+ */
+export interface DeviceDependencyScope {
+  readonly own: (dispose: () => void) => void
+}
+
+/**
  * The storage binding a `dependencies` callback hands to both
  * `bundle.DeviceStore` and `bundle.AttemptJournal`. Windows requires the
- * native binding (its shipped C# is compiled into `helperDirectory`); other
- * platforms use POSIX owner/mode checks and directory fsync.
+ * native binding (its shipped C# is compiled into `helperDirectory`), whose
+ * helper process `scope` owns; other platforms use POSIX owner/mode checks
+ * and directory fsync.
  */
 export async function deviceStorageProtection(
   bundle: Pick<DeviceBundle, 'startWindowsStorageProtection'>,
@@ -47,6 +57,7 @@ export async function deviceStorageProtection(
     /** The extension or package folder that ships native/windows/. */
     readonly extensionPath: string
   },
+  scope: DeviceDependencyScope,
   platform: NodeJS.Platform = process.platform,
 ): Promise<DeviceEntry.DeviceStorageProtection | undefined> {
   if (platform !== 'win32') return undefined
@@ -56,7 +67,12 @@ export async function deviceStorageProtection(
     systemRoot: options.systemRoot,
     extensionPath: options.extensionPath,
   })
+  scope.own(binding.dispose)
   return binding.protection
+}
+
+function end(disposers: (() => void)[]): void {
+  for (const dispose of disposers.splice(0)) dispose()
 }
 
 /** VS Code, companion editors and runtime callers use the same explicit method port. */
@@ -64,7 +80,10 @@ export function deviceMethods(options: {
   readonly bundlePath: string
   readonly log: Logger
   readonly loadBundle?: ((file: string) => unknown) | undefined
-  readonly dependencies: (bundle: DeviceBundle) => Promise<DeviceServiceDeps>
+  readonly dependencies: (
+    bundle: DeviceBundle,
+    scope: DeviceDependencyScope,
+  ) => Promise<DeviceServiceDeps>
 }) {
   const load = lazyBundleLoader({
     ...options,
@@ -76,19 +95,35 @@ export function deviceMethods(options: {
   let current: Awaited<ReturnType<typeof createDeviceService>> | undefined
   const lifetime = { isDisposed: false }
   const isDisposed = () => lifetime.isDisposed
+  // Resources the current service's preparation started (a storage helper).
+  const owned: (() => void)[] = []
   async function service() {
     if (isDisposed()) throw new Error('revoked')
     pending ??= (async () => {
-      const bundle = load()
-      const deps = await options.dependencies(bundle)
-      if (isDisposed()) throw new Error('revoked')
-      const instance = await bundle.createDeviceService(deps, UI_TEXT, uiLocale())
-      if (isDisposed()) {
-        instance.dispose()
-        throw new Error('revoked')
+      const attempt: (() => void)[] = []
+      const scope: DeviceDependencyScope = {
+        own(dispose) {
+          attempt.push(dispose)
+          if (isDisposed()) end(attempt)
+        },
       }
-      current = instance
-      return instance
+      try {
+        const bundle = load()
+        const deps = await options.dependencies(bundle, scope)
+        if (isDisposed()) throw new Error('revoked')
+        const instance = await bundle.createDeviceService(deps, UI_TEXT, uiLocale())
+        if (isDisposed()) {
+          instance.dispose()
+          throw new Error('revoked')
+        }
+        current = instance
+        owned.push(...attempt)
+        return instance
+      } catch (error) {
+        // A failed or revoked preparation ends what it started; a retry starts afresh.
+        end(attempt)
+        throw error
+      }
     })()
     try {
       return await pending
@@ -102,6 +137,7 @@ export function deviceMethods(options: {
     dispose(): void {
       lifetime.isDisposed = true
       current?.dispose()
+      end(owned)
     },
   }
 }

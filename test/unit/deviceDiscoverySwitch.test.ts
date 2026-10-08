@@ -6,20 +6,28 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { setImmediate } from 'node:timers/promises'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { DeviceDiscovery, type DeviceMdnsPort } from '../../src/host/devices/deviceDiscovery'
 import { createDeviceMdnsPort } from '../../src/host/devices/deviceMdns'
 import { DeviceDiscoverySwitch } from '../../src/host/devices/deviceDiscoverySwitch'
 import { DeviceStore } from '../../src/host/devices/deviceStore'
 import type { DeviceExecutionHost } from '../../src/host/devices/deviceSecrets'
 import type { DeviceWebviewRequest } from '../../src/shared/devicesPanel'
-import { deviceStorage, privateDeviceRoot, removeDeviceFixture } from './helpers/deviceFixtures'
+import {
+  deviceStorage,
+  endDeviceStorage,
+  privateDeviceRoot,
+  removeDeviceFixture,
+} from './helpers/deviceFixtures'
 import {
   completeLaneMutualPairing,
   laneTestHost,
   startLaneTestHost,
 } from './helpers/deviceLaneHosts'
 import { FakeMdnsSocket } from './helpers/deviceMdnsFakes'
+
+// The shared native storage helper ends with this file.
+afterAll(endDeviceStorage)
 
 const localHost: DeviceExecutionHost = laneTestHost
 const facts = {

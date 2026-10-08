@@ -3,10 +3,15 @@ import { chmod, lstat, mkdtemp, open, realpath, rename, rm, stat, symlink } from
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import { afterEach, beforeEach } from 'vitest'
+import { afterAll, afterEach, beforeEach } from 'vitest'
 import type { DeviceStore } from '../../../src/host/devices/deviceStore'
 import type { DeviceStorageProtection } from '../../../src/core/devices/storageProtection'
-import { startWindowsStorageProtection } from '../../../src/host/devices/windowsStorageProtection'
+import {
+  startStorageHelper,
+  startWindowsStorageProtection,
+  supervisedStorageHelper,
+  windowsStorageProtection,
+} from '../../../src/host/devices/windowsStorageProtection'
 import { DEVICE_LIMITS } from '../../../src/shared/constants'
 import type { DeviceGrant } from '../../../src/core/devices/grants'
 import type { DeviceDispatch } from '../../../src/shared/devices'
@@ -120,7 +125,22 @@ export async function removeDeviceFixture(stores: DeviceStore[], parent: string)
 }
 
 const run = promisify(execFile)
-const windowsBinding: { current?: Promise<DeviceStorageProtection> } = {}
+type OwnedBinding = Awaited<ReturnType<typeof startWindowsStorageProtection>>
+function startNativeBinding(): Promise<OwnedBinding> {
+  return startWindowsStorageProtection({
+    directory: path.join(tmpdir(), 'muse-spark-device-storage-test'),
+    systemRoot: process.env['SystemRoot'] ?? String.raw`C:\Windows`,
+    extensionPath: process.cwd(),
+  })
+}
+const windowsBinding: { current?: Promise<OwnedBinding> } = {}
+/** Ends the shared native helper; each file that uses it runs this after all. */
+export async function endDeviceStorage(): Promise<void> {
+  const binding = await windowsBinding.current
+  const helper = binding?.current()
+  binding?.dispose()
+  await helper?.exited
+}
 /**
  * Each OS's production storage configuration: the real native binding on
  * Windows (its helper compiled once into a shared temp cache), and no binding
@@ -128,15 +148,45 @@ const windowsBinding: { current?: Promise<DeviceStorageProtection> } = {}
  */
 export async function deviceStorage(): Promise<DeviceStorageProtection | undefined> {
   if (process.platform !== 'win32') return undefined
-  windowsBinding.current ??= (async () => {
-    const binding = await startWindowsStorageProtection({
-      directory: path.join(tmpdir(), 'muse-spark-device-storage-test'),
-      systemRoot: process.env['SystemRoot'] ?? String.raw`C:\Windows`,
-      extensionPath: process.cwd(),
-    })
-    return binding.protection
-  })()
-  return await windowsBinding.current
+  windowsBinding.current ??= startNativeBinding()
+  const binding = await windowsBinding.current
+  return binding.protection
+}
+/**
+ * A Node stand-in speaking the helper's line protocol: it echoes each
+ * request, answers `sync` with an error, exits on `replace`, answers `swap`
+ * with another request's id, and never answers `hang`.
+ */
+export const STORAGE_HELPER_STAND_IN = String.raw`
+  let buffer = ''
+  process.stdin.setEncoding('utf8')
+  process.stdin.on('data', (chunk) => {
+    buffer += chunk
+    for (let end = buffer.indexOf('\n'); end !== -1; end = buffer.indexOf('\n')) {
+      const [id, operation, ...fields] = buffer.slice(0, end).split('\t')
+      buffer = buffer.slice(end + 1)
+      const paths = fields.map((field) => field.length === 1 ? field : Buffer.from(field, 'base64').toString('utf8'))
+      if (operation === 'hang') continue
+      if (operation === 'swap') process.stdout.write('999\tok\t\n')
+      else if (operation === 'sync') process.stdout.write(id + '\terr\t5\n')
+      else if (operation === 'replace') process.exit(3)
+      else process.stdout.write(id + '\tok\t' + operation + ':' + paths.join('+') + '\n')
+    }
+  })`
+/**
+ * A binding of the test's own whose helper process it can watch end: the
+ * real native helper on Windows, the protocol stand-in elsewhere.
+ */
+export async function ownedDeviceStorage(): Promise<OwnedBinding> {
+  if (process.platform === 'win32') return await startNativeBinding()
+  const helper = supervisedStorageHelper(() =>
+    startStorageHelper(process.execPath, ['-e', STORAGE_HELPER_STAND_IN], process.env),
+  )
+  return {
+    protection: windowsStorageProtection(helper.request),
+    current: helper.current,
+    dispose: helper.dispose,
+  }
 }
 /**
  * A binding usable synchronously, for suites that hand one to the journal at
@@ -189,6 +239,7 @@ export function useDeviceStorageRoot(prefix: string) {
   afterEach(async () => {
     await removeDeviceFixture(stores, fixture.parent)
   })
+  afterAll(endDeviceStorage)
   return { fixture, stores }
 }
 // Windows' Everyone group: a principal other than the owner.

@@ -12,6 +12,7 @@ import { isOwnerOnlyAcl } from '../../core/fs/ownerOnlyAcl'
 import type { DeviceStorageProtection } from '../../core/devices/storageProtection'
 import { compileJob, jobFileName, type JobBuild } from '../backend/jobBuild'
 import type { RunProgram } from '../processTree'
+import { DEVICE_STORAGE_REQUEST_MS } from '../../shared/constants'
 
 const HELPER_TOKEN = 'MuseSparkDeviceStorage'
 // Win32 values the readings carry (winnt.h).
@@ -234,20 +235,36 @@ export function storageHelperName(csharp: string): string {
   return jobFileName(HELPER, csharp)
 }
 
+/** One running helper child. `exited` settles once its process has ended. */
+export interface StorageHelper {
+  readonly request: StorageHelperRequest
+  readonly hasFailed: () => boolean
+  readonly exited: Promise<void>
+  readonly dispose: () => void
+}
+
 /**
  * Starts the helper as one long-lived child answering in request order. It is
  * unreferenced while idle, so it never holds the host open, and it ends when
- * our stdin closes. A dead, garbled or mismatched helper fails every request.
+ * our stdin closes. Each request has `deadlineMs` to be answered. A late,
+ * dead, garbled or mismatched helper fails that request and every other one
+ * waiting, and is killed: the store refuses rather than waiting forever.
  */
 export function startStorageHelper(
   executable: string,
   args: readonly string[],
   env: NodeJS.ProcessEnv,
-): { request: StorageHelperRequest; dispose: () => void } {
+  deadlineMs = DEVICE_STORAGE_REQUEST_MS,
+): StorageHelper {
   const child = spawn(executable, [...args], {
     stdio: ['pipe', 'pipe', 'ignore'],
     windowsHide: true,
     env,
+  })
+  const exited = new Promise<void>((resolve) => {
+    child.once('close', () => {
+      resolve()
+    })
   })
   const pending: { id: string; settle: (line: string | Error) => void }[] = []
   let failure: Error | undefined
@@ -261,6 +278,7 @@ export function startStorageHelper(
   const fail = (error: Error) => {
     failure ??= error
     for (const waiter of pending.splice(0)) waiter.settle(failure)
+    child.kill()
     idle()
   }
   child.on('error', fail)
@@ -277,7 +295,6 @@ export function startStorageHelper(
       const waiter = pending.shift()
       if (waiter === undefined) {
         fail(new Error('storage-protection'))
-        child.kill()
         return
       }
       waiter.settle(line)
@@ -297,18 +314,22 @@ export function startStorageHelper(
       }
       sequence += 1
       const id = String(sequence)
+      // A helper that stops answering fails this request and all others.
+      const deadline = setTimeout(() => {
+        fail(new Error('storage-protection'))
+      }, deadlineMs)
       pending.push({
         id,
         settle(line) {
+          clearTimeout(deadline)
           if (line instanceof Error) {
             reject(line)
             return
           }
           const [answerId, status, ...rest] = line.split('\t')
           if (answerId !== id) {
-            fail(new Error('storage-protection'))
-            child.kill()
             reject(new Error('storage-protection'))
+            fail(new Error('storage-protection'))
           } else if (status === 'ok') resolve(rest.join('\t'))
           else reject(new Error('storage-protection'))
         },
@@ -321,6 +342,8 @@ export function startStorageHelper(
     })
   return {
     request,
+    hasFailed: () => failure !== undefined,
+    exited,
     dispose() {
       child.stdin.end()
       fail(new Error('storage-protection'))
@@ -329,25 +352,65 @@ export function startStorageHelper(
 }
 
 /**
+ * One helper at a time. After one fails (late, dead, garbled), the next
+ * request starts a fresh helper; nothing retries the failed request itself.
+ * Disposal ends the current helper and refuses every later request.
+ */
+export function supervisedStorageHelper(start: () => StorageHelper): {
+  readonly request: StorageHelperRequest
+  readonly current: () => StorageHelper | undefined
+  readonly dispose: () => void
+} {
+  let helper: StorageHelper | undefined
+  let isDisposed = false
+  return {
+    request(operation, paths, isDirectory) {
+      if (isDisposed) return Promise.reject(new Error('storage-protection'))
+      if (helper === undefined || helper.hasFailed()) {
+        helper?.dispose()
+        helper = start()
+      }
+      return helper.request(operation, paths, isDirectory)
+    },
+    current: () => helper,
+    dispose() {
+      isDisposed = true
+      helper?.dispose()
+    },
+  }
+}
+
+/**
  * Reads the shipped C# from `extensionPath`, compiles it once per source into
- * `directory`, starts the helper and proves it answers.
+ * `directory`, starts the helper and proves it answers. The caller owns
+ * `dispose`, which ends the helper process.
  */
 export async function startWindowsStorageProtection(options: {
   readonly directory: string
   readonly systemRoot: string
   readonly extensionPath: string
   readonly run?: RunProgram
-}): Promise<{ protection: DeviceStorageProtection; dispose: () => void }> {
+}): Promise<{
+  protection: DeviceStorageProtection
+  current: () => StorageHelper | undefined
+  dispose: () => void
+}> {
   const csharp = await readFile(path.join(options.extensionPath, DEVICE_STORAGE_SOURCE), 'utf8')
   const executable = path.join(options.directory, storageHelperName(csharp))
   if (!(await HELPER.isPresent(executable)))
     await compileJob(HELPER, executable, csharp, options.systemRoot, options.run)
-  const helper = startStorageHelper(executable, [], { SystemRoot: options.systemRoot })
+  const helper = supervisedStorageHelper(() =>
+    startStorageHelper(executable, [], { SystemRoot: options.systemRoot }),
+  )
   try {
     if ((await helper.request('ping', [])) !== HELPER_TOKEN) throw new Error('storage-protection')
   } catch (error) {
     helper.dispose()
     throw error
   }
-  return { protection: windowsStorageProtection(helper.request), dispose: helper.dispose }
+  return {
+    protection: windowsStorageProtection(helper.request),
+    current: helper.current,
+    dispose: helper.dispose,
+  }
 }
