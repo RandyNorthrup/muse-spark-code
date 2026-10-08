@@ -2651,3 +2651,440 @@ gate-threshold change, and no model call. The commit was sent only to the
 Win11 rig's private gate repository for the native runs. Linux and macOS
 drivers, scheduler-specific qualification and installed-host checks remain
 open as mapped above.
+
+### Linux continuation — M100P2HL (2026-10-07): contract blocker
+
+Worktree `/home/randy/lanes/M100P2HL`, branch `m100/p2-h-linux`, base
+`f4f6f3008`, on linuxlt. Read the rig brief, phase-2 shared rules, original
+H brief, PLAN ownership/acceptance, planning record, threat model, Windows
+driver and host port. This continuation changes this certification section
+only. No Linux implementation or support claim is made.
+
+The continuation brief explicitly requires **resource limits from the attempt**
+and says: **"if the platform port needs a contract change, stop and write a
+lead request instead."** That condition is met:
+
+- `DeviceDispatch.caps` carries the admitted process ceiling
+  (`src/shared/devices.ts`, `deviceCapsSchema` and `dispatchCommon`).
+- `DeviceWorkerDriver.launch` accepts only `DeviceWorkerCommand` and the
+  recorded environment (`deviceWorkerHost.ts:77`). The command contains an
+  executable, arguments, cwd and required tools; neither input contains caps.
+- The host has the validated request, but its sole launch call drops the
+  request/caps (`deviceWorkerHost.ts:289`). The reservation also exposes no
+  execution limits. Two otherwise identical commands with different admitted
+  process ceilings are indistinguishable to this port.
+- The Windows driver uses the global `DEVICE_LIMITS.processes`
+  (`deviceWorkerNative.ts:163`). Copying that into a Linux unit would bound it
+  at the protocol maximum, not at the admitted attempt's limit. Inferring limits
+  from argv/environment or an ambient mutable map would bypass the typed port.
+
+#### Lead request — pass admitted limits through the platform port
+
+Approve and land a local, typed launch input carrying the validated attempt's
+identity and caps, for example a third `launch` argument of
+`Pick<DeviceDispatch, 'identity' | 'caps'>`, supplied directly by the host's
+existing launch call. Update both platform implementations and portable tests
+together; prove simultaneous attempts receive their own caps. Keep shared
+protocol ceilings unchanged and forbid peer-supplied unit properties.
+
+The existing caps schema has no CPU or memory limit. If "resource limits"
+also means `CPUQuota`/`MemoryMax`, specify their locally admitted source and
+units in the same port decision rather than guessing new protocol fields.
+The Linux implementation can then apply the approved process/task limit to
+its transient unit and refuse an unenforceable limit before activation.
+
+#### Plan and Linux acceptance mapping
+
+1. Contract review complete; implementation stopped at the brief's explicit
+   contract-change boundary. Lead request above is the next dependency.
+2. After that contract lands, implement the exclusive Linux driver and smallest
+   host selection change, with unchanged M96 environment/preflight/result rules.
+3. Run real unit/descendant/inhibitor receipts, unavailable-manager injection,
+   red drills with byte-exact restoration, and committed fresh-clone gates.
+
+| Brief item              | Linux status and next proof                                                                                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1. Own context          | Blocked before implementation. Prove a unique collected transient user unit with admitted limits, never a transport child/plain-spawn fallback.                          |
+| 2. Host pressure        | Not implemented. Reuse H's typed capacity/unsupported-host recovery text; prove no silent retry or cap change.                                                           |
+| 3. Recorded environment | Existing portable host records canonical M96 environment and verifies PATH/hook binaries before launch. Linux activation and actual environment receipt remain untested. |
+| 4. Structured result    | Existing portable host validates exit code and JSON stdout. Linux closed stdin, bounded stdout/stderr and banner isolation remain unimplemented.                         |
+| 5. Sleep and power      | Not implemented. Prove sleep:idle inhibitor held through observed whole-cgroup exit and released; power read errors remain unknown.                                      |
+| 6. Factory self-test    | Not implemented. Prove real launch/query/retirement and clean typed refusal without a user manager.                                                                      |
+
+Battery policy is the lead's supplied decision: retain already admitted work
+on battery; ask locally before admitting new heavy checks on battery or unknown
+power. Linux supplies facts; W owns the admission prompt. No policy was invented
+or implemented in this documentation-only continuation.
+
+#### Native receipts, drills and verification
+
+`systemctl --user show --property=Version --value` succeeded with **257.9-0ubuntu2.5**;
+the real user manager is available. `systemd-run --version` reported **257**.
+This is a rig availability observation, **not** a native worker receipt.
+No unit, descendant or inhibitor was created. No Linux native test or red drill
+ran because the required launch contract is blocked; Windows skips on this
+Linux rig must not be counted as native passes.
+
+No code, dependencies, lockfile, strings, tests, gate thresholds or shared
+ownership regions changed. No push, merge, rebase, manual stash, paid/model call,
+credential inspection or OS policy change.
+
+#### Committed fresh-clone checks
+
+Documentation/lead-request commit **f23dca109**, with hooks enabled. Re-read
+the index after the hook and the resulting committed diff; the worktree was
+clean. Hook formatting and staged gitleaks both exited **0**. The normal
+lint-staged hook created and cleaned its temporary backup; no manual stash
+command was run.
+
+Fresh local clone `/tmp/m100p2hl-verify-iEA319` at **f23dca109**, Node
+**24.21.0**, npm **11.19.0**. Every command below ran with `CI=true`.
+`npm ci` exited **0** and reported the unchanged dependency tree's 11 audit
+findings (2 low, 9 high); no audit fix or dependency change was made.
+
+| Check                                                                                                                     | Exit | Result                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------- | ---- | --------------------------------------------------------------------------------------------------------- |
+| Owning files: `npx vitest run test/unit/deviceWorkerHost.test.ts test/unit/deviceWorkerHostNative.test.ts --maxWorkers=3` | 0 ×3 | **22 passed, 6 Windows cases skipped** each run; **1.16 / 2.13 / 1.63 s**. Default timeouts, no override. |
+| `npm run typecheck`                                                                                                       | 0    | All five projects: host, webview, unit, e2e, integration.                                                 |
+| `npm run lint`                                                                                                            | 0    | Full JS and CSS lint pass. Repository PowerShell lint reports its Windows-only skip on Linux.             |
+| `npx prettier --check docs/certification/m100-phase2.md`                                                                  | 0    | Only changed file formatted.                                                                              |
+| Plain `npx knip`                                                                                                          | 0    | No dead-code failures; two existing non-fatal configuration hints.                                        |
+| `npx jscpd`                                                                                                               | 0    | Zero clones.                                                                                              |
+| `npm run check:reference`                                                                                                 | 0    | Current; 18 Devices entries.                                                                              |
+| `npm run check:l10n`                                                                                                      | 0    | 14 UI and 14 usage tables; zero problems.                                                                 |
+| `npm run check:host-api`                                                                                                  | 1    | The same inherited stale Node import counts already recorded above; W owns regeneration.                  |
+| `npm run build`                                                                                                           | 0    | Production sizes, splits, host globals and notices pass; every cap unchanged.                             |
+
+Build sizes: activation **462.8/600 KiB**, Devices **81.7/100 KiB**, Model API
+**456.0/475 KiB**. These measure the unchanged Windows-base implementation,
+not a Linux driver. Host, Windows driver and C# helper SHA-256 values match
+H's final-source hashes above. The clone remained clean after checks.
+
+The host API failure is precisely the earlier six row differences:
+`child_process` **16→17**, `crypto` **93→94**, `fs` **44→45**,
+`fs/promises` **74→76**, `path` **125→127**, `timers/promises` **15→16**.
+This continuation does not edit W's generated inventory. Full joined quality,
+coverage and installed-host qualification remain W's work under the shared
+lane rules. No passing Linux native receipt or drill is claimed.
+
+### Linux continuation — M100P2HL2 (2026-10-08): transient user services
+
+Worktree `/home/randy/lanes/M100P2HL2`, branch `m100/p2-h-linux2`, contract
+base `b0fe91da3`. Explicitly authorized `git merge --no-ff m100/p2-h-linux`
+produced **9abfac61a**. Its documentation conflict was resolved by preserving
+both the caps-contract addendum and the earlier Linux blocker/verification
+record. The caps blocker is superseded by this implementation. Existing
+`DeviceWorkerDriver`, attempt caps and receiver contracts are unchanged.
+
+#### Linux acceptance mapping
+
+| Brief item              | Implementation, tests and deliberate failure                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Status                                                                                           |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 1. Own context          | `deviceWorkerLinux.ts` starts a uniquely named transient user service with `--collect`, `Type=exec`, `ExitType=cgroup` and whole-group Stop. Readiness compares its cgroup with `/proc/self/cgroup`; the activation pipe gates the command. Portable context refusal and real independent-service/detached-descendant tests pass. Context and native-retirement drills fail.                                                                                                                                                                        | Linux done.                                                                                      |
+| 2. Host pressure        | A systemd `Result=resources` is typed `capacity`, with existing localized `capacityHelp`; no retry or cap adjustment. Portable pressure test verifies one launch and recovery text. The pressure drill fails. The Windows heap path stays unchanged.                                                                                                                                                                                                                                                                                                | Linux done; V/W consumes typed capacity.                                                         |
+| 3. Recorded environment | Host keeps M96's canonical `workerEnvironment`, PATH resolution, hook verification and recording before launch. Linux refuses noncanonical input and executes with `env -i`; XDG runtime metadata exists only in the control environment. Portable missing/unverified hook tests and the real stdin/environment case pass. Hook-preflight and credential-environment drills fail.                                                                                                                                                                   | Linux done; W still owns durable recording and M96 binding.                                      |
+| 4. Structured result    | Closed worker stdin; separately bounded stdout/stderr, streaming UTF-8 decode, raw exit-code-plus-stdout result and existing host zod/JSON validation. Banners never become results. Portable and real structured/flood cases pass. Stderr-result and output-cap drills fail.                                                                                                                                                                                                                                                                       | Linux done.                                                                                      |
+| 5. Sleep and power      | A separate fixed two-task transient user unit holds real `systemd-inhibit --what=sleep:idle --mode=block`. It acquires before worker creation and releases after observed whole-worker-cgroup exit; helper loss stops the unit, releases inhibition and rejects retirement as uncertain. Native logind listing, overlapping attempts and both launcher-loss cases pass. Power remains battery/ac/unknown; a battery or unreadable-power observation does not cancel admitted work. Portable and native release drills and unknown-power drill fail. | Linux done. W owns the lead-approved admission question for new heavy checks on battery/unknown. |
+| 6. Factory self-test    | Cached per-factory probe launches a real one-task service, queries containment/accounting/power, activates a known command, observes cgroup retirement and releases/removes both units. Unsupported managers and failed probes refuse, with no ordinary command spawn fallback. Real probe and injected missing-manager test pass. Self-test and unsupported-manager drills fail.                                                                                                                                                                   | Linux done.                                                                                      |
+
+The worker's `TasksMax` is exactly `admittedProcessLimit(attempt)`. Readiness
+checks both the manager property and kernel `pids.max` before activation.
+Native cap **2** makes a third task fail with exit **2** and no success output;
+cap **3** permits the same command, returning `admitted`. Linux's task ceiling
+also counts threads, so it can be stricter than a process-only ceiling. The
+inhibitor's fixed two-task control unit is separate, like Windows' external
+helper; it never consumes or raises the worker's admitted ceiling. Worker/check
+occupancy, token/spend and artifact caps keep their existing reservation,
+controlled-boundary and result-validation owners. CPU/memory remain M107's
+observations, not newly invented caps.
+
+No timer, cancellation acknowledgement, direct-parent exit or helper loss
+resolves retirement. The previously observed cgroup must report `populated 0`,
+or its removal must be confirmed by a live manager reporting inactive/dead
+and an empty ControlGroup. Helper loss rejects as uncertain even if Stop later
+empties the unit; removal of that unresolved attempt is refused.
+
+The host gains one selection point, `deviceWorkerDriverForPlatform(windows,
+lazyLinuxLoader, platform)`. Its caller supplies the lazy import, avoiding a
+runtime host/driver dependency cycle. No existing production selection point
+was present on this base; W must bind this factory at its owned receiver entry.
+No new command, setting, public protocol field, dependency, escape hatch,
+translated key or policy change. README, CHANGELOG and feature-reference
+integration remain W's ownership under the brief.
+
+#### Native receipts and preflight discovery
+
+Rig `linuxlt`, systemd user manager **257.9-0ubuntu2.5**, real cgroup v2 and
+logind. All **eleven Linux native cases** run real `systemd-run`, `systemctl`,
+`systemd-inhibit` and kernel cgroup reads. The start port only records unit
+names/PIDs and delegates to real spawn; no manager, cgroup or inhibitor is
+substituted in the final native suite. The seven Windows cases skipped here
+are **unrun**, not Linux receipts. Model attempts/spend: **0 / $0**.
+
+An initial SSH-context `systemd-inhibit` probe returned `Interactive
+authentication required`. The same probe launched by the user manager succeeds,
+including with TasksMax=2. The final driver therefore owns its inhibitor in a
+separate transient user service, without changing polkit, registry, firewall,
+OS policy or account configuration. Early partial unit tests used a substituted
+inhibitor; those exploratory results are superseded and are not certification.
+
+Native cases cover own context/closed stdin/canonical environment/JSON versus
+stderr; detached-descendant completion after parent exit; kernel task cap 2;
+whole-unit cancellation; real factory self-test plus visible logind hold/release;
+injected missing manager; overlapping holds; worker-launcher loss;
+inhibitor-launcher loss; real stdout overflow; and honest process counting for a multithreaded worker. Finally/afterAll Stop only
+that fixture's recorded units and assert each is collected, inactive and has
+no ControlGroup. Post-suite `systemctl --user list-units --all` found no
+`muse-spark-device-*` unit. Every support probe was also collected.
+
+#### Final guard-fire record
+
+Seventeen final drills exited **1** with named test assertion failures at
+repository deadlines. Each source buffer was restored byte-exact in finally
+and its SHA-256 checked. Thirteen portable drills run their complete owning file;
+four extra native drills select the named native case and retain afterAll cleanup.
+
+| Drill                | Deliberate break                                | Assertion that fired                                                           |
+| -------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------ |
+| retirement           | Remove cgroup-empty wait after pipe exit        | Retirement settles while descendant occupancy is still reported.               |
+| power-release        | Omit inhibitor release at successful retirement | Inhibitor process has not exited.                                              |
+| unsupported-manager  | Omit runtime-directory refusal                  | Even the injected working manager starts helpers without a runtime directory.  |
+| context              | Omit transport-cgroup comparison                | Transport-owned launch resolves instead of refusing.                           |
+| pressure             | Omit resources refusal                          | Pressure launch resolves instead of returning typed capacity.                  |
+| hook-preflight       | Verify zero required tools                      | Missing/unverified/empty-PATH hooks start; receiver refused-state check fails. |
+| environment          | Record inherited environment                    | Credential/loader/agent variable names enter the environment record.           |
+| stderr-result        | Append stderr to stdout                         | Banner-bearing stdout differs from structured JSON.                            |
+| output-cap           | Omit stdout byte ceiling                        | No whole-unit Stop is requested for excess output.                             |
+| self-test            | Return true after probe failure                 | Missing runtime and unavailable manager falsely pass the probe.                |
+| unknown-power        | Turn read failure into AC                       | Unknown power on an owned attempt becomes AC.                                  |
+| admitted-cap         | Use protocol maximum in TasksMax                | Unit arguments differ from the admitted attempt ceiling.                       |
+| native-retirement    | Use ExitType=main and omit cgroup wait          | Detached descendant's completion marker is absent.                             |
+| native-power-release | Omit release at successful retirement           | Real logind listing still contains the retired worker's inhibitor.             |
+| native-admitted-cap  | Use protocol max and bypass readiness checks    | Real kernel pids.max is 128 instead of admitted 2.                             |
+
+Two process-count drills additionally replace the distinct-PID sample with
+`pids.current`. The portable duplicated-PID test and the native multithreaded
+Node test both fail (exit 1), then restore the same final Linux SHA-256.
+
+Final drill source SHA-256:
+
+- Linux driver: `5295020cd62eb717979d01b3ad40b784a244fa6609f39d1782a5b766f45bf646`.
+- Host: `3ae50b53e1b1819f83725a16ac54d9b356b5d4ce4843d39702e3a740c41107b4`.
+
+Local restored run: **68 passed, 7 Windows skipped**, three owning files,
+default deadlines, no timeout flag. Scoped lint and unit typecheck pass;
+plain knip passes with its two existing hints; duplication reports zero clones.
+Implementation commits and the required committed-code fresh-clone gate receipts
+follow below. No threshold, assertion or ignore weakened.
+
+#### Review follow-up: processes versus tasks
+
+Implementation **4f4438df5** passed the first fresh-clone sweep (66 tests x3,
+five typechecks, full lint, formatting, knip, duplication, reference,
+localization, default cycles and capped production build). Host API was the
+expected stale W-owned inventory (exit 1). Review then caught that Linux's
+`pids.current` counts threads, while `activeProcesses` promises processes.
+The follow-up samples distinct positive PIDs from `cgroup.procs` instead;
+TasksMax and cgroup retirement are unchanged. A portable repeated-PID test
+and a real Node process with multiple kernel tasks prove the distinction.
+The fifteen prior drills were repeated on the follow-up source, and the two
+new metric drills also fail and restore byte-exact. Final committed-source
+fresh-clone qualification below supersedes the initial sweep.
+
+#### Final committed-source CI qualification and lead requests
+
+Implementation **4f4438df5**, process-count correction **4b4fe4dc3**. Final
+fresh clone `/tmp/m100p2hl2-final-ci-9d7ft_nu` checked out **4b4fe4dc3**;
+`CI=true npm ci` exited **0** in **5.25 s**. The install reports the same
+**11 audit findings (2 low, 9 high)**; no dependency or audit fix was made.
+Every check below ran with `CI=true`. The clone remained clean and its Linux
+and host SHA-256 values match the final guard-fire hashes above. Logs are in
+`/tmp/m100p2hl2-final-ci-9d7ft_nu.logs` on linuxlt.
+
+| Check                                                                                                                                           | Exit   | Final result                                                                                                                                                                      |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npx vitest run test/unit/deviceWorkerHost.test.ts test/unit/deviceWorkerHostNative.test.ts test/unit/deviceWorkerLinux.test.ts --maxWorkers=3` | 0 x3   | **68 passed, 7 Windows skipped** each run; suite durations **5.79 / 5.32 / 5.05 s**. Repository per-test deadlines; no timeout flag. All **11 Linux native cases** run each time. |
+| `npm run typecheck:host` / `typecheck:webview` / `typecheck:unit` / `typecheck:e2e` / `typecheck:integration`                                   | 0 each | Five projects pass: **20.42 / 9.84 / 44.85 / 22.11 / 9.16 s**.                                                                                                                    |
+| `npm run lint`                                                                                                                                  | 0      | Full lint, **250.78 s**; PowerShell analysis is Windows-only and unrun here.                                                                                                      |
+| `npx prettier --check` on all six changed files                                                                                                 | 0      | **10.24 s**; PLAN, this certification, Linux driver, host selector, portable and native tests.                                                                                    |
+| Plain `npx knip`                                                                                                                                | 0      | **3.35 s**; two existing nonfatal configuration hints.                                                                                                                            |
+| `npx jscpd`                                                                                                                                     | 0      | **0.97 s**; zero clones.                                                                                                                                                          |
+| `npm run check:reference`                                                                                                                       | 0      | **1.95 s**; 18 Devices entries current.                                                                                                                                           |
+| `npm run check:l10n`                                                                                                                            | 0      | **2.00 s**; 14 UI and 14 usage tables, zero problems.                                                                                                                             |
+| `npm run check:host-api`                                                                                                                        | 1      | **16.97 s**; W-owned generated Node inventory stale, exact deltas below.                                                                                                          |
+| `npm run cycles`                                                                                                                                | 0      | **6.35 s**; default production-entry graph, 867 modules.                                                                                                                          |
+| `npm run build`                                                                                                                                 | 0      | **11.08 s**; unchanged budgets, bundle splits, host globals and notices pass.                                                                                                     |
+
+Production build: activation **462.8/600 KiB**, Devices **81.8/100 KiB**,
+Model API **456.0/475 KiB**, browser startup **733.8/900 KiB**. The new Linux
+factory is not bound by the existing production entry yet; these sizes do
+not certify the final Linux bundle. W must measure again after binding it.
+Post-final-suite native cleanup found no `muse-spark-device-*` units.
+
+Precise acceptance pointers on the final source (tests and drills named in
+the mapping/guard record above):
+
+| Item                             | Code                                                                                                     | Owning regression                                                                                         |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| 1. Context and retirement        | `src/host/backend/deviceWorkerLinux.ts:195`, `:355`, `:407`, `:421`                                      | `test/unit/deviceWorkerLinux.test.ts:153`, `:217`; `test/unit/deviceWorkerHostNative.test.ts:398`         |
+| 2. Host pressure                 | `src/host/backend/deviceWorkerLinux.ts:403`; existing host recovery mapping                              | `test/unit/deviceWorkerLinux.test.ts:226`                                                                 |
+| 3. Environment and preflight     | `src/host/devices/deviceWorkerHost.ts:164`, `:310`; `src/host/backend/deviceWorkerLinux.ts:322`, `:373`  | `test/unit/deviceWorkerLinux.test.ts:117`, `:269`; `test/unit/deviceWorkerHostNative.test.ts:380`         |
+| 4. Bounded structured channel    | `src/host/backend/deviceWorkerLinux.ts:71`, `:378`, `:390`                                               | `test/unit/deviceWorkerLinux.test.ts:280`, `:296`; `test/unit/deviceWorkerHostNative.test.ts:537`         |
+| 5. Inhibition and power          | `src/host/backend/deviceWorkerLinux.ts:212`, `:262`, `:435`                                              | `test/unit/deviceWorkerLinux.test.ts:345`; `test/unit/deviceWorkerHostNative.test.ts:454`, `:487`         |
+| 6. Factory self-test and refusal | `src/host/backend/deviceWorkerLinux.ts:158`, `:486`; selector `src/host/devices/deviceWorkerHost.ts:104` | `test/unit/deviceWorkerLinux.test.ts:237`, `:358`, `:372`; `test/unit/deviceWorkerHostNative.test.ts:480` |
+
+Lead requests, within the shared lane ownership rules:
+
+- **W: regenerate and review** `docs/ide-compatibility/host-api.md` with
+  `npm run check:host-api -- --write`. Exact Node count deltas:
+  `child_process` **16 -> 18**, `crypto` **93 -> 95**, `fs` **44 -> 45**,
+  `fs/promises` **74 -> 77**, `path` **125 -> 128**, `string_decoder`
+  **1 -> 2**, `timers/promises` **15 -> 17**. Totals remain 366 VS Code
+  APIs, 43 vscode-importing files, 28 Node built-ins and 70 theme variables.
+  This lane leaves that W-owned file untouched and does not claim a green
+  joined `npm run quality`.
+- **W/M96 owner: repair the inherited cycle before production binding.**
+  Targeted `npx dpdm --no-warning --no-tree --exit-code circular:1 -T src/host/devices/deviceWorkerHost.ts`
+  exits **1** for `src/core/team/refFence.ts -> src/core/team/workers/workerFence.ts -> src/core/team/workers/workerEnv.ts -> refFence.ts`.
+  All three files are byte
+  unchanged from contract base `b0fe91da3` (`git diff` empty). The new lazy
+  selector avoids introducing a host/Linux-driver cycle. The default cycle
+  gate passes because this port is not reached by its current entry.
+- **W: bind** `deviceWorkerDriverForPlatform` at the receiver's lazy entry,
+  install the caller's language table, bind M96's real command and durable
+  environment record, and keep reservations/uncertain occupancy until
+  observed retirement. **V/W: consume** typed pressure and power facts;
+  W asks locally before new heavy checks on battery or unknown power.
+- **W: finish joined documentation/reference/packaging, full quality and
+  coverage, and installed-host qualification**, including Windows/macOS
+  rigs. No Windows native pass, public supported command or shipped Linux
+  support is asserted by this continuation. No contract change is needed.
+
+### Linux review — M100P2HL3 (2026-10-08): RVM100P2HL
+
+Base **625d95ecb**, branch `m100/p2-h-linux3`, rig `linuxlt`. Shared
+`M100P2-common.md` and the rig brief govern verification; no model calls,
+policy changes, merges or pushes. This subsection supersedes the two reviewed
+lifetime/slot claims; other M100P2HL2 receipts remain historical.
+
+**P2 readiness-slot leak: fixed.** Slot ownership has its own idempotent
+release, independent of whether readiness supplied a cgroup. Failed inhibition,
+spawn, readiness/query and retirement paths release it; successful jobs keep
+it until removal. The two `200 resources/tasksMax refusals` regressions use
+one factory each and assert every helper start, including launch 201 (402
+starts per case). Fake pipes make the churn run inside the repository deadline.
+On base 625d95ecb both fail at launch 129: resources has 256 starts instead
+of 258, TasksMax returns capacity instead of preflight. Base run: exit 1,
+2 failed, 22 deselected. Red drill sets initial slot ownership false: same two
+failures, exit 1. Source restored byte-exact, SHA-256
+`c6985867937e9a03e1ff80bc8e94fce0b980e55404fb1b96c7e446a23067e3eb`.
+Restored owning-file run: 24 passed, default timeout, exit 0.
+
+**P2 host-loss containment/recovery: fixed.** Worker transient units have
+`BindsTo` and `After` on the pipe-owned inhibitor. When the host is SIGKILLed,
+pipe EOF ends the inhibitor and systemd stops the whole worker cgroup without
+any callback in the dead host. Unit names encode PID/kernel starttime, the
+receiver incarnation, the already-journaled attempt ID, and a launch nonce.
+Those journal keys identify the original attempt without a new shared schema.
+First manager access discovers matching units, checks `/proc/<pid>/stat`
+(including PID reuse and zombie/dead states), stops only dead-host units and
+confirms inactive/empty manager state. Live hosts remain untouched; unreadable
+ownership or unproved Stop blocks startup. A collected unit racing Stop is
+accepted only after the same empty-state observation.
+
+`DeviceWorkerHost.retain` performs this Linux query before restoring local
+occupancy. The unchanged `DeviceReceiver.open` then journals original
+nonterminal attempts as `uncertain`; cleanup never supplies a success result,
+paid settlement, artifact or occupancy release. The durable regression uses
+the real AttemptJournal/DeviceReceiver and asserts the old identity, caps and
+retained liability survive. Shared contracts and lane R's files are untouched.
+
+Native crash cases bundle the real driver once in beforeAll and launch a
+separate owning Node process, real worker unit and real inhibitor. SIGKILL of
+that process alone makes both units inactive/collected within the default
+bounded poll. The second case seeds an unbound unit carrying the killed host's
+identity, confirms it is still active, then a fresh driver removes it before
+query returns. All thirteen Linux native cases run; seven Windows cases remain
+unrun on Linux. Cleanup verifies every named unit is not-found/inactive with
+an empty ControlGroup, including units left by deliberate base/drill failures.
+The native manager/proc/cgroup observations are real, not invented model wire
+frames; model calls/spend remain **0 / $0**.
+
+Combined regression run on **625d95ecb**: exit **1**, **7 failed**, **42
+nonselected** across two files. Two churn cases fail at launch 129 (256 helper
+starts); both SIGKILL cases observe an active worker after host death; dead
+owner/PID-reuse cleanup cases send no Stop; durable recovery fails because
+cleanup did not precede retention. Restored local owning run: **78 passed,
+7 Windows skipped**, three files, default deadlines. Receiver/recovery:
+**86 passed**, two files, exit **0**.
+
+Seven final guard drills, default deadlines, all exit **1**:
+
+| Drill            | Deliberate break                | Failing regressions                                |
+| ---------------- | ------------------------------- | -------------------------------------------------- |
+| Slot release     | Initialize slot ownership false | 2 churn cases fail at launch 129.                  |
+| Host bind        | Remove worker BindsTo           | 2 native SIGKILL cases still see an active worker. |
+| Orphan discovery | Skip recovery                   | 3 dead/reused/durable recovery cases fail.         |
+| Live owner       | Stop live owners too            | Live-host preservation fails.                      |
+| Unreadable owner | Treat EACCES as absent          | Ownership refusal fails.                           |
+| Empty proof      | Omit inactive/empty check       | New launch succeeds after unproved Stop.           |
+| Journal order    | Omit Linux query before retain  | Durable cleanup-before-retain assertion fails.     |
+
+Every mutation restored byte-exact in finally. Final SHA-256:
+
+- Linux driver: `95021905a67aa843bb77062e3f62dd1bc477629319886d2a080f8713b087a900`.
+- Host: `78bbee1ebcedb4118025748fd063922509023b9faa1a1896ae646856c909beeb`.
+
+#### Final committed-clone qualification and handoff
+
+Implementation commits: **603bd7089** (slots), **64c7ea757** (containment and
+recovery). Hooks ran normally on explicit paths; post-hook committed diffs were
+re-read and source hashes match the drilled bytes. No push, stash command or
+extra merge. Final documentation-only commit preserves those tested bytes.
+
+Fresh clone `$TMPDIR/verify`, committed HEAD **64c7ea757**, `npm ci`,
+`CI=true`, Node **v24.21.0**, npm **11.19.0**, systemd **257.9-0ubuntu2.5**.
+The literal base clone `$TMPDIR/base-regression` checked out **625d95ecb**,
+installed with `npm ci`, and copied only the two new owning test files:
+**7 failed / 43 nonselected**, exit **1**, confirming the initial source-swap
+base result above. The extra nonselected case is the final unproved-Stop guard.
+Both private clones were removed after qualification; original worktree stays
+clean. All support and deliberate-failure units were stopped/collected; final
+`systemctl --user list-units --all --output=json 'muse-spark-*.service'` is `[]`.
+
+| Verification                                                                                                                                                | Exit   | Result                                                                                                            |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------- |
+| `npm ci`                                                                                                                                                    | 0      | Fresh committed install.                                                                                          |
+| Three runs: `npx vitest run test/unit/deviceWorkerHost.test.ts test/unit/deviceWorkerHostNative.test.ts test/unit/deviceWorkerLinux.test.ts --maxWorkers=3` | 0 each | 78 passed each; all 13 Linux native cases execute; 7 Windows cases unrun. Default deadlines, no timeout override. |
+| `npx vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3`                                                           | 0      | 86 passed.                                                                                                        |
+| Five `npm run typecheck:<host,webview,unit,e2e,integration>` projects                                                                                       | 0 each | All five compiler projects.                                                                                       |
+| `npm run lint`                                                                                                                                              | 0      | Full JS/TS and CSS; unchanged Windows-only PowerShell skip. 224.81 s.                                             |
+| `npx prettier --check` on all six changed files                                                                                                             | 0      | PLAN, certification, driver, host, two owning tests.                                                              |
+| Plain `npx knip`                                                                                                                                            | 0      | Two existing configuration hints only.                                                                            |
+| `npx jscpd`                                                                                                                                                 | 0      | Zero clones; thresholds unchanged.                                                                                |
+| `npm run check:reference`                                                                                                                                   | 0      | Generated reference current.                                                                                      |
+| `npm run check:l10n`                                                                                                                                        | 0      | 14 UI/14 usage tables; zero problems.                                                                             |
+| `npm run check:host-api`                                                                                                                                    | 1      | Same inherited W-owned inventory deltas listed in M100P2HL2; no extra delta from this repair.                     |
+| `npm run cycles`                                                                                                                                            | 0      | Unchanged production entry graph.                                                                                 |
+| Host-port `npx dpdm --no-warning --no-tree --exit-code circular:1 -T src/host/devices/deviceWorkerHost.ts`                                                  | 1      | Existing refFence -> workerFence -> workerEnv -> refFence cycle; all three files byte unchanged from base.        |
+| `npm run build`                                                                                                                                             | 0      | Production budgets, split, globals and notices pass with unchanged caps.                                          |
+
+Build: activation **462.8/600 KiB**, Devices **81.8/100 KiB**, Model API
+**456.0/475 KiB**. The driver remains outside production callers on this base,
+so these budgets do not qualify W's future binding or shipped Linux support.
+No full-quality/coverage or Windows/macOS/installed-host receipt is claimed.
+
+| Reviewed finding                        | Fixed code                                                                              | Regression                                                                                                                        |
+| --------------------------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| P2 readiness slot leak                  | `src/host/backend/deviceWorkerLinux.ts:383`, `:385`, `:538`                             | `test/unit/deviceWorkerLinux.test.ts:180`: both 200-refusal cases reach launch 201.                                               |
+| P2 kill-on-host-loss                    | `src/host/backend/deviceWorkerLinux.ts:432`                                             | `test/unit/deviceWorkerHostNative.test.ts:410`: both real parent-SIGKILL cases.                                                   |
+| P2 restart recovery and journal honesty | `src/host/backend/deviceWorkerLinux.ts:174`; `src/host/devices/deviceWorkerHost.ts:197` | `test/unit/deviceWorkerHostNative.test.ts:410` (leftover=true); `test/unit/deviceWorkerLinux.test.ts:521` (real durable journal). |
+
+**Lead next steps / blockers.** Both review findings are repaired, none deferred.
+W must regenerate/review its host API inventory, arrange repair of the inherited
+M96 cycle before binding this port, bind the Linux selector and durable environment
+record, and complete README/CHANGELOG/reference integration, joined quality,
+coverage and installed-host qualification. No shared-contract request is needed.
+No dependency, translated text, setting, command, shared contract, escape hatch
+or policy change was added. Detailed temporary logs remain under this lane's
+private `$TMPDIR`; the certification above is the durable handoff.

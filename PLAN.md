@@ -35978,6 +35978,61 @@ execution beyond phase 1 is implemented or certified by this record.
     channel. Red drills: run under the transport session on Windows (must
     refuse); strip the hook tool from `PATH` (preflight fails before
     start); parse stderr text for a result (test fails).
+    **Linux continuation M100P2HL2 (2026-10-08).** Preserve the prior
+    continuation record with the explicitly authorized no-ff merge. Implement
+    a per-attempt transient user service, admitted `TasksMax`, credential-free
+    recorded environment, bounded pipes, closed worker stdin, cgroup-observed
+    retirement and a sleep:idle inhibitor through retirement. Cache an honest
+    per-factory real containment/query/power/inhibitor probe. Add one lazy
+    platform selection factory in the host port; W binds production callers.
+    Test portable failures and native detached descendants, task ceiling,
+    inhibition/release and missing-manager refusal. Drill each guard, commit
+    finished pieces with hooks, then verify committed code in a fresh CI clone.
+    Native implementation and eleven real Linux cases pass at default deadlines.
+    SSH-context inhibition initially needed interactive authorization; launching
+    the inhibitor in its own user-manager service succeeds without policy changes.
+    Keep that fixed two-task control unit separate from the worker's admitted
+    ceiling. Full cgroup retirement, kernel refusal of a third task at cap two,
+    real inhibitor release/overlap, launcher loss and bounded output are covered.
+    The host selector accepts a lazy Linux loader to avoid a host/driver cycle;
+    existing attempt/driver contracts are unchanged. All seventeen final guard
+    drills fail as intended and restore source byte-exact; 68 tests pass with
+    seven Windows cases unrun here. Process observations count distinct
+    cgroup.procs PIDs; TasksMax still limits threads too. The real multithreaded
+    regression catches that distinction. Final committed fresh-clone verification
+    at 4b4fe4dc3 passes 68 tests three times, all five typechecks, full lint,
+    formatting, plain knip, duplication, reference, localization, default cycles
+    and the production build with unchanged caps. Host API exits 1 for the
+    stale W-owned Node inventory; W must regenerate it. A targeted host-port
+    graph also exposes the unchanged M96 refFence/workerFence/workerEnv cycle,
+    which its owner must repair before W binds the selector. Full joined
+    quality, coverage, production/doc binding and installed hosts remain W's
+    responsibility; this lane does not claim shipped Linux support.
+    **Linux review M100P2HL3 (2026-10-08), qualified.** Fix both
+    RVM100P2HL P2 findings without changing the shared receiver contracts:
+    attempt-owned launch slots release exactly once on every failed path;
+    worker units bind to their pipe-owned inhibitor with BindsTo/After.
+    Encode the receiver incarnation and journaled attempt identity alongside
+    the host PID/start identity in unit names. On first manager access, stop
+    dead-host units before retaining receiver occupancy; the existing receiver
+    restart journal records uncertainty, never inferred success. Prove repeated
+    readiness refusal, SIGKILL containment and fresh-host orphan cleanup at
+    repository deadlines; run base regressions and byte-exact red drills.
+    Commit finished fixes, then qualify a fresh CI clone with owning tests
+    three times, receiver/recovery, five typechecks and unchanged gates/caps.
+    Both fixes pass: readiness churn reaches launch 201; two native SIGKILL
+    cases prove bound-worker Stop and fresh-host orphan cleanup. Seven base
+    regressions and seven intentional guard drills fail as expected; receiver
+    recovery records the original attempts as uncertain without releasing
+    occupancy or liability. Local owning tests pass 78 cases (13 native Linux),
+    with seven Windows cases unrun; receiver/recovery passes 86. Fresh CI clone
+    at 64c7ea757 passes owning tests three times, receiver/recovery, all five
+    typechecks, full lint/format, plain knip, duplication, reference/localization,
+    default cycles and production caps. Host API exits 1 for the unchanged
+    W-owned inventory; targeted host-port cycles exits 1 for the inherited
+    M96 refFence/workerFence/workerEnv cycle. No finding is deferred. W owns
+    those integration blockers and final quality/coverage/installed hosts.
+    Both private clones are removed. Receipts: docs/certification/m100-phase2.md.
   - **Lane A.** Every admission binds the sender's role/mode ceiling to the
     receiver's repository grant, role/tools, workspace trust, protected
     paths and current approval policy under an explicit receiver-side
@@ -46160,6 +46215,17 @@ aggregate certification record.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
 ## 7. Gates
+
+**M100P2HL3 scoped gate delegation (2026-10-08, linuxlt).** The rig brief
+and M100P2-common.md require owning files in batches of at most three, all
+native Linux cases, receiver/recovery, five typechecks, lint/format, plain
+knip, duplication, reference/localization/host-API and unchanged production
+caps in a fresh committed CI clone. Aggregate quality and full-suite coverage,
+production binding, README/CHANGELOG/reference integration and installed-host
+qualification remain W's exclusive responsibility. The inherited stale
+W-owned host API inventory is recorded, never weakened or silently refreshed
+here. No reviewed finding is deferred. Receipts:
+docs/certification/m100-phase2.md, Linux review M100P2HL3 subsection.
 
 **FLAKETH20 scoped gate delegation (2026-10-07, win11).** The shared lane
 rules forbid aggregate `npm run quality` and leave full-suite coverage and

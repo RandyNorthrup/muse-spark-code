@@ -100,6 +100,16 @@ export interface DeviceWorkerDriver {
     attempt: DeviceWorkerAttempt,
   ): Promise<DeviceWorkerJob>
 }
+/** One lazy platform selection point; the caller still owns local command/reservation wiring. */
+export async function deviceWorkerDriverForPlatform(
+  native: DeviceWorkerDriver,
+  linux: () => Promise<DeviceWorkerDriver>,
+  platform: NodeJS.Platform = process.platform,
+): Promise<DeviceWorkerDriver> {
+  if (platform === 'linux') return await linux()
+  if (native.platform !== platform) throw new DeviceWorkerHostError('helper')
+  return native
+}
 export interface DeviceWorkerReservation {
   readonly usage: DeviceLocalAttempt['usage']
   /** Local M96 safe-point pause; the worker's controlled boundaries use this owner. */
@@ -184,8 +194,13 @@ export class DeviceWorkerHost implements DeviceReceiverExecution {
       return { power: 'unknown', sleepInhibited: false }
     }
   }
-  public retain(records: readonly DeviceJournalRecord[]): Promise<void> {
-    return this.deps.retain(records.map((record) => deviceJournalRecordSchema.parse(record)))
+  public async retain(records: readonly DeviceJournalRecord[]): Promise<void> {
+    const validated = records.map((record) => deviceJournalRecordSchema.parse(record))
+    // Linux's first manager query stops dead-host units before journal occupancy is restored.
+    // The receiver still records uncertainty: cleanup supplies no result or paid settlement.
+    if (this.deps.driver.platform === 'linux')
+      parseDeviceWorkerQuery(await this.deps.driver.query())
+    await this.deps.retain(validated)
   }
   public async admit(input: DeviceDispatch): Promise<DeviceLocalAttempt> {
     const request = deviceDispatchSchema.parse(input)
