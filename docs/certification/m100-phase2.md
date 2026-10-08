@@ -198,6 +198,102 @@ test/unit/deviceMdns.test.ts test/unit/deviceDiscoverySwitch.test.ts
   against its 100 KiB cap, caps otherwise unchanged) with notices
   regenerated unchanged (no new dependency).
 
+## Lane D fix (RVM100P2D): six P2 and one P3 made structural
+
+2026-10-08, macbook rig, worktree `/Users/user/lanes/FIXM100P2D`,
+branch `m100/p2-d-fix` from `f28e1ea40` (lane D). Review
+`/Users/user/lanes/_ctx/codex/RVM100P2D.report.md`. Fix commit `bb2b6544`
+(five files: `deviceMdns.ts`, `deviceDiscoverySwitch.ts`, both owning
+tests, `test/unit/helpers/deviceLaneHosts.ts`). No live model calls:
+model attempts **0**, inference spend **0**. No listener beyond loopback
+in tests; all sockets are fakes.
+
+Shared-region approval (lead, lane brief): the two lines the review
+flagged stay as registration lines — `src/host/devices/deviceEntry.ts:27`
+(the `createDeviceMdnsPort, decodeDeviceMdnsPacket` re-export) and
+`docs/ide-compatibility/host-api.md:435` (the `node:dgram` row). No other
+shared file or region was touched; `deviceDiscovery.ts` (lane T) is
+unchanged, which bounds finding 1 as noted below.
+
+- P2 post-bind failures (`src/host/devices/deviceMdns.ts:391`): any UDP
+  failure closes the socket and fails later sends with the fixed
+  `blocked-or-unreachable` word, never socket or peer text. A throwing
+  send throws from `advertise` (`deviceMdns.ts:429`); a post-bind socket
+  error closes the socket and fails the next send the same way. Startup
+  failures (bind error, membership denial) reject `open` after closing the
+  created socket, so `DeviceDiscovery` maps them and the switch answers the
+  Blocked-or-unreachable setup as before. Boundary: `DeviceDiscovery`
+  (lane T, untouched) still swallows a throwing rotation announce into
+  `stop()` — the observable contract is halted discovery with the socket
+  closed and no further traffic, proven by `a failed first announcement
+stops discovery with the socket closed`. Tests:
+  `test/unit/deviceMdns.test.ts:219` (throwing send),
+  `test/unit/deviceMdns.test.ts:237` (post-bind error),
+  `test/unit/deviceMdns.test.ts:265` (first announcement halts).
+- P2 failed startup closes its socket (`deviceMdns.ts:382`): every step
+  after `bind` (synchronous bind throw, startup-window socket error,
+  `setMulticastInterface`/`addMembership` denial) closes the created
+  socket before rejecting, so retries leak nothing. Test:
+  `test/unit/deviceMdns.test.ts:251` (membership and bind denials reject
+  with the fixed word and `closed` 1).
+- P2 query budget (`deviceMdns.ts:438`): service-query answers share
+  discovery's packet budget — at most `DEVICE_LIMITS.queuedFrames` (32)
+  responses per advertisement rotation, only while an advertisement is
+  current, re-armed by each `advertise`. Test:
+  `test/unit/deviceMdns.test.ts:281` (1,000 queries in one rotation send
+  32 answers; the next rotation re-arms).
+- P2 compressed SRV target (`deviceMdns.ts:327`): each kept record carries
+  its whole message plus its RDATA offset, and the SRV target decodes
+  against message offsets. Test: `test/unit/deviceMdns.test.ts:294` (golden
+  with the SRV target replaced by a pointer and RDLENGTH 8 decodes).
+- P2 Additional-section records (`deviceMdns.ts:184`): Answers and
+  Additional records are kept (Authority only positions), so a standard
+  DNS-SD layout with PTR in Answers and SRV/TXT in Additional decodes.
+  Test: `test/unit/deviceMdns.test.ts:313` (golden re-headered to ANCOUNT 1
+  / ARCOUNT 2 decodes).
+- P2 switch serialization (`src/host/devices/deviceDiscoverySwitch.ts:42`):
+  state-changing turns run through a `serialized` tail (the store's
+  `ordered`/`settled` idiom, no `withResolvers`: host targets Node 20), so
+  a later OFF always runs after an earlier ON's facts resolve and wins.
+  Test: `test/unit/deviceDiscoverySwitch.test.ts:208` (deferred facts: ON
+  then OFF ends off, persisted off, session closed).
+- P3 manual-entry proof (`test/unit/deviceDiscoverySwitch.test.ts:238`,
+  helper `test/unit/helpers/deviceLaneHosts.ts:44`): the test now completes
+  mutual pairing over typed invitation text — pair, import each side's
+  text, confirm both fingerprints, import both confirmations — with the
+  mDNS port denying every open (a `setDiscovery` attempt answers
+  `blocked-or-unreachable` first), then materials with the saved
+  fingerprint while a wrong pin refuses with `unpaired`. The dance lives in
+  `completeLaneMutualPairing`, shared with the spoof test, so `jscpd`
+  stays at 0 clones.
+
+### Test-fire proof (base `f28e1ea40`, new test files copied over, rig run)
+
+Worktree `/tmp/m100base` at `f28e1ea40` with the fixed test files:
+`test/unit/deviceMdns.test.ts` 7 failed, 7 passed;
+`test/unit/deviceDiscoverySwitch.test.ts` 1 failed, 7 passed. Every new
+regression test fails on the base; every pre-existing test passes. The
+rewritten manual-entry proof passes on the base (its pairing flow is valid
+there), so its strength is drilled instead: the same file with the
+import/confirm/complete blocks removed fails (1 failed, 7 passed),
+proving the middle steps are load-bearing.
+
+### Verification (fresh clone `/tmp/fixm100-verify`, `npm ci`, `CI=true`, default timeouts)
+
+- Owning `deviceQrInvite`, `deviceMdns`, `deviceDiscoverySwitch` three
+  times: 27 passed each time. Neighbors `deviceStore`, `deviceDiscovery`,
+  `devicePairingAdapter`: 78 passed.
+- `npm run typecheck` (host, webview, unit, e2e, integration): 0 errors.
+- `npm run lint:js` (full tree, `--max-warnings=0`): clean.
+- `npx prettier --check` on all five changed files: clean.
+- Plain `knip`: 0 errors (two pre-existing configuration hints only).
+  `jscpd`: 0 clones.
+- `npm run check:reference`: current (Devices reference 18 entries).
+  `node scripts/check-l10n.mjs`: 14 tables, 0 problems. `node
+scripts/check-host-api.mjs`: 0 problems.
+- `npm run build`: `dist/devices.js` 87.5 KiB against its 100 KiB cap,
+  caps otherwise unchanged, notices regenerated unchanged.
+
 ## Lane 0 re-review (RVM100P2L0B): the byte cap counts UTF-8 bytes
 
 The re-review confirmed the six fixes and found one P2: `deviceCapabilitySchema` compared `JSON.stringify(value).length` (UTF-16 code units) with `capabilityBytes`, so an advertisement of 64 tool names padded with U+4F60 was 5,893 code units but 15,801 UTF-8 bytes and parsed. The refine now measures `new TextEncoder().encode(JSON.stringify(value)).byteLength`, as `tableArchive.ts` does.
