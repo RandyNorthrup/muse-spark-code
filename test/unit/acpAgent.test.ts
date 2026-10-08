@@ -2591,4 +2591,45 @@ describe('FIXM116I4 model-start answer commits', () => {
       })
     },
   )
+
+  it('queued Model API turn does not commit at turnStarted before hooks run', async () => {
+    const f = await durableAnswerHarness()
+    await f.h.run(async (client) => {
+      const { sessionId, session } = await f.prepare(client)
+      // Model API acknowledges the turn as queued with a reserved user id.
+      session.sendTurn.mockResolvedValueOnce({
+        turnId: 'queued-1',
+        disposition: 'queued',
+        userMessageId: 'user-1',
+      })
+      const response = prompt(client, sessionId)
+      const outcome = didRequestSucceed(response)
+      await until(() => session.sendTurn.mock.calls.length === 1)
+      await prompt(client, sessionId, '/questions') // Flush ACP's earlier updates.
+      // The queued turn starts once the earlier running turn ends; submit hooks still to run.
+      session.emit({ type: 'turnStarted', turnId: 'queued-1' })
+      await settled()
+      expect(f.save).not.toHaveBeenCalled()
+      expect(f.isSent()).toBe(false)
+      expect(await f.store.load(sessionId)).toMatchObject([{ text: 'late: blue' }])
+      // The UserPromptSubmit hook blocks: the user message leaves the replay, the turn ends.
+      session.emit({ type: 'turnWithdrawn', turnId: 'queued-1', reason: 'stopped' })
+      expect(await outcome).toBe(true)
+      await f.registries[0]!.flush()
+      expect(f.save).not.toHaveBeenCalled()
+      expect(f.isSent()).toBe(false)
+      expect(await f.store.load(sessionId)).toMatchObject([{ text: 'late: blue' }])
+      // The next prompt attaches the retained answer exactly once.
+      session.sendTurn.mockResolvedValueOnce({ turnId: 'queued-2', disposition: 'started' })
+      const retry = prompt(client, sessionId, 'retry')
+      await until(() => session.sendTurn.mock.calls.length === 2)
+      expect(JSON.stringify(session.sendTurn.mock.calls[1]?.[0] ?? [])).toContain('late: blue')
+      await until(() => f.save.mock.calls.length === 1)
+      session.emit({ type: 'turnCompleted', turnId: 'queued-2', terminal: 'completed' })
+      await retry
+      expect(await f.store.load(sessionId)).toEqual([])
+      expect(f.isSent()).toBe(true)
+      expect(f.save).toHaveBeenCalledTimes(1)
+    })
+  })
 })
