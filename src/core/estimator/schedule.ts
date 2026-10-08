@@ -603,7 +603,12 @@ export function prepareEstimateSchedule(
     const assigned: Reservation[] = []
     const assignedById = new Map<string, Reservation>()
     const reservationsBySlot = new Map<string, Reservation[]>()
-    let reservationPoints: number[] = []
+    let reservationPoints: number[] | undefined
+    const pointsForReservations = (): number[] =>
+      (reservationPoints ??= [
+        ...new Set(assigned.flatMap((entry) => [entry.start, entry.end])),
+      ].toSorted((a, b) => a - b))
+    let lastAssignedEnd = 0
     const finishes = new Map<string, number>()
     const priority = new Map(dag.nodes.map((node) => [node.laneId, node.tailHours]))
     if (durations) {
@@ -652,7 +657,7 @@ export function prepareEstimateSchedule(
           continue
         const duration = hours(lane, machine)
         let start = earliest
-        const lastEnd = Math.max(earliest, ...assigned.map((entry) => entry.end))
+        const lastEnd = Math.max(earliest, lastAssignedEnd)
         let lastReset: number | undefined
         const finalBoundary = (): number => {
           lastReset ??= Math.max(
@@ -669,10 +674,11 @@ export function prepareEstimateSchedule(
         function place(): Reservation | undefined {
           for (let attempt = 0; attempt < ESTIMATE_MAX_ITEMS; attempt++) {
             const end = start + duration
+            const endDate = new Date(asOf + end * HOUR_MS)
             if (
               !Number.isFinite(end) ||
-              !Number.isFinite(new Date(asOf + end * HOUR_MS).getTime()) ||
-              new Date(asOf + end * HOUR_MS).getUTCFullYear() > MAX_ISO_YEAR
+              !Number.isFinite(endDate.getTime()) ||
+              endDate.getUTCFullYear() > MAX_ISO_YEAR
             )
               schedulingRefusal('schedule-date-overflow')
             const available =
@@ -804,7 +810,7 @@ export function prepareEstimateSchedule(
             // renews, more identical empty periods cannot cure a structural
             // capacity/rate/retention failure for a nonpreemptive lane.
             if (hints.length === 0 && start >= lastEnd && start >= finalBoundary()) return undefined
-            const future = [...hints, ...reservationPoints.filter((time) => time > start)]
+            const future = [...hints, ...pointsForReservations().filter((time) => time > start)]
             for (const window of searchWindows) {
               const next = resetsFor(window, asOf + start * HOUR_MS).find(
                 (instant) => instant > asOf + start * HOUR_MS,
@@ -842,9 +848,8 @@ export function prepareEstimateSchedule(
         reservations.sort((a, b) => a.start - b.start)
         reservationsBySlot.set(slot.id, reservations)
       }
-      reservationPoints = [...new Set([...reservationPoints, best.start, best.end])].toSorted(
-        (a, b) => a - b,
-      )
+      reservationPoints = undefined
+      lastAssignedEnd = Math.max(lastAssignedEnd, best.end)
       assignedById.set(lane.id, best)
       completed(lane, best.end)
     }

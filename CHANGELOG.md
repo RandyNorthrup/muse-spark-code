@@ -8,7 +8,8 @@ happened, not what was planned; superseded entries are kept.
 ## [Unreleased]
 
 - Estimator trials reuse the validated scheduler without materializing report-only
-  timelines; all 2,000 draws and the selected P50 schedule remain intact.
+  timelines or sorting unused reservation boundaries after every placement;
+  all 2,000 draws and the selected P50 schedule remain intact.
 - Account surfaces validate their existing projection without loading unrelated
   Models, vault, team and keybinding schemas into their first-use chunk.
 

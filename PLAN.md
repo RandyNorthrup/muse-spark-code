@@ -19133,6 +19133,13 @@ before completion. No push, rebase, model calls or fabricated native artifacts.
       trial result; build the complete timeline only for the selected P50 trial.
       Retain all 2,000 samples, deterministic draws, resource checks and unknown
       limits, with full/trial equivalence tests and deliberate regression drills.
+      With report-only work removed, the next full shard still measures one
+      independent-lane case at 2.04 seconds. Reservation boundary sets are
+      rebuilt and sorted after every placement although only failed placements
+      read them; compute this set on demand and invalidate after each placement.
+      Maintain the same maximum assigned end incrementally and reuse a single
+      date for the existing overflow checks. Preserve gap, quota and date guards
+      and verify the complete resource scheduler alongside the performance suite.
       The standalone accounts accessibility build still pulls the complete
       Models panel, vault, team and keybinding schemas through its account slice
       import (78.6 / 25 KiB). Move the existing captured account projection into

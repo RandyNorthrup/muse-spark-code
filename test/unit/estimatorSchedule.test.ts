@@ -235,6 +235,32 @@ describe('M117 resource list scheduling', () => {
     expect(() => prepareEstimateSchedule([lane], fleet).run()).toThrow('unschedulable:A')
   })
 
+  it('refreshes failed-placement boundaries after every assignment and sampled run', () => {
+    const lanes = ['A', 'B', 'C'].map((id) => scheduleLane(id))
+    for (const lane of lanes) {
+      lane.resources.ciId = 'ci-1'
+      lane.resources.ciJobs = amount(1)
+      lane.resources.ciMinutes = amount(10)
+    }
+    const fleet = scheduleFleet()
+    fleet.ci[0]!.occupiedJobs = 1
+    const scheduler = prepareEstimateSchedule(lanes, fleet)
+    for (const hours of [1, 2, 1]) {
+      const durations = new Map(
+        lanes.map((lane) => [lane.id, new Map([['linux-x64-builder', planHours(hours)]])]),
+      )
+      const result = scheduler.run(durations)
+      expect(result.finishHours).toBe(hours * lanes.length)
+      expect(result.schedule.map((entry) => entry.laneId)).toEqual(['A', 'B', 'C'])
+      expect(result.schedule[1]!.start).toBe(result.schedule[0]!.end)
+      expect(result.schedule[2]!.start).toBe(result.schedule[1]!.end)
+      expect(scheduler.trial(durations)).toEqual({
+        finishHours: result.finishHours,
+        unknownLimits: result.unknownLimits,
+      })
+    }
+  })
+
   it('reserves concurrent disk peaks and retained bytes on the physical volume', () => {
     const lanes = [scheduleLane('A'), scheduleLane('B')]
     for (const lane of lanes)
