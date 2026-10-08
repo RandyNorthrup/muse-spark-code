@@ -319,6 +319,74 @@ refresh the bound image review, then rerun complete fresh-clone `check:visual`.
 Keep all thresholds and the three protected assertions unchanged. Fresh clone
 is removed at handoff; the external archive and labelled review sheets remain.
 
+### LEFT017C takeover (2026-10-08, randy-lt)
+
+Branch `rel017/left3`, base `a038b5c2d`. No merge, push, live/paid call,
+changed timeout, threshold change or invented colour. F1 untouched:
+`src/webview/usage/ResourcesSection.*` not modified (resource-history lane owns it).
+
+- Finding F2 fixed on the product side (`1c3006e59`, hooks on, staged and
+  committed diffs reread). Before: independent reporting read the theme
+  focus colour directly (`src/webview/reporting/styles.css:42`,
+  `outline: 2px solid var(--vscode-focusBorder)`); the Models provider
+  button and the accounts input/picker read the host input border
+  directly (`src/webview/models/models.css:147`,
+  `src/webview/models/sections/accounts/accounts.css:30`,
+  `border: 1px solid var(--vscode-input-border)`). After: all three use
+  the registered M114 token contract, matching the repaired
+  Models/accounts focus outline (`models.css:25`, `accounts.css:54`):
+  `outline: var(--ms-focus-width) solid var(--ms-text)` with
+  `outline-offset: var(--ms-focus-offset)`, and
+  `border: 1px solid var(--ms-border)`. The accounts token chain is the
+  same one the existing `--ms-focus-width` outline at `accounts.css:56`
+  already relies on (entry imports the CSS beside the shared
+  `styles.css`/`models.css` token imports). No other direct host border
+  or focus read was changed; the remaining `vscode-panel-border`,
+  `vscode-input-border` and `vscode-focusBorder` uses in `models.css`
+  (nav, fields, select list, chips) stay host-driven.
+- Durable test: `test/unit/tokens.test.mjs` gains `draws F2 focus rings
+and boundaries from M114 tokens, not direct host colours`. It fails on
+  the pre-fix CSS (reporting `:focus-visible` without the token ring)
+  and passes after: 14/14 in the lane tree, 36/36 with the non-Chrome
+  visual owners (`visualMatrix`, `visualGate`, `visualSource`) in a
+  fresh `npm ci` clone under `$TMPDIR`.
+- Nine below-AA pairs (`docs/certification/m114-0.md:178`) disposition, scoped
+  to the three F2 surfaces. Six of the nine no longer reach those surfaces
+  as a weak host colour: One Dark Pro focus on sidebar, on raised surface,
+  on input and on primary button, plus Dracula focus on primary button
+  and Dracula input border on input — the reporting page, the Models
+  provider button and the accounts input/picker now draw the `--ms-text`
+  ring or the `--ms-border` boundary through the registered token
+  contract instead. Three remain host-only even there: One Dark Pro panel
+  border on sidebar (the `--ms-border` value still resolves to the host's
+  `panel-border` where the host sets one), and both themes' input
+  placeholder text (drawn by the host control, not our CSS). Other
+  surfaces' direct host reads are unchanged and out of scope. No threshold
+  lowered, no colour invented.
+- Static gates on the F2 tree: five typechecks exit 0; changed-file
+  eslint zero warnings; prettier clean; `check:tokens` 0 problems;
+  `check:l10n` 0 problems; `check:reference` current; `check:plan` 0
+  drift; split check exit 0 (activation unchanged); plain knip two
+  inherited configuration hints; jscpd 2,835 files zero clones.
+- Receipts blocked by environment, not by code. Every Chromium on this
+  machine dies with SIGTRAP (exit 133) before first paint, inside and
+  outside Playwright: system Chrome 153.0.8010.52 and the cached
+  headless shells 1217/1223/1228 all print
+  `crashpad ... socket.cc:33 socketpair: Operation not permitted` then
+  `Trace/breakpoint trap`. The tool sandbox denies AF_UNIX
+  `SOCK_SEQPACKET`/`SOCK_DGRAM` socketpairs (verified: `SOCK_STREAM`
+  works, the other two return EPERM), which Chromium needs at startup;
+  unsandboxed execution is unavailable (approval prompts disabled), and
+  no flag combination (`--single-process`, `--no-zygote
+--in-process-gpu`, `--disable-seccomp-filter-sandbox`) survives it.
+  Fresh-clone `npm run check:visual` therefore exits 1 at the
+  `launchPersistentContext` probe, and the `--update` regeneration plus
+  the One Dark Pro/Dracula focus re-render cannot run here. No receipt,
+  manifest, threshold or assertion was touched. Next: rerun
+  `npm run check:visual -- --update` with a new review reference and a
+  new outside-git archive on a host where Chrome starts, inspect every
+  changed image, then rerun the complete fresh-clone pixel gate.
+
 ### Earlier LEFT017 receipts
 
 Lane `rel017/left`, base `7a4fc2ab3`, Linux rig, 2026-10-08. All tests

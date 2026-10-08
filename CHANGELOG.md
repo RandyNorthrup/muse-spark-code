@@ -29,6 +29,7 @@ happened, not what was planned; superseded entries are kept.
 - Include lazy account and developer surfaces in the browser English regression probe while preserving deferred fallback checks.
 
 - Remove the obsolete compact Node reference build plugin and its stale test; the production reference uses the current generated data loader.
+- Draw the independent reporting focus ring and the Models/account boundaries from the M114 token contract instead of direct host colours, so keyboard focus stays visible on low-contrast themes.
 
 ### Pending
 
