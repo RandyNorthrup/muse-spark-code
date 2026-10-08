@@ -5186,6 +5186,7 @@
     "unlockWarning": "Opciones de prueba locales, desactivadas por defecto. Se siguen aplicando los límites de las cuentas, los términos del proveedor y las confirmaciones de pago.",
     "multipleWarning": "¿Permitir perfiles locales aislados para probar varias cuentas de un proveedor en este PC? Esta elección permanece en este equipo.",
     "resetWarning": "¿Restablecer las opciones de desarrollador? Los perfiles locales se detendrán y se eliminarán sus espacios de credenciales y carpetas de estado.",
+    "foreignResetWarning": "¿Restablecer las opciones de desarrollador en este equipo? Esto borra el estado de desarrollador de este equipo. No se detiene nada: las carpetas de perfil y las credenciales se conservan.",
     "locked": "Las opciones de desarrollador están bloqueadas.",
     "unavailable": "Las opciones de desarrollador no están disponibles.",
     "differentMachine": "Las opciones de desarrollador se configuraron con otra identidad de máquina. Restablézcalas para empezar de nuevo en esta máquina.",

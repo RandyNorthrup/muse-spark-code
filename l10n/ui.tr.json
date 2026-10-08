@@ -5036,6 +5036,7 @@
     "unlockWarning": "Yerel test seçenekleri varsayılan olarak kapalıdır. Hesap sınırları, sağlayıcı koşulları ve ücretli kullanım onayları geçerliliğini korur.",
     "multipleWarning": "Bu bilgisayarda bir sağlayıcının birden fazla hesabını test etmek için yalıtılmış yerel profillere izin verilsin mi? Bu seçim bu makinede kalır.",
     "resetWarning": "Geliştirici seçenekleri sıfırlansın mı? Yerel profiller durdurulur, kimlik bilgisi alanları ve durum klasörleri silinir.",
+    "foreignResetWarning": "Bu makinede geliştirici seçenekleri sıfırlansın mı? Bu, bu makinenin geliştirici durumunu temizler. Hiçbir şey durdurulmaz: profil klasörleri ve kimlik bilgileri aynen korunur.",
     "locked": "Geliştirici seçenekleri kilitli.",
     "unavailable": "Geliştirici seçenekleri kullanılamıyor.",
     "differentMachine": "Geliştirici seçenekleri farklı bir makine kimliğiyle ayarlandı. Bu makinede yeniden başlamak için sıfırlayın.",

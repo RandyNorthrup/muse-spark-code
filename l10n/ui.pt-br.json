@@ -5186,6 +5186,7 @@
     "unlockWarning": "Opções de teste locais, desativadas por padrão. Os limites das contas, termos dos provedores e confirmações de uso pago continuam válidos.",
     "multipleWarning": "Permitir perfis locais isolados para testar várias contas de um provedor neste PC? Esta escolha fica nesta máquina.",
     "resetWarning": "Redefinir as opções do desenvolvedor? Os perfis locais serão interrompidos e seus espaços de credenciais e pastas de estado serão excluídos.",
+    "foreignResetWarning": "Redefinir as opções do desenvolvedor nesta máquina? Isso limpa o estado de desenvolvedor desta máquina. Nada é interrompido: as pastas de perfil e as credenciais são mantidas.",
     "locked": "As opções do desenvolvedor estão bloqueadas.",
     "unavailable": "As opções do desenvolvedor estão indisponíveis.",
     "differentMachine": "As opções do desenvolvedor foram configuradas com outra identidade de máquina. Redefina-as para começar de novo nesta máquina.",

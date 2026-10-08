@@ -7,8 +7,11 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs'
+import { constants } from 'node:fs'
 import { hostname, tmpdir } from 'node:os'
 import path from 'node:path'
+import { open } from 'node:fs/promises'
+import type * as FsPromises from 'node:fs/promises'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   developerMachineIdAliases,
@@ -18,6 +21,8 @@ import {
 } from '../../src/core/developer/machineId'
 import { DeveloperOptions, DeveloperOptionsError } from '../../src/core/developer/developerOptions'
 import type { DeveloperProfileResources } from '../../src/core/developer/localProfiles'
+import { developerConfirmation } from '../../src/core/developer/surfaces'
+import { DeveloperLocalFiles } from '../../src/runtime/developer/localFiles'
 import { createRuntimeAccountServices } from '../../src/runtime/providers/runtimeServices'
 import { runTerminalDeveloperCommand } from '../../src/runtime/providers/accountsEntry'
 import {
@@ -26,9 +31,35 @@ import {
   DEVELOPER_UNLOCK_MS,
   UI_TEXT,
 } from '../../src/shared/constants'
-import { developerStateSchema } from '../../src/shared/developerOptions'
+import { developerAuditSchema, developerStateSchema } from '../../src/shared/developerOptions'
 import { developerFixture } from './helpers/developer'
 import { memoryKeyring } from './helpers/keyring'
+
+// Fault injection for the staging and audit file opens below passes every
+// other call through to the real filesystem.
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const fs = await importOriginal<typeof FsPromises>()
+  return { ...fs, open: vi.fn(fs.open) }
+})
+
+function openPassthrough(): (
+  ...args: Parameters<typeof open>
+) => Promise<Awaited<ReturnType<typeof open>>> {
+  const passthrough = vi.mocked(open).getMockImplementation()
+  if (passthrough === undefined) throw new Error('expected an open passthrough')
+  return passthrough
+}
+
+function restoreOpen(
+  passthrough: (...args: Parameters<typeof open>) => Promise<Awaited<ReturnType<typeof open>>>,
+): void {
+  vi.mocked(open).mockReset()
+  vi.mocked(open).mockImplementation(passthrough)
+}
+
+function eacces(message: string): NodeJS.ErrnoException {
+  return Object.assign(new Error(message), { code: 'EACCES' })
+}
 
 const dirs: string[] = []
 afterEach(() => {
@@ -84,6 +115,21 @@ async function openLegacy(storedId: string, currentHost: string) {
   })
   expect(owner.snapshot().isUnlocked).toBe(true)
   return { legacy, h, owner }
+}
+
+// Foreign reset declined: the refusal and its untouched state, shared by
+// the decline and confirmation tests below.
+async function declineForeignReset() {
+  const legacy = unlockedGrant('other-machine-identity')
+  const h = developerFixture(structuredClone(legacy))
+  const confirm = vi.fn(() => Promise.resolve(false))
+  await expect(
+    DeveloperOptions.resetForeign({ ...h.deps, machineId: STABLE_ID, confirm }, 'terminal'),
+  ).rejects.toMatchObject({
+    code: 'differentMachine',
+    message: UI_TEXT.developer.differentMachine,
+  })
+  return { legacy, h, confirm }
 }
 
 describe('developer machine identity (DEVID017B)', () => {
@@ -158,6 +204,46 @@ describe('developer machine identity (DEVID017B)', () => {
     expect(readdirSync(folder)).toEqual([DEVELOPER_MACHINE_ID_FILE])
   })
 
+  it('loads a published id without staging when new files are refused', async () => {
+    const folder = freshDir()
+    const published = await loadDeveloperMachineId(folder)
+    // Storage refuses every new file from here on: creation fails EACCES.
+    const passthrough = openPassthrough()
+    vi.mocked(open).mockRejectedValue(eacces("EACCES: permission denied, open 'machine-id'"))
+    // Forget the first load's staging call: only new attempts count below.
+    vi.mocked(open).mockClear()
+    try {
+      // The existing valid id loads with no staging attempt at all.
+      await expect(loadDeveloperMachineId(folder)).resolves.toBe(published)
+      expect(vi.mocked(open)).not.toHaveBeenCalled()
+    } finally {
+      restoreOpen(passthrough)
+    }
+  })
+
+  it('removes its staging file when the staged write cannot be synced', async () => {
+    const folder = freshDir()
+    // The staging file opens, then its fsync fails with EIO.
+    const passthrough = openPassthrough()
+    vi.mocked(open).mockImplementationOnce(async (...args) => {
+      const handle = await passthrough(...args)
+      vi.spyOn(handle, 'sync').mockRejectedValueOnce(
+        Object.assign(new Error('EIO: i/o error, fsync'), { code: 'EIO' }),
+      )
+      return handle
+    })
+    try {
+      await expect(loadDeveloperMachineId(folder)).rejects.toMatchObject({
+        code: 'unavailable',
+        message: UI_TEXT.developer.unavailable,
+      })
+      // No claim file is left behind for the next load to trip over.
+      expect(readdirSync(folder)).toEqual([])
+    } finally {
+      restoreOpen(passthrough)
+    }
+  })
+
   it.each([
     ['a partial prefix', '0123456789abcdef'],
     ['a single character', 'a'],
@@ -228,15 +314,7 @@ describe('developer machine identity (DEVID017B)', () => {
   })
 
   it('leaves foreign state untouched when reset is declined', async () => {
-    const legacy = unlockedGrant('other-machine-identity')
-    const h = developerFixture(structuredClone(legacy))
-    const confirm = vi.fn(() => Promise.resolve(false))
-    await expect(
-      DeveloperOptions.resetForeign({ ...h.deps, machineId: STABLE_ID, confirm }, 'terminal'),
-    ).rejects.toMatchObject({
-      code: 'differentMachine',
-      message: UI_TEXT.developer.differentMachine,
-    })
+    const { legacy, h, confirm } = await declineForeignReset()
     expect(confirm).toHaveBeenCalledTimes(1)
     // Nothing was mutated before the answer: identity, unlock, profiles
     // and audit sit exactly as before — nothing was re-bound.
@@ -306,6 +384,62 @@ describe('developer machine identity (DEVID017B)', () => {
     // The foreign grant sits exactly as before: no re-bind, no clearing.
     expect(h.persisted()).toEqual(legacy)
     expect(h.audits).toEqual([])
+  })
+
+  it('asks foreign reset with its own honest confirmation', async () => {
+    const { confirm } = await declineForeignReset()
+    // Foreign reset asks its own question, not the destructive own-machine one.
+    expect(confirm).toHaveBeenCalledWith('resetForeign')
+    const asked = developerConfirmation('resetForeign')
+    expect(asked.message).toBe(UI_TEXT.developer.foreignResetWarning)
+    // The text clears this machine's state, stops nothing, and keeps the
+    // profile folders: it must never promise stopping or deletion.
+    expect(asked.message).toContain('stops nothing')
+    expect(asked.message).not.toMatch(/will stop|deleted/)
+  })
+
+  it('leaves foreign state stored when the reset audit cannot be appended', async () => {
+    const folder = freshDir()
+    const root = path.join(folder, 'developer')
+    const store = new DeveloperLocalFiles(root)
+    const legacy = unlockedGrant('other-machine-identity')
+    const at = Date.parse('2026-10-06T12:00:00Z')
+    await store.commit(
+      developerStateSchema.parse(legacy),
+      developerAuditSchema.parse({ v: 1, time: at, action: 'enable', source: 'terminal' }),
+    )
+    // Every audit append-open fails EACCES; reads and state writes pass through.
+    const passthrough = openPassthrough()
+    vi.mocked(open).mockImplementation(async (...args) => {
+      const flags = args[1]
+      if (typeof flags === 'number' && (flags & constants.O_APPEND) !== 0)
+        throw eacces("EACCES: permission denied, open 'audit'")
+      return await passthrough(...args)
+    })
+    const h = developerFixture()
+    try {
+      // Reset reports the failure instead of clearing without recording it.
+      await expect(
+        DeveloperOptions.resetForeign(
+          { ...h.deps, machineId: STABLE_ID, store, confirm: () => Promise.resolve(true) },
+          'terminal',
+        ),
+      ).rejects.toThrow('EACCES')
+      // The stored state sits exactly as before: the foreign identity,
+      // unlock and registration are intact, with only the enable audit row.
+      expect(JSON.parse(readFileSync(path.join(root, DEVELOPER_FILES.state), 'utf8'))).toEqual(
+        legacy,
+      )
+      expect(
+        readFileSync(path.join(root, DEVELOPER_FILES.audit), 'utf8').trim().split('\n'),
+      ).toHaveLength(1)
+      // The next open still refuses with the honest identity message.
+      await expect(
+        DeveloperOptions.open({ ...h.deps, machineId: STABLE_ID, store }),
+      ).rejects.toMatchObject({ code: 'differentMachine' })
+    } finally {
+      restoreOpen(passthrough)
+    }
   })
 
   it('opens on this machine and persists the stored id', async () => {

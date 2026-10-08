@@ -278,7 +278,7 @@ export function createRuntimeAccountServices(
     now: () => number
     files: DeveloperLocalFiles
     checkAccount: (provider: string, account: string) => Promise<void>
-    confirm: (question: 'unlock' | 'multiple' | 'reset') => Promise<boolean>
+    confirm: (question: 'unlock' | 'multiple' | 'reset' | 'resetForeign') => Promise<boolean>
     changed: (snapshot: DeveloperSnapshot) => void
   } => {
     const now = input.now ?? Date.now

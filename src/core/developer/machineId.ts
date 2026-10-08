@@ -51,7 +51,9 @@ async function readPublishedMachineId(file: string): Promise<string> {
 }
 
 /** Load the machine's stable id, creating it once (DEVID017B, redesigned
- * DEVID017C). The full id is staged to a private temp file in the same
+ * DEVID017C, read-first DEVID017D). An already published id is returned
+ * before any staging, so read-only storage still loads the identity.
+ * Otherwise the full id is staged to a private temp file in the same
  * folder and fsynced, then published atomically and exclusively with
  * `link`, which fails when the final name exists — the calibration
  * journal's (`src/core/estimator/calibration/journal.ts`) claim pattern,
@@ -65,6 +67,15 @@ export async function loadDeveloperMachineId(dataDir: string): Promise<string> {
     await mkdir(dataDir, { recursive: true, mode: DEVELOPER_DIRECTORY_MODE })
   } catch {
     throw new DeveloperOptionsError('unavailable')
+  }
+  // A published id wins without staging anything: storage that refuses new
+  // files (permissions or quota) still loads the existing identity instead
+  // of refusing. Publish only when the final name is absent or unreadable.
+  try {
+    return await readPublishedMachineId(file)
+  } catch {
+    // Absent, unreadable or invalid: fall through to publish below. An
+    // invalid file stays refused by the readers on every path.
   }
   const fresh = randomBytes(DEVELOPER_MACHINE_ID_BYTES).toString('hex')
   const temporary = path.join(
@@ -80,6 +91,13 @@ export async function loadDeveloperMachineId(dataDir: string): Promise<string> {
       await staged.close()
     }
   } catch {
+    // Every staging failure removes its temp file: a failed write, fsync
+    // or close must not leave another claim file behind for the next load.
+    try {
+      await rm(temporary, { force: true })
+    } catch {
+      // The staging file is already gone; the load still failed honestly.
+    }
     throw new DeveloperOptionsError('unavailable')
   }
   try {

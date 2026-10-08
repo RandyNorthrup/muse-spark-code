@@ -19,7 +19,10 @@ export interface DeveloperStore {
   read(): Promise<unknown>
   /** Audit before enabling; revoke state even after audit failure where possible.
    * Durable revocations take precedence over an older enabled state on restore.
-   * The single machine owner serializes calls, including other editor clients. */
+   * The single machine owner serializes calls, including other editor clients.
+   * One exception (DEVID017D): a full `reset` clear is never published when
+   * its audit row was not written — a failed foreign Reset leaves stored
+   * state unchanged instead of clearing it unaudited. */
   commit(state: DeveloperState, audit: DeveloperAudit): Promise<void>
 }
 export interface DeveloperOptionsDeps {
@@ -36,7 +39,7 @@ export interface DeveloperOptionsDeps {
   /** Password/standard-input entry stays with K, vendor eligibility with P/M.
    * The port must refuse unsupported products and unbound/absent accounts. */
   readonly checkAccount: (provider: string, account: string) => Promise<void>
-  readonly confirm: (question: 'unlock' | 'multiple' | 'reset') => Promise<boolean>
+  readonly confirm: (question: 'unlock' | 'multiple' | 'reset' | 'resetForeign') => Promise<boolean>
   /** Pushes the same snapshot/badge to all registered surfaces. */
   readonly changed: (snapshot: DeveloperSnapshot) => void
 }
@@ -123,8 +126,11 @@ export class DeveloperOptions {
   }
 
   /** Reset state bound to another machine's identity (DEVID017B, redesigned
-   * DEVID017C). `open` refuses such state, so the terminal `developer reset`
-   * recovers through here without an owner. Confirmation comes first and
+   * DEVID017C, hardened DEVID017D). `open` refuses such state, so the
+   * terminal `developer reset` recovers through here without an owner.
+   * Confirmation comes first — under its own `resetForeign` question, whose
+   * text says exactly what happens: this machine's developer state is
+   * cleared, nothing is stopped, and profile folders stay on disk — and
    * nothing is mutated before the answer: denying re-refuses with the honest
    * identity message and leaves everything — stored identity, unlock,
    * profiles, audit — unchanged, so the next open still refuses with
@@ -137,7 +143,10 @@ export class DeveloperOptions {
    * `reset` audit row records exactly that: a reset with no stop and no
    * disable. Their state folders and credential slots stay on disk: PLAN
    * D88 (b) gives Reset the job of turning every option off and stopping
-   * the profiles (PLAN.md:12407), never of deleting profile folders. */
+   * the profiles (PLAN.md:12407), never of deleting profile folders. The
+   * store writes that audit row before the cleared state; when the audit
+   * write fails the state is left unchanged and the failure is reported,
+   * never an unaudited clearing. */
   public static async resetForeign(
     deps: DeveloperOptionsDeps,
     source: DeveloperAudit['source'],
@@ -145,7 +154,7 @@ export class DeveloperOptions {
     const stored = await deps.store.read()
     const parsed = stored === undefined ? undefined : developerStateSchema.safeParse(stored)
     if (parsed?.success !== true) throw new DeveloperOptionsError('differentMachine')
-    if (!(await deps.confirm('reset'))) throw new DeveloperOptionsError('differentMachine')
+    if (!(await deps.confirm('resetForeign'))) throw new DeveloperOptionsError('differentMachine')
     const cleared = developerStateSchema.parse({
       v: 1,
       machineId: deps.machineId,

@@ -114,6 +114,18 @@ describe('private local Developer state and audit files', () => {
     expect(await h.store.read()).toEqual(state)
   })
 
+  it('never publishes a reset clear when the audit append fails', async () => {
+    const h = await files()
+    const enabled = { ...state, isMultipleAccountsOn: true }
+    await h.store.commit(enabled, { ...audit, action: 'enable' })
+    await rm(h.auditPath)
+    await mkdir(h.auditPath)
+    const cleared = { ...state, unlockedAt: null, expiresAt: null }
+    await expect(h.store.commit(cleared, { ...audit, action: 'reset' })).rejects.toThrow()
+    // The stored grant is untouched: no unaudited clearing was published.
+    expect(JSON.parse(await readFile(h.statePath, 'utf8'))).toEqual(enabled)
+  })
+
   it('bounds the local audit and retains only one previous segment', async () => {
     const h = await files()
     await h.store.commit(state, audit)

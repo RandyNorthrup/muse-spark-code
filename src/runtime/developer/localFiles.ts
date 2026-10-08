@@ -172,8 +172,11 @@ export class DeveloperLocalFiles implements DeveloperStore, ProfileFolders {
       }
     } catch (error) {
       // Failure to append cannot grant authority. Revocation still attempts
-      // state publication, and the caller receives the persistence failure.
-      if (!state.isMultipleAccountsOn) await this.publishState(state)
+      // state publication, and the caller receives the persistence failure —
+      // except a full `reset` clear, which is never published without its
+      // audit row (DEVID017D): a failed foreign Reset leaves the stored
+      // state unchanged instead of clearing it unaudited.
+      if (audit.action !== 'reset' && !state.isMultipleAccountsOn) await this.publishState(state)
       throw error
     }
     await this.publishState(state)

@@ -5336,6 +5336,7 @@
     "unlockWarning": "Místní možnosti testování, ve výchozím stavu vypnuté. Nadále platí limity účtů, podmínky poskytovatelů a potvrzení placeného použití.",
     "multipleWarning": "Povolit izolované místní profily pro testování více účtů jednoho poskytovatele na tomto počítači? Tato volba zůstává na tomto zařízení.",
     "resetWarning": "Obnovit možnosti pro vývojáře? Místní profily se zastaví a jejich úložiště přihlašovacích údajů a složky stavu se odstraní.",
+    "foreignResetWarning": "Obnovit možnosti pro vývojáře na tomto počítači? Tím se vymaže stav pro vývojáře na tomto počítači. Nic se nezastaví: složky profilů a přihlašovací údaje zůstanou zachovány.",
     "locked": "Možnosti pro vývojáře jsou zamčené.",
     "unavailable": "Možnosti pro vývojáře nejsou dostupné.",
     "differentMachine": "Možnosti pro vývojáře byly nastaveny pod jinou identitou počítače. Obnovením je na tomto počítači začnete používat znovu.",
