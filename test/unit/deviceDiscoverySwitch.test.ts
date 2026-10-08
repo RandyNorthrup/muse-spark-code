@@ -13,7 +13,7 @@ import { createDeviceMdnsPort } from '../../src/host/devices/deviceMdns'
 import { DeviceDiscoverySwitch } from '../../src/host/devices/deviceDiscoverySwitch'
 import { DeviceStore } from '../../src/host/devices/deviceStore'
 import type { DeviceExecutionHost } from '../../src/host/devices/deviceSecrets'
-import type { DeviceWebviewRequest } from '../../src/shared/modelsPanel'
+import type { DeviceWebviewRequest } from '../../src/shared/devicesPanel'
 import { removeDeviceFixture } from './helpers/deviceFixtures'
 import {
   completeLaneMutualPairing,

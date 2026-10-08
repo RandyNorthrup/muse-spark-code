@@ -3,7 +3,7 @@
 import { DevicePairing } from '../../../src/host/devices/devicePairing'
 import type { DeviceStore } from '../../../src/host/devices/deviceStore'
 import { DeviceSecrets, type DeviceExecutionHost } from '../../../src/host/devices/deviceSecrets'
-import type { DeviceWebviewRequest } from '../../../src/shared/modelsPanel'
+import type { DeviceWebviewRequest } from '../../../src/shared/devicesPanel'
 import { deviceTestExpiry, deviceTestNow } from './deviceFixtures'
 import { memorySecrets } from './fakes'
 

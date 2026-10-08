@@ -6,7 +6,7 @@ import {
   deviceHostMessageSchema,
   parseDeviceWebviewRequest,
   type DeviceHostMessage,
-} from '../../shared/modelsPanel'
+} from '../../shared/devicesPanel'
 import type { DeviceStore } from './deviceStore'
 import { assertLocalDeviceHost, type DeviceExecutionHost } from './deviceSecrets'
 import type { DeviceDiscovery, DeviceDiscoveryStatus } from './deviceDiscovery'
