@@ -623,10 +623,10 @@ describe('native background lifecycle', () => {
     'reads paid flag and hard budget only from the verified %s record and turns paid features off without the flag',
     async (platform) => {
       const { entry, files, deps, authorization } = setup(platform)
-      authorization.mockResolvedValue({ scheduledPrompts: true, maxBudgetUsd: 1 })
+      authorization.mockResolvedValue({ scheduledPrompts: true, maxBudgetUsd: '1' })
       await entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })
       const fire = () => verifyRegisteredWake(deps)
-      expect(await fire()).toEqual({ scheduledPrompts: true, maxBudgetUsd: 1 })
+      expect(await fire()).toEqual({ scheduledPrompts: true, maxBudgetUsd: '1' })
       for (const definition of backgroundDefinitionPaths(platform, deps.homeDir, deps.dataDir)) {
         expect(files.get(definition)).not.toMatch(/scheduled-prompts|max-budget-usd/)
       }
@@ -638,7 +638,7 @@ describe('native background lifecycle', () => {
       const { maxBudgetUsd: _budget, ...withoutBudget } = record
       files.set(recordFile, JSON.stringify(withoutBudget))
       await expect(fire()).rejects.toThrow(UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired)
-      for (const maxBudgetUsd of [undefined, 0, NaN, Infinity]) {
+      for (const maxBudgetUsd of [undefined, '0', 'NaN', 'Infinity', 0, NaN, Infinity]) {
         authorization.mockResolvedValue({ scheduledPrompts: true, maxBudgetUsd })
         await expect(entry.register(121_000, { choice: 'yes', decidedAtMs: 1000 })).rejects.toThrow(
           UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired,
