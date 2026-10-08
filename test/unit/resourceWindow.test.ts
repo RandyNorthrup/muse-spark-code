@@ -345,6 +345,26 @@ function fakeSurface(id: string) {
   return { id, post: vi.fn<(message: HostToWebviewMessage) => void>(), reveal: vi.fn() }
 }
 
+/** Chats A (in view, pulled as `a`) and B (`b`); a Show for A waits in its reading. */
+async function twoChatsWithWaitingShow() {
+  const h = windowHarness()
+  const reading = Promise.withResolvers<ResourceStatus>()
+  h.port.refreshStatus.mockImplementationOnce(() => reading.promise)
+  const other = fakeSurface('panel:other')
+  for (const [surface, nonce] of [
+    [h.surface, 'a'],
+    [other, 'b'],
+  ] as const) {
+    h.resources.surfaceReady(surface)
+    h.resources.pull(surface, nonce)
+  }
+  const showing = h.resources.show()
+  await vi.waitFor(() => {
+    expect(h.port.refreshStatus).toHaveBeenCalledTimes(1)
+  })
+  return { h, other, reading, showing }
+}
+
 /** The opens a fake surface was offered, as `seq@nonce`. */
 const opens = (surface: ReturnType<typeof fakeSurface>) =>
   surface.post.mock.calls.flatMap(([message]) =>
@@ -448,18 +468,7 @@ describe('U–C1 VS Code window adapter', () => {
 
   it('binds the target when Show runs, not after its awaits', async () => {
     // RVM107W1C P2-2a: Show in A, focus moves to B while the reading waits.
-    const h = windowHarness()
-    const reading = Promise.withResolvers<ResourceStatus>()
-    h.port.refreshStatus.mockImplementationOnce(() => reading.promise)
-    const other = fakeSurface('panel:other')
-    h.resources.surfaceReady(h.surface)
-    h.resources.pull(h.surface, 'a')
-    h.resources.surfaceReady(other)
-    h.resources.pull(other, 'b')
-    const showing = h.resources.show()
-    await vi.waitFor(() => {
-      expect(h.port.refreshStatus).toHaveBeenCalledTimes(1)
-    })
+    const { h, other, reading, showing } = await twoChatsWithWaitingShow()
     h.surfaces.active = other
     reading.resolve(fakeStatus('pause'))
     await showing
@@ -469,20 +478,8 @@ describe('U–C1 VS Code window adapter', () => {
   })
 
   it('lets the latest Show win: an older continuation never overwrites it', async () => {
-    // RVM107W1C P2-2b.
-    const h = windowHarness()
-    const first = Promise.withResolvers<ResourceStatus>()
-    h.port.refreshStatus.mockImplementationOnce(() => first.promise)
-    const other = fakeSurface('panel:other')
-    h.resources.surfaceReady(h.surface)
-    h.resources.pull(h.surface, 'a')
-    h.resources.surfaceReady(other)
-    h.resources.pull(other, 'b')
-    const older = h.resources.show()
-    // The older Show is waiting in its reading when the newer one starts.
-    await vi.waitFor(() => {
-      expect(h.port.refreshStatus).toHaveBeenCalledTimes(1)
-    })
+    // RVM107W1C P2-2b: the older Show is waiting in its reading when the newer starts.
+    const { h, other, reading: first, showing: older } = await twoChatsWithWaitingShow()
     h.surfaces.active = other
     await h.resources.show()
     h.surfaces.active = h.surface
@@ -490,6 +487,9 @@ describe('U–C1 VS Code window adapter', () => {
     await older
     expect(opens(other)).toEqual(['2@b'])
     expect(opens(h.surface)).toEqual([])
+    // The superseded Show stops: it never pulls focus back to its own chat.
+    expect(other.reveal).toHaveBeenCalledTimes(1)
+    expect(h.surface.reveal).not.toHaveBeenCalled()
     h.resources.pull(h.surface, 'a')
     expect(opens(h.surface)).toEqual([])
   })

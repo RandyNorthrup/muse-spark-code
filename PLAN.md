@@ -40462,6 +40462,16 @@ equivalent; MHP and companion hosts reuse the same adapter and chip once
 M104 binds their bridges. Receipts:
 [`docs/certification/m107.md`](docs/certification/m107.md#m107-w-chip--window-binding).
 
+**FIXM107W1C pull model (2026-10-08).** RVM107W1C's four P2s led the lead to
+replace pushed opens with a pull model. Each chat document's chip mints a
+nonce and pulls on mount. Show binds its target and a monotonically
+increasing seq synchronously, stops when superseded or disposed, and
+withdraws its own seq when opening a conversation fails. The host offers
+`resourceOpen {seq, nonce}` only to the document that named itself, and an
+open is spent only by that document's acknowledgement. A reload's stale
+nonce is ignored. The nonce stays out of `ready` to keep chat startup
+inside the FIXDIET1 baseline.
+
 **FIXM107W1B open-intent redesign (2026-10-08).** RVM107W1B found the open
 lost across a document reload, and a new-conversation open unbound and
 surviving disposal. Readiness now belongs to each surface document
