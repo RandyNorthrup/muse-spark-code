@@ -78,19 +78,19 @@ Devices remains unshipped. Model attempts **0**, inference spend **0**.
 
 ### Conflicts (19 files)
 
-| Files                                                                                                               | Resolution                                                                                                                                                                |
-| ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CHANGELOG.md`                                                                                                      | Preserve release history and existing Unreleased fixes; place all incoming Devices entries under Unreleased.                                                              |
-| `PLAN.md`                                                                                                           | Preserve both branches' phase-2 plan, gate records, escape-hatch register and residual-risk records.                                                                      |
-| `docs/orchestration-gotchas.md`                                                                                     | Retain every release rule/id, including G29–G33; add incoming channel, Windows host and auth rules as G34–G36 to avoid duplicate ids (now main's G50–G52; see the lead integration).                                     |
-| `knip.jsonc`, `package.json`                                                                                        | Union entry inventories, retain the release's compiler/quality/reference scripts, add both Devices cycle entries.                                                         |
-| `scripts/build.mjs`, `scripts/check-bundle-split.mjs`, `scripts/lib/deferredBundles.mjs`, `scripts/package-acp.mjs` | Keep every release bundle, lazy mapping and text guard; add Devices with its inherited independent budgets. Existing caps are unchanged.                                  |
-| `scripts/gen-reference.mjs`                                                                                         | Run the complete release reference generator, the incoming Devices inventory and the release sharing inventory together.                                                  |
-| `src/shared/l10n/en.ts`                                                                                             | Union English keys; all 14 translated tables merge automatically with both branches' keys and values.                                                                     |
-| `src/shared/modelsPanel.ts`                                                                                         | Retain complete provider/team/traffic boundaries; move the strict Devices region into `src/shared/devicesPanel.ts` so unrelated validators stay outside its lazy closure. |
-| `scripts/lib/harnessServer.mjs`, `test/harness/index.html`                                                          | Retain every release scenario and fake-host handler, add Devices scenes, sizing and request/reply handling.                                                               |
-| `test/unit/bundleSize.test.mjs`, `test/unit/deferredBundles.test.ts`, `test/unit/webviewBundles.test.mjs`           | Retain release tests/setup and add the incoming Devices budget, build entry and Windows-separator closure assertion.                                                      |
-| `docs/ide-compatibility/host-api.md`, `src/shared/reference/reference.generated.ts`                                 | Regenerate with `npm run check:host-api -- --write` and `npm run reference:generate`; no hand-edited generated output.                                                    |
+| Files                                                                                                               | Resolution                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `CHANGELOG.md`                                                                                                      | Preserve release history and existing Unreleased fixes; place all incoming Devices entries under Unreleased.                                                                         |
+| `PLAN.md`                                                                                                           | Preserve both branches' phase-2 plan, gate records, escape-hatch register and residual-risk records.                                                                                 |
+| `docs/orchestration-gotchas.md`                                                                                     | Retain every release rule/id, including G29–G33; add incoming channel, Windows host and auth rules as G34–G36 to avoid duplicate ids (now main's G50–G52; see the lead integration). |
+| `knip.jsonc`, `package.json`                                                                                        | Union entry inventories, retain the release's compiler/quality/reference scripts, add both Devices cycle entries.                                                                    |
+| `scripts/build.mjs`, `scripts/check-bundle-split.mjs`, `scripts/lib/deferredBundles.mjs`, `scripts/package-acp.mjs` | Keep every release bundle, lazy mapping and text guard; add Devices with its inherited independent budgets. Existing caps are unchanged.                                             |
+| `scripts/gen-reference.mjs`                                                                                         | Run the complete release reference generator, the incoming Devices inventory and the release sharing inventory together.                                                             |
+| `src/shared/l10n/en.ts`                                                                                             | Union English keys; all 14 translated tables merge automatically with both branches' keys and values.                                                                                |
+| `src/shared/modelsPanel.ts`                                                                                         | Retain complete provider/team/traffic boundaries; move the strict Devices region into `src/shared/devicesPanel.ts` so unrelated validators stay outside its lazy closure.            |
+| `scripts/lib/harnessServer.mjs`, `test/harness/index.html`                                                          | Retain every release scenario and fake-host handler, add Devices scenes, sizing and request/reply handling.                                                                          |
+| `test/unit/bundleSize.test.mjs`, `test/unit/deferredBundles.test.ts`, `test/unit/webviewBundles.test.mjs`           | Retain release tests/setup and add the incoming Devices budget, build entry and Windows-separator closure assertion.                                                                 |
+| `docs/ide-compatibility/host-api.md`, `src/shared/reference/reference.generated.ts`                                 | Regenerate with `npm run check:host-api -- --write` and `npm run reference:generate`; no hand-edited generated output.                                                               |
 
 ### Verification scope
 
@@ -112,7 +112,7 @@ register assertion found six G29/G30/G31 rows because the release already
 used those ids. Preserve those release ids and assign the incoming rules
 G34/G35/G36, updating their plan, threat model, comments and test references.
 (Main later released its own G34–G38; the lead integration below moves these
-rules into main's G50–G52 and the two verification rows to G53/G54.)
+rules into main's G50–G52 and the two verification rows to G60/G61.)
 The legal cap drill's green control failed because its synthetic browser
 metafile omitted Devices; add that exact entry beside its existing Models
 and Usage fixtures. No assertion, gate, budget or deadline is removed.
@@ -204,7 +204,7 @@ The recorder repair changes covered source, so the final qualification uses
 another fresh clone and complete four-shard coverage collection at the repair
 commit. Maps from the first source revision are not used in that final result.
 
-### Verification orchestration discoveries (now G53, G54)
+### Verification orchestration discoveries (now G60, G61)
 
 Vitest 5.0.2's `list --filesOnly --shard=N/4` returned the whole manifest for
 each shard. The complete/disjoint preflight rejected it before execution;
@@ -213,7 +213,7 @@ Vitest also refuses `--merge-reports` with its blob reporter. Those attempted
 intermediate collation commands failed; test collection continued. Final
 collation retains every test/error/module graph and uses the same pinned
 coverage-map merge in bounded groups, with an official direct/reduced-map
-equivalence check and final official threshold merge. G53/G54 (first G37/G38)
+equivalence check and final official threshold merge. G60/G61 (first G37/G38)
 and D100 record these rules; the final receipt records the successful
 direct-map equivalence proof and unchanged-threshold merge.
 
@@ -553,3 +553,94 @@ test/unit/channel.test.ts test/unit/deviceMultiplexedChannel.test.ts
   (0 errors), duplication (**0 clones**), `check:l10n` (**14 tables**,
   **0 problems**), `check:host-api` (**0 problems**), `npm run build`
   (all budgets ok, Devices **81.6/100 KiB**): all exit **0**.
+
+## Lead integration — M100P2INT (Windows host, 2026-10-07)
+
+Worktree `mx-m100int`, branch `m100/p2-int-lead` from `3cfd06391`. Three
+authorized `git merge --no-ff` steps, in order. Model attempts **0**, inference
+spend **0**, no push.
+
+| Merge       | Source                                                                       | Conflicts and resolution                                                                                                                                                                                                                                                                    |
+| ----------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `12310b6f0` | `81f070674` (`m100/p2-l0-fix2`, lane 0 UTF-8 capability byte cap)            | This record: keep the base-integration section and add the lane 0 re-review after it. `devices.ts` and its test merged cleanly.                                                                                                                                                             |
+| `d2e4b4e43` | `a6ccaf594` (`refs/rigs/kubuntu/m100/p2-c-fix`, lane C with RVM100P2C fixes) | None. Its five code and test files are byte-identical to `a6ccaf594`.                                                                                                                                                                                                                       |
+| `466a7a8e4` | `18dc73651` (`origin/main`: 0.15.0, PR #137, PR #139)                        | `CHANGELOG.md`: keep the Devices Unreleased entries, main's harness fix and its Documentation section. `PLAN.md` D100: keep both sides' amendments. `docs/orchestration-gotchas.md`: the reconciliation below. `test/harness/index.html` and `vsixPackaging.test.mjs` merged automatically. |
+
+No l10n table, generated reference or host API record changed; `check:l10n`,
+`check:reference` and `check:host-api` confirm they are current.
+
+### Gotcha register reconciliation
+
+Main numbered the SSH-limit rows G49 (key installs), G50 (handshake
+throttling), G51 (Windows desktop heap) and G52 (password and probe
+penalties). Lane 0 had registered the same findings as G29–G31; the base
+integration held them as G34–G36, ids main has since used for other rows.
+Main's rows are kept and lane 0's duplicates removed. Their M100 rule text
+moves into main's rows:
+
+- **G50:** one long-lived authenticated channel per pair, at most 3 pending
+  handshakes per host; status notes that lane C paces it.
+- **G51:** a scheduled-task or service context, recovery steps, no registry
+  change without consent, slot caps calibrated from transport health.
+- **G52:** failed authentications of every kind are counted, never retried in
+  a loop; status notes that lane C stops after one failure and sends no probe.
+
+Plan (lane C is now `D100: G50, G52`, lane H `D100: G14, G15, G51`), threat
+model, phase-2 plan record, source comments in `constants.ts` and
+`devices.ts`, and the test names in `devicePhase2Contracts.test.ts` and
+`channel.test.ts` name G50–G52. The historical text above keeps its ids and
+gains pointers to the new ones.
+
+The base integration's two verification rows (Vitest shard membership, bounded
+report reduction) were G37/G38, which main also released for other rows. They
+become **G60** and **G61**, because open PR #141 claims G53–G59 and the
+0.16.0 fix branch (`fix/0160`) claims G53–G55 for other rows.
+
+The register test now requires unique row ids and exactly one row holding
+each M100 SSH-limit rule (G50, G51, G52), owned by M100 and marked amend.
+Drills on `docs/orchestration-gotchas.md` (SHA-256 `2d777663…74ed30` before
+and after each):
+
+| Drill                                                       | Result                                              |
+| ----------------------------------------------------------- | --------------------------------------------------- |
+| Renumber G61 back to G38 (the collision this merge removed) | 1 failed: `expected 53 to be 54`                    |
+| Re-add lane 0's pacing row under an unused id after G52     | 1 failed: `expected [ …(2) ] to have a length of 1` |
+| Restored file                                               | 1 passed                                            |
+
+### Verification (Windows host, default timeouts)
+
+- `devicePhase2Contracts`, `devices`, `channel`, `deviceMultiplexedChannel`
+  and `deviceChannel`: 5 files, **198 passed**.
+- All 23 Devices and channel test files: 20 pass (624 tests; `DevicesView`
+  passed 78 on a rerun after its worker failed to start under load). The
+  other three fail on Windows storage (below). Main's changed `harnessWaits`,
+  `ollamaCodec` and `companionBrowser`: 78 passed.
+- `npx eslint --max-warnings=0` on the 15 changed TypeScript/JavaScript
+  files and `npx prettier --check` on all 27 changed files: clean.
+- `check:l10n` (14 tables, 0 problems), `check:reference` (61 features,
+  Devices 18 entries, current), `check:host-api` (0 problems).
+- `gitleaks git` over `3cfd06391..HEAD`: 15 commits, no leaks.
+
+### Host residuals (not caused by these merges)
+
+- **Stale shared dependencies.** The worktree's `node_modules` junction lacks
+  `pngjs` 7.0.0, `jpeg-js` 0.4.4 and `@types/pngjs` 6.0.5, and 11 packages
+  are a patch behind the lockfile (vitest 5.0.1, prettier 3.9.8). So
+  `npm run typecheck` exits 2. Its only errors are TS2307 for those two
+  modules in `imageResizeWorker.ts` and `imageResize.test.ts` (host 2, unit 4,
+  e2e 2); webview and integration are clean. `refreshBadges.test.mjs` and
+  `vsixPackaging.test.mjs` cannot load (`check-badges.mjs` imports `pngjs`),
+  and `teamHarness.test.mjs` cannot build production bundles. These three
+  files need a lockfile-exact install or a rig before this head is called
+  verified.
+- **Windows device storage (P-I-WINDOWS-STORAGE).** `deviceStore` (14 of 15),
+  `devicePairingAdapter` (51 of 51) and `deviceIntegration` (11 of 11) fail
+  at `DeviceStore.create` with `storage`. On win32 the store refuses without
+  a `DeviceStorageProtection` binding, and those fixtures pass none. The code
+  is unchanged since phase 1 (`0a92cb94f`). Hosted Windows CI fails these
+  76 tests until a Windows binding or fixture lands.
+- **Hooks.** This worktree had no generated `.husky/_`, so the three merge
+  commits ran without hooks. Afterwards gitleaks, ESLint and Prettier were
+  run over the same changes; Prettier found this record's conflict table
+  misaligned, fixed here. `.husky/_` (gitignored) was copied from the main
+  checkout, so this commit ran lint-staged and gitleaks.

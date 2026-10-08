@@ -202,8 +202,8 @@ happened, not what was planned; superseded entries are kept.
   covering the same failures, still model-agnostic.
 - M100 phase 2 records its SSH-limit rules (one paced channel per pair, the
   Windows worker context, one failed authentication stops) in G50–G52 rather
-  than duplicate rows, and its verification rules as G53 (shard membership
-  from the execution sequencer) and G54 (bounded report reduction).
+  than duplicate rows, and its verification rules as G60 (shard membership
+  from the execution sequencer) and G61 (bounded report reduction).
 
 ## [0.15.0] - 2026-10-06
 

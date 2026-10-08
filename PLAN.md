@@ -17999,7 +17999,7 @@ test that fails without the rule:
    G51 transport resets and refusals lower a device's slot cap
    automatically (test `transportHealthLowersCap`). G37 every safety check
    before a delete fails closed, and per-run caches live in the run's own
-   workspace, removed at teardown. G54 result reduction has a bounded memory
+   workspace, removed at teardown. G61 result reduction has a bounded memory
    budget and preserves every test, error and coverage counter, proved against
    the tool's direct merge.
 5. **M110 (Muse Node):** G1, G2, G10, G11, G14 to G16 for the tool host and
@@ -18018,9 +18018,9 @@ test that fails without the rule:
    release; G31 UI condition targets distinguish controls that share a style
    class, with the harness's two-pill regression as the concrete example;
    G36 an incomplete lane continued in place from its commits, never
-   restarted, and never marked done on exit code alone. G53 verification
+   restarted, and never marked done on exit code alone. G60 verification
    derives the actual configured execution partition and checks complete,
-   disjoint membership before accepting shard-labelled results; G54 a report
+   disjoint membership before accepting shard-labelled results; G61 a report
    transport limitation never removes result data or disables the final gate.
 8. **M117 (estimator):** G4 base age as a schedule risk; G34 the measured
    per-engine profile (with a failed smoke probe removing that engine from
