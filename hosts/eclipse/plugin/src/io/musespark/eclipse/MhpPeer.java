@@ -170,9 +170,8 @@ public final class MhpPeer implements AutoCloseable {
             contract.result(frame.get("method").getAsString(), response);
             send(response);
         } catch (Exception ex) {
-            String message = ex.getMessage();
-            int code = "MHP_INCOMPATIBLE_VERSION".equals(message) ? -32001 : "MHP_CANCELLED".equals(message) ? -32800 : "MHP_CAPABILITY_UNAVAILABLE".equals(message) || "MHP_UNSUPPORTED_CAPABILITY".equals(message) ? -32002 : "MHP_UNTRUSTED_WORKSPACE".equals(message) ? -32005 : "MHP_VERSION_CONFLICT".equals(message) ? -32003 : "MHP_DIRTY_DOCUMENT".equals(message) ? -32004 : "MHP_INVALID_RANGE".equals(message) ? -32602 : -32603;
-            fail(id, code, code == -32603 ? "MHP_INTERNAL_ERROR" : message);
+            String message = MhpErrors.technicalCode(ex);
+            fail(id, MhpErrors.numeric(message), message);
         } finally { cancelled.remove(requestKey(id)); }
     }
     private static String requestKey(JsonElement id) {

@@ -68,6 +68,8 @@ class FirstFrameDescendantsTest {
       )
       owner.terminated.get(WAIT_SECONDS, TimeUnit.SECONDS)
       assertFalse(runtime.process.isAlive)
+      val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(STOP_MILLIS)
+      while (running(worker) && System.nanoTime() < deadline) Thread.sleep(POLL_MILLIS)
       assertFalse("First-frame worker escaped cleanup", running(worker))
     } finally {
       // A deliberately removed retention guard must not leave its authored worker alive.
@@ -82,10 +84,16 @@ class FirstFrameDescendantsTest {
   private fun running(pid: Long): Boolean {
     val handle = ProcessHandle.of(pid).orElse(null) ?: return false
     val stat = Path.of("/proc/$pid/stat")
-    return handle.isAlive && (!Files.exists(stat) || Files.readString(stat).substringAfterLast(") ").first() != 'Z')
+    return try {
+      handle.isAlive && (!Files.exists(stat) || Files.readString(stat).substringAfterLast(") ").first() != 'Z')
+    } catch (_: java.nio.file.NoSuchFileException) {
+      false
+    }
   }
 
   companion object {
     private const val WAIT_SECONDS = 10L
+    private const val STOP_MILLIS = 2000L
+    private const val POLL_MILLIS = 10L
   }
 }

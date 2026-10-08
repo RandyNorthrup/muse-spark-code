@@ -113,6 +113,7 @@
     "test/action/*.mjs",
     // The fake-only test package's bin, bundled by scripts/package-acp-test.mjs (M80 W).
     "test/action/exec-test-launcher.ts",
+    "test/m104/linux/mhpErrors.test.mjs",
     "scripts/**/*.mjs",
     ".vscode-test.mjs"
   ],

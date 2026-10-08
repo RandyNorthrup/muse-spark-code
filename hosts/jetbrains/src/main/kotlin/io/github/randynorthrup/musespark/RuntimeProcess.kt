@@ -41,6 +41,7 @@ class RuntimeProcess private constructor(
       }
     }, "Muse runtime descendants").apply { isDaemon = true }
 
+  @Synchronized
   internal fun snapshotDescendants() {
     descendants.entries.removeIf { it.value.current()?.isAlive != true }
     val parents = if (root.isAlive) listOf(root) else descendants.values.mapNotNull(Identity::current)
@@ -66,19 +67,20 @@ class RuntimeProcess private constructor(
   private val shutdown = Thread({ runCatching(forceStop) }, "Muse runtime JVM shutdown")
 
   init {
+    snapshotDescendants()
     Runtime.getRuntime().addShutdownHook(shutdown)
     tracker.start()
   }
 
   override fun close() {
     if (!closed.compareAndSet(false, true)) return
+    snapshotDescendants()
     // Process.destroy also closes buffered streams; signal only through handles.
     val stderrClose =
       Thread({ runCatching { process.errorStream.close() } }, "Muse stderr close").apply {
         isDaemon = true
         start()
       }
-    snapshotDescendants()
     try {
       try {
         // Ask the supervising runtime to stop first; detached children receive its own cleanup.

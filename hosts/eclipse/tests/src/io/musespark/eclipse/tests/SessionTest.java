@@ -188,6 +188,14 @@ public class SessionTest {
         try { session.close(); assertFalse("parent survived cleanup", runtime.isAlive()); awaitExit(child); }
         finally { child.destroyForcibly(); }
     }
+    @Test public void rootKilledBeforeCloseStillKillsItsReparentedChild() throws Exception {
+        ProcessHandle child = startRuntimeWithChild();
+        try {
+            runtime.toHandle().destroyForcibly(); assertTrue(runtime.waitFor(2, TimeUnit.SECONDS));
+            assertEquals("dead roots have no discoverable descendants", 0, runtime.descendants().count());
+            session.close(); awaitExit(child);
+        } finally { child.destroyForcibly(); }
+    }
     @Test public void cleanupFailureStillKillsRuntimeTreeAndContinuesOtherSteps() throws Exception {
         ProcessHandle child = startRuntimeWithChild();
         java.util.concurrent.atomic.AtomicInteger attempts = new java.util.concurrent.atomic.AtomicInteger();

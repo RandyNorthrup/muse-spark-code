@@ -97,7 +97,15 @@ val sharedResources by tasks.registering(Sync::class) {
   }
 }
 sourceSets.main { resources.srcDir(sharedResources) }
-sourceSets.test { java.srcDir(repositoryRoot.resolve("test/m104/linux/jetbrains")) }
+// Compile the production Eclipse mapper beside Kotlin for executable schema parity.
+val eclipseErrorMapper by tasks.registering(Sync::class) {
+  from(repositoryRoot.resolve("hosts/eclipse/plugin/src/io/musespark/eclipse/MhpErrors.java"))
+  into(layout.buildDirectory.dir("generated/errorParity"))
+}
+sourceSets.test {
+  java.srcDir(repositoryRoot.resolve("test/m104/linux/jetbrains"))
+  java.srcDir(eclipseErrorMapper)
+}
 
 tasks.test {
   maxParallelForks = 1

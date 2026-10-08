@@ -34,6 +34,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
     private final Map<String, Command> commands = new HashMap<>();
     private final String commandPrefix = "io.musespark.runtime." + UUID.randomUUID() + ".";
     private final Process process;
+    private final RuntimeProcess runtime;
     private final Map<String, MuseView> surfaces = new HashMap<>();
     private record Analysis(long version, long stamp, org.eclipse.core.runtime.jobs.Job job, CompletableFuture<JsonArray> report) { }
     private final Map<String, Analysis> analyses = new HashMap<>();
@@ -66,6 +67,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
         requireDisplay();
         ui = new NativeUi(this);
         process = runtime;
+        this.runtime = new RuntimeProcess(process, log);
         documents = new Documents(window, params -> notify("documents/didChange", params), contract.selectionCap);
         peer = new MhpPeer(contract, process.getInputStream(), process.getOutputStream(), this, log);
         initialization = peer.initialized();
@@ -398,10 +400,9 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
     }
     @Override public void close() {
         synchronized (stateLock) { if (disposed) return; disposed = true; }
-        // Capture before any pipe closes: EOF can reparent children immediately.
-        List<ProcessHandle> descendants = new ArrayList<>();
+        // Retain identities before any cleanup can close a pipe or stop the parent.
         try {
-            cleanup("MHP_PROCESS_SNAPSHOT_FAILURE", () -> descendants.addAll(process.descendants().toList()));
+            runtime.snapshotDescendants();
             cleanup("MHP_NATIVE_CLEANUP_FAILURE", () -> {
                 if (Display.getCurrent() == display) closeNative();
                 // Do not syncExec from OSGi stop: the display may be waiting for it.
@@ -418,17 +419,7 @@ public final class WindowSession implements MhpPeer.Host, AutoCloseable {
             cleanup("MHP_PEER_CLEANUP_FAILURE", peer::close);
             cleanup("MHP_STDERR_CLEANUP_FAILURE", () -> stderr.shutdownNow());
         } finally {
-            for (ProcessHandle child : descendants) cleanup("MHP_PROCESS_CLEANUP_FAILURE", child::destroy);
-            cleanup("MHP_PROCESS_CLEANUP_FAILURE", () -> process.toHandle().destroy());
-            try { process.waitFor(2, TimeUnit.SECONDS); }
-            catch (InterruptedException ex) { log.accept("MHP_PROCESS_WAIT_INTERRUPTED"); Thread.currentThread().interrupt(); }
-            finally {
-                for (ProcessHandle child : descendants) cleanup("MHP_PROCESS_CLEANUP_FAILURE", () -> { if (child.isAlive()) child.destroyForcibly(); });
-                cleanup("MHP_PROCESS_CLEANUP_FAILURE", () -> { if (process.isAlive()) process.toHandle().destroyForcibly(); });
-                // destroyForcibly requests termination; wait for the actual parent exit.
-                try { if (!process.waitFor(2, TimeUnit.SECONDS)) log.accept("MHP_PROCESS_EXIT_TIMEOUT"); }
-                catch (InterruptedException ex) { log.accept("MHP_PROCESS_WAIT_INTERRUPTED"); Thread.currentThread().interrupt(); }
-            }
+            runtime.close();
         }
     }
 }

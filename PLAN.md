@@ -19179,6 +19179,24 @@ logged.
 
 ### M104 — Every editor, every feature (D84)
 
+**FIXM104PE4 / RVF104PE3 (2026-10-07).** Adopt the same retained process
+identity model in both JVM hosts: capture pid/start instant at construction,
+every 10 ms and before shutdown; keep observed descendants after parent-first
+exit, and refuse reused pids. Port process stress receipts to Eclipse, including
+SIGKILL, `_exit`, detached children and mismatched identities. Generate Java
+and Kotlin error maps from the frozen MHP schema, with one shared alias list;
+every thrown schema error retains its numeric code and technical message.
+Check generated-file drift in the existing MHP gate and test both mappers
+against every schema entry. Replay regressions against `271d3bea2`, run full
+JVM gates and three owning-suite repeats, then sequential fresh-clone CI-style
+TypeScript gates at repository timeouts. Record PE round 4 in
+`docs/certification/m104.md`. Scoped checks replace aggregate quality; no
+merge, push, dependency, cap change, qualification promotion or live/paid call.
+The observed-ancestry discovery window in §9 remains explicit for both hosts.
+The full Gradle run exposed an existing first-frame receipt racing the OS's
+asynchronous forced exit; wait for the worker to stop within two seconds,
+retaining its no-periodic-tracker control and the termination assertion.
+
 **FIXM104PE3 / RVF104PE2 (2026-10-07).** Redesign Eclipse shutdown:
 the display owns analysis, command and native UI state; one documented lock
 owns cross-thread admission, surfaces and queued browser deliveries. Closing
@@ -19668,6 +19686,12 @@ and are not transferred or accepted as complete by these launcher repairs.
 ---
 
 ## 7. Gates
+
+**FIXM104PE4 scope (2026-10-07).** The rig/common brief substitutes scoped
+sequential fresh-clone TypeScript checks for aggregate quality/coverage and
+requires full JVM gates plus three repeated owning native suites. All existing
+caps, lint rules and test deadlines remain unchanged. The MHP gate also checks
+the generated Java/Kotlin error tables; controls must prove both drift guards.
 
 **FIXM104PE3 scope (2026-10-07).** The rig/common rules reserve aggregate
 `npm run quality` and coverage for the lead. This lane requires native Maven
@@ -21224,7 +21248,9 @@ before a repaired one loads (2026-09-30).
 
 - **FIXM104E3 / RVM104E3 — R3-tree-discovery-window:** retained descendant
   identities fix cleanup of observed separate-session workers after parent-first
-  exit and JVM shutdown. Detached descendants outside observed ancestry can
+  exit and JVM shutdown. FIXM104PE4 applies the same observation model and
+  discovery-window limit to Eclipse, with startup/cadence/pre-stop captures and
+  pid/start-instant refusal; Eclipse has no OS process-group/job containment. Detached descendants outside observed ancestry can
   remain unseen, for example after creation/reparenting between the 10-ms
   observations. ProcessHandle cannot reconstruct an exited parent's ancestry.
   Cooperative runtime supervision and process-group/Windows-job containment

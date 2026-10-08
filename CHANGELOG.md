@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Eclipse retains observed runtime descendant pid/start-time identities across
+  parent-first crashes and refuses reused pids during cleanup, following the
+  JetBrains process model. Both JVM hosts preserve all schema-defined MHP errors
+  through generated Java/Kotlin tables, including unavailable capabilities and
+  permission refusals; the MHP gate checks table drift.
+
 - Redesign Eclipse session shutdown around display-owned native state and
   atomic cross-thread close admission. Cleanup failures are logged and isolated;
   runtime-tree termination always runs. Deferred view cleanup retains its logger

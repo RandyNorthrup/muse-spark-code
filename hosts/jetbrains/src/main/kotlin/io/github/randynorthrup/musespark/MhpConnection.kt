@@ -308,20 +308,8 @@ class MhpConnection(
     private const val METADATA_TIMEOUT_SECONDS = 2L
     private const val INITIALIZE_TIMEOUT_SECONDS = 100L
     private const val MAXIMUM_VERSION = "mhp/1.4.0"
-    private val ERRORS =
-      setOf(
-        "MHP_UNSUPPORTED_CAPABILITY",
-        "MHP_VERSION_CONFLICT",
-        "MHP_DIRTY_BUFFER",
-        "MHP_UNTRUSTED_WORKSPACE",
-        "MHP_PERMISSION_DENIED",
-        "MHP_CANCELLED",
-        "MHP_INVALID_RANGE",
-        "MHP_OVERLAPPING_EDITS",
-        "MHP_INVALID_PARAMS",
-      )
 
-    fun technicalCode(failure: Throwable): String = failure.message?.takeIf { it in ERRORS } ?: "MHP_INTERNAL_ERROR"
+    fun technicalCode(failure: Throwable): String = MhpErrors.technicalCode(failure)
   }
 }
 
@@ -332,22 +320,11 @@ private fun sendMhpFailure(
   id: JsonElement,
   code: String,
 ) {
-  val numeric =
-    when (code) {
-      "MHP_UNSUPPORTED_CAPABILITY" -> "unsupportedCapability"
-      "MHP_VERSION_CONFLICT" -> "versionConflict"
-      "MHP_DIRTY_BUFFER" -> "dirtyBuffer"
-      "MHP_UNTRUSTED_WORKSPACE" -> "untrustedWorkspace"
-      "MHP_PERMISSION_DENIED" -> "permissionDenied"
-      "MHP_CANCELLED" -> "cancelled"
-      "MHP_INVALID_RANGE", "MHP_OVERLAPPING_EDITS", "MHP_INVALID_PARAMS" -> "invalidParams"
-      else -> "internalError"
-    }
   val frame =
     json(
       "jsonrpc" to "2.0",
       "id" to id,
-      "error" to json("code" to boundary.errorCode(numeric), "message" to code),
+      "error" to json("code" to MhpErrors.numeric(code), "message" to code),
     )
   boundary.failure(frame)
   runCatching { send(frame, null) }.onFailure { events.diagnostic("MHP_TRANSPORT_WRITE_FAILED") }

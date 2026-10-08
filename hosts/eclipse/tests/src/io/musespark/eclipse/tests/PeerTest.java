@@ -160,6 +160,37 @@ public class PeerTest {
             runtime.close();
         } finally { runtime.close(); }
     }
+    @Test public void everySchemaErrorKeepsItsNumericCodeAndTechnicalMessageOnTheWire() throws Exception {
+        JsonObject schema = Json.resource("/target/assets/mhp.json").getAsJsonObject();
+        Map<String, Integer> expected = new LinkedHashMap<>();
+        schema.getAsJsonObject("errorCodes").asMap().forEach((name, value) -> expected.put("MHP_" + name.replaceAll("([A-Z])", "_$1").toUpperCase(Locale.ROOT), value.getAsInt()));
+        expected.put("MHP_CAPABILITY_UNAVAILABLE", -32002); expected.put("MHP_DIRTY_DOCUMENT", -32004);
+        expected.put("MHP_INVALID_RANGE", -32602); expected.put("MHP_OVERLAPPING_EDITS", -32602);
+        expected.put("account/path/private failure", -32603);
+        List<String> failures = new ArrayList<>();
+        for (var error : expected.entrySet()) {
+            Host host = new Host() {
+                @Override public JsonElement request(String method, JsonObject params, java.util.function.BooleanSupplier cancelled) { throw new IllegalArgumentException(error.getKey()); }
+            };
+            JsonObject offered = initialize(); offered.add("capabilities", Json.GSON.toJsonTree(new String[] {"lifecycle", "ui"}));
+            PipedInputStream input = new PipedInputStream(); PipedOutputStream runtime = new PipedOutputStream(input);
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            try (MhpPeer peer = new MhpPeer(new Contract(), input, output, host, code -> fail(code))) {
+                peer.initialize(offered); peer.accept(initialResult("mhp/1.3.0", offered.get("capabilities")).toString()); peer.initialized().get(2, TimeUnit.SECONDS); peer.start();
+                peer.accept(Json.object("jsonrpc", "2.0", "id", "typed-error", "method", "ui/openFile", "params", Json.object("title", "fixture")).toString());
+                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+                String reply = "";
+                while (!reply.endsWith("\n") || !reply.contains("typed-error")) {
+                    assertTrue("missing reply for " + error.getKey(), System.nanoTime() < deadline);
+                    reply = output.toString(java.nio.charset.StandardCharsets.UTF_8); Thread.onSpinWait();
+                }
+                JsonObject failure = JsonParser.parseString(reply.lines().filter(line -> line.contains("typed-error")).findFirst().orElseThrow()).getAsJsonObject().getAsJsonObject("error");
+                String message = error.getKey().startsWith("MHP_") ? error.getKey() : "MHP_INTERNAL_ERROR";
+                if (error.getValue().intValue() != failure.get("code").getAsInt() || !message.equals(failure.get("message").getAsString())) failures.add(error.getKey() + ": " + failure);
+            } finally { runtime.close(); }
+        }
+        assertTrue(failures.toString(), failures.isEmpty());
+    }
     @Test public void legacyNegotiationRefusesCarrier() throws Exception {
         try (MhpPeer peer = new MhpPeer(new Contract(), new ByteArrayInputStream(new byte[0]), new ByteArrayOutputStream(), new Host(), code -> fail(code))) {
             peer.initialize(initialize());

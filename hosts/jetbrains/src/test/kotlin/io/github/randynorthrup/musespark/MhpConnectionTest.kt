@@ -18,6 +18,7 @@ class MhpConnectionTest {
   private val sent = mutableListOf<JsonObject>()
   private val calls = mutableListOf<JsonObject>()
   private var choice: JsonElement = jsonValue(null)
+  private var thrownCode: String? = null
   private val tasks = mutableListOf<Runnable>()
   private val services =
     object : EditorServices {
@@ -29,6 +30,7 @@ class MhpConnectionTest {
         cancellation: RequestCancellation,
       ): JsonElement {
         calls.add(params)
+        thrownCode?.let { throw IllegalArgumentException(it) }
         return choice
       }
     }
@@ -68,6 +70,44 @@ class MhpConnectionTest {
           json("protocolVersion" to "mhp/1.3.0", "capabilities" to services.capabilities),
       ),
     )
+  }
+
+  @Test
+  fun everySchemaErrorHasParityWithEclipseAndKeepsItsCodeOnTheWire() {
+    initialize()
+    val schema =
+      JsonBoundary.parse(requireNotNull(javaClass.getResource("/mhp/mhp-v1.1.schema.json")).readText()).asJsonObject
+    val expected =
+      schema.getAsJsonObject("errorCodes").entrySet().associate { (name, value) ->
+        "MHP_" + name.replace(Regex("[A-Z]")) { "_${it.value}" }.uppercase(java.util.Locale.ROOT) to value.asInt
+      } +
+        mapOf(
+          "MHP_CAPABILITY_UNAVAILABLE" to -32002,
+          "MHP_DIRTY_DOCUMENT" to -32004,
+          "MHP_INVALID_RANGE" to -32602,
+          "MHP_OVERLAPPING_EDITS" to -32602,
+          "account/path/private failure" to -32603,
+        )
+    val failures = mutableListOf<String>()
+    for ((code, numeric) in expected) {
+      val failure = IllegalArgumentException(code)
+      val technical = MhpConnection.technicalCode(failure)
+      if (io.musespark.eclipse.MhpErrors
+          .technicalCode(failure) != technical ||
+        io.musespark.eclipse.MhpErrors
+          .numeric(technical) != numeric ||
+        MhpErrors.numeric(technical) != numeric
+      ) {
+        failures.add("$code mapper: $technical")
+      }
+      thrownCode = code
+      connection.receive(call("ui/openFile", json("title" to "fixture"), code))
+      tasks.removeAt(0).run()
+      val error = sent.last().getAsJsonObject("error")
+      val message = if (code.startsWith("MHP_")) code else "MHP_INTERNAL_ERROR"
+      if (numeric != error["code"].asInt || message != error["message"].asString) failures.add("$code wire: $error")
+    }
+    assertTrue(failures.toString(), failures.isEmpty())
   }
 
   @Test
