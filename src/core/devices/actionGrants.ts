@@ -18,8 +18,10 @@ import {
   type DeviceGrantRequest,
   type DeviceGrantRefusal,
   type DeviceStepUpApproval,
+  type DeviceDispatch,
 } from '../../shared/devices'
 import { UI_TEXT, fill } from '../../shared/l10n/text'
+import { isProtectedPath } from '../protectedPaths'
 
 export interface DeviceLocalAction {
   /** Selected by the receiver's tool registry, never a peer/model safety hint. */
@@ -80,13 +82,24 @@ function isProtectedWrite(action: DeviceLocalAction, protectedPaths: readonly st
   return (
     action.operation !== 'read' &&
     action.operation !== 'observe' &&
-    action.paths.some((path) =>
-      protectedPaths.some((protectedPath) => {
-        const target = normalizedPath(path)
-        const root = normalizedPath(protectedPath).replace(/\/$/, '')
-        return target === root || target.startsWith(`${root}/`)
-      }),
-    )
+    action.paths.some((path) => {
+      const target = normalizedPath(path)
+      if (
+        target === '..' ||
+        target.startsWith('../') ||
+        target.startsWith('/') ||
+        /^[a-z]:/.test(target) ||
+        isProtectedPath(target)
+      )
+        return true
+      const segments = target.split('/')
+      return protectedPaths.some((protectedPath) => {
+        const protectedSegments = normalizedPath(protectedPath).replace(/\/$/, '').split('/')
+        return segments.some((_segment, index) =>
+          protectedSegments.every((part, offset) => segments[index + offset] === part),
+        )
+      })
+    })
   )
 }
 export function deviceActionDigest(request: DeviceGrantRequest, action: DeviceLocalAction): string {
@@ -110,10 +123,20 @@ function requiresStepUp(state: DeviceReceiverActionState): boolean {
 function approvalKey(approval: DeviceStepUpApproval): string {
   return JSON.stringify(approval)
 }
+type ActionAttempt = Pick<DeviceDispatch, 'identity' | 'payloadDigest'>
+function attemptKey(attempt: ActionAttempt): string {
+  // Receiver-owned dispatch context, after its strict boundary parse.
+  return JSON.stringify({ identity: attempt.identity, payloadDigest: attempt.payloadDigest })
+}
 export class DeviceActionGrants implements DeviceActionGrantPort {
   private readonly attestations = new Map<
     string,
-    { approval: DeviceStepUpApproval; revision: number; state: 'pending' | 'attested' | 'used' }
+    {
+      approval: DeviceStepUpApproval
+      revision: number
+      state: 'pending' | 'attested' | 'bound' | 'used'
+      attempt?: string
+    }
   >()
   private readonly pending = new Set<string>()
   public constructor(private readonly deps: ActionGrantDeps) {}
@@ -190,7 +213,10 @@ export class DeviceActionGrants implements DeviceActionGrantPort {
           state,
         }
   }
-  public admit(input: DeviceGrantRequest): Promise<DeviceGrant | DeviceGrantRefusal> {
+  private admission(
+    input: DeviceGrantRequest,
+    attempt?: string,
+  ): Promise<DeviceGrant | DeviceGrantRefusal> {
     const request = deviceGrantRequestSchema.parse(input)
     const result = this.intersection(request)
     if ('reason' in result) return Promise.resolve(result)
@@ -201,7 +227,8 @@ export class DeviceActionGrants implements DeviceActionGrantPort {
       for (const record of this.attestations.values()) {
         const approval = record.approval
         if (
-          record.state === 'attested' &&
+          (record.state === 'attested' ||
+            (attempt !== undefined && record.state === 'bound' && record.attempt === attempt)) &&
           approval.grantId === grant.grantId &&
           record.revision === grant.grantRevision &&
           approval.actionDigest === digest &&
@@ -209,13 +236,30 @@ export class DeviceActionGrants implements DeviceActionGrantPort {
           now < approval.expiresAt &&
           now - approval.approvedAt <= DEVICE_LIMITS.stepUpValidityMs
         ) {
-          record.state = 'used'
+          record.state = attempt === undefined ? 'used' : 'bound'
+          if (attempt !== undefined) record.attempt = attempt
           return Promise.resolve(grant)
         }
       }
       return Promise.resolve(this.refusal(request, 'step-up-required'))
     }
     return Promise.resolve(grant)
+  }
+  public admit(input: DeviceGrantRequest): Promise<DeviceGrant | DeviceGrantRefusal> {
+    return this.admission(input)
+  }
+  public admitAttempt(
+    input: DeviceGrantRequest,
+    attempt: ActionAttempt,
+  ): Promise<DeviceGrant | DeviceGrantRefusal> {
+    return this.admission(input, attemptKey(attempt))
+  }
+  /** Spend the admission at the launch boundary, or when a dispatch ends without starting. */
+  public finishAttempt(attempt: ActionAttempt): void {
+    const key = attemptKey(attempt)
+    for (const record of this.attestations.values()) {
+      if (record.state === 'bound' && record.attempt === key) record.state = 'used'
+    }
   }
   public attestStepUp(input: DeviceStepUpApproval): Promise<void> {
     const approval = deviceStepUpSchema.parse(input)

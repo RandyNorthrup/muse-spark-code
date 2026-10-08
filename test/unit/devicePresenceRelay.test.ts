@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
 import { DEVICE_STEP_UP_METHODS, deviceStepUpSchema } from '../../src/shared/devices'
 import {
@@ -10,6 +10,10 @@ import { MultiplexedDeviceChannel } from '../../src/core/devices/channel'
 import { actionGrantFixture } from './helpers/actionGrantFixtures'
 import { deferred } from './helpers/deviceExecutionFixtures'
 import { channelReady, transferChannel } from './helpers/multiplexedChannelFixtures'
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 function relayFixture() {
   const f = actionGrantFixture()
@@ -139,6 +143,41 @@ describe('device-local presence relay', () => {
         refusal: expect.objectContaining({ reason: 'presence-unverified' }),
       }),
     )
+  })
+  it('RVM100P2A-P3 rejects a presence relay for another channel pair at enqueue', () => {
+    const f = relayFixture()
+    const source = new MultiplexedDeviceChannel(channelReady)
+    const relay = devicePresenceRelaySchema.parse({
+      version: DEVICE_LIMITS.protocolVersion,
+      requestId: f.message.requestId,
+      pairId: f.request.pairId,
+      ownerId: f.request.ownerId,
+      kind: 'waiting',
+      actionDigest: f.message.actionDigest,
+    })
+    expect(() => source.enqueue({ kind: 'presenceRelay', relay })).toThrow('invalid-frame')
+  })
+  it('RVM100P2A-P3 enforces the channel grant cap independently of the relay refine', () => {
+    const f = relayFixture()
+    const source = new MultiplexedDeviceChannel({ ...channelReady, pairId: f.request.pairId })
+    const relay = devicePresenceRelaySchema.parse({
+      version: DEVICE_LIMITS.protocolVersion,
+      requestId: f.message.requestId,
+      pairId: f.request.pairId,
+      ownerId: f.request.ownerId,
+      kind: 'waiting',
+      actionDigest: f.message.actionDigest,
+    })
+    const input = { kind: 'presenceRelay' as const, relay }
+    const encode = TextEncoder.prototype.encode
+    // Relay schema uses Buffer.byteLength; emulate oversized channel encoding only.
+    vi.spyOn(TextEncoder.prototype, 'encode').mockImplementation(function (text) {
+      return text === JSON.stringify(input)
+        ? new Uint8Array(DEVICE_LIMITS.grantBytes + 1)
+        : encode.call(new TextEncoder(), text)
+    })
+    expect(devicePresenceRelaySchema.safeParse(relay).success).toBe(true)
+    expect(() => source.enqueue(input)).toThrow('invalid-frame')
   })
   it('carries validated waiting and attested envelopes on the control stream', async () => {
     const f = relayFixture()

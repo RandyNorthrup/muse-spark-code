@@ -15,7 +15,6 @@ import {
   deviceDispatchSchema,
   isSameAttempt,
   deviceFrameSchema,
-  type DeviceActionGrantPort,
   type DeviceGrantRequest,
   type DeviceGrantRefusal,
   type DEVICE_FAILURES,
@@ -25,6 +24,7 @@ import {
   type DeviceFrame,
   type DeviceJournalRecord,
 } from '../../shared/devices'
+import type { DeviceActionGrants } from '../../core/devices/actionGrants'
 import type { PaidUseRequest } from '../../shared/paid'
 import type { PaidFeatureGate } from '../../core/paid/paidFeatures'
 import type { PaidUseConsent } from '../../core/paid/paidConsent'
@@ -63,6 +63,8 @@ export interface DeviceReceiverPolicy {
   assertAllowed(request: DeviceDispatch): Promise<void>
   /** Local ordinary approval; pairing/remote approval never substitutes for this. */
   approve(request: DeviceDispatch): Promise<boolean>
+  /** Spend a bound step-up before launch, or on any terminal admission path. */
+  finishAdmission?(request: DeviceDispatch): void
   readonly paidGate: Pick<PaidFeatureGate, 'isOn'>
   readonly paidConsent: Pick<PaidUseConsent, 'allows'>
   /** M95 binds current local model, tariff, key owner and reservation; no peer credentials. */
@@ -71,15 +73,19 @@ export interface DeviceReceiverPolicy {
 /** W binds its authenticated owner/request resolver here after K's validity check. */
 export function bindDeviceReceiverActionGrants(
   policy: DeviceReceiverPolicy,
-  grants: DeviceActionGrantPort,
+  grants: Pick<DeviceActionGrants, 'admitAttempt' | 'finishAttempt'>,
   requestFor: (request: DeviceDispatch) => DeviceGrantRequest,
 ): DeviceReceiverPolicy {
   return {
     ...policy,
     async assertAllowed(request) {
-      const result = await grants.admit(requestFor(request))
+      const result = await grants.admitAttempt(requestFor(request), request)
       if ('reason' in result) throw new DeviceActionGrantError(result)
       await policy.assertAllowed(request)
+    },
+    finishAdmission(request) {
+      grants.finishAttempt(request)
+      policy.finishAdmission?.(request)
     },
   }
 }
@@ -561,6 +567,7 @@ export class DeviceReceiver implements DeviceExecutionPort {
             Date.now(),
           )
           await boundary.beforeAction()
+          this.policy.finishAdmission?.(request)
           await this.waitForControl(pending.control.signal, () => lease.start(boundary))
           const outcome = await this.journal.advance(
             request.identity,
@@ -580,6 +587,8 @@ export class DeviceReceiver implements DeviceExecutionPort {
             if (hasReserved) this.pendingReconciliation.add(request.identity.attemptId)
           }
           return this.frame(request.identity.pairId, { kind: 'failure', reason })
+        } finally {
+          this.policy.finishAdmission?.(request)
         }
       })
     } catch (error) {

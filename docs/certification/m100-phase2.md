@@ -706,3 +706,90 @@ All four lane acceptance bullets have implementation, tests and red drills.
 Aggregate `npm run quality`, the generated host inventory, product wiring,
 real native prompts and installed-host/physical qualification remain W's
 explicit responsibilities; this record does not claim them passed.
+
+### Lane A review repair — FIXM100P2A (2026-10-07, macmini)
+
+Branch `m100/p2-a-fix`, base `5bbefbd4f`; review
+`RVM100P2A.report.md`. Only lane A's authority, receiver admission binding,
+presence-carriage region, owning tests and this lane's certification changed.
+No live or paid calls, real pairing or native prompts: model attempts **0**,
+inference spend **0**. No dependency, contract envelope, gate or budget change.
+
+- **P1 fixed** — `src/core/devices/actionGrants.ts:81` uses the shared
+  `isProtectedPath` rule after separator/lexical normalization and case folding.
+  Receiver-specific protected runs match whole segments anywhere in the path.
+  Normalized leading `..`, POSIX absolute, UNC and Windows drive paths refuse
+  `scope-denied`. `actionGrants.test.ts:100` covers every review scenario,
+  mixed case, Windows separators, ordinary outside writes and the canonical
+  protected names; `:105` proves custom multi-segment runs, boundary-safe
+  ordinary writes and shared protection even with an empty receiver list.
+- **P2 fixed** — `actionGrants.ts:216`, `:251`, `:258` keeps the attestation
+  bound to one dispatch's full identity and payload digest throughout policy
+  checks. Every check still evaluates the current receiver intersection,
+  action digest, grant revision and freshness. Standalone `admit` retains its
+  one-use behavior. `deviceReceiver.ts:74` binds the scoped authority and
+  `finishAdmission`; `:570` spends it before `lease.start`, and `:590` spends
+  it on every terminal admission path. `actionGrants.test.ts:231` drives real
+  `DeviceReceiver.dispatch` with real binding and fake connect/program/actuate:
+  one start, spent at start, second dispatch typed `step-up-required`. `:270`
+  refuses another in-flight id or dispatch payload, `:310` proves terminal
+  ordinary denial spends it, and `:333` refuses changed action bytes then
+  refuses reuse of the restored payload after the attempt ends.
+- **P3 fixed** — `src/core/devices/channel.ts:225` binds `presenceRelay` to
+  the authenticated pair and applies `DEVICE_LIMITS.grantBytes`.
+  `devicePresenceRelay.test.ts:147` rejects a cross-pair relay at enqueue;
+  `:160` isolates the channel cap from the schema refine: the genuine relay
+  still parses, while a test-only TextEncoder spy reports an envelope of
+  `grantBytes + 1` bytes (below `frameBytes`) and enqueue must refuse.
+  Existing control-stream request/waiting/attested delivery stays covered.
+
+#### Base-failure proof
+
+Before fixing production source, the new regressions ran directly against
+`5bbefbd4f`: **23 failed / 64 passed**. After adding the two in-flight identity
+and dispatch-digest cases, all final tests ran against that same base source
+again: **25 failed / 65 passed** — P1 **18**, P2 **5**, P3 **2** assertion
+failures. Command: `CI=true npx vitest run test/unit/actionGrants.test.ts
+test/unit/devicePresenceRelay.test.ts --maxWorkers=3`, repository default
+timeouts, no override. Source restored byte-exact after the base run.
+Fixed owning suites: **90 passed**; receiver/channel suites: **73 passed**.
+Logs: `temp/fixm100p2a/base-failures.log`,
+`base-final-regressions.log`, `fixed-owning.log`, `receiver-channel.log`.
+
+#### Review guard drills
+
+Each deliberate mutant ran its named regression with `--maxWorkers=3 -t
+<name>` at repository default timeouts. All exited **1** with assertion
+failures; selected-out tests below apply only to drills, not verification.
+Every mutation restored the entire file byte-exact before the next drill.
+
+| Removed guard                               | Failing tests        |
+| ------------------------------------------- | -------------------- |
+| P1 shared protected-path rule               | 3 failed / 19 passed |
+| P1 workspace containment                    | 4 failed / 18 passed |
+| P1 custom path-segment matching             | 1 failed             |
+| P2 repeated checks within one bound attempt | 3 failed             |
+| P2 bound attempt identity                   | 2 failed             |
+| P2 dispatch payload digest in attempt key   | 1 failed / 1 passed  |
+| P2 current action digest                    | 1 failed             |
+| P2 consumption at launch                    | 3 failed             |
+| P2 consumption on terminal ordinary denial  | 1 failed             |
+| P3 channel pair binding                     | 1 failed             |
+| P3 independent channel grant-byte cap       | 1 failed             |
+
+Restored source SHA-256:
+
+- `src/core/devices/actionGrants.ts`:
+  `d522de88a80e74ecb50481cd8c70a203fc7d328f34e0f6722620647e6cd5146b`
+- `src/host/devices/deviceReceiver.ts`:
+  `11cbda32dae8d6120fee1d81047d009f1443282ccc5e313a89f48e270b8be314`
+- `src/core/devices/channel.ts`:
+  `304de781ac5453c05819e10eaeb7f6eb8ecf1b0b7f7020565eefdfba286be8fc`
+
+Drill receipts are `temp/fixm100p2a/drills.log` and `drill-*.log` on macmini.
+The shared `DeviceActionGrantPort` and wire shapes stay unchanged; W must
+supply the concrete attempt-aware methods to `bindDeviceReceiverActionGrants`
+and retain its returned `finishAdmission` hook. Post-start physical actions
+need fresh per-action presence. W still owns the generated host API inventory,
+joined CHANGELOG/reference/docs and aggregate `npm run quality` qualification,
+as the phase-2 ownership table and shared lane rules require.

@@ -222,6 +222,11 @@ export class MultiplexedDeviceChannel {
         limit = DEVICE_LIMITS.capabilityBytes
         break
       }
+      case 'presenceRelay': {
+        pairId = message.relay.pairId
+        limit = DEVICE_LIMITS.grantBytes
+        break
+      }
       case 'grantRequest': {
         pairId = message.request.pairId
         limit = DEVICE_LIMITS.grantBytes
