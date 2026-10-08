@@ -4050,5 +4050,13 @@
   "judgeSourceBoth": "Eigenes Modell und separater Beurteiler",
   "judgeLocalUnverified": "Unverifizierter lokaler Endpunkt",
   "judgeSourceUntested": "Experimentell, ungetestet; ausdrückliche Zustimmung erforderlich",
-  "judgeNoAnswer": "Keine Antwort des Beurteilers ({reason}). Bestehende Prüfungen und Genehmigungen gelten weiterhin."
+  "judgeNoAnswer": "Keine Antwort des Beurteilers ({reason}). Bestehende Prüfungen und Genehmigungen gelten weiterhin.",
+  "judgeStatusSeparate": "Separates Modell",
+  "judgeStatusBoth": "Beide Modelle",
+  "judgeStatusUntested": "Aus: separate Quelle wurde nicht verifiziert",
+  "judgeStatusProfiles": "Aus: angepasste Profile fehlen",
+  "judgeAutoNoSource": "Gleiches Modell: keine separate Quelle verfügbar",
+  "judgeAutoUntested": "Gleiches Modell: separate Quelle wurde nicht verifiziert",
+  "judgeAutoNoProfiles": "Gleiches Modell: angepasste Profile fehlen",
+  "judgeAutoNoEvidence": "Gleiches Modell: Nachweise aus gepaarten Auswertungen mit zurückgehaltenen Daten fehlen"
 }

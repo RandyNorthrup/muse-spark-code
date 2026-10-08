@@ -2,7 +2,7 @@
 import * as z from 'zod/mini'
 
 export const judgeStatusSchema = z.object({
-  mode: z.enum(['same', 'off']),
+  mode: z.enum(['same', 'separate', 'both', 'off']),
   modelId: z.string(),
   billing: z.enum(['subscription', 'modelApi']),
   reason: z.enum([
@@ -14,6 +14,14 @@ export const judgeStatusSchema = z.object({
     'ready-rate-low',
     'auto-same',
     'explicit-same',
+    'source-untested',
+    'profile-missing',
+    'auto-both',
+    'explicit-separate',
+    'explicit-both',
   ]),
+  autoSameReason: z.optional(
+    z.enum(['source-unavailable', 'source-untested', 'profile-missing', 'evidence-missing']),
+  ),
 })
 export type JudgeStatus = z.infer<typeof judgeStatusSchema>

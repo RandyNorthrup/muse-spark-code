@@ -4338,5 +4338,13 @@
   "judgeSourceBoth": "Własny model i osobny oceniający",
   "judgeLocalUnverified": "Niezweryfikowany lokalny punkt końcowy",
   "judgeSourceUntested": "Eksperymentalne, nieprzetestowane; wymagana wyraźna zgoda",
-  "judgeNoAnswer": "Brak odpowiedzi oceniającego ({reason}). Dotychczasowe kontrole i zatwierdzenia nadal obowiązują."
+  "judgeNoAnswer": "Brak odpowiedzi oceniającego ({reason}). Dotychczasowe kontrole i zatwierdzenia nadal obowiązują.",
+  "judgeStatusSeparate": "Osobny model",
+  "judgeStatusBoth": "Oba modele",
+  "judgeStatusUntested": "Wyłączone: osobne źródło nie zostało zweryfikowane",
+  "judgeStatusProfiles": "Wyłączone: brak dopasowanych profili",
+  "judgeAutoNoSource": "Ten sam model: brak dostępnego osobnego źródła",
+  "judgeAutoUntested": "Ten sam model: osobne źródło nie zostało zweryfikowane",
+  "judgeAutoNoProfiles": "Ten sam model: brak dopasowanych profili",
+  "judgeAutoNoEvidence": "Ten sam model: brak dowodów z porównania parami na odłożonych danych"
 }

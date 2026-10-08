@@ -5,6 +5,7 @@
 // triggers below. No `vscode` import.
 
 import * as z from 'zod/mini'
+import { hasJudgeAdoptionEvidence, type JudgeAdoptionContext } from './adoption'
 
 const phase2EngineSchema = z.enum(['auto', 'same', 'separate', 'both', 'off'])
 
@@ -50,6 +51,8 @@ export interface JudgeSeparateReadiness {
   readonly verified: boolean
   /** Suitable B profiles exist for this source and family. */
   readonly profilesReady: boolean
+  readonly adoption?:
+    { readonly record: unknown; readonly context: JudgeAdoptionContext } | undefined
 }
 
 export interface JudgeModeContext {
@@ -79,6 +82,10 @@ export interface JudgeModeContext {
   readonly providerId: string
   readonly modelId: string
   readonly confidential: boolean
+  readonly endpoint?: string | undefined
+  readonly profileId?: string | undefined
+  readonly ownerId?: string | undefined
+  readonly turn?: string | number | undefined
 }
 
 /**
@@ -200,6 +207,8 @@ export type JudgeModeReason2a =
 export interface JudgeModeResolution2a {
   readonly mode: JudgeMode2a
   readonly reason: JudgeModeReason2a
+  readonly autoSameReason?:
+    'source-unavailable' | 'source-untested' | 'profile-missing' | 'evidence-missing'
 }
 
 type SeparateGate =
@@ -263,7 +272,21 @@ export function resolveJudgeMode2a(context: JudgeModeContext): JudgeModeResoluti
   ) {
     return { mode: 'off', reason: 'ready-rate-low' }
   }
-  return separateGate(context.separate).blocked
-    ? { mode: 'same', reason: 'auto-same' }
-    : { mode: 'both', reason: 'auto-both' }
+  const gate = separateGate(context.separate)
+  if (gate.blocked) {
+    return {
+      mode: 'same',
+      reason: 'auto-same',
+      autoSameReason:
+        gate.reason === 'source-untested' || gate.reason === 'profile-missing'
+          ? gate.reason
+          : 'source-unavailable',
+    }
+  }
+  const adoption = context.separate.adoption
+  return adoption?.context.providerId === context.providerId &&
+    adoption.context.modelId === context.modelId &&
+    hasJudgeAdoptionEvidence(adoption.record, adoption.context)
+    ? { mode: 'both', reason: 'auto-both' }
+    : { mode: 'same', reason: 'auto-same', autoSameReason: 'evidence-missing' }
 }

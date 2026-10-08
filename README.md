@@ -2269,8 +2269,11 @@ call or production calibration is claimed.
 
 `museSpark.judge.engine` is machine-scoped: `auto` (default) uses the same
 model, `same` keeps that selection explicit, and `off` disables Judge.
-`separate` and `both` are passive phase-2 configuration and do not dispatch
-an unverified source. `museSpark.judge.separate` holds its source/model
+`separate` selects a verified separate source; `both` runs the separate source
+first and asks the conversation model when entropy confidence is low or the
+family is high stakes. Automatic `both` requires matched fitted profiles and
+recorded held-out paired M75 evidence. Without that evidence, `auto` uses
+the same model and explains the fallback when a separate source is configured. `museSpark.judge.separate` holds its source/model
 identifier, without a credential; its default is empty. Set
 it to `off` in Settings to stop future judgments. A measured ready rate below
 the floor disables `auto` on that backend; no production ready-rate or

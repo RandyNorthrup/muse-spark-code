@@ -4194,5 +4194,13 @@
   "judgeSourceBoth": "Seu modelo e avaliador separado",
   "judgeLocalUnverified": "Endpoint local não verificado",
   "judgeSourceUntested": "Experimental, não testado; consentimento explícito necessário",
-  "judgeNoAnswer": "O avaliador não respondeu ({reason}). As verificações e aprovações existentes continuam valendo."
+  "judgeNoAnswer": "O avaliador não respondeu ({reason}). As verificações e aprovações existentes continuam valendo.",
+  "judgeStatusSeparate": "Modelo separado",
+  "judgeStatusBoth": "Ambos os modelos",
+  "judgeStatusUntested": "Desativado: a fonte separada não foi verificada",
+  "judgeStatusProfiles": "Desativado: faltam perfis ajustados",
+  "judgeAutoNoSource": "Mesmo modelo: nenhuma fonte separada disponível",
+  "judgeAutoUntested": "Mesmo modelo: a fonte separada não foi verificada",
+  "judgeAutoNoProfiles": "Mesmo modelo: faltam perfis ajustados",
+  "judgeAutoNoEvidence": "Mesmo modelo: faltam evidências de avaliação pareada com dados reservados"
 }

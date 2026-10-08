@@ -4050,5 +4050,13 @@
   "judgeSourceBoth": "Saját modell és külön értékelő",
   "judgeLocalUnverified": "Nem ellenőrzött helyi végpont",
   "judgeSourceUntested": "Kísérleti, nem tesztelt; kifejezett beleegyezés szükséges",
-  "judgeNoAnswer": "Az értékelő nem válaszolt ({reason}). A meglévő ellenőrzések és jóváhagyások továbbra is érvényesek."
+  "judgeNoAnswer": "Az értékelő nem válaszolt ({reason}). A meglévő ellenőrzések és jóváhagyások továbbra is érvényesek.",
+  "judgeStatusSeparate": "Külön modell",
+  "judgeStatusBoth": "Mindkét modell",
+  "judgeStatusUntested": "Kikapcsolva: a külön forrás nincs ellenőrizve",
+  "judgeStatusProfiles": "Kikapcsolva: hiányoznak az illesztett profilok",
+  "judgeAutoNoSource": "Azonos modell: nincs elérhető külön forrás",
+  "judgeAutoUntested": "Azonos modell: a külön forrás nincs ellenőrizve",
+  "judgeAutoNoProfiles": "Azonos modell: hiányoznak az illesztett profilok",
+  "judgeAutoNoEvidence": "Azonos modell: hiányzik a félretett adatokon végzett páros értékelés bizonyítéka"
 }

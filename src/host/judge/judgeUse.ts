@@ -1,12 +1,11 @@
 // M98-U's policy and first-use wiring. D supplies S's lazily loaded runner,
 // with each paid transport dispatch admitted by A over the shared D78 ledger.
 import type { JudgeEntryParts } from '../../core/judge/entries'
-import { isJudgeEngineOn } from '../../core/judge/engine'
 import {
-  resolveJudgeMode,
+  resolveJudgeMode2a,
   shouldReResolve,
   type JudgeModeContext,
-  type JudgeModeResolution,
+  type JudgeModeResolution2a,
 } from '../../core/judge/resolve'
 import { JudgeUse, type JudgeUseDeps } from '../../core/judge/use'
 import { JUDGE_MIN_READY_RATE, UI_TEXT } from '../../shared/constants'
@@ -27,7 +26,8 @@ export interface JudgeUseHostDeps extends Pick<
 /** Resolves at decision time, never activation; no source is created while off. */
 export function createJudgeUse(deps: JudgeUseHostDeps): JudgeUse {
   let previous: JudgeModeContext | undefined
-  let resolution: JudgeModeResolution | undefined
+  let resolution: JudgeModeResolution2a | undefined
+  const snapshots = new WeakMap<JudgeEntryParts, JudgeModeContext>()
   let hasSubscriptionNote = false
   const context = (): JudgeModeContext => ({
     ...deps.context(),
@@ -36,6 +36,12 @@ export function createJudgeUse(deps: JudgeUseHostDeps): JudgeUse {
   const isOn = (action: JudgeEntryParts) => {
     if (action.backend !== deps.backend) return false
     const current = context()
+    const snapshot = snapshots.get(action)
+    if (
+      snapshot !== undefined &&
+      shouldReResolve({ ...snapshot, paidConsent: current.paidConsent }, current)
+    )
+      return false
     // Unasked paid consent is acquired in the background, not a startup modal.
     const resolvable = {
       ...current,
@@ -43,20 +49,17 @@ export function createJudgeUse(deps: JudgeUseHostDeps): JudgeUse {
         current.paidConsent === 'unasked' ? ('not-required' as const) : current.paidConsent,
     }
     if (previous === undefined || resolution === undefined || shouldReResolve(previous, current)) {
-      resolution = resolveJudgeMode(resolvable)
+      resolution = resolveJudgeMode2a(resolvable)
       previous = current
       deps.onStatus({
-        ...resolveJudgeMode(current),
+        ...resolveJudgeMode2a(current),
         modelId: current.modelId,
         billing: deps.backend === 'museCode' ? 'subscription' : 'modelApi',
       })
     }
-    return (
-      resolution.mode === 'same' &&
-      current.sourceAvailable &&
-      (current.engine === 'auto' || current.engine === 'same') &&
-      isJudgeEngineOn(current.engine)
-    )
+    const isEnabled = resolution.mode !== 'off'
+    if (isEnabled && snapshot === undefined) snapshots.set(action, current)
+    return isEnabled
   }
   return new JudgeUse({
     isOn,

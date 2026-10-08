@@ -4194,5 +4194,13 @@
   "judgeSourceBoth": "Modelo propio y evaluador separado",
   "judgeLocalUnverified": "Punto de conexión local no verificado",
   "judgeSourceUntested": "Experimental, sin probar; requiere aceptación explícita",
-  "judgeNoAnswer": "El evaluador no respondió ({reason}). Siguen vigentes las comprobaciones y aprobaciones existentes."
+  "judgeNoAnswer": "El evaluador no respondió ({reason}). Siguen vigentes las comprobaciones y aprobaciones existentes.",
+  "judgeStatusSeparate": "Modelo independiente",
+  "judgeStatusBoth": "Ambos modelos",
+  "judgeStatusUntested": "Desactivado: la fuente independiente no se ha verificado",
+  "judgeStatusProfiles": "Desactivado: faltan perfiles ajustados",
+  "judgeAutoNoSource": "Mismo modelo: no hay una fuente independiente disponible",
+  "judgeAutoUntested": "Mismo modelo: la fuente independiente no se ha verificado",
+  "judgeAutoNoProfiles": "Mismo modelo: faltan perfiles ajustados",
+  "judgeAutoNoEvidence": "Mismo modelo: faltan pruebas de evaluación pareada con datos reservados"
 }

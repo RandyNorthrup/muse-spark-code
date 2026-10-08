@@ -4338,5 +4338,13 @@
   "judgeSourceBoth": "Vlastní model a samostatný hodnotitel",
   "judgeLocalUnverified": "Neověřený místní koncový bod",
   "judgeSourceUntested": "Experimentální, neotestováno; nutný výslovný souhlas",
-  "judgeNoAnswer": "Hodnotitel neodpověděl ({reason}). Stávající kontroly a schvalování nadále platí."
+  "judgeNoAnswer": "Hodnotitel neodpověděl ({reason}). Stávající kontroly a schvalování nadále platí.",
+  "judgeStatusSeparate": "Samostatný model",
+  "judgeStatusBoth": "Oba modely",
+  "judgeStatusUntested": "Vypnuto: samostatný zdroj nebyl ověřen",
+  "judgeStatusProfiles": "Vypnuto: chybí kalibrované profily",
+  "judgeAutoNoSource": "Stejný model: samostatný zdroj není dostupný",
+  "judgeAutoUntested": "Stejný model: samostatný zdroj nebyl ověřen",
+  "judgeAutoNoProfiles": "Stejný model: chybí kalibrované profily",
+  "judgeAutoNoEvidence": "Stejný model: chybí důkazy z párového hodnocení na oddělených datech"
 }

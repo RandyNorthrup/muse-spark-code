@@ -21,6 +21,9 @@ export interface JudgeWindowDeps {
     | {
         readonly backend: 'museCode' | 'modelApi'
         readonly modelId: string
+        readonly endpoint?: string | undefined
+        readonly profileId?: string | undefined
+        readonly providerId?: string | undefined
         readonly ownerId: string
         readonly contextLimit: number | undefined
         readonly confidential: boolean

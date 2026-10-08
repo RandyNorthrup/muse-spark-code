@@ -3906,5 +3906,13 @@
   "judgeSourceBoth": "自己的模型和单独的评判模型",
   "judgeLocalUnverified": "未经验证的本地端点",
   "judgeSourceUntested": "实验性，未经测试；需要明确选择加入",
-  "judgeNoAnswer": "评判模型未回答（{reason}）。现有检查和审批仍然适用。"
+  "judgeNoAnswer": "评判模型未回答（{reason}）。现有检查和审批仍然适用。",
+  "judgeStatusSeparate": "独立模型",
+  "judgeStatusBoth": "两个模型",
+  "judgeStatusUntested": "已关闭：独立来源尚未验证",
+  "judgeStatusProfiles": "已关闭：缺少拟合配置",
+  "judgeAutoNoSource": "同一模型：没有可用的独立来源",
+  "judgeAutoUntested": "同一模型：独立来源尚未验证",
+  "judgeAutoNoProfiles": "同一模型：缺少拟合配置",
+  "judgeAutoNoEvidence": "同一模型：缺少留出数据上的配对评估证据"
 }

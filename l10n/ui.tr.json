@@ -4050,5 +4050,13 @@
   "judgeSourceBoth": "Kendi modeliniz ve ayrı değerlendirici",
   "judgeLocalUnverified": "Doğrulanmamış yerel uç nokta",
   "judgeSourceUntested": "Deneysel, test edilmemiş; açık onay gerekli",
-  "judgeNoAnswer": "Değerlendirici yanıt vermedi ({reason}). Mevcut kontroller ve onaylar geçerliliğini korur."
+  "judgeNoAnswer": "Değerlendirici yanıt vermedi ({reason}). Mevcut kontroller ve onaylar geçerliliğini korur.",
+  "judgeStatusSeparate": "Ayrı model",
+  "judgeStatusBoth": "Her iki model",
+  "judgeStatusUntested": "Kapalı: ayrı kaynak doğrulanmadı",
+  "judgeStatusProfiles": "Kapalı: uyarlanmış profiller eksik",
+  "judgeAutoNoSource": "Aynı model: kullanılabilir ayrı kaynak yok",
+  "judgeAutoUntested": "Aynı model: ayrı kaynak doğrulanmadı",
+  "judgeAutoNoProfiles": "Aynı model: uyarlanmış profiller eksik",
+  "judgeAutoNoEvidence": "Aynı model: ayrılmış verilerde eşli değerlendirme kanıtı eksik"
 }

@@ -1,3 +1,4 @@
+import { wiringFixture } from './helpers/judgeWiring'
 import { describe, expect, it } from 'vitest'
 import {
   resolveJudgeMode,
@@ -15,8 +16,8 @@ function context(overrides: Partial<JudgeModeContext> = {}): JudgeModeContext {
     readyRate: undefined,
     minReadyRate: 0.5,
     sourceAvailable: true,
-    providerId: 'meta',
-    modelId: 'muse-spark',
+    providerId: 'fixture-provider',
+    modelId: 'chosen',
     confidential: false,
     ...overrides,
   }
@@ -129,8 +130,8 @@ describe('resolveJudgeMode', () => {
 describe('shouldReResolve', () => {
   const triggers = {
     engine: 'auto' as const,
-    providerId: 'meta',
-    modelId: 'muse-spark',
+    providerId: 'fixture-provider',
+    modelId: 'chosen',
     paidConsent: 'granted' as const,
     confidential: false,
   }
@@ -176,9 +177,9 @@ function context2a(overrides: Partial<JudgeModeContext> = {}): JudgeModeContext 
     readyRate: undefined,
     minReadyRate: 0.5,
     sourceAvailable: true,
-    separate: { ...ready },
-    providerId: 'meta',
-    modelId: 'muse-spark',
+    separate: { ...ready, adoption: wiringFixture().adoption },
+    providerId: 'fixture-provider',
+    modelId: 'chosen',
     confidential: false,
     ...overrides,
   }
@@ -214,15 +215,17 @@ describe('resolveJudgeMode2a', () => {
       reason: 'auto-same',
     })
     expect(resolveJudgeMode2a(context2a({ separate: { ...ready, profilesReady: false } }))).toEqual(
-      { mode: 'same', reason: 'auto-same' },
+      { mode: 'same', reason: 'auto-same', autoSameReason: 'profile-missing' },
     )
     expect(resolveJudgeMode2a(context2a({ separate: { ...ready, verified: false } }))).toEqual({
       mode: 'same',
       reason: 'auto-same',
+      autoSameReason: 'source-untested',
     })
     expect(resolveJudgeMode2a(context2a({ separate: { ...ready, available: false } }))).toEqual({
       mode: 'same',
       reason: 'auto-same',
+      autoSameReason: 'source-unavailable',
     })
   })
 
@@ -257,7 +260,7 @@ describe('resolveJudgeMode2a', () => {
     ).toEqual({ mode: 'off', reason: 'source-unavailable' })
     expect(
       resolveJudgeMode2a({ ...context2a({ engine: 'auto' }), separate: malformedSeparate }),
-    ).toEqual({ mode: 'same', reason: 'auto-same' })
+    ).toEqual({ mode: 'same', reason: 'auto-same', autoSameReason: 'source-unavailable' })
   })
 
   it('requires explicit boolean verification and profile readiness, not truthy values', () => {
@@ -265,6 +268,7 @@ describe('resolveJudgeMode2a', () => {
     expect(resolveJudgeMode2a({ ...context2a({ engine: 'auto' }), separate: unverified })).toEqual({
       mode: 'same',
       reason: 'auto-same',
+      autoSameReason: 'source-untested',
     })
     const unready = JSON.parse('{"available":true,"verified":true,"profilesReady":"false"}')
     expect(resolveJudgeMode2a({ ...context2a({ engine: 'both' }), separate: unready })).toEqual({

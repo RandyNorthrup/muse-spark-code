@@ -4194,5 +4194,13 @@
   "judgeSourceBoth": "Modello personale e valutatore separato",
   "judgeLocalUnverified": "Endpoint locale non verificato",
   "judgeSourceUntested": "Sperimentale, non testato; consenso esplicito richiesto",
-  "judgeNoAnswer": "Nessuna risposta del valutatore ({reason}). Restano valide le verifiche e approvazioni esistenti."
+  "judgeNoAnswer": "Nessuna risposta del valutatore ({reason}). Restano valide le verifiche e approvazioni esistenti.",
+  "judgeStatusSeparate": "Modello separato",
+  "judgeStatusBoth": "Entrambi i modelli",
+  "judgeStatusUntested": "Disattivato: la fonte separata non è stata verificata",
+  "judgeStatusProfiles": "Disattivato: mancano i profili adattati",
+  "judgeAutoNoSource": "Stesso modello: nessuna fonte separata disponibile",
+  "judgeAutoUntested": "Stesso modello: la fonte separata non è stata verificata",
+  "judgeAutoNoProfiles": "Stesso modello: mancano i profili adattati",
+  "judgeAutoNoEvidence": "Stesso modello: mancano le prove di valutazione appaiata su dati riservati"
 }

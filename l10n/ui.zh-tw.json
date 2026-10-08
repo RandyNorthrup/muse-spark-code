@@ -3906,5 +3906,13 @@
   "judgeSourceBoth": "自己的模型和單獨的評判模型",
   "judgeLocalUnverified": "未經驗證的本機端點",
   "judgeSourceUntested": "實驗性，未經測試；需要明確選擇加入",
-  "judgeNoAnswer": "評判模型未回答（{reason}）。現有檢查和審批仍然適用。"
+  "judgeNoAnswer": "評判模型未回答（{reason}）。現有檢查和審批仍然適用。",
+  "judgeStatusSeparate": "獨立模型",
+  "judgeStatusBoth": "兩個模型",
+  "judgeStatusUntested": "已關閉：獨立來源尚未驗證",
+  "judgeStatusProfiles": "已關閉：缺少擬合設定",
+  "judgeAutoNoSource": "同一模型：沒有可用的獨立來源",
+  "judgeAutoUntested": "同一模型：獨立來源尚未驗證",
+  "judgeAutoNoProfiles": "同一模型：缺少擬合設定",
+  "judgeAutoNoEvidence": "同一模型：缺少保留資料上的配對評估證據"
 }

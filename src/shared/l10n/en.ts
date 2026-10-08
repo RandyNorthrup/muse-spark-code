@@ -3809,6 +3809,15 @@ export const EN = {
   judgeSubscriptionNotice:
     'Muse Judge uses your chat model on your Muse subscription and counts against its limits. Each batch uses a fresh isolated Plan session. A tool-item guard cancels the session, but cannot prove that no tool ran. It can only add caution.',
   judgeStatusSame: 'Same model',
+  judgeStatusSeparate: 'Separate model',
+  judgeStatusBoth: 'Both models',
+  judgeStatusUntested: 'Off: separate source has not been verified',
+  judgeStatusProfiles: 'Off: fitted profiles are missing',
+  judgeAutoNoSource: 'Same model: no separate source is available',
+  judgeAutoUntested: 'Same model: separate source has not been verified',
+  judgeAutoNoProfiles: 'Same model: fitted profiles are missing',
+  judgeAutoNoEvidence: 'Same model: held-out paired evaluation evidence is missing',
+
   judgeStatusOff: 'Off',
   judgeStatusUnavailable: 'Off: source unavailable or standing allow rules',
   judgeStatusConsent: 'Waiting for first-charge consent',

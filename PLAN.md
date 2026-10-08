@@ -42073,7 +42073,7 @@ aggregate certification record.
   - [ ] Each phase-2 section certified on its own when it ships.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
-#### M98 phase 2 — buildable lanes (2026-10-05, planned)
+#### M98 phase 2 — buildable lanes (2026-10-05, wiring in progress)
 
 **M98P2Z integration (2026-10-07, Kubuntu).** Integrate the phase-2 base,
 C, E and FP on `9d1ab33c3`, keeping version 0.15.0. Close all inherited
@@ -42092,6 +42092,8 @@ Delivery mutations keep their individual negative controls and restored-byte has
 one final green check covers the complete restored artifact set. Exact receipts,
 gate failures and two byte-restored drills go in
 `docs/certification/m98.md`.
+
+**Phase 2 wiring (W, 2026-10-08).** Apply the lead’s three lane-A contract requests and lane-I runtime routing. Automatic cascade selection checks recorded independent profiles and held-out paired M75 rows, including grouped lineage, readiness, caution precision and prediction loss. Bind endpoint, profile, owner and turn before accepting a verdict. Connect the same request-only factory to window, CLI and MCP. Embeddings require a capable transport, independent family weights and paired evidence, a grouped manifest’s pre-dispatch attempt ceiling, verified local opt-in or paid consent and the existing ledger. No live or paid calls; L98P2-EMBED remains open. Receipt: `docs/certification/m98.md`, “Phase 2 wiring (W)”.
 
 **Lead integration of lanes A and I (2026-10-08).** On `m98/p2-int-lead`,
 lane A (`0fb3eaf0f`) merges as `e5a6fb5b7` and lane I (`abf7f859f`) as
@@ -47828,6 +47830,8 @@ The universal ACP package also requires the compiled
 `native/darwin/muse-local-judge-peer` artifact. It is absent on this Linux
 rig; a test-owned inactive member only exercises private fake package trees
 and does not satisfy real packaging or installed macOS certification.
+
+**M98P2W bounded verification (2026-10-08).** The explicit two-hour rig brief delegates aggregate quality and live/installed-host measurement to the lead. This lane runs the specified scoped Judge/redact/golden/CLI/MCP inventory and unchanged static and production-build gates in a fresh npm-ci clone under CI=true. No gate, cap, rule or timeout is weakened. L98P2-EMBED is explicitly excluded from this fake-only lane.
 
 **FIXM98P2I6 bounded verification (2026-10-08).** The explicit rig/shared
 brief prohibits aggregate `npm run quality` in this lane and delegates it

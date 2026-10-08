@@ -52,8 +52,19 @@ export function createWindowJudge(
     const isBound = JSON.stringify(current) === panel.identity
     const price = status.billing === 'modelApi' ? judgePriceOf(status.modelId) : undefined
     const canUseSame = engine === 'auto' || engine === 'same'
-    let reason: JudgePanelFacts['reason'] =
-      status.reason === 'auto-same' || status.reason === 'explicit-same' ? undefined : status.reason
+    let reason: JudgePanelFacts['reason']
+    switch (status.reason) {
+      case 'auto-same':
+      case 'auto-both':
+      case 'explicit-same':
+      case 'explicit-separate':
+      case 'explicit-both': {
+        break
+      }
+      default: {
+        reason = status.reason
+      }
+    }
     if (engine === 'off') reason = 'explicit-off'
     else if (!isBound || !canUseSame) reason = 'source-unavailable'
     let consent: JudgePanelFacts['consent'] = 'needed'
@@ -124,7 +135,11 @@ export function createWindowJudge(
         const context = () => ({
           engine: deps.engine(),
           modelId: initial.modelId,
-          providerId: initial.backend,
+          providerId: initial.providerId ?? initial.backend,
+          endpoint: initial.endpoint,
+          profileId: initial.profileId,
+          ownerId: initial.ownerId,
+          turn: action.turnId,
           confidential: initial.confidential,
           readyRate: deps.readyRate?.(initial.backend),
           paidConsent:

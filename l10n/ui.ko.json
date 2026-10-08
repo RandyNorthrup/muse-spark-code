@@ -3906,5 +3906,13 @@
   "judgeSourceBoth": "자신의 모델과 별도 평가 모델",
   "judgeLocalUnverified": "검증되지 않은 로컬 엔드포인트",
   "judgeSourceUntested": "실험적이며 테스트되지 않음; 명시적 동의 필요",
-  "judgeNoAnswer": "평가 모델의 응답 없음({reason}). 기존 검사와 승인은 계속 적용됩니다."
+  "judgeNoAnswer": "평가 모델의 응답 없음({reason}). 기존 검사와 승인은 계속 적용됩니다.",
+  "judgeStatusSeparate": "별도 모델",
+  "judgeStatusBoth": "두 모델 모두",
+  "judgeStatusUntested": "꺼짐: 별도 소스가 검증되지 않았습니다",
+  "judgeStatusProfiles": "꺼짐: 적합된 프로필이 없습니다",
+  "judgeAutoNoSource": "같은 모델: 사용 가능한 별도 소스가 없습니다",
+  "judgeAutoUntested": "같은 모델: 별도 소스가 검증되지 않았습니다",
+  "judgeAutoNoProfiles": "같은 모델: 적합된 프로필이 없습니다",
+  "judgeAutoNoEvidence": "같은 모델: 보류 데이터의 쌍별 평가 증거가 없습니다"
 }
