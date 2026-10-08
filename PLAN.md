@@ -1,5 +1,21 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**LEFT017B visual and deferred-entry completion (2026-10-08, linuxlt).**
+The continuation brief removes LEFT017's mapping scope limit: certify every
+current renderer through an actual harness scene, preserve six themes, two
+widths and all interaction states, refresh source/theme receipts through the
+repository generators, and review every rendered image. Register the intended
+lazy schedule slash-command entry without increasing activation's byte cap.
+No waivers, assertion weakening, paid/live calls, merge or push. Existing
+unrelated bundle caps remain the shrinking lane's responsibility.
+
+- [x] Map all 184 renderers (111 added) across 136 real-component scenes; narrow Chrome smoke passed.
+- [x] Refresh theme/source receipts; generate and review 9,792 Chrome frames (184 renderer review lines).
+- [x] Deferred slash-command entry registered; activation 587,451 bytes; eager-import guard drill passed.
+- [x] Replay all eight visual owners (45 tests) and scoped static gates in a fresh npm-ci CI clone.
+- [ ] Regenerate and review the full baseline after the settled quote-origin repair; pass the complete fresh-clone pixel gate.
+- [x] Record image reviews, findings, gate exits and hooks-on commits in LEFT017.
+
 **FIX0160W2 hosted Windows repair (2026-10-07, win11).** Reproduce the three
 remaining suites with an actual 8.3 TEMP/TMP alias and fresh PowerShell
 processes. Resolve compiler storage and returned helper paths to native long
@@ -18662,7 +18678,7 @@ numbers. Research: `docs/certification/m97-research.md`.
   artifacts and the hosted download inventory before universal packaging can
   be qualified; retain both strict guards and every budget.
 
-INT0170B integration question (2026-10-07): the M115 v2 panel bridge exists but is not passed from extension activation to the conversation controller. Its current factory opens the standalone runtime binding, whose OS credential/host lifetime differs from VS Code SecretStorage and the active editor session. Binding that factory directly would select the wrong owner/credential adapter. The combined editor binding requires a scoped host adapter; this lane records the gap instead of claiming v2 editor delivery is complete. The existing schedule path and its tests remain.
+INT0170B integration question (2026-10-07), narrowed by LEFT017 (2026-10-08): the three M115 editor commands now use the lazy panel bridge. Inspection of createRuntimeSchedules/runtimeEntry.ts proves that its message/control factory opens the shared schedule store, not an OS credential store, backend or model session. Panel requests remain paid-disabled; no workspace hold/polling lifetime is acquired from VS Code. Its unavailableTarget refusal remains explicit. Binding actual scheduled editor delivery, background ownership and SecretStorage credentials still requires the scoped editor host adapter; this command repair does not certify unattended editor delivery. The existing M52 path remains.
 
 - **Q-TRAIN15G-DIET1 (2026-10-06):** main’s exact 733.8/32.1-KiB
   regression capture does not fit the integrated train, although unchanged
@@ -20344,6 +20360,107 @@ regression and a byte-exact guard-break drill in `docs/certification/m102-j.md`.
 No new dependency or editor-specific behavior; all shared journal consumers
 receive these fixes. Full quality and combined editor wiring remain lead/W work
 as required by the rig brief; do not run full quality or merge in this lane.
+
+### LEFT017 — Combined 0.17.0 integration leftovers (2026-10-08)
+
+**Status 2026-10-08: waiting.** LEFT017B explicitly lifts the earlier mapping
+scope limit: all 184 renderers now map to 136 real scenes. All 9,792 Chrome
+receipts and 184 image-review lines are complete. Fresh-clone replay found a
+quote-menu anchor captured before its final layout (9,863 changed pixels);
+The real context click now waits for final layout, its guard is proven, and
+all 45 visual-owner tests plus five typechecks and scoped static gates pass.
+Full baseline regeneration and pixel replay remain open at the two-hour limit.
+The source-reconstruction fixture now owns its Git repository, so private
+disk-backed temp storage no longer depends on checkout discovery.
+Combined build caps remain
+owned by the shrinking lane. Earlier rig lane `rel017/left`, base `7a4fc2ab3`;
+two-hour repair window. Keep all assertions, caps, scanner rules and deadlines.
+
+- [x] Register the three M115 editor commands and lazily connect the panel bridge (stable 1.141.0 / minimum 1.99.0: 40 + 40 integration tests).
+- [x] Verify unique Help IDs and resolve all accessibility readiness failures (full axe: 1,068 + 32 pages, no undecided rules or missing results).
+- [x] Resolve SAST findings: inherited scanner clean; named report-root literal escape helper and operator controls added.
+- [ ] LEFT017B: complete current audit/scene expansion (111 added mappings), regenerate and review every image, then pass the fresh-clone visual gate.
+- [x] Share duplicate production and test helpers; four baseline clones repaired (fresh jscpd: zero clones).
+- [x] Remove unused compactNodeReference after demonstrating its obsolete test fails.
+- [x] Cover account English in the browser probe's actual entry graph.
+- [x] Profile and repair the 10,000-fire journal without changing its 240 s limit (final fresh coverage: 45 tests, 133.64 s whole run).
+- [x] Add G76 and bound lint-staged argument batches for Windows command shims.
+- [x] Replay affected tests and required gates in a fresh npm-ci clone; record
+      exact outcomes in docs/certification/int0170-combined.md.
+
+The lane brief authorizes hook batching and scanner network access required by
+its exact SAST command, overriding older shared prohibitions for these actions.
+No quality aggregate, merge, push, paid call or credential read is authorized.
+Build caps owned by the separate shrinking lane remain an explicit §7 deferral.
+
+Earlier LEFT017 source 08d9c8ce2: all five typechecks, changed-file lint/format, knip,
+jscpd, localization, reference, host API, plan, tokens, SAST and full axe pass.
+All changed owners pass; the additional whole visualMatrix owner retains three
+failing stale-inventory assertions (396 selected tests pass, none skipped).
+Build retains nine old size failures; the extra split replay identifies an
+unlisted deferred slashCommands source. Neither caps nor allowlists change.
+Final receipt-only edits preserve every tested production and test input.
+
+Fresh-clone follow-up: create the browser English probe's ignored parent
+directory before its temporary entry graph. Restore the visual CI fixture's
+successful LINUX_HELPER result for the merged required job, retaining every
+success/failure/cancelled/skipped visual assertion. The lane uses the existing
+dated milestone status grammar. The fixture source edit
+also requires real README screenshot replay before refreshing its input digest.
+
+The real 18-image README replay is reviewed under LEFT017 Linux (2026-10-08):
+seven captures remain byte-identical and eleven current renders replace stale
+combined-tree media. Refresh the existing input digest only after that capture;
+keep its failure guard, the 2 MiB curated budget and the blocked full M114 map.
+
+Accessibility follow-up: the fresh full matrix has all 1,068 pages ready, no
+violations and four undecided contrast checks on the plan-usage request count.
+Render its request counts with the existing localized singular/plural request
+template, retaining exact totals, unknown-token distinctions and responsive
+fact layout. Re-run its whole UI owner and all four themes before full replay.
+
+### VIS017 — Border contrast floor (R1) and merge-path wrap (F4, 2026-10-08, macbook)
+
+**Status 2026-10-08: built.** Worktree `~/lanes/VIS017`, branch `rel017/vis`
+from `rel017/left4` (`49d979299`). No receipt regeneration; the lead
+regenerates once on the merged 0.17 tree.
+
+**M114 record — R1 chooses option (a).** CSS cannot measure contrast at
+runtime, so the conditional "host border when it meets 3:1, mixed fallback
+otherwise" is not expressible in a token rule. The lane adds an additive
+`colour.boundary` role (`--ms-boundary`) instead of redefining `--ms-border`:
+`color-mix(in srgb, var(--vscode-foreground, var(--ms-text)) 70%,
+var(--vscode-editor-background, var(--ms-surface)))`. Redefining `--ms-border`
+itself would drop `colour.border` from `consumers.json` hostRoles (the theme
+bridge rejects snapshots naming unknown roles, M104's contract) and would
+emit a `color-mix` formula into `report-themes.json`, which the reporting
+literal-only gate refuses. 45% fails the light secondary surface (1.9:1);
+65% is the first passing share (worst 3.15:1) and 70% ships for margin
+(worst 3.62:1, light secondary). No palette colour invented: the mix reads
+only theme and token variables, and the token's palette value reuses the
+dark border. The token payload cap moves 4 KiB to 4.25 KiB for the one new
+rule (~90 minified bytes); chat startup budget is reported from the
+production build, not waived. `test/unit/borderContrast.test.mjs` resolves
+the shipped declaration against all six `test/harness/themes/` receipts and
+asserts 3:1 on sidebar, raised, input and secondary surfaces (30% drill:
+all six themes fail, e.g. dark sidebar 2.305:1). R1 surfaces moved to the
+new role: `.models-button`, `.account-picker`, `.traffic-view button`.
+Placeholders and host-rendered inputs keep host colours. Of the nine
+below-AA host comparisons (`docs/certification/m114-0.md:178`), one is now
+covered: One Dark Pro panel border on sidebar (boundary resolves 5.60:1
+there). The other eight are focus, placeholder or host-rendered input
+borders — different tokens, out of lane scope.
+
+**F4.** The merge card's path lists were extra flex items in the single-row
+`.activity`, shrinking to a few characters at 320 px. `.activity-team-merge`
+now wraps; the status line flexes with `min-width: 0` and the path lists,
+notes and actions each take their own full-width row, keeping
+`overflow-wrap: anywhere` (the wrap convention used elsewhere). No middle
+truncation: full paths stay visible, so no tooltip text is added.
+`test/unit/TeamCards.test.tsx` pins the row rules. The 320 px scene check is
+blocked in this sandbox: Chrome itself runs, but the harness server gets
+`listen EPERM 127.0.0.1`, so no scenario page can be served or shot here;
+the lead re-renders on the merged tree.
 
 ### INT0170B — Complete 0.17.0 integration certification (2026-10-07)
 
@@ -36768,6 +36885,21 @@ lane A's first step.
 
 ## 7. Gates
 
+**LEFT017 bounded deferrals (2026-10-08).** Keep every visual assertion and
+budget. The combined tree has 270 webview source files and 184 render inputs,
+but the current audit records 112 sources and 73 render inputs: 111 render
+inputs lack scene/selector mappings. There is no audit-refresh generator in
+the tracked repository; the capture helpers require an already reviewed map.
+Actual new scene coverage, six-theme captures and review exceed the shared
+approximately 300-new-lines-per-finding rule. The historical fixture lookup
+is repaired independently, preserving the full M114 manifest and golden PNGs.
+The curated README captures are separately reviewed and recorded. Final source
+receipts also expose 48 stale hashes, 159 unrecorded source files and eight
+missing registered variables in each third-party theme. The unchanged build
+caps and unlisted deferred slashCommands split entry remain owned by the
+shrinking/inventory lane. Exact gate failures are recorded in
+`docs/certification/int0170-combined.md`; no deferred gate is waived.
+
 INT0180B (2026-10-07): source `9733edba2` supersedes INT0180's local reds
 below. Fresh ordinary installation, exact static job, all four coverage shards
 and merge, full 988-page accessibility, legal's 96 keyboard/zoom plus 24 WCAG
@@ -41147,9 +41279,9 @@ INT0170B, 2026-10-07: `ENGINE_LOAD_TIMEOUT_MS` = 20,000 ms in `test/unit/modelAp
 
 INT0170B, 2026-10-07: `READER_BRAND_COMPILE_TIMEOUT_MS` = 20,000 ms in `test/unit/recordingReader.test.ts` applies only to the actual TypeScript semantic compiler setup (11.177/10.652 s measured under Node 22 coverage). The normal per-test deadline stays unchanged; no brand diagnostic or test is skipped. Authorized heavy-real-work exception in the rig brief.
 
-| INT0170B location                        | Escape hatch                                                                                    | Reason                                                                                                                                                                                                                                                                     |
-| ---------------------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/core/reporting/render/redaction.ts` | `nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp` | Every root segment is escaped as a literal before fixed separators, boundaries and a single path tail are added. User text cannot introduce regex operators. Literal metacharacters, Windows separators and case behavior are covered; the escape-removal drill must fail. |
+| INT0170B location                        | Escape hatch                                                                                    | Reason                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/core/reporting/render/redaction.ts` | `nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp` | Every root segment passes escapeReportRootSegment, whose literal operator escaping is covered by the complete reportRedaction owner and a deliberate escape-removal failure, before fixed separators, boundaries and a single path tail are added. User text cannot introduce regex operators. Literal metacharacters, Windows separators and case behavior are covered; the escape-removal drill must fail. |
 
 | 0.15.0 hosted-CI location                                                                                                                                                                      | Escape hatch                                                                                                                                                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                                             | Removal                                                                                                                                                   |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |

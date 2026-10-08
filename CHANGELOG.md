@@ -7,6 +7,34 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Settle quote-menu capture origins after final layout and isolate source-reconstruction fixtures from temporary-directory placement.
+- Capture settled share-view highlighting, usage-dialog account facts and status rows, and the palette's focus scroll so visual replays no longer race lazy renderers.
+
+- Complete integrated visual coverage through real optional UI scenes, decode packed update notes in replay, wrap narrow Models actions and use token focus rings.
+
+- Guard the lazy slash-command registration as a deferred chat entry without adding activation bytes.
+
+- Restore the Schedule Prompt, Schedules and Schedule Timeline editor commands, including panels opened on demand.
+- Reuse successful time-zone validation during repeated schedule journal reads, preserving storage checks and workload deadlines.
+- Resolve visual replay fixtures from the running gate when historical render sources predate them, and guard Help document IDs against duplication.
+- Prepare browser-English probe scratch space in fresh clones and include the merged Linux helper job in the visual CI test fixture.
+- Give plan-usage request counts localized singular/plural text so contrast checks can measure their visible content.
+- Refresh reviewed README captures from the combined UI and its real ready handshake, retaining the curated media budget.
+- Name and exercise report-root literal regex escaping across all operators and Windows separators.
+
+- Share ACP preparation cancellation and exact USD display helpers; align merged paid-ledger tests with the exact decimal contract.
+- Batch staged-file tool arguments below the Windows command-shim limit while retaining every hook check.
+
+- Include lazy account and developer surfaces in the browser English regression probe while preserving deferred fallback checks.
+
+- Remove the obsolete compact Node reference build plugin and its stale test; the production reference uses the current generated data loader.
+- Draw the independent reporting focus ring and the Models/account boundaries from the M114 token contract instead of direct host colours, so keyboard focus stays visible on low-contrast themes.
+- Give team traffic and Runners buttons the secondary-button token role instead of input-field colours, and draw their keyboard focus ring from the M114 token contract.
+- Draw Models buttons, the accounts picker and traffic buttons from a new assured boundary role that mixes the theme foreground into its background, keeping control boundaries at 3:1 or more in every captured theme.
+- Give the team merge card's path lists their own full-width row so long paths wrap instead of one character per line at narrow widths.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached

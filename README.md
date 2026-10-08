@@ -414,7 +414,7 @@ so they match the build.
   </tr>
   <tr>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/open-question.png" alt="An Open question in the attention dock: Colour, Blue, Green, Other, Submit and Explain instead; its folded transcript row and the 1 open question chip with Previous and Next controls remain visible"><br><sub>Answer an open question from the dock; its transcript row and navigation chip keep it easy to find</sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/help.png" alt="Help and Reference searched for Next open question, showing question-handling details, the deferral setting, and links to Next and Previous open question"><br><sub>Type <code>/help</code>: search the reference for features, commands, settings and shortcuts</sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/help.png" alt="Help and Reference searched for Next open question, showing question-handling details and deferral behavior"><br><sub>Type <code>/help</code>: search the reference for features, commands, settings and shortcuts</sub></td>
   </tr>
 </table>
 
@@ -2262,6 +2262,12 @@ Its host defaults are `museSpark.scheduleDefaultDelivery` (`whenIdle`) and
 avoid VS Code's scalar-parent conflict; the reader still validates previous
 `schedules.defaultDelivery` and `schedules.agentCreation` values when a new key
 is absent. Paid consent and the shared daily budget still apply.
+
+The Command Palette's **Schedule this prompt…**, **Show schedules** and
+**Show schedule timeline** open the v2 editor, list and timeline in the
+active chat, opening a chat when needed. The schedule surface loads on
+first use. Starting unattended jobs through this editor still requires the
+pending editor delivery binding; the `/loop` flow below remains available.
 
 On the Model API backend, `/loop 10m Review the build` saves a prompt in the
 current conversation to become due every ten minutes. Use `m`, `h`, or `d`

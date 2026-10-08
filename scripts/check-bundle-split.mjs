@@ -1283,6 +1283,7 @@ const deferredWebviewSources = [
   'src/webview/components/TeamTree.tsx',
   'src/webview/components/TeamCards.tsx',
   'src/core/prompts/promptSearch.ts',
+  'src/shared/slashCommands.ts',
 ]
 for (const source of deferredWebviewSources) {
   const outputs = Object.entries(webviewMeta.outputs).filter(([, output]) =>

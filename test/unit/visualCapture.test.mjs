@@ -5,7 +5,15 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { captureMatrix } from '../harness/goldens/capture.mjs'
 import { decodePng } from '../../scripts/lib/visualImages.mjs'
 
-const captured = { result: undefined, busyRows: [], rootWidths: [] }
+const captured = {
+  result: undefined,
+  busyRows: [],
+  rootWidths: [],
+  bounds: [],
+  layouts: [],
+  outlines: [],
+  bodyWidths: [],
+}
 // Each real scene has its own bounded setup hook; retain every state without
 // combining six browser captures under one default ten-second deadline.
 for (const scene of [
@@ -18,6 +26,21 @@ for (const scene of [
   'questions-open',
   'questions-chip',
   'help-narrow',
+  'accounts-dialog',
+  'accounts-swap',
+  'accounts-thresholds',
+  'models-configure',
+  'models-providers',
+  'media-controls',
+  'reporting-page',
+  'resource-controls',
+  'schedule-report-action',
+  'playbook-status',
+  'estimator-result',
+  'usage-tokens',
+  'vault-approval',
+  'muse-tools',
+  'resource-history',
 ])
   beforeAll(async () => {
     const audit = JSON.parse(await readFile('docs/certification/m114-audit.json', 'utf8'))
@@ -31,6 +54,47 @@ for (const scene of [
       { ...matrix, themes: ['light'], widths: [320] },
       async (capture, bytes, page) => {
         decodePng(bytes, capture.width, capture.height)
+        if (capture.scene === 'playbook-status')
+          expect(await page.locator('.playbook-record').count()).toBe(1)
+        const selectors =
+          {
+            'accounts-thresholds': ['.account-thresholds'],
+            'models-configure': ['.models-wizard-step'],
+          }[capture.scene] ?? []
+        for (const selector of selectors) {
+          const box = await page.locator(selector).first().boundingBox()
+          captured.bounds.push({
+            scene: capture.scene,
+            top: box.y,
+            bottom: box.y + box.height,
+            height: capture.height,
+          })
+        }
+        if (capture.scene === 'models-providers') {
+          const layout = await page
+            .locator('.models-row-actions')
+            .first()
+            .evaluate((element) => ({
+              direction: globalThis.getComputedStyle(element).flexDirection,
+              wrap: globalThis.getComputedStyle(element).flexWrap,
+            }))
+          captured.layouts.push(layout)
+        }
+        if (
+          capture.state === 'focus-visible' &&
+          ['models-configure', 'accounts-thresholds'].includes(capture.scene)
+        ) {
+          const outline =
+            capture.target === null
+              ? 'missing'
+              : await page.locator('[data-visual-target]').evaluate((element) => {
+                  element.focus()
+                  const width = globalThis.getComputedStyle(element).outlineWidth
+                  element.blur()
+                  return width
+                })
+          captured.outlines.push(outline)
+        }
         if (capture.scene === 'board')
           expect(
             await page.locator('[role="dialog"]').count(),
@@ -44,6 +108,9 @@ for (const scene of [
           await page.evaluate(
             () => globalThis.document.documentElement.getBoundingClientRect().width,
           ),
+        )
+        captured.bodyWidths.push(
+          await page.locator('body').evaluate((element) => element.getBoundingClientRect().width),
         )
         expect(
           await page.evaluate(
@@ -60,6 +127,58 @@ for (const scene of [
   })
 
 describe('M114 real visual capture driver', () => {
+  it('opens lazy tool bodies after the folded steps chunk paints', () => {
+    const frames = captured.result.captures.filter((capture) => capture.scene === 'muse-tools')
+    expect(frames).toHaveLength(6)
+    expect(
+      frames.every((capture) =>
+        capture.components.includes('src/webview/components/ToolBodies.tsx'),
+      ),
+    ).toBe(true)
+  })
+  it('keeps canonical account and wizard descendants inside the captured viewport', () => {
+    expect(captured.bounds.length).toBe(12)
+    for (const box of captured.bounds) {
+      expect(box.top, box.scene).toBeLessThan(box.height)
+      expect(box.bottom, box.scene).toBeGreaterThan(0)
+    }
+  })
+  it('uses actual two-pixel focus rings in accounts and the independent Models page', () => {
+    expect(captured.outlines).toEqual(['2px', '2px'])
+  })
+  it('wraps narrow Models actions in rows', () => {
+    expect(captured.layouts).toEqual(
+      Array.from({ length: 6 }, () => ({ direction: 'row', wrap: 'wrap' })),
+    )
+  })
+
+  it('renders optional integrated surfaces through their real entries and all six states', () => {
+    for (const scene of [
+      'accounts-dialog',
+      'accounts-swap',
+      'accounts-thresholds',
+      'models-configure',
+      'media-controls',
+      'reporting-page',
+      'resource-controls',
+      'schedule-report-action',
+      'playbook-status',
+      'estimator-result',
+      'usage-tokens',
+      'vault-approval',
+    ]) {
+      const rows = captured.result.captures.filter((capture) => capture.scene === scene)
+      expect(rows.map((capture) => capture.state)).toEqual([
+        'default',
+        'hover',
+        'focus-visible',
+        'pressed',
+        'disabled',
+        'selected',
+      ])
+      expect(rows.every((capture) => capture.components.length > 0)).toBe(true)
+    }
+  })
   it('captures the integrated question store, lazy dock, Open Questions controls and Help renderer', () => {
     const components = captured.result.captures.flatMap((capture) => capture.components)
     for (const name of [
@@ -119,6 +238,9 @@ describe('M114 real visual capture driver', () => {
     expect(captured.busyRows).toEqual(Array.from({ length: 12 }, () => 1))
   })
   it('records actual font rasterization and exact narrow viewport dimensions', () => {
+    expect(captured.bodyWidths).toEqual(
+      Array.from({ length: captured.result.captures.length }, () => 320),
+    )
     expect(captured.rootWidths).toEqual(
       Array.from({ length: captured.result.captures.length }, () => 320),
     )

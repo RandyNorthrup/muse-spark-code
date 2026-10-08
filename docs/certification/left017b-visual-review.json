@@ -1,0 +1,1493 @@
+{
+  "review": "LEFT017D-integrated-review-2026-10-08",
+  "revision": "0d354eac0da880bbfc8443c0bddd7d039689ef95",
+  "manifestSha256": "9cf87fcfb02c1cc1515b3082173af7c9fcbefb3f72157ffdd2490c2ac5bcbce1",
+  "captures": 9792,
+  "uniqueImages": 5363,
+  "archiveBytes": 446821642,
+  "externalArchive": "/var/tmp/l-LEFT017D/left017d-final",
+  "browser": "153.0.8010.52",
+  "rasterization": "a8de1ddfb6e62687899116825ad89f19166af18efdb086980f1c0e365c739033",
+  "platform": "linux",
+  "coverage": ["136 scenes", "6 themes", "320 and 690 pixels", "6 states", "184 renderer inputs"],
+  "previousReview": "LEFT017B-integrated-review-2026-10-08",
+  "changedSincePreviousReview": {
+    "frames": 2375,
+    "uniqueImages": 1379
+  },
+  "method": "Regenerated with the repository generator in real headless Chrome on Linux. Every current PNG SHA-256 indexed. Each frame is bound to the labelled sheet that showed its exact bytes: unchanged LEFT017B sheets, or new LEFT017D sheets covering every distinct image not shown before. One Dark Pro and Dracula focus/boundary frames were also viewed at original size. No full PNGs tracked.",
+  "contactSheets": [
+    {
+      "file": "0000.png",
+      "sha256": "9a9bea0d5dd9438e01a7948161ad6a72f1c116316f833c0a0a4eba43b7139079",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: account editors now in viewport; focus ring visible; no new overlap. Dialog, chat approval, sharing, developer and loading layouts checked at both widths."
+    },
+    {
+      "file": "0001.png",
+      "sha256": "2d4d6fdd3ca37bd037c67f2cd2af98d25d79d9a3c2ec409e5236409df6e97d63",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: account editors now in viewport; focus ring visible; no new overlap. Dialog, chat approval, sharing, developer and loading layouts checked at both widths."
+    },
+    {
+      "file": "0002.png",
+      "sha256": "c078f4e29d3b465ec8659d46c130242277abb241bb224b22cbc5da020227133c",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: account editors now in viewport; focus ring visible; no new overlap. Dialog, chat approval, sharing, developer and loading layouts checked at both widths."
+    },
+    {
+      "file": "0003.png",
+      "sha256": "ba7ce552c158d8fa9b05fb69a0e217d116ed44d1b2c01cade460cffb657b8323",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: account editors now in viewport; focus ring visible; no new overlap. Dialog, chat approval, sharing, developer and loading layouts checked at both widths."
+    },
+    {
+      "file": "0004.png",
+      "sha256": "3b09731c28a5f8bb268509566deb201556486848abb8b6e7ffa57a83c5b7eb54",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: account editors now in viewport; focus ring visible; no new overlap. Dialog, chat approval, sharing, developer and loading layouts checked at both widths."
+    },
+    {
+      "file": "0005.png",
+      "sha256": "4ff0d937e876951d1049f87df64f148eb23e7e4d34e6d036cb3a8a8368694226",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: account editors now in viewport; focus ring visible; no new overlap. Dialog, chat approval, sharing, developer and loading layouts checked at both widths."
+    },
+    {
+      "file": "0006.png",
+      "sha256": "5f1997eb62ccd284a69c4558157b0929246f90bf0cf14248639617bf345620be",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: estimator, Help, legal, media and Models controls fit; Models narrow actions wrap; mapped wizard and picker descendants show; long tables/forms retain scroll."
+    },
+    {
+      "file": "0007.png",
+      "sha256": "c99218344dc9e53fa72d83a839946535558dd556731c43ad1b450b5bc0b5cbe1",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: estimator, Help, legal, media and Models controls fit; Models narrow actions wrap; mapped wizard and picker descendants show; long tables/forms retain scroll."
+    },
+    {
+      "file": "0008.png",
+      "sha256": "f75486cc015dd0c0dfceeb291d9177bcccb01269df001cffa6afc8bca4bf7c2b",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: estimator, Help, legal, media and Models controls fit; Models narrow actions wrap; mapped wizard and picker descendants show; long tables/forms retain scroll."
+    },
+    {
+      "file": "0009.png",
+      "sha256": "9d3c087ec97bdf302f7515870832a7d0f2544a33040baac2286c13aadaa91212",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: estimator, Help, legal, media and Models controls fit; Models narrow actions wrap; mapped wizard and picker descendants show; long tables/forms retain scroll."
+    },
+    {
+      "file": "0011.png",
+      "sha256": "e6160f35f68af2c12a5fcd858f59a3f1e0559a6d9a6f080ebd8ac24f5bcd7c19",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: estimator, Help, legal, media and Models controls fit; Models narrow actions wrap; mapped wizard and picker descendants show; long tables/forms retain scroll."
+    },
+    {
+      "file": "0012.png",
+      "sha256": "404231e0983a4c5c69bd438131a1c57eb1c4a29b60a9f96f3daa8cc3b0d69859",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: paid/account facts scroll; Playbook, prompt library, reporting, resources and schedule controls render. Narrow resource history crops second chart at right boundary; retain as finding pending owning grid review."
+    },
+    {
+      "file": "0013.png",
+      "sha256": "0c9d5b757a1c4ef406edcbe6bb8b363c1b06ffd0ac87160e678ca07a8b9e17d5",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: paid/account facts scroll; Playbook, prompt library, reporting, resources and schedule controls render. Narrow resource history crops second chart at right boundary; retain as finding pending owning grid review."
+    },
+    {
+      "file": "0014.png",
+      "sha256": "f623c423404fd3e99c2f518be819a3f3b10d2ad9de205fdf9e279f91f36102a2",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: paid/account facts scroll; Playbook, prompt library, reporting, resources and schedule controls render. Narrow resource history crops second chart at right boundary; retain as finding pending owning grid review."
+    },
+    {
+      "file": "0015.png",
+      "sha256": "2e47b61fb752eae46c3535fe8e3934481945a053332f6b40913e62fab0e468f9",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: paid/account facts scroll; Playbook, prompt library, reporting, resources and schedule controls render. Narrow resource history crops second chart at right boundary; retain as finding pending owning grid review."
+    },
+    {
+      "file": "0016.png",
+      "sha256": "5ba7ad80f22d1777e2b495a02b0b46351e7791b0c8b77e8d9ae325e8b1fad17b",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: paid/account facts scroll; Playbook, prompt library, reporting, resources and schedule controls render. Narrow resource history crops second chart at right boundary; retain as finding pending owning grid review."
+    },
+    {
+      "file": "0017.png",
+      "sha256": "dfc1b436c014bb94f269adb7d9608e78e010ef94d7921f710d18ba640681b6d7",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: paid/account facts scroll; Playbook, prompt library, reporting, resources and schedule controls render. Narrow resource history crops second chart at right boundary; retain as finding pending owning grid review."
+    },
+    {
+      "file": "0018.png",
+      "sha256": "bad77d4891deb04a77b368ae736e9f918afcc2621498b8606156181f89e9e591",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: schedule fields/list/timeline, traffic tabs, usage charts/tables, vault approvals/grant editor and update pages. Data fills use intentional distinct patterns. Long forms scroll; no additional control overlap observed."
+    },
+    {
+      "file": "0019.png",
+      "sha256": "6bb3c7fbec4d316aab9f965449443d18fc2d3c603fbbdc3ad976d286a6b9127e",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: schedule fields/list/timeline, traffic tabs, usage charts/tables, vault approvals/grant editor and update pages. Data fills use intentional distinct patterns. Long forms scroll; no additional control overlap observed."
+    },
+    {
+      "file": "0020.png",
+      "sha256": "1227a14a1c389cefa44b1f8a4dbcf4270d01c8f301cf5c535aa512bb596f5149",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: schedule fields/list/timeline, traffic tabs, usage charts/tables, vault approvals/grant editor and update pages. Data fills use intentional distinct patterns. Long forms scroll; no additional control overlap observed."
+    },
+    {
+      "file": "0021.png",
+      "sha256": "c74dc2efc5f8a1738239dfb3a92a9ad831ff37ec69d1a0fa9bfb6c1b2c8bcae3",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: schedule fields/list/timeline, traffic tabs, usage charts/tables, vault approvals/grant editor and update pages. Data fills use intentional distinct patterns. Long forms scroll; no additional control overlap observed."
+    },
+    {
+      "file": "0022.png",
+      "sha256": "a1dbdb6b0e91e1f7ff509003613bd49ed11ac5019c77f75af0765979e7f5ee35",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: schedule fields/list/timeline, traffic tabs, usage charts/tables, vault approvals/grant editor and update pages. Data fills use intentional distinct patterns. Long forms scroll; no additional control overlap observed."
+    },
+    {
+      "file": "0023.png",
+      "sha256": "abd4f82ff2959ba8cc46a9c92c4d391ca41bd767c272a4af4cac3338a17ea17d",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed all cells: schedule fields/list/timeline, traffic tabs, usage charts/tables, vault approvals/grant editor and update pages. Data fills use intentional distinct patterns. Long forms scroll; no additional control overlap observed."
+    },
+    {
+      "file": "0024.png",
+      "sha256": "5aba2532cdb308dc25ff70e02c41ec392a21e72363529c7e05bd94f044002631",
+      "width": 1344,
+      "height": 2016,
+      "frames": 38,
+      "review": "Reviewed all cells: schedule fields/list/timeline, traffic tabs, usage charts/tables, vault approvals/grant editor and update pages. Data fills use intentional distinct patterns. Long forms scroll; no additional control overlap observed."
+    },
+    {
+      "file": "0025.png",
+      "sha256": "e6eced8c4b340b2c61277b69b6d8dd0f58d0440e339c037f365a6ca1764b3619",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed every cell: dark and HC account/editor/dialog, chat approvals, sharing and context controls. HC borders and focus stay visible; no additional overlap."
+    },
+    {
+      "file": "0026.png",
+      "sha256": "566a70508f95f9093e06f2269463cdcd7f7d6b34a9044290e0010fbd80f629c5",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed every cell: dark and HC account/editor/dialog, chat approvals, sharing and context controls. HC borders and focus stay visible; no additional overlap."
+    },
+    {
+      "file": "0027.png",
+      "sha256": "b05250fe1c9680fe0031f011ece1b70bc04c079e7f4ad1cd08227d0b5a70110b",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed every cell: dark and HC account/editor/dialog, chat approvals, sharing and context controls. HC borders and focus stay visible; no additional overlap."
+    },
+    {
+      "file": "0028.png",
+      "sha256": "7fe2f1ec217b8f66d83e2173505f7f69a5b4cc9b3ed20dcce6f8b63a09988c55",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed every cell: dark and HC account/editor/dialog, chat approvals, sharing and context controls. HC borders and focus stay visible; no additional overlap."
+    },
+    {
+      "file": "0029.png",
+      "sha256": "5f40fbdd7bac8d8fb6141f21c3a4081f656faf6b2c63b61849e0c2bbb383f065",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed every cell: dark and HC account/editor/dialog, chat approvals, sharing and context controls. HC borders and focus stay visible; no additional overlap."
+    },
+    {
+      "file": "0030.png",
+      "sha256": "a71388ae987d6bc455083750ddc82cc24132fae2e2a9bb65a35097ec6f8dbc9f",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed every cell: dark and HC account/editor/dialog, chat approvals, sharing and context controls. HC borders and focus stay visible; no additional overlap."
+    },
+    {
+      "file": "0031.png",
+      "sha256": "e47fe32422e6a00d469ee9ec3bc7452c0625d80b98cb6551728b18cd4b3becba",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: dark/high contrast developer, conversation controls, estimator, history, legal/media and Models forms; borders, visible focus and compact responsive action rows inspected."
+    },
+    {
+      "file": "0032.png",
+      "sha256": "399c078b7a2635b05aff8e8d16ab439da8189c191004b97375101164c11b48ba",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: dark/high contrast developer, conversation controls, estimator, history, legal/media and Models forms; borders, visible focus and compact responsive action rows inspected."
+    },
+    {
+      "file": "0033.png",
+      "sha256": "2e8f6998a2c655d37f3edd14b083e77da2fbb792050c3965a2e0de850192cb9d",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: dark/high contrast developer, conversation controls, estimator, history, legal/media and Models forms; borders, visible focus and compact responsive action rows inspected."
+    },
+    {
+      "file": "0034.png",
+      "sha256": "792832e6594b9bd9d0da1f18ee5599391c574fbff71d734a6f579e4b24f2c85c",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: dark/high contrast developer, conversation controls, estimator, history, legal/media and Models forms; borders, visible focus and compact responsive action rows inspected."
+    },
+    {
+      "file": "0035.png",
+      "sha256": "7de7c6ed0c32df99019f2dd11edd07074e4b09b8f9dbef01d2f1804625e389c3",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: dark/high contrast developer, conversation controls, estimator, history, legal/media and Models forms; borders, visible focus and compact responsive action rows inspected."
+    },
+    {
+      "file": "0036.png",
+      "sha256": "52265b67380035385a3baf81481cb17275ccc18c95eb566af085259313b0739e",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: dark/high contrast developer, conversation controls, estimator, history, legal/media and Models forms; borders, visible focus and compact responsive action rows inspected."
+    },
+    {
+      "file": "0037.png",
+      "sha256": "10f74d3de2a36cb0395ea0bfe410dc4d20d9a7305d16166026eaac5d0588f6b9",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: dark/high contrast developer, conversation controls, estimator, history, legal/media and Models forms; borders, visible focus and compact responsive action rows inspected."
+    },
+    {
+      "file": "0038.png",
+      "sha256": "bd6fbc2b3035ca5c90ba0e381122348226d2e79c0db91cdbaefb94649591c29f",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: dark/high contrast developer, conversation controls, estimator, history, legal/media and Models forms; borders, visible focus and compact responsive action rows inspected."
+    },
+    {
+      "file": "0039.png",
+      "sha256": "92c011bf3b42020ca8f87405b1ec77ef291025bc3b40e682fa8c241cb9faf219",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: Models provider rows, tables and responsive forms, shell/tool bodies, workflow map, paid usage and playbook controls; scrolling and focus inspected."
+    },
+    {
+      "file": "0040.png",
+      "sha256": "b35aed6da137ff511837d10ac2f9784904d5504961f12a17f73bc6b13831a73f",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: Models provider rows, tables and responsive forms, shell/tool bodies, workflow map, paid usage and playbook controls; scrolling and focus inspected."
+    },
+    {
+      "file": "0041.png",
+      "sha256": "3c01db53cf5c033a3bbb45dafabda3d07b111f773c9aefcd07ffe5707cff03dc",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: Models provider rows, tables and responsive forms, shell/tool bodies, workflow map, paid usage and playbook controls; scrolling and focus inspected."
+    },
+    {
+      "file": "0042.png",
+      "sha256": "aa6c927c060a7983b7320895f502653a56f65d5607d0029cd9a45895ce73b2da",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: Models provider rows, tables and responsive forms, shell/tool bodies, workflow map, paid usage and playbook controls; scrolling and focus inspected."
+    },
+    {
+      "file": "0043.png",
+      "sha256": "d527410423c211a7a796f1da42201c76d34a5c8884e3a930dc4603fe325617b9",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: Models provider rows, tables and responsive forms, shell/tool bodies, workflow map, paid usage and playbook controls; scrolling and focus inspected."
+    },
+    {
+      "file": "0044.png",
+      "sha256": "db2b782980a41e4d08af93cab2c31c96b7a795dc96854138be3b9d98c75ecda0",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: Models provider rows, tables and responsive forms, shell/tool bodies, workflow map, paid usage and playbook controls; scrolling and focus inspected."
+    },
+    {
+      "file": "0045.png",
+      "sha256": "1123d8ff0192d1c9eed9acaff4f68d4c3ee116cbe417ad87f53e2ae40af0c2a3",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: Models provider rows, tables and responsive forms, shell/tool bodies, workflow map, paid usage and playbook controls; scrolling and focus inspected."
+    },
+    {
+      "file": "0046.png",
+      "sha256": "28b5a48d3a3f7ba6b1008b129b1a7df9969c50e01db06e06e7819341221a67ba",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: Models provider rows, tables and responsive forms, shell/tool bodies, workflow map, paid usage and playbook controls; scrolling and focus inspected."
+    },
+    {
+      "file": "0047.png",
+      "sha256": "e94a9ec8b2f77713dbbd8f95bf475b9342b1ea30b1398661ec2876ee72df51a1",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: prompts/questions/report forms and resource controls/history, review dialogs and runners; resource chart overflow at 320 remains a source finding to record."
+    },
+    {
+      "file": "0048.png",
+      "sha256": "cafababc6fb60dfb9096faaa923ffe8fa30159f04d84a8134f54175f7dafc6b0",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: prompts/questions/report forms and resource controls/history, review dialogs and runners; resource chart overflow at 320 remains a source finding to record."
+    },
+    {
+      "file": "0049.png",
+      "sha256": "c521fdb5afdfa0c17a86f60ef181236c32dff788209b6022c6e61e0396b6c75d",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: prompts/questions/report forms and resource controls/history, review dialogs and runners; resource chart overflow at 320 remains a source finding to record."
+    },
+    {
+      "file": "0050.png",
+      "sha256": "909e0f67d6743394e9fa906fbc41535e6d403ba4b74c3c2a6ace14cef4f01719",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: prompts/questions/report forms and resource controls/history, review dialogs and runners; resource chart overflow at 320 remains a source finding to record."
+    },
+    {
+      "file": "0051.png",
+      "sha256": "20aac086af2e17decd1462ec4354e3faf1157b74592e302408d53f0bd403a29f",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: prompts/questions/report forms and resource controls/history, review dialogs and runners; resource chart overflow at 320 remains a source finding to record."
+    },
+    {
+      "file": "0052.png",
+      "sha256": "fb83e12e86de2e92e7fa52892137b8122832551c9f2e494148e12321af3ffb74",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: prompts/questions/report forms and resource controls/history, review dialogs and runners; resource chart overflow at 320 remains a source finding to record."
+    },
+    {
+      "file": "0053.png",
+      "sha256": "366531a77cf00b5cdee125739d3bbf5687c9ee18cb61812da66e0668330de49c",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: prompts/questions/report forms and resource controls/history, review dialogs and runners; resource chart overflow at 320 remains a source finding to record."
+    },
+    {
+      "file": "0054.png",
+      "sha256": "371135bb73b0623fd09ef5880defa7b0acf38f8ef1f59c7eea6feaf26ec9bf39",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: prompts/questions/report forms and resource controls/history, review dialogs and runners; resource chart overflow at 320 remains a source finding to record."
+    },
+    {
+      "file": "0055.png",
+      "sha256": "4922a437ce62808f58696e27b15297b6400b8170954b65729e08736644cdd12e",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: schedules/actions, secret dialog, shared setup/banner, sign-in, slash controls, team/workflow/traffic tables; visible borders/focus and narrow wrapping inspected."
+    },
+    {
+      "file": "0056.png",
+      "sha256": "b95babfdd96793a5700bfaee2ad36ec2634f0aee4c79ada5c9fddc0959ec7bc7",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: schedules/actions, secret dialog, shared setup/banner, sign-in, slash controls, team/workflow/traffic tables; visible borders/focus and narrow wrapping inspected."
+    },
+    {
+      "file": "0057.png",
+      "sha256": "a60d3774eb5f3820a3bb7ac8a8628d20072550a2605a88c0f8382623b913ee00",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: schedules/actions, secret dialog, shared setup/banner, sign-in, slash controls, team/workflow/traffic tables; visible borders/focus and narrow wrapping inspected."
+    },
+    {
+      "file": "0058.png",
+      "sha256": "766398f87beeee5809561b402634a4e52c085a77ab69bbcb37330143a15eeeca",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: schedules/actions, secret dialog, shared setup/banner, sign-in, slash controls, team/workflow/traffic tables; visible borders/focus and narrow wrapping inspected."
+    },
+    {
+      "file": "0059.png",
+      "sha256": "9c423a31ebaa9ddf301df3252a2ab4acd82acf854bcbe42b4b0f34790b34f60b",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: schedules/actions, secret dialog, shared setup/banner, sign-in, slash controls, team/workflow/traffic tables; visible borders/focus and narrow wrapping inspected."
+    },
+    {
+      "file": "0060.png",
+      "sha256": "2a1f3a2a0d7bbf67d34eee89b9bc929c42ad6c61c91bb78ae0831f0193b3f37a",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: schedules/actions, secret dialog, shared setup/banner, sign-in, slash controls, team/workflow/traffic tables; visible borders/focus and narrow wrapping inspected."
+    },
+    {
+      "file": "0061.png",
+      "sha256": "e90ad351d28b601c411bea11f1c6c10365be60732a7078e332997abb9fc63e39",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: schedules/actions, secret dialog, shared setup/banner, sign-in, slash controls, team/workflow/traffic tables; visible borders/focus and narrow wrapping inspected."
+    },
+    {
+      "file": "0062.png",
+      "sha256": "27891c2bcd0ae4e3420fb9c8e91e25c5cc9c4fbc664b1ac86bdefa5ae7b543bb",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: schedules/actions, secret dialog, shared setup/banner, sign-in, slash controls, team/workflow/traffic tables; visible borders/focus and narrow wrapping inspected."
+    },
+    {
+      "file": "0063.png",
+      "sha256": "a55a76390c4309d1780f4e12f82dc0355f9fea0fa0588abc2c81ea5f426662d8",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: traffic/metrics, usage facts/tables/charts, vault forms/approval, tasks and update page; chart patterns intentional, long forms scroll, narrow update heading clipping recorded."
+    },
+    {
+      "file": "0064.png",
+      "sha256": "fedb3d7f8133e7aea60cff0eb234bc41591bcb8c29eb7c5c878ad0b6ccbe3c96",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: traffic/metrics, usage facts/tables/charts, vault forms/approval, tasks and update page; chart patterns intentional, long forms scroll, narrow update heading clipping recorded."
+    },
+    {
+      "file": "0065.png",
+      "sha256": "1abc072af9af4e33d6d05dbea6d417b51ecbd99edbf231b6cacc3d3b005ab39b",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: traffic/metrics, usage facts/tables/charts, vault forms/approval, tasks and update page; chart patterns intentional, long forms scroll, narrow update heading clipping recorded."
+    },
+    {
+      "file": "0066.png",
+      "sha256": "f3398dcb054de967ffccc643808f738fee7a50369ccd4eb81424b0add74ebcde",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: traffic/metrics, usage facts/tables/charts, vault forms/approval, tasks and update page; chart patterns intentional, long forms scroll, narrow update heading clipping recorded."
+    },
+    {
+      "file": "0067.png",
+      "sha256": "5d4e2440bba4681a60d7c2d8bb1b432efe397370dbc22d021dc7524a67b96c0d",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: traffic/metrics, usage facts/tables/charts, vault forms/approval, tasks and update page; chart patterns intentional, long forms scroll, narrow update heading clipping recorded."
+    },
+    {
+      "file": "0068.png",
+      "sha256": "1bff27a2093520312f623267f754b490f6503fd412d378802aab90a31eff95bb",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: traffic/metrics, usage facts/tables/charts, vault forms/approval, tasks and update page; chart patterns intentional, long forms scroll, narrow update heading clipping recorded."
+    },
+    {
+      "file": "0069.png",
+      "sha256": "c29445fc4064c393f6e5eb516481f5b9885ecd5ff993562d83c15ba548372a10",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed full contact sheet: traffic/metrics, usage facts/tables/charts, vault forms/approval, tasks and update page; chart patterns intentional, long forms scroll, narrow update heading clipping recorded."
+    },
+    {
+      "file": "0071.png",
+      "sha256": "7b7277b2dee875a1da441d6d8a4eb760312bde63aaddc1a4ad92522512c92961",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reviewed final-source account focus frames: clear text-colour two-pixel rings at both widths; form and threshold controls remain visible."
+    },
+    {
+      "file": "0072.png",
+      "sha256": "41304b97be5bc34b9dc1167022bdbaf21e0fe0eb965b4574b2bb13ed97dcd0a6",
+      "width": 1344,
+      "height": 2016,
+      "frames": 7,
+      "review": "Reviewed final-source account focus frames: clear text-colour two-pixel rings at both widths; form and threshold controls remain visible."
+    },
+    {
+      "file": "0073.png",
+      "sha256": "8944bb1e9799eae3791ed366764ba578becca60d96cbaac569a215cfb029863e",
+      "width": 1344,
+      "height": 2016,
+      "frames": 6,
+      "review": "Viewed final-source chips and Models tables/cost/suggestion cards; normal wrapping, selected controls and text-colour focus inspected."
+    },
+    {
+      "file": "0074.png",
+      "sha256": "310a8a43b731050831b0d802ed6c2183e34b50df2bbd54caf443f089be309256",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed final-source account/Models focus and completed Playbook records, usage/tables, vault and update pages. Update heading and content now wrap inside viewport; resource-history clipping remains recorded."
+    },
+    {
+      "file": "0075.png",
+      "sha256": "d4114bc713ab371a5a84bc295104ed3a374318a0287bd3aacd707902f84e9943",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed final-source account/Models focus and completed Playbook records, usage/tables, vault and update pages. Update heading and content now wrap inside viewport; resource-history clipping remains recorded."
+    },
+    {
+      "file": "0076.png",
+      "sha256": "175ec7c43c0f73f74d920e97f10f8a9209bf0b07c9d39b8514ada70411abe2b6",
+      "width": 1344,
+      "height": 2016,
+      "frames": 34,
+      "review": "Viewed final-source account/Models focus and completed Playbook records, usage/tables, vault and update pages. Update heading and content now wrap inside viewport; resource-history clipping remains recorded."
+    },
+    {
+      "file": "0077.png",
+      "sha256": "50e88b447af1bfafbdd7a88401044cb66b02a93960cac02d1e357c18f09143a7",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed final-source dark account/Models focus frames and restored Playbook/Whats New layouts. Clear outlines and wrapped headings; dialogs/tools maintain borders and form alignment."
+    },
+    {
+      "file": "0078.png",
+      "sha256": "160b8c769ed765899991bc441ab357aeb3e05e9b10304df03d98267dbf40139a",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed final-source dark account/Models focus frames and restored Playbook/Whats New layouts. Clear outlines and wrapped headings; dialogs/tools maintain borders and form alignment."
+    },
+    {
+      "file": "0079.png",
+      "sha256": "970585c90503b7672d8f22291640cf4844cbffdf22a8fda89f883386e45e3130",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed final-source dark account/Models focus frames and restored Playbook/Whats New layouts. Clear outlines and wrapped headings; dialogs/tools maintain borders and form alignment."
+    },
+    {
+      "file": "0080.png",
+      "sha256": "c66d465670dee30e141e19cc4b039c9635787d0c92f66891c95a69d69386de21",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed final-source dark account/Models focus frames and restored Playbook/Whats New layouts. Clear outlines and wrapped headings; dialogs/tools maintain borders and form alignment."
+    },
+    {
+      "file": "0081.png",
+      "sha256": "9ef3ef248cdd5f7cd3510e8763e7978a61eca74b950990447fdee2c4bf2de3e8",
+      "width": 1344,
+      "height": 2016,
+      "frames": 1,
+      "review": "Viewed final-source dark account/Models focus frames and restored Playbook/Whats New layouts. Clear outlines and wrapped headings; dialogs/tools maintain borders and form alignment."
+    },
+    {
+      "file": "0082.png",
+      "sha256": "542fc2071b127bef399e7baf1ab10eda9ef897fa96ec98f4437dba9acaac17d9",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed final-source high-contrast account/provider forms, tool/workflow records, Playbook and update pages; clear foreground outlines, contrast borders, narrow wrapping inspected."
+    },
+    {
+      "file": "0083.png",
+      "sha256": "5d1bb7976ac15bdc044b573abf9d6e6bdabbc7a9aa95f8a465ee565653639616",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed final-source high-contrast account/provider forms, tool/workflow records, Playbook and update pages; clear foreground outlines, contrast borders, narrow wrapping inspected."
+    },
+    {
+      "file": "0084.png",
+      "sha256": "8e875691ae5193f63f7756d556311c9531f322d2b75fcc8af442f9d510ef016d",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed final-source high-contrast account/provider forms, tool/workflow records, Playbook and update pages; clear foreground outlines, contrast borders, narrow wrapping inspected."
+    },
+    {
+      "file": "0085.png",
+      "sha256": "109255df68e516e9194d79a044c9216dc369ecfea18ad5d24270f7889516b6c3",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed final-source high-contrast account/provider forms, tool/workflow records, Playbook and update pages; clear foreground outlines, contrast borders, narrow wrapping inspected."
+    },
+    {
+      "file": "0086.png",
+      "sha256": "f48b58ab52b6598e72f24a1804c6d4876e701ab313e5ead59020c9e7bc7f0107",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed final-source high-contrast account/provider forms, tool/workflow records, Playbook and update pages; clear foreground outlines, contrast borders, narrow wrapping inspected."
+    },
+    {
+      "file": "0087.png",
+      "sha256": "d8921fce2b3fedc8079661fdac445f03c4e08a276eae0de1e81c0cc735d3471a",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Viewed final-source high-contrast account/provider forms, tool/workflow records, Playbook and update pages; clear foreground outlines, contrast borders, narrow wrapping inspected."
+    },
+    {
+      "file": "0088.png",
+      "sha256": "28865417a102977fc9d0ba8e77c72dcd6e2f82fc29ead6a6f19a80a990ac08c4",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Accounts dialogs/edit/swap: white focus outlines visible; narrow forms scroll, actions wrap."
+    },
+    {
+      "file": "0089.png",
+      "sha256": "ee2b41a5387a09ff99e06d2fc9d5097719251e35fbb6077dc93d7bafc8c3c672",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Threshold fields and agent receipt dialogs: labelled rows fit; narrow long content scrolls."
+    },
+    {
+      "file": "0090.png",
+      "sha256": "379496ff2ecfe0fd14aa22ce375b85b5acf6af88fd58717eca4b854eb3b89e0e",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Approval, best-of-N and history board: controls separated; code scroll retained."
+    },
+    {
+      "file": "0091.png",
+      "sha256": "b7941c79e9a226c7f7a008a95b1445d9ba599b3730cd2bc38f74805a15d3d770",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Sharing, radial menu, attachment chips and column approval: rings visible, pills fit viewport."
+    },
+    {
+      "file": "0092.png",
+      "sha256": "d689ef55d9a7de671b519708e3c2e775c82e7f969491a684a3c18210da7716eb",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Context meter and error fallback: status labels legible; reload/report controls bounded."
+    },
+    {
+      "file": "0093.png",
+      "sha256": "d7d3a3abb536afb8cd6fc64d66d5118d3d77d74d607d35fbdb77653052e15258",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Deferred loading, developer options and diff tally: honest loading states; form rows wrap."
+    },
+    {
+      "file": "0094.png",
+      "sha256": "81a39ae8baaf01d4f7e44d5a80fd9acb08a44e5fe79ef30984800a04bef99bce",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Elicitation, estimator and git draft: required labels and controls readable at both widths."
+    },
+    {
+      "file": "0095.png",
+      "sha256": "8c1ee688a6b5fa0e096f1c5299a6b4cf8ab5b3b4c72842308c23b8583f14046f",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Git draft, goal edit and handoff: focused inputs/buttons distinct; dialog text wraps."
+    },
+    {
+      "file": "0096.png",
+      "sha256": "4f51f7aa875e7379ffce708a3893ae1a98b184ed9fe75aeea6a2b6955f4b9250",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Help/archive menus, glyphs and legal dialog: narrow links/actions wrap; code scroll retained."
+    },
+    {
+      "file": "0097.png",
+      "sha256": "30ae3ae71866596dc1af3ca5191b563403c4166cc104f97f93b4911c5ca9dae4",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Media unavailable state, mentions and provider configure: honest errors, bounded controls."
+    },
+    {
+      "file": "0098.png",
+      "sha256": "a24ada19310b7105c2e2cb9bf55aacc16ac5b6e515d356ff6c3647e68b13edf7",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Models cards/picker/list: two-pixel foreground focus visible; action rows wrap; host borders weak F2."
+    },
+    {
+      "file": "0099.png",
+      "sha256": "94b4808d0481f01257eef59b992670b2aed82b9fb2305e4ebaa9e99b29845b18",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Models filters/table/test/undo: narrow table horizontal scrolling retained; focus visible."
+    },
+    {
+      "file": "0100.png",
+      "sha256": "4878f895b50708f2c92da13a3b6a265f878f0e60e3ac8b095d3817df19ecf091",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Model/mode popovers and shell rows: menu fits; command text uses scrolling."
+    },
+    {
+      "file": "0101.png",
+      "sha256": "c9a26b54c8a5bdd35966a5647186107bbb72242bf3537c43d9457ee995606254",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Folded tool bodies now present; workflow map and paid usage labels visible."
+    },
+    {
+      "file": "0102.png",
+      "sha256": "37bdc57f574baa9a2bbf199ecf29a6abb88221935a2e5c857969cef448ac3ade",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Paid/search usage and palette: disclosure values readable; list focus ring visible."
+    },
+    {
+      "file": "0103.png",
+      "sha256": "e127c35824288a4284703e1e293a0466730bfeee7632f1b32710efe36fffd309",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Playbook status contains real host reply; record text wraps; question labels/choices fit."
+    },
+    {
+      "file": "0104.png",
+      "sha256": "5830316fb3f5e45e976317d2a00a594093585bfe8fe9c22b18da5c84625e2d36",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Question forms/chips: narrow choices wrap; active question controls remain visible."
+    },
+    {
+      "file": "0105.png",
+      "sha256": "c598454f49b5f094bcec8de677f19a20c9483a08a7a5cce4aa55aca2ed287f29",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Question/quote menus and destinations: pills fit; reporting focus remains weak in One Dark Pro (F2)."
+    },
+    {
+      "file": "0106.png",
+      "sha256": "39f6ecdfa99747e6222ee43700f4eb3474dff7693897c613215a646b98b96217",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Reporting page, resource controls/history: history right-edge clipping persists at 320px (F1)."
+    },
+    {
+      "file": "0107.png",
+      "sha256": "556a55d1b3153d3f96c7cc5381b18617926129094118cf950d99a6561f53214d",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Review comments/findings/diffs: controls and badges readable; dense code scroll retained."
+    },
+    {
+      "file": "0108.png",
+      "sha256": "aab2aba806bad9adab59153af3c04a4c27da246749d52784353cb6090611572e",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Runner and schedule report forms: labelled fields bounded, long editors scroll."
+    },
+    {
+      "file": "0109.png",
+      "sha256": "06e8a96fac30a839ab98921c45090f0557b303d1db34cb6e11b42cccd0a6f9f7",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Schedule editor/list/timeline and secret prompt: rows fit; confirmation actions separated."
+    },
+    {
+      "file": "0110.png",
+      "sha256": "2db3ae41c37f8d00873ee172a0a0b4bb89a08730f3dca5b9801af3487ead04be",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Share, sign-in errors/install and slash menus: honest unavailable states, controls bounded."
+    },
+    {
+      "file": "0111.png",
+      "sha256": "ba3c89e3ec4b4d7b0df46b1347c386c22a178b0d11c111d890a8d1dc79c30fa0",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Heartbeat/stop, team cards and traffic hints/recovery: wrap and focus distinct."
+    },
+    {
+      "file": "0112.png",
+      "sha256": "9199b562f3638beaf27aa8c5469acb7153a40f93dc3febd0342d2486da0815f9",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Traffic recovery/task board and team tree: narrow actions wrap; indented receipts readable."
+    },
+    {
+      "file": "0113.png",
+      "sha256": "b6af228e354b91d2b68bd5cefae1659209f80bb01bb28c7e8b3c7e34f846419b",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Todo and expanded tool output: keyboard targets distinct; long code horizontally scrolls."
+    },
+    {
+      "file": "0114.png",
+      "sha256": "0be474511d0353643072eb4b58bf3c479e6bc2a22eb2c588ad3072d9cf7f87fa",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Traffic conflicts/lanes/leases/merge queue: controls fit, narrow details wrap."
+    },
+    {
+      "file": "0115.png",
+      "sha256": "26f40117f1443edd3d3689b7468c8eba846bc97302a46cdc13da18e698f3edbe",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Traffic metrics, transcript and usage attempt table: text legible; dense history scroll retained."
+    },
+    {
+      "file": "0116.png",
+      "sha256": "201a30e47133488752c680b2d9fa5b0688c6b767a26a56e83a1c4468f7ab2340",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Usage breakdown/burn/detail: cards reflow, chart focus ring and non-colour cues visible."
+    },
+    {
+      "file": "0117.png",
+      "sha256": "913d0a4f7cc49f3336d7348ad015f12faf980fdf6978d4027ff052cc731e4982",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Usage feature/limits/page: narrow facts stack, toolbar wraps; table scroll retained."
+    },
+    {
+      "file": "0118.png",
+      "sha256": "af122856fac7eaf0e8ef872975bf2cc0a77ceeef960b0c0688a41e477b136da9",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Usage share/stacked/token/limit charts: plot fits with intentional stripe cues."
+    },
+    {
+      "file": "0119.png",
+      "sha256": "9e659daf7b9d722d7079812aa3ec5ec961a448650dd771fc98d3f1435c12d3e9",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Usage modal and vault forms: masked details visible, long grants scroll."
+    },
+    {
+      "file": "0120.png",
+      "sha256": "570516509b306021e200424714c1708b5657d454d43870e0ddc69f2ac8e482de",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Vault panel and verification/tasks: masked detail and actions fit; narrow forms scroll."
+    },
+    {
+      "file": "0121.png",
+      "sha256": "0723c3a4ad14b6040bba3d50dd1cc415863c91b67b43754393b1c712d6dfc61b",
+      "width": 1344,
+      "height": 2016,
+      "frames": 26,
+      "review": "Update footer/highlights/page: final 320px title and paragraph wrapping restored."
+    },
+    {
+      "file": "0122.png",
+      "sha256": "651204491f1c70d629974b05a84c29ea7a94243cbf948cf456eace5c19c0a418",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Dracula accounts and thresholds: foreground focus visible; inherited input/border roles remain weak F2."
+    },
+    {
+      "file": "0123.png",
+      "sha256": "4e693ddbd0267d957eb95e13923bb142f83b418d8d0102bb6b0f0cb901a99903",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Dracula agent/approval/best-of-N/history: action groups separated and code scroll retained."
+    },
+    {
+      "file": "0124.png",
+      "sha256": "4cabf5169cb86c8de044a72eb16199d861c937a8cb585d4336ba19130de26db0",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Dracula sharing/radial menu/chips/column: pills bounded and focused targets distinct."
+    },
+    {
+      "file": "0125.png",
+      "sha256": "1540bca54f96a1773b625cbde1e2f43e2d938e522b6c488a3becb3fd3fa947c6",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Dracula context/error/deferred/developer/diff: status colours distinct; honest loading preserved."
+    },
+    {
+      "file": "0126.png",
+      "sha256": "a81eacbc5ab56608e390000fceb3ce5f95c6c1959775ec2efad284967d28cf53",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Dracula elicitation/estimator/git/goal: labelled forms wrap and keyboard focus visible."
+    },
+    {
+      "file": "0127.png",
+      "sha256": "58841361d142738e79785fc58c264c83f5ce9788227cc7b1dee4f66e281a7499",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Dracula goal/handoff/help/history/legal: long dialogs scroll; links/actions fit."
+    },
+    {
+      "file": "0128.png",
+      "sha256": "dc0a1d1b08f6620bc228363592d2c6e126672fb56d6e6b2e8f67ad8f868271a4",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Dracula markdown/media/provider forms: honest unavailable/error state, controls bounded."
+    },
+    {
+      "file": "0130.png",
+      "sha256": "8b73cd8a46e3d2b4c5ad644a6160a2fb03c0d8bc49f28ece961d57e6e64c0de3",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Dracula provider test/undo, menus and shell: focus rings clear, actions bounded."
+    },
+    {
+      "file": "0131.png",
+      "sha256": "77633d72428bb822020c116f920f7fd355e6d5b5dc6041ffaa1ff7b4d554f8b0",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Dracula folded tools/workflow/paid usage: real tool bodies and labelled spending visible."
+    },
+    {
+      "file": "0132.png",
+      "sha256": "2f2eccde381201355d2d58ff7fdf9a0a8843550894ffb5a69e8e462ce3f495cc",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Dracula palette/Playbook/questions: host status populated; selection/focus distinct."
+    },
+    {
+      "file": "0133.png",
+      "sha256": "71eb8532caaae40cdc5f0a3836a9596362429aefcf199f9555202f0f36387faf",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Dracula question/quote/destination/report/resource: controls wrap; F1 clipping and F2 role weakness retained."
+    },
+    {
+      "file": "0134.png",
+      "sha256": "f2aa820818ec11f4b7113e152ea10c3ca6b7b14743542db75148f5d69fcc8382",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Dracula resources/review/runners/schedule report: real surfaces present; dense code scroll retained."
+    },
+    {
+      "file": "0135.png",
+      "sha256": "794809732002e422caf69a1a76424752ce5d05d77b6e303d0474c8d68759d58f",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Dracula schedules/secret/setup/sign-in/stop: status and errors legible; long forms scroll."
+    },
+    {
+      "file": "0136.png",
+      "sha256": "331e89e9528ae7d8dfa96d7e431c3973c354ab51ba673f8fbdebbb11d06e025a",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Dracula traffic/tree/todo/tool/transcript/API usage: narrow labels fit; code scroll retained."
+    },
+    {
+      "file": "0137.png",
+      "sha256": "58001c205cb48a892a0f275fbf53402d2d1f4d000fa43f5f87aae9452c45b09b",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Dracula metric cards and tables: readable labels; small plot focus and state cues remain."
+    },
+    {
+      "file": "0138.png",
+      "sha256": "2414a523bedc8dcf7a002311dcb68cfe2aa1ae358b84170f83b7f46fcde61e66",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Dracula usage attempts/breakdown/burn/detail/page/charts: facts stack, dense tables scroll; stripe cues retained."
+    },
+    {
+      "file": "0139.png",
+      "sha256": "9ce5253e5190ced9dc47709d21d0ea7f4adbb4d99debf2113747d2925babf458",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Dracula usage/vault/verify/tasks/update footer: forms/actions fit; long bodies scroll."
+    },
+    {
+      "file": "0140.png",
+      "sha256": "b0a93616786e28b9fa7639ce18f610662a4c2b28713300233007a81205a50c21",
+      "width": 1344,
+      "height": 2016,
+      "frames": 13,
+      "review": "Dracula update highlights/page: title wraps at 320px; footer links remain readable."
+    },
+    {
+      "file": "0141.png",
+      "sha256": "57a8f5e43c267a94db36d7ffff2e02a6210c9fae636a28a44f002f037565cfa7",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Dracula 690px runners/schedules/secret/setup/sign-in: labelled fields and action rows fit."
+    },
+    {
+      "file": "0142.png",
+      "sha256": "8bec9679c3a6f88a15e77fecdbf77ccf329d15c2796319fd8316776d1b5fd06c",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Dracula 690px traffic/team/tree/todo/tools: wrapped detail and independent actions legible."
+    },
+    {
+      "file": "0143.png",
+      "sha256": "3b17b6057cc42ab0b93ad75bc07b0a7248a3a4c2db3ff280cdae6f8a166363c1",
+      "width": 1344,
+      "height": 2016,
+      "frames": 42,
+      "review": "Dracula 690px usage facts/tables/charts: plot focus and redundant non-colour stripes visible."
+    },
+    {
+      "file": "0144.png",
+      "sha256": "a9b56f156f831b19e8233165ab041faa0f902b84c27adf7acd80e40bdd6c6c0f",
+      "width": 1344,
+      "height": 2016,
+      "frames": 34,
+      "review": "Dracula 690px vault/verify/tasks/update: real details present, footer and highlights fit."
+    },
+    {
+      "file": "d0000.png",
+      "sha256": "27cb502b3b710939668b9163bb398757a6909bc2b0a2a4c0d5dddf3204d35904",
+      "width": 1344,
+      "height": 2016,
+      "frames": 102,
+      "review": "Accounts edit/swap: token focus ring visible in all themes; picker boundary clear in Dracula (purple), faint in One Dark Pro (R1); no overlap, long forms scroll."
+    },
+    {
+      "file": "d0001.png",
+      "sha256": "0f3b696ceb4d3ed50b23d754a01ee4078d3a815ccd3add43310e43e7482ec266",
+      "width": 1344,
+      "height": 2016,
+      "frames": 62,
+      "review": "Accounts thresholds: fieldset boundaries and token focus ring visible; One Dark Pro faint (R1). Agents details: rasterization noise only, layout unchanged."
+    },
+    {
+      "file": "d0002.png",
+      "sha256": "e5d544caccca112d7f0f271163073caacb2d283b9c896323c420410e58e20664",
+      "width": 1344,
+      "height": 2016,
+      "frames": 65,
+      "review": "Agents, approvals, best-of-N, chat sharing: rasterization noise only (at most 2 pixels over 10% delta); layouts, wrapping and focus unchanged."
+    },
+    {
+      "file": "d0003.png",
+      "sha256": "c92a83fce8a1809e9e9878b17ca32415da72368ac8d2928ed78489c0263b9aad",
+      "width": 1344,
+      "height": 2016,
+      "frames": 62,
+      "review": "Chat sharing, tool menu, chips, column, context meter, deferred popover, diff tally: noise only; deferred-popover hover shows its deferred Loading fallback exactly as the LEFT017B receipt did."
+    },
+    {
+      "file": "d0004.png",
+      "sha256": "0836a729b558e5d4873c54c5ae7a7c9ef167490038b7176f7644266533b7d0eb",
+      "width": 1344,
+      "height": 2016,
+      "frames": 47,
+      "review": "Diff tally, elicitation, git PR: noise only; narrow forms wrap and focus stays visible."
+    },
+    {
+      "file": "d0005.png",
+      "sha256": "4d732ad851a1b6a1a16c9dc9be3fdb39a24608e899b8935827bffa63425f35a1",
+      "width": 1344,
+      "height": 2016,
+      "frames": 70,
+      "review": "Goal, handoff, help, history, judge, legal, media controls, Models configure: noise only except Models configure (token boundary/focus; One Dark Pro R1)."
+    },
+    {
+      "file": "d0006.png",
+      "sha256": "2517e48d161ebc217d06a5207ab2494dc0bd7e3b96eb13fae586b85d0a8ce723",
+      "width": 1344,
+      "height": 2016,
+      "frames": 78,
+      "review": "Models configure/credential: Dracula card and button boundaries clear; token focus ring on Back/Providers visible in all themes; One Dark Pro buttons read as bare labels (R1); narrow actions wrap."
+    },
+    {
+      "file": "d0007.png",
+      "sha256": "5bced49af60c840e323cee0812cf9aa0d89c135a7f89ac7b17bedb7ffd85e4f6",
+      "width": 1344,
+      "height": 2016,
+      "frames": 150,
+      "review": "Models credential/errors/models: token focus and Dracula boundaries visible; error notice readable; One Dark Pro boundary faint (R1); no clipping at 320."
+    },
+    {
+      "file": "d0008.png",
+      "sha256": "43724a7a64e5a75d0b178b8704f8bd1d68c9a296b130fd23a5e0543e25422f1b",
+      "width": 1344,
+      "height": 2016,
+      "frames": 69,
+      "review": "Models models/pick: provider pick pills, select list and focus ring visible in all themes; One Dark Pro boundary faint (R1)."
+    },
+    {
+      "file": "d0009.png",
+      "sha256": "2cc6e4f1d8924fa7ec068b0c2eedce73d33147e01a1a20c6a27f08480f56868b",
+      "width": 1344,
+      "height": 2016,
+      "frames": 76,
+      "review": "Models pick/providers/scanning: Refresh models focus ring clear in all themes; Dracula boundaries clear; One Dark Pro faint (R1)."
+    },
+    {
+      "file": "d0010.png",
+      "sha256": "154e133e3d7ad7e42994a9e017d20f5f150a50734a1cd492e4890dd681d3f348",
+      "width": 1344,
+      "height": 2016,
+      "frames": 79,
+      "review": "Models scanning/suggestions: Cancel/Accept/Change and focus ring visible; suggestion card fits at 320; One Dark Pro faint (R1)."
+    },
+    {
+      "file": "d0011.png",
+      "sha256": "1fc0c8b1ea70fc140d196a9995e922b3c059f856d92ecff71eba01bc80d23074",
+      "width": 1344,
+      "height": 2016,
+      "frames": 53,
+      "review": "Models suggestions/table: table reflows to cards at 320 and stays dense at 690; search field focus ring visible; One Dark Pro faint (R1)."
+    },
+    {
+      "file": "d0012.png",
+      "sha256": "968536e2fb2b85b0818d9e12324be402b6014ebeef2243c0c221f872bce35fbb",
+      "width": 1344,
+      "height": 2016,
+      "frames": 88,
+      "review": "Models table/test-cost/undo: cost notice and undo bar readable; token focus ring visible; One Dark Pro faint (R1)."
+    },
+    {
+      "file": "d0013.png",
+      "sha256": "8b2eda8d4f8e1b0b37ca9dec8a06d1e93564bb18f4bd40314885b65de3f4ea3f",
+      "width": 1344,
+      "height": 2016,
+      "frames": 48,
+      "review": "Models undo: Undo focus ring visible in all themes. Chat models menu and muse-shell: noise only."
+    },
+    {
+      "file": "d0014.png",
+      "sha256": "92b41c61dbb708e0e50998d9d20658f6a3b8d3254442905fd9933dc34c1aeb71",
+      "width": 1344,
+      "height": 2016,
+      "frames": 46,
+      "review": "Muse shell, workflow map, paid-always: noise only; account dialog facts present, layouts unchanged."
+    },
+    {
+      "file": "d0015.png",
+      "sha256": "794d42260db07686b2255d8b3d82bcb0c30cb538c85100e7da9e2c53c73fa1f9",
+      "width": 1344,
+      "height": 2016,
+      "frames": 61,
+      "review": "Paid usage, plan usage, prompt library, question-filled: noise only. Palette 320: raced focus-scroll offset (superseded by the settled-scroll capture); list, filter and composer within viewport."
+    },
+    {
+      "file": "d0016.png",
+      "sha256": "5483b5fca9456f3661b4d05344699cd055760a68879a7f64394259031f1acd35",
+      "width": 1344,
+      "height": 2016,
+      "frames": 46,
+      "review": "Question and question-filled: noise only; choices, input and Submit/Explain/Cancel visible, narrow forms wrap."
+    },
+    {
+      "file": "d0017.png",
+      "sha256": "4247a8cb8c8df133fed282a0b62ee831c31b8c24fc809d238b8e8f013dc6b4e0",
+      "width": 1344,
+      "height": 2016,
+      "frames": 73,
+      "review": "Question/questions-open noise only. Quote menu: settled pills open at the selected passage and stay within the viewport at 320/690 in every theme; focus and hover visible."
+    },
+    {
+      "file": "d0018.png",
+      "sha256": "97d2a9d6e7f3f537665493fd38c0a59c4fcfacfaf94f81143cbf0d6eac8539e2",
+      "width": 1344,
+      "height": 2016,
+      "frames": 55,
+      "review": "Quote menu settled. Reporting page: token focus ring on Show report clear in all six themes (F2 fixed). Report destinations, report dialogs, review comment/findings: noise only. Runners: secondary buttons."
+    },
+    {
+      "file": "d0019.png",
+      "sha256": "c05da257edc345c95a0db1cced10a6eddb7ea9538db1665700c4e60e117f6787",
+      "width": 1344,
+      "height": 2016,
+      "frames": 65,
+      "review": "Runners: Add runner/Test runners/Save/Cancel use the secondary-button role, field focus ring visible, One Dark Pro boundary faint (R1). Schedule action and schedules: noise only."
+    },
+    {
+      "file": "d0020.png",
+      "sha256": "0244960dc6c85cc7f67a77f01d09395407e2d2e6269497f9eef05420fb05dbb0",
+      "width": 1344,
+      "height": 2016,
+      "frames": 131,
+      "review": "Schedules editor/list/timeline, secret, setup preview: noise only. Share-narrow: settled highlighted code in most themes (raced frames superseded by the settled-highlight capture)."
+    },
+    {
+      "file": "d0021.png",
+      "sha256": "6ae21431048bed5074860c9521b18f391e974d0577e392aecca92b09eeb517e8",
+      "width": 1344,
+      "height": 2016,
+      "frames": 107,
+      "review": "Heartbeat, stop-running: noise only. Team cards at 320: noise only, but the merge card's path lists squeeze to per-character wrapping (pre-existing finding F4)."
+    },
+    {
+      "file": "d0022.png",
+      "sha256": "b7c7efb4b7600f4951c4ce12962c017bed66b640dc10d21ba0d27707efe7b51e",
+      "width": 1344,
+      "height": 2016,
+      "frames": 54,
+      "review": "Team traffic hints: Open that window buttons use the secondary-button role; token focus ring clear in all themes; selected tab keeps the accent; One Dark Pro fill faint (R1)."
+    },
+    {
+      "file": "d0023.png",
+      "sha256": "24d997e6f3176551e09a0762332f8f38b9417594be6ca7060e1322be32250e56",
+      "width": 1344,
+      "height": 2016,
+      "frames": 75,
+      "review": "Team traffic hints/recovery: Continue here/Open that window/Take over/Stop process secondary buttons with visible focus; checkbox focus visible; narrow rows wrap."
+    },
+    {
+      "file": "d0024.png",
+      "sha256": "eb6d9d6169def529b1a48bc4d7aa4eaf82af8e1f688876a25fa663a73ec0f6d4",
+      "width": 1344,
+      "height": 2016,
+      "frames": 55,
+      "review": "Team traffic task board: Run next/Hold/Release/Cancel task draw as secondary buttons (fixed traffic finding); focus ring clear; selected tab accent kept; One Dark Pro fill faint (R1)."
+    },
+    {
+      "file": "d0025.png",
+      "sha256": "864d77d47144177b7d392bc60cd7736edac2d1474ae7db95767cfc9d34cc555e",
+      "width": 1344,
+      "height": 2016,
+      "frames": 73,
+      "review": "Team traffic and traffic conflicts: Serialize/Let both run secondary buttons with focus ring; team tree and tools-open noise only."
+    },
+    {
+      "file": "d0026.png",
+      "sha256": "06bcd3cae01a9ef8b65c12e67b1e337c7c54916c0968417780690f4e0c7e3080",
+      "width": 1344,
+      "height": 2016,
+      "frames": 120,
+      "review": "Traffic conflicts/lanes/leases: lane meters intact; Take back/Restart server/Release anyway secondary buttons with focus ring; selected tab accent kept."
+    },
+    {
+      "file": "d0027.png",
+      "sha256": "85f7689c356f5c424d2aa52463c764a6031479592e6c0fbcaf75ad7de113eba4",
+      "width": 1344,
+      "height": 2016,
+      "frames": 80,
+      "review": "Traffic leases/merge queue: Retry/Remove/Land now/Clean up secondary buttons wrap at 320 with visible focus; usage-api noise only."
+    },
+    {
+      "file": "d0028.png",
+      "sha256": "c5316d84e69cd67beed4cee7ec37a0996d1111d4840303903427568f56e26fdb",
+      "width": 1344,
+      "height": 2016,
+      "frames": 73,
+      "review": "Usage api/providers/steps/tokens noise only. Usage dialog: raced frames without account facts (superseded by the settled-facts capture)."
+    },
+    {
+      "file": "d0029.png",
+      "sha256": "ba76a9d7f40ca14d5cbe1a033d403aad7388d4acd2e60784af6d34121044ffd5",
+      "width": 1344,
+      "height": 2016,
+      "frames": 74,
+      "review": "Usage dialog raced frames (superseded); vault approval/grant, verify, tasks tab: noise only."
+    },
+    {
+      "file": "d0030.png",
+      "sha256": "91939a73fcfbff522be5196c77819808ee1a6dad3c6356e3a309d008cd86fcdc",
+      "width": 1344,
+      "height": 2016,
+      "frames": 27,
+      "review": "Tasks tab and What's New highlights: noise only; Move into new window focus visible, highlights wrap at 320."
+    },
+    {
+      "file": "e0000.png",
+      "sha256": "074b84694784079725af756f90b105b86656fb961d82a2efc585ad2068c1976b",
+      "width": 1344,
+      "height": 2016,
+      "frames": 51,
+      "review": "Approvals, sharing, tool menu, column, context meter, deferred popover, diff tally, elicitation, goal, handoff: rasterization noise only (at most 5 pixels over 10% delta); layouts and focus unchanged."
+    },
+    {
+      "file": "e0001.png",
+      "sha256": "fcc1488329f751218547d1d1ce8032a1125ba76fd318121492ad3628743d54de",
+      "width": 1344,
+      "height": 2016,
+      "frames": 111,
+      "review": "Handoff, help, history, judge, legal, markdown noise only. Models configure/credential/errors: token focus ring visible, Dracula boundaries clear, One Dark Pro boundary faint (R1); narrow actions wrap."
+    },
+    {
+      "file": "e0002.png",
+      "sha256": "1b718f9ce6204dcea5bb7ec561aee82388d4c7e9689cb362dce15742d4b5fde6",
+      "width": 1344,
+      "height": 2016,
+      "frames": 87,
+      "review": "Models errors/models/pick: provider cards, pick pills, select list and token focus ring visible in all themes; One Dark Pro boundary faint (R1)."
+    },
+    {
+      "file": "e0003.png",
+      "sha256": "eee0de1d260b6c68c3ae1f635e2d59be63a1084408466db59c441a452ad1fc42",
+      "width": 1344,
+      "height": 2016,
+      "frames": 76,
+      "review": "Models suggestions/table/test-cost: table reflows to cards at 320, cost notice readable, token focus ring visible; One Dark Pro boundary faint (R1)."
+    },
+    {
+      "file": "e0004.png",
+      "sha256": "115c2d1fa86b29c4250ccccfd3cdaf30b1a3f5bb631abdb5301e40c17f545347",
+      "width": 1344,
+      "height": 2016,
+      "frames": 51,
+      "review": "Models test-cost, chat models menu, muse-shell, workflow map, paid-always: noise only. Palette: settled focus scroll, filter and list within viewport, selected row and focus visible."
+    },
+    {
+      "file": "e0005.png",
+      "sha256": "665db6a9635d5245be1bd2539e5afb8065798736b84c258794530f4cd3a70c8c",
+      "width": 1344,
+      "height": 2016,
+      "frames": 65,
+      "review": "Palette: settled focus scroll in all themes and states; filter focus ring and selected row visible, no clipping at 320. Question-filled: noise only."
+    },
+    {
+      "file": "e0006.png",
+      "sha256": "afb55c5ac1cacb048be5cb9e613e1e96a1c23e93dd2c75174d47310c5a97c0c1",
+      "width": 1344,
+      "height": 2016,
+      "frames": 88,
+      "review": "Questions, quote menu, review, schedules, secret, setup preview, heartbeat: noise only. Share-narrow: settled highlighted code, text wraps, Copy and close visible."
+    },
+    {
+      "file": "e0007.png",
+      "sha256": "8d8e0587ed7731bbc55f7464ed668324b69b3c289c72d4787915f65a05bc1f2f",
+      "width": 1344,
+      "height": 2016,
+      "frames": 73,
+      "review": "Stop-running, team cards, tools-open, traffic hints/merge queue: noise only; traffic secondary buttons and focus ring unchanged from the reviewed d-sheets."
+    },
+    {
+      "file": "e0008.png",
+      "sha256": "c8ce9edfa5e17f6fa9779b1ba04b115084a60256fc3c05a670d831d5b45f03f7",
+      "width": 1344,
+      "height": 2016,
+      "frames": 52,
+      "review": "Usage api/burn/limits/steps/tokens and usage page: noise only, focused charts keep their ring. Usage dialog: settled account facts (Auth method, Plan, Backend) present."
+    },
+    {
+      "file": "e0009.png",
+      "sha256": "be9030406ee8d01df5924f64b7bfae8a30a39a6445ac3ea7589fc6af1d4e6c55",
+      "width": 1344,
+      "height": 2016,
+      "frames": 74,
+      "review": "Usage dialog: settled account facts in every theme and state, narrow rows wrap. Vault approval/grant: noise only."
+    },
+    {
+      "file": "e0010.png",
+      "sha256": "c9c7720ba6b350685414bb4915f621a8f0b728cf171f780a0dc4fd17ba6a45c0",
+      "width": 1344,
+      "height": 2016,
+      "frames": 15,
+      "review": "Vault grant, verify, tasks tab: noise only; focus rings and Move into new window visible."
+    }
+  ]
+}

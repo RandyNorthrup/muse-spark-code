@@ -1269,6 +1269,17 @@ class AcpSession {
     return agentListingText(latest.items, Date.now())
   }
 
+  private cancelPreparing(): boolean {
+    const preparing = this.preparing
+    if (preparing === undefined) return false
+    preparing.isCancelled = true
+    preparing.reportAbort?.abort()
+    preparing.abandonElicitation?.()
+    preparing.abort.abort()
+    this.preparing = undefined
+    return true
+  }
+
   public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
     const pending = this.pending
     const preparing = this.preparing
@@ -1966,12 +1977,7 @@ class AcpSession {
   public async cancel(): Promise<void> {
     this.legalStop?.abort()
     this.cancelVaultRequests()
-    if (this.preparing !== undefined) {
-      this.preparing.isCancelled = true
-      this.preparing.reportAbort?.abort()
-      this.preparing.abandonElicitation?.()
-      this.preparing.abort.abort()
-      this.preparing = undefined
+    if (this.cancelPreparing()) {
       this.deps.log.info(`ACP session ${this.sessionId}: cancelled before its turn started`)
     }
     if (this.pending === undefined && this.activeTurnId === undefined) {
@@ -2051,13 +2057,7 @@ class AcpSession {
     if (this.questions === undefined) this.questionRegistry?.dispose()
     this.accounts?.dispose()
     this.cancelVaultRequests()
-    if (this.preparing !== undefined) {
-      this.preparing.isCancelled = true
-      this.preparing.reportAbort?.abort()
-      this.preparing.abandonElicitation?.()
-      this.preparing.abort.abort()
-      this.preparing = undefined
-    }
+    this.cancelPreparing()
     const wasRunning = this.pending !== undefined || this.activeTurnId !== undefined
     this.pending?.resolve('cancelled')
     this.pending = undefined

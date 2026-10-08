@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { build } from 'esbuild'
+import { additionalScenes, makeAdditionalFixtures } from './additionalFixtures.mjs'
 const fixtureSource = [
   "import React, {lazy} from 'react';",
   "import {createRoot} from 'react-dom/client';",
@@ -22,6 +23,7 @@ const fixtureSource = [
   "createRoot(globalThis.document.getElementById('root')).render(content);",
 ].join('\n')
 export const fixtureScenes = new Set([
+  ...Object.keys(additionalScenes),
   'crash',
   'secret',
   'icons',
@@ -33,6 +35,7 @@ export async function makeFixtures(auditRoot, port) {
   const relative = `temp/m114-s-fixtures-${port}`
   const directory = path.join(auditRoot, relative)
   await mkdir(directory, { recursive: true })
+  await makeAdditionalFixtures(auditRoot, directory)
   await build({
     stdin: { contents: fixtureSource, resolveDir: auditRoot, loader: 'jsx' },
     outfile: path.join(directory, 'fixtures.js'),
@@ -46,22 +49,29 @@ export async function makeFixtures(auditRoot, port) {
     `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>M114 component fixture</title><link rel="stylesheet" href="/dist/webview/main.css"></head><body><main id="root"></main><script src="fixtures.js"></script></body></html>`,
   )
   await build({
-    entryPoints: ['src/host/whatsNew/whatsNewHtml.ts'],
+    stdin: {
+      contents:
+        "export { renderWhatsNewPage } from './src/host/whatsNew/whatsNewHtml'; export { parseWhatsNewContent } from './src/core/whatsNew/whatsNewContent';",
+      resolveDir: auditRoot,
+      loader: 'ts',
+    },
     absWorkingDir: auditRoot,
     outfile: path.join(directory, 'whatsNew.mjs'),
     bundle: true,
     platform: 'node',
     format: 'esm',
   })
-  const { renderWhatsNewPage } = await import(
+  const { renderWhatsNewPage, parseWhatsNewContent } = await import(
     pathToFileURL(path.join(directory, 'whatsNew.mjs')).href
   )
   const { writeWhatsNewContent } = await import(
     pathToFileURL(path.join(auditRoot, 'scripts/lib/whatsNewContent.mjs')).href
   )
   writeWhatsNewContent(auditRoot)
-  const content = JSON.parse(await readFile(path.join(auditRoot, 'dist/whatsNew.json'), 'utf8'))
-  const releases = Array.isArray(content) ? content : content.releases
+  const content = parseWhatsNewContent(
+    await readFile(path.join(auditRoot, 'dist/whatsNew.json'), 'utf8'),
+  )
+  const releases = content.releases
   const rendered = renderWhatsNewPage({
     releases: releases.filter((entry) => entry.version !== 'Unreleased').slice(0, 1),
     from: undefined,

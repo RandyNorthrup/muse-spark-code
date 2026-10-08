@@ -350,3 +350,12 @@ describe('report snapshot and output scrub', () => {
     expect(scrub('https://example.invalid/page')).toBe('https://example.invalid/page')
   })
 })
+
+it.each(['/srv/work[1]+(test)', '/srv/work.*?^$|{name}', '/srv/work(unclosed['])(
+  'escapes every report-root regex operator as literal text: %s',
+  (workspaceRoot) => {
+    const scrub = reportScrubber({ workspaceRoot })
+    expect(scrub(`${workspaceRoot}/src/main.ts`)).toBe('./src/main.ts')
+    expect(scrub('/srv/work111test/src/main.ts')).not.toContain('./')
+  },
+)

@@ -27,7 +27,7 @@
   min-height: 24px;
   color: var(--vscode-input-foreground);
   background: var(--vscode-input-background);
-  border: 1px solid var(--vscode-input-border);
+  border: 1px solid var(--ms-boundary);
 }
 
 .account-actions,
@@ -53,8 +53,8 @@
 
 .accounts-section :focus-visible,
 .account-picker:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: 2px;
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
 }
 
 .accounts-section button:disabled,

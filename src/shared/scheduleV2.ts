@@ -48,11 +48,17 @@ const clockTime = z.strictObject({
 })
 const times = z.array(clockTime).check(z.minLength(1), z.maxLength(SCHEDULE_MAX_WEEKLY_TIMES))
 
+// Zone validity is process-stable. Keep one successful result, never caller
+// objects or invalid input; repeated journal parses avoid constructing Intl.
+const validatedScheduleZone: { value?: string } = {}
 export const scheduleZoneSchema = z.string().check(
   z.refine((zone) => {
+    if (zone === validatedScheduleZone.value) return true
     try {
       new Intl.DateTimeFormat('en', { timeZone: zone })
-      return !/^[+-]/.test(zone)
+      if (/^[+-]/.test(zone)) return false
+      validatedScheduleZone.value = zone
+      return true
     } catch {
       return false
     }

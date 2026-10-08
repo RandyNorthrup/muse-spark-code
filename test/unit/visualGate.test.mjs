@@ -252,10 +252,17 @@ describe('M114 bounded pixelmatch visual gate', () => {
     const reviewed = JSON.parse(readFileSync('test/harness/goldens/manifest.json', 'utf8'))
     const complete = [1, 2, 3, 4, 5, 6].flatMap((index) => {
       const partition = selectVisualShard(reviewed, { index, count: 6 })
-      expect(partition).toHaveLength(804)
+      expect(partition).toHaveLength(reviewed.captures.length / 6)
       return partition.map((capture) => captureKey(capture))
     })
-    expect(new Set(complete).size).toBe(4824)
+    const currentAudit = JSON.parse(readFileSync('docs/certification/m114-audit.json', 'utf8'))
+    const currentMatrix = JSON.parse(readFileSync('test/harness/visual-matrix.json', 'utf8'))
+    expect(new Set(complete).size).toBe(
+      currentAudit.scenes.length *
+        currentMatrix.states.length *
+        currentMatrix.themes.length *
+        currentMatrix.widths.length,
+    )
     expect(complete.toSorted((a, b) => a.localeCompare(b))).toEqual(
       reviewed.captures
         .map((capture) => captureKey(capture))
@@ -420,6 +427,7 @@ describe('M114 bounded pixelmatch visual gate', () => {
         'ACCESSIBILITY',
         'INTEGRATION',
         'HELPER',
+        'LINUX_HELPER',
         'PACKAGES',
         'SECRETS',
         'SAST',

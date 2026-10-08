@@ -1,12 +1,14 @@
 // Actual webview components behind the existing test-only fake host.
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
 import { chromium } from 'playwright-core'
 import { findChrome } from '../../../scripts/lib/chrome.mjs'
-import { serveRepo } from '../../../scripts/lib/harnessServer.mjs'
+import { bundleFor, serveRepo } from '../../../scripts/lib/harnessServer.mjs'
 import { ARCHIVE_BUDGET, digest } from '../../../scripts/lib/visualImages.mjs'
 import { captureGroup, surfaceForScene } from '../../../scripts/lib/visualManifest.mjs'
 import { fixtureScenes, makeFixtures } from './fixtures.mjs'
+import { additionalScenes } from './additionalFixtures.mjs'
 
 export const CAPTURE_CONTEXT = Object.freeze({
   viewport: { width: 690, height: 760 },
@@ -35,9 +37,23 @@ export async function rasterizationFingerprint(context) {
   }
 }
 
+async function waitForPaint(page, selector) {
+  // Chunk requests use real I/O; React's Suspense retry uses the frozen clock.
+  const target = page.locator(selector).first()
+  for (let attempt = 0; attempt < 100 && !(await target.isVisible()); attempt += 1) {
+    await page.clock.runFor(100)
+    await delay(10)
+  }
+  if (!(await target.isVisible())) throw new Error(`Missing painted selector: ${selector}`)
+}
+
 async function openScene(page, root, port, scene, theme, width, height, fixtures) {
-  let resource = `test/harness/index.html?scenario=${width === 320 ? scene : scene.replace(/-narrow$/, '')}&theme=${theme}`
+  let resource = `test/harness/index.html?scenario=${width === 320 ? scene : scene.replace(/-narrow$/, '')}&theme=${theme}&bundle=${bundleFor(scene)}`
   if (fixtureScenes.has(scene)) resource = `${fixtures}/index.html?scene=${scene}`
+  if (Object.hasOwn(additionalScenes, scene)) {
+    const [entry, params] = additionalScenes[scene]
+    resource = `${fixtures}/${entry}.html?${params}&theme=${theme}`
+  }
   if (scene.startsWith('whats-new'))
     resource = `${fixtures}/${scene === 'whats-new-highlights' ? 'whats-new-highlights' : 'whats-new'}.html`
   await page.setViewportSize({ width, height })
@@ -46,9 +62,10 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
   // Scenario timers must start after React's initial layout effects commit;
   // advancing a frozen clock before mount races the composer's row fitting.
   if (!fixtureScenes.has(scene) && !scene.startsWith('whats-new'))
-    await page.waitForSelector('textarea,.gate,.todo-surface,.schedule-v2-surface,[role=alert]', {
-      state: 'attached',
-    })
+    await waitForPaint(
+      page,
+      'textarea,.gate,.todo-surface,.schedule-v2-surface,.models-panel,.usage-page,.traffic-view,[role=alert]',
+    )
   const fixture = JSON.parse(
     await readFile(path.join(root, `test/harness/themes/${theme}.json`), 'utf8'),
   )
@@ -56,6 +73,8 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
     ({ fixture, width }) => {
       const html = globalThis.document.documentElement
       html.style.width = `${width}px`
+      // Match the viewport's available width even on pages with body padding.
+      globalThis.document.body.style.boxSizing = 'border-box'
       globalThis.document.body.style.width = `${width}px`
       for (const [name, value] of Object.entries(fixture.variables))
         html.style.setProperty(name, value)
@@ -70,15 +89,61 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
     { fixture, width },
   )
   await page.clock.runFor(6500)
+  if (scene === 'playbook-status') await waitForPaint(page, '.playbook-record')
+  if (scene.startsWith('traffic-')) {
+    await waitForPaint(page, '.traffic-tabs')
+    await page.locator(`.traffic-tabs button[id$="-${scene.slice('traffic-'.length)}"]`).click()
+    await page.clock.runFor(100)
+  }
+  for (const [name, selector, label] of [
+    ['accounts-edit', '.accounts-section button', 'Edit'],
+    ['accounts-thresholds', '.accounts-section button', 'Edit'],
+    ['vault-grant', '.vault-actions button', 'Create grant'],
+    ['resource-controls', '.resource-chip', undefined],
+  ]) {
+    if (scene !== name) continue
+    await waitForPaint(page, selector)
+    const buttons = page.locator(selector)
+    if (label === undefined) await buttons.first().click()
+    else
+      await buttons
+        .filter({ hasText: new RegExp(`^${label}$`) })
+        .first()
+        .click()
+    await page.clock.runFor(100)
+  }
   await page.evaluate(() => globalThis.document.fonts.ready)
   const hasStyles = await page.evaluate(() =>
     globalThis.getComputedStyle(globalThis.document.body).fontFamily.includes('Segoe UI'),
   )
   if (!hasStyles) throw new Error(`Stylesheet failed to load: ${scene}/${theme}/${width}`)
-  if (!fixtureScenes.has(scene))
-    await page.waitForFunction(
-      () => globalThis.document.querySelector('[data-deferred-loading]') === null,
-    )
+  if (!fixtureScenes.has(scene)) {
+    for (
+      let attempt = 0;
+      attempt < 100 && (await page.locator('[data-deferred-loading]').count()) > 0;
+      attempt += 1
+    ) {
+      await page.clock.runFor(100)
+      await delay(10)
+    }
+    if ((await page.locator('[data-deferred-loading]').count()) > 0)
+      throw new Error(`Deferred renderer did not settle: ${scene}`)
+  }
+  // Two lazy renderers sit behind fallbacks the loop above cannot see: code
+  // highlighting falls back to identical plain markup, and the usage dialog's
+  // account facts fall back to nothing. Capture their settled render.
+  if (scene === 'share' || scene === 'share-narrow')
+    await waitForPaint(page, '.code-block-body code.hljs [class^="hljs-"]')
+  if ((await page.locator('h3.usage-heading', { hasText: /^Account$/ }).count()) > 0) {
+    await waitForPaint(page, 'dl.usage-facts dt:text-is("Auth method")')
+    // Its status and usage rows also load lazily behind "Reading usage…".
+    const reading = page.locator('[role="status"]', { hasText: /^Reading usage…$/ })
+    for (let attempt = 0; attempt < 100 && (await reading.count()) > 0; attempt += 1) {
+      await page.clock.runFor(100)
+      await delay(10)
+    }
+    if ((await reading.count()) > 0) throw new Error(`Usage rows did not settle: ${scene}`)
+  }
   if (
     [
       'muse-tools',
@@ -91,6 +156,8 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
     ].includes(scene)
   ) {
     for (const selector of ['.steps-toggle', '.tool-toggle', '.workflow-header']) {
+      // The folded tools chunk arrives after the steps group's first paint.
+      if (scene === 'muse-tools' && selector === '.tool-toggle') await waitForPaint(page, selector)
       await page.locator(`${selector}[aria-expanded="false"]`).evaluateAll((buttons) => {
         for (const button of buttons) button.click()
       })
@@ -116,9 +183,56 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
     // Native layout delivers ResizeObserver; the frozen clock runs its RAF.
     await page.clock.runFor(100)
   }
-  if (scene === 'verify') await page.locator('.then-run').scrollIntoViewIfNeeded()
-  else if (scene === 'whats-new-footer')
-    await page.evaluate(() => globalThis.scrollTo(0, globalThis.document.body.scrollHeight))
+  switch (scene) {
+    case 'quote-menu': {
+      // The initial context click can precede fonts and the host's final layout.
+      // Reopen through the real handler at the settled passage, like a pointer.
+      await page
+        .locator('.message-assistant .message-body p')
+        .first()
+        .evaluate((passage) => {
+          const range = globalThis.document.createRange()
+          range.selectNodeContents(passage)
+          const selection = globalThis.getSelection()
+          selection.removeAllRanges()
+          selection.addRange(range)
+          const box = passage.getBoundingClientRect()
+          passage.dispatchEvent(
+            new globalThis.MouseEvent('contextmenu', {
+              bubbles: true,
+              cancelable: true,
+              clientX: box.left + box.width / 2,
+              clientY: box.top + box.height / 2,
+            }),
+          )
+        })
+      await page.clock.runFor(100)
+
+      break
+    }
+    case 'palette': {
+      // The filter's autofocus can scroll the document before the theme's
+      // fonts settle, so the offset varied between runs. Replay that focus
+      // scroll on the settled layout without moving focus (blur closes it).
+      await page.locator('.palette-filter').evaluate((filter) => {
+        globalThis.scrollTo(0, 0)
+        filter.scrollIntoView({ block: 'nearest' })
+      })
+      await page.clock.runFor(100)
+      break
+    }
+    case 'verify': {
+      await page.locator('.then-run').scrollIntoViewIfNeeded()
+      break
+    }
+    case 'whats-new-footer': {
+      {
+        await page.evaluate(() => globalThis.scrollTo(0, globalThis.document.body.scrollHeight))
+        // No default
+      }
+      break
+    }
+  }
 }
 
 async function targetFor(page, rows, state) {
@@ -255,6 +369,17 @@ export async function captureMatrix(root, audit, matrix, onCapture, groups) {
             )
           }
           const rows = audit.components.filter((row) => row.scene === scene)
+          for (const row of rows) {
+            try {
+              await waitForPaint(page, row.captureSelector)
+            } catch (error) {
+              const fixtureText = await page.locator('body').textContent()
+              throw new Error(
+                `Missing component render: ${row.file} in ${scene}; page errors: ${errors.join('; ') || 'none'}; fixture text: ${fixtureText.slice(0, 300)}`,
+                { cause: error },
+              )
+            }
+          }
           const components = await page.evaluate(
             (rows) =>
               rows.map((row) => {
@@ -269,6 +394,23 @@ export async function captureMatrix(root, audit, matrix, onCapture, groups) {
               }),
             rows,
           )
+          // Canonical descendants must appear in the viewport, not merely in
+          // a long page's DOM. Keep parents visible around the smallest scope.
+          const reviewSelector = await page.evaluate(
+            (rows) =>
+              rows
+                .map((row) => ({
+                  selector: row.captureSelector,
+                  box: globalThis.document
+                    .querySelector(row.captureSelector)
+                    .getBoundingClientRect(),
+                }))
+                .toSorted((a, b) => a.box.width * a.box.height - b.box.width * b.box.height)[0]
+                ?.selector,
+            rows,
+          )
+          if (reviewSelector !== undefined)
+            await page.locator(reviewSelector).first().scrollIntoViewIfNeeded()
           if (errors.length > 0) throw new Error(`${scene}: ${errors.join('; ')}`)
           for (const state of matrix.states) {
             const target = await targetFor(page, rows, state)

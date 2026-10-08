@@ -3,6 +3,7 @@
 // accessibility gate). Only files under the repository are served.
 
 import { readFile } from 'node:fs/promises'
+import { fileURLToPath } from 'node:url'
 import { createServer } from 'node:http'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
@@ -311,7 +312,11 @@ const CONTENT_TYPES = {
 export async function serveRepo(repoRoot) {
   await buildTrafficHarness()
   const fixture = await build({
-    entryPoints: [path.join(repoRoot, 'test/unit/helpers/usageFixtures.ts')],
+    // Capture fixtures belong to the running gate, like buildTrafficHarness;
+    // a historical production revision may predate this test-only source.
+    entryPoints: [
+      fileURLToPath(new URL('../../test/unit/helpers/usageFixtures.ts', import.meta.url)),
+    ],
     outfile: path.join(repoRoot, 'temp/harness-usage.js'),
     bundle: true,
     platform: 'browser',

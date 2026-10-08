@@ -1,3 +1,4 @@
+import { createSchedulesBridge, registerScheduleCommands } from './host/schedules/schedulesBridge'
 import { notify } from './core/events/notify'
 import {
   PAID_APPROVAL_ORDER_DIRECTORY,
@@ -3529,6 +3530,12 @@ async function activateWindow(
           isWorktreeHeld: () => windowHold.isHeld,
           createGit: conversationGitFactory(conversationGit, gitFeatures),
           onForegroundTasksChanged: refreshTaskContext,
+          schedulesBridge: createSchedulesBridge({
+            distDir: vscode.Uri.joinPath(context.extensionUri, 'dist').fsPath,
+            log,
+            isEnabled: () => currentSettings().schedules,
+            defaultDelivery: () => currentSettings().scheduleDefaultDelivery,
+          }),
           isScheduledPaidOn: () => paid.gate.isOn('scheduledPrompts'),
           confirmScheduledRun: async (job, modelId) =>
             await paid.consent.allows({ feature: 'scheduledPrompts', prompt: job.prompt, modelId }),
@@ -3709,6 +3716,7 @@ async function activateWindow(
       promptHost?.ready(surface)
       const controller = controllerFor(surface)
       controller.surfaceReady(attachmentEpoch)
+      void scheduleCommands.ready(surface).catch(logRejection(log, 'schedule panel'))
       if (isHelpPending) {
         isHelpPending = false
         surface.post({ type: 'openHelp' })
@@ -3819,6 +3827,18 @@ async function activateWindow(
     }
     openChatPanel(hostContext, registry)
   }
+  const scheduleCommands = registerScheduleCommands({
+    register: (id, action) => registerLoggedCommand(log, id, action),
+    active: () => registry.active,
+    isReady: (surface) => readyPromptSurfaces.has(surface),
+    isEnabled: () => currentSettings().schedules,
+    openConversation,
+    open: async (surface, view) => {
+      surface.reveal()
+      await controllerFor(surface).handle({ type: 'openSchedules', view })
+    },
+  })
+  context.subscriptions.push(...scheduleCommands.commands)
   // Sharing loads on first use or when the user changes its machine sync consent.
   const sharing = () =>
     (promptHost ??= promptBundleLoader(
