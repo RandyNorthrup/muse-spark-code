@@ -255,3 +255,59 @@ Every run used repository default timeouts and `--maxWorkers=3`, at most three f
 Both restores matched the pre-drill file bytes and SHA-256. Logs are outside
 the worktree in `C:/lanes/FIXM100P2R-verify-20261007/P2-drill.log` and
 `P3-drill.log`. Fresh-clone verification is recorded with the follow-up receipt.
+
+### FIXM100P2R fresh-clone CI receipt
+
+2026-10-07–08, win11 rig.
+
+Committed implementation `66a3c39dd38ad9d95625cc67fc352e53fdfba4b2` was
+cloned with `git clone --no-hardlinks C:/lanes/FIXM100P2R
+C:/lanes/FIXM100P2R-ci-20261007`, then installed with `npm.cmd ci`.
+No source or dependencies were copied from the working tree.
+All checks below ran with `CI=true`; all test runs used the repository's
+default timeout, at most three files, and `--maxWorkers=3`.
+
+`TMPDIR`, `TEMP` and `TMP` all selected the new private temporary root
+`C:/lanes/FIXM100P2R-verify-20261007/private-temp`. On Windows, its NTFS ACL
+has inheritance disabled and grants only the current user FullControl,
+the platform equivalent of a private 0700 temp root. The inherited Windows
+execution fixture still injects its existing journal-protection port;
+these receipts do not qualify POSIX permissions or production Windows storage.
+P3's injected storage refusal is portable and does not depend on that port.
+
+| Check                                                       | Exit    | Receipt                                                                                                                                                                |
+| ----------------------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm.cmd ci`                                                | 0       | 898 packages installed from unchanged lockfile                                                                                                                         |
+| Owning suites, three consecutive runs                       | 0, 0, 0 | 50 passed each: epochs 13, reconnect 17, result channel 20                                                                                                             |
+| `deviceReceiver`, `deviceRecovery`, `devicePhase2Contracts` | 0       | 122 passed, default timeouts                                                                                                                                           |
+| `typecheck:host`                                            | 0       | Host/core/shared project                                                                                                                                               |
+| `typecheck:webview`                                         | 0       | Browser project                                                                                                                                                        |
+| `typecheck:unit`                                            | 0       | All unit test types                                                                                                                                                    |
+| `typecheck:e2e`                                             | 0       | All e2e test types                                                                                                                                                     |
+| `typecheck:integration`                                     | 0       | Integration test types                                                                                                                                                 |
+| ESLint `--max-warnings=0`                                   | 0       | Both changed TypeScript files                                                                                                                                          |
+| Prettier `--check`                                          | 0       | All three changed files                                                                                                                                                |
+| Plain `npx.cmd knip`                                        | 0       | Two existing configuration hints only                                                                                                                                  |
+| `npm.cmd run duplication`                                   | 0       | jscpd: zero clones; no threshold or ignore changes                                                                                                                     |
+| `check:l10n`                                                | 0       | 14 tables, 169 manifest strings, 657 source files; zero problems                                                                                                       |
+| `check:reference`                                           | 0       | 53 features, 18 Devices entries; generated files current                                                                                                               |
+| `check:host-api`                                            | 1       | Sole inherited diff: `node:crypto` count 55 to 56; owned by lane W                                                                                                     |
+| Production `npm.cmd run build`                              | 0       | All caps/split/globals/notices passed; Devices 80.6/100 KiB, activation 441.6/600 KiB, deferred webview 32.1/50 KiB                                                    |
+| Full `npm.cmd run quality`                                  | 1       | Passed whole-repository formatting, JavaScript/CSS/PowerShell lint, all five typechecks, badges, l10n and reference; stopped solely at the inherited host-API mismatch |
+
+The clone stayed clean after these checks. Per-check output and exit-code
+JSON receipts are outside the worktree in
+`C:/lanes/FIXM100P2R-verify-20261007/`.
+`npm ci` reports the inherited lockfile's 12 vulnerabilities (2 low, 10 high);
+this fix changes no dependency. The implementation's normal ESLint, Prettier
+and gitleaks hooks all exited 0, with no secret leaks. The committed diff was
+re-read after the hooks; no additional hook changes or staged files remained.
+
+Full quality stopped before its later gates; the owning/phase-1 tests, knip,
+duplication and production build were run separately above and passed.
+The generated host-API record, README/CHANGELOG and complete joined-tree
+qualification remain lane W's assigned files/work. Request unchanged:
+regenerate `docs/ide-compatibility/host-api.md` there with
+`npm run check:host-api -- --write`, then run full quality on the joined tree.
+No source outside lane R, gate, assertion, timeout, cap or shared contract
+was changed to obtain these results.
