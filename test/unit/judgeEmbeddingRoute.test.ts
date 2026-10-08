@@ -48,6 +48,19 @@ function expectMergedFallback(
   expect(meta?.uncertainCostUsd).toBe(0)
 }
 
+/** The input was refused before embedding; the allowed full judge answered. */
+function expectRefusedEmbedding(
+  outcome: JudgeOutcome,
+  embed: ReturnType<typeof vi.fn>,
+  fallbackCalls: readonly JudgeRequest[],
+): void {
+  expect(outcome.outcome).toBe('answered')
+  if (outcome.outcome !== 'answered') throw new Error('expected fallback')
+  expect(outcome.result.muse['risk']?.technique).toBe('stated')
+  expect(embed).not.toHaveBeenCalled()
+  expect(fallbackCalls).toHaveLength(1)
+}
+
 /** The full judge answered; the embedding leg spent nothing and ran nothing. */
 async function expectQuietFallback(
   deps: EmbeddingRouteDependencies,
@@ -427,11 +440,7 @@ describe('embedding pipeline regressions', () => {
       deps,
       signal(),
     )
-    expect(outcome).toMatchObject({ outcome: 'answered' })
-    if (outcome.outcome !== 'answered') throw new Error('expected fallback')
-    expect(outcome.result.muse['risk']?.technique).toBe('stated')
-    expect(embed).not.toHaveBeenCalled()
-    expect(fallbackCalls).toHaveLength(1)
+    expectRefusedEmbedding(outcome, embed, fallbackCalls)
   })
 
   it.each([
@@ -595,11 +604,7 @@ describe('embedding pipeline regressions', () => {
     // An unknown state value can serialize differently from its string leaves.
     const state = { toJSON: () => 'password="opaque-serialized"' }
     const outcome = await runEmbeddingJudge({ ...noulRequest, state }, options, deps, signal())
-    expect(outcome.outcome).toBe('answered')
-    if (outcome.outcome !== 'answered') throw new Error('expected fallback')
-    expect(outcome.result.muse['risk']?.technique).toBe('stated')
-    expect(embed).not.toHaveBeenCalled()
-    expect(fallbackCalls).toHaveLength(1)
+    expectRefusedEmbedding(outcome, embed, fallbackCalls)
     expect(claims).toHaveLength(1)
   })
 
