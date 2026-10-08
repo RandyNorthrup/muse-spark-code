@@ -710,7 +710,7 @@ continuation, shared phase-2 rules, original H brief, PLAN ownership/acceptance,
 planning record, threat model and Windows host/driver before implementation.
 This subsection qualifies macOS only. Windows' six native cases are skipped
 on this rig and are not counted as passes. No model, paid call, pairing,
-listener, dependency, registry/policy change, merge, rebase, stash or push.
+listener, dependency, registry/policy change, merge, rebase, manual stash or push.
 Shared README, CHANGELOG, feature reference, packaging and host-API record
 remain W's owned files, as specified in the phase-2 ownership table.
 
@@ -796,3 +796,69 @@ Local restored-tree owning suite: **39 passed**, including **12 actual macOS
 cases**, **3 injected Darwin port cases**, and **24 portable host cases**;
 Windows' **6 native cases skipped**, not passed. Final committed-code,
 fresh-clone gate receipts are recorded in the following addendum.
+
+#### Darwin committed-code fresh-clone verification
+
+Implementation **715b4a7b1**, test-setup sharing **b8df233dc**, portable
+POSIX-storage fixture **01dd8eb18**, all committed locally with hooks enabled.
+After every hook, the empty remaining index and committed diff were reviewed;
+production hashes stayed identical to the guard-fire record. The Windows
+driver/helper remain byte-identical to `f4f6f3008`.
+
+Fresh local Git clone `/tmp/m100hm-verify`, Node **24.21.0**, npm **11.19.0**,
+macOS **15.7.4 / 24G517**, real Aqua domain **gui/502**. `CI=true npm ci`
+in that clone exited **0**, installing the unchanged lockfile. An initial
+shell command attempted installation from `/tmp` and exited 1 for its absent
+lockfile; the working directory was corrected before qualification. The
+pinned dependency tree reported its existing 11 audit vulnerabilities (2 low,
+9 high); no dependency, audit fix or lockfile change was made. Joined security
+and full quality remain W's responsibility under the shared brief.
+
+On `715b4a7b1`, with `CI=true` and repository defaults:
+
+- Three complete owning runs: **39 passed + 6 Windows-native skipped** each,
+  Vitest durations **8.32 / 7.80 / 7.82 seconds**. All twelve macOS cases ran;
+  no raised test or hook deadline.
+- Five typechecks: **all exit 0** (host, webview, unit, e2e, integration;
+  **82.0 seconds** combined wall time).
+- Changed-file ESLint and Prettier, plain knip, reference, localization,
+  cycle checks: **all exit 0**. Localization: **14 UI + 14 usage tables,
+  0 problems**. Reference: **18 Devices entries**, current.
+- Production build: **exit 0**, including size/split/global/notice checks;
+  activation **462.8/600 KiB**, existing Devices **81.7/100 KiB**, Model API
+  **456.0/475 KiB**, Devices webview **33.9/50 KiB**. Caps unchanged.
+  These are the existing entry bundles; W still must measure the fully
+  bound worker factories and ship/qualify the helper/compiler path.
+- Duplication: initially **exit 1**, two repeated native test setup/recovery
+  blocks. `b8df233dc` shares them without removing any assertion or changing
+  a deadline; subsequent plain jscpd reports **0 clones, exit 0**.
+- Host API: **exit 1**, solely W's stale generated Node import counts.
+  **366 VS Code APIs, 43 vscode-importing files, 28 Node built-ins, 70 theme
+  variables** remain unchanged. W must regenerate its owned
+  `docs/ide-compatibility/host-api.md`: child_process **16→18**, crypto
+  **93→95**, fs **44→45**, fs/promises **74→77**, path **125→128**,
+  timers/promises **15→17**, then review/commit and rerun the check.
+
+The clean clone fetched the two test-only follow-ups locally and switched
+to their detached commits, without merging/rebasing. `01dd8eb18` models
+POSIX mode bits only in the fake capacity case so it also runs on Windows;
+the native cases retain real filesystem calls through the passthrough spy.
+This changes no production guard or native assertion. On final code
+`01dd8eb18`, three more complete owning runs with `CI=true`, default deadlines:
+**39 passed + 6 skipped each**, **8.23 / 8.26 / 8.58 seconds**.
+Unit typecheck, changed-file lint/Prettier, plain knip and jscpd all **exit 0**;
+jscpd reports **0 clones**. All thirteen unique drills in the table fired;
+the seven Darwin retirement/manager/capacity/GUI/inhibitor/release/self-test
+drills were repeated after the test follow-ups, **exit 1** each, with the
+same byte-exact production hashes. The host-API inventory is the sole
+outstanding requested lane gate and is explicitly assigned to W.
+
+All six Darwin acceptance items are implemented, tested and drilled. Native
+receipts prove real launchd ownership, detached double-fork retirement,
+bounded channels, CPU/memory sampling, actual assertion hold/release, clean
+manager refusal, uncertainty on helper/manager loss, and exact registration
+cleanup. They do not certify Windows/Linux, physical battery behavior,
+installed-editor packaging or the fully bound production offer. No push or
+model call; W's bindings, battery/unknown admission prompt, shared docs,
+generated host inventory, bundle measurement and joined qualification remain
+the lead requests above.
