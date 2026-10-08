@@ -78,6 +78,21 @@ export function lazyRuntimeResources(
       bound.delete(bind)
     }
   }
+  // As the extension builds its helpers once per activation, the runtime prepares
+  // (compiles and self-tests) both Windows job helpers once; a failure is retried.
+  let jobs: ReturnType<typeof runtimeResourceJobs> | undefined
+  const windowsJob = async () => {
+    jobs ??= module().runtimeResourceJobs(options.machineDir, path.dirname(options.distDir))
+    const current = jobs
+    try {
+      const ready = await current
+      if (ready === undefined && jobs === current) jobs = undefined
+      return ready
+    } catch (error: unknown) {
+      if (jobs === current) jobs = undefined
+      throw error
+    }
+  }
   const disposeAdmission = configureResources({
     registryFile: path.join(options.machineDir, 'resource-created.json'),
     inspect: () => ({}),
@@ -113,8 +128,7 @@ export function lazyRuntimeResources(
         if (abort !== undefined) signal?.removeEventListener('abort', abort)
       }
     },
-    windowsJob: async () =>
-      await module().runtimeResourceJobs(options.machineDir, path.dirname(options.distDir)),
+    windowsJob,
   })
   return {
     async command(action, isJson) {

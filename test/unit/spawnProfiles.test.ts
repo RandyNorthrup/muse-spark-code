@@ -99,6 +99,20 @@ describe('explicit portable launch profiles', () => {
     },
   )
 
+  it('skips the temp root only for a named probe, never for contained work', async () => {
+    vi.mocked(admission.admitResource).mockRejectedValue(new Error('admission fixture stop'))
+    const spawn = vi.spyOn(childProcess, 'spawn')
+    for (const profile of ['contained', 'probe'] as const)
+      await expect(
+        spawnResourceProcess(profile, process.execPath, ['-e', ''], { env: {} }),
+      ).rejects.toThrow('admission fixture stop')
+    expect(vi.mocked(admission.admitResource).mock.calls).toEqual([
+      ['other', undefined, undefined],
+      ['other', undefined, undefined, undefined, undefined, true],
+    ])
+    expect(spawn).not.toHaveBeenCalled()
+  })
+
   it('waits for a bounded handoff without allocating or killing a contained tree', async () => {
     const lease = fakeResourceLease()
     vi.mocked(admission.admitResource).mockResolvedValue(lease)

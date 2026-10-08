@@ -65,11 +65,19 @@ function stopRoot(root: ChildProcess): Promise<void> {
   return Promise.resolve()
 }
 
+/** Profiles whose whole tree the launcher owns: a job or group, retired by the registry. */
+const isTreeOwned = (profile: ResourceLaunchProfile) =>
+  profile === 'contained' || profile === 'probe'
+
 function admitProfile(
   profile: ResourceLaunchProfile,
   signal: AbortSignal | undefined,
 ): Promise<ResourceLease | undefined> {
   if (profile === 'bootstrap') return admitBootstrap(signal)
+  // A read-only probe keeps admission and containment but writes nothing, so it
+  // owns no temp root (D87.14's dated narrowing). Everything else gets one.
+  if (profile === 'probe')
+    return admitResource('other', signal, undefined, undefined, undefined, true)
   // Handoff is background work: at pause it is refused at once, never queued.
   return admitResource('other', signal, profile === 'handoff' ? 'background' : undefined)
 }
@@ -157,7 +165,7 @@ function spawnHandoff(
 }
 
 async function spawnPiped(
-  profile: 'contained' | 'bootstrap',
+  profile: 'contained' | 'probe' | 'bootstrap',
   file: string,
   args: readonly string[],
   options: ResourceProcessOptions,
@@ -170,7 +178,7 @@ async function spawnPiped(
   let assemblyPath: string | undefined
   let child: ChildProcess
   let stop: () => Promise<void>
-  if (profile === 'contained' && process.platform === 'win32') {
+  if (isTreeOwned(profile) && process.platform === 'win32') {
     const job = await resourceWindowsJob()
     if (job === undefined || extraDescriptors.length > 0)
       throw new Error('Native governed process launch unavailable')
@@ -223,7 +231,7 @@ async function spawnPiped(
           }
         : () => stopResourceTree(resource)
     resource.register({ pid: root.pid, group: isGroup, profile, stop })
-    if (profile === 'contained') {
+    if (isTreeOwned(profile)) {
       root.once('exit', (code) => {
         if (code !== 0) resource.failed?.()
         resource.complete(false)
@@ -243,7 +251,7 @@ async function spawnPiped(
       })
     }
   }
-  if (profile === 'contained') {
+  if (isTreeOwned(profile)) {
     // A contained root's exit never leaves its descendants running.
     child.once('exit', () => {
       void stop().catch(() => resource.failed?.())
@@ -256,7 +264,7 @@ async function spawnPiped(
     throw new Error('Governed process pipes unavailable')
   }
   const pid = async () => {
-    if (profile !== 'contained' || process.platform !== 'win32') return child.pid
+    if (!isTreeOwned(profile) || process.platform !== 'win32') return child.pid
     const systemRoot = process.env['SystemRoot']
     if (jobName === undefined || assemblyPath === undefined || systemRoot === undefined) return
     const { resourceJobRootPid } = await import('./resourceGovernorEntry.js')
@@ -278,7 +286,7 @@ export function spawnResourceProcess(
   options: ResourceProcessOptions,
 ): Promise<ResourceHandoffProcess>
 export function spawnResourceProcess(
-  profile: 'contained' | 'bootstrap',
+  profile: 'contained' | 'probe' | 'bootstrap',
   file: string,
   args: readonly string[],
   options: ResourceProcessOptions,

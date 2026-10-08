@@ -49,7 +49,7 @@ export async function handoffResourceFile(
 
 /** execFile-compatible bounded results, using the ordinary governed command runner. */
 export async function execResourceFile(
-  profile: 'contained',
+  profile: 'contained' | 'probe',
   command: string,
   args: readonly string[],
   options: ExecFileOptionsWithStringEncoding,

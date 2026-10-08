@@ -10,10 +10,11 @@ import type { ChildProcess, SpawnOptionsWithoutStdio } from 'node:child_process'
 
 /**
  * Every governed launch names its lifetime (PLAN SPAWN017C):
- * contained owns its whole tree; handoff owns only a bounded OS adapter;
+ * contained owns its whole tree and a temp root; probe (read-only, bounded) owns
+ * its whole tree but no temp root; handoff owns only a bounded OS adapter;
  * interactive inherits the terminal; bootstrap builds containment itself.
  */
-export type ResourceLaunchProfile = 'contained' | 'handoff' | 'interactive' | 'bootstrap'
+export type ResourceLaunchProfile = 'contained' | 'probe' | 'handoff' | 'interactive' | 'bootstrap'
 /** Callers cannot choose session, shell or terminal wiring; the profile does. */
 export type ResourceProcessOptions = Omit<SpawnOptionsWithoutStdio, 'detached' | 'stdio' | 'shell'>
 export interface ResourceInteractiveProcess {

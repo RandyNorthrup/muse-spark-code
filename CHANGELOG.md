@@ -9,16 +9,25 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- Every governed launch names its lifetime: contained work, OS hand-offs
-  (browser openers, clipboard programs, now including `share` and
-  `prompts share`), terminal `login` and helper builds. CLI shutdown stops the
-  work it started; a hand-off waits up to ten seconds for the OS adapter and
-  never stops the browser it opened; `login` runs in your terminal, so Ctrl+C
-  reaches it. At resource pause, helper builds and background launches are
-  refused at once with `Resources: Paused` instead of waiting out a deadline,
-  and the first Windows shell command no longer falls back to "job objects
-  unavailable". Admission deadlines now include machine sampling. A source
-  guard fails on any process launch missing from the checked-in inventory.
+- Every governed launch names its lifetime: contained work, read-only probes,
+  OS hand-offs (browser openers, clipboard programs, now including `share`
+  and `prompts share`), terminal `login` and helper builds. CLI shutdown stops
+  the work it started; a hand-off waits up to ten seconds for the OS adapter
+  and never stops the browser it opened; `login` runs in your terminal, so
+  Ctrl+C reaches it. At resource pause, helper builds and background launches
+  are refused at once with `Resources: Paused` instead of waiting out a
+  deadline, and the first Windows shell command no longer falls back to "job
+  objects unavailable". Admission deadlines now include machine sampling. A
+  source guard fails on any process launch missing from the checked-in
+  inventory.
+- Read-only probes (Git ref and history reads, gh reads, birth probes, media
+  version checks) keep resource admission and tree containment without a
+  per-command temporary folder. That folder needed a packaged native helper,
+  so source checkouts on Linux and macOS refused every Git read; on Windows
+  it cost six PowerShell starts per command. Commands that may write files
+  (schedule OS commands, converters) keep their temporary folder. The
+  runtime now prepares its Windows job helpers once instead of on every
+  launch.
 
 - Containment-helper compilation uses heavy bootstrap admission, bounded
   output and whole-tree deadline/cancellation. Runtime commands bind global

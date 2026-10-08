@@ -1,28 +1,43 @@
 import path from 'node:path'
-import { describe, expect, it, vi } from 'vitest'
+import { mkdtemp } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { lazyRuntimeResources } from '../../src/runtime/resources/load'
-import { admitBootstrap } from '../../src/core/resources/admission'
+import {
+  admitBootstrap,
+  execResourceFile,
+  resourceWindowsJob,
+} from '../../src/core/resources/admission'
 import { runtimeResources } from './helpers/resources/runtime'
 import { runBootstrap } from '../../src/core/resources/bootstrap'
+import { runtimeResourceJobs } from '../../src/runtime/resources/entry'
+import { TreeTempRoots } from '../../src/host/resources/tempRoots'
+import { localGitRefs } from '../../src/core/schedules/events/git'
+import { removeFolder } from './helpers/temporaryFolders'
 import * as childProcess from 'node:child_process'
 import { shellJobAssembly } from '../../src/host/backend/shellJob'
 import { windowsVaultExecutable } from '../../src/host/vault/slots/windowsVaultBuild'
 import { createToolIo } from '../../src/host/backend/toolIo'
-import { tmpdir } from 'node:os'
-import { mkdtemp } from 'node:fs/promises'
-import { removeFolder } from './helpers/temporaryFolders'
 
 vi.mock('node:child_process', { spy: true })
 
 /** Binds global process admission to the fixture's runtime queue, as `run()` does. */
-function bindRuntime(host: Awaited<ReturnType<typeof runtimeResources>>['host']) {
+function bindRuntime(
+  host: Awaited<ReturnType<typeof runtimeResources>>['host'],
+  bundle: { machineDir?: string; runtimeResourceJobs?: typeof runtimeResourceJobs } = {},
+) {
   return lazyRuntimeResources({
     distDir: path.resolve('dist'),
-    machineDir: process.cwd(),
+    machineDir: bundle.machineDir ?? process.cwd(),
     sleep: () => Promise.resolve(),
     log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     onError: vi.fn(),
-    loadBundle: () => ({ createResources: () => Promise.resolve(host) }),
+    loadBundle: () => ({
+      createResources: () => Promise.resolve(host),
+      ...(bundle.runtimeResourceJobs !== undefined && {
+        runtimeResourceJobs: bundle.runtimeResourceJobs,
+      }),
+    }),
   })
 }
 
@@ -125,6 +140,113 @@ describe('runtime global admission', () => {
     } finally {
       resources.dispose()
       fixture.host.dispose()
+    }
+  })
+
+  it('prepares the Windows job helpers once and retries a failed preparation', async () => {
+    const fixture = await runtimeResources()
+    const jobs = {
+      assemblyPath: String.raw`C:\fixture\job.dll`,
+      executablePath: String.raw`C:\fixture\job.exe`,
+    }
+    const prepare = vi.fn<typeof runtimeResourceJobs>()
+    prepare.mockResolvedValueOnce(undefined).mockResolvedValue(jobs)
+    const resources = bindRuntime(fixture.host, { runtimeResourceJobs: prepare })
+    try {
+      await expect(resourceWindowsJob()).resolves.toBeUndefined()
+      const concurrent = await Promise.all([resourceWindowsJob(), resourceWindowsJob()])
+      expect(concurrent).toEqual([jobs, jobs])
+      await expect(resourceWindowsJob()).resolves.toEqual(jobs)
+      // One failed preparation, then one shared successful one.
+      expect(prepare).toHaveBeenCalledTimes(2)
+    } finally {
+      resources.dispose()
+      fixture.host.dispose()
+    }
+  })
+})
+
+describe('bounded runtime commands', () => {
+  const state: { machineDir?: string; dispose?: () => void } = {}
+  const fixture: { current?: Awaited<ReturnType<typeof runtimeResources>> } = {}
+  beforeAll(async () => {
+    fixture.current = await runtimeResources()
+    state.machineDir = await mkdtemp(path.join(tmpdir(), 'spawn017c-'))
+    const resources = bindRuntime(fixture.current.host, {
+      machineDir: state.machineDir,
+      runtimeResourceJobs,
+    })
+    state.dispose = () => {
+      resources.dispose()
+    }
+    // Windows compiles and self-tests the real job helpers once, before timed cases.
+    if (process.platform === 'win32') expect(await resourceWindowsJob()).toBeDefined()
+  }, 60_000)
+  afterAll(async () => {
+    state.dispose?.()
+    fixture.current?.host.dispose()
+    if (state.machineDir !== undefined) await removeFolder(state.machineDir)
+  })
+
+  it('admits a read-only probe through the runtime queue without a per-command temp root', async () => {
+    const host = fixture.current?.host
+    if (host === undefined) throw new Error('Runtime fixture missing')
+    const admits = vi.spyOn(host, 'admit')
+    const temp = vi.spyOn(TreeTempRoots.prototype, 'create')
+    try {
+      const result = await execResourceFile(
+        'probe',
+        process.execPath,
+        ['-e', "process.stdout.write('governed')"],
+        { env: process.env, encoding: 'utf8' },
+      )
+      expect(result.stdout).toBe('governed')
+      expect(admits).toHaveBeenCalledWith(
+        expect.objectContaining({ kind: 'other', class: 'foreground' }),
+        undefined,
+        expect.any(AbortSignal),
+      )
+      expect(temp).not.toHaveBeenCalled()
+    } finally {
+      admits.mockRestore()
+      temp.mockRestore()
+    }
+  })
+
+  it('never lets the probe exemption become the default: contained commands get a temp root', async () => {
+    const refusal = new Error('Fixture temp root refused')
+    const temp = vi.spyOn(TreeTempRoots.prototype, 'create').mockRejectedValue(refusal)
+    const spawn = vi.spyOn(childProcess, 'spawn')
+    try {
+      await expect(
+        execResourceFile('contained', process.execPath, ['-e', 'process.exit(0)'], {
+          env: process.env,
+          encoding: 'utf8',
+        }),
+      ).rejects.toBe(refusal)
+      expect(temp).toHaveBeenCalledOnce()
+      expect(spawn).not.toHaveBeenCalled()
+    } finally {
+      temp.mockRestore()
+      spawn.mockRestore()
+    }
+  })
+
+  it('keeps the actual refusal behind the fixed unavailable Git reason', async () => {
+    const host = fixture.current?.host
+    if (host === undefined) throw new Error('Runtime fixture missing')
+    const refusal = new Error('Fixture admission refused')
+    const admits = vi.spyOn(host, 'admit').mockRejectedValue(refusal)
+    const spawn = vi.spyOn(childProcess, 'spawn')
+    try {
+      const read = localGitRefs(process.cwd(), () => true).read()
+      await expect(read).rejects.toThrow('gitRefs')
+      await expect(read).rejects.toHaveProperty('cause', refusal)
+      expect(admits).toHaveBeenCalled()
+      expect(spawn).not.toHaveBeenCalled()
+    } finally {
+      admits.mockRestore()
+      spawn.mockRestore()
     }
   })
 })

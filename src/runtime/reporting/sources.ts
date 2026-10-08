@@ -201,7 +201,7 @@ export function reportGitIo(
         throw new LocalSourceError('missing')
       signal.throwIfAborted()
       try {
-        const { stdout } = await execResourceFile('contained', program, ['--no-pager', ...args], {
+        const { stdout } = await execResourceFile('probe', program, ['--no-pager', ...args], {
           cwd: root,
           env: {
             ...childEnvironment,

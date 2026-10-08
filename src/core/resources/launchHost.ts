@@ -32,7 +32,20 @@ import type {
   ResourceTreeBinding,
   ResourceTempRoots,
   ResourceTempRoot,
+  ResourceLaunchProfile,
 } from './launch'
+
+/**
+ * Launchers without a profile (MCP, shell, team) and the portable contained and
+ * probe profiles own a whole tree the registry binds; handoff, interactive and
+ * bootstrap stop only what they own themselves.
+ */
+const TREE_BOUND: ReadonlySet<ResourceLaunchProfile | undefined> = new Set([
+  undefined,
+  'contained',
+  'probe',
+])
+const isTreeBound = (profile: ResourceLaunchProfile | undefined) => TREE_BOUND.has(profile)
 
 interface Work {
   kind: ResourceKind
@@ -48,7 +61,7 @@ interface Work {
   temp: ResourceTempRoot | undefined
   failed: boolean
   checkpoint: boolean
-  bootstrap: boolean
+  tempFree: boolean
   members: Set<string>
   births: number[]
   limited: boolean
@@ -115,7 +128,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   }
 
   private finishTemp(work: Work): void {
-    if (work.checkpoint || work.bootstrap) return
+    if (work.checkpoint || work.tempFree) return
     this.retired.add(work.owner)
     const finish =
       work.temp === undefined
@@ -176,7 +189,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
 
   private async sampleTree(work: Work): Promise<void> {
     if (work.process === undefined || !this.work.has(work)) return
-    if (work.process.profile !== undefined && work.process.profile !== 'contained') {
+    if (!isTreeBound(work.process.profile)) {
       work.known = true
       return
     }
@@ -300,7 +313,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
         throw new Error('Resource shutdown tree stop refused')
     } else await launched.stop()
     // Other profiles have no registry binding: their own stop ended what they own.
-    const isRootOnly = launched.profile !== undefined && launched.profile !== 'contained'
+    const isRootOnly = !isTreeBound(launched.profile)
     this.retire(work, isRootOnly || (await work.binding?.gone()) === true)
   }
 
@@ -315,7 +328,8 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     workClass?: ResourceClass | 'checkpoint',
     isDiskHeavy = kind === 'check' || kind === 'browserCheck',
     checkpointDestination?: string,
-    isBootstrap = false,
+    // Bootstrap compilation and bounded harness commands own no per-tree temp root.
+    isTempFree = false,
   ): Promise<ResourceLease> {
     if (this.disposed) throw new Error('Resource launch host disposed')
     const settings = this.options.settings()
@@ -360,7 +374,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       temp: undefined,
       failed: false,
       checkpoint: isCheckpoint,
-      bootstrap: isBootstrap,
+      tempFree: isTempFree,
       members: new Set(),
       births: [],
       limited: false,
@@ -368,7 +382,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     this.work.add(work)
     let creating: Promise<ResourceTempRoot> | undefined
     try {
-      if (!isCheckpoint && !isBootstrap) creating = this.options.tempRoots?.create(work.owner)
+      if (!isCheckpoint && !isTempFree) creating = this.options.tempRoots?.create(work.owner)
       if (creating !== undefined) work.temp = await this.waitAdmission(creating, signal)
     } catch (error: unknown) {
       if (creating !== undefined && (signal?.aborted === true || this.isClosed())) {

@@ -1,20 +1,33 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
 **SPAWN017C redesign (2026-10-08, win11).** Replace implicit portable launch
-lifetime with explicit contained, handoff, interactive and bootstrap profiles.
-Contained work owns its tree through shutdown; handoff owns only its OS
-adapter (ten-second named deadline, output to the null device, root-only
-stop); interactive work inherits the terminal and remains in its session.
-Pause refuses bootstrap/background admission immediately with the governor's
-status words, without compiler fallback or a second vault attempt. The
-caller deadline includes runtime sampling without cancelling the shared
-sample. A checked-in, mechanically checked inventory covers all source
-process sites and proves test-only reachability. Qualify regressions against
-fb0b12aa3, four red drills and scoped gates at repository timeouts; record
-receipts in int0170-combined.md and the threat model. Git ref
-reading/created-file publication belongs to another lane.
-Aggregate quality and unrelated bundle caps remain with the lead; no hook,
-threshold, dependency, merge, push, credential or live-model changes.
+lifetime with explicit contained, probe, handoff, interactive and bootstrap
+profiles. Contained work owns its tree and temp root through shutdown; a
+probe (bounded and read-only) owns its tree but no temp root; handoff owns
+only its OS adapter (ten-second named deadline, output to the null device,
+root-only stop); interactive work inherits the terminal and remains in its
+session. Pause refuses bootstrap/background admission immediately with the
+governor's status words, without compiler fallback or a second vault
+attempt. The caller deadline includes runtime sampling without cancelling
+the shared sample. A checked-in, mechanically checked inventory covers all
+source process sites, records each probe with its reason, and proves
+test-only reachability. Qualify regressions against fb0b12aa3, four red
+drills and scoped gates at repository timeouts; record receipts in
+int0170-combined.md and the threat model. Aggregate quality and unrelated
+bundle caps remain with the lead; no hook, threshold, dependency, push,
+credential or live-model changes.
+
+**SPAWN017C gitRefs root cause (2026-10-08, win11; merged from
+rel017/spawn3).** Every bounded command was admitted as ordinary work with a
+helper-backed temp root: six native created-file round trips, needing a
+packaged helper (absent from a source checkout on POSIX) and six cold
+PowerShell starts on Windows. Lead decision: the narrowing is the explicit
+`probe` profile only, chosen per call site (Git ref and report reads, gh
+reads, birth probes, media version checks); a bounded command that might
+write keeps `contained` with its temp root. The runtime prepares its
+Windows job helpers once, as the extension does; a failure is retried. The
+Git source keeps its fixed reason and attaches the actual refusal as
+`cause`. Receipts are in int0170-combined.md.
 
 **SPAWN017B cold-probe finding (2026-10-08).** The third complete-file idle
 replay fails before lock admission because PowerShell's Get-Process discovery
@@ -12116,6 +12129,14 @@ one governor for everything the harness starts.
       - Every governed child runs with `TMPDIR`, `TEMP` and `TMP` pointed
         at a temp root the harness owns for that tree. Browsers launched
         for tests get their own profile and cache folders in that root.
+        **Narrowed by SPAWN017C (2026-10-08, lead decision):** only an
+        explicit launch profile is exempt, never bounded commands as a
+        class. A `probe` (bounded and read-only: Git ref reads, version
+        checks, status queries) keeps admission, its deadline, its output
+        cap, containment and tree retirement but owns no temp root; each
+        call site chooses it, and spawn-inventory.json records it with its
+        reason. `bootstrap` compilation also owns none. A bounded command
+        that might write files stays `contained`, temp root included.
       - When the tree exits, its root is removed. A failed run's root is
         kept for `RESOURCE_TEMP_KEEP_MS` (24 hours) for debugging and is
         then removed.
@@ -36823,6 +36844,17 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**SPAWN017C Windows residual (2026-10-08).** Bounded commands no longer
+build temp roots, and the runtime prepares its job helpers once. With those
+fixes the real-Git schedule regression passes on Kubuntu and the Mac mini.
+On win11 it passes at about 10.5 s of its 15 s budget with ten CPUs, but
+times out with four, the hosted-runner size. Each governed Windows launch
+still starts a launcher and up to six cold PowerShell tree queries (root,
+membership, members, usage, retirement). This is the T reader's
+per-query design. Removing that cost needs a persistent reader or
+launcher-attested retirement. That is a redesign for the lead, not a
+third patch. No assertion or deadline is changed.
 
 **SPAWN017B scoped delivery and stop (2026-10-08).** Shared common.md forbids
 aggregate quality on this lane; the lead owns it. Retain all caps and run

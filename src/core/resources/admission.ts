@@ -30,7 +30,7 @@ export async function spawnResourceProcess(
   options: ResourceProcessOptions,
 ): Promise<ResourceInteractiveProcess>
 export async function spawnResourceProcess(
-  profile: 'contained' | 'bootstrap',
+  profile: 'contained' | 'probe' | 'bootstrap',
   file: string,
   args: readonly string[],
   options: ResourceProcessOptions,
@@ -112,9 +112,10 @@ export async function admitResource(
   workClass?: ResourceClass | 'checkpoint',
   isDiskHeavy?: boolean,
   checkpointDestination?: string,
+  isTempFree?: boolean,
 ): Promise<ResourceLease | undefined> {
   const host = await load()
-  return await host?.admit(kind, signal, workClass, isDiskHeavy, checkpointDestination)
+  return await host?.admit(kind, signal, workClass, isDiskHeavy, checkpointDestination, isTempFree)
 }
 
 export async function inResourceClass<T>(

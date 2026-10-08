@@ -52,8 +52,8 @@
   },
   {
     "site": "src/core/media/convert.ts#call:spawnResourceProcess:1",
-    "profile": "contained",
-    "reason": "Media probes/encoders use the portable contained launch; this import is a process type."
+    "profile": "probe",
+    "reason": "Media tool version probe (`-version`): bounded, reads stdout only, writes nothing; contained tree, no temp root."
   },
   {
     "site": "src/core/media/convert.ts#call:spawnResourceProcess:2",
@@ -87,13 +87,13 @@
   },
   {
     "site": "src/core/reporting/history.ts#call:execResourceFile:1",
-    "profile": "contained",
-    "reason": "Identity probes select the bounded contained command adapter; journal locks retain identity guards."
+    "profile": "probe",
+    "reason": "Report-writer birth identity probe (ps / Diagnostics.Process start time): read-only, bounded; contained tree, no temp root."
   },
   {
     "site": "src/core/reporting/sources/github.ts#call:execResourceFile:1",
-    "profile": "contained",
-    "reason": "GitHub reads select the bounded credential-stripped contained command adapter."
+    "profile": "probe",
+    "reason": "gh reads for reports (GET only), credential-stripped, bounded; contained tree, no temp root."
   },
   {
     "site": "src/core/reporting/sources/github.ts#import:1",
@@ -133,7 +133,7 @@
   {
     "site": "src/core/resources/commands.ts#call:spawnResourceProcess:2",
     "profile": "contained",
-    "reason": "execResourceFile: bounded contained command; one deadline covers admission and run; combined output cap."
+    "reason": "execResourceFile forwards the caller-named contained or probe profile; one deadline covers admission and run; combined output cap."
   },
   {
     "site": "src/core/resources/commands.ts#import:1",
@@ -207,18 +207,18 @@
   },
   {
     "site": "src/core/schedules/events/git.ts#call:execResourceFile:1",
-    "profile": "contained",
-    "reason": "Trust-checked scheduled Git reads select the bounded contained adapter; created-file publication remains separately owned."
+    "profile": "probe",
+    "reason": "Scheduled Git common-dir read (rev-parse), trust-checked, --no-optional-locks; read-only, contained tree, no temp root."
   },
   {
     "site": "src/core/schedules/events/git.ts#call:execResourceFile:2",
-    "profile": "contained",
-    "reason": "Trust-checked scheduled Git reads select the bounded contained adapter; created-file publication remains separately owned."
+    "profile": "probe",
+    "reason": "Scheduled Git ref listing (for-each-ref), --no-optional-locks; read-only, contained tree, no temp root."
   },
   {
     "site": "src/core/schedules/events/git.ts#call:execResourceFile:3",
-    "profile": "contained",
-    "reason": "Trust-checked scheduled Git reads select the bounded contained adapter; created-file publication remains separately owned."
+    "profile": "probe",
+    "reason": "Scheduled Git ref re-read that verifies a stable listing; read-only, contained tree, no temp root."
   },
   {
     "site": "src/core/team/workers/engineWorker.ts#call:spawn:1",
@@ -470,8 +470,8 @@
   },
   {
     "site": "src/runtime/reporting/sources.ts#call:execResourceFile:1",
-    "profile": "contained",
-    "reason": "Reporting Git reads select the bounded contained command profile."
+    "profile": "probe",
+    "reason": "Report Git reads (--no-pager log/show/diff), credential-free; read-only, contained tree, no temp root."
   },
   {
     "site": "src/runtime/resources/entry.ts#call:runBootstrap:1",
@@ -481,7 +481,7 @@
   {
     "site": "src/runtime/schedules/nodeBackgroundIo.ts#call:execResourceFile:1",
     "profile": "contained",
-    "reason": "Native schedule commands and maintenance children select contained admission and owned tree lifetime."
+    "reason": "Native schedule OS commands (launchctl, systemctl, schtasks) change scheduler state, so they stay contained with a temp root."
   },
   {
     "site": "src/runtime/schedules/nodeBackgroundIo.ts#call:spawnResourceProcess:1",

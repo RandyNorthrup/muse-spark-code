@@ -123,7 +123,7 @@ async function probeVersion(
   args: readonly string[],
   options: VersionProbeOptions,
 ): Promise<string> {
-  const { child, stop: stopTree } = await spawnResourceProcess('contained', command, args, {
+  const { child, stop: stopTree } = await spawnResourceProcess('probe', command, args, {
     env: options.env,
     ...(options.signal !== undefined && { signal: options.signal }),
   })

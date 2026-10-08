@@ -28,6 +28,7 @@ describe('complete production process inventory', () => {
     for (const entry of inventory) {
       expect([
         'contained',
+        'probe',
         'handoff',
         'interactive',
         'bootstrap',
@@ -62,7 +63,24 @@ describe('complete production process inventory', () => {
         expect(site.selected).toBe(entry.profile)
       if (entry.site.includes('call:handoffResourceFile')) expect(entry.profile).toBe('handoff')
       if (entry.site.includes('call:runBootstrap')) expect(entry.profile).toBe('bootstrap')
+      // No temp root only where a call site literally asks for a probe: never a
+      // forwarder, an import or a raw launch, and never by default.
+      if (entry.profile !== 'probe') continue
+      expect(entry.site).toMatch(/#call:(spawnResourceProcess|execResourceFile):\d+$/)
+      expect(site.selected).toBe('probe')
     }
+    // Every literal probe in source is a recorded probe, and nothing else is one.
+    expect(
+      captured.sites
+        .filter((site) => site.selected === 'probe')
+        .map((site) => site.site)
+        .toSorted(order),
+    ).toEqual(
+      inventory
+        .filter((entry) => entry.profile === 'probe')
+        .map((entry) => entry.site)
+        .toSorted(order),
+    )
     const certification = fs.readFileSync(
       path.join(root, 'docs/certification/int0170-combined.md'),
       'utf8',
