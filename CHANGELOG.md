@@ -22,9 +22,13 @@ happened, not what was planned; superseded entries are kept.
   governor at normal for fifteen minutes. A governor you switched off stays
   off. The governor, its status item and the chip still load on first use,
   never at activation, and chat's first paint stays within its budget.
-  JetBrains, Visual Studio, Eclipse and the companion page reuse the same
-  chip and status adapter once their M104 bridges bind them; ACP and
-  terminals keep `/resources` and `resources status|resume`.
+  A status the chip cannot trust (unreadable, with unknown fields, or too
+  large) shows as **Resources: Unknown** with a short explanation, never as
+  an older reading. While the chip loads it says so in place, and if it
+  cannot load it offers **Try again** without disturbing the conversation.
+  JetBrains, Visual Studio, Eclipse and the companion page can reuse the same
+  chip and status adapter once their M104 bridges bind them; none does yet.
+  ACP and terminals keep `/resources` and `resources status|resume`.
 
 ### Pending
 

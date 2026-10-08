@@ -40462,6 +40462,19 @@ equivalent; MHP and companion hosts reuse the same adapter and chip once
 M104 binds their bridges. Receipts:
 [`docs/certification/m107.md`](docs/certification/m107.md#m107-w-chip--window-binding).
 
+**FIXM107W1 review repair and chip scenes (2026-10-08).** Codex RVM107W1
+found three P2s in the window binding; all are repaired with regressions
+proven red on `23432ce4d` and byte-exact drills. A refused status (unreadable,
+unknown-field, oversized, or over the host's bound) shows the chip as
+unavailable with a localized refusal, never an old reading or nothing.
+Show resources keeps its open for a registered surface until that surface is
+ready. The chip uses the deferred-surface helper's accessible loading row and
+boundary, so a failed chunk offers Try again while chat stays mounted.
+The resources harness gains four production-path scenes with the owner's
+UI rules (one row of equal, bordered actions; visible focus; crisp chip), and
+README shows `media/readme/resources.png` from the new `resources-throttle`
+scenario. M104 bridge parity is assigned separately.
+
 **FIXM107J review repair (2026-10-06, Kubuntu).** Repair both RVM107J P2s
 and its P3 inside J's collector, aggregate, history boundary and shared view.
 Read-time flushes retain the active minute and its per-tree CPU baselines;

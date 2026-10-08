@@ -4674,9 +4674,9 @@ status that fails its schema check.
 Other editors: ACP clients get `/resources`, `/resources resume` and
 `/usage resources` through the runtime port, and terminals get
 `muse-spark-code-acp resources`. JetBrains, Visual Studio and Eclipse (MHP's
-native status widget and embedded chip) and the companion page use the same
-shared chip, status adapter and controls, but their host bridges still have to
-bind them (M104). The usage-history section, actuator lifecycle, runtime spawn
+native status widget and embedded chip) and the companion page can reuse the
+same shared chip, status adapter and controls once their host bridges bind
+them (M104); none does yet. The usage-history section, actuator lifecycle, runtime spawn
 binding, M96/M96c slots and M100 paired-device dispatch remain explicit
 integration handoffs. Once those routes join, relocation will move only eligible queued
 tasks/checks, or a running check after explicit **Move to** and proven
