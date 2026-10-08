@@ -17940,7 +17940,8 @@ test that fails without the rule:
    after merging current main; G6 no duplication on unreachability
    (re-dispatch only after lease expiry, under a new epoch); G21 a new verdict
    re-runs the whole workflow; G26 the full suite after every merge into a
-   release candidate.
+   release candidate; G34 result reducers preserve immutable raw events and
+   fold replay into a separate output, never back into retained inputs.
 2. **M96 (team and board):** G3 structural rendering of briefs (no text
    substitution; the rendered brief is checked and hashed before dispatch);
    G5 three job states (running, finished, unknown since a time); G7
@@ -17950,6 +17951,8 @@ test that fails without the rule:
    also bind device lanes. Also G1 and G2 on dispatch, G12 transport-health
    signals, G14 an explicit recorded environment and preflight of hook tools,
    and G15 Windows per-process policy, closed stdin and structured results.
+   G34 applies to result consolidation; its regression folds the same raw
+   report twice and verifies unchanged input hashes and event counts.
 4. **M107 (governor):** G10 a temp root per job, removed at its end; G11
    ledger-only cleanup with an identity re-check, never by name pattern; G12
    OS-service pressure and transport failure as signals; G13 spawn-rate and
@@ -17958,7 +17961,7 @@ test that fails without the rule:
    workspace, since an ignored path can still incur discovery cost; G32 native
    UI checks join complete scenario readiness before interacting with controls.
 5. **M110 (Muse Node):** G1, G2, G10, G11, G14 to G16 for the tool host and
-   sandboxes.
+   sandboxes; G34 immutable inputs during result consolidation.
 6. **M115 (scheduled prompts):** G8 one serialized owner plus a lease, never
    process-name matching; G22 every unattended delivery verified where it
    landed.
@@ -47729,6 +47732,11 @@ A can integrate against the callable source factory and generation contract;
 I can use those contracts for its representation work but still needs named
 embedding captures and independent calibration labels. Receipt:
 `docs/certification/m98.md`.
+
+The universal ACP package also requires the compiled
+`native/darwin/muse-local-judge-peer` artifact. It is absent on this Linux
+rig; a test-owned inactive member only exercises private fake package trees
+and does not satisfy real packaging or installed macOS certification.
 
 ## 8. Escape hatches register
 
