@@ -787,5 +787,6 @@ failed-clear scenarios failing on that base with the lane's store.
 | `check:reference`                                    | 0      | current                                                    |
 
 No `--testTimeout` on any verification run. At most 3 test files per run
-with `--maxWorkers=3`. No fresh clone was needed: the l10n tables changed
-values only, and `check:l10n` plus `check:reference` run directly here.
+with `--maxWorkers=3`. Every gate above also ran in a fresh clone under
+`$TMPDIR` (`npm ci`, `CI=true`) with identical receipts; the clone was
+removed afterwards.
