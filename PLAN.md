@@ -9744,6 +9744,16 @@ have equivalent functionality even if we need to develop it ourselves".
 
 ## 3. Open questions (need the owner)
 
+- **Q-FIX0160X-LINUX-ARTIFACTS (2026-10-07, macmini):** this worktree has
+  no real x64 or arm64 `muse-created` build artifacts. Its universal Darwin
+  helper builds and verifies successfully. A shared source for the two Linux
+  artifacts was requested asynchronously; none has been supplied. Both exact
+  Linux paths already appear in `.vscodeignore`, and VSCE's owning suite proves
+  both memberships and missing-helper refusals. The supplied hosted excerpt
+  does not establish why arm64 was absent. The lead must supply the real
+  artifacts and the hosted download inventory before universal packaging can
+  be qualified; retain both strict guards and every budget.
+
 - **Q-TRAIN15G-DIET1 (2026-10-06):** main’s exact 733.8/32.1-KiB
   regression capture does not fit the integrated train, although unchanged
   900/50-KiB production gates pass. The rig brief approves only the universal
@@ -19705,6 +19715,16 @@ build and both packagers. No merge, push, paid/live calls or Windows-lane edits.
 Record causes, deliberate failures and restored checks in
 `docs/certification/fix0160x.md`. Shared lane rules reserve aggregate quality
 and hosted multi-OS qualification for the lead (see §7).
+
+All five failing files and the Action/VSIX regressions now pass: 200 tests
+across seven complete files at repository deadlines, with four deliberate
+red/restored guard drills. Five typechecks, full local lint, changed-file
+formatting, plain knip, duplication, reference, localization, host API and
+production build pass. Actual VSIX/ACP packaging fails closed because both
+Linux helper inputs are absent on this Darwin worktree; Q-FIX0160X-LINUX-ARTIFACTS
+remains open. The Windows capture's `routeUnconfirmed` comes from the browser
+confinement verifier outside this lane; no guard is relaxed or Windows file
+changed. Full hosted qualification and aggregate quality remain lead-owned.
 
 ### REL0160 — Prepare the 0.16.0 release (2026-10-06)
 
