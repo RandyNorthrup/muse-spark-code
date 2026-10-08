@@ -39,6 +39,29 @@ import {
   backgroundWakeRecordSchema,
 } from '../../src/runtime/schedules/registration'
 import type { TrustedPathVerifier } from '../../src/runtime/trustedPathPort'
+import { verifySystemdSearchDirectories } from '../../src/runtime/schedules/effectiveDefinition'
+
+function nativeFixtureVerifier(uid: number): TrustedPathVerifier {
+  return {
+    async verify(file: string, options: { leafKind: 'file' | 'directory' }) {
+      let component = file
+      for (;;) {
+        const info = await lstat(component)
+        const isLeaf = component === file
+        if (
+          info.isSymbolicLink() ||
+          (info.uid !== 0 && info.uid !== uid) ||
+          (info.mode & 0o022) !== 0 ||
+          (isLeaf && options.leafKind === 'file' ? !info.isFile() : !info.isDirectory())
+        )
+          return { refused: true, component, reason: 'native fixture owner/mode/kind' }
+        const parent = path.dirname(component)
+        if (parent === component) return { ok: true, path: await realpath(file) }
+        component = parent
+      }
+    },
+  }
+}
 
 function result(exitCode = 0, stdout = '', stderr = ''): BackgroundProcessResult {
   return { exitCode, stdout, stderr }
@@ -308,22 +331,32 @@ describe('native background lifecycle', () => {
   it('refuses unavailable or malformed systemd search paths before activation and fire', async () => {
     const { entry, state, deps, run } = setup('linux')
     await entry.register(61_000, { choice: 'yes', decidedAtMs: 1000 })
-    for (const paths of [
-      [],
-      ['relative'],
-      [String.raw`/safe\escape`],
-      ['/safe\nforged'],
-      ['/safe', '/safe'],
-    ]) {
-      state.unitPaths = paths
-      await expect(verifyRegisteredWake(deps)).rejects.toThrow()
-      await expect(entry.register(121_000, { choice: 'yes', decidedAtMs: 1000 })).rejects.toThrow()
+    // Each broken manager environment refuses honestly: an empty listing is a
+    // malformed response (an unset runtime directory falls back inside
+    // systemd, so only its empty answer is observable here), a relative root
+    // names itself as unsafe, and a failed query is unavailable, as in a
+    // session without a user manager.
+    for (const [paths, message] of [
+      [[], UI_TEXT.scheduleV2.runtime.invalidResponse],
+      [['/safe', '', '/other'], UI_TEXT.scheduleV2.runtime.invalidResponse],
+      [['relative'], 'relative'],
+      [[String.raw`/safe\escape`], String.raw`/safe\escape`],
+      // A forged newline splits into two roots in the line protocol; the
+      // relative half is refused by name, so it cannot slip through either.
+      [['/safe\nforged'], 'forged'],
+      [['/safe', '/safe'], UI_TEXT.scheduleV2.runtime.invalidResponse],
+    ] as const) {
+      state.unitPaths = [...paths]
+      await expect(verifyRegisteredWake(deps)).rejects.toThrow(message)
+      await expect(entry.register(121_000, { choice: 'yes', decidedAtMs: 1000 })).rejects.toThrow(
+        message,
+      )
     }
     const original = run.getMockImplementation()!
     run.mockImplementation((file, args) =>
       file === 'systemd-analyze' ? Promise.resolve(result(1)) : original(file, args),
     )
-    await expect(verifyRegisteredWake(deps)).rejects.toThrow()
+    await expect(verifyRegisteredWake(deps)).rejects.toThrow(UI_TEXT.scheduleV2.runtime.unavailable)
   })
   it('refuses an unsafe Windows task descriptor at registration and each fire', async () => {
     const { entry, state, deps, run } = setup('win32')
@@ -646,42 +679,61 @@ describe('native background lifecycle', () => {
       }
     },
   )
+  it('refuses a writable unit drop-in directory under a reported search root with its exact path', async () => {
+    // Posix-only: the reported search roots below use posix separators.
+    if (process.platform === 'win32') return
+    const uid = process.getuid?.() ?? 0
+    const directory = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm115-search-')))
+    try {
+      const id = backgroundRegistrationId(directory)
+      const root = path.join(directory, 'units')
+      const dropDirectory = path.posix.join(root, `${id}.service.d`)
+      await mkdir(dropDirectory, { recursive: true })
+      await chmod(dropDirectory, 0o777)
+      const files = nodeBackgroundFiles(nativeFixtureVerifier(uid))
+      const run = (file: string): Promise<BackgroundProcessResult> =>
+        file === 'systemd-analyze'
+          ? Promise.resolve(result(0, root))
+          : Promise.reject(new Error(`unexpected native call ${file}`))
+      await expect(
+        verifySystemdSearchDirectories({
+          platform: 'linux',
+          id,
+          definitions: backgroundDefinitionPaths('linux', directory, directory),
+          executable: process.execPath,
+          uid,
+          trustedPath: files.trustedPath,
+          hash: files.hash,
+          read: files.read,
+          run,
+        }),
+      ).rejects.toThrow(dropDirectory)
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
   it('natively refuses an empty writable systemd drop-in without leaving a disposable timer armed', async () => {
     if (process.platform !== 'linux') return
     const runNative = backgroundProcessRunner(process.env)
     const manager = await runNative('systemctl', ['--user', 'show-environment'])
     if (manager.exitCode !== 0) return
-    const directory = await mkdtemp(
-      path.join(process.env['XDG_RUNTIME_DIR'] ?? os.tmpdir(), 'm115-native-'),
-    )
+    // The transient-dir premise below holds only for an absolute runtime
+    // directory; an empty or relative one leaves the test without a systemd
+    // path to assert on (production's honest refusal there is covered by the
+    // mocked environment shapes above).
+    const runtimeDir = process.env['XDG_RUNTIME_DIR']
+    if (runtimeDir !== undefined && !path.posix.isAbsolute(runtimeDir)) return
+    const directory = await mkdtemp(path.join(runtimeDir ?? os.tmpdir(), 'm115-native-'))
     const uid = process.getuid?.() ?? 0
     const id = backgroundRegistrationId(directory)
     const dropDirectory = path.join(
-      process.env['XDG_RUNTIME_DIR'] ?? `/run/user/${String(uid)}`,
+      runtimeDir ?? `/run/user/${String(uid)}`,
       'systemd',
       'user',
       `${id}.service.d`,
     )
     try {
-      const verifier: TrustedPathVerifier = {
-        async verify(file: string, options: { leafKind: 'file' | 'directory' }) {
-          let component = file
-          for (;;) {
-            const info = await lstat(component)
-            const isLeaf = component === file
-            if (
-              info.isSymbolicLink() ||
-              (info.uid !== 0 && info.uid !== uid) ||
-              (info.mode & 0o022) !== 0 ||
-              (isLeaf && options.leafKind === 'file' ? !info.isFile() : !info.isDirectory())
-            )
-              return { refused: true, component, reason: 'native fixture owner/mode/kind' }
-            const parent = path.dirname(component)
-            if (parent === component) return { ok: true, path: await realpath(file) }
-            component = parent
-          }
-        },
-      }
+      const verifier = nativeFixtureVerifier(uid)
       const files = nodeBackgroundFiles(verifier)
       const agentFile = path.join(directory, 'agent.js')
       await writeFile(agentFile, 'process.exitCode = 0', { mode: 0o600 })
@@ -704,7 +756,27 @@ describe('native background lifecycle', () => {
       const entry = new NativeScheduleBackground(deps)
       const register = () =>
         entry.register(Date.now() + 600_000, { choice: 'yes', decidedAtMs: Date.now() })
-      await expect(register()).rejects.toThrow(dropDirectory)
+      // Derive the expected refusal through production's own search-root
+      // check: on machines whose home-directory modes fail verification
+      // first, that earlier path is the honest refusal, not the drop-in dir.
+      let expected: string | null = null
+      try {
+        await verifySystemdSearchDirectories({
+          platform: 'linux',
+          id,
+          definitions: backgroundDefinitionPaths('linux', directory, directory),
+          executable: deps.executable,
+          uid,
+          trustedPath: files.trustedPath,
+          hash: files.hash,
+          read: files.read,
+          run: runNative,
+        })
+      } catch (error: unknown) {
+        expected = error instanceof Error ? error.message : String(error)
+      }
+      expect(typeof expected).toBe('string')
+      await expect(register()).rejects.toThrow(expected!)
       const active = await runNative('systemctl', ['--user', 'is-active', `${id}.timer`])
       const enabled = await runNative('systemctl', ['--user', 'is-enabled', `${id}.timer`])
       expect(active.exitCode).not.toBe(0)
