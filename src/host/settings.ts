@@ -271,12 +271,9 @@ function readSetting<K extends SettingKey>(
   key: K,
   log: Logger,
 ): ExtensionSettings[K] {
-  const previousKey =
-    key === 'scheduleDefaultDelivery'
-      ? 'schedules.defaultDelivery'
-      : key === 'scheduleAgentCreation'
-        ? 'schedules.agentCreation'
-        : undefined
+  let previousKey: string | undefined
+  if (key === 'scheduleDefaultDelivery') previousKey = 'schedules.defaultDelivery'
+  else if (key === 'scheduleAgentCreation') previousKey = 'schedules.agentCreation'
   const raw = config.get(key) ?? (previousKey === undefined ? undefined : config.get(previousKey))
   const fallback = SETTING_DEFAULTS[key] as ExtensionSettings[K]
   if (raw === undefined) {

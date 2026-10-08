@@ -104,6 +104,12 @@ jobs:
           path: |
             dist/webview
             dist/reportingPanel.js
+            dist/validation.js
+            dist/wire.js
+            dist/uiText.js
+            dist/uiTextRuntime.js
+            dist/uiTextHooks.js
+            dist/uiTextSurfaces.js
           if-no-files-found: error
 
   # M114: rebuild the reviewed Git source in this runner's browser/fonts;

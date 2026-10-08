@@ -33,8 +33,14 @@ describe('the chat column (the owner’s requests of 2026-10-04)', () => {
   it('names its width, and takes its inset from the panel rather than the scroller', () => {
     const root = declarationsOf(css, ':root')
     expect(root).toMatch(/--ms-column-max-width\s*:\s*760px\s*;/)
+    expect(declarationsOf(css, '.app')).toMatch(/container-type\s*:\s*inline-size\s*;/)
+    for (const selector of ['.body', '.approval-dock']) {
+      expect(declarationsOf(css, selector)).not.toMatch(
+        /container-type\s*:\s*(?:inline-size|size)\s*;/,
+      )
+    }
     expect(root).toMatch(
-      /--ms-column-inset\s*:\s*max\(0px,\s*\(100vw - var\(--ms-column-max-width\)\) \/ 2\)\s*;/,
+      /--ms-column-inset\s*:\s*max\(0px,\s*\(100cqw - var\(--ms-column-max-width\)\) \/ 2\)\s*;/,
     )
     expect(root).toMatch(
       /--ms-column-gutter\s*:\s*calc\(var\(--ms-column-inset\) \+ var\(--ms-gap\)\)/,

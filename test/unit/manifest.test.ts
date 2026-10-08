@@ -618,9 +618,18 @@ describe('tiered CI (CIFLOW)', () => {
   })
 
   it('carries the reporting panel metrics input with browser files for accessibility', () => {
-    expect(job('checks')).toContain(
-      'path: |\n            dist/webview\n            dist/reportingPanel.js',
-    )
+    expect(job('checks')).toContain('path: |\n            dist/webview\n')
+    for (const file of [
+      'reportingPanel',
+      'validation',
+      'wire',
+      'uiText',
+      'uiTextRuntime',
+      'uiTextHooks',
+      'uiTextSurfaces',
+    ]) {
+      expect(job('checks')).toContain(`            dist/${file}.js\n`)
+    }
     expect(job('accessibility')).toContain('name: production-webview\n          path: dist\n')
     expect(read('test/harness/reporting/verify.mjs')).toContain(
       "statSync(path.join(root, 'dist/reportingPanel.js'))",
