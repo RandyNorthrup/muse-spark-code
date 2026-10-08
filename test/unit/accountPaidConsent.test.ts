@@ -2,10 +2,10 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   AccountPaidUseConsent,
   paidAccountQuestion,
+  type AccountBindingGrants,
   type PaidAccountBinding,
   type PaidUseAnswer,
 } from '../../src/core/paid/paidConsent'
-import type { PaidFeature } from '../../src/shared/constants'
 import type { PaidUseRequest } from '../../src/shared/paid'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { Usd } from '../../src/shared/usd'
@@ -20,16 +20,25 @@ const BINDING: PaidAccountBinding = {
   dailyBudgetUsd: Usd.from(5).toAmount(),
 }
 function rig() {
-  const grants = new Map<string, ReadonlySet<PaidFeature>>()
+  // One durable store per rig, shared across instances like a restart that
+  // kept its storage: binding grants with their approval epoch, the
+  // revocation epoch per binding, and the quote grants.
+  const grants = new Map<string, AccountBindingGrants>()
+  const epochs = new Map<string, number>()
   const quotes = new Map<string, PaidGrant>()
   const state = { isOn: true, isCurrent: true, canRemember: true, quoteGeneration: 'stored-1' }
   const deps = {
     isOn: () => state.isOn,
     isCurrent: () => state.isCurrent,
     canRemember: () => state.canRemember,
-    readGrants: (key: string) => grants.get(key) ?? new Set<PaidFeature>(),
-    writeGrants: vi.fn((key: string, next: ReadonlySet<PaidFeature>) => {
+    readGrants: (key: string) => grants.get(key),
+    writeGrants: vi.fn((key: string, next: AccountBindingGrants) => {
       grants.set(key, next)
+      return Promise.resolve()
+    }),
+    readRevocationEpoch: (key: string) => epochs.get(key),
+    writeRevocationEpoch: vi.fn((key: string, epoch: number) => {
+      epochs.set(key, epoch)
       return Promise.resolve()
     }),
     ask: vi.fn((_request: PaidUseRequest, _binding: PaidAccountBinding, _canRemember: boolean) =>
@@ -73,7 +82,7 @@ function rig() {
       binding,
     )
   }
-  return { deps, grants, quotes, state, create, storeFor, bindingKey }
+  return { deps, grants, epochs, quotes, state, create, storeFor, bindingKey }
 }
 
 function bindingKey(patch: Partial<PaidAccountBinding> = {}) {
@@ -167,11 +176,11 @@ describe('M108 account-bound paid use consent', () => {
     finish.resolve(undefined)
     expect(await Promise.all([first, second])).toEqual([true, true])
     expect(t.grants.size).toBe(1)
-    expect(t.grants.values().next().value).toEqual(new Set(['autoReviewer', 'judge']))
+    expect(t.grants.values().next().value?.features).toEqual(new Set(['autoReviewer', 'judge']))
     expect(await a.allows(judge)).toBe(true)
     expect(t.deps.ask).toHaveBeenCalledTimes(2)
     await a.revoke()
-    for (const features of t.grants.values()) expect(features.size).toBe(0)
+    for (const grants of t.grants.values()) expect(grants.features.size).toBe(0)
   })
 
   it('discards a queued Always effect after revocation and preserves both features on a fresh generation', async () => {
@@ -191,14 +200,14 @@ describe('M108 account-bound paid use consent', () => {
     expect(await Promise.all([first, second])).toEqual([false, false])
     await revoked
     expect(t.deps.writeGrants).toHaveBeenCalledTimes(2)
-    for (const features of t.grants.values()) expect(features.size).toBe(0)
+    for (const grants of t.grants.values()) expect(grants.features.size).toBe(0)
     expect(t.quotes.size).toBe(0)
     expect(await Promise.all([a.allows(search), a.allows({ feature: 'voice' })])).toEqual([
       true,
       true,
     ])
     // Voice Always lives in the binding grant; search Always lives in the quote store.
-    expect(t.grants.values().next().value).toEqual(new Set(['voice']))
+    expect(t.grants.values().next().value?.features).toEqual(new Set(['voice']))
     expect(t.quotes.size).toBe(1)
   })
 
@@ -224,7 +233,7 @@ describe('M108 account-bound paid use consent', () => {
     const request = quotedSearch('0.0025', 'model-a')
     t.deps.ask.mockResolvedValue('always')
     // Search Always grants persist their quote ceiling, not a legacy feature bit.
-    t.grants.set('legacy', new Set(['webSearch']))
+    t.grants.set('legacy', { epoch: 0, features: new Set(['webSearch']) })
     expect(await t.create().allows(request)).toBe(true)
     expect(await t.create().allows(request)).toBe(true)
     expect(t.deps.ask).toHaveBeenCalledTimes(1)
@@ -243,7 +252,7 @@ describe('M108 account-bound paid use consent', () => {
   it('holds Always across instances and restarts through the account quote store', async () => {
     const t = rig()
     t.deps.ask.mockResolvedValue('always')
-    t.grants.set('legacy', new Set(['webSearch', 'voice']))
+    t.grants.set('legacy', { epoch: 0, features: new Set(['webSearch', 'voice']) })
     const search = quotedSearch('0.0025', 'model-a')
     const a = t.create()
     expect(await a.allows(search)).toBe(true)
@@ -386,15 +395,106 @@ describe('M108 account-bound paid use consent', () => {
     finish.resolve(undefined)
     expect(await pending).toBe(false)
     await revoked
-    for (const grants of t.grants.values()) expect(grants.size).toBe(0)
+    for (const grants of t.grants.values()) expect(grants.features.size).toBe(0)
     expect(t.quotes.size).toBe(0)
     expect(await a.allows(request)).toBe(true)
     t.deps.writeGrants.mockRejectedValueOnce(new Error('disk unavailable'))
     await expect(a.revoke()).rejects.toThrow('disk unavailable')
-    // The grant is still in the store, but the advanced generation voids it.
+    // The grant is still in the store, but the advanced epoch voids it.
     expect(t.quotes.size).toBe(1)
     t.deps.ask.mockResolvedValue('deny')
     expect(await a.allows(request)).toBe(false)
+  })
+
+  it('reuses a post-revocation Always grant after a restart with no new ask', async () => {
+    const t = rig()
+    const request = quotedSearch('0.0025', 'model-a')
+    const a = t.create()
+    await a.revoke()
+    t.deps.ask.mockResolvedValue('always')
+    expect(await a.allows(request)).toBe(true)
+    expect(await a.allows({ feature: 'voice' })).toBe(true)
+    expect(t.deps.ask).toHaveBeenCalledTimes(2)
+    expect(t.epochs.get(bindingKey())).toBe(1)
+    // A restart on the same store reads the durable epoch, so both grants hold.
+    expect(await t.create().allows(request)).toBe(true)
+    expect(await t.create().allows({ feature: 'voice' })).toBe(true)
+    expect(t.deps.ask).toHaveBeenCalledTimes(2)
+  })
+
+  it('ignores leftover binding grants after a restart when their clear failed', async () => {
+    const t = rig()
+    const request = quotedSearch('0.0025', 'model-a')
+    t.deps.ask.mockResolvedValue('always')
+    const a = t.create()
+    expect(await a.allows(request)).toBe(true)
+    expect(await a.allows({ feature: 'voice' })).toBe(true)
+    expect(t.deps.ask).toHaveBeenCalledTimes(2)
+    t.deps.writeGrants.mockRejectedValueOnce(new Error('disk unavailable'))
+    await expect(a.revoke()).rejects.toThrow('disk unavailable')
+    // The epoch already advanced, so a restart finds only stale leftovers:
+    // it asks, and Deny is honoured.
+    t.deps.ask.mockResolvedValue('deny')
+    expect(await t.create().allows(request)).toBe(false)
+    expect(await t.create().allows({ feature: 'voice' })).toBe(false)
+    expect(t.deps.ask).toHaveBeenCalledTimes(4)
+  })
+
+  it('ignores leftover quote grants after a restart when their clear failed', async () => {
+    const t = rig()
+    const request = quotedSearch('0.0025', 'model-a')
+    t.deps.ask.mockResolvedValue('always')
+    const a = t.create()
+    expect(await a.allows(request)).toBe(true)
+    expect(t.deps.ask).toHaveBeenCalledTimes(1)
+    t.storeFor(bindingKey()).revoke.mockRejectedValueOnce(new Error('disk unavailable'))
+    await expect(a.revoke()).rejects.toThrow('disk unavailable')
+    expect(t.quotes.size).toBe(1)
+    t.deps.ask.mockResolvedValue('deny')
+    expect(await t.create().allows(request)).toBe(false)
+    expect(t.deps.ask).toHaveBeenCalledTimes(2)
+  })
+
+  it('reports a failed epoch advance honestly with the grants still working', async () => {
+    const t = rig()
+    const request = quotedSearch('0.0025', 'model-a')
+    t.deps.ask.mockResolvedValue('always')
+    const a = t.create()
+    expect(await a.allows(request)).toBe(true)
+    expect(await a.allows({ feature: 'voice' })).toBe(true)
+    expect(t.deps.ask).toHaveBeenCalledTimes(2)
+    t.deps.writeRevocationEpoch.mockRejectedValueOnce(new Error('disk unavailable'))
+    await expect(a.revoke()).rejects.toThrow('disk unavailable')
+    // Nothing was cleared and the epoch never moved: both instances reuse.
+    expect(t.quotes.size).toBe(1)
+    expect(await a.allows(request)).toBe(true)
+    expect(await a.allows({ feature: 'voice' })).toBe(true)
+    expect(await t.create().allows(request)).toBe(true)
+    expect(await t.create().allows({ feature: 'voice' })).toBe(true)
+    expect(t.deps.ask).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps a concurrent ask on one instance from resurrecting a revoked grant', async () => {
+    const t = rig()
+    const request = quotedSearch('0.0025', 'model-a')
+    t.deps.ask.mockResolvedValue('always')
+    const a = t.create(),
+      b = t.create()
+    // A opens its question before B revokes; B's epoch advance lands first.
+    const answer = Promise.withResolvers<PaidUseAnswer>()
+    t.deps.ask.mockReturnValueOnce(answer.promise)
+    const asking = a.allows(request)
+    await vi.waitFor(() => {
+      expect(t.deps.ask).toHaveBeenCalledTimes(1)
+    })
+    await b.revoke()
+    answer.resolve('always')
+    // The late Always is refused, and nothing durable is resurrected.
+    expect(await asking).toBe(false)
+    expect(t.quotes.size).toBe(0)
+    t.deps.ask.mockResolvedValue('deny')
+    expect(await t.create().allows(request)).toBe(false)
+    expect(t.deps.ask).toHaveBeenCalledTimes(2)
   })
 
   it('rejects invalid binding data and uses ceiling display for a fractional budget', () => {

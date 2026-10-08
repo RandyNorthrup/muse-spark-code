@@ -834,6 +834,12 @@ export interface PaidAccountBinding {
   readonly price: string
   readonly dailyBudgetUsd: UsdAmount
 }
+/** An account binding's kept features with the revocation epoch approved under. */
+export interface AccountBindingGrants {
+  readonly epoch: number
+  readonly features: ReadonlySet<PaidFeature>
+}
+
 export interface AccountPaidUseConsentDeps extends Omit<
   PaidUseConsentDeps,
   | 'readGrants'
@@ -843,8 +849,16 @@ export interface AccountPaidUseConsentDeps extends Omit<
   | 'windowOnceFeatures'
   | 'windowOnceGeneration'
 > {
-  readonly readGrants: (bindingKey: string) => ReadonlySet<PaidFeature>
-  readonly writeGrants: (bindingKey: string, grants: ReadonlySet<PaidFeature>) => Promise<void>
+  readonly readGrants: (bindingKey: string) => AccountBindingGrants | undefined
+  readonly writeGrants: (bindingKey: string, grants: AccountBindingGrants) => Promise<void>
+  /**
+   * The account's durable revocation epoch, persisted per binding in the
+   * same store as the grants. `revoke()` advances it before clearing, so a
+   * leftover grant from a failed clear stays stale on every instance, after
+   * a restart too. Missing means never revoked.
+   */
+  readonly readRevocationEpoch: (bindingKey: string) => number | undefined
+  readonly writeRevocationEpoch: (bindingKey: string, epoch: number) => Promise<void>
   readonly ask: (
     request: PaidUseRequest,
     binding: PaidAccountBinding,
@@ -874,10 +888,25 @@ export function paidAccountQuestion(binding: PaidAccountBinding): string {
   })
 }
 
+/** The revocation epoch a persisted quote generation was approved under. */
+function quoteGrantEpoch(generation: string): number | undefined {
+  try {
+    const parsed: unknown = JSON.parse(generation)
+    return Array.isArray(parsed) && typeof parsed[0] === 'number' ? parsed[0] : undefined
+  } catch {
+    return undefined
+  }
+}
+
 /**
  * One instance per account/tariff. Legacy single-account consent stays
  * unchanged. No production host constructs this yet: per-account wiring is
  * M108 lane P's, so hosts keep their workspace-scoped consent until then.
+ *
+ * Grant authority is bound to a durable revocation epoch persisted per
+ * account binding: `revoke()` advances it first and every grant records the
+ * epoch approved under, so a failed clear leaves only stale grants. The
+ * instance-local generation fences in-flight asks inside one instance only.
  */
 export class AccountPaidUseConsent {
   private readonly binding: PaidAccountBinding
@@ -919,36 +948,46 @@ export class AccountPaidUseConsent {
     await operation
   }
 
+  /** The durable revocation epoch: missing means never revoked. */
+  private durableEpoch(): number {
+    return this.deps.readRevocationEpoch(this.key) ?? 0
+  }
+
   /** The binding's kept features: empty while revoked, stale or ignored. */
   private bindingGrants(generation: number): ReadonlySet<PaidFeature> {
-    return this.isCurrent(generation) && !this.shouldIgnoreStored
-      ? this.deps.readGrants(this.key)
-      : new Set()
+    if (!this.isCurrent(generation) || this.shouldIgnoreStored) return new Set()
+    const stored = this.deps.readGrants(this.key)
+    return stored?.epoch === this.durableEpoch() ? stored.features : new Set()
   }
 
   /** Merges one feature into the binding's kept set inside the owner queue. */
   private async keepBindingFeature(feature: PaidFeature, generation: number): Promise<void> {
     await this.write(async () => {
       if (!this.isCurrent(generation)) throw new Error(UI_TEXT.accounts.invalidAccount)
-      const grants = this.shouldIgnoreStored
-        ? new Set<PaidFeature>()
-        : this.deps.readGrants(this.key)
-      await this.deps.writeGrants(this.key, new Set([...grants, feature]))
-      if (!this.isCurrent(generation)) throw new Error(UI_TEXT.accounts.invalidAccount)
+      const epoch = this.durableEpoch()
+      const stored = this.shouldIgnoreStored ? undefined : this.deps.readGrants(this.key)
+      const base = stored?.epoch === epoch ? stored.features : new Set<PaidFeature>()
+      await this.deps.writeGrants(this.key, { epoch, features: new Set([...base, feature]) })
+      if (!this.isCurrent(generation) || this.durableEpoch() !== epoch)
+        throw new Error(UI_TEXT.accounts.invalidAccount)
       this.shouldIgnoreStored = false
     })
   }
 
   /**
    * Persists an approved search quote inside the owner queue. A save from a
-   * revoked generation throws instead of resurrecting the grant after
-   * `revoke()` cleared it.
+   * revoked epoch throws instead of resurrecting the grant after `revoke()`
+   * advanced past it, on this instance or another sharing the store.
    */
   private async keepQuoteGrant(grant: PaidGrant, generation: number): Promise<void> {
     await this.write(async () => {
       if (!this.isCurrent(generation)) throw new Error(UI_TEXT.accounts.invalidAccount)
+      const epoch = this.durableEpoch()
+      if (quoteGrantEpoch(grant.generation) !== epoch)
+        throw new Error(UI_TEXT.accounts.invalidAccount)
       await this.deps.writeQuoteGrant(grant)
-      if (!this.isCurrent(generation)) throw new Error(UI_TEXT.accounts.invalidAccount)
+      if (!this.isCurrent(generation) || this.durableEpoch() !== epoch)
+        throw new Error(UI_TEXT.accounts.invalidAccount)
     })
   }
 
@@ -956,10 +995,12 @@ export class AccountPaidUseConsent {
     const generation = this.generation
     const isCurrent = () =>
       !this.isRevoking && generation === this.generation && this.deps.isCurrent(this.binding)
-    // The persisted quote generation carries this account's revocation
-    // generation beside the host's: a revoke asks again even when its store
-    // clear failed, and a host generation change asks again as before.
-    const composedGeneration = () => JSON.stringify([generation, this.deps.quoteGeneration()])
+    // The persisted quote generation carries this account's durable
+    // revocation epoch beside the host's: a revoke asks again everywhere,
+    // even when its store clear failed and after a restart, and a host
+    // generation change asks again as before.
+    const composedGeneration = () =>
+      JSON.stringify([this.durableEpoch(), this.deps.quoteGeneration()])
     return new PaidUseConsent({
       ...this.deps,
       isOn: (feature) => isCurrent() && this.deps.isOn(feature),
@@ -974,8 +1015,10 @@ export class AccountPaidUseConsent {
         if (!isCurrent()) throw new Error(UI_TEXT.accounts.invalidAccount)
         await this.write(async () => {
           if (!isCurrent()) throw new Error(UI_TEXT.accounts.invalidAccount)
-          await this.deps.writeGrants(this.key, grants)
-          if (!isCurrent()) throw new Error(UI_TEXT.accounts.invalidAccount)
+          const epoch = this.durableEpoch()
+          await this.deps.writeGrants(this.key, { epoch, features: grants })
+          if (!isCurrent() || this.durableEpoch() !== epoch)
+            throw new Error(UI_TEXT.accounts.invalidAccount)
           this.shouldIgnoreStored = false
         })
       },
@@ -1011,18 +1054,22 @@ export class AccountPaidUseConsent {
   }
 
   /**
-   * Invalidates pending questions now and removes the account/tariff's
-   * workspace grant and its quote grants, in the owner queue. A failed
-   * clear still leaves the advanced generation asking again.
+   * Advances the durable revocation epoch first, then removes the
+   * account/tariff's workspace grant and its quote grants, in the owner
+   * queue. A failed clear still leaves every leftover grant stale, on every
+   * instance and after a restart. A failed advance rejects honestly with
+   * nothing cleared and the grants still working.
    */
   public async revoke(): Promise<void> {
-    this.generation++
     this.revocations++
     this.isRevoking = true
-    this.shouldIgnoreStored = true
     try {
       await this.write(async () => {
-        await this.deps.writeGrants(this.key, new Set())
+        const epoch = (this.deps.readRevocationEpoch(this.key) ?? 0) + 1
+        await this.deps.writeRevocationEpoch(this.key, epoch)
+        this.generation++
+        this.shouldIgnoreStored = true
+        await this.deps.writeGrants(this.key, { epoch, features: new Set() })
         await this.deps.revokeQuoteGrants()
       })
     } finally {
