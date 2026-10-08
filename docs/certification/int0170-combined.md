@@ -219,12 +219,12 @@ retains a total of exactly USD 1. Both ordinary and atomic-admission competitors
 are covered. Serialization does not replace the caller's cap check or pretend
 that the cap-free `reserve` itself has a spending limit.
 
-| Item                                             | Fix                                                                                                  | Regression                                                                                                     |
-| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| 1 production prerequisites / honest availability | `ModelApiHost.ts` fileToolContext, `tools.ts` readMediaFile; README, CHANGELOG and feature reference | `modelApiProductionMedia`: four production-factory scheduled refusals                                          |
-| 2 production calibrated media receipts           | Blocked: D85.6 U6c and M105 recorded storage/codec/calibration inputs absent                         | Existing `modelApiMedia` injection tests retained; no production success claim                                 |
-| 3 exact media tariff port                        | `mediaCost.ts` reserveMediaRequest prices and validation                                             | `mediaAccounting`: untyped numeric caller refuses before either ledger; exact caller fixtures in `mediaClient` |
-| 4 ordinary/admitted lock                         | `sessionBudgetJournal.ts` withReservationLock and reserve                                            | `sessionBudgetJournal`: both concurrent competitors at exactly remaining headroom                              |
+| Item                                             | Fix                                                                              | Regression                                                                                                     |
+| ------------------------------------------------ | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| 1 production prerequisites / honest availability | `ModelApiHost.ts:8461`, `tools.ts:1193`; README, CHANGELOG and feature reference | `modelApiProductionMedia`: four production-factory scheduled refusals                                          |
+| 2 production calibrated media receipts           | Blocked: D85.6 U6c and M105 recorded storage/codec/calibration inputs absent     | Existing `modelApiMedia` injection tests retained; no production success claim                                 |
+| 3 exact media tariff port                        | `mediaCost.ts:237`, `:257` exact prices and validation                           | `mediaAccounting`: untyped numeric caller refuses before either ledger; exact caller fixtures in `mediaClient` |
+| 4 ordinary/admitted lock                         | `sessionBudgetJournal.ts:547`, `:613` shared reservation lock                    | `sessionBudgetJournal`: both concurrent competitors at exactly remaining headroom                              |
 
 Base production-source runs at repository deadlines:
 
@@ -249,6 +249,64 @@ The explicit refusal drill restores base `ModelApiHost.ts`: **4 failed /
 0 passed (4)**, exit 1, then restores repaired SHA-256 `a2b4137d162cda5a28c835ea7f443521d6fb3f82587ac7b995160f5a3e537802` exactly.
 The latest three owning suites (journal, accounting, production factory) pass
 **75 tests**, exit 0, after lint fixture corrections.
+
+Fresh-clone initial verification is against implementation `18a807dde`, after
+ordinary `npm ci` installed 902 packages with the unchanged lockfile. Every
+command uses `CI=true`; tests have at most three files, `--maxWorkers=3` and
+the repository deadlines. No test is skipped, filtered by case or weakened.
+
+| Gate                                                            | Exit   | Result                                                     |
+| --------------------------------------------------------------- | ------ | ---------------------------------------------------------- |
+| `npm ci`                                                        | 0      | Ordinary install under the lane's `$TMPDIR`                |
+| Five typechecks                                                 | 0 each | Host, webview, unit, e2e, integration                      |
+| Changed-file eslint `--max-warnings=0` / Prettier               | 0 each | All changed source, tests and documentation                |
+| Plain knip                                                      | 0      | No strict/production mode                                  |
+| Full jscpd                                                      | 1      | Three inherited clones; new factory-test duplicate removed |
+| `check:l10n`, `check:reference`, `check:host-api`, `check:plan` | 0 each | Current records; zero localization problems                |
+| Complete assigned-family/host suite sweep                       | 1      | **32 files, 1,379 passed / 3 inherited failed (1,382)**    |
+| `npm run build`                                                 | 1      | Exactly nine inherited other caps; owned budgets fit       |
+| Separate bundle-split audit                                     | 1      | Same base unlisted deferred `src/shared/slashCommands.ts`  |
+| Separate host-globals audit                                     | 0      | No host-global violations                                  |
+
+| Batch | Files                                                      | Passed / failed |
+| ----- | ---------------------------------------------------------- | --------------- |
+| 1     | acpPaid, mediaAccounting, mediaAttach                      | 54 / 0          |
+| 2     | mediaBudget, mediaClient, mediaContracts                   | 50 / 0          |
+| 3     | mediaConvert, mediaCost, mediaFixtures                     | 60 / 0          |
+| 4     | mediaLimits, mediaLocalization, mediaProviders             | 33 / 0          |
+| 5     | mediaSniff, mediaSniffMalformed, modelApiBackendManager    | 51 / 0          |
+| 6     | modelApiBundle, modelApiHost, modelApiMedia                | 706 / 2         |
+| 7     | modelApiMediaTools, modelApiProductionMedia, paidAuthority | 25 / 0          |
+| 8     | paidConsent, paidDailyBudget, paidFeatures                 | 104 / 0         |
+| 9     | paidHookModels, paidHost, paidMoneyPorts                   | 63 / 1          |
+| 10    | replayMedia, schedulePaid, sessionBudget                   | 93 / 0          |
+| 11    | sessionBudgetJournal, unattendedBackends                   | 140 / 0         |
+
+The two host failures are M52's `releases a rejected duplicate/different schedule
+lease without clearing the running generation`: the unchanged assertions expect
+two `claim` calls but receive one. `paidMoneyPorts` has exactly the same 21
+numeric inventory entries as MONEY017B. A true base checkout in the fresh clone
+reproduces all three: `modelApiHost` + `paidMoneyPorts` + `modelApiBundle`,
+**694 passed / 3 failed (697)**, exit 1. The repaired checkout is restored
+without rewriting history. These findings are assigned to the lead in PLAN §7;
+no unrelated scheduling or money port is changed here.
+
+Full duplication on the base has three clones: ACP image/document prompt
+assembly (`acp/agent.ts:1967` / `:2052`), currency fractional formatting
+(`shared/l10n/exactUsd.ts:25` / `text.ts:156`) and question backend fixtures
+(`unit/helpers/questions/queuedAnswerBackend.ts:34` / `modelApiElicitation.test.ts:113`).
+The first fresh run also caught one new 55-token schedule setup clone in the
+factory test. Setup now names its schedule context before binding the run; no
+assertion, policy or gate changes. Its four tests pass again. The gate firing
+is recorded, and final fresh checks of that fixture follow below.
+
+Production Model API is **521.8 / 525 KiB** and activation **571.4 / 600 KiB**;
+base values are **521.7 / 525** and **571.3 / 600 KiB**. The nine other capped
+bundles fail on the actual base build too: runtimeQuestions, conversation,
+runtimeEngine, usagePanel, headless, runtimeAccounts, surface English, Palette
+and estimator panel. The base also reproduces the separate split failure.
+No cap, split allow-list, ignore or threshold is changed. This lane's full-quality
+boundary stays with the lead, as the brief requires.
 
 ### MONEY017B review repair (RVMONEY017, 2026-10-08)
 

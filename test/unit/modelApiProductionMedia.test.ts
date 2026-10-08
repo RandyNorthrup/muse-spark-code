@@ -100,12 +100,13 @@ describe('the production Model API factory while verified upload bindings are un
       )
       try {
         const h = await startWatchedSession(host, '/ws', 'allowAll')
+        const context = fakeRunContext(
+          fakeSchedule({ grant: { rules: [], destinationIds: [], paidCapUsd: 1 } }),
+        )
         const { run } = unattendedRun({
-          workspaceRoot: '/ws',
+          context,
           io,
-          context: fakeRunContext(
-            fakeSchedule({ grant: { rules: [], destinationIds: [], paidCapUsd: 1 } }),
-          ),
+          workspaceRoot: '/ws',
           paid: {
             modelId: 'muse-spark-1.3',
             accountId: FAKE_MODEL_API_ACCOUNT_ID,

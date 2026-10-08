@@ -36839,6 +36839,23 @@ assigned static gate pass; the broad sweep remains 588 passed / 1 inherited
 failure. The unchanged nine bundle-cap failures remain as recorded above.
 Receipts: `docs/certification/int0170-combined.md`, MONEY017B.
 
+**MONEY017C inherited scoped-gate findings (2026-10-08, macmini).** A fresh
+ordinary clone with `npm ci`, `CI=true` passes all five typechecks, changed-file
+lint/format, plain knip, localization, reference, host API and plan checks.
+The complete assigned-family/host sweep has 1,379 passed / 3 failed (32 files):
+`paidMoneyPorts`' same 21 inherited entries, plus two unchanged M52 concurrent
+schedule-lease assertions expecting two claims but receiving one. The base
+`1a2086399` replay reproduces all three (694 passed / 3 failed in the three-file
+comparison). Full jscpd has three base clones in ACP prompts, exact currency
+formatting and question fixtures. The one new test clone is removed without an
+ignore or threshold change. The separate split audit also fails on the base:
+`src/shared/slashCommands.ts` is an unlisted deferred surface. These integrated
+findings, the existing nine other caps and full quality remain with the lead;
+this bounded lane preserves their assertions/gates. Model API is 521.8/525 KiB
+and activation 571.4/600 KiB. Production uploads remain blocked by D85.6's
+unrecorded storage decision and M105's capture/binding inventory; no fake receipt
+closes them. Detailed receipts: `docs/certification/int0170-combined.md`, MONEY017C.
+
 INT0180B (2026-10-07): source `9733edba2` supersedes INT0180's local reds
 below. Fresh ordinary installation, exact static job, all four coverage shards
 and merge, full 988-page accessibility, legal's 96 keyboard/zoom plus 24 WCAG
