@@ -19073,8 +19073,16 @@ before completion. No push, rebase, model calls or fabricated native artifacts.
 - [x] Merge accepted `m108/w-fix4`, preserving the durable limit-block redesign;
       pool test import retains integration's account-USD namespace and the new
       localized error assertions. Pool/remote/receiver owning suites: 89 passed.
-- [ ] Merge `main-latest` (PR #139 harness readiness and bounded scheduling),
+- [x] Merge `main-latest` (PR #139 harness readiness and bounded scheduling),
       retain both harness behaviors and rerun owning tests for conflicts.
+      The rig brief forbids widened defaults: omit incoming Windows-wide
+      15/30-second overrides and their §8 row; retain original test/hook defaults.
+      Merge validation exposed a readiness message arriving before the body
+      script defines `playScenario`. Preserve the ready flag and notify through
+      a native event; the body subscribes before DOMContentLoaded. Add an
+      early-message regression, retain exactly-once admission and prove its guard.
+      Harness owning suites: 61 passed; both deliberate event-order breaks fail
+      and restore byte-exact. M108's nine complete owning files: 188 passed.
       Restart the fresh-clone workflow on the resulting committed source.
 - [ ] Repair every remaining test, vault-default and SAST failure by cause;
       add failing-before/passing-after regressions and byte-exact guard drills.
@@ -19200,6 +19208,22 @@ not recover optional English. No schema, behavior or existing cap changes.
 The assigned integration brief supersedes common.md's legacy merge and scoped
 verification instructions. Certification records every command, repair, drill,
 size and external blocker; it does not claim hosted/platform/live certification.
+
+### FLAKETH20 — Explain and repair the Windows team harness hang (2026-10-07)
+
+- [x] Measure the unchanged full file and case 20 with CI=true and V8 coverage.
+- [x] Keep bounded console, page-error and request-failure evidence on failed
+      harness readiness, with a wait shorter than the existing case deadline.
+- [x] Repair the evidenced cause without raising deadlines, adding retries or
+      skipping cases; prove the regression fails before the repair.
+- [x] Certify 100 consecutive case-20 passes and 30 complete-file passes on
+      Windows, plus ten Linux file passes if a Linux machine is reachable.
+- [x] Record counts, cause, fix and restored drills in
+      docs/certification/flake-team-harness-20.md; commit with normal hooks.
+
+Scope is browser harness readiness and its owning regressions. No model call,
+merge, rebase, push, dependency or gate change. The shared lane rules delegate
+aggregate quality to the lead; run the scoped gates directly on this rig.
 
 ### CI0150M — Round 3 macOS CI repairs (2026-10-07, macmini)
 
@@ -47380,6 +47404,19 @@ aggregate certification record.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
 ## 7. Gates
+
+**FLAKETH20 scoped gate delegation (2026-10-07, win11).** The shared lane
+rules forbid aggregate `npm run quality` and leave full-suite coverage and
+hosted/platform quality with the lead. This lane ran all five typechecks,
+changed-file lint/format, plain Knip, duplication, localization, host API,
+reference, production build and 40 focused accessibility pages, all exit 0.
+Final unchanged-deadline CI-style coverage passed 100 consecutive case-20
+repetitions and 30 separate complete-file invocations (690 executions), plus
+58 owning-suite tests. The cold-import startup failure and byte-exact red
+drills are recorded in docs/certification/flake-team-harness-20.md. Linux was
+unavailable because SSH refused its host key and WSL is not installed. No
+gate was weakened or case deadline changed; no retries, skips, dependencies
+or product source changes were introduced.
 
 **TRAIN15E release preparation gate scope (2026-10-06, win11).** The
 continuation brief explicitly requires the entire Vitest suite in batches of

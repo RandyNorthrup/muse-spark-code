@@ -23,6 +23,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Start browser harness scenarios after the webview's ready handshake, keeping
+  cold bundle loading outside their DOM deadline and exposing bounded browser
+  diagnostics before a team test times out. Retain ready messages that arrive
+  before the scenario script is installed, without calling an undefined handler.
+
 - Accept Windows short temp-path spellings for team hints while refusing linked
   folders; avoid broad PowerShell module discovery in team native helpers and
   await unconfirmed helper closure before cleaning up its files.
