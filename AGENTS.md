@@ -170,6 +170,13 @@ them, the milestone plan, and the certification checklist.
     `eslint --fix` and can rewrite logic, not only formatting (G58 in
     `docs/orchestration-gotchas.md`).
 
+16. **Outside code is vetted first.** A pull request, branch, fork or patch
+    not authored by the owner or this project's agents follows
+    `docs/contributor-vetting.md`: no workflow approval before the change
+    review, no checkout where credentials live, and no merge, cherry-pick,
+    copy or reproduction without the owner's explicit go for that pull
+    request (PLAN.md D102).
+
 ## Layout
 
 ```

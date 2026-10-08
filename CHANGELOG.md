@@ -499,6 +499,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Documentation
 
+- Outside contributions are vetted before they run or land:
+  `docs/contributor-vetting.md` checks the person and the change, then
+  needs Codex and Grok reviews, a record under `docs/certification/vetting/`
+  and the owner's go for that pull request (AGENTS.md rule 16, PLAN.md D102,
+  a CONTRIBUTING section). Workflow runs from forks now wait for approval
+  for every external contributor. PR #51 has a retroactive record with a
+  benefit check of its tests.
 - New orchestration docs: `docs/orchestration/ssh-limits.md` (SSH connection
   limits, how they apply, per-platform handling) backing gotchas G50–G52, and
   `docs/orchestration/playbook-placement.md` (placement, load balancing and

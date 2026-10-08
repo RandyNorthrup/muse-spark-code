@@ -18948,6 +18948,40 @@ last commit/start checkpoint in an isolated worktree; otherwise explicit refusal
 All UI strings ship in every translated table. Activity/outcome are text and
 outcome changes have a polite announcement. Harness states run in four themes.
 
+### D102 — Outside contributions are vetted before they run or land (2026-10-07)
+
+The owner, 2026-10-07 21:40 PT: "we can keep the pr but we need to vet
+people not just admit any code". PR #51, Android/Termux unit tests from an
+outside account, was merged on 2026-09-29 by an agent session without his
+go. It stays.
+
+1. **Scope.** Every pull request, branch, fork, patch or pasted code not
+   authored by the owner or this project's own agent sessions.
+2. **The process** is [`docs/contributor-vetting.md`](docs/contributor-vetting.md):
+   the person (account age, public repositories and activity, prior pull
+   requests and issues, commit identity, linked identity, and the stops);
+   the change (every file, with the closest reading for workflows, scripts,
+   dependencies and lockfile, native helpers, binaries and generated blobs,
+   install hooks, network and process calls, sandbox, permission, approval,
+   auth and secret code, weakened or skipped tests, and docs that change
+   security guidance or agent instructions); then Codex and Grok reviews
+   (never the authoring engine), a record in
+   `docs/certification/vetting/pr-N.md`, and the owner's explicit go for
+   that pull request and head SHA.
+3. **CI.** Workflow runs from forks wait for approval for every external
+   contributor (`all_external_contributors`, set 2026-10-07; it was
+   `first_time_contributors`, which stopped asking once an author had one
+   merged pull request). No run is approved before the change review is
+   recorded.
+4. **Checkouts.** No outside branch in the main checkout, a shared or lane
+   worktree, or a rig with credentials; a throwaway clone without tokens.
+5. **No go, no code.** Without the owner's go, agents never merge,
+   cherry-pick, copy or reproduce outside code (AGENTS.md rule 16).
+6. **Records.** PR #51's retroactive record is
+   [`docs/certification/vetting/pr-51.md`](docs/certification/vetting/pr-51.md),
+   with a benefit check of its four tests. PR #62, from the same author,
+   stays untouched until its own record and the owner's decision.
+
 ## 3. Open questions (need the owner)
 
 - **Q-M115 — What M115 needs from the owner (2026-10-06).** Nothing here
