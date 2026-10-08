@@ -7,6 +7,35 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Changed
+
+- Update the ACP SDK to 1.5.1 with incoming transport memory bounds, Vitest and
+  V8 coverage to 5.0.3, jscpd to 5.4.0 and knip to 6.39.0. Retain
+  typescript-eslint 8.70.1 after isolating 8.71.0's lint heap regression;
+  keep all existing rules, deadlines and bundle budgets. The ACP agent and the
+  team host's ACP children open their streams with one deliberate bound (the
+  aggregate media budget plus 16 MiB) instead of the SDK's new 32 MiB
+  default, so a valid prompt with several near-limit images still reaches the
+  per-image and media-budget checks.
+
+### Fixed
+
+- The Action's apply tests no longer race a detached Git maintenance repack
+  in their fake origin: the fixture turns off receive auto-gc and plain-git
+  auto maintenance, and a witness test proves none runs.
+
+### Documentation
+
+- Outside contributions are vetted before they run or land:
+  `docs/contributor-vetting.md` checks the person and the change, then
+  needs Codex and Grok reviews, a record under `docs/certification/vetting/`
+  and the owner's go for that pull request (AGENTS.md rule 16, PLAN.md D102,
+  a CONTRIBUTING section). Hosted CI on the pull request may run once the
+  person and the change are reviewed; nothing else runs, lands or is copied
+  before the owner's go. Workflow runs from forks now wait for approval for
+  every external contributor. PR #51 has a retroactive record with a benefit
+  check of its tests.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached

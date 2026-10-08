@@ -30,6 +30,7 @@ import {
   type WorkerFenceIo,
 } from '../../core/team/workers/workerFence'
 export { AcpUserServersSwitchError } from '../../core/team/workers/workerFence'
+import { boundedAcpStream } from '../../shared/acpStream'
 import { WORKER_CANCEL_GRACE_MS } from '../../shared/constants'
 import { scrubWorkerEnv } from '../../core/team/workers/workerEnv'
 
@@ -545,7 +546,11 @@ export function connectAcpAgent(input: {
       handlers.onUpdate(text)
     })
   let authMethods: readonly acp.AuthMethod[] = []
-  const stream = acp.ndJsonStream(webWritable(input.stdin), webReadable(input.stdout))
+  const stream = boundedAcpStream(
+    acp.ndJsonStream,
+    webWritable(input.stdin),
+    webReadable(input.stdout),
+  )
   const connection = clientApp.connect(stream)
   let isClosed = false
   const agent = connection.agent
