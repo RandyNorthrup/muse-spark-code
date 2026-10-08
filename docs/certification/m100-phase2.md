@@ -1040,12 +1040,10 @@ and after each):
   and `teamHarness.test.mjs` cannot build production bundles. These three
   files need a lockfile-exact install or a rig before this head is called
   verified.
-- **Windows device storage (P-I-WINDOWS-STORAGE).** `deviceStore` (14 of 15),
-  `devicePairingAdapter` (51 of 51) and `deviceIntegration` (11 of 11) fail
-  at `DeviceStore.create` with `storage`. On win32 the store refuses without
-  a `DeviceStorageProtection` binding, and those fixtures pass none. The code
-  is unchanged since phase 1 (`0a92cb94f`). Hosted Windows CI fails these
-  76 tests until a Windows binding or fixture lands.
+- **Windows device storage (P-I-WINDOWS-STORAGE): fixed by a native binding**,
+  see "Windows device storage binding" below. It was not a fixture gap:
+  production had no `DeviceStorageProtection` for any platform, so pairing
+  could never open on Windows.
 - **Hooks.** This worktree had no generated `.husky/_`, so the three merge
   commits ran without hooks. Afterwards gitleaks, ESLint and Prettier were
   run over the same changes; Prettier found this record's conflict table
@@ -4669,3 +4667,243 @@ integrates these local commits. Lane W retains real host facts, approved encoder
 installation/measurement and installed four-device/full joined-quality
 qualification. No push, rebase, merge, paid/live model call, real second-device
 pairing or listener beyond loopback. Model attempts and spend: **0**.
+
+## Windows device storage binding (P-I-WINDOWS-STORAGE), 2026-10-08
+
+**Cause.** On win32 `DeviceStore` (`deviceStore.ts` `checkFile`) and
+`AttemptJournal` refuse without a `DeviceStorageProtection`, and no production
+code supplied one for any platform. So Devices pairing could never open on
+Windows. The 76 failing tests (94 once lane D's `deviceDiscoverySwitch` 17/17
+and `deviceMdns` 1/15 joined) were correct signals, not fixture mistakes.
+
+**Fix.** `src/host/devices/windowsStorageProtection.ts`, in the lazy Devices
+bundle, implements the shared interface `src/core/devices/storageProtection.ts`
+(the journal's `AttemptJournalProtection` is now the same type). A C# helper is
+compiled once per source by `jobBuild.compileJob`, like the job helpers. It
+runs as one long-lived child answering one request per line, and is unreferenced
+while idle. It reads owner, DACL, attributes and link count from one handle
+(`CreateFile` with backup semantics and open-reparse-point, `GetSecurityInfo`).
+It installs a protected, owner-only DACL plus owner on paths the store has just
+created exclusively (`SetSecurityInfo`, `:116`). It replaces files with
+`MoveFileEx(REPLACE_EXISTING | WRITE_THROUGH)` (`:132`) and flushes folders with
+`FlushFileBuffers` (`:137`). TypeScript makes every decision:
+
+- `isPrivateReading` (`:229`) accepts only the shape `secureFresh` installs. It
+  uses the token file's rule, now shared as `src/core/fs/ownerOnlyAcl.ts`. Any
+  extra, inherited or deny ACE, another owner, an unprotected DACL, a reparse
+  point or a second hard link refuses.
+- `isSafeAncestorReading` (`:279`) runs over the whole chain in one request
+  (`:314`). It refuses a folder another account owns, can rewrite (WRITE_DAC,
+  WRITE_OWNER or GENERIC_ALL), can empty and refill (DELETE_CHILD plus add), or
+  can rename away and replace (`:295`). A folder others may add to but not
+  delete from passes. That is the case for `%TEMP%` on this host, where
+  CodexSandboxUsers holds Modify. A fresh `mkdtemp` folder under it inherits
+  that DELETE, so the guard refuses it until it is claimed.
+- The helper protocol fails closed on a mismatched answer (`:330`), an answer
+  missing past `DEVICE_STORAGE_REQUEST_MS` (`:318`, added after RVM100WS), an
+  exit, a relative path or any error code.
+
+`deviceStore.ts` and `attemptJournal.ts` now take an injected platform
+(default `process.platform`). They claim every fresh folder, file, lock and
+stage through `secureFresh` (store `:74`, `:98`, `:102`, `:222`; journal `:144`,
+`:152`, `:157`, `:251`) and replace through the binding (store `:229`, journal
+`:265`). The win32 no-binding refusal stays (store `:307`, journal `:510`). The
+store now checks ancestors on Windows too (`:330`; before, it returned early)
+and refuses hard-linked files on every OS (`:303`), as the journal already did.
+`deviceStorageProtection()` (`deviceBundle.ts:42`) is the seam the bundle's
+`dependencies` callback uses to hand one binding to both stores: Windows needs
+the binding and a system root, and other platforms get none. The C# handle
+declarations are shared with team hints through `src/host/windowsHandleInterop.ts`.
+
+**Tests.** On Windows the store, pairing, integration, discovery and mDNS
+suites run against the real binding (`deviceStorage()` and `privateDeviceRoot()`
+in `test/unit/helpers/deviceFixtures.ts`). Elsewhere they run with POSIX rules.
+Permission tampering goes through each OS's own model (`grantOthers`: chmod, or
+`icacls` on Everyone), and so do reparse aliases (symlink, or junction) and the
+owner-only evidence (mode bits, or .NET SDDL). One shared fake
+(`fakeDeviceStorage`) records and refuses steps, and runs the Windows rules on
+every OS through the injected platform: no binding refuses, and a refused
+`assertPrivate`, `secureFresh`, `assertSafeAncestor`, `syncDirectory` or
+`replace` refuses or latches the store. `windowsStorageProtection.test.ts` (32)
+covers the decisions from recorded readings, plus the line protocol through a
+Node stand-in, on every OS. The journal's win32 pass-through in
+`deviceExecutionFixtures.ts` is retired (follow-up below).
+
+| Run (default timeouts)                                                                 | Before                         | After                                                                                                                           |
+| -------------------------------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Windows 11 host, `deviceStore`/`PairingAdapter`/`Integration`                          | 76 failed of 77                | 19/19, 51/51 pass; `deviceIntegration` see below                                                                                |
+| Windows 11 host, all `device*` files                                                   | 94 failed, 618 passed, 6 files | 27 of 29 pass; `deviceStore`, `devicePairingAdapter`, binding rerun 102/102 at the final tree; `deviceIntegration` 4/11 (below) |
+| Win11 VM `f03957dd`, 29 files (device*, Devices views, journal, binding, hints, token) | not run                        | **827 passed, 0 failed**                                                                                                        |
+| Kubuntu `6503a6f4` and final tree, same 29 files                                       | green before                   | **833 passed, 0 failed**                                                                                                        |
+
+This host ran at 78% CPU from other sessions. Here `deviceIntegration` passed
+4 of 11: seven flows polled with `vi.waitFor`'s default 1 s while each durable
+journal write takes about 100 ms. The follow-up below replaces those polls.
+
+**Cost (this host, real binding).** Helper start about 0.5 to 0.7 s once per
+process. `assertPrivate` 1.6 ms, whole-chain ancestor check 6.7 ms, folder flush
+1.9 ms, claim plus write-through replace 19 ms. `readNow` was 25 ms with one
+request per ancestor, and is **16 ms** with the one-request chain. `update` is
+97 ms, mostly durability flushes.
+
+**Red drills (each restored byte-exact, `git diff --quiet`).**
+
+1. Removing the store's win32 no-binding refusal turns the binding test red (1
+   failed, 18 passed).
+2. Removing the owner-only DACL rule from `isPrivateReading` fails 8 tests,
+   including the real-binding `icacls` tamper test on Windows.
+3. Replacing through `rename` instead of the binding fails "replaces only
+   through the binding".
+4. Removing the rename-away-and-replace ancestor rule fails 3 tests.
+
+**Gates (first commit).** All five typechecks exit 0. ESLint
+`--max-warnings=0` and Prettier are clean on the 19 changed files. `knip`,
+`jscpd` (0 clones) and `check:l10n` (0 problems) exit 0. `check:host-api` exits 0
+after `--write`: four Node built-in counts each go up by 1, with no new VS Code
+API. `npm run build` exited 1 with `dist/devices.js` at 107.1 KiB against its
+100 KiB cap; the follow-up resolves it.
+
+### Follow-up: native source, completion signals, journal binding (lead decisions)
+
+- **Bundle.** The helper's C# now ships as `native/windows/MuseSparkDeviceStorage.cs`,
+  as the job helpers' sources do (PLAN.md D6). It is whitelisted in
+  `.vscodeignore`, listed in `package-acp.mjs` (which ships `devices.js`), and in
+  the manifest and package fixtures. `startWindowsStorageProtection` reads it
+  from the extension or package folder (`extensionPath`) and compiles it once per
+  source digest through `compileJob`. Team hints keep their own C# string again,
+  byte-identical to before, so `windowsHandleInterop.ts` is gone. `dist/devices.js`
+  is now 102,364 bytes (100.0 KiB) against 102,400, so the build passes and the
+  cap does not move. Only 36 bytes are left: by the D6 rule (measured +15%,
+  rounded up to 25 KiB), the next re-measure gives 99.96 × 1.15 = 115.0, so
+  125 KiB.
+- **`deviceIntegration` waits.** The seven flows now await their own completion
+  signals, with no `vi.waitFor` poll. `running()` awaits the moment the source's
+  fake receives the `running` outcome. That comes after the receiver's durable
+  admission, launch and running writes and its reply. The flood test awaits the
+  fake's capacity-refusal count and its final delivery count. The three
+  simulator Stops await the receiver's own `receive` promise for the cancel
+  frame, which covers cancellation and the journal write that blocks on the
+  corrupt state. The helper is `untilCalls`, test-only. Every assertion is
+  unchanged. Win11 VM: 11/11 idle (load 1%, 10.5 s), and 11/11 with 12 busy
+  loops on its 10 logical CPUs (load 100% before and after, all 12 loops alive at
+  the end, 15.9 s). Kubuntu 11/11. This host could not start a jsdom worker under
+  added load (vitest's 60 s worker start, before any test ran), so the
+  deliberate-load proof is the VM's.
+- **Journal binding.** `executionProtection` is now `deviceStorageBinding`:
+  the real Windows binding on win32, started on first use, and the shared fake
+  elsewhere, which round-trips through the real filesystem and POSIX folder
+  fsync. The journal fixture's root is a `privateDeviceRoot`. Three journal tests
+  changed:
+  - Permission refusals use `grantOthers` on every OS; the win32 early return is
+    gone, and a positive reopen control is added.
+  - The forged private file is claimed with `secureFresh`, the Windows
+    equivalent of mode 0600.
+  - The flush-order and failed-replacement tests observe the binding's `replace`
+    and `syncDirectory`.
+
+  Every suite can use the binding. The POSIX-only uid substitution case in
+  `attemptJournal.test.ts` keeps its existing platform gate: Windows has no
+  uid, and the binding's other-owner refusal is covered by recorded readings.
+
+- **Runs at the final tree (default timeouts).** Win11 VM idle, the same 29
+  files: **827 passed, 0 failed** (152 s). Kubuntu, the 29 plus the manifest
+  and two packaging files (32): **882 passed, 0 failed**.
+- **Gates.** All five typechecks, `knip`, `jscpd` (0 clones), `npm run build`
+  (every cap held, devices 100.0 KiB), `check:host-api` (0 problems) and
+  `check:l10n` exit 0. ESLint `--max-warnings=0` and Prettier are clean on the
+  changed files.
+
+### RVM100WS (Codex) review fixes: two P2s, 2026-10-08
+
+1. **A helper that stops answering.** Every request now has the named bound
+   `DEVICE_STORAGE_REQUEST_MS` (`src/shared/constants.ts:3599`). That is
+   `PROCESS_TABLE_TIMEOUT_MS`, the 20 s every Windows helper run already gets.
+   On expiry (`windowsStorageProtection.ts:318`) the request fails closed, so
+   the store refuses. The helper is killed (`:281`) and every other waiting
+   request fails. `supervisedStorageHelper` (`:359`) starts a fresh helper for
+   the next request, and `exited` reports when a process has ended. Tests
+   (`windowsStorageProtection.test.ts`, "a helper that stops answering") use a
+   stand-in that never answers `hang`, with a 200 ms bound for that helper only.
+   Drill: removing the expiry's failure fails both tests at the 15 s test
+   timeout (2 failed, 34 passed).
+2. **The binding's disposer was dropped.** `deviceStorageProtection` hands it
+   to the `DeviceDependencyScope` that `deviceMethods` now passes its
+   `dependencies` callback (`deviceBundle.ts:41`, `:70`). A failed or revoked
+   preparation ends what it started (`:107`, `:124`). `dispose()` ends the
+   current one (`:140`). The test file and fixtures that start the shared
+   native helper end it in `afterAll` (`endDeviceStorage`). Tests: two failed
+   preparations and one success start three helpers; the two failures have
+   exited before the retry, and `dispose()` ends the third. An owned binding
+   (the real native helper on Windows, the stand-in elsewhere) has exited
+   after disposal. Drill: dropping `scope.own` fails the lifecycle and seam
+   tests (2 failed, 34 passed).
+
+Both drills were restored from a backup, with SHA-256 identical before and
+after. Neither new test can pass on `bdf5d1f19`: the deadline test hangs
+without a bound, and the API the lifecycle tests use (`supervisedStorageHelper`,
+the scope argument, `exited`) does not exist there.
+
+**Runs (default timeouts).** Win11 VM, idle apart from review lanes, the same
+29 files: **831 passed, 0 failed** (116 s). Afterwards no
+`MuseSparkDeviceStorage-*` process was running. Kubuntu, those 29 plus the
+manifest and two packaging files (32): **886 passed, 0 failed**.
+
+**Cap.** The fixes bring `dist/devices.js` to 102,770 bytes (100.4 KiB), over
+its 100 KiB cap. The lead's D6-rule approval applies:
+`25 × ceil(100.4 × 1.15 / 25) = 125 KiB`. This is recorded in
+`scripts/check-bundle-size.mjs` and the PLAN.md M100 cap note. No other cap
+moves.
+
+**Gates.** All five typechecks, `knip`, `jscpd` (0 clones), `npm run build`
+(devices 100.4 of 125 KiB, every other cap unchanged), `check:host-api`
+(0 problems) and `check:l10n` exit 0. ESLint `--max-warnings=0` and Prettier are
+clean on the changed files.
+
+### RVM100WSB (Codex) re-review fix: one P2, 2026-10-08
+
+The lead confirmed the D6 cap of 125 KiB.
+
+**In-flight preparations kept their helper.** `dispose()` drained only
+completed preparations' disposers. So a binding registered by a preparation
+still awaiting its dependencies or the service factory stayed alive, forever
+if that preparation never settled. Now every registration joins the method
+lifetime (`deviceBundle.ts:97`) the moment it is made (`:110`) and is released
+at most once (`:98`). `dispose()` ends every live registration at once,
+in-flight ones included (`:145`). A registration made after revocation ends
+immediately (`:112`). The pending preparation then releases its own
+registrations, which are already released, and settles as `revoked` (`:128`,
+`:129`).
+
+**Tests** (`windowsStorageProtection.test.ts`, "disposal while a preparation
+is still pending"; on Windows the real native helper, elsewhere the stand-in):
+
+- With dependencies held, disposal ends the helper. Its process has exited and
+  `ping` is refused. Releasing the held dependencies settles as `revoked`, with
+  exactly one binding disposal and no factory call.
+- With the factory held, the same holds, and the late service is disposed once.
+- A resource registered after revocation is disposed immediately, and only once.
+
+**Regression and drill.** Against `2712a2192`'s `deviceBundle.ts`, both held
+tests fail at the 15 s test timeout (2 failed, 37 passed). Drill: keeping
+registrations out of the method lifetime fails 3 tests (2 failed in the new set,
+1 in the earlier lifecycle test). It was restored from a backup, with SHA-256
+identical before and after.
+
+**Runs (default timeouts).** Win11 VM, the same 29 files: **834 passed, 0
+failed** (100 s). Afterwards no `MuseSparkDeviceStorage-*` process was running.
+Kubuntu, the 32 files: **889 passed, 0 failed**.
+
+**Gates.** All five typechecks, `knip`, `jscpd` (0 clones), `npm run build`
+(devices 100.4 of 125 KiB), `check:host-api` (0 problems) and `check:l10n` exit 0. ESLint `--max-warnings=0` and Prettier are clean on the changed files.
+
+### RVM100WSC (Codex) re-review: one P3, 2026-10-08
+
+The late-registration test asserted its immediate disposal inside the
+`dependencies` callback. A failed expect there only rejected the preparation,
+which settles as `revoked`, so the test could not fail. The callback now just
+records how many disposals had happened when `own` returned, and the test body
+asserts that count is 1 (`windowsStorageProtection.test.ts:429`). Drill:
+removing the guard at `deviceBundle.ts:112` now fails that test (1 failed, 38
+passed). It was restored from a backup, with SHA-256 identical before and after.
+No other test added on this branch asserts inside a callback whose error is
+discarded.

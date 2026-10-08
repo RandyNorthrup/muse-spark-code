@@ -3597,6 +3597,9 @@ export const SHELL_JOB_NAME_PREFIX = String.raw`Local\MuseSparkShell-`
 export const TREE_EXIT_WAIT_MS = 10_000
 export const ORPHAN_SWEEP_ROUNDS = 5
 export const PROCESS_TABLE_TIMEOUT_MS = 20_000
+// Each Devices storage helper request (M100, Windows) gets the same bound as
+// any Windows helper run; an unanswered one fails closed and ends the helper.
+export const DEVICE_STORAGE_REQUEST_MS = PROCESS_TABLE_TIMEOUT_MS
 export const OUTPUT_REF_PREFIX = 'tool_patch-'
 // The stored output the transcript can page (`item/readOutput` parity).
 export const MODEL_API_OUTPUT_MEDIA_TYPE = 'application/json'

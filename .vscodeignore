@@ -75,6 +75,7 @@
 !native/windows/MuseSparkMcpJob.cs
 !native/windows/MuseSparkJob.cs
 !native/windows/MuseSparkMcpLauncher.cs
+!native/windows/MuseSparkDeviceStorage.cs
 !native/darwin/muse-dictate
 !package.json
 !package.nls.json

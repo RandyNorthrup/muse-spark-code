@@ -566,6 +566,11 @@ remains 49.697/50 KiB and startup remains 799.1/900 KiB. The lazy editor-neutral
 within M100’s planning target. Existing activation, Model API, ACP and all
 other caps remain unchanged. Both new caps, closure ownership and absent/foreign
 reader cases are guarded and receive red/restored integration receipts.
+**2026-10-08 (P-I-WINDOWS-STORAGE, lead-approved D6 re-measure):** with the
+Windows storage binding (its C# shipped as `native/windows/MuseSparkDeviceStorage.cs`,
+outside the bundle) and the RVM100WS request deadline and lifetime fixes,
+`dist/devices.js` measures 100.4 KiB (102,770 bytes), so
+`25 × ceil(100.4 × 1.15 / 25) = 125 KiB`. No other cap moves.
 
 **TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
 Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by

@@ -358,6 +358,7 @@ describe('packaging (M26)', () => {
         'THIRD_PARTY_NOTICES.txt',
         'native/windows/dictate.ps1',
         'native/windows/capture.ps1',
+        'native/windows/MuseSparkDeviceStorage.cs',
         'native/darwin/muse-dictate',
       ]),
     )

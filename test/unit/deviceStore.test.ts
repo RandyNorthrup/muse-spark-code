@@ -1,39 +1,26 @@
-import {
-  mkdtemp,
-  readFile,
-  writeFile,
-  rm,
-  stat,
-  chmod,
-  symlink,
-  readdir,
-  open,
-  realpath,
-} from 'node:fs/promises'
+import { link, readFile, writeFile, rm, stat, readdir, open } from 'node:fs/promises'
 import path from 'node:path'
-import { tmpdir } from 'node:os'
 import type * as FileSystem from 'node:fs/promises'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DeviceStore } from '../../src/host/devices/deviceStore'
 import { DevicePairingError } from '../../src/core/devices/pairing'
-import { removeDeviceFixture } from './helpers/deviceFixtures'
+import {
+  fakeDeviceStorage,
+  grantOthers,
+  ownerOnlyEvidence,
+  reparseAlias,
+  useDeviceStorageRoot,
+} from './helpers/deviceFixtures'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
 
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof FileSystem>()
   return { ...actual, open: vi.fn(actual.open) }
 })
-const fixture = { parent: '' }
-const stores: DeviceStore[] = []
-beforeEach(async () => {
-  fixture.parent = await realpath(await mkdtemp(path.join(tmpdir(), 'm100-p-store-')))
-})
-afterEach(async () => {
-  await removeDeviceFixture(stores, fixture.parent)
-})
+const { fixture, stores } = useDeviceStorageRoot('m100-p-store-')
 async function create() {
   const directory = path.join(fixture.parent, 'devices')
-  const store = await DeviceStore.create(directory, 'a'.repeat(32))
+  const store = await DeviceStore.create(directory, 'a'.repeat(32), fixture.storage)
   stores.push(store)
   return { directory, store }
 }
@@ -73,11 +60,13 @@ describe('private nonsync device store', () => {
     await expect(store.read()).rejects.toThrow('storage')
   })
   it('latches a persistence failure even when it carries a policy error type', async () => {
-    const syncDirectory = vi.fn(() => Promise.resolve())
-    const store = await DeviceStore.create(path.join(fixture.parent, 'devices'), 'a'.repeat(32), {
-      assertPrivate: () => Promise.resolve(),
-      syncDirectory,
-    })
+    const fake = fakeDeviceStorage()
+    const syncDirectory = vi.spyOn(fake.protection, 'syncDirectory')
+    const store = await DeviceStore.create(
+      path.join(fixture.parent, 'devices'),
+      'a'.repeat(32),
+      fake.protection,
+    )
     stores.push(store)
     syncDirectory.mockRejectedValueOnce(new DevicePairingError('grant'))
     await expect(
@@ -90,28 +79,28 @@ describe('private nonsync device store', () => {
   })
   it('requires explicit initialization and durably persists state across close/reopen', async () => {
     const directory = path.join(fixture.parent, 'devices')
-    await expect(DeviceStore.open(directory)).rejects.toThrow('storage')
+    await expect(DeviceStore.open(directory, fixture.storage)).rejects.toThrow('storage')
     const { store } = await create()
     await store.update((state) => {
       state.usedInvitationIds.push('b'.repeat(32))
       return state
     })
     await store.close()
-    const restored = await DeviceStore.open(directory)
+    const restored = await DeviceStore.open(directory, fixture.storage)
     stores.push(restored)
     const observed0 = await restored.read()
     expect(observed0.usedInvitationIds).toEqual(['b'.repeat(32)])
-    await expect(DeviceStore.create(directory, 'c'.repeat(32))).rejects.toThrow('storage')
+    await expect(DeviceStore.create(directory, 'c'.repeat(32), fixture.storage)).rejects.toThrow(
+      'storage',
+    )
     const observed1 = await restored.read()
     expect(observed1.deviceId).toBe('a'.repeat(32))
-    const observed2 = await stat(directory)
-    expect(observed2.mode & 0o777).toBe(0o700)
-    const observed3 = await stat(path.join(directory, 'pairs.json'))
-    expect(observed3.mode & 0o777).toBe(0o600)
+    expect(await ownerOnlyEvidence(directory, true)).toBe('700')
+    expect(await ownerOnlyEvidence(path.join(directory, 'pairs.json'), false)).toBe('600')
   })
   it('serializes contending writes and excludes another window without a stale-lock timeout', async () => {
     const { store, directory } = await create()
-    await expect(DeviceStore.open(directory)).rejects.toThrow('storage')
+    await expect(DeviceStore.open(directory, fixture.storage)).rejects.toThrow('storage')
     await Promise.all(
       Array.from({ length: 16 }, (_, index) =>
         store.update((state) => {
@@ -134,7 +123,7 @@ describe('private nonsync device store', () => {
         fixture.parent,
         `store-${String(corrupt.length)}-${String(Math.random())}`,
       )
-      const store = await DeviceStore.create(directory, 'a'.repeat(32))
+      const store = await DeviceStore.create(directory, 'a'.repeat(32), fixture.storage)
       stores.push(store)
       const file = path.join(directory, 'pairs.json')
       if (corrupt === 'missing') await rm(file)
@@ -179,7 +168,7 @@ describe('private nonsync device store', () => {
     expect(await readFile(path.join(directory, 'pairs.json'))).toEqual(before)
     await expect(store.read()).rejects.toThrow('storage')
     await store.close()
-    const restored = await DeviceStore.open(directory)
+    const restored = await DeviceStore.open(directory, fixture.storage)
     stores.push(restored)
     await expect(
       restored.update((state) => {
@@ -192,7 +181,7 @@ describe('private nonsync device store', () => {
   it('refuses a changed device id, duplicate history and exhausted history rather than overwriting', async () => {
     for (const kind of ['device', 'duplicate', 'full']) {
       const directory = path.join(fixture.parent, kind)
-      const store = await DeviceStore.create(directory, 'a'.repeat(32))
+      const store = await DeviceStore.create(directory, 'a'.repeat(32), fixture.storage)
       stores.push(store)
       await expect(
         store.update((state) => {
@@ -226,29 +215,43 @@ describe('private nonsync device store', () => {
       })
     }
   })
-  it('refuses permissive metadata or root permissions, symlinks and writable parents', async () => {
+  it('refuses permissive metadata or root permissions, links and replaceable parents', async () => {
     const { store, directory } = await create()
     const file = path.join(directory, 'pairs.json')
-    await chmod(file, 0o644)
+    const readable = await grantOthers(file, 'file')
     await expect(store.read()).rejects.toThrow('storage')
-    await chmod(file, 0o600)
+    await readable.restore()
     await store.close()
-    await chmod(directory, 0o755)
-    await expect(DeviceStore.open(directory)).rejects.toThrow('storage')
-    await chmod(directory, 0o700)
+    const listable = await grantOthers(directory, 'directory')
+    await expect(DeviceStore.open(directory, fixture.storage)).rejects.toThrow('storage')
+    await listable.restore()
+    const hardlink = path.join(fixture.parent, 'hardlink.json')
+    await link(file, hardlink)
+    await expect(DeviceStore.open(directory, fixture.storage)).rejects.toThrow('storage')
+    await rm(hardlink)
+    // The refused open got as far as taking the lock; an abandoned lock is never reused.
+    await rm(path.join(directory, '.pairing.lock'))
+    const reopened = await DeviceStore.open(directory, fixture.storage)
+    stores.push(reopened)
+    await expect(reopened.read()).resolves.toMatchObject({ deviceId: 'a'.repeat(32) })
+    await reopened.close()
     await rm(file)
     const target = path.join(fixture.parent, 'target.json')
     await writeFile(target, '{}', { mode: 0o600 })
-    await symlink(target, file)
-    await expect(DeviceStore.open(directory)).rejects.toThrow('storage')
+    await reparseAlias(target, file)
+    await expect(DeviceStore.open(directory, fixture.storage)).rejects.toThrow('storage')
     const alias = path.join(fixture.parent, 'alias')
-    await symlink(directory, alias)
-    await expect(DeviceStore.open(alias)).rejects.toThrow('storage')
-    await chmod(fixture.parent, 0o777)
+    await reparseAlias(directory, alias)
+    await expect(DeviceStore.open(alias, fixture.storage)).rejects.toThrow('storage')
+    const replaceable = await grantOthers(fixture.parent, 'parent')
     await expect(
-      DeviceStore.create(path.join(fixture.parent, 'unsafe-parent'), 'a'.repeat(32)),
+      DeviceStore.create(
+        path.join(fixture.parent, 'unsafe-parent'),
+        'a'.repeat(32),
+        fixture.storage,
+      ),
     ).rejects.toThrow('storage')
-    await chmod(fixture.parent, 0o700)
+    await replaceable.restore()
   })
   it('rejects a removed lock and a post-close operation instead of claiming durability', async () => {
     const { store, directory } = await create()
@@ -261,7 +264,7 @@ describe('private nonsync device store', () => {
 it('refuses valid-shaped unknown-version and duplicate-key state before returning a usable store', async () => {
   for (const kind of ['version', 'duplicate']) {
     const directory = path.join(fixture.parent, kind)
-    const store = await DeviceStore.create(directory, 'a'.repeat(32))
+    const store = await DeviceStore.create(directory, 'a'.repeat(32), fixture.storage)
     stores.push(store)
     const state = await store.read()
     const text =
@@ -274,19 +277,60 @@ it('refuses valid-shaped unknown-version and duplicate-key state before returnin
 })
 it('requires the native Windows ACL/durability binding and fails closed when it refuses', async () => {
   const directory = path.join(fixture.parent, 'devices')
-  const store = await DeviceStore.create(directory, 'a'.repeat(32))
+  const store = await DeviceStore.create(directory, 'a'.repeat(32), fixture.storage)
   stores.push(store)
   await store.close()
-  vi.stubGlobal('process', { ...process, platform: 'win32' })
-  try {
-    await expect(DeviceStore.open(directory)).rejects.toThrow('storage')
+  // The injected platform runs Windows' rules on every OS.
+  await expect(DeviceStore.open(directory, undefined, 'win32')).rejects.toThrow('storage')
+  expect(await readdir(directory)).not.toContain('.pairing.lock')
+  const unbound = path.join(fixture.parent, 'unbound')
+  await expect(DeviceStore.create(unbound, 'a'.repeat(32), undefined, 'win32')).rejects.toThrow(
+    'storage',
+  )
+  expect(await readdir(unbound)).toEqual([])
+  const refusing = fakeDeviceStorage()
+  refusing.refuse('assertPrivate')
+  await expect(DeviceStore.open(directory, refusing.protection, 'win32')).rejects.toThrow(
+    /^storage$/,
+  )
+  expect(await readdir(directory)).not.toContain('.pairing.lock')
+  const bound = fakeDeviceStorage()
+  const reopened = await DeviceStore.open(directory, bound.protection, 'win32')
+  stores.push(reopened)
+  expect(bound.calls).toEqual(expect.arrayContaining(['assertPrivate', 'assertSafeAncestor']))
+})
+it.each(['secureFresh', 'assertSafeAncestor', 'syncDirectory'] as const)(
+  'refuses to create a store when the binding refuses %s',
+  async (step) => {
+    const refusing = fakeDeviceStorage()
+    refusing.refuse(step)
+    const directory = path.join(fixture.parent, step)
+    await expect(
+      DeviceStore.create(directory, 'a'.repeat(32), refusing.protection, 'win32'),
+    ).rejects.toThrow(/^storage$/)
     expect(await readdir(directory)).not.toContain('.pairing.lock')
-    const protection = {
-      assertPrivate: () => Promise.reject(new Error('acl-sentinel')),
-      syncDirectory: () => Promise.resolve(),
-    }
-    await expect(DeviceStore.open(directory, protection)).rejects.toThrow('storage')
-  } finally {
-    vi.unstubAllGlobals()
-  }
+  },
+)
+it('replaces only through the binding and latches a refused replacement without touching state', async () => {
+  const bound = fakeDeviceStorage()
+  const directory = path.join(fixture.parent, 'replace')
+  const store = await DeviceStore.create(directory, 'a'.repeat(32), bound.protection, 'win32')
+  stores.push(store)
+  await store.update((state) => {
+    state.usedInvitationIds.push('b'.repeat(32))
+    return state
+  })
+  // Folder, pairs.json, lock and stage are each claimed once, as created.
+  expect(bound.calls.filter((call) => call === 'secureFresh')).toHaveLength(4)
+  expect(bound.calls.filter((call) => call === 'replace')).toHaveLength(1)
+  const before = await readFile(path.join(directory, 'pairs.json'))
+  bound.refuse('replace')
+  await expect(
+    store.update((state) => {
+      state.usedInvitationIds.push('c'.repeat(32))
+      return state
+    }),
+  ).rejects.toThrow(/^storage$/)
+  expect(await readFile(path.join(directory, 'pairs.json'))).toEqual(before)
+  await expect(store.read()).rejects.toThrow('storage')
 })

@@ -7,6 +7,7 @@ import * as z from 'zod/mini'
 import { handleIdentity, lstatIdentity, sameFile } from '../../core/fs/fileIdentity'
 import { DevicePairingError, validateDevicePair } from '../../core/devices/pairing'
 import { deviceGrantSchema } from '../../core/devices/grants'
+import type { DeviceStorageProtection } from '../../core/devices/storageProtection'
 import { DEVICE_LIMITS } from '../../shared/constants'
 import {
   deviceEndpointSchema,
@@ -52,21 +53,25 @@ const stateSchema = z.strictObject({
 })
 export type DeviceStoreState = z.infer<typeof stateSchema>
 
-/** Windows binding must prove owner-only ACLs and replacement durability. No fallback. */
-export interface DeviceStorageProtection {
-  assertPrivate(file: string, isDirectory: boolean): Promise<void>
-  syncDirectory(directory: string): Promise<void>
+export type { DeviceStorageProtection } from '../../core/devices/storageProtection'
+/** The binding and the platform whose rules apply; Windows has no fallback. */
+interface Storage {
+  readonly protection: DeviceStorageProtection | undefined
+  readonly platform: NodeJS.Platform
 }
 export class DeviceStore {
   public static async open(
     directory: string,
     protection?: DeviceStorageProtection,
+    platform: NodeJS.Platform = process.platform,
   ): Promise<DeviceStore> {
     let lock: FileHandle | undefined
+    const storage: Storage = { protection, platform }
     try {
-      await checkDirectory(directory, protection)
+      await checkDirectory(directory, storage)
       lock = await open(path.join(directory, '.pairing.lock'), 'wx', Number('0o600'))
-      const store = new DeviceStore(directory, lock, protection)
+      const store = new DeviceStore(directory, lock, storage)
+      await secureFresh(path.join(directory, '.pairing.lock'), false, storage)
       await store.checkPrivate(path.join(directory, '.pairing.lock'), false)
       await lock.sync()
       await store.syncDirectory()
@@ -84,14 +89,18 @@ export class DeviceStore {
     directory: string,
     deviceId: string,
     protection?: DeviceStorageProtection,
+    platform: NodeJS.Platform = process.platform,
   ): Promise<DeviceStore> {
+    const storage: Storage = { protection, platform }
     try {
       id.parse(deviceId)
       await mkdir(directory, { mode: Number('0o700') })
-      await checkDirectory(directory, protection)
+      await secureFresh(directory, true, storage)
+      await checkDirectory(directory, storage)
       const handle = await open(path.join(directory, 'pairs.json'), 'wx', Number('0o600'))
       try {
-        await checkFile(path.join(directory, 'pairs.json'), false, protection)
+        await secureFresh(path.join(directory, 'pairs.json'), false, storage)
+        await checkFile(path.join(directory, 'pairs.json'), false, storage)
         await handle.writeFile(
           JSON.stringify({
             version: DEVICE_LIMITS.protocolVersion,
@@ -108,9 +117,9 @@ export class DeviceStore {
       } finally {
         await handle.close()
       }
-      await syncDirectory(directory, protection)
-      await syncDirectory(path.dirname(directory), protection)
-      return await this.open(directory, protection)
+      await syncDirectory(directory, storage)
+      await syncDirectory(path.dirname(directory), storage)
+      return await this.open(directory, protection, platform)
     } catch {
       throw new DevicePairingError('storage')
     }
@@ -121,12 +130,12 @@ export class DeviceStore {
   private constructor(
     private readonly directory: string,
     private readonly lock: FileHandle,
-    private readonly protection: DeviceStorageProtection | undefined,
+    private readonly storage: Storage,
   ) {}
   private async readNow(): Promise<DeviceStoreState> {
     this.assertUsable()
     try {
-      await checkDirectory(this.directory, this.protection)
+      await checkDirectory(this.directory, this.storage)
       if (
         !sameFile(
           await handleIdentity(this.lock),
@@ -169,10 +178,10 @@ export class DeviceStore {
     if (this.hasFailed || this.isClosed) throw new DevicePairingError('storage')
   }
   private async checkPrivate(file: string, isDirectory: boolean) {
-    return await checkFile(file, isDirectory, this.protection)
+    return await checkFile(file, isDirectory, this.storage)
   }
   private async syncDirectory(): Promise<void> {
-    await syncDirectory(this.directory, this.protection)
+    await syncDirectory(this.directory, this.storage)
   }
   public async read(): Promise<DeviceStoreState> {
     return await this.ordered(async () => await this.readNow())
@@ -210,11 +219,14 @@ export class DeviceStore {
         )
         const handle = await open(stage, 'wx', Number('0o600'))
         try {
+          await secureFresh(stage, false, this.storage)
           await this.checkPrivate(stage, false)
           await handle.writeFile(bytes)
           await handle.sync()
-          await checkDirectory(this.directory, this.protection)
-          await rename(stage, path.join(this.directory, 'pairs.json'))
+          await checkDirectory(this.directory, this.storage)
+          const target = path.join(this.directory, 'pairs.json')
+          if (this.storage.protection === undefined) await rename(stage, target)
+          else await this.storage.protection.replace(stage, target)
           await this.syncDirectory()
         } finally {
           await handle.close()
@@ -284,49 +296,46 @@ function validateState(state: DeviceStoreState): void {
       throw new DevicePairingError('storage')
   }
 }
-async function checkFile(
-  file: string,
-  isDirectory: boolean,
-  protection: DeviceStorageProtection | undefined,
-) {
+async function checkFile(file: string, isDirectory: boolean, storage: Storage) {
   const sample = await lstatIdentity(file)
-  if (sample.isSymbolicLink() || (isDirectory ? !sample.isDirectory() : !sample.isFile()))
+  if (
+    sample.isSymbolicLink() ||
+    (isDirectory ? !sample.isDirectory() : !sample.isFile() || sample.nlink.toString() !== '1')
+  )
     throw new DevicePairingError('storage')
-  if (process.platform === 'win32') {
-    if (protection === undefined) throw new DevicePairingError('storage')
+  if (storage.platform === 'win32') {
+    if (storage.protection === undefined) throw new DevicePairingError('storage')
   } else if (
     sample.uid !== BigInt(typeof process.getuid === 'function' ? process.getuid() : -1) ||
     Boolean(sample.mode & BigInt(Number('0o077')))
   ) {
     throw new DevicePairingError('storage')
   }
-  await protection?.assertPrivate(file, isDirectory)
+  await storage.protection?.assertPrivate(file, isDirectory)
   return sample
 }
-async function checkDirectory(
-  directory: string,
-  protection: DeviceStorageProtection | undefined,
-): Promise<void> {
-  await checkFile(directory, true, protection)
+async function checkDirectory(directory: string, storage: Storage): Promise<void> {
+  await checkFile(directory, true, storage)
   if ((await realpath(directory)) !== path.resolve(directory))
     throw new DevicePairingError('storage')
-  if (process.platform === 'win32') return
-  {
-    const parent = await lstatIdentity(path.dirname(directory))
-    if (
-      !parent.isDirectory() ||
-      parent.isSymbolicLink() ||
-      Boolean(parent.mode & BigInt(Number('0o022')))
-    )
-      throw new DevicePairingError('storage')
-  }
+  const parent = await lstatIdentity(path.dirname(directory))
+  if (
+    !parent.isDirectory() ||
+    parent.isSymbolicLink() ||
+    (storage.platform !== 'win32' && Boolean(parent.mode & BigInt(Number('0o022'))))
+  )
+    throw new DevicePairingError('storage')
+  // Windows has no mode bits: the binding reads every ancestor's DACL instead
+  // (checkFile already refused a missing binding there).
+  await storage.protection?.assertSafeAncestor(path.dirname(directory))
 }
-async function syncDirectory(
-  directory: string,
-  protection: DeviceStorageProtection | undefined,
-): Promise<void> {
-  if (protection === undefined) {
-    if (process.platform === 'win32') throw new DevicePairingError('storage')
+/** Only for a path this process has just created exclusively (`mkdir`, `wx`). */
+async function secureFresh(file: string, isDirectory: boolean, storage: Storage): Promise<void> {
+  await storage.protection?.secureFresh(file, isDirectory)
+}
+async function syncDirectory(directory: string, storage: Storage): Promise<void> {
+  if (storage.protection === undefined) {
+    if (storage.platform === 'win32') throw new DevicePairingError('storage')
     const handle = await open(directory, 'r')
     try {
       await handle.sync()
@@ -334,7 +343,7 @@ async function syncDirectory(
       await handle.close()
     }
   } else {
-    await protection.syncDirectory(directory)
+    await storage.protection.syncDirectory(directory)
   }
 }
 

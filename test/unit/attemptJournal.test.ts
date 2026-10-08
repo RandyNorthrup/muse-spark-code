@@ -1,5 +1,4 @@
 import {
-  chmod,
   link,
   lstat,
   mkdir,
@@ -22,6 +21,7 @@ import {
   executionUsage,
   signedDispatch,
 } from './helpers/deviceExecutionFixtures'
+import { fakeDeviceStorage, grantOthers } from './helpers/deviceFixtures'
 
 vi.mock('node:fs/promises', async (original) => {
   const fs = await original<typeof FileSystem>()
@@ -314,7 +314,9 @@ describe('durable attempt ownership', () => {
   })
   it('latches unwritable, failed flush and failed replacement state with no success reset', async () => {
     const { journal, request } = fixture()
-    vi.mocked(rename).mockRejectedValueOnce(new Error('synthetic write failure'))
+    vi.spyOn(executionProtection, 'replace').mockRejectedValueOnce(
+      new Error('synthetic write failure'),
+    )
     await expect(journal.admit(request, executionUsage, Date.now())).rejects.toThrow(/^storage$/)
     await expect(journal.lookup(request.identity)).rejects.toThrow(/^storage$/)
   })
@@ -324,22 +326,24 @@ describe('durable attempt ownership', () => {
     await expect(AttemptJournal.open(directory, owner, executionProtection)).rejects.toThrow(
       'storage',
     )
+    const unsafeAncestor = fakeDeviceStorage(executionProtection)
+    unsafeAncestor.refuse('assertSafeAncestor')
+    await expect(AttemptJournal.open(directory, owner, unsafeAncestor.protection)).rejects.toThrow(
+      'storage',
+    )
+    // The injected platform runs Windows' rules on every OS.
+    await expect(AttemptJournal.open(directory, owner, undefined, 'win32')).rejects.toThrow(
+      'storage',
+    )
+    const unsafeAcl = fakeDeviceStorage(executionProtection)
+    unsafeAcl.refuse('assertPrivate')
     await expect(
-      AttemptJournal.open(directory, owner, {
-        assertPrivate: () => Promise.resolve(),
-        assertSafeAncestor: () => Promise.reject(new Error('unsafe ancestor')),
-        syncDirectory: () => Promise.resolve(),
-      }),
+      AttemptJournal.open(directory, owner, unsafeAcl.protection, 'win32'),
     ).rejects.toThrow('storage')
-    vi.stubGlobal('process', { ...process, platform: 'win32' })
-    await expect(AttemptJournal.open(directory, owner)).rejects.toThrow('storage')
+    const bound = fakeDeviceStorage(executionProtection)
     await expect(
-      AttemptJournal.open(directory, owner, {
-        assertPrivate: () => Promise.reject(new Error('ACL')),
-        assertSafeAncestor: () => Promise.resolve(),
-        syncDirectory: () => Promise.resolve(),
-      }),
-    ).rejects.toThrow('storage')
+      AttemptJournal.open(directory, owner, bound.protection, 'win32'),
+    ).resolves.toBeDefined()
   })
   it('refuses symlink/hardlink/ancestor and native file substitution before using terminal data', async () => {
     const { directory, journal, request, owner, parent } = fixture()
@@ -347,6 +351,8 @@ describe('durable attempt ownership', () => {
     const file = path.join(directory, 'attempts.json')
     const replacement = path.join(parent, 'forged.json')
     await writeFile(replacement, await readFile(file), { mode: 0o600 })
+    // A forger's own private file: mode 0600, or an owner-only DACL on Windows.
+    await executionProtection.secureFresh(replacement, false)
     await rename(replacement, file)
     await expect(journal.lookup(request.identity)).rejects.toThrow('storage')
     const restored = await AttemptJournal.open(directory, owner, executionProtection)
@@ -359,25 +365,23 @@ describe('durable attempt ownership', () => {
   })
   it('refuses broad directory/file permissions and unsafe ancestors', async () => {
     const { directory, owner, parent } = fixture()
-    if (process.platform === 'win32') {
-      await expect(
-        AttemptJournal.open(directory, owner, {
-          assertPrivate: () => Promise.reject(new Error('unsafe ACL')),
-          assertSafeAncestor: () => Promise.resolve(),
-          syncDirectory: () => Promise.resolve(),
-        }),
-      ).rejects.toThrow('storage')
-      return
-    }
-    await chmod(path.join(directory, 'attempts.json'), 0o644)
-    await expect(AttemptJournal.open(directory, owner)).rejects.toThrow('storage')
-    await chmod(path.join(directory, 'attempts.json'), 0o600)
-    await chmod(directory, 0o755)
-    await expect(AttemptJournal.open(directory, owner)).rejects.toThrow('storage')
-    await chmod(directory, 0o700)
-    await chmod(parent, 0o777)
-    await expect(AttemptJournal.open(directory, owner)).rejects.toThrow('storage')
-    await chmod(parent, 0o700)
+    // Each OS's own permission model: mode bits, or an extra Everyone ACE.
+    const readable = await grantOthers(path.join(directory, 'attempts.json'), 'file')
+    await expect(AttemptJournal.open(directory, owner, executionProtection)).rejects.toThrow(
+      'storage',
+    )
+    await readable.restore()
+    const listable = await grantOthers(directory, 'directory')
+    await expect(AttemptJournal.open(directory, owner, executionProtection)).rejects.toThrow(
+      'storage',
+    )
+    await listable.restore()
+    const replaceable = await grantOthers(parent, 'parent')
+    await expect(AttemptJournal.open(directory, owner, executionProtection)).rejects.toThrow(
+      'storage',
+    )
+    await replaceable.restore()
+    await expect(AttemptJournal.open(directory, owner, executionProtection)).resolves.toBeDefined()
   })
   it('flushes admission and launch files before atomic replacement and directory flush', async () => {
     const { journal, request } = fixture()
@@ -392,19 +396,19 @@ describe('durable attempt ownership', () => {
           await fsync()
         })
       }
-      if (String(args[0]).replaceAll('\\', '/').endsWith('/durable')) {
-        const directorySync = handle.sync.bind(handle)
-        vi.spyOn(handle, 'sync').mockImplementation(async () => {
-          events.push('directory-flush')
-          await directorySync()
-        })
-      }
       return handle
     })
-    vi.mocked(rename).mockImplementation(async (...args) => {
+    // The journal replaces and flushes its folder through this OS's binding
+    // (the shared fake's rename and folder fsync, or the native helper).
+    const replace = executionProtection.replace.bind(executionProtection)
+    vi.spyOn(executionProtection, 'replace').mockImplementation(async (stage, target) => {
       events.push('replace')
-      const fs = await vi.importActual<typeof FileSystem>('node:fs/promises')
-      await fs.rename(...args)
+      await replace(stage, target)
+    })
+    const flush = executionProtection.syncDirectory.bind(executionProtection)
+    vi.spyOn(executionProtection, 'syncDirectory').mockImplementation(async (directory) => {
+      await flush(directory)
+      events.push('directory-flush')
     })
     await journal.admit(request, executionUsage, Date.now())
     expect(events).toEqual(['file-flush', 'replace', 'directory-flush'])

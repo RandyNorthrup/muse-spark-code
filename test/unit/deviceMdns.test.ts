@@ -5,17 +5,24 @@
 // 5.6.1) for our exact records, decoded here as hex: the decoder under test
 // never sees that library. Adversarial shapes are byte mutations of the
 // fixed golden, so every refusal is proven against third-party bytes.
-import { mkdtemp, realpath } from 'node:fs/promises'
-import { hostname, tmpdir } from 'node:os'
+import { hostname } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
 import { DeviceDiscovery, type DeviceDiscoveryStatus } from '../../src/host/devices/deviceDiscovery'
 import { createDeviceMdnsPort, decodeDeviceMdnsPacket } from '../../src/host/devices/deviceMdns'
 import { DeviceStore } from '../../src/host/devices/deviceStore'
-import { removeDeviceFixture } from './helpers/deviceFixtures'
+import {
+  deviceStorage,
+  endDeviceStorage,
+  privateDeviceRoot,
+  removeDeviceFixture,
+} from './helpers/deviceFixtures'
 import { completeLaneMutualPairing, startLaneTestHost } from './helpers/deviceLaneHosts'
 import { FakeMdnsSocket as FakeSocket } from './helpers/deviceMdnsFakes'
+
+// The shared native storage helper ends with this file.
+afterAll(endDeviceStorage)
 
 // dns-packet 5.6.1 encoding of PTR + SRV(port 4321) + TXT(id, v=1) for
 // instance d-aaa…a under _musespark._tcp.local, TTL 120.
@@ -320,9 +327,12 @@ describe('a spoofed mDNS record never replaces the saved peer pin', () => {
     vi.restoreAllMocks()
   })
   async function pairedHost(id: string) {
-    parent =
-      parent === '' ? await realpath(await mkdtemp(path.join(tmpdir(), 'm100-d-spoof-'))) : parent
-    const store = await DeviceStore.create(path.join(parent, id), id.repeat(32))
+    parent = parent === '' ? await privateDeviceRoot('m100-d-spoof-') : parent
+    const store = await DeviceStore.create(
+      path.join(parent, id),
+      id.repeat(32),
+      await deviceStorage(),
+    )
     stores.push(store)
     const { adapter, act } = startLaneTestHost(store)
     return { adapter, act }

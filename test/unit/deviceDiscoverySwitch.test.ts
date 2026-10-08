@@ -3,24 +3,31 @@
 // never infers success from a return value: it shows discovery's owned
 // status, including failures that land after startup. Manual entry pairs
 // with discovery fully blocked. No real socket opens in these tests.
-import { mkdtemp, readFile, realpath, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { setImmediate } from 'node:timers/promises'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { DeviceDiscovery, type DeviceMdnsPort } from '../../src/host/devices/deviceDiscovery'
 import { createDeviceMdnsPort } from '../../src/host/devices/deviceMdns'
 import { DeviceDiscoverySwitch } from '../../src/host/devices/deviceDiscoverySwitch'
 import { DeviceStore } from '../../src/host/devices/deviceStore'
 import type { DeviceExecutionHost } from '../../src/host/devices/deviceSecrets'
 import type { DeviceWebviewRequest } from '../../src/shared/devicesPanel'
-import { removeDeviceFixture } from './helpers/deviceFixtures'
+import {
+  deviceStorage,
+  endDeviceStorage,
+  privateDeviceRoot,
+  removeDeviceFixture,
+} from './helpers/deviceFixtures'
 import {
   completeLaneMutualPairing,
   laneTestHost,
   startLaneTestHost,
 } from './helpers/deviceLaneHosts'
 import { FakeMdnsSocket } from './helpers/deviceMdnsFakes'
+
+// The shared native storage helper ends with this file.
+afterAll(endDeviceStorage)
 
 const localHost: DeviceExecutionHost = laneTestHost
 const facts = {
@@ -77,9 +84,12 @@ async function radio(
   fixture.serial += 1
   // Directory names are free text; device ids must be 32 hex chars.
   const deviceId = fixture.serial.toString(16).padStart(32, '0')
-  if (fixture.parent === '')
-    fixture.parent = await realpath(await mkdtemp(path.join(tmpdir(), 'm100-d-switch-')))
-  const store = await DeviceStore.create(path.join(fixture.parent, id), deviceId)
+  if (fixture.parent === '') fixture.parent = await privateDeviceRoot('m100-d-switch-')
+  const store = await DeviceStore.create(
+    path.join(fixture.parent, id),
+    deviceId,
+    await deviceStorage(),
+  )
   stores.push(store)
   const discovery = new DeviceDiscovery(port, () => ['10.0.0.1'])
   const control = new DeviceDiscoverySwitch({

@@ -5,6 +5,7 @@ import { chmod, lstat, mkdtemp, open, realpath, rm, rmdir } from 'node:fs/promis
 import path from 'node:path'
 import { withoutCredentials, withoutKeyringRoutes } from './credentialVariables'
 import { runProgram, windowsPowerShell } from '../host/processTree'
+import { isOwnerOnlyAcl } from '../core/fs/ownerOnlyAcl'
 import * as z from 'zod/mini'
 import { IDE_MCP_TOKEN_BYTES } from '../shared/constants'
 
@@ -108,15 +109,7 @@ async function secure(
     )
     if (!parsed.success) throw new Error('ETOKEN_ACL')
     const receipt = parsed.data
-    if (
-      !receipt.protected ||
-      receipt.ownerSid !== receipt.currentSid ||
-      receipt.rules.some(
-        (rule) =>
-          rule.sid !== receipt.currentSid || rule.inherited || !rule.allow || !rule.fullControl,
-      )
-    )
-      throw new Error('ETOKEN_ACL')
+    if (!isOwnerOnlyAcl(receipt)) throw new Error('ETOKEN_ACL')
     return { platform: 'win32', ownerOnly: true, windows: receipt }
   }
   const mode = isDirectory ? DIRECTORY_MODE : FILE_MODE
