@@ -102,24 +102,23 @@ export interface DeviceWorkerDriver {
     attempt: DeviceWorkerAttempt,
   ): Promise<DeviceWorkerJob>
 }
-/** One lazy platform selection point; the caller still owns local command/reservation wiring. */
-export async function deviceWorkerDriverForPlatform(
-  native: DeviceWorkerDriver,
-  linux: () => Promise<DeviceWorkerDriver>,
-  platform: NodeJS.Platform = process.platform,
-): Promise<DeviceWorkerDriver> {
-  if (platform === 'linux') return await linux()
-  if (native.platform !== platform) throw new DeviceWorkerHostError('helper')
-  return native
-}
-
-/** W supplies lazy native factories; selecting an unsupported OS never spawns. */
-export function selectDeviceWorkerDriver(
+/**
+ * One lazy platform selection point; the caller still owns local
+ * command/reservation wiring. Every factory is lazy so selecting a platform
+ * never loads another platform's driver (and never spawns); selecting an
+ * unsupported OS refuses with typed `unsupported-host` before any spawn.
+ */
+export async function selectDeviceWorkerDriver(
   platform: NodeJS.Platform,
-  factories: { darwin(): DeviceWorkerDriver; win32(): DeviceWorkerDriver },
-): DeviceWorkerDriver {
-  if (platform === 'darwin') return factories.darwin()
-  if (platform === 'win32') return factories.win32()
+  factories: {
+    darwin(): DeviceWorkerDriver | Promise<DeviceWorkerDriver>
+    win32(): DeviceWorkerDriver | Promise<DeviceWorkerDriver>
+    linux(): DeviceWorkerDriver | Promise<DeviceWorkerDriver>
+  },
+): Promise<DeviceWorkerDriver> {
+  if (platform === 'darwin') return await factories.darwin()
+  if (platform === 'win32') return await factories.win32()
+  if (platform === 'linux') return await factories.linux()
   throw new DeviceWorkerHostError('helper')
 }
 export interface DeviceWorkerReservation {

@@ -4,7 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { deviceWorkerLinux } from '../../src/host/backend/deviceWorkerLinux'
 import {
-  deviceWorkerDriverForPlatform,
+  selectDeviceWorkerDriver,
   DeviceWorkerHost,
   type DeviceWorkerJob,
 } from '../../src/host/devices/deviceWorkerHost'
@@ -14,6 +14,10 @@ import { DEVICE_LIMITS } from '../../src/shared/constants'
 import { deviceCheck, deviceGrant } from './helpers/deviceFixtures'
 import { DeviceReceiver } from '../../src/host/devices/deviceReceiver'
 import { executionUsage, useExecutionFixture } from './helpers/deviceExecutionFixtures'
+
+function wrongPlatformFactory(): never {
+  throw new Error('wrong platform factory')
+}
 
 const request = deviceCheck(deviceGrant('a'.repeat(32)))
 const environment: Record<string, string> = {}
@@ -464,12 +468,26 @@ describe('M100/H Linux platform port (fake manager/cgroup/inhibitor)', () => {
   it('selects Linux lazily in the host factory; unsupported platforms refuse', async () => {
     const native = { ...fixture().driver, platform: 'win32' as const }
     const load = vi.fn(() => Promise.resolve(deviceWorkerLinux({ environment: {} })))
-    const selected = await deviceWorkerDriverForPlatform(native, load, 'linux')
-    expect(selected.platform).toBe('linux')
-    expect(await deviceWorkerDriverForPlatform(native, load, 'win32')).toBe(native)
-    await expect(deviceWorkerDriverForPlatform(native, load, 'darwin')).rejects.toMatchObject({
-      reason: 'unsupported-host',
+    const wrong = wrongPlatformFactory
+    const selected = await selectDeviceWorkerDriver('linux', {
+      darwin: wrong,
+      win32: () => native,
+      linux: load,
     })
+    expect(selected.platform).toBe('linux')
+    expect(
+      await selectDeviceWorkerDriver('win32', { darwin: wrong, win32: () => native, linux: load }),
+    ).toBe(native)
+    await expect(
+      selectDeviceWorkerDriver('darwin', { darwin: wrong, win32: () => native, linux: load }),
+    ).rejects.toThrow('wrong platform factory')
+    await expect(
+      selectDeviceWorkerDriver('freebsd', {
+        darwin: wrong,
+        win32: wrong,
+        linux: wrong,
+      }),
+    ).rejects.toMatchObject({ reason: 'unsupported-host' })
     expect(load).toHaveBeenCalledOnce()
   })
 })

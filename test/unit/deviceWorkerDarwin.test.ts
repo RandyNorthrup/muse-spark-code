@@ -1109,9 +1109,12 @@ describe('M100/H Darwin unsupported manager port', () => {
 describe.skipIf(process.platform !== 'darwin')('M100/H actual launchd GUI job', () => {
   beforeAll(async () => {
     state.directory = await mkdtemp(path.join(tmpdir(), 'm100-darwin-native-'))
-    state.native = selectDeviceWorkerDriver('darwin', {
+    state.native = await selectDeviceWorkerDriver('darwin', {
       darwin: () => freshDriver(),
       win32: () => {
+        throw new Error('wrong platform factory')
+      },
+      linux: () => {
         throw new Error('wrong platform factory')
       },
     })

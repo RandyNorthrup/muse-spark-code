@@ -158,18 +158,36 @@ async function inStorage(body: (directory: string) => Promise<void>): Promise<vo
   }
 }
 const helperRequestSchema = z.object({ cwd: z.string(), maxProcesses: z.number() })
+function wrongPlatformFactory(): never {
+  throw new Error('wrong platform factory')
+}
 
 describe('M100/H worker host', () => {
-  it('selects exactly one lazy native factory and refuses other platforms', () => {
+  it('selects exactly one lazy native factory and refuses other platforms', async () => {
     const darwin = fixture('darwin').deps.driver
     const win32 = fixture('win32').deps.driver
-    const factories = { darwin: vi.fn(() => darwin), win32: vi.fn(() => win32) }
-    expect(selectDeviceWorkerDriver('darwin', factories)).toBe(darwin)
+    const linux = fixture('linux').deps.driver
+    const wrong = wrongPlatformFactory
+    const factories = {
+      darwin: vi.fn(() => darwin),
+      win32: vi.fn(() => win32),
+      linux: vi.fn(() => linux),
+    }
+    await expect(selectDeviceWorkerDriver('darwin', factories)).resolves.toBe(darwin)
     expect(factories.win32).not.toHaveBeenCalled()
-    expect(selectDeviceWorkerDriver('win32', factories)).toBe(win32)
-    expect(() => selectDeviceWorkerDriver('linux', factories)).toThrow(DeviceWorkerHostError)
+    expect(factories.linux).not.toHaveBeenCalled()
+    await expect(selectDeviceWorkerDriver('win32', factories)).resolves.toBe(win32)
+    await expect(selectDeviceWorkerDriver('linux', factories)).resolves.toBe(linux)
     expect(factories.darwin).toHaveBeenCalledOnce()
     expect(factories.win32).toHaveBeenCalledOnce()
+    expect(factories.linux).toHaveBeenCalledOnce()
+    await expect(
+      selectDeviceWorkerDriver('freebsd', {
+        darwin: wrong,
+        win32: wrong,
+        linux: wrong,
+      }),
+    ).rejects.toThrow(DeviceWorkerHostError)
   })
   it('returns typed host pressure with recovery prose after a bounded job exit', async () => {
     const f = fixture('darwin')
