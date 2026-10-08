@@ -171,6 +171,8 @@
     // M116 playbook scenes: the axe runner (an npm script knip already sees)
     // bundles this scene file with esbuild, which knip does not trace.
     "test/harness/playbook.mjs",
+    // LEFT017B's real optional surfaces are bundled by the golden generator.
+    "test/harness/goldens/integrated.tsx",
     "test/integration/**/*.test.ts",
     // The TypeScript fixture VS Code's language service reads in the code
     // intelligence integration test (M67); main.ts imports the rest.

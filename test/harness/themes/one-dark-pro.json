@@ -96,8 +96,16 @@
   },
   "unset": [
     "--vscode-button-border",
+    "--vscode-charts-blue",
+    "--vscode-charts-green",
+    "--vscode-charts-orange",
+    "--vscode-charts-purple",
+    "--vscode-charts-yellow",
     "--vscode-contrastActiveBorder",
     "--vscode-contrastBorder",
+    "--vscode-dropdown-background",
+    "--vscode-dropdown-foreground",
+    "--vscode-editor-findMatchHighlightBackground",
     "--vscode-editor-font-family",
     "--vscode-editor-font-size",
     "--vscode-font-family",
@@ -113,7 +121,12 @@
     "--vscode-button-foreground",
     "--vscode-button-hoverBackground",
     "--vscode-button-secondaryHoverBackground",
+    "--vscode-charts-blue",
+    "--vscode-charts-green",
+    "--vscode-charts-orange",
+    "--vscode-charts-purple",
     "--vscode-charts-red",
+    "--vscode-charts-yellow",
     "--vscode-contrastActiveBorder",
     "--vscode-contrastBorder",
     "--vscode-debugTokenExpression-number",
@@ -121,6 +134,9 @@
     "--vscode-diffEditor-insertedLineBackground",
     "--vscode-diffEditor-removedLineBackground",
     "--vscode-disabledForeground",
+    "--vscode-dropdown-background",
+    "--vscode-dropdown-foreground",
+    "--vscode-editor-findMatchHighlightBackground",
     "--vscode-editor-font-family",
     "--vscode-editor-font-size",
     "--vscode-editorWidget-border",
@@ -148,5 +164,19 @@
     "--vscode-toolbar-hoverBackground",
     "--vscode-widget-border",
     "--vscode-widget-shadow"
-  ]
+  ],
+  "inventoryRefresh": {
+    "review": "LEFT017B-2026-10-08",
+    "addedUnresolvedVariables": [
+      "--vscode-charts-blue",
+      "--vscode-charts-green",
+      "--vscode-charts-orange",
+      "--vscode-charts-purple",
+      "--vscode-charts-yellow",
+      "--vscode-dropdown-background",
+      "--vscode-dropdown-foreground",
+      "--vscode-editor-findMatchHighlightBackground"
+    ],
+    "scope": "Current browser read inventory; original archive colours and captured registered-default bytes remain immutable. These added names have no value in the retained capture, so real Chrome renders exercise the stylesheet fallback."
+  }
 }

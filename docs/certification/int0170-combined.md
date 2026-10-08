@@ -184,8 +184,31 @@ No merge, push, live/paid call, changed timeout, byte cap or pixel tolerance.
 - Baseline visual owners reproduce four failures: current renderer inventory,
   two theme read inventories and current audit/source coverage (24 tests pass).
   The three stale `visualMatrix` assertions are retained unchanged.
-- Mapping, mounted Chrome capture, image review and fresh-clone gate receipts
-  follow below when complete; no visual certification is claimed yet.
+- Added 111 mappings: 184 current renderers across 136 scenes. All 136
+  default/light/320 smoke captures mount their actual components. The capture
+  driver opens real account/grant/resource controls and traffic tabs, advances
+  frozen-clock Suspense retries, selects the correct independent bundle, and
+  scrolls canonical descendants into view. The packed update page uses its
+  production decoder. Test-only vault identifiers are deterministic public IDs.
+- Current source SHA receipts are refreshed from actual browser files. The two
+  immutable third-party archive/colour/default receipts retain their hashes;
+  eight new read names are explicitly unresolved in those retained captures,
+  rather than invented colours. The full six-theme Chrome replay exercises
+  their real CSS fallback. All three stale visual assertions pass unchanged.
+- Shared visible repairs: Models actions wrap at narrow width, and Models and
+  accounts use the token focus width/offset. The independent Models stylesheet
+  imports its token contract. The real capture owner's three new guards were
+  deliberately broken together: offscreen threshold top 880.828125 >= 760,
+  missing visible focus targets and six column/nowrap action measurements.
+  The complete owner exits 1 with 3 failed/7 passed. Exact source restoration
+  hashes: Models CSS `721845e6221b3cc7bb1913511e4d6f71209d7ca9f719c45475d8037b2c65fd01`,
+  accounts CSS `c6a6fc83d0e203f79cf6ea1acf5b78b937eea84b00011f8a98f85f4ca964995c`,
+  capture driver `64c25bcabe261b90052a3fb7805e8d26406626441a96a862318da63ea874f31c`.
+- Input checks pass: complete capture/matrix/audit owners 26/26, browser harness
+  typecheck, changed-file eslint (zero warnings), stylelint, tokens (zero
+  problems), plain knip and jscpd (2,835 files, zero clones).
+- Full archive generation, image review and fresh-clone gate receipts remain
+  pending below; no visual certification is claimed until they finish.
 
 ### Earlier LEFT017 receipts
 

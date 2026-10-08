@@ -53,8 +53,8 @@
 
 .accounts-section :focus-visible,
 .account-picker:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: 2px;
+  outline: var(--ms-focus-width) solid var(--ms-focus);
+  outline-offset: var(--ms-focus-offset);
 }
 
 .accounts-section button:disabled,

@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Complete integrated visual coverage through real optional UI scenes, decode packed update notes in replay, wrap narrow Models actions and use token focus rings.
+
 - Guard the lazy slash-command registration as a deferred chat entry without adding activation bytes.
 
 - Restore the Schedule Prompt, Schedules and Schedule Timeline editor commands, including panels opened on demand.

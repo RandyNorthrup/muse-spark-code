@@ -62,9 +62,10 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
   // Scenario timers must start after React's initial layout effects commit;
   // advancing a frozen clock before mount races the composer's row fitting.
   if (!fixtureScenes.has(scene) && !scene.startsWith('whats-new'))
-    await page.waitForSelector('textarea,.gate,.todo-surface,.schedule-v2-surface,.models-panel,.usage-page,.traffic-view,[role=alert]', {
-      state: 'attached',
-    })
+    await waitForPaint(
+      page,
+      'textarea,.gate,.todo-surface,.schedule-v2-surface,.models-panel,.usage-page,.traffic-view,[role=alert]',
+    )
   const fixture = JSON.parse(
     await readFile(path.join(root, `test/harness/themes/${theme}.json`), 'utf8'),
   )
@@ -101,7 +102,11 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
     await waitForPaint(page, selector)
     const buttons = page.locator(selector)
     if (label === undefined) await buttons.first().click()
-    else await buttons.filter({ hasText: new RegExp(`^${label}$`) }).first().click()
+    else
+      await buttons
+        .filter({ hasText: new RegExp(`^${label}$`) })
+        .first()
+        .click()
     await page.clock.runFor(100)
   }
   await page.evaluate(() => globalThis.document.fonts.ready)
@@ -109,10 +114,18 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
     globalThis.getComputedStyle(globalThis.document.body).fontFamily.includes('Segoe UI'),
   )
   if (!hasStyles) throw new Error(`Stylesheet failed to load: ${scene}/${theme}/${width}`)
-  if (!fixtureScenes.has(scene))
-    await page.waitForFunction(
-      () => globalThis.document.querySelector('[data-deferred-loading]') === null,
-    )
+  if (!fixtureScenes.has(scene)) {
+    for (
+      let attempt = 0;
+      attempt < 100 && (await page.locator('[data-deferred-loading]').count()) > 0;
+      attempt += 1
+    ) {
+      await page.clock.runFor(100)
+      await delay(10)
+    }
+    if ((await page.locator('[data-deferred-loading]').count()) > 0)
+      throw new Error(`Deferred renderer did not settle: ${scene}`)
+  }
   if (
     [
       'muse-tools',
@@ -293,7 +306,11 @@ export async function captureMatrix(root, audit, matrix, onCapture, groups) {
             try {
               await waitForPaint(page, row.captureSelector)
             } catch (error) {
-              throw new Error(`Missing component render: ${row.file} in ${scene}; page errors: ${errors.join('; ') || 'none'}; fixture text: ${(await page.locator('body').innerText()).slice(0, 300)}`, { cause: error })
+              const fixtureText = await page.locator('body').textContent()
+              throw new Error(
+                `Missing component render: ${row.file} in ${scene}; page errors: ${errors.join('; ') || 'none'}; fixture text: ${fixtureText.slice(0, 300)}`,
+                { cause: error },
+              )
             }
           }
           const components = await page.evaluate(
@@ -310,6 +327,23 @@ export async function captureMatrix(root, audit, matrix, onCapture, groups) {
               }),
             rows,
           )
+          // Canonical descendants must appear in the viewport, not merely in
+          // a long page's DOM. Keep parents visible around the smallest scope.
+          const reviewSelector = await page.evaluate(
+            (rows) =>
+              rows
+                .map((row) => ({
+                  selector: row.captureSelector,
+                  box: globalThis.document
+                    .querySelector(row.captureSelector)
+                    .getBoundingClientRect(),
+                }))
+                .toSorted((a, b) => a.box.width * a.box.height - b.box.width * b.box.height)[0]
+                ?.selector,
+            rows,
+          )
+          if (reviewSelector !== undefined)
+            await page.locator(reviewSelector).first().scrollIntoViewIfNeeded()
           if (errors.length > 0) throw new Error(`${scene}: ${errors.join('; ')}`)
           for (const state of matrix.states) {
             const target = await targetFor(page, rows, state)

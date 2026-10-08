@@ -9,7 +9,7 @@ lazy schedule slash-command entry without increasing activation's byte cap.
 No waivers, assertion weakening, paid/live calls, merge or push. Existing
 unrelated bundle caps remain the shrinking lane's responsibility.
 
-- [~] Complete current renderer mappings and add missing real-component scenes.
+- [x] Map all 184 renderers (111 added) across 136 real-component scenes; narrow Chrome smoke passed.
 - [ ] Refresh theme/source receipts and generate/review the complete Chrome archive.
 - [x] Deferred slash-command entry registered; activation 587,451 bytes; eager-import guard drill passed.
 - [ ] Replay visual owners and scoped static gates in a fresh npm-ci CI clone.
