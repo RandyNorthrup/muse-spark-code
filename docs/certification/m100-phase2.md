@@ -2043,3 +2043,61 @@ Changed-fixture ESLint/Prettier and plain jscpd pass, with zero clones.
 Restored complete local H suite: **exit 0, 502 passed, 0 failed,
 7 Windows-only skipped**, **66.78 s**, including all 31 native cases.
 Final qualification restarts from a fresh clone of the committed fixture fix.
+
+##### HM9 final committed-source fresh-clone qualification
+
+Final source/test checkpoint **`05971149c`**, production fix **`82a114c0e`**.
+Both commits used the repository's installed hooks exactly, with
+`core.hooksPath=.husky/_`: ESLint/Prettier and staged gitleaks **exit 0**.
+Their staged/committed diffs were reread after each hook. No hook substitution,
+wrapper, copy, edit or manual stash. The source and both test-file SHA-256s in the
+clone match the committed worktree:
+
+- Driver: `9446c710de978490e940b882977f363c3395c7d33536c83074babaf6b38b29b5`.
+- Owning test: `4185c648193739eca23f36ab9f8eb29c1e935191a3d398534d82a03cda65d13b`.
+- Spawn fixture: `8d2427f163ddac6dcb97f23ae5778cdb312e8fe8f36bfa432dcd2797c5fa73c2`.
+
+Fresh clone **`$TMPDIR/M100P2HM9-BrnrBL/final/checkout`**, Node **24.21.0**,
+npm **11.19.0**, macOS **15.7.4**, UID **502 / Aqua gui/502**.
+Fresh **`CI=true npm ci: exit 0`**, 902 packages installed; unchanged lockfile,
+same 11 inherited audit findings (2 low, 9 high), no audit fix or dependency change.
+Every verification command uses **CI=true**. Vitest uses repository deadlines,
+`--maxWorkers=3`, and at most three complete files per invocation. No raised
+or named timeout, new skip, weakened assertion, threshold or ignore.
+
+| Final gate                                                 | Exit / receipt                                                                                                                                                                                                                                                                               |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Complete H owning files, three consecutive runs            | **0 / 0 / 0**. Each **502 passed, 0 failed, 7 Windows-only skipped**; **67.85 / 68.09 / 66.82 s wall**. All **31 / 31 / 31 macOS-native cases** ran and passed.                                                                                                                              |
+| Lifecycle/spawn completeness in all three JSON reports     | **105 lifecycle cases**, including the **90 original table cells**, **6 new waiting-helper cells**, and **2 new independent-sweep cells**; **312 spawn-table cells** and all native cases passed each time. All 200/128 stress cases and real identity/substitution assertions are retained. |
+| Default-deadline 128-attempt stress cases                  | Pending probes **1754.3 / 1844.9 / 1992.3 ms**; ordinary attempts **1594.2 / 1910.2 / 1890.2 ms**. Every assertion passes under the unchanged 5000 ms deadline.                                                                                                                              |
+| Complete deviceReceiver file                               | **0**, **49 passed, 0 failed, 0 skipped**, **11.90 s**.                                                                                                                                                                                                                                      |
+| Host / webview / unit / e2e / integration compiler scripts | **0 / 0 / 0 / 0 / 0**, each script run separately.                                                                                                                                                                                                                                           |
+| Changed-file ESLint, max-warnings=0                        | **0**, all three changed TS files.                                                                                                                                                                                                                                                           |
+| Changed-file Prettier                                      | **0**, all five changed files; final receipt prose checked again after its hook.                                                                                                                                                                                                             |
+| Plain knip                                                 | **0**, unchanged configuration.                                                                                                                                                                                                                                                              |
+| Plain jscpd                                                | **0**, zero clones, unchanged zero threshold.                                                                                                                                                                                                                                                |
+| check:reference                                            | **0**, reference coverage and freshness current.                                                                                                                                                                                                                                             |
+| check:l10n                                                 | **0**, 14 UI tables, 14 usage tables, 197 manifest strings, 991 source files; zero problems.                                                                                                                                                                                                 |
+| check:host-api                                             | **1**, the exact inherited six W-owned import-count differences below. No regeneration, suppression or gate change.                                                                                                                                                                          |
+| Production build including size/split/host-globals/notices | **0**, every cap unchanged: activation **462.8/600 KiB**, Devices **82.0/100 KiB**, Model API **456.0/475 KiB**, Devices browser **34.0/50 KiB**, chat startup **733.8/900 KiB**, original deferred JS **31.9/50 KiB**.                                                                      |
+
+**Final H status:** P2 and P3 are implemented in the reclaim table, tested on
+both probe/ordinary attempts, proved red on the required base and deliberate
+guard removal, and qualified above. Native assertion release is observed even
+with failed bootout. All pending attempts are visited, failures are reported as
+uncertain, and definitive failures retain their capacity. No H finding is deferred.
+
+**Lead/W requests:** regenerate the inherited host API inventory:
+child_process **16→18**, crypto **93→95**, fs **44→45**, fs/promises **74→77**,
+path **125→128**, timers/promises **15→17**. Totals remain **366 VS Code APIs,
+43 importing files, 28 Node built-ins, 70 theme variables**. Carry the Unreleased
+CHANGELOG note above. Aggregate `npm run quality`, production lazy factory
+binding/status wiring, and installed cross-platform qualification remain W's
+explicit integration obligations under PLAN §7 and the shared ownership table.
+This build measures existing lazy entries, not an installed Darwin-driver receipt.
+
+Only five owned files changed: the Darwin driver, its owning test, the injected
+spawn fixture, PLAN's H scope/gate regions, and this H/macOS subsection.
+Both verification clones and private scratch receipts are removed after final
+validation. No push, merge, rebase, manual stash, credential read, paid/live
+model call or nonloopback listener.
