@@ -32,22 +32,20 @@ import {
   type DeviceWorkerAttempt,
 } from '../../src/host/devices/deviceWorkerHost'
 import type { RunProgram } from '../../src/host/processTree'
-import {
-  deviceCheck,
-  deviceGrant,
-  endDeviceStorage,
-  privateDeviceRoot,
-} from './helpers/deviceFixtures'
+import { deviceCheck, deviceGrant, endDeviceStorage } from './helpers/deviceFixtures'
 import { darwinEscapeTree, survivors } from './helpers/deviceDarwinEscape'
-import { AttemptJournal } from '../../src/core/devices/attemptJournal'
-import { executionProtection, signedDispatch } from './helpers/deviceExecutionFixtures'
+import { signedDispatch } from './helpers/deviceExecutionFixtures'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { deviceJournalRecordSchema } from '../../src/shared/devices'
 import { deviceFailureText } from '../../src/webview/models/sections/agents/devicePresentation'
 import type { DeviceWorkerCommand } from '../../src/host/devices/deviceWorkerHost'
 import type * as FsPromises from 'node:fs/promises'
 import type * as ChildProcessModule from 'node:child_process'
-import { launchedJob, openWorkerReceiver } from './helpers/deviceWorkerReceiver'
+import {
+  launchedJob,
+  openWorkerReceiver,
+  protectedWorkerJournal,
+} from './helpers/deviceWorkerReceiver'
 import {
   darwinSpawnFixture,
   darwinSpawnSites,
@@ -560,30 +558,21 @@ describe('M100/H attempt lifecycle', () => {
     const failure = darwinSpawnFailures[0]
     if (failure === undefined) throw new Error('failure fixture missing')
     // The journal's protected root and binding start before the spawn boundary is fenced.
-    const parent = await privateDeviceRoot('m100-darwin-receiver-')
-    const journal = await AttemptJournal.create(
-      path.join(parent, 'durable'),
-      { assertOwner: () => Promise.resolve() },
-      executionProtection,
-    )
+    const { parent, journal } = await protectedWorkerJournal('m100-darwin-receiver-')
     const fixture = await spawnBoundaryFixture('ready-print', failure)
     try {
       fixture.disableFailure()
       expect(await fixture.driver.selfTest()).toBe(true)
       const release = vi.fn(() => Promise.resolve())
+      const lease = { usage, pause: () => Promise.resolve(), release }
+      const worker = { executable: '/usr/bin/true', cwd: fixture.directory, args: [] }
       const host = new DeviceWorkerHost({
         driver: fixture.driver,
-        environment: {},
+        command: () => Promise.resolve({ ...worker, requiredTools: [] }),
+        reserve: () => Promise.resolve(lease),
         retain: () => Promise.resolve(),
-        reserve: () => Promise.resolve({ usage, pause: () => Promise.resolve(), release }),
-        command: () =>
-          Promise.resolve({
-            executable: '/usr/bin/true',
-            args: [],
-            cwd: fixture.directory,
-            requiredTools: [],
-          }),
         recordEnvironment: () => Promise.resolve(),
+        environment: {},
         pressure: () => undefined,
         resolveTool: (name) => Promise.resolve(name),
       })
@@ -1175,13 +1164,15 @@ describe('M100/H Darwin unsupported manager port', () => {
       spawn: fromRun(invoke),
     })
     expect(await driver.selfTest()).toBe(false)
-    expect(
-      await driver.launch(
-        { executable: process.execPath, args: [], cwd: tmpdir(), requiredTools: [] },
-        {},
-        attemptWith(),
+    await expect(
+      launchedJob(
+        driver.launch(
+          { executable: process.execPath, args: [], cwd: tmpdir(), requiredTools: [] },
+          {},
+          attemptWith(),
+        ),
       ),
-    ).toMatchObject({ kind: 'refused', error: { reason: 'unsupported-host', detail: 'helper' } })
+    ).rejects.toMatchObject({ launch: 'refused', reason: 'unsupported-host', detail: 'helper' })
     expect(invoke).toHaveBeenCalledExactlyOnceWith(
       '/bin/launchctl',
       ['print', 'gui/502'],
@@ -1353,12 +1344,7 @@ int main(int argc, char **argv) {
     const grant = deviceGrant('a'.repeat(32))
     const sent = signedDispatch(deviceCheck(grant))
     // The journal's own protected root, as every receiver fixture uses.
-    const parent = await privateDeviceRoot('m100-darwin-capacity-')
-    const journal = await AttemptJournal.create(
-      path.join(parent, 'durable'),
-      { assertOwner: () => Promise.resolve() },
-      executionProtection,
-    )
+    const { parent, journal } = await protectedWorkerJournal('m100-darwin-capacity-')
     let command: DeviceWorkerCommand | undefined
     let job: DeviceWorkerJob | undefined
     const release = vi.fn(() => Promise.resolve())

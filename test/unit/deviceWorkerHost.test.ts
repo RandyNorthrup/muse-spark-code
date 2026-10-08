@@ -17,16 +17,15 @@ import { UI_TEXT } from '../../src/shared/l10n/text'
 import { deviceWorkerNative } from '../../src/host/backend/deviceWorkerNative'
 import type { RunProgram } from '../../src/host/processTree'
 import { deviceJournalRecordSchema, type DeviceDispatch } from '../../src/shared/devices'
-import { AttemptJournal } from '../../src/core/devices/attemptJournal'
+import type { AttemptJournal } from '../../src/core/devices/attemptJournal'
 import type { DeviceReceiver } from '../../src/host/devices/deviceReceiver'
+import { deviceCheck, deviceGrant, endDeviceStorage } from './helpers/deviceFixtures'
+import { signedDispatch } from './helpers/deviceExecutionFixtures'
 import {
-  deviceCheck,
-  deviceGrant,
-  endDeviceStorage,
-  privateDeviceRoot,
-} from './helpers/deviceFixtures'
-import { executionProtection, signedDispatch } from './helpers/deviceExecutionFixtures'
-import { launchedJob, openWorkerReceiver } from './helpers/deviceWorkerReceiver'
+  launchedJob,
+  openWorkerReceiver,
+  protectedWorkerJournal,
+} from './helpers/deviceWorkerReceiver'
 
 const usage = {
   settlementId: 'a'.repeat(32),
@@ -141,14 +140,8 @@ async function throughReceiver(
   host: DeviceWorkerHost,
   body: (receiver: DeviceReceiver, journal: AttemptJournal) => Promise<void>,
 ): Promise<void> {
-  // The protected root the journal requires (owner-only on Windows, 0700 on POSIX).
-  const parent = await privateDeviceRoot('m100-worker-receiver-')
+  const { parent, journal } = await protectedWorkerJournal('m100-worker-receiver-')
   try {
-    const journal = await AttemptJournal.create(
-      path.join(parent, 'durable'),
-      { assertOwner: () => Promise.resolve() },
-      executionProtection,
-    )
     const grant = deviceGrant('a'.repeat(32))
     const receiver = await openWorkerReceiver(journal, host, grant)
     await body(receiver, journal)
@@ -166,6 +159,57 @@ async function inStorage(body: (directory: string) => Promise<void>): Promise<vo
 }
 const helperRequestSchema = z.object({ cwd: z.string(), maxProcesses: z.number() })
 afterAll(endDeviceStorage)
+type Fixture = ReturnType<typeof fixture>
+function launchTwice(f: Fixture, second: Promise<unknown>) {
+  vi.mocked(f.deps.driver.launch)
+    .mockResolvedValueOnce({ kind: 'launched', job: f.job })
+    .mockResolvedValueOnce({ kind: 'launched', job: { ...f.job, retirement: second } })
+}
+/** A failed start keeps its occupancy: journaled uncertain, unreleased, receiver blocked. */
+async function dispatchHeldUncertain(
+  f: Fixture,
+  receiver: DeviceReceiver,
+  journal: AttemptJournal,
+): Promise<DeviceDispatch> {
+  const signed = signedDispatch(request)
+  const reply = await receiver.dispatch(signed)
+  expect(reply.body).toEqual({ kind: 'failure', reason: 'uncertain' })
+  await expect
+    .poll(async () => deviceJournalRecordSchema.parse(await journal.lookup(signed.identity)))
+    .toMatchObject({ outcome: { state: 'uncertain', occupied: request.caps, usage } })
+  // Reconciliation runs after every queued journal write for this attempt.
+  const [reconciled] = await receiver.reconcile([signed.identity])
+  expect(reconciled?.body).toMatchObject({
+    kind: 'reconciled',
+    outcomes: [{ state: 'uncertain', occupied: request.caps }],
+  })
+  expect(f.reservation.release).not.toHaveBeenCalled()
+  expect(f.job.activate).not.toHaveBeenCalled()
+  expect(receiver.blockedReason).toBe('uncertain')
+  return signed
+}
+/** Not-run work: journaled refused with zero occupancy, released exactly once. */
+async function expectRefusedOnce(
+  f: Fixture,
+  receiver: DeviceReceiver,
+  journal: AttemptJournal,
+  signed: DeviceDispatch,
+): Promise<void> {
+  await vi.waitFor(() => {
+    expect(f.reservation.release).toHaveBeenCalledOnce()
+  })
+  const occupied = Object.fromEntries(Object.keys(request.caps).map((name) => [name, 0]))
+  expect(deviceJournalRecordSchema.parse(await journal.lookup(signed.identity))).toMatchObject({
+    kind: 'receiver-record',
+    outcome: { state: 'refused', occupied, usage },
+  })
+  const [reconciled] = await receiver.reconcile([signed.identity])
+  expect(reconciled?.body).toMatchObject({
+    kind: 'reconciled',
+    outcomes: [{ state: 'refused', usage }],
+  })
+  expect(f.reservation.release).toHaveBeenCalledOnce()
+}
 
 describe('M100/H worker host', () => {
   it('selects exactly one lazy native factory and refuses other platforms', () => {
@@ -375,9 +419,7 @@ describe('M100/H worker host', () => {
       sleepInhibited: true,
     })
     const second = Promise.withResolvers<unknown>()
-    vi.mocked(f.deps.driver.launch)
-      .mockResolvedValueOnce({ kind: 'launched', job: f.job })
-      .mockResolvedValueOnce({ kind: 'launched', job: { ...f.job, retirement: second.promise } })
+    launchTwice(f, second.promise)
     const a = await f.host.admit(request)
     const b = await f.host.admit(request)
     await a.start(boundary)
@@ -566,9 +608,7 @@ describe('M100/H worker host', () => {
     const narrow = admittedRequest('1', 1)
     const wide = admittedRequest('2', DEVICE_LIMITS.processes)
     const second = Promise.withResolvers<unknown>()
-    vi.mocked(f.deps.driver.launch)
-      .mockResolvedValueOnce({ kind: 'launched', job: f.job })
-      .mockResolvedValueOnce({ kind: 'launched', job: { ...f.job, retirement: second.promise } })
+    launchTwice(f, second.promise)
     const attempts = await Promise.all([f.host.admit(narrow), f.host.admit(wide)])
     await Promise.all(attempts.map((attempt) => attempt.start(boundary)))
     // The fake driver records every launch's third argument.
@@ -717,21 +757,9 @@ describe('M100/H worker host', () => {
         // A late failure cannot claim that admission never happened; the journal says what ran.
         const reply = await receiver.dispatch(signed)
         expect(reply.body).toEqual({ kind: 'failure', reason: 'uncertain' })
-        await vi.waitFor(() => {
-          expect(f.reservation.release).toHaveBeenCalledOnce()
-        })
-        const occupied = Object.fromEntries(Object.keys(request.caps).map((name) => [name, 0]))
-        expect(await journal.lookup(signed.identity)).toMatchObject({
-          kind: 'receiver-record',
-          outcome: { state: 'refused', occupied, usage },
-        })
+        await expectRefusedOnce(f, receiver, journal, signed)
         expect(f.deps.driver.launch).toHaveBeenCalledTimes(launches)
         expect(f.job.activate).not.toHaveBeenCalled()
-        const [reconciled] = await receiver.reconcile([signed.identity])
-        expect(reconciled?.body).toMatchObject({
-          kind: 'reconciled',
-          outcomes: [{ state: 'refused', usage }],
-        })
       })
     },
   )
@@ -781,21 +809,7 @@ describe('M100/H worker host', () => {
       const f = fixture()
       inject(f)
       await throughReceiver(f.host, async (receiver, journal) => {
-        const signed = signedDispatch(request)
-        const reply = await receiver.dispatch(signed)
-        expect(reply.body).toEqual({ kind: 'failure', reason: 'uncertain' })
-        await expect
-          .poll(async () => deviceJournalRecordSchema.parse(await journal.lookup(signed.identity)))
-          .toMatchObject({ outcome: { state: 'uncertain', occupied: request.caps, usage } })
-        // Reconciliation runs after every queued journal write for this attempt.
-        const [reconciled] = await receiver.reconcile([signed.identity])
-        expect(reconciled?.body).toMatchObject({
-          kind: 'reconciled',
-          outcomes: [{ state: 'uncertain', occupied: request.caps }],
-        })
-        expect(f.reservation.release).not.toHaveBeenCalled()
-        expect(f.job.activate).not.toHaveBeenCalled()
-        expect(receiver.blockedReason).toBe('uncertain')
+        await dispatchHeldUncertain(f, receiver, journal)
       })
     },
   )
@@ -808,35 +822,10 @@ describe('M100/H worker host', () => {
       reclaimed: reclaimed.promise,
     })
     await throughReceiver(f.host, async (receiver, journal) => {
-      const signed = signedDispatch(request)
-      const reply = await receiver.dispatch(signed)
-      expect(reply.body).toEqual({ kind: 'failure', reason: 'uncertain' })
-      await expect
-        .poll(async () => deviceJournalRecordSchema.parse(await journal.lookup(signed.identity)))
-        .toMatchObject({ outcome: { state: 'uncertain', occupied: request.caps, usage } })
-      const [pending] = await receiver.reconcile([signed.identity])
-      expect(pending?.body).toMatchObject({
-        kind: 'reconciled',
-        outcomes: [{ state: 'uncertain', occupied: request.caps }],
-      })
-      expect(f.reservation.release).not.toHaveBeenCalled()
-      expect(receiver.blockedReason).toBe('uncertain')
+      const signed = await dispatchHeldUncertain(f, receiver, journal)
       // The driver's sweep proves the unactivated attempt gone: only now is the slot released.
       reclaimed.resolve(undefined)
-      await vi.waitFor(() => {
-        expect(f.reservation.release).toHaveBeenCalledOnce()
-      })
-      const occupied = Object.fromEntries(Object.keys(request.caps).map((name) => [name, 0]))
-      expect(deviceJournalRecordSchema.parse(await journal.lookup(signed.identity))).toMatchObject({
-        kind: 'receiver-record',
-        outcome: { state: 'refused', occupied, usage },
-      })
-      const [settled] = await receiver.reconcile([signed.identity])
-      expect(settled?.body).toMatchObject({
-        kind: 'reconciled',
-        outcomes: [{ state: 'refused', usage }],
-      })
-      expect(f.reservation.release).toHaveBeenCalledOnce()
+      await expectRefusedOnce(f, receiver, journal, signed)
       expect(f.job.activate).not.toHaveBeenCalled()
       expect(receiver.blockedReason).toBeUndefined()
     })

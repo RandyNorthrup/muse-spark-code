@@ -1,11 +1,30 @@
+import path from 'node:path'
 import { DeviceReceiver } from '../../../src/host/devices/deviceReceiver'
 import type { DeviceReceiverExecution } from '../../../src/host/devices/deviceReceiver'
-import type { AttemptJournal } from '../../../src/core/devices/attemptJournal'
+import { AttemptJournal } from '../../../src/core/devices/attemptJournal'
 import type { DeviceGrant } from '../../../src/core/devices/grants'
 import type {
   DeviceWorkerJob,
   DeviceWorkerLaunch,
 } from '../../../src/host/devices/deviceWorkerHost'
+import { privateDeviceRoot } from './deviceFixtures'
+import { executionProtection } from './deviceExecutionFixtures'
+
+/**
+ * A real journal under its own protected root (owner-only on Windows, 0700 on POSIX),
+ * which the production storage checks require. The caller removes `parent`.
+ */
+export async function protectedWorkerJournal(
+  prefix: string,
+): Promise<{ parent: string; journal: AttemptJournal }> {
+  const parent = await privateDeviceRoot(prefix)
+  const journal = await AttemptJournal.create(
+    path.join(parent, 'durable'),
+    { assertOwner: () => Promise.resolve() },
+    executionProtection,
+  )
+  return { parent, journal }
+}
 
 /** A real receiver over a local test owner, with no peer or model calls. */
 export async function openWorkerReceiver(
