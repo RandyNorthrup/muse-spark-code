@@ -24,6 +24,9 @@ describe('plan-format v1', () => {
       rows: ['[redacted]', { '[redacted]': '[redacted]' }],
       dependencies: ['[redacted]'],
     })
+    const collision = { [escaped]: 'first', '[redacted]': 'preserved' }
+    scrubPlanStrings(collision)
+    expect(collision).toEqual({ '[redacted]': 'preserved' })
   })
 
   it('reads every grammar row without losing gates, questions, risks or release text', () => {

@@ -45,17 +45,26 @@ export function scrubPlanStrings(value: object): void {
     if (Array.isArray(object)) {
       for (let index = 0; index < object.length; index += 1) {
         const item: unknown = object[index]
-        if (typeof item === 'string') object[index] = scrub(item)
-        else if (typeof item === 'object' && item !== null) visit(item)
+        if (typeof item === 'string') {
+          const clean = scrub(item)
+          if (clean !== item) object[index] = clean
+        } else if (typeof item === 'object' && item !== null) visit(item)
       }
       return
     }
-    for (const [key, entry] of Object.entries(object)) {
-      const item: unknown = entry
+    // Snapshot values before renaming keys; a scrubbed key may name a later field.
+    const keys = Object.keys(object)
+    const values: unknown[] = Object.values(object)
+    let index = 0
+    for (const key of keys) {
+      const item: unknown = values[index]
+      index += 1
       const cleanKey = scrub(key)
       if (cleanKey !== key) Reflect.deleteProperty(object, key)
-      if (typeof item === 'string') Reflect.set(object, cleanKey, scrub(item))
-      else {
+      if (typeof item === 'string') {
+        const clean = scrub(item)
+        if (Reflect.get(object, cleanKey) !== clean) Reflect.set(object, cleanKey, clean)
+      } else {
         if (typeof item === 'object' && item !== null) visit(item)
         if (cleanKey !== key) Reflect.set(object, cleanKey, item)
       }

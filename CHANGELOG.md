@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Preserve the real captured pixels and PNG metadata while reducing seven changed
+  README images by 91,046 bytes; keep all other captures exact.
+- Avoid redundant plan-string writes while retaining every privacy scrub; prepare
+  integrated usage fixtures before their unchanged test deadlines.
+
 - Centre the chat column within its app container, join standalone schedule-harness
   mounts before accessibility scans, and carry the real report panel input in CI.
 - Expose the two schedule defaults as flat machine-scoped settings so VS Code
