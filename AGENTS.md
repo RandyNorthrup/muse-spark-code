@@ -165,6 +165,11 @@ them, the milestone plan, and the certification checklist.
     Anything the wire may add later (a goal status, an MSP field) is shown
     as it came rather than dropped (PLAN.md D36, M43).
 
+15. **Re-read what the hook committed.** After every commit, re-read your
+    staged diff and the committed diff: the pre-commit hook runs
+    `eslint --fix` and can rewrite logic, not only formatting (G58 in
+    `docs/orchestration-gotchas.md`).
+
 ## Layout
 
 ```

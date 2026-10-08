@@ -33,7 +33,7 @@ as Darwin already does inside its C helper, preserving all assertions. Cover
 missing-root completion and reopen a newly created name before stamping it.
 Windows' final disposition uses its held handle, so the final-name test must
 prove preservation of both empty and populated replacement directories there.
-D100 G55: independently retained native test variants own separate compiler
+D100 G64: independently retained native test variants own separate compiler
 storage roots, so normal stale-build retirement cannot invalidate one another.
 
 A VS Code extension that lets a developer sign in and use Meta's **Muse Spark**
@@ -12478,8 +12478,16 @@ one governor for everything the harness starts.
         then removed.
       - Some leftovers an operating system puts outside the temp root,
         such as macOS's per-launch code-sign clones. Lane 0 measures them on
-        each platform. They are removed only when their creating process
-        belonged to one of our trees and has exited.
+        each platform. **Narrowed by G55 (2026-10-07, D100):** an item
+        outside the temp root is removed only when the harness recorded
+        that exact path and its identity (device and inode, or file ID)
+        when it created it, the identity still matches when re-checked just
+        before deletion (the G11 ledger rule), and its creating tree has
+        exited. Anything else outside the root is reported, never deleted,
+        and never selected by name shape. This supersedes the earlier rule
+        that removed such leftovers whenever their creating process had
+        belonged to one of our trees. Their reclaimable size comes from a
+        clone-aware estimate, never from `du` (G56).
       - Worktrees and dependency copies the harness created are removed
         once their work has merged or been archived, never while dirty.
       - At throttle the cleaner runs at once and reports what it freed.
@@ -18815,11 +18823,55 @@ test that fails without the rule:
    never a single instance (test `repairLegCoversFailureClass`); G48 a
    bulk-edit leg checks each sweep hit against the effective state before
    editing and reports its false positives (test
-   `sweepHitsVerifiedBeforeBulkEdit`).
+   `sweepHitsVerifiedBeforeBulkEdit`); G53 lane completion comes only from
+   the runner's own observation of the lane process's exit (the exit status
+   it gets from waiting on the process), recorded by the runner in a
+   runner-owned record, and nothing a lane can write to (stdout, stderr, its
+   log, its worktree) can mark it complete (test
+   `laneOutputCannotForgeCompletion`); G54 each review report attached to
+   its lane's ledger record when it lands, and the board checks "no report"
+   against the ledger (tests `reviewReportAttachedToLedger`,
+   `noReportCheckedAgainstLedger`); G57 lanes never run heavy gates in
+   parallel themselves, and dispatch routes every lane-started heavy gate
+   through the machine's slot (test `laneHeavyGatesTakeMachineSlot`); G58 the
+   lane runner re-reads the lane's own staged diff and the committed diff
+   after every hook run, and hook auto-fix is limited to formatting,
+   otherwise the hook fails instead of rewriting logic (tests
+   `stagedDiffRereadAfterHooks`, `hookAutofixFormattingOnly`). The matching
+   change to this repository's own pre-commit hook (which still runs
+   `eslint --fix` through lint-staged) is deferred to the owner's decision,
+   because hooks are owner-controlled; meanwhile AGENTS.md rule 15 has every
+   agent re-read its staged and committed diff after each commit. Also G59
+   the lane runner refuses stash commands, and lint-staged backups are
+   dropped or namespaced per worktree (tests
+   `runnerRefusesStash`, `hookBackupScopedToWorktree`).
 10. **M107 (governor, 2026-10-07):** G38 stopping a run kills its whole
     process tree, with a device-watcher sweep for orphans whose start time
     matches no live run (test `orphanSweepKillsStaleTree`); M100 and M110
-    bind the same rule through process groups or job objects per run.
+    bind the same rule through process groups or job objects per run. Also
+    G53 the device watcher reads lane completion only from the runner-owned
+    record of the observed process exit, never from anything a lane can
+    write to (test `watcherIgnoresLaneExitText`); G55 test temp under one
+    harness-owned root, which cleanup removes; outside that root, cleanup
+    deletes only an exact path the harness recorded with its identity
+    (device and inode, or file ID) when it created it, re-checked before
+    deletion (the G11 ledger rule), and reports anything else, never
+    deleting it; cleanup never changes permissions and never selects by
+    name shape (tests `cleanupOnlyUnderHarnessRoot`,
+    `outsideRootDeletesOnlyRecordedIdentity`,
+    `cleanupNeverChangesPermissions`). This narrows D87.14's outside-root
+    leftovers rule, and M100 and M110 workers bind it as well. G56 deletion
+    candidates chosen by a clone-aware estimate of what deleting each would
+    free (on APFS, its unique or private allocation), with an item that has
+    no such estimate not counted as reclaimable, the result validated with
+    `df` before and after, and never a trial delete to find out (tests
+    `reclaimEstimateIsCloneAware`, `reclaimValidatedByFreeSpace`); G57 heavy
+    gates (the browser harness, full lint, the full suite) take a
+    per-machine slot sized from measured cores and memory, whoever starts
+    them (test `heavyGateTakesMachineSlot`); the slot is owned by the run's
+    process tree, so heavy gates nested in that tree (a quality script
+    running lint and the browser harness) inherit it, reentrant, and
+    separate runs queue (test `nestedHeavyGatesInheritSlot`).
 11. **M116 (playbook, 2026-10-07):** G42 pipelined, stacked release
     integration with early draft PRs (test `releasesPipelineOnCandidate`);
     G43 a worker green labelled worker-certified unless verified from a
@@ -18827,7 +18879,10 @@ test that fails without the rule:
     `workerGreenIsNotCiEquivalent`); G44 a draft PR opened when integration
     starts (test `draftPrAtIntegrationStart`); G45 hotfixes run the full
     prep checks (test `hotfixRunsFullPrepChecks`); G46 and G47 with M96c,
-    the reviewer charter asking where else a failing check runs.
+    the reviewer charter asking where else a failing check runs; G54 the
+    integration charter: an integration brief lists each lane's review
+    report path explicitly, and "no report" is certified only after checking
+    the ledger (test `integrationBriefListsReportPaths`).
 12. **M117 (estimator, 2026-10-07):** G39 a bottleneck card for
     done-unprocessed lanes with their ages (test
     `bottleneckCardShowsUnprocessedAges`).
@@ -53286,5 +53341,5 @@ and the lead’s amended main-0150 merge retain all trains. Final sequential
 whole-file reruns and build pass: startup 732.5 KiB, surface English 24.9 KiB,
 no changed thresholds. Current-stage notices and both SBOMs are regenerated.
 `docs/certification/rel0160-final.md` and its JSON account for conflicts, drills,
-gate phases and the excluded colliding-build batch (orchestration G54). Full
+gate phases and the excluded colliding-build batch (orchestration G63). Full
 three-platform qualification remains hosted CI; no push or publication.
