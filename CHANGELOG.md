@@ -116,6 +116,19 @@ happened, not what was planned; superseded entries are kept.
   sweep hits checked before a bulk edit), with D100 amendments for M96c,
   M107, M116 and M117. The playbook placement chapter gains lessons 11–20
   covering the same failures, still model-agnostic.
+- Seven orchestration gotcha rows G53–G59 (completion only from the
+  runner's observed process exit, review reports attached to the lane
+  ledger, temp cleanup under one harness-owned root that deletes outside it
+  only recorded identities and never changes permissions, deletion chosen by
+  a clone-aware estimate and validated with `df`, heavy gates in reentrant
+  per-machine slots owned by the run's process tree, a staged and committed
+  diff re-read after hooks, no `git stash` in lanes), with D100 amendments
+  for M96c, M107 and M116. D87.14's outside-root leftovers rule is narrowed
+  to match G55. AGENTS.md gains rule 15 (re-read the staged and committed
+  diff after every commit, since the pre-commit hook's `eslint --fix` can
+  rewrite logic); changing the hook itself is left to the owner. The
+  playbook placement chapter gains lessons 21–27 covering the same failures,
+  still model-agnostic.
 
 ## [0.15.0] - 2026-10-06
 
