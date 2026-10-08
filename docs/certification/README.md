@@ -9,6 +9,14 @@ and the still-open checks for every distribution channel.
 contributor test scope and resumed integration proof, separate from a real
 Android installation or microphone certification.
 
+Outside contributions get one vetting record each under `vetting/`, as
+[docs/contributor-vetting.md](../contributor-vetting.md) sets out:
+
+- [PR #51](vetting/pr-51.md): retroactive; the author's public record, the
+  merged diff against the change checklist, the fork CI approvals, what
+  went out of process, and the benefit check of its four tests (PLAN.md
+  D102).
+
 One file per milestone, written when the milestone closed: the gate results
 of that day, what was built row by row and which test checks it, the visual
 verification, the test-fire proofs (every new check broken on purpose once,
