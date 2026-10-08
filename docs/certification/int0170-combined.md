@@ -613,3 +613,99 @@ they guard safeties the fix must keep, not the defect.
 
 No `--testTimeout` on any verification run. The private fresh clone is
 removed after final verification.
+
+## Paid consent (CONSENT017B)
+
+Mac mini rig, `rel017/consent2`, base `11c76b9cc` (CONSENT017 tip),
+2026-10-08. Fake-only; no credentials, paid/live calls, merge, push, stash,
+hook substitution or gate weakening. Commits use `.husky/_` exactly as
+installed; staged and committed diffs reread after every hook.
+
+### Findings and fixes
+
+P2 money safety (RVCONSENT017 finding 1,
+`src/core/paid/paidConsent.ts:964`): the `shouldBridgeQuotes` bridge
+fabricated a quote grant from the binding's feature bit, so a higher tariff
+or a different model was approved without asking, on the same and on a new
+instance. Removed. `AccountPaidUseConsentDeps` now requires the quote store
+and generation (`readQuoteGrant`, `writeQuoteGrant`, `quoteGeneration`) plus
+an account-scoped `revokeQuoteGrants`, so no account consent exists without
+them (the 0.18 rule: an unversioned grant cannot prove its vintage). The
+persisted quote generation composes the account's revocation generation with
+the host's (`[accountGeneration, hostGeneration]`), and quote saves go
+through the same owner queue and generation fence as binding saves, so a
+revoked generation can never resurrect its grant after the clear.
+
+Inherited P2 revocation (`paidConsent.ts:988`): `revoke()` cleared only the
+binding's feature grants. It now also clears that account's quote grants in
+the same owner-queued write; the advanced generation keeps asking again even
+when the clear itself fails.
+
+P3 (safety tests through the real store): the rig supplies a real
+per-binding in-memory quote store (one partition per
+provider/account/price, shared across instances like a restart), and the
+restart test passes through it, not a bridge.
+
+Production wiring (review: no production caller of `AccountPaidUseConsent`;
+VS Code, CLI/ACP, schedules, companion and MCP use workspace-scoped feature
+consent with workspace-scoped quote stores): the defer case applies. PLAN
+§6 places "paid consent per account" in M108 lane P ("after K and T",
+touching `src/core/paid/paidConsent.ts (account binding)`), and only M108
+D/X is accepted into the integrations — the pool/policy lanes that would
+wire per-account consent have not merged. So account-bound consent stays
+unwired: the class documents it, `CHANGELOG.md [Unreleased]` records the
+hardened contract and the deferral (superseding the binding-grant entry,
+which is kept), and Help (`referenceAccounts`, shared by the feature
+catalog's `accounts` entry and `/help`) now says paid consent stays per
+workspace. Nothing claims account-bound consent works.
+
+### Tests
+
+`test/unit/accountPaidConsent.test.ts` (19 tests): the rig builds a real
+account-scoped store per binding; `quoteBacked` is gone. New regressions:
+higher tariff and different model under an unchanged account, binding and
+price string, each on the same and a new instance (ask again, Deny
+honoured); revoke-after-Always asks again and is denied (with the store
+empty afterwards); the restart, price-change and generation tests run
+through the store; the remembered-write races target the quote write, and
+the queued-Always test asserts voice in the binding grant plus search in
+the quote store.
+
+Tip check (new file run against `11c76b9cc` in a scratch worktree):
+3 failed / 16 passed — the revoke regression and the two store-asserting
+race tests fail on the tip; the tariff/model/restart tests pass there
+because a real store already disables the bridge. The bridge failure mode
+is proven by drill A instead.
+
+Red drills (default timeouts, `--maxWorkers=3`, byte-exact restore
+verified by SHA-256 `762a7d9…0580eb` before and after): (A) bridge
+restored (fabricated read plus binding write, generation-matched) —
+7 failed / 12 passed, including both tariff and model tests; (B) revoke
+without the quote clear — 2 failed / 17 passed (the revoke regression and
+the race test). After revert: 19 passed.
+
+### Gates (fresh clone under `$TMPDIR`, `npm ci`, `CI=true`)
+
+| Gate                                                    | Exit   | Receipt                                                    |
+| ------------------------------------------------------- | ------ | ---------------------------------------------------------- |
+| `accountPaidConsent`                                    | 0      | 19 passed                                                  |
+| `paidConsent`, `paidAuthority`                          | 0      | 52 passed                                                  |
+| `paidDailyBudget`, `paidHookModels`, `paidHost`         | 0      | 87 passed                                                  |
+| `paidMoneyPorts`, `paidPortBoundaries`, `acpPaid`       | 0      | 73 passed                                                  |
+| `paidFeatures`, `schedulePaid`, `accountUsd`            | 0      | 62 passed                                                  |
+| `accountHomes`, `accountFakes`, `accountHost`           | 0      | 73 passed                                                  |
+| `accountPolicy`, `accountSecrets`, `accountStore`       | 0      | 110 passed                                                 |
+| `accountUsage`, `accountUsageText`, `accounts`          | 0      | 44 passed                                                  |
+| `accountsCommand`, `accountsPanelHost`, `accountsPanel` | 0      | 69 passed                                                  |
+| Five typechecks                                         | 0 each | host, webview, unit, e2e, integration                      |
+| eslint `--max-warnings=0`, prettier on changed files    | 0      |                                                            |
+| Plain knip                                              | 0      | configuration hints only                                   |
+| Full jscpd                                              | 1      | exactly the two inherited clones, zero threshold unchanged |
+| `check:l10n`                                            | 0      | zero problems                                              |
+| `check:reference`                                       | 0      |                                                            |
+
+No `--testTimeout` on any verification run. Pre-existing, unrelated:
+`runtimeAccountsBundle` ("installs the caller language…") fails
+identically on the untouched base `11c76b9cc` (a `machineId` regex refusal
+in a developer-options bundle path on this rig). The private fresh clone is
+removed after final verification.
