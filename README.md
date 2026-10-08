@@ -3894,6 +3894,8 @@ remain planned; this reference does not claim those hosts implement the page.
 | Muse Spark: Start with Your Own Model               | —                                                                                                | Open the setup wizard at "Pick a provider"; keys stay in the host draft until Save, failures restore prior provider/default/secret state, and setup confirmation requires the composer's model receipt. Cancel writes nothing |
 | Muse Spark: Models & Agents                         | —                                                                                                | Open the Models & Agents panel: providers with key state, model scans with diffs, removal with Undo, import and export                                                                                                        |
 | Muse Spark: Add Model Provider…                     | —                                                                                                | The quick-pick fast path without the panel: pick a provider, enter or connect the key, test it, pick models and confirm                                                                                                       |
+| Muse Spark: Show Resources                          | —                                                                                                | Open the resource chip's popover in the chat in view: this machine's readings against its limits, what is waiting, Resume now and Settings; see [Keeping your machine responsive](#keeping-your-machine-responsive)           |
+| Muse Spark: Resume Work Now                         | —                                                                                                | Hold this window's resource governor at normal for fifteen minutes; a governor you switched off stays off                                                                                                                     |
 | Command                                             | Default keybinding                                                                               | What it does                                                                                                                                                                                                                  |
 | --------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                    |
 | Muse Spark: Continue with ChatGPT                   | —                                                                                                | Connect an eligible Plus/Pro plan in the system browser and select its catalogue model                                                                                                                                        |
@@ -4641,10 +4643,37 @@ journal is supplied. ACP's shared command adapter provides `/resources`,
 See the [ACP guide](docs/acp.md#resource-status-and-resume) and
 [CI guide](docs/ci.md#resource-governor-in-headless-runs).
 
-The shared chip/popover and usage-history section ship as separate artifacts.
-Their window/native/companion mounts, actuator lifecycle, runtime spawn binding,
-M96/M96c slots and M100 paired-device dispatch remain explicit integration
-handoffs. Once those routes join, relocation will move only eligible queued
+In VS Code, after the window's first governed launch, a **Resources** chip
+sits beside the heartbeat (or above the composer when no turn is running).
+Its popover shows CPU, memory in use and available memory against your limits
+(GPU and disk busy when you set them), what is waiting, any **Resume now**
+override and that relocation is not available on this build. Its buttons are
+**Resume now**, **Open settings** (the machine's `museSpark.resource*`
+settings) and **Show resources**, which opens the Usage & cost page where
+resource history lives. A status bar item appears while the governor is
+throttling or paused; at pause, one notice per conversation names
+the reading, its limit and what is waiting, with the same three actions.
+
+| Command                         | What it does                                                                                      |
+| ------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **Muse Spark: Show Resources**  | Opens the chip's popover in the chat in view (opening a chat if none is), after one fresh reading |
+| **Muse Spark: Resume Work Now** | Holds this window's governor at normal for fifteen minutes, then the readings decide again        |
+
+Neither command turns on a governor you switched off; both say so and offer
+the settings instead. Resume now applies to this window's governor; the CLI's
+`resources resume` writes the machine marker its own runtime hosts read. The
+chip and its schema load on first use, never with chat's first paint, and the
+status item and notice load with the governor. The chip shows nothing for a
+status that fails its schema check.
+
+Other editors: ACP clients get `/resources`, `/resources resume` and
+`/usage resources` through the runtime port, and terminals get
+`muse-spark-code-acp resources`. JetBrains, Visual Studio and Eclipse (MHP's
+native status widget and embedded chip) and the companion page use the same
+shared chip, status adapter and controls, but their host bridges still have to
+bind them (M104). The usage-history section, actuator lifecycle, runtime spawn
+binding, M96/M96c slots and M100 paired-device dispatch remain explicit
+integration handoffs. Once those routes join, relocation will move only eligible queued
 tasks/checks, or a running check after explicit **Move to** and proven
 retirement. Pairing, offers,
 repository mapping, receiver permissions and paid consent remain required;

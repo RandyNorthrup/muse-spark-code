@@ -7,6 +7,25 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
+  first governed launch, a **Resources** chip sits beside the heartbeat, or
+  above the composer between turns. Its popover shows CPU, memory in use and
+  available memory against your limits, what is waiting, any override, and
+  that relocation is not available on this build. Its buttons are **Resume
+  now**, **Open settings** and **Show resources** (the Usage & cost page). A
+  status bar item shows while the governor throttles or pauses. At pause, one
+  notice per conversation names the reading and its limit, with the same
+  actions. New commands: **Muse Spark: Show Resources** opens the popover in
+  the chat in view, and **Muse Spark: Resume Work Now** holds this window's
+  governor at normal for fifteen minutes. A governor you switched off stays
+  off. The governor, its status item and the chip still load on first use,
+  never at activation, and chat's first paint stays within its budget.
+  JetBrains, Visual Studio, Eclipse and the companion page reuse the same
+  chip and status adapter once their M104 bridges bind them; ACP and
+  terminals keep `/resources` and `resources status|resume`.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached

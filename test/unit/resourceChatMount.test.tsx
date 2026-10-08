@@ -3,8 +3,6 @@
 // mountChat), not only the component: no status, no chip and no chunk;
 // a checked status mounts it; its controls reach the host.
 import { act, fireEvent, screen, waitFor } from '@testing-library/react'
-import type { Root } from 'react-dom/client'
-import type * as ReactDomClient from 'react-dom/client'
 import { afterEach, expect, it, vi } from 'vitest'
 import {
   RESOURCE_GIB_BYTES,
@@ -16,28 +14,15 @@ import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/share
 import { resourceStatusSchema, type ResourceLevel } from '../../src/shared/resources'
 import { testSettings } from './helpers/fakes'
 
-const mounted = vi.hoisted(() => ({ roots: [] as Root[], chunkLoads: 0 }))
-vi.mock('react-dom/client', async (importOriginal) => {
-  const actual = await importOriginal<typeof ReactDomClient>()
-  return {
-    ...actual,
-    createRoot: (...args: Parameters<typeof actual.createRoot>) => {
-      const root = actual.createRoot(...args)
-      mounted.roots.push(root)
-      return root
-    },
-  }
-})
+const mounted = vi.hoisted(() => ({ chunkLoads: 0 }))
 vi.mock('../../src/webview/resources/ResourceSurface', async (importOriginal) => {
   mounted.chunkLoads++
   return await importOriginal()
 })
 
+// Each test imports a fresh entry (vi.resetModules); an earlier one's root
+// stays with its detached container, so queries see only the current chat.
 afterEach(() => {
-  act(() => {
-    for (const root of mounted.roots) root.unmount()
-  })
-  mounted.roots.length = 0
   document.body.replaceChildren()
   vi.unstubAllGlobals()
 })
@@ -67,14 +52,9 @@ function status(level: ResourceLevel, extra: Record<string, unknown> = {}): stri
 
 async function mountChat() {
   const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
-  vi.stubGlobal('acquireVsCodeApi', () => ({
-    postMessage,
-    getState: () => undefined,
-    setState: vi.fn(),
-  }))
-  const element = document.createElement('div')
-  element.id = WEBVIEW_ROOT_ELEMENT_ID
-  document.body.append(element)
+  const api = { postMessage, setState: vi.fn(), getState: (): unknown => undefined }
+  vi.stubGlobal('acquireVsCodeApi', () => api)
+  document.body.innerHTML = `<div id="${WEBVIEW_ROOT_ELEMENT_ID}"></div>`
   vi.resetModules()
   await act(async () => {
     await import('../../src/webview/main')

@@ -37,6 +37,17 @@ vi.mock('../../src/core/resources/resourceGovernorEntry', async (importOriginal)
   return actual
 })
 
+const HEALTHY: ResourceSample = {
+  atMs: 0,
+  cpuPercent: 20,
+  memoryUsedPercent: 40,
+  memoryAvailableBytes: 8 * RESOURCE_GIB_BYTES,
+  memoryTotalBytes: 16 * RESOURCE_GIB_BYTES,
+  gpuPercent: null,
+  diskBusyPercent: null,
+  pressure: null,
+}
+
 function launchHost(settings: () => ResourceSettings = () => resourceSettingsSchema.parse({})) {
   const clock = new FakeResourceClock()
   const steps: ResourceSample[] = []
@@ -59,17 +70,7 @@ function launchHost(settings: () => ResourceSettings = () => resourceSettingsSch
     onError: errors,
   })
   const read = async (changes: Partial<ResourceSample> = {}) => {
-    steps.push({
-      atMs: clock.now(),
-      cpuPercent: 20,
-      memoryUsedPercent: 40,
-      memoryAvailableBytes: 8 * RESOURCE_GIB_BYTES,
-      memoryTotalBytes: 16 * RESOURCE_GIB_BYTES,
-      gpuPercent: null,
-      diskBusyPercent: null,
-      pressure: null,
-      ...changes,
-    })
+    steps.push({ ...HEALTHY, atMs: clock.now(), ...changes })
     await governor.refresh()
   }
   return { host, governor, clock, steps, errors, read }
@@ -90,6 +91,10 @@ describe('U–C1 window status source', () => {
     expect(second.sample?.cpuPercent).toBe(20)
     expect(changed).toHaveBeenCalledTimes(1)
     expect(h.host.status()).toBe(second)
+    // An identical reading (same instant, same values) keeps the same object, unannounced.
+    await h.read()
+    expect(h.host.status()).toBe(second)
+    expect(changed).toHaveBeenCalledTimes(1)
     // A no-op settings check leaves the same object and no notification.
     h.host.settingsChanged()
     expect(h.host.status()).toBe(second)
@@ -158,16 +163,7 @@ describe('U–C1 window status source', () => {
 
   it('takes one reading for Show without starting periodic sampling', async () => {
     const h = launchHost()
-    h.steps.push({
-      atMs: 0,
-      cpuPercent: 11,
-      memoryUsedPercent: 40,
-      memoryAvailableBytes: 8 * RESOURCE_GIB_BYTES,
-      memoryTotalBytes: 16 * RESOURCE_GIB_BYTES,
-      gpuPercent: null,
-      diskBusyPercent: null,
-      pressure: null,
-    })
+    h.steps.push({ ...HEALTHY, cpuPercent: 11 })
     const status = await h.host.refreshStatus()
     expect(status.sample?.cpuPercent).toBe(11)
     // No timer was scheduled: advancing the clock asks for no further reading.

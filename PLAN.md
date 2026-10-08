@@ -40436,6 +40436,32 @@ quality/coverage and non-Linux native receipts remain the lead's release gate.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**M107 W chip — the U–C1/W window binding (2026-10-08, for 0.17).** PR #140's
+review found the chip never mounted. The window's `ResourceLaunchHost` now
+keeps one cached, schema-checked status (replaced only when its content
+changes), a disposable change subscription (readings, events, queue grants
+and withdrawals, settings), Resume now (G's fifteen-minute override; an
+explicitly disabled governor stays off) and a one-shot refresh for Show
+that starts no periodic sampling. `admission.ts` hands that port and the
+status adapter (`createResourceStatus`, now loaded with
+`dist/resourceGovernor.js` and free of any `vscode` import) to the window
+when the host first loads. Activation adds only
+`src/host/resources/resourceWindow.ts` and two contributed commands,
+`museSpark.showResources` (the chip's popover in the chat in view) and
+`museSpark.resumeResources`. The host sends `resourceStatus` as bounded JSON
+text (`RESOURCE_STATUS_MAX_CHARS`). The strict `resourceStatusSchema` runs in
+the deferred chip chunk before any field is shown. Its resource-only parser
+therefore stays out of chat startup, as W's split requires. `resourceOpen`
+opens the popover; `resourceAction` carries show/settings/resume back.
+mountChat creates the loader once and passes it to App only after the first
+status. The popover's Show opens the Usage & cost page, where J/M102's
+history mounts. Relocation still reports `noRoute`. The surface-English
+split no longer follows chat's deferred import into the chip entry, which
+carries its own English. Editor parity: ACP and terminals already have the
+equivalent; MHP and companion hosts reuse the same adapter and chip once
+M104 binds their bridges. Receipts:
+[`docs/certification/m107.md`](docs/certification/m107.md#m107-w-chip--window-binding).
+
 **FIXM107J review repair (2026-10-06, Kubuntu).** Repair both RVM107J P2s
 and its P3 inside J's collector, aggregate, history boundary and shared view.
 Read-time flushes retain the active minute and its per-tree CPU baselines;
