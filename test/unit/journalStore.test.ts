@@ -16,7 +16,7 @@ import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { fork } from 'node:child_process'
 import { build } from 'esbuild'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { UsageJournalStore, USAGE_JOURNAL_ROOT } from '../../src/core/usage/journalStore'
 import { createUsageRecord } from '../../src/core/usage/journalRecord'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
@@ -35,10 +35,12 @@ vi.mock('node:fs/promises', async (importOriginal) => {
     rm: vi.fn(actual.rm),
   }
 })
-afterEach(async () => {
+async function cleanupRoots() {
   await Promise.all(roots.map((root) => rm(root, { recursive: true, force: true })))
   roots.length = 0
-})
+}
+afterEach(cleanupRoots)
+afterAll(cleanupRoots)
 async function rig() {
   const root = await mkdtemp(path.join(tmpdir(), 'm102-j-'))
   roots.push(root)
@@ -74,6 +76,22 @@ async function rig() {
     store,
     file: `${USAGE_JOURNAL_ROOT}/days/2026-10-05/test-writer.jsonl`,
   }
+}
+
+async function prepareWarmBenchmark() {
+  const { store, fs, record } = await rig()
+  for (let offset = 0; offset < 30; offset += 1) {
+    const day = new Date(Date.parse('2026-10-05T00:00:00Z') - offset * 86_400_000)
+      .toISOString()
+      .slice(0, 10)
+    const lines = Array.from({ length: 2000 }, (_, index) =>
+      JSON.stringify({ ...record, id: `${day}-${String(index)}`, day }),
+    ).join('\n')
+    await fs.append(`${USAGE_JOURNAL_ROOT}/days/${day}/benchmark.jsonl`, `${lines}\n`)
+  }
+  const cold = await store.read()
+  expect(cold.records).toHaveLength(60_000)
+  return { store, fs }
 }
 
 describe('usage journal store and Node filesystem', () => {
@@ -478,33 +496,14 @@ describe('usage journal store and Node filesystem', () => {
     await expect(fs.remove('usage')).rejects.toThrow('linkedUsagePath')
     expect(await readFile(path.join(outside, 'proof'), 'utf8')).toBe('private-canary')
   })
-  describe('30 days × 2,000 calls', () => {
-    let prepared:
-      | {
-          store: UsageJournalStore
-          fs: NodeUsageFs
-          coldCount: number
-        }
-      | undefined
-    // Seed and cold-read the real journal before measuring the warm-read limit.
+  describe('warm-cache benchmark', () => {
+    let prepared: Awaited<ReturnType<typeof prepareWarmBenchmark>> | undefined
     beforeAll(async () => {
-      const { store, fs, record } = await rig()
-      for (let offset = 0; offset < 30; offset += 1) {
-        const day = new Date(Date.parse('2026-10-05T00:00:00Z') - offset * 86_400_000)
-          .toISOString()
-          .slice(0, 10)
-        const lines = Array.from({ length: 2000 }, (_, index) =>
-          JSON.stringify({ ...record, id: `${day}-${String(index)}`, day }),
-        ).join('\n')
-        await fs.append(`${USAGE_JOURNAL_ROOT}/days/${day}/benchmark.jsonl`, `${lines}\n`)
-      }
-      const cold = await store.read()
-      prepared = { store, fs, coldCount: cold.records.length }
+      prepared = await prepareWarmBenchmark()
     })
-    it('scans warm within 300 ms without rereading bytes', async () => {
-      if (prepared === undefined) throw new Error('Journal benchmark was not prepared')
-      const { store, fs, coldCount } = prepared
-      expect(coldCount).toBe(60_000)
+    it('scans 30 days × 2,000 calls warm within 300 ms without rereading bytes', async () => {
+      if (prepared === undefined) throw new Error('Missing warm journal fixture')
+      const { store, fs } = prepared
       const read = vi.spyOn(fs, 'read')
       const bytesReads = read.mock.calls.length
       const start = performance.now()

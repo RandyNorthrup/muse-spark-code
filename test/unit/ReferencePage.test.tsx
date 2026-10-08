@@ -53,6 +53,11 @@ function page(givenValues = values) {
   )
   return { postMessage, onClose }
 }
+// The case renders the whole reference and searches each section; a hosted
+// runner with coverage took 4.7 s, near the default deadline.
+// PLAN.md §8 (2026-10-07).
+const FULL_REFERENCE_SEARCH_TIMEOUT_MS = 20_000
+
 describe('shared Help & Reference page', () => {
   it('shows all five searchable sections and current/default values', () => {
     const { postMessage } = page()
@@ -257,26 +262,34 @@ describe('RVHELPREF2 presentation truth', () => {
     fireEvent.change(screen.getByRole('searchbox'), { target: { value: shown } })
     expect(screen.getByText(shown)).toBeInTheDocument()
   })
-  it('C03 searches JSON exactly as rendered for settings, feature facts and CLI contracts', () => {
-    page()
-    const cases = [
-      { section: EN.referenceSettings, heading: 'museSpark.checkCommands', query: '"maxItems": 8' },
-      {
-        section: EN.referenceFeatures,
-        heading: EN.attachmentsLabel,
-        query: '"textBytes": 1048576',
-      },
-      { section: 'ACP / CLI', heading: 'exec: --max-requests <value>', query: '"default": 30' },
-    ]
-    for (const { section, heading, query } of cases) {
-      fireEvent.change(screen.getByRole('searchbox'), { target: { value: '' } })
-      const region = screen.getByRole('region', { name: section })
-      const row = within(region).getByRole('heading', { name: heading }).closest('article')
-      expect(row?.querySelector('pre')?.textContent).toContain(query)
-      fireEvent.change(screen.getByRole('searchbox'), { target: { value: query } })
-      expect(within(region).getByRole('heading', { name: heading })).toBeInTheDocument()
-    }
-  })
+  it(
+    'C03 searches JSON exactly as rendered for settings, feature facts and CLI contracts',
+    () => {
+      page()
+      const cases = [
+        {
+          section: EN.referenceSettings,
+          heading: 'museSpark.checkCommands',
+          query: '"maxItems": 8',
+        },
+        {
+          section: EN.referenceFeatures,
+          heading: EN.attachmentsLabel,
+          query: '"textBytes": 1048576',
+        },
+        { section: 'ACP / CLI', heading: 'exec: --max-requests <value>', query: '"default": 30' },
+      ]
+      for (const { section, heading, query } of cases) {
+        fireEvent.change(screen.getByRole('searchbox'), { target: { value: '' } })
+        const region = screen.getByRole('region', { name: section })
+        const row = within(region).getByRole('heading', { name: heading }).closest('article')
+        expect(row?.querySelector('pre')?.textContent).toContain(query)
+        fireEvent.change(screen.getByRole('searchbox'), { target: { value: query } })
+        expect(within(region).getByRole('heading', { name: heading })).toBeInTheDocument()
+      }
+    },
+    FULL_REFERENCE_SEARCH_TIMEOUT_MS,
+  )
   it('B03 every webview shortcut uses its own description, with Tab prose only on inline suggestions', () => {
     page()
     const section = screen.getByRole('region', { name: EN.referenceShortcuts })

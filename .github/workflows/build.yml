@@ -26,7 +26,9 @@ jobs:
   checks:
     name: static gates (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    # macOS reaches the unit typecheck about 13 minutes in (format, lint, host and
+    # webview typechecks); the single unit program adds about 3 (2026-10-07).
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -91,6 +93,10 @@ jobs:
           Write-Host "PSScriptAnalyzer $version installed from the checked package"
       # Same static/build/audit gates as quality:gates; tests run separately.
       - run: npx run-s format:check lint typecheck check:badges check:l10n check:reference check:host-api deadcode cycles duplication build security:audit
+        env:
+          # check:badges lists public main through the GitHub API; the job token
+          # keeps hosted runners off the shared unauthenticated rate limit.
+          GITHUB_TOKEN: ${{ github.token }}
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: matrix.os == 'ubuntu-latest' && !inputs.fast
         with:
@@ -371,6 +377,9 @@ jobs:
       - run: chmod +x native/darwin/muse-dictate
       - run: npm ci
       - run: npm run package
+        env:
+          # The packaged-README badge check lists public main (GitHub API).
+          GITHUB_TOKEN: ${{ github.token }}
       - name: the universal VSIX stays within its measured budget
         run: node scripts/check-vsix-size.mjs ./*.vsix
       # What must be inside the package: the licence, the third-party
@@ -415,6 +424,8 @@ jobs:
       # The ACP agent's npm package (M63, PLAN.md D62), from the same
       # production build `npm run package` just ran.
       - run: node scripts/package-acp.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - name: the agent's package carries its bundles, tables, notices and manifest
         run: |
           listing="$(tar -tzf dist/muse-spark-code-acp-*.tgz)"

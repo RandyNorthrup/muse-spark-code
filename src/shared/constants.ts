@@ -3995,6 +3995,7 @@ export const USAGE_HISTORY_DAYS_DEFAULT = 365
 export const USAGE_HISTORY_DAYS_MIN = 30
 export const USAGE_HISTORY_DAYS_MAX = 1825
 export const USAGE_RECORD_MAX_BYTES = 4096
+export const USAGE_LINE_FEED_BYTE = 0x0a
 export const USAGE_LABEL_MAX_CHARS = 256
 export const USAGE_ID_MAX_CHARS = 128
 export const USAGE_HEADER_MAX_CHARS = 64
@@ -6355,7 +6356,6 @@ export const WORKER_MAX_DEPTH = 2
 /** Bounded grace for a flushed ACP cancellation before the child is killed. */
 export const WORKER_CANCEL_GRACE_MS = 100
 export const WORKER_FILE_PATH_TIMEOUT_MS = 5000
-export const WORKER_FILE_PATH_BUFFER_CHARS = 32_768
 /** Model-only task data labels; kept with the lazy worker code's tunables. */
 export const WORKER_MODEL_TEXT = {
   // M96 worker scaffolding stays out of shipped bundles until lane X wires it.

@@ -25,6 +25,10 @@ import { EN } from '../../src/shared/l10n/en'
 
 // Preparation builds production chunks and inventories the complete real VSIX.
 const REAL_HARNESS_PREPARE_TIMEOUT_MS = 60_000
+// Each case opens a fresh page and loads the full production webview bundle;
+// a loaded hosted Windows shard with coverage needs longer than the unit
+// default. PLAN.md §8 (2026-10-07).
+const REAL_HARNESS_CASE_TIMEOUT_MS = 20_000
 const rig = {
   browser: undefined,
   server: undefined,
@@ -62,13 +66,9 @@ beforeAll(async () => {
   const serving = await serveRepo(process.cwd())
   rig.server = serving.server
   rig.origin = `http://127.0.0.1:${String(serving.port)}`
-  const browser = existsSync(chromium.executablePath()) ? chromium.executablePath() : findChrome()
-  // Playwright needs an absolute executable; findChrome's Linux fallback is
-  // a PATH name for execFile-based renderers.
-  const executablePath =
-    browser === undefined || path.isAbsolute(browser)
-      ? browser
-      : execFileSync('which', [browser], { encoding: 'utf8' }).trim()
+  const executablePath = existsSync(chromium.executablePath())
+    ? chromium.executablePath()
+    : findChrome()
   rig.browser = await chromium.launch({
     executablePath,
     headless: true,
@@ -95,7 +95,7 @@ async function harness(scenario, theme, lang, run) {
   }
 }
 
-describe('RVM96B browser regressions', () => {
+describe('RVM96B browser regressions', { timeout: REAL_HARNESS_CASE_TIMEOUT_MS }, () => {
   it.each(
     ['light', 'dark', 'hc-dark', 'hc-light'].flatMap((theme) =>
       ['team-tree', 'team-tree-320', 'team-cards'].map((scenario) => [theme, scenario]),

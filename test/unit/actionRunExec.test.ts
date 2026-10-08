@@ -1115,6 +1115,46 @@ describe('lifecycle bounds and cleanup (G24)', PROCESS_SUITE, () => {
     await owner.cleanup()
   })
 
+  it.each(['memory', 'file'])(
+    'bounds a %s review prefix while counting discarded stdout',
+    async (storage) => {
+      const { owner } = testOwner({})
+      const file = path.join(layout.root, 'prefix')
+      try {
+        const outcome = await owner.child({
+          file: NODE,
+          args: ['-e', 'process.stdout.write("x".repeat(100000))'],
+          cwd: layout.root,
+          env: { PATH: process.env['PATH'] ?? '' },
+          withinMs: 10_000,
+          stdoutMaxBytes: 10,
+          stderrMaxBytes: 1000,
+          stdoutPrefixMaxBytes: 7,
+          ...(storage === 'file' && { stdoutPath: file }),
+        })
+        expect(outcome.code).toBe(0)
+        expect(outcome.stdoutTotalBytes).toBe(100_000)
+        const prefix = storage === 'file' ? readFileSync(file) : outcome.stdout
+        expect(Buffer.from(prefix).toString()).toBe('xxxxxxx')
+        expect(owner.stopped).toBe(false)
+        expect(() =>
+          owner.child({
+            file: NODE,
+            args: ['-e', ''],
+            cwd: layout.root,
+            env: {},
+            withinMs: 1000,
+            stdoutMaxBytes: 10,
+            stderrMaxBytes: 10,
+            stdoutPrefixMaxBytes: 11,
+          }),
+        ).toThrow('existing output bound')
+      } finally {
+        await owner.cleanup()
+      }
+    },
+  )
+
   it('cleanup stops and reaps a child still running, within the kill and reap bounds', async () => {
     const test = testOwner({})
     const stubborn = test.owner.child({

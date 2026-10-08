@@ -57,6 +57,8 @@ export interface ScriptedReply {
    */
   readonly onRequest?: () => void
   readonly text?: string
+  /** A synthetic large write without manufacturing thousands of tiny frames. */
+  readonly isSingleTextDelta?: boolean
   readonly searches?: readonly ScriptedSearch[]
   /** The text's `url_citation` annotations (M33). */
   readonly citations?: readonly { readonly url: string; readonly title: string }[]
@@ -218,7 +220,8 @@ export function streamFor(
       output_index: index,
       item: { type: 'message', id, role: 'assistant', content: [], status: 'in_progress' },
     })
-    const textPieces = reply.text.match(/.{1,5}/g) ?? []
+    const textPieces =
+      reply.isSingleTextDelta === true ? [reply.text] : (reply.text.match(/.{1,5}/g) ?? [])
     for (const piece of textPieces) {
       text += frame({ type: 'response.output_text.delta', item_id: id, delta: piece })
     }

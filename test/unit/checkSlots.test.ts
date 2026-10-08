@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   captureCheckSnapshot,
   CheckSlots,
@@ -11,6 +11,31 @@ import { runnerTestProcess as processRun, runnerTestGit as git } from './helpers
 import type { CheckJob } from '../../src/core/runners/routing'
 
 const folders: string[] = []
+const template = { folder: '', user: '' }
+beforeAll(async () => {
+  const base = path.join(process.cwd(), 'temp')
+  await mkdir(base, { recursive: true })
+  template.folder = await mkdtemp(path.join(base, 'm96-slot-seed-'))
+  template.user = path.join(template.folder, 'user')
+  await mkdir(template.user)
+  await git(template.user, 'init')
+  await writeFile(path.join(template.user, 'package-lock.json'), 'lock-1\n')
+  await writeFile(path.join(template.user, 'tracked.txt'), 'base')
+  await git(template.user, 'add', '.')
+  await git(
+    template.user,
+    '-c',
+    'user.name=Fixture',
+    '-c',
+    'user.email=fixture@localhost',
+    'commit',
+    '-m',
+    'base',
+  )
+})
+afterAll(async () => {
+  if (template.folder !== '') await rm(template.folder, { recursive: true, force: true })
+})
 async function fixture(
   count = 1,
 ): Promise<{ deps: CheckSlotDeps; job: CheckJob; folder: string; worker: string }> {
@@ -20,21 +45,9 @@ async function fixture(
   folders.push(folder)
   const user = path.join(folder, 'user')
   const worker = path.join(folder, 'worker')
-  await mkdir(user)
-  await git(user, 'init')
-  await writeFile(path.join(user, 'package-lock.json'), 'lock-1\n')
-  await writeFile(path.join(user, 'tracked.txt'), 'base')
-  await git(user, 'add', '.')
-  await git(
-    user,
-    '-c',
-    'user.name=Fixture',
-    '-c',
-    'user.email=fixture@localhost',
-    'commit',
-    '-m',
-    'base',
-  )
+  // Each case gets fresh native repositories; only immutable seed objects
+  // are shared, avoiding repeated init/add/commit process startup on Windows.
+  await git(folder, 'clone', '--shared', template.user, user)
   await git(folder, 'clone', '--shared', user, worker)
   await writeFile(path.join(worker, 'tracked.txt'), 'working-edit')
   await writeFile(path.join(worker, 'untracked.txt'), 'untracked')
@@ -197,34 +210,34 @@ describe('persistent check slots', () => {
     expect(result.output).toBe('seed\n')
     expect(await readFile(path.join(worker, 'node_modules', 'value'), 'utf8')).toBe('copy-edit')
   })
-  it.each([
-    ['command', false],
-    ['command', true],
-    ['snapshot', false],
-    ['snapshot', true],
-    ['copyGit', false],
-    ['copyGit', true],
-  ])('keeps slots occupied for %s with transport rejection %s', async (phase, shouldReject) => {
-    const { deps, job } = await fixture()
-    const slots = new CheckSlots({
-      ...deps,
-      run: async (request) => {
-        if (
-          (phase === 'command' && request.file === process.execPath) ||
-          (phase === 'snapshot' && request.args.includes('config')) ||
-          (phase === 'copyGit' && request.args.includes('clone'))
-        ) {
-          if (shouldReject) throw new Error('connection lost')
-          const result = await processRun(request)
-          return { ...result, descendantsEnded: false }
-        }
-        return await processRun(request)
-      },
-    })
-    await expect(slots.run(job)).rejects.toThrow()
-    expect(slots.states()).toEqual([{ id: 0, busy: true, uncertain: true }])
-    await expect(slots.run(job)).rejects.toThrow()
-  })
+  it.each(
+    ['command', 'snapshot', 'copyGit'].flatMap((phase) =>
+      [false, true].map((shouldReject) => ({ phase, shouldReject })),
+    ),
+  )(
+    'keeps slots occupied for uncertain descendants or transport failure: %j',
+    async ({ phase, shouldReject }) => {
+      const { deps, job } = await fixture()
+      const slots = new CheckSlots({
+        ...deps,
+        run: async (request) => {
+          if (
+            (phase === 'command' && request.file === process.execPath) ||
+            (phase === 'snapshot' && request.args.includes('config')) ||
+            (phase === 'copyGit' && request.args.includes('clone'))
+          ) {
+            if (shouldReject) throw new Error('connection lost')
+            const result = await processRun(request)
+            return { ...result, descendantsEnded: false }
+          }
+          return await processRun(request)
+        },
+      })
+      await expect(slots.run(job)).rejects.toThrow()
+      expect(slots.states()).toEqual([{ id: 0, busy: true, uncertain: true }])
+      await expect(slots.run(job)).rejects.toThrow()
+    },
+  )
   it('refuses the user checkout, host pressure, untrusted work, escaped installs and missing lockfiles', async () => {
     const { deps, job } = await fixture()
     const run = vi.fn(processRun)

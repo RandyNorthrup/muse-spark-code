@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { brotliCompressSync, constants } from 'node:zlib'
@@ -9,8 +8,12 @@ import { isPluralForms } from '../../src/shared/l10n/forms'
 import { USAGE_EN } from '../../src/shared/l10n/usageEn'
 
 const root = process.cwd()
-const script = path.join(root, 'scripts/check-l10n.mjs')
-const fixture = { root: '', check: undefined, completeGate: undefined }
+const fixture = {
+  root: '',
+  check: undefined,
+  sourceGate: undefined,
+  locales: [],
+}
 const originalFiles = new Map()
 // Compression speed is irrelevant to the gate's decoded-value validation.
 const TEST_BROTLI_OPTIONS = { params: { [constants.BROTLI_PARAM_QUALITY]: 1 } }
@@ -33,22 +36,15 @@ function translate(value, locale) {
     Object.entries(value).map(([key, child]) => [key, translate(child, locale)]),
   )
 }
-function runCli(args = []) {
-  try {
-    return {
-      code: 0,
-      output: execFileSync(process.execPath, [script, ...args], {
-        cwd: fixture.root,
-        encoding: 'utf8',
-      }),
-    }
-  } catch (error) {
-    return { code: error.status, output: String(error.stdout) }
-  }
-}
 function runGate(args = []) {
   return fixture.check(args)
 }
+
+// Setup copies the localization sources and runs one cold, complete gate over
+// them (a TypeScript parse of every file that names a text table); later
+// checks reuse the parse cache. A cold hosted macOS runner with coverage needs
+// longer than the default hook deadline. PLAN.md §8 (2026-10-07).
+const L10N_GATE_SETUP_TIMEOUT_MS = 30_000
 
 beforeAll(async () => {
   mkdirSync(path.join(root, 'temp'), { recursive: true })
@@ -71,6 +67,7 @@ beforeAll(async () => {
     path.join(fixture.root, 'src/runtime/cliOptions.ts'),
   )
   const { TABLE_LOCALES } = await loadL10n(root)
+  fixture.locales = TABLE_LOCALES
   const manifest = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'))
   writeJson('package.json', manifest)
   for (const locale of ['', ...TABLE_LOCALES]) {
@@ -83,11 +80,12 @@ beforeAll(async () => {
     ...TABLE_LOCALES.map((locale) => `l10n/usage.${locale}.json`),
   ])
     originalFiles.set(file, readFileSync(path.join(fixture.root, file)))
+  // scripts/check-l10n.mjs only builds this same checker and prints its result;
+  // CI's static gates run that CLI on every OS against the real tree, so the
+  // test exercises the checker in-process instead of a second cold build.
   fixture.check = await createLocalizationCheck(fixture.root)
-  // Retain a real CLI smoke check; mutations use the same checker without cold builds.
-  fixture.completeGate = runCli()
-  fixture.check()
-})
+  fixture.sourceGate = fixture.check()
+}, L10N_GATE_SETUP_TIMEOUT_MS)
 beforeEach(() => {
   // Every test gets pristine mutable files without recopying the entire source tree.
   for (const [file, contents] of originalFiles)
@@ -99,8 +97,7 @@ afterAll(() => rmSync(fixture.root, { recursive: true, force: true }))
 
 describe('both localization families', () => {
   it('passes all 14 complete usage tables and rejects a missing key, bad slots and untranslated text', () => {
-    expect(fixture.completeGate).toEqual({ code: 0, output: expect.stringContaining('0 problems') })
-    expect(runGate()).toEqual(fixture.completeGate)
+    expect(fixture.sourceGate).toEqual({ code: 0, output: expect.stringContaining('0 problems') })
     const file = 'l10n/usage.de.json'
     const german = JSON.parse(readFileSync(path.join(fixture.root, file), 'utf8'))
     delete german.title
@@ -186,7 +183,7 @@ describe('both localization families', () => {
         ].map((locale) => `package.nls${locale === '' ? '' : `.${locale}`}.json`),
       ])
         cpSync(path.join(fixture.root, name), path.join(stage, name))
-      const { TABLE_LOCALES } = await loadL10n(root)
+      const TABLE_LOCALES = fixture.locales
       const ui = TABLE_LOCALES.map((locale) =>
         JSON.parse(readFileSync(path.join(stage, 'l10n', `ui.${locale}.json`), 'utf8')),
       )

@@ -4,9 +4,8 @@ import type { AcpPermissionInput, AcpPermissionVerdict, AcpPreset, AcpPresetId }
 // One admission authority for every team worker (PLAN.md M96 W-F1-W-F3).
 // Names locate objects; only native identities establish containment.
 import { open, realpath } from 'node:fs/promises'
-import { spawn, execFile } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { z } from 'zod'
 import { handleIdentity } from '../../fs/fileIdentity'
 import { scrubWorkerEnv } from './workerEnv'
 import { fileIdentityKey, statIdentity } from '../../fs/fileIdentity'
@@ -19,7 +18,6 @@ import { commandShape, looseWords, type ShellDialect } from '../../backends/mode
 import {
   WORKER_ACP_MAX_PERMISSION_PATHS,
   WORKER_FILE_PATH_TIMEOUT_MS,
-  WORKER_FILE_PATH_BUFFER_CHARS,
 } from '../../../shared/constants'
 import type { WorkerRolePolicy } from './workerTypes'
 
@@ -36,73 +34,6 @@ export interface WorkerFileHandle {
   readonly close: () => Promise<void>
 }
 
-// stdin is a duplicate of the already-open file handle, never a filename.
-const WINDOWS_HANDLE_PATH = `
-[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding
-Add-Type -TypeDefinition '
-using System;
-using System.Text;
-using System.Runtime.InteropServices;
-public static class WorkerFilePath {
- [DllImport("kernel32.dll")] static extern IntPtr GetStdHandle(int n);
- [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
- static extern uint GetFinalPathNameByHandle(IntPtr h, StringBuilder b, uint n, uint flags);
- public static string Read(int capacity) {
-  var b = new StringBuilder(capacity);
-  var n = GetFinalPathNameByHandle(GetStdHandle(-10), b, (uint)capacity, 0);
-  if (n == 0 || n >= capacity) throw new System.ComponentModel.Win32Exception();
-  return b.ToString();
- }
-}'
-[WorkerFilePath]::Read(${String(WORKER_FILE_PATH_BUFFER_CHARS)}) | ConvertTo-Json -Compress
-`
-
-async function windowsHandlePath(fd: number): Promise<string> {
-  const systemRoot = process.env['SystemRoot'] ?? process.env['SYSTEMROOT']
-  if (systemRoot === undefined) throw new MuseWorkerFolderError()
-  return await new Promise<string>((resolve, reject) => {
-    const child = spawn(
-      pathModule('win32').join(
-        systemRoot,
-        'System32',
-        'WindowsPowerShell',
-        'v1.0',
-        'powershell.exe',
-      ),
-      ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', WINDOWS_HANDLE_PATH],
-      {
-        windowsHide: true,
-        stdio: [fd, 'pipe', 'ignore'],
-        env: scrubWorkerEnv({ platform: process.platform, baseEnv: process.env }),
-      },
-    )
-    let output = ''
-    const timer = setTimeout(() => {
-      child.kill()
-      reject(new MuseWorkerFolderError())
-    }, WORKER_FILE_PATH_TIMEOUT_MS)
-    child.stdout?.on('data', (chunk: Buffer) => {
-      output += chunk.toString('utf8')
-      if (output.length <= WORKER_FILE_PATH_BUFFER_CHARS * 2) return
-      child.kill()
-      reject(new MuseWorkerFolderError())
-    })
-    child.on('error', (error) => {
-      clearTimeout(timer)
-      reject(error)
-    })
-    child.on('close', (code) => {
-      clearTimeout(timer)
-      try {
-        if (code !== 0) throw new MuseWorkerFolderError()
-        resolve(z.string().parse(JSON.parse(output)))
-      } catch (error: unknown) {
-        reject(error instanceof Error ? error : new MuseWorkerFolderError())
-      }
-    })
-  })
-}
-
 async function openWorkerFile(absolute: string, isWrite: boolean): Promise<WorkerFileHandle> {
   const handle = await open(absolute, isWrite ? 'r+' : 'r')
   return {
@@ -110,7 +41,10 @@ async function openWorkerFile(absolute: string, isWrite: boolean): Promise<Worke
       const identity = fileIdentityKey(await handleIdentity(handle))
       if (identity === undefined) throw new MuseWorkerFolderError()
       let final: string
-      if (process.platform === 'win32') final = await windowsHandlePath(handle.fd)
+      // Windows: libuv's native realpath resolves through GetFinalPathNameByHandle
+      // (long names, no 8.3 aliases) without starting a process; the identity
+      // check below proves the resolved name still denotes this open handle.
+      if (process.platform === 'win32') final = await realpath(absolute)
       else if (process.platform === 'darwin') {
         // macOS fd paths are not symlinks; lsof reads the kernel's fd name.
         const result = await promisify(execFile)(

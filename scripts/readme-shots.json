@@ -67,14 +67,6 @@
       "note": "Type /: context, Git and model actions above the prompt"
     },
     {
-      "file": "media/readme/question.png",
-      "scenario": "question",
-      "theme": "light",
-      "width": 690,
-      "height": 760,
-      "note": "Questions pinned in the dock and transcript, with tabs, choices, Other and Explain instead"
-    },
-    {
       "file": "media/readme/quote.png",
       "scenario": "quote-menu",
       "theme": "light",

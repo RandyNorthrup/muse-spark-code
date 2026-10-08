@@ -14,7 +14,6 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
-  symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import path from 'node:path'
@@ -32,6 +31,7 @@ import {
 
 import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
+import { buildProductionPackage, packageImagePreload } from '../unit/helpers/productionPackage'
 
 const ROOT = path.resolve(import.meta.dirname, '..', '..')
 const TEMP = path.join(ROOT, 'temp')
@@ -216,9 +216,6 @@ if (!existsSync(marker)) {
       .replace("'./check-badges.mjs'", () =>
         JSON.stringify(pathToFileURL(path.join(ROOT, 'scripts/check-badges.mjs')).href),
       )
-      .replace("'scripts/check-badges.mjs'", () =>
-        JSON.stringify(path.join(ROOT, 'scripts/check-badges.mjs')),
-      )
       .replace("'test/packaging/moduleExports.test.mjs'", () => JSON.stringify(exportCheck)),
   )
   mkdirSync(path.join(dir, 'scripts/lib'), { recursive: true })
@@ -335,10 +332,16 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     'usageService',
     'usageCompanion',
   ]) {
-    cpSync(path.join(ROOT, 'dist', `${bundle}.js`), path.join(dir, 'dist', `${bundle}.js`))
+    cpSync(path.join(BUILD_ROOT, 'dist', `${bundle}.js`), path.join(dir, 'dist', `${bundle}.js`))
   }
-  cpSync(path.join(ROOT, 'dist/providerCatalog.json'), path.join(dir, 'dist/providerCatalog.json'))
-  cpSync(path.join(ROOT, 'dist/providerCatalog.js'), path.join(dir, 'dist/providerCatalog.js'))
+  cpSync(
+    path.join(BUILD_ROOT, 'dist/providerCatalog.json'),
+    path.join(dir, 'dist/providerCatalog.json'),
+  )
+  cpSync(
+    path.join(BUILD_ROOT, 'dist/providerCatalog.js'),
+    path.join(dir, 'dist/providerCatalog.js'),
+  )
   for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs']) {
     writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
   }
@@ -368,9 +371,9 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
       cpSync(path.join(ROOT, 'l10n', table), path.join(dir, 'l10n', table))
   }
   cpSync(path.join(ROOT, 'l10n/untranslated.json'), path.join(dir, 'l10n/untranslated.json'))
-  cpSync(path.join(ROOT, 'dist/webview'), path.join(dir, 'dist/webview'), { recursive: true })
+  cpSync(path.join(BUILD_ROOT, 'dist/webview'), path.join(dir, 'dist/webview'), { recursive: true })
   cpSync(
-    path.join(ROOT, 'dist/meta/usageWebview.json'),
+    path.join(BUILD_ROOT, 'dist/meta/usageWebview.json'),
     path.join(dir, 'dist/meta/usageWebview.json'),
   )
   cpSync(path.join(ROOT, 'native/runner'), path.join(dir, 'native/runner'), { recursive: true })
@@ -388,6 +391,10 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
   )
   return dir
 }
+
+// Build immutable inputs once during file setup. The cold archive hook's
+// unchanged 60-second budget belongs to packaging, rather than build + pack.
+buildProductionPackage(ROOT, BUILD_ROOT)
 
 describe('M80 D package guards', { timeout: TIMEOUT }, () => {
   let preparedPackage: { dir: string; run: ReturnType<typeof command> } | undefined
@@ -804,84 +811,7 @@ function result(stdout: string): ExecResult {
 describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
   beforeAll(async () => {
     if (INSTALLED === undefined) {
-      // The bundle-split suite mutates its metafiles. Rebuilding its dist/
-      // here can delete chunks or truncate those files during a guard check.
-      mkdirSync(BUILD_ROOT, { recursive: true })
-      for (const folder of [
-        'src',
-        'scripts',
-        'vendor',
-        'media',
-        'native',
-        'l10n',
-        'docs',
-        'test/integration',
-        'test/packaging',
-      ]) {
-        cpSync(path.join(ROOT, folder), path.join(BUILD_ROOT, folder), { recursive: true })
-      }
-      for (const file of [
-        'package.json',
-        'tsconfig.json',
-        'LICENSE',
-        'CHANGELOG.md',
-        'README.md',
-      ]) {
-        cpSync(path.join(ROOT, file), path.join(BUILD_ROOT, file))
-      }
-      for (const file of readdirSync(ROOT)) {
-        if (/^package\.nls.*\.json$/.test(file))
-          cpSync(path.join(ROOT, file), path.join(BUILD_ROOT, file))
-      }
-      symlinkSync(
-        path.join(ROOT, 'node_modules'),
-        path.join(BUILD_ROOT, 'node_modules'),
-        'junction',
-      )
-      // The built-process fixture needs the real native helper on its own host.
-      if (process.platform === 'darwin') {
-        const native = spawnSync(BASH, ['native/darwin/build.sh'], {
-          cwd: BUILD_ROOT,
-          encoding: 'utf8',
-          timeout: BUILD_TIMEOUT,
-        })
-        expect(native.status, native.stderr).toBe(0)
-      } else {
-        writeFileSync(
-          path.join(BUILD_ROOT, 'native', 'darwin', 'muse-dictate'),
-          'test-owned inert helper',
-        )
-      }
-      for (const arch of ['x64', 'arm64']) {
-        const folder = path.join(BUILD_ROOT, 'native', 'linux', arch)
-        mkdirSync(folder, { recursive: true })
-        // Execute only the host's Linux helper; other architectures are archive fixtures.
-        if (process.platform === 'linux' && arch === process.arch) {
-          const native = spawnSync(
-            '/usr/bin/cc',
-            [
-              '-Wall',
-              '-Wextra',
-              '-Werror',
-              '-DMUSE_CREATED_STANDALONE',
-              'native/darwin/MuseSparkCreated.c',
-              '-lcrypto',
-              '-o',
-              path.join(folder, 'muse-created'),
-            ],
-            { cwd: BUILD_ROOT, encoding: 'utf8', timeout: BUILD_TIMEOUT },
-          )
-          expect(native.status, native.stderr).toBe(0)
-        } else writeFileSync(path.join(folder, 'muse-created'), 'test-owned inert helper')
-      }
-      const built = command(
-        path.join(BUILD_ROOT, 'scripts', 'build.mjs'),
-        BUILD_ROOT,
-        ['--production'],
-        {},
-        BUILD_TIMEOUT,
-      )
-      expect(built.status, built.stderr).toBe(0)
+      packageImagePreload(PACKAGE_PRELOAD, BUILD_ROOT, PACKAGE_IMAGES)
       const packed = command(
         path.join(BUILD_ROOT, 'scripts', 'package-acp.mjs'),
         BUILD_ROOT,
@@ -949,10 +879,10 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
           });
           const api = fakeModelApi();
           api.models = ['muse-spark-1.3-contributor'];
-          // The blocked reply stays inside exec's 32 MiB response cap: the fake
-          // streams text in five-character deltas, so 4 MiB of text would be cut
-          // short and withheld, and nothing large would reach stdout.
-          api.script({text:mode === 'blocked' ? 'x'.repeat(512 * 1024) : 'ok', usage:{input:10, output:5}, ...(mode === 'hold' ? {hold:new Promise(()=>{})} : {})});
+          // One large synthetic delta reaches the unread pipe without spending
+          // the signal test's deadline manufacturing 104,858 tiny SSE frames.
+          // The same 512 KiB write stays inside exec's 32 MiB response cap.
+          api.script({text:mode === 'blocked' ? 'x'.repeat(512 * 1024) : 'ok', isSingleTextDelta:mode === 'blocked', usage:{input:10, output:5}, ...(mode === 'hold' ? {hold:new Promise(()=>{})} : {})});
           globalThis.fetch = (url, init) => {
             if (mode === 'crash') throw new Error('startup ' + key);
             if (String(url).endsWith('/responses')) writeFileSync(process.env.M80D_REQUEST_MARKER, 'dispatched');

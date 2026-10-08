@@ -40,13 +40,17 @@ function windowsOptions() {
     },
   }
 }
+// Real native lifetime cases (and the setup that compiles the Windows job
+// helper) start real processes over real pipes; a cold or loaded hosted
+// runner with coverage needs longer than the defaults. PLAN.md §8 (2026-10-07).
+const NATIVE_PROCESS_SUITE_TIMEOUT_MS = 20_000
 beforeAll(async () => {
   native.directory = await realpath(await mkdtemp(path.join(os.tmpdir(), 'm96-driver-')))
   native.driver = await createNativeTeamProcessDriver({
     killGraceMs: 100,
     windows: windowsOptions(),
   })
-})
+}, NATIVE_PROCESS_SUITE_TIMEOUT_MS)
 afterAll(async () => {
   await rm(native.directory, { recursive: true, force: true })
 })
@@ -79,7 +83,9 @@ async function fixture() {
     cwd: directory,
     taskId: 'native-task',
     env: { PATH: process.env['PATH'], SystemRoot: process.env['SystemRoot'] },
-    priority: 'belowNormal' as const,
+    // Lifetime tests need a real job, not background scheduling contention.
+    // The dedicated priority case below still exercises below-normal launch.
+    priority: 'normal' as const,
   })
   return { directory, lifetime, journal, request }
 }
@@ -96,7 +102,7 @@ async function standaloneOwner(directory: string, code: string, env?: NodeJS.Pro
   const launcher = path.join(directory, 'owner.cjs')
   await build({
     stdin: {
-      contents: String.raw`const {createNativeTeamProcessDriver}=require('./src/host/team/processLifetime'); const sources=require('./src/host/backend/jobSource'); (async()=>{ const driver=await createNativeTeamProcessDriver({killGraceMs:100,windows:{storageDir:${JSON.stringify(native.directory)},systemRoot:process.env.SystemRoot,readJobSource:sources.jobSourceReader(process.cwd()),log:()=>{}}});const child=driver.launch({command:process.execPath,args:['-e',${JSON.stringify(code)}],cwd:process.cwd(),taskId:'owner',env:{SystemRoot:process.env.SystemRoot,PATH:process.env.PATH},priority:'belowNormal'},${JSON.stringify(randomUUID())}); const confirmation=await child.confirmation; await child.resume?.(confirmation);process.stdout.write("READY\n");setInterval(()=>{},1000) })().catch(error=>{process.stderr.write(String(error));process.exit(1)})`,
+      contents: String.raw`const {createNativeTeamProcessDriver}=require('./src/host/team/processLifetime'); const sources=require('./src/host/backend/jobSource'); (async()=>{ const driver=await createNativeTeamProcessDriver({killGraceMs:100,windows:{storageDir:${JSON.stringify(native.directory)},systemRoot:process.env.SystemRoot,readJobSource:sources.jobSourceReader(process.cwd()),log:()=>{}}});const child=driver.launch({command:process.execPath,args:['-e',${JSON.stringify(code)}],cwd:process.cwd(),taskId:'owner',env:{SystemRoot:process.env.SystemRoot,PATH:process.env.PATH},priority:'normal'},${JSON.stringify(randomUUID())}); const confirmation=await child.confirmation; await child.resume?.(confirmation);process.stdout.write("READY\n");setInterval(()=>{},1000) })().catch(error=>{process.stderr.write(String(error));process.exit(1)})`,
       resolveDir: process.cwd(),
       loader: 'ts',
     },
@@ -144,7 +150,7 @@ async function standaloneOwner(directory: string, code: string, env?: NodeJS.Pro
   return { parent, parentExited }
 }
 
-describe('M96 K real native lifetime', () => {
+describe('M96 K real native lifetime', { timeout: NATIVE_PROCESS_SUITE_TIMEOUT_MS }, () => {
   it('starts a separate journalled team Muse Code host over real fake-CLI pipes', async () => {
     const f = await fixture()
     const host = await startTeamMuseCodeHost({
@@ -309,7 +315,7 @@ describe('M96 K real native lifetime', () => {
     const priority = vi.spyOn(os, 'setPriority')
     const output = path.join(f.directory, 'observed.json')
     const code = `require('node:fs').writeFileSync(${JSON.stringify(output)}, JSON.stringify({marker:process.env.MUSE_SPARK_LAUNCH_ID, priority:require('node:os').getPriority()})); setTimeout(()=>{}, 20000)`
-    const child = await f.lifetime.launch(f.request(code))
+    const child = await f.lifetime.launch({ ...f.request(code), priority: 'belowNormal' })
     if (process.platform !== 'win32') {
       expect(priority).toHaveBeenCalledWith(
         child.child.pid,

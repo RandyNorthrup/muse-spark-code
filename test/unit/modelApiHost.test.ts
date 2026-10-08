@@ -16,7 +16,7 @@ import { rename } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { setTimeout as delay } from 'node:timers/promises'
 import path from 'node:path'
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import type { AgentEvent } from '../../src/shared/agentEvents'
 import {
@@ -16387,6 +16387,13 @@ function scriptAllowReview(t: ReturnType<typeof setup>) {
 
 const REVIEWER_ON = { permissionSettings: m78Settings(), paid: ['autoReviewer'] as PaidFeature[] }
 
+async function prepareFiniteReviewerJournal() {
+  const store = budgetStoreIn(path.join(scheduleRoot, 'review-budget-positive'))
+  const t = setup({ ...REVIEWER_ON, store, sessionBudgetUsd: () => Usd.from(1).toAmount() })
+  const started = await startSession(t, 'onRequest')
+  return { store, t, ...started }
+}
+
 describe('ModelApiSession: the Auto reviewer (M78, PLAN.md D49)', () => {
   it('sends no reviewer while host close awaits SessionEnd after a held consent', async () => {
     const consent = Promise.withResolvers<boolean>()
@@ -16440,13 +16447,23 @@ describe('ModelApiSession: the Auto reviewer (M78, PLAN.md D49)', () => {
     }
   })
 
-  it('admits a finite-cap reviewer after a settled ordinary request through its own real journal claim', async () => {
-    const store = budgetStoreIn(path.join(scheduleRoot, 'review-budget-positive'))
-    const t = setup({ ...REVIEWER_ON, store, sessionBudgetUsd: () => Usd.from(1).toAmount() })
-    const { session, events, turnDone } = await startSession(t, 'onRequest')
-    scriptAllowReview(t)
-    const finished = turnDone()
-    try {
+  describe('prepared finite-cap reviewer journal', () => {
+    let prepared: Awaited<ReturnType<typeof prepareFiniteReviewerJournal>> | undefined
+    beforeAll(async () => {
+      // Session creation writes its initial native snapshot. The test then
+      // measures the turn's real admission, review and journal settlement.
+      prepared = await prepareFiniteReviewerJournal()
+    })
+    afterAll(async () => {
+      if (prepared === undefined) return
+      await prepared.session.cancel()
+      await prepared.t.host.close()
+    })
+    it('admits a finite-cap reviewer after a settled ordinary request through its own real journal claim', async () => {
+      if (prepared === undefined) throw new Error('reviewer journal not prepared')
+      const { store, t, session, events, turnDone } = prepared
+      scriptAllowReview(t)
+      const finished = turnDone()
       await session.sendTurn([{ type: 'text', text: 'run the tests' }])
       // The turn's end, not a deadline: admission, review and settlement all
       // write the real journal first. A refusal still fails the asserts below.
@@ -16464,10 +16481,7 @@ describe('ModelApiSession: the Auto reviewer (M78, PLAN.md D49)', () => {
       expect(total?.hasUnknownHistoricalFees).toBe(false)
       expect(Number(total?.spentUsd)).toBeGreaterThan(0)
       expect(Number(total?.spentUsd)).toBeLessThan(1)
-    } finally {
-      await session.cancel()
-      await t.host.close()
-    }
+    })
   })
 
   it.each([

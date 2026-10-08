@@ -10,6 +10,7 @@ import {
   USAGE_VERSION_FOLDER,
   USAGE_JOURNAL_VERSION,
   USAGE_RECORD_MAX_BYTES,
+  USAGE_LINE_FEED_BYTE,
   USAGE_ROLLUPS_FOLDER,
   USAGE_ROLLUP_LOCK,
   USAGE_ROLLUP_LOCK_STALE_MS,
@@ -62,7 +63,6 @@ export const USAGE_JOURNAL_ROOT = `${USAGE_FOLDER}/${USAGE_VERSION_FOLDER}`
 const DAYS_ROOT = `${USAGE_JOURNAL_ROOT}/${USAGE_DAYS_FOLDER}`
 const ROLLUPS_ROOT = `${USAGE_JOURNAL_ROOT}/${USAGE_ROLLUPS_FOLDER}`
 const LOCK_FILE = `${USAGE_JOURNAL_ROOT}/${USAGE_ROLLUP_LOCK}`
-const NEWLINE_BYTE = new TextEncoder().encode('\n')[0]
 const decoder = new TextDecoder('utf-8', { fatal: true })
 // The host constructs one writer per process; even an accidental second
 // instance must not repeat a diagnostic that could otherwise flood the log.
@@ -321,8 +321,13 @@ export class UsageJournalStore {
     let newerVersionRecords = previous?.newerVersionRecords ?? 0
     let invalidLines = previous?.invalidLines ?? 0
     let offset = 0
-    for (let index = 0; index < bytes.length; index += 1) {
-      if (bytes[index] !== NEWLINE_BYTE) continue
+    // Native byte search avoids instrumenting one JavaScript iteration per byte
+    // in large cold scans; offsets still advance only over complete lines.
+    for (
+      let index = bytes.indexOf(USAGE_LINE_FEED_BYTE);
+      index !== -1;
+      index = bytes.indexOf(USAGE_LINE_FEED_BYTE, offset)
+    ) {
       const line = bytes.subarray(offset, index)
       offset = index + 1
       try {

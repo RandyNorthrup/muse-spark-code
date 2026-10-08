@@ -27,10 +27,14 @@ const MAIN_TREE = z.object({
   tree: z.array(z.object({ path: z.string(), type: z.enum(['blob', 'tree', 'commit']) })),
 })
 
-async function publicMainFiles(fetcher) {
+// Hosted runners share an IP's unauthenticated API quota (HTTP 403 when spent),
+// so CI passes its job token; it goes to this GitHub API request only, never to
+// an image host.
+async function publicMainFiles(fetcher, githubToken) {
   const reply = await fetcher(PUBLIC_MAIN_TREE, {
     cache: 'no-store',
     signal: globalThis.AbortSignal.timeout(REQUEST_MS),
+    ...(githubToken && { headers: { authorization: `Bearer ${githubToken}` } }),
   })
   if (!reply.ok) throw new Error(`Public main tree HTTP ${reply.status}`)
   const tree = MAIN_TREE.parse(await reply.json())
@@ -160,7 +164,8 @@ export async function checkReadmeBadges(documents, version, options = {}) {
     return `Badges: ${images.size} HTTPS images; network skipped: ${skipReason}`
   }
   const fetcher = options.fetch ?? fetch
-  const mainFiles = checkout.size === 0 ? new Set() : await publicMainFiles(fetcher)
+  const mainFiles =
+    checkout.size === 0 ? new Set() : await publicMainFiles(fetcher, options.githubToken)
   let localImages = 0
   for (const url of images) {
     const relative = checkout.get(url)
@@ -257,6 +262,7 @@ async function main() {
       skipReason: process.env.BADGE_CHECK_SKIP_NETWORK,
       ci: Boolean(process.env.CI),
       repositoryRoot: process.cwd(),
+      githubToken: process.env.GITHUB_TOKEN,
     }),
   )
 }

@@ -1,4 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process'
+import * as childProcess from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, rm, symlink, writeFile, readFile, rename, rmdir } from 'node:fs/promises'
 import { fakeWorkerIdentity, fakeWorkerFiles } from './helpers/workerIdentity'
@@ -11,6 +12,7 @@ import {
   isWorkerCommandAllowed,
   WORKER_NATIVE_IO,
   recheckWorkerRoot,
+  type WorkerFileHandle,
 } from '../../src/core/team/workers/workerFence'
 import {
   answerAcpPermission,
@@ -37,7 +39,12 @@ const ROLE: WorkerRolePolicy = {
   toolGroups: ['read', 'write', 'shell', 'report'],
   reportShape: 'summary',
 }
+vi.mock('node:child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof childProcess>()
+  return { ...actual, spawn: vi.fn(actual.spawn) }
+})
 const fixtureState = { fixture: '', checkout: '', copy: '' }
+const openedHandles: WorkerFileHandle[] = []
 beforeAll(async () => {
   const base = path.resolve('temp')
   await mkdir(base, { recursive: true })
@@ -50,6 +57,7 @@ beforeAll(async () => {
   await writeFile(path.join(fixtureState.checkout, 'outside.txt'), 'outside')
 })
 afterAll(async () => {
+  for (const handle of openedHandles) await handle.close()
   await rm(fixtureState.fixture, { recursive: true, force: true })
 })
 
@@ -60,6 +68,22 @@ function input(folder = fixtureState.copy) {
     platform: process.platform,
     io: WORKER_NATIVE_IO,
   }
+}
+
+async function checkedHandleFixture(name: string, relative: string, isWrite: boolean) {
+  const root = path.join(fixtureState.fixture, name)
+  const target = path.join(root, relative)
+  await mkdir(path.dirname(target), { recursive: true })
+  await writeFile(target, isWrite ? 'before' : 'original')
+  const nativeOpen = WORKER_NATIVE_IO.openFile
+  if (nativeOpen === undefined) throw new Error('Missing native handle port')
+  const handle = await nativeOpen(target, isWrite)
+  openedHandles.push(handle)
+  // Capture the real opened handle's identity before the attack. Windows
+  // starts and compiles its native path helper here once, outside the attack.
+  const identity = await handle.identify()
+  const grant = await assertWorkerRoot(input(root))
+  return { root, target, grant, handle: { ...handle, identify: () => Promise.resolve(identity) } }
 }
 function task(folder: string): WorkerTask {
   return {
@@ -73,6 +97,48 @@ function task(folder: string): WorkerTask {
 }
 
 describe('W-F1 native identities', () => {
+  it('admits a disjoint Windows short temp name by its resolved native identity', async () => {
+    const short = String.raw`C:\Users\RUNNER~1\AppData\Local\Temp\worker`
+    const long = String.raw`C:\Users\runneradmin\AppData\Local\Temp\worker`
+    const io = {
+      realPath: (given: string) => Promise.resolve(given === short ? long : given),
+      pathIdentity: fakeWorkerIdentity,
+    }
+    const policy = {
+      folder: short,
+      workspaceRoot: String.raw`D:\a\checkout`,
+      platform: 'win32' as const,
+      io,
+    }
+    const grant = await assertWorkerRoot(policy)
+    expect(grant.absolute).toBe(long)
+    expect(await recheckWorkerRoot(policy, grant)).toBe(long)
+    await expect(
+      recheckWorkerRoot({ ...policy, folder: `${long}-different` }, grant),
+    ).rejects.toThrow()
+  })
+
+  it('identifies the held Windows handle by native path resolution, starting no process', async () => {
+    const nativeOpen = WORKER_NATIVE_IO.openFile
+    if (nativeOpen === undefined) throw new Error('Missing native handle port')
+    const target = path.join(fixtureState.copy, 'inside.txt')
+    const handle = await nativeOpen(target, false)
+    const spawn = vi.mocked(childProcess.spawn)
+    spawn.mockClear()
+    const platform = Object.getOwnPropertyDescriptor(process, 'platform')
+    if (platform === undefined) throw new Error('Missing platform descriptor')
+    Object.defineProperty(process, 'platform', { value: 'win32' })
+    try {
+      // A cold PowerShell with an Add-Type compile per check outran the
+      // deadline on hosted Windows; native resolution starts no process.
+      expect(await handle.identify()).toMatchObject({ absolute: target })
+      expect(spawn).not.toHaveBeenCalled()
+    } finally {
+      Object.defineProperty(process, 'platform', platform)
+      await handle.close()
+    }
+  })
+
   it('admits disjoint copies, refuses both ancestor directions and unresolvable paths', async () => {
     const grant = await assertWorkerRoot(input())
     expect(grant.absolute).toBe(fixtureState.copy)
@@ -397,71 +463,82 @@ describe('W-F2 identity path admission', () => {
     expect(result).toHaveProperty('error')
     expect(write).not.toHaveBeenCalled()
   })
-  it('RVM96W3-F2 real target rename writes only the originally checked handle', async () => {
-    const root = path.join(fixtureState.fixture, 'handle-root')
-    const docs = path.join(root, 'docs')
-    const held = path.join(root, 'held')
-    await mkdir(docs, { recursive: true })
-    await writeFile(path.join(docs, 'outside.txt'), 'before')
-    const nativeOpen = WORKER_NATIVE_IO.openFile
-    if (nativeOpen === undefined) throw new Error('Missing native handle port')
-    const state: { failure?: string } = {}
-    const io = {
-      ...WORKER_NATIVE_IO,
-      openFile: async (given: string, isWrite: boolean) => {
-        const handle = await nativeOpen(given, isWrite)
-        return {
-          ...handle,
-          write: async (content: string) => {
-            try {
-              await rename(path.join(docs, 'outside.txt'), held)
-              await rmdir(docs)
-              await symlink(
-                fixtureState.checkout,
-                docs,
-                process.platform === 'win32' ? 'junction' : 'dir',
-              )
-              await handle.write(content)
-            } catch (error: unknown) {
-              state.failure = String(error)
-              throw error
-            }
-          },
-        }
-      },
-    }
-    const result = await acpFsWrite(
-      { ...input(root), io, role: { ...ROLE, writePaths: ['docs/**'] } },
-      'docs/outside.txt',
-      'checked handle',
-    )
-    expect(result, state.failure).toEqual({ ok: true })
-    expect(await readFile(held, 'utf8')).toBe('checked handle')
-    expect(await readFile(path.join(fixtureState.checkout, 'outside.txt'), 'utf8')).toBe('outside')
+  describe('prepared native write handle', () => {
+    let prepared: Awaited<ReturnType<typeof checkedHandleFixture>> | undefined
+    beforeAll(async () => {
+      prepared = await checkedHandleFixture('handle-root', 'docs/outside.txt', true)
+    })
+    it('RVM96W3-F2 real target rename writes only the originally checked handle', async () => {
+      if (prepared === undefined) throw new Error('native write handle not prepared')
+      const { root, target, grant, handle: checkedHandle } = prepared
+      const docs = path.join(root, 'docs')
+      const held = path.join(root, 'held')
+      const state: { failure?: string } = {}
+      const io = {
+        ...WORKER_NATIVE_IO,
+        openFile: (given: string, isWrite: boolean) => {
+          expect(given).toBe(target)
+          expect(isWrite).toBe(true)
+          const handle = checkedHandle
+          return Promise.resolve({
+            ...handle,
+            write: async (content: string) => {
+              try {
+                await rename(path.join(docs, 'outside.txt'), held)
+                await rmdir(docs)
+                await symlink(
+                  fixtureState.checkout,
+                  docs,
+                  process.platform === 'win32' ? 'junction' : 'dir',
+                )
+                await handle.write(content)
+              } catch (error: unknown) {
+                state.failure = String(error)
+                throw error
+              }
+            },
+          })
+        },
+      }
+      const result = await acpFsWrite(
+        { ...input(root), grant, io, role: { ...ROLE, writePaths: ['docs/**'] } },
+        'docs/outside.txt',
+        'checked handle',
+      )
+      expect(result, state.failure).toEqual({ ok: true })
+      expect(await readFile(held, 'utf8')).toBe('checked handle')
+      expect(await readFile(path.join(fixtureState.checkout, 'outside.txt'), 'utf8')).toBe(
+        'outside',
+      )
+    })
   })
-  it('RVM96W3-F1 real read target rename reads only the checked handle', async () => {
-    const root = path.join(fixtureState.fixture, 'read-handle-root-漢')
-    await mkdir(root)
-    const target = path.join(root, 'inside.txt')
-    await writeFile(target, 'original')
-    const nativeOpen = WORKER_NATIVE_IO.openFile
-    if (nativeOpen === undefined) throw new Error('Missing native handle port')
-    const io = {
-      ...WORKER_NATIVE_IO,
-      openFile: async (given: string, isWrite: boolean) => {
-        const handle = await nativeOpen(given, isWrite)
-        return {
-          ...handle,
-          read: async (maxBytes: number) => {
-            await rename(target, `${target}-held`)
-            await writeFile(target, 'replacement')
-            return await handle.read(maxBytes)
-          },
-        }
-      },
-    }
-    expect(await acpFsRead({ ...input(root), io, role: ROLE }, 'inside.txt')).toEqual({
-      content: 'original',
+  describe('prepared native read handle', () => {
+    let prepared: Awaited<ReturnType<typeof checkedHandleFixture>> | undefined
+    beforeAll(async () => {
+      prepared = await checkedHandleFixture('read-handle-root-漢', 'inside.txt', false)
+    })
+    it('RVM96W3-F1 real read target rename reads only the checked handle', async () => {
+      if (prepared === undefined) throw new Error('native read handle not prepared')
+      const { root, target, grant, handle: checkedHandle } = prepared
+      const io = {
+        ...WORKER_NATIVE_IO,
+        openFile: (given: string, isWrite: boolean) => {
+          expect(given).toBe(target)
+          expect(isWrite).toBe(false)
+          const handle = checkedHandle
+          return Promise.resolve({
+            ...handle,
+            read: async (maxBytes: number) => {
+              await rename(target, `${target}-held`)
+              await writeFile(target, 'replacement')
+              return await handle.read(maxBytes)
+            },
+          })
+        },
+      }
+      expect(await acpFsRead({ ...input(root), grant, io, role: ROLE }, 'inside.txt')).toEqual({
+        content: 'original',
+      })
     })
   })
   it('resolves inside paths and refuses outside, home and unresolved targets', async () => {

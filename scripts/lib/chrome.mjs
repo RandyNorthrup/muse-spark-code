@@ -2,7 +2,7 @@
 // the webview (harness screenshots) and the Marketplace icon. CHROME_PATH
 // wins; otherwise the platform's usual install folders, then PATH.
 
-import { existsSync } from 'node:fs'
+import { existsSync, statSync } from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -22,12 +22,26 @@ const CHROME_CANDIDATES = {
   linux: ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser'],
 }
 
-/** The Chrome executable to run, or undefined when none is known. */
+function installedPath(candidate) {
+  const files =
+    path.isAbsolute(candidate) || candidate.includes('/') || candidate.includes('\\')
+      ? [path.resolve(candidate)]
+      : (process.env.PATH ?? '')
+          .split(path.delimiter)
+          .filter((folder) => folder.length > 0)
+          .map((folder) => path.resolve(folder, candidate))
+  return files.find((file) => existsSync(file) && statSync(file).isFile())
+}
+
+/** The absolute Chrome executable to run, or undefined when none is known. */
 export function findChrome() {
   if (process.env.CHROME_PATH !== undefined) {
-    return process.env.CHROME_PATH
+    return installedPath(process.env.CHROME_PATH)
   }
   const candidates = CHROME_CANDIDATES[process.platform] ?? []
-  // Bare names are resolved through PATH by execFile; absolute ones must exist.
-  return candidates.find((candidate) => !path.isAbsolute(candidate) || existsSync(candidate))
+  for (const candidate of candidates) {
+    const installed = installedPath(candidate)
+    if (installed !== undefined) return installed
+  }
+  return
 }
