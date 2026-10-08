@@ -715,3 +715,116 @@ lane. Then replay full visual/build certification and the native Windows hook
 case. No quality aggregate runs in this rig lane, as required by the brief.
 Final receipt-only edits to PLAN and this record get format, plan and enabled
 hook checks; production/test inputs remain those of the committed clone.
+
+## Red tests (RED017)
+
+Lane `rel017/red`, base `e2605a991`, macmini rig, 2026-10-08. Repository
+timeouts throughout (no `--testTimeout`), hooks on, explicit `git add` of two
+test files, no stash, no merge, no push. One repair commit: `231dd448e`.
+
+### accountUsageBundle — handed to the caps owner, untouched
+
+- Failure: `test/unit/accountUsageBundle.test.mjs:65`,
+  `expect(inputs).not.toContain('src/shared/usd.ts')`; `usd.ts` sits in the
+  eager caller graph.
+- Root cause: merge `f3a6c1e5b` (int/0180b) re-introduced
+  `import { Usd } from '../usd'` into `src/shared/l10n/text.ts:10` for the
+  exact-USD `formatUsd`/`formatUsdAtPrecision` (0180b money work). The test's
+  eager entry imports `setUiText` from `text.ts`, so `src/shared/usd.ts`
+  (via `usdSchema.ts`; its `zod/mini` import is tree-shaken out of this
+  graph) is now eager. 0.16.0's `a441b557a` had removed that import.
+- Measured with the test's own esbuild config: the eager chunk carrying
+  `usd.ts` is 121,526 B (react-dom client, `text.ts`, deferred English,
+  the loader); the deferred AccountsSection chunk is 10,644 B of the
+  25,600 B cap (passes); every other assertion in the file holds
+  (AccountsSection.tsx and usageText.ts absent eager, the dynamic import
+  present, no `accountUsage.ts`, no `src/host` or `src/core/accounts`
+  inputs). Only the `usd.ts` containment assertion fails.
+- Handoff to `rel017/caps`: moving exact USD arithmetic out of the eagerly
+  imported `text.ts` (or re-cutting the split) is a split-boundary and
+  budget decision, and the exact-decimal ledger assertions restored by
+  LEFT017 item 5 depend on the current shape. Do not weaken the test.
+  Files involved, none changed: `src/shared/l10n/text.ts:10,93-143`,
+  `src/shared/usd.ts`, `src/shared/usdSchema.ts`.
+
+### acpNpmReadme — fixed, stale adjacency expectation
+
+- Failure: `test/unit/acpNpmReadme.test.ts:26`,
+  `/'acp\.js',\s*'estimator\.js'/` against `scripts/package-acp-test.mjs`.
+- Root cause: merge `f3a6c1e5b` put 0180b's shared lazy bundles
+  (`mcpPool.js`, `exec.js`, `modelApiCodeIntel.js`, `structuredSchema.js`)
+  between `acp.js` and `estimator.js` in the test-package list.
+  `14f720cb2` ("ship lazy engine in product packages") had added
+  `estimator.js` adjacent; the engine still ships in both packages, only
+  the adjacency changed.
+- Fix (`231dd448e`, test-only): require `'estimator.js'` in both
+  `package-acp.mjs` and `package-acp-test.mjs` without adjacency. The
+  `14f720cb2` guard still holds. No doc change was needed: the other four
+  cases (packed README, star sentence, absolute links, manifest fields)
+  pass unchanged, so the landing page describes what 0.17 ships.
+- Proof: 5/5 green; red drill keeps a scratch mirror of the matcher and
+  shows it fires on estimator-stripped script text. Release-prep files
+  `readmeVersion`, `checkBadges`, `changelogVersion` (48 tests) and
+  `whatsNewContent`, `changelogSource`, `referenceEntry` (45 tests) pass.
+
+### acpResources, two cases — fixed, stale command list
+
+- Failures: "announces built-in commands even when skills fail" (5
+  announced vs 6 received) and "reserves resource command names" (names
+  missing `'report'`).
+- Root cause: `df3afec80` ("add lazy CLI, ACP and scoped host report
+  adapters", M93, PLAN D72) legitimately announces `/report`
+  (`src/acp/agent.ts:537-541`) between `compact` and `resources`;
+  `docs/acp.md:884` and `src/shared/l10n/en.ts:532` document it, and the
+  skill filter reserves its selector (`agent.ts:615`). Both tests predate
+  the command.
+- Fix (`231dd448e`, test-only; process launches stay with `rel017/spawn4`,
+  whose files were read but never written): both expectations list
+  `report` in its announced position, and the fake skill list gains the
+  `'report'` selector, so a leaked duplicate fails the exact `toEqual`.
+- Proof: 8/8 green. Drills: removing the announcement block fails exactly
+  these two cases; removing the reservation filter line fails the
+  reservation case on the duplicate; `src/acp/agent.ts` verified
+  SHA-256 `c6dd2280b11ecbaf65251e50daf86a8f278983180c20305b6de6f405e8485af3`
+  after each restore. Product `src/acp/*` and `src/runtime/resources/*`
+  unchanged.
+
+### Neighbours, static gates and further findings (this worktree)
+
+- `acp*` / `account*` sweep: everything passes except the handed-off
+  bundle file and the three pre-existing findings below. Account-usage
+  neighbours pass 20/20 around the still-red bundle file.
+- Five typechecks (host, webview, unit, e2e, integration): 0 errors.
+  `eslint --max-warnings=0` and prettier on the changed files: clean.
+  Plain knip 0 (two known configuration hints), jscpd 0 clones,
+  `check:l10n` 0 problems, `check:reference` current.
+- Not RED017's, all pre-existing on `e2605a991` (the repair diff touches
+  only the two test files, so these inputs are base-identical) and left
+  untouched:
+  - `acpAgent.test.ts` ChatGPT case: `chatgpt-status` verify ends
+    `request-failed` ("temporarily unavailable"). The refresh lock
+    (`src/runtime/chatGptRefreshLock.ts:21-32`) binds loopback port 49953,
+    and this rig's shell sandbox denies `listen` (bare-node probe:
+    `EPERM`). Passes where loopback is allowed (LEFT017 Linux 142/142).
+    Environmental.
+  - `accountsPanel.a11y.test.mjs`: the harness server fails
+    `listen EPERM 127.0.0.1` under the same sandbox. Environmental.
+  - `accountPaidConsent.test.ts` (2 cases): the consent mock now also
+    receives a `quote` object and `ask` is called twice where once is
+    expected — the 0180b quote shape against M108 consent expectations
+    (the hosted Kubuntu batch already listed this file). Paid-lane
+    territory; untouched.
+
+### Fresh-clone replay (macmini, `$TMPDIR/red017-fresh`, `npm ci`, `CI=true`)
+
+Clone at `231dd448e`. The four files three times: 13/14 pass every run
+— the only failure is the handed-off `accountUsageBundle` `usd.ts`
+containment case; `acpNpmReadme` 5/5 and `acpResources` 8/8 green in all
+three. Neighbours `acpReports`/`acpUsage`/`accountUsage` 27/27;
+`accountPaidConsent` reproduces its two pre-existing failures on the
+clean tree with `acpEstimate`/`accountUsd` green beside them. Five
+typechecks exit 0. `eslint --max-warnings=0` and prettier on the changed
+files plus this record: clean. Plain knip 0, jscpd 0 clones,
+`check:l10n` 0 problems, `check:reference` current. Both clones removed
+after verification; scratch probes stayed under `$TMPDIR` and were
+removed too.

@@ -181,6 +181,9 @@ describe('M107 H ACP resources', () => {
         availableCommands: [
           { name: 'help' },
           { name: 'compact' },
+          // M93's /report (df3afec80, PLAN D72) is announced between compact
+          // and the resource commands; resource name ownership is unchanged.
+          { name: 'report' },
           { name: 'resources' },
           { name: 'usage' },
           { name: 'agents' },
@@ -192,12 +195,14 @@ describe('M107 H ACP resources', () => {
   it('reserves resource command names while retaining the other skill commands', async () => {
     const s = await scene()
     await s.run(async (client, sessionId, session) => {
-      session.skills = ['help', 'resources', 'usage', 'agents', 'custom'].map((selector) => ({
-        selector,
-        displayName: selector,
-        description: `skill-${selector}`,
-        argumentHint: undefined,
-      }))
+      session.skills = ['help', 'report', 'resources', 'usage', 'agents', 'custom'].map(
+        (selector) => ({
+          selector,
+          displayName: selector,
+          description: `skill-${selector}`,
+          argumentHint: undefined,
+        }),
+      )
       await finishOrdinaryTurn(client, sessionId, session)
       const commands = s.updates.find(
         ({ update }) => update.sessionUpdate === 'available_commands_update',
@@ -207,6 +212,9 @@ describe('M107 H ACP resources', () => {
       expect(commands.availableCommands.map((command) => command.name)).toEqual([
         'help',
         'compact',
+        // M93's /report (df3afec80, PLAN D72); skill selectors for resources,
+        // usage, agents and report stay reserved to the built-ins below.
+        'report',
         'resources',
         'usage',
         'agents',
