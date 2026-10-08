@@ -165,7 +165,12 @@ them, the milestone plan, and the certification checklist.
     Anything the wire may add later (a goal status, an MSP field) is shown
     as it came rather than dropped (PLAN.md D36, M43).
 
-15. **Outside code is vetted first.** A pull request, branch, fork or patch
+15. **Re-read what the hook committed.** After every commit, re-read your
+    staged diff and the committed diff: the pre-commit hook runs
+    `eslint --fix` and can rewrite logic, not only formatting (G58 in
+    `docs/orchestration-gotchas.md`).
+
+16. **Outside code is vetted first.** A pull request, branch, fork or patch
     not authored by the owner or this project's agents follows
     `docs/contributor-vetting.md`: no workflow approval before the change
     review, no checkout where credentials live, and no merge, cherry-pick,
