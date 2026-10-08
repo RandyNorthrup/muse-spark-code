@@ -20364,7 +20364,9 @@ as required by the rig brief; do not run full quality or merge in this lane.
 
 **Status 2026-10-08: building.** LEFT017B explicitly lifts the earlier mapping
 scope limit: all 184 renderers now map to 136 real scenes. All 9,792 Chrome
-receipts and 184 image-review lines are complete; fresh-clone replay is running.
+receipts and 184 image-review lines are complete. Fresh-clone replay found a
+quote-menu anchor captured before its final layout (9,863 changed pixels);
+settle the real context click, prove its guard, then regenerate/replay receipts.
 Combined build caps remain
 owned by the shrinking lane. Earlier rig lane `rel017/left`, base `7a4fc2ab3`;
 two-hour repair window. Keep all assertions, caps, scanner rules and deadlines.

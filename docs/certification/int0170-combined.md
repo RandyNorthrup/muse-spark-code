@@ -241,6 +241,22 @@ No merge, push, live/paid call, changed timeout, byte cap or pixel tolerance.
   is claimed for those observations. Fresh-clone pixel replay and final scoped
   static results are pending below.
 
+- Fresh npm-ci clone: install exits 0 (901 packages), with existing audit
+  advisories retained. The first complete pixel replay exits 1 on
+  `panel/quote-menu/default/light/320`: 9,863 changed pixels, allowance 12.
+  The real menu origin was chosen before theme/fonts/host layout settled.
+  Reopen the actual context-menu handler at the final passage rectangle.
+  The complete stability owner now repeats quote-menu plus its original
+  three scenes (24 state images per pass) and checks the real pill origin.
+  Deliberately offsetting the context click by 100px makes its anchor guard
+  fail (266 versus 166). Restore driver SHA-256
+  `e461b59a81f9d39a2974c5e884a61c91538a41ac418a7a42b6a7bf120d2a7d49`;
+  the entire owner passes 1/1 at default deadlines (22.36 s whole run).
+  The earlier reviewed manifest remains unchanged and correctly names its
+  original capture revision. Regenerate the full matrix with the settled
+  quote driver, inspect changed quote images, then rerun the complete
+  fresh-clone pixel gate. Do not splice partial receipts or widen tolerance.
+
 ### Earlier LEFT017 receipts
 
 Lane `rel017/left`, base `7a4fc2ab3`, Linux rig, 2026-10-08. All tests

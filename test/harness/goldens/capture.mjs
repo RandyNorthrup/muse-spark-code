@@ -168,9 +168,45 @@ async function openScene(page, root, port, scene, theme, width, height, fixtures
     // Native layout delivers ResizeObserver; the frozen clock runs its RAF.
     await page.clock.runFor(100)
   }
-  if (scene === 'verify') await page.locator('.then-run').scrollIntoViewIfNeeded()
-  else if (scene === 'whats-new-footer')
-    await page.evaluate(() => globalThis.scrollTo(0, globalThis.document.body.scrollHeight))
+  switch (scene) {
+    case 'quote-menu': {
+      // The initial context click can precede fonts and the host's final layout.
+      // Reopen through the real handler at the settled passage, like a pointer.
+      await page
+        .locator('.message-assistant .message-body p')
+        .first()
+        .evaluate((passage) => {
+          const range = globalThis.document.createRange()
+          range.selectNodeContents(passage)
+          const selection = globalThis.getSelection()
+          selection.removeAllRanges()
+          selection.addRange(range)
+          const box = passage.getBoundingClientRect()
+          passage.dispatchEvent(
+            new globalThis.MouseEvent('contextmenu', {
+              bubbles: true,
+              cancelable: true,
+              clientX: box.left + box.width / 2,
+              clientY: box.top + box.height / 2,
+            }),
+          )
+        })
+      await page.clock.runFor(100)
+
+      break
+    }
+    case 'verify': {
+      await page.locator('.then-run').scrollIntoViewIfNeeded()
+      break
+    }
+    case 'whats-new-footer': {
+      {
+        await page.evaluate(() => globalThis.scrollTo(0, globalThis.document.body.scrollHeight))
+        // No default
+      }
+      break
+    }
+  }
 }
 
 async function targetFor(page, rows, state) {
