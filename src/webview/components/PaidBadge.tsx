@@ -1,6 +1,6 @@
 import { type PaidFeature, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { usePaidFeaturePrice } from '../money'
+import { usePaidFeaturePrice } from '../moneyHooks'
 
 /**
  * Shared paid marker for tool and child-agent rows, read in the installed

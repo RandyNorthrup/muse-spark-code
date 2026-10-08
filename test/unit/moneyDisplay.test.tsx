@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 // The lazy money hub (STARTUP017): exact display matches the direct
-// arithmetic once loaded, stays absent while loading or failing, and a
-// failed load retries instead of sticking.
-import { cleanup, render, waitFor } from '@testing-library/react'
+// arithmetic once loaded, stays absent while loading or failing, every
+// consumer shares the document's one load, and a failed load is said in
+// words with Retry, which rebuilds the document (a failed module fetch
+// stays failed for the document it failed in).
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { formatUsd as formatExactUsd } from '../../src/shared/l10n/exactUsd'
@@ -13,15 +15,18 @@ import { formatUsd as formatConservativeUsd } from '../../src/core/usage/insight
 import { UI_TEXT, type PaidFeature } from '../../src/shared/constants'
 import {
   loadMoneyDisplay,
+  MoneyUnavailable,
   useConservativeUsd,
   useFormatTestCost,
   useFormatUsd,
-  usePaidFeaturePrice,
-  usePaidFeaturePrices,
   usePriceOf,
-  useReplyUsageText,
   type MoneyDisplay,
 } from '../../src/webview/money'
+import {
+  usePaidFeaturePrice,
+  usePaidFeaturePrices,
+  useReplyUsageText,
+} from '../../src/webview/moneyHooks'
 import { PaidBadge } from '../../src/webview/components/PaidBadge'
 
 afterEach(cleanup)
@@ -37,13 +42,17 @@ function gatedLoad(gate: { promise: Promise<MoneyDisplay> }): () => Promise<Mone
 }
 
 describe('loadMoneyDisplay', () => {
-  // First: a failed load must not stick, so the tests below (and the next
-  // mount) recover through the real chunk. Runs before any real load.
-  it('retries after a failed load instead of sticking', async () => {
+  it('shares one load per document, and a failure stays said rather than retried in place', async () => {
     const first = deferred<MoneyDisplay>()
-    const attempt = loadMoneyDisplay(() => first.promise)
+    const importer = vi.fn(() => first.promise)
+    const attempt = loadMoneyDisplay(importer)
+    expect(loadMoneyDisplay(importer)).toBe(attempt)
     first.reject(new Error('chunk gone'))
     await expect(attempt).rejects.toThrow('chunk gone')
+    // The browser keeps the failed fetch: importing again in place cannot
+    // recover, so the hub never pretends to; Retry rebuilds the document.
+    await expect(loadMoneyDisplay(importer)).rejects.toThrow('chunk gone')
+    expect(importer).toHaveBeenCalledTimes(1)
     await expect(loadMoneyDisplay()).resolves.toBeDefined()
   })
 
@@ -190,12 +199,56 @@ async function actSettled(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+describe('MoneyUnavailable', () => {
+  it('says a failed load in words and retries by rebuilding the document', async () => {
+    const gate = deferred<MoneyDisplay>()
+    const importer = gatedLoad(gate)
+    const rebuild = vi.fn()
+    function Consumer() {
+      const price = usePaidFeaturePrice('voice', importer)
+      return (
+        <>
+          <span data-testid="price">{price ?? ''}</span>
+          <MoneyUnavailable importer={importer} onRetry={rebuild} />
+        </>
+      )
+    }
+    render(<Consumer />)
+    expect(screen.queryByRole('alert')).toBeNull()
+    gate.reject(new Error('chunk gone'))
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(UI_TEXT.moneyLoadFailed)
+    // No number stands in for the missing price.
+    expect(screen.getByTestId('price')).toHaveTextContent('')
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.surfaceLoadRetry }))
+    expect(rebuild).toHaveBeenCalledTimes(1)
+  })
+
+  it('only reports: a view showing no price starts no load', () => {
+    const importer = vi.fn(() => Promise.reject(new Error('never asked')))
+    render(<MoneyUnavailable importer={importer} onRetry={vi.fn()} />)
+    expect(importer).not.toHaveBeenCalled()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
+  it('names no price and loads nothing for a feature not on show', () => {
+    const importer = vi.fn(() => Promise.reject(new Error('never asked')))
+    const { result } = renderHook(() => usePaidFeaturePrice(undefined, importer))
+    expect(result.current).toBeUndefined()
+    expect(importer).not.toHaveBeenCalled()
+  })
+})
+
 describe('PaidBadge', () => {
-  it('paints the badge at once and fills the exact tooltip in late', async () => {
+  it('paints the badge at once and states only the exact tooltip', async () => {
+    // The document's money chunk is loaded by now (one load per document),
+    // so the tooltip may already be there: either absent or exact.
     const { container } = render(<PaidBadge feature="voice" />)
     const badge = container.querySelector('.badge-paid')
     expect(badge?.textContent).toBe(UI_TEXT.paidRowBadge)
-    expect(badge?.getAttribute('title')).toBeNull()
+    expect([null, fill(UI_TEXT.paidRowTitle, { price: paidFeaturePrice('voice') })]).toContain(
+      badge?.getAttribute('title'),
+    )
     await waitFor(() => {
       expect(badge?.getAttribute('title')).toBe(
         fill(UI_TEXT.paidRowTitle, { price: paidFeaturePrice('voice') }),

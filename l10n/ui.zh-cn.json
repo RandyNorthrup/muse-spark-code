@@ -2085,6 +2085,7 @@
   "loadingOutput": "正在加载…",
   "surfaceLoadFailed": "无法加载此面板。",
   "surfaceLoadRetry": "重试",
+  "moneyLoadFailed": "无法加载价格。",
   "toolFailed": "失败",
   "toolRejected": "已拒绝",
   "toolStopped": "已停止",

@@ -2120,6 +2120,7 @@
   "loadingOutput": "Yükleniyor…",
   "surfaceLoadFailed": "Bu panel yüklenemedi.",
   "surfaceLoadRetry": "Yeniden dene",
+  "moneyLoadFailed": "Fiyatlar yüklenemedi.",
   "toolFailed": "Başarısız",
   "toolRejected": "Reddedildi",
   "toolStopped": "Durduruldu",

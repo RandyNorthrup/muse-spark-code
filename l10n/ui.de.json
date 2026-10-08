@@ -2120,6 +2120,7 @@
   "loadingOutput": "Wird geladen…",
   "surfaceLoadFailed": "Dieses Panel konnte nicht geladen werden.",
   "surfaceLoadRetry": "Erneut versuchen",
+  "moneyLoadFailed": "Die Preise konnten nicht geladen werden.",
   "toolFailed": "Fehlgeschlagen",
   "toolRejected": "Abgelehnt",
   "toolStopped": "Angehalten",

@@ -31,7 +31,7 @@ import {
   plural,
 } from '../../shared/l10n/text'
 import { isFinishedStep, type StepEntry, stepSummary, stepSummaryText } from '../stepSummary'
-import { useReplyUsageText } from '../money'
+import { useReplyUsageText } from '../moneyHooks'
 import type { UsdAmount } from '../../shared/usdSchema'
 
 /**

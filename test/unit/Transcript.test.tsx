@@ -1091,8 +1091,10 @@ describe('Transcript: paid rows and cited sources (M33)', () => {
     const badges = screen.getAllByText('paid')
     expect(badges).toHaveLength(1)
     // The badge paints at once; its exact price tooltip arrives with the
-    // lazy money chunk (STARTUP017), never guessed.
-    expect(badges[0]).not.toHaveAttribute('title')
+    // lazy money chunk (STARTUP017), never guessed. The chunk loads once
+    // per document, so an earlier row may have brought it already.
+    const price = 'Billed to your Model API key: $2.50 per 1,000 searches'
+    expect([null, price]).toContain(badges[0]?.getAttribute('title'))
     const titled = await screen.findByTitle(
       'Billed to your Model API key: $2.50 per 1,000 searches',
     )

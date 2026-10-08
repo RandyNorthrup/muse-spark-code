@@ -2085,6 +2085,7 @@
   "loadingOutput": "로드하는 중…",
   "surfaceLoadFailed": "이 패널을 불러올 수 없습니다.",
   "surfaceLoadRetry": "다시 시도",
+  "moneyLoadFailed": "가격을 불러올 수 없습니다.",
   "toolFailed": "실패",
   "toolRejected": "거부됨",
   "toolStopped": "중지됨",

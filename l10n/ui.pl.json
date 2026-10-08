@@ -2190,6 +2190,7 @@
   "loadingOutput": "Ładowanie…",
   "surfaceLoadFailed": "Nie udało się wczytać tego panelu.",
   "surfaceLoadRetry": "Spróbuj ponownie",
+  "moneyLoadFailed": "Nie udało się wczytać cen.",
   "toolFailed": "Niepowodzenie",
   "toolRejected": "Odrzucono",
   "toolStopped": "Zatrzymano",

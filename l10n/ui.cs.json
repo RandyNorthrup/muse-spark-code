@@ -2190,6 +2190,7 @@
   "loadingOutput": "Načítání…",
   "surfaceLoadFailed": "Tento panel se nepodařilo načíst.",
   "surfaceLoadRetry": "Zkusit znovu",
+  "moneyLoadFailed": "Ceny se nepodařilo načíst.",
   "toolFailed": "Selhalo",
   "toolRejected": "Odmítnuto",
   "toolStopped": "Zastaveno",

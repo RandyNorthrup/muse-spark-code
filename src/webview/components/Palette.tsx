@@ -33,7 +33,7 @@ import {
 import { contextWindowLabel } from '../../shared/paletteFormatting'
 import { buildPalette } from '../../shared/paletteRegistry'
 import type { ModelOption } from '../../shared/protocol'
-import { useMoneyDisplay, usePriceOf } from '../money'
+import { MoneyUnavailable, useMoneyDisplay, usePriceOf } from '../money'
 import { scrollRowIntoView, wrapIndex } from '../listNavigation'
 import { EffortSlider } from './EffortSlider'
 import { BackIcon, CheckIcon } from './icons'
@@ -58,6 +58,11 @@ export interface PaletteProps {
   readonly keys?: Ref<PaletteKeys>
   /** The active row's element id, for the prompt's aria-activedescendant. */
   readonly onActiveRowChange?: (elementId: string | undefined) => void
+  /**
+   * The document retry for prices that failed to load (STARTUP017): said
+   * inside the palette, since pressing a notice outside it closes it first.
+   */
+  readonly onRetryMoney?: () => void
 }
 
 /** The palette's keyboard, for a prompt that keeps the focus (M38). */
@@ -626,6 +631,7 @@ export function Palette(props: PaletteProps) {
           />
         </div>
       )}
+      {props.onRetryMoney === undefined ? null : <MoneyUnavailable onRetry={props.onRetryMoney} />}
       <ListBody>{body}</ListBody>
     </div>
   )

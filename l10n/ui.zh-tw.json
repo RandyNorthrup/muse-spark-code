@@ -2085,6 +2085,7 @@
   "loadingOutput": "正在載入…",
   "surfaceLoadFailed": "無法載入此面板。",
   "surfaceLoadRetry": "重試",
+  "moneyLoadFailed": "無法載入價格。",
   "toolFailed": "失敗",
   "toolRejected": "已拒絕",
   "toolStopped": "已停止",

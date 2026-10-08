@@ -2539,6 +2539,7 @@ export const EN = {
   loadingOutput: 'Loading…',
   surfaceLoadFailed: 'This panel could not load.',
   surfaceLoadRetry: 'Try again',
+  moneyLoadFailed: 'Prices could not load.',
   toolFailed: 'Failed',
   toolRejected: 'Rejected',
   // M46: a task the user (or Stop) ended.

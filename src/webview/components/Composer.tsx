@@ -88,7 +88,7 @@ import { modeIcon } from './modeIcons'
 import type { PaletteKeys } from './Palette'
 import type { MenuEntry } from './PopoverMenu'
 import { PALETTE_LISTBOX_ID } from '../../shared/constants'
-import { usePaidFeaturePrice } from '../money'
+import { usePaidFeaturePrice } from '../moneyHooks'
 import { retrySurface } from '../surfaceRetry'
 import { SLASH_LISTBOX_ID, SLASH_OPTION_ID_PREFIX, slashOptionId } from './menuIds'
 
@@ -465,8 +465,9 @@ export function Composer(props: ComposerProps) {
     const settled = new Set(attachmentSettlements)
     pendingFiles.current = pendingFiles.current.filter((pending) => !settled.has(pending.requestId))
   }, [attachmentSettlements])
-  // The dictate tooltip's exact voice price arrives with the lazy money chunk.
-  const voicePrice = usePaidFeaturePrice('voice')
+  // The dictate tooltip's exact voice price arrives with the lazy money
+  // chunk; only the paid engine states one, so the free one loads nothing.
+  const voicePrice = usePaidFeaturePrice(dictation.engine === 'museVoice' ? 'voice' : undefined)
   const [caret, setCaret] = useState(0)
   const [mentionIndex, setMentionIndex] = useState(0)
   const [dismissedMention, setDismissedMention] = useState<number | undefined>(undefined)

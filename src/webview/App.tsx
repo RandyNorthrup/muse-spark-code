@@ -60,8 +60,10 @@ import {
   permissionModeDetail,
 } from '../shared/permissionModes'
 import { paidFeatureName, usablePaidFeatures } from '../shared/paidBoundary'
-import { usePaidFeaturePrices, usePriceOf } from './money'
+import { MoneyUnavailable, usePriceOf } from './money'
+import { usePaidFeaturePrices } from './moneyHooks'
 import type * as PaletteRegistryModule from '../shared/paletteRegistry'
+import type * as SchedulePromptModule from './schedules/prompt'
 import type { PaletteAction } from '../shared/palette'
 import type { scheduleChannel } from './schedules/channel'
 import type { ScheduleRequest } from '../shared/scheduleV2'
@@ -430,6 +432,15 @@ export function modelLabelFor(state: UiState): string {
 }
 
 /** The reference's provider (`openrouter` of `openrouter/…`); undefined for Meta's bare ids. */
+/** The `/schedule` prompt mapping, loaded on first submit; undefined when its chunk fails. */
+async function loadSchedulePrompt(): Promise<typeof SchedulePromptModule | undefined> {
+  try {
+    return await import('./schedules/prompt')
+  } catch {
+    return undefined
+  }
+}
+
 function providerOf(modelId: string): string | undefined {
   const slash = modelId.indexOf('/')
   return slash === -1 ? undefined : modelId.slice(0, slash)
@@ -730,7 +741,11 @@ export function App({
     },
     [getScheduleChannel, dispatch],
   )
+  // Each close of the surface ends the commands submitted over it: a
+  // `/schedule` mapping still loading then posts and stashes nothing.
+  const schedulesSurfaceCloses = useRef(0)
   const onCloseSchedulesSurface = useCallback(() => {
+    schedulesSurfaceCloses.current += 1
     setPendingSchedulePrompt(undefined)
     dispatch({ type: 'schedulesSurfaceClosed' })
   }, [dispatch])
@@ -1234,54 +1249,73 @@ export function App({
         return
       }
       // The prompt mapping loads on first use, so startup carries only the
-      // prefix check above. A failed load warns like a refused request.
+      // prefix check above. The command lives as long as the surface it was
+      // submitted over, its session and its conversation: abandoned before
+      // the mapping arrives, it posts and stashes nothing. A failed load
+      // warns and hands the command back to an empty composer (never over
+      // a newer draft), so it can be sent again without retyping.
       const workspaceKey = props.workspaceKey
       const defaultDraft = props.defaultDraft
-      const surface = current.schedulesSurface
       const submittedAt = now()
-      void import('./schedules/prompt')
-        .then(({ schedulePromptAction }) => {
-          const action = schedulePromptAction(
-            text,
-            workspaceKey,
-            defaultDraft,
-            submittedAt,
-            parseLoopPrompt,
-          )
-          if (action === undefined) {
-            postMessage({ type: 'openSchedules', view: 'list' })
-            return
-          }
-          if (action.kind === 'open') {
-            // Only a prompt draft carries text for the editor; a report draft
-            // (M115 RA) opens the editor over its own args, with nothing stashed.
-            const draftAction = action.draft?.action
-            if (draftAction?.kind === 'prompt' && draftAction.prompt !== '')
-              setPendingSchedulePrompt({ prompt: draftAction.prompt, surface })
-            postMessage({ type: 'openSchedules', view: action.view })
-            return
-          }
-          if (action.kind === 'request') {
-            void getScheduleChannel()
-              .then((channel) => channel.request(action.request))
-              .then((response) => {
-                if (response.kind === 'refused')
-                  dispatch({ type: 'noticeRaised', level: 'warning', text: response.reason })
-              })
-              .catch((error: unknown) => {
-                dispatch({
-                  type: 'noticeRaised',
-                  level: 'warning',
-                  text: error instanceof Error ? error.message : UI_TEXT.scheduleCommandFailed,
-                })
-              })
-            return
-          }
-          dispatch({ type: 'noticeRaised', level: 'warning', text: action.reason })
-        })
-        .catch(() => {
+      const closesAtSubmit = schedulesSurfaceCloses.current
+      const isCommandLive = (): boolean => {
+        const latest = store.getState()
+        return (
+          schedulesSurfaceCloses.current === closesAtSubmit &&
+          latest.schedulesSurface?.workspaceKey === workspaceKey &&
+          latest.sessionId === current.sessionId &&
+          latest.attachmentEpoch === current.attachmentEpoch
+        )
+      }
+      void loadSchedulePrompt().then((mapping) => {
+        if (!isCommandLive()) return
+        if (mapping === undefined) {
+          if (store.getState().draft === '')
+            dispatch({ type: 'draftChanged', draft: current.draft })
           dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.scheduleCommandFailed })
-        })
+          return
+        }
+        const action = mapping.schedulePromptAction(
+          text,
+          workspaceKey,
+          defaultDraft,
+          submittedAt,
+          parseLoopPrompt,
+        )
+        if (action === undefined) {
+          postMessage({ type: 'openSchedules', view: 'list' })
+          return
+        }
+        if (action.kind === 'open') {
+          // Only a prompt draft carries text for the editor; a report draft
+          // (M115 RA) opens the editor over its own args, with nothing stashed.
+          const draftAction = action.draft?.action
+          if (draftAction?.kind === 'prompt' && draftAction.prompt !== '')
+            setPendingSchedulePrompt({
+              prompt: draftAction.prompt,
+              surface: store.getState().schedulesSurface,
+            })
+          postMessage({ type: 'openSchedules', view: action.view })
+          return
+        }
+        if (action.kind === 'request') {
+          void getScheduleChannel()
+            .then((channel) => channel.request(action.request))
+            .then((response) => {
+              if (response.kind === 'refused')
+                dispatch({ type: 'noticeRaised', level: 'warning', text: response.reason })
+            })
+            .catch((error: unknown) => {
+              dispatch({
+                type: 'noticeRaised',
+                level: 'warning',
+                text: error instanceof Error ? error.message : UI_TEXT.scheduleCommandFailed,
+              })
+            })
+          return
+        }
+        dispatch({ type: 'noticeRaised', level: 'warning', text: action.reason })
+      })
       return
     }
     // Model API schedules are extension-owned. Muse Code's cron remains a
@@ -2545,8 +2579,9 @@ export function App({
     ],
   )
   const slashLoadState = paletteModule === undefined ? 'loading' : 'ready'
-  // Paid toggle rows name their prices once the lazy money chunk arrives.
-  const palettePriceOf = usePriceOf()
+  // Paid toggle rows name their prices once the lazy money chunk arrives;
+  // nothing loads until the palette's registry does.
+  const palettePriceOf = usePriceOf(undefined, paletteModule !== undefined)
   const paletteGroups = useMemo(
     () => paletteModule?.buildPalette(paletteContext, palettePriceOf) ?? [],
     [paletteModule, paletteContext, palettePriceOf],
@@ -2618,6 +2653,7 @@ export function App({
         onSelectModel={onSelectModel}
         onBack={onPaletteBack}
         onClose={slot.onClose}
+        onRetryMoney={retrySurface}
         isAttached
         keepFocus
         keys={slashPaletteKeys}
@@ -2871,6 +2907,7 @@ export function App({
           onAction={onPaletteAction}
           onSelectModel={onSelectModel}
           onBack={onPaletteBack}
+          onRetryMoney={retrySurface}
           onClose={closeOverlay}
         />
       )
@@ -3322,6 +3359,9 @@ export function App({
             onClose={onCloseSchedulesSurface}
           />
         )}
+        {/* A failed money load leaves every price out, said here with Retry,
+            which rebuilds the document (the palette says it inside itself). */}
+        <MoneyUnavailable isInert={isModalOpen} onRetry={retrySurface} />
         {estimatorFailure?.reason === UI_TEXT.surfaceLoadFailed ? (
           <div role="alert" inert={isModalOpen}>
             {UI_TEXT.surfaceLoadFailed}

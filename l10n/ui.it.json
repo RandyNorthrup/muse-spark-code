@@ -2155,6 +2155,7 @@
   "loadingOutput": "Caricamento…",
   "surfaceLoadFailed": "Impossibile caricare questo pannello.",
   "surfaceLoadRetry": "Riprova",
+  "moneyLoadFailed": "Impossibile caricare i prezzi.",
   "toolFailed": "Non riuscito",
   "toolRejected": "Rifiutato",
   "toolStopped": "Arrestato",

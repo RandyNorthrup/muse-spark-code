@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { SHARE_VIEW_PAGE_ITEMS, UI_TEXT } from '../../src/shared/constants'
 import { EMPTY_PAID_TALLY } from '../../src/shared/paid'
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/shared/protocol'
@@ -2882,7 +2882,7 @@ describe('App: Model API scheduled prompts (M52)', () => {
     expect(within(palette).queryByText(UI_TEXT.scheduleV2.labels.timeline)).toBeNull()
   })
 
-  it('opens the editor with nothing stashed for a report draft', () => {
+  it('opens the editor with nothing stashed for a report draft', async () => {
     const postMessage = renderReady()
     const draft = scheduleDraftSchema.parse({
       ...fakeScheduleDraft(),
@@ -2903,10 +2903,15 @@ describe('App: Model API scheduled prompts (M52)', () => {
       initialView: 'list',
     } satisfies HostToWebviewMessage)
     send('/schedule add')
-    expect(postMessage).toHaveBeenLastCalledWith({ type: 'openSchedules', view: 'editor' })
+    // The prompt mapping loads on first use (STARTUP017): await the real one.
+    await waitFor(() => {
+      expect(postMessage).toHaveBeenLastCalledWith({ type: 'openSchedules', view: 'editor' })
+    })
     expect(postMessage).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'schedulesRequest' }),
     )
+    // Nothing stashed: the editor opens over the report draft's own args.
+    expect(screen.queryByDisplayValue('/schedule add')).toBeNull()
   })
 
   it('offers Copy only on an imported conversation’s code, and Insert and Apply again after it (M84)', () => {
@@ -4140,5 +4145,124 @@ describe('M117 estimator in the real App', () => {
     deliver({ type: 'openUsage' })
     await screen.findByRole('dialog')
     expect(screen.getByLabelText(UI_TEXT.estimateGoal).closest('[inert]')).not.toBeNull()
+  })
+})
+
+// A fresh App per test, so its lazy import meets this test's held chunk.
+async function renderCold() {
+  const { App: ColdApp } = await import('../../src/webview/App')
+  const postMessage = vi.fn<(message: WebviewToHostMessage) => void>()
+  render(<ColdApp postMessage={postMessage} newLocalId={() => 'local-1'} />)
+  deliver(init)
+  deliver({ type: 'authState', status: 'signedIn' })
+  return postMessage
+}
+
+function openSurface() {
+  deliver({
+    type: 'schedulesSurface',
+    workspaceKey: 'test-key',
+    targets: [],
+    defaultDraft: fakeScheduleDraft(),
+    nowMs: 1,
+    initialView: 'list',
+  } satisfies HostToWebviewMessage)
+}
+
+function editorOpens(postMessage: Awaited<ReturnType<typeof renderCold>>): number {
+  return postMessage.mock.calls.filter(([message]) => message.type === 'openSchedules').length
+}
+
+// The `/schedule` prompt mapping is lazy (STARTUP017 review): a cold
+// command waits for it, a failed load hands the command back to an empty
+// composer with an honest warning, and a command whose surface, session or
+// conversation ended before the mapping arrived posts and stashes nothing.
+describe('/schedule mapping on first use', () => {
+  const promptChunk = { gate: Promise.withResolvers<undefined>(), shouldFail: false }
+  const command = '/schedule add Keep this exact prompt'
+
+  beforeEach(() => {
+    promptChunk.gate = Promise.withResolvers<undefined>()
+    promptChunk.shouldFail = false
+    // A cold chunk: the real mapping module, held until released.
+    vi.resetModules()
+    vi.doMock('../../src/webview/schedules/prompt', async (importOriginal) => {
+      await promptChunk.gate.promise
+      if (promptChunk.shouldFail) throw new Error('chunk gone')
+      return await importOriginal()
+    })
+  })
+
+  afterEach(() => {
+    promptChunk.gate.resolve(undefined)
+    vi.doUnmock('../../src/webview/schedules/prompt')
+  })
+
+  async function release(): Promise<void> {
+    await act(async () => {
+      promptChunk.gate.resolve(undefined)
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+  }
+
+  it('keeps a cold command until the mapping arrives, then opens the editor', async () => {
+    const postMessage = await renderCold()
+    openSurface()
+    send(command)
+    expect(textarea()).toHaveValue('')
+    expect(editorOpens(postMessage)).toBe(0)
+    await release()
+    await waitFor(() => {
+      expect(postMessage).toHaveBeenCalledWith({ type: 'openSchedules', view: 'editor' })
+    })
+    expect(editorOpens(postMessage)).toBe(1)
+  })
+
+  it('hands a failed command back to the empty composer with an honest warning', async () => {
+    promptChunk.shouldFail = true
+    const postMessage = await renderCold()
+    openSurface()
+    send(command)
+    expect(textarea()).toHaveValue('')
+    await release()
+    expect(await screen.findAllByText(UI_TEXT.scheduleCommandFailed)).not.toHaveLength(0)
+    expect(textarea()).toHaveValue(command)
+    expect(editorOpens(postMessage)).toBe(0)
+  })
+
+  it('never overwrites a newer draft when the mapping fails', async () => {
+    promptChunk.shouldFail = true
+    const postMessage = await renderCold()
+    openSurface()
+    send(command)
+    fireEvent.change(textarea(), { target: { value: 'A newer draft' } })
+    await release()
+    expect(await screen.findAllByText(UI_TEXT.scheduleCommandFailed)).not.toHaveLength(0)
+    expect(textarea()).toHaveValue('A newer draft')
+    expect(editorOpens(postMessage)).toBe(0)
+  })
+
+  it('posts and stashes nothing once its surface is cancelled before the mapping arrives', async () => {
+    const postMessage = await renderCold()
+    openSurface()
+    send(command)
+    fireEvent.click(await screen.findByRole('button', { name: UI_TEXT.goalEditCancel }))
+    // Reopened over the same workspace: still a different surface lifetime.
+    openSurface()
+    await release()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(editorOpens(postMessage)).toBe(0)
+    expect(screen.queryByDisplayValue('Keep this exact prompt')).toBeNull()
+  })
+
+  it('posts nothing once the conversation is cleared before the mapping arrives', async () => {
+    const postMessage = await renderCold()
+    openSurface()
+    send(command)
+    deliver({ type: 'conversationCleared' })
+    await release()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(editorOpens(postMessage)).toBe(0)
+    expect(textarea()).toHaveValue('')
   })
 })

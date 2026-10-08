@@ -2190,6 +2190,7 @@
   "loadingOutput": "Загрузка…",
   "surfaceLoadFailed": "Не удалось загрузить эту панель.",
   "surfaceLoadRetry": "Повторить попытку",
+  "moneyLoadFailed": "Не удалось загрузить цены.",
   "toolFailed": "Сбой",
   "toolRejected": "Отклонено",
   "toolStopped": "Остановлено",

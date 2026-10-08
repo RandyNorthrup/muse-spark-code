@@ -6,7 +6,7 @@ import { Usd } from '../../src/shared/usd'
 // messages. The webview only renders and asks — each test names the
 // message its control posts.
 
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
@@ -34,6 +34,9 @@ function fail(message: string): never {
   throw new Error(message)
 }
 
+/** A wizard whose draft stays current (the lifecycle races run on the real panel). */
+const OPEN_WIZARD = { generation: 1, isCurrent: (generation: number) => generation === 1 }
+
 function props(
   state: ModelsPanelState,
   post: (message: PanelToHostMessage) => void,
@@ -45,6 +48,7 @@ function props(
     navigate: vi.fn(),
     dispatch: vi.fn(),
     wizardOpen: false,
+    wizardLife: OPEN_WIZARD,
     importOpen: false,
     highlightedItem: undefined,
     ...extra,
@@ -209,7 +213,7 @@ describe('ProvidersSection', () => {
     expect(post).toHaveBeenCalledWith({ type: 'providers/connect' })
   })
 
-  it('tests free, then accepts the paid check only after its cost', () => {
+  it('tests free, then accepts the paid check only after its cost', async () => {
     const post = vi.fn()
     const testing = makeState({
       drafts: {
@@ -240,7 +244,12 @@ describe('ProvidersSection', () => {
         )}
       />,
     )
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.suggestionAccept }))
+    // Accept waits for the stated cost (STARTUP017): the money chunk is lazy.
+    const accept = screen.getByRole('button', { name: UI_TEXT.suggestionAccept })
+    await waitFor(() => {
+      expect(accept).toBeEnabled()
+    })
+    fireEvent.click(accept)
     expect(post).toHaveBeenCalledWith({ type: 'providers/test', acceptCost: true })
   })
 
@@ -282,7 +291,7 @@ describe('ProvidersSection', () => {
     })
   })
 
-  it('accepts the suggested default and overrides the budget', () => {
+  it('accepts the suggested default and overrides the budget', async () => {
     const post = vi.fn()
     const state = makeState({
       drafts: {
@@ -300,10 +309,13 @@ describe('ProvidersSection', () => {
     })
     const changeButtons = screen.getAllByRole('button', { name: UI_TEXT.suggestionChange })
     fireEvent.click(changeButtons[1] ?? fail('budget change missing'))
-    expect(post).toHaveBeenCalledWith({
-      type: 'suggestions/change',
-      kind: 'sessionBudget',
-      usd: Usd.from(5).toAmount(),
+    // The positivity check waits for the lazy money chunk (STARTUP017).
+    await waitFor(() => {
+      expect(post).toHaveBeenCalledWith({
+        type: 'suggestions/change',
+        kind: 'sessionBudget',
+        usd: Usd.from(5).toAmount(),
+      })
     })
   })
 
@@ -420,6 +432,7 @@ describe('Wizard', () => {
             suggestions: [makeSuggestion('defaultModel')],
           })}
           draft={makeDraft({ step, presetId: 'openrouter', blockers: [] })}
+          life={OPEN_WIZARD}
           post={vi.fn()}
           onNavigateModels={vi.fn()}
           onClose={vi.fn()}

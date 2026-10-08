@@ -83,9 +83,13 @@ describe('CostNotice', () => {
         onDecline={onDecline}
       />,
     )
-    // The buttons never wait for the money chunk; only the cost line does.
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.suggestionAccept }))
-    expect(onAccept).toHaveBeenCalledTimes(1)
+    // Consent is given to a stated price (this file's first money load):
+    // Accept waits for the cost line, while Cancel never waits.
+    const accept = screen.getByRole('button', { name: UI_TEXT.suggestionAccept })
+    expect(accept).toBeDisabled()
+    expect(screen.getByRole('status')).toHaveTextContent(UI_TEXT.loadingOutput)
+    fireEvent.click(accept)
+    expect(onAccept).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.wizardCancel }))
     expect(onDecline).toHaveBeenCalledTimes(1)
     const money = await loadMoneyDisplay()
@@ -96,6 +100,9 @@ describe('CostNotice', () => {
         }),
       ),
     ).toBeDefined()
+    expect(accept).toBeEnabled()
+    fireEvent.click(accept)
+    expect(onAccept).toHaveBeenCalledTimes(1)
   })
 
   it('keeps a fraction of a cent readable', async () => {
@@ -211,6 +218,38 @@ describe('SuggestionCard', () => {
       'disabled',
       true,
     )
+  })
+
+  it('never offers Accept for a value not yet stated (STARTUP017)', () => {
+    const onAccept = vi.fn()
+    const { rerender } = render(
+      <SuggestionCard
+        title={UI_TEXT.suggestSessionBudget}
+        reason="From history."
+        value=""
+        isValueShown={false}
+        accepted={false}
+        onAccept={onAccept}
+        onChange={vi.fn()}
+      />,
+    )
+    const accept = screen.getByRole('button', { name: UI_TEXT.suggestionAccept })
+    expect(accept).toBeDisabled()
+    fireEvent.click(accept)
+    expect(onAccept).not.toHaveBeenCalled()
+    rerender(
+      <SuggestionCard
+        title={UI_TEXT.suggestSessionBudget}
+        reason="From history."
+        value="$2.00"
+        isValueShown={true}
+        accepted={false}
+        onAccept={onAccept}
+        onChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(accept)
+    expect(onAccept).toHaveBeenCalledTimes(1)
   })
 })
 

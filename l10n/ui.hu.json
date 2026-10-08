@@ -2120,6 +2120,7 @@
   "loadingOutput": "Betöltés…",
   "surfaceLoadFailed": "A panel betöltése nem sikerült.",
   "surfaceLoadRetry": "Újrapróbálkozás",
+  "moneyLoadFailed": "Az árak betöltése nem sikerült.",
   "toolFailed": "Sikertelen",
   "toolRejected": "Elutasítva",
   "toolStopped": "Leállítva",
