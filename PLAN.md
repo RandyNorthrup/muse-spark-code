@@ -42789,6 +42789,65 @@ plain knip, build/caps and PowerShell lint. No full quality, push, paid/live
 calls or cap increase is authorized. Release-train gates and outstanding
 calibration/source/adoption receipts remain lead-owned.
 
+**Production binding (P2B, 2026-10-08).** The window, CLI/ACP and MCP
+share one binding factory (`src/core/judge/binding.ts`): real C/E/J side
+adapters, recorded profile/receipt reads from owner storage, and a
+gap-reporting binding whenever a phase-2 mode is configured but its
+evidence is missing. Explicit `separate`/`both` need a verified source and
+recorded profiles but no adoption receipt; `auto` reaches `both` only with
+a verified held-out receipt. A configured id with no live client yet, a
+malformed capability, missing profiles, a missing receipt and missing
+embedding labels each reach the translated status that names them; nothing
+is silently phase-1 and no profile is invented. `JUDGE_CALIBRATION_LIMITS`,
+the risk family and the prompt/criteria versions are pinned in
+`src/shared/constants.ts`: measurement and binding share exactly one set.
+Live C/E/J clients, fitted profiles, adoption receipts and `L98P2-EMBED`
+heads are still open; the measurement plan below is the path. Receipt:
+`docs/certification/m98.md`, “Production binding (P2B)”.
+
+**Measurement plan for the missing phase-2 evidence (P2B, 2026-10-08).**
+No live or paid call is made here; the lane that runs this plan spends only
+through the paid gate (D48 consent naming the price and the shared daily
+budget first, `PaidUsage` accounting after, contributor models only).
+
+Labels needed (first family `risk.destructive`, prompt `1`, criteria `1`):
+
+- Fitted B profiles: 2 artifacts (same side + one separate side), each fit
+  under exactly `JUDGE_CALIBRATION_LIMITS`. At least 200 independent labels
+  per side (the pinned isotonic floor); fewer only if lane B re-pins a
+  platt-only method set and records it as the new fit version.
+- Held-out paired adoption receipt: 1 family artifact. Schema minimum 2
+  grouped held-out paired M75 rows; M75 owns the confident count, and the
+  rows must be disjoint from every fit/tuning split by label id.
+- `L98P2-EMBED` head and manifest: 1 family artifact. At least 200
+  independent family labels for the head (the pinned isotonic floor) plus
+  the manifest's grouped evaluation rows (minimum 2).
+
+Where they come from: the same chat model for the same side, the
+contributor separate model for the separate side (SystemOne, BYO or local
+per lanes C/E/J once a source is verified), the M75 harness for the
+held-out pairs (borrowed goldens plus fresh pairs), and the configured
+embedding transport for the head labels.
+
+Calls by type (floors, contributor models): 2 sides × 200 stated fit
+attempts = 400 inference calls; M75 held-out pairs (2 minimum, M75's count
+when set); embedding head labels (200 minimum) plus manifest rows. Cost is
+counted per call at the contributor model's fingerprinted price, settled
+through the D78 daily ledger inside the shared budget; no price is pinned
+in-repo, so the run computes its total from the live price record and asks
+D48 consent with that total before spending.
+
+How the result is recorded (the binding picks it up with no code change):
+JSON files under `<globalStorage>/judge` (host) or `<config>/muse/judge`
+(CLI/MCP), named by `phase2ProfileSlug`, `phase2AdoptionSlug` and
+`phase2EmbeddingSlug`; profile files hold a `parseCalibrationProfile`
+artifact, adoption files a `parseAdoptionRecord` artifact (datasets
+included, byte-complete), embedding files a `{ head, weights, manifest }`
+envelope. `filePhase2EvidenceStore` reads them; the runtime re-validates
+identity, independent evidence, grouped lineage and cascade metrics before
+any dispatch, so a malformed drop only ever reports its gap. Verify with a
+schema parse plus a dry `auto` resolution, never a paid probe.
+
 ## 7. Gates
 
 **M98P2INT2 scoped integration (2026-10-05, Windows 11).** The explicit lane
