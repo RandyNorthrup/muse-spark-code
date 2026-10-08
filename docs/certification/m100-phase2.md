@@ -891,29 +891,33 @@ Work plan (within the existing lane A admission region):
    all four suites three times, five typechecks and required scoped gates.
 5. Record final receipts and W-owned blockers, reread post-hook diffs and commit.
 
-Status: steps 1–3 complete; committed-source fresh-clone verification next.
+Status: steps 1–5 complete. P2 fixed end to end; final receipts below.
+Integration qualification and the inherited host inventory remain W-owned.
 Base source `cd8913a7e`: **6 failed / 85 passed**, exit **1**. Restored
 fixed owning suites: **91 passed**, exit **0**. Every test uses the repository
 deadline; no timeout override. A duplicated assertion block was extracted
-into `expectSingleLaunch`; all assertions remain, duplication **0 clones**. No wire shape, gate, cap, dependency,
-user-visible text or shared region changes planned; live/paid attempts **0**.
+into `expectSingleLaunch`; all assertions remain, duplication **0 clones**.
+No wire shape, gate, cap, dependency, user-visible text or shared region
+changes; live/paid attempts **0**.
 
 #### P2 lifecycle and regression proof
 
-`DeviceReceiver.dispatch` now calls `finishAdmission` after `lease.start`
-succeeds, before the running-state journal advance; its terminal `finally`
-still spends a bound approval on every non-starting exit. The existing
+`src/host/devices/deviceReceiver.ts:572` now calls `finishAdmission` after
+`lease.start` succeeds, before the running-state journal advance; its terminal
+`finally` at `:592` still spends a bound approval on every non-starting exit. The existing
 identity plus dispatch-payload-digest key covers all checks in that one
 start contract. Each check retains fresh intersection, action digest, grant
 revision and time validation. No new owner abstraction or wire change is needed.
 
-The corrected `RVM100P2A-P2 confirms exactly one %s dispatch` tests use
+The corrected `actionGrants.test.ts:258`
+`RVM100P2A-P2 confirms exactly one %s dispatch` tests use
 the unchanged execution fixture's real start, including its own
 `boundary.beforeAction()`, for connect/program/actuate: outcome running,
 `launches === 1`, replay `step-up-required`, and another post-start action
 boundary refused. Both in-flight identity/payload tests also retain real
 start and assert one launch. The changed-action-payload test still refuses
-and spends that attempt. New `RVM100P2AB-P2 spends a bound attestation when
+and spends that attempt (`:337`). New test at `:323`,
+`RVM100P2AB-P2 spends a bound attestation when
 the real start boundary denies approval` reaches the fourth ordinary approval
 inside real start, refuses with retained `uncertain` reservation, launches
 zero times and proves terminal consumption. No start override remains in
@@ -937,3 +941,64 @@ unfiltered suites. Sources restored byte-exact after every base/drill run:
 Receipts: `/tmp/fixm100p2a2-receipts/drills.json`, `drill-early-spend.log`,
 `drill-terminal-spend.log`. All use `CI=true`, at most three workers and
 repository default timeouts. No scope, dependency, threshold or cap changes.
+
+#### Final fresh-clone receipt — FIXM100P2A2 (2026-10-08)
+
+Verified implementation commit `cc49a2bfd49c0ec25dd24dd475a799e51138e6ac`,
+cloned directly from this worktree into
+`/tmp/fixm100p2a2-final-verify-20261007`. Node **24.21.0**, npm **11.19.0**.
+`CI=true npm ci`: exit **0**, 901 packages added; unchanged lockfile. The
+clone, committed tree and restored worktree share the two source hashes
+recorded above. Test source SHA-256:
+`8d19bd30fa274f16f5d1d172d5f9790410ff62bcd4c03eeda969d469a94a5e2e`.
+
+All four complete suites ran three times with `CI=true`, in two-file batches
+and at most three workers. No filters or timeout overrides: **164 passed
+each time** (**91** actionGrants/devicePresenceRelay + **73**
+deviceReceiver/channel), all six batch exits **0**. Batch wall times:
+**1.63 + 3.46 s**, **1.57 + 3.49 s**, **1.57 + 3.45 s**.
+Receipts: `/tmp/fixm100p2a2-receipts/fresh-tests.json` and
+`fresh-tests-<run>-<batch>.log`.
+
+Fresh-clone gates (`CI=true` throughout):
+
+| Gate                          | Exit | Result                                             |
+| ----------------------------- | ---- | -------------------------------------------------- |
+| `npm run typecheck`           | 0    | All five compiler projects; no errors              |
+| `npm run lint`                | 0    | Full JS/TS and CSS; expected Linux PowerShell skip |
+| Changed-file ESLint           | 0    | Both source files and action-grants tests          |
+| Changed-file Prettier         | 0    | All four files clean                               |
+| Plain `npx knip`              | 0    | Existing vendor/axe-core configuration hints only  |
+| `npm run duplication`         | 0    | 0 clones                                           |
+| `npm run check:reference`     | 0    | Current; 18 Devices entries                        |
+| `node scripts/check-l10n.mjs` | 0    | 14 UI/14 usage tables; 0 problems                  |
+| `npm run check:host-api`      | 1    | Inherited W-owned generated inventory mismatch     |
+| `npm run cycles`              | 0    | No cycles                                          |
+| `npm run build`               | 0    | All caps, splits, host globals and notices pass    |
+
+Production sizes (KiB): Devices **82.6/100**, activation **462.8/600**,
+Model API **456.0/475**, ACP **155.3/850**, chat startup **733.8/900**,
+original deferred webview **31.9/50**, Devices UI **33.8/50**. The stricter
+733.8 KiB chat-startup baseline also holds. No cap changed; notices cover
+**88** packages. All command exits are in `fresh-gates-*.json` and their
+`fresh-<gate>.log` receipts under `/tmp/fixm100p2a2-receipts/`.
+
+**Blocker / lead request:** W must run `npm run check:host-api -- --write`
+and review the inherited `node:crypto` **93 → 94** and `node:path`
+**125 → 126** reader counts in `docs/ide-compatibility/host-api.md`, then
+rerun that gate. This repair introduces no new Node reader. Facts remain
+**366** VS Code APIs, **43** importing files, **28** Node built-ins and
+**70** theme variables. The inventory is outside this lane's ownership.
+W also owns joined CHANGELOG/docs, aggregate `npm run quality`, installed
+hosts and native-presence qualification under the phase-2 ownership table.
+These are not claimed passed here. Lead integrates this branch; no merge,
+push, rebase, real pairing, live model call or paid call was made.
+
+The implementation commit passed ESLint/Prettier and Gitleaks hooks. To
+honour the no-stash rule, a temporary external npx wrapper adds only
+`--no-stash` to lint-staged; every hook still runs. Its captured post-hook
+staged diff was reread and matches the committed diff exactly. The final
+receipt changes documentation only; its formatting and hooked commit are
+checked separately. Both trees were clean after code verification, before
+this receipt update. Next: lead integration and W's inherited inventory
+refresh plus aggregate/installed-host qualification.
