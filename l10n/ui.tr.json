@@ -3899,6 +3899,7 @@
   "referenceNewTab": "Yeni bir Muse Spark görüşmesini düzenleyici sekmesinde aç.",
   "referenceFocus": "Klavye odağını sohbet girişi ile düzenleyici arasında taşı.",
   "referenceTasks": "Bu görüşmenin görevlerini ayrı bir düzenleyici sekmesinde aç.",
+  "referenceDevices": "Open the Devices tab to link this editor with your other devices.",
   "referenceDiagnostics": "Yerel arka uç ve uzantı tanılama bilgilerini göster.",
   "referenceReport": "Kaydetmeden veya göndermeden önce temizlenmiş sorun raporunu önizle.",
   "referenceTerminal": "Muse Code CLI’yi düzenleyicinin terminalinde aç.",

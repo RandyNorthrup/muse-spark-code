@@ -3899,6 +3899,7 @@
   "referenceNewTab": "Új Muse Spark beszélgetés megnyitása szerkesztőlapon.",
   "referenceFocus": "Fókuszváltás a csevegés beviteli mezője és a szerkesztő között.",
   "referenceTasks": "A beszélgetés feladatainak megnyitása külön szerkesztőlapon.",
+  "referenceDevices": "Open the Devices tab to link this editor with your other devices.",
   "referenceDiagnostics": "A helyi háttérrendszer és bővítmény diagnosztikájának megjelenítése.",
   "referenceReport": "A megtisztított hibajelentés előnézete mentés vagy küldés előtt.",
   "referenceTerminal": "A Muse Code CLI megnyitása a szerkesztő termináljában.",

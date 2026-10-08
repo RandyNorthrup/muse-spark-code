@@ -359,6 +359,7 @@ describe('packaging (M26)', () => {
         'native/windows/dictate.ps1',
         'native/windows/capture.ps1',
         'native/windows/MuseSparkDeviceStorage.cs',
+        'native/windows/MuseSparkDeviceWorker.cs',
         'native/darwin/muse-dictate',
       ]),
     )

@@ -219,6 +219,7 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   openInNewTab: { description: { ui: 'referenceNewTab' }, canRun: true },
   focusInput: { description: { ui: 'referenceFocus' }, canRun: false },
   openTasks: { description: { ui: 'referenceTasks' }, canRun: false },
+  openDevices: { description: { ui: 'referenceDevices' }, canRun: true },
   insertMentionReference: { description: { tip: 'mentionFile' }, canRun: false },
   toggleFocusView: { description: { tip: 'focusView' }, canRun: false },
   toggleThinking: { description: { ui: 'referenceThinking' }, canRun: false },

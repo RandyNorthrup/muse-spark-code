@@ -4185,6 +4185,7 @@
   "referenceNewTab": "Otevřít novou konverzaci Muse Spark na kartě editoru.",
   "referenceFocus": "Přepnout zaměření mezi vstupem chatu a editorem.",
   "referenceTasks": "Otevřít úkoly této konverzace na samostatné kartě editoru.",
+  "referenceDevices": "Open the Devices tab to link this editor with your other devices.",
   "referenceDiagnostics": "Zobrazit místní diagnostiku backendu a rozšíření.",
   "referenceReport": "Před uložením nebo odesláním zobrazit očištěné hlášení problému.",
   "referenceTerminal": "Otevřít Muse Code CLI v terminálu editoru.",

@@ -72,6 +72,11 @@ describe('buildWebviewHtml', () => {
     expect(tasks).not.toContain('unsafe-inline')
   })
 
+  it('marks the Devices document with its own surface', () => {
+    const devices = buildWebviewHtml({ ...options, surface: 'devices' })
+    expect(devices).toContain('<body data-native-context-menu="true" data-surface="devices">')
+  })
+
   it('names the document language and embeds the table as data before the bundle (D33)', () => {
     const german = buildWebviewHtml({
       ...options,

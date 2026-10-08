@@ -436,6 +436,7 @@ export const EN = {
   referenceNewTab: 'Open a new Muse Spark conversation in an editor tab.',
   referenceFocus: 'Move keyboard focus between the chat input and editor.',
   referenceTasks: 'Open this conversation’s task list in a separate editor tab.',
+  referenceDevices: 'Open the Devices tab to link this editor with your other devices.',
   referenceDiagnostics: 'Show local backend and extension diagnostics.',
   referenceReport: 'Preview a scrubbed problem report before saving or sending it.',
   referenceTerminal: 'Open the Muse Code CLI in the editor’s terminal.',

@@ -131,6 +131,12 @@ export const EXTENSION_QUALIFIED_ID = `${EXTENSION_PUBLISHER}.${EXTENSION_NAME}`
 export const CHAT_VIEW_ID = 'museSpark.chatView'
 export const CHAT_PANEL_VIEW_TYPE = 'museSpark.chatPanel'
 export const TASKS_PANEL_VIEW_TYPE = 'museSpark.tasksPanel'
+// M100 phase 2 (lane W): the Devices tab's view type, serving the `devices`
+// webview surface through the lazily loaded Devices bundle.
+export const DEVICES_PANEL_VIEW_TYPE = 'museSpark.devicesPanel'
+// Machine-scoped Devices storage (pairing store, attempt journal) under the
+// editor's global storage. Devices starts off; see D80.
+export const DEVICES_STORAGE_DIR = 'devices'
 export const TASKS_MOVE_TO_WINDOW_COMMAND = 'workbench.action.moveEditorToNewWindow'
 // `contributes.walkthroughs[0].id`, opened as `<publisher>.<name>#<id>`.
 export const WALKTHROUGH_ID = 'museSpark.gettingStarted'
@@ -163,6 +169,7 @@ export const COMMAND_IDS = {
   openInSidebar: 'museSpark.openInSidebar',
   openInNewTab: 'museSpark.openInNewTab',
   openTasks: 'museSpark.openTasks',
+  openDevices: 'museSpark.openDevices',
   focusInput: 'museSpark.focusInput',
   insertMentionReference: 'museSpark.insertMentionReference',
   toggleFocusView: 'museSpark.toggleFocusView',
@@ -3475,6 +3482,10 @@ export const SEARCH_WORKER_FILE = 'searchWorker.js'
 // loaded when that backend first starts, not at activation.
 export const CONVERSATION_BUNDLE_FILE = 'conversation.js'
 export const MODEL_API_BUNDLE_FILE = 'modelApi.js'
+// The Devices bundle (M100, PLAN.md D6), beside dist/extension.js: pairing,
+// the pinned channel, the receiver and the worker drivers, loaded on the
+// first Devices host message, not at activation.
+export const DEVICES_BUNDLE_FILE = 'devices.js'
 // The plan reader's bundle (M79, PLAN.md D6), beside dist/extension.js:
 // the panel's Markdown parser, loaded on the first plan action.
 export const PLAN_MARKDOWN_BUNDLE_FILE = 'planMarkdown.js'

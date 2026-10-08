@@ -4185,6 +4185,7 @@
   "referenceNewTab": "Открыть новый разговор Muse Spark во вкладке редактора.",
   "referenceFocus": "Переключить фокус между полем чата и редактором.",
   "referenceTasks": "Открыть задачи этого разговора в отдельной вкладке редактора.",
+  "referenceDevices": "Open the Devices tab to link this editor with your other devices.",
   "referenceDiagnostics": "Показать локальную диагностику бэкенда и расширения.",
   "referenceReport": "Просмотреть очищенный отчёт перед сохранением или отправкой.",
   "referenceTerminal": "Открыть CLI Muse Code в терминале редактора.",
