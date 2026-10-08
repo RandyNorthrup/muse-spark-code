@@ -2378,7 +2378,12 @@ async function durableAnswerHarness(options: HarnessOptions = {}) {
     })
     save.mockClear()
   }
-  return { h, store, save, registries, isSent, seed }
+  const prepare = async (client: acp.ClientContext) => {
+    const { sessionId } = await start(client)
+    await seed(sessionId)
+    return { sessionId, session: h.host.sessions[0]! }
+  }
+  return { h, store, save, registries, isSent, seed, prepare }
 }
 
 describe('FIXM116I4 model-start answer commits', () => {
@@ -2432,9 +2437,7 @@ describe('FIXM116I4 model-start answer commits', () => {
     async (ending) => {
       const f = await durableAnswerHarness()
       await f.h.run(async (client) => {
-        const { sessionId } = await start(client)
-        await f.seed(sessionId)
-        const session = f.h.host.sessions[0]!
+        const { sessionId, session } = await f.prepare(client)
         session.sendTurn.mockResolvedValueOnce({ turnId: 'queued-1', disposition: 'queued' })
         const response = prompt(client, sessionId)
         const outcome = didRequestSucceed(response)
@@ -2487,9 +2490,7 @@ describe('FIXM116I4 model-start answer commits', () => {
     async (disposition) => {
       const f = await durableAnswerHarness()
       await f.h.run(async (client) => {
-        const { sessionId } = await start(client)
-        await f.seed(sessionId)
-        const session = f.h.host.sessions[0]!
+        const { sessionId, session } = await f.prepare(client)
         if (disposition === 'failed')
           session.sendTurn.mockRejectedValueOnce(new Error('fake refusal'))
         else
