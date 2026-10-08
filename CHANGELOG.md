@@ -156,6 +156,20 @@ happened, not what was planned; superseded entries are kept.
   ON cannot undo a blocked verdict, a later OFF wins, failed persistence is
   reported with a fresh read, and revoked policy settles startup to off.
   No new UI strings; no real socket opens in tests.
+- Verify the unshipped Devices dispatch inputs against a content-addressed
+  manifest before start, refusing missing or mismatched items and bases, and
+  advertise measured device capabilities with live pressure for placement.
+  No listener or second device is added.
+- Run unshipped Devices work on Windows, Linux and macOS worker hosts behind
+  one admission contract: per-process policy on Windows with an explicit
+  recorded environment and structured exit-code-plus-JSON results, systemd
+  unit supervision on Linux, and supervised whole-coalition enforcement on
+  macOS; unenforceable caps refuse before activation. No production wiring
+  or installed host is registered by this change.
+- Bind the unshipped Devices pairing store and attempt journal to
+  OS-protected storage, with owner-only ACLs and a bounded storage helper
+  owned by the Devices bundle; without a platform protection the stores
+  refuse to open. No user key material moves.
 
 ### Fixed
 

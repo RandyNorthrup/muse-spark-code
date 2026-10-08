@@ -5018,3 +5018,79 @@ The final follow-up changes only this certification record. The temporary
 clone is removed after verification; the receipts remain under
 `$TMPDIR/e3race-proof`. No push, merge, paid call or live model
 call was made. Work finished within the brief's 40-minute time box.
+
+## Lead integration: final phase 2 join (M100JOIN, 2026-10-08)
+
+Kubuntu rig, worktree `/home/randy/lanes/M100JOIN`, branch
+`m100/p2-int-lead2` from `2a0636760` (phase 2 with lanes 0, C, D, A, R).
+Seven `git merge --no-ff` steps in brief order, tips fetched from
+`~/gates/muse.git` as `refs/heads/m100join/*`. Model attempts **0**,
+inference spend **0**; no push, no rebase. Hooks (lint-staged, gitleaks)
+ran on every merge commit; each staged diff was re-read after the hooks.
+
+### Merges
+
+| #   | Merge commit | Lane tip                                                  | Conflicts and resolution                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| --- | ------------ | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `631884576`  | V `90e65e308` verified inputs                             | `m100-phase2.md` only: both sides appended sections; kept both (integrated sections, then lane V). New `capability.ts`/`inputManifest.ts` plus 3 test files merged clean.                                                                                                                                                                                                                                                                                                                                        |
+| 2   | `1e773be3d`  | H caps `b0fe91da3` Windows driver + attempt-caps contract | `m100-phase2.md` only (kept both). `deviceReceiver.ts` auto-merged lane A's `bindDeviceReceiverActionGrants`/`finishAdmission` with H's `refused`-retirement rework; both symbols verified present.                                                                                                                                                                                                                                                                                                              |
+| 3   | `b0322726d`  | H linux `21147c4cf`                                       | None: clean ort merge (built on h-caps).                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| 4   | `ff30ed5fa`  | H darwin `8aa69e1cb`                                      | `m100-phase2.md` (kept both: Linux continuations, then macOS). `deviceWorkerHost.ts`: Linux's `deviceWorkerDriverForPlatform` vs macOS's `selectDeviceWorkerDriver` — kept BOTH functions, so every assertion on both sides passes (`selectDeviceWorkerDriver('linux')` still throws per the Darwin test; `deviceWorkerDriverForPlatform(..., 'linux')` still selects per the Linux test). W must pick one selector at wiring time. Darwin's `failure: capacity` outcome/tombstone schema additions auto-merged. |
+| 5   | `8cee7c3f1`  | U `a0a5466ce` Devices UI                                  | `CHANGELOG.md` (kept H-darwin Fixed lines, then U lines), `PLAN.md` phase-2 status + §7 (kept HM lifecycle notes, then U repair notes), `m100-phase2.md` (kept both). All view/panel code auto-merged.                                                                                                                                                                                                                                                                                                           |
+| 6   | `03e5f4416`  | win-storage `8218ab946`                                   | `m100-phase2.md` (kept both). `host-api.md`: HEAD (child_process 16/crypto 95) vs lane (17/93) — resolved by regenerating with `node scripts/check-host-api.mjs --write` (ground truth wins; see below). `deviceIntegration.test.ts` `host()` helper: kept BOTH behaviours — win-storage's `deviceStorage()` + `privateDeviceRoot` + protected `DeviceStore.create` AND U's `isReady` handshake flag.                                                                                                            |
+| 7   | `a43169c3c`  | e3race `fab90e81c` test-only race fix                     | `m100-phase2.md` only (kept both). Fixture/test changes auto-merged.                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+
+### Regenerated files (reviewed, never hand-edited)
+
+- `docs/ide-compatibility/host-api.md` via `node scripts/check-host-api.mjs
+--write`: exit 0, 0 problems. This resolves the six W-owned mismatches the
+  macOS run recorded (H-linux list: `child_process` 16 -> 18, `crypto`
+  93 -> 95, `fs` 44 -> 45, `fs/promises` 74 -> 77, `path` 125 -> 128,
+  `string_decoder` 1 -> 2, `timers/promises` 15 -> 17). Final joined counts:
+  `child_process` **20**, `crypto` **99**, `fs` **45**, `fs/promises` **79**,
+  `net` **16** (new row), `path` **131**, `string_decoder` **2**,
+  `timers/promises` **18**. Totals unchanged: 366 VS Code APIs, 43
+  vscode-importing files, 28 Node built-ins, 70 theme variables.
+- Reference: `npm run check:reference` current (61 features, Devices
+  reference 18 entries) — no new feature/setting/command, no regeneration.
+- `CHANGELOG.md`: hand-added Unreleased lines for lanes V, H and
+  win-storage, all marked unshipped Devices work with no user-visible claim
+  (U and H-darwin brought their own lines). e3race is test-only and gets no
+  product line. Lanes C/A/R lines remain the earlier lead scope.
+
+### Test counts per merge (default repo timeouts, `--maxWorkers=3`)
+
+This container's `/` ancestry is uid-nobody (65534), so every test that opens
+a real `AttemptJournal`/`DeviceStore` with the production ownership check
+fails with `DeviceJournalError: storage` — including phase-1 suites on the
+unmerged base (`attemptJournal.test.ts` 29/29 fail on `2a0636760`). No source
+change can fix that here; weakening the check is out of scope. Every
+journal-dependent suite below was therefore verified by failure-set parity:
+same tests run on the unmerged lane tip in a sister worktree, and the merged
+tree fails exactly the same set (names compared, only duration suffixes
+differ). Suites that do not touch a real journal run green directly.
+
+| Merge       | Suites run                                                                                                                                                         | Merged result                                                                                                                                                  | Unmerged-tip parity                                                                                |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| V           | deviceCapability, deviceInputManifest, workspacePath                                                                                                               | 130 passed, 1 skipped                                                                                                                                          | n/a (clean merge, green)                                                                           |
+| H caps      | deviceWorkerHost, deviceWorkerHostNative, actionGrants                                                                                                             | host 31 passed + 4 env-fail; native 7 win32-skipped; grants 80 env-fail                                                                                        | host tip 4 failed / 31 passed, identical                                                           |
+| H linux     | deviceWorkerLinux                                                                                                                                                  | 24 passed + 6 env-fail (all `DeviceJournalError` in receiver-integration cases; all 11 native Linux cases among the 24 passes)                                 | tip 6 failed / 24 passed, identical                                                                |
+| H darwin    | deviceWorkerDarwin, deviceWorkerHost, deviceWorkerLinux                                                                                                            | darwin-only 432 passed, 31 skipped, 0 failed; combined 489 passed + 12 env-fail + 31 skipped                                                                   | tip host+linux 6 failed / 33 passed, identical                                                     |
+| U           | devicesPhase2Views, devicesQrLoading, devicesReady, devicePanel, devicesPanel, DevicesApp, devicesPhase2Harness, webviewBundles, deviceIntegration                 | views/panels 78 passed; harness file-level fail (Chrome cannot launch in this sandbox: `socketpair: Operation not permitted`); integration 12 env-fail         | tip harness fails identically; tip integration 12 failed, identical                                |
+| win-storage | windowsStorageProtection, deviceStore, deviceDiscoverySwitch, deviceMdns, devicePairingAdapter, manifest, runtimeChatGptPackage, usagePackaging, deviceIntegration | storage+store 58 passed; D suites 83 passed; packaging 47 passed + 2 env-fail (`npm pack` EROFS: read-only `~/.npm` cache in sandbox); integration 12 env-fail | ws tip integration 11 failed; the +1 on the join is U's readiness test (env-fail on the U tip too) |
+| e3race      | deviceReceiver, deviceRecovery                                                                                                                                     | 86 env-fail                                                                                                                                                    | tip 86 failed; failure-name sets identical                                                         |
+
+### Final gates on the joined tree (this worktree)
+
+| Gate                                    | Exit | Result                                                                |
+| --------------------------------------- | ---- | --------------------------------------------------------------------- |
+| `node scripts/check-host-api.mjs`       | 0    | 0 problems (regenerated)                                              |
+| `npm run check:reference`               | 0    | current, Devices 18 entries                                           |
+| `node scripts/check-l10n.mjs`           | 0    | 14 UI + 14 usage tables, 197 manifest strings, 1012 files, 0 problems |
+| five typechecks                         | —    | final-gate run below                                                  |
+| eslint `--max-warnings=0` changed files | —    | final-gate run below                                                  |
+| `npm run format:check`                  | —    | final-gate run below                                                  |
+| knip / jscpd / cycles / build / quality | —    | final-gate run below                                                  |
+
+Devices cap note: win-storage moved the devices cap to 125 KiB under D6
+(`scripts/check-bundle-size.mjs`); the production build re-measures below.

@@ -35959,6 +35959,21 @@ caps, assertion levels and case deadlines unchanged. No lane blocker;
 W retains real-host facts, approved encoder install and aggregate qualification.
 Full receipts: lane U in `docs/certification/m100-phase2.md`.
 
+**Lead integration: final phase 2 join (2026-10-08, kubuntu).** Branch
+`m100/p2-int-lead2` from `2a0636760` merges the seven accepted tips with
+`git merge --no-ff` in order: lane V `90e65e308`, lane H caps `b0fe91da3`,
+Linux `21147c4cf`, macOS `8aa69e1cb`, lane U `a0a5466ce`, Windows storage
+`8218ab946`, e3race `fab90e81c`. Shared-file reconciliations keep both
+sides: `deviceWorkerHost.ts` carries both the Linux and macOS driver
+selectors (W picks one at wiring), `deviceIntegration.test.ts` carries both
+protected storage and the readiness flag, host-api counts are regenerated.
+CHANGELOG Unreleased lines added for V, H and storage as unshipped Devices
+work; e3race is test-only. Full receipts, merges table, test counts and gate
+exits: `docs/certification/m100-phase2.md` ("Lead integration: final phase
+2 join"). Remaining for W: production wiring, one selector, aggregate
+`npm run quality`, installed four-device qualification. Remaining for K:
+owner binding and vault path (not in this join).
+
 **M100P2BASE integration scope (2026-10-07, macmini).** Merge only
 `23c67925f` into release head `9d1ab33c3` with `--no-ff`, preserving both
 branches and 0.15.0. Rebuild generated inventories. Verify committed work
