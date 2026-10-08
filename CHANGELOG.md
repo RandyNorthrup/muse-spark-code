@@ -9,6 +9,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Share ACP preparation cancellation and exact USD display helpers; align merged paid-ledger tests with the exact decimal contract.
+- Batch staged-file tool arguments below the Windows command-shim limit while retaining every hook check.
+
 - Include lazy account and developer surfaces in the browser English regression probe while preserving deferred fallback checks.
 
 - Remove the obsolete compact Node reference build plugin and its stale test; the production reference uses the current generated data loader.

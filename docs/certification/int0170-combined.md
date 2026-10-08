@@ -184,3 +184,26 @@ use repository deadlines, hooks remain enabled, no merge or push.
   tree: 533 rules, 3,027 tracked targets, zero findings. No new ignore or
   exception. Fresh-clone replay follows.
 - Item 6: plain knip exits 0 (two existing configuration hints).
+
+- Item 5: baseline jscpd reports exactly four clones (27 lines). ACP cancel
+  and release share cancelPreparing; exact media USD formatting reuses
+  formatUsdAtPrecision; elicitation uses the existing host fixture defaults;
+  paidDailyBudget shares its half-dollar settlement. The latter owner also
+  restores exact decimal ledger assertions after the combined API merge,
+  preserving numeric UI projections and the token attempt's reserved request
+  in threshold accounting. Whole paid owner passes 36/36; ACP owner passes
+  142/142; USD and elicitation owners pass alongside the browser probe (31 total).
+- Item 9: G76 records the 123-file cmd.exe failure. The hook now gives
+  lint-staged --max-arg-length 6000, retaining concurrent=1 and every original
+  ESLint, Prettier, stylelint and gitleaks task. The real lint-staged fixture
+  passes all 123 long paths through multiple batches without omission or
+  duplication. Before the fix its guard fails on the missing batch bound.
+  Native Windows execution remains a hosted integration receipt.
+
+Intentional controls (complete owner files, repository timeouts): changed the
+Schedule Prompt view to list; removed validated-zone reuse; pointed the usage
+fixture at an absent source; removed the hook argument bound; removed the
+probe's account/developer imports; duplicated Help's section ID. Each run
+exits 1 on its intended assertion/build failure. All six sources restored
+SHA-256-exact before final verification. Detailed hashes follow in the final
+receipt. The restored shared batch passes 168 tests.

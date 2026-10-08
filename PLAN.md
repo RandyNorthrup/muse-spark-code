@@ -18662,7 +18662,7 @@ numbers. Research: `docs/certification/m97-research.md`.
   artifacts and the hosted download inventory before universal packaging can
   be qualified; retain both strict guards and every budget.
 
-INT0170B integration question (2026-10-07): the M115 v2 panel bridge exists but is not passed from extension activation to the conversation controller. Its current factory opens the standalone runtime binding, whose OS credential/host lifetime differs from VS Code SecretStorage and the active editor session. Binding that factory directly would select the wrong owner/credential adapter. The combined editor binding requires a scoped host adapter; this lane records the gap instead of claiming v2 editor delivery is complete. The existing schedule path and its tests remain.
+INT0170B integration question (2026-10-07), narrowed by LEFT017 (2026-10-08): the three M115 editor commands now use the lazy panel bridge. Inspection of createRuntimeSchedules/runtimeEntry.ts proves that its message/control factory opens the shared schedule store, not an OS credential store, backend or model session. Panel requests remain paid-disabled; no workspace hold/polling lifetime is acquired from VS Code. Its unavailableTarget refusal remains explicit. Binding actual scheduled editor delivery, background ownership and SecretStorage credentials still requires the scoped editor host adapter; this command repair does not certify unattended editor delivery. The existing M52 path remains.
 
 - **Q-TRAIN15G-DIET1 (2026-10-06):** main’s exact 733.8/32.1-KiB
   regression capture does not fit the integrated train, although unchanged
@@ -20354,11 +20354,11 @@ repair window. Keep all assertions, caps, scanner rules and deadlines.
 - [ ] Verify unique Help IDs and resolve all accessibility readiness failures.
 - [x] Resolve SAST research, report-root and companion-template findings (already repaired in base; exact script exits 0).
 - [ ] Repair visual source reconstruction; refresh real audit and scene coverage.
-- [ ] Share duplicate production and test helpers; zero jscpd clones.
+- [x] Share duplicate production and test helpers; four baseline clones repaired (final gate follows).
 - [x] Remove unused compactNodeReference after demonstrating its obsolete test fails.
 - [x] Cover account English in the browser probe's actual entry graph.
 - [ ] Profile and repair the 10,000-fire journal without changing its 240 s limit.
-- [ ] Add G76 and bound lint-staged argument batches for Windows command shims.
+- [x] Add G76 and bound lint-staged argument batches for Windows command shims.
 - [ ] Replay affected tests and required gates in a fresh npm-ci clone; record
       exact outcomes in docs/certification/int0170-combined.md.
 
