@@ -13,6 +13,7 @@ import {
   ignoreClosingError,
   ModelApiError,
   parseJsonResponse,
+  readBoundedText,
   redactModelApiError,
   redactStreamDiagnostics,
   type ConfirmedModelRequest,
@@ -333,7 +334,9 @@ export class ModelApiClient implements TransportProviderClient {
         void response.body?.cancel().catch(ignoreClosingError)
         throw new Error(UI_TEXT.modelApiStatusUnavailable)
       }
-      return modelApiStatusSchema.parse(await response.json())
+      // Bounded like every other Model API body: an oversized status page is
+      // cancelled at the cap instead of being buffered whole before zod runs.
+      return modelApiStatusSchema.parse(JSON.parse(await readBoundedText(response)))
     } catch {
       // Shared scrubber plus an allowlist: provider prose, identifiers, stack and causes never cross.
       const failure = new ModelApiError(

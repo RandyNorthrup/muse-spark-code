@@ -296,6 +296,31 @@ export class PaidUseConsent {
     }
   }
 
+  /** A search "always" that cannot be kept: logged, and this use goes ahead once. */
+  private warnQuoteNotKept(error: unknown): void {
+    this.deps.log.warn(
+      `Paid search quote could not be kept: ${error instanceof Error ? error.message : String(error)}`,
+    )
+  }
+
+  /**
+   * The approval order a search "always" is kept under. A store that cannot
+   * hand one out (read-only or corrupt) is treated like one that cannot save
+   * the grant: none is returned, so the approved use goes ahead once and the
+   * next one asks again.
+   */
+  private async searchApprovalOrder(
+    quote: PaidQuote,
+    prior: PaidGrant | undefined,
+  ): Promise<number | undefined> {
+    try {
+      return await (this.deps.nextQuoteOrder?.() ?? this.authority.nextOrder(quote, prior))
+    } catch (error: unknown) {
+      this.warnQuoteNotKept(error)
+      return undefined
+    }
+  }
+
   private isEnabled(feature: PaidFeature): boolean {
     return feature === 'judge'
       ? (this.deps.isJudgeEnabled?.() ?? this.deps.isOn(feature))
@@ -436,14 +461,15 @@ export class PaidUseConsent {
     if (answer === 'once' && isWindowUse) this.searchWindowOnce.add(windowKey)
     const approvalOrder =
       answer === 'always' && this.deps.canRemember()
-        ? await (this.deps.nextQuoteOrder?.() ?? this.authority.nextOrder(quote, prior))
+        ? await this.searchApprovalOrder(quote, prior)
         : undefined
     if (!isCurrent()) return undefined
+    const isKept = approvalOrder !== undefined && this.deps.canRemember()
     const saving = this.authority.dispatch({
       type: 'answer',
       grant: tag,
-      ...(approvalOrder !== undefined && { approvalOrder }),
-      answer: answer === 'always' && !this.deps.canRemember() ? 'once' : answer,
+      ...(isKept && { approvalOrder }),
+      answer: answer === 'always' && !isKept ? 'once' : answer,
     })
     for (const effect of saving) {
       if (effect.type !== 'save') continue
@@ -456,9 +482,7 @@ export class PaidUseConsent {
           isOk = true
         }
       } catch (error: unknown) {
-        this.deps.log.warn(
-          `Paid search quote could not be kept: ${error instanceof Error ? error.message : String(error)}`,
-        )
+        this.warnQuoteNotKept(error)
       }
       if (!isCurrent()) return undefined
       this.authority.dispatch({ type: 'saved', grant: effect.grant, ok: isOk })

@@ -584,6 +584,12 @@ describe('tiered CI (CIFLOW)', () => {
     }
     expect(job('accessibility')).toContain('runs-on: ubuntu-latest')
     expect(job('accessibility')).toContain('run: npm run test:a11y\n')
+    expect(job('accessibility')).toContain('run: npm run test:legal-a11y\n')
+    // `npm run quality` runs both accessibility suites CI runs, so the local
+    // gate a commit is proposed on never drops one.
+    expect(manifest.scripts.quality.split(' ')).toEqual(
+      expect.arrayContaining(['run-s', 'quality:gates', 'test:a11y', 'test:legal-a11y']),
+    )
     expect(job('integration')).toContain('os: [ubuntu-latest, windows-latest]')
     expect(job('packages')).toContain('name: muse-spark-code-vsix')
     expect(job('packages')).toContain('name: muse-spark-code-acp')

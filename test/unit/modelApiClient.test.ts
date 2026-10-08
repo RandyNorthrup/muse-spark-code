@@ -27,6 +27,7 @@ import {
   MODEL_API_STREAM_IDLE_MS,
   PACING_ADMISSION_TIMEOUT_MS,
   PACING_WINDOW_MS,
+  PROVIDER_HTTP_BODY_MAX_BYTES,
   UI_TEXT,
 } from '../../src/shared/constants'
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -619,6 +620,37 @@ describe('M106 client pacing and retry boundaries', () => {
       UI_TEXT.modelApiStatusUnavailable,
     )
     expect(fetch).toHaveBeenCalledOnce()
+  })
+
+  it('refuses an oversized streamed status body at the cap without buffering it all', async () => {
+    const chunkBytes = 1_048_576
+    const offeredBytes = PROVIDER_HTTP_BODY_MAX_BYTES * 4
+    let pulledBytes = 0
+    const cancel = vi.fn()
+    const stream = new ReadableStream<Uint8Array>(
+      {
+        pull(controller) {
+          if (pulledBytes >= offeredBytes) {
+            controller.close()
+            return
+          }
+          pulledBytes += chunkBytes
+          // JSON whitespace: only the size, never the syntax, can refuse it.
+          controller.enqueue(new Uint8Array(chunkBytes).fill(0x20))
+        },
+        cancel,
+      },
+      { highWaterMark: 0 },
+    )
+    const t = setup(null, () => Promise.resolve(new Response(stream)))
+    await expect(t.client.readServiceStatus()).rejects.toMatchObject({
+      name: 'ModelApiError',
+      message: UI_TEXT.modelApiStatusUnavailable,
+      kind: 'service_status',
+    })
+    expect(cancel).toHaveBeenCalledOnce()
+    expect(pulledBytes).toBeGreaterThan(PROVIDER_HTTP_BODY_MAX_BYTES)
+    expect(pulledBytes).toBeLessThanOrEqual(PROVIDER_HTTP_BODY_MAX_BYTES + 2 * chunkBytes)
   })
 
   it('taps captured headers before reading streamed and token-count bodies', async () => {

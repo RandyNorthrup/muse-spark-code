@@ -7,6 +7,11 @@ import {
   paidUseQuestion,
   type PaidUseAnswer,
 } from '../../src/core/paid/paidConsent'
+import {
+  latestPaidGrant,
+  paidAuthorityKey,
+  type PaidGrant,
+} from '../../src/core/paid/paidAuthority'
 import { UI_TEXT, type PaidFeature } from '../../src/shared/constants'
 
 import { FakeLogOutputChannel } from './helpers/fakes'
@@ -36,6 +41,39 @@ function consentWith(
     log: new FakeLogOutputChannel(),
   })
   return { consent, ask, on, writes, grants: () => grants }
+}
+
+/** A search consent over an in-memory quote store whose order or save step can be broken. */
+function quoteConsentWith(store: {
+  nextQuoteOrder?: () => number | Promise<number>
+  writeQuoteGrant?: (grant: PaidGrant) => Promise<void>
+}) {
+  const log = new FakeLogOutputChannel()
+  const kept: PaidGrant[] = []
+  const ask = vi.fn(() => Promise.resolve<PaidUseAnswer>('always'))
+  const consent = new PaidUseConsent({
+    isOn: () => true,
+    canRemember: () => true,
+    readGrants: () => new Set(),
+    writeGrants: () => Promise.resolve(),
+    ask,
+    quoteGeneration: () => 'stored',
+    readQuoteGrant: (quote) =>
+      latestPaidGrant(
+        kept.filter((grant) => paidAuthorityKey(grant.quote) === paidAuthorityKey(quote)),
+      ),
+    nextQuoteOrder: store.nextQuoteOrder ?? (() => Promise.resolve(kept.length + 1)),
+    writeQuoteGrant:
+      store.writeQuoteGrant ??
+      ((grant) => {
+        kept.push(grant)
+        return Promise.resolve()
+      }),
+    log,
+  })
+  const listener = vi.fn()
+  consent.onDidChange(listener)
+  return { consent, ask, log, kept, listener }
 }
 
 const SEARCH: PaidUseRequest = { feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() }
@@ -152,6 +190,54 @@ describe('PaidUseConsent (M58)', () => {
       'Paid use of webSearch: "always" could not be kept, so it is allowed once: storage is full',
     )
     expect(log.info).toHaveBeenLastCalledWith('Paid use of webSearch: allowed once')
+  })
+
+  describe('a quoted search "always" its store cannot keep (0.16.0 review)', () => {
+    it('keeps a working store’s "always", so the next use asks nothing', async () => {
+      const t = quoteConsentWith({})
+      const first = quotedSearch('0.01')
+      expect(await t.consent.allows(first)).toMatchObject({ id: first.quote.id })
+      expect(t.kept).toHaveLength(1)
+      expect(t.listener).toHaveBeenCalledOnce()
+      const second = quotedSearch('0.01', 'model-a', 'second')
+      expect(await t.consent.allows(second)).toMatchObject({ id: second.quote.id })
+      expect(t.ask).toHaveBeenCalledOnce()
+      expect(t.log.warn).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      [
+        'the approval order is refused',
+        { nextQuoteOrder: () => Promise.reject(new Error('read-only profile')) },
+      ],
+      [
+        'the approval order throws',
+        {
+          nextQuoteOrder: (): number => {
+            throw new Error('read-only profile')
+          },
+        },
+      ],
+      [
+        'the grant cannot be saved',
+        { writeQuoteGrant: () => Promise.reject(new Error('read-only profile')) },
+      ],
+    ])('lets the approved use go ahead once when %s, and asks again', async (_, store) => {
+      const t = quoteConsentWith(store)
+      const first = quotedSearch('0.01')
+      expect(await t.consent.allows(first)).toMatchObject({ id: first.quote.id })
+      expect(t.consent.authority.canSpend(first.quote)).toBe(true)
+      expect(t.log.warn).toHaveBeenCalledExactlyOnceWith(
+        'Paid search quote could not be kept: read-only profile',
+      )
+      expect(t.log.info).toHaveBeenLastCalledWith('Paid use of webSearch: allowed once')
+      expect(t.kept).toEqual([])
+      expect(t.listener).not.toHaveBeenCalled()
+      expect(t.consent.remembered()).toEqual([])
+      const second = quotedSearch('0.01', 'model-a', 'second')
+      expect(await t.consent.allows(second)).toMatchObject({ id: second.quote.id })
+      expect(t.ask).toHaveBeenCalledTimes(2)
+    })
   })
 
   it('refuses a feature that is off without asking', async () => {
