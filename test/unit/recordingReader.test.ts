@@ -1,4 +1,5 @@
 import { ESLint } from 'eslint'
+import tseslint from 'typescript-eslint'
 import * as ts from 'typescript'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -59,12 +60,15 @@ function unrecordedMemory(reader: RecordingReader) { return reader.run(recordOpe
   }
 }
 
+// Actual TypeScript semantic program measured 11.177 s under Node 22 coverage (PLAN §8).
+const READER_BRAND_COMPILE_TIMEOUT_MS = 20_000
 beforeAll(() => {
   Object.assign(brandProbe, compileReaderBrand())
-})
+}, READER_BRAND_COMPILE_TIMEOUT_MS)
 
 const source = { kind: 'tool', callId: 'test-reader' } as const
-const eslint = new ESLint()
+// Syntax boundary selectors use the real config; the compiler above owns type checks.
+const eslint = new ESLint({ overrideConfig: tseslint.configs.disableTypeChecked })
 beforeAll(async () => {
   await eslint.lintText('export {}', { filePath: 'src/core/context/workspaceContext.ts' })
 })

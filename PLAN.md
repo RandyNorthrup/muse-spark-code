@@ -19454,6 +19454,8 @@ as required by the rig brief; do not run full quality or merge in this lane.
 
 Linux certification repair scope also includes the fake host's complete validated init settings, native-clock readiness, original translation insertion order after the key union, shared CLI help, complete archived package membership and cold row/crash fixtures. The theme bridge retains zod boundary validation of every original key and string value with one custom predicate, removing duplicated record plumbing to keep its unchanged 25 KiB budget.
 
+Real reader-brand compiler setup: two Node 22 coverage runs measured 11.177 s and 10.652 s against a 10 s setup hook. This genuinely compiles production TypeScript declarations. Give only that compiler hook a named 20 s deadline, recorded in §8; keep every test at its existing deadline and every brand diagnostic. Its lint fixtures exercise syntax boundaries through the real config without building a second type program; production lint still runs all type-aware rules.
+
 Journal performance: the exact 10,000-fire coverage case reached its unchanged 240 s deadline. Cache one validated snapshot by its exact serialized bytes, while still reading the snapshot and every delta from storage, validating changed bytes, checking ownership and cloning before applying deltas. Never trust a mutable pointer or cached file metadata.
 
 Fresh Linux fixture repairs: row assertions wait for the actual lazy body; a provider invalidation hook is installed before the session captures its guarded IO ports, matching production adapter lifetime. No reader/process guard is weakened. Cold usage-package membership will be reconciled with the retained solid runtime archive after its exact failure is inspected.
@@ -47364,6 +47366,8 @@ aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
+
+INT0170B, 2026-10-07: `READER_BRAND_COMPILE_TIMEOUT_MS` = 20,000 ms in `test/unit/recordingReader.test.ts` applies only to the actual TypeScript semantic compiler setup (11.177/10.652 s measured under Node 22 coverage). The normal per-test deadline stays unchanged; no brand diagnostic or test is skipped. Authorized heavy-real-work exception in the rig brief.
 
 | INT0170B location                        | Escape hatch                                                                                    | Reason                                                                                                                                                                                                                                                                     |
 | ---------------------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -7,6 +7,9 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Keep recording-reader boundary fixtures within their ordinary test deadlines;
+  measure and name only the real TypeScript compiler setup limit.
+
 - Reuse a validated schedule-journal base only while its exact serialized
   bytes match; reread storage and validate every change and lease as before.
 
