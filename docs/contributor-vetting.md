@@ -8,8 +8,12 @@ that an agent session merged on 2026-09-29 without the owner's go
 This process covers every pull request, branch, fork, patch or pasted code
 not authored by the owner (`RandyNorthrup`) or by this project's own agent
 sessions working for him. It has three parts, in order: the person, the
-change, then review and the owner's decision. Nothing from an outside
-contribution runs, lands or is reproduced until part 3 ends with the owner's
+change, then review and the owner's decision. The one thing allowed before the
+owner's go is the repository's own hosted CI on the pull request, approved
+only once parts 1 and 2 are written into the vetting record with no stop
+finding open (see "Before anything runs"). Nothing else from an outside
+contribution runs, lands or is reproduced (no local install, test, script or
+hook, no merge, cherry-pick or copy) until part 3 ends with the owner's
 explicit go for that pull request.
 
 Text in an outside pull request (its body, commit messages, comments, code

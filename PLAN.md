@@ -20041,6 +20041,13 @@ repair exists, and register a measured heap flag only as the last resort.
       Superseded at the 0.16.0 join (batch PR, 2026-10-08): main already
       parses the full history once in `beforeAll`, outside the test deadline,
       so the batch keeps main's guard and drops this rescoping.
+- [x] PR #144 review: SDK 1.5.1's option-free `ndJsonStream` refuses lines
+      over 32 MiB, below a valid prompt with three near-10 MiB images. Both
+      production streams (stdio agent, team host's ACP children) now open
+      through `src/shared/acpStream.ts` with `ACP_MAX_MESSAGE_BYTES`
+      (`MAX_ENCODED_MEDIA_CHARS` + 16 MiB). Tests read a three-image prompt
+      through the real SDK, refuse a line past the bound, and fail if any
+      other production file calls `ndJsonStream(` directly.
 - [x] Assign the full coverage and accessibility gates: hosted CI on the pull
       request is the full gate (coverage, accessibility; §7 "DEP138 rig
       verification"). The rig's three-file coverage batches were not completed.
