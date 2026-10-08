@@ -1,4 +1,5 @@
 import * as z from 'zod/mini'
+import { devicePresenceRelaySchema } from './actionGrants'
 import { DEVICE_LIMITS } from '../../shared/constants'
 import {
   DEVICE_STREAMS,
@@ -20,6 +21,8 @@ import {
 // authorization and scrubbing still belong to the receiving application.
 const messageSchema = z.union([
   deviceChannelSchema,
+  // Lane A's sole added carriage member; control is the default stream.
+  z.strictObject({ kind: z.literal('presenceRelay'), relay: devicePresenceRelaySchema }),
   z.strictObject({ kind: z.literal('frame'), frame: deviceFrameSchema }),
   z.strictObject({ kind: z.literal('capability'), capability: deviceCapabilitySchema }),
   z.strictObject({ kind: z.literal('grantRequest'), request: deviceGrantRequestSchema }),

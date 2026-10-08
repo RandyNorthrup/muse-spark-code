@@ -15,6 +15,9 @@ import {
   deviceDispatchSchema,
   isSameAttempt,
   deviceFrameSchema,
+  type DeviceActionGrantPort,
+  type DeviceGrantRequest,
+  type DeviceGrantRefusal,
   type DEVICE_FAILURES,
   type DeviceAttemptIdentity,
   type DeviceDispatch,
@@ -64,6 +67,26 @@ export interface DeviceReceiverPolicy {
   readonly paidConsent: Pick<PaidUseConsent, 'allows'>
   /** M95 binds current local model, tariff, key owner and reservation; no peer credentials. */
   assertPaidBinding(request: DeviceDispatch, use: PaidUseRequest): Promise<void>
+}
+/** W binds its authenticated owner/request resolver here after K's validity check. */
+export function bindDeviceReceiverActionGrants(
+  policy: DeviceReceiverPolicy,
+  grants: DeviceActionGrantPort,
+  requestFor: (request: DeviceDispatch) => DeviceGrantRequest,
+): DeviceReceiverPolicy {
+  return {
+    ...policy,
+    async assertAllowed(request) {
+      const result = await grants.admit(requestFor(request))
+      if ('reason' in result) throw new DeviceActionGrantError(result)
+      await policy.assertAllowed(request)
+    },
+  }
+}
+export class DeviceActionGrantError extends DevicePairingError {
+  public constructor(public readonly refusal: DeviceGrantRefusal) {
+    super('grant')
+  }
 }
 interface PendingAttempt {
   readonly identity: DeviceAttemptIdentity

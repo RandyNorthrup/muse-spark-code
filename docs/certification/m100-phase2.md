@@ -78,19 +78,19 @@ Devices remains unshipped. Model attempts **0**, inference spend **0**.
 
 ### Conflicts (19 files)
 
-| Files                                                                                                               | Resolution                                                                                                                                                                |
-| ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CHANGELOG.md`                                                                                                      | Preserve release history and existing Unreleased fixes; place all incoming Devices entries under Unreleased.                                                              |
-| `PLAN.md`                                                                                                           | Preserve both branches' phase-2 plan, gate records, escape-hatch register and residual-risk records.                                                                      |
-| `docs/orchestration-gotchas.md`                                                                                     | Retain every release rule/id, including G29–G33; add incoming channel, Windows host and auth rules as G34–G36 to avoid duplicate ids (now main's G50–G52; see the lead integration).                                     |
-| `knip.jsonc`, `package.json`                                                                                        | Union entry inventories, retain the release's compiler/quality/reference scripts, add both Devices cycle entries.                                                         |
-| `scripts/build.mjs`, `scripts/check-bundle-split.mjs`, `scripts/lib/deferredBundles.mjs`, `scripts/package-acp.mjs` | Keep every release bundle, lazy mapping and text guard; add Devices with its inherited independent budgets. Existing caps are unchanged.                                  |
-| `scripts/gen-reference.mjs`                                                                                         | Run the complete release reference generator, the incoming Devices inventory and the release sharing inventory together.                                                  |
-| `src/shared/l10n/en.ts`                                                                                             | Union English keys; all 14 translated tables merge automatically with both branches' keys and values.                                                                     |
-| `src/shared/modelsPanel.ts`                                                                                         | Retain complete provider/team/traffic boundaries; move the strict Devices region into `src/shared/devicesPanel.ts` so unrelated validators stay outside its lazy closure. |
-| `scripts/lib/harnessServer.mjs`, `test/harness/index.html`                                                          | Retain every release scenario and fake-host handler, add Devices scenes, sizing and request/reply handling.                                                               |
-| `test/unit/bundleSize.test.mjs`, `test/unit/deferredBundles.test.ts`, `test/unit/webviewBundles.test.mjs`           | Retain release tests/setup and add the incoming Devices budget, build entry and Windows-separator closure assertion.                                                      |
-| `docs/ide-compatibility/host-api.md`, `src/shared/reference/reference.generated.ts`                                 | Regenerate with `npm run check:host-api -- --write` and `npm run reference:generate`; no hand-edited generated output.                                                    |
+| Files                                                                                                               | Resolution                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `CHANGELOG.md`                                                                                                      | Preserve release history and existing Unreleased fixes; place all incoming Devices entries under Unreleased.                                                                         |
+| `PLAN.md`                                                                                                           | Preserve both branches' phase-2 plan, gate records, escape-hatch register and residual-risk records.                                                                                 |
+| `docs/orchestration-gotchas.md`                                                                                     | Retain every release rule/id, including G29–G33; add incoming channel, Windows host and auth rules as G34–G36 to avoid duplicate ids (now main's G50–G52; see the lead integration). |
+| `knip.jsonc`, `package.json`                                                                                        | Union entry inventories, retain the release's compiler/quality/reference scripts, add both Devices cycle entries.                                                                    |
+| `scripts/build.mjs`, `scripts/check-bundle-split.mjs`, `scripts/lib/deferredBundles.mjs`, `scripts/package-acp.mjs` | Keep every release bundle, lazy mapping and text guard; add Devices with its inherited independent budgets. Existing caps are unchanged.                                             |
+| `scripts/gen-reference.mjs`                                                                                         | Run the complete release reference generator, the incoming Devices inventory and the release sharing inventory together.                                                             |
+| `src/shared/l10n/en.ts`                                                                                             | Union English keys; all 14 translated tables merge automatically with both branches' keys and values.                                                                                |
+| `src/shared/modelsPanel.ts`                                                                                         | Retain complete provider/team/traffic boundaries; move the strict Devices region into `src/shared/devicesPanel.ts` so unrelated validators stay outside its lazy closure.            |
+| `scripts/lib/harnessServer.mjs`, `test/harness/index.html`                                                          | Retain every release scenario and fake-host handler, add Devices scenes, sizing and request/reply handling.                                                                          |
+| `test/unit/bundleSize.test.mjs`, `test/unit/deferredBundles.test.ts`, `test/unit/webviewBundles.test.mjs`           | Retain release tests/setup and add the incoming Devices budget, build entry and Windows-separator closure assertion.                                                                 |
+| `docs/ide-compatibility/host-api.md`, `src/shared/reference/reference.generated.ts`                                 | Regenerate with `npm run check:host-api -- --write` and `npm run reference:generate`; no hand-edited generated output.                                                               |
 
 ### Verification scope
 
@@ -553,3 +553,109 @@ test/unit/channel.test.ts test/unit/deviceMultiplexedChannel.test.ts
   (0 errors), duplication (**0 clones**), `check:l10n` (**14 tables**,
   **0 problems**), `check:host-api` (**0 problems**), `npm run build`
   (all budgets ok, Devices **81.6/100 KiB**): all exit **0**.
+
+## Lane A — receiver per-action controls (M100P2A, 2026-10-07)
+
+Kubuntu rig, branch `m100/p2-a`, base `466a7a8e4`. Implements only lane A's
+core authority, receiver-policy binding and presence-relay carriage region.
+No model calls, paid calls, real pairing, native presence prompt or physical
+execution: model attempts **0**, inference spend **0**. Presence is injected;
+`local-confirm`, Touch ID and Windows Hello are fake ports in these receipts.
+Physical support remains unavailable under D83.
+
+### Acceptance, implementation and owning tests
+
+| Acceptance            | Implementation                                                                                                                                | Proof and drill                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Intersection — done   | `src/core/devices/actionGrants.ts:132`, `DeviceActionGrants.admit`; `src/host/devices/deviceReceiver.ts:72`, `bindDeviceReceiverActionGrants` | `actionGrants.test.ts` covers the sender ceiling first, receiver manual/plan versus sender auto, all six quota fields at cap/one past for sender and each receiver limit, repository/offer/role/tools, protected paths including Windows separators and traversal, trust revoked after ordinary approval, local approval policy, expiry and revocation. The exact threat test `refuses admission past the receiver intersection` reaches the fake `DeviceLocalAttempt.start` when the intersection is omitted, and fails its forbidden-call assertion. |
+| Step-up — done        | `actionGrants.ts:193`, `:220`, `:229`                                                                                                         | Fake connect/program/actuate actions require receiver-local confirmation, exact bytes/request digest, current grant revision, freshness below five minutes and single use. Offline/observe and refused classes are covered. Auto, ordinary approval and the pairing grant cannot replace presence. Forged approvals, replay, another digest, changed state during the prompt, denial/failure/timeout, bounded records and mutated returned receipts are tested. Removing digest binding, consumption or local provenance fails the owning tests.       |
+| Presence relay — done | `actionGrants.ts:316`, `:347`; the sole new `presenceRelay` member in `src/core/devices/channel.ts`                                           | `devicePresenceRelay.test.ts` covers strict versioned envelopes, closed methods, pair/owner/digest binding, waiting plus attested/refused replies, control-stream carriage and fake orchestrator answers. No answer or settlement kind exists. Forged settlement cannot reduce receiver-recorded occupancy/liability. Allowing a forged attested answer or ignoring receiver-recorded usage fails the tests.                                                                                                                                           |
+| Strings — done        | `DevicePresenceRelay.waitingText`, `actionGrants.ts:348`                                                                                      | Reads existing `UI_TEXT.devices.stepUpWaiting` at runtime with `fill({ device })`; all three method cases assert the waiting reply and named device. No new text key or translation change. Removing the device-presence check fails the relay's denial assertion; removing the version check fails its strict-envelope test. Localization gate is included in final verification below.                                                                                                                                                               |
+
+The receiver binding preserves E's admission order, journal-before-start,
+ordinary approvals, paid gate and Stop behavior. Its error retains the typed
+`deviceGrantRefusalSchema` result in `DeviceActionGrantError.refusal`; the
+phase-1 failure frame remains the existing `grant` word. The authority uses the
+phase-2 schema from `src/shared/devices.ts`, never the phase-1 offer-grant
+schema. Sender mode comparison uses lane 0's `grantCeilingRefusal` and
+`DEVICE_GRANT_MODE_ORDER`. A successful result is narrowed to the admitted
+request's mode, scope and quotas.
+
+The receiver's synchronous `current` snapshot and `senderCeiling` are trusted
+local ports. The local action registry supplies class, tool, paths and exact
+bytes; a peer/model request carries no classification or approval hint.
+Protected paths normalize both separators and lexical traversal before matching.
+The presence port shows those bytes on the executing device, honours abort,
+and rejects unavailable native methods. The receiver rechecks its complete
+intersection and digest after a prompt yields. Private attestations are frozen;
+returned receipts are independent parsed copies and carry no new authority.
+Receiver-recorded usage is input only from the local owner, with no peer
+settlement API. Slot reservation and durable settlement remain E/M96/R's job.
+
+### Red drills and byte-exact restoration
+
+Each command was `npx vitest run test/unit/<owning-file>.test.ts
+--maxWorkers=3 -t <test name>`, at repository default timeouts. Every final
+mutant below exited **1** with an assertion failure, then the original file
+was restored byte-exact. Final source SHA-256 after each drill:
+`fccfca48d1685a8ca89c832e42235e82456162764891936809bab829fa90bd38`
+(`src/core/devices/actionGrants.ts`).
+
+| Mutant                                            | Failing assertion                                |
+| ------------------------------------------------- | ------------------------------------------------ |
+| Omit receiver scope intersection                  | Forbidden `DeviceLocalAttempt.start` called once |
+| Omit sender ceiling early refusal                 | Receiver snapshot unexpectedly read              |
+| Omit receiver quota check                         | Each of six one-past requests admitted           |
+| Omit grant revocation                             | Revoked grant admitted                           |
+| Omit grant expiry                                 | Expired grant admitted                           |
+| Omit digest binding                               | Another payload admitted                         |
+| Omit one-use consumption                          | Connect/program/actuate replay admitted          |
+| Accept unminted attestation                       | Orchestrator approval unexpectedly resolves      |
+| Ignore device rejection                           | Attested reply instead of `presence-unverified`  |
+| Ignore receiver-recorded usage                    | Unrecorded settlement permits admission          |
+| Accept orchestrator's attested answer             | Receiver relay unexpectedly resolves             |
+| Share a mutable private approval with its receipt | Mutated receipt authorizes replacement payload   |
+| Remove relay version literal                      | Wrong version parses                             |
+
+Exploratory defense-in-depth observation: removing only the relay's direction
+check still refused a forged attested reply through the independent digest
+check. The final origin drill explicitly accepted that forged reply and failed
+its rejection assertion. Neither mutant remains. Final raw drill logs are
+under `/tmp/m100p2a-drills-*` on this rig.
+
+### Requests to the lead / lane W
+
+- Proposed order, without editing K's regions: authenticate → owner binding
+  (K) → grant validity/revocation (K) → receiver intersection (A) → receiver-local
+  per-action step-up (A). Construct the policy through
+  `bindDeviceReceiverActionGrants`; resolve owners/check roles from local K
+  records and build a request bound to the exact dispatch mode, role,
+  repository, scope and six caps. `current` must read local offer, trust,
+  role/tool/path policy, approval policy and recorded occupancy every time.
+- Bind `DevicePresenceRelay.receive` only to authenticated requests on the
+  receiver's control stream (`PacedDeviceChannel.send` /
+  `MultiplexedDevicePort.receive`). Pass the authenticated pair id, validate
+  current owner/grant through K first, and use the local digest resolver.
+  The added union member is exactly
+  `{ kind: 'presenceRelay', relay: devicePresenceRelaySchema }`. The
+  orchestrator renders the correlated `waiting` reply with `waitingText(device)`
+  and treats attested replies as status only; it never calls a local answer
+  or `attestStepUp` from peer content. Physical executor wiring must consume
+  one approval per actual action, rather than reuse it across E's repeated
+  attempt-policy checks. No physical executor is supplied by this lane.
+- W owns joined CHANGELOG/feature catalog/README/SECURITY updates, final lazy
+  entry wiring and fully wired bundle measurement, aggregate `npm run quality`
+  and installed-host qualification. No extra command, setting or dependency
+  is added here, and no global/shared gate or cap is changed.
+- Real-prompt drill request after M109 P is merged, with the owner present:
+  on **Mac mini**, bind P's actual device-local presence port and execute
+  `await grants.requestStepUp(request, 'touch-id')` once for an inert fake
+  `program` action in the installed receiver's debug/test host. Expected:
+  **one** Touch ID prompt on Mac mini, **zero** on the orchestrator, a named
+  waiting status there, no executor/spawn, one attested reply only after the
+  owner's touch. On **Windows PC**, use
+  `await grants.requestStepUp(request, 'windows-hello')` with the equivalent
+  port: **one** Windows Hello prompt there and **zero** remotely. Owner cancels
+  on a second invocation: one prompt, typed `presence-unverified`, no admission.
+  The VMs use the simulator/local-confirm port when biometric hardware is
+  missing. These prompts were requested for qualification, never triggered here.
