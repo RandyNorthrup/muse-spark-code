@@ -223,10 +223,10 @@ tested on chunk splits inside frames and inside multi-byte characters.
 | `eslint-plugin-unicorn`                                                                              | 76.0.0                            |
 | `eslint-plugin-react-hooks`                                                                          | 7.1.1                             |
 | `dpdm`                                                                                               | 4.3.0                             |
-| `knip`                                                                                               | 6.37.0                            |
+| `knip`                                                                                               | 6.39.0                            |
 | `prettier`                                                                                           | 3.9.9                             |
 | `stylelint` + `stylelint-config-standard`                                                            | 17.15.0 / 40.0.0                  |
-| `vitest` + `@vitest/coverage-v8`                                                                     | 5.0.1                             |
+| `vitest` + `@vitest/coverage-v8`                                                                     | 5.0.3                             |
 | `jsdom`                                                                                              | 30.1.1                            |
 | `@testing-library/react` / `dom` / `jest-dom`                                                        | 16.3.3 / 10.4.2 / 7.0.1           |
 | `@vscode/test-cli` + `@vscode/test-electron` + `mocha` + `@types/mocha`                              | 0.0.15 / 3.1.0 / 12.0.2 / 10.0.10 |
@@ -239,7 +239,7 @@ tested on chunk splits inside frames and inside multi-byte characters.
 | `zod`                                                                                                | 4.6.5                             |
 | `@muse-code/sdk`                                                                                     | 1.3.0                             |
 | `husky` / `lint-staged`                                                                              | 9.1.7 / 17.5.1                    |
-| `jscpd`                                                                                              | 5.3.1                             |
+| `jscpd`                                                                                              | 5.4.0                             |
 | `npm-run-all2`                                                                                       | 9.0.3                             |
 | `rimraf`                                                                                             | 6.1.3                             |
 | `axe-core`                                                                                           | 4.13.0                            |
@@ -253,7 +253,7 @@ tested on chunk splits inside frames and inside multi-byte characters.
 
 **`eslint`** — `typescript-eslint` accepts `^10.0.0`; `eslint-plugin-unicorn@76` requires `>=10.4`.
 
-**`typescript-eslint`** — Latest; `strictTypeChecked` + `stylisticTypeChecked`.
+**`typescript-eslint`** — Held at 8.70.1 for DEP138 lint-memory regression; `strictTypeChecked` + `stylisticTypeChecked`.
 
 **`@eslint/js`** — Separate package from eslint; required by the flat config.
 
@@ -313,6 +313,30 @@ tested on chunk splits inside frames and inside multi-byte characters.
 
 **`smol-toml`** — Codex `config.toml` for the import from other agents (M83): a TOML 1.0 parser with no dependencies, BSD-3-Clause, bundled only in the lazily loaded `dist/agentImport.js`. No peer dependencies; `npm audit` clean; 1.9.0 was inside the seven-day release window, and 1.8.0 was already in the lockfile through knip. A hand-written subset (the first draft) misread sub-tables such as `[mcp_servers.x.env]` and multi-line arrays, both in real Codex files.
 
+DEP138 dependency review (2026-10-07): PR #138 proposes ACP SDK 1.5.1,
+Vitest and V8 coverage 5.0.3 together, jscpd 5.4.0, knip 6.39.0 and
+typescript-eslint 8.71.0. Their exact registry peers accept the existing
+ESLint 10.11.0, TypeScript 6.0.3, Zod 4.6.5 and Node 22 toolchain. Upstream
+release notes show fixes and additive tooling features, plus a newly enabled
+strict enum-assignment rule that needs a memory comparison before acceptance.
+Purposes, security review, final accepted versions and measurements belong to
+`docs/certification/deps-0150.md`; existing audit exceptions stay unchanged.
+
+DEP138 selection: accept ACP SDK 1.5.1, Vitest/V8 coverage 5.0.3, jscpd
+5.4.0 and knip 6.39.0. Keep typescript-eslint and its exact package family at
+8.70.1. Updating that family alone exhausts the inherited 6144 MiB lint heap
+(6,596,428 KiB peak RSS), while replacing the project service with immutable
+programs for every existing project also exhausts it with all six updates
+(6,583,200 KiB). Do not disable the new strict rule or raise the heap to admit
+8.71.0. Upstream typescript-eslint 8.71.1 (2026-10-05) contains PR #12957
+("skip identical types and bound deep type walks"), which fixes issue #12956;
+it is inside `.npmrc`'s seven-day `min-release-age` until 2026-10-12. That is
+the re-measure point: after 2026-10-12, measure lint peak RSS with 8.71.1 on
+the complete file set under the unchanged 6144 MiB heap, against the
+5,518,508 KiB release-base peak, before accepting it. Otherwise revisit only
+when a measured configuration preserves every rule/file and passes clean CI.
+The shipped lint configuration and 6144 MiB flag remain release-base values.
+
 M96INT3C audit update (2026-10-05): pin the existing development-only
 `source-map-js` leaf to 1.2.2 for GHSA-68fv-2mgg-jv7q. Registry metadata
 captured by private `npm ci`, then checked by offline `npm info`, declares
@@ -328,6 +352,30 @@ the extension. It waits for `.npmrc`'s seven-day release-age rule until
 
 Deprecated and avoided: `@vscode/webview-ui-toolkit` (archived; npm marks it
 deprecated). Webview controls are hand-built on VS Code CSS theme variables.
+
+DEP138 dependency review (2026-10-07): PR #138 proposes ACP SDK 1.5.1,
+Vitest and V8 coverage 5.0.3 together, jscpd 5.4.0, knip 6.39.0 and
+typescript-eslint 8.71.0. Their exact registry peers accept the existing
+ESLint 10.11.0, TypeScript 6.0.3, Zod 4.6.5 and Node 22 toolchain. Upstream
+release notes show fixes and additive tooling features, plus a newly enabled
+strict enum-assignment rule that needs a memory comparison before acceptance.
+Purposes, security review, final accepted versions and measurements belong to
+`docs/certification/deps-0150.md`; existing audit exceptions stay unchanged.
+
+DEP138 selection: accept ACP SDK 1.5.1, Vitest/V8 coverage 5.0.3, jscpd
+5.4.0 and knip 6.39.0. Keep typescript-eslint and its exact package family at
+8.70.1. Updating that family alone exhausts the inherited 6144 MiB lint heap
+(6,596,428 KiB peak RSS), while replacing the project service with immutable
+programs for every existing project also exhausts it with all six updates
+(6,583,200 KiB). Do not disable the new strict rule or raise the heap to admit
+8.71.0. Upstream typescript-eslint 8.71.1 (2026-10-05) contains PR #12957
+("skip identical types and bound deep type walks"), which fixes issue #12956;
+it is inside `.npmrc`'s seven-day `min-release-age` until 2026-10-12. That is
+the re-measure point: after 2026-10-12, measure lint peak RSS with 8.71.1 on
+the complete file set under the unchanged 6144 MiB heap, against the
+5,518,508 KiB release-base peak, before accepting it. Otherwise revisit only
+when a measured configuration preserves every rule/file and passes clean CI.
+The shipped lint configuration and 6144 MiB flag remain release-base values.
 
 ### D4 — Security posture
 
@@ -18332,7 +18380,12 @@ test that fails without the rule:
     them (test `heavyGateTakesMachineSlot`); the slot is owned by the run's
     process tree, so heavy gates nested in that tree (a quality script
     running lint and the browser harness) inherit it, reentrant, and
-    separate runs queue (test `nestedHeavyGatesInheritSlot`).
+    separate runs queue (test `nestedHeavyGatesInheritSlot`). G65 every Git
+    command a job runs has automatic maintenance off (`maintenance.auto=false`,
+    `gc.auto=0`), and a local origin a job pushes to sets `receive.autoGc=false`
+    in its own configuration, because that maintenance detaches with `setsid`
+    and escapes G38's process-tree kill (test `jobGitStartsNoMaintenance`); the
+    M96c lane runner gives lanes the same Git environment.
 11. **M116 (playbook, 2026-10-07):** G42 pipelined, stacked release
     integration with early draft PRs (test `releasesPipelineOnCandidate`);
     G43 a worker green labelled worker-certified unless verified from a
@@ -18410,6 +18463,40 @@ followed by the original objective unchanged. Retry starts only from a verified
 last commit/start checkpoint in an isolated worktree; otherwise explicit refusal.
 All UI strings ship in every translated table. Activity/outcome are text and
 outcome changes have a polite announcement. Harness states run in four themes.
+
+### D102 — Outside contributions are vetted before they run or land (2026-10-07)
+
+The owner, 2026-10-07 21:40 PT: "we can keep the pr but we need to vet
+people not just admit any code". PR #51, Android/Termux unit tests from an
+outside account, was merged on 2026-09-29 by an agent session without his
+go. It stays.
+
+1. **Scope.** Every pull request, branch, fork, patch or pasted code not
+   authored by the owner or this project's own agent sessions.
+2. **The process** is [`docs/contributor-vetting.md`](docs/contributor-vetting.md):
+   the person (account age, public repositories and activity, prior pull
+   requests and issues, commit identity, linked identity, and the stops);
+   the change (every file, with the closest reading for workflows, scripts,
+   dependencies and lockfile, native helpers, binaries and generated blobs,
+   install hooks, network and process calls, sandbox, permission, approval,
+   auth and secret code, weakened or skipped tests, and docs that change
+   security guidance or agent instructions); then Codex and Grok reviews
+   (never the authoring engine), a record in
+   `docs/certification/vetting/pr-N.md`, and the owner's explicit go for
+   that pull request and head SHA.
+3. **CI.** Workflow runs from forks wait for approval for every external
+   contributor (`all_external_contributors`, set 2026-10-07; it was
+   `first_time_contributors`, which stopped asking once an author had one
+   merged pull request). No run is approved before the change review is
+   recorded.
+4. **Checkouts.** No outside branch in the main checkout, a shared or lane
+   worktree, or a rig with credentials; a throwaway clone without tokens.
+5. **No go, no code.** Without the owner's go, agents never merge,
+   cherry-pick, copy or reproduce outside code (AGENTS.md rule 16).
+6. **Records.** PR #51's retroactive record is
+   [`docs/certification/vetting/pr-51.md`](docs/certification/vetting/pr-51.md),
+   with a benefit check of its four tests. PR #62, from the same author,
+   stays untouched until its own record and the owner's decision.
 
 ### D76 — `/legal`: evidence first, fixes only after selection (M97, 2026-10-04)
 
@@ -18778,7 +18865,7 @@ INT0170B integration question (2026-10-07): the M115 v2 panel bridge exists but 
 | Q10 | M67's repo map on Muse Code: the plan asks for it "as an opt-in section of the system prompt", but Muse Code's instructions are its own (D13: nothing installed into its folders). It could ride as a hidden note on the first turn of a conversation (as the question-card hint does), billed to the subscription as prompt tokens. Wanted?                                                                                                                                                                                                                                                                                                                                                 | The `repoMap` tool only; no note in Muse Code turns.                                    |
 | Q11 | M67's prompt repo map setting: its name (`museSpark.modelApiRepoMap`), its default (off, since every request pays its tokens) and its fixed ~1,000-token budget, and whether the model should see the map by default once the M75 evaluation measures it.                                                                                                                                                                                                                                                                                                                                                                                                                                    | Off by default, machine-scoped, 1,024 tokens, no budget setting.                        |
 | Q60 | **Answered 2026-09-26:** the owner set up the Open VSX account: the Eclipse Publisher Agreement signed, the namespace `RandyNorthrup` created, the token in `OVSX_PAT`. The release workflow publishes there from the next tag (M62).                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| Q61 | **Resolved 2026-09-26:** the owner approved the ACP SDK. `@agentclientprotocol/sdk` 1.4.0 is pinned: 1.5.0 (2026-09-21) is inside `.npmrc`'s 7-day `min-release-age`, and 1.4.0 speaks the same ACP v1 (D62). **Superseded 2026-10-01 (PR #65):** 1.5.0, past the window, is pinned; it speaks the same ACP v1 and only adds optional notice schemas (`docs/certification/pr61-dependencies.md`).                                                                                                                                                                                                                                                                                            |
+| Q61 | **Resolved 2026-09-26:** the owner approved the ACP SDK. `@agentclientprotocol/sdk` 1.4.0 is pinned: 1.5.0 (2026-09-21) is inside `.npmrc`'s 7-day `min-release-age`, and 1.4.0 speaks the same ACP v1 (D62). **Superseded 2026-10-01 (PR #65):** 1.5.0, past the window, is pinned; it speaks the same ACP v1 and only adds optional notice schemas (`docs/certification/pr61-dependencies.md`). **Superseded 2026-10-07 (DEP138):** 1.5.1 is pinned; it adds a 32 MiB per-line limit in `ndJsonStream` that ends the connection when exceeded (`docs/certification/deps-0150.md`).                                                                                                         |
 | Q62 | **Resolved 2026-09-26:** "you can install whatever you need". What this container's network lets in is recorded per editor (D62); the rest is qualified in CI or on the owner's machines.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | Q63 | **Resolved 2026-09-26:** the owner left the design to us: D61, the operating system's credential store, in-process.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | Q64 | **Resolved 2026-09-26:** "the top editors come first but i want them all or as close to all as possible": the order is D62's.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
@@ -19854,6 +19941,64 @@ size and external blocker; it does not claim hosted/platform/live certification.
       and localization, keeping all thresholds unchanged.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
+
+### DEP138 — Dev dependency updates without lint heap growth (2026-10-07, linuxlt)
+
+**Status 2026-10-08: merged.** Merged to main as batch PR #144 (`67099ce1b`); records in `docs/certification/deps-0150.md`.
+
+Replace Dependabot PR #138 from release base `a715a834` with exact reviewed
+development-tool pins. Preserve all rule levels, files, coverage thresholds,
+test deadlines and production bundle caps. Diagnose lint memory before choosing
+a structural configuration repair; hold only an offending package if no safe
+repair exists, and register a measured heap flag only as the last resort.
+
+- [x] Read all six upstream changelogs, check exact peers and baseline audit.
+- [x] Measure baseline lint and isolate update-induced memory growth with CI's
+      Node 22; compare immutable parser programs before selecting a remedy.
+- [x] Install the reviewed exact versions, repair the cause and prove any new
+      regression guards fail under a deliberate restored mutation.
+      Add fake-only ACP transport checks for the SDK's new byte cap: exact
+      UTF-8/CRLF admission, split-frame refusal and upstream cancellation.
+- [x] Verify a fresh `npm ci` clone of `d3fff81f` with `CI=true`: five
+      typechecks, JavaScript/CSS lint, formatting, plain knip, duplication,
+      localization/reference/host API, cycles, unchanged production caps,
+      audit, secret scan and SAST. Lint peaks at 5,495,896 KiB, exit 0;
+      PowerShell analysis is an explicit Linux skip.
+- [x] Certify legal accessibility: 96 native keyboard/zoom checks and English
+      plus pseudo WCAG scans pass on Linux.
+- [x] Reproduce the changelog-version guard's 5 s timeout on the release base
+      and accepted pins with V8 coverage (7.026 s / 7.505 s).
+- [x] Scope that guard's real Markdown fixture to the manifest release; keep
+      its existing date/Highlights assertions and complete-history validation
+      in the real-parser tests and production build. Both missing-Highlights
+      and invalid-Try-it drills fail (one failed, one passed), exact bytes are
+      restored, and 23 focused tests pass with V8 coverage. Changed-file lint,
+      unit typecheck and unchanged production caps pass. No deadline changes.
+      Superseded at the 0.16.0 join (batch PR, 2026-10-08): main already
+      parses the full history once in `beforeAll`, outside the test deadline,
+      so the batch keeps main's guard and drops this rescoping.
+- [x] PR #144 review: SDK 1.5.1's option-free `ndJsonStream` refuses lines
+      over 32 MiB, below a valid prompt with three near-10 MiB images. Both
+      production streams (stdio agent, team host's ACP children) now open
+      through `src/shared/acpStream.ts` with `ACP_MAX_MESSAGE_BYTES`
+      (`MAX_ENCODED_MEDIA_CHARS` + 16 MiB). Tests read a three-image prompt
+      through the real SDK, refuse a line past the bound, and fail if any
+      other production file calls `ndJsonStream(` directly.
+- [x] Assign the full coverage and accessibility gates: hosted CI on the pull
+      request is the full gate (coverage, accessibility; §7 "DEP138 rig
+      verification"). The rig's three-file coverage batches were not completed.
+      The first full accessibility run had zero violations but four `long`
+      readiness timeouts; it stays recorded as a failure. All 119 browser
+      JS/CSS bundles match baseline exactly, none of the bumped packages takes
+      part in the harness, and main's PR #139 (merged into this branch) fixed
+      harness readiness.
+- [x] Record receipts in `docs/certification/deps-0150.md` and CHANGELOG;
+      merge main (`18dc7365`) and commit locally with hooks and explicit
+      paths. No push, rebase, credential disclosure or paid/live model call.
+
+Re-measure point: typescript-eslint 8.71.1 (PR #12957, fixing issue #12956)
+clears `.npmrc`'s seven-day release age on 2026-10-12. Measure its lint peak
+before accepting it (D3, "DEP138 selection").
 
 ### FLAKETH20 — Explain and repair the Windows team harness hang (2026-10-07)
 
@@ -36681,6 +36826,26 @@ every named owning file at repository deadlines and all prescribed individual
 compiler/static/build/package checks. No threshold, deadline, assertion or
 package refusal is waived. Hosted cross-platform qualification remains with
 the joined release; receipts are in `docs/certification/fix0160x.md`.
+
+**DEP138 rig verification.** The lane's rig note limits each test invocation
+to three files. Certify every configured unit/process-e2e file in batches of
+at most three, with `CI=true`, V8 coverage and repository deadlines. Partial
+blob reports use the repository's existing shard handling; merge every report
+with the original global thresholds enabled. Run every other locally runnable
+quality gate separately in the same fresh `npm ci` clone. The monolithic
+`npm run quality` is deferred only because its test command exceeds the rig's
+explicit file cap; no gate, assertion, file, threshold or timeout is removed.
+The certification record must name every actual exit and any unavailable
+platform/hosted checks rather than claim an aggregate-command pass.
+Amended 2026-10-07 (lead): the rig's batched coverage run was not completed.
+Hosted CI on the pull request is the full gate for coverage and the
+accessibility harness (merged coverage on three OSes with the original
+thresholds and deadlines, accessibility on Ubuntu, static gates with lint at
+the unchanged 6144 MiB heap on three OSes; pull requests run the full tier
+while `CI_MERGE_QUEUE` is not `on`). None of the bumped packages takes part in
+the harness, and main's PR #139, merged into this branch, fixed harness
+readiness.
+The rig's failed first full accessibility run stays in the record.
 
 **MACSLOW bounded certification (2026-10-07, macmini).** The lane's shared
 rules prohibit aggregate quality and delegate it to the lead. Run complete

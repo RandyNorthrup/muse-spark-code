@@ -5,7 +5,7 @@
 // missing patches refuse; no proposal script runs in push (only Git), and no
 // planted or inherited Git program runs.
 
-import { copyFileSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { applyProposal, checkPullForPush } from '../../action/apply/lib/apply.mjs'
@@ -38,6 +38,12 @@ function openPull(repo: FixtureRepo, headSha = repo.head) {
     state: 'open',
     head: { sha: headSha, ref: 'feature', repo: { full_name: REPO } },
   }
+}
+
+/** The commit-graph files in an objects directory: any entry means maintenance ran there. */
+function commitGraphs(objects: string): string[] {
+  const info = path.join(objects, 'info')
+  return existsSync(info) ? readdirSync(info).filter((name) => name.startsWith('commit-graph')) : []
 }
 
 describe('the apply sub-action (G25)', PROCESS_SUITE, () => {
@@ -140,6 +146,55 @@ describe('the apply sub-action (G25)', PROCESS_SUITE, () => {
     expect(new Set(push.children)).toEqual(new Set([gitPath(layout)]))
     expect(sentinelHits(layout)).toEqual([])
     await push.test.owner.cleanup()
+  })
+
+  /**
+   * Automatic maintenance made visible: run in the foreground, so a run has
+   * finished when the command that started it returns (on every OS), and
+   * always due to write a commit-graph.
+   */
+  function armMaintenanceWitness(repository: string): void {
+    for (const [name, value] of [
+      ['maintenance.autoDetach', 'false'],
+      ['maintenance.commit-graph.enabled', 'true'],
+      ['maintenance.commit-graph.auto', '-1'],
+    ] as const) {
+      plainGit(layout, repository, ['config', name, value])
+    }
+  }
+
+  // Orchestration gotcha G65: a detached `git maintenance run --auto` that a
+  // push or commit started was still writing into the origin while cleanup
+  // removed it (ENOTEMPTY on the hosted Linux runner, Git 2.55).
+  it('starts no Git maintenance in the fixture repositories: not from a push, not from a commit', async () => {
+    const { run, artifactName } = await proposal()
+    const originObjects = path.join(run.repo.bare, 'objects')
+    armMaintenanceWitness(run.repo.bare)
+    const side = applySide(run.repo, run.paths)
+    const pushed = await apply(side, 'push', artifactName)
+    expect(pushed.ready).toBe(true)
+    await side.test.owner.cleanup()
+    expect(commitGraphs(originObjects), 'the origin after the Action push').toEqual([])
+
+    const clone = path.join(layout.root, 'witness')
+    plainGit(layout, layout.root, ['clone', '--quiet', run.repo.bare, clone])
+    armMaintenanceWitness(clone)
+    writeFileSync(path.join(clone, 'witness.txt'), 'witness\n')
+    plainGit(layout, clone, ['add', '--all'])
+    plainGit(layout, clone, ['commit', '--quiet', '-m', 'witness'])
+    plainGit(layout, clone, ['push', '--quiet', 'origin', 'HEAD:refs/heads/witness'])
+    const cloneObjects = path.join(clone, '.git', 'objects')
+    expect(commitGraphs(cloneObjects), 'the clone after a plain commit').toEqual([])
+    expect(commitGraphs(originObjects), 'the origin after a plain push').toEqual([])
+
+    // The witness is armed: maintenance that does run writes its commit-graph.
+    for (const [repository, objects] of [
+      [run.repo.bare, originObjects],
+      [clone, cloneObjects],
+    ] as const) {
+      plainGit(layout, repository, ['maintenance', 'run', '--auto', '--quiet'])
+      expect(commitGraphs(objects), repository).not.toEqual([])
+    }
   })
 
   it('refuses a changed digest, a missing patch, another run and a malformed manifest before any Git', async () => {

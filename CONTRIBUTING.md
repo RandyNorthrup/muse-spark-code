@@ -405,6 +405,22 @@ for its proxy and certificates too. Keep every destination check in
 only VS Code can show (the proxy asked for the pinned address) is in
 `test/integration/webFetch.test.ts`, against a loopback proxy.
 
+## Outside contributors: what happens to your pull request
+
+Pull requests from outside the project are vetted before they run or land,
+as [docs/contributor-vetting.md](docs/contributor-vetting.md) sets out:
+
+1. CI on a pull request from a fork waits until a maintainer approves the
+   run, and that happens only after the change has been read.
+2. The public record of the account that opened it (its age, repositories,
+   activity and other pull requests) is checked, and every changed file is
+   read. Workflows, scripts, dependencies, native helpers, binaries and
+   security-sensitive code get the closest reading.
+3. Two independent reviews and a written record under
+   `docs/certification/vetting/` follow, and the owner decides on that pull
+   request himself. Nothing is merged, cherry-picked or copied into the
+   project before he says yes.
+
 ## Licence
 
 By contributing you agree that your contribution is licensed under the MIT

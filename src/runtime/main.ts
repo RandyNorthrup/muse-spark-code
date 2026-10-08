@@ -69,6 +69,7 @@ import {
 import { parseSharingArgs, type SharingCommand } from './sharing/args'
 import { runtimeSharingLoader } from './sharing/sharingBundle'
 import { acpSharingCommands } from '../acp/sharing'
+import { boundedAcpStream } from '../shared/acpStream'
 import type { RuntimeSharingPorts } from './sharing/sharingEntry'
 import type { PlaybookCommand, PlaybookSurfacePort } from './playbook/command'
 import { formatAcpUsage } from './cliOptions'
@@ -848,7 +849,11 @@ async function serve(
       },
     })
     const connection = agent.connect(
-      engine.ndJsonStream(Writable.toWeb(process.stdout), webReadable(process.stdin)),
+      boundedAcpStream(
+        engine.ndJsonStream,
+        Writable.toWeb(process.stdout),
+        webReadable(process.stdin),
+      ),
     )
     log.info(`${ACP_AGENT_NAME} ${packageVersion()} serving ACP on stdio (${options.backend})`)
     try {
