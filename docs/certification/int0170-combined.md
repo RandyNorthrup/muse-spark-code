@@ -538,3 +538,78 @@ callbacks and adjusts table spacing; no production logic changes. The numeric
 port and float-sum drill hashes still match final source. No merge, push,
 quality aggregate, gate/configuration weakening, live/paid call or dependency
 change. The private fresh clone is removed after final verification.
+
+## Paid consent (CONSENT017)
+
+Mac mini rig, `rel017/consent`, base `f411b64a4` (exact-money candidate),
+2026-10-08. Fake-only; no credentials, paid/live calls, merge, push, stash,
+hook substitution or gate weakening. Commits use `.husky/_` exactly as
+installed; staged and committed diffs reread after every hook.
+
+### Root cause
+
+The int/0180b merge (`f3a6c1e5b`) made a quoted-search "Always" live only in
+quote grants — looked up through `readQuoteGrant` by
+`paidAuthorityKey` (`[feature, provider, model]`) plus the in-memory
+authority — while M108's account binding persists "Always" in the
+binding-keyed feature store (`readGrants`/`writeGrants` under
+`[provider, account, price]`). `AccountPaidUseConsent` wrote that feature
+grant (the `remember` fallback when no quote store is configured) but a new
+instance's `allowSearch` never read it, so a second instance asked again. The
+money-port lanes masked this by adding binding-scoped quote stores to the
+tests instead of bridging the class's required ports. The frozen quote in the
+`ask` payload is 0180b design, pinned by `acpPaid.test.ts:210`, so the
+pre-merge quoteless-forwarding expectation is stale; its rule (ask once per
+account with account, tariff and budget) is still asserted unchanged.
+
+### Fix
+
+`src/core/paid/paidConsent.ts:908` (`bindingGrants`, `keepBindingFeature`)
+and `:936-969` (`shouldBridgeQuotes` in `createConsent`): when the host
+configures no quote store and no quote-generation tracking, the binding-kept
+feature grant is bridged into the quote lookup, so "Always" holds across
+instances and restarts for the same workspace, provider, account and price.
+Differently-keyed (legacy) grants never match; a changed provider, account
+or price misses the binding key and asks again; `requiresAsking` and
+`canRemember: false` still ask through the dispatch flag; a host that tracks
+generations without a quote store fails closed and asks. Quote-store
+configurations are untouched: ceiling and generation safety still come from
+the quote grant. The legacy single-account path is untouched
+(`paidConsent.test.ts:315` still requires asking for an unpriced legacy
+feature grant).
+
+### Tests
+
+`test/unit/accountPaidConsent.test.ts:55` (`quoteBacked` shares the
+quote-store scaffolding between the existing binding test and the new
+generation test, so no new jscpd clone), `:187` (restart: new instances read
+back search and voice "Always" from the binding store, legacy grants
+ignored), `:201` (changed price asks again without a quote store), `:209`
+(changed quote generation asks again with a quote store).
+
+Red drill (default timeouts, `--maxWorkers=3`): with the three regressions
+added but the product unchanged, `:187` fails (second instance asks again)
+while the other 15 pass — 1 failed / 15 passed. After the fix: 16 passed.
+The price (`:201`) and generation (`:209`) regressions pass before and after;
+they guard safeties the fix must keep, not the defect.
+
+### Gates (`npm ci` fresh clone under `$TMPDIR`, `CI=true`)
+
+| Gate                                                    | Exit   | Receipt                                                                                                 |
+| ------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------- |
+| `accountPaidConsent`, `paidConsent`, `paidAuthority`    | 0      | 68 passed (16 consent)                                                                                  |
+| `paidDailyBudget`, `paidHookModels`, `paidHost`         | 0      | 87 passed                                                                                               |
+| `paidMoneyPorts`, `paidPortBoundaries`, `acpPaid`       | 0      | 73 passed                                                                                               |
+| `paidFeatures`, `schedulePaid`, `accountUsd`            | 0      | 62 passed                                                                                               |
+| `accountHomes`, `accountFakes`, `accountHost`           | 0      | 73 passed                                                                                               |
+| `accountPolicy`, `accountSecrets`, `accountStore`       | 0      | 110 passed                                                                                              |
+| `accountUsage`, `accountUsageText`, `accounts`          | 0      | 44 passed                                                                                               |
+| `accountsCommand`, `accountsPanelHost`, `accountsPanel` | 0      | 69 passed                                                                                               |
+| Five typechecks                                         | 0 each | host, webview, unit, e2e, integration                                                                   |
+| eslint `--max-warnings=0`, prettier                     | 0      | changed files (one boolean-name and formatting repair, no logic change)                                 |
+| Plain knip                                              | 0      | configuration hints only                                                                                |
+| Full jscpd                                              | 1      | exactly the two inherited clones (ACP agent, queued-answer/model-API fixture), zero threshold unchanged |
+| `check:l10n`                                            | 0      | zero problems                                                                                           |
+
+No `--testTimeout` on any verification run. The private fresh clone is
+removed after final verification.
