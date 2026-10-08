@@ -18,6 +18,7 @@ import {
 import type { SecretStore } from '../../host/auth/credentialStore'
 import { keyringSecretStore, type KeyringEntryFactory } from '../keyStore'
 import { DeveloperOptions } from '../../core/developer/developerOptions'
+import { developerMachineId } from '../../core/developer/machineId'
 import { DeveloperLocalFiles } from '../developer/localFiles'
 import { developerConfirmation, developerStatusText } from '../../core/developer/surfaces'
 import { accountPolicyFor } from '../../core/providers/accountPolicy'
@@ -287,8 +288,14 @@ export function createRuntimeAccountServices(
       }
       const unavailableProfile = (): Promise<void> =>
         Promise.reject(new Error(UI_TEXT.developer.unavailable))
+      const host = hostname()
       return await DeveloperOptions.open({
-        machineId: hostname(),
+        // One opaque identity for every host (DEVID017): the extension host
+        // derives the same id from the same hostname, so either host honours
+        // the other's unlock. Grants stored under the pre-DEVID017 raw
+        // hostname are adopted once, never written back raw.
+        machineId: developerMachineId(host),
+        previousMachineIds: [host],
         now,
         newProfileId: () => `p${randomBytes(DEVELOPER_PROFILE_ID_BYTES).toString('hex')}`,
         store: files,

@@ -24,6 +24,9 @@ export interface DeveloperStore {
 }
 export interface DeveloperOptionsDeps {
   readonly machineId: string
+  /** Ids this machine was known by before DEVID017 (its raw hostname). A
+   * stored grant under one is adopted once and re-bound to machineId. */
+  readonly previousMachineIds?: readonly string[]
   readonly now: () => number
   readonly newProfileId: () => string
   readonly store: DeveloperStore
@@ -56,16 +59,28 @@ export class DeveloperOptions {
       profiles: [],
     })
     const stored = await deps.store.read()
-    const parsed = developerStateSchema.safeParse(stored)
+    const parsed = stored === undefined ? undefined : developerStateSchema.safeParse(stored)
     if (
       stored !== undefined &&
-      (!parsed.success ||
-        parsed.data.machineId !== deps.machineId ||
-        (parsed.data.unlockedAt !== null && parsed.data.unlockedAt > deps.now()))
+      (parsed === undefined ||
+        !parsed.success ||
+        (parsed.data.unlockedAt !== null && parsed.data.unlockedAt > deps.now()) ||
+        (parsed.data.machineId !== deps.machineId &&
+          !(deps.previousMachineIds ?? []).includes(parsed.data.machineId)))
     ) {
       throw new DeveloperOptionsError('unavailable')
     }
-    const owner = new DeveloperOptions(deps, parsed.success ? parsed.data : empty)
+    // A grant stored under this machine's legacy id keeps working: it is
+    // re-bound to the opaque id here and persisted on the next save, with no
+    // grant change and so no audit entry (DEVID017).
+    let restored = empty
+    if (parsed?.success === true) {
+      restored =
+        parsed.data.machineId === deps.machineId
+          ? parsed.data
+          : { ...parsed.data, machineId: deps.machineId }
+    }
+    const owner = new DeveloperOptions(deps, restored)
     await owner.refresh()
     if (owner.isMultipleAccountsOn()) {
       const current = owner.fence()

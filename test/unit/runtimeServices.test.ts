@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -44,7 +44,8 @@ function keyring(): { openEntry: KeyringEntryFactory; values: Map<string, string
 }
 
 function rig() {
-  const folder = mkdtempSync(path.join(tmpdir(), 'm108-services-'))
+  // macOS spells $TMPDIR through a /var symlink the developer root refuses.
+  const folder = mkdtempSync(path.join(realpathSync.native(tmpdir()), 'm108-services-'))
   dirs.push(folder)
   seed(folder)
   const { openEntry } = keyring()
