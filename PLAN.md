@@ -42443,6 +42443,18 @@ No dependency, host contract, paid guard or bundle cap changes.
 
 ##### 2i — Embedding fast path after family measurement
 
+- **FIXM98P2I3 redesign (2026-10-08, before implementation).** Replace the
+  route's separate asynchronous recovery paths with one guarded step that
+  owns dispatch, validation and Stop settlement for admission, embeddings and
+  every full-judge delegate, including rejections. Redact structured string
+  values before serialization and check the serialized payload again. Validate
+  the entire embedding batch against its question count and head dimension;
+  scoring rejects missing or non-finite components before arithmetic. Preserve
+  public types, separate ledger legs, all previous regressions and confidential
+  routing. Prove RVM98P2IC findings 1–4 on `b85e8772d`, then run owning files
+  three times and the required static/build checks in a fresh `npm ci` clone
+  under `CI=true`, with default deadlines and unchanged caps. The lane brief
+  reserves aggregate quality for the lead; fakes only, no push or merge.
 - **Scope.** Logistic head per recurring family, using embeddings from the
   same provider or an explicitly opted-in local judge. Training stays local
   and opt-in; weights live in global storage and never in VSIX.

@@ -92,14 +92,21 @@ export function scoreEmbedding(
   bias: number,
   vector: readonly number[],
 ): number | undefined {
-  if (!Number.isFinite(bias) || vector.length !== weights.length) return undefined
+  // Spreading visits holes too: sparse arrays must fail before any product.
+  if (
+    !Number.isFinite(bias) ||
+    vector.length !== weights.length ||
+    [...weights].some((weight) => !Number.isFinite(weight)) ||
+    [...vector].some((value) => !Number.isFinite(value))
+  )
+    return undefined
   let logit = bias
   for (const [index, weight] of weights.entries()) {
-    const value = vector[index] ?? 0
-    if (!Number.isFinite(weight) || !Number.isFinite(value)) return undefined
+    const value = vector[index]
+    if (value === undefined) return undefined
     logit += weight * value
   }
-  return sigmoid(logit)
+  return Number.isFinite(logit) ? sigmoid(logit) : undefined
 }
 
 /**

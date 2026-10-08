@@ -7,7 +7,7 @@
 // import.
 
 import * as z from 'zod/mini'
-import { JUDGE_EMBED_FALLBACK_CONFIDENCE } from '../../../shared/constants'
+import { JUDGE_EMBED_FALLBACK_CONFIDENCE, REDACTED_MARK } from '../../../shared/constants'
 import { redactSecrets } from '../../redact'
 import { entropyConfidence } from '../math'
 import {
@@ -103,19 +103,38 @@ function wasAborted(signal: AbortSignal): boolean {
   return signal.aborted
 }
 
+type Step<T> = { readonly status: 'ready'; readonly value: T } | { readonly status: 'failed' }
+
 /**
- * The single settlement path for every delegate wait. A Stop that lands
- * while the full judge runs never publishes its late answer: the request is
- * reported as not answered, and the legs already reserved stay on the
- * ledger. No delegate await may resolve an answer without passing through
- * here.
+ * The only await owner: dispatch, parse and settle every step here. Stop
+ * wins over fulfillment, rejection and synchronous failures, and is re-read
+ * after the continuation settles too. Issued receipts stay with their ledger
+ * owner: the public no-answer contract has no cost fields.
  */
-async function settleFallback(
-  pending: Promise<JudgeOutcome>,
+async function guardedStep<T>(
   signal: AbortSignal,
+  dispatch: () => unknown,
+  validate: (value: unknown) => T,
+  settle: (step: Step<T>) => JudgeOutcome | Promise<JudgeOutcome>,
 ): Promise<JudgeOutcome> {
-  const outcome = await pending
-  return wasAborted(signal) ? refusal('cancelled') : outcome
+  if (wasAborted(signal)) return refusal('cancelled')
+  let step: Step<T>
+  try {
+    const returned: unknown = await dispatch()
+    if (wasAborted(signal)) return refusal('cancelled')
+    step = { status: 'ready', value: validate(returned) }
+  } catch {
+    // Source errors become failed steps; Stop takes precedence below.
+    step = { status: 'failed' }
+  }
+  if (wasAborted(signal)) return refusal('cancelled')
+  try {
+    const outcome = await settle(step)
+    return wasAborted(signal) ? refusal('cancelled') : outcome
+  } catch {
+    // A rejected continuation settles explicitly instead of escaping.
+    return refusal(wasAborted(signal) ? 'cancelled' : 'engine-failure')
+  }
 }
 
 /**
@@ -155,19 +174,49 @@ function isMatchingHead(head: EmbeddingHead, deps: EmbeddingRouteDependencies): 
  * One embed input per question: the complete state beside its instructions
  * and the binary question's criteria. The criteria define what `true` and
  * `false` mean, so two framings of the same state never share an input.
- * Every input passes the shared secret redactor before the remote call, the
- * same pass the other judges run on their outbound text.
+ * Raw strings, including nested state and criteria, are scrubbed before
+ * JSON escaping. The final pass catches named object fields as well.
  */
 function embedInputs(request: JudgeRequest): string[] {
-  return Object.values(request.questions).map((question) =>
-    redactSecrets(
-      JSON.stringify({
-        state: request.state,
-        instructions: question.instructions,
-        criteria: question.criteria ?? null,
-      }),
-    ),
-  )
+  return Object.values(request.questions).map((question) => {
+    const payload = JSON.stringify({
+      state: redactStructured(request.state),
+      instructions: redactStructured(question.instructions),
+      criteria: redactStructured(question.criteria ?? null),
+    })
+    // Never edit escaped JSON: a remaining match refuses dispatch instead.
+    if (redactSecrets(payload) !== payload) throw new TypeError('embedding-redaction')
+    return payload
+  })
+}
+
+function redactStructured(value: unknown): unknown {
+  if (typeof value === 'string') {
+    // A changed string is replaced whole: retaining a fragment can leak the
+    // rest of a multiline value, or recreate a quoted match after escaping.
+    const inspection = value
+      .replaceAll(/\\(["'])/g, (_match, quote: string) => quote)
+      .replaceAll(/[\r\n]/g, ' ')
+    return redactSecrets(value) !== value ||
+      redactSecrets(inspection) !== inspection ||
+      value.includes(REDACTED_MARK)
+      ? REDACTED_MARK
+      : value
+  }
+  if (Array.isArray(value)) return Array.from(value, (item: unknown) => redactStructured(item))
+  if (value === null || typeof value !== 'object') return value
+  const clean: Record<string, unknown> = {}
+  for (const [key, item] of Object.entries(value)) {
+    const cleanKey = redactStructured(key)
+    if (typeof cleanKey !== 'string') throw new TypeError('embedding-state-key')
+    // The raw field name identifies opaque values that carry no token shape.
+    const fieldName = `${key}=""`
+    Object.defineProperty(clean, cleanKey, {
+      value: redactSecrets(fieldName) === fieldName ? redactStructured(item) : REDACTED_MARK,
+      enumerable: true,
+    })
+  }
+  return clean
 }
 
 function embeddingAnswer(
@@ -180,7 +229,8 @@ function embeddingAnswer(
   const muse: Extract<JudgeOutcome, { outcome: 'answered' }>['result']['muse'] = {}
   const ids = Object.keys(request.questions)
   for (const [index, id] of ids.entries()) {
-    const probability = probabilities[index] ?? 0
+    const probability = probabilities[index]
+    if (probability === undefined) return refusal('engine-failure')
     answers[id] = {
       type: 'noul',
       noul: probability,
@@ -207,21 +257,6 @@ function embeddingAnswer(
       usage: { input_tokens: source.inputTokens, output_tokens: 0 },
     },
   })
-}
-
-/**
- * Run the full judge and keep the embedding leg's cost on an answered
- * verdict. This wait never publishes on its own: only `settleFallback`
- * settles a delegate's answer.
- */
-async function runFallbackWithLeg(
-  fallback: EmbeddingFallback,
-  request: JudgeRequest,
-  source: EmbeddingSource,
-  receipt: EmbeddingReceipt,
-  signal: AbortSignal,
-): Promise<JudgeOutcome> {
-  return withEmbeddingLeg(await fallback.run(request, signal), source, receipt)
 }
 
 /**
@@ -268,69 +303,84 @@ function withEmbeddingLeg(
  * admission or a caught cancellation stays fail-closed with an explicit
  * no-answer instead.
  */
-export async function runEmbeddingJudge(
+export function runEmbeddingJudge(
   input: unknown,
   options: EmbeddingRouteOptions,
   deps: EmbeddingRouteDependencies,
   signal: AbortSignal,
 ): Promise<JudgeOutcome> {
   const fallback = deps.fallback
-  if (fallback === undefined) return refusal('source-unavailable')
-  if (signal.aborted) return refusal('cancelled')
-  const parsed = judgeRequestSchema.safeParse(input)
-  if (!parsed.success) return refusal('engine-failure')
-  const request = parsed.data
-  if (
-    !options.optedIn ||
-    !isEmbeddingPermitted(deps.source, options.confidential) ||
-    Object.values(request.questions).some((question) => question.type !== 'noul')
-  ) {
-    return await settleFallback(fallback.run(request, signal), signal)
-  }
-  const head = parseEmbeddingHead(deps.head)
-  if (head.status !== 'valid' || !isMatchingHead(head.head, deps)) {
-    return await settleFallback(fallback.run(request, signal), signal)
-  }
-  let receipt: EmbeddingReceipt
-  try {
-    receipt = receiptSchema.parse(
-      await deps.admission.run(
-        { inputTokens: deps.source.inputTokens, uncachedCostUsd: deps.source.uncachedCostUsd },
-        signal,
-      ),
-    )
-  } catch {
-    return refusal(wasAborted(signal) ? 'cancelled' : 'engine-failure')
-  }
-  if (wasAborted(signal)) return refusal('cancelled')
-  /** The allowed full judge decides, with the embedding leg's cost kept. */
-  const fallbackWithLeg = async (): Promise<JudgeOutcome> =>
-    wasAborted(signal)
-      ? refusal('cancelled')
-      : await settleFallback(
-          runFallbackWithLeg(fallback, request, deps.source, receipt, signal),
+  if (fallback === undefined) return Promise.resolve(refusal('source-unavailable'))
+  return guardedStep(
+    signal,
+    () => input,
+    (value) => judgeRequestSchema.parse(value),
+    (parsed) => {
+      if (parsed.status !== 'ready') return refusal('engine-failure')
+      const request = parsed.value
+      // Every delegate uses this guarded dispatch and accounting path.
+      const delegate = (receipt?: EmbeddingReceipt): Promise<JudgeOutcome> =>
+        guardedStep(
           signal,
+          () => fallback.run(request, signal),
+          (value) => judgeOutcomeSchema.parse(value),
+          (full) => {
+            if (full.status !== 'ready') return refusal('engine-failure')
+            return receipt === undefined
+              ? full.value
+              : withEmbeddingLeg(full.value, deps.source, receipt)
+          },
         )
-  let vectors: readonly (readonly number[])[]
-  try {
-    vectors = await deps.source.embed(embedInputs(request), signal)
-  } catch {
-    return wasAborted(signal) ? refusal('cancelled') : await fallbackWithLeg()
-  }
-  if (wasAborted(signal)) return refusal('cancelled')
-  const ids = Object.keys(request.questions)
-  if (vectors.length !== ids.length) return await fallbackWithLeg()
-  const probabilities: number[] = []
-  for (const vector of vectors) {
-    const probability = scoreEmbedding(head.head.weights, head.head.bias, vector)
-    if (probability === undefined) return await fallbackWithLeg()
-    probabilities.push(probability)
-  }
-  const isConfident = probabilities.every(
-    (probability) =>
-      entropyConfidence([probability, 1 - probability]) >= JUDGE_EMBED_FALLBACK_CONFIDENCE,
+      const head = parseEmbeddingHead(deps.head)
+      if (
+        !options.optedIn ||
+        !isEmbeddingPermitted(deps.source, options.confidential) ||
+        Object.values(request.questions).some((question) => question.type !== 'noul') ||
+        head.status !== 'valid' ||
+        !isMatchingHead(head.head, deps)
+      ) {
+        return delegate()
+      }
+      const trained = head.head
+      // z.number refuses NaN/Infinity and never coerces null, holes or strings.
+      const batchSchema = z
+        .array(z.array(z.number()).check(z.length(trained.identity.dimension)))
+        .check(z.length(Object.keys(request.questions).length))
+      return guardedStep(
+        signal,
+        () =>
+          deps.admission.run(
+            { inputTokens: deps.source.inputTokens, uncachedCostUsd: deps.source.uncachedCostUsd },
+            signal,
+          ),
+        (value) => receiptSchema.parse(value),
+        (admitted) => {
+          if (admitted.status !== 'ready') return refusal('engine-failure')
+          const receipt = admitted.value
+          return guardedStep(
+            signal,
+            () => deps.source.embed(embedInputs(request), signal),
+            (value) => batchSchema.parse(value),
+            (embedded) => {
+              if (embedded.status === 'failed') return delegate(receipt)
+              const probabilities: number[] = []
+              for (const vector of embedded.value) {
+                const probability = scoreEmbedding(trained.weights, trained.bias, vector)
+                if (probability === undefined) return delegate(receipt)
+                probabilities.push(probability)
+              }
+              const isConfident = probabilities.every(
+                (probability) =>
+                  entropyConfidence([probability, 1 - probability]) >=
+                  JUDGE_EMBED_FALLBACK_CONFIDENCE,
+              )
+              return isConfident
+                ? embeddingAnswer(request, probabilities, deps.source, receipt)
+                : delegate(receipt)
+            },
+          )
+        },
+      )
+    },
   )
-  return isConfident
-    ? embeddingAnswer(request, probabilities, deps.source, receipt)
-    : await fallbackWithLeg()
 }

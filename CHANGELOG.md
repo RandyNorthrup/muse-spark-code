@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Redesign the experimental embedding judge's asynchronous pipeline so Stop
+  also settles rejected full-judge calls. Scrub structured inputs before JSON
+  escaping, refuse malformed embedding batches and missing numeric components,
+  and retain the separately admitted embedding and fallback legs.
+
 - Integrate the repaired SystemOne and BYO judge libraries and the Judge panel
   on the 0.15.0 head. Share token protection, server startup and fixtures;
   expose explicit source assembly with generation fences and bounded wording;

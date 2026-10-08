@@ -31,6 +31,22 @@ describe('embedding sigmoid and scoring', () => {
     const probability = scoreEmbedding([4, -4], 0, [0.9, 0.1])
     expect(probability).toBeGreaterThan(0.9)
   })
+
+  it.each([
+    ['null', [0.9, null]],
+    ['undefined', [0.9, undefined]],
+    ['sparse', Object.assign(Array.from({ length: 2 }), { 0: 0.9 })],
+    ['string', [0.9, '0.1']],
+    ['infinite', [0.9, Infinity]],
+  ])('refuses the %s component before scoring arithmetic (RVM98P2IC 2)', (_name, vector) => {
+    // Reflect models an untyped source crossing the public numeric signature.
+    const probability: unknown = Reflect.apply(scoreEmbedding, undefined, [[4, -4], 0, vector])
+    expect(probability).toBeUndefined()
+  })
+
+  it('refuses arithmetic overflow from otherwise finite components', () => {
+    expect(scoreEmbedding([2], 0, [Number.MAX_VALUE])).toBeUndefined()
+  })
 })
 
 describe('embedding dataset parsing', () => {
