@@ -306,7 +306,7 @@ describe('dispatch input manifests (lane V)', () => {
     ['aux', 'AUX'],
     ['.git/config', '.git./config'],
     ['plans/q3.md', 'pLaNs/Q3.MD'],
-    ['plans/q3.md', 'plans. /q3.md. '],
+    ['plans/q3.md', 'plans./q3.md. '],
     ['plans/q3.md', String.raw`PLANS\Q3.MD. `],
     ['aux.txt', 'AuX.TXT. '],
     ['nul', 'NUL. '],
@@ -335,12 +335,28 @@ describe('dispatch input manifests (lane V)', () => {
   })
   it.each([
     '.git./config',
-    String.raw`repo\.GiT. \hooks\pre-commit`,
+    'repo/.GiT. /hooks/pre-commit',
     '.github. /workflows. /build.yml',
     'AGENTS.md. ',
   ])('recognizes protected names with Windows aliases everywhere: %j', (inputPath) => {
     expect(isProtectedPath(inputPath)).toBe(true)
   })
+  it.each(['plans..', 'plans. '])(
+    'admits distinct intermediate Windows directories: %s',
+    (directory) => {
+      const { manifest } = laneDispatch()
+      const candidate = {
+        ...manifest,
+        items: ['plans/q3.md', `${directory}/q3.md`].map((inputPath) => ({
+          path: inputPath,
+          digest: PLAN_DIGEST,
+          bytes: 120,
+        })),
+      }
+      expect(buildInputManifest(candidate).items).toEqual(candidate.items)
+      expect(deviceInputManifestSchema.safeParse(candidate).success).toBe(true)
+    },
+  )
   it.runIf(process.platform === 'win32')(
     'opens Windows aliases as the same native file',
     async () => {

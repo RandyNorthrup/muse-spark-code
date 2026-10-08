@@ -239,6 +239,25 @@ describe('writeFileAtomically (D27)', () => {
 
 // The one conditional write (M68; the Codex review of PR #54, third round).
 describe('writeFileIfUnchanged', () => {
+  it.each(['foo..', 'foo. '])(
+    'refuses approval bound to a different intermediate %s directory',
+    async (name) => {
+      const target = path.join(paths.root, 'bound-names', name, 'b.txt')
+      await mkdir(path.dirname(target), { recursive: true })
+      await writeFile(target, 'kept')
+      const renameFile = vi.fn(() => Promise.resolve())
+      await expect(
+        writeFileAtomically(target, 'changed', {
+          sleep: noWait,
+          platform: 'win32',
+          expectedCanonicalPath: path.join(paths.root, 'bound-names', 'foo', 'b.txt'),
+          rename: renameFile,
+        }),
+      ).rejects.toThrow(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
+      expect(renameFile).not.toHaveBeenCalled()
+      expect(await readFile(target, 'utf8')).toBe('kept')
+    },
+  )
   it('replaces the file only while it holds the expected text', async () => {
     const target = path.join(paths.root, 'conditional', 'c.txt')
     await writeFileAtomically(target, 'as edited', { sleep: noWait })

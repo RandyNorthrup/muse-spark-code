@@ -316,3 +316,98 @@ Integration requests remain with lane W: call `admitOfferCapability` with the
 receiver's current clock (a separate admission call is no longer needed),
 regenerate its host API record for the two count changes above, and carry these behavior corrections
 into its assigned Unreleased changelog and joined-tree full quality gate.
+
+### Lane V second review correction — Win32 is the identity oracle
+
+2026-10-08, win11 rig, `C:/lanes/FIXM100P2V2`, branch `m100/p2-v-fix2`,
+base `32c55827f`. Read the shared phase-2 rules and both reviews,
+`RVM100P2V.report.md` then `RVM100P2VB.report.md`. No merge, push, model
+request, paid use, listener or real second device. This corrects the first
+review's overbroad intermediate-name identity; the earlier certification's
+claim that every segment drops all trailing dots/spaces is superseded here.
+
+| Finding                                                 | Root correction and regression                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| P2: canonical POSIX backslashes became separators       | `src/core/protectedPaths.ts` receives the resolver's already-canonical relative path and splits only `/`. It never infers an OS from a backslash. Case and conservative protected-name refusals remain. `pathIdentity.test.ts` and `workspacePath.test.ts` cover Linux and macOS literal backslashes; the original `permissions.test.ts` Windows-versus-POSIX regression also passes. MSP's separate raw-subject entrypoint retains its documented conservative separator conversion.                                                                                                                                                                                                                                                                                                      |
+| P2: distinct intermediate Windows directories collapsed | `src/core/pathIdentity.ts` is the single lexical Windows identity: only one trailing intermediate period is removed; multiple periods and spaces remain; a terminal name loses trailing periods/spaces only without a final separator. Exact extended paths bypass normalization. `paths.ts` folds before `path.relative` can discard that separator. `pathIdentity.test.ts` corrects the wrong containment assertion and checks the native oracle. Manifest tests admit distinct `plans..` and `plans. ` directories while preserving all 12 true-collision refusals. `worktreeConversations.test.ts` refuses to transfer confirmed trust to either distinct directory; `fsAtomic.test.ts` refuses an approval bound to the other directory before rename, preserving the original bytes. |
+
+Workspace and held-tree writable-name refusals retain their prior conservative
+policy: they refuse trailing dots/spaces and device names before writing.
+`windowsName` documents that policy rather than claiming all intermediate
+Windows names normalize that way. Manifest uniqueness still applies the one
+Windows identity on every platform, with stored wire spelling and digests
+unchanged. No schema, cap, timeout, assertion or gate was relaxed.
+
+#### Native OS oracle
+
+Read Microsoft's [Windows path normalization](https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats#path-normalization),
+including the Windows 11 legacy-device note and exact extended-path exception.
+The strict-zod-parsed native receipt comes from
+`test/unit/helpers/windowsFileIdentity.ps1`, one hidden noninteractive process.
+Fixtures are created by `CreateDirectoryW` and `CreateFileW`, ordinary aliases
+are opened by `CreateFileW`, and disk identities come from
+`GetFileInformationByHandle` (volume serial plus 64-bit file index). Directory
+handle identities determine containment independently of the TypeScript
+helper. `GetFullPathNameW` additionally checks ordinary normalized spelling;
+exact extended opens bypass that call, as Win32 does. Handles and temporary
+trees are cleaned in `finally`. The test uses the repository's default 5 s
+deadline, without `--testTimeout`.
+
+All 11 rows assert `windowsPathIdentity`, `isSamePath`, and `isWithinFolder`
+against the native result:
+
+| First spelling / second spelling (inside a fresh temporary root) | Native result                                                   | Inside second folder            |
+| ---------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------- |
+| `name.` / `name`                                                 | Same volume and file index                                      | Yes                             |
+| `name ` / `name`                                                 | Same volume and file index                                      | Yes                             |
+| `name. .` / `name`                                               | Same volume and file index                                      | Yes                             |
+| `a.\child` / `a\child`                                           | Same volume and file index; same directory index                | Yes                             |
+| `a..\child` / `a\child`                                          | Distinct file and directory indexes                             | No                              |
+| `a. \child` / `a\child`                                          | Distinct file and directory indexes                             | No                              |
+| `NAME` / `name`                                                  | Same volume and file index                                      | Yes                             |
+| `a. \` / `a\`                                                    | Distinct directory indexes; final separator preserves the space | No                              |
+| Exact extended `\\?\<root>\literal.` / ordinary `literal`        | Distinct file indexes; extended final period remains            | Yes, both in the temporary root |
+| `NUL` / `nul`                                                    | Same character device (`GetFileType = 2`), no disk file index   | No                              |
+| `nul.txt` / `NUL.TXT`                                            | Same disk volume and file index on Windows 11                   | Yes                             |
+
+The reserved-name row is honest about the OS: NUL has no volume/file index.
+`CreateDirectoryW(NUL)` returns success here but creates no disk directory;
+an exact extended-path open returns `ERROR_FILE_NOT_FOUND` (2). Workspace
+policy refuses both `NUL` and `nul.txt` regardless of that OS difference.
+No console, serial or printer device is read or written. Disk opens request
+no read/write access.
+
+#### Exact-base regression and red drills
+
+Fresh clone `C:/lanes/_verify/FIXM100P2V2-base-20261008`, exact base above,
+`CI=true`, `npm.cmd ci` **0**. Only the five changed regression test files,
+the new workspace-path suite and native helper were overlaid; base production
+code was untouched. Default deadlines, `--maxWorkers=3`, at most three files:
+
+- `pathIdentity`, `deviceInputManifest`, `permissions`: **9 failed / 104 passed**,
+  exit **1** (including the original permissions regression).
+- `fsAtomic`, `worktreeConversations`, `workspacePath`: **6 failed / 47 passed /
+  1 skipped**, exit **1**. The existing POSIX-only file-mode test is the skip.
+- Total: **15 failed / 151 passed / 1 existing platform skip**. Every new
+  defect regression fails on the base; Windows writable-name policy controls
+  and the remaining existing assertions pass.
+
+Each drill saved bytes, mutated one guard, ran the direct Vitest CLI, restored
+bytes in `finally`, and verified SHA-256 equality. Unselected tests are pending
+because of the named selector, not disabled assertions.
+
+| Drill          | Intentional break / selector                                                                                                                                                            | Exit / failures | Restored source SHA-256                                            |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------ |
+| V2-POSIX       | Reinsert unconditional backslash separation in `protectedPaths.ts`; `POSIX backslashes\|backslashes separate\|resolved path segments` across identity, permissions and workspace suites | 1 / 5           | `a818814250524529f7b0e843a49bbbb1ff68684a19411f02621bd39a3b04cc80` |
+| V2-Win32       | Trim all intermediate dots/spaces in `pathIdentity.ts`; `intermediate\|folder membership\|native Win32\|confirmed trust to a distinct` across identity, manifest and worktree suites    | 1 / 8           | `62886fe56759df7e0ca37f7dce65eefd9a3bad03b40417d60885aeda0555a469` |
+| V2-containment | Restore resolve-before-fold in `paths.ts`; `native Win32`                                                                                                                               | 1 / 1           | `b35833024b5ca8b7d27ca7e1261f2cc3f793c670388217a812d2258288746ac3` |
+
+Restored worktree: identity/manifest/permissions **113 passed**; atomic writes,
+worktree trust and workspace paths **53 passed / 1 existing platform skip**;
+held-tree/tools/Muse Code protected writes **121 passed**. Five typecheck
+projects, changed-file ESLint/Prettier, and PSScriptAnalyzer 1.25.0/PSGallery
+for the changed helper exit **0**. Fresh-clone final receipts follow separately.
+
+Lane W still owns its host API record regeneration, Unreleased changelog and
+joined-tree full `npm run quality`. Carry these shared protection/identity
+corrections into that integrated gate; this lane claims only its actual checks.

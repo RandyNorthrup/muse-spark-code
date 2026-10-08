@@ -19,7 +19,9 @@ export function isWithinFolder(
 ): boolean {
   const p = platform === 'win32' ? path.win32 : path.posix
   const fold = (value: string) => (platform === 'win32' ? windowsPathIdentity(value) : value)
-  const relative = p.relative(fold(p.resolve(folder)), fold(p.resolve(candidate)))
+  // Fold before relative resolves: resolve drops the final separator, which
+  // changes Win32's treatment of a directory ending in dots or spaces.
+  const relative = p.relative(fold(folder), fold(candidate))
   // `..` as a whole segment: a folder named `..cache` inside is still inside.
   const isAbove = relative === '..' || relative.startsWith(`..${p.sep}`)
   return !isAbove && !p.isAbsolute(relative)

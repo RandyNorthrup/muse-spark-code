@@ -54,6 +54,22 @@ describe('the pull request worktree folders (M71)', () => {
 })
 
 describe('holdFor (M71): held by location, let go only by a confirmed record', () => {
+  it.each(['foo..', 'foo. '])(
+    'does not transfer confirmed trust to a distinct %s directory',
+    (name) => {
+      const heldRoot = String.raw`C:\repo`
+      const trusted = record({
+        folder: String.raw`C:\repo\foo`,
+        isHeld: false,
+        trustConfirmedAt: 5,
+      })
+      const root = `${heldRoot}\\${name}\\child`
+      expect(holdFor([root], [heldRoot], [trusted], 'win32')).toEqual({
+        folder: root,
+        pullRequest: undefined,
+      })
+    },
+  )
   it('holds a window on a pull request worktree, naming the pull request', () => {
     expect(holdFor([FOLDER], [HELD_ROOT], [record({})], 'win32')).toEqual({
       folder: FOLDER,
