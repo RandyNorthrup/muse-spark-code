@@ -1851,6 +1851,10 @@ Python `while True: pass` processes, stopped after the phase.
 
 - Unmodified `2a0636760`: **30 idle runs, 0 failed; 30 loaded runs, 0 failed**,
   86 tests per run. The macmini filesystem flake did not reproduce on this rig.
+- Fixed commit `bb5f7f508`: **30 idle runs, 0 failed; 30 loaded runs, 0 failed**,
+  86 tests per run. Both full files run every time: **120 complete runs / 10,320
+  passing test executions** across the before/after phases. All logs were checked
+  for the full 86-test pass count, not just their process exit code.
 - Red drill: remove only the reset test's `await uncertain`; three loaded
   targeted runs each exit **1**, **1 failed / 48 skipped**. Every reconciliation
   returns `running` instead of `uncertain`, directly proving the same ordering
@@ -1868,3 +1872,41 @@ Receipts and the loop/drill drivers are under
 Aggregate `npm run quality`, joined CHANGELOG/help and installed-host/four-device
 qualification remain with the lead/lane W under the phase-2 ownership table;
 this lane changes no runtime feature, command, setting, dependency or gate.
+
+### Final committed-code fresh-clone receipt
+
+Verified `bb5f7f508b468cc2fa28d5dc02c5622699be4848`, cloned directly from
+the worktree into `$TMPDIR/e3race-proof/verify`. `CI=true npm ci` exited
+**0**. Three consecutive complete owning runs at default timeouts and
+`--maxWorkers=3` each passed **86 tests**. Shared-fixture neighbours
+`attemptJournal.test.ts`, `actionGrants.test.ts` and `deviceReconnect.test.ts`
+passed **126 tests** in one three-file batch at the same defaults.
+
+| Fresh-clone gate                                           | Exit | Result                                                                                       |
+| ---------------------------------------------------------- | ---- | -------------------------------------------------------------------------------------------- |
+| `npm run typecheck`                                        | 0    | All five projects, including `typecheck:unit`                                                |
+| `npm run lint`                                             | 0    | Full ESLint and CSS lint, zero warnings; PowerShell analyzer reports its Linux platform skip |
+| Prettier on the three changed tests/helper and this record | 0    | Clean                                                                                        |
+| Plain `npx knip`                                           | 0    | Only inherited `vendor/**` and `axe-core` configuration hints                                |
+| `npm run duplication`                                      | 0    | Zero clones; no threshold or ignore changes                                                  |
+| `npm run check:reference`                                  | 0    | Current, 18 Devices entries                                                                  |
+| `node scripts/check-l10n.mjs`                              | 0    | 14 UI tables, 14 usage tables, zero problems                                                 |
+| `npm run check:host-api`                                   | 0    | Zero problems                                                                                |
+| `npm run build`                                            | 0    | All production size, split, host-global and notices checks pass; caps unchanged              |
+| `git status --short` after all checks                      | 0    | Empty; clone clean                                                                           |
+
+Final source SHA-256 (worktree and clone match):
+
+- `test/unit/deviceReceiver.test.ts`:
+  `6219d9dafccb2b282e4f197eea5033b23cf906576fd231763a3218b39234119e`.
+- `test/unit/deviceRecovery.test.ts`:
+  `2f78ebe398cc4f8f36023ac792e27c1287e6cfef772a5e50d188c19b652328f0`.
+- `test/unit/helpers/deviceExecutionFixtures.ts`:
+  `fa5bca785336cd1ea8b0f16e5e911abb97b7fd10fd7c8225eeed78c6adbbb8b4`.
+
+The initial fix commit passed ESLint/Prettier and Gitleaks hooks; its staged
+and committed diff was reread and source hashes checked after the hooks.
+The final follow-up changes only this certification record. The temporary
+clone is removed after verification; the receipts remain under
+`$TMPDIR/e3race-proof`. No push, merge, paid call or live model
+call was made. Work finished within the brief's 40-minute time box.
