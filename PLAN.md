@@ -41495,6 +41495,13 @@ tests and static/build gates. Full `npm run quality` and integrated platform
 qualification remain W's required gate before integration. No threshold,
 timeout, assertion or ignore changes. The inherited stale host API inventory
 remains W-owned and is reported separately in the macOS certification record.
+Final-source receiver/recovery verification also exposes the unchanged E test
+`RVM100E3-P2 reset starts Stop despite a stalled journal and held cancellation
+confirmation`: its final reconciliation can precede the asynchronously queued
+uncertain-state write, so fixture removal races that write (`ENOTEMPTY`).
+Per the shared file-ownership rule, E must await that durable state before its
+existing reconciliation/teardown; H records the actual three-run exits without
+editing E's test, suppressing the failure or changing an assertion/deadline.
 
 **MACSLOW bounded certification (2026-10-07, macmini).** The lane's shared
 rules prohibit aggregate quality and delegate it to the lead. Run complete

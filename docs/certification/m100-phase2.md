@@ -1339,3 +1339,68 @@ policy in `helpers/deviceWorkerReceiver.ts` and the retained-cap case's launch
 closure; keep every assertion and threshold. Restored local jscpd is **exit 0,
 zero clones**. Final committed-clone checks are repeated after that fixture
 repair. The host API inventory remains the exact inherited W residual.
+
+##### HM4 final committed-source fresh-clone verification
+
+Final source/test commit **`6d68dc086`** (implementation **`abf28763b`**).
+Fresh clone **`$TMPDIR/M100P2HM4-final-verify.seKSaq`**, Node **24.21.0**,
+npm **11.19.0**, macOS **15.7.4**, UID **502**. `CI=true npm ci`:
+**exit 0**, unchanged lockfile; the same 11 existing audit findings (2 low,
+9 high). No dependency or audit configuration change.
+
+| Final committed-clone check                                                | Exit / result                                                                                                                                                                                               |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| H's three owning files, three runs, `--maxWorkers=3`, repository deadlines | **0 / 0 / 0**: **67 passed, 0 failed, 7 Windows-native skipped** each time. All **22 macOS native cases** and **6 injected Darwin cases** ran and passed every time. Durations **14.82 / 13.92 / 14.09 s**. |
+| Complete `deviceReceiver.test.ts` + `deviceRecovery.test.ts`, three runs   | **1 / 0 / 0**: **85 passed, 1 failed / 86 passed / 86 passed**, no skips, **19.78 / 19.63 / 19.75 s**. The single failure is the unchanged E reset-test teardown's `ENOTEMPTY`, detailed below.             |
+| Five typechecks: host, webview, unit, e2e, integration                     | **0 / 0 / 0 / 0 / 0**.                                                                                                                                                                                      |
+| ESLint, nine changed TS files, `--max-warnings=0`                          | **0**.                                                                                                                                                                                                      |
+| Prettier, all twelve changed TS/Markdown files                             | **0**; final documentation formatting is also checked after the certification commit.                                                                                                                       |
+| Plain Knip                                                                 | **0**, unchanged configuration.                                                                                                                                                                             |
+| Plain jscpd                                                                | **0**, zero clones; original zero threshold unchanged.                                                                                                                                                      |
+| `check:l10n`                                                               | **0**, 14 UI/usage tables, 197 manifest strings, 991 source files, zero problems.                                                                                                                           |
+| `check:reference`                                                          | **0**, current existing feature catalog.                                                                                                                                                                    |
+| `check:host-api`                                                           | **1**, exactly the inherited six W-owned inventory count differences below; no suppression or regeneration in H.                                                                                            |
+| Production `npm run build`: size, split, host globals, notices             | **0**. Devices **82.0/100 KiB**, activation **462.8/600 KiB**, Model API **456.0/475 KiB**, Devices webview **34.0/50 KiB**; every cap unchanged.                                                           |
+
+All six final test runs are recorded, including the failure; no retry, timeout
+increase, assertion removal or added test skip was used. The complete owning suites
+pass in each required repetition. Baseline proof and all three red drills were
+also repeated after the fixture refactor, with the same **6** baseline failures
+and **4 / 1 / 1** drill failures and exact restoration hashes above.
+
+**E request, outside H ownership.** In
+`test/unit/deviceReceiver.test.ts:208`, `RVM100E3-P2 reset starts Stop despite
+a stalled journal and held cancellation confirmation`, the body resolves the
+held confirmation and immediately reconciles. By tracing the existing async
+cancel effect, the `record-uncertain` journal write can enqueue after that
+reconciliation; `useExecutionFixture` then removes the directory while the
+write is active. The first final run fails only with `ENOTEMPTY` in fixture
+teardown; the next two complete runs pass. The first committed clone also
+passed all three complete receiver/recovery runs. E should await the durable
+`uncertain` state before the existing final reconciliation/teardown, preserving
+all immediate Stop, held-confirmation, nonrelease and framing assertions.
+The shared ownership rule requires this request rather than an H edit; the
+residual is recorded in PLAN section 7. H does not claim a fully green combined
+receiver gate or aggregate quality.
+
+**W / lane 0 requests.** Regenerate W's unchanged stale host API record:
+child_process **16→18**, crypto **93→95**, fs **44→45**, fs/promises **74→77**,
+path **125→128**, timers/promises **15→17**. Totals remain **366 VS Code APIs,
+43 importing files, 28 Node built-ins, 70 theme variables**. Reconcile the
+review-required optional `failure: capacity` result/tombstone amendment with
+lane 0's composed contracts and protocol compatibility. W retains the existing
+lazy factory binding and full `npm run quality` / installed-host obligations.
+No reviewed H finding is deferred.
+
+Changed files: `src/host/backend/deviceWorkerDarwin.ts`,
+`src/host/devices/deviceWorkerHost.ts`, `src/host/devices/deviceReceiver.ts`,
+`src/shared/devices.ts`, `src/core/devices/attemptJournal.ts`,
+`test/unit/deviceWorkerDarwin.test.ts`, `test/unit/deviceWorkerHost.test.ts`,
+`test/unit/helpers/deviceDarwinEscape.ts`,
+`test/unit/helpers/deviceWorkerReceiver.ts`, `PLAN.md`, `CHANGELOG.md`, and
+this macOS certification subsection. Implementation and fixture commits ran
+all repository hooks (ESLint, Prettier, staged gitleaks) with exit **0**;
+staged/committed diffs were reread after each hook run. The final documentation
+commit does likewise. No push, merge, rebase, manual stash, credential read,
+paid/model call, nonloopback listener or gate weakening. Both verification
+clones are removed after final documentation validation.
