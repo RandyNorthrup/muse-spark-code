@@ -83,6 +83,16 @@ export interface DeviceWorkerDriver {
     env: Readonly<Record<string, string>>,
   ): Promise<DeviceWorkerJob>
 }
+
+/** W supplies lazy native factories; selecting an unsupported OS never spawns. */
+export function selectDeviceWorkerDriver(
+  platform: NodeJS.Platform,
+  factories: { darwin(): DeviceWorkerDriver; win32(): DeviceWorkerDriver },
+): DeviceWorkerDriver {
+  if (platform === 'darwin') return factories.darwin()
+  if (platform === 'win32') return factories.win32()
+  throw new DeviceWorkerHostError('helper')
+}
 export interface DeviceWorkerReservation {
   readonly usage: DeviceLocalAttempt['usage']
   /** Local M96 safe-point pause; the worker's controlled boundaries use this owner. */
@@ -202,8 +212,9 @@ export class DeviceWorkerHost implements DeviceReceiverExecution {
           this.deps.pressure('desktop-heap')
           throw new DeviceWorkerHostError('desktop-heap')
         }
-        if (exit.exitCode !== 0 || exit.failure !== 'none')
-          throw new DeviceWorkerHostError('result')
+        if (exit.failure === 'capacity') throw new DeviceWorkerHostError('capacity')
+        if (exit.failure === 'unsupported-host') throw new DeviceWorkerHostError('helper')
+        if (exit.exitCode !== 0) throw new DeviceWorkerHostError('result')
         const parsed: unknown = JSON.parse(exit.stdout)
         const payload = z
           .strictObject({ usage: z.unknown(), artifact: z.optional(z.unknown()) })
