@@ -1,10 +1,11 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import { Buffer } from 'node:buffer'
 import {
   cpSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -14,23 +15,38 @@ import { createRequire } from 'node:module'
 import { listFiles } from '@vscode/vsce/out/package.js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { webviewDeferredBudgetGroups } from '../../scripts/lib/webviewBundles.mjs'
+import { buildProductionPackage } from './helpers/productionPackage'
 
 const ENTRY = 'dist/webview/main.js'
 const SIZE_GATE = path.resolve('scripts/check-bundle-size.mjs')
-const built = { outputs: {}, fixture: '' }
+const built = { outputs: {}, fixture: '', production: '' }
+const outputFile = (file) => path.join(built.production, file)
 
 beforeAll(() => {
-  // Refuse reliance on another build's inventories, including the train panels.
-  for (const page of ['webview', 'modelsWebview', 'whatsNewPage', 'usageWebview', 'referencePage'])
-    rmSync(`dist/meta/${page}.json`, { force: true })
-  mkdirSync('dist/webview/chunks', { recursive: true })
-  writeFileSync('dist/webview/chunks/stale.js', 'throw new Error("stale browser chunk")')
-  // Build chat, Models, Usage, Help and What's New in their shared graph, even
-  // when dist is absent. Exercise production settings and stale-chunk removal.
-  execFileSync(process.execPath, ['scripts/build.mjs', '--production', '--webview-only'], {
-    stdio: 'pipe',
-  })
-  const outputs = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')).outputs
+  mkdirSync('temp', { recursive: true })
+  built.production = mkdtempSync(path.resolve('temp/fix78w-production-'))
+  mkdirSync(outputFile('dist/webview/chunks'), { recursive: true })
+  writeFileSync(
+    outputFile('dist/webview/chunks/stale.js'),
+    'throw new Error("stale browser chunk")',
+  )
+  // Own the complete production graph: Node and policy checks must work in a
+  // cold checkout, and deliberate metafile mutations must not race other suites.
+  buildProductionPackage(process.cwd(), built.production)
+  // The owned build shares the read-only dependency install through a junction.
+  // esbuild records those inputs relative to its real location. Canonicalize
+  // that fixture prefix while retaining every source and byte contribution.
+  for (const folder of ['dist/meta', 'dist/meta-acp']) {
+    const files = readdirSync(outputFile(folder))
+    for (const name of files) {
+      const file = outputFile(`${folder}/${name}`)
+      const meta = readFileSync(file, 'utf8')
+        .replaceAll('\\\\', '/')
+        .replaceAll(/(?:\.\.\/)+(?=node_modules\/)/gu, '')
+      writeFileSync(file, meta)
+    }
+  }
+  const outputs = JSON.parse(readFileSync(outputFile('dist/meta/webview.json'), 'utf8')).outputs
   built.outputs = Object.fromEntries(
     Object.entries(outputs).map(([file, output]) => [
       file.replaceAll('\\', '/'),
@@ -63,21 +79,22 @@ beforeAll(() => {
   writeFileSync(path.join(built.fixture, 'dist/webview/whatsNew.js'), '')
   // Exercise the real allowlist over all real emitted browser files in an
   // owned tree, without traversing other tests’ concurrently growing temp trees.
-  cpSync('dist/webview', path.join(built.fixture, 'dist/webview'), { recursive: true })
+  cpSync(outputFile('dist/webview'), path.join(built.fixture, 'dist/webview'), { recursive: true })
   mkdirSync(path.join(built.fixture, 'docs/schemas'), { recursive: true })
   cpSync(
     'docs/schemas/exec-event-v2.schema.json',
     path.join(built.fixture, 'docs/schemas/exec-event-v2.schema.json'),
   )
   for (const page of ['modelsWebview', 'whatsNewPage', 'usageWebview']) {
-    cpSync(`dist/meta/${page}.json`, path.join(built.fixture, `dist/meta/${page}.json`))
+    cpSync(outputFile(`dist/meta/${page}.json`), path.join(built.fixture, `dist/meta/${page}.json`))
   }
   cpSync('.vscodeignore', path.join(built.fixture, '.vscodeignore'))
   cpSync('package.json', path.join(built.fixture, 'package.json'))
 }, 120_000)
 
 afterAll(() => {
-  if (built.fixture !== '') rmSync(built.fixture, { recursive: true, force: true })
+  for (const folder of [built.fixture, built.production])
+    if (folder !== '') rmSync(folder, { recursive: true, force: true })
 })
 
 function initialOutputs() {
@@ -189,9 +206,9 @@ describe('the production webview chunks (FIX78W)', () => {
       )
       expect(group.budgetKiB).toBe(25)
       expect(group.outputs.length).toBeGreaterThan(0)
-      expect(group.outputs.reduce((sum, file) => sum + statSync(file).size, 0)).toBeLessThanOrEqual(
-        group.budgetKiB * 1024,
-      )
+      expect(
+        group.outputs.reduce((sum, file) => sum + statSync(outputFile(file)).size, 0),
+      ).toBeLessThanOrEqual(group.budgetKiB * 1024)
     }
   })
 
@@ -206,12 +223,15 @@ describe('the production webview chunks (FIX78W)', () => {
   it.each(['dist/acp.js', 'dist/exec.js'])(
     'keeps standalone Node %s free of browser navigator probes',
     (file) => {
-      expect(readFileSync(file, 'utf8')).not.toMatch(/\bnavigator\b/)
+      expect(readFileSync(outputFile(file), 'utf8')).not.toMatch(/\bnavigator\b/)
     },
   )
 
   it('keeps all initial JavaScript within the unchanged 900 KiB cap', () => {
-    const bytes = [...initialOutputs()].reduce((sum, output) => sum + statSync(output).size, 0)
+    const bytes = [...initialOutputs()].reduce(
+      (sum, output) => sum + statSync(outputFile(output)).size,
+      0,
+    )
     expect(bytes).toBeLessThanOrEqual(900 * 1024)
   })
 
@@ -232,14 +252,17 @@ describe('the production webview chunks (FIX78W)', () => {
   })
 
   it('keeps FIXDIET1 startup and original deferred bytes within their review baseline', () => {
-    const bytes = [...initialOutputs()].reduce((sum, output) => sum + statSync(output).size, 0)
+    const bytes = [...initialOutputs()].reduce(
+      (sum, output) => sum + statSync(outputFile(output)).size,
+      0,
+    )
     expect(bytes).toBeLessThanOrEqual(733.8 * 1024)
     const legacy = webviewDeferredBudgetGroups({ outputs: built.outputs }).find(
       (group) => group.name === 'deferred JS',
     )
     expect(legacy).toBeDefined()
     expect(
-      legacy.outputs.reduce((sum, output) => sum + statSync(output).size, 0),
+      legacy.outputs.reduce((sum, output) => sum + statSync(outputFile(output)).size, 0),
     ).toBeLessThanOrEqual(32.1 * 1024)
   })
 
@@ -307,7 +330,7 @@ describe('the production webview chunks (FIX78W)', () => {
     const [file] = Object.entries(built.outputs).find(([, output]) =>
       Object.hasOwn(output.inputs, source),
     )
-    const chunk = readFileSync(file, 'utf8')
+    const chunk = readFileSync(outputFile(file), 'utf8')
     for (const key of [
       'toolArgumentPreviewLabel',
       'toolArgumentPreviewPending',
@@ -356,7 +379,7 @@ describe('the production webview chunks (FIX78W)', () => {
   })
 
   it('refuses resource policy leaking into activation’s emitted inputs', () => {
-    const file = 'dist/meta/extension.json'
+    const file = outputFile('dist/meta/extension.json')
     const original = readFileSync(file)
     try {
       const meta = JSON.parse(original.toString('utf8'))
@@ -367,6 +390,7 @@ describe('the production webview chunks (FIX78W)', () => {
       output.inputs['src/core/resources/governor.ts'] = { bytesInOutput: 1 }
       writeFileSync(file, JSON.stringify(meta))
       const result = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
+        cwd: built.production,
         encoding: 'utf8',
       })
       expect(result.status).toBe(1)
@@ -381,6 +405,7 @@ describe('the production webview chunks (FIX78W)', () => {
 
   it('keeps provider pacing in its lazy Model API inventory', () => {
     const result = spawnSync(process.execPath, ['scripts/check-bundle-split.mjs'], {
+      cwd: built.production,
       encoding: 'utf8',
     })
     expect(result.status, result.stdout + result.stderr).toBe(0)
@@ -390,15 +415,15 @@ describe('the production webview chunks (FIX78W)', () => {
       ['dist/meta/extension.json', false],
       ['dist/meta-acp/acp.json', false],
     ]) {
-      const inputs = Object.keys(JSON.parse(readFileSync(meta, 'utf8')).inputs).map((file) =>
-        file.replaceAll('\\', '/'),
+      const inputs = Object.keys(JSON.parse(readFileSync(outputFile(meta), 'utf8')).inputs).map(
+        (file) => file.replaceAll('\\', '/'),
       )
       expect(inputs.includes(source)).toBe(present)
     }
   })
 
   it('shares production libraries between chat and Models without importing either app', () => {
-    const models = JSON.parse(readFileSync('dist/meta/modelsWebview.json', 'utf8'))
+    const models = JSON.parse(readFileSync(outputFile('dist/meta/modelsWebview.json'), 'utf8'))
     for (const source of [
       'node_modules/react/cjs/react.production.js',
       'node_modules/react-dom/cjs/react-dom-client.production.js',
@@ -419,7 +444,7 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(Object.hasOwn(models.inputs, 'src/webview/components/ReviewPane.tsx')).toBe(false)
     expect(Object.keys(built.outputs)).not.toContain('dist/webview/models.js')
     const scripts = Object.keys(models.outputs).filter((file) => file.endsWith('.js'))
-    expect(scripts.map((file) => readFileSync(file, 'utf8')).join('\n')).not.toMatch(
+    expect(scripts.map((file) => readFileSync(outputFile(file), 'utf8')).join('\n')).not.toMatch(
       /[{,]reviewRemovedLine:/,
     )
   })
@@ -428,7 +453,7 @@ describe('the production webview chunks (FIX78W)', () => {
     ['modelsWebview', 'dist/webview/models.js', 'src/webview/models/panel.tsx'],
     ['usageWebview', 'dist/webview/usage.js', 'src/webview/usage/UsageApp.tsx'],
   ])('defers the optional %s body while sharing chat vendor chunks', (page, entry, source) => {
-    const meta = JSON.parse(readFileSync(`dist/meta/${page}.json`, 'utf8'))
+    const meta = JSON.parse(readFileSync(outputFile(`dist/meta/${page}.json`), 'utf8'))
     const owners = Object.entries(meta.outputs).filter(([, output]) =>
       Object.hasOwn(output.inputs, source),
     )
@@ -453,7 +478,7 @@ describe('the production webview chunks (FIX78W)', () => {
 
   it('keeps the shipped M96 renderers inside the shared chat graph', () => {
     const graphs = ['webview', 'modelsWebview', 'whatsNewPage'].map((page) =>
-      JSON.parse(readFileSync(`dist/meta/${page}.json`, 'utf8')),
+      JSON.parse(readFileSync(outputFile(`dist/meta/${page}.json`), 'utf8')),
     )
     const outputs = Object.assign({}, ...graphs.map((graph) => graph.outputs))
     for (const source of ['TeamUi', 'TeamTree', 'TeamCards']) {
@@ -480,9 +505,9 @@ describe('the production webview chunks (FIX78W)', () => {
   })
 
   it('builds the catalogue data module with every exact JSON value', () => {
-    const file = path.resolve('dist/providerCatalog.js')
+    const file = outputFile('dist/providerCatalog.js')
     expect(createRequire(file)(file)).toEqual(
-      JSON.parse(readFileSync('dist/providerCatalog.json', 'utf8')),
+      JSON.parse(readFileSync(outputFile('dist/providerCatalog.json'), 'utf8')),
     )
   })
 
@@ -495,10 +520,18 @@ describe('the production webview chunks (FIX78W)', () => {
     expect(listed).toEqual(
       [
         ...Object.keys(built.outputs),
-        ...Object.keys(JSON.parse(readFileSync('dist/meta/modelsWebview.json', 'utf8')).outputs),
-        ...Object.keys(JSON.parse(readFileSync('dist/meta/whatsNewPage.json', 'utf8')).outputs),
-        ...Object.keys(JSON.parse(readFileSync('dist/meta/usageWebview.json', 'utf8')).outputs),
-        ...Object.keys(JSON.parse(readFileSync('dist/meta/referencePage.json', 'utf8')).outputs),
+        ...Object.keys(
+          JSON.parse(readFileSync(outputFile('dist/meta/modelsWebview.json'), 'utf8')).outputs,
+        ),
+        ...Object.keys(
+          JSON.parse(readFileSync(outputFile('dist/meta/whatsNewPage.json'), 'utf8')).outputs,
+        ),
+        ...Object.keys(
+          JSON.parse(readFileSync(outputFile('dist/meta/usageWebview.json'), 'utf8')).outputs,
+        ),
+        ...Object.keys(
+          JSON.parse(readFileSync(outputFile('dist/meta/referencePage.json'), 'utf8')).outputs,
+        ),
       ]
         .filter((file, index, files) => files.indexOf(file) === index)
         .map((file) => file.replaceAll('\\', '/'))

@@ -11,6 +11,8 @@ happened, not what was planned; superseded entries are kept.
 
 - Release CI fixtures retain both resource commands and agent outcomes, staged
   multilingual Help checks, and the harness's signed-in readiness handshake.
+  Cold bundle tests own a complete build, and exec package fixtures supply
+  the required native helpers without relaxing production packaging guards.
 
 ### Pending
 

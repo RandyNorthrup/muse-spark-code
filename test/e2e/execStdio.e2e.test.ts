@@ -3,7 +3,12 @@
 // skips only the POSIX signal rows). Fake fetch/keyring injection lives only in
 // a test-owned Node preload, never in a production loader flag. No request can
 // reach the network in this suite.
-import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import {
+  execFileSync,
+  spawn,
+  spawnSync,
+  type ChildProcessWithoutNullStreams,
+} from 'node:child_process'
 import { createHash } from 'node:crypto'
 import {
   chmodSync,
@@ -23,6 +28,7 @@ import * as z from 'zod/mini'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { resolveExecutable } from '../../src/core/executables'
+import { withoutCredentials } from '../../src/runtime/credentialVariables'
 import {
   execEventV2Schema,
   validateResult,
@@ -811,6 +817,26 @@ function result(stdout: string): ExecResult {
 describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
   beforeAll(async () => {
     if (INSTALLED === undefined) {
+      const darwinHelper = path.join(BUILD_ROOT, 'native/darwin/muse-dictate')
+      if (process.platform === 'darwin') {
+        if (!existsSync(darwinHelper))
+          execFileSync(BASH, ['native/darwin/build.sh'], {
+            cwd: BUILD_ROOT,
+            env: withoutCredentials(process.env),
+            stdio: 'pipe',
+            timeout: BUILD_TIMEOUT,
+          })
+      } else {
+        // Package admission needs every platform. Foreign helpers are inert
+        // fixture bytes; only the current platform's real helper can execute.
+        writeFileSync(darwinHelper, 'test-owned inert Darwin helper\n')
+      }
+      for (const arch of ['x64', 'arm64']) {
+        if (process.platform === 'linux' && process.arch === arch) continue
+        const folder = path.join(BUILD_ROOT, 'native/linux', arch)
+        mkdirSync(folder, { recursive: true })
+        writeFileSync(path.join(folder, 'muse-created'), 'test-owned inert Linux helper\n')
+      }
       packageImagePreload(PACKAGE_PRELOAD, BUILD_ROOT, PACKAGE_IMAGES)
       const packed = command(
         path.join(BUILD_ROOT, 'scripts', 'package-acp.mjs'),
