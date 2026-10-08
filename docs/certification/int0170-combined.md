@@ -8,13 +8,14 @@ decisions were followed; deviations are listed below.
 
 ## Merge commits
 
-| Step | Commit      | Parents                            | Content                                                               |
-| ---- | ----------- | ---------------------------------- | --------------------------------------------------------------------- |
-| 1    | `1e5dc24cb` | `4da4ef666`, int/0170 `2617dc159`  | M113–M117 onto 0.16.0, 93 conflicted files                            |
-| 1b   | `1e16306af` | `1e5dc24cb`, int/0170 `41dffa50b`  | the lane's final docs-only certification commit (lead addendum)       |
-| 2    | `f3a6c1e5b` | `1e16306af`, int/0180b `516ace8d5` | M105/M108/M109/M117 estimator, 125 conflicted files, plus 0.17.0 prep |
-| 3    | `507f7d4b2` | `f3a6c1e5b`                        | translated tables back in English key order                           |
-| 4    | `e5f3bdb55` | `507f7d4b2`                        | PLAN archive keeps every parsed milestone fact                        |
+| Step | Commit      | Parents                              | Content                                                                      |
+| ---- | ----------- | ------------------------------------ | ---------------------------------------------------------------------------- |
+| 1    | `1e5dc24cb` | `4da4ef666`, int/0170 `2617dc159`    | M113–M117 onto 0.16.0, 93 conflicted files                                   |
+| 1b   | `1e16306af` | `1e5dc24cb`, int/0170 `41dffa50b`    | the lane's final docs-only certification commit (lead addendum)              |
+| 2    | `f3a6c1e5b` | `1e16306af`, int/0180b `516ace8d5`   | M105/M108/M109/M117 estimator, 125 conflicted files, plus 0.17.0 prep        |
+| 3    | `507f7d4b2` | `f3a6c1e5b`                          | translated tables back in English key order                                  |
+| 4    | `e5f3bdb55` | `507f7d4b2`                          | PLAN archive keeps every parsed milestone fact                               |
+| 5    | `bdeaaa1f1` | `db0b46dc8`, origin/main `67099ce1b` | batch PR #144 (dev tools, ACP stream bound, vetting); D3/D102/DEP138 in PLAN |
 
 Accepted lane heads contained: M116 `667c10380`, M108 `313c1df87`, M117
 `c487fe828` (all ancestors of HEAD; none needed a separate merge).
@@ -126,7 +127,7 @@ No cap was raised. Shrink options are in the lead report.
 ## Gates
 
 Five typechecks: 0 errors each (host, webview, unit, e2e, integration) at
-step 2. `npm run build`: exit 1 (caps above). `npm run package`: exit 1
+step 2 and again at step 5 after a fresh `npm ci` with #144's tools. `npm run build`: exit 1 (caps above). `npm run package`: exit 1
 (same gate; macOS artifacts also absent on Windows). check:l10n 0 problems;
 check:plan 0 drift; release-prep unit files readmeVersion, whatsNewContent,
 changelogVersion, checkBadges pass; vsixPackaging passes on Kubuntu after the
