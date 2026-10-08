@@ -324,11 +324,17 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
       throw new DeviceWorkerHostError('preflight')
     const unit = `muse-spark-device-${randomUUID().replaceAll('-', '')}.service`
     slots.add(unit)
+    let hasSlot = true
+    const releaseSlot = () => {
+      if (!hasSlot) return
+      hasSlot = false
+      slots.delete(unit)
+    }
     let hold: Awaited<ReturnType<typeof inhibit>>
     try {
       hold = await inhibit(unit)
     } catch (error) {
-      slots.delete(unit)
+      releaseSlot()
       throw error
     }
     let isActivated = false
@@ -383,7 +389,7 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
         env,
       )
     } catch {
-      slots.delete(unit)
+      releaseSlot()
       await ignoreFailure(hold.release())
       throw new DeviceWorkerHostError('helper')
     }
@@ -439,6 +445,7 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
         } catch {
           requestStop()
           await ignoreFailure(hold.release())
+          releaseSlot()
           throw new DeviceWorkerHostError('result')
         }
       })()
@@ -466,18 +473,19 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
         remove: () => {
           if (!isRetired) throw new DeviceWorkerHostError('result')
           jobs.delete(unit)
-          slots.delete(unit)
+          releaseSlot()
           return Promise.resolve()
         },
       }
     } catch (error) {
       requestStop()
       await ignoreFailure(stopping)
-      if (cgroup !== '' && (await isEmpty(unit, cgroup))) {
-        jobs.delete(unit)
-        slots.delete(unit)
+      try {
+        if (cgroup !== '' && (await isEmpty(unit, cgroup))) jobs.delete(unit)
+      } finally {
+        releaseSlot()
+        await ignoreFailure(hold.release())
       }
-      await ignoreFailure(hold.release())
       // An activated but unobserved unit is never forgotten or treated as empty.
       throw error instanceof DeviceWorkerHostError ? error : new DeviceWorkerHostError('helper')
     }

@@ -35996,6 +35996,18 @@ execution beyond phase 1 is implemented or certified by this record.
     which its owner must repair before W binds the selector. Full joined
     quality, coverage, production/doc binding and installed hosts remain W's
     responsibility; this lane does not claim shipped Linux support.
+    **Linux review M100P2HL3 (2026-10-08), in progress.** Fix both
+    RVM100P2HL P2 findings without changing the shared receiver contracts:
+    attempt-owned launch slots release exactly once on every failed path;
+    worker units bind to their pipe-owned inhibitor with BindsTo/After.
+    Encode the receiver incarnation and journaled attempt identity alongside
+    the host PID/start identity in unit names. On first manager access, stop
+    dead-host units before retaining receiver occupancy; the existing receiver
+    restart journal records uncertainty, never inferred success. Prove repeated
+    readiness refusal, SIGKILL containment and fresh-host orphan cleanup at
+    repository deadlines; run base regressions and byte-exact red drills.
+    Commit finished fixes, then qualify a fresh CI clone with owning tests
+    three times, receiver/recovery, five typechecks and unchanged gates/caps.
   - **Lane A.** Every admission binds the sender's role/mode ceiling to the
     receiver's repository grant, role/tools, workspace trust, protected
     paths and current approval policy under an explicit receiver-side

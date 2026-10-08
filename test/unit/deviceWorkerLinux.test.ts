@@ -1,4 +1,5 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { ChildProcess, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import { PassThrough } from 'node:stream'
 import { setTimeout as delay } from 'node:timers/promises'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { deviceWorkerLinux } from '../../src/host/backend/deviceWorkerLinux'
@@ -31,7 +32,34 @@ afterEach(() => {
   children.clear()
 })
 
-function fixture() {
+/** Readiness churn tests need no OS process: pipes and close events are the boundary. */
+function instantChild(isInhibitor: boolean): ChildProcessWithoutNullStreams {
+  const stdin = new PassThrough()
+  const stdout = new PassThrough()
+  const stderr = new PassThrough()
+  const stdio: [PassThrough, PassThrough, PassThrough, null, null] = [
+    stdin,
+    stdout,
+    stderr,
+    null,
+    null,
+  ]
+  const child = Object.assign(new ChildProcess(), { stdin, stdout, stderr, stdio })
+  vi.spyOn(stdout, 'on').mockImplementation((event, listener) => {
+    if (event === 'data' && isInhibitor) listener(Buffer.from('ready'))
+    return stdout
+  })
+  vi.spyOn(stdin, 'end').mockImplementation(() => {
+    child.emit('close', 0, null)
+    return stdin
+  })
+  vi.spyOn(child, 'kill').mockImplementation(() => {
+    child.emit('close', 0, null)
+    return true
+  })
+  return child
+}
+function fixture(isInstant = false) {
   const supplies: string[] = []
   const state = {
     isEmpty: false,
@@ -50,6 +78,12 @@ function fixture() {
   const start = vi.fn((file: string, args: readonly string[], env: NodeJS.ProcessEnv) => {
     calls.push({ file, args, env })
     const isInhibitor = args.includes('/usr/bin/systemd-inhibit')
+    if (isInstant) {
+      const child = instantChild(isInhibitor)
+      if (isInhibitor) inhibitor = child
+      else worker = child
+      return child
+    }
     const gate = `process.stdout.write('ready');process.stdin.once('data',()=>process.exit(0));process.stdin.on('end',()=>process.exit(0))`
     const commandIndex = args.indexOf('device-worker')
     const target = args.slice(commandIndex + 1)
@@ -114,6 +148,24 @@ async function retire(f: ReturnType<typeof fixture>, job: DeviceWorkerJob) {
   return result
 }
 describe('M100/H Linux platform port (fake manager/cgroup/inhibitor)', () => {
+  it.each(['resources', 'tasksMax'])(
+    'releases every readiness-failure slot after 200 %s refusals in one factory',
+    async (failure) => {
+      const f = fixture(true)
+      if (failure === 'resources') f.state.result = 'resources'
+      else f.state.tasksMax += 1
+      for (let index = 0; index < 200; index += 1) {
+        await expect(f.driver.launch(command, environment, request)).rejects.toMatchObject({
+          detail: failure === 'resources' ? 'capacity' : 'preflight',
+        })
+        expect(f.start).toHaveBeenCalledTimes((index + 1) * 2)
+      }
+      await expect(f.driver.launch(command, environment, request)).rejects.toMatchObject({
+        detail: failure === 'resources' ? 'capacity' : 'preflight',
+      })
+      expect(f.start).toHaveBeenCalledTimes(402)
+    },
+  )
   it('creates an independently owned, bounded unit with the admitted TasksMax and exact recorded environment', async () => {
     const f = fixture()
     const job = await f.driver.launch(command, environment, request)

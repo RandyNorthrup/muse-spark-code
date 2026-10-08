@@ -1169,3 +1169,28 @@ Lead requests, within the shared lane ownership rules:
   coverage, and installed-host qualification**, including Windows/macOS
   rigs. No Windows native pass, public supported command or shipped Linux
   support is asserted by this continuation. No contract change is needed.
+
+### Linux review — M100P2HL3 (2026-10-08): RVM100P2HL
+
+Base **625d95ecb**, branch `m100/p2-h-linux3`, rig `linuxlt`. Shared
+`M100P2-common.md` and the rig brief govern verification; no model calls,
+policy changes, merges or pushes. This subsection supersedes the two reviewed
+lifetime/slot claims; other M100P2HL2 receipts remain historical.
+
+**P2 readiness-slot leak: fixed.** Slot ownership has its own idempotent
+release, independent of whether readiness supplied a cgroup. Failed inhibition,
+spawn, readiness/query and retirement paths release it; successful jobs keep
+it until removal. The two `200 resources/tasksMax refusals` regressions use
+one factory each and assert every helper start, including launch 201 (402
+starts per case). Fake pipes make the churn run inside the repository deadline.
+On base 625d95ecb both fail at launch 129: resources has 256 starts instead
+of 258, TasksMax returns capacity instead of preflight. Base run: exit 1,
+2 failed, 22 deselected. Red drill sets initial slot ownership false: same two
+failures, exit 1. Source restored byte-exact, SHA-256
+`c6985867937e9a03e1ff80bc8e94fce0b980e55404fb1b96c7e446a23067e3eb`.
+Restored owning-file run: 24 passed, default timeout, exit 0.
+
+**P2 host-loss containment/recovery: in progress.** Bind worker lifetime to
+the pipe-owned inhibitor; encode journal identities and PID/start identity;
+stop dead-host units before receiver retention. Native SIGKILL and restart
+receipts, journal honesty, drills and committed-clone gates follow here.
