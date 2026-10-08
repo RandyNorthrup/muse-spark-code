@@ -1,0 +1,904 @@
+{
+  "sourceCommit": "9733edba232c27f24a7c6505bee615fa0f891d60",
+  "rig": "linuxlt",
+  "version": "0.15.0",
+  "workflow": "build.yml",
+  "node": "22.23.3",
+  "npm": "11.19.0",
+  "semgrep": "1.178.0",
+  "gitleaks": "8.24.3",
+  "linuxJobs": {
+    "finish-static-run-receipts.json": [
+      {
+        "label": "npm-ci",
+        "command": ["npm", "ci"],
+        "exit": 0,
+        "seconds": 5.63,
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      },
+      {
+        "label": "static",
+        "command": [
+          "bash",
+          "-e",
+          "-o",
+          "pipefail",
+          "-c",
+          "npx run-s format:check lint typecheck check:badges check:l10n check:reference check:host-api deadcode cycles duplication build security:audit"
+        ],
+        "exit": 0,
+        "seconds": 571.14,
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      }
+    ],
+    "editor-identities.json": {
+      "commit": "9733edba232c27f24a7c6505bee615fa0f891d60",
+      "editors": [
+        {
+          "version": "1.141.0",
+          "date": "2026-10-06T10:15:52+02:00",
+          "passing": 40,
+          "releaseCommit": "2a59476c9bfcb90b3ddc372c36762471b7dfad1c"
+        },
+        {
+          "version": "1.99.0",
+          "date": "2025-04-02T21:35:19.530Z",
+          "passing": 40,
+          "releaseCommit": "4437686ffebaf200fa4a6e6e67f735f3edf24ada"
+        }
+      ]
+    },
+    "production-restore-receipt.json": {
+      "commit": "9733edba232c27f24a7c6505bee615fa0f891d60",
+      "files": 132,
+      "snapshot": "/tmp/INT0180B-tools/production-webview-verified",
+      "equal": true,
+      "method": "Accessibility consumes verified production files before unit fixtures run"
+    },
+    "package-diagnostic.json": {
+      "vsix": {
+        "artifact": "muse-spark-code-0.15.0.vsix",
+        "bytes": 2897076,
+        "sha256": "0f62b52a34829dec404ac866c0c31f4a02fc40758e19061a25ac82fb03c2f39e",
+        "entries": 293,
+        "requiredMembers": 67,
+        "missing": [
+          "extension/native/darwin/muse-dictate",
+          "extension/native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate",
+          "extension/native/darwin/muse-dictate-screen.app/Contents/_CodeSignature/CodeResources",
+          "extension/dist/native/darwin/muse-vault"
+        ],
+        "capBytes": 2841600,
+        "overBytes": 55476
+      },
+      "acp": {
+        "artifact": "muse-spark-code-acp-0.15.0.tgz",
+        "bytes": 2172312,
+        "sha256": "a20d62ed37aa2a32af363cd5fc1fa0ecbdaafd2db0163678392cd0703046a79b",
+        "entries": 107,
+        "requiredMembers": 45,
+        "missing": ["package/dist/native/darwin/muse-vault"]
+      },
+      "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+    },
+    "certified-static-receipt.json": {
+      "commit": "9733edba232c27f24a7c6505bee615fa0f891d60",
+      "npm_ci_command": "npm ci",
+      "npm_ci_exit": 0,
+      "static_command": "npx run-s format:check lint typecheck check:badges check:l10n check:reference check:host-api deadcode cycles duplication build security:audit",
+      "static_exit": 0,
+      "node": "22.23.3",
+      "startupBytes": 739475,
+      "startupCapBytes": 751411,
+      "production_webview": {
+        "referencePage.css": "a626209c39c66293106ef59c4b8ea722f97d679fbe6dda90ce0a7f39fab95968",
+        "referencePage.js": "9a7a8718d7b47eb06b835f2ca40cfb317cf0c7135784c7c525d4f81258e74edb",
+        "usage.css": "9fcf77bac5b89786a540d0fc5fabb0bbae6e3bbb8ef974d7cd6a716d27db87be",
+        "models.css": "5f3b9f6a3cc9064e117a923fdd8441ed38eead6c093f162026162f29df80b134",
+        "main.css": "e9b7d348345a9b33843d40395e285c594a48aa85ac008a652aef3a582f325ed0",
+        "whatsNew.js": "64a071a1b6059a59651bc9a91c9fba511a210b5f4b23f1d1a302cae356f089d8",
+        "usage.js": "2b9208835051102787258f1197b20321c7bae59e67fdcd6dc0e5f624fd20651d",
+        "models.js": "5504cefe40c9d86e191ed671ee3977ff1684a7c81c9a2963e8a55f9b2e6a4555",
+        "main.js": "e3541ff7078561091635a063e9e238fd138a9de817a019d725778eabb388cfbf",
+        "whatsNew.css": "01071c4365687b25df74aaa5daf19b97a406e37fbe927c77b16aa653e4cad74b",
+        "chunks/4SVCJVCU.js": "8f1ee9b41e81ce4065a64adbf68777acc2b823ba98433d5f444beb6c9e4867d9",
+        "chunks/B2Z4INJT.js": "c85b1ea1f76e99d873e13468b6fab9c43807caab64f64aaad4dc45ec4d2774d7",
+        "chunks/AOMJHKT5.js": "cfa651f83457f83b95f3b02412a7343efce42b663506c1309916e885db17c609",
+        "chunks/6X4Q6L4S.js": "4faa1c0290276340cc0c78423dd338dfc14ae673a5545c94558c760ae4892537",
+        "chunks/MQEIEY3K.js": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "chunks/UNGXMT36.js": "da60c9aba84ae7c71d70822de5c8dfc15ee0d0d844026e0de21599e59ebb7e5b",
+        "chunks/7YVMADU5.js": "302e1f07b94b4b9950bb6a52236d06a395039dda6b37ce5998fc57917d0957e0",
+        "chunks/HLP3ZYR4.js": "a2a493e8951d4f8cc707d9be8f506291432096ffeeed60c48b1ca5b6547e37a1",
+        "chunks/546DMFNU.js": "e0fc3034429cbc1fcedd90f979502dbdd7bdebef1edb38a1f3de114257fa9501",
+        "chunks/UWAEJOB6.css": "440d3fd5ba37f8ef5e1e69641cb87e64c560494c4e24d026a72e09ac41714cc0",
+        "chunks/FWNC6A5K.js": "4a36a747a7969b8c6978255c760030188ca92dd27ec81dfa1cb5e3a859d32c41",
+        "chunks/7P7XYOHY.css": "1fb4821bac6d1dd0caaa833a69d96e9da860dd98f36d620bafa530ced134560e",
+        "chunks/IUDLRPRS.js": "b132baf2a18691a71f7d467f8f27856c30917c5451976e7b20db2cb1dad2fa96",
+        "chunks/I4AAXOFB.css": "3877c1ac77ceabf883c7bd1c32d388088001d826317f3d74fc69d6dd4042093f",
+        "chunks/I4KJ4UUW.js": "76e3bd63cbaeb8de164cfe174f550497c16cfe9eb7317b239251f4d334d30904",
+        "chunks/OMGFRT2N.js": "9dbaaa1b267ebd74b96fc498735a78d76804f1e96e532871291c937cf83694e7",
+        "chunks/GOGQMCKJ.js": "c6c0aea8da39e0f561857001330f6e4704ae7d83f357dace73bcdbf4ae015006",
+        "chunks/6PU344PS.js": "03e4251cdf1e128337740e8ee5eb467f35a26a99038dee0456bb94050fdfb396",
+        "chunks/VVRCH363.js": "049d4e1ceeea0a01de35dcf4f7f6be8a5f08e255597c0c05e377f8aff2e9f296",
+        "chunks/YBPVUYMA.js": "954e5281d4d4d8311722e91ad93141f3c81b17c791a948ca66d0c9e898c876d3",
+        "chunks/QFSHOLDI.js": "8c52618e8aee878508ad1b59848207ae3dde9691409cae951c756be523922fcf",
+        "chunks/4FWTUW4J.js": "bf5b94067809b72d78b9790ada66c73b2a3d54d05289638c102ddcfd85196da1",
+        "chunks/OFOOBMTQ.js": "79579a09c5368890b08f37b76b81d1cd795a498e1f98c6d1275484c5ecdd1aab",
+        "chunks/F27ZD7TF.js": "63c0dcf1cab0afc96d3ef4dfe7d0629b833963e7ec625c6e585685c93253dfad",
+        "chunks/4R45H25K.js": "fa5ea652f95e47f5ae21dbe2ed60ec0634d45f499f7051cd95df0119ccf183b0",
+        "chunks/QWI465EJ.js": "a97eb2c5d90355959f971691a84180820cf77258b63096c5480e5a637594a145",
+        "chunks/LASRYTLV.js": "44de5746d54442b730d3b4f6616021b7480a940623929b54ebb59b56fbb4e28e",
+        "chunks/XW7N3DDT.js": "1c291413fda535f1f6205df2d28c60ee9d526dc582a822c6d0c064fa8508da07",
+        "chunks/ZIPWWDMD.js": "4fee57938e0bd24a4141a3297227ede654f0fadef3b30c5863342072007e888f",
+        "chunks/36ECPJUS.js": "03c1a7cabc5f03c2a9af006ff323ea5473f54891e08a78ed0e0aa8de110b88a4",
+        "chunks/T247I6HE.js": "a6561bff896e21e42e8e4865c1d665a3ecf71679db19d021f65dae84b1c1e462",
+        "chunks/BBWKU5KC.js": "e5f49bdd02ab739d98fc993ec0415c24966d38030d4d7f887b1dfc4066cccb1a",
+        "chunks/PVNKTQ3Z.js": "9e0a11849a2e9a542568981d2e03080e1d446eeb568462241bc307b5142ea6b3",
+        "chunks/RD6VFDNE.js": "7a129df0990463f18926e518422cc51674b1850ab9afc94adec3a1462422ca7c",
+        "chunks/ICS26APK.js": "a79317dfe101eee2e4da5a974d0ee1307ade8b7ce37a6e2a44c44cf84993966d",
+        "chunks/CTFYK7QX.js": "e5d82d90385095c9aac02d3edb9408fe5aca16a2b4f61a439623e820bae7143d",
+        "chunks/KURQP7LT.js": "881c349557d35636af04b8cd876b32e024d9c15815472c6b4695c3d932079cbd",
+        "chunks/NHGWQSA4.js": "5652eb966ddec862d8e3251cfe52a3b7ebce2bb48afb69b4bd2255509ec04252",
+        "chunks/QLSLYAVS.js": "4008fd5832871a03813eba43fc1ac02bad0147a099b7791ba8468d6244d137ee",
+        "chunks/HJEIKFWN.js": "c4c76fef2b2db871e83fca48637e7ddcc31d0e88f47859cc0cf91934bd7ab7cc",
+        "chunks/6SX5AHOA.js": "17b768cff68b7e9a14f292f52f3565ffc6d4f8dfe5d43fb4a0ad2230f963ef96",
+        "chunks/NWEBMN4L.js": "f82336ec7a466c4b65bb7e55e7ce6d65fd79ca2a8448e620b1513daf84fcc2d5",
+        "chunks/QWWUBE7U.js": "defc763c2191030e4a99df66b03eb7c4cd8e20c1c5c85f641aed05677b3d8f58",
+        "chunks/2AY7OTFM.js": "8c76a880af31f8ecae4a1ab80644ad0ea84b5f04192ab65a4d6a89136d54fa1c",
+        "chunks/ST2RYCZW.js": "21d1ea886fb0d73acf2ea076a38b9a22534853e58d5ff0c216f42f7366fe4944",
+        "chunks/7KHHXYWS.js": "e54502e49a316dc1bd363a75797ab769ce09c0d1f39bb7f43a8628eb4a81f4a5",
+        "chunks/U4Q3ZPBS.js": "198fb7a57500cd2381b9cdbebc27f9c33588c6fbb4d8351270486de6b363064f",
+        "chunks/JLYJRDCL.js": "d1c7da3eb49d475a89e65bb2d7439b29f94a29854f32251764d7a5a17c24156c",
+        "chunks/VQQLOK2T.js": "d631ce1e5efa510d347f195ae8b1b07b9af3d91488bf9f592003b4803189868d",
+        "chunks/FOY7XUDV.js": "6e1efe042f9270d870d4760e391f33408e82407d6e776dac7e003d6d13a4b789",
+        "chunks/U7CTH4TZ.js": "68e1b7d7c7f60d6c8a2d3786b99a5256976233a018d67dcef34c626b10f0cef3",
+        "chunks/KJH5AYDM.js": "97aeb4aaa5ca61aa114e8561e829699ecf8f6eac4976d1c519fcd798ea7f728f",
+        "chunks/2C6CMX2H.js": "93ebb02cd70c11d59110be4ab34ff777bb525738527be7b7858ab05a02f3ee6a",
+        "chunks/DKYLAJGR.js": "d31c1f36772903db505b867ccbc11238240d9835bfe2178a0f11bb589732cd22",
+        "chunks/JSOF4D4J.js": "2604d1ef5111bc8d329b0b9e2f71cdba4e0d6e49aa482e3d47ab9a7ed2d7b524",
+        "chunks/GO7DZEUD.js": "b073f5de51c36dccfa6e4f15a7d17bcc3af54cec96453b509bcd4f4b35c942da",
+        "chunks/46TX3LR6.js": "1d510b8840c3eee7b50a5610572a8772054c0b105790868bed62dc40feeedb75",
+        "chunks/EGWXWZNP.js": "f8c8108d48ef268cd809892f3fdd3b6a6abf0e68b0ca179adaeda74191af93cc",
+        "chunks/FJIHP6QE.js": "dfdfd4263980c16d636405284f2b620a3a53aea909da83bf471bdfb20410752f",
+        "chunks/P7EJTE4O.js": "9b4f11a23c80a734914704b6fefe1582a1c75c507996a5d9eac503ed27d9f69d",
+        "chunks/YVEAAI25.js": "8ad9e2280de16c78ef17087f6a6caa91c42934b18770f15d812bd38d026f7082",
+        "chunks/LIAX7QRA.js": "6341b07eb41197fbcc2e97bc5a8ba6eeb2e16c0886089e042a4719d1d5376798",
+        "chunks/NSXCNUTR.js": "630bfaa5add241b53b2a0852293944e20276dcfcb546b6c7b58648fb0e6100f2",
+        "chunks/RX4D4BYT.js": "adb21971497c46604fa2ae477ec7762db9a36c8a18d1bc8a2229979ac797d8ca",
+        "chunks/EHLNW3GK.js": "f6b894cb0341dd193e061eddc308d8395aadf4b84b4a564e7ec316f4e31c0a07",
+        "chunks/AQDXGZC4.js": "9951801971a080505cca7db5907b6f7db2b36bdde7971a0ae15402ced5f54a6c",
+        "chunks/LESEFLJB.js": "b24ed3c73c2723453aadd5bca0702a55c0efd933d1a40c37d3d370f540ed7d06",
+        "chunks/B4HQKEF2.js": "b370c9cacc3ee5c02d26d7f1376874166fdee17305912d77734f8ece10919578",
+        "chunks/2V5377TL.js": "c9f23ef58178606cc32e3d0a97b8919363756e6d3465c6cabac4fd2fe44f5644",
+        "chunks/SBZOCIHF.js": "57d48d6ccf17edf481735746c40dfd1d9c13fad98fa2e5fb9ce51ba7e9655815",
+        "chunks/SLGUDPSO.js": "adc4194578fb85ffc646d9a1594834d26606faf5ebc64d54eb7e9eaf7fb393a6",
+        "chunks/JWJW3ZLH.js": "6f50376a44887d539ca5b7ceb0b0ed7f482ee209753dd972463bac88a428d95b",
+        "chunks/HSPOXTCQ.js": "aa23239dfbe87c8717f332a93b1d0cb21194f69256b047ba874ae679e479de63",
+        "chunks/DGOHTGN4.js": "5c14cbf392d14f47b6211fd0b5b28a74ddcd67e55e356b4317794e8526d24e50",
+        "chunks/ZSMVPGYG.js": "d38f18466ba113c87b2312a5cfd6956f62ae19b52c074779c4b94ec9b8cefc64",
+        "chunks/V4RF5BKN.js": "de14646ce4888782c25cc702d51c5b30325da75a9d86b7d832532726ba8f4d40",
+        "chunks/V5PHWT6O.js": "dd1cd0d8783ca2279f04741e3c533a7d81311cb66e1ca255e1c897fa2ab0a798",
+        "chunks/3YUZCVH3.js": "e0056c6994f08cbd97bfb7db50f1a9e1e25b996893be5fe8b5c04c7474fd534b",
+        "chunks/D3KKSEHB.js": "3387377596722bcc3ecd32fbfb04c0a57adaee4b56e8830e97ba478d92d51ad6",
+        "chunks/4U2WCM7M.js": "b0ed0b873ee3c33413c1fe2c6dedaa03618b04559644514f64519b7cb8e705f9",
+        "chunks/ZD3B47N4.js": "df1cd03f2a4cd4ce7561ef30b56c3833b9f3e70acf5257cffc9f6ce542c16296",
+        "chunks/JBGBAFOJ.js": "36068c4782301bc5442edfd58ae2d409d1f359a82dbdc58d060bb88af3a8e03a",
+        "chunks/TCR3UFJ5.js": "615b450151614b749605f85058a1b54b73a12e9b30c60de4b10460b344dd8d7e",
+        "chunks/L5SYHN2T.js": "1cfe83709ba52439a1974ce1bfb10cdbe92ea3cc21ca5f9bb5686b2aeb86bfb3",
+        "chunks/6LSRJMQ2.js": "c1e9d7a08050bf238dda351b65d334d99f04e91acb2d3652baf62d8b4f8a0688",
+        "chunks/MBZTGV4G.js": "25c29be87d31196e7f94440199b0adbc836f0ae6ecac5864b24583f09cb224f9",
+        "chunks/LDELW535.js": "591f18c50712522de1db23aae46f5ff60b2ae110388c0f41ef8f12fca39a396e",
+        "chunks/I3ZSNAOA.js": "1babbeec16e3ff358dcb434b2f07df8d6cd6f5d2e1b17b1355c4f0b45b7f537e",
+        "chunks/S4WLCGFZ.js": "e9b84c449db30ae256a0d7ad77700f30d4e1cad231a21ae1c63a60a0c82f823d",
+        "chunks/F4EJR4JV.js": "6ce0668723a0fe9e0500fe88b521b977868fe94c13d3c59dc6f51f19328db70e",
+        "chunks/USUGUSSM.js": "9e1099a6ab13900b8fff71a3aae25f3dab4fcba65674ade31236cdbbf9f70842",
+        "chunks/XRN3BXWF.js": "84b6c7fb9ffb92a002dce4bf2acee05c77fe79c7bb97c56f49a3b6298c8bca24",
+        "chunks/KSZLPVKF.js": "11ab0f213d1bec9c49f48e4ccab8c5ae4202897dea1e579bab43d5aa1d2fd4f4",
+        "chunks/2TEO5AI5.js": "4e766cd11d666a4a56ba6c3b28fbe5fb748cdff2b7761fe23d6a1cbf6371574b",
+        "chunks/II5HSHYK.js": "f9ff3cec5eb3d63178b1b015d599850f44f590c9add58ed84bf1162e7fe8411e",
+        "chunks/E73E266T.js": "bcbc544ff163ed8463037ba667bd8a2b26e97ed84da03fc2a756f45e9d28f5e9",
+        "chunks/CRJQKXK6.js": "6873114664b6dec213c2fad6eb84e4a99a011eb3d6e52a307325f0e0b1ff099f",
+        "chunks/LV73722A.js": "0522d73f1e76cd5a35b84c2cd58b07de26e0af89dddc81270e55512be5874edb",
+        "chunks/Y3QVCFNW.js": "1f2ee12626313da9e35946c2e48c7675b8270f89a6805a27f26fce24c417d2ab",
+        "chunks/DXM4WB4G.js": "0039a9f9406079f159e0f77949e2f12d3456791ae9a01b8ec65ab4da83850a79",
+        "chunks/WI6UMUB7.js": "6debb56bc5272b2e5002304f3d5847b08ac6273612eca5668ac7b55b35a6618a",
+        "chunks/BYGI6YC5.js": "30b6eb38e3e9fbe4d28e2a73bc47e3252cc132cce87415663bf06bbf58a436c2",
+        "chunks/SUD7VWTW.js": "e6a398e1ef0a239b03331f33e26a82a2efb3e4dd491bf47c56697a2705e19c55",
+        "chunks/XCPRDSZV.js": "99d47c765c481e8b4eac2f9c1ce3109c12d4e693d7a4d8714ad1ac768d21d7ee",
+        "chunks/6HEVMHLJ.js": "a4394fa34979eecb08cf7c4d9260c06fb6232d66456c591957063823a4199931",
+        "chunks/PCVIEORK.js": "c2c4da9c5a1f2f814b5a3ba7597a976308470f68f992466772b93287909a129d",
+        "chunks/SL2WAECV.js": "9949c09095eb73ad5b78089de7c1c7503aa8cf86b0564ac53910bc90f97c1593",
+        "chunks/SQBEZBN7.js": "992cf7cb01a89b8c75900798f5c6a5be0f65f914b0ebb272c2b4c17414615a16",
+        "chunks/6G3KEWLZ.js": "a945ad930a4323f25a2ed979dadfbb47be8027efa4e31a26ad67ad39100bc921",
+        "chunks/472VTYJ7.js": "b8f160d8e898a6b3b995b551473c999f26e52ea794f642376a2f383f15016716",
+        "chunks/T6O7YNDV.js": "0dd71c3208fd109456082d2cbf2e4f7cb8ee8279a0c97f681ab87de1eb2c2c53",
+        "chunks/HKOMQCFC.js": "a98a22bb66050cad4c7c7d0bfd101f1c304f223d19c3a631b4d519fb5b85d1b6",
+        "chunks/4CWHLYHI.js": "fad261c83ace37e9dbfdbd3264fa5ed8fffa57fa6f789d31d416c70d813846c7",
+        "chunks/32RL4COB.js": "b672a35b724a31cbd7ba5cbb8dbf70517554cbdd85bc371b58a630f4426143dc",
+        "chunks/4TCTAGQQ.js": "90b353b324a5404761b00caba5bbe9b4600955c26e39938259429c8bcb2651fa",
+        "chunks/DF7JDLVZ.js": "5133e5207207f4f7ad5b9c29ee7aa82da19f80c4cbafc52e339d9a19c74fd5e4",
+        "chunks/5AFZ24ZS.js": "232ffaa4f8512a3404df9c0d462169ea0489f00d1908a1fad37b71c70e468474",
+        "chunks/4YE2VLPG.js": "708ed04a9a84933e58ccf5a53c54c2d917e316e89b0902aa36259619fe384aaf",
+        "chunks/VS6OUSRX.js": "e4b007e99ce276a2a75d3763ddc9375ec0078aae0fbc99fb4c5ed6a743a9d953",
+        "chunks/XDYLXOLV.js": "275e4e1ab1db78cc4f508a711c226652cdca3a538138c22a0cb1475b9db3cf63",
+        "chunks/PMMGWLXP.js": "a7965c80f009b26899909cbaf413480fcf7f09a756531a1256ae6ad074d14f69",
+        "chunks/IAU6JUIN.js": "ad3beb681fd11aaf9273c9b2e42803cb5a31e527c6c389ffc1f46d6ad0e80426"
+      }
+    },
+    "fresh-unit-receipts.json": [
+      {
+        "label": "shard-1",
+        "command": [
+          "npx",
+          "vitest",
+          "run",
+          "--coverage",
+          "--shard=1/4",
+          "--reporter=default",
+          "--reporter=blob",
+          "--outputFile=blob-reports/shard-1.json"
+        ],
+        "exit": 0,
+        "seconds": 158.3,
+        "cpus": [4, 5, 6, 7],
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      },
+      {
+        "label": "shard-2",
+        "command": [
+          "npx",
+          "vitest",
+          "run",
+          "--coverage",
+          "--shard=2/4",
+          "--reporter=default",
+          "--reporter=blob",
+          "--outputFile=blob-reports/shard-2.json"
+        ],
+        "exit": 0,
+        "seconds": 209.14,
+        "cpus": [4, 5, 6, 7],
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      },
+      {
+        "label": "shard-3",
+        "command": [
+          "npx",
+          "vitest",
+          "run",
+          "--coverage",
+          "--shard=3/4",
+          "--reporter=default",
+          "--reporter=blob",
+          "--outputFile=blob-reports/shard-3.json"
+        ],
+        "exit": 0,
+        "seconds": 182.88,
+        "cpus": [4, 5, 6, 7],
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      },
+      {
+        "label": "shard-4",
+        "command": [
+          "npx",
+          "vitest",
+          "run",
+          "--coverage",
+          "--shard=4/4",
+          "--reporter=default",
+          "--reporter=blob",
+          "--outputFile=blob-reports/shard-4.json"
+        ],
+        "exit": 0,
+        "seconds": 169.91,
+        "cpus": [4, 5, 6, 7],
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      },
+      {
+        "label": "coverage",
+        "command": ["npx", "vitest", "run", "--merge-reports=blob-reports", "--coverage"],
+        "exit": 0,
+        "seconds": 15.5,
+        "cpus": [4, 5, 6, 7],
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      }
+    ],
+    "current-a11y-receipts.json": [
+      {
+        "label": "a11y",
+        "command": ["npm", "run", "test:a11y"],
+        "exit": 0,
+        "seconds": 326.52,
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      },
+      {
+        "label": "legal-a11y",
+        "command": ["npm", "run", "test:legal-a11y"],
+        "exit": 0,
+        "seconds": 106.51,
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      }
+    ],
+    "current-integration-receipts.json": [
+      {
+        "label": "vscode-versions",
+        "command": [
+          "bash",
+          "-e",
+          "-o",
+          "pipefail",
+          "-c",
+          "node scripts/vscode-versions.mjs >> \"$GITHUB_OUTPUT\""
+        ],
+        "exit": 0,
+        "seconds": 0.26,
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      },
+      {
+        "label": "integration",
+        "command": ["xvfb-run", "-a", "npm", "run", "test:integration"],
+        "exit": 0,
+        "seconds": 53.71,
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      }
+    ],
+    "current-sast-receipts.json": [
+      {
+        "label": "semgrep-install",
+        "command": ["pip", "install", "-r", ".github/semgrep/requirements.txt"],
+        "exit": 0,
+        "seconds": 0.42,
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      },
+      {
+        "label": "semgrep-version",
+        "command": ["semgrep", "--version"],
+        "exit": 0,
+        "seconds": 1.07,
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      },
+      {
+        "label": "sast",
+        "command": [
+          "semgrep",
+          "scan",
+          "--config",
+          "auto",
+          "--error",
+          "--exclude=dist",
+          "--exclude=coverage",
+          "--exclude=node_modules"
+        ],
+        "exit": 0,
+        "seconds": 91.26,
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      }
+    ],
+    "current-secrets-receipts.json": [
+      {
+        "label": "secrets",
+        "command": [
+          "bash",
+          "-e",
+          "-o",
+          "pipefail",
+          "-c",
+          "archive=\"$RUNNER_TEMP/gitleaks.tar.gz\"\ncurl -fsSL --retry 3 -o \"$archive\" \"https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz\"\necho \"$GITLEAKS_SHA256  $archive\" | sha256sum -c -\ntar -xzf \"$archive\" -C \"$RUNNER_TEMP\" gitleaks\n\"$RUNNER_TEMP/gitleaks\" git --redact --no-banner -v --log-opts=HEAD .\n"
+        ],
+        "exit": 0,
+        "seconds": 15.8,
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      }
+    ],
+    "current-packages-receipts.json": [
+      {
+        "label": "chmod +x dist/native/darwin/muse-vault",
+        "command": "chmod +x dist/native/darwin/muse-vault",
+        "status": "blocked",
+        "reason": "Genuine macOS build artifacts must come from hosted native-build"
+      },
+      {
+        "label": "chmod +x native/darwin/muse-dictate",
+        "command": "chmod +x native/darwin/muse-dictate",
+        "status": "blocked",
+        "reason": "Genuine macOS build artifacts must come from hosted native-build"
+      },
+      {
+        "label": "tar -xzf native/darwin/muse-dictate-screen.tgz -C native/darwin",
+        "command": "tar -xzf native/darwin/muse-dictate-screen.tgz -C native/darwin",
+        "status": "blocked",
+        "reason": "Genuine macOS build artifacts must come from hosted native-build"
+      },
+      {
+        "label": "package-step-4",
+        "command": ["bash", "-e", "-o", "pipefail", "-c", "npm ci"],
+        "exit": 0,
+        "seconds": 6.33,
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      },
+      {
+        "label": "package-step-5",
+        "command": ["bash", "-e", "-o", "pipefail", "-c", "npm run package"],
+        "exit": 1,
+        "seconds": 75.41,
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      },
+      {
+        "label": "package-step-6",
+        "command": [
+          "bash",
+          "-e",
+          "-o",
+          "pipefail",
+          "-c",
+          "node scripts/check-vsix-size.mjs ./*.vsix"
+        ],
+        "exit": 1,
+        "seconds": 0.03,
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      },
+      {
+        "label": "package-step-7",
+        "command": [
+          "bash",
+          "-e",
+          "-o",
+          "pipefail",
+          "-c",
+          "listing=\"$(unzip -Z1 ./*.vsix)\"\nfor entry in extension/LICENSE.txt extension/THIRD_PARTY_NOTICES.txt extension/package.nls.json \\\n  extension/native/windows/dictate.ps1 extension/native/windows/capture.ps1 \\\n  extension/native/windows/MuseSparkJob.cs extension/native/windows/MuseSparkMcpJob.cs \\\n  extension/native/windows/MuseSparkMcpLauncher.cs extension/native/darwin/muse-dictate \\\n  extension/native/windows/MuseSparkScreenRecord.cs \\\n  extension/native/darwin/muse-dictate-screen.app/Contents/MacOS/muse-dictate \\\n  extension/native/darwin/muse-dictate-screen.app/Contents/_CodeSignature/CodeResources \\\n  extension/dist/vault.js extension/dist/vaultBoundaries.js extension/dist/estimator.js extension/dist/estimateContracts.js \\\n  extension/dist/native/darwin/muse-vault \\\n  extension/native/windows/MuseSparkVault.cs extension/native/windows/MuseSparkVaultCng.cs \\\n  extension/native/windows/MuseSparkVaultHello.cs extension/native/windows/MuseSparkVaultLock.cs \\\n  extension/dist/extension.js extension/dist/conversation.js extension/dist/prompts.js extension/dist/modelApi.js extension/dist/searchWorker.js \\\n  extension/dist/pageWorker.js extension/dist/planMarkdown.js extension/dist/checkpointStore.js \\\n  extension/dist/review.js extension/dist/agentImport.js extension/dist/conversationGit.js extension/dist/bundledSkills.js \\\n  extension/dist/uiTextRuntime.js extension/dist/uiTextHooks.js extension/dist/uiTextSurfaces.js \\\n  extension/dist/uiTextMedia.js extension/dist/media.js extension/dist/screenRecord.js \\\n  extension/dist/uiText.js extension/dist/validation.js extension/dist/wire.js extension/dist/browserCheck.js extension/dist/browserRuntime.js \\\n  extension/dist/legalScan.js extension/dist/legal-data/NOTICE.md extension/dist/legal-data/provenance.json \\\n  extension/dist/sessionBoard.js extension/dist/reviewer.js \\\n  extension/dist/foreignHooks.js extension/dist/hookRuntime.js extension/dist/extensionHooks.js extension/dist/pluginHooks.js \\\n  extension/dist/codeIntel.js extension/dist/voice.js extension/dist/museCodeReviewer.js \\\n  extension/dist/report.js extension/dist/recorder.js \\\n  extension/dist/webFetch.js extension/dist/judge.js extension/docs/judge.md extension/dist/whatsNew.js extension/dist/whatsNew.json \\\n  extension/dist/webview/main.js extension/dist/webview/main.css \\\n  extension/dist/webview/whatsNew.js extension/dist/webview/whatsNew.css; do\n  if ! grep -Fxq -- \"$entry\" <<< \"$listing\"; then\n    echo \"::error::$entry is missing from the .vsix\" >&2\n    exit 1\n  fi\ndone\necho \"the .vsix holds $(wc -l <<< \"$listing\") entries, the required ones included\"\n"
+        ],
+        "exit": 1,
+        "seconds": 0.02,
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      },
+      {
+        "label": "package-step-8",
+        "command": ["bash", "-e", "-o", "pipefail", "-c", "node scripts/package-acp.mjs"],
+        "exit": 0,
+        "seconds": 26.89,
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      },
+      {
+        "label": "package-step-9",
+        "command": [
+          "bash",
+          "-e",
+          "-o",
+          "pipefail",
+          "-c",
+          "listing=\"$(tar -tzf dist/muse-spark-code-acp-*.tgz)\"\nfor entry in package/package.json package/dist/uiTextRuntime.js package/dist/uiTextHooks.js package/dist/uiTextSurfaces.js package/dist/uiTextMedia.js \\\n  package/dist/vault.js package/dist/vaultBoundaries.js package/dist/estimator.js package/dist/estimateContracts.js \\\n  package/native/windows/MuseSparkVault.cs package/native/windows/MuseSparkVaultCng.cs \\\n  package/native/windows/MuseSparkVaultHello.cs package/native/windows/MuseSparkVaultLock.cs \\\n  package/dist/native/darwin/muse-vault \\\n  package/dist/acp.js package/dist/sharingRuntime.js package/dist/modelApi.js package/dist/media.js package/dist/uiText.js package/dist/validation.js package/dist/wire.js package/dist/reviewer.js \\\n  package/dist/providers.js package/dist/subscriptions.js package/dist/configuredProviders.js package/dist/providerCatalog.js \\\n  package/dist/foreignHooks.js package/dist/hookRuntime.js package/dist/extensionHooks.js \\\n  package/dist/recorder.js \\\n  package/dist/runtime.bundles.json.br \\\n  package/dist/searchWorker.js package/dist/pageWorker.js \\\n  package/dist/legalScan.js package/dist/legal-data/NOTICE.md package/dist/legal-data/provenance.json \\\n  package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \\\n  package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md \\\n  package/schemas/exec-result-v1.schema.json package/schemas/exec-event-v1.schema.json package/schemas/share-v1.schema.json; do\n  if ! grep -Fxq -- \"$entry\" <<< \"$listing\"; then\n    echo \"::error::$entry is missing from the agent's package\" >&2\n    exit 1\n  fi\ndone\nif ! grep -Fxq -- \"package/l10n/ui.tables.json.br\" <<< \"$listing\"; then\n  echo \"::error::runtime table archive is missing from the agent's package\" >&2\n  exit 1\nfi\necho \"the agent's package holds $(wc -l <<< \"$listing\") entries, the required ones included\"\n"
+        ],
+        "exit": 1,
+        "seconds": 0.06,
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      },
+      {
+        "label": "package-step-10",
+        "command": [
+          "bash",
+          "-e",
+          "-o",
+          "pipefail",
+          "-c",
+          "acp=\"$RUNNER_TEMP/acp-install\"\nmkdir -p \"$acp\"\nnpm install --prefix \"$acp\" --ignore-scripts --audit=false --fund=false ./dist/muse-spark-code-acp-*.tgz\nnode scripts/check-ui-text.mjs \"$acp/node_modules/muse-spark-code-acp\"\n"
+        ],
+        "exit": 0,
+        "seconds": 6.33,
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      },
+      {
+        "label": "package-step-11",
+        "command": [
+          "bash",
+          "-e",
+          "-o",
+          "pipefail",
+          "-c",
+          "npx vitest run test/e2e/execStdio.e2e.test.ts\nnpx vitest run test/e2e/acpStdio.e2e.test.ts -t \"the ACP registry release gate\"\n"
+        ],
+        "exit": 0,
+        "seconds": 65.44,
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      },
+      {
+        "label": "package-step-12",
+        "command": ["bash", "-e", "-o", "pipefail", "-c", "node scripts/release-sbom.mjs"],
+        "exit": 0,
+        "seconds": 0.87,
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      },
+      {
+        "label": "package-step-13",
+        "command": ["bash", "-e", "-o", "pipefail", "-c", "node scripts/release-reuse.mjs record"],
+        "exit": 0,
+        "seconds": 0.11,
+        "commit": "9733edba232c27f24a7c6505bee615fa0f891d60"
+      }
+    ],
+    "current-required-receipt.json": {
+      "command": [
+        "bash",
+        "-e",
+        "-o",
+        "pipefail",
+        "-c",
+        "test \"$CHECKS\" = success\ntest \"$UNIT\" = success\ntest \"$SECRETS\" = success\ntest \"$SAST\" = success\nif [ \"$FAST\" != true ]; then\n  test \"$COVERAGE\" = success\n  test \"$ACCESSIBILITY\" = success\n  test \"$INTEGRATION\" = success\n  test \"$HELPER\" = success\n  test \"$PACKAGES\" = success\nfi\n"
+      ],
+      "statuses": {
+        "FAST": "false",
+        "CHECKS": "success",
+        "UNIT": "success",
+        "COVERAGE": "success",
+        "ACCESSIBILITY": "success",
+        "INTEGRATION": "success",
+        "HELPER": "skipped",
+        "PACKAGES": "failure",
+        "SECRETS": "success",
+        "SAST": "success"
+      },
+      "exit": 1,
+      "seconds": 0.0,
+      "commit": "9733edba232c27f24a7c6505bee615fa0f891d60",
+      "nativeReason": "Hosted macOS native-build is not run on Linux and is not represented as success"
+    }
+  },
+  "drills": [
+    {
+      "name": "drill-estimator-validation",
+      "exit": 1,
+      "restored": {
+        "src/shared/estimatorProtocol.ts": "ea29263c6e544f4f2630984ab0a1d6912fcdaf523aff0028bc57d0cc3b659a25"
+      }
+    },
+    {
+      "name": "drill-estimator-first-result",
+      "exit": 1,
+      "restored": {
+        "src/webview/estimator/EstimatorPanel.tsx": "1ea491b379ca5cbc86cfca94ee5f89177f58f0e320e509650694945057c688bf"
+      }
+    },
+    {
+      "name": "drill-palette-closure",
+      "exit": 1,
+      "restored": {
+        "src/webview/components/ShareView.tsx": "fc6c2a4d39e3c6435b67d6a23f92bd5adeb9af498df6fc3637467d8ae22b0029"
+      }
+    },
+    {
+      "name": "drill-account-english",
+      "exit": 1,
+      "restored": {
+        "scripts/lib/uiTextRegions.mjs": "1287e81795a775729410af5a3035d3657eca8ce77296669fdf12b26706fff2b3"
+      }
+    },
+    {
+      "name": "drill-cli-help",
+      "exit": 1,
+      "restored": {
+        "scripts/lib/reference.mjs": "9d92ff44efc426d336db3bc3b34190d7ed2a1e352fa0a2be94832f59b345e8bf",
+        "docs/reference.md": "bc76ca1e5f8bc29605e7561ab355e1950a48c1fee62302abcda08cdd7a7b2e32",
+        "src/shared/reference/reference.generated.ts": "1bfecdc0660de4648dd9d0199810657f8a2f5d96303672cd38f114861ee6464d",
+        "src/shared/reference/reference.generated.json": "8bf4182e84b102c3b55d89bcbb0fbef1e79891e5f0d1ffda16153813a912d888"
+      }
+    },
+    {
+      "name": "drill-vault-legacy",
+      "exit": 1,
+      "restored": {
+        "src/host/settings.ts": "b17c8d064274bda6b93861e14622595bc18511ebc151b36fec1989ffff0523c5"
+      }
+    },
+    {
+      "name": "drill-scrub-ansi",
+      "exit": 1,
+      "restored": {
+        "src/core/vault/scrub.ts": "caf1510724de9f38a14ddfdc73ebafdd2626e90bd60b69ae31b7b7733014a7ae"
+      }
+    },
+    {
+      "name": "drill-known-host-wildcard",
+      "exit": 1,
+      "restored": {
+        "src/core/vault/ssh/knownHosts.ts": "a00be7e085d37cea7c229b74b9611e9a897f2aac9e095294b5c444d9c8e25640"
+      }
+    },
+    {
+      "name": "drill-ssh-case-fold",
+      "exit": 1,
+      "restored": {
+        "src/core/vault/ssh/knownHosts.ts": "7978c6dfcdc48971220b8c5f2e53c6685c6c07acbe41bbefb573c7671f015979"
+      }
+    },
+    {
+      "drill": "early-ready-direct-call",
+      "exit": 1,
+      "restoredSha256": "66bdda29f86683ff496de04cf30d6fcd86ed87324358f914ef5b835f7ea04e31"
+    },
+    {
+      "drill": "ready-listener",
+      "exit": 1,
+      "restoredSha256": "66bdda29f86683ff496de04cf30d6fcd86ed87324358f914ef5b835f7ea04e31"
+    },
+    {
+      "drill": "audio-request-model",
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "test": "test/unit/modelApiAudio.test.ts",
+      "exit": 1,
+      "restoredSha256": "084bb58f2957439545fa67fda4be96f6dd57815762cab4867844d2edeef2fea3"
+    },
+    {
+      "drill": "vault-machine-scope",
+      "file": "src/shared/constants.ts",
+      "test": "test/unit/manifest.test.ts",
+      "exit": 1,
+      "restoredSha256": "2a4b0e6931f40d443a23ef5e6ef8787b55701c2cbb805974b7b56c88fcccf007"
+    },
+    {
+      "drill": "package-frame-vocabulary",
+      "file": "src/shared/constants.ts",
+      "test": "test/unit/flightRecorder.test.ts",
+      "exit": 1,
+      "restoredSha256": "2a4b0e6931f40d443a23ef5e6ef8787b55701c2cbb805974b7b56c88fcccf007"
+    },
+    {
+      "drill": "vault-shell-binding",
+      "file": "src/core/backends/modelapi/tools.ts",
+      "test": "test/unit/modelApiShellDirectory.test.ts",
+      "exit": 1,
+      "restoredSha256": "118f9801dcedb01e3be3006f2f7777087bf41602f58824ef3c169575a096a04e"
+    },
+    {
+      "drill": "trial-timing",
+      "file": "src/core/estimator/schedule.ts",
+      "test": "test/unit/estimatorSchedule.test.ts",
+      "exit": 1,
+      "seconds": 1.52,
+      "restoredSha256": "2869ad03642af984c23b08d8539b80d1f2f011099e09c3c06febb75af22df286"
+    },
+    {
+      "drill": "account-projection-closure",
+      "file": "src/webview/models/sections/accounts/AccountsSection.tsx",
+      "test": "test/unit/accountsPanel.a11y.test.mjs",
+      "exit": 1,
+      "seconds": 43.18,
+      "restoredSha256": "93e6be8916b7e114c59dca455f1d86d0f15da4115a16ee7dd4d3bec0cf3caab8"
+    },
+    {
+      "drill": "standalone-english",
+      "file": "scripts/lib/uiTextRegions.mjs",
+      "test": "test/unit/browserUiText.test.mjs",
+      "exit": 1,
+      "seconds": 4.68,
+      "restoredSha256": "9e6c778a3a5090925ee01001151f3628eb6a8f1df4b99d7abfa921af3095a966"
+    },
+    {
+      "drill": "standalone-keyboard",
+      "file": "scripts/lib/browserKeybindings.mjs",
+      "test": "test/unit/browserKeybindings.test.mjs",
+      "exit": 1,
+      "seconds": 2.72,
+      "restoredSha256": "d76331bac6bec55bec93601c270585d12e4df43415a468db1ecb0ce389353bcf"
+    },
+    {
+      "drill": "reservation-cache-invalidation",
+      "file": "src/core/estimator/schedule.ts",
+      "test": "test/unit/estimatorSchedule.test.ts",
+      "exit": 1,
+      "seconds": 1.42,
+      "restoredSha256": "9c3262bf4b105065c2c830d460afbd72af72d295849ec7a669f742388ae1027c"
+    },
+    {
+      "drill": "reservation-end-horizon",
+      "file": "src/core/estimator/schedule.ts",
+      "test": "test/unit/estimatorSchedule.test.ts",
+      "exit": 1,
+      "seconds": 1.42,
+      "restoredSha256": "9c3262bf4b105065c2c830d460afbd72af72d295849ec7a669f742388ae1027c"
+    },
+    {
+      "drill": "slash-english",
+      "file": "src/webview/App.tsx",
+      "test": "test/unit/AppPaletteEnglish.test.tsx",
+      "exit": 1,
+      "restoredSha256": "bdc67b1c84a772a9b54b7cbf6d36e37b9d22a4681e6937ce1ec506940a8361ab"
+    },
+    {
+      "drill": "slash-loading-surface",
+      "file": "src/webview/App.tsx",
+      "test": "test/unit/AppPaletteEnglish.test.tsx",
+      "exit": 1,
+      "restoredSha256": "bdc67b1c84a772a9b54b7cbf6d36e37b9d22a4681e6937ce1ec506940a8361ab"
+    },
+    {
+      "drill": "scene-handshake",
+      "file": "test/harness/index.html",
+      "test": "test/unit/harnessWaits.test.ts",
+      "exit": 1,
+      "restoredSha256": "27ac483c39ab8134d7b43cca89b7ae56286f0b6cb476bc0328d2f9707e8f913c"
+    },
+    {
+      "drill": "scene-start",
+      "file": "test/harness/index.html",
+      "test": "test/unit/harnessWaits.test.ts",
+      "exit": 1,
+      "restoredSha256": "27ac483c39ab8134d7b43cca89b7ae56286f0b6cb476bc0328d2f9707e8f913c"
+    },
+    {
+      "drill": "streamed-a11y-overlap",
+      "file": "scripts/a11y.mjs",
+      "test": "test/unit/a11yScheduling.test.mjs",
+      "exit": 1,
+      "restoredSha256": "aee01e7f45ebb6e275349cbdd594f6cfada72d6763ecb030015f8d68de2df63c"
+    }
+  ],
+  "defaultTestTimeoutMs": 5000,
+  "newSkips": 0,
+  "paidOrLiveModelCalls": 0,
+  "pushed": false,
+  "nativeBuild": {
+    "status": "blocked",
+    "owner": "hosted native-build job",
+    "commands": [
+      {
+        "run": "bash native/darwin/build.sh"
+      },
+      {
+        "run": "bash native/darwin/check-disclaim.sh"
+      },
+      {
+        "name": "permission-free screen recorder and signed resource checks",
+        "run": "bash test/native/darwin/run-screen-record.sh\nbash test/native/darwin/check-screen-resources.sh\nbash native/darwin/check-disclaim.sh --screen-only\n"
+      },
+      {
+        "run": "tar -czf native/darwin/muse-dictate-screen.tgz -C native/darwin muse-dictate-screen.app"
+      },
+      {
+        "run": "bash native/darwin/check-vault.sh"
+      }
+    ]
+  },
+  "testSummaries": {
+    "1": "5020 passed | 43 skipped (5063)",
+    "2": "4834 passed | 9 skipped (4843)",
+    "3": "4874 passed | 74 skipped (4948)",
+    "4": "5306 passed | 20 skipped (5326)"
+  },
+  "coverage": {
+    "Statements": "92.99",
+    "Branches": "88.11",
+    "Functions": "93.96",
+    "Lines": "93.79"
+  },
+  "logHashes": [
+    {
+      "path": "finish-static.log",
+      "sha256": "23e72736b1f5e78faca60c6474a01774cba90a3ffeec68a7a366ad950997b1e7"
+    },
+    {
+      "path": "fresh-shard-1.log",
+      "sha256": "2b975fd72d288de0ff9c93f4011376d2f2fc252d4238fe2ea00fda9237a0e705"
+    },
+    {
+      "path": "fresh-shard-2.log",
+      "sha256": "7e58a14caecfd0795f6d39096908df1a1eb5a3534ef7c5b7146a1de4d20cb767"
+    },
+    {
+      "path": "fresh-shard-3.log",
+      "sha256": "921eb9f9fffa84dddd3f5f48ad04f9d3f3315a7f2a511da55e0e9ac62b47c0fd"
+    },
+    {
+      "path": "fresh-shard-4.log",
+      "sha256": "cc512066f083db39fe6cc051b498cad57ce8c62a2f9dd9e9a1aed4bda651275f"
+    },
+    {
+      "path": "fresh-coverage.log",
+      "sha256": "a78e5b8690bbdc27c008b1f8bdda7616a82ab87588591e8ab614d7adc0463900"
+    },
+    {
+      "path": "current-a11y.log",
+      "sha256": "4564466bdb06b736a83c149a386b843bcef1d0ff1a9b637d31e1ba3916fc6e45"
+    },
+    {
+      "path": "current-legal-a11y.log",
+      "sha256": "6a8c2af3237cc369e933f48e8718d64789edda120ac9b8bf39a57871ae06160f"
+    },
+    {
+      "path": "current-integration.log",
+      "sha256": "04e6177a83359e7c7d7862aac60c5156900e25746b88888f3488b90cfe277a5e"
+    },
+    {
+      "path": "current-sast.log",
+      "sha256": "049561bba828f9b0c00631aa78adf93dba22e7c8c9a67e20c963afbd42fb8dee"
+    },
+    {
+      "path": "current-secrets.log",
+      "sha256": "38aa98b626e18258b607a8bd1e654c1f9a1085e3f45e84cce558dde8beda3858"
+    },
+    {
+      "path": "current-package-step-4.log",
+      "sha256": "931ea76399b2d8c3e31823f7d486c06b075f50631316f0bfddf9120cf83f0aa8"
+    },
+    {
+      "path": "current-package-step-5.log",
+      "sha256": "f64c7991f2ecb629c05cc5af13778725c93df18089b824c8798e6d256af561ff"
+    },
+    {
+      "path": "current-package-step-6.log",
+      "sha256": "2df74d4ee7efbbf62937e70aac0e2bee8637afb56547ff5e7c97a2811de138e9"
+    },
+    {
+      "path": "current-package-step-7.log",
+      "sha256": "de96f4c0d4623f097722883cbdff73bd49e18099340b9ed2c8a34c39a7ace7e7"
+    },
+    {
+      "path": "current-package-step-8.log",
+      "sha256": "d60ab004216f0f31b250a2c0d3374d9a240b3325d4c0a653ec2d46a66a5f563c"
+    },
+    {
+      "path": "current-package-step-9.log",
+      "sha256": "6a11d31acc048846ff330c268de5cdd18e3a0042e98479d548d28dfb04803f9c"
+    },
+    {
+      "path": "current-package-step-10.log",
+      "sha256": "2056576bcf593ed79506a0de8e46ba9c71b472e4c7a2533fb8e0bd0414a3af00"
+    },
+    {
+      "path": "current-package-step-11.log",
+      "sha256": "aeb7a1bf9e58fb635dcf8d016e3ce28590551a4659dcef585d697251e6dae37f"
+    },
+    {
+      "path": "current-package-step-12.log",
+      "sha256": "b26e8e020d0f782ec2a13e2b08573ae7dfe2c7c8c7344932c84d50778e6f88fb"
+    },
+    {
+      "path": "current-package-step-13.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "current-required.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "merges": [
+    {
+      "branch": "main-0150",
+      "commit": "9fd48f2e1a6696068fb1d104123a27d86bc2a2c6",
+      "parents": [
+        "7b2cc38ea012f35836e0bd32ccf69b15d6f30ac9",
+        "c22be5d0dacf30f6789283c2cc4dba6b69aa1c07"
+      ]
+    },
+    {
+      "branch": "m105/e3-fix",
+      "commit": "2351301ff37713277c3475a51f34d9e9ea976fbd",
+      "parents": [
+        "9fd48f2e1a6696068fb1d104123a27d86bc2a2c6",
+        "b95323eeec521ad4b16dc461c0fcf13623c1fb56"
+      ]
+    },
+    {
+      "branch": "m117/w-fix3",
+      "commit": "a5cdfb045616d6c5d728cdc7ed57e2aafbee3121",
+      "parents": [
+        "2351301ff37713277c3475a51f34d9e9ea976fbd",
+        "c487fe82842df98065694a32d26fb92cbd99eab5"
+      ]
+    },
+    {
+      "branch": "m108/w-fix4",
+      "commit": "3710276ed528812bee061eaab92cca5f4a35b1b8",
+      "parents": [
+        "88264e04cb5ddec59561e21ed220cbe64413025d",
+        "313c1df873fb64969b898e636f13d973bef79758"
+      ]
+    },
+    {
+      "branch": "main-latest",
+      "commit": "9a49bce18feb59ef05605e3042a5381c550bdb16",
+      "parents": [
+        "3710276ed528812bee061eaab92cca5f4a35b1b8",
+        "18dc73651ae5c5a5e635d09714e17965f2450753"
+      ]
+    }
+  ]
+}

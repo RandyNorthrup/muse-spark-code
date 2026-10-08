@@ -19095,7 +19095,7 @@ before completion. No push, rebase, model calls or fabricated native artifacts.
       Harness owning suites: 61 passed; both deliberate event-order breaks fail
       and restore byte-exact. M108's nine complete owning files: 188 passed.
       Restart the fresh-clone workflow on the resulting committed source.
-- [ ] Repair every remaining test, vault-default and SAST failure by cause;
+- [x] Repair every remaining test, vault-default and SAST failure by cause;
       add failing-before/passing-after regressions and byte-exact guard drills.
       The boolean vault parent hides its children in VS Code: move its public
       setting to `vault.enabled`, retain explicitly configured legacy booleans
@@ -19156,16 +19156,20 @@ before completion. No push, rebase, model calls or fabricated native artifacts.
       standalone entry, and collect generated Help labels only for a graph that
       includes ReferencePage. Chat retains its current startup contexts; translated
       table shape/slots and every reachable English reader remain unchanged.
+      Final source `9733edba2`: all 20,034 tests pass (146 existing skips);
+      actual latest/floor editors each pass 40 tests. Full pinned Semgrep runs
+      533 rules on 2,487 files with zero findings in 91.26 seconds. No suppression
+      or default test/hook deadline changes; twenty-six restored guard drills.
 - [x] Recover startup through first-use chunks and deduplication: final fresh
-      build measures 739,383 / 751,411 bytes. Shrink the whole account closure
+      build measures 739,475 / 751,411 bytes. Shrink the whole account closure
       from 80,488 to 27,338 bytes; the brief-authorized D6 calculation gives
       51,200 bytes (50 KiB). Keep every other existing bundle cap unchanged.
 - [ ] Measure the actual universal VSIX with genuine hosted macOS artifacts;
       only then apply its authorized universal bytes +5%, rounded up to
       25 KiB rule. The existing 2,841,600-byte cap remains unchanged until then
       (Q-REL0150M-UNIVERSAL); helperless bytes do not certify this measurement.
-- [ ] Diagnose full accessibility cost and run its complete harness alone.
-      Final `630710858` completes all 988 pages in 223.85 seconds with zero
+- [x] Diagnose full accessibility cost and run its complete harness alone.
+      Checkpoint `630710858` completes all 988 pages in 223.85 seconds with zero
       violations/undecided rules, but eight filtered slash pages have no result:
       their palette grammar reads deferred English before a component loads it.
       Await English alongside the grammar and show the existing accessible
@@ -19184,18 +19188,43 @@ before completion. No push, rebase, model calls or fabricated native artifacts.
       complete streamed replay. Keep ordinary concurrency, then scan all four
       long-reply pages serially after the pool closes. Verify exactly-once page
       coverage and absence of overlap; keep every delta and ten-second deadline.
-- [ ] Commit fixes, clone committed source fresh, `npm ci`, `CI=true`, and
-      run every exact Linux build.yml job serially at repository deadlines.
-      Genuine macOS helper preparation remains covered by hosted CI.
-      Final committed source `630710858`: ordinary installation and exact
-      static sequence pass. All four complete coverage shards and their merge
-      pass: 20,028 tests, 146 existing skips, no failures or setup errors;
-      coverage is 92.99 / 88.11 / 93.96 / 93.80 percent. Four-CPU affinity lets
-      Vitest choose its normal three workers; no CLI worker or deadline override.
-      Full accessibility runs alone next, followed by both editor versions,
-      pinned SAST/history scan and every independent package command.
-- [ ] Add completion receipts to `docs/certification/int0180.md`, including
+      Fresh `9733edba2` installs normally and passes the exact static sequence
+      in 571.14 seconds; startup remains 739,475 / 751,411 bytes. Complete
+      accessibility runs alone on the hashed production artifact, before
+      four coverage shards, both editor versions, pinned scans and packaging.
+      The final full command passes all 988 pages in 326.52 seconds, with zero
+      violations, undecided rules or missing results. Legal passes all 96 native
+      keyboard/zoom checks plus 24 English/pseudo WCAG pages in 106.51 seconds.
+      Every original page, streamed delta and readiness deadline is retained.
+      All four final coverage shards and the merge pass on `9733edba2`; no
+      failure or setup error. The complete map passes every unchanged threshold:
+      92.99 / 88.11 / 93.96 / 93.79 percent. Editor integration follows.
+      The first integration attempt stops before any test: the official editor
+      release lookup reports ETIMEDOUT. The installed SDK's same lookup then
+      succeeds (stable 1.141.0; manifest floor 1.99.0). Rerun the unchanged job;
+      preserve that infrastructure failure and add no test retry or deadline.
+      The unchanged integration job then passes in 53.71 seconds: real VS Code
+      1.141.0 and 1.99.0 each pass all 40 tests, including nested vault defaults.
+- [x] Commit fixes, clone committed source fresh, `npm ci`, `CI=true`, and
+      execute every independent exact Linux build.yml command serially at its
+      repository deadline; record the native dependency and resulting red jobs.
+      Final source `9733edba2`: static, all four shards/coverage, full accessibility,
+      both editors, pinned SAST and history secrets pass. Unit totals: 20,034
+      passed, 146 existing skips, no failures or setup errors. Four-CPU affinity
+      lets Vitest choose its normal three workers; no CLI worker/deadline override.
+      Gitleaks 8.24.3 scans 1,829 commits with zero leaks. ACP cold exports (45),
+      installed localization, fake exec (44), the workflow's registry gate (1),
+      SBOM and asset hashes pass. Genuine Mac preparation belongs to hosted CI,
+      whose pass is still required; no release helper is fabricated here.
+      Package/member/size checks and the replayed required aggregate remain red:
+      helperless VSIX 2,897,076 / 2,841,600 bytes; four missing VSIX Mac members
+      and one missing ACP Mac member. Every other required member is present.
+- [x] Add completion receipts to `docs/certification/int0180.md`, including
       commands, counts, drills, cap measurements and any external blocker.
+      `docs/certification/int0180b-linux.json` binds commands, exits, hashes,
+      editor identities and all twenty-six failed/restored drills to source
+      `9733edba2`. Do not claim every Linux CI job passes until the genuine
+      universal package and required aggregate pass.
 
 ### INT0180 — Pre-integrate 0.18.0 on the 0.15.0 candidate (2026-10-07, linuxlt)
 
@@ -42354,6 +42383,28 @@ is relaxed. No live or paid calls, push, rebase or merge.
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
+
+INT0180B (2026-10-07): source `9733edba2` supersedes INT0180's local reds
+below. Fresh ordinary installation, exact static job, all four coverage shards
+and merge, full 988-page accessibility, legal's 96 keyboard/zoom plus 24 WCAG
+pages, both actual VS Code versions (40 tests each), pinned SAST and pinned
+history secrets pass. Unit result: 20,034 passed, 146 existing skips; no added
+skip, suppression, default deadline or coverage-threshold change. Startup is
+739,475 / 751,411 bytes. Account closure shrinks to 27,338 bytes; its explicitly
+authorized D6 cap is 51,200 bytes. Twenty-six guard drills fail and restore exact
+bytes. Current completion and command/hash receipts: docs/certification/int0180.md
+and docs/certification/int0180b-linux.json.
+
+The remaining external hold is genuine hosted macOS helper input and actual
+universal measurement (Q-REL0150M-UNIVERSAL). Helperless VSIX is 2,897,076 bytes,
+55,476 over the unchanged 2,841,600-byte cap; four VSIX native members and the
+ACP vault member are absent. All independent ACP export/localization/process,
+SBOM and asset-hash checks pass. Package job and replayed required aggregate
+remain failed; no hosted helper pass or universal cap measurement is inferred.
+The lead must supply the genuine artifacts, measure/shrink the universal archive,
+apply only its authorized D6 formula if still needed, and rerun package/required.
+
+Historical INT0180 checkpoint (superseded by INT0180B above):
 
 INT0180 (2026-10-07): the four ordered integrations retain every existing cap.
 Fresh committed clones measure startup at 752,182 B versus 751,411 B,
