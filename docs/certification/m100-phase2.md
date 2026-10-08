@@ -1092,8 +1092,9 @@ created exclusively (`SetSecurityInfo`, `:116`). It replaces files with
   delete from passes. That is the case for `%TEMP%` on this host, where
   CodexSandboxUsers holds Modify. A fresh `mkdtemp` folder under it inherits
   that DELETE, so the guard refuses it until it is claimed.
-- The helper protocol fails closed on a mismatched or missing answer (`:424`),
-  on exit, on a relative path or on any error code.
+- The helper protocol fails closed on a mismatched answer (`:330`), an answer
+  missing past `DEVICE_STORAGE_REQUEST_MS` (`:318`, added after RVM100WS), an
+  exit, a relative path or any error code.
 
 `deviceStore.ts` and `attemptJournal.ts` now take an injected platform
 (default `process.platform`). They claim every fresh folder, file, lock and
@@ -1204,3 +1205,49 @@ API. `npm run build` exited 1 with `dist/devices.js` at 107.1 KiB against its
   (every cap held, devices 100.0 KiB), `check:host-api` (0 problems) and
   `check:l10n` exit 0. ESLint `--max-warnings=0` and Prettier are clean on the
   changed files.
+
+### RVM100WS (Codex) review fixes: two P2s, 2026-10-08
+
+1. **A helper that stops answering.** Every request now has the named bound
+   `DEVICE_STORAGE_REQUEST_MS` (`src/shared/constants.ts:3599`). That is
+   `PROCESS_TABLE_TIMEOUT_MS`, the 20 s every Windows helper run already gets.
+   On expiry (`windowsStorageProtection.ts:318`) the request fails closed, so
+   the store refuses. The helper is killed (`:281`) and every other waiting
+   request fails. `supervisedStorageHelper` (`:359`) starts a fresh helper for
+   the next request, and `exited` reports when a process has ended. Tests
+   (`windowsStorageProtection.test.ts`, "a helper that stops answering") use a
+   stand-in that never answers `hang`, with a 200 ms bound for that helper only.
+   Drill: removing the expiry's failure fails both tests at the 15 s test
+   timeout (2 failed, 34 passed).
+2. **The binding's disposer was dropped.** `deviceStorageProtection` hands it
+   to the `DeviceDependencyScope` that `deviceMethods` now passes its
+   `dependencies` callback (`deviceBundle.ts:41`, `:70`). A failed or revoked
+   preparation ends what it started (`:107`, `:124`). `dispose()` ends the
+   current one (`:140`). The test file and fixtures that start the shared
+   native helper end it in `afterAll` (`endDeviceStorage`). Tests: two failed
+   preparations and one success start three helpers; the two failures have
+   exited before the retry, and `dispose()` ends the third. An owned binding
+   (the real native helper on Windows, the stand-in elsewhere) has exited
+   after disposal. Drill: dropping `scope.own` fails the lifecycle and seam
+   tests (2 failed, 34 passed).
+
+Both drills were restored from a backup, with SHA-256 identical before and
+after. Neither new test can pass on `bdf5d1f19`: the deadline test hangs
+without a bound, and the API the lifecycle tests use (`supervisedStorageHelper`,
+the scope argument, `exited`) does not exist there.
+
+**Runs (default timeouts).** Win11 VM, idle apart from review lanes, the same
+29 files: **831 passed, 0 failed** (116 s). Afterwards no
+`MuseSparkDeviceStorage-*` process was running. Kubuntu, those 29 plus the
+manifest and two packaging files (32): **886 passed, 0 failed**.
+
+**Cap.** The fixes bring `dist/devices.js` to 102,770 bytes (100.4 KiB), over
+its 100 KiB cap. The lead's D6-rule approval applies:
+`25 × ceil(100.4 × 1.15 / 25) = 125 KiB`. This is recorded in
+`scripts/check-bundle-size.mjs` and the PLAN.md M100 cap note. No other cap
+moves.
+
+**Gates.** All five typechecks, `knip`, `jscpd` (0 clones), `npm run build`
+(devices 100.4 of 125 KiB, every other cap unchanged), `check:host-api`
+(0 problems) and `check:l10n` exit 0. ESLint `--max-warnings=0` and Prettier are
+clean on the changed files.
