@@ -329,6 +329,9 @@ describe.runIf(isWindows)('SECWINPATH2 native identity on Windows', () => {
         if (isHeldPresent) rmdirSync(held)
       }
       expect(resolveWorkspacePath(ws, 'new.txt', 'win32').ok).toBe(true)
+      // Both ways round, as the shadow repository's separation check asks.
+      expect(pathIdentityRelation(path.join(ws, 'new.txt'), h.storage), ws).toBe('outside')
+      expect(pathIdentityRelation(h.storage, ws), ws).toBe('outside')
       const store = h.reopenAt(h.storage, ws)
       const destination = String.raw`${ws}\new.txt`
       expect(store.storagePathProblem(destination), destination).toBeUndefined()

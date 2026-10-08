@@ -39,15 +39,13 @@ export function resolvedLongPath(given: string): string | undefined {
   }
 }
 
-/** The identities of a folder's resolved ancestors (itself included), and their root. */
-function resolvedAncestors(folder: string, p: path.PlatformPath) {
-  const keys = new Set<string>()
+/** Whether a folder's resolved ancestors (itself included) include `identity`. */
+function isResolvedAncestor(identity: FileIdentity, folder: string, p: path.PlatformPath) {
   let current = realpathSync.native(folder)
   for (;;) {
-    const key = fileIdentityKey(statIdentitySync(current))
-    if (key !== undefined) keys.add(key)
+    if (sameFile(statIdentitySync(current), identity)) return true
     const parent = p.dirname(current)
-    if (parent === current) return { keys, top: current }
+    if (parent === current) return false
     current = parent
   }
 }
@@ -59,12 +57,12 @@ function resolvedAncestors(folder: string, p: path.PlatformPath) {
  * junction, symbolic link, `subst` letter or 8.3 name above it is judged by
  * the real folder it reaches, and a link above a trusted root is ordinary.
  * A target on another volume (another device id, WSL's device 0 included)
- * is outside. On the folder's own volume the walk must end at a root that is
- * one of the folder's resolved ancestors (its drive root, `\\localhost\C$`,
- * a `\\localhost\Users` share above it): a share rooted elsewhere on that
- * volume, or a missing file ID below the root, cannot establish exclusion.
- * A missing folder (the held-worktrees folder before the first checkout) is
- * its nearest existing ancestor plus the missing names below it.
+ * is outside. On the folder's own volume the walk must reach the volume's
+ * root, or a share root that is one of the folder's resolved ancestors
+ * (`\\localhost\C$`, a `\\localhost\Users` share above it): a share rooted
+ * elsewhere on that volume, or a missing file ID below the root, cannot
+ * establish exclusion. A missing folder (the held-worktrees folder before the
+ * first checkout) is its nearest existing ancestor plus the names below it.
  */
 export function pathIdentityRelation(
   candidate: string,
@@ -139,10 +137,11 @@ export function pathIdentityRelation(
       current = parent
     }
     if (top.dev !== folderIdentity.dev) return 'outside'
-    // The walk is complete only when its root lies above the folder.
-    const above = resolvedAncestors(existingFolder, p)
-    const key = fileIdentityKey(top)
-    return (key !== undefined && above.keys.has(key)) || sameName(current, above.top)
+    // The walk is complete at the volume's own root (`realpath` resolves
+    // `subst` letters), or at a share root that lies above the folder.
+    const isVolumeRoot = platform === 'win32' ? /^[a-z]:\\$/iu.test(current) : current === '/'
+    return isVolumeRoot ||
+      (fileIdentityKey(top) !== undefined && isResolvedAncestor(top, existingFolder, p))
       ? 'outside'
       : 'unknown'
   } catch {
