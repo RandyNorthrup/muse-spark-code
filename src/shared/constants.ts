@@ -5017,6 +5017,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/conversationGit.js',
   'dist/judge.js',
   'dist/judgeP2.js',
+  'dist/judgeSources.js',
   'dist/judgeLint.js',
   'dist/judgeHook.js',
   'dist/judgeLocal.js',

@@ -14,6 +14,7 @@ happened, not what was planned; superseded entries are kept.
   Models-panel source injection remain unavailable without their captures.
   Refresh private package fixtures and share identical real VSIX inventories
   while retaining the delivery checks' existing deadlines.
+  Include the source child in the support report's shipped-frame inventory.
 
 
 - Keep every long-reply accessibility delta while yielding through a task port,
