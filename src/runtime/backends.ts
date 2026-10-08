@@ -1,6 +1,7 @@
 import type * as RuntimeAccountingEntry from './runtimeAccountingEntry'
 import { Usd } from '../shared/usd'
 import { loadLegalScanner } from './legal/legalScanner'
+import { ModelApiClient } from '../core/backends/modelapi/client'
 import type { ProviderClient } from '../core/backends/modelapi/client'
 import type { runtimeSubscriptionClient } from './chatGptProviderCommands'
 import type * as ConfiguredProvidersEntry from '../host/backend/configuredProvidersEntry'
@@ -17,7 +18,7 @@ import type * as ConfiguredProvidersEntry from '../host/backend/configuredProvid
 // and nothing here sees an editor's unsaved buffers until file access goes
 // through the client (M63c).
 
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import type { AcpBackend, BackendReadiness } from '../acp/agent'
@@ -41,6 +42,7 @@ import type { UsageBudgetRead } from '../core/usage/usageService'
 import { fileContextIo } from '../host/backend/contextIo'
 import { describeEnvironment } from '../host/backend/environment'
 import { createFileSessionStore } from '../host/backend/fileSessionStore'
+import { createSessionUploads } from '../host/backend/sessionUploads'
 import { jobSourceReader } from '../host/backend/jobSource'
 import { createMemoryIo, systemPath } from '../host/backend/memoryIo'
 import { ModelApiBackendManager } from '../host/backend/modelApiBackendManager'
@@ -58,6 +60,7 @@ import { captureWorkspaceIdentity } from '../host/workspaceIdentity'
 import {
   FILE_REFUSAL_MODEL_TEXT,
   MENTION_INDEX_LIMIT,
+  MODEL_API_BASE_URL,
   MODEL_API_BUNDLE_FILE,
   MODEL_API_UPLOADS_DIR,
   PAGE_WORKER_FILE,
@@ -287,6 +290,27 @@ function modelApiManager(
     systemPath,
     warn: warnMemory,
   })
+  // The runtime's own Files-capable client for the session store's upload
+  // binding: the stored key over the pinned transport, read per use and
+  // never handed to a child process.
+  let filesClientValue: ModelApiClient | undefined
+  const filesClient = () =>
+    (filesClientValue ??= new ModelApiClient({
+      fetch: deps.fetch,
+      baseUrl: MODEL_API_BASE_URL,
+      apiKey: () => credentials.getApiKey(),
+      sleep: deps.sleep,
+      now: () => Date.now(),
+      random: () => Math.random(),
+      log,
+    }))
+  // Production media ledger and calibration (MONEY017D, D85.2/D85.6); the
+  // CLI/ACP runtime shares createModelApiHost with VS Code, so this one
+  // directory wires the same real path. Ephemeral runs keep no storage.
+  const uploadLedgerDir =
+    deps.exec?.isEphemeral === true
+      ? undefined
+      : path.join(agentDataFolder(deps), MODEL_API_UPLOADS_DIR)
   const store =
     deps.exec?.isEphemeral === true
       ? undefined
@@ -297,6 +321,21 @@ function modelApiManager(
           retentionDays: () => SETTING_DEFAULTS.cleanupPeriodDays,
           now: () => Date.now(),
           sleep: deps.sleep,
+          // Production media (P1, D85.2/D85.6): the upload ledger binds
+          // the real session store, so a media turn saves and reopens
+          // and deletion/purge releases that session's provider uploads.
+          ...(uploadLedgerDir !== undefined && {
+            uploads: createSessionUploads({
+              uploadLedgerDir,
+              currentAccountId: async () => {
+                const key = await credentials.getApiKey()
+                return key === undefined
+                  ? undefined
+                  : createHash('sha256').update(key).digest('hex')
+              },
+              filesClient: () => filesClient(),
+            }),
+          }),
         })
   // Snapshot copies are plain structured data. Keep their type/shape while
   // replacing every string leaf before a headless transcript reaches disk.
@@ -447,13 +486,7 @@ function modelApiManager(
     confirmContributorModel: () => Promise.resolve(options.allowsContributorModels),
     isWorkspaceTrusted,
     store: deps.exec === undefined ? store : headlessStore,
-    // Production media ledger and calibration (MONEY017D, D85.2/D85.6); the
-    // CLI/ACP runtime shares createModelApiHost with VS Code, so this one
-    // directory wires the same real path. Ephemeral runs keep no storage.
-    uploadLedgerDir:
-      deps.exec?.isEphemeral === true
-        ? undefined
-        : path.join(agentDataFolder(deps), MODEL_API_UPLOADS_DIR),
+    ...(uploadLedgerDir !== undefined && { uploadLedgerDir }),
     describeEnvironment: () =>
       describeEnvironment({
         runGit: deps.runGit,

@@ -21,6 +21,9 @@ import { accountLedgerDirectory } from '../../src/core/media/uploadLedgerStorage
 import { fileCalibrationStore } from '../../src/core/media/productionMedia'
 import { MEDIA_ESTIMATE_SAFETY_FACTOR } from '../../src/shared/constants'
 import { ModelApiClient } from '../../src/core/backends/modelapi/client'
+import { createFileSessionStore } from '../../src/host/backend/fileSessionStore'
+import { createSessionUploads } from '../../src/host/backend/sessionUploads'
+import type { StoredSession } from '../../src/core/backends/modelapi/sessionStore'
 import { createConfiguredProviderServices } from '../../src/core/providers/configured'
 import { createSubscriptionClient } from '../../src/core/providers/subscriptions/registry'
 import {
@@ -206,6 +209,188 @@ describe('Files transport through the provider wrappers', () => {
   })
 })
 
+interface UploadedRef {
+  readonly fileId: string
+  readonly provider: string
+  readonly expiresAt: number
+  readonly sha256: string
+  readonly bytes: number
+  readonly name: string
+  readonly mime: string
+}
+
+function requestHref(input: string | URL | Request): string {
+  if (typeof input === 'string') return input
+  return input instanceof URL ? input.href : input.url
+}
+
+async function uploadedRef(
+  replay: ReturnType<typeof createProductionMediaReplay>,
+): Promise<UploadedRef> {
+  const bytes = new Uint8Array(2048)
+  for (let index = 0; index < bytes.length; index++) bytes[index] = (index * 7) % 251
+  const sha256 = createHash('sha256').update(bytes).digest('hex')
+  const chunk = Promise.resolve(bytes)
+  return await replay.upload(
+    {
+      name: 'clip.mp4',
+      info: {
+        kind: 'video',
+        mediaType: 'video/mp4',
+        sizeBytes: bytes.length,
+        durationSeconds: 10,
+        hasSoundtrack: true,
+        width: 320,
+        height: 240,
+      },
+      sha256,
+      source: {
+        name: 'clip.mp4',
+        mime: 'video/mp4',
+        bytes: bytes.length,
+        open: async function* () {
+          yield await chunk
+        },
+      },
+    },
+    MODEL,
+    AbortSignal.timeout(10_000),
+  )
+}
+
+describe('session store ownership over the real ledger', () => {
+  const LAST_ACTIVITY = '2026-09-22T10:00:00.000Z'
+  const stored = (sessionId: string): StoredSession => ({
+    version: 1,
+    sessionId,
+    workspaceRoot: '/ws',
+    modelId: 'muse-spark-1.3',
+    approvalMode: 'allowAll',
+    effort: 'high',
+    createdAt: '2026-09-22T09:00:00.000Z',
+    lastActivityAt: LAST_ACTIVITY,
+    turnIds: [],
+    todos: [],
+    replay: [],
+    transcript: [],
+    outputs: {},
+    usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 },
+  })
+
+  function boundStore(options?: {
+    readonly failDeletes?: boolean
+    readonly retentionDays?: number
+    readonly now?: number
+  }) {
+    const api = fakeModelApi()
+    const files = fakeFilesApi(api.fetch)
+    const log = new FakeLogOutputChannel()
+    const refusingFetch = async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      const href = requestHref(input)
+      const isDelete =
+        (init?.method ?? 'GET') === 'DELETE' && new URL(href).pathname.includes('/files/')
+      return isDelete
+        ? Response.json({ error: { message: 'provider exploded' } }, { status: 500 })
+        : await files.fetch(input, init)
+    }
+    const fetch: typeof globalThis.fetch =
+      options?.failDeletes === true ? refusingFetch : files.fetch
+    const keyClient = () =>
+      new ModelApiClient({
+        ...fakeModelApiClientSettings(log),
+        apiKey: () => Promise.resolve(FAKE_MODEL_API_KEY),
+        fetch,
+      })
+    // The replay and the store share one uploads root, as in the hosts.
+    const uploadLedgerDir = scratchDir()
+    const uploads = createSessionUploads({
+      uploadLedgerDir,
+      currentAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
+      filesClient: keyClient,
+    })
+    const store = createFileSessionStore({
+      directory: scratchDir(),
+      log,
+      retentionDays: () => options?.retentionDays ?? 30,
+      now: () => options?.now ?? Date.parse(LAST_ACTIVITY),
+      sleep: () => Promise.resolve(),
+      uploads,
+    })
+    const replay = createProductionMediaReplay({
+      sessionId: 'media-turn',
+      client: keyClient(),
+      accountId: FAKE_MODEL_API_ACCOUNT_ID,
+      currentAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
+      directory: uploadLedgerDir,
+      log,
+      attachment: () => undefined,
+      source: () => Promise.resolve(undefined),
+      authorize: () => Promise.resolve(),
+    })
+    return { store, replay, files }
+  }
+
+  it('saves and reopens a media turn through the real file session store', async () => {
+    const t = boundStore()
+    // The replay and the store share one uploads root, as in the hosts.
+    const ref = await uploadedRef(t.replay)
+    const session = {
+      ...stored('media-turn'),
+      accountId: FAKE_MODEL_API_ACCOUNT_ID,
+      fileRefs: [ref],
+    }
+    await t.store.save(session)
+    // A media turn survives reopening with its file references intact.
+    await expect(t.store.load('media-turn')).resolves.toMatchObject({ fileRefs: [ref] })
+    const headers = await t.store.list()
+    expect(headers.map((header) => header.sessionId)).toContain('media-turn')
+  })
+
+  it('releases the session provider uploads on delete, confirmed by the provider', async () => {
+    const t = boundStore()
+    const ref = await uploadedRef(t.replay)
+    await t.store.save({
+      ...stored('media-turn'),
+      accountId: FAKE_MODEL_API_ACCOUNT_ID,
+      fileRefs: [ref],
+    })
+    await t.store.remove('media-turn')
+    await expect(t.store.load('media-turn')).resolves.toBeUndefined()
+    // The provider deletion ran: the fake records it, and nothing is retained.
+    expect(t.files.deletes).toEqual([ref.fileId])
+  })
+
+  it('releases uploads on retention purge', async () => {
+    const t = boundStore({
+      retentionDays: 30,
+      now: Date.parse(LAST_ACTIVITY) + 31 * 24 * 3_600_000,
+    })
+    const ref = await uploadedRef(t.replay)
+    await t.store.save({
+      ...stored('media-turn'),
+      accountId: FAKE_MODEL_API_ACCOUNT_ID,
+      fileRefs: [ref],
+    })
+    expect(await t.store.list()).toEqual([])
+    expect(t.files.deletes).toEqual([ref.fileId])
+  })
+
+  it('reports a provider deletion failure honestly and retains the session', async () => {
+    const t = boundStore({ failDeletes: true })
+    const ref = await uploadedRef(t.replay)
+    await t.store.save({
+      ...stored('media-turn'),
+      accountId: FAKE_MODEL_API_ACCOUNT_ID,
+      fileRefs: [ref],
+    })
+    await expect(t.store.remove('media-turn')).rejects.toThrow()
+    // Nothing was silently dropped: the session still reopens.
+    await expect(t.store.load('media-turn')).resolves.toMatchObject({ fileRefs: [ref] })
+  })
+})
 describe('per-account upload ledgers', () => {
   it('isolates accounts: B uploads fresh after A, replaying only its own files', async () => {
     const api = fakeModelApi()

@@ -170,6 +170,7 @@ import { SandboxSetup } from './host/backend/sandboxSetup'
 import { fileContextIo } from './host/backend/contextIo'
 import { describeEnvironment } from './host/backend/environment'
 import { createFileSessionStore } from './host/backend/fileSessionStore'
+import { createSessionUploads } from './host/backend/sessionUploads'
 import type { QuestionStore } from './shared/questions'
 import { modelApiMcpPoolDeps } from './host/backend/mcpServers'
 import { type JobHelper, jobSourceReader } from './host/backend/jobSource'
@@ -2505,7 +2506,7 @@ async function activateWindow(
       log,
       context: { workspaceRoot: root, storageRoot, l10n },
     })
-  const modelApi = new ModelApiBackendManager({
+  const modelApi: ModelApiBackendManager = new ModelApiBackendManager({
     onServiceFailure: () => {
       notify(
         Array.from(controllers.values(), (controller) => () => {
@@ -2601,6 +2602,14 @@ async function activateWindow(
               new Promise((resolve) => {
                 setTimeout(resolve, ms)
               }),
+            // Production media (P1, D85.2/D85.6): the upload ledger binds
+            // the real session store, so a media turn saves and reopens
+            // and deletion/purge releases that session's provider uploads.
+            uploads: createSessionUploads({
+              uploadLedgerDir: path.join(storageRoot, MODEL_API_UPLOADS_DIR),
+              currentAccountId: () => modelApi.accountId(),
+              filesClient: () => keyClient(),
+            }),
           }),
     scheduleStore:
       context.storageUri === undefined
