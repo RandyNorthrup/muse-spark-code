@@ -1330,3 +1330,12 @@ Restored owning run: **exit 0, 67 passed, 7 Windows-native skips**, all
 **22 macOS native cases** and **6 injected Darwin cases** passed. Host and
 unit typechecks and changed-file ESLint exit **0**. Committed fresh-clone
 receipts follow after verification.
+
+The first committed clone at `abf28763b` passed all six requested test runs
+(67 owning + 86 receiver/recovery per repetition), all five compiler projects,
+ESLint, Prettier, Knip, localization, reference and the capped build. It exposed
+two duplicated test blocks: **jscpd exit 1**. Share the real receiver's test
+policy in `helpers/deviceWorkerReceiver.ts` and the retained-cap case's launch
+closure; keep every assertion and threshold. Restored local jscpd is **exit 0,
+zero clones**. Final committed-clone checks are repeated after that fixture
+repair. The host API inventory remains the exact inherited W residual.

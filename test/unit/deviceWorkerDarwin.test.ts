@@ -33,12 +33,12 @@ import type { RunProgram } from '../../src/host/processTree'
 import { deviceCheck, deviceGrant } from './helpers/deviceFixtures'
 import { darwinEscapeTree, survivors } from './helpers/deviceDarwinEscape'
 import { AttemptJournal } from '../../src/core/devices/attemptJournal'
-import { DeviceReceiver } from '../../src/host/devices/deviceReceiver'
 import { executionProtection, signedDispatch } from './helpers/deviceExecutionFixtures'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { deviceFailureText } from '../../src/webview/models/sections/agents/devicePresentation'
 import type { DeviceWorkerCommand } from '../../src/host/devices/deviceWorkerHost'
 import type * as ChildProcessModule from 'node:child_process'
+import { openWorkerReceiver } from './helpers/deviceWorkerReceiver'
 
 vi.mock('node:fs/promises', { spy: true })
 vi.mock('node:child_process', { spy: true })
@@ -252,24 +252,18 @@ describe('M100/H Darwin unsupported manager port', () => {
         uid: owner.uid,
         run: invoke,
       })
-      await expect(
+      const start = () =>
         driver.launch(
           { executable: process.execPath, args: [], cwd: directory, requiredTools: [] },
           {},
           attemptWith(),
-        ),
-      ).rejects.toMatchObject({ reason: 'capacity' })
+        )
+      await expect(start()).rejects.toMatchObject({ reason: 'capacity' })
       expect(invoke.mock.calls.every(([, args]) => args[0] !== 'bootstrap')).toBe(true)
       const names = await readdir(root)
       for (const name of names)
         if (name.startsWith('attempt-')) await rm(path.join(root, name), { recursive: true })
-      await expect(
-        driver.launch(
-          { executable: process.execPath, args: [], cwd: directory, requiredTools: [] },
-          {},
-          attemptWith(),
-        ),
-      ).rejects.toMatchObject({ reason: 'unsupported-host' })
+      await expect(start()).rejects.toMatchObject({ reason: 'unsupported-host' })
       expect(invoke.mock.calls.some(([, args]) => args[0] === 'bootstrap')).toBe(true)
     } finally {
       vi.mocked(lstat).mockRestore()
@@ -436,15 +430,7 @@ int main(void) {
       recordEnvironment: () => Promise.resolve(),
       pressure: () => undefined,
     })
-    const receiver = await DeviceReceiver.open(grant.offer.receiverIncarnationId, journal, host, {
-      currentGrant: () => Promise.resolve(grant),
-      assertAllowed: () => Promise.resolve(),
-      approve: () => Promise.resolve(true),
-      paidGate: { isOn: () => true },
-      paidConsent: { allows: () => Promise.resolve(true) },
-      assertPaidBinding: () => Promise.resolve(),
-    })
-    receiver.resumeQueue()
+    const receiver = await openWorkerReceiver(journal, host, grant)
     const fixture = await darwinEscapeTree(
       run,
       native(),

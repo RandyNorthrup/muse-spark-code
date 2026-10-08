@@ -17,9 +17,10 @@ import { deviceWorkerNative } from '../../src/host/backend/deviceWorkerNative'
 import type { RunProgram } from '../../src/host/processTree'
 import type { DeviceDispatch } from '../../src/shared/devices'
 import { AttemptJournal } from '../../src/core/devices/attemptJournal'
-import { DeviceReceiver } from '../../src/host/devices/deviceReceiver'
+import type { DeviceReceiver } from '../../src/host/devices/deviceReceiver'
 import { deviceCheck, deviceGrant } from './helpers/deviceFixtures'
 import { executionProtection, signedDispatch } from './helpers/deviceExecutionFixtures'
+import { openWorkerReceiver } from './helpers/deviceWorkerReceiver'
 
 const usage = {
   settlementId: 'a'.repeat(32),
@@ -142,15 +143,7 @@ async function throughReceiver(
       executionProtection,
     )
     const grant = deviceGrant('a'.repeat(32))
-    const receiver = await DeviceReceiver.open(grant.offer.receiverIncarnationId, journal, host, {
-      currentGrant: () => Promise.resolve(grant),
-      assertAllowed: () => Promise.resolve(),
-      approve: () => Promise.resolve(true),
-      paidGate: { isOn: () => true },
-      paidConsent: { allows: () => Promise.resolve(true) },
-      assertPaidBinding: () => Promise.resolve(),
-    })
-    receiver.resumeQueue()
+    const receiver = await openWorkerReceiver(journal, host, grant)
     await body(receiver, journal)
   } finally {
     await rm(parent, { recursive: true, force: true })
