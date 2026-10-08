@@ -22,6 +22,8 @@ import { createWindowJudge } from '../../src/host/judge/judgeEntry'
 import { createHostPhase2 } from '../../src/host/judge/judgeBinding'
 import { createPaidFeatures } from '../../src/host/paid/paidHost'
 import { JUDGE_MIN_READY_RATE, type JudgeEngine } from '../../src/shared/constants'
+import type { JudgeEntryParts } from '../../src/core/judge/entries'
+import type { JudgeStatus } from '../../src/shared/judge'
 import type { JudgeCascadeSide } from '../../src/core/judge/cascade'
 import type { JudgeRuntime } from '../../src/core/judge/engine'
 import { wiringFixture, wiringLimits } from './helpers/judgeWiring'
@@ -151,7 +153,7 @@ function bindingOf(
 function windowDeps(overrides: {
   engine: () => JudgeEngine
   phase2?: Parameters<typeof createWindowJudge>[0]['phase2']
-  status?: (status: never) => void
+  onStatus?: ((action: JudgeEntryParts, status: JudgeStatus) => void) | undefined
 }) {
   const paid = createPaidFeatures({
     globalState: memento(new Map()),
@@ -177,7 +179,9 @@ function windowDeps(overrides: {
     modelApi: () => undefined,
     paid,
     emit: vi.fn(),
-    status: vi.fn(overrides.status),
+    status: (action: JudgeEntryParts, status: JudgeStatus) => {
+      overrides.onStatus?.(action, status)
+    },
     notice: vi.fn(),
     log: new FakeLogOutputChannel(),
   }
@@ -190,11 +194,11 @@ describe('production binding through the real factories', () => {
       const binding = bindingOf(fixtures, 'auto')
       expect(binding).toBeDefined()
       // Window through the real window factory.
-      const onStatus = vi.fn()
+      const onStatus = vi.fn<(action: JudgeEntryParts, status: JudgeStatus) => void>()
       const judge = createWindowJudge(
         windowDeps({
           engine: () => 'auto',
-          status: onStatus,
+          onStatus,
           phase2: {
             binding: () => binding,
             createRuntime: (deps) => Promise.resolve(createJudgeRuntime(deps)),
@@ -256,11 +260,11 @@ describe('production binding through the real factories', () => {
         readEmbeddingManifest: () => undefined,
       }
       // Window: the status names the gap; nothing dispatches.
-      const onStatus = vi.fn()
+      const onStatus = vi.fn<(action: JudgeEntryParts, status: JudgeStatus) => void>()
       const judge = createWindowJudge(
         windowDeps({
           engine: () => 'auto',
-          status: onStatus,
+          onStatus,
           phase2: {
             binding: () => bindingOf(fixtures, 'auto', empty),
             createRuntime: (deps) => Promise.resolve(createJudgeRuntime(deps)),
@@ -367,12 +371,8 @@ describe('production binding through the real factories', () => {
     ).toBeUndefined()
     // Without any binding the window resolves through the phase-1 entry:
     // an unknown phase-2 engine word stays off, never a separate mode.
-    const onStatus = vi.fn()
-    const judge = createWindowJudge(
-      windowDeps({ engine: () => 'same', status: onStatus }),
-      EN,
-      'en',
-    )
+    const onStatus = vi.fn<(action: JudgeEntryParts, status: JudgeStatus) => void>()
+    const judge = createWindowJudge(windowDeps({ engine: () => 'same', onStatus }), EN, 'en')
     const fence = judge.start(
       { backend: 'museCode', sessionId: 's1', turnId: 'turn-1', tool: 'bash', args: {} },
       'state',

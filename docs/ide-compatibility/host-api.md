@@ -480,7 +480,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 7     |
 | `node:events`            | 2     |
-| `node:fs`                | 46    |
+| `node:fs`                | 47    |
 | `node:fs/promises`       | 79    |
 | `node:http`              | 17    |
 | `node:https`             | 2     |
