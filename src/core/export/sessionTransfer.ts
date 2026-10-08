@@ -404,6 +404,13 @@ function scrubText(
   return redacted
 }
 
+/** M113 uses the export's exact scrub for snapshots and each output format. */
+export function createExportTextScrubber(redaction: ExportRedaction): (text: string) => string {
+  const roots = foldedRoots(redaction.localRoots)
+  const counts: ScrubCounts = { secrets: 0, accounts: 0, paths: 0 }
+  return (text) => scrubText(text, redaction, roots, counts)
+}
+
 /** How much text has been scrubbed since the event loop last ran. */
 interface ScrubPace {
   sinceYield: number

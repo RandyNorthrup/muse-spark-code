@@ -1,6 +1,6 @@
 import { CONTEXT_PRESSURE_HIGH, CONTEXT_PRESSURE_MEDIUM, UI_TEXT } from '../../shared/constants'
 import { fill, formatNumber, formatPercent } from '../../shared/l10n/text'
-import { formatTokenWindow } from '../../shared/palette'
+import { formatTokenWindow } from '../../shared/paletteFormatting'
 import type { UiState } from '../state/uiState'
 
 export interface ContextMeterProps {
@@ -36,7 +36,7 @@ export function ContextMeter({ context, onCompact }: ContextMeterProps) {
   return (
     <button
       type="button"
-      className={`context-meter context-meter-${level}`}
+      className={`context-meter context-meter-${level} chat-control`}
       aria-label={`${label} · ${detail}${over}`}
       title={`${label} · ${detail}${over} · ${UI_TEXT.contextCompactTitle}`}
       onClick={onCompact}

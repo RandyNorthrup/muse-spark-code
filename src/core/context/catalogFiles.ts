@@ -11,6 +11,7 @@
 // refused) is reported with it, so a caller whose precedence narrows (the
 // agents) can refuse a name instead of letting a lower root stand in.
 
+import type { ContentSource } from '../schedules/provenance'
 import path from 'node:path'
 import { type ContextIo, type ContextText, readContextText } from './contextFiles'
 
@@ -49,6 +50,7 @@ export interface CatalogEntry<Entry, Source> {
   readonly source: Source
   /** The root directory that yielded the entry (M92: one source may read two roots). */
   readonly directory: string
+  readonly contentSource?: Extract<ContentSource, { kind: 'file' }>
   readonly entry: Entry
 }
 
@@ -247,7 +249,13 @@ export async function loadCatalogFiles<Entry, Source extends string>(
         )
       }
       seen.set(id, root.source)
-      entries.push({ id, source: root.source, directory: root.directory, entry: parsed.entry })
+      entries.push({
+        id,
+        source: root.source,
+        directory: root.directory,
+        entry: parsed.entry,
+        ...(read.contentSource !== undefined && { contentSource: read.contentSource }),
+      })
     }
   }
   return { entries, roots: rootLoads, warnings }

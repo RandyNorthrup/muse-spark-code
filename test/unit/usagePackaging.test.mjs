@@ -46,6 +46,7 @@ function fixture() {
     'modelApiMcp',
     'runtimeAccounting',
     'acpQuestions',
+    'acpPlaybook',
     'runtimeQuestions',
     'questionNotes',
     'mcpPool',
@@ -55,6 +56,7 @@ function fixture() {
     'resourceAdmission',
     'resourceGovernor',
     'runtimeEngine',
+    'schedules',
     'providerPolicy',
     'modelApiBoundaries',
     'legalScan',
@@ -81,11 +83,17 @@ function fixture() {
     'pageWorker',
     'usageService',
     'usageCompanion',
+    'fontsInstall',
+    'scheduleBackground',
+    'reporting',
+    'reportingNetwork',
+    'reportingDestinations',
   ])
     put(`dist/${bundle}.js`, 'exports.EN = {}')
   for (const file of ['MuseSparkJob', 'MuseSparkMcpJob'])
     put(`native/windows/${file}.cs`, '// test source')
   put('LICENSE', 'MIT')
+  put('design/fonts/manifest.json', readFileSync('design/fonts/manifest.json', 'utf8'))
   put('dist/providerCatalog.json', '{"providers":{}}')
   put('dist/providerCatalog.js', 'module.exports={providers:{}};')
   put('dist/legal-data/licenses.json', '{}')
@@ -100,6 +108,7 @@ function fixture() {
     'exec-result-v2',
     'exec-event-v2',
     'share-v1',
+    'report-v1',
   ])
     put(`docs/schemas/${schema}.schema.json`, '{}')
   put(
@@ -123,7 +132,7 @@ function fixture() {
   put('test/packaging/moduleExports.test.mjs', '')
   for (const file of readdirSync('l10n'))
     if (/^ui\..+\.json$/u.test(file)) {
-      put(`l10n/${file}`, '{}')
+      put(`l10n/${file}`, readFileSync(`l10n/${file}`, 'utf8'))
       put(`l10n/${file.replace(/^ui\./u, 'usage.')}`, '{"title":"test"}')
     }
   put('l10n/untranslated.json', '{}')

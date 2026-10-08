@@ -42,7 +42,7 @@ function row(label: string): HTMLElement {
 }
 
 describe('the verify rows', () => {
-  it('sum the files and checks up under the row, and open on what the model read', () => {
+  it('sum the files and checks up under the row, and open on what the model read', async () => {
     renderTranscript([
       tool({
         id: 'v1',
@@ -61,6 +61,7 @@ describe('the verify rows', () => {
         },
       }),
     ])
+    await screen.findByText('Check edits')
     const found = row('Check edits')
     expect(within(found).getByText('src/a.ts, src/b.ts')).toBeTruthy()
     expect(
@@ -71,7 +72,9 @@ describe('the verify rows', () => {
       throw new Error('no toggle')
     }
     fireEvent.click(toggle)
-    expect(found.querySelector('.tool-output')?.textContent).toContain('lint: failed')
+    expect(
+      await within(found).findByText(/lint: failed/, { selector: '.tool-output .tool-pre' }),
+    ).toBeTruthy()
   })
 
   it('reads a run with no diagnostics or checks to report as nothing, a clean one as clean', () => {
@@ -115,7 +118,7 @@ describe('the verify rows', () => {
 })
 
 describe('an edit’s then_run', () => {
-  it('shows the command and its output under the diff: one call, two results', () => {
+  it('shows the command and its output under the diff: one call, two results', async () => {
     renderTranscript([
       tool({
         id: 'e1',
@@ -126,7 +129,9 @@ describe('an edit’s then_run', () => {
         thenRun: { command: 'npm test', outcome: 'failed', output: '1 failing', exitCode: 1 },
       }),
     ])
+    await screen.findByText('Edit')
     const found = row('Edit')
+    await within(found).findByText('Then ran')
     expect(found.querySelector('.diff-add')?.textContent).toContain('const a = 2')
     const block = found.querySelector('.then-run')
     expect(block).not.toBeNull()

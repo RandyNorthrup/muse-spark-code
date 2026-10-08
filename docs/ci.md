@@ -775,3 +775,14 @@ journal and checked page totals as the interactive page. It makes no model
 request. Headless executions record settled calls through the shared writer;
 usage files contain no prompts, paths, keys or key digests. This does not change
 M80's pending hosted/live certification or paid admission policy.
+
+## Deterministic report gates (M113)
+
+The standalone `report quality` command uses the shared local collection engine;
+`exec` is unchanged. `--strict` fails on unavailable sources and plan drift;
+`--fail-on` selects semantic conditions. A report never runs the checks named by
+package scripts: it reads only recorded normalized completions, so a missing
+journal is unavailable rather than a fabricated pass. CI network collection is
+refused by the report binding, even with `--network`; CI credentials are never
+passed to report tools. Approved service captures and installed native editor
+receipts remain separate certification requirements.

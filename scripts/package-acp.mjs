@@ -37,12 +37,15 @@ const BUNDLES = [
   'headless.js',
   'sharingRuntime.js',
   'acpQuestions.js',
+  'acpPlaybook.js',
   'runtimeQuestions.js',
   'questionNotes.js',
   'mcpPool.js',
   'exec.js',
   'modelApiCodeIntel.js',
   'structuredSchema.js',
+  'fontsInstall.js',
+  'scheduleBackground.js',
   'modelApi.js',
   'resourceAdmission.js',
   'resourceGovernor.js',
@@ -62,9 +65,13 @@ const BUNDLES = [
   'team.js',
   'teamRunners.js',
   'teamScheduler.js',
+  'schedules.js',
   'foreignHooks.js',
   'hookRuntime.js',
   'recorder.js',
+  'reporting.js',
+  'reportingNetwork.js',
+  'reportingDestinations.js',
   'reference.js',
   'uiText.js',
   'uiTextRuntime.js',
@@ -99,6 +106,7 @@ const SCHEMAS = [
   'exec-result-v2.schema.json',
   'exec-event-v2.schema.json',
   'share-v1.schema.json',
+  'report-v1.schema.json',
 ]
 // Standalone full Help reads the manifest's labels beside package.json.
 const NLS_FILES = readdirSync('.').filter((file) => /^package\.nls(?:\.[\w-]+)?\.json$/.test(file))
@@ -220,6 +228,8 @@ execFileSync(process.execPath, ['scripts/check-l10n.mjs', '--packaged-acp', STAG
   stdio: 'inherit',
 })
 for (const file of NLS_FILES) copyFileSync(file, path.join(STAGE, file))
+mkdirSync(path.join(STAGE, 'design', 'fonts'), { recursive: true })
+copyFileSync('design/fonts/manifest.json', path.join(STAGE, 'design', 'fonts', 'manifest.json'))
 copyFileSync('LICENSE', path.join(STAGE, 'LICENSE'))
 writeFileSync(
   path.join(STAGE, 'README.md'),
@@ -261,7 +271,17 @@ const agentManifest = {
     'llm',
   ],
   bin: { [PACKAGE_NAME]: 'dist/acp.js' },
-  files: ['dist', 'native', 'l10n', 'schemas', ...NLS_FILES, 'README.md', 'LICENSE', NOTICES],
+  files: [
+    'dist',
+    'design',
+    'native',
+    'l10n',
+    'schemas',
+    ...NLS_FILES,
+    'README.md',
+    'LICENSE',
+    NOTICES,
+  ],
   engines: { node: manifest.engines.node },
   dependencies: { [NATIVE_DEPENDENCY]: keyringVersion },
 }

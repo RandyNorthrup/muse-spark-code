@@ -1,0 +1,2592 @@
+{
+  "$description": "Muse Spark Code (Unofficial), D94. Single source for web, native, desktop and TUI consumers.",
+  "$extensions": {
+    "org.muse-spark-code": {
+      "version": 1,
+      "modes": ["light", "dark", "hc-light", "hc-dark"],
+      "contrastPairs": [
+        {
+          "foreground": "colour.text",
+          "background": "colour.surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.muted",
+          "background": "colour.surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.success",
+          "background": "colour.surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.warning",
+          "background": "colour.surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.danger",
+          "background": "colour.surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.info",
+          "background": "colour.surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.focus",
+          "background": "colour.surface",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.border",
+          "background": "colour.surface",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.text",
+          "background": "colour.raised",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.muted",
+          "background": "colour.raised",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.success",
+          "background": "colour.raised",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.warning",
+          "background": "colour.raised",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.danger",
+          "background": "colour.raised",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.info",
+          "background": "colour.raised",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.focus",
+          "background": "colour.raised",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.border",
+          "background": "colour.raised",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.text",
+          "background": "colour.overlay",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.muted",
+          "background": "colour.overlay",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.success",
+          "background": "colour.overlay",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.warning",
+          "background": "colour.overlay",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.danger",
+          "background": "colour.overlay",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.info",
+          "background": "colour.overlay",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.focus",
+          "background": "colour.overlay",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.border",
+          "background": "colour.overlay",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.text",
+          "background": "colour.hover",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.muted",
+          "background": "colour.hover",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.success",
+          "background": "colour.hover",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.warning",
+          "background": "colour.hover",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.danger",
+          "background": "colour.hover",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.info",
+          "background": "colour.hover",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.focus",
+          "background": "colour.hover",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.border",
+          "background": "colour.hover",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.on-accent",
+          "background": "colour.accent",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.on-accent",
+          "background": "colour.pressed",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.on-selection",
+          "background": "colour.selection",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.on-badge",
+          "background": "colour.badge",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.text",
+          "background": "colour.diff-added",
+          "canvas": "colour.surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.text",
+          "background": "colour.diff-removed",
+          "canvas": "colour.surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.text",
+          "background": "colour.editor-surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.muted",
+          "background": "colour.editor-surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.info",
+          "background": "colour.editor-surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.input-text",
+          "background": "colour.input-surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.input-placeholder",
+          "background": "colour.input-surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.secondary-text",
+          "background": "colour.secondary-surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.secondary-text",
+          "background": "colour.secondary-hover",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.text",
+          "background": "colour.toolbar-hover",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.muted",
+          "background": "colour.toolbar-hover",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.error-text",
+          "background": "colour.error-surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.warning-text",
+          "background": "colour.warning-surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.code-text",
+          "background": "colour.code-surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.syntax-function",
+          "background": "colour.code-surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.syntax-keyword",
+          "background": "colour.code-surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.syntax-number",
+          "background": "colour.code-surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.syntax-string",
+          "background": "colour.code-surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.raised-text",
+          "background": "colour.raised",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.focus",
+          "background": "colour.editor-surface",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.cursor",
+          "background": "colour.editor-surface",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.input-border",
+          "background": "colour.input-surface",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.checkbox-border",
+          "background": "colour.input-surface",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.focus",
+          "background": "colour.input-surface",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.focus",
+          "background": "colour.secondary-surface",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.focus",
+          "background": "colour.secondary-hover",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.focus",
+          "background": "colour.toolbar-hover",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.error-border",
+          "background": "colour.error-surface",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.focus",
+          "background": "colour.warning-surface",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.raised-border",
+          "background": "colour.raised",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.widget-border",
+          "background": "colour.raised",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.contrast-border",
+          "background": "colour.raised",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.progress",
+          "background": "colour.raised",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.chart-danger",
+          "background": "colour.raised",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.contrast-border",
+          "background": "colour.surface",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.progress",
+          "background": "colour.surface",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.chart-danger",
+          "background": "colour.surface",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.quote-border",
+          "background": "colour.surface",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.git-added",
+          "background": "colour.surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.git-added",
+          "background": "colour.raised",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.git-deleted",
+          "background": "colour.surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.git-deleted",
+          "background": "colour.raised",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.list-warning",
+          "background": "colour.surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.list-warning",
+          "background": "colour.raised",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.link-hover",
+          "background": "colour.surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.link-hover",
+          "background": "colour.raised",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.link-hover",
+          "background": "colour.hover",
+          "usage": "text"
+        },
+        {
+          "foreground": "aliases.fg",
+          "background": "colour.surface",
+          "usage": "text"
+        },
+        {
+          "foreground": "colour.danger-legacy",
+          "background": "colour.surface",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.danger-legacy",
+          "background": "colour.raised",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.danger-legacy",
+          "background": "colour.hover",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.control-border",
+          "background": "colour.surface",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.control-border",
+          "background": "colour.raised",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.usage-purple",
+          "background": "colour.editor-surface",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.usage-orange",
+          "background": "colour.editor-surface",
+          "usage": "ui"
+        }
+      ],
+      "decorativeColours": [
+        "colour.shadow",
+        "colour.disabled",
+        "colour.modal-scrim",
+        "colour.meta-start",
+        "colour.meta-middle",
+        "colour.meta-end",
+        "colour.meta-return",
+        "colour.meta-fill",
+        "colour.status-low",
+        "colour.status-mid",
+        "colour.status-high"
+      ]
+    }
+  },
+  "colour": {
+    "surface": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.094118, 0.094118, 0.094118],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-surface",
+          "vscode": ["--vscode-sideBar-background"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [0.094118, 0.094118, 0.094118],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [0.0, 0.0, 0.0],
+              "alpha": 1
+            }
+          }
+        }
+      },
+      "$description": "Semantic host theme role: surface."
+    },
+    "raised": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.141176, 0.156863, 0.196078],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-raised",
+          "vscode": ["--vscode-editorWidget-background"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [0.952941, 0.960784, 0.972549],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [0.141176, 0.156863, 0.196078],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [0.0, 0.0, 0.0],
+              "alpha": 1
+            }
+          }
+        }
+      },
+      "$description": "Semantic host theme role: raised."
+    },
+    "overlay": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.141176, 0.156863, 0.196078],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-overlay",
+          "vscode": ["--vscode-editorWidget-background"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [0.141176, 0.156863, 0.196078],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [0.0, 0.0, 0.0],
+              "alpha": 1
+            }
+          }
+        }
+      },
+      "$description": "Semantic host theme role: overlay."
+    },
+    "border": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.521569, 0.545098, 0.596078],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-border",
+          "vscode": ["--vscode-panel-border"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [0.45098, 0.466667, 0.501961],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [0.521569, 0.545098, 0.596078],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [0.0, 0.0, 0.0],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            }
+          }
+        }
+      },
+      "$description": "Semantic host theme role: border."
+    },
+    "text": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.894118, 0.905882, 0.929412],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-text",
+          "vscode": ["--vscode-foreground"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [0.145098, 0.160784, 0.196078],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [0.894118, 0.905882, 0.929412],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [0.0, 0.0, 0.0],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            }
+          }
+        }
+      },
+      "$description": "Semantic host theme role: text."
+    },
+    "muted": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.682353, 0.713725, 0.768627],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-muted",
+          "vscode": ["--vscode-descriptionForeground"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [0.341176, 0.364706, 0.407843],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [0.682353, 0.713725, 0.768627],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [0.160784, 0.160784, 0.160784],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            }
+          }
+        }
+      },
+      "$description": "Semantic host theme role: muted."
+    },
+    "accent": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.039216, 0.360784, 1.0],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-accent",
+          "vscode": ["--vscode-button-background"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [0.039216, 0.360784, 1.0],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [0.039216, 0.360784, 1.0],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [0.0, 0.0, 0.0],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            }
+          }
+        }
+      },
+      "$description": "Semantic host theme role: accent."
+    },
+    "on-accent": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [1.0, 1.0, 1.0],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-on-accent",
+          "vscode": ["--vscode-button-foreground"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [0.0, 0.0, 0.0],
+              "alpha": 1
+            }
+          }
+        }
+      },
+      "$description": "Semantic host theme role: on-accent."
+    },
+    "focus": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.498039, 0.698039, 1.0],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-focus",
+          "vscode": ["--vscode-focusBorder"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [0.039216, 0.360784, 1.0],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [0.498039, 0.698039, 1.0],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [0.0, 0.0, 0.0],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            }
+          }
+        }
+      },
+      "$description": "Semantic host theme role: focus."
+    },
+    "selection": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.023529, 0.305882, 0.541176],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-selection",
+          "vscode": ["--vscode-list-activeSelectionBackground"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [0.023529, 0.305882, 0.541176],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [0.023529, 0.305882, 0.541176],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [0.0, 0.0, 0.0],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            }
+          }
+        }
+      },
+      "$description": "Semantic host theme role: selection."
+    },
+    "on-selection": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [1.0, 1.0, 1.0],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-on-selection",
+          "vscode": ["--vscode-list-activeSelectionForeground"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [0.0, 0.0, 0.0],
+              "alpha": 1
+            }
+          }
+        }
+      },
+      "$description": "Semantic host theme role: on-selection."
+    },
+    "success": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.247059, 0.72549, 0.313725],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-success",
+          "vscode": ["--vscode-testing-iconPassed"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [0.090196, 0.419608, 0.168627],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [0.247059, 0.72549, 0.313725],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [0.090196, 0.419608, 0.168627],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [0.498039, 1.0, 0.498039],
+              "alpha": 1
+            }
+          }
+        }
+      },
+      "$description": "Semantic host theme role: success."
+    },
+    "warning": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.898039, 0.764706, 0.294118],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-warning",
+          "vscode": ["--vscode-editorWarning-foreground"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [0.45098, 0.333333, 0.0],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [0.898039, 0.764706, 0.294118],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [0.45098, 0.333333, 0.0],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 0.0],
+              "alpha": 1
+            }
+          }
+        }
+      },
+      "$description": "Semantic host theme role: warning."
+    },
+    "danger": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [1.0, 0.5725490196078431, 0.5725490196078431],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-danger",
+          "vscode": ["--vscode-testing-iconFailed"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [0.67451, 0.090196, 0.129412],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [1.0, 0.5725490196078431, 0.5725490196078431],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [0.67451, 0.090196, 0.129412],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [1.0, 0.701961, 0.701961],
+              "alpha": 1
+            }
+          }
+        }
+      },
+      "$description": "Semantic host theme role: danger."
+    },
+    "info": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.498039, 0.698039, 1.0],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-info",
+          "vscode": ["--vscode-textLink-foreground"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [0.035294, 0.356863, 0.745098],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [0.498039, 0.698039, 1.0],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [0.035294, 0.356863, 0.745098],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [0.498039, 1.0, 1.0],
+              "alpha": 1
+            }
+          }
+        }
+      },
+      "$description": "Semantic host theme role: info."
+    },
+    "badge": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.262745, 0.290196, 0.345098],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-badge",
+          "vscode": ["--vscode-badge-background"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [0.262745, 0.290196, 0.345098],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [0.262745, 0.290196, 0.345098],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [0.0, 0.0, 0.0],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            }
+          }
+        }
+      },
+      "$description": "Semantic host theme role: badge."
+    },
+    "on-badge": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [1.0, 1.0, 1.0],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-on-badge",
+          "vscode": ["--vscode-badge-foreground"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [0.0, 0.0, 0.0],
+              "alpha": 1
+            }
+          }
+        }
+      },
+      "$description": "Semantic host theme role: on-badge."
+    },
+    "disabled": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.521569, 0.545098, 0.596078],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-disabled",
+          "vscode": ["--vscode-disabledForeground"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [0.45098, 0.466667, 0.501961],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [0.521569, 0.545098, 0.596078],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [0.45098, 0.466667, 0.501961],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [0.521569, 0.545098, 0.596078],
+              "alpha": 1
+            }
+          }
+        }
+      },
+      "$description": "Disabled content (WCAG contrast exception)."
+    },
+    "hover": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.188235, 0.211765, 0.258824],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-hover",
+          "vscode": ["--vscode-list-hoverBackground"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [0.929412, 0.945098, 0.968627],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [0.188235, 0.211765, 0.258824],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [0.0, 0.0, 0.0],
+              "alpha": 1
+            }
+          }
+        }
+      },
+      "$description": "Semantic host theme role: hover."
+    },
+    "pressed": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.023529, 0.27451, 0.768627],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-pressed",
+          "vscode": ["--vscode-button-hoverBackground"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [0.023529, 0.27451, 0.768627],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [0.023529, 0.27451, 0.768627],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [0.0, 0.0, 0.0],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            }
+          }
+        }
+      },
+      "$description": "Semantic host theme role: pressed."
+    },
+    "diff-added": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.180392, 0.627451, 0.262745],
+        "alpha": 0.2
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-diff-added",
+          "vscode": ["--vscode-diffEditor-insertedLineBackground"]
+        }
+      }
+    },
+    "diff-removed": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.972549, 0.317647, 0.286275],
+        "alpha": 0.2
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-diff-removed",
+          "vscode": ["--vscode-diffEditor-removedLineBackground"]
+        }
+      }
+    },
+    "shadow": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.0, 0.0, 0.0],
+        "alpha": 0.30196078431372547
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-shadow",
+          "vscode": ["--vscode-widget-shadow"]
+        }
+      },
+      "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."
+    },
+    "meta-start": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.0, 0.392157, 0.882353],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-meta-start"
+        }
+      },
+      "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."
+    },
+    "meta-middle": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.0, 0.45098, 0.933333],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-meta-middle"
+        }
+      },
+      "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."
+    },
+    "meta-end": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.0, 0.509804, 0.984314],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-meta-end"
+        }
+      },
+      "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."
+    },
+    "meta-return": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.0, 0.392157, 0.878431],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-meta-return"
+        }
+      },
+      "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."
+    },
+    "meta-fill": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.0, 0.505882, 0.984314],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-meta-fill"
+        }
+      },
+      "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."
+    },
+    "status-low": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [0.1186, 0.0248, 260.66],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-status-low"
+        }
+      },
+      "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."
+    },
+    "status-mid": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [0.3133, 0.1419, 260.73],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-status-mid"
+        }
+      },
+      "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."
+    },
+    "status-high": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "oklch",
+        "components": [0.6061, 0.2122, 260.66],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-status-high"
+        }
+      },
+      "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."
+    },
+    "editor-surface": {
+      "$type": "color",
+      "$value": "{colour.raised}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-editor-surface",
+          "vscode": ["--vscode-editor-background"],
+          "web": "extended"
+        }
+      }
+    },
+    "input-surface": {
+      "$type": "color",
+      "$value": "{colour.raised}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-input-surface",
+          "vscode": ["--vscode-input-background"],
+          "web": "extended"
+        }
+      }
+    },
+    "input-text": {
+      "$type": "color",
+      "$value": "{colour.text}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-input-text",
+          "vscode": ["--vscode-input-foreground"],
+          "web": "extended"
+        }
+      }
+    },
+    "input-border": {
+      "$type": "color",
+      "$value": "{colour.border}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-input-border",
+          "vscode": ["--vscode-input-border"],
+          "web": "extended"
+        }
+      }
+    },
+    "input-placeholder": {
+      "$type": "color",
+      "$value": "{colour.muted}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-input-placeholder",
+          "vscode": ["--vscode-input-placeholderForeground"],
+          "web": "extended"
+        }
+      }
+    },
+    "control-border": {
+      "$type": "color",
+      "$value": "{colour.border}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-control-border",
+          "vscode": ["--vscode-button-border"],
+          "web": "extended"
+        }
+      }
+    },
+    "checkbox-border": {
+      "$type": "color",
+      "$value": "{colour.border}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-checkbox-border",
+          "vscode": ["--vscode-checkbox-border"],
+          "web": "extended"
+        }
+      }
+    },
+    "secondary-surface": {
+      "$type": "color",
+      "$value": "{colour.raised}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-secondary-surface",
+          "vscode": ["--vscode-button-secondaryBackground"],
+          "web": "extended"
+        }
+      }
+    },
+    "secondary-text": {
+      "$type": "color",
+      "$value": "{colour.text}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-secondary-text",
+          "vscode": ["--vscode-button-secondaryForeground"],
+          "web": "extended"
+        }
+      }
+    },
+    "secondary-hover": {
+      "$type": "color",
+      "$value": "{colour.raised}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-secondary-hover",
+          "vscode": ["--vscode-button-secondaryHoverBackground"],
+          "web": "extended"
+        }
+      }
+    },
+    "toolbar-hover": {
+      "$type": "color",
+      "$value": "{colour.raised}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-toolbar-hover",
+          "vscode": ["--vscode-toolbar-hoverBackground"],
+          "web": "extended"
+        }
+      }
+    },
+    "widget-border": {
+      "$type": "color",
+      "$value": "{colour.border}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-widget-border",
+          "vscode": ["--vscode-widget-border"],
+          "web": "extended"
+        }
+      }
+    },
+    "raised-border": {
+      "$type": "color",
+      "$value": "{colour.border}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-raised-border",
+          "vscode": ["--vscode-editorWidget-border"],
+          "web": "extended"
+        }
+      }
+    },
+    "raised-text": {
+      "$type": "color",
+      "$value": "{colour.text}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-raised-text",
+          "vscode": ["--vscode-editorWidget-foreground"],
+          "web": "extended"
+        }
+      }
+    },
+    "error-surface": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.22745098039215686, 0.12549019607843137, 0.1411764705882353],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-error-surface",
+          "vscode": ["--vscode-inputValidation-errorBackground"],
+          "web": "extended",
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [1.0, 0.9490196078431372, 0.9490196078431372],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [0.22745098039215686, 0.12549019607843137, 0.1411764705882353],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [0.0, 0.0, 0.0],
+              "alpha": 1
+            }
+          }
+        }
+      }
+    },
+    "error-border": {
+      "$type": "color",
+      "$value": "{colour.border}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-error-border",
+          "vscode": ["--vscode-inputValidation-errorBorder"],
+          "web": "extended"
+        }
+      }
+    },
+    "error-text": {
+      "$type": "color",
+      "$value": "{colour.text}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-error-text",
+          "vscode": ["--vscode-inputValidation-errorForeground"],
+          "web": "extended"
+        }
+      }
+    },
+    "warning-surface": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.2, 0.17254901960784313, 0.0784313725490196],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-warning-surface",
+          "vscode": ["--vscode-inputValidation-warningBackground"],
+          "web": "extended",
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [1.0, 0.9686274509803922, 0.8392156862745098],
+              "alpha": 1
+            },
+            "dark": {
+              "colorSpace": "srgb",
+              "components": [0.2, 0.17254901960784313, 0.0784313725490196],
+              "alpha": 1
+            },
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [0.0, 0.0, 0.0],
+              "alpha": 1
+            }
+          }
+        }
+      }
+    },
+    "warning-text": {
+      "$type": "color",
+      "$value": "{colour.text}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-warning-text",
+          "vscode": ["--vscode-inputValidation-warningForeground"],
+          "web": "extended"
+        }
+      }
+    },
+    "link-hover": {
+      "$type": "color",
+      "$value": "{colour.info}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-link-hover",
+          "vscode": ["--vscode-textLink-activeForeground"],
+          "web": "extended"
+        }
+      }
+    },
+    "code-surface": {
+      "$type": "color",
+      "$value": "{colour.raised}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-code-surface",
+          "vscode": ["--vscode-textCodeBlock-background"],
+          "web": "extended"
+        }
+      }
+    },
+    "code-text": {
+      "$type": "color",
+      "$value": "{colour.text}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-code-text",
+          "vscode": ["--vscode-textPreformat-foreground"],
+          "web": "extended"
+        }
+      }
+    },
+    "quote-border": {
+      "$type": "color",
+      "$value": "{colour.border}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-quote-border",
+          "vscode": ["--vscode-textBlockQuote-border"],
+          "web": "extended"
+        }
+      }
+    },
+    "cursor": {
+      "$type": "color",
+      "$value": "{colour.text}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-cursor",
+          "vscode": ["--vscode-editorCursor-foreground"],
+          "web": "extended"
+        }
+      }
+    },
+    "progress": {
+      "$type": "color",
+      "$value": "{colour.focus}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-progress",
+          "vscode": ["--vscode-progressBar-background"],
+          "web": "extended"
+        }
+      }
+    },
+    "chart-danger": {
+      "$type": "color",
+      "$value": "{colour.danger}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-chart-danger",
+          "vscode": ["--vscode-charts-red"],
+          "web": "extended"
+        }
+      }
+    },
+    "git-added": {
+      "$type": "color",
+      "$value": "{colour.success}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-git-added",
+          "vscode": ["--vscode-gitDecoration-addedResourceForeground"],
+          "web": "extended"
+        }
+      }
+    },
+    "git-deleted": {
+      "$type": "color",
+      "$value": "{colour.danger}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-git-deleted",
+          "vscode": ["--vscode-gitDecoration-deletedResourceForeground"],
+          "web": "extended"
+        }
+      }
+    },
+    "syntax-function": {
+      "$type": "color",
+      "$value": "{colour.text}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-syntax-function",
+          "vscode": ["--vscode-symbolIcon-functionForeground"],
+          "web": "extended"
+        }
+      }
+    },
+    "syntax-keyword": {
+      "$type": "color",
+      "$value": "{colour.text}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-syntax-keyword",
+          "vscode": ["--vscode-symbolIcon-keywordForeground"],
+          "web": "extended"
+        }
+      }
+    },
+    "syntax-number": {
+      "$type": "color",
+      "$value": "{colour.text}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-syntax-number",
+          "vscode": ["--vscode-debugTokenExpression-number"],
+          "web": "extended"
+        }
+      }
+    },
+    "syntax-string": {
+      "$type": "color",
+      "$value": "{colour.text}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-syntax-string",
+          "vscode": ["--vscode-debugTokenExpression-string"],
+          "web": "extended"
+        }
+      }
+    },
+    "list-warning": {
+      "$type": "color",
+      "$value": "{colour.warning}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-list-warning",
+          "vscode": ["--vscode-list-warningForeground"],
+          "web": "extended"
+        }
+      }
+    },
+    "contrast-border": {
+      "$type": "color",
+      "$value": "{colour.border}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-contrast-border",
+          "vscode": ["--vscode-contrastBorder"],
+          "web": "extended"
+        }
+      }
+    },
+    "danger-legacy": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.9450980392156862, 0.2980392156862745, 0.2980392156862745],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-danger-legacy"
+        }
+      }
+    },
+    "modal-scrim": {
+      "$type": "color",
+      "$value": "{colour.overlay}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-modal-scrim",
+          "cssValue": "color-mix(in srgb, var(--vscode-editor-background, var(--ms-surface)) 55%, transparent)",
+          "modes": {
+            "hc-light": {
+              "colorSpace": "srgb",
+              "components": [1.0, 1.0, 1.0],
+              "alpha": 1
+            },
+            "hc-dark": {
+              "colorSpace": "srgb",
+              "components": [0.0, 0.0, 0.0],
+              "alpha": 1
+            }
+          }
+        }
+      },
+      "$description": "Decorative paint; content and state are named in text. No foreground/background contrast claim."
+    },
+    "usage-purple": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.6941176470588235, 0.5019607843137255, 0.8431372549019608],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-usage-purple",
+          "vscode": ["--vscode-charts-purple"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [0.396078431372549, 0.17647058823529413, 0.5647058823529412],
+              "alpha": 1
+            },
+            "hc-dark": "{colour.text}",
+            "hc-light": "{colour.text}"
+          }
+        }
+      }
+    },
+    "usage-orange": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.8196078431372549, 0.5254901960784314, 0.08627450980392157],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-usage-orange",
+          "vscode": ["--vscode-charts-orange"],
+          "modes": {
+            "light": {
+              "colorSpace": "srgb",
+              "components": [0.7294117647058823, 0.40784313725490196, 0.0],
+              "alpha": 1
+            },
+            "hc-dark": "{colour.text}",
+            "hc-light": "{colour.text}"
+          }
+        }
+      }
+    }
+  },
+  "radius": {
+    "xs": {
+      "$type": "dimension",
+      "$value": {
+        "value": 3,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-radius-xs"
+        }
+      }
+    },
+    "sm": {
+      "$type": "dimension",
+      "$value": {
+        "value": 4,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-radius-sm"
+        }
+      }
+    },
+    "md": {
+      "$type": "dimension",
+      "$value": {
+        "value": 6,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-radius-md"
+        }
+      }
+    },
+    "lg": {
+      "$type": "dimension",
+      "$value": {
+        "value": 12,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-radius-lg"
+        }
+      }
+    },
+    "xl": {
+      "$type": "dimension",
+      "$value": {
+        "value": 20,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-radius-xl"
+        }
+      }
+    },
+    "pill": {
+      "$type": "dimension",
+      "$value": {
+        "value": 999,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-radius-pill"
+        }
+      }
+    },
+    "circle": {
+      "$type": "number",
+      "$value": 0.5,
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-radius-circle",
+          "cssValue": "50%"
+        }
+      }
+    }
+  },
+  "elevation": {
+    "flat": {
+      "$type": "shadow",
+      "$value": [],
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-elevation-flat",
+          "modes": {
+            "hc-light": [],
+            "hc-dark": []
+          }
+        }
+      }
+    },
+    "raised": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "color": "{colour.shadow}",
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 2,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 8,
+            "unit": "px"
+          },
+          "spread": {
+            "value": 0,
+            "unit": "px"
+          }
+        }
+      ],
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-elevation-raised",
+          "modes": {
+            "hc-light": [],
+            "hc-dark": []
+          }
+        }
+      }
+    },
+    "popover": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "color": "{colour.shadow}",
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 4,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 16,
+            "unit": "px"
+          },
+          "spread": {
+            "value": 0,
+            "unit": "px"
+          }
+        }
+      ],
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-elevation-popover",
+          "modes": {
+            "hc-light": [],
+            "hc-dark": []
+          }
+        }
+      }
+    },
+    "overlay": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "color": "{colour.shadow}",
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 8,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 32,
+            "unit": "px"
+          },
+          "spread": {
+            "value": 0,
+            "unit": "px"
+          }
+        }
+      ],
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-elevation-overlay",
+          "modes": {
+            "hc-light": [],
+            "hc-dark": []
+          }
+        }
+      }
+    }
+  },
+  "translucency": {
+    "overlay-alpha": {
+      "$type": "number",
+      "$value": 0.94,
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-overlay-alpha",
+          "modes": {
+            "hc-light": 1,
+            "hc-dark": 1
+          }
+        }
+      }
+    },
+    "popover-alpha": {
+      "$type": "number",
+      "$value": 0.98,
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-popover-alpha",
+          "modes": {
+            "hc-light": 1,
+            "hc-dark": 1
+          }
+        }
+      }
+    },
+    "launcher-alpha": {
+      "$type": "number",
+      "$value": 0.96,
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-launcher-alpha",
+          "modes": {
+            "hc-light": 1,
+            "hc-dark": 1
+          }
+        }
+      }
+    },
+    "backdrop-blur": {
+      "$type": "dimension",
+      "$value": {
+        "value": 12,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-backdrop-blur",
+          "modes": {
+            "hc-light": {
+              "value": 0,
+              "unit": "px"
+            },
+            "hc-dark": {
+              "value": 0,
+              "unit": "px"
+            }
+          }
+        }
+      }
+    }
+  },
+  "motion": {
+    "fast": {
+      "$type": "duration",
+      "$value": {
+        "value": 120,
+        "unit": "ms"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-motion-fast"
+        }
+      }
+    },
+    "base": {
+      "$type": "duration",
+      "$value": {
+        "value": 180,
+        "unit": "ms"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-motion-base"
+        }
+      }
+    },
+    "slow": {
+      "$type": "duration",
+      "$value": {
+        "value": 240,
+        "unit": "ms"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-motion-slow"
+        }
+      }
+    },
+    "standard": {
+      "$type": "cubicBezier",
+      "$value": [0.2, 0, 0, 1],
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-ease-standard"
+        }
+      }
+    },
+    "emphasised": {
+      "$type": "cubicBezier",
+      "$value": [0.8, 0, 0.2, 1],
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-ease-emphasised"
+        }
+      }
+    }
+  },
+  "spacing": {
+    "0": {
+      "$type": "dimension",
+      "$value": {
+        "value": 0,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-space-0"
+        }
+      }
+    },
+    "4": {
+      "$type": "dimension",
+      "$value": {
+        "value": 4,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-space-4"
+        }
+      }
+    },
+    "8": {
+      "$type": "dimension",
+      "$value": {
+        "value": 8,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-space-8"
+        }
+      }
+    },
+    "12": {
+      "$type": "dimension",
+      "$value": {
+        "value": 12,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-space-12"
+        }
+      }
+    },
+    "16": {
+      "$type": "dimension",
+      "$value": {
+        "value": 16,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-space-16"
+        }
+      }
+    },
+    "20": {
+      "$type": "dimension",
+      "$value": {
+        "value": 20,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-space-20"
+        }
+      }
+    },
+    "24": {
+      "$type": "dimension",
+      "$value": {
+        "value": 24,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-space-24"
+        }
+      }
+    },
+    "32": {
+      "$type": "dimension",
+      "$value": {
+        "value": 32,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-space-32"
+        }
+      }
+    },
+    "48": {
+      "$type": "dimension",
+      "$value": {
+        "value": 48,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-space-48"
+        }
+      }
+    }
+  },
+  "typography": {
+    "font-ui": {
+      "$type": "fontFamily",
+      "$value": ["Inter", "Segoe UI", "sans-serif"],
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-font-ui",
+          "vscode": ["--vscode-font-family"]
+        }
+      }
+    },
+    "font-code": {
+      "$type": "fontFamily",
+      "$value": ["JetBrains Mono", "Fira Code", "Cascadia Code", "monospace"],
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-font-code",
+          "vscode": ["--vscode-editor-font-family"]
+        }
+      }
+    },
+    "font-size": {
+      "$type": "dimension",
+      "$value": {
+        "value": 13,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-font-size",
+          "vscode": ["--vscode-font-size"]
+        }
+      }
+    },
+    "code-size": {
+      "$type": "dimension",
+      "$value": {
+        "value": 13,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-code-size",
+          "vscode": ["--vscode-editor-font-size"]
+        }
+      }
+    },
+    "font-small": {
+      "$type": "dimension",
+      "$value": {
+        "value": 11,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-font-small"
+        }
+      }
+    },
+    "font-large": {
+      "$type": "dimension",
+      "$value": {
+        "value": 16,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-font-large"
+        }
+      }
+    },
+    "weight-normal": {
+      "$type": "fontWeight",
+      "$value": 400,
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-weight-normal"
+        }
+      }
+    },
+    "weight-medium": {
+      "$type": "fontWeight",
+      "$value": 500,
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-weight-medium"
+        }
+      }
+    },
+    "weight-bold": {
+      "$type": "fontWeight",
+      "$value": 600,
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-weight-bold"
+        }
+      }
+    },
+    "line-ui": {
+      "$type": "number",
+      "$value": 1.5,
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-line-ui"
+        }
+      }
+    },
+    "line-code": {
+      "$type": "number",
+      "$value": 1.6,
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-line-code"
+        }
+      }
+    }
+  },
+  "layout": {
+    "focus-width": {
+      "$type": "dimension",
+      "$value": {
+        "value": 2,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-focus-width"
+        }
+      }
+    },
+    "focus-offset": {
+      "$type": "dimension",
+      "$value": {
+        "value": 2,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-focus-offset"
+        }
+      }
+    },
+    "icon-size": {
+      "$type": "dimension",
+      "$value": {
+        "value": 16,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-icon-size"
+        }
+      }
+    },
+    "control-size": {
+      "$type": "dimension",
+      "$value": {
+        "value": 26,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-control-size"
+        }
+      }
+    },
+    "chip-height": {
+      "$type": "dimension",
+      "$value": {
+        "value": 20,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-chip-height"
+        }
+      }
+    },
+    "button-height": {
+      "$type": "dimension",
+      "$value": {
+        "value": 28,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-button-height"
+        }
+      }
+    },
+    "column-max-width": {
+      "$type": "dimension",
+      "$value": {
+        "value": 760,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-column-max-width"
+        }
+      }
+    },
+    "pill-min-width": {
+      "$type": "dimension",
+      "$value": {
+        "value": 2.5,
+        "unit": "rem"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-pill-min-width"
+        }
+      }
+    },
+    "column-inset": {
+      "$type": "dimension",
+      "$value": {
+        "value": 0,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-column-inset",
+          "cssValue": "max(0px, (100cqw - var(--ms-column-max-width)) / 2)"
+        }
+      }
+    },
+    "column-gutter": {
+      "$type": "dimension",
+      "$value": {
+        "value": 0,
+        "unit": "px"
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-column-gutter",
+          "cssValue": "calc(var(--ms-column-inset) + var(--ms-gap))"
+        }
+      }
+    }
+  },
+  "aliases": {
+    "gap": {
+      "$type": "dimension",
+      "$value": "{spacing.8}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-gap"
+        }
+      }
+    },
+    "radius": {
+      "$type": "dimension",
+      "$value": "{radius.md}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-radius"
+        }
+      }
+    },
+    "measure": {
+      "$type": "dimension",
+      "$value": "{layout.column-max-width}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-measure"
+        }
+      }
+    },
+    "fg": {
+      "$type": "color",
+      "$value": "{colour.text}",
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-fg"
+        }
+      }
+    }
+  }
+}

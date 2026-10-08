@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
+import { buildPalette } from '../../src/shared/paletteRegistry'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { createRef } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { buildPalette, type PaletteAction, type PaletteContext } from '../../src/shared/palette'
+import { type PaletteAction, type PaletteContext } from '../../src/shared/palette'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { Palette, type PaletteKeys, type PaletteProps } from '../../src/webview/components/Palette'
 

@@ -53,7 +53,11 @@ import {
   permissionModeDetail,
 } from '../shared/permissionModes'
 import { paidFeatureName, paidFeaturePrice, usablePaidFeatures } from '../shared/paid'
-import { buildPalette, type PaletteAction } from '../shared/palette'
+import type * as PaletteRegistryModule from '../shared/paletteRegistry'
+import type { PaletteAction } from '../shared/palette'
+import type { scheduleChannel } from './schedules/channel'
+import type { ScheduleRequest } from '../shared/scheduleV2'
+import { schedulePromptAction } from './schedules/prompt'
 import { type SlashCommand, slashCommandsOf } from '../shared/slashCommands'
 import type { GitAction, GitDraftKind } from '../shared/git'
 import {
@@ -72,11 +76,37 @@ import type { ApprovalDecisionInput } from './components/ApprovalCard'
 import { AttentionDock } from './components/AttentionDock'
 import { QuestionSurface } from './components/QuestionSurface'
 import { Composer, type ImageData, type SlashPaletteSlot } from './components/Composer'
-import { DiffTally } from './components/DiffTally'
-const EffortSlider = deferred(async () => {
-  const module = await import('./components/EffortSlider')
-  return { default: module.EffortSlider }
-})
+// The conversation's edit totals load on first use: an empty conversation
+// neither paints nor loads the tally chunk, and a populated one gets an
+// announced loading status with a local retry instead of the panel boundary.
+const DiffTally = deferred(
+  async () => {
+    const { DiffTally } = await import('./components/DiffTally')
+    return { default: DiffTally }
+  },
+  false,
+  (props) =>
+    props.counts === undefined ? null : (
+      <span role="status" data-deferred-loading>
+        {UI_TEXT.loadingOutput}
+      </span>
+    ),
+)
+// The Modes menu's effort control loads with the menu's first open. No
+// close control is wired: the menu owns dismissal, the boundary only
+// announces loading and retries a failed chunk.
+const EffortSlider = deferred(
+  async () => {
+    const { EffortSlider } = await import('./components/EffortSlider')
+    return { default: EffortSlider }
+  },
+  false,
+  () => (
+    <span role="status" data-deferred-loading>
+      {UI_TEXT.loadingOutput}
+    </span>
+  ),
+)
 import { EmptyState } from './components/EmptyState'
 import { Header } from './components/Header'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
@@ -84,12 +114,27 @@ import { AddContextIcon, ExpandChevron, UploadIcon } from './components/icons'
 import { modeIcon } from './components/modeIcons'
 import type { PaletteKeys, PaletteView } from './components/Palette'
 import type { MenuEntry } from './components/PopoverMenu'
-import { TodoPanel } from './components/TodoPanel'
+// The task list loads on first use: an empty list neither paints nor loads
+// its chunk, and a populated one gets an announced loading status with a
+// local retry instead of the panel boundary.
+const TodoPanel = deferred(
+  async () => {
+    const { TodoPanel } = await import('./components/TodoPanel')
+    return { default: TodoPanel }
+  },
+  false,
+  (props) =>
+    props.items.length === 0 ? null : (
+      <span role="status" data-deferred-loading>
+        {UI_TEXT.loadingOutput}
+      </span>
+    ),
+)
 import type { TeamTreeActions } from './components/TeamTree'
 import { teamRunningTaskCount, teamTaskCount } from './state/teamEntries'
 import { type QueuedCardRef, Transcript } from './components/Transcript'
 import type { TeamCardActions } from './components/TeamCards'
-import { diffTally } from './diffTally'
+import { diffTally } from '../shared/diffTally'
 import { type ErrorReporter, webviewErrorReport } from './errorReport'
 import { createUiStore, listenToHost, type UiStore } from './state/store'
 import { hasFileAttachment } from './state/transcriptEntries'
@@ -114,6 +159,7 @@ import {
 } from './state/uiState'
 import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
+import { reportCommandArguments } from '../shared/reportCommand'
 import { deferred } from './components/DeferredSurface'
 import { Modal } from './components/Modal'
 import type { ResourceSurfaceLoader } from './resources/resourcePort'
@@ -122,6 +168,7 @@ const LegalReport = deferred(async () => {
   const module = await import('./components/LegalReport')
   return { default: module.LegalReport }
 }, true)
+const UsageReportAction = deferred(() => import('./reporting/UsageReportAction'))
 
 const SignIn = deferred(async () => {
   const module = await import('./components/SignIn')
@@ -287,6 +334,14 @@ function restoreNoteOf(state: UiState): string | undefined {
 const GitPanel = deferred(async () => {
   const { GitPanel } = await import('./components/GitPanel')
   return { default: GitPanel }
+})
+
+// Scheduled prompts v2 (M115): the surface loads as its own chunk on first
+// use, beside the v1 panel, over the host's versioned schedule channel.
+// The wrapper builds W's port, so the time math stays in this chunk.
+const ScheduleSurfaceView = deferred(async () => {
+  const { ScheduleSurfaceView } = await import('./schedules/ScheduleSurfaceView')
+  return { default: ScheduleSurfaceView }
 })
 
 /** What floats above the composer: a palette view, a menu, the History dialog or a modal. */
@@ -566,6 +621,85 @@ export function App({
     }
   }, [store, isOwnStore, postMessage, now])
 
+  // Scheduled prompts v2 (M115): the panel's versioned channel over the
+  // host bridge. It owns its window listener beside the store's; the store
+  // ignores its answers, and it ignores everything else.
+  const scheduleChannelRef = useRef<Promise<ReturnType<typeof scheduleChannel>> | undefined>(
+    undefined,
+  )
+  const getScheduleChannel = useCallback(() => {
+    const load = async () => {
+      const module = await import('./schedules/channel')
+      return module.scheduleChannel(window, (message) => {
+        postMessage({ type: 'schedulesRequest', message })
+      })
+    }
+    scheduleChannelRef.current ??= load()
+    return scheduleChannelRef.current
+  }, [postMessage])
+  useEffect(
+    () => () => {
+      const loaded = scheduleChannelRef.current
+      scheduleChannelRef.current = undefined
+      void loaded?.then(
+        (channel) => {
+          channel.dispose()
+        },
+        () => {
+          /* A failed import created no channel to dispose. */
+        },
+      )
+    },
+    [postMessage],
+  )
+  // `/schedule add <prompt>` (M115): the prompt waits for the host's props,
+  // and the opening editor mounts over it. `surface` is the props seen at
+  // submit; the stash clears once newer props arrive (the override applied)
+  // or the surface closes — the editor snapshots its draft on mount.
+  const [pendingSchedulePrompt, setPendingSchedulePrompt] = useState<
+    { prompt: string; surface: UiState['schedulesSurface'] } | undefined
+  >(undefined)
+  useEffect(() => {
+    if (
+      pendingSchedulePrompt !== undefined &&
+      state.schedulesSurface !== pendingSchedulePrompt.surface
+    )
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- the stash clears after the mounting render applies it; no event fires then.
+      setPendingSchedulePrompt(undefined)
+  }, [pendingSchedulePrompt, state.schedulesSurface])
+  // The deferred surface's port (M115): stable callbacks over the channel
+  // ref, so the surface mounts once per workspace and view.
+  const schedulePortRequest = useCallback(
+    async (request: ScheduleRequest): Promise<unknown> => {
+      const channel = await getScheduleChannel()
+      return await channel.request(request)
+    },
+    [getScheduleChannel],
+  )
+  const schedulePortSubscribe = useCallback(
+    (listener: (message: unknown) => void): (() => void) => {
+      let isActive = true
+      let stop: (() => void) | undefined
+      void getScheduleChannel()
+        .then((channel) => {
+          if (isActive) stop = channel.subscribeChanges(listener)
+        })
+        .catch(() => {
+          if (isActive)
+            dispatch({ type: 'noticeRaised', level: 'warning', text: UI_TEXT.surfaceLoadFailed })
+        })
+      return () => {
+        isActive = false
+        stop?.()
+      }
+    },
+    [getScheduleChannel, dispatch],
+  )
+  const onCloseSchedulesSurface = useCallback(() => {
+    setPendingSchedulePrompt(undefined)
+    dispatch({ type: 'schedulesSurfaceClosed' })
+  }, [dispatch])
+
   // A refused message's images the host may still hold go back to it to be
   // dropped (M25): the reducer lists them, the app posts and acknowledges.
   const { attachmentsToRelease } = state
@@ -827,6 +961,14 @@ export function App({
       setOverlay('help')
       return
     }
+    const reportArguments = reportCommandArguments(current.draft)
+    if (reportArguments !== undefined) {
+      if (current.pendingReportCommand !== undefined) return
+      const requestId = newLocalId()
+      dispatch({ type: 'reportSubmitted', requestId })
+      postMessage({ type: 'runReport', requestId, argumentsText: reportArguments })
+      return
+    }
     if (!canSend(current)) {
       return
     }
@@ -885,6 +1027,65 @@ export function App({
       setIsPinnedToEnd(true)
       return
     }
+    // Scheduled prompts v2 (M115): `/schedule …` opens the surface or, with
+    // its props already here, dispatches the mapped draft or request.
+    // `/loop` below stays on the v1 store until its migration ships.
+    if (/^\/schedule(?:\s|$)/i.test(text.trim())) {
+      dispatch({ type: 'draftChanged', draft: '' })
+      setIsPinnedToEnd(true)
+      const props = current.schedulesSurface
+      if (props === undefined) {
+        const add = /^\/schedule\s+add(?:\s+([\s\S]*))?$/i.exec(text.trim())
+        const prompt = (add?.[1] ?? '').trim()
+        if (prompt !== '') setPendingSchedulePrompt({ prompt, surface: current.schedulesSurface })
+        postMessage({
+          type: 'openSchedules',
+          view: add === null ? 'list' : 'editor',
+        })
+        return
+      }
+      const action = schedulePromptAction(
+        text,
+        props.workspaceKey,
+        props.defaultDraft,
+        now(),
+        parseLoopPrompt,
+      )
+      if (action === undefined) {
+        postMessage({ type: 'openSchedules', view: 'list' })
+        return
+      }
+      if (action.kind === 'open') {
+        // Only a prompt draft carries text for the editor; a report draft
+        // (M115 RA) opens the editor over its own args, with nothing stashed.
+        const draftAction = action.draft?.action
+        if (draftAction?.kind === 'prompt' && draftAction.prompt !== '')
+          setPendingSchedulePrompt({
+            prompt: draftAction.prompt,
+            surface: current.schedulesSurface,
+          })
+        postMessage({ type: 'openSchedules', view: action.view })
+        return
+      }
+      if (action.kind === 'request') {
+        void getScheduleChannel()
+          .then((channel) => channel.request(action.request))
+          .then((response) => {
+            if (response.kind === 'refused')
+              dispatch({ type: 'noticeRaised', level: 'warning', text: response.reason })
+          })
+          .catch((error: unknown) => {
+            dispatch({
+              type: 'noticeRaised',
+              level: 'warning',
+              text: error instanceof Error ? error.message : UI_TEXT.scheduleCommandFailed,
+            })
+          })
+        return
+      }
+      dispatch({ type: 'noticeRaised', level: 'warning', text: action.reason })
+      return
+    }
     // Model API schedules are extension-owned. Muse Code's cron remains a
     // model-mediated ordinary turn because MSP has no scheduler verbs (M52).
     const loop = current.auth.backend === 'modelApi' ? parseLoopPrompt(text) : undefined
@@ -940,6 +1141,7 @@ export function App({
     setIsPinnedToEnd(true)
   }, [
     store,
+    getScheduleChannel,
     dispatch,
     newLocalId,
     now,
@@ -1927,6 +2129,11 @@ export function App({
           closeOverlay()
           break
         }
+        case 'showReport': {
+          closeOverlay()
+          postMessage({ type: 'runReport', requestId: newLocalId(), argumentsText: '' })
+          break
+        }
         case 'openReport': {
           // The same dialog every entry point opens (M93): the host builds it.
           closeOverlay()
@@ -2043,6 +2250,21 @@ export function App({
           openReviewPane()
           break
         }
+        case 'openScheduleList': {
+          postMessage({ type: 'openSchedules', view: 'list' })
+          closeOverlay()
+          break
+        }
+        case 'openScheduleTimeline': {
+          postMessage({ type: 'openSchedules', view: 'timeline' })
+          closeOverlay()
+          break
+        }
+        case 'openScheduleEditor': {
+          postMessage({ type: 'openSchedules', view: 'editor' })
+          closeOverlay()
+          break
+        }
         case 'none': {
           break
         }
@@ -2052,6 +2274,7 @@ export function App({
       store,
       dispatch,
       postMessage,
+      newLocalId,
       closeOverlay,
       openOverlay,
       onNewConversation,
@@ -2061,23 +2284,47 @@ export function App({
     ],
   )
 
-  const paletteGroups = useMemo(
-    () =>
-      buildPalette({
-        arePromptCommandsBound: true,
-        currentModel: state.model,
-        models: state.models,
-        effort: state.effort,
-        isThinkingEnabled: state.isThinkingEnabled,
-        permissionMode: state.permissionMode,
-        isFocusView: state.settings?.focusView ?? false,
-        useCtrlEnterToSend: state.settings?.useCtrlEnterToSend ?? false,
-        usage: state.usage,
-        skills: state.skills,
-        backend: state.auth.backend,
-        paidFeatures: state.paid.features,
-        isKeyStored: state.paid.isKeyStored,
+  const [paletteModule, setPaletteModule] = useState<typeof PaletteRegistryModule>()
+  const [paletteFailure, setPaletteFailure] = useState(false)
+  const isNeedsPalette =
+    overlay === 'actions' || overlay === 'models' || state.draft.startsWith('/')
+  useEffect(() => {
+    if (!isNeedsPalette || paletteModule !== undefined || paletteFailure) return
+    let isActive = true
+    void import('../shared/paletteRegistry')
+      .then((module) => {
+        if (isActive) setPaletteModule(module)
+      })
+      .catch(() => {
+        if (isActive) setPaletteFailure(true)
+      })
+    return () => {
+      isActive = false
+    }
+  }, [isNeedsPalette, paletteModule, paletteFailure])
+  const paletteContext = useMemo(
+    () => ({
+      arePromptCommandsBound: true,
+      ...((state.settings?.schedules ?? SETTING_DEFAULTS.schedules) && {
+        schedules: {
+          create: { type: 'openScheduleEditor' as const },
+          list: { type: 'openScheduleList' as const },
+          timeline: { type: 'openScheduleTimeline' as const },
+        },
       }),
+      currentModel: state.model,
+      models: state.models,
+      effort: state.effort,
+      isThinkingEnabled: state.isThinkingEnabled,
+      permissionMode: state.permissionMode,
+      isFocusView: state.settings?.focusView ?? false,
+      useCtrlEnterToSend: state.settings?.useCtrlEnterToSend ?? false,
+      usage: state.usage,
+      skills: state.skills,
+      backend: state.auth.backend,
+      paidFeatures: state.paid.features,
+      isKeyStored: state.paid.isKeyStored,
+    }),
     [
       state.paid.isKeyStored,
       state.model,
@@ -2091,6 +2338,11 @@ export function App({
       state.auth.backend,
       state.paid.features,
     ],
+  )
+  const slashLoadState = paletteModule === undefined ? 'loading' : 'ready'
+  const paletteGroups = useMemo(
+    () => paletteModule?.buildPalette(paletteContext) ?? [],
+    [paletteModule, paletteContext],
   )
   const onOpenUsage = useCallback(() => {
     openOverlay('usage')
@@ -2149,6 +2401,7 @@ export function App({
       <Palette
         view="actions"
         groups={paletteGroups}
+        context={paletteModule === undefined ? paletteContext : undefined}
         models={state.models}
         currentModelId={state.model?.modelId}
         onAction={onPromptAction}
@@ -2161,7 +2414,16 @@ export function App({
         onActiveRowChange={slot.onActiveRowChange}
       />
     ),
-    [paletteGroups, state.models, state.model, onPromptAction, onSelectModel, onPaletteBack],
+    [
+      paletteGroups,
+      paletteModule,
+      paletteContext,
+      state.models,
+      state.model,
+      onPromptAction,
+      onSelectModel,
+      onPaletteBack,
+    ],
   )
   const modeEntries = useMemo(
     (): readonly MenuEntry[] =>
@@ -2393,6 +2655,7 @@ export function App({
           key={overlay}
           view={overlay}
           groups={paletteGroups}
+          context={paletteModule === undefined ? paletteContext : undefined}
           models={state.models}
           currentModelId={state.model?.modelId}
           onAction={onPaletteAction}
@@ -2548,6 +2811,14 @@ export function App({
         state={state}
         postMessage={postMessage}
         onSetupSignIn={onSignIn}
+        reportAction={
+          <UsageReportAction
+            onUsageReport={() => {
+              closeOverlay()
+              postMessage({ type: 'runReport', requestId: newLocalId(), argumentsText: 'usage' })
+            }}
+          />
+        }
         now={now}
         onOpenExternal={onOpenExternal}
         onClose={closeOverlay}
@@ -2756,7 +3027,7 @@ export function App({
           {hasNewBelow ? (
             <button
               type="button"
-              className="jump-latest"
+              className="jump-latest chat-control"
               title={UI_TEXT.jumpToLatestTitle}
               onClick={scrollToEnd}
             >
@@ -2765,8 +3036,9 @@ export function App({
             </button>
           ) : null}
         </main>
-        {/* Review opens M70's pane on the same edits (D66 item 10). */}
-        <DiffTally counts={tally} onReview={openReviewPane} />
+        {/* Review opens M70's pane on the same edits (D66 item 10). Mounted
+        only with edits to show, so the chunk loads on first use. */}
+        {tally === undefined ? null : <DiffTally counts={tally} onReview={openReviewPane} />}
         {state.git.form === undefined &&
         state.git.state.worktree === undefined &&
         state.git.state.pullRequest === undefined &&
@@ -2813,7 +3085,35 @@ export function App({
             onEnable={onScheduleEnable}
           />
         )}
-        <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />
+        {/* Scheduled prompts v2 (M115): the deferred surface over this
+            workspace. A new view remounts it; `/schedule add` pre-fills the
+            opening editor once, then the stash clears. */}
+        {state.schedulesSurface === undefined ? null : (
+          <ScheduleSurfaceView
+            key={`${state.schedulesSurface.workspaceKey}:${state.schedulesSurface.initialView}`}
+            surface={{
+              workspaceKey: state.schedulesSurface.workspaceKey,
+              targets: state.schedulesSurface.targets,
+              defaultDraft:
+                pendingSchedulePrompt === undefined
+                  ? state.schedulesSurface.defaultDraft
+                  : {
+                      ...state.schedulesSurface.defaultDraft,
+                      action: { kind: 'prompt', prompt: pendingSchedulePrompt.prompt },
+                    },
+              nowMs: state.schedulesSurface.nowMs,
+              initialView: state.schedulesSurface.initialView,
+            }}
+            request={schedulePortRequest}
+            subscribeChanges={schedulePortSubscribe}
+            nowMs={now}
+            onClose={onCloseSchedulesSurface}
+          />
+        )}
+        {/* Mounted only with tasks to show, so the chunk loads on first use. */}
+        {state.todos.length === 0 ? null : (
+          <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />
+        )}
         {isBodyGated ? null : (
           <AttentionDock
             waiting={waiting}
@@ -2928,6 +3228,7 @@ export function App({
             banner={state.banner}
             onDismissBanner={onDismissBanner}
             slashCommands={slashCommands}
+            slashLoadState={paletteFailure ? 'failed' : slashLoadState}
             isMenuOpen={overlay !== undefined}
             renderSlashPalette={renderSlashPalette}
             slashPaletteKeys={slashPaletteKeys}

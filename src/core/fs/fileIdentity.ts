@@ -40,3 +40,18 @@ export function fileIdentityKey(identity: FileIdentity): string | undefined {
     ? undefined
     : `${identity.dev.toString()}:${identity.ino.toString()}`
 }
+
+/** Exact read-time IDs and nanosecond clock for cached byte provenance. */
+export function fileReadIdentity(sample: Pick<BigIntStats, 'dev' | 'ino' | 'size' | 'mtimeNs'>): {
+  readonly dev: string
+  readonly ino: string
+  readonly size: number
+  readonly mtime: string
+} {
+  return {
+    dev: sample.dev.toString(),
+    ino: sample.ino.toString(),
+    size: Number(sample.size),
+    mtime: sample.mtimeNs.toString(),
+  }
+}

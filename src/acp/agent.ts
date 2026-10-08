@@ -17,7 +17,10 @@ import { buildAgentReceipt } from '../shared/agentReceipt'
 import { recoveryStamp } from '../shared/agentRecovery'
 import { agentStateText } from '../shared/agentOutcome'
 import { compactReference } from '../shared/cliCommands'
+import type { AcpSchedulePort } from './schedules'
 import path from 'node:path'
+import { type AcpPlaybookBundle, acpPlaybook } from './playbook'
+import type { PlaybookSurfacePort } from '../runtime/playbook/command'
 import {
   agent as acpAgent,
   type AgentApp,
@@ -67,6 +70,7 @@ import {
   DEFAULT_EFFORT,
   type EffortLevel,
   MSP_REQUESTED_CAPABILITIES,
+  SCHEDULE_ACP_RELEASE_TIMEOUT_MS,
   type PermissionMode,
   QUESTION_DEFER_DEFAULT_SECONDS,
   UI_TEXT,
@@ -90,6 +94,7 @@ import type {
   AcpQuestionDeferral,
   AcpQuestionRegistry,
   AcpQuestionRegistryFactory,
+  AcpQueuedAnswerLease,
 } from './questionDeferral'
 import {
   acpQuestionClock,
@@ -108,6 +113,7 @@ import {
   UpdateTranslator,
 } from './translate'
 import type { AcpSharingPort } from './sharing'
+import { acpReportArguments, runAcpReport, type AcpReportsPort } from './reports'
 
 // Muse Code runs a session's MCP servers only with this grant (M63c).
 const [SESSION_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
@@ -134,6 +140,10 @@ export interface AcpAgentOptions {
   readonly allowsContributorModels: boolean
   readonly initialMode: PermissionMode
   readonly questionsDeferAfterSeconds?: number
+  readonly scheduleAuthorization?: {
+    readonly scheduledPrompts: boolean
+    readonly maxBudgetUsd?: number
+  }
 }
 
 /** How the user signs in to the chosen backend (D61, D62). */
@@ -162,6 +172,11 @@ export interface AcpAgentDeps {
   readonly onClientName?: (name: string) => void
   /** Shared journal/service, required lazily on the local /usage command. */
   readonly usage?: Pick<UsageAdapter, 'access' | 'openPage'>
+  /** I binds P's durable, authorized workspace/team adapter. */
+  readonly playbookFor?: (cwd: string, sessionId: string) => PlaybookSurfacePort
+  readonly schedules?: AcpSchedulePort
+  /** I binds P's local /playbook parsing and rendering (the journal bundle). */
+  readonly playbookBundle?: () => AcpPlaybookBundle
   readonly backend: AcpBackend
   readonly version: string
   readonly options: AcpAgentOptions
@@ -192,6 +207,8 @@ export interface AcpAgentDeps {
    * session. Absent, the agent behaves exactly as before.
    */
   readonly reportError?: (fact: AcpErrorFact) => void
+  /** M113's lazy deterministic engine, scoped to this session's workspace. */
+  readonly reports?: AcpReportsPort
 }
 
 /** One observed failure as facts: a fixed kind and a fixed short code, nothing else. */
@@ -223,6 +240,10 @@ interface PendingPrompt {
   readonly reject: (error: unknown) => void
   turnId: string | undefined
   isCancelled: boolean
+  answerLease?: AcpQueuedAnswerLease | undefined
+  userMessageId?: string
+  readonly earlyAdmissions: Set<string>
+  answerCommit?: Promise<void>
 }
 
 type PromptOutcome = { readonly reason: StopReason } | { readonly error: unknown }
@@ -232,6 +253,7 @@ interface PreparingPrompt {
   readonly abort: AbortController
   error?: unknown
   abandonElicitation?: () => void
+  readonly reportAbort?: AbortController
 }
 
 /** Identity of the latest load or resume; kept while earlier releases finish. */
@@ -284,6 +306,8 @@ class AcpSession {
   private skills: readonly SkillSummary[] = []
   private areCommandsAnnounced = false
   private hasShownResourcePause = false
+  private releaseSchedules: (() => Promise<void>) | undefined
+  private isScheduleHostAvailable = true
   private effort: EffortLevel = DEFAULT_EFFORT
   /** Let go (closed, loaded again, or never set up): the editor's late answers decide nothing. */
   private isDisposed = false
@@ -429,6 +453,9 @@ class AcpSession {
         `ACP session ${this.sessionId}: skills unavailable: ${failureForLog(error)}`,
       )
       observeError(this.deps, 'skillsUnavailable')
+      // A failed skill list still announces the local commands (help, the
+      // question commands when the registry is present, /playbook when the
+      // playbook is bound): the failure only empties the remote skill list.
       this.skills = []
     }
     this.send({
@@ -439,6 +466,11 @@ class AcpSession {
           .filter((command) => command.name !== SLASH_COMMAND_NAMES.help) ?? []),
         { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
         { name: ACP_COMPACT_COMMAND, description: UI_TEXT.compactDetail, input: null },
+        {
+          name: SLASH_COMMAND_NAMES.report,
+          description: UI_TEXT.reportSlashDescription,
+          input: { hint: '<kind> [args] | history' },
+        },
         ...(this.deps.legalScan === undefined
           ? []
           : [{ name: 'legal', description: UI_TEXT.legalScanDisclaimer, input: null }]),
@@ -461,17 +493,43 @@ class AcpSession {
           description: UI_TEXT.referenceAgentOutcomes,
           input: { hint: '[receipt|continue|retry] [ID]' },
         },
+        ...(this.deps.playbookFor === undefined
+          ? []
+          : [
+              {
+                name: 'playbook',
+                description: UI_TEXT.playbookHelpDescription,
+                input: { hint: 'status|record|settings' },
+              },
+            ]),
+        ...(this.deps.schedules === undefined
+          ? []
+          : [
+              {
+                name: 'schedule',
+                description: UI_TEXT.scheduleV2.labels.title,
+                input: { hint: UI_TEXT.scheduleV2.runtime.usage },
+              },
+            ]),
         ...this.skills
           .filter(
             (skill) =>
               skill.selector !== SLASH_COMMAND_NAMES.help &&
               skill.selector !== ACP_COMPACT_COMMAND &&
               skill.selector !== 'legal' &&
-              !['answer', 'questions', 'share', 'prompt', 'resources', 'agents'].includes(
-                skill.selector,
-              ) &&
+              ![
+                'answer',
+                'questions',
+                'share',
+                'prompt',
+                'resources',
+                'agents',
+                SLASH_COMMAND_NAMES.report,
+              ].includes(skill.selector) &&
               ((this.deps.usage === undefined && this.deps.resources === undefined) ||
-                skill.selector !== 'usage'),
+                skill.selector !== 'usage') &&
+              (this.deps.playbookFor === undefined || skill.selector !== 'playbook') &&
+              (this.deps.schedules === undefined || skill.selector !== 'schedule'),
           )
           .map((skill) => ({
             name: skill.selector,
@@ -489,8 +547,31 @@ class AcpSession {
   }
 
   private onEvent(event: AgentEvent): void {
-    if (event.type === 'turnStarted') this.activeTurnId = event.turnId
     switch (event.type) {
+      case 'turnStarted': {
+        this.activeTurnId = event.turnId
+        const pending = this.pending
+        if (pending?.turnId === event.turnId && pending.userMessageId === undefined) {
+          this.commitAnswers(pending)
+        }
+        return
+      }
+      case 'messageAdmitted': {
+        const pending = this.pending
+        if (pending?.answerLease === undefined) return
+        if (pending.turnId === undefined) {
+          pending.earlyAdmissions.add(event.userMessageId)
+          const [oldest] = pending.earlyAdmissions
+          if (oldest !== undefined && pending.earlyAdmissions.size > EARLY_FINISHES_KEPT) {
+            pending.earlyAdmissions.delete(oldest)
+          }
+        } else if (pending.userMessageId === event.userMessageId) this.commitAnswers(pending)
+        return
+      }
+      case 'turnWithdrawn': {
+        this.finishTurn({ ...event, type: 'turnCompleted', terminal: CANCELLED_TERMINAL })
+        return
+      }
       case 'approvalRequested': {
         this.approvals.set(event.approvalId, event)
         void this.askPermission(event)
@@ -554,7 +635,7 @@ class AcpSession {
     }
   }
 
-  private noteTurnId(turnId: string): void {
+  private noteTurnId(turnId: string, disposition: string): void {
     const pending = this.pending
     if (pending === undefined) {
       return
@@ -562,11 +643,38 @@ class AcpSession {
     pending.turnId = turnId
     const early = this.earlyFinishes.get(turnId)
     if (early === undefined) {
-      this.activeTurnId = turnId
+      if (disposition === 'started') this.activeTurnId = turnId
       return
     }
     this.earlyFinishes.delete(turnId)
-    this.settle(pending, early)
+    void this.settle(pending, early)
+  }
+
+  private commitAnswers(pending: PendingPrompt): void {
+    const lease = pending.answerLease
+    if (lease === undefined || pending.isCancelled || this.isDisposed) return
+    pending.answerLease = undefined
+    pending.answerCommit = (async () => {
+      try {
+        await this.questionRegistry?.commitQueued(lease.token)
+        if (!this.isDisposed) this.getQuestions().sentQueued()
+      } catch {
+        // The model is still running: retain pending so another prompt is busy.
+        pending.reject(RequestError.internalError(undefined, UI_TEXT.questionQueueCommitFailed))
+      }
+    })()
+  }
+
+  private async releaseAnswers(pending = this.pending): Promise<void> {
+    if (pending === undefined) return
+    const lease = pending.answerLease
+    if (lease === undefined) return
+    pending.answerLease = undefined
+    try {
+      await this.questionRegistry?.releaseQueued(lease.token)
+    } catch {
+      this.questionStateNotSaved()
+    }
   }
 
   private finishCompaction(status: string): void {
@@ -582,7 +690,7 @@ class AcpSession {
     if (wasActive) this.activeTurnId = undefined
     const pending = this.pending
     if (pending?.turnId === event.turnId) {
-      this.settle(pending, event)
+      void this.settle(pending, event)
       return
     }
     if (pending === undefined && wasActive) {
@@ -602,8 +710,10 @@ class AcpSession {
   }
 
   /** ACP's answer to the prompt: cancelled whenever the client cancelled it (as the spec requires). */
-  private settle(pending: PendingPrompt, event: TurnCompleted): void {
+  private async settle(pending: PendingPrompt, event: TurnCompleted): Promise<void> {
     this.pending = undefined
+    await this.releaseAnswers(pending)
+    await pending.answerCommit
     void this.endQuestions(pending.isCancelled || event.terminal === CANCELLED_TERMINAL).catch(
       () => {
         this.questionStateNotSaved()
@@ -775,6 +885,10 @@ class AcpSession {
 
   private questionNotice(text: string): void {
     this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+  }
+
+  private isCurrentReport(preparing: PreparingPrompt): boolean {
+    return this.preparing === preparing && !preparing.isCancelled && !this.isDisposed
   }
 
   /**
@@ -1202,6 +1316,28 @@ class AcpSession {
     if (this.pending !== undefined || this.preparing !== undefined) {
       throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
     }
+    const reportArgs = acpReportArguments(blocks)
+    if (reportArgs !== undefined) {
+      const reportAbort = new AbortController()
+      const preparing: PreparingPrompt = { isCancelled: false, reportAbort, abort: reportAbort }
+      this.preparing = preparing
+      try {
+        await this.announceCommands()
+        if (!this.isCurrentReport(preparing)) return 'cancelled'
+        const text = await runAcpReport(reportArgs, this.deps.reports, {
+          cwd: this.cwd,
+          sessionId: this.sessionId,
+          signal: reportAbort.signal,
+        })
+        if ('error' in preparing) throw preparing.error
+        if (!this.isCurrentReport(preparing)) return 'cancelled'
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+        await this.outbox
+        return 'end_turn'
+      } finally {
+        this.preparing = undefined
+      }
+    }
     const parsed = promptParts(blocks, this.cwd)
     if (!parsed.ok) {
       throw RequestError.invalidParams(undefined, parsed.reason)
@@ -1259,13 +1395,39 @@ class AcpSession {
       part?.type === 'text' &&
       part.text.trim() === `/${ACP_COMPACT_COMMAND}`
     let isUsage: boolean
-    let queued: readonly TurnPart[]
+    let lease: Awaited<ReturnType<AcpQuestionRegistry['peekQueued']>>
+    let local: Awaited<ReturnType<typeof acpPlaybook>>
     try {
-      await this.announceCommands()
+      local = await acpPlaybook(
+        blocks,
+        () => this.deps.playbookFor?.(this.cwd, this.sessionId),
+        () => {
+          const bundle = this.deps.playbookBundle?.()
+          if (bundle === undefined) throw new Error(UI_TEXT.playbookUnavailable)
+          return bundle
+        },
+      )
+      if (local === undefined) await this.announceCommands()
+      if (/^\/schedule(?:\s|$)/.test(parsed.displayText)) {
+        const result =
+          this.deps.schedules === undefined || !this.isScheduleHostAvailable
+            ? UI_TEXT.scheduleV2.runtime.unavailable
+            : await this.deps.schedules.run(parsed.displayText, {
+                cwd: this.cwd,
+                sessionId: this.sessionId,
+                backend: this.deps.backend.kind,
+                ...this.deps.options.scheduleAuthorization,
+              })
+        if (preparing.isCancelled) return 'cancelled'
+        if ('error' in preparing) throw preparing.error
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: result } })
+        await this.outbox
+        return 'end_turn'
+      }
       // Reserved local commands never become a skill or a model turn, even when
       // their runtime bridge has not been bound yet or their syntax is invalid.
-      const local = parseSkillInvocation(parsed.displayText, new Set(['share', 'prompt']))
-      if (local !== undefined) {
+      const sharingLocal = parseSkillInvocation(parsed.displayText, new Set(['share', 'prompt']))
+      if (sharingLocal !== undefined) {
         if (blocks.length !== 1 || blocks[0]?.type !== 'text') {
           throw RequestError.invalidParams(undefined, UI_TEXT.promptFileInvalid)
         }
@@ -1274,7 +1436,7 @@ class AcpSession {
           throw RequestError.invalidRequest(
             undefined,
             fill(UI_TEXT.acpUnknownArgument, {
-              argument: `/${local.selector}`,
+              argument: `/${sharingLocal.selector}`,
             }),
           )
         }
@@ -1300,18 +1462,27 @@ class AcpSession {
         return 'end_turn'
       }
       isUsage = await this.usageReply(blocks, preparing)
-      queued = isUsage || isCompact ? [] : ((await this.questionRegistry?.queuedParts()) ?? [])
+      if (!isUsage && !isCompact && local === undefined)
+        lease = await this.questionRegistry?.peekQueued()
     } finally {
       if (this.preparing === preparing) this.preparing = undefined
     }
     if ('error' in preparing) {
-      await this.questionRegistry?.acknowledgeQueued('notTaken')
+      if (lease !== undefined) await this.questionRegistry?.releaseQueued(lease.token)
       throw preparing.error
     }
     if (preparing.isCancelled) {
-      await this.questionRegistry?.acknowledgeQueued('notTaken')
+      if (lease !== undefined) await this.questionRegistry?.releaseQueued(lease.token)
       await this.outbox
       return 'cancelled'
+    }
+    if (local !== undefined) {
+      this.send({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: local.text },
+      })
+      await this.outbox
+      return 'end_turn'
     }
     if (isUsage) {
       await this.outbox
@@ -1319,8 +1490,10 @@ class AcpSession {
     }
     // Outcomes are values: a host exit before turn/start answers must not
     // reject a promise that the prompt has not yet reached (Node would exit).
+    // Promise executors run synchronously; pending is assigned before sendTurn.
+    let pending!: PendingPrompt
     const finished = new Promise<PromptOutcome>((resolve) => {
-      this.pending = {
+      pending = {
         resolve: (reason) => {
           resolve({ reason })
         },
@@ -1329,37 +1502,42 @@ class AcpSession {
         },
         turnId: undefined,
         isCancelled: false,
+        earlyAdmissions: new Set(),
+        answerLease: lease,
       }
     })
+    this.pending = pending
     try {
       if (isCompact) {
         // The same AgentSession core serves interactive ACP and runExec. A
         // compact starts synchronously, so cancellation need not wait for it.
-        await this.questionRegistry?.acknowledgeQueued('notTaken')
+        // No answer lease is peeked for a compact: a queued answer stays queued.
         const outcome = await this.session.compact()
         this.finishCompaction(outcome.status)
       } else {
         const starting = this.session.sendTurn(
-          [...queued, ...this.withSkill(parsed.parts)],
+          [...(pending.answerLease?.parts ?? []), ...this.withSkill(parsed.parts)],
           parsed.displayText,
         )
         this.starting = starting
         const submission = await starting
-        this.noteTurnId(submission.turnId)
-        try {
-          await this.questionRegistry?.acknowledgeQueued('taken')
-          if (queued.length > 0) this.getQuestions().sentQueued()
-        } catch {
-          throw RequestError.internalError(undefined, UI_TEXT.questionAnswerUncertain)
+        if (submission.userMessageId !== undefined) pending.userMessageId = submission.userMessageId
+        this.noteTurnId(submission.turnId, submission.disposition)
+        if (submission.disposition !== 'started' && submission.disposition !== 'queued') {
+          throw RequestError.internalError(undefined, UI_TEXT.answerNotAccepted)
+        }
+        if (
+          this.pending === pending &&
+          (pending.userMessageId === undefined
+            ? submission.disposition === 'started' || this.activeTurnId === submission.turnId
+            : pending.earlyAdmissions.has(pending.userMessageId))
+        ) {
+          this.commitAnswers(pending)
         }
       }
     } catch (error: unknown) {
-      try {
-        await this.questionRegistry?.acknowledgeQueued('uncertain')
-      } catch {
-        this.questionStateNotSaved()
-      }
-      this.pending = undefined
+      await this.releaseAnswers(pending)
+      if (this.pending === pending) this.pending = undefined
       if (this.isDisposed) {
         // Let go while starting: a close cancels; a host exit fails.
         const outcome = await finished
@@ -1373,6 +1551,7 @@ class AcpSession {
       this.starting = undefined
     }
     const outcome = await finished
+    await pending.answerCommit
     if ('error' in outcome) {
       throw outcome.error
     }
@@ -1384,6 +1563,7 @@ class AcpSession {
     this.legalStop?.abort()
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
+      this.preparing.reportAbort?.abort()
       this.preparing.abandonElicitation?.()
       this.preparing.abort.abort()
       this.preparing = undefined
@@ -1394,6 +1574,7 @@ class AcpSession {
     }
     if (this.pending === undefined) this.activeTurnId = undefined
     else this.pending.isCancelled = true
+    void this.releaseAnswers()
     void this.endQuestions(true).catch(() => {
       this.questionStateNotSaved()
     })
@@ -1415,8 +1596,10 @@ class AcpSession {
       this.preparing.error = error
       this.preparing.abandonElicitation?.()
       this.preparing.abort.abort()
+      this.preparing.reportAbort?.abort()
     }
     this.pending?.reject(error)
+    void this.releaseAnswers()
     this.pending = undefined
     void this.endQuestions(false).catch(() => {
       this.questionStateNotSaved()
@@ -1425,6 +1608,22 @@ class AcpSession {
 
   public get isReleased(): boolean {
     return this.isDisposed
+  }
+
+  public async holdSchedules(): Promise<void> {
+    try {
+      const release = await this.deps.schedules?.holdWorkspace?.(this.cwd)
+      if (this.isDisposed) await release?.()
+      else this.releaseSchedules = release
+    } catch {
+      this.isScheduleHostAvailable = false
+      this.deps.log.warn('ACP schedule workspace startup failed')
+      observeError(this.deps, 'scheduleHostStartFailed')
+      this.send({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: UI_TEXT.scheduleV2.runtime.hostUnavailable },
+      })
+    }
   }
 
   /**
@@ -1442,10 +1641,12 @@ class AcpSession {
     }
     this.isDisposed = true
     this.legalStop?.abort()
+    const releasingAnswers = this.releaseAnswers()
     this.questions?.dispose()
     if (this.questions === undefined) this.questionRegistry?.dispose()
     if (this.preparing !== undefined) {
       this.preparing.isCancelled = true
+      this.preparing.reportAbort?.abort()
       this.preparing.abandonElicitation?.()
       this.preparing.abort.abort()
       this.preparing = undefined
@@ -1455,17 +1656,44 @@ class AcpSession {
     this.pending = undefined
     this.unsubscribe?.()
     this.unsubscribeResources?.()
-    if (wasRunning) {
+    const releaseSchedules = this.releaseSchedules
+    this.releaseSchedules = undefined
+    // Start Stop first, independently of the optional workspace watcher.
+    const stop = (async () => {
       // Stopped once its start is answered, even a start that failed: one
       // past its deadline (Muse Code's `turn/start`) may still start.
-      try {
-        await this.starting
-      } catch {
-        // The prompt that started it has already ended cancelled.
+      if (wasRunning) {
+        try {
+          await this.starting
+        } catch {
+          // The prompt that started it has already ended cancelled.
+        }
+        await this.cancelTurn()
       }
-      await this.cancelTurn()
-    }
-    this.session.dispose()
+      await releasingAnswers
+      this.session.dispose()
+    })()
+    let deadline: ReturnType<typeof setTimeout> | undefined
+    const cleanup = (async () => {
+      try {
+        await Promise.race([
+          (async () => {
+            await releaseSchedules?.()
+          })(),
+          new Promise<never>((_resolve, reject) => {
+            deadline = setTimeout(() => {
+              reject(new Error(UI_TEXT.scheduleV2.runtime.unavailable))
+            }, SCHEDULE_ACP_RELEASE_TIMEOUT_MS)
+          }),
+        ])
+      } catch {
+        this.deps.log.warn('ACP schedule workspace release failed')
+        observeError(this.deps, 'scheduleReleaseFailed')
+      } finally {
+        clearTimeout(deadline)
+      }
+    })()
+    await Promise.all([stop, cleanup])
   }
 }
 
@@ -1573,6 +1801,7 @@ class AgentState {
       )
       this.adopting.set(sessionId, acp)
       await acp.loadQuestions()
+      await acp.holdSchedules()
       await prepare(acp)
       this.ensureClaim(claim, host)
       if (acp.isReleased) {

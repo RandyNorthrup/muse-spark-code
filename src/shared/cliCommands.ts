@@ -94,10 +94,33 @@ export function cliCommands() {
       text: { ui: 'referenceScanSecrets' },
     },
     {
+      route: 'schedule',
+      name: 'schedule',
+      description: UI_TEXT.scheduleV2.runtime.usage,
+    },
+    {
       route: 'report',
       name: 'report',
       description: UI_TEXT.reportUsage,
       text: { ui: 'reportUsage' },
+    },
+    {
+      route: 'report',
+      name: 'report problem',
+      description: UI_TEXT.reportUsage,
+      text: { ui: 'reportUsage' },
+    },
+    {
+      route: 'reports',
+      name: 'report <kind> / report history',
+      description: UI_TEXT.reportCliUsage,
+      text: { ui: 'reportCliUsage' },
+    },
+    {
+      route: 'fontsInstall',
+      name: 'fonts install [--from <directory>]',
+      description: UI_TEXT.acpFontsUsage,
+      text: { ui: 'acpFontsUsage' },
     },
     {
       route: 'help',

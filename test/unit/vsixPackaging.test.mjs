@@ -354,6 +354,19 @@ describe('VSIX packaging', () => {
       createHash('sha256').update(before).digest('hex'),
     )
   })
+  it('reads legacy key-major archives and refuses truncated leaf rows', () => {
+    const table = JSON.parse(readFileSync('l10n/ui.de.json', 'utf8'))
+    const keys = Object.keys(table)
+    const legacy = { version: 1, keys, locales: ['de'], values: [keys.map((key) => table[key])] }
+    expect(readArchivedUiTable(JSON.stringify(legacy), 'de')).toBe(JSON.stringify(table))
+    const archive = JSON.parse(
+      brotliDecompressSync(readFileSync(path.join(fixture.stage, 'l10n/ui.tables.json.br'))),
+    )
+    for (const row of archive.values) row.pop()
+    expect(() => readArchivedUiTable(JSON.stringify(archive), 'de')).toThrow(
+      'Truncated localization table',
+    )
+  })
   it('loads exact archived CommonJS with original relative requires and stack filename', () => {
     const file = path.join(fixture.stage, 'dist/tab.js')
     const loaded = createRequire(file)(file)

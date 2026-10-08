@@ -11,7 +11,7 @@ import { AgentReceiptDisclosure } from './AgentReceiptBody'
 import { buildAgentReceipt } from '../../shared/agentReceipt'
 import { agentActivity, endedOutcome, agentStateText } from '../../shared/agentOutcome'
 import { fill, plural } from '../../shared/l10n/text'
-import { formatTokenWindow } from '../../shared/palette'
+import { formatTokenWindow } from '../../shared/paletteFormatting'
 import { agentStatusLabel, formatDurationMs } from '../agentFormat'
 import type { WorkflowChild, WorkflowEntry } from '../state/uiState'
 import {

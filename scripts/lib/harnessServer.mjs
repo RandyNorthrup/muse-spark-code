@@ -9,6 +9,8 @@ import { performance } from 'node:perf_hooks'
 import { chromium } from 'playwright-core'
 import { buildTrafficHarness } from '../../test/harness/buildTraffic.mjs'
 import { build } from 'esbuild'
+import { buildScheduleHarness } from '../../test/harness/build-schedules.mjs'
+import { SCHEDULE_SCENES } from '../../test/harness/schedules.mjs'
 
 export const LOOPBACK = '127.0.0.1'
 export const HARNESS_PATH = 'test/harness/index.html'
@@ -239,6 +241,7 @@ export const SCENARIOS = [
   'muse-workflow-map',
   'schedules',
   'schedules-narrow',
+  ...SCHEDULE_SCENES,
   'git-held',
   'git-commit',
   'git-pr',
@@ -297,6 +300,7 @@ export const SCENARIOS = [
 const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript',
+  '.mjs': 'text/javascript',
   '.css': 'text/css',
   '.map': 'application/json',
   '.json': 'application/json',
@@ -315,6 +319,7 @@ export async function serveRepo(repoRoot) {
     globalName: 'museUsageHarness',
     write: false,
   })
+  let scheduleBuild
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', `http://${LOOPBACK}`)
     if (url.pathname === '/usage-harness.js') {
@@ -328,6 +333,10 @@ export async function serveRepo(repoRoot) {
       return
     }
     try {
+      if (url.pathname.endsWith('/test/harness/schedules.mjs')) {
+        scheduleBuild ??= buildScheduleHarness()
+        await scheduleBuild
+      }
       const body = await readFile(target)
       response.writeHead(200, {
         'content-type': CONTENT_TYPES[path.extname(target)] ?? 'application/octet-stream',
@@ -378,6 +387,11 @@ export const SIZED_SCENARIOS = {
   'questions-expired-narrow': { width: 320, ready: '.attention-dock, .question' },
   help: { width: 1000, ready: '#reference-search' },
   'help-narrow': { width: 320, ready: '#reference-search' },
+  'schedules-v2-background-narrow': { width: 320, ready: '.schedule-v2-consent' },
+  'schedules-v2-list-narrow': { width: 320, ready: '[data-schedule-ready]' },
+  'schedules-v2-editor-narrow': { width: 320, ready: '.schedule-v2-editor' },
+  'schedules-v2-timeline-narrow': { width: 320, ready: '.schedule-v2-timeline li' },
+  'schedule-settlements-narrow': { width: 320, ready: '.schedule-v2-fire' },
   'judge-narrow': { width: 320, ready: '.judge-status' },
   judge: { width: 690, ready: '.judge-status' },
   'judge-slow': { width: 690, ready: '.judge-status' },

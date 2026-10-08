@@ -11,7 +11,8 @@ import { fill } from '../../shared/l10n/text'
 import { formatDurationMs } from '../agentFormat'
 import { failedOutcomeText, isFailedStatus, type UserShellEntry } from '../state/uiState'
 import { Clipped } from './ToolBlocks'
-import { statusDotClass, type ToolRowProps } from './ToolRow'
+import type { ToolRowProps } from './ToolRow'
+import { statusDotClass } from '../toolDetails'
 
 export interface UserShellRowProps {
   readonly entry: UserShellEntry
@@ -60,7 +61,7 @@ function UserShellRowView({ entry, canStop, onOpenOutput, onStopTask }: UserShel
         {isRunning && canStop ? (
           <button
             type="button"
-            className="tool-more tool-task-action"
+            className="tool-more tool-task-action chat-control"
             aria-label={`${UI_TEXT.stopTask}: ${command}`}
             title={UI_TEXT.stopUserShellTitle}
             disabled={entry.taskRequest !== undefined}

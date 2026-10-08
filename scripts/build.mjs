@@ -68,7 +68,6 @@ import {
   regionalUiText,
   compressedEnglish,
   compactBrowserUiText,
-  compressedReference,
 } from './lib/uiTextRegions.mjs'
 
 import { lazyBrowserKeybindings } from './lib/browserKeybindings.mjs'
@@ -81,6 +80,7 @@ import { deferredTeamView } from './lib/deferredTeamView.mjs'
 import {
   sharedUiText,
   sharedValidation,
+  nodeReferenceData,
   deferredCohort,
   sharedWire,
   sharedResourceAdmission,
@@ -141,6 +141,9 @@ const TEAM_SCHEDULER_ENTRY = 'src/core/team/teamSchedulerEntry.ts'
 const TEAM_SCHEDULER_OUTFILE = 'dist/teamScheduler.js'
 const TEAM_RUNNERS_ENTRY = 'src/host/runners/teamRunnersEntry.ts'
 const TEAM_RUNNERS_OUTFILE = 'dist/teamRunners.js'
+// M115 W: v1's Model API schedules re-exported beside the v2 runtime binding.
+const SCHEDULES_ENTRY = 'src/runtime/schedules/schedulesBundle.ts'
+const SCHEDULES_OUTFILE = 'dist/schedules.js'
 const REVIEWER_ENTRY = 'src/core/backends/modelapi/reviewerEntry.ts'
 const REVIEWER_OUTFILE = 'dist/reviewer.js'
 // M91 lane W: the adapters for hooks imported in another agent's format,
@@ -212,12 +215,18 @@ const USAGE_WEBVIEW_ENTRY = 'src/webview/usage/usage.tsx'
 const WEBVIEW_OUTDIR = 'dist/webview'
 const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
+const FONT_INSTALL_ENTRY = 'src/runtime/fonts/fontsEntry.ts'
+const FONT_INSTALL_OUTFILE = 'dist/fontsInstall.js'
 const ACP_ENTRY = 'src/runtime/main.ts'
 const ACP_OUTFILE = 'dist/acp.js'
+const SCHEDULE_BACKGROUND_ENTRY = 'src/runtime/schedules/backgroundEntry.ts'
+const SCHEDULE_BACKGROUND_OUTFILE = 'dist/scheduleBackground.js'
 const ACP_QUESTIONS_ENTRY = 'src/acp/questionDeferralEntry.ts'
 const ACP_QUESTIONS_OUTFILE = 'dist/acpQuestions.js'
 const RUNTIME_QUESTIONS_ENTRY = 'src/runtime/questions/questionRegistryEntry.ts'
 const RUNTIME_QUESTIONS_OUTFILE = 'dist/runtimeQuestions.js'
+const PLAYBOOK_ENTRY = 'src/runtime/playbook/playbookEntry.ts'
+const PLAYBOOK_OUTFILE = 'dist/acpPlaybook.js'
 const INTEGRATION_TEST_DIR = 'test/integration'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 // M95 (PLAN.md D74): exact catalogue values, with no provider runtime logic.
@@ -308,9 +317,32 @@ const modelApiOptions = {
 
 const referenceOptions = {
   ...modelApiOptions,
+  plugins: [...modelApiOptions.plugins, nodeReferenceData],
   entryPoints: ['src/shared/reference/referenceEntry.ts'],
   outfile: 'dist/reference.js',
-  plugins: [...modelApiOptions.plugins, compressedReference(isProduction)],
+}
+
+const reportingOptions = {
+  ...modelApiOptions,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: ['src/runtime/reporting/reportsEntry.ts'],
+  outfile: 'dist/reporting.js',
+}
+const reportingNetworkOptions = {
+  ...reportingOptions,
+  entryPoints: ['src/runtime/reporting/network.ts'],
+  outfile: 'dist/reportingNetwork.js',
+}
+const reportingDestinationsOptions = {
+  ...reportingOptions,
+  entryPoints: ['src/runtime/reporting/destinationsEntry.ts'],
+  outfile: 'dist/reportingDestinations.js',
+}
+const reportingPanelOptions = {
+  ...hostOptions,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: ['src/host/reporting/reportPanelEntry.ts'],
+  outfile: 'dist/reportingPanel.js',
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -377,6 +409,13 @@ const teamRunnersOptions = {
   ...teamOptions,
   entryPoints: [TEAM_RUNNERS_ENTRY],
   outfile: TEAM_RUNNERS_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const schedulesOptions = {
+  ...modelApiOptions,
+  entryPoints: [SCHEDULES_ENTRY],
+  outfile: SCHEDULES_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -795,6 +834,26 @@ const structuredSchemaOptions = {
   entryPoints: ['src/shared/structuredSchemaEntry.ts'],
   outfile: 'dist/structuredSchema.js',
 }
+const fontInstallOptions = {
+  ...common,
+  plugins: [sharedUiText, sharedValidation],
+  entryPoints: [FONT_INSTALL_ENTRY],
+  outfile: FONT_INSTALL_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: AGENT_NODE_TARGET,
+}
+const scheduleBackgroundOptions = {
+  ...modelApiOptions,
+  entryPoints: [SCHEDULE_BACKGROUND_ENTRY],
+  outfile: SCHEDULE_BACKGROUND_OUTFILE,
+  target: AGENT_NODE_TARGET,
+}
+const playbookOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [PLAYBOOK_ENTRY],
+  outfile: PLAYBOOK_OUTFILE,
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -906,6 +965,8 @@ const webviewOptions = {
     usage: USAGE_WEBVIEW_ENTRY,
     referencePage: 'src/webview/components/ReferencePage.tsx',
     [WHATS_NEW_PAGE_NAME]: WHATS_NEW_PAGE_ENTRY,
+    reportingPage: 'src/webview/reporting/main.tsx',
+    reportingDestinations: 'src/webview/reporting/destinations/DestinationPicker.tsx',
   },
   outdir: WEBVIEW_OUTDIR,
   platform: 'browser',
@@ -917,16 +978,6 @@ const webviewOptions = {
   jsx: 'automatic',
 }
 
-function resourceWebviewMetafile(metafile, entry) {
-  const graphs = [entry, 'dist/webview/resourceSurface.js', 'dist/webview/resourceHistory.js'].map(
-    (root) => webviewEntryMetafile(metafile, root),
-  )
-  return {
-    inputs: Object.assign({}, ...graphs.map((graph) => graph.inputs)),
-    outputs: Object.assign({}, ...graphs.map((graph) => graph.outputs)),
-  }
-}
-
 function writeWebviewMetafiles(metafile) {
   const pages = {
     webview: 'dist/webview/main.js',
@@ -936,14 +987,25 @@ function writeWebviewMetafiles(metafile) {
     referencePage: 'dist/webview/referencePage.js',
     resourceSurface: 'dist/webview/resourceSurface.js',
     resourceHistory: 'dist/webview/resourceHistory.js',
+    reportingPageWebview: 'dist/webview/reportingPage.js',
+    reportingDestinationsWebview: 'dist/webview/reportingDestinations.js',
   }
   for (const [page, entry] of Object.entries(pages)) {
     writeFileSync(
       path.join(METAFILE_DIR, `${page}.json`),
       JSON.stringify(
-        page === 'webview'
-          ? resourceWebviewMetafile(metafile, entry)
-          : webviewEntryMetafile(metafile, entry),
+        webviewEntryMetafile(
+          metafile,
+          entry,
+          page === 'webview'
+            ? [
+                'dist/webview/reportingPage.js',
+                'dist/webview/reportingDestinations.js',
+                'dist/webview/resourceSurface.js',
+                'dist/webview/resourceHistory.js',
+              ]
+            : [],
+        ),
       ),
     )
   }
@@ -999,6 +1061,10 @@ if (isWatch) {
     esbuild.context(execOptions),
     esbuild.context(modelApiCodeIntelOptions),
     esbuild.context(structuredSchemaOptions),
+    esbuild.context(reportingOptions),
+    esbuild.context(reportingNetworkOptions),
+    esbuild.context(reportingDestinationsOptions),
+    esbuild.context(reportingPanelOptions),
     esbuild.context(hostOptions),
     esbuild.context(conversationOptions),
     esbuild.context(tabOptions),
@@ -1013,6 +1079,7 @@ if (isWatch) {
     esbuild.context(reviewOptions),
     esbuild.context(sessionBoardOptions),
     esbuild.context(referenceOptions),
+    esbuild.context(schedulesOptions),
     esbuild.context(reviewerOptions),
     esbuild.context(teamOptions),
     esbuild.context(teamRunnersOptions),
@@ -1065,6 +1132,7 @@ if (isWatch) {
     esbuild.context(recorderOptions),
     esbuild.context(whatsNewOptions),
     esbuild.context(judgeOptions),
+    esbuild.context(scheduleBackgroundOptions),
     esbuild.context(uiTextOptions),
     ...uiTextRegionOptions.map((options) => esbuild.context(options)),
     esbuild.context(validationOptions),
@@ -1083,6 +1151,7 @@ if (isWatch) {
     esbuild.context(pageWorkerOptions),
     esbuild.context(imageResizeWorkerOptions),
     esbuild.context(webviewOptions),
+    esbuild.context(fontInstallOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -1109,7 +1178,12 @@ if (isWatch) {
     configuredProviders: esbuild.build(configuredOptions),
     review: esbuild.build(reviewOptions),
     sessionBoard: esbuild.build(sessionBoardOptions),
+    reporting: esbuild.build(reportingOptions),
+    reportingNetwork: esbuild.build(reportingNetworkOptions),
+    reportingDestinations: esbuild.build(reportingDestinationsOptions),
+    reportingPanel: esbuild.build(reportingPanelOptions),
     reference: esbuild.build(referenceOptions),
+    schedules: esbuild.build(schedulesOptions),
     reviewer: esbuild.build(reviewerOptions),
     team: esbuild.build(teamOptions),
     teamRunners: esbuild.build(teamRunnersOptions),
@@ -1161,6 +1235,7 @@ if (isWatch) {
     recorder: esbuild.build(recorderOptions),
     whatsNew: esbuild.build(whatsNewOptions),
     judge: esbuild.build(judgeOptions),
+    scheduleBackground: esbuild.build(scheduleBackgroundOptions),
     uiText: esbuild.build(uiTextOptions),
     ...Object.fromEntries(
       UI_TEXT_REGIONS.map((region, index) => [
@@ -1182,8 +1257,19 @@ if (isWatch) {
   const headless = esbuild.build(headlessOptions)
   const acpQuestions = esbuild.build(acpQuestionsOptions)
   const runtimeQuestions = esbuild.build(runtimeQuestionsOptions)
+  const fontInstall = esbuild.build(fontInstallOptions)
+  const playbook = esbuild.build(playbookOptions)
   const exec = esbuild.build(execOptions)
-  const builds = [...Object.values(shipped), acp, exec, headless, acpQuestions, runtimeQuestions]
+  const builds = [
+    ...Object.values(shipped),
+    acp,
+    exec,
+    headless,
+    acpQuestions,
+    runtimeQuestions,
+    fontInstall,
+    playbook,
+  ]
   if (!isProduction) {
     builds.push(esbuild.build(integrationTestOptions))
   }
@@ -1200,12 +1286,15 @@ if (isWatch) {
       } else writeFileSync(path.join(METAFILE_DIR, `${name}.json`), JSON.stringify(metafile))
     }
     mkdirSync(ACP_METAFILE_DIR, { recursive: true })
+    const { metafile: fontsMetafile } = await fontInstall
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'fontsInstall.json'), JSON.stringify(fontsMetafile))
     const { metafile } = await acp
     const { metafile: headlessMetafile } = await headless
     writeFileSync(path.join(ACP_METAFILE_DIR, 'acp.json'), JSON.stringify(metafile))
     writeFileSync(path.join(ACP_METAFILE_DIR, 'headless.json'), JSON.stringify(headlessMetafile))
     const { metafile: questionsMetafile } = await acpQuestions
     const { metafile: runtimeQuestionsMetafile } = await runtimeQuestions
+    const { metafile: playbookMetafile } = await playbook
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'runtimeQuestions.json'),
       JSON.stringify(runtimeQuestionsMetafile, null, 2),
@@ -1216,9 +1305,11 @@ if (isWatch) {
     )
     const execBuild = await exec
     writeFileSync(path.join(ACP_METAFILE_DIR, 'exec.json'), JSON.stringify(execBuild.metafile))
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'acpPlaybook.json'), JSON.stringify(playbookMetafile))
   }
   console.log('bundle sizes:')
   reportSize(ACP_QUESTIONS_OUTFILE)
+  reportSize(PLAYBOOK_OUTFILE)
   reportSize(HOST_OUTFILE)
   reportSize(CONVERSATION_OUTFILE)
   reportSize(TAB_OUTFILE)
@@ -1281,4 +1372,5 @@ if (isWatch) {
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.css`))
   reportSize(ACP_OUTFILE)
   reportSize('dist/headless.js')
+  reportSize(SCHEDULE_BACKGROUND_OUTFILE)
 }

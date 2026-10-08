@@ -44,6 +44,8 @@ import {
 import { redactSecrets } from '../../redact'
 export { redactSecrets } from '../../redact'
 import { errorBodySchema, type StreamEvent } from './schemas'
+import type { UnattendedRun } from '../../schedules/unattended'
+import type { ModelApiClientDeps } from './client'
 
 import {
   USAGE_HEADER_ALLOW_LIST,
@@ -64,6 +66,7 @@ export interface TransportDeps {
     failure: ModelApiError,
     retryAfterMs: number | undefined,
   ) => boolean
+  readonly scheduledRun?: () => UnattendedRun | undefined
   readonly fetch: typeof fetch
   readonly baseUrl: string
   readonly apiKey?: () => Promise<string | undefined>
@@ -377,6 +380,7 @@ export interface ResponseAttemptGuard {
   readonly prepareRetry?: (keyDigest: string, signal: AbortSignal) => Promise<void>
   /** Durable admission before the synchronous credential/gate fence. */
   readonly prepare?: () => Promise<void>
+  readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
   readonly paidFeature?: PaidFeature
   readonly paidEstimatedInputTokens?: number
   (keyDigest: string | undefined): void
@@ -555,7 +559,11 @@ export class RequestTransport {
       readonly pacingClass?: PacingClass
       readonly estimatedTokens?: number
       readonly accept: string
-      readonly paid?: { readonly claim: PaidRequestClaim; isSent: boolean }
+      readonly paid?: {
+        readonly claim: PaidRequestClaim
+        readonly run?: UnattendedRun | undefined
+        isSent: boolean
+      }
     },
     signal: AbortSignal,
     onRetry?: (notice: RetryNotice) => void,
@@ -693,7 +701,11 @@ export class RequestTransport {
        */
       readonly headers?: Readonly<Record<string, string>>
       readonly retries?: 'all' | 'rateLimitOnly'
-      readonly paid?: { readonly claim: PaidRequestClaim; isSent: boolean }
+      readonly paid?: {
+        readonly claim: PaidRequestClaim
+        readonly run?: UnattendedRun | undefined
+        isSent: boolean
+      }
     },
     signal: AbortSignal | undefined,
     onRetry?: (notice: RetryNotice) => void,
@@ -760,6 +772,19 @@ export class RequestTransport {
       ) {
         throw new Error(UI_TEXT.scheduleConfirmationExpired)
       }
+      // A scheduled fire's authority is live: checked before pacing and again
+      // after it, since revocation or a key change can land during the wait.
+      const assertScheduleAuthority = () => {
+        if (init.method !== 'POST' || (path !== '/responses' && !path.startsWith('/images/')))
+          return
+        const run = this.deps.scheduledRun?.()
+        if (
+          (run !== init.paid?.run && (run !== undefined || init.paid?.run !== undefined)) ||
+          (run !== undefined && (!run.isActive() || credentials.keyDigest !== run.paid?.accountId))
+        )
+          throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+      }
+      assertScheduleAuthority()
       const account = `${provider.identity.provider}:${this.deps.baseUrl}:${credentials.keyDigest}`
       const kind = init.pacingClass ?? 'foreground'
       if (isGoverned) {
@@ -791,6 +816,7 @@ export class RequestTransport {
       }
       if (isAborted(signal))
         throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
+      assertScheduleAuthority()
       // Local consent refusal is outside the transport retry catch: it never
       // becomes another billable attempt.
       await admitAttempt?.prepare?.()

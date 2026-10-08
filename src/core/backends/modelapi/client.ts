@@ -93,6 +93,7 @@ export type ProviderClient = Pick<
     | 'inheritSearchQuote'
     | 'releaseSearchQuotes'
     | 'readServiceStatus'
+    | 'withScheduleAuthority'
   >
 > & {
   readonly providerId?: ModelApiClient['providerId']
@@ -100,12 +101,15 @@ export type ProviderClient = Pick<
   readonly inheritSearchQuote?: ModelApiClient['inheritSearchQuote']
   readonly releaseSearchQuotes?: ModelApiClient['releaseSearchQuotes']
   readonly readServiceStatus?: ModelApiClient['readServiceStatus']
+  readonly withScheduleAuthority?: (run: () => UnattendedRun | undefined) => ProviderClient
   readonly provider?: TransportProviderClient['provider']
   readonly models?: ModelResolver
   readonly modelContextLimit?: (model: string) => number | undefined
   readonly isPlanModel?: (model: string) => boolean
   readonly readPlanUsage?: () => readonly PlanUsageRow[]
 }
+
+import type { UnattendedRun } from '../../schedules/unattended'
 
 export interface ModelApiClientDeps {
   readonly paidAuthority?: PaidAuthority
@@ -170,8 +174,14 @@ export class ModelApiClient implements TransportProviderClient {
     reasoning: true,
     parallelToolCalls: true,
   })
-  public constructor(private readonly deps: ModelApiClientDeps) {
-    this.transport = new RequestTransport(deps)
+  public constructor(
+    private readonly deps: ModelApiClientDeps,
+    private readonly scheduledRun?: () => UnattendedRun | undefined,
+  ) {
+    this.transport = new RequestTransport({
+      ...deps,
+      ...(scheduledRun !== undefined && { scheduledRun }),
+    })
     this.provider = {
       id: 'meta',
       label: 'Meta',
@@ -182,6 +192,30 @@ export class ModelApiClient implements TransportProviderClient {
     } as const
   }
 
+  private async paidReservation(
+    body: CreateResponseBody | CreateImageBody,
+    feature: PaidFeature | undefined,
+    signal: AbortSignal,
+    guard?: ResponseAttemptGuard,
+    reservationUsd?: UsdAmount,
+  ) {
+    const run = this.scheduledRun?.()
+    if (run === undefined && this.scheduledRun !== undefined)
+      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+    const reserve =
+      run === undefined
+        ? (guard?.reservePaidRequest ?? this.deps.reservePaidRequest)
+        : run.reservePaidRequest
+    feature ??= run === undefined ? undefined : 'scheduledPrompts'
+    const claim =
+      feature === undefined
+        ? undefined
+        : await reserve?.(body, feature, guard?.paidEstimatedInputTokens, signal, reservationUsd)
+    if (run !== undefined && claim === undefined)
+      throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+    return claim === undefined ? undefined : { claim, isSent: false, run }
+  }
+
   /** A billed image request: only a 429 is retried, with a deadline of its own. */
   private async imageRequest(
     path: string,
@@ -190,8 +224,8 @@ export class ModelApiClient implements TransportProviderClient {
     admitAttempt?: ResponseAttemptGuard,
   ): Promise<ImagesResponse> {
     const active = AbortSignal.any([signal, AbortSignal.timeout(IMAGE_REQUEST_TIMEOUT_MS)])
-    const claim = await this.deps.reservePaidRequest?.(body, 'imageGeneration', undefined, active)
-    const paid = claim === undefined ? undefined : { claim, isSent: false }
+    const paid = await this.paidReservation(body, 'imageGeneration', active, admitAttempt)
+    const claim = paid?.claim
     try {
       const result = await this.transport.request(
         path,
@@ -256,6 +290,11 @@ export class ModelApiClient implements TransportProviderClient {
     retainedQuoteIds: readonly string[] = [],
   ): void {
     this.deps.paidAuthority?.releaseConversation(conversationId, retainedQuoteIds)
+  }
+
+  /** Each session owns its authority callback, even when hosts share transport. */
+  public withScheduleAuthority(run: () => UnattendedRun | undefined): ModelApiClient {
+    return new ModelApiClient(this.deps, run)
   }
 
   /** Whether interactive extras have a finite daily admission port (D78). */
@@ -416,7 +455,8 @@ export class ModelApiClient implements TransportProviderClient {
     const searchPrice =
       searchQuote?.tariffUsd ?? (hasSearch ? this.searchPriceUsd(body.model) : undefined)
     let reservationUsd: UsdAmount | undefined
-    if (hasSearch && this.hasPaidDailyBudget) {
+    // A scheduled fire always reserves against its own finite ledger.
+    if (hasSearch && (this.hasPaidDailyBudget || this.scheduledRun !== undefined)) {
       if (body.max_tool_calls === undefined) throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
       const inputTokens =
         admitAttempt?.paidEstimatedInputTokens ??
@@ -429,17 +469,8 @@ export class ModelApiClient implements TransportProviderClient {
         searchAllowanceUsd(body.max_tool_calls, searchPrice),
       )
     }
-    const claim =
-      feature === undefined
-        ? undefined
-        : await this.deps.reservePaidRequest?.(
-            body,
-            feature,
-            admitAttempt?.paidEstimatedInputTokens,
-            signal,
-            reservationUsd,
-          )
-    const paid = claim === undefined ? undefined : { claim, isSent: false }
+    const paid = await this.paidReservation(body, feature, signal, admitAttempt, reservationUsd)
+    const claim = paid?.claim
     const authority = this.deps.paidAuthority ?? new PaidAuthority()
     const claimId =
       searchQuote === undefined

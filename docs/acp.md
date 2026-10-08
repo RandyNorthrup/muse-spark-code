@@ -324,6 +324,8 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 | `--image-generation`                   | Offer paid image generation (Model API backend only); each image asks in the editor first, naming the price                       |
 | `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                               |
 | `--no-auto-compaction`                 | Disable automatic compaction in the shared Model API core (also accepted by exec); production is awaiting evaluation and inactive |
+| `--scheduled-prompts`                  | Offer the `/schedule` command with unattended runs (Model API backend only); needs `--max-budget-usd`                             |
+| `--max-budget-usd <USD>`               | Hard spending cap for unattended scheduled runs; without a positive cap paid authorization is refused                             |
 
 ## What the editor sees
 
@@ -339,7 +341,12 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   on a model the agent does not list moves to the default. A session the
   agent cannot set up this way is let go, and the editor's request fails.
 - **Commands**: the session's skills, run as `/name arguments`, plus M112's
-  `/questions` and `/answer <n> <text>` (reserved ahead of skills).
+  `/questions` and `/answer <n> <text>` (reserved ahead of skills), and
+  M116's `/playbook <status|record|settings ...>`, answered locally with no
+  model turn.
+  M115's `/schedule` (list, add, remove, run-now, pause, resume, fire and
+  timeline; `run-due` and background maintenance are refused here), offered
+  only with `--scheduled-prompts`.
 - **Permission prompts**: the backend's own choices (allow once, allow for
   the session, reject). A prompt the editor cancels, or answers with a
   choice it was not offered, is rejected; nothing runs by default.
@@ -405,15 +412,38 @@ Open questions are bounded to 20 per session by the shared registry and are
 kept in owner-only storage, removed with their session and excluded from
 logs, exports and report text. A report may include counts only.
 
-Before sending the next prompt, the agent leases its queued answer prefix by
-removing that prefix from disk. Cancellation before dispatch restores it.
-After a taken or uncertain submission it is retired, so a restart cannot send
-an uncertain answer again. A crash between leasing and dispatch can lose the
-prefix; the policy favors avoiding a duplicate when admission is unknown.
+Before sending the next ordinary prompt, the agent takes a non-destructive
+lease on its durable queued-answer prefix. A `started` submission commits
+when the turn starts with the model; a `queued` submission holds the lease
+until its own turn starts. Model API waits for actual request dispatch after
+submit hooks and request admission, because its start ack precedes those
+checks. Withdrawal, unqueue, Stop, session release, process exit and refused
+or failed submission retain answers without a sent announcement. Only a
+successful commit announces that the answer was sent. Failed commit writes
+retain answers, warn that they may repeat, and keep an active turn busy and
+stoppable. A restart before commit retains the prefix; a crash after dispatch
+but before persistence can repeat it on the next prompt.
 
 MCP elicitation forms retain their separate five-minute deadline and cannot
 be answered late. Ordinary approvals and paid-use permission prompts retain
 their existing behavior and never enter the question clock.
+
+## Playbook
+
+`/playbook status`, `/playbook record` and `/playbook settings ...` read the
+orchestrator playbook's journal-backed settings and evidence for the
+session's workspace, with no model turn. The same surface answers the
+standalone `playbook` command. Rule changes need a reason and record the
+owner; turning a rule off and naming the fallback reviewer for
+classifier-blocked reviews need a real user decision, and residuals stay
+open per milestone until a lead or owner accepts them. Record views show
+unbound legacy acceptances and why they cover no residual. Local commands
+leave queued late answers untouched; only a prompt that starts with the model
+removes its leased prefix. A restart before that commit retains the
+answers, and failed sends release without writing. Panel enforcement
+(leases, outcome receipts, dispatch gating) is not installed here; see
+[the milestone certification](certification/m116.md) for what is bound and
+what waits for M96's planner.
 
 ## Paid features
 
@@ -443,9 +473,15 @@ publish a generation keeps the explicit use as Allow once and asks next time.
 The grant lapses in every folder when a Model API agent (`--backend
 modelApi`, not `exec`) starts without that feature's flag, so turning the
 flag on again asks again. Every paid row names its
-price, and the agent log counts each billed use. Subagents, scheduled
-prompts, best-of-N, the Auto reviewer and Muse Voice are not offered: the agent has no flag for them
+price, and the agent log counts each billed use. Subagents,
+best-of-N, the Auto reviewer and Muse Voice are not offered: the agent has no flag for them
 (Muse Voice needs the VS Code panel's microphone).
+
+Scheduled prompts are offered with `--scheduled-prompts` (Model API
+backend only) together with `--max-budget-usd`. Each billed run asks in
+the editor's permission prompt, naming its price and the shared daily
+budget, unless allowed always in this workspace; a run without a positive
+budget is refused before dispatch.
 
 ## Networks and proxies
 
@@ -797,3 +833,33 @@ extension. Provider-specific evidence is injected at the backend factory;
 unknown capabilities stay off. Native Muse Code effort, deletion and feedback
 remain unavailable until their captured feature ports are supplied. These
 limits apply equally to every ACP editor and to headless execution.
+
+## Deterministic reports (M113)
+
+`muse-spark-code-acp report project` collects locally through the same engine
+as the editor. `report quality`, `report milestone M113`, `report release
+latest` and `report changes` select other local reports. `report history`
+lists verified, workspace-scoped saved entries. Bare `report`, and `report
+problem`, retain M93's problem report.
+
+The report command accepts `--format md|html|json|text`, `--out <file>`,
+`--as-of <ISO>`, `--lang <locale>`, `--network`, `--from <file.json>`,
+`--diff previous|<file.json>`, `--full`, `--save`, `--strict` and
+`--fail-on <conditions>`. `--from` verifies and renders the saved data without
+collecting again. A fixed observation time stabilizes the canonical report;
+comparison uses semantic rows. `--save` stores the report outside the workspace.
+ACP exposes `/report <kind>` in its available commands and replies in Markdown
+through the same portable report methods, without sending the command to a model.
+
+Network collection requires `--network`; `gh` owns terminal GitHub authentication.
+No Model API key is needed or read. Missing service captures and future source
+adapters remain unavailable. Posting and scheduled destinations are not exposed
+until their capture, scheduler, vault and browser dependencies are mounted.
+The [README report guide](../README.md#report) describes the kinds and settings.
+
+Exit codes are 0 for a generated/rendered report, 1 for a collection or output
+failure, 2 for invalid arguments or unsupported format, 3 for an unknown exact
+scope (with nearest ids), and 4 when a requested `--fail-on` condition holds.
+Conditions are `unavailable`, `drift`, `blocked`, `channelLag` and `ciFailing`.
+History-save revocation or cancellation fails explicitly. Equal observation
+times preserve the newest saved sequence when selecting the previous report.

@@ -3,10 +3,10 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
+import { surfacePort, surfaceSnapshot } from './playbookSurfaceFixtures'
 import { agentStatusLabel, formatDurationMs } from '../../src/webview/agentFormat'
 import type { WorkflowEntry } from '../../src/webview/state/uiState'
-import {
-  AgentMapContent as AgentMap,
+import AgentMap, {
   type AgentMapProps,
   controlsFor,
   type SubagentEntry,
@@ -160,6 +160,28 @@ describe('AgentMap', () => {
     expect(props.onControl).toHaveBeenCalledWith('sub-1', 'retry')
   })
 
+  it('shows trusted per-agent strike facts and opens the shared settings surface', async () => {
+    const snapshot = surfaceSnapshot()
+    renderMap({ playbookPort: surfacePort(snapshot), playbookRecords: { sa1: snapshot.records } })
+    const badge = await screen.findByText(/Concurrency: 3 review rounds/u)
+    expect(badge.closest('button')).toHaveTextContent('Map the workspace')
+    expect(screen.getByRole('button', { name: /Review the diff/u })).not.toHaveTextContent(
+      'review rounds',
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Playbook settings' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Orchestrator playbook', level: 1 }),
+    ).toHaveFocus()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the map' }))
+    expect(screen.getByRole('dialog', { name: 'Agent map' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Playbook settings' })).toHaveFocus()
+  })
+
+  it('shows policy why-notes in the selected agent details', async () => {
+    renderMap({ selectedAgentId: 'sa1', playbookRecords: { sa1: surfaceSnapshot().records } })
+    expect(await screen.findByText(/Needs you: a safety classifier blocked/u)).toBeInTheDocument()
+    expect(screen.getByText(/requires a redesign/u)).toHaveTextContent('Concurrency')
+  })
   it('labels a billed Model API child in the map', () => {
     renderMap({ backend: 'modelApi', agents: [{ ...explorer, paid: 'subagents' }] })
     expect(screen.getByRole('button', { name: /Map the workspace/ })).toHaveTextContent('paid')

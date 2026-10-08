@@ -25,6 +25,7 @@ import {
   deferredCohort,
   sharedUiText,
   sharedValidation,
+  nodeReferenceData,
   sharedWire,
   sharedResourceAdmission,
   sharedStructuredSchema,
@@ -90,6 +91,8 @@ beforeAll(async () => {
       resourceAdmission: 'src/core/resources/admission.ts',
       mcpPool: 'src/core/backends/modelapi/mcpPoolEntry.ts',
       modelApiCodeIntel: 'src/core/backends/modelapi/codeIntelEntry.ts',
+      schedules: 'src/runtime/schedules/schedulesBundle.ts',
+      scheduleBackground: 'src/runtime/schedules/backgroundEntry.ts',
       questionNotes: 'src/core/questions/deferralEntry.ts',
       reference: 'src/shared/reference/referenceEntry.ts',
       runtimeEngine: 'src/runtime/runtimeEngineEntry.ts',
@@ -99,6 +102,10 @@ beforeAll(async () => {
       runtimeAccounting: 'src/runtime/runtimeAccountingEntry.ts',
       legalScan: 'src/core/legal/entry.ts',
       imageResizeWorker: 'src/core/imageResizeWorker.ts',
+      reporting: 'src/runtime/reporting/reportsEntry.ts',
+      reportingNetwork: 'src/runtime/reporting/network.ts',
+      reportingDestinations: 'src/runtime/reporting/destinationsEntry.ts',
+      reportingPanel: 'src/host/reporting/reportPanelEntry.ts',
       extension: 'src/extension.ts',
       conversation: 'src/host/conversation/conversationEntry.ts',
       modelApi: 'src/host/backend/modelApiEntry.ts',
@@ -143,8 +150,11 @@ beforeAll(async () => {
           sharedStructuredSchema,
           deferredTeamView,
           sharedModelApiBoundaries,
+          nodeReferenceData,
           // Match the shipped prompt archive before checking real production caps.
-          ...(name === 'modelApi' ? [compressedModelText(true)] : []),
+          ...(['modelApi', 'reference', 'codeIntel'].includes(name)
+            ? [compressedModelText(true)]
+            : []),
         ],
         external: ['vscode', '@napi-rs/keyring'],
       }),
@@ -168,6 +178,7 @@ beforeAll(async () => {
         sharedStructuredSchema,
         deferredTeamView,
         sharedModelApiBoundaries,
+        nodeReferenceData,
       ],
       external: ['@napi-rs/keyring'],
     }),
@@ -495,6 +506,10 @@ describe('deferred cohort bundles', () => {
     expect(bundleText('modelApi')).toContain('./hookRuntime.js')
   })
 
+  it('every production bundle passes the deferred-boundary gate', () => {
+    expect(checkDeferredBundles(bundleInputs)).toEqual([])
+  })
+
   it('decodes the complete production English fallback without changing any value', () => {
     expect(bundleText('uiText')).toContain('brotliDecompressSync')
     expect(loadSupportBundle('uiText')).toHaveProperty('EN', EN)
@@ -644,6 +659,42 @@ describe('deferred cohort bundles', () => {
     expect(bundle).toHaveProperty('runChatGptProviderCommand', expect.any(Function))
     expect(bundle).toHaveProperty('chatGptAuthenticationMethods', expect.any(Function))
   })
+  it('RVM115U5 diet: Model API frees ten KiB and records context loaders in the lazy schedules chunk', () => {
+    // M115W re-measurement (Kubuntu, deterministic across trees): the merged
+    // milestone carries 1,161 more bytes than U's pin (the validated v2
+    // protocol, schedules settings and their strings). The diet's mechanism
+    // below is unchanged: the loaders stay out of Model API.
+    expect(Buffer.byteLength(bundleText('modelApi'))).toBeLessThanOrEqual(474_100)
+    const schedules = new Set(inputs('schedules'))
+    for (const file of [
+      'src/core/backends/modelapi/schedulesEntry.ts',
+      'src/core/backends/modelapi/schedules.ts',
+      'src/core/context/catalogFiles.ts',
+    ]) {
+      expect(schedules.has(file)).toBe(true)
+      expect(inputs('modelApi')).not.toContain(file)
+    }
+    expect(bundleText('modelApi')).toContain('./schedules.js')
+  })
+
+  it('M115W: the lazy schedules chunk carries the v2 runtime binding beside v1', () => {
+    const schedules = new Set(inputs('schedules'))
+    for (const file of [
+      'src/runtime/schedules/schedulesBundle.ts',
+      'src/runtime/schedules/runtimeEntry.ts',
+      'src/runtime/schedules/engine.ts',
+      'src/runtime/schedules/control.ts',
+      'src/core/schedules/store.ts',
+      'src/core/schedules/scheduler.ts',
+      'src/core/schedules/delivery.ts',
+    ]) {
+      expect(schedules.has(file)).toBe(true)
+      for (const parent of ['extension', 'modelApi', 'acp'])
+        expect(inputs(parent)).not.toContain(file)
+    }
+    expect(bundleText('schedules')).toContain('createRuntimeSchedules')
+  })
+
   it('loads the activation entry without requiring either action bundle', () => {
     const entry = bundleFile('extension')
     expect(bundleText('extension')).toContain('conversation.js')
@@ -931,6 +982,16 @@ describe('deferred cohort bundles', () => {
     ['acp', 'src/runtime/exec/runExec.ts', 'on its first action'],
 
     ['foreignHooks', 'src/core/export/sessionTransfer.ts', 'missing'],
+    [
+      'modelApi',
+      'src/runtime/schedules/nodeBackgroundIo.ts',
+      'on the first native schedule wake or maintenance',
+    ],
+    [
+      'modelApi',
+      'src/runtime/schedules/effectiveDefinition.ts',
+      'on the first native schedule wake or maintenance',
+    ],
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
     ['extension', 'src/host/conversation/conversationController.ts', 'on the first chat surface'],
     ['acp', 'src/host/support/recorderEntry.ts', 'from the recorder bundle'],
@@ -1017,6 +1078,32 @@ describe('deferred cohort bundles', () => {
       expectUnchangedMeta(meta, hash, check)
     },
   )
+  it.each(
+    ['reporting', 'reportingNetwork', 'reportingDestinations', 'reportingPanel'].flatMap((name) => [
+      { name, source: 'src/core/backends/modelapi/backend.ts', reason: 'a backend' },
+      { name, source: 'src/core/paid/paidFeatures.ts', reason: 'the paid gate' },
+    ]),
+  )('refuses $reason imports from $name with either path separator', ({ name, source, reason }) => {
+    const file = `dist/meta/${name}.json`
+    const meta = structuredClone(fixture(file).meta)
+    const output = meta.outputs[`dist/${name}.js`]
+    if (output === undefined) throw new Error('Missing output')
+    const hash = createHash('sha256').update(JSON.stringify(meta)).digest('hex')
+    for (const separator of ['/', '\\']) {
+      const key = source.replaceAll('/', () => separator)
+      try {
+        output.inputs[key] = { bytesInOutput: 1 }
+        expect(
+          checkDeferredBundles((bundle) =>
+            bundle.metafile === file ? outputInputs(meta, `dist/${name}.js`) : bundleInputs(bundle),
+          ),
+        ).toContain(`dist/${name}.js carries ${reason}: ${source}`)
+      } finally {
+        Reflect.deleteProperty(output.inputs, key)
+      }
+    }
+    expect(createHash('sha256').update(JSON.stringify(meta)).digest('hex')).toBe(hash)
+  })
 })
 
 it('loads both governor factories with shared validation without probing at construction', async () => {

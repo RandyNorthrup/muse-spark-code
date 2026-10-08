@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { TodoItem } from '../../src/shared/agentEvents'
+import type * as transcriptModule from '../../src/webview/components/Transcript'
+import type { TranscriptProps } from '../../src/webview/components/Transcript'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../../src/shared/protocol'
 import { App } from '../../src/webview/App'
@@ -19,18 +20,23 @@ beforeAll(warmDeferredSurfaces)
 // M25 (PLAN.md D28): the UI state lives outside React, keeps reducing under
 // the crash screen, and comes back after its Reload.
 
-/** Set to make the next render of the task panel throw: any render bug. */
+/** Make an eager transcript render throw so the outer crash boundary owns it. */
 const bomb = { isArmed: false }
 
-vi.mock('../../src/webview/components/TodoPanel', () => ({
-  // A task called "boom" is a bug in the state itself: it throws on every render.
-  TodoPanel: ({ items }: { readonly items: readonly TodoItem[] }) => {
-    if (bomb.isArmed || items.some((item) => item.text === 'boom')) {
-      throw new Error('render exploded')
-    }
-    return null
-  },
-}))
+vi.mock('../../src/webview/components/Transcript', async (importOriginal) => {
+  const actual = await importOriginal<typeof transcriptModule>()
+  return {
+    ...actual,
+    Transcript: (props: TranscriptProps) => {
+      if (
+        bomb.isArmed ||
+        props.entries.some((entry) => entry.kind === 'assistant' && entry.text === 'boom')
+      )
+        throw new Error('render exploded')
+      return <actual.Transcript {...props} />
+    },
+  }
+})
 
 function deliver(data: unknown) {
   act(() => {
@@ -230,7 +236,7 @@ describe('the crash screen and its Reload (M25)', () => {
     })
     bomb.isArmed = true
     event({ type: 'todoChanged', items: [{ text: 'Write tests', status: 'pending' }] })
-    expect(screen.getByText(UI_TEXT.crashTitle)).toBeInTheDocument()
+    expect(await screen.findByText(UI_TEXT.crashTitle)).toBeInTheDocument()
     bomb.isArmed = false
     // The turn goes on while the crash screen shows.
     event({ type: 'textDelta', itemId: 'm1', field: 'text', delta: ' and after' })
@@ -248,7 +254,7 @@ describe('the crash screen and its Reload (M25)', () => {
         },
       ],
     })
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.crashReload }))
+    fireEvent.click(await screen.findByRole('button', { name: UI_TEXT.crashReload }))
     first.close()
 
     const second = openDocument(throughJson(first.states.at(-1)))
@@ -272,7 +278,7 @@ describe('the crash screen and its Reload (M25)', () => {
     second.close()
   })
 
-  it('drops a restored conversation whose session the host no longer holds', () => {
+  it('drops a restored conversation whose session the host no longer holds', async () => {
     const first = openDocument(undefined)
     hostReady('s1')
     event({
@@ -282,7 +288,7 @@ describe('the crash screen and its Reload (M25)', () => {
     bomb.isArmed = true
     event({ type: 'todoChanged', items: [] })
     bomb.isArmed = false
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.crashReload }))
+    fireEvent.click(await screen.findByRole('button', { name: UI_TEXT.crashReload }))
     first.close()
     const second = openDocument(throughJson(first.states.at(-1)))
     hostReady(undefined)
@@ -291,17 +297,20 @@ describe('the crash screen and its Reload (M25)', () => {
     second.close()
   })
 
-  it('breaks the loop when the restored state itself crashes: the second Reload keeps only the session', () => {
+  it('breaks the loop when the restored state itself crashes: the second Reload keeps only the session', async () => {
     const first = openDocument(undefined)
     hostReady('s1')
-    event({ type: 'todoChanged', items: [{ text: 'boom', status: 'pending' }] })
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.crashReload }))
+    event({
+      type: 'itemCompleted',
+      item: { itemId: 'boom', kind: 'agentMessage', status: 'completed', text: 'boom' },
+    })
+    fireEvent.click(await screen.findByRole('button', { name: UI_TEXT.crashReload }))
     first.close()
     const second = openDocument(throughJson(first.states.at(-1)))
     hostReady('s1')
     // The saved state crashes its first render too.
-    expect(screen.getByText(UI_TEXT.crashTitle)).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.crashReload }))
+    expect(await screen.findByText(UI_TEXT.crashTitle)).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: UI_TEXT.crashReload }))
     expect(second.states.at(-1)).toEqual({ sessionId: 's1' })
     expect(second.posted).toHaveBeenCalledWith({ type: 'hostAction', action: 'reload' })
     second.close()

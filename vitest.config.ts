@@ -14,12 +14,12 @@ const COVERAGE_THRESHOLDS = {
 } as const
 
 // V8 coverage and the native Git/process suites contend with large DOM/PDF
-// fixtures on macOS. Bound simultaneous files; deadlines and gates stay intact.
+// fixtures. Bound simultaneous files; deadlines and gates stay intact.
 // Hosted macOS runners have 3 vCPUs: four workers plus coverage oversubscribed
 // them and test times swung past deadlines between runs (2026-10-07). Leave
-// one core to the main process; rigs keep the measured cap of four.
-const MACOS_MAX_TEST_WORKERS = 4
-const MACOS_TEST_WORKERS = Math.max(1, Math.min(MACOS_MAX_TEST_WORKERS, availableParallelism() - 1))
+// one core to the main process; rigs keep the measured cap of three.
+const MAX_TEST_WORKERS = 3
+const TEST_WORKERS = Math.max(1, Math.min(MAX_TEST_WORKERS, availableParallelism() - 1))
 // Windows runs files one at a time (below), and its tests that do real OS work
 // start PowerShell, icacls or job helpers, each a cold process start. Hosted
 // Windows shards varied from 456 s to 727 s between runs (2026-10-07), so
@@ -44,7 +44,7 @@ export default defineConfig({
     // hosted runner, concurrent files delayed launches past real MCP deadlines.
     fileParallelism: process.platform !== 'win32',
     // Spread, not `maxWorkers: undefined`: exactOptionalPropertyTypes rejects it.
-    ...(process.platform === 'darwin' && { maxWorkers: MACOS_TEST_WORKERS }),
+    maxWorkers: TEST_WORKERS,
     ...(process.platform === 'win32' && {
       testTimeout: WINDOWS_TEST_TIMEOUT_MS,
       hookTimeout: WINDOWS_HOOK_TIMEOUT_MS,

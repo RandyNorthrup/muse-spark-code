@@ -26,6 +26,8 @@ import {
   type PromptCacheRetention,
   SANDBOX_NETWORK_MODES,
   type SandboxNetworkMode,
+  SCHEDULE_AGENT_CREATIONS,
+  SCHEDULE_DELIVERIES,
   SETTING_DEFAULTS,
   SETTINGS_SECTION,
   SHELL_SANDBOX_MODES,
@@ -59,6 +61,9 @@ export interface ExtensionSettings extends SettingsSnapshot {
   /** M112 (D92): seconds before an unanswered question defers; 0 never. */
   readonly syncPromptsAndBookmarks: boolean
   readonly 'questions.deferAfterSeconds': number
+  readonly 'reports.network': 'whenSignedIn' | 'always' | 'off'
+  readonly 'reports.keepHistory': boolean
+  readonly 'reports.agentSources': readonly ('claudeCode' | 'codex')[]
   /** Shell sandbox posture for `muse serve` (PLAN.md D12). */
   readonly shellSandbox: ShellSandboxMode
   /** Which backend hosts conversations (PLAN.md D1, M7). */
@@ -78,6 +83,10 @@ export interface ExtensionSettings extends SettingsSnapshot {
   /** How long Meta is asked to keep the Model API's cached prompt prefix (M56). */
   readonly modelApiPromptCacheRetention: PromptCacheRetention
   readonly modelApiScheduledPrompts: boolean
+  /** The v2 schedules surface (M115, PLAN.md D95): on by default. */
+  readonly schedules: boolean
+  readonly scheduleDefaultDelivery: (typeof SCHEDULE_DELIVERIES)[number]
+  readonly scheduleAgentCreation: (typeof SCHEDULE_AGENT_CREATIONS)[number]
   readonly modelApiSubagents: boolean
   /** Best-of-N availability; an explicit run and consent choose its extra attempts. */
   readonly modelApiBestOfN: boolean
@@ -172,6 +181,11 @@ const settingSchemas = {
   'shell.passEnvironmentVariables': z.array(z.string().check(z.regex(/^[A-Za-z_][A-Za-z0-9_]*$/))),
   syncPromptsAndBookmarks: z.boolean(),
   'questions.deferAfterSeconds': z.int().check(z.gte(0), z.lte(QUESTION_DEFER_MAX_SECONDS)),
+  'reports.network': z.enum(['whenSignedIn', 'always', 'off']),
+  'reports.keepHistory': z.boolean(),
+  'reports.agentSources': z
+    .array(z.enum(['claudeCode', 'codex']))
+    .check(z.refine((values) => new Set(values).size === values.length)),
   shellSandbox: z.enum(SHELL_SANDBOX_MODES),
   backend: z.enum(BACKEND_MODES),
   suggestedProvider: z.string(),
@@ -183,6 +197,9 @@ const settingSchemas = {
   sandboxNetwork: z.enum(SANDBOX_NETWORK_MODES),
   modelApiPromptCacheRetention: z.enum(PROMPT_CACHE_RETENTIONS),
   modelApiScheduledPrompts: z.boolean(),
+  schedules: z.boolean(),
+  scheduleDefaultDelivery: z.enum(SCHEDULE_DELIVERIES),
+  scheduleAgentCreation: z.enum(SCHEDULE_AGENT_CREATIONS),
   modelApiSubagents: z.boolean(),
   modelApiBestOfN: z.boolean(),
   modelApiTeamWorkers: z.boolean(),
@@ -272,7 +289,10 @@ function readSetting<K extends SettingKey>(
   key: K,
   log: Logger,
 ): ExtensionSettings[K] {
-  const raw = config.get(key)
+  let previousKey: string | undefined
+  if (key === 'scheduleDefaultDelivery') previousKey = 'schedules.defaultDelivery'
+  else if (key === 'scheduleAgentCreation') previousKey = 'schedules.agentCreation'
+  const raw = config.get(key) ?? (previousKey === undefined ? undefined : config.get(previousKey))
   // The keyed schema validates its matching default; TypeScript cannot correlate indexed K (PLAN §8).
   const fallback = settingSchemas[key].parse(SETTING_DEFAULTS[key]) as ExtensionSettings[K]
   if (raw === undefined) {
@@ -309,6 +329,9 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     'shell.passEnvironmentVariables': readSetting(config, 'shell.passEnvironmentVariables', log),
     syncPromptsAndBookmarks: readSetting(config, 'syncPromptsAndBookmarks', log),
     'questions.deferAfterSeconds': readSetting(config, 'questions.deferAfterSeconds', log),
+    'reports.network': readSetting(config, 'reports.network', log),
+    'reports.keepHistory': readSetting(config, 'reports.keepHistory', log),
+    'reports.agentSources': readSetting(config, 'reports.agentSources', log),
     shellSandbox: readSetting(config, 'shellSandbox', log),
     backend: readSetting(config, 'backend', log),
     suggestedProvider: readSetting(config, 'suggestedProvider', log),
@@ -320,6 +343,9 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     sandboxNetwork: readSetting(config, 'sandboxNetwork', log),
     modelApiPromptCacheRetention: readSetting(config, 'modelApiPromptCacheRetention', log),
     modelApiScheduledPrompts: readSetting(config, 'modelApiScheduledPrompts', log),
+    schedules: readSetting(config, 'schedules', log),
+    scheduleDefaultDelivery: readSetting(config, 'scheduleDefaultDelivery', log),
+    scheduleAgentCreation: readSetting(config, 'scheduleAgentCreation', log),
     modelApiSubagents: readSetting(config, 'modelApiSubagents', log),
     modelApiBestOfN: readSetting(config, 'modelApiBestOfN', log),
     modelApiTeamWorkers: readSetting(config, 'modelApiTeamWorkers', log),
@@ -394,5 +420,6 @@ export function toSettingsSnapshot(settings: ExtensionSettings): SettingsSnapsho
     archiveInactiveSessions: settings.archiveInactiveSessions,
     modelApiReplyUsage: settings.modelApiReplyUsage,
     museCodeAutoReviewer: settings.museCodeAutoReviewer,
+    schedules: settings.schedules,
   }
 }

@@ -128,6 +128,9 @@ async function packageTree(): Promise<void> {
       mcpPool: path.join(ROOT, 'src/core/backends/modelapi/mcpPoolEntry.ts'),
       modelApiCodeIntel: path.join(ROOT, 'src/core/backends/modelapi/codeIntelEntry.ts'),
       structuredSchema: path.join(ROOT, 'src/shared/structuredSchemaEntry.ts'),
+      reporting: path.join(ROOT, 'src/runtime/reporting/reportsEntry.ts'),
+      reportingNetwork: path.join(ROOT, 'src/runtime/reporting/network.ts'),
+      reportingDestinations: path.join(ROOT, 'src/runtime/reporting/destinationsEntry.ts'),
       wire: path.join(ROOT, 'src/shared/wireEntry.ts'),
       uiTextRuntime: UI_TEXT_ENTRY,
       uiTextHooks: UI_TEXT_ENTRY,
@@ -180,6 +183,7 @@ async function packageTree(): Promise<void> {
     'exec-result-v2.schema.json',
     'exec-event-v2.schema.json',
     'share-v1.schema.json',
+    'report-v1.schema.json',
   ])
     cpSync(path.join(ROOT, 'docs', 'schemas', schema), path.join(STAGE, 'schemas', schema))
   writeFileSync(
@@ -295,6 +299,7 @@ describe('M80 W fake-only test package', { timeout: TIMEOUT }, () => {
       'exec-event-v2.schema.json',
       'exec-result-v1.schema.json',
       'exec-result-v2.schema.json',
+      'report-v1.schema.json',
       'share-v1.schema.json',
     ])
     expect(readFileSync(path.join(STAGE, 'package.json'), 'utf8')).not.toContain('exec-test')

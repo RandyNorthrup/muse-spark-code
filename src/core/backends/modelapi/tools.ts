@@ -5,6 +5,7 @@
 // leave a patch document shaped like Muse Code's so the transcript rows,
 // Open diff and Revert (M5) work unchanged.
 
+import type { ContentSource } from '../../schedules/provenance'
 import { Buffer } from 'node:buffer'
 import path from 'node:path'
 import type { ResourceKind } from '../../../shared/resources'
@@ -171,6 +172,7 @@ export interface ToolIo {
     absolutePath: string,
     expectedCanonicalPath?: string,
     signal?: AbortSignal,
+    observeSource?: (source: Extract<ContentSource, { kind: 'file' }>) => void,
   ): Promise<string | undefined>
   /**
    * The file's bytes (M44: an image to edit); undefined when it does not
@@ -181,6 +183,7 @@ export interface ToolIo {
     maxBytes: number,
     expectedCanonicalPath?: string,
     signal?: AbortSignal,
+    observeSource?: (source: Extract<ContentSource, { kind: 'file' }>) => void,
   ): Promise<Uint8Array | undefined>
   /** Replaces the file whole (a temporary file renamed into place), folders created. */
   writeFile(
@@ -593,6 +596,9 @@ const SHELL_STOPPED_BY_USER = 'stopped by the user'
 export interface ToolDefinitionOptions {
   /** Session setting AND selected-model support, resolved by the caller before cache-key generation. */
   readonly shouldUseStrictTools?: boolean
+  /** M115 G: validated lazy schedule declarations, supplied only when the
+   * host's charter/capability admission offers them. No engine import here. */
+  readonly scheduleTools?: readonly FunctionToolDefinition[]
   /** False in Restricted Mode: no shell tool is offered (PLAN.md D13). */
   readonly hasShell: boolean
   /**
@@ -889,6 +895,7 @@ export function toolDefinitions(
     ...(options.hasLegalScan === true
       ? [define(MODEL_API_TOOLS.legalScan, LEGAL_SCAN_DESCRIPTION, LEGAL_SCAN_PARAMETERS, [])]
       : []),
+    ...(options.scheduleTools ?? []),
   ]
   return withStrictTools(definitions, options.shouldUseStrictTools === true)
 }

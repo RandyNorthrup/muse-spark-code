@@ -7,6 +7,7 @@ import { packRuntimeArchive } from './lib/packageArchive.mjs'
 import { compactVsix } from './lib/compactVsix.mjs'
 import { pathToFileURL } from 'node:url'
 import { listFiles, pack } from '@vscode/vsce/out/package.js'
+import { assertNoVsixFonts } from './notices-fonts.mjs'
 import { renderPackageReadme } from './check-badges.mjs'
 
 const RECENT_RELEASES = 2
@@ -35,6 +36,7 @@ export async function stageVsix(root, stage) {
   // The stage is build output in this worktree, never a user-selected folder.
   if (stage !== path.join(root, 'dist', 'vsix-package')) throw new Error('Invalid VSIX stage')
   const files = await listFiles({ cwd: root, dependencies: false })
+  assertNoVsixFonts(files)
   for (const page of [
     'webview',
     'modelsWebview',

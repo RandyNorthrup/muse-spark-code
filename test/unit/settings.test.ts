@@ -13,6 +13,45 @@ function retentionOf(value: unknown): number {
 }
 
 describe('readSettings', () => {
+  it.each([
+    {
+      values: { 'schedules.defaultDelivery': 'queue', 'schedules.agentCreation': 'never' },
+      delivery: 'queue',
+      creation: 'never',
+    },
+    {
+      values: {
+        scheduleDefaultDelivery: 'steer',
+        scheduleAgentCreation: 'always',
+        'schedules.defaultDelivery': 'queue',
+        'schedules.agentCreation': 'never',
+      },
+      delivery: 'steer',
+      creation: 'always',
+    },
+    {
+      values: { 'schedules.defaultDelivery': 'invalid', 'schedules.agentCreation': true },
+      delivery: 'whenIdle',
+      creation: 'ask',
+    },
+  ])(
+    'reads flat schedule defaults with validated compatibility and new-key precedence ($delivery, $creation)',
+    ({ values, delivery, creation }) => {
+      const settings = readSettings(fakeSettingsSource(values), new FakeLogOutputChannel())
+      expect(settings).toMatchObject({
+        scheduleDefaultDelivery: delivery,
+        scheduleAgentCreation: creation,
+        schedules: true,
+      })
+      expect(
+        readSettings(
+          fakeSettingsSource({ ...values, schedules: false }),
+          new FakeLogOutputChannel(),
+        ).schedules,
+      ).toBe(false)
+    },
+  )
+
   it('documents Best-of-N default availability consistently with the manifest and fallback', () => {
     const readme = readFileSync('README.md', 'utf8')
     expect(SETTING_DEFAULTS.modelApiBestOfN).toBe(true)

@@ -32,7 +32,8 @@ beforeAll(async () => {
 export { EN, EN_SHAPE } from '${english}';
 export { UI_TEXT, setUiText, uiLocale } from '${text}';
 export { installEmbeddedTable } from '${installer}';
-export async function loadHelp() { await import('browser-surface-english') }
+export async function loadPalette() { return await import('../../src/shared/paletteRegistry') }
+export async function loadHelp() { await import('browser-surface-english'); await import('browser-reference-english') }
 export async function loadResources() { await import('browser-resource-english') }
 `,
   )
@@ -63,13 +64,39 @@ afterAll(async () => {
 describe('the production browser English and full-table contract', () => {
   it('loads surface English on demand, retaining every browser value and installed language', async () => {
     const { EN: canonical } = fixture.canonical
-    const { EN, UI_TEXT, setUiText, uiLocale, loadHelp, loadResources } = fixture.browser
+    const { EN, UI_TEXT, setUiText, uiLocale, loadHelp, loadPalette, loadResources } =
+      fixture.browser
     expect(Object.keys(EN).toSorted(byText)).toEqual([...fixture.keys].toSorted(byText))
     expect(Object.hasOwn(EN, 'execBudgetRequired')).toBe(false)
     expect(EN.composerLabel).toBe(canonical.composerLabel)
     expect(() => EN.referenceSearch).toThrow('English surface is not loaded')
     const german = JSON.parse(readFileSync('l10n/ui.de.json', 'utf8'))
+    const palette = await loadPalette()
+    const paletteContext = {
+      currentModel: undefined,
+      models: [],
+      effort: 'high',
+      isThinkingEnabled: true,
+      permissionMode: 'manual',
+      isFocusView: false,
+      useCtrlEnterToSend: false,
+      usage: undefined,
+      skills: [],
+      backend: 'modelApi',
+      paidFeatures: [],
+      isKeyStored: false,
+    }
+    const groups = palette.buildPalette(paletteContext)
+    expect(groups.flatMap((group) => group.items).find((item) => item.id === 'compact').label).toBe(
+      canonical.compactItem,
+    )
     setUiText(german, 'de')
+    expect(
+      palette
+        .buildPalette(paletteContext)
+        .flatMap((group) => group.items)
+        .find((item) => item.id === 'compact').label,
+    ).toBe(german.compactItem)
     await loadHelp()
     expect(EN.referenceSearch).toEqual(canonical.referenceSearch)
     expect(() => EN.resourceShow).toThrow('English surface is not loaded')

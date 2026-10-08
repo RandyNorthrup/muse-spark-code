@@ -81,52 +81,11 @@ function fixture() {
       version: '0.0.0',
     }),
   )
-  for (const name of [
-    'acp',
-    'headless',
-    'sharingRuntime',
-    'acpQuestions',
-    'runtimeQuestions',
-    'questionNotes',
-    'mcpPool',
-    'exec',
-    'modelApiCodeIntel',
-    'structuredSchema',
-    'resourceAdmission',
-    'resourceGovernor',
-    'modelApi',
-    'modelApiHooks',
-    'modelApiMcp',
-    'runtimeAccounting',
-    'runtimeEngine',
-    'providerPolicy',
-    'modelApiBoundaries',
-    'legalScan',
-    'imageResizeWorker',
-    'team',
-    'teamRunners',
-    'teamScheduler',
-    'providers',
-    'subscriptions',
-    'configuredProviders',
-    'reviewer',
-    'foreignHooks',
-    'hookRuntime',
-    'recorder',
-    'reference',
-    'extensionHooks',
-    'uiTextRuntime',
-    'uiTextHooks',
-    'uiTextSurfaces',
-    'wire',
-    'uiText',
-    'validation',
-    'searchWorker',
-    'pageWorker',
-    'usageService',
-    'usageCompanion',
-  ])
-    cpSync(path.join(production, 'dist', `${name}.js`), path.join(dir, 'dist', `${name}.js`))
+  const productionFiles = readdirSync(path.join(production, 'dist'))
+  for (const name of productionFiles) {
+    if (name.endsWith('.js'))
+      cpSync(path.join(production, 'dist', name), path.join(dir, 'dist', name))
+  }
   cpSync(path.join(production, 'dist/legal-data'), path.join(dir, 'dist/legal-data'), {
     recursive: true,
   })
@@ -147,6 +106,9 @@ function fixture() {
   )
   for (const name of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs'])
     writeFileSync(path.join(dir, 'native/windows', name), '// test-owned native fixture\n')
+  mkdirSync(path.join(dir, 'design/fonts'), { recursive: true })
+  cpSync('design/fonts/manifest.json', path.join(dir, 'design/fonts/manifest.json'))
+  cpSync('media', path.join(dir, 'media'), { recursive: true })
   cpSync('docs/schemas', path.join(dir, 'docs/schemas'), { recursive: true })
   cpSync('l10n', path.join(dir, 'l10n'), { recursive: true })
   writeFileSync(path.join(dir, 'LICENSE'), 'test-owned licence\n')

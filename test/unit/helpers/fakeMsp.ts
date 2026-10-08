@@ -140,6 +140,11 @@ export class FakeMspServer implements DuplexTransport {
     this.silenced.add(method)
   }
 
+  /** Resume automatic replies after a held command is explicitly answered. */
+  public unsilence(method: string): void {
+    this.silenced.delete(method)
+  }
+
   /**
    * The answer to `method` arrives in one chunk with these frames after it,
    * as `muse serve` writes the prompts it re-issues after a resume (D26).

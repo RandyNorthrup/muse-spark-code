@@ -28,7 +28,7 @@ import {
 } from '../../shared/constants'
 import type { TokenUsage } from '../../shared/agentEvents'
 import { fill, plural } from '../../shared/l10n/text'
-import { formatTokenWindow } from '../../shared/palette'
+import { formatTokenWindow } from '../../shared/paletteFormatting'
 import type { BackendKind } from '../../shared/protocol'
 import type { TeamTreeData } from '../../shared/teamView'
 import {
@@ -51,12 +51,23 @@ const TeamTree = lazy(async () => {
 import { AgentReceiptBody, AgentReceiptDisclosure, AgentReceiptHistory } from './AgentReceiptBody'
 import { WorkflowRunView } from './WorkflowRun'
 import { PaidBadge } from './PaidBadge'
+import type { PlaybookRecord } from '../../shared/playbook'
+import type { PlaybookSurfacePort } from '../../runtime/playbook/command'
+import {
+  DeferredPlaybookBadge,
+  DeferredPlaybookDetails,
+  DeferredPlaybookMap,
+} from '../playbook/DeferredPlaybook'
 
 export type SubagentEntry = Extract<TranscriptEntry, { kind: 'subagent' }>
 export type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
 
 export interface AgentMapProps {
   readonly onOpenFile?: ((path: string, range: undefined) => void) | undefined
+  /** I binds the team/workspace journal and its trusted settings adapter. */
+  readonly playbookPort?: PlaybookSurfacePort
+  /** Trusted lane-to-module association; never match a lane's display name. */
+  readonly playbookRecords?: Readonly<Record<string, readonly PlaybookRecord[]>>
   readonly backend: BackendKind | undefined
   readonly title: string
   readonly modelId: string | undefined
@@ -255,9 +266,11 @@ function statusClassOf(status: string): string {
 function AgentNode({
   agent,
   onSelect,
+  playbookRecords,
 }: {
   readonly agent: SubagentEntry
   readonly onSelect: () => void
+  readonly playbookRecords: readonly PlaybookRecord[] | undefined
 }) {
   const now = useAgentClock()
   return (
@@ -270,6 +283,7 @@ function AgentNode({
       <span className="agent-node-meta" aria-live="polite">
         {agentMeta(agent, now)}
       </span>
+      {playbookRecords === undefined ? null : <DeferredPlaybookBadge records={playbookRecords} />}
     </button>
   )
 }
@@ -326,6 +340,7 @@ function AgentDetails({
   onControl,
   onMessage,
   onOpenFile,
+  playbookRecords,
 }: {
   readonly agent: SubagentEntry
   readonly backend: BackendKind | undefined
@@ -334,6 +349,7 @@ function AgentDetails({
   readonly onControl: AgentMapProps['onControl']
   readonly onMessage: AgentMapProps['onMessage']
   readonly onOpenFile: AgentMapProps['onOpenFile']
+  readonly playbookRecords: readonly PlaybookRecord[] | undefined
 }) {
   let body
   const now = useAgentClock()
@@ -386,6 +402,7 @@ function AgentDetails({
           onOpenFile={onOpenFile}
         />
       ) : null}
+      {playbookRecords === undefined ? null : <DeferredPlaybookDetails records={playbookRecords} />}
       {isEnded || agent.resultSummary === undefined ? null : (
         <p className="agent-result">{agent.resultSummary}</p>
       )}
@@ -581,7 +598,9 @@ function BackgroundTasks({
   )
 }
 
-export function AgentMapContent({
+export default function AgentMapContent({
+  playbookPort,
+  playbookRecords,
   backend,
   title,
   modelId,
@@ -636,89 +655,93 @@ export function AgentMapContent({
   ]
     .filter((part) => part !== undefined)
     .join(' · ')
+  const map =
+    selected === undefined ? (
+      <>
+        {subtitle === undefined ? null : <p className="usage-row-meta">{subtitle}</p>}
+        <div className="agent-tree" tabIndex={team === undefined ? undefined : 0}>
+          <div className="agent-node agent-node-main">
+            <span className="agent-node-title">{title}</span>
+            <span className="agent-node-meta">{mainMeta}</span>
+          </div>
+          {count === 0 ? null : (
+            <div className="agent-children">
+              {agents.map((agent) => (
+                <AgentNode
+                  key={agent.id}
+                  agent={agent}
+                  playbookRecords={playbookRecords?.[agent.id]}
+                  onSelect={() => {
+                    select(agent)
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+        {team === undefined ? null : (
+          <>
+            <h3 className="team-tree-heading">
+              {UI_TEXT.teamTreeLabel} · {plural(UI_TEXT.teamTasksCount, teamTaskCount(team))}
+            </h3>
+            <Suspense fallback={null}>
+              <TeamTree tree={team} actions={teamActions} />
+            </Suspense>
+          </>
+        )}
+        {workflows.length === 0 ? null : (
+          <>
+            <p className="usage-row-meta">{plural(UI_TEXT.workflowsCount, workflows.length)}</p>
+            <ul className="agent-workflows" aria-label={UI_TEXT.workflowsLabel}>
+              {workflows.map((workflow) => (
+                <li key={workflow.id} className="agent-node workflow" data-status={workflow.status}>
+                  <WorkflowRunView entry={workflow} onControl={onControl} />
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        {isDelegationNoted || workflowTriggerMode !== undefined ? (
+          <div className="agent-notice" role="note">
+            {isDelegationNoted ? <p>{UI_TEXT.agentDelegationOff}</p> : null}
+            {workflowTriggerMode === undefined ? null : (
+              <p>{workflowTriggerText(workflowTriggerMode)}</p>
+            )}
+            <button type="button" className="tool-more" onClick={onOpenMuseSettings}>
+              {UI_TEXT.agentOpenMuseSettings}
+            </button>
+          </div>
+        ) : null}
+        {backgroundTasks.length === 0 ? null : (
+          <BackgroundTasks
+            tasks={backgroundTasks}
+            onStopTask={onStopTask}
+            onStopAllTasks={onStopAllTasks}
+            onControl={onControl}
+            onOpenFile={onOpenFile}
+          />
+        )}
+      </>
+    ) : (
+      <AgentDetails
+        agent={selected}
+        backend={backend}
+        transcript={transcript}
+        onBack={() => {
+          onSelectAgent(undefined)
+        }}
+        onControl={onControl}
+        onMessage={onMessage}
+        onOpenFile={onOpenFile}
+        playbookRecords={playbookRecords?.[selected.id]}
+      />
+    )
   return (
     <Modal title={UI_TEXT.agentMapTitle} titleId="agent-map-title" isWide onClose={onClose}>
-      {selected === undefined ? (
-        <>
-          {subtitle === undefined ? null : <p className="usage-row-meta">{subtitle}</p>}
-          <div className="agent-tree" tabIndex={team === undefined ? undefined : 0}>
-            <div className="agent-node agent-node-main">
-              <span className="agent-node-title">{title}</span>
-              <span className="agent-node-meta">{mainMeta}</span>
-            </div>
-            {count === 0 ? null : (
-              <div className="agent-children">
-                {agents.map((agent) => (
-                  <AgentNode
-                    key={agent.id}
-                    agent={agent}
-                    onSelect={() => {
-                      select(agent)
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-          {team === undefined ? null : (
-            <>
-              <h3 className="team-tree-heading">
-                {UI_TEXT.teamTreeLabel} · {plural(UI_TEXT.teamTasksCount, teamTaskCount(team))}
-              </h3>
-              <Suspense fallback={null}>
-                <TeamTree tree={team} actions={teamActions} />
-              </Suspense>
-            </>
-          )}
-          {workflows.length === 0 ? null : (
-            <>
-              <p className="usage-row-meta">{plural(UI_TEXT.workflowsCount, workflows.length)}</p>
-              <ul className="agent-workflows" aria-label={UI_TEXT.workflowsLabel}>
-                {workflows.map((workflow) => (
-                  <li
-                    key={workflow.id}
-                    className="agent-node workflow"
-                    data-status={workflow.status}
-                  >
-                    <WorkflowRunView entry={workflow} onControl={onControl} />
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-          {isDelegationNoted || workflowTriggerMode !== undefined ? (
-            <div className="agent-notice" role="note">
-              {isDelegationNoted ? <p>{UI_TEXT.agentDelegationOff}</p> : null}
-              {workflowTriggerMode === undefined ? null : (
-                <p>{workflowTriggerText(workflowTriggerMode)}</p>
-              )}
-              <button type="button" className="tool-more" onClick={onOpenMuseSettings}>
-                {UI_TEXT.agentOpenMuseSettings}
-              </button>
-            </div>
-          ) : null}
-          {backgroundTasks.length === 0 ? null : (
-            <BackgroundTasks
-              tasks={backgroundTasks}
-              onStopTask={onStopTask}
-              onStopAllTasks={onStopAllTasks}
-              onControl={onControl}
-              onOpenFile={onOpenFile}
-            />
-          )}
-        </>
+      {playbookPort === undefined ? (
+        map
       ) : (
-        <AgentDetails
-          agent={selected}
-          backend={backend}
-          transcript={transcript}
-          onBack={() => {
-            onSelectAgent(undefined)
-          }}
-          onControl={onControl}
-          onMessage={onMessage}
-          onOpenFile={onOpenFile}
-        />
+        <DeferredPlaybookMap port={playbookPort}>{map}</DeferredPlaybookMap>
       )}
     </Modal>
   )

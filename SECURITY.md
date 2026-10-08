@@ -635,3 +635,20 @@ Actuator lifecycle, runtime/UI/source mounts, persisted registry discovery,
 all-volume watch targets and journal/paired-device joins are recorded as
 explicit ports in [M107](docs/certification/m107.md); no production fake fills
 them. Host-API, split, artifact-size and package gates remain required.
+
+## Deterministic reports (M113)
+
+Report data crosses strict schema boundaries and the shared structured scrub
+before hashing, rendering, caching or history storage. Confined bounded storage
+refuses links and serializes writers through PID/birth-identity ownership leases.
+Source deadlines, bounded Git output and network admission prevent a source from
+holding collection indefinitely. Network readers retain one rate queue per host,
+recheck live policy before dispatch and discard canceled late responses. Saved
+reports verify their canonical content hash and exact workspace/kind/scope before
+retrieval or comparison. Rendered HTML runs inside an empty-sandbox frame under
+a nonce-bearing outer CSP. No backend is imported by a reporting bundle.
+
+Store/workflow/release and posting service shapes are not inferred. They remain
+unavailable until approved captures and identity-owning adapters exist. Scheduled
+saves, mail and browser destinations likewise require the M115/M109/M110 authorities;
+no unbound destination is presented as delivered.

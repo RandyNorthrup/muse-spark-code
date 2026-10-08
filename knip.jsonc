@@ -14,6 +14,14 @@
   // the knip 5 `"//": [...]` pseudo-comment convention.
 
   "entry": [
+    "src/runtime/reporting/network.ts",
+    "src/runtime/reporting/destinationsEntry.ts",
+    "src/webview/reporting/destinations/DestinationPicker.tsx",
+    "src/runtime/reference.node.generated.ts",
+    "src/runtime/reporting/reportsEntry.ts",
+    "src/host/reporting/reportPanelEntry.ts",
+    "src/webview/reporting/main.tsx",
+    "test/harness/reporting/verify.mjs",
     "src/extension.ts",
     "src/core/resources/resourceGovernorEntry.ts",
     "src/core/resources/admission.ts",
@@ -56,6 +64,10 @@
     "src/host/teamViewBundle.ts",
     "src/host/sessionBoardEntry.ts",
     "src/core/backends/modelapi/reviewerEntry.ts",
+    "src/core/backends/modelapi/schedulesEntry.ts",
+    // M115W: the lazy schedules bundle entry (v1 beside the v2 binding),
+    // required by path on the first schedule use.
+    "src/runtime/schedules/schedulesBundle.ts",
     "src/core/backends/modelapi/foreignHooksEntry.ts",
     // M91: the hook and MCP-form runtime, imported by path on first use.
     "src/core/backends/modelapi/hookRuntimeEntry.ts",
@@ -105,7 +117,11 @@
     // M112 A: same-build ACP question factory, loaded by path on first use.
     "src/acp/questionDeferralEntry.ts",
     "src/runtime/questions/questionRegistryEntry.ts",
+    // FIXM116I: /playbook's journal bundle, loaded by path on first use.
+    "src/runtime/playbook/playbookEntry.ts",
     "src/core/questions/deferralEntry.ts",
+    "src/runtime/fonts/fontsEntry.ts",
+    "src/runtime/schedules/backgroundEntry.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     // Standalone browser checks invoked by path; usageHost is bundled by them.
     "test/harness/usage-check.mjs",
@@ -131,8 +147,13 @@
     "test/unit/helpers/fakeMcpLauncherParent.mjs",
     "test/unit/helpers/fakeMcpPrebindParent.mjs",
     "test/unit/helpers/fakeMcpStartMarker.mjs",
+    // ACP crash regression bundles this child by path; esbuild entries are not traced.
+    "test/unit/helpers/questions/queuedTurnCrash.ts",
     // The never-ending monitor the M92b bounded-run proof starts by path.
     "test/fixtures/never-ending-monitor.mjs",
+    // M116 playbook scenes: the axe runner (an npm script knip already sees)
+    // bundles this scene file with esbuild, which knip does not trace.
+    "test/harness/playbook.mjs",
     "test/integration/**/*.test.ts",
     // The TypeScript fixture VS Code's language service reads in the code
     // intelligence integration test (M67); main.ts imports the rest.

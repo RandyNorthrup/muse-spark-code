@@ -30,6 +30,51 @@ export const MODEL_API_OPTIONAL_ONLY = [
   'mcp/servers.ts',
   'mcp/stdio.ts',
 ]
+export const SCHEDULES_ONLY = ['schedulesEntry.ts', 'schedules.ts']
+const RUNTIME_SCHEDULES_DIR = 'src/runtime/schedules'
+const CORE_SCHEDULES_DIR = 'src/core/schedules'
+// M115 W: the v2 runtime binding beside v1 in dist/schedules.js. Only files
+// owned by the schedules feature are pinned here; shared utilities the
+// bundle also carries (export text, the wire schemas) stay unlisted.
+export const SCHEDULES_RUNTIME = [
+  'schedulesBundle.ts',
+  'runtimeEntry.ts',
+  'engine.ts',
+  'control.ts',
+  'authorityStore.ts',
+  'consent.ts',
+  'registry.ts',
+  'timePlan.ts',
+  'wake.ts',
+  'runtime.ts',
+  'surface.ts',
+  'host.ts',
+  'command.ts',
+  'background.ts',
+  'nativeBackground.ts',
+  'nodeBackgroundIo.ts',
+  'nodeScheduleFs.ts',
+  'effectiveDefinition.ts',
+  'registration.ts',
+  'reportCli.ts',
+]
+export const SCHEDULES_CORE = [
+  'store.ts',
+  'scheduler.ts',
+  'fireRecord.ts',
+  'journal.ts',
+  'migrate.ts',
+  'delivery.ts',
+  'grantAudit.ts',
+  'time/cron.ts',
+  'time/scheduleTime.ts',
+  'time/zonedCalendar.ts',
+  'events/conditions.ts',
+  'events/ports.ts',
+  'events/privacy.ts',
+  'events/registry.ts',
+  'events/signals.ts',
+]
 export const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts']
 
 export const FOREIGN_HOOKS_ONLY = [
@@ -186,8 +231,29 @@ export const DEFERRED = [
     metafile: 'dist/meta/reference.json',
     files: [
       'src/shared/reference/referenceEntry.ts',
-      'src/shared/reference/reference.generated.ts',
+      'src/runtime/reference.node.generated.ts',
       'src/shared/reference/text.ts',
+    ],
+  },
+  {
+    output: 'dist/schedules.js',
+    metafile: 'dist/meta/schedules.json',
+    files: [
+      ...SCHEDULES_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+      ...SCHEDULES_RUNTIME.map((name) => `${RUNTIME_SCHEDULES_DIR}/${name}`),
+      ...SCHEDULES_CORE.map((name) => `${CORE_SCHEDULES_DIR}/${name}`),
+    ],
+  },
+  {
+    output: 'dist/scheduleBackground.js',
+    metafile: 'dist/meta/scheduleBackground.json',
+    use: 'the first native schedule wake or maintenance',
+    files: [
+      'src/runtime/schedules/backgroundEntry.ts',
+      'src/runtime/schedules/nativeBackground.ts',
+      'src/runtime/schedules/nodeBackgroundIo.ts',
+      'src/runtime/schedules/effectiveDefinition.ts',
+      'src/runtime/windowsTrustedPath.ts',
     ],
   },
   {
@@ -275,6 +341,51 @@ export const ON_FIRST_USE = [
       'src/core/legal/spdx.ts',
       'src/core/legal/workspace.ts',
     ],
+  },
+  {
+    output: 'dist/reportingNetwork.js',
+    metafile: 'dist/meta/reportingNetwork.json',
+    use: 'the first permitted report network read',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/runtime/reporting/network.ts',
+      'src/core/reporting/sources/cache.ts',
+      'src/core/reporting/sources/admission.ts',
+      'src/core/reporting/sources/github.ts',
+    ],
+  },
+  {
+    output: 'dist/reportingDestinations.js',
+    metafile: 'dist/meta/reportingDestinations.json',
+    use: 'the first scheduled report action',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/runtime/reporting/destinationsEntry.ts',
+      'src/core/reporting/destinations/runner.ts',
+      'src/core/reporting/destinations/email.ts',
+      'src/core/reporting/destinations/post.ts',
+    ],
+  },
+  {
+    output: 'dist/reporting.js',
+    metafile: 'dist/meta/reporting.json',
+    use: 'the first deterministic report',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: [
+      'src/runtime/reporting/reportsEntry.ts',
+      'src/runtime/reporting/engine.ts',
+      'src/core/reporting/collect/index.ts',
+      'src/core/reporting/render/index.ts',
+      'src/core/reporting/history.ts',
+      'src/core/reporting/plan/reader.ts',
+    ],
+  },
+  {
+    output: 'dist/reportingPanel.js',
+    metafile: 'dist/meta/reportingPanel.json',
+    use: 'the first report tab',
+    parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+    files: ['src/host/reporting/reportPanelEntry.ts', 'src/host/reporting/reportPanel.ts'],
   },
   {
     output: 'dist/questionNotes.js',
@@ -557,7 +668,11 @@ export function checkDeferredBundles(inputsOf) {
     }
   }
   const wire = { output: 'dist/wire.js', metafile: 'dist/meta/wire.json' }
-  for (const file of ['src/shared/protocol.ts', 'src/shared/agentEvents.ts']) {
+  for (const file of [
+    'src/shared/protocol.ts',
+    'src/shared/agentEvents.ts',
+    'src/shared/scheduleProtocol.ts',
+  ]) {
     if (!inputsOf(wire).has(file)) problems.push(`${wire.output} no longer carries ${file}`)
     for (const bundle of [...Object.values(BUNDLES), ...DEFERRED, ...ON_FIRST_USE]) {
       if (inputsOf(bundle).has(file))
@@ -595,6 +710,21 @@ export function checkDeferredBundles(inputsOf) {
         problems.push(
           `${bundle.output} carries ${prefix}, which runs only on the image resize worker`,
         )
+    }
+  }
+  for (const output of [
+    'dist/reporting.js',
+    'dist/reportingPanel.js',
+    'dist/reportingNetwork.js',
+    'dist/reportingDestinations.js',
+  ]) {
+    const bundle = ON_FIRST_USE.find((entry) => entry.output === output)
+    for (const input of inputsOf(bundle).keys()) {
+      const normalized = input.replaceAll('\\', '/')
+      if (normalized.startsWith('src/core/backends/') || normalized.startsWith('src/host/backend/'))
+        problems.push(`${output} carries a backend: ${normalized}`)
+      if (normalized.startsWith('src/core/paid/'))
+        problems.push(`${output} carries the paid gate: ${normalized}`)
     }
   }
   return problems
@@ -669,12 +799,14 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/backends/modelapi/mcpPoolEntry.ts'), 'dist/mcpPool.js'],
   [path.resolve('src/runtime/exec/execEntry.ts'), 'dist/exec.js'],
   [path.resolve('src/core/backends/modelapi/codeIntelEntry.ts'), 'dist/modelApiCodeIntel.js'],
+  [path.resolve('src/runtime/schedules/backgroundEntry.ts'), 'dist/scheduleBackground.js'],
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
   [path.resolve('src/core/team/teamEntry.ts'), 'dist/team.js'],
   [path.resolve('src/core/team/teamSchedulerEntry.ts'), 'dist/teamScheduler.js'],
   [path.resolve('src/host/runners/teamRunnersEntry.ts'), 'dist/teamRunners.js'],
+  [path.resolve('src/core/backends/modelapi/schedulesEntry.ts'), 'dist/schedules.js'],
   [path.resolve('src/core/backends/modelapi/reviewerEntry.ts'), 'dist/reviewer.js'],
   [path.resolve('src/core/backends/modelapi/foreignHooksEntry.ts'), 'dist/foreignHooks.js'],
   [path.resolve('src/core/backends/modelapi/hookRuntimeEntry.ts'), 'dist/hookRuntime.js'],
@@ -703,7 +835,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (
@@ -722,16 +854,21 @@ export const deferredCohort = {
 }
 
 const WIRE_SOURCES = new Set(
-  ['src/shared/protocol.ts', 'src/shared/agentEvents.ts'].map((file) => path.resolve(file)),
+  ['src/shared/protocol.ts', 'src/shared/agentEvents.ts', 'src/shared/scheduleProtocol.ts'].map(
+    (file) => path.resolve(file),
+  ),
 )
 /** @type {import('esbuild').Plugin} */
 export const sharedWire = {
   name: 'shared-wire',
   setup(build) {
-    build.onResolve({ filter: /(?:^|\/)(?:protocol|agentEvents)(?:\.ts)?$/ }, (args) => {
-      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
-      return WIRE_SOURCES.has(source) ? { path: './wire.js', external: true } : undefined
-    })
+    build.onResolve(
+      { filter: /(?:^|\/)(?:protocol|agentEvents|scheduleProtocol)(?:\.ts)?$/ },
+      (args) => {
+        const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
+        return WIRE_SOURCES.has(source) ? { path: './wire.js', external: true } : undefined
+      },
+    )
   },
 }
 
@@ -785,5 +922,15 @@ export const sharedModelApiBoundaries = {
           : undefined
       },
     )
+  },
+}
+
+/** Node-only compressed reference data; the browser keeps its portable schema. */
+export const nodeReferenceData = {
+  name: 'node-reference-data',
+  setup(build) {
+    build.onResolve({ filter: /\/reference\.generated$/ }, () => ({
+      path: path.resolve('src/runtime/reference.node.generated.ts'),
+    }))
   },
 }

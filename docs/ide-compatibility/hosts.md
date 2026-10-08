@@ -32,6 +32,11 @@ checkout. Fork runners separately verify VSIX installation and listing, then
 run that development-extension integration suite. These are distinct proofs;
 code-server and Theia's packaged browser checks keep their recorded scope.
 
+M114's [design rows](m114-design.md) record the shared theme/font contract,
+S's six-theme panel evidence and the named C/N/D bindings for native,
+companion, node and desktop surfaces. Existing support statuses below do not
+change merely because their shared panel styles are polished.
+
 ## The most used
 
 | Editor                                             | Route                                         | Milestone | Status    | Evidence and notes                                                                                                                                                                                                                                                |
@@ -106,6 +111,38 @@ Scheduled/unattended prompts defer immediately and keep the question open,
 including with interactive deferral disabled; headless exec, best-of-N,
 worktrees and the evaluation retain their distinct immediate policies.
 
+## M116 playbook surfaces — integration status
+
+2026-10-07: the journal-backed settings/record surface is bound to the ACP
+agent (serve path) and the standalone CLI; panel enforcement (leases,
+outcome receipts, dispatch gating) waits for M96's planner, and the panel
+settings page and Agent-map slots wait for host mounting. Recorded in
+[M116's record](../certification/m116.md).
+
+| Surface                                                                                           | Settings and journal path                                    | Enforcement and UI slots                              | Binding / evidence                                             |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------- | -------------------------------------------------------------- |
+| VS Code family, Remote SSH, WSL, containers, Codespaces                                           | Same journal file; CLI `playbook` today                      | Panel page, Agent-map slots and dispatch gating: open | W surface/CLI bindings; controller fakes; install checklist: W |
+| ACP with forms, ACP without forms (Zed, Xcode, JetBrains, Neovim, Emacs, Sublime, others)         | `/playbook status\|record\|settings` on serve, no model turn | Same enforcement row as VS Code                       | W serve binding; fakes; installed-client checks: lead          |
+| Standalone CLI                                                                                    | `playbook <status\|record\|settings ...>`; starts no backend | None (read/settings surface only)                     | W routing and runner; unit checks                              |
+| Headless exec                                                                                     | Unbound: no `/playbook` until the hosted policy reviews it   | Declines with the run                                 | Explicitly unbound; fake checks                                |
+| Other editors (JetBrains native, Visual Studio, Eclipse, companion, TUI, Muse Desktop, Muse Code) | Same journal format on their integration                     | Their mounting and integration                        | Awaiting their integration; editor matrix stays equal          |
+
+## M115 schedule routes — integration status
+
+2026-10-07: the W lane wires the lanes' schedule surfaces. The `/schedule`
+translation is shared, so every ACP editor gets the same list; `run-due`
+and background maintenance stay refused over ACP on all of them.
+Installed-editor rows above retain their existing status; native OS
+registration (POSIX binding, Linux/macOS/ordinary-user Windows
+certification) remains an integration prerequisite.
+
+| Surface                            | Schedule route and paid rule                                                                                                                              | Binding / evidence                                                                 |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| VS Code family                     | Panel schedule list and composer; `/loop`; unattended runs opt-in per schedule with a hard `--max-budget-usd` cap                                         | Integrated schedule bindings; fake-CLI schedule command checks                     |
+| ACP editors (same on every client) | `/schedule` list, add, remove, run-now, pause, resume, fire and timeline; needs `--scheduled-prompts` with `--max-budget-usd`; each billed run asks first | Shared translation plus fakes; each installed client's prompting still needs a run |
+| Headless schedule command          | `schedule run-due` settles what is due; `schedule background` reports the native scheduler                                                                | Fake-only runtime checks                                                           |
+| Muse Code on every surface         | Its own subscription-backed `cron_create`, `cron_list` and `cron_delete`, not the panel's Model API jobs                                                  | Lead's live checks                                                                 |
+
 ## Native and scientific
 
 | Editor                    | Route                               | Milestone | Status  |
@@ -167,3 +204,7 @@ M104 must carry equivalent strict DTOs through its validated envelopes and abort
 pending actions on closure/replacement. These are local DTO names, not claims
 that MHP message methods are already available. Phase 2 gists and phase 3
 node/team/email destinations remain unavailable.
+
+## Deterministic reports (M113)
+
+Every editor uses the same report-v1 engine and scoped reports/run, history, get, compare and open contracts. VS Code mounts the lazy shared ReportApp; CLI and ACP render the same document as Markdown/text (CLI also HTML/JSON). JCEF, WebView2, SWT, desktop, companion and terminal adapters have fake contract receipts in M113 X. Installed JetBrains, Visual Studio, Eclipse, Zed, Xcode, Neovim, Emacs and Sublime report-page receipts remain with their host owners; this integration does not claim they ran. Missing usage, fleet, security, accounts, estimates, playbook, issues, schedules and keybindings adapters remain named unavailable sources in all editors.

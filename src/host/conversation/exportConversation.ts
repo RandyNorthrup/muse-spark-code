@@ -27,7 +27,7 @@ import {
 } from '../../shared/constants'
 import type { ItemSnapshot } from '../../shared/agentEvents'
 import { plural } from '../../shared/l10n/text'
-import { backendLabel } from '../../shared/palette'
+import { backendLabel } from '../../shared/paletteFormatting'
 import type { ChatShareRequest, ChatShareSource } from '../../core/sharing/chatShare'
 import type { ChatSharePreview } from '../../core/sharing/shareRelease'
 

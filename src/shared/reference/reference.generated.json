@@ -70,6 +70,25 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "reports",
+      "name": { "ui": "reportShowCommand" },
+      "summary": { "ui": "reportSlashDescription" },
+      "description": { "ui": "reportSlashDescription" },
+      "commands": ["museSpark.showReport"],
+      "settings": [
+        "museSpark.reports.network",
+        "museSpark.reports.keepHistory",
+        "museSpark.reports.agentSources"
+      ],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#report",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "prompt-library",
       "name": { "ui": "promptLibrary" },
       "summary": { "ui": "referencePromptMenu" },
@@ -1016,7 +1035,13 @@
         "resumeAvailability": "installedMuseCodeSkills",
         "bundled": {
           "museCode": ["feature_delivery", "project_setup", "quality_retrofit"],
-          "modelApi": ["feature_delivery", "project_setup", "quality_retrofit", "muse_gadgets"]
+          "modelApi": [
+            "feature_delivery",
+            "project_setup",
+            "quality_retrofit",
+            "muse_gadgets",
+            "orchestrator_playbook"
+          ]
         }
       },
       "editors": ["vscode"]
@@ -1450,8 +1475,17 @@
       "name": { "ui": "loopItem" },
       "summary": { "tip": "loop" },
       "description": { "tip": "loop" },
-      "commands": [],
-      "settings": ["museSpark.modelApiScheduledPrompts"],
+      "commands": [
+        "museSpark.schedulePrompt",
+        "museSpark.showSchedules",
+        "museSpark.showScheduleTimeline"
+      ],
+      "settings": [
+        "museSpark.modelApiScheduledPrompts",
+        "museSpark.schedules",
+        "museSpark.scheduleDefaultDelivery",
+        "museSpark.scheduleAgentCreation"
+      ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#scheduled-prompts-model-api",
       "backends": ["modelApi"],
       "paid": true,
@@ -1780,6 +1814,21 @@
       "details": [],
       "facts": {},
       "editors": ["vscode"]
+    },
+    {
+      "id": "orchestrator-playbook",
+      "name": { "ui": "playbookTitle" },
+      "summary": { "ui": "playbookRecordHelp" },
+      "description": { "ui": "playbookRecordHelp" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#orchestrator-playbook-policy-m116",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
     },
     {
       "id": "support",
@@ -2232,6 +2281,36 @@
       "canRun": false
     },
     {
+      "id": "museSpark.schedulePrompt",
+      "name": "Schedule this prompt…",
+      "nameKey": "command.schedulePrompt.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Pick the time, target and permissions for this prompt.",
+      "text": { "tip": "schedulePrompt" },
+      "canRun": true
+    },
+    {
+      "id": "museSpark.showSchedules",
+      "name": "Show schedules",
+      "nameKey": "command.showSchedules.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Review schedules and their standing grants in this workspace.",
+      "text": { "tip": "schedule" },
+      "canRun": true
+    },
+    {
+      "id": "museSpark.showScheduleTimeline",
+      "name": "Show schedule timeline",
+      "nameKey": "command.showScheduleTimeline.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "See upcoming fires and collisions on the same target.",
+      "text": { "tip": "scheduleTimeline" },
+      "canRun": true
+    },
+    {
       "id": "museSpark.tabLanguages",
       "name": "Tab Languages",
       "nameKey": "command.tabLanguages.title",
@@ -2412,6 +2491,16 @@
       "description": "Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.",
       "text": { "ui": "shareReviewPrivacy" },
       "canRun": false
+    },
+    {
+      "id": "museSpark.showReport",
+      "name": "Show report…",
+      "nameKey": "command.showReport.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Generate a deterministic report from named sources, without a model call.",
+      "text": { "ui": "reportSlashDescription" },
+      "canRun": true
     }
   ],
   "settings": [
@@ -2805,13 +2894,52 @@
     {
       "id": "museSpark.modelApiScheduledPrompts",
       "name": "museSpark.modelApiScheduledPrompts",
-      "description": "Explicit scheduled Model API runs at the selected model’s token prices. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it.",
+      "description": "Explicit scheduled Model API runs at the selected model’s token prices. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it. Shared daily budget setting: museSpark.paidDailyBudgetUsd.",
       "descriptionKey": "config.modelApiScheduledPrompts.description",
       "type": "boolean",
       "default": true,
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.schedules",
+      "name": "museSpark.schedules",
+      "description": "Enable schedules on available backends. On by default; each fire runs unattended within its standing grant.",
+      "descriptionKey": "config.schedules.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.scheduleDefaultDelivery",
+      "name": "museSpark.scheduleDefaultDelivery",
+      "description": "Default delivery for new schedules: a new turn starts on idle by default.",
+      "descriptionKey": "config.schedules.defaultDelivery.description",
+      "type": "string",
+      "default": "whenIdle",
+      "enum": ["steer", "interrupt", "queue", "whenIdle", "newConversation"],
+      "scope": "machine",
+      "refinements": [],
+      "schema": {
+        "type": "string",
+        "enum": ["steer", "interrupt", "queue", "whenIdle", "newConversation"],
+        "default": "whenIdle"
+      }
+    },
+    {
+      "id": "museSpark.scheduleAgentCreation",
+      "name": "museSpark.scheduleAgentCreation",
+      "description": "Default permission for agents to create schedules: ask, always within caps, or never. Ask by default.",
+      "descriptionKey": "config.schedules.agentCreation.description",
+      "type": "string",
+      "default": "ask",
+      "enum": ["ask", "always", "never"],
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "string", "enum": ["ask", "always", "never"], "default": "ask" }
     },
     {
       "id": "museSpark.modelApiSubagents",
@@ -3040,7 +3168,7 @@
       },
       "id": "museSpark.bundledSkills",
       "name": "museSpark.bundledSkills",
-      "description": "On by default: the skills that come with Muse Spark (project_setup, feature_delivery and quality_retrofit, from the high-quality-projects package) are available on the Model API backend, after any project or personal skill with the same name. Muse Code reads only its own folders, so for it they are installed with Muse Spark: Install Bundled Skills for Muse Code, which a Muse Code conversation offers once per window until you install them or choose Not now. Their delivery helpers need Python 3.12 or newer.",
+      "description": "On by default: bundled project quality workflows and first-party skills are available on the Model API backend, after any project or personal skill with the same name. Muse Code reads only its own folders, so install them with Muse Spark: Install Bundled Skills for Muse Code, offered once per window until you install them or choose Not now. The project quality workflows’ delivery helpers need Python 3.12 or newer.",
       "descriptionKey": "config.bundledSkills.description",
       "type": "boolean",
       "default": true,
@@ -3823,6 +3951,77 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "boolean", "default": false }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "reportsNetwork&githubSignIn", "text": { "setting": "reports.network" } }
+        ]
+      },
+      "id": "museSpark.reports.network",
+      "name": "museSpark.reports.network",
+      "description": "Choose when reports may read GitHub. Terminal reports use the network only with --network.",
+      "descriptionKey": "config.reports.network.description",
+      "type": "string",
+      "default": "whenSignedIn",
+      "enum": ["whenSignedIn", "always", "off"],
+      "enumDescriptions": [
+        "Read GitHub while signed in to GitHub.",
+        "Allow network sources for reports.",
+        "Read local sources only."
+      ],
+      "enumDescriptionKeys": [
+        "config.reports.network.enumDescriptions.whenSignedIn",
+        "config.reports.network.enumDescriptions.always",
+        "config.reports.network.enumDescriptions.off"
+      ],
+      "enumTexts": {
+        "0": {
+          "conditions": [
+            {
+              "when": "reportsNetwork&githubSignIn",
+              "text": {
+                "fallbackKey": "config.reports.network.enumDescriptions.whenSignedIn",
+                "fallback": "Read GitHub while signed in to GitHub."
+              }
+            }
+          ]
+        }
+      },
+      "scope": "machine",
+      "refinements": [],
+      "schema": {
+        "type": "string",
+        "enum": ["whenSignedIn", "always", "off"],
+        "default": "whenSignedIn"
+      }
+    },
+    {
+      "id": "museSpark.reports.keepHistory",
+      "name": "museSpark.reports.keepHistory",
+      "description": "Keep the newest 50 reports per kind on this machine for history and comparison.",
+      "descriptionKey": "config.reports.keepHistory.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.reports.agentSources",
+      "name": "museSpark.reports.agentSources",
+      "description": "Opt in to reading your own Claude Code or Codex usage and limit files. Default: none. Conversation text and credential files are never read as report sources.",
+      "descriptionKey": "config.reports.agentSources.description",
+      "type": "array",
+      "default": [],
+      "scope": "machine",
+      "refinements": [],
+      "schema": {
+        "type": "array",
+        "items": { "type": "string", "enum": ["claudeCode", "codex"] },
+        "uniqueItems": true,
+        "default": []
+      }
     }
   ],
   "slash": [
@@ -4111,6 +4310,16 @@
       "syntax": ["/help"]
     },
     {
+      "name": "report",
+      "description": "Generate a deterministic report from named sources, without a model call.",
+      "descriptions": {
+        "museCode": { "ui": "reportSlashDescription" },
+        "modelApi": { "ui": "reportSlashDescription" }
+      },
+      "backends": ["museCode", "modelApi"],
+      "syntax": ["/report", "/report <kind> [args]", "/report history"]
+    },
+    {
       "name": "loop",
       "description": "Schedule a prompt in this Model API conversation",
       "descriptions": { "modelApi": { "ui": "loopItemDetail" } },
@@ -4216,10 +4425,33 @@
       "text": { "ui": "referenceScanSecrets" }
     },
     {
+      "route": "schedule",
+      "name": "schedule",
+      "description": "Usage: schedule add --draft <JSON> [--scheduled-prompts --max-budget-usd <USD>] [--report <kind> --to save:<path>|browser|email:<address> ... --format md|html|json|text] [-- <report args>] | list | remove|run-now|pause|resume|fire <id> | timeline [--hours 24|168] [--cwd <path>] [--json]; schedule run-due [--json]; schedule background off|status [--json]. Exit codes: 0 success, 1 refusal, 2 usage, 3 cleanup warning."
+    },
+    {
       "route": "report",
       "name": "report",
       "description": "Usage:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Prints the scrubbed problem report to stdout, or writes it to <file> with --out.\n  Starts no backend, signs in nowhere, and opens no browser.\nOptions:\n  --out <file>         Write the report to a file instead of stdout\n  --description <text>  What was happening, in your own words\n  --no-facts           Leave the support facts out\n  --no-events          Leave the recent events out",
       "text": { "ui": "reportUsage" }
+    },
+    {
+      "route": "report",
+      "name": "report problem",
+      "description": "Usage:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Prints the scrubbed problem report to stdout, or writes it to <file> with --out.\n  Starts no backend, signs in nowhere, and opens no browser.\nOptions:\n  --out <file>         Write the report to a file instead of stdout\n  --description <text>  What was happening, in your own words\n  --no-facts           Leave the support facts out\n  --no-events          Leave the recent events out",
+      "text": { "ui": "reportUsage" }
+    },
+    {
+      "route": "reports",
+      "name": "report <kind> / report history",
+      "description": "Generate a deterministic report from named sources, without a model call.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
+      "text": { "ui": "reportCliUsage" }
+    },
+    {
+      "route": "fontsInstall",
+      "name": "fonts install [--from <directory>]",
+      "description": "Usage: {command} fonts install [--from <directory>]",
+      "text": { "ui": "acpFontsUsage" }
     },
     {
       "route": "help",
@@ -4390,7 +4622,7 @@
     {
       "route": "usage",
       "name": "usage: --from <value>",
-      "description": "--from YYYY-MM-DD: From",
+      "description": "--from <value>: From",
       "text": { "cli": "from" },
       "contract": { "type": "string", "repeatable": false, "format": "YYYY-MM-DD" }
     },
@@ -4682,6 +4914,28 @@
       "description": "Print the installed agent version.",
       "text": { "cli": "version" },
       "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "serve",
+      "name": "serve: --scheduled-prompts",
+      "description": "--scheduled-prompts              Offer paid scheduled prompts (Model API backend; its price is asked first)",
+      "text": { "cli": "scheduled-prompts" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "serve",
+      "name": "serve: --max-budget-usd <value>",
+      "description": "Set the hard spending limit in USD for this run.",
+      "text": { "cli": "max-budget-usd" },
+      "contract": {
+        "type": "string",
+        "repeatable": false,
+        "exclusiveMinimum": 0,
+        "maximum": 20,
+        "decimals": 6,
+        "required": "modelApi",
+        "unit": "USD"
+      }
     },
     {
       "route": "login",
@@ -6286,6 +6540,20 @@
       "contract": { "type": "boolean", "repeatable": false, "default": false }
     },
     {
+      "route": "fontsInstall",
+      "name": "fontsInstall: --from <value>",
+      "description": "--from <value>: From",
+      "text": { "cli": "from" },
+      "contract": { "type": "string", "repeatable": false, "format": "YYYY-MM-DD" }
+    },
+    {
+      "route": "fontsInstall",
+      "name": "fontsInstall: --help / -h",
+      "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
+      "text": { "cli": "help" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
       "route": "exec",
       "name": "exec <prompt> | exec - | exec --prompt-file <file>",
       "description": "Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.",
@@ -6296,6 +6564,12 @@
       "name": "scan-secrets <file> [--key-stdin]",
       "description": "auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.",
       "text": { "ui": "referenceKeyStdin" }
+    },
+    {
+      "route": "playbook",
+      "name": "playbook <status|record|settings ...>",
+      "description": "Show or change the orchestrator playbook journal for this workspace (starts no backend).",
+      "text": { "ui": "referencePlaybookCommand" }
     }
   ],
   "executable": "muse-spark-code-acp",

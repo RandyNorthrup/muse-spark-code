@@ -80,6 +80,7 @@ import {
   ON_FIRST_USE,
   DEFERRED_ONLY,
   MODEL_API_OPTIONAL_ONLY,
+  SCHEDULES_ONLY,
   FOREIGN_HOOKS_ONLY,
   HOOK_RUNTIME_ONLY,
   PLUGIN_HOOKS_ONLY,
@@ -125,7 +126,6 @@ const ACTIVATION_ALLOWED = new Map([
   ['imageToolDefinitions.ts', "the IDE server's image tools on Muse Code (M44)"],
   ['sessionStore.ts', "the stored-session format the window's session store reads (D14)"],
   ['goalRecord.ts', "a stored session's goal (D14, M45)"],
-  ['schedules.ts', "the schedule store's next occurrence (M52)"],
 ])
 
 // The files that load only with the backend: the host, its tools, hooks,
@@ -236,6 +236,7 @@ for (const name of onDisk) {
     Number(DEFERRED_ONLY.includes(name)) +
     Number(MODEL_API_OPTIONAL_ONLY.includes(name)) +
     Number(name.startsWith('codecs/')) +
+    Number(SCHEDULES_ONLY.includes(name)) +
     Number(FOREIGN_HOOKS_ONLY.includes(name)) +
     Number(HOOK_RUNTIME_ONLY.includes(name)) +
     Number(PLUGIN_HOOKS_ONLY.includes(name)) +
@@ -255,6 +256,7 @@ for (const name of [
   ...PROVIDER_ONLY,
   ...DEFERRED_ONLY,
   ...MODEL_API_OPTIONAL_ONLY,
+  ...SCHEDULES_ONLY,
   ...FOREIGN_HOOKS_ONLY,
   ...HOOK_RUNTIME_ONLY,
   ...PLUGIN_HOOKS_ONLY,
@@ -985,6 +987,10 @@ const TEXT_BLOCKS = [
       SHARING_RUNTIME.output,
       'dist/conversation.js',
       BUNDLES.modelApi.output,
+      'dist/reporting.js',
+      'dist/reportingNetwork.js',
+      'dist/reportingDestinations.js',
+      'dist/schedules.js',
     ],
   },
   {
@@ -1034,6 +1040,12 @@ const TEXT_BLOCKS = [
     block: 'REVIEW_MODEL_TEXT',
     sentinels: ['reviewerRole', 'reviewMuseCodeRole'],
     readers: [REVIEW.output, BUNDLES.modelApi.output],
+  },
+  // M116 K's charter is read through the existing lazy skills bundle only.
+  {
+    block: 'PLAYBOOK_MODEL_TEXT',
+    sentinels: ['playbookReviewInstructions'],
+    readers: ['dist/bundledSkills.js'],
   },
   {
     block: 'REVIEW_COMMENT_MODEL_TEXT',
@@ -1217,6 +1229,9 @@ const visitWebview = (file) => {
 visitWebview('dist/webview/main.js')
 problems.push(...checkResourceWebview(webviewMeta))
 for (const file of Object.keys(RESOURCE_WEBVIEW_ENTRIES)) visitWebview(file)
+
+visitWebview('dist/webview/reportingPage.js')
+visitWebview('dist/webview/reportingDestinations.js')
 const deferredWebviewSources = [
   ...DEFERRED_WEBVIEW_SURFACES.map((surface) => `src/webview/components/${surface}.tsx`),
   ...ADDITIONAL_WEBVIEW_BUDGETS.flatMap(({ entries }) => entries),
@@ -1327,6 +1342,8 @@ const nodeMetafiles = readdirSync('dist/meta')
         'usageWebview.json',
         'resourceSurface.json',
         'resourceHistory.json',
+        'reportingPageWebview.json',
+        'reportingDestinationsWebview.json',
       ].includes(name),
   )
   .map((name) => `dist/meta/${name}`)
@@ -1335,7 +1352,7 @@ nodeMetafiles.push(
   'dist/meta-acp/acpQuestions.json',
   'dist/meta-acp/runtimeQuestions.json',
 )
-const validationReaders = new Set()
+const validationReaders = new Map()
 for (const file of nodeMetafiles) {
   const meta = JSON.parse(readFileSync(file, 'utf8'))
   for (const [output, details] of Object.entries(meta.outputs)) {
@@ -1347,10 +1364,11 @@ for (const file of nodeMetafiles) {
   }
   const sourceInputs = Object.keys(meta.inputs).filter((name) => name.startsWith('src/'))
   for (const input of sourceInputs) {
-    validationReaders.add(input)
+    const prior = validationReaders.get(input) ?? []
+    validationReaders.set(input, [...prior, validationExports])
   }
 }
-for (const input of validationReaders) {
+for (const [input, readers] of validationReaders) {
   const text = readFileSync(input, 'utf8')
   // A file that never names the module has no alias to check; parsing every
   // source input made this the slowest part of the check.
@@ -1373,7 +1391,7 @@ for (const input of validationReaders) {
       ts.isPropertyAccessExpression(node) &&
       ts.isIdentifier(node.expression) &&
       aliases.has(node.expression.text) &&
-      !validationExports.has(node.name.text)
+      readers.some((exports) => !exports.has(node.name.text))
     ) {
       problems.push(`${input} reads zod/mini.${node.name.text}, absent from validation.js`)
     }

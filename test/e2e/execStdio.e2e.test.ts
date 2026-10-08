@@ -291,54 +291,10 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
       devDependencies: { '@napi-rs/keyring': '2.1.0' },
     }),
   )
-  for (const bundle of [
-    'acp',
-    'headless',
-    'sharingRuntime',
-    // M112: the lazy ACP forms, the private registry and the deferral note.
-    'acpQuestions',
-    'runtimeQuestions',
-    'questionNotes',
-    'exec',
-    'modelApi',
-    'mcpPool',
-    'modelApiCodeIntel',
-    'structuredSchema',
-    'modelApiHooks',
-    'modelApiMcp',
-    'runtimeAccounting',
-    'runtimeEngine',
-    'providerPolicy',
-    'modelApiBoundaries',
-    'providers',
-    'subscriptions',
-    'configuredProviders',
-    'reviewer',
-    'legalScan',
-    'team',
-    'teamScheduler',
-    'teamRunners',
-    // M91: the adapters, the hook and MCP-form runtime, the window's hook runner.
-    'foreignHooks',
-    'hookRuntime',
-    'extensionHooks',
-    'recorder',
-    'reference',
-    'uiText',
-    'uiTextRuntime',
-    'uiTextHooks',
-    'uiTextSurfaces',
-    'wire',
-    'validation',
-    'searchWorker',
-    'imageResizeWorker',
-    'pageWorker',
-    'resourceGovernor',
-    'resourceAdmission',
-    'usageService',
-    'usageCompanion',
-  ]) {
-    cpSync(path.join(BUILD_ROOT, 'dist', `${bundle}.js`), path.join(dir, 'dist', `${bundle}.js`))
+  const productionFiles = readdirSync(path.join(BUILD_ROOT, 'dist'))
+  for (const file of productionFiles) {
+    if (file.endsWith('.js'))
+      cpSync(path.join(BUILD_ROOT, 'dist', file), path.join(dir, 'dist', file))
   }
   cpSync(
     path.join(BUILD_ROOT, 'dist/providerCatalog.json'),
@@ -383,6 +339,14 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     path.join(dir, 'dist/meta/usageWebview.json'),
   )
   cpSync(path.join(ROOT, 'native/runner'), path.join(dir, 'native/runner'), { recursive: true })
+  // M114 F: the packager stages the committed font manifest beside the
+  // runtime-only installer bundle; the fixture carries the real file, as
+  // it does the schemas, so a missing manifest still fails packaging.
+  mkdirSync(path.join(dir, 'design', 'fonts'), { recursive: true })
+  cpSync(
+    path.join(ROOT, 'design', 'fonts', 'manifest.json'),
+    path.join(dir, 'design', 'fonts', 'manifest.json'),
+  )
   writeFileSync(path.join(dir, 'LICENSE'), 'test-owned licence\n')
   writeFileSync(path.join(dir, 'docs', 'acp.md'), '# Test-owned guide\n')
   for (const file of ['README.md', 'docs/npm-readme.md', 'docs/marketplace-readme.md'])

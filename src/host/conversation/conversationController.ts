@@ -2,6 +2,7 @@ import type { UsageRecording } from '../../core/usage/recording'
 import type { ProviderUsageRow, AccountFacts, SubscriptionUsage } from '../../shared/usage'
 import type { ChatShareSource } from '../../core/sharing/chatShare'
 import { recoveryStamp } from '../../shared/agentRecovery'
+import type { ReportQuestionsReader } from '../../core/reporting/sources/questions'
 import { QuestionRegistry } from '../../core/questions/registry'
 import type { QuestionAnswerText } from '../../core/questions/lateAnswer'
 import type {
@@ -21,6 +22,7 @@ import type {
 } from '../../shared/paid'
 
 import { startApprovalJudge, type JudgeAdvisory, type JudgeFence } from '../../core/judge/use'
+import { reportCommandArguments } from '../reporting/reportCommand'
 // One conversation per surface: owns the MSP session for that surface, turns
 // webview requests into backend calls, and streams AgentEvents back. Also the
 // source of truth for the composer settings that outlive a webview reload
@@ -92,6 +94,7 @@ import type {
   PlanModeRestore,
 } from '../../core/review/planModeHold'
 import type { ReviewMaterial } from '../../core/review/reviewMaterial'
+import type { PanelPlaybookPort, PanelPlaybookReview } from '../../core/orchestration/panelPlaybook'
 import { isPrivateFileName } from '../../shared/privateFiles'
 import { isGitReview, type ReviewRequest } from '../../shared/reviewCommand'
 import type {
@@ -166,6 +169,7 @@ import {
   LEGAL_MARKDOWN_EXPORT_FILE,
   UI_TEXT,
   QUESTION_DEFER_DEFAULT_SECONDS,
+  SCHEDULE_PROTOCOL_VERSION,
   USER_SHELL_ITEM_KIND,
   USER_SHELL_SANDBOX_FAILURE_MARKER,
   TEAM_MCP_SERVER_NAME,
@@ -173,13 +177,21 @@ import {
 // M96 lane T (LANE-T-SEAM, lane 0): from shared constants at integration.
 
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
-import type { AgentEvent, ApprovalChoice, ItemSnapshot, TodoItem } from '../../shared/agentEvents'
+import {
+  isChildTurn,
+  type AgentEvent,
+  type ApprovalChoice,
+  type ItemSnapshot,
+  type TodoItem,
+} from '../../shared/agentEvents'
 import { fill, plural, uiLocale } from '../../shared/l10n/text'
 import type { GitDraftOutputPort } from '../../core/git/gitText'
 import type { GitAction, GitDraftKind } from '../../shared/git'
-import { backendLabel } from '../../shared/palette'
+import { backendLabel } from '../../shared/paletteFormatting'
 
 import type { ScheduleCadence, ScheduledPrompt } from '../../shared/schedule'
+import type { SchedulesBridge } from '../schedules/schedulesBridge'
+import { parseScheduleHostMessage } from '../../shared/scheduleProtocol'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
 import { approvalModeFor, untrustedStartMode } from '../../shared/permissionModes'
 import type { MuseCodeReviewerPort } from '../review/museCodeReviewerBundle'
@@ -402,6 +414,8 @@ export interface SessionMemory {
 
 export interface ConversationDeps {
   readonly usageRecording?: UsageRecording | undefined
+  /** Local reports: native hosts inject the same operation; absent means unavailable. */
+  readonly showDeterministicReport?: (argumentsText: string) => Promise<void>
   readonly surface: ChatSurface
   readonly auth: AuthPort
   readonly ensureHost: () => Promise<AgentHost>
@@ -469,6 +483,9 @@ export interface ConversationDeps {
    * scan (M70's hold, D76); from the scanner's bundle with the scan.
    */
   readonly createLegalHold?: ((holdDeps: PlanModeHoldDeps) => PlanModeHold) | undefined
+  /** M116 I/W binding: lazy shared-core policy plus the trusted host registry.
+   * Absent until the host installs the integration; a configured factory fails closed. */
+  readonly playbook?: (() => PanelPlaybookPort) | undefined
   /** A tool output as a read-only editor tab named `title` (M15). */
   readonly openDocument: (title: string, content: string) => Promise<void>
   /** A file in an editor, `path` absolute or workspace-relative, the lines (1-based) selected (M16). */
@@ -561,12 +578,13 @@ export interface ConversationDeps {
    * running here (M46): the keybinding's context key follows.
    */
   readonly onForegroundTasksChanged: () => void
-  /**
-   * A separate yes for each due Model API turn, naming prompt and token price
-   * (M52): the paid-use popup (M58).
-   */
+  /** W binds the v2 scheduler: consent is collected at creation, never per fire. */
+  readonly runScheduledOccurrence?: (id: string, occurrenceMs: number) => Promise<void>
+  /** M52 compatibility, removed when W binds all entry points to v2. */
   readonly confirmScheduledRun?: (job: ScheduledPrompt, modelId: string) => Promise<boolean>
   readonly isScheduledPaidOn?: () => boolean
+  /** The v2 schedules panel bridge (M115, PLAN.md D95); absent while disabled. */
+  readonly schedulesBridge?: SchedulesBridge
   /** The paid-use popup (M58, PLAN.md D48): before each Muse Voice recording. */
   readonly allowsPaidUse: (request: PaidUseRequest) => Promise<PaidUseDecision>
   /** Turn checkpoints (M72): captured around each turn, restored from a user card. */
@@ -1325,6 +1343,8 @@ export class ConversationController {
   private legalScanStop: AbortController | undefined
   private legalScanSequence = 0
   /** Preparation and acknowledgement still belong to a model send before activeTurnId is set. */
+  private playbookPort: PanelPlaybookPort | undefined
+  private readonly playbookReviews = new Map<PanelPlaybookReview, () => void>()
   /** Mode choices and revocation wait for the outstanding owned request; the newest wins. */
   private reviewModeSettling: Promise<void> | undefined
   private permissionModeSelection = 0
@@ -1391,6 +1411,8 @@ export class ConversationController {
    * open for this surface's conversation.
    */
   private tasksTabFor: { readonly sessionId: string | undefined } | undefined
+  /** One v2 channel request from the panel over the workspace control. */
+  private schedulesRevision = 0
 
   /**
    * M96 lane T: whether this conversation's sessions carry the `team`
@@ -1830,6 +1852,7 @@ export class ConversationController {
     this.shareDecisions.clear()
     this.attachmentGeneration += 1
     this.sessionOpening = undefined
+    for (const stop of this.playbookReviews.values()) stop()
     // A review's Plan mode goes with its session (M70): the next session
     // starts, resumes or is adopted in the mode the user had.
     this.releasePlanHold(true)
@@ -2490,12 +2513,7 @@ export class ConversationController {
    * a Model API child's turn ids prefix it, as the panel already reads them.
    */
   private isChildTurn(turnId: string): boolean {
-    for (const childSessionId of this.childSessionIds) {
-      if (turnId === childSessionId || turnId.startsWith(`${childSessionId}:`)) {
-        return true
-      }
-    }
-    return false
+    return isChildTurn(turnId, this.childSessionIds)
   }
 
   /** Remember a subagent row's child session, live or from a loaded history. */
@@ -3999,8 +4017,11 @@ export class ConversationController {
       this.deps.log.info(`${NOTICE_PREFIX}${offer.text}`)
       this.post({ type: 'notice', level: 'info', text: offer.text, actions: [...offer.actions] })
     } catch (error: unknown) {
-      // Nothing to offer is better than a wrong offer; the log says why.
+      // A broken package is said, not swallowed: without the read there is
+      // no offer, and the conversation would otherwise continue silently on
+      // stale links (GROK-m116k P2).
       this.deps.log.warn(`The bundled skills could not be offered: ${describeForLog(error)}`)
+      this.say('warning', fill(UI_TEXT.bundledSkillsOfferFailed, { reason: describe(error) }))
     }
   }
 
@@ -4493,7 +4514,15 @@ export class ConversationController {
         return
       }
       const manager = await this.bestOfN()
-      await manager.start({ prompt, attempts, requestCeilingPerAttempt }, host.info.kind)
+      const start = async () =>
+        await manager.start({ prompt, attempts, requestCeilingPerAttempt }, host.info.kind)
+      const playbook = this.playbook()
+      if (playbook) {
+        await playbook.dispatch('bestOfN', this.session?.sessionId, undefined, async (signal) => {
+          signal.throwIfAborted()
+          return await start()
+        })
+      } else await start()
     } catch (error: unknown) {
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
@@ -6952,6 +6981,7 @@ export class ConversationController {
           generation,
           isGitReview(request),
           isMaterialCurrent,
+          material ? [...material.changedFiles, ...material.untracked] : [],
         )
       })
       // A dropped session's pending command may still acknowledge its turn.
@@ -7122,6 +7152,59 @@ export class ConversationController {
   }
 
   /** The review turn on the session: the Reviewer's where the backend has one, else in Plan mode. */
+  private playbook(): PanelPlaybookPort | undefined {
+    this.playbookPort ??= this.deps.playbook?.()
+    return this.playbookPort
+  }
+
+  private async withPlaybookReview(
+    session: AgentSession,
+    parts: readonly TurnPart[],
+    files: readonly string[],
+    submit: (parts: readonly TurnPart[]) => Promise<TurnSubmission>,
+  ): Promise<TurnSubmission> {
+    const ticket = this.playbook()?.review(session.sessionId, files)
+    if (!ticket) return await submit(parts)
+    let unsubscribe: (() => void) | undefined
+    const stop = () => {
+      unsubscribe?.()
+      this.playbookReviews.delete(ticket)
+      try {
+        ticket.cancel()
+      } catch (error) {
+        this.notice('error', UI_TEXT.playbookUnavailable, undefined, error)
+      }
+    }
+    const failed = (error: unknown) => {
+      stop()
+      this.notice('error', UI_TEXT.playbookUnavailable, undefined, error)
+    }
+    this.playbookReviews.set(ticket, stop)
+    try {
+      unsubscribe = session.onEvent((event) => {
+        try {
+          ticket.observe(event)
+          if (ticket.isClosed) stop()
+        } catch (error) {
+          failed(error)
+        }
+      })
+      const submission = await submit(ticket.parts(parts))
+      // An accepted turn still belongs in the transcript even if its result cannot certify.
+      try {
+        ticket.bind(submission.turnId)
+        if (ticket.isClosed) stop()
+      } catch (error) {
+        failed(error)
+      }
+      return submission
+    } catch (error) {
+      stop()
+      throw error
+    }
+  }
+
+  /** The review turn on the session: the Reviewer's where the backend has one, else in Plan mode. */
   private async submitReview(
     session: AgentSession,
     parts: readonly TurnPart[],
@@ -7129,6 +7212,7 @@ export class ConversationController {
     generation: number,
     requiresWorkspaceTrust: boolean,
     isMaterialCurrent: (() => boolean) | undefined,
+    reviewFiles: readonly string[],
   ): Promise<TurnSubmission> {
     const isCurrent = () =>
       this.isCurrentSessionAction(session, generation) &&
@@ -7142,13 +7226,24 @@ export class ConversationController {
       throw new Error(UI_TEXT.turnStoppedByRestart)
     }
     this.requireNonConfidentialModel(session.modelId)
-    if (session.review !== undefined) {
-      return await session.review(parts, text)
+    const review = session.review
+    if (review !== undefined) {
+      return await this.withPlaybookReview(
+        session,
+        parts,
+        reviewFiles,
+        async (admitted) => await review.call(session, admitted, text),
+      )
     }
     this.notice('info', UI_TEXT.reviewPlanModeNotice)
     const previousMode = this.permissionMode
     if (previousMode === 'plan') {
-      return await session.sendTurn(parts, text)
+      return await this.withPlaybookReview(
+        session,
+        parts,
+        reviewFiles,
+        async (admitted) => await session.sendTurn(admitted, text),
+      )
     }
     const bypassEpoch = this.bypassRevocationEpoch
     const hold = this.takePlanHold(
@@ -7161,10 +7256,16 @@ export class ConversationController {
     // Auto is left for the review turn: what the Auto reviewer holds is the user's (M90).
     this.reviews?.release()
     try {
-      return await hold.send(session, parts, text, () => {
-        this.requireNonConfidentialModel(session.modelId)
-        return isCurrent()
-      })
+      return await this.withPlaybookReview(
+        session,
+        parts,
+        reviewFiles,
+        async (admitted) =>
+          await hold.send(session, admitted, text, () => {
+            this.requireNonConfidentialModel(session.modelId)
+            return isCurrent()
+          }),
+      )
     } catch (error: unknown) {
       // Plan mode was refused (nothing to put back), or the send failed and
       // the hold put the mode back already.
@@ -7801,6 +7902,68 @@ export class ConversationController {
     }
   }
 
+  private async answerSchedules(input: unknown): Promise<void> {
+    const bridge = this.deps.schedulesBridge
+    const workspaceRoot = this.deps.workspaceRoot
+    if (bridge === undefined || workspaceRoot === undefined) return
+    try {
+      const answer = await bridge.message(input, workspaceRoot)
+      const parsed = parseScheduleHostMessage(answer)
+      if (!parsed.ok) return
+      this.post({ type: 'schedulesMessage', message: parsed.message })
+      if (
+        parsed.message.type === 'schedulesResponse' &&
+        parsed.message.response.kind === 'accepted'
+      ) {
+        this.schedulesRevision += 1
+        this.post({
+          type: 'schedulesMessage',
+          message: {
+            type: 'scheduleChanged',
+            version: SCHEDULE_PROTOCOL_VERSION,
+            workspaceKey: bridge.keyFor(workspaceRoot),
+            revision: this.schedulesRevision,
+          },
+        })
+      }
+    } catch (error: unknown) {
+      this.notice('error', `${UI_TEXT.scheduleCommandFailed}: ${describe(error)}`, undefined, error)
+    }
+  }
+
+  /** A schedule command's panel: the v2 surface over this workspace. */
+  private openSchedules(initialView: 'list' | 'timeline' | 'editor'): void {
+    const bridge = this.deps.schedulesBridge
+    const workspaceRoot = this.deps.workspaceRoot
+    if (bridge === undefined || workspaceRoot === undefined) {
+      this.notice('warning', UI_TEXT.noWorkspaceReason)
+      return
+    }
+    const session =
+      this.session === undefined || this.sessionKind === undefined
+        ? undefined
+        : {
+            sessionId: this.session.sessionId,
+            backend: this.sessionKind,
+            label: UI_TEXT.scheduleV2.targets.conversation,
+          }
+    const nowMs = this.deps.now()
+    this.post({
+      type: 'schedulesSurface',
+      workspaceKey: bridge.keyFor(workspaceRoot),
+      targets: [...bridge.targets(session)],
+      // The session's backend first; 'modelApi' only before any session, for
+      // the fallback target the draft needs when no conversation is open.
+      defaultDraft: bridge.defaultDraft(
+        nowMs,
+        session,
+        this.sessionKind ?? this.deps.auth.current.backend ?? 'modelApi',
+      ),
+      nowMs,
+      initialView,
+    })
+  }
+
   private scheduleRunChanged(): void {
     this.notice(
       'warning',
@@ -7813,6 +7976,10 @@ export class ConversationController {
   private async runSchedule(id: string, occurrenceMs: number): Promise<void> {
     const generation = this.sendInvalidationEpoch
     try {
+      if (this.deps.runScheduledOccurrence !== undefined) {
+        await this.deps.runScheduledOccurrence(id, occurrenceMs)
+        return
+      }
       const session = await this.scheduleSession()
       if (!this.isCurrentSessionAction(session, generation) || session.schedules === undefined) {
         return
@@ -8728,7 +8895,16 @@ export class ConversationController {
       return
     }
     try {
-      await session.messageSubagent(subagentId, body.trim(), isFollowup)
+      const send = async () => {
+        await session.messageSubagent(subagentId, body.trim(), isFollowup)
+      }
+      const playbook = isFollowup ? this.playbook() : undefined
+      if (playbook) {
+        await playbook.dispatch('delegate', session.sessionId, subagentId, async (signal) => {
+          signal.throwIfAborted()
+          await send()
+        })
+      } else await send()
     } catch (error: unknown) {
       if (this.isCurrentSessionAction(session, generation)) {
         this.notice('error', `${UI_TEXT.agentControlFailed}: ${describe(error)}`, undefined, error)
@@ -9255,6 +9431,33 @@ export class ConversationController {
 
   /** One message from the webview, routed; `handle` catches what it throws. */
   private async dispatch(message: ConversationMessage): Promise<void> {
+    if (message.type === 'runReport') {
+      let isAccepted = false
+      try {
+        if (this.deps.showDeterministicReport === undefined)
+          throw new Error(UI_TEXT.reportUi.generationFailed)
+        await this.showDeterministicReport(message.argumentsText)
+        isAccepted = true
+      } catch {
+        this.notice('warning', UI_TEXT.reportUi.generationFailed)
+      }
+      this.post({ type: 'reportCommandResult', requestId: message.requestId, accepted: isAccepted })
+      return
+    }
+    // Reports are host commands, even while signed out or while a model turn is running.
+    if (message.type === 'sendMessage') {
+      const argumentsText = reportCommandArguments(message.text)
+      if (argumentsText !== undefined) {
+        this.post({
+          type: 'sendFailed',
+          localId: message.localId,
+          reason: UI_TEXT.reportSlashDescription,
+          attachmentsKept: true,
+        })
+        await this.showDeterministicReport(argumentsText)
+        return
+      }
+    }
     if (!this.isAuthAdmitted() && AUTH_REQUIRED_SESSION_ACTIONS.has(message.type)) {
       this.notice('warning', UI_TEXT.notSignedInReason)
       // A command the panel waits on hears the refusal too (M45, M74, M87),
@@ -9608,6 +9811,14 @@ export class ConversationController {
       }
       case 'scheduleRun': {
         await this.runSchedule(message.id, message.occurrenceMs)
+        break
+      }
+      case 'schedulesRequest': {
+        await this.answerSchedules(message.message)
+        break
+      }
+      case 'openSchedules': {
+        this.openSchedules(message.view)
         break
       }
       case 'exportConversation': {
@@ -10315,6 +10526,50 @@ export class ConversationController {
    */
   public async openReport(): Promise<void> {
     await this.handleReportMessage({ type: 'openReport' })
+  }
+
+  public reportingQuestions(): ReportQuestionsReader {
+    return {
+      read: (context) => {
+        const registry = this.session === undefined ? undefined : sessionQuestions.get(this.session)
+        if (registry === undefined)
+          return Promise.reject(new Error(UI_TEXT.reportSourceReasons.unbound))
+        const snapshot = registry.snapshot()
+        return Promise.resolve({
+          observedAt: context.asOf,
+          questions: snapshot.questions.map((entry) => {
+            const settledState =
+              entry.state.startsWith('answered') || entry.state === 'clarified'
+                ? ('answered' as const)
+                : ('dismissed' as const)
+            return {
+              id: entry.userInputId,
+              text: entry.questions.map((question) => question.question).join('\n'),
+              milestoneIds: [],
+              state:
+                entry.state === 'open' || entry.state === 'waiting'
+                  ? ('open' as const)
+                  : settledState,
+            }
+          }),
+        })
+      },
+    }
+  }
+
+  /** W binds the composer's dedicated command action to this host-only entry. */
+  public async showDeterministicReport(argumentsText = ''): Promise<void> {
+    if (this.deps.showDeterministicReport === undefined) {
+      this.notice('warning', UI_TEXT.reportUi.generationFailed)
+      return
+    }
+    await this.deps.showDeterministicReport(argumentsText)
+  }
+
+  /** Attach the reviewed Markdown to the draft; spending still needs the user's Send. */
+  public attachReportMarkdown(text: string): void {
+    this.post({ type: 'insertText', text: `${text}\n` })
+    this.deps.surface.reveal()
   }
 
   /**

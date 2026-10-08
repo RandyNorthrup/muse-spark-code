@@ -1,0 +1,35 @@
+.schedule-report-action {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.schedule-report-action fieldset {
+  display: grid;
+  gap: 6px;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--vscode-panel-border);
+}
+
+.schedule-report-action select,
+.schedule-report-action input,
+.schedule-report-action textarea {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  font: inherit;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+}
+
+.schedule-report-action input[type='checkbox'] {
+  width: auto;
+}
+
+.schedule-report-action p {
+  overflow-wrap: anywhere;
+}

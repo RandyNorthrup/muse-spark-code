@@ -206,6 +206,7 @@
         allowDangerouslySkipPermissions: false,
         archiveInactiveSessions: 14,
         modelApiReplyUsage: false,
+        schedules: true,
         museCodeAutoReviewer: true,
       }
       const models = [
@@ -405,6 +406,7 @@
       // checked in English as if it were translated.
       const webviewErrors = []
       let hasWebviewReady = false
+      let hasScheduleHarnessMounted = false
       const scenarioName = new URLSearchParams(location.search).get('scenario')
       // M95b: deterministic notice state, before the app reads its store.
       if (scenarioName?.startsWith('plan-') || scenarioName?.startsWith('copilot-plan')) {
@@ -1322,6 +1324,10 @@
         })
         import('../../dist/traffic-harness/main.js').then(({ mountTrafficHarness }) => {
           mountTrafficHarness(document, scenarioName)
+        })
+      } else if (scenarioName?.startsWith('schedules-v2')) {
+        import('./schedules.mjs').then(() => {
+          window.dispatchEvent(new Event('schedule-harness-mounted'))
         })
       } else {
         import(`../../dist/webview/${harnessBundle}.js`)
@@ -3196,6 +3202,71 @@
         'todo-collapsed': () => {
           steps.todo()
           whenFound('.todo-title', (button) => button.click())
+        },
+        'schedules-v2-background': () => {},
+        'schedules-v2-background-narrow': () => {},
+        'schedules-v2-list': () => {},
+        'schedules-v2-list-narrow': () => {},
+        'schedules-v2-editor': () => {},
+        'schedules-v2-editor-narrow': () => {},
+        'schedules-v2-timeline': () => {},
+        'schedules-v2-timeline-narrow': () => {},
+        'schedule-settlements': () => {
+          window.harnessSilent = true
+          setDraft('Review the schedule settlements')
+          key({ key: 'Enter' })
+          const atMs = Date.parse('2026-10-06T12:00:00Z')
+          for (const outcome of ['ran', 'refused', 'missed']) {
+            event({
+              type: 'itemCompleted',
+              item: {
+                itemId: `schedule-${outcome}`,
+                kind: 'toolCall',
+                status: 'completed',
+                tool: 'scheduled_prompt',
+                args: '{}',
+                visibleOutput: JSON.stringify({
+                  type: 'scheduleFire',
+                  fire: {
+                    scheduleId: 'schedule-1',
+                    runId: `schedule-1:${outcome}`,
+                    workspaceKey: 'workspace-1',
+                    occurrenceMs: atMs,
+                    observedAtMs: atMs,
+                    target: { kind: 'conversation', backend: 'modelApi', sessionId: 'build' },
+                    delivery: 'whenIdle',
+                    outcome,
+                    reason: outcome === 'missed' ? 'Target closed' : undefined,
+                    refusedActions:
+                      outcome === 'refused'
+                        ? [
+                            {
+                              actionClass: 'physical',
+                              tool: 'device',
+                              reason: 'Physical actions always refused',
+                            },
+                          ]
+                        : [],
+                    cost: { usd: 0.25, certainty: 'unknown', retainedLiabilityUsd: 1 },
+                  },
+                }),
+              },
+            })
+          }
+          event({ type: 'turnCompleted', turnId: 't1', terminal: 'completed' })
+          whenFound('.steps-toggle', (summary) => summary.click())
+          whenFound('.tool-toggle[aria-expanded="false"]', () => {
+            for (const toggle of document.querySelectorAll('.tool-toggle[aria-expanded="false"]')) {
+              toggle.click()
+            }
+          })
+        },
+        'schedule-settlements-narrow': () => {
+          if (window.innerWidth !== 320)
+            throw new Error('schedule-settlements-narrow requires 320 px')
+          document.documentElement.style.width = '100%'
+          document.body.style.width = '100%'
+          steps['schedule-settlements']()
         },
         'tasks-tab': () => {},
         'tasks-tab-ended': () => {},
@@ -6138,7 +6209,10 @@
       const playScenario = () => {
         if (
           !hasPageLoaded ||
-          !hasWebviewReady ||
+          !(
+            hasWebviewReady ||
+            (scenario?.startsWith('schedules-v2') && hasScheduleHarnessMounted)
+          ) ||
           hasPlayedScenario ||
           scenario === null ||
           !(scenario in steps)
@@ -6146,10 +6220,20 @@
           return
         hasPlayedScenario = true
         const surface =
-          harnessBundle === 'models' ? '.models-panel section' : '.composer textarea, .todo-surface'
+          harnessBundle === 'models'
+            ? '.models-panel section'
+            : '.composer textarea, .todo-surface, .schedule-v2-surface'
         whenFound(surface, () => steps[scenario]())
       }
       let hasPageLoaded = false
+      window.addEventListener(
+        'schedule-harness-mounted',
+        () => {
+          hasScheduleHarnessMounted = true
+          playScenario()
+        },
+        { once: true },
+      )
       window.addEventListener(
         'DOMContentLoaded',
         () => {
@@ -6353,6 +6437,8 @@
       // A window in the background paints no frames: a frame is also over
       // when this much time has passed.
       const FRAME_FALLBACK_MS = 50
+      const scheduleNarrowFits = () =>
+        window.innerWidth === 320 && document.documentElement.scrollWidth <= window.innerWidth
       const SCENARIO_READY = {
         jump: () => document.querySelector('.jump-latest') !== null,
         'prompt-menu': () => document.querySelector('.popover-pointer [role="menuitem"]') !== null,
@@ -6389,6 +6475,35 @@
         'paid-usage': () => document.querySelector('.usage-facts') !== null,
         help: () => document.querySelector('#reference-search') !== null,
         'help-narrow': () => document.querySelector('#reference-search') !== null,
+        'schedule-settlements': () => document.querySelectorAll('.schedule-v2-fire').length === 3,
+        'schedule-settlements-narrow': () =>
+          scheduleNarrowFits() && document.querySelectorAll('.schedule-v2-fire').length === 3,
+        'schedules-v2-background': () =>
+          document.querySelector('.schedule-v2-consent button') !== null,
+        'schedules-v2-background-narrow': () => {
+          const buttons = [...document.querySelectorAll('.schedule-v2-consent button')]
+          const boxes = buttons.map((button) => button.getBoundingClientRect())
+          return (
+            scheduleNarrowFits() &&
+            boxes.length === 3 &&
+            boxes.every(
+              (box) => Math.abs(box.width - boxes[0].width) < 1 && Math.abs(box.y - boxes[0].y) < 1,
+            )
+          )
+        },
+        'schedules-v2-list': () =>
+          document.querySelector('.schedule-v2-card details[open] ul li') !== null,
+        'schedules-v2-list-narrow': () =>
+          scheduleNarrowFits() &&
+          document.querySelector('.schedule-v2-card details[open] ul li') !== null,
+        'schedules-v2-editor': () =>
+          document.querySelector('[data-schedule-ready] .schedule-v2-editor') !== null,
+        'schedules-v2-editor-narrow': () =>
+          scheduleNarrowFits() &&
+          document.querySelector('[data-schedule-ready] .schedule-v2-editor') !== null,
+        'schedules-v2-timeline': () => document.querySelector('.schedule-v2-timeline li') !== null,
+        'schedules-v2-timeline-narrow': () =>
+          scheduleNarrowFits() && document.querySelector('.schedule-v2-timeline li') !== null,
         // The "/" list for "/co", rendered with its options (M87's tips too).
         'slash-commands': () => document.querySelector('.slash-menu [role="option"]') !== null,
         'slash-tips': () => document.querySelector('.slash-menu [role="option"]') !== null,
@@ -6432,6 +6547,7 @@
           : (SCENARIO_READY[name] ?? (() => true))
         const isReady = () =>
           hasPageLoaded &&
+          (!(name in steps) || hasPlayedScenario) &&
           pendingFinds === 0 &&
           pendingScenarioEvents === 0 &&
           document.querySelector('[data-deferred-loading]') === null &&

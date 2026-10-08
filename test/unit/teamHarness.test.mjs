@@ -54,6 +54,8 @@ beforeAll(async () => {
       .filter((line) => line.startsWith('!'))
       .map((line) => line.slice(1).split('/', 1)[0]),
   )
+  // A lane's ignored clones under temp/ must not enter that walk.
+  expect([...roots].some((root) => path.posix.matchesGlob('temp', root))).toBe(false)
   for (const entry of readdirSync('.')) {
     if (
       [...roots].some(

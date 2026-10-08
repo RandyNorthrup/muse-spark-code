@@ -86,7 +86,7 @@ export function webviewPanelOutputs(meta, entry, source) {
 
 // Keep each page's full reachable graph, including lazy imports and its CSS.
 // Shared outputs occur in both records and are counted by each startup cap.
-export function webviewEntryMetafile(meta, entry) {
+export function webviewEntryMetafile(meta, entry, extraEntries = []) {
   const source = normalOutputs(meta)
   const outputs = {}
   const visit = (file) => {
@@ -99,6 +99,7 @@ export function webviewEntryMetafile(meta, entry) {
     if (output.cssBundle) visit(output.cssBundle)
   }
   visit(entry)
+  for (const extra of extraEntries) visit(extra)
   const inputs = new Set(
     Object.values(outputs).flatMap((output) => Object.keys(output.inputs ?? {})),
   )
@@ -137,7 +138,14 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     // TRAIN15H: 21,695 bytes +15%, rounded up to 25 KiB.
     budgetKiB: 25,
   },
-  { name: 'help reference', entries: ['src/webview/components/ReferencePage.tsx'], budgetKiB: 50 },
+  {
+    name: 'help reference',
+    entries: [
+      'src/webview/components/ReferencePage.tsx',
+      'browser-reference-english:browser-reference-english',
+    ],
+    budgetKiB: 50,
+  },
   {
     // TRAIN15C: 4,018 bytes +15%, rounded up to 25 KiB (D6).
     name: 'paid usage',
@@ -149,9 +157,20 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     entries: ['src/webview/components/ProviderUsageSection.tsx'],
     budgetKiB: 25,
   },
+  {
+    name: 'report destinations',
+    entries: ['src/webview/reporting/destinations/DestinationPicker.tsx'],
+    budgetKiB: 25,
+  },
+  {
+    name: 'reporting UI',
+    entries: ['src/webview/reporting/main.tsx', 'src/webview/reporting/UsageReportAction.tsx'],
+    budgetKiB: 25,
+  },
   ...[
-    'EffortSlider',
     'ToolBodies',
+    // INT0170B: 13.5 KiB measured +15%, rounded to the existing 25 KiB scale.
+    'ToolRow',
     'ReviewFindings',
     'HistoryPromptRow',
     'SignIn',
@@ -166,7 +185,11 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     'ReviewCommentForm',
   ].map((name) => ({
     name,
-    entries: [`src/webview/components/${name}.tsx`],
+    entries: [
+      `src/webview/components/${name}.tsx`,
+      ...(name === 'Palette' ? ['src/shared/paletteRegistry.ts'] : []),
+      ...(name === 'ToolBodies' ? ['src/webview/schedules/ScheduleRunBody.tsx'] : []),
+    ],
     budgetKiB: 25,
   })),
   {
@@ -225,6 +248,39 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     name: 'tasks tab',
     entries: ['src/webview/TasksApp.tsx'],
     budgetKiB: 25,
+  },
+  // M116: the three lazy playbook chunks (measured 14.18 KiB unregistered;
+  // +15% rounded up to 25 KiB). The chat's first paint keeps none of it.
+  {
+    name: 'playbook UI',
+    entries: [
+      'src/webview/playbook/PlaybookPanel.tsx',
+      'src/webview/playbook/PlaybookRows.tsx',
+      'src/webview/playbook/PlaybookMap.tsx',
+      'src/webview/playbook/DeferredPlaybook.tsx',
+    ],
+    budgetKiB: 25,
+  },
+  // M115's schedule surface (list, editor, timeline, audit): 33.1 KiB
+  // measured, plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  {
+    name: 'schedule surface',
+    entries: ['src/webview/schedules/ScheduleSurfaceView.tsx', 'src/webview/schedules/channel.ts'],
+    budgetKiB: 50,
+  },
+  // FIXM116I: the startup diet's on-demand overlays (measured 5.5 KiB
+  // unregistered; +15% rounded up to 10 KiB). The chat's first paint keeps
+  // none of them: composer menus, edit totals, task list, effort control.
+  {
+    name: 'deferred overlays',
+    entries: [
+      'src/webview/components/SlashMenu.tsx',
+      'src/webview/components/MentionMenu.tsx',
+      'src/webview/components/DiffTally.tsx',
+      'src/webview/components/TodoPanel.tsx',
+      'src/webview/components/EffortSlider.tsx',
+    ],
+    budgetKiB: 10,
   },
 ]
 

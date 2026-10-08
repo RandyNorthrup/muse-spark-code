@@ -23,6 +23,7 @@ import {
   freezePaidQuote,
   type PaidQuote,
   type PaidUseDecision,
+  paidFeatureName,
   autoReviewPrice,
   bestOfNPrice,
   modelApiPaidTier,
@@ -31,10 +32,17 @@ import {
   scheduledRunPrice,
   subagentTaskPrice,
 } from '../../shared/paid'
-import { Usd } from '../../shared/usd'
+import { Usd, type UsdAmount } from '../../shared/usd'
+import type { CreateResponseBody, CreateImageBody } from '../backends/modelapi/schemas'
+import type { SessionBudgetClaim } from '../backends/modelapi/sessionBudget'
 
 import type { CoreLogger } from '../logging'
 import { PaidAuthority, paidAuthorityKey, type PaidGrant } from './paidAuthority'
+import {
+  schedulePaidConsentSchema,
+  type ScheduleV2,
+  type ScheduleFireRecord,
+} from '../../shared/scheduleV2'
 
 async function paidTeamRuntime() {
   const entry = await import('../team/teamEntry')
@@ -43,6 +51,185 @@ async function paidTeamRuntime() {
 
 /** The popup's three answers. */
 export type PaidUseAnswer = 'once' | 'always' | 'deny'
+
+/** A verified selected-model tariff, not a provider-name assumption. No credential value. */
+export interface SchedulePaidIdentity {
+  readonly modelId: string
+  readonly accountId: string
+  readonly priceTier: string
+  readonly price: string
+  readonly sharedDailyBudgetUsd: number
+}
+
+export type ScheduleConsent = NonNullable<ScheduleV2['paidConsent']>
+
+export function isScheduleConsentCurrent(
+  schedule: ScheduleV2,
+  identity: SchedulePaidIdentity,
+): boolean {
+  const consent = schedule.paidConsent
+  return (
+    schedule.action.kind === 'prompt' &&
+    Number.isFinite(consent?.dailyCapUsd) &&
+    (consent?.dailyCapUsd ?? 0) > 0 &&
+    Number.isFinite(consent?.sharedDailyBudgetUsd) &&
+    (consent?.sharedDailyBudgetUsd ?? 0) > 0 &&
+    consent?.modelId === identity.modelId &&
+    consent.accountId === identity.accountId &&
+    consent.priceTier === identity.priceTier &&
+    consent.sharedDailyBudgetUsd === identity.sharedDailyBudgetUsd &&
+    consent.dailyCapUsd <= schedule.paidCapUsd &&
+    consent.dailyCapUsd <= schedule.grant.paidCapUsd
+  )
+}
+
+/** Creation/renewal only. No workspace-wide grant can silently authorize a schedule. */
+export async function askSchedulePaidConsent(deps: {
+  readonly schedule: ScheduleV2
+  readonly identity: SchedulePaidIdentity
+  readonly cadence: string
+  readonly extras: ScheduleConsent['extras']
+  readonly now: () => number
+  readonly isOn: () => boolean
+  readonly isCurrent: () => boolean
+  readonly ask: (question: { title: string; detail: string }) => Promise<PaidUseAnswer>
+  /** S/W binds revisioned CAS; false refuses rather than restoring stale consent. */
+  readonly remember: (consent: ScheduleConsent) => Promise<boolean>
+}): Promise<ScheduleConsent | undefined> {
+  const { schedule, identity } = deps
+  if (
+    schedule.action.kind !== 'prompt' ||
+    !deps.isOn() ||
+    !deps.isCurrent() ||
+    identity.price.trim() === '' ||
+    !(Math.min(schedule.paidCapUsd, schedule.grant.paidCapUsd, identity.sharedDailyBudgetUsd) > 0)
+  )
+    return undefined
+  if (
+    isScheduleConsentCurrent(schedule, identity) &&
+    deps.extras.length === schedule.paidConsent?.extras.length &&
+    deps.extras.every((feature) => schedule.paidConsent?.extras.includes(feature) === true)
+  )
+    return schedule.paidConsent
+  const consent = schedulePaidConsentSchema.parse({
+    modelId: identity.modelId,
+    accountId: identity.accountId,
+    priceTier: identity.priceTier,
+    sharedDailyBudgetUsd: identity.sharedDailyBudgetUsd,
+    grantedAtMs: deps.now(),
+    dailyCapUsd: Math.min(schedule.paidCapUsd, schedule.grant.paidCapUsd),
+    extras: deps.extras,
+  })
+  const answer = await deps.ask({
+    title: fill(UI_TEXT.paidConfirmTitle, { feature: UI_TEXT.paidScheduledName }),
+    detail:
+      fill(UI_TEXT.scheduleV2.messages.paidConsent, {
+        prompt: schedule.action.prompt,
+        model: identity.modelId,
+        price: identity.price,
+        cadence: deps.cadence,
+        cap: formatUsd(consent.dailyCapUsd, 2),
+        budget: formatUsd(identity.sharedDailyBudgetUsd, 2),
+      }) +
+      (deps.extras.length === 0
+        ? ''
+        : `\n${deps.extras.map((feature) => `${paidFeatureName(feature)}: ${paidFeaturePrice(feature)}`).join(', ')}`),
+  })
+  if (answer === 'deny' || !deps.isOn() || !deps.isCurrent()) return undefined
+  if (answer === 'always' && !(await deps.remember(consent))) return undefined
+  return deps.isOn() && deps.isCurrent() ? consent : undefined
+}
+
+/** The run's paid port: live identity/gates plus a hard, noninteractive reservation. */
+export function createSchedulePaidScope(deps: {
+  readonly backend: 'modelApi' | 'museCode'
+  readonly schedule: ScheduleV2
+  readonly identity: SchedulePaidIdentity
+  readonly currentIdentity: () => SchedulePaidIdentity
+  readonly isCurrent: () => boolean
+  readonly isOn: (feature: PaidFeature) => boolean
+  readonly estimate: (
+    body: CreateResponseBody | CreateImageBody,
+    inputTokens: number | undefined,
+  ) => UsdAmount
+  readonly reserve: (
+    schedule: ScheduleV2,
+    costUsd: UsdAmount,
+    signal: AbortSignal,
+  ) => Promise<SessionBudgetClaim>
+}) {
+  const isValid = () =>
+    deps.isCurrent() && isScheduleConsentCurrent(deps.schedule, deps.currentIdentity())
+  const canUse = (feature: PaidFeature) =>
+    isValid() &&
+    (deps.backend === 'museCode' || deps.isOn('scheduledPrompts')) &&
+    deps.isOn(feature) &&
+    (feature === 'scheduledPrompts'
+      ? deps.backend === 'modelApi'
+      : deps.schedule.paidConsent?.extras.includes(feature) === true)
+  const claims = new Map<string, { usd: UsdAmount; settled: boolean }>()
+  let settledUsd = Usd.from(0)
+  let hasUnknown = false
+  return {
+    modelId: deps.identity.modelId,
+    accountId: deps.identity.accountId,
+    allows: canUse,
+    cost: (): ScheduleFireRecord['cost'] => {
+      let retainedLiabilityUsd = Usd.from(0)
+      for (const claim of claims.values()) {
+        if (!claim.settled) retainedLiabilityUsd = retainedLiabilityUsd.add(Usd.from(claim.usd))
+      }
+      // The fire record keeps its numeric schema; exact amounts convert once at this edge.
+      return {
+        usd: Number(settledUsd.toString()),
+        certainty:
+          hasUnknown || retainedLiabilityUsd.compare(Usd.from(0)) > 0 ? 'unknown' : 'exact',
+        retainedLiabilityUsd: Number(retainedLiabilityUsd.toString()),
+      }
+    },
+    reserve: async (
+      body: CreateResponseBody | CreateImageBody,
+      inputTokens: number | undefined,
+      signal: AbortSignal,
+    ): Promise<SessionBudgetClaim> => {
+      signal.throwIfAborted()
+      if (
+        !canUse('input' in body ? 'scheduledPrompts' : 'imageGeneration') ||
+        ('input' in body && body.model !== deps.identity.modelId)
+      )
+        throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
+      const feature = 'input' in body ? 'scheduledPrompts' : 'imageGeneration'
+      const costUsd = deps.estimate(body, inputTokens)
+      if (Usd.from(costUsd).compare(Usd.from(0)) <= 0)
+        throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+      const claim = await deps.reserve(deps.schedule, costUsd, signal)
+      claims.set(claim.claimId, { usd: claim.reservedUsd, settled: false })
+      const check = () => {
+        signal.throwIfAborted()
+        if (!canUse(feature)) throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
+        return claim.check(Usd.from(0).toAmount())
+      }
+      const settle = async (actualCostUsd: UsdAmount, hasUnknownCost = false) => {
+        const total = await claim.settle(actualCostUsd, hasUnknownCost)
+        const own = claims.get(claim.claimId)
+        if (own !== undefined && !own.settled) {
+          own.settled = !hasUnknownCost
+          own.usd = actualCostUsd
+          if (!hasUnknownCost) settledUsd = settledUsd.add(Usd.from(actualCostUsd))
+          hasUnknown ||= hasUnknownCost
+        }
+        return total
+      }
+      try {
+        check()
+      } catch (error: unknown) {
+        await settle(Usd.from(0).toAmount())
+        throw error
+      }
+      return { ...claim, check, settle }
+    },
+  }
+}
 
 /** The popup's question and what it says about the use, in the display language. */
 export async function paidUseQuestion(request: PaidUseRequest): Promise<{

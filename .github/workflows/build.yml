@@ -91,8 +91,8 @@ jobs:
           Remove-Item -Force -Path (Join-Path $target '*.nuspec') -ErrorAction SilentlyContinue
           Import-Module PSScriptAnalyzer -RequiredVersion $version -ErrorAction Stop
           Write-Host "PSScriptAnalyzer $version installed from the checked package"
-      # Same static/build/audit gates as quality:gates; tests run separately.
-      - run: npx run-s format:check lint typecheck check:badges check:l10n check:reference check:host-api deadcode cycles duplication build security:audit
+      # Same static/build/audit gates as quality:gates; tests and pixel replay have required jobs.
+      - run: npx run-s format:check lint typecheck check:badges check:tokens check:l10n check:reference check:host-api check:plan deadcode cycles duplication build security:audit
         env:
           # check:badges lists public main through the GitHub API; the job token
           # keeps hosted runners off the shared unauthenticated rate limit.
@@ -101,8 +101,94 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && !inputs.fast
         with:
           name: production-webview
-          path: dist/webview
+          path: |
+            dist/webview
+            dist/reportingPanel.js
+            dist/validation.js
+            dist/wire.js
+            dist/uiText.js
+            dist/uiTextRuntime.js
+            dist/uiTextHooks.js
+            dist/uiTextSurfaces.js
           if-no-files-found: error
+
+  # M114: rebuild the reviewed Git source in this runner's browser/fonts;
+  # only the size-bounded manifest is tracked, never a downloaded PNG set.
+  visual-shards:
+    name: visual regression (shard ${{ matrix.shard }}/6)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: require the reviewed baseline source object
+        shell: bash
+        run: |
+          revision="$(node --input-type=module <<'JS'
+          import { readFileSync } from 'node:fs'
+          import { validateManifest } from './scripts/lib/visualManifest.mjs'
+          const read = (file) => JSON.parse(readFileSync(file, 'utf8'))
+          const manifest = validateManifest(read('test/harness/goldens/manifest.json'), read('docs/certification/m114-audit.json'), read('test/harness/visual-matrix.json'))
+          console.log(manifest.revision)
+          JS
+          )"
+          if ! git cat-file -e "$revision^{commit}"; then
+            git fetch --no-tags origin "$revision"
+          fi
+          git cat-file -e "$revision^{commit}"
+      - name: compare every capture under the 512 MiB archive budget
+        run: npm run check:visual -- --shard=${{ matrix.shard }}/6
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: visual-comparison-shard-${{ matrix.shard }}
+          path: temp/m114-visual-result-${{ matrix.shard }}-of-6.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  visual:
+    name: visual regression (six themes, all states)
+    if: always()
+    needs: visual-shards
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: visual-comparison-shard-*
+          path: temp/visual-shards
+          merge-multiple: true
+      - name: require every shard and the combined archive budget
+        env:
+          SHARDS: ${{ needs.visual-shards.result }}
+        run: |
+          test "$SHARDS" = success
+          npm run check:visual -- --merge-shards=temp/visual-shards
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: visual-comparison-receipt
+          path: temp/m114-visual-result.json
+          if-no-files-found: error
+          retention-days: 30
 
   unit:
     name: tests (${{ matrix.os }}, shard ${{ matrix.shard }})
@@ -117,6 +203,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # Historical visual receipts verify their immutable capture sources.
+          fetch-depth: 0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
@@ -192,7 +280,7 @@ jobs:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: production-webview
-          path: dist/webview
+          path: dist
       # Every scenario/theme; identical browser bundle. Measured Ubuntu 4m54s,
       # Windows 8m11s (run 37211362498). Platform behavior stays in native tests.
       - run: npm run test:a11y
@@ -245,6 +333,7 @@ jobs:
     needs:
       [
         checks,
+        visual,
         unit,
         coverage,
         accessibility,
@@ -272,6 +361,7 @@ jobs:
         env:
           FAST: ${{ inputs.fast }}
           CHECKS: ${{ needs.checks.result }}
+          VISUAL: ${{ needs.visual.result }}
           UNIT: ${{ needs.unit.result }}
           COVERAGE: ${{ needs.coverage.result }}
           ACCESSIBILITY: ${{ needs.accessibility.result }}
@@ -283,6 +373,7 @@ jobs:
           SAST: ${{ needs.sast.result }}
         run: |
           test "$CHECKS" = success
+          test "$VISUAL" = success
           test "$UNIT" = success
           test "$SECRETS" = success
           test "$SAST" = success

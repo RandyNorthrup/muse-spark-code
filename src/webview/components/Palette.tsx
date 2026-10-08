@@ -22,7 +22,7 @@ import { UI_TEXT, PALETTE_LISTBOX_ID } from '../../shared/constants'
 import { effortAt, effortIndex } from '../../shared/effort'
 import { fill } from '../../shared/l10n/text'
 import {
-  contextWindowLabel,
+  type PaletteContext,
   filterPalette,
   formatTokenWindow,
   type PaletteAction,
@@ -30,6 +30,8 @@ import {
   type PaletteItem,
   type PaletteWidget,
 } from '../../shared/palette'
+import { contextWindowLabel } from '../../shared/paletteFormatting'
+import { buildPalette } from '../../shared/paletteRegistry'
 import type { ModelOption } from '../../shared/protocol'
 import { formatUsd } from '../../core/usage/insights'
 import { scrollRowIntoView, wrapIndex } from '../listNavigation'
@@ -43,6 +45,7 @@ export type PaletteView = 'actions' | 'models'
 export interface PaletteProps {
   readonly view: PaletteView
   readonly groups: readonly PaletteGroup[]
+  readonly context?: PaletteContext | undefined
   readonly models: readonly ModelOption[]
   readonly currentModelId: string | undefined
   readonly onAction: (action: PaletteAction) => void
@@ -404,7 +407,11 @@ function layoutModels(
 }
 
 export function Palette(props: PaletteProps) {
-  const { view, groups, models, currentModelId, onAction, onSelectModel, onBack, onClose } = props
+  const { view, models, currentModelId, onAction, onSelectModel, onBack, onClose } = props
+  const groups = useMemo(
+    () => (props.context === undefined ? props.groups : buildPalette(props.context)),
+    [props.groups, props.context],
+  )
   const { isAttached = false, keys, onActiveRowChange } = props
   const [filter, setFilter] = useState('')
   const filterBox = useRef<HTMLInputElement>(null)

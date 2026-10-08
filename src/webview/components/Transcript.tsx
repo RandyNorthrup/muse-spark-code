@@ -30,7 +30,7 @@ import {
   isSameLocalDay,
   plural,
 } from '../../shared/l10n/text'
-import { formatTokenWindow } from '../../shared/palette'
+import { formatTokenWindow } from '../../shared/paletteFormatting'
 import { formatUsd } from '../../core/usage/insights'
 import { isFinishedStep, type StepEntry, stepSummary, stepSummaryText } from '../stepSummary'
 import { hasFileAttachment, STEERED_DISPOSITION } from '../state/transcriptEntries'
@@ -60,13 +60,18 @@ import { MarkdownView } from './MarkdownView'
 import { ReasoningRow } from './ReasoningRow'
 import { StatusLine } from './StatusLine'
 import type { TeamCardActions } from './TeamCards'
-import { ToolRow, type ToolRowProps } from './ToolRow'
+import type { ToolRowProps } from './ToolRow'
 import { UserShellRow } from './UserShellRow'
 import { deferred } from './DeferredSurface'
 
 import { PaidBadge } from './PaidBadge'
 import { type GooeyItem, useRowMenu } from './GooeyMenu'
 import type { MenuPoint } from '../gooeyLayout'
+
+const ToolRow = deferred(async () => {
+  const module = await import('./ToolRow')
+  return { default: module.ToolRow }
+})
 
 const TeamCard = lazy(async () => {
   const module = await import('./TeamUi')
@@ -635,7 +640,7 @@ function HookEditedMarker({
   return (
     <div className="hook-edited" role="note">
       <span>{UI_TEXT.hookMessageEdited}</span>
-      <button type="button" className="button-secondary" onClick={onToggle}>
+      <button type="button" className="button-secondary chat-control" onClick={onToggle}>
         {isOriginalShown ? UI_TEXT.hookMessageShowEdited : UI_TEXT.hookMessageShowOriginal}
       </button>
     </div>
@@ -829,7 +834,7 @@ function StepsGroup({
     <li className="steps">
       <button
         type="button"
-        className="steps-toggle"
+        className="steps-toggle chat-control"
         aria-expanded={isOpen}
         aria-controls={listId}
         onClick={() => {
@@ -889,7 +894,7 @@ function ReportThisButton({
   return onReportProblem === undefined || reportRef === undefined ? null : (
     <button
       type="button"
-      className="notice-action"
+      className="notice-action chat-control"
       onClick={() => {
         onReportProblem(entry.id, reportRef)
       }}
@@ -1078,7 +1083,7 @@ const ActionNotice = memo(function ActionNotice({
         <button
           key={action}
           type="button"
-          className="notice-action"
+          className="notice-action chat-control"
           disabled={isSpent}
           onClick={() => {
             if (spent.current) {

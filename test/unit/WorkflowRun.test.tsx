@@ -173,7 +173,7 @@ describe('a workflow run’s card (M47)', () => {
         output: WORKFLOW_TOOL_ITEM.visibleOutput,
       }),
     ])
-    const toggle = screen.getByRole('button', { name: /Workflow/ })
+    const toggle = await screen.findByRole('button', { name: /Workflow/ })
     fireEvent.click(toggle)
     const row = toggle.closest('li')
     expect(row).toHaveAttribute('data-entry-id', WORKFLOW_TOOL_ITEM.itemId)

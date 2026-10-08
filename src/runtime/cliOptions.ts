@@ -8,6 +8,7 @@ export function formatAcpUsage(table: UiText, command: string): string {
     fill(table.acpUsage, { command }),
     fill(table.acpChatGpt.usage, { command }),
     sharingHelp(table),
+    table.scheduleV2.runtime.usage,
     `${command} resources [status|history|resume] [--json]`,
     `${command} usage resources [--json]`,
     ...(['resource-governor', 'cpu-max', 'memory-max'] as const).map(
@@ -58,6 +59,13 @@ const COMMON_OPTIONS = {
   version: { type: 'boolean', short: 'v' },
 } as const satisfies CliParserOptions
 
+// Serve accepts X's paid-schedule admission flags; no other route does.
+const SERVE_OPTIONS = {
+  ...COMMON_OPTIONS,
+  'scheduled-prompts': { type: 'boolean' },
+  'max-budget-usd': { type: 'string' },
+} as const satisfies CliParserOptions
+
 const EXEC_OPTIONS = {
   provider: { type: 'string' },
 
@@ -105,6 +113,11 @@ const REPORT_OPTIONS = {
   help: { type: 'boolean', short: 'h' },
 } as const satisfies CliParserOptions
 
+const FONTS_OPTIONS = {
+  from: { type: 'string' },
+  help: { type: 'boolean', short: 'h' },
+} as const satisfies CliParserOptions
+
 export const CLI_OPTION_REGISTRY = {
   providersAdd: { options: PROVIDER_OPTIONS },
   usage: {
@@ -129,7 +142,7 @@ export const CLI_OPTION_REGISTRY = {
       help: { type: 'boolean', short: 'h' },
     },
   },
-  serve: { options: COMMON_OPTIONS },
+  serve: { options: SERVE_OPTIONS },
   login: { options: COMMON_OPTIONS },
   setup: { options: COMMON_OPTIONS },
   authSet: { options: COMMON_OPTIONS },
@@ -139,6 +152,7 @@ export const CLI_OPTION_REGISTRY = {
   'scan-secrets': { options: SCAN_OPTIONS },
   report: { options: REPORT_OPTIONS },
   resources: { options: { json: { type: 'boolean' }, help: { type: 'boolean', short: 'h' } } },
+  fontsInstall: { options: FONTS_OPTIONS },
 } as const
 
 // The description map is exhaustive over the parser's option names. It never
@@ -171,6 +185,7 @@ export const CLI_OPTION_TEXT = {
   'allow-contributor-models': 'allow-contributor-models',
   'web-search': 'web-search',
   'image-generation': 'image-generation',
+  'scheduled-prompts': 'scheduled-prompts',
   verbose: 'verbose',
   'questions-defer-after': 'questions-defer-after',
   help: 'help',
@@ -201,11 +216,13 @@ export const CLI_OPTION_TEXT = {
 } as const satisfies Readonly<
   Record<
     | keyof typeof COMMON_OPTIONS
+    | keyof typeof SERVE_OPTIONS
     | keyof typeof EXEC_OPTIONS
     | keyof typeof SCAN_OPTIONS
     | keyof typeof REPORT_OPTIONS
     | keyof typeof CLI_OPTION_REGISTRY.usage.options
-    | keyof typeof CLI_OPTION_REGISTRY.legal.options,
+    | keyof typeof CLI_OPTION_REGISTRY.legal.options
+    | keyof typeof FONTS_OPTIONS,
     keyof UiText['referenceCliOptions']
   >
 >

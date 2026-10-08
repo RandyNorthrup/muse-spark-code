@@ -35,3 +35,5 @@ export const deferredCohort: Plugin
 export const MODEL_API_OPTIONAL_ONLY: readonly string[]
 export const sharedStructuredSchema: Plugin
 export const sharedModelApiBoundaries: Plugin
+
+export const nodeReferenceData: Plugin

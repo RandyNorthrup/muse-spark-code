@@ -1,3 +1,4 @@
+import { contentHash } from '../../src/core/schedules/provenance'
 import { describe, expect, it } from 'vitest'
 import { loadRuleFile, renderRules, ruleDirectoriesFor } from '../../src/core/context/rules'
 import { RULES_CONTEXT_MAX_BYTES, RULES_FILE_MAX_BYTES } from '../../src/shared/constants'
@@ -21,11 +22,29 @@ describe('loadRuleFile', () => {
       'src/CLAUDE.md': 'src rules\n',
     })
     await expect(loadRuleFile(d, '')).resolves.toEqual({
-      file: { path: 'AGENTS.md', directory: '', text: 'root rules\n' },
+      file: {
+        path: 'AGENTS.md',
+        directory: '',
+        text: 'root rules\n',
+        contentSource: {
+          kind: 'file',
+          contentHash: contentHash('root rules\n'),
+          file: { path: '/ws/AGENTS.md', dev: '0', ino: '0', size: 11, mtime: '0' },
+        },
+      },
       warning: undefined,
     })
     await expect(loadRuleFile(d, 'src')).resolves.toEqual({
-      file: { path: 'src/CLAUDE.md', directory: 'src', text: 'src rules\n' },
+      file: {
+        path: 'src/CLAUDE.md',
+        directory: 'src',
+        text: 'src rules\n',
+        contentSource: {
+          kind: 'file',
+          contentHash: contentHash('src rules\n'),
+          file: { path: '/ws/src/CLAUDE.md', dev: '0', ino: '0', size: 10, mtime: '0' },
+        },
+      },
       warning: undefined,
     })
     await expect(loadRuleFile(d, 'lib')).resolves.toEqual({ file: undefined, warning: undefined })

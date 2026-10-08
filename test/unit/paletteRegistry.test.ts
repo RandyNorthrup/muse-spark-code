@@ -1,9 +1,9 @@
+import { buildPalette } from '../../src/shared/paletteRegistry'
 import { afterEach, describe, expect, it } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import {
   backendLabel,
-  buildPalette,
   filterPalette,
   flattenPalette,
   formatTokenWindow,
@@ -182,6 +182,21 @@ function backendRow(base: PaletteContext, backend: PaletteContext['backend']) {
 }
 
 describe('buildPalette', () => {
+  it('offers deterministic reports on both backends separately from the problem report', () => {
+    for (const backend of ['museCode', 'modelApi'] as const) {
+      const groups = buildPalette({ ...context, backend })
+      const rows = groups.flatMap((group) => group.items)
+      expect(rows.find((row) => row.id === 'showReport')).toMatchObject({
+        label: EN.reportShowItem,
+        slashName: 'report',
+        action: { type: 'showReport' },
+      })
+      expect(rows.find((row) => row.id === 'issue')?.action).toEqual({ type: 'openReport' })
+      expect(slashCommandsOf(groups).find((command) => command.name === 'report')?.detail).toBe(
+        EN.reportSlashDescription,
+      )
+    }
+  })
   it('lays out the seven Claude Code groups in order, with git and pull requests (M71), Review (M70) before Support', () => {
     expect(buildPalette(context).map((group) => group.title)).toEqual([
       'Context',
@@ -601,6 +616,7 @@ describe('slashCommandsOf', () => {
       'security-review',
       'changes',
       'help',
+      'report',
     ])
     // A row named for the prompt describes itself by its label.
     expect(commands.find((command) => command.name === 'model')).toMatchObject({
@@ -829,6 +845,38 @@ describe('release Help and sharing menus', () => {
         for (const id of ['shareChat', 'promptLibrary', 'promptUseSaved', 'sharePrompt'])
           expect(items.some((item) => item.id === id)).toBe(true)
       }
+    },
+  )
+})
+
+describe('M115 bound schedule palette', () => {
+  it.each(['museCode', 'modelApi'] as const)(
+    'exposes injected schedule actions on %s',
+    (backend) => {
+      const schedules: NonNullable<PaletteContext['schedules']> = {
+        create: { type: 'startLoop' },
+        list: { type: 'openHistory' },
+        timeline: { type: 'showPlans' },
+      }
+      const groups = buildPalette({ ...context, backend, schedules })
+      const rows = groups.flatMap((group) => group.items)
+      expect(rows.find((row) => row.id === 'schedule')?.action).toEqual(schedules.list)
+      expect(rows.find((row) => row.id === 'schedulePrompt')?.action).toEqual(schedules.create)
+      expect(rows.find((row) => row.id === 'scheduleTimeline')?.action).toEqual(schedules.timeline)
+      expect(rows.find((row) => row.id === 'loop')?.action).toEqual({ type: 'startLoop' })
+      for (const id of ['schedule', 'schedulePrompt', 'scheduleTimeline']) {
+        expect(rows.find((row) => row.id === id)?.tip?.trim(), id).toBeTruthy()
+      }
+      expect(slashCommandsOf(groups).find((row) => row.name === 'schedule')).toBeDefined()
+    },
+  )
+  it.each(['museCode', 'modelApi'] as const)(
+    'keeps unbound scheduling actions hidden on %s',
+    (backend) => {
+      const rows = buildPalette({ ...context, backend }).flatMap((group) => group.items)
+      expect(
+        rows.filter((row) => ['schedule', 'schedulePrompt', 'scheduleTimeline'].includes(row.id)),
+      ).toEqual([])
     },
   )
 })

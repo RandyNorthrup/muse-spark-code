@@ -8,7 +8,7 @@ import { legalScanLoader } from '../host/ide/legalScanBundle'
 import { spawn } from 'node:child_process'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { open, writeFile } from 'node:fs/promises'
+import { open, writeFile, realpath, lstat } from 'node:fs/promises'
 import { createInterface } from 'node:readline'
 import { homedir, hostname, tmpdir } from 'node:os'
 import path from 'node:path'
@@ -21,12 +21,15 @@ import { loadUiTable, readUiTableFile } from '../host/l10n'
 import {
   ACP_AGENT_NAME,
   RUNTIME_QUESTIONS_BUNDLE_FILE,
+  PLAYBOOK_BUNDLE_FILE,
   ACP_AUTH_METHODS,
   EXEC_EXIT,
   EXEC_SCAN_TIMEOUT_MS,
   EXEC_FORCE_WRITE_MS,
   MEMORY_STAGE_FILE_MODE,
   EXTENSION_HOOKS_BUNDLE_FILE,
+  FONT_INSTALL_BUNDLE_FILE,
+  FONT_PACK_SUBFOLDER,
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
   EXEC_STOP_GRACE_MS,
@@ -39,6 +42,8 @@ import {
   USAGE_HISTORY_DAYS_DEFAULT,
   UI_TEXT,
   REFERENCE_BUNDLE_FILE,
+  SESSION_EXPORT_MAX_BYTES,
+  REPORT_SOURCE_TIMEOUT_MS,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill, uiLocale, UI_TEXT as referenceTable } from '../shared/l10n/text'
@@ -63,6 +68,7 @@ import { parseSharingArgs, type SharingCommand } from './sharing/args'
 import { runtimeSharingLoader } from './sharing/sharingBundle'
 import { acpSharingCommands } from '../acp/sharing'
 import type { RuntimeSharingPorts } from './sharing/sharingEntry'
+import type { PlaybookCommand, PlaybookSurfacePort } from './playbook/command'
 import { formatAcpUsage } from './cliOptions'
 import { referenceLoader } from '../host/referenceLoader'
 
@@ -70,6 +76,8 @@ import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
 import { agentDataFolder } from './dataFolder'
+import { fontsBundle } from './fonts/bundle'
+import { playbookLoader } from './playbook/playbookBundle'
 import { runReportCommand } from './reportCommand'
 import { readSecretLine } from './hiddenInput'
 import { credentialStoreName, keyringSecretStore, StoreUnavailableError } from './keyStore'
@@ -104,6 +112,10 @@ import { museSettingsPath } from '../host/backend/museSettings'
 import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
+import { reportsLoader } from './reporting/reportsLoader'
+import type { createRuntimeReports } from './reporting/reportsEntry'
+import { runtimeSchedulesBinding } from './schedules/binding'
+import { settleScheduleCommand } from './schedules/settle'
 
 import { lazyRuntimeResources } from './resources/load'
 import type { ResourceSettings } from '../shared/resources'
@@ -373,6 +385,77 @@ function resourcesFor(log: Logger, overrides?: Partial<ResourceSettings>) {
   })
 }
 
+/** No account or backend is touched; W ships this entry in its own lazy chunk. */
+function runtimeReports(log: Logger): () => ReturnType<typeof createRuntimeReports> {
+  const load = reportsLoader({ bundlePath: path.join(distDir, 'reporting.js'), log })
+  let reports: ReturnType<typeof createRuntimeReports> | undefined
+  return () => {
+    reports ??= load().createRuntimeReports({
+      cwd: process.cwd(),
+      locale: uiLocale(),
+      table: UI_TEXT,
+      now: () => new Date().toISOString(),
+      roots: [homedir()],
+      servicesFor: (cwd, _sessionId, language) =>
+        Promise.resolve({
+          keepHistory: true,
+          services: load().createReportingServices({
+            workspaceRoot: cwd,
+            log,
+            storageRoot: agentDataFolder({
+              platform: process.platform,
+              env: process.env,
+              homeDir: homedir(),
+            }),
+            l10n: language ?? { table: UI_TEXT, locale: uiLocale() },
+            generatorVersion: packageVersion(),
+            keepHistory: true,
+            enabledAgents: [],
+            network: {
+              policy: {
+                surface: 'terminal',
+                mode: 'always',
+                githubSignedIn: false,
+                allowEgress: () => Promise.resolve(process.env['CI'] === undefined),
+              },
+            },
+          }),
+        }),
+      resolveSaved: async (cwd, file) => {
+        const target = path.resolve(cwd, file)
+        const info = await lstat(target)
+        if (info.isSymbolicLink()) throw new Error(UI_TEXT.reportUi.generationFailed)
+        return await realpath(target)
+      },
+      readSaved: async (cwd, file) => {
+        const bytes = await readBoundedFile(
+          path.resolve(cwd, file),
+          SESSION_EXPORT_MAX_BYTES,
+          AbortSignal.timeout(REPORT_SOURCE_TIMEOUT_MS),
+        )
+        const value: unknown = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+        return value
+      },
+      writeOut: async (cwd, file, text) => {
+        await writeFile(path.resolve(cwd, file), text, { encoding: 'utf8', mode: 0o600 })
+      },
+      readTable: async (locale) => {
+        const value: unknown = JSON.parse(
+          await readUiTableFile(packageRoot, ['l10n', `ui.${locale}.json`]),
+        )
+        return value
+      },
+      stdout: (text) => {
+        process.stdout.write(text)
+      },
+      stderr: (text) => {
+        writeLine(process.stderr, text)
+      },
+    })
+    return reports
+  }
+}
+
 /** Explicit trusted Setup runs neither an account probe nor a model request. */
 async function setupHooks(
   options: ServeOptions,
@@ -542,11 +625,14 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
       path.join(distDir, RUNTIME_QUESTIONS_BUNDLE_FILE),
       log,
     )
+    const loadPlaybook = playbookLoader(path.join(distDir, PLAYBOOK_BUNDLE_FILE), log)
     const registries: { flush(): Promise<void>; dispose(): void }[] = []
     const runtime = await runtimeFor(options, log, {
       remove: (id) => loadQuestions().removeRuntimeQuestions(directory, id, UI_TEXT, uiLocale()),
     })
     const resources = resourcesFor(log)
+    const loadSchedules = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
+    let loadedSchedules: Awaited<ReturnType<typeof loadSchedules>> | undefined
     const usage = usageFor(log, recording, runtime, options.usageHistory ?? true)
     const journal = await reportJournal(log)
     await journal.startup()
@@ -569,7 +655,38 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
       bundlePath: path.join(distDir, LEGAL_SCAN_BUNDLE_FILE),
       log,
     })
+    const reports = runtimeReports(log)
     const agent = engine.createAcpAgent({
+      schedules: {
+        async holdWorkspace(cwd) {
+          loadedSchedules ??= await loadSchedules()
+          return await loadedSchedules.holdWorkspace(cwd)
+        },
+        async run(text, context) {
+          try {
+            loadedSchedules ??= await loadSchedules()
+            return await loadedSchedules.run(text, context)
+          } catch {
+            return UI_TEXT.scheduleV2.runtime.unavailable
+          }
+        },
+      },
+      playbookFor: (cwd) =>
+        loadPlaybook().createPlaybookSurface(
+          {
+            agentDataFolder: agentDataFolder({
+              platform: process.platform,
+              env: process.env,
+              homeDir: homedir(),
+            }),
+            workspaceFolder: cwd,
+            teamId: 'panel',
+            laneId: 'surface',
+          },
+          UI_TEXT,
+          uiLocale(),
+        ),
+      reports: { format: 'md', execute: (args, context) => reports().acp.execute(args, context) },
       legalScan: async (cwd, signal, isRegistryOn, allowsRegistryLookup) => {
         const bundle = agentLegalBundle()
         const handle = await bundle.runLegalScan({ workspaceRoot: cwd, input: {}, signal })
@@ -603,6 +720,10 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
         canBypass: options.canBypass,
         allowsContributorModels: options.allowsContributorModels,
         initialMode: SETTING_DEFAULTS.initialPermissionMode,
+        scheduleAuthorization: {
+          scheduledPrompts: options.scheduledPrompts === true,
+          ...(options.maxBudgetUsd !== undefined && { maxBudgetUsd: options.maxBudgetUsd }),
+        },
         ...(options.questionsDeferAfterSeconds !== undefined && {
           questionsDeferAfterSeconds: options.questionsDeferAfterSeconds,
         }),
@@ -618,6 +739,14 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
             .execute(text, context),
       },
       paid: runtime.paid,
+      playbookBundle: () => {
+        const bundle = loadPlaybook()
+        return {
+          parsePlaybookCommand: (argv: readonly string[]) => bundle.parsePlaybookCommand(argv),
+          runPlaybookCommand: (command: PlaybookCommand, port: PlaybookSurfacePort | undefined) =>
+            bundle.runPlaybookCommand(command, port, UI_TEXT, uiLocale()),
+        }
+      },
       questions: (input) => {
         const registry = loadQuestions().createRuntimeQuestionRegistry(
           input,
@@ -652,10 +781,23 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
           return registry.flush()
         }),
       )
-      await usage.dispose()
-      resources.dispose()
-      await runtime.close()
-      await journal.shutdown()
+      try {
+        await loadedSchedules?.close()
+      } finally {
+        try {
+          await usage.dispose()
+        } finally {
+          try {
+            resources.dispose()
+          } finally {
+            try {
+              await runtime.close()
+            } finally {
+              await journal.shutdown()
+            }
+          }
+        }
+      }
     }
     return 0
   } finally {
@@ -908,6 +1050,29 @@ async function main(): Promise<number> {
         resources.dispose()
       }
     }
+    case 'fontsInstall': {
+      const manifest: unknown = JSON.parse(
+        readFileSync(path.join(packageRoot, 'design', 'fonts', 'manifest.json'), 'utf8'),
+      )
+      const installed = await fontsBundle(
+        path.join(distDir, FONT_INSTALL_BUNDLE_FILE),
+        log,
+      )().installFonts(
+        {
+          manifest,
+          directory: path.join(
+            agentDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
+            FONT_PACK_SUBFOLDER,
+          ),
+          sourceDirectory: command.sourceDirectory,
+          fetch: globalThis.fetch.bind(globalThis),
+        },
+        UI_TEXT,
+        uiLocale(),
+      )
+      writeLine(process.stdout, fill(UI_TEXT.acpFontInstalled, { directory: installed }))
+      return 0
+    }
     case 'usage': {
       const usage = usageFor(log)
       const lines =
@@ -946,6 +1111,72 @@ async function main(): Promise<number> {
         path.join(distDir, 'sharingRuntime.js'),
         log,
       )().runRuntimeSharing(command, sharingPorts(log), UI_TEXT, uiLocale())
+    }
+    case 'schedule': {
+      const load = runtimeSchedulesBinding(path.join(distDir, 'schedules.js'), log)
+      let afterWake: (() => Promise<void>) | undefined
+      try {
+        if (
+          command.options.operation === 'run-due' ||
+          command.options.operation === 'background-maintain'
+        ) {
+          try {
+            const { createRuntimeScheduleBackground } = await import('./schedules/backgroundEntry')
+            const { verifyScheduleWake, beginScheduleWake, waitForScheduleWake } =
+              createRuntimeScheduleBackground(UI_TEXT, uiLocale())
+            await verifyScheduleWake(
+              process.execPath,
+              __filename,
+              undefined,
+              command.options.registrationId,
+            )
+            if (process.platform === 'darwin') {
+              const dataDir = agentDataFolder({
+                platform: process.platform,
+                env: process.env,
+                homeDir: homedir(),
+              })
+              if (command.options.operation === 'run-due')
+                afterWake = await beginScheduleWake(dataDir, process.execPath, __filename)
+              else await waitForScheduleWake(dataDir)
+            }
+          } catch (error: unknown) {
+            const reason =
+              error instanceof Error ? error.message : UI_TEXT.scheduleV2.runtime.invalidRequest
+            writeLine(
+              command.options.isJson ? process.stdout : process.stderr,
+              command.options.isJson ? JSON.stringify({ kind: 'refused', reason }) : reason,
+            )
+            return EXIT_FAILED
+          }
+        }
+        const binding = await load()
+        const result = await settleScheduleCommand(
+          () =>
+            binding.command(
+              command.options,
+              path.resolve(command.options.cwd ?? process.cwd()),
+              process.stdin.isTTY,
+            ),
+          async () => {
+            try {
+              await binding.close()
+            } finally {
+              await afterWake?.()
+            }
+          },
+        )
+        writeLine(process.stdout, result.output)
+        if (result.warning !== undefined) writeLine(process.stderr, result.warning)
+        return result.exitCode
+      } catch {
+        const reason = UI_TEXT.scheduleV2.runtime.unavailable
+        writeLine(
+          command.options.isJson ? process.stdout : process.stderr,
+          command.options.isJson ? JSON.stringify({ kind: 'refused', reason }) : reason,
+        )
+        return EXIT_FAILED
+      }
     }
     case 'setup': {
       return await setupHooks(command.options, command.maintenance, log)
@@ -1072,9 +1303,50 @@ async function main(): Promise<number> {
         },
       })
     }
+    case 'reports': {
+      try {
+        return await runtimeReports(log)().run(command.args)
+      } catch {
+        writeLine(process.stderr, UI_TEXT.reportUi.generationFailed)
+        return EXIT_FAILED
+      }
+    }
     case 'version': {
       writeLine(process.stdout, packageVersion())
       return 0
+    }
+    case 'playbook': {
+      // No backend, no model startup: the journal-backed settings/record
+      // surface for the current workspace (M116), loaded on first use.
+      const homeDir = homedir()
+      const playbook = playbookLoader(path.join(distDir, PLAYBOOK_BUNDLE_FILE), log)()
+      return await playbook.runPlaybookCli(
+        command.argv,
+        {
+          port: playbook.createPlaybookSurface(
+            {
+              agentDataFolder: agentDataFolder({
+                platform: process.platform,
+                env: process.env,
+                homeDir,
+              }),
+              workspaceFolder: process.cwd(),
+              teamId: 'panel',
+              laneId: 'surface',
+            },
+            UI_TEXT,
+            uiLocale(),
+          ),
+          writeStdout: (text) => {
+            writeLine(process.stdout, text)
+          },
+          printError: (line) => {
+            writeLine(process.stderr, line)
+          },
+        },
+        UI_TEXT,
+        uiLocale(),
+      )
     }
     case 'help': {
       if (command.all === true) {

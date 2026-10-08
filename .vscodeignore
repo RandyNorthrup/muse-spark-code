@@ -22,6 +22,7 @@
 !dist/team.js
 !dist/teamRunners.js
 !dist/teamScheduler.js
+!dist/schedules.js
 !dist/foreignHooks.js
 !dist/hookRuntime.js
 !dist/extensionHooks.js
@@ -105,3 +106,21 @@
 
 !dist/modelApiHooks.js
 !dist/modelApiMcp.js
+
+!dist/reporting.js
+!dist/reportingPanel.js
+!dist/webview/reportingPage.js
+!dist/webview/reportingPage.css
+!dist/reportingDestinations.js
+!dist/webview/reportingDestinations.js
+!dist/webview/reportingDestinations.css
+!dist/reportingNetwork.js
+
+# M114 F: optional WOFF2 pack and runtime installer belong to standalone installs.
+design/fonts/**
+dist/fontsInstall.js
+**/*.woff
+**/*.woff2
+**/*.ttf
+**/*.otf
+**/*.eot

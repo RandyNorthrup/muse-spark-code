@@ -17,6 +17,7 @@ import {
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
   UI_TEXT,
+  REPORT_KINDS,
 } from '../shared/constants'
 import { modelRef } from '../host/backend/providerPolicyEntry'
 const { isProviderId } = modelRef
@@ -41,6 +42,18 @@ export type UsageCommand =
     }
 import type { ChatGptProviderAction } from './chatGptProviderCommands'
 import { questionDeferSeconds } from '../shared/questionDeadline'
+import { parsePlaybookCommand } from './playbook/command'
+
+/** U's CLI route; the runtime entry owner binds runPlaybookCommand to P's
+ * journal before the general ACP/auth parser. No model process is needed. */
+export function parsePlaybookCommandLine(argv: readonly string[]) {
+  return argv[0] === 'playbook' ? parsePlaybookCommand(argv.slice(1)) : undefined
+}
+import {
+  parseScheduleCommand,
+  scheduleBudgetUsd,
+  type ScheduleCommandOptions,
+} from './schedules/args'
 
 export interface ServeOptions {
   readonly usageHistory?: boolean
@@ -60,6 +73,8 @@ export interface ServeOptions {
   /** Interactive ACP questions; no forms still defer at once. */
   readonly questionsDeferAfterSeconds?: number
   readonly autoCompaction?: boolean | undefined
+  readonly scheduledPrompts?: boolean
+  readonly maxBudgetUsd?: number
 }
 
 /** What `report` prints: the scrubbed draft as text, or its exact bytes in a file. */
@@ -95,6 +110,7 @@ export interface ProvidersAddOptions {
 
 export type RuntimeCommand =
   | { readonly command: 'usage'; readonly options: UsageCommand }
+  | { readonly command: 'schedule'; readonly options: ScheduleCommandOptions }
   | { readonly command: 'setup'; readonly options: ServeOptions; readonly maintenance: boolean }
   | {
       readonly command: 'exec'
@@ -110,6 +126,9 @@ export type RuntimeCommand =
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
   | { readonly command: 'report'; readonly options: ReportOptions }
   | { readonly command: 'legal'; readonly options: LegalOptions }
+  | { readonly command: 'reports'; readonly args: readonly string[] }
+  | { readonly command: 'fontsInstall'; readonly sourceDirectory: string | undefined }
+  | { readonly command: 'playbook'; readonly argv: readonly string[] }
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
   | {
@@ -246,9 +265,18 @@ export function parseCommandLine<T>(
       ? { command: 'help', all: argv[1] === '--all' }
       : invalid(argv.join(' '))
   }
+  if (argv[0] === 'schedule') {
+    const parsed = parseScheduleCommand(argv.slice(1))
+    return parsed.ok
+      ? { command: 'schedule', options: parsed.options }
+      : { command: 'invalid', reason: parsed.reason, exitCode: 2 }
+  }
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
-  if (argv[0] === 'report') return parseReport(argv.slice(1))
+  if (argv[0] === 'report')
+    return parseReport(argv.slice(argv[1] === 'problem' ? 2 : 1), argv[1] !== 'problem')
   if (argv[0] === 'legal') return parseLegalCommand(argv)
+  if (argv[0] === 'fonts') return parseFonts(argv.slice(1))
+  if (argv[0] === 'playbook') return { command: 'playbook', argv: argv.slice(1) }
   let parsed: ReturnType<typeof parseCommandLineStrictly>
   try {
     parsed = parseCommandLineStrictly(argv)
@@ -288,6 +316,10 @@ export function parseCommandLine<T>(
       reason: fill(UI_TEXT.acpPaidNeedsModelApi, { argument: `--${ACP_PAID_FLAGS[firstPaid]}` }),
     }
   }
+  const budget =
+    values['max-budget-usd'] === undefined ? undefined : scheduleBudgetUsd(values['max-budget-usd'])
+  if (budget === undefined && values['max-budget-usd'] !== undefined)
+    return { command: 'invalid', reason: UI_TEXT.scheduleV2.runtime.usage }
   const options: ServeOptions = {
     ...(values['usage-history'] !== undefined && {
       usageHistory: values['usage-history'] === 'on',
@@ -302,6 +334,10 @@ export function parseCommandLine<T>(
     isVerbose: values.verbose === true,
     questionsDeferAfterSeconds,
     autoCompaction: values['no-auto-compaction'] !== true,
+    ...(values['scheduled-prompts'] !== undefined && {
+      scheduledPrompts: values['scheduled-prompts'],
+    }),
+    ...(budget !== undefined && { maxBudgetUsd: budget }),
   }
   const [first, second, ...rest] = positionals
   if (first === 'setup' && second === undefined) {
@@ -630,7 +666,32 @@ function parseResources(argv: readonly string[]): RuntimeCommand {
 }
 
 /** `report [options]`: the standalone problem report (M93 lane A, PLAN.md D72). */
-function parseReport(argv: readonly string[]): RuntimeCommand {
+function parseReport(argv: readonly string[], canUseNamed = true): RuntimeCommand {
+  // M113 owns named reports; M93's bare command and option parser stay intact.
+  if (
+    canUseNamed &&
+    argv.some((argument) => !argument.startsWith('-') || /^--from(?:=|$)/.test(argument))
+  ) {
+    // Values of M93 options are positionals only after parseArgs; try that
+    // unchanged parser first before delegating to the lazy reports engine.
+    try {
+      const legacy = parseArgs({
+        args: [...argv],
+        allowPositionals: true,
+        strict: true,
+        options: CLI_OPTION_REGISTRY.report.options,
+      })
+      const namedKinds: readonly string[] = REPORT_KINDS
+      if (
+        legacy.positionals.some(
+          (argument) => argument === 'history' || namedKinds.includes(argument),
+        )
+      )
+        return { command: 'reports', args: argv }
+    } catch {
+      return { command: 'reports', args: argv }
+    }
+  }
   try {
     const { values, positionals } = parseArgs({
       args: [...argv],
@@ -667,4 +728,28 @@ function parseCommandLineStrictly(argv: readonly string[]) {
     strict: true,
     options: CLI_OPTION_REGISTRY.serve.options,
   })
+}
+
+/** Installation is an explicit command; none of the serve flags can trigger it. */
+function parseFonts(argv: readonly string[]): RuntimeCommand {
+  try {
+    const { values, positionals } = parseArgs({
+      args: [...argv],
+      allowPositionals: true,
+      strict: true,
+      options: CLI_OPTION_REGISTRY.fontsInstall.options,
+    })
+    if (values.help === true) return { command: 'help' }
+    if (positionals.length === 1 && positionals[0] === 'install' && values.from !== '')
+      return { command: 'fontsInstall', sourceDirectory: values.from }
+  } catch {
+    /* Invalid font arguments get the localized usage below. */
+  }
+  return {
+    command: 'invalid',
+    // main installs the display language after parsing, before printing usage.
+    get reason() {
+      return fill(UI_TEXT.acpFontsUsage, { command: ACP_AGENT_NAME })
+    },
+  }
 }

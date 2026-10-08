@@ -43,6 +43,9 @@ for (const file of [
     'resourceGovernor.js',
     'resourceAdmission.js',
     'runtime.bundles.json.br',
+    'reporting.js',
+    'reportingNetwork.js',
+    'reportingDestinations.js',
   ].map((name) => path.join(SOURCE, 'dist', name)),
   ...[
     'exec-result-v1.schema.json',

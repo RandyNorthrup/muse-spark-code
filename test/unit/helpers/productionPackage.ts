@@ -11,6 +11,8 @@ export function buildProductionPackage(root: string, folder: string): void {
     'src',
     'scripts',
     'vendor',
+    'design',
+    'first-party-skills',
     'native',
     'l10n',
     'docs',
@@ -19,7 +21,14 @@ export function buildProductionPackage(root: string, folder: string): void {
     'test/packaging',
   ])
     cpSync(path.join(root, source), path.join(folder, source), { recursive: true })
-  for (const file of ['package.json', 'tsconfig.json', 'LICENSE', 'CHANGELOG.md', 'README.md'])
+  for (const file of [
+    'package.json',
+    'tsconfig.json',
+    'tsconfig.base.json',
+    'LICENSE',
+    'CHANGELOG.md',
+    'README.md',
+  ])
     cpSync(path.join(root, file), path.join(folder, file))
   for (const file of readdirSync(root)) {
     if (/^package\.nls.*\.json$/.test(file)) cpSync(path.join(root, file), path.join(folder, file))

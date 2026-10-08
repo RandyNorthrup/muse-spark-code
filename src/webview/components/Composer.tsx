@@ -1,5 +1,4 @@
 import type { PromptLibraryProps } from '../prompts/PromptLibrary'
-import { deferred } from './DeferredSurface'
 import { webviewKey } from '../../shared/keybindings'
 // The prompt box: textarea with Claude-Code key semantics (Enter sends,
 // Shift+Enter newline, optional Ctrl/Cmd+Enter-to-send, Shift+Tab cycles the
@@ -83,12 +82,26 @@ import {
   SlashIcon,
   StopIcon,
 } from './icons'
-import { MENTION_OPTION_ID_PREFIX, MentionMenu, mentionOptionId } from './MentionMenu'
+import { deferred } from './DeferredSurface'
+import { MENTION_OPTION_ID_PREFIX, mentionOptionId } from './menuIds'
 import { modeIcon } from './modeIcons'
 import type { PaletteKeys } from './Palette'
 import type { MenuEntry } from './PopoverMenu'
 import { PALETTE_LISTBOX_ID } from '../../shared/constants'
-import { SLASH_LISTBOX_ID, SLASH_OPTION_ID_PREFIX, SlashMenu, slashOptionId } from './SlashMenu'
+import { retrySurface } from '../surfaceRetry'
+import { SLASH_LISTBOX_ID, SLASH_OPTION_ID_PREFIX, slashOptionId } from './menuIds'
+
+// The completion menus load on first open: keyboard handling stays in the
+// composer (the textarea keeps focus), so the boundary never takes it.
+const SlashMenu = deferred(async () => {
+  const { SlashMenu } = await import('./SlashMenu')
+  return { default: SlashMenu }
+}, false)
+
+const MentionMenu = deferred(async () => {
+  const { MentionMenu } = await import('./MentionMenu')
+  return { default: MentionMenu }
+}, false)
 
 export interface ImageData {
   readonly name: string
@@ -177,6 +190,7 @@ export interface ComposerProps {
   readonly onDismissBanner: () => void
   /** The prompt's "/" list (M38): the palette's slash commands and skills. */
   readonly slashCommands: readonly SlashCommand[]
+  readonly slashLoadState?: 'loading' | 'failed' | 'ready'
   /** Another menu or dialog is open: the "/" menus stay closed. */
   readonly isMenuOpen: boolean
   /** The palette, attached above the box, for a prompt that is just `/`. */
@@ -193,6 +207,9 @@ const MIN_ROWS = 1
 const URI_LIST_TYPE = 'text/uri-list'
 const IMAGE_TYPE_PREFIX = 'image/'
 const PASTED_IMAGE_NAME = 'pasted-image'
+
+// The toolbar icon buttons share one class string (M114 startup compaction).
+const ICON_BUTTON = 'icon-button chat-control'
 
 /** How the box was measured: its content height and the height of one row. */
 export interface RowMetrics {
@@ -389,6 +406,7 @@ export function Composer(props: ComposerProps) {
     banner,
     onDismissBanner,
     slashCommands,
+    slashLoadState = 'ready',
     isMenuOpen,
     renderSlashPalette,
     slashPaletteKeys,
@@ -486,7 +504,9 @@ export function Composer(props: ComposerProps) {
       ? slashMenuOf(draft, caret)
       : undefined
   const slashItems =
-    slashMenu === 'commands' ? rankSlashCommands(slashCommands, draft.slice(1)) : []
+    slashMenu === 'commands' && slashLoadState === 'ready'
+      ? rankSlashCommands(slashCommands, draft.slice(1))
+      : []
   const activeSlash = slashIndex < slashItems.length ? slashIndex : 0
   const isSlashMenuOpen = slashMenu !== undefined
   // The textarea keeps the focus and points at the active row with
@@ -1023,7 +1043,7 @@ export function Composer(props: ComposerProps) {
           <span>{banner}</span>
           <button
             type="button"
-            className="icon-button"
+            className={ICON_BUTTON}
             title={UI_TEXT.bannerDismiss}
             aria-label={UI_TEXT.bannerDismiss}
             onClick={onDismissBanner}
@@ -1038,8 +1058,23 @@ export function Composer(props: ComposerProps) {
             onActiveRowChange: setPaletteRowId,
           })
         : null}
-      {slashMenu === 'commands' ? (
+      {slashMenu === 'commands' && slashLoadState !== 'ready' ? (
+        <div className="mention-menu slash-menu">
+          {slashLoadState === 'loading' ? (
+            <p role="status">{UI_TEXT.loadingOutput}</p>
+          ) : (
+            <div role="alert">
+              <p>{UI_TEXT.surfaceLoadFailed}</p>
+              <button type="button" onClick={retrySurface}>
+                {UI_TEXT.surfaceLoadRetry}
+              </button>
+            </div>
+          )}
+        </div>
+      ) : null}
+      {slashMenu === 'commands' && slashLoadState === 'ready' ? (
         <SlashMenu
+          keepFocus
           items={slashItems}
           activeIndex={activeSlash}
           onSelect={(command) => {
@@ -1050,6 +1085,7 @@ export function Composer(props: ComposerProps) {
       ) : null}
       {isMentionOpen ? (
         <MentionMenu
+          keepFocus
           items={mentionItems}
           activeIndex={mentionIndex}
           onSelect={selectMention}
@@ -1125,7 +1161,7 @@ export function Composer(props: ComposerProps) {
         <div className="composer-toolbar-group">
           <button
             type="button"
-            className="icon-button"
+            className={ICON_BUTTON}
             title={UI_TEXT.attachTitle}
             aria-label={UI_TEXT.attachTitle}
             onMouseDown={keepMenuFocus}
@@ -1135,7 +1171,7 @@ export function Composer(props: ComposerProps) {
           </button>
           <button
             type="button"
-            className="icon-button"
+            className={ICON_BUTTON}
             title={UI_TEXT.commandsTitle}
             aria-label={UI_TEXT.commandsTitle}
             onMouseDown={keepMenuFocus}
@@ -1166,7 +1202,7 @@ export function Composer(props: ComposerProps) {
           )}
           <button
             type="button"
-            className="pill"
+            className="pill chat-control"
             title={UI_TEXT.modelPillTitle}
             aria-label={UI_TEXT.modelPillLabel}
             onMouseDown={keepMenuFocus}
@@ -1186,7 +1222,7 @@ export function Composer(props: ComposerProps) {
               <span className="editor-chip-label">{editorContextLabel}</span>
               <button
                 type="button"
-                className="chip-remove"
+                className="chip-remove chat-control"
                 title={UI_TEXT.editorContextRemove}
                 aria-label={`${UI_TEXT.editorContextRemove}: ${editorContextLabel}`}
                 onMouseDown={keepMenuFocus}
@@ -1202,7 +1238,7 @@ export function Composer(props: ComposerProps) {
               <span className="editor-chip-label">{referenceLabel}</span>
               <button
                 type="button"
-                className="chip-remove"
+                className="chip-remove chat-control"
                 title={UI_TEXT.referenceRemove}
                 aria-label={`${UI_TEXT.referenceRemove}: ${referenceLabel}`}
                 onMouseDown={keepMenuFocus}
@@ -1217,7 +1253,7 @@ export function Composer(props: ComposerProps) {
           {paidBadge === undefined ? null : (
             <button
               type="button"
-              className="paid-badge"
+              className="paid-badge chat-control"
               title={paidBadge.title}
               onMouseDown={keepMenuFocus}
               onClick={onOpenUsage}
@@ -1228,7 +1264,7 @@ export function Composer(props: ComposerProps) {
           <ContextMeter context={context} onCompact={onCompact} />
           <button
             type="button"
-            className="mode-button"
+            className="mode-button chat-control"
             title={
               onOpenModeMenu === undefined ? UI_TEXT.sideChatPlanOnly : UI_TEXT.permissionModeTitle
             }
@@ -1246,7 +1282,7 @@ export function Composer(props: ComposerProps) {
           </button>
           <button
             type="button"
-            className={`icon-button mic-button mic-${dictation.status}${dictation.engine === 'museVoice' ? ' mic-paid' : ''}`}
+            className={`icon-button mic-button mic-${dictation.status}${dictation.engine === 'museVoice' ? ' mic-paid' : ''} chat-control`}
             title={dictationTitle(dictation)}
             aria-label={
               dictation.engine === 'museVoice' ? UI_TEXT.dictationPaidLabel : UI_TEXT.dictationLabel
@@ -1262,7 +1298,7 @@ export function Composer(props: ComposerProps) {
           {isRunning ? (
             <button
               type="button"
-              className="send-button send-button-stop"
+              className="send-button send-button-stop chat-control"
               title={UI_TEXT.stopTitle}
               aria-label={UI_TEXT.stopTitle}
               onClick={onStop}
@@ -1272,7 +1308,7 @@ export function Composer(props: ComposerProps) {
           ) : (
             <button
               type="button"
-              className="send-button"
+              className="send-button chat-control"
               title={sendTitle(canSend, isShellMode)}
               aria-label={isShellMode ? UI_TEXT.runCommandTitle : UI_TEXT.sendTitle}
               disabled={!canSend}

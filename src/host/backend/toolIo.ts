@@ -7,6 +7,7 @@
 // by absolute path only and the environment is the one VS Code's own
 // terminal would give, with credential variables fenced (D89.5).
 
+import { fileReadIdentity } from '../../core/fs/fileIdentity'
 import { spawn } from 'node:child_process'
 import { existsSync, type BigIntStats } from 'node:fs'
 import { type FileHandle, lstat, mkdir, open, rm } from 'node:fs/promises'
@@ -36,6 +37,7 @@ import type {
   ShellTimeLimit,
   ToolIo,
 } from '../../core/backends/modelapi/tools'
+import { contentHash, type ContentSource } from '../../core/schedules/provenance'
 import { refusedShellEntry, unstartedShell } from '../../core/shellResult'
 import { resolveExecutable } from '../../core/executables'
 import { isPdf } from '../../core/pdf'
@@ -489,10 +491,16 @@ async function readBoundedFile(
   pdfMaxBytes?: number,
   signal?: AbortSignal,
 ): Promise<
-  | { readonly ok: true; readonly bytes: Buffer; readonly isPdf: boolean }
+  | {
+      readonly ok: true
+      readonly bytes: Buffer
+      readonly isPdf: boolean
+      readonly source: Extract<ContentSource, { kind: 'file' }>
+    }
   | { readonly ok: false; readonly size: number; readonly isPdf: boolean }
 > {
   signal?.throwIfAborted()
+  const canonical = expectedCanonicalPath ?? (await canonicalPath(absolutePath))
   const file = await open(absolutePath, 'r')
   try {
     signal?.throwIfAborted()
@@ -510,7 +518,8 @@ async function readBoundedFile(
       headerRead !== undefined &&
       isPdf(header.subarray(0, headerRead.bytesRead))
     const limit = isPdfFile ? (pdfMaxBytes ?? maxBytes) : maxBytes
-    const { size } = await file.stat()
+    const identity = await handleIdentity(file)
+    const size = Number(identity.size)
     signal?.throwIfAborted()
     if (size > limit) {
       return { ok: false, size, isPdf: isPdfFile }
@@ -524,7 +533,23 @@ async function readBoundedFile(
       const { bytesRead } = await file.read(chunk, 0, length, null)
       signal?.throwIfAborted()
       if (bytesRead === 0) {
-        return { ok: true, bytes: Buffer.concat(chunks, total), isPdf: isPdfFile }
+        const after = await handleIdentity(file)
+        if (identity.size !== after.size || identity.mtimeNs !== after.mtimeNs)
+          throw new Error(FILE_REFUSAL_MODEL_TEXT.pathChangedAfterApproval)
+        const bytes = Buffer.concat(chunks, total)
+        return {
+          ok: true,
+          bytes,
+          isPdf: isPdfFile,
+          source: {
+            kind: 'file',
+            contentHash: contentHash(bytes),
+            file: {
+              path: canonical.replaceAll('\\', '/'),
+              ...fileReadIdentity(identity),
+            },
+          },
+        }
       }
       total += bytesRead
       if (total > limit) {
@@ -605,7 +630,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
     return resource
   }
   return {
-    async readFile(absolutePath, expectedCanonicalPath, signal) {
+    async readFile(absolutePath, expectedCanonicalPath, signal, observeSource) {
       let bytes: Uint8Array
       try {
         // Refused before it is loaded (M39), including growth after metadata.
@@ -623,6 +648,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
             `${MODEL_TEXT.toolFileTooLarge} ${String(TOOL_FILE_MAX_MIB)} MiB, and this one is ${mib} MiB: ${MODEL_TEXT.toolFileTooLargeHint}`,
           )
         }
+        observeSource?.(read.source)
         bytes = read.bytes
       } catch (error: unknown) {
         if (isMissingFile(error)) {
@@ -632,7 +658,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       }
       return decodeText(bytes, absolutePath)
     },
-    async readBytes(absolutePath, maxBytes, expectedCanonicalPath, signal) {
+    async readBytes(absolutePath, maxBytes, expectedCanonicalPath, signal, observeSource) {
       try {
         const read = await readBoundedFile(
           absolutePath,
@@ -647,6 +673,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
             `${path.basename(absolutePath)} is ${String(read.size)} bytes, over the ${String(maxBytes)} allowed`,
           )
         }
+        observeSource?.(read.source)
         return read.bytes
       } catch (error: unknown) {
         if (isMissingFile(error)) {

@@ -20,6 +20,7 @@ import { CREDENTIAL_LEAKS, leakSecret, ORDINARY_LINES } from './helpers/credenti
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { type MemoryImportIo, memoryImportIo } from './helpers/memoryImportIo'
 import { readContextText } from '../../src/core/context/contextFiles'
+import { contentHash } from '../../src/core/schedules/provenance'
 import type { ImportWriteNotice } from '../../src/core/import/agentImport'
 import { museSettingsPath } from '../../src/host/backend/museSettings'
 
@@ -940,7 +941,19 @@ describe('importFromAgents confinement and order', () => {
       `${WS}/AGENTS.md`,
       WS,
     )
-    expect(context).toEqual({ ok: true, text: published })
+    // U's source inventory rides along: the preview stays metadata-only while
+    // the read pins the exact bytes it came from (legacy ports pin zeros).
+    if (published === undefined) throw new Error('AGENTS.md preview missing')
+    const bytes = Buffer.from(published, 'utf8')
+    expect(context).toEqual({
+      ok: true,
+      text: published,
+      contentSource: {
+        kind: 'file',
+        contentHash: contentHash(bytes),
+        file: { path: `${WS}/AGENTS.md`, dev: '0', ino: '0', size: bytes.length, mtime: '0' },
+      },
+    })
     expect(JSON.stringify(context)).toContain(SECRET)
   })
 

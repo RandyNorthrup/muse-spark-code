@@ -46,6 +46,7 @@ const UI_CONDITIONS: Readonly<
   mcpRestartDetail: 'turnState',
 }
 const NLS_CONDITIONS: Readonly<Partial<Record<string, string>>> = {
+  'config.reports.network.enumDescriptions.whenSignedIn': 'reportsNetwork&githubSignIn',
   'config.backend.enumDescriptions.auto': 'backendAvailability',
   'config.resourceRelocate.enumDescriptions.paired': 'resourceRelocation',
   'config.browserCheckRuntime.enumDescriptions.download': 'browserRuntimeAcquisition',
@@ -67,6 +68,7 @@ const SETTING_CONDITIONS: Readonly<
     >
   >
 > = {
+  'reports.network': 'reportsNetwork&githubSignIn',
   preferredLocation: 'activeConversation',
   archiveInactiveSessions: 'sessionIdle',
   cleanupPeriodDays: 'sessionList',
@@ -170,6 +172,7 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   showLogs: { description: { tip: 'log' }, canRun: true },
   diagnostics: { description: { ui: 'referenceDiagnostics' }, canRun: true },
   reportProblem: { description: { ui: 'referenceReport' }, canRun: true },
+  showReport: { description: { ui: 'reportSlashDescription' }, canRun: true },
   newConversation: { description: { tip: 'clear' }, canRun: false },
   signOut: { description: { tip: 'signOut' }, canRun: false },
   openInTerminal: { description: { ui: 'referenceTerminal' }, canRun: false },
@@ -214,6 +217,9 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   openHelp: { description: { ui: 'referenceIntro' }, canRun: true },
   nextOpenQuestion: { description: { ui: 'questionNextOpen' }, canRun: false },
   previousOpenQuestion: { description: { ui: 'questionPreviousOpen' }, canRun: false },
+  schedulePrompt: { description: { tip: 'schedulePrompt' }, canRun: true },
+  showSchedules: { description: { tip: 'schedule' }, canRun: true },
+  showScheduleTimeline: { description: { tip: 'scheduleTimeline' }, canRun: true },
 }
 
 function feature(
@@ -290,6 +296,17 @@ export function featureCatalog(): readonly Feature[] {
       ],
       ['suggestedProvider'],
       'backends',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'reports',
+      { ui: 'reportShowCommand' },
+      { ui: 'reportSlashDescription' },
+      ['showReport'],
+      ['reports.network', 'reports.keepHistory', 'reports.agentSources'],
+      'report',
       ['museCode', 'modelApi'],
       false,
       ['vscode', 'acp'],
@@ -526,6 +543,7 @@ export function featureCatalog(): readonly Feature[] {
       'the-panel',
     ),
     feature('code-output', { ui: 'copyCode' }, { ui: 'referenceCodeOutput' }, [], [], 'the-panel'),
+    // ACP queued late answers retire only at model start (request admission on Model API).
     feature(
       'questions',
       { ui: 'questionSubmit' },
@@ -837,8 +855,8 @@ export function featureCatalog(): readonly Feature[] {
       'schedules',
       { ui: 'loopItem' },
       { tip: 'loop' },
-      [],
-      ['modelApiScheduledPrompts'],
+      ['schedulePrompt', 'showSchedules', 'showScheduleTimeline'],
+      ['modelApiScheduledPrompts', 'schedules', 'scheduleDefaultDelivery', 'scheduleAgentCreation'],
       'scheduled-prompts-model-api',
       ['modelApi'],
       true,
@@ -938,6 +956,17 @@ export function featureCatalog(): readonly Feature[] {
       ['museCode'],
       false,
       ['vscode'],
+    ),
+    feature(
+      'orchestrator-playbook',
+      { ui: 'playbookTitle' },
+      { ui: 'playbookRecordHelp' },
+      [],
+      [],
+      'orchestrator-playbook-policy-m116',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
     ),
     feature(
       'support',

@@ -41,7 +41,22 @@ function count(text: string, pattern: RegExp): number {
 
 const SURFACE_ACTIVE = `activeWebviewPanelId == '${CHAT_PANEL_VIEW_TYPE}' || focusedView == '${CHAT_VIEW_ID}'`
 
+/** A package.json `%key%` reference names its package.nls.json string. */
+const nlsKeyOf = (reference: string | undefined) => reference?.replace(/^%(.+)%$/, '$1') ?? ''
+
 describe('package.json manifest', () => {
+  it('never puts settings below a scalar setting that VS Code would ignore', () => {
+    const properties = manifest.contributes.configuration.properties
+    const keys = Object.keys(properties)
+    for (const [parent, specification] of Object.entries(properties)) {
+      if (specification.type === 'object') continue
+      expect(
+        keys.filter((key) => key.startsWith(`${parent}.`)),
+        parent,
+      ).toEqual([])
+    }
+  })
+
   it('offers paid Tab by default while retaining its machine scope and daily cap', () => {
     const properties = manifest.contributes.configuration.properties
     expect(properties['museSpark.modelApiTab']).toMatchObject({ default: true, scope: 'machine' })
@@ -212,6 +227,30 @@ describe('package.json manifest', () => {
     expect(description).toContain('Unknown sent requests keep their reservation')
     expect(description).toContain('Web search is unavailable while capped')
     expect(description).not.toMatch(/only through|only overrun|only way/i)
+  })
+
+  it('claims only the GitHub reads the wired network port can make (M113W)', () => {
+    // The wired stores port is always unbound (src/runtime/reporting/network.ts):
+    // store, workflow and release adapters await approved live captures, so no
+    // setting may promise public release-channel reads (Grok M113W P2).
+    const here = path.dirname(fileURLToPath(import.meta.url))
+    const nls = JSON.parse(
+      readFileSync(path.join(here, '..', '..', 'package.nls.json'), 'utf8'),
+    ) as Record<string, string>
+    const properties = manifest.contributes.configuration.properties as Record<
+      string,
+      { description?: string; enumDescriptions?: string[] }
+    >
+    const network = properties['museSpark.reports.network']
+    const description = nls[nlsKeyOf(network?.description)] ?? ''
+    expect(description).toContain('GitHub')
+    expect(description).toContain('--network')
+    expect(description).not.toMatch(/public release channels/i)
+    const enumTexts = (network?.enumDescriptions ?? []).map(
+      (reference) => nls[nlsKeyOf(reference)] ?? '',
+    )
+    for (const text of enumTexts) expect(text).not.toMatch(/public release channels/i)
+    expect(nls[nlsKeyOf(network?.enumDescriptions?.[0])] ?? '').toContain('signed in')
   })
 
   it('notifies about background turns until turned off, a choice a workspace may make (M82)', () => {
@@ -469,7 +508,9 @@ describe('packaging (M26)', () => {
     const ci = read('.github', 'workflows', 'build.yml')
     expect(ci).toContain('run: node scripts/release-reuse.mjs record')
     expect(ci).toContain('name: source-tree-${{ steps.source.outputs.tree }}')
-    expect(count(ci, /retention-days: 30/g)).toBe(4)
+    // Four package artifacts plus M114 S's visual-shards and visual jobs,
+    // every one on the same 30-day retention.
+    expect(count(ci, /retention-days: 30/g)).toBe(6)
   })
   it('keeps manual recovery on the shared verified staging path and never rebuilds it (RELFAST2)', () => {
     const release = read('.github', 'workflows', 'release.yml')
@@ -560,7 +601,7 @@ describe('tiered CI (CIFLOW)', () => {
       expect(job(id)).toContain('inputs.fast && \'["ubuntu-latest"]\'')
       expect(job(id)).toContain('["ubuntu-latest","windows-latest","macos-latest"]')
     }
-    // Exactly quality:gates without the tests, which run in their own jobs: a
+    // Exactly quality:gates without tests and pixels, which have required jobs: a
     // gate added to quality:gates and not to CI fails here.
     const gates = manifest.scripts['quality:gates'].split(' ')
     expect(gates.slice(0, 1)).toEqual(['run-s'])
@@ -568,7 +609,7 @@ describe('tiered CI (CIFLOW)', () => {
     expect(job('checks')).toContain(
       `      - run: npx run-s ${gates
         .slice(1)
-        .filter((gate) => gate !== 'test:unit')
+        .filter((gate) => gate !== 'test:unit' && gate !== 'check:visual')
         .join(' ')}\n`,
     )
     expect(job('unit')).toContain('npx vitest run\n')
@@ -582,6 +623,8 @@ describe('tiered CI (CIFLOW)', () => {
     ]) {
       expect(job(id)).toContain('if: ${{ !inputs.fast }}')
     }
+    // M114 S's visual gate runs on every tier, like the static checks.
+    expect(job('visual')).toContain('if: always()')
     expect(job('accessibility')).toContain('runs-on: ubuntu-latest')
     expect(job('accessibility')).toContain('run: npm run test:a11y\n')
     expect(job('accessibility')).toContain('run: npm run test:legal-a11y\n')
@@ -594,6 +637,33 @@ describe('tiered CI (CIFLOW)', () => {
     expect(job('packages')).toContain('name: muse-spark-code-vsix')
     expect(job('packages')).toContain('name: muse-spark-code-acp')
     expect(job('packages')).toContain('name: muse-spark-code-sboms')
+  })
+
+  it('carries the reporting panel metrics input with browser files for accessibility', () => {
+    expect(job('checks')).toContain('path: |\n            dist/webview\n')
+    for (const file of [
+      'reportingPanel',
+      'validation',
+      'wire',
+      'uiText',
+      'uiTextRuntime',
+      'uiTextHooks',
+      'uiTextSurfaces',
+    ]) {
+      expect(job('checks')).toContain(`            dist/${file}.js\n`)
+    }
+    expect(job('accessibility')).toContain('name: production-webview\n          path: dist\n')
+    expect(read('test/harness/reporting/verify.mjs')).toContain(
+      "statSync(path.join(root, 'dist/reportingPanel.js'))",
+    )
+  })
+
+  it('replays visual pixels only in required shards with the recorded Git source available', () => {
+    expect(job('checks')).not.toContain('check:visual')
+    expect(job('visual-shards')).toContain('fetch-depth: 0')
+    expect(job('visual-shards')).toContain('git fetch --no-tags origin "$revision"')
+    expect(job('visual-shards')).toContain('npm run check:visual -- --shard=${{ matrix.shard }}/6')
+    expect(job('visual')).toContain('needs: visual-shards')
   })
 
   it('collects all four shards per OS and gates merged coverage with unchanged thresholds', () => {
@@ -634,6 +704,7 @@ describe('tiered CI (CIFLOW)', () => {
         .filter(Boolean),
     ).toEqual([
       'checks',
+      'visual',
       'unit',
       'coverage',
       'accessibility',
@@ -645,7 +716,7 @@ describe('tiered CI (CIFLOW)', () => {
       'sast',
     ])
     expect(job(id)).toContain('if: always()')
-    for (const key of ['CHECKS', 'UNIT', 'SECRETS', 'SAST']) {
+    for (const key of ['CHECKS', 'VISUAL', 'UNIT', 'SECRETS', 'SAST']) {
       expect(job(id)).toContain(`          test "$${key}" = success\n`)
     }
     expect(job(id)).toContain('          if [ "$FAST" != true ]; then\n')
@@ -708,7 +779,7 @@ describe('tiered CI (CIFLOW)', () => {
           ?.split(',')
           .map((value) => value.trim())
           .filter(Boolean) ?? []
-      const always = ['checks', 'unit', 'secrets', 'sast']
+      const always = ['checks', 'visual', 'unit', 'secrets', 'sast']
       const fullOnly = [
         'coverage',
         'accessibility',
