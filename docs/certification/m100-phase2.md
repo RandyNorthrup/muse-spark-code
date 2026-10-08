@@ -1062,3 +1062,452 @@ fails 2. `deviceQrInvite`, `deviceMdns` and `deviceDiscoverySwitch` pass 37,
 `deviceDiscovery` 16, and `check-l10n` finds 14 tables with 0 problems, all
 at repository-default timeouts. Lane D merged into `m100/p2-int-lead` with
 `docs/ide-compatibility/host-api.md` regenerated (0 problems).
+
+## Lane A — receiver per-action controls (M100P2A, 2026-10-07)
+
+Kubuntu rig, branch `m100/p2-a`, base `466a7a8e4`. Implements only lane A's
+core authority, receiver-policy binding and presence-relay carriage region.
+No model calls, paid calls, real pairing, native presence prompt or physical
+execution: model attempts **0**, inference spend **0**. Presence is injected;
+`local-confirm`, Touch ID and Windows Hello are fake ports in these receipts.
+Physical support remains unavailable under D83.
+
+### Acceptance, implementation and owning tests
+
+| Acceptance            | Implementation                                                                                                                                | Proof and drill                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Intersection — done   | `src/core/devices/actionGrants.ts:132`, `DeviceActionGrants.admit`; `src/host/devices/deviceReceiver.ts:72`, `bindDeviceReceiverActionGrants` | `actionGrants.test.ts` covers the sender ceiling first, receiver manual/plan versus sender auto, all six quota fields at cap/one past for sender and each receiver limit, repository/offer/role/tools, protected paths including Windows separators and traversal, trust revoked after ordinary approval, local approval policy, expiry and revocation. The exact threat test `refuses admission past the receiver intersection` reaches the fake `DeviceLocalAttempt.start` when the intersection is omitted, and fails its forbidden-call assertion. |
+| Step-up — done        | `actionGrants.ts:193`, `:220`, `:229`                                                                                                         | Fake connect/program/actuate actions require receiver-local confirmation, exact bytes/request digest, current grant revision, freshness below five minutes and single use. Offline/observe and refused classes are covered. Auto, ordinary approval and the pairing grant cannot replace presence. Forged approvals, replay, another digest, changed state during the prompt, denial/failure/timeout, bounded records and mutated returned receipts are tested. Removing digest binding, consumption or local provenance fails the owning tests.       |
+| Presence relay — done | `actionGrants.ts:316`, `:347`; the sole new `presenceRelay` member in `src/core/devices/channel.ts`                                           | `devicePresenceRelay.test.ts` covers strict versioned envelopes, closed methods, pair/owner/digest binding, waiting plus attested/refused replies, control-stream carriage and fake orchestrator answers. No answer or settlement kind exists. Forged settlement cannot reduce receiver-recorded occupancy/liability. Allowing a forged attested answer or ignoring receiver-recorded usage fails the tests.                                                                                                                                           |
+| Strings — done        | `DevicePresenceRelay.waitingText`, `actionGrants.ts:348`                                                                                      | Reads existing `UI_TEXT.devices.stepUpWaiting` at runtime with `fill({ device })`; all three method cases assert the waiting reply and named device. No new text key or translation change. Removing the device-presence check fails the relay's denial assertion; removing the version check fails its strict-envelope test. Localization gate is included in final verification below.                                                                                                                                                               |
+
+The receiver binding preserves E's admission order, journal-before-start,
+ordinary approvals, paid gate and Stop behavior. Its error retains the typed
+`deviceGrantRefusalSchema` result in `DeviceActionGrantError.refusal`; the
+phase-1 failure frame remains the existing `grant` word. The authority uses the
+phase-2 schema from `src/shared/devices.ts`, never the phase-1 offer-grant
+schema. Sender mode comparison uses lane 0's `grantCeilingRefusal` and
+`DEVICE_GRANT_MODE_ORDER`. A successful result is narrowed to the admitted
+request's mode, scope and quotas.
+
+The receiver's synchronous `current` snapshot and `senderCeiling` are trusted
+local ports. The local action registry supplies class, tool, paths and exact
+bytes; a peer/model request carries no classification or approval hint.
+Protected paths normalize both separators and lexical traversal before matching.
+The presence port shows those bytes on the executing device, honours abort,
+and rejects unavailable native methods. The receiver rechecks its complete
+intersection and digest after a prompt yields. Private attestations are frozen;
+returned receipts are independent parsed copies and carry no new authority.
+Receiver-recorded usage is input only from the local owner, with no peer
+settlement API. Slot reservation and durable settlement remain E/M96/R's job.
+
+### Red drills and byte-exact restoration
+
+Each command was `npx vitest run test/unit/<owning-file>.test.ts
+--maxWorkers=3 -t <test name>`, at repository default timeouts. Every final
+mutant below exited **1** with an assertion failure, then the original file
+was restored byte-exact. Final source SHA-256 after each drill:
+`fccfca48d1685a8ca89c832e42235e82456162764891936809bab829fa90bd38`
+(`src/core/devices/actionGrants.ts`).
+
+| Mutant                                            | Failing assertion                                |
+| ------------------------------------------------- | ------------------------------------------------ |
+| Omit receiver scope intersection                  | Forbidden `DeviceLocalAttempt.start` called once |
+| Omit sender ceiling early refusal                 | Receiver snapshot unexpectedly read              |
+| Omit receiver quota check                         | Each of six one-past requests admitted           |
+| Omit grant revocation                             | Revoked grant admitted                           |
+| Omit grant expiry                                 | Expired grant admitted                           |
+| Omit digest binding                               | Another payload admitted                         |
+| Omit one-use consumption                          | Connect/program/actuate replay admitted          |
+| Accept unminted attestation                       | Orchestrator approval unexpectedly resolves      |
+| Ignore device rejection                           | Attested reply instead of `presence-unverified`  |
+| Ignore receiver-recorded usage                    | Unrecorded settlement permits admission          |
+| Accept orchestrator's attested answer             | Receiver relay unexpectedly resolves             |
+| Share a mutable private approval with its receipt | Mutated receipt authorizes replacement payload   |
+| Remove relay version literal                      | Wrong version parses                             |
+
+Exploratory defense-in-depth observation: removing only the relay's direction
+check still refused a forged attested reply through the independent digest
+check. The final origin drill explicitly accepted that forged reply and failed
+its rejection assertion. Neither mutant remains. Final raw drill logs are
+under `/tmp/m100p2a-drills-*` on this rig.
+
+### Requests to the lead / lane W
+
+- Proposed order, without editing K's regions: authenticate → owner binding
+  (K) → grant validity/revocation (K) → receiver intersection (A) → receiver-local
+  per-action step-up (A). Construct the policy through
+  `bindDeviceReceiverActionGrants`; resolve owners/check roles from local K
+  records and build a request bound to the exact dispatch mode, role,
+  repository, scope and six caps. `current` must read local offer, trust,
+  role/tool/path policy, approval policy and recorded occupancy every time.
+- Bind `DevicePresenceRelay.receive` only to authenticated requests on the
+  receiver's control stream (`PacedDeviceChannel.send` /
+  `MultiplexedDevicePort.receive`). Pass the authenticated pair id, validate
+  current owner/grant through K first, and use the local digest resolver.
+  The added union member is exactly
+  `{ kind: 'presenceRelay', relay: devicePresenceRelaySchema }`. The
+  orchestrator renders the correlated `waiting` reply with `waitingText(device)`
+  and treats attested replies as status only; it never calls a local answer
+  or `attestStepUp` from peer content. The attempt-aware binding below covers
+  repeated pre-start policy checks and spends the approval at launch or terminal
+  admission. No physical executor is supplied by this lane.
+- W owns joined CHANGELOG/feature catalog/README/SECURITY updates, final lazy
+  entry wiring and fully wired bundle measurement, aggregate `npm run quality`
+  and installed-host qualification. No extra command, setting or dependency
+  is added here, and no global/shared gate or cap is changed.
+- Real-prompt drill request after M109 P is merged, with the owner present:
+  on **Mac mini**, bind P's actual device-local presence port and execute
+  `await grants.requestStepUp(request, 'touch-id')` once for an inert fake
+  `program` action in the installed receiver's debug/test host. Expected:
+  **one** Touch ID prompt on Mac mini, **zero** on the orchestrator, a named
+  waiting status there, no executor/spawn, one attested reply only after the
+  owner's touch. On **Windows PC**, use
+  `await grants.requestStepUp(request, 'windows-hello')` with the equivalent
+  port: **one** Windows Hello prompt there and **zero** remotely. Owner cancels
+  on a second invocation: one prompt, typed `presence-unverified`, no admission.
+  The VMs use the simulator/local-confirm port when biometric hardware is
+  missing. These prompts were requested for qualification, never triggered here.
+
+### Final committed-code fresh-clone receipt
+
+Implementation commit `baacf40aee6afc8177d424f77089c41fa7c0145f`, cloned
+directly from this worktree to `/tmp/m100p2a-final-verify-nir7cqqo`. Node
+**24.18.0**, npm **12.0.1**; `CI=true npm ci` exited **0**. The committed
+source, worktree and clone have the exact action-grants SHA-256 recorded above.
+Final receipt logs are `/tmp/m100p2a-verification-receipts/` on this rig.
+
+- Three consecutive `CI=true npx vitest run test/unit/actionGrants.test.ts
+test/unit/devicePresenceRelay.test.ts --maxWorkers=3` runs: **59 passed
+  each**, repository default deadlines, no `--testTimeout` override. Vitest
+  durations **2.95 s / 5.99 s / 3.23 s** (whole runs, not individual tests).
+- Fresh-clone receiver/channel regressions (`deviceReceiver.test.ts`,
+  `channel.test.ts`, `deviceMultiplexedChannel.test.ts`, at most three
+  files/workers): **92 passed**, no timeout override. Restored worktree's
+  owning files plus receiver regression: **108 passed** before committing.
+- Focused V8 coverage on `src/core/devices/actionGrants.ts`, with the
+  unchanged repository thresholds: **97.32% statements, 95.95% branches,
+  100% functions, 100% lines**; owning **59 passed**, exit **0**.
+- `npm run typecheck`: exit **0**, all five projects (host, webview, unit,
+  e2e, integration). Fresh-clone `npm run lint`: exit **0**, full JavaScript/
+  TypeScript and CSS; PowerShell reports its expected Linux platform skip.
+  Changed-file ESLint and Prettier passed before commit;
+  commit hooks ran ESLint/Prettier and Gitleaks successfully, no leaks.
+- Fresh-clone Prettier on all seven changed files, plain `npx knip`,
+  duplication (**0 clones**), `check:reference` (**18 Devices entries**),
+  `check:l10n` (**14 UI tables, 0 problems**) and cycles: exit **0**.
+- `npm run build`: exit **0**, caps, splits, host globals and notices
+  unchanged and green: Devices **82.5/100 KiB**, activation **462.8/600 KiB**,
+  Model API **456.0/475 KiB**, ACP entry **155.3/850 KiB**, original deferred
+  webview **31.9/50 KiB**. Notices cover **88 packages**. W must still measure
+  the joined bundle after wiring the admission and presence factories.
+- **Host API inventory: exit 1, requires W's owned generated-file update.**
+  `npm run check:host-api` reports exactly two stale Node import-reader counts
+  in `docs/ide-compatibility/host-api.md`: `node:crypto` **93 → 94** and
+  `node:path` **125 → 126**, from this lane's exact-payload hashing and portable
+  path normalization. VS Code API count (**366**), importing files (**43**)
+  and unique Node built-ins (**28**) are unchanged. Per the explicit ownership
+  rule, this lane did not edit W's record or weaken the gate. W should run
+  `npm run check:host-api -- --write`, review these two rows (plus other joined
+  lanes' readers), and rerun the gate before the integration is proposed.
+
+All four lane acceptance bullets have implementation, tests and red drills.
+Aggregate `npm run quality`, the generated host inventory, product wiring,
+real native prompts and installed-host/physical qualification remain W's
+explicit responsibilities; this record does not claim them passed.
+
+### Lane A review repair — FIXM100P2A (2026-10-07, macmini)
+
+Branch `m100/p2-a-fix`, base `5bbefbd4f`; review
+`RVM100P2A.report.md`. Only lane A's authority, receiver admission binding,
+presence-carriage region, owning tests and this lane's certification changed.
+No live or paid calls, real pairing or native prompts: model attempts **0**,
+inference spend **0**. No dependency, contract envelope, gate or budget change.
+
+- **P1 fixed** — `src/core/devices/actionGrants.ts:81` uses the shared
+  `isProtectedPath` rule after separator/lexical normalization and case folding.
+  Receiver-specific protected runs match whole segments anywhere in the path.
+  Normalized leading `..`, POSIX absolute, UNC and Windows drive paths refuse
+  `scope-denied`. `actionGrants.test.ts:122` covers every review scenario,
+  mixed case, Windows separators, ordinary outside writes and the canonical
+  protected names; `:123` proves custom multi-segment runs, boundary-safe
+  ordinary writes and shared protection even with an empty receiver list.
+- **P2 partially fixed (superseded by FIXM100P2A2 below)** — `actionGrants.ts:216`, `:251`, `:258` keeps the attestation
+  bound to one dispatch's full identity and payload digest throughout policy
+  checks. Every check still evaluates the current receiver intersection,
+  action digest, grant revision and freshness. Standalone `admit` retains its
+  one-use behavior. `deviceReceiver.ts:74` binds the scoped authority and
+  `finishAdmission`; `:570` spends it before `lease.start`, and `:590` spends
+  it on every terminal admission path. `actionGrants.test.ts:249` drives real
+  `DeviceReceiver.dispatch` with real binding and fake connect/program/actuate:
+  one mocked start, spent before start, second dispatch typed `step-up-required`.
+  That mock skipped `boundary.beforeAction()`; this receipt did not prove launch. `:277`
+  refuses another in-flight id or dispatch payload, `:306` proves terminal
+  ordinary denial spends it, and `:318` refuses changed action bytes then
+  refuses reuse of the restored payload after the attempt ends.
+- **P3 fixed** — `src/core/devices/channel.ts:225` binds `presenceRelay` to
+  the authenticated pair and applies `DEVICE_LIMITS.grantBytes`.
+  `devicePresenceRelay.test.ts:158` rejects a cross-pair relay at enqueue;
+  `:164` isolates the channel cap from the schema refine: the genuine relay
+  still parses, while a test-only TextEncoder spy reports an envelope of
+  `grantBytes + 1` bytes (below `frameBytes`) and enqueue must refuse.
+  Existing control-stream request/waiting/attested delivery stays covered.
+
+#### Base-failure proof
+
+Before fixing production source, the new regressions ran directly against
+`5bbefbd4f`: **23 failed / 64 passed**. After adding the two in-flight identity
+and dispatch-digest cases, all final tests ran against that same base source
+again: **25 failed / 65 passed** — P1 **18**, P2 **5**, P3 **2** assertion
+failures. Command: `CI=true npx vitest run test/unit/actionGrants.test.ts
+test/unit/devicePresenceRelay.test.ts --maxWorkers=3`, repository default
+timeouts, no override. Source restored byte-exact after the base run.
+Fixed owning suites: **90 passed**; receiver/channel suites: **73 passed**.
+Logs: `temp/fixm100p2a/base-failures.log`,
+`base-final-regressions.log`, `fixed-owning.log`, `receiver-channel.log`.
+
+#### Review guard drills
+
+Each deliberate mutant ran its named regression with `--maxWorkers=3 -t
+<name>` at repository default timeouts. All exited **1** with assertion
+failures; selected-out tests below apply only to drills, not verification.
+Every mutation restored the entire file byte-exact before the next drill.
+
+| Removed guard                               | Failing tests        |
+| ------------------------------------------- | -------------------- |
+| P1 shared protected-path rule               | 3 failed / 19 passed |
+| P1 workspace containment                    | 4 failed / 18 passed |
+| P1 custom path-segment matching             | 1 failed             |
+| P2 repeated checks within one bound attempt | 3 failed             |
+| P2 bound attempt identity                   | 2 failed             |
+| P2 dispatch payload digest in attempt key   | 1 failed / 1 passed  |
+| P2 current action digest                    | 1 failed             |
+| P2 consumption at launch                    | 3 failed             |
+| P2 consumption on terminal ordinary denial  | 1 failed             |
+| P3 channel pair binding                     | 1 failed             |
+| P3 independent channel grant-byte cap       | 1 failed             |
+
+Restored source SHA-256:
+
+- `src/core/devices/actionGrants.ts`:
+  `d522de88a80e74ecb50481cd8c70a203fc7d328f34e0f6722620647e6cd5146b`
+- `src/host/devices/deviceReceiver.ts`:
+  `11cbda32dae8d6120fee1d81047d009f1443282ccc5e313a89f48e270b8be314`
+- `src/core/devices/channel.ts`:
+  `304de781ac5453c05819e10eaeb7f6eb8ecf1b0b7f7020565eefdfba286be8fc`
+
+Drill receipts are `temp/fixm100p2a/drills.log` and `drill-*.log` on macmini.
+The shared `DeviceActionGrantPort` and wire shapes stay unchanged; W must
+supply the concrete attempt-aware methods to `bindDeviceReceiverActionGrants`
+and retain its returned `finishAdmission` hook. Post-start physical actions
+need fresh per-action presence. W still owns the generated host API inventory,
+joined CHANGELOG/reference/docs and aggregate `npm run quality` qualification,
+as the phase-2 ownership table and shared lane rules require.
+
+The initial repair commit is `b17387a9ed1cb31600b95e9c89ef86dd3d55f2d9`;
+ESLint/Prettier and Gitleaks hooks passed, the post-hook staged/committed diff
+was reread, and source hashes still match the drills. Worktree five-project
+`npm run typecheck`, changed-file ESLint and Prettier exited **0**.
+
+Fresh-clone attempt at `/tmp/fixm100p2a-final-verify-20261007`, that commit,
+`CI=true npm ci`: exit **0**, 902 packages; the unchanged lockfile reports
+11 advisories (2 low, 9 high). Its first three-file test batch had **138
+passed / 1 failed**, an `ENOTEMPTY` in cleanup of the unchanged receiver test
+`RVM100E3-P2 reset starts Stop despite a stalled journal and held cancellation
+confirmation`; no assertion or timeout was changed. Its duplication gate
+correctly failed with **4 clones** in the added tests. Shared protected-write,
+confirmed-receiver and waiting-relay fixture setup removes all clones while
+keeping every case and assertion: **90 owning tests still pass**, duplication
+**0 clones**, changed-test ESLint exit **0**. Final verification uses two-file
+batches, at most three workers, without a timeout override.
+
+#### Final fresh-clone repair receipt
+
+Verified commit `950dfc8aa16ed0cd94c94b8c72660297a9ea7a73` (the fixes plus
+shared test setup), cloned directly from this worktree into
+`/tmp/fixm100p2a-final-verify-20261007-final`. Node **24.21.0**, npm **11.19.0**.
+`CI=true npm ci` run with the clone as its working directory exited **0**;
+source hashes match all drill receipts, and both worktree and clone were clean.
+The test-setup commit also passed ESLint/Prettier and Gitleaks hooks; its staged
+and committed diff was reread after the hook.
+
+All four owning files ran **three consecutive complete times**, in two-file
+batches with `CI=true`, `--maxWorkers=3`, repository default timeouts and no
+`--testTimeout`. Each pass: **163 passed** (**90** action-grants/presence-relay
+and **73** receiver/channel); no filters, skipped cases or relaxed assertions.
+Batch durations: **6.10 + 10.85 s**, **7.27 + 11.90 s**, **7.08 + 12.06 s**.
+The five compiler projects (`npm run typecheck`) exited **0**, 0 errors.
+Receipts are `temp/fixm100p2a/fresh-tests.json`, `fresh-tests-*.log`,
+`npm-ci-final-direct.log` and `fresh-typecheck.log`.
+
+The final shared-setup tests were also rerun against `5bbefbd4f`: **25 failed /
+65 passed**, unchanged finding counts. All **11** guard drills were repeated
+against those final tests with the same assertion failures and byte-exact
+source hashes. Receipts: `base-refactored-regressions.log`, `drills-final.log`.
+
+Fresh-clone gate exits (all commands ran with `CI=true`):
+
+| Gate                                       | Exit | Result                                                              |
+| ------------------------------------------ | ---- | ------------------------------------------------------------------- |
+| `npm run typecheck`                        | 0    | All five projects; 0 errors                                         |
+| `npm run lint`                             | 0    | Full JS/TS and CSS; PowerShell's expected darwin platform skip      |
+| `npx prettier --check <six changed files>` | 0    | All clean                                                           |
+| Plain `npx knip`                           | 0    | Only existing vendor/axe-core configuration hints                   |
+| `npm run duplication`                      | 0    | 0 clones                                                            |
+| `npm run check:reference`                  | 0    | Current, 18 Devices entries                                         |
+| `node scripts/check-l10n.mjs`              | 0    | 14 UI/14 usage tables, 0 problems                                   |
+| `npm run check:host-api`                   | 1    | Existing generated inventory mismatch, two Node reader counts below |
+| `npm run cycles`                           | 0    | No cycles                                                           |
+| `npm run build`                            | 0    | All budgets, splits, host globals and notices passed                |
+
+Production budget receipts (KiB): Devices **82.6/100**, activation
+**462.8/600**, Model API **456.0/475**, ACP **155.3/850**, webview startup
+**733.8/900**, original deferred webview **31.9/50**. No cap changed;
+the stricter 733.8 KiB startup review baseline also stays intact. Notices
+cover **88 bundled packages**. Gate details are `fresh-gates.json` and
+`fresh-<gate>.log` alongside the test/drill receipts.
+
+**Integration request, W-owned file:** refresh
+`docs/ide-compatibility/host-api.md` with `npm run check:host-api -- --write`,
+review the two inherited reader-count updates (`node:crypto` **93 → 94**,
+`node:path` **125 → 126**), then rerun the inventory gate. This repair adds
+no Node import reader beyond lane A's already recorded two changes. Inventory
+facts remain **366 VS Code APIs**, **43 VS Code-importing files**, **28 Node
+built-ins**, **70 theme variables**. No shared generated record was edited here.
+
+P1 and P3 are fixed; the first P2 repair passes its mocked-start tests but
+does not prove the real start contract (see FIXM100P2A2 below).
+The inventory refresh, joined CHANGELOG/docs and aggregate `npm run quality`
+remain lane W's explicit ownership under `M100P2-common.md` and the PLAN.md
+phase-2 table. No merge, push, rebase, live call or paid call was made.
+
+### Lane A second review repair — FIXM100P2A2 (2026-10-07, linuxlt)
+
+Brief: `FIXM100P2A2.rig.md`; shared rules: `M100P2-common.md`. Base
+`cd8913a7e`, branch `m100/p2-a-fix2`; review `RVM100P2AB.report.md` P2.
+The first repair's P2 certification is superseded: its mocked start omitted
+the execution contract's `boundary.beforeAction()` and did not prove launch.
+
+Work plan (within the existing lane A admission region):
+
+1. Correct dispatch regressions to retain the real execution-fixture start;
+   run them on the unchanged base and record failures at default deadlines.
+2. Keep the identity/digest-bound attestation through every start check; spend
+   after start succeeds or admission settles without starting. Prove one
+   launch, replay refusal, changed-payload refusal and failed-start consumption.
+3. Break the lifecycle guard, observe assertion failures and restore byte-exact.
+4. Commit with hooks, then verify committed source in a fresh `npm ci` clone:
+   all four suites three times, five typechecks and required scoped gates.
+5. Record final receipts and W-owned blockers, reread post-hook diffs and commit.
+
+Status: steps 1–5 complete. P2 fixed end to end; final receipts below.
+Integration qualification and the inherited host inventory remain W-owned.
+Base source `cd8913a7e`: **6 failed / 85 passed**, exit **1**. Restored
+fixed owning suites: **91 passed**, exit **0**. Every test uses the repository
+deadline; no timeout override. A duplicated assertion block was extracted
+into `expectSingleLaunch`; all assertions remain, duplication **0 clones**.
+No wire shape, gate, cap, dependency, user-visible text or shared region
+changes; live/paid attempts **0**.
+
+#### P2 lifecycle and regression proof
+
+`src/host/devices/deviceReceiver.ts:572` now calls `finishAdmission` after
+`lease.start` succeeds, before the running-state journal advance; its terminal
+`finally` at `:592` still spends a bound approval on every non-starting exit. The existing
+identity plus dispatch-payload-digest key covers all checks in that one
+start contract. Each check retains fresh intersection, action digest, grant
+revision and time validation. No new owner abstraction or wire change is needed.
+
+The corrected `actionGrants.test.ts:258`
+`RVM100P2A-P2 confirms exactly one %s dispatch` tests use
+the unchanged execution fixture's real start, including its own
+`boundary.beforeAction()`, for connect/program/actuate: outcome running,
+`launches === 1`, replay `step-up-required`, and another post-start action
+boundary refused. Both in-flight identity/payload tests also retain real
+start and assert one launch. The changed-action-payload test still refuses
+and spends that attempt (`:337`). New test at `:323`,
+`RVM100P2AB-P2 spends a bound attestation when
+the real start boundary denies approval` reaches the fourth ordinary approval
+inside real start, refuses with retained `uncertain` reservation, launches
+zero times and proves terminal consumption. No start override remains in
+these tests.
+
+Final tests replayed on `cd8913a7e` source: **6 failed / 85 passed**, exit
+**1** (three physical classes, two in-flight binding tests, one real-start
+denial). Receipt: `/tmp/fixm100p2a2-receipts/base-final.log`.
+
+| Deliberate lifecycle break         | Exit | Assertion failures                                     |
+| ---------------------------------- | ---- | ------------------------------------------------------ |
+| Spend before real `lease.start`    | 1    | 6 failed / 2 passed; outcome or fourth approval absent |
+| Remove terminal spend in `finally` | 1    | 2 failed; denied attempts wrongly retain approval      |
+
+Drills selected only the relevant regression names; full verification uses
+unfiltered suites. Sources restored byte-exact after every base/drill run:
+
+- `src/core/devices/actionGrants.ts`: `ea853c03c09ae319b774d36012cda148785c1ad33c4b7b7b90eb37f03ceb86f0`
+- `src/host/devices/deviceReceiver.ts`: `5c10059e498540c8c7bd371da72a9afda9452936444ca1e84eecb5ad150651a9`
+
+Receipts: `/tmp/fixm100p2a2-receipts/drills.json`, `drill-early-spend.log`,
+`drill-terminal-spend.log`. All use `CI=true`, at most three workers and
+repository default timeouts. No scope, dependency, threshold or cap changes.
+
+#### Final fresh-clone receipt — FIXM100P2A2 (2026-10-08)
+
+Verified implementation commit `cc49a2bfd49c0ec25dd24dd475a799e51138e6ac`,
+cloned directly from this worktree into
+`/tmp/fixm100p2a2-final-verify-20261007`. Node **24.21.0**, npm **11.19.0**.
+`CI=true npm ci`: exit **0**, 901 packages added; unchanged lockfile. The
+clone, committed tree and restored worktree share the two source hashes
+recorded above. Test source SHA-256:
+`8d19bd30fa274f16f5d1d172d5f9790410ff62bcd4c03eeda969d469a94a5e2e`.
+
+All four complete suites ran three times with `CI=true`, in two-file batches
+and at most three workers. No filters or timeout overrides: **164 passed
+each time** (**91** actionGrants/devicePresenceRelay + **73**
+deviceReceiver/channel), all six batch exits **0**. Batch wall times:
+**1.63 + 3.46 s**, **1.57 + 3.49 s**, **1.57 + 3.45 s**.
+Receipts: `/tmp/fixm100p2a2-receipts/fresh-tests.json` and
+`fresh-tests-<run>-<batch>.log`.
+
+Fresh-clone gates (`CI=true` throughout):
+
+| Gate                          | Exit | Result                                             |
+| ----------------------------- | ---- | -------------------------------------------------- |
+| `npm run typecheck`           | 0    | All five compiler projects; no errors              |
+| `npm run lint`                | 0    | Full JS/TS and CSS; expected Linux PowerShell skip |
+| Changed-file ESLint           | 0    | Both source files and action-grants tests          |
+| Changed-file Prettier         | 0    | All four files clean                               |
+| Plain `npx knip`              | 0    | Existing vendor/axe-core configuration hints only  |
+| `npm run duplication`         | 0    | 0 clones                                           |
+| `npm run check:reference`     | 0    | Current; 18 Devices entries                        |
+| `node scripts/check-l10n.mjs` | 0    | 14 UI/14 usage tables; 0 problems                  |
+| `npm run check:host-api`      | 1    | Inherited W-owned generated inventory mismatch     |
+| `npm run cycles`              | 0    | No cycles                                          |
+| `npm run build`               | 0    | All caps, splits, host globals and notices pass    |
+
+Production sizes (KiB): Devices **82.6/100**, activation **462.8/600**,
+Model API **456.0/475**, ACP **155.3/850**, chat startup **733.8/900**,
+original deferred webview **31.9/50**, Devices UI **33.8/50**. The stricter
+733.8 KiB chat-startup baseline also holds. No cap changed; notices cover
+**88** packages. All command exits are in `fresh-gates-*.json` and their
+`fresh-<gate>.log` receipts under `/tmp/fixm100p2a2-receipts/`.
+
+**Blocker / lead request:** W must run `npm run check:host-api -- --write`
+and review the inherited `node:crypto` **93 → 94** and `node:path`
+**125 → 126** reader counts in `docs/ide-compatibility/host-api.md`, then
+rerun that gate. This repair introduces no new Node reader. Facts remain
+**366** VS Code APIs, **43** importing files, **28** Node built-ins and
+**70** theme variables. The inventory is outside this lane's ownership.
+W also owns joined CHANGELOG/docs, aggregate `npm run quality`, installed
+hosts and native-presence qualification under the phase-2 ownership table.
+These are not claimed passed here. Lead integrates this branch; no merge,
+push, rebase, real pairing, live model call or paid call was made.
+
+The implementation commit passed ESLint/Prettier and Gitleaks hooks. To
+honour the no-stash rule, a temporary external npx wrapper adds only
+`--no-stash` to lint-staged; every hook still runs. Its captured post-hook
+staged diff was reread and matches the committed diff exactly. The final
+receipt changes documentation only; its formatting and hooked commit are
+checked separately. Both trees were clean after code verification, before
+this receipt update. Next: lead integration and W's inherited inventory
+refresh plus aggregate/installed-host qualification.

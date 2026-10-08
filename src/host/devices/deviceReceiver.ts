@@ -15,6 +15,8 @@ import {
   deviceDispatchSchema,
   isSameAttempt,
   deviceFrameSchema,
+  type DeviceGrantRequest,
+  type DeviceGrantRefusal,
   type DEVICE_FAILURES,
   type DeviceAttemptIdentity,
   type DeviceDispatch,
@@ -22,6 +24,7 @@ import {
   type DeviceFrame,
   type DeviceJournalRecord,
 } from '../../shared/devices'
+import type { DeviceActionGrants } from '../../core/devices/actionGrants'
 import type { PaidUseRequest } from '../../shared/paid'
 import type { PaidFeatureGate } from '../../core/paid/paidFeatures'
 import type { PaidUseConsent } from '../../core/paid/paidConsent'
@@ -60,10 +63,36 @@ export interface DeviceReceiverPolicy {
   assertAllowed(request: DeviceDispatch): Promise<void>
   /** Local ordinary approval; pairing/remote approval never substitutes for this. */
   approve(request: DeviceDispatch): Promise<boolean>
+  /** Spend a bound step-up after start succeeds, or on any terminal admission path. */
+  finishAdmission?(request: DeviceDispatch): void
   readonly paidGate: Pick<PaidFeatureGate, 'isOn'>
   readonly paidConsent: Pick<PaidUseConsent, 'allows'>
   /** M95 binds current local model, tariff, key owner and reservation; no peer credentials. */
   assertPaidBinding(request: DeviceDispatch, use: PaidUseRequest): Promise<void>
+}
+/** W binds its authenticated owner/request resolver here after K's validity check. */
+export function bindDeviceReceiverActionGrants(
+  policy: DeviceReceiverPolicy,
+  grants: Pick<DeviceActionGrants, 'admitAttempt' | 'finishAttempt'>,
+  requestFor: (request: DeviceDispatch) => DeviceGrantRequest,
+): DeviceReceiverPolicy {
+  return {
+    ...policy,
+    async assertAllowed(request) {
+      const result = await grants.admitAttempt(requestFor(request), request)
+      if ('reason' in result) throw new DeviceActionGrantError(result)
+      await policy.assertAllowed(request)
+    },
+    finishAdmission(request) {
+      grants.finishAttempt(request)
+      policy.finishAdmission?.(request)
+    },
+  }
+}
+export class DeviceActionGrantError extends DevicePairingError {
+  public constructor(public readonly refusal: DeviceGrantRefusal) {
+    super('grant')
+  }
 }
 interface PendingAttempt {
   readonly identity: DeviceAttemptIdentity
@@ -539,6 +568,8 @@ export class DeviceReceiver implements DeviceExecutionPort {
           )
           await boundary.beforeAction()
           await this.waitForControl(pending.control.signal, () => lease.start(boundary))
+          // Start owns a final policy boundary; keep this attempt attested through it.
+          this.policy.finishAdmission?.(request)
           const outcome = await this.journal.advance(
             request.identity,
             (previous) => ({ ...previous, revision: previous.revision + 1, state: 'running' }),
@@ -557,6 +588,8 @@ export class DeviceReceiver implements DeviceExecutionPort {
             if (hasReserved) this.pendingReconciliation.add(request.identity.attemptId)
           }
           return this.frame(request.identity.pairId, { kind: 'failure', reason })
+        } finally {
+          this.policy.finishAdmission?.(request)
         }
       })
     } catch (error) {
