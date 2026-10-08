@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import {
   FakeAccountClock,
@@ -44,17 +45,21 @@ describe('M108 reusable account fakes', () => {
       provider: 'meta',
       account: 'work',
       time: '2026-10-05T12:00:00Z',
-      settledUsd: 1,
-      reservedUsd: 2,
-      uncertainUsd: 3,
+      settledUsd: PortUsd.from(1).toAmount(),
+      reservedUsd: PortUsd.from(2).toAmount(),
+      uncertainUsd: PortUsd.from(3).toAmount(),
       inputTokens: 10,
       outputTokens: 20,
       requests: 1,
     }
     journal.append(row)
-    journal.append({ ...row, account: 'personal', settledUsd: 100 })
-    journal.append({ ...row, provider: 'openai', settledUsd: 100 })
-    journal.append({ ...row, time: '2026-10-06T00:00:00Z', settledUsd: 100 })
+    journal.append({ ...row, account: 'personal', settledUsd: PortUsd.from(100).toAmount() })
+    journal.append({ ...row, provider: 'openai', settledUsd: PortUsd.from(100).toAmount() })
+    journal.append({
+      ...row,
+      time: '2026-10-06T00:00:00Z',
+      settledUsd: PortUsd.from(100).toAmount(),
+    })
     const query: AccountUsageQuery = {
       provider: 'meta',
       account: 'work',
@@ -62,9 +67,9 @@ describe('M108 reusable account fakes', () => {
       end: '2026-10-06T00:00:00Z',
     }
     expect(journal.read(query)).toEqual({
-      settledUsd: 1,
-      reservedUsd: 2,
-      uncertainUsd: 3,
+      settledUsd: PortUsd.from(1).toAmount(),
+      reservedUsd: PortUsd.from(2).toAmount(),
+      uncertainUsd: PortUsd.from(3).toAmount(),
       inputTokens: 10,
       outputTokens: 20,
       requests: 1,

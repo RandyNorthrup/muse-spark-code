@@ -140,10 +140,10 @@ function formatUsdIntl(
 }
 
 /** A verified quote's chosen precision, without changing its exact amount. */
-export function formatUsdAtPrecision(exact: Usd, precision: number): string {
+export function formatUsdAtPrecision(exact: Usd, precision: number, locale = uiLocale()): string {
   const rounded = exact.ceiling(precision).toString()
   const [whole = '0', fraction = ''] = rounded.split('.', 2)
-  const formatter = numberFormat(`usd:${String(precision)}`, {
+  const formatter = new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: precision,
@@ -153,7 +153,7 @@ export function formatUsdAtPrecision(exact: Usd, precision: number): string {
   const digits = fraction
     .padEnd(precision, '0')
     .replaceAll(/\d/g, (digit) =>
-      numberFormat('digit', { useGrouping: false }).format(Number(digit)),
+      new Intl.NumberFormat(locale, { useGrouping: false }).format(Number(digit)),
     )
   return formatter
     .formatToParts(BigInt(whole))

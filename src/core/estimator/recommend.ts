@@ -1,3 +1,4 @@
+import { USD_LIABILITY_DECIMALS } from '../../shared/usdConstants'
 import * as z from 'zod/mini'
 import {
   estimateInputsSchema,
@@ -21,10 +22,11 @@ import { fill, UI_TEXT } from '../../shared/l10n/text'
 import {
   addUsdNanos,
   compareUsdNanos,
-  displayUsdNanos,
   scaleUsdNanos,
   usdNanos,
   type UsdNanos,
+  Usd,
+  type UsdAmount,
 } from '../../shared/usd'
 import { compareEstimateIds } from './goal'
 import { type EstimateSimulation } from './simulate'
@@ -44,8 +46,8 @@ export interface EstimateRecommendation {
   evaluations: {
     fleet: FleetSnapshot
     forecast: ReturnType<EstimateRecommendationPort['forecast']>
-    /** Upward nano-USD display projection; selection uses exact fractions. */
-    rentalCostP90Usd?: number
+    /** Exact decimal evidence; selection retains the same complete cost. */
+    rentalCostP90Usd?: UsdAmount
   }[]
   selections: { kind: Setup['kind']; evaluation: number }[]
   marginals: {
@@ -156,6 +158,7 @@ export function recommendEstimate(
       refuse('rental-class-mismatch')
   }
   const prices = pricesSchema.parse(catalogPrices)
+  const hourlyCosts = new Map(prices.map((row) => [row.machineId, usdNanos(row.price.hourlyUsd)]))
   if (new Set(prices.map((row) => row.machineId)).size !== prices.length) refuse('duplicate-price')
   for (const row of prices) {
     if (
@@ -184,7 +187,7 @@ export function recommendEstimate(
     const cached = indexed.get(identity)
     if (cached !== undefined) return cached
     const forecast = structuredClone(port.forecast(structuredClone({ ...inputs, fleet })))
-    let rentalCostP90Usd: number | undefined
+    let rentalCostP90Usd: UsdAmount | undefined
     if (forecast.status === 'feasible') {
       const { p50, p90, p50Hours, p90Hours } = quantilesSchema.parse({
         p50: forecast.simulation.p50,
@@ -204,16 +207,18 @@ export function recommendEstimate(
           machine.source === 'rented' &&
           current.machines.every((existing) => existing.id !== machine.id),
       )
-      const rates = rented.map(
-        (machine) => prices.find((row) => row.machineId === machine.id)?.price.hourlyUsd,
-      )
+      const rates = rented.map((machine) => hourlyCosts.get(machine.id))
       if (rates.every((rate) => rate !== undefined)) {
         let hourly = usdNanos(0)
-        for (const rate of rates) hourly = addUsdNanos(hourly, usdNanos(rate))
+        for (const rate of rates) hourly = addUsdNanos(hourly, rate)
         const exactCost = scaleUsdNanos(hourly, p90Hours)
         exactCosts.set(evaluations.length, exactCost)
-        rentalCostP90Usd = displayUsdNanos(exactCost)
-        if (!Number.isFinite(rentalCostP90Usd)) refuse('cost-overflow')
+        rentalCostP90Usd = Usd.fromUnits(
+          exactCost.numerator,
+          exactCost.denominator.toString().length - 1 + USD_LIABILITY_DECIMALS,
+        ).toAmount()
+        if (Usd.from(rentalCostP90Usd).compare(Usd.from(Number.MAX_VALUE)) > 0)
+          refuse('cost-overflow')
       }
     } else if (forecast.reason.length === 0) refuse('missing-infeasibility-reason')
     const index = evaluations.length

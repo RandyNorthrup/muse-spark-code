@@ -1,3 +1,4 @@
+import { nonnegativeUsdSchema } from '../../shared/usdSchema'
 import { createHash } from 'node:crypto'
 import process from 'node:process'
 import path from 'node:path'
@@ -221,8 +222,8 @@ export class NativeScheduleBackground implements ScheduleBackgroundPort {
     if (
       authorization.scheduledPrompts &&
       (authorization.maxBudgetUsd === undefined ||
-        !Number.isFinite(authorization.maxBudgetUsd) ||
-        authorization.maxBudgetUsd <= 0)
+        !nonnegativeUsdSchema.safeParse(authorization.maxBudgetUsd).success ||
+        authorization.maxBudgetUsd === '0')
     )
       throw new Error(UI_TEXT.scheduleV2.runtime.paidAuthorizationRequired)
     if (this.deps.platform === 'darwin') {

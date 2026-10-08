@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -117,17 +118,17 @@ async function scheduledMedia(t: Awaited<ReturnType<typeof setup>>, cap = 1, sha
     accountId: FAKE_MODEL_API_ACCOUNT_ID,
     priceTier: 'contributor',
     price: 'Captured token rates',
-    sharedDailyBudgetUsd: sharedCap,
+    sharedDailyBudgetUsd: Usd.from(sharedCap).toAmount(),
   }
   const schedule = fakeSchedule({
-    paidCapUsd: cap,
-    grant: { rules: [], destinationIds: [], paidCapUsd: cap },
+    paidCapUsd: Usd.from(cap).toAmount(),
+    grant: { rules: [], destinationIds: [], paidCapUsd: Usd.from(cap).toAmount() },
     paidConsent: {
       modelId: identity.modelId,
       accountId: identity.accountId,
       priceTier: identity.priceTier,
-      sharedDailyBudgetUsd: sharedCap,
-      dailyCapUsd: cap,
+      sharedDailyBudgetUsd: Usd.from(sharedCap).toAmount(),
+      dailyCapUsd: Usd.from(cap).toAmount(),
       grantedAtMs: 0,
       extras: ['webSearch'],
     },
@@ -186,7 +187,7 @@ describe('media accounting at the transport', () => {
     expect(fire.scope.cost()).toEqual({
       usd: Number(spentUsd),
       certainty: 'exact',
-      retainedLiabilityUsd: 0,
+      retainedLiabilityUsd: PortUsd.from(0).toAmount(),
     })
     expect(t.claims[0]!.settle).toHaveBeenCalledExactlyOnceWith('0.000233', false)
     expect(t.claims[1]!.settle).toHaveBeenCalledExactlyOnceWith('0')
@@ -205,7 +206,11 @@ describe('media accounting at the transport', () => {
       expect(t.api.requests).toHaveLength(0)
       const latest = await fire.daily.latestDay()
       expect(latest.spentUsd).toBe('0')
-      expect(fire.scope.cost()).toEqual({ usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 })
+      expect(fire.scope.cost()).toEqual({
+        usd: PortUsd.from(0).toAmount(),
+        certainty: 'exact',
+        retainedLiabilityUsd: PortUsd.from(0).toAmount(),
+      })
       expect(fire.run.refusedActions).toHaveLength(1)
       expect(t.claims[0]!.settle).toHaveBeenCalledExactlyOnceWith('0', false)
       expect(t.claims[1]!.settle).toHaveBeenCalledExactlyOnceWith('0', false)
@@ -223,7 +228,7 @@ describe('media accounting at the transport', () => {
       uncertainUsd: Number(t.accounting.reservedUsd),
     })
     expect(fire.scope.cost()).toEqual({
-      usd: 0,
+      usd: PortUsd.from(0).toAmount(),
       certainty: 'unknown',
       retainedLiabilityUsd: Number(t.accounting.reservedUsd),
     })

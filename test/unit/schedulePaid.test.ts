@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -27,19 +28,19 @@ const identity: SchedulePaidIdentity = {
   accountId: FAKE_MODEL_API_ACCOUNT_ID,
   priceTier: 'standard',
   price: 'Verified token rates',
-  sharedDailyBudgetUsd: 5,
+  sharedDailyBudgetUsd: PortUsd.from(5).toAmount(),
 }
 const schedule = () =>
   fakeSchedule({
-    grant: { rules: [], destinationIds: [], paidCapUsd: 1 },
-    paidCapUsd: 1,
+    grant: { rules: [], destinationIds: [], paidCapUsd: PortUsd.from(1).toAmount() },
+    paidCapUsd: PortUsd.from(1).toAmount(),
     paidConsent: {
       modelId: identity.modelId,
       accountId: identity.accountId,
       priceTier: identity.priceTier,
       sharedDailyBudgetUsd: identity.sharedDailyBudgetUsd,
       grantedAtMs: 0,
-      dailyCapUsd: 1,
+      dailyCapUsd: PortUsd.from(1).toAmount(),
       extras: ['imageGeneration'],
     },
   })
@@ -191,10 +192,12 @@ describe('schedule-scoped paid consent and reservations', () => {
       remember: () => Promise.resolve(true),
     })
     expect(consent).toBeUndefined()
-    expect(isScheduleConsentCurrent({ ...schedule(), paidCapUsd: 0 }, identity)).toBe(false)
+    expect(
+      isScheduleConsentCurrent({ ...schedule(), paidCapUsd: PortUsd.from(0).toAmount() }, identity),
+    ).toBe(false)
     expect(
       isScheduleConsentCurrent(
-        { ...schedule(), grant: { ...schedule().grant, paidCapUsd: 0 } },
+        { ...schedule(), grant: { ...schedule().grant, paidCapUsd: PortUsd.from(0).toAmount() } },
         identity,
       ),
     ).toBe(false)
@@ -205,7 +208,7 @@ describe('schedule-scoped paid consent and reservations', () => {
       { modelId: 'different' },
       { accountId: 'other-digest' },
       { priceTier: 'new-tariff' },
-      { sharedDailyBudgetUsd: 1 },
+      { sharedDailyBudgetUsd: PortUsd.from(1).toAmount() },
     ])
       expect(isScheduleConsentCurrent(schedule(), { ...identity, ...change })).toBe(false)
   })
@@ -229,11 +232,19 @@ describe('schedule-scoped paid consent and reservations', () => {
       scope.reserve({ ...body, model: 'changed' }, 100, new AbortController().signal),
     ).rejects.toThrow()
     const claim = await scope.reserve(body, 100, new AbortController().signal)
-    expect(scope.cost()).toEqual({ usd: 0, certainty: 'unknown', retainedLiabilityUsd: 0.6 })
+    expect(scope.cost()).toEqual({
+      usd: PortUsd.from(0).toAmount(),
+      certainty: 'unknown',
+      retainedLiabilityUsd: PortUsd.from(0.6).toAmount(),
+    })
     await expect(claim.settle(usd(1.1))).rejects.toThrow()
     const retained = await first.latestDay()
     expect(retained.spentUsd).toBe('0.6')
-    expect(scope.cost()).toEqual({ usd: 0, certainty: 'unknown', retainedLiabilityUsd: 0.6 })
+    expect(scope.cost()).toEqual({
+      usd: PortUsd.from(0).toAmount(),
+      certainty: 'unknown',
+      retainedLiabilityUsd: PortUsd.from(0.6).toAmount(),
+    })
     isOn = false
     expect(scope.allows('imageGeneration')).toBe(false)
     expect(() => claim.check(usd(0))).toThrow()
@@ -242,7 +253,11 @@ describe('schedule-scoped paid consent and reservations', () => {
     expect(() => claim.check(usd(0))).toThrow()
     await expect(scope.reserve(body, 100, new AbortController().signal)).rejects.toThrow()
     await claim.settle(usd(0.2))
-    expect(scope.cost()).toEqual({ usd: 0.2, certainty: 'exact', retainedLiabilityUsd: 0 })
+    expect(scope.cost()).toEqual({
+      usd: PortUsd.from(0.2).toAmount(),
+      certainty: 'exact',
+      retainedLiabilityUsd: PortUsd.from(0).toAmount(),
+    })
   })
   it('admits Muse Code paid extras with their own gate and retains missing-usage liability', async () => {
     const { first } = await ledgers()
@@ -269,7 +284,11 @@ describe('schedule-scoped paid consent and reservations', () => {
     const claim = await scope.reserve(image, undefined, new AbortController().signal)
     claim.check(usd(0))
     await claim.settle(usd(0.6), true)
-    expect(scope.cost()).toEqual({ usd: 0, certainty: 'unknown', retainedLiabilityUsd: 0.6 })
+    expect(scope.cost()).toEqual({
+      usd: PortUsd.from(0).toAmount(),
+      certainty: 'unknown',
+      retainedLiabilityUsd: PortUsd.from(0.6).toAmount(),
+    })
     await expect(scope.reserve(image, undefined, new AbortController().signal)).rejects.toThrow()
     const unpricedReserve = vi.fn()
     const unpriced = createSchedulePaidScope({
@@ -312,19 +331,36 @@ describe('schedule-scoped paid consent and reservations', () => {
   })
   it('rejects zero paid consent while retaining no-consent migration records', () => {
     const consent = schedule().paidConsent
-    expect(schedulePaidConsentSchema.safeParse({ ...consent, dailyCapUsd: 0 }).success).toBe(false)
     expect(
-      schedulePaidConsentSchema.safeParse({ ...consent, sharedDailyBudgetUsd: 0 }).success,
+      schedulePaidConsentSchema.safeParse({ ...consent, dailyCapUsd: PortUsd.from(0).toAmount() })
+        .success,
     ).toBe(false)
-    const zero = { ...schedule(), paidCapUsd: 0, grant: { ...schedule().grant, paidCapUsd: 0 } }
     expect(
-      scheduleV2Schema.safeParse({ ...zero, paidConsent: { ...consent, dailyCapUsd: 0 } }).success,
+      schedulePaidConsentSchema.safeParse({
+        ...consent,
+        sharedDailyBudgetUsd: PortUsd.from(0).toAmount(),
+      }).success,
+    ).toBe(false)
+    const zero = {
+      ...schedule(),
+      paidCapUsd: PortUsd.from(0).toAmount(),
+      grant: { ...schedule().grant, paidCapUsd: PortUsd.from(0).toAmount() },
+    }
+    expect(
+      scheduleV2Schema.safeParse({
+        ...zero,
+        paidConsent: { ...consent, dailyCapUsd: PortUsd.from(0).toAmount() },
+      }).success,
     ).toBe(false)
     expect(scheduleV2Schema.safeParse({ ...zero, paidConsent: undefined }).success).toBe(true)
   })
   it('rejects zero cap at the durable reservation independently of schema validation', async () => {
     const own = schedule()
-    const zero = { ...own, paidCapUsd: 0, grant: { ...own.grant, paidCapUsd: 0 } }
+    const zero = {
+      ...own,
+      paidCapUsd: PortUsd.from(0).toAmount(),
+      grant: { ...own.grant, paidCapUsd: PortUsd.from(0).toAmount() },
+    }
     vi.spyOn(scheduleV2Schema, 'parse').mockReturnValue(zero)
     const { first } = await ledgers()
     await expect(
@@ -334,7 +370,7 @@ describe('schedule-scoped paid consent and reservations', () => {
     expect(latest.spentUsd).toBe('0')
   })
   it('does not ask for paid consent with a zero cap', async () => {
-    const own = { ...schedule(), paidCapUsd: 0, paidConsent: undefined }
+    const own = { ...schedule(), paidCapUsd: PortUsd.from(0).toAmount(), paidConsent: undefined }
     const ask = vi.fn()
     expect(
       await askSchedulePaidConsent({
@@ -354,8 +390,8 @@ describe('schedule-scoped paid consent and reservations', () => {
   it('rejects zero paid authority at schema, consent and durable reservation before HTTP', async () => {
     const zero = {
       ...schedule(),
-      paidCapUsd: 0,
-      grant: { ...schedule().grant, paidCapUsd: 0 },
+      paidCapUsd: PortUsd.from(0).toAmount(),
+      grant: { ...schedule().grant, paidCapUsd: PortUsd.from(0).toAmount() },
       paidConsent: {
         modelId: identity.modelId,
         accountId: identity.accountId,
@@ -363,7 +399,7 @@ describe('schedule-scoped paid consent and reservations', () => {
         sharedDailyBudgetUsd: identity.sharedDailyBudgetUsd,
         grantedAtMs: 0,
         extras: [],
-        dailyCapUsd: 0,
+        dailyCapUsd: PortUsd.from(0).toAmount(),
       },
     }
     expect(isScheduleConsentCurrent(zero, identity)).toBe(false)
@@ -427,7 +463,7 @@ describe('schedule-scoped paid consent and reservations', () => {
     )
     await consumeResponse(client)
     expect(reserve).toHaveBeenCalledTimes(3)
-    expect(scope.cost().usd).toBeGreaterThanOrEqual(0.8)
+    expect(Usd.from(scope.cost().usd).compare(Usd.from('0.8'))).toBeGreaterThanOrEqual(0)
     expect(scope.cost().certainty).toBe('exact')
     await expect(client.createImage(image, new AbortController().signal)).rejects.toThrow()
     expect(api.imageBodies()).toHaveLength(1)

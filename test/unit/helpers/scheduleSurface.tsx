@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../../src/shared/usd'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { expect, vi } from 'vitest'
 import { scheduleViewV2Of, type ScheduleRequest } from '../../../src/shared/scheduleV2'
@@ -22,9 +23,9 @@ export function showScheduleSurface(
       grant: {
         rules: [{ id: 'read-src', kind: 'path', access: 'read', glob: 'src/**' }],
         destinationIds: [],
-        paidCapUsd: 1,
+        paidCapUsd: PortUsd.from(1).toAmount(),
       },
-      paidCapUsd: 1,
+      paidCapUsd: PortUsd.from(1).toAmount(),
     }),
   )
   const responseFor = (input: ScheduleRequest): unknown => {

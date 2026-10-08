@@ -38,7 +38,7 @@ import {
   scheduledRunPrice,
   subagentTaskPrice,
 } from '../../shared/paid'
-import { Usd, type UsdAmount } from '../../shared/usd'
+import { Usd, minUsd, nonnegativeUsdSchema, type UsdAmount } from '../../shared/usd'
 import type { CreateResponseBody, CreateImageBody } from '../backends/modelapi/schemas'
 import type { SessionBudgetClaim } from '../backends/modelapi/sessionBudget'
 
@@ -65,7 +65,7 @@ export interface SchedulePaidIdentity {
   readonly accountId: string
   readonly priceTier: string
   readonly price: string
-  readonly sharedDailyBudgetUsd: number
+  readonly sharedDailyBudgetUsd: UsdAmount
 }
 
 export type ScheduleConsent = NonNullable<ScheduleV2['paidConsent']>
@@ -77,16 +77,17 @@ export function isScheduleConsentCurrent(
   const consent = schedule.paidConsent
   return (
     schedule.action.kind === 'prompt' &&
-    Number.isFinite(consent?.dailyCapUsd) &&
-    (consent?.dailyCapUsd ?? 0) > 0 &&
-    Number.isFinite(consent?.sharedDailyBudgetUsd) &&
-    (consent?.sharedDailyBudgetUsd ?? 0) > 0 &&
-    consent?.modelId === identity.modelId &&
+    consent !== undefined &&
+    nonnegativeUsdSchema.safeParse(consent.dailyCapUsd).success &&
+    consent.dailyCapUsd !== '0' &&
+    nonnegativeUsdSchema.safeParse(consent.sharedDailyBudgetUsd).success &&
+    consent.sharedDailyBudgetUsd !== '0' &&
+    consent.modelId === identity.modelId &&
     consent.accountId === identity.accountId &&
     consent.priceTier === identity.priceTier &&
     consent.sharedDailyBudgetUsd === identity.sharedDailyBudgetUsd &&
-    consent.dailyCapUsd <= schedule.paidCapUsd &&
-    consent.dailyCapUsd <= schedule.grant.paidCapUsd
+    Usd.from(consent.dailyCapUsd).compare(Usd.from(schedule.paidCapUsd)) <= 0 &&
+    Usd.from(consent.dailyCapUsd).compare(Usd.from(schedule.grant.paidCapUsd)) <= 0
   )
 }
 
@@ -109,7 +110,8 @@ export async function askSchedulePaidConsent(deps: {
     !deps.isOn() ||
     !deps.isCurrent() ||
     identity.price.trim() === '' ||
-    !(Math.min(schedule.paidCapUsd, schedule.grant.paidCapUsd, identity.sharedDailyBudgetUsd) > 0)
+    !nonnegativeUsdSchema.safeParse(identity.sharedDailyBudgetUsd).success ||
+    minUsd(schedule.paidCapUsd, schedule.grant.paidCapUsd, identity.sharedDailyBudgetUsd) === '0'
   )
     return undefined
   if (
@@ -124,7 +126,7 @@ export async function askSchedulePaidConsent(deps: {
     priceTier: identity.priceTier,
     sharedDailyBudgetUsd: identity.sharedDailyBudgetUsd,
     grantedAtMs: deps.now(),
-    dailyCapUsd: Math.min(schedule.paidCapUsd, schedule.grant.paidCapUsd),
+    dailyCapUsd: minUsd(schedule.paidCapUsd, schedule.grant.paidCapUsd),
     extras: deps.extras,
   })
   const answer = await deps.ask({
@@ -186,12 +188,12 @@ export function createSchedulePaidScope(deps: {
       for (const claim of claims.values()) {
         if (!claim.settled) retainedLiabilityUsd = retainedLiabilityUsd.add(Usd.from(claim.usd))
       }
-      // The fire record keeps its numeric schema; exact amounts convert once at this edge.
+      // Fire records persist exact settled and retained amounts.
       return {
-        usd: Number(settledUsd.toString()),
+        usd: settledUsd.toAmount(),
         certainty:
           hasUnknown || retainedLiabilityUsd.compare(Usd.from(0)) > 0 ? 'unknown' : 'exact',
-        retainedLiabilityUsd: Number(retainedLiabilityUsd.toString()),
+        retainedLiabilityUsd: retainedLiabilityUsd.toAmount(),
       }
     },
     reserve: async (

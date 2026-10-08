@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { mkdtempSync } from 'node:fs'
 import { readFile, stat, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -133,21 +134,24 @@ describe('schedule v2 boundary contracts', () => {
   })
 
   it('rejects a paid cap above the grant and a consent cap above the schedule', () => {
-    expect(scheduleV2Schema.safeParse({ ...fakeSchedule(), paidCapUsd: 1 }).success).toBe(false)
+    expect(
+      scheduleV2Schema.safeParse({ ...fakeSchedule(), paidCapUsd: PortUsd.from(1).toAmount() })
+        .success,
+    ).toBe(false)
     const consent = {
       modelId: 'model-1',
       accountId: 'key-digest',
       priceTier: 'tier-1',
       grantedAtMs: 0,
-      dailyCapUsd: 2,
-      sharedDailyBudgetUsd: 1,
+      dailyCapUsd: PortUsd.from(2).toAmount(),
+      sharedDailyBudgetUsd: PortUsd.from(1).toAmount(),
       extras: [],
     }
     expect(
       scheduleV2Schema.safeParse({
         ...fakeSchedule(),
-        grant: { rules: [], destinationIds: [], paidCapUsd: 1 },
-        paidCapUsd: 1,
+        grant: { rules: [], destinationIds: [], paidCapUsd: PortUsd.from(1).toAmount() },
+        paidCapUsd: PortUsd.from(1).toAmount(),
         paidConsent: consent,
       }).success,
     ).toBe(false)
@@ -270,8 +274,8 @@ describe('schedule v2 boundary contracts', () => {
       scheduleV2Schema.safeParse({
         ...fakeSchedule(),
         action,
-        paidCapUsd: 1,
-        grant: { rules: [], destinationIds: [], paidCapUsd: 1 },
+        paidCapUsd: PortUsd.from(1).toAmount(),
+        grant: { rules: [], destinationIds: [], paidCapUsd: PortUsd.from(1).toAmount() },
       }).success,
     ).toBe(false)
     expect(
@@ -283,8 +287,8 @@ describe('schedule v2 boundary contracts', () => {
           accountId: 'digest-1',
           priceTier: 'tier-1',
           grantedAtMs: 0,
-          dailyCapUsd: 0,
-          sharedDailyBudgetUsd: 1,
+          dailyCapUsd: PortUsd.from(0).toAmount(),
+          sharedDailyBudgetUsd: PortUsd.from(1).toAmount(),
           extras: [],
         },
       }).success,
@@ -373,7 +377,7 @@ describe('schedule v2 boundary contracts', () => {
     ).toBe(false)
     for (const override of [
       { parallel: true },
-      { paidCapUsd: 1 },
+      { paidCapUsd: PortUsd.from(1).toAmount() },
       { target: { kind: 'newConversation', backend: 'modelApi' } },
       {
         action: {
@@ -385,8 +389,8 @@ describe('schedule v2 boundary contracts', () => {
             { id: 'browser', kind: 'browser', location: 'local', whenInactive: 'wait' },
           ],
         },
-        paidCapUsd: 1,
-        grant: { rules: [], destinationIds: [], paidCapUsd: 1 },
+        paidCapUsd: PortUsd.from(1).toAmount(),
+        grant: { rules: [], destinationIds: [], paidCapUsd: PortUsd.from(1).toAmount() },
       },
     ]) {
       expect(scheduleDraftSchema.safeParse({ ...draft, ...override }).success).toBe(false)
@@ -723,7 +727,11 @@ describe('schedule v2 boundary contracts', () => {
       delivery: schedule.delivery,
       outcome: 'refused',
       refusedActions: [{ actionClass: 'physical', tool: 'physical', reason: 'unattended' }],
-      cost: { usd: 0, certainty: 'unknown', retainedLiabilityUsd: 1 },
+      cost: {
+        usd: PortUsd.from(0).toAmount(),
+        certainty: 'unknown',
+        retainedLiabilityUsd: PortUsd.from(1).toAmount(),
+      },
     }
     expect(scheduleFireRecordSchema.safeParse(record).success).toBe(true)
     expect(
@@ -864,8 +872,8 @@ describe('M52 migration mapping', () => {
         },
         paused: true,
         pauseReason: 'migrationConsentRequired',
-        grant: { rules: [], destinationIds: [], paidCapUsd: 0 },
-        paidCapUsd: 0,
+        grant: { rules: [], destinationIds: [], paidCapUsd: PortUsd.from(0).toAmount() },
+        paidCapUsd: PortUsd.from(0).toAmount(),
       })
       expect(mapped.paidConsent).toBeUndefined()
       expect(scheduleViewV2Of(mapped)).not.toHaveProperty('migration')

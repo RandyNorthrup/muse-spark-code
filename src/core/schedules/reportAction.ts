@@ -1,3 +1,4 @@
+import { Usd } from '../../shared/usd'
 import { UI_TEXT } from '../../shared/constants'
 import { isRunContextOf } from './runIdentity'
 import { scheduleEventSchema, type ScheduleEvent } from '../../shared/scheduleEvents'
@@ -96,7 +97,11 @@ export class ScheduleReportActionRunner implements ScheduleReportDeliveryPort {
         outcome,
         ...(reason !== undefined && { reason }),
         refusedActions: [],
-        cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+        cost: {
+          usd: Usd.from(0).toAmount(),
+          certainty: 'exact',
+          retainedLiabilityUsd: Usd.from(0).toAmount(),
+        },
         ...(e !== undefined && { event: e }),
         ...(report !== undefined && { report }),
       })

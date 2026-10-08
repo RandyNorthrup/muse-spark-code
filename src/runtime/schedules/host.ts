@@ -1,3 +1,4 @@
+import { Usd } from '../../shared/usd'
 import { performance } from 'node:perf_hooks'
 import { UI_TEXT } from '../../shared/constants'
 import { scheduleEventSchema, type ScheduleEvent } from '../../shared/scheduleEvents'
@@ -90,7 +91,11 @@ export class RuntimeScheduleHost implements ScheduleHostPort {
         outcome: 'refused',
         reason: UI_TEXT.scheduleV2.reportAction.unavailable,
         refusedActions: [],
-        cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+        cost: {
+          usd: Usd.from(0).toAmount(),
+          certainty: 'exact',
+          retainedLiabilityUsd: Usd.from(0).toAmount(),
+        },
         ...(e !== undefined && { event: e }),
       })
     const result = scheduleFireRecordSchema.parse(
@@ -110,9 +115,9 @@ export class RuntimeScheduleHost implements ScheduleHostPort {
       throw new Error(UI_TEXT.scheduleV2.runtime.invalidResponse)
     if (
       s.action.kind === 'report' &&
-      (result.cost.usd !== 0 ||
+      (result.cost.usd !== '0' ||
         result.cost.certainty !== 'exact' ||
-        result.cost.retainedLiabilityUsd !== 0 ||
+        result.cost.retainedLiabilityUsd !== '0' ||
         (result.outcome === 'ran' &&
           (result.report === undefined ||
             Object.values(result.report).some((item) => item.status !== 'delivered'))) ||

@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { readFile, writeFile, readdir, mkdir, symlink } from 'node:fs/promises'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -130,7 +131,7 @@ describe('M115 durable shared store', () => {
       grant: {
         rules: [{ id: 'read', kind: 'tool', name: 'read_file' }],
         destinationIds: [],
-        paidCapUsd: 0,
+        paidCapUsd: PortUsd.from(0).toAmount(),
       },
     })
     await store.create(job)
@@ -141,7 +142,7 @@ describe('M115 durable shared store', () => {
         JSON.stringify({
           ...job,
           paused: true,
-          grant: { rules: [], destinationIds: [], paidCapUsd: 0 },
+          grant: { rules: [], destinationIds: [], paidCapUsd: PortUsd.from(0).toAmount() },
         }),
       ),
       worker(directory, 'update', JSON.stringify({ ...job, name: 'Changed name' })),
@@ -267,7 +268,11 @@ describe('M115 durable shared store', () => {
       delivery: job.delivery,
       outcome: 'ran',
       refusedActions: [],
-      cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+      cost: {
+        usd: PortUsd.from(0).toAmount(),
+        certainty: 'exact',
+        retainedLiabilityUsd: PortUsd.from(0).toAmount(),
+      },
     }
     await fs.publish('workspace-1/fires/abc.json', JSON.stringify({ fire, sequence: 0 }))
     await expect(store.fires('workspace-1')).rejects.toThrow('IdentityMismatch')
@@ -389,15 +394,19 @@ describe('M115 durable shared store', () => {
       delivery: job.delivery,
       outcome: 'failed',
       refusedActions: [{ actionClass: 'shell', tool: 'shell', reason: 'outside grant' }],
-      cost: { usd: 0.2, certainty: 'unknown', retainedLiabilityUsd: 0.8 },
+      cost: {
+        usd: PortUsd.from(0.2).toAmount(),
+        certainty: 'unknown',
+        retainedLiabilityUsd: PortUsd.from(0.8).toAmount(),
+      },
     })
     await store.record(fire)
     await store.record(fire)
     expect(await store.fires(job.workspaceKey)).toEqual([fire])
     expect(await store.fires('workspace-2')).toEqual([])
-    await expect(store.record({ ...fire, cost: { ...fire.cost, usd: 0 } })).rejects.toThrow(
-      'SettlementConflict',
-    )
+    await expect(
+      store.record({ ...fire, cost: { ...fire.cost, usd: PortUsd.from(0).toAmount() } }),
+    ).rejects.toThrow('SettlementConflict')
     const [current] = await store.list(job.workspaceKey)
     expect(current?.consecutiveFailures).toBe(1)
     const newer = { ...fire, runId: 'schedule-1:10', occurrenceMs: 10, outcome: 'ran' as const }
@@ -453,7 +462,11 @@ describe('M115 durable shared store', () => {
       target: job.target,
       delivery: job.delivery,
       refusedActions: [],
-      cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+      cost: {
+        usd: PortUsd.from(0).toAmount(),
+        certainty: 'exact',
+        retainedLiabilityUsd: PortUsd.from(0).toAmount(),
+      },
     }
     await store.record(
       scheduleFireRecordSchema.parse({
@@ -640,7 +653,11 @@ describe('M115 durable shared store', () => {
         delivery: initial.delivery,
         outcome: 'ran',
         refusedActions: [],
-        cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+        cost: {
+          usd: PortUsd.from(0).toAmount(),
+          certainty: 'exact',
+          retainedLiabilityUsd: PortUsd.from(0).toAmount(),
+        },
       })
     }
     const file = await scheduleStateFile(fs)

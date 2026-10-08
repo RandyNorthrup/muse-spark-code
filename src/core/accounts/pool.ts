@@ -1,3 +1,4 @@
+import { usdAmountSchema, Usd as ExactUsd } from '../../shared/usd'
 // D88.5–7. One provider's pool, shared by conversation and background callers.
 // The owner binds the real journal, registry, budgets and transcript ports.
 import {
@@ -10,7 +11,14 @@ import {
   type AccountTrigger,
 } from '../../shared/accounts'
 import { ACCOUNT_DEFAULTS, TOKENS_PER_MILLION, UI_TEXT } from '../../shared/constants'
-import { multiplyUsd, parseUsd, sumUsd, usdNumber, type Usd } from '../../shared/accountUsd'
+import {
+  multiplyUsd,
+  parseUsd,
+  sumUsd,
+  usdNumber,
+  usdDecimal,
+  type Usd,
+} from '../../shared/accountUsd'
 import type { AccountPolicy } from '../providers/accountPolicy'
 import { accountLimitIdentity, isAccountLimitEligible } from './limitBlock'
 import type { AccountPolicyGate, AccountPolicyDecision } from './policyGate'
@@ -106,9 +114,9 @@ function numericUsd(value: Usd): number {
 
 function projected(estimate: AccountRequestEstimate) {
   return {
-    settledUsd: 0,
-    reservedUsd: numericUsd(estimate.costUsd),
-    uncertainUsd: 0,
+    settledUsd: ExactUsd.from(0).toAmount(),
+    reservedUsd: usdAmountSchema.parse(usdDecimal(estimate.costUsd)),
+    uncertainUsd: ExactUsd.from(0).toAmount(),
     inputTokens: estimate.inputTokens,
     outputTokens: estimate.outputTokens,
     requests: estimate.requests,

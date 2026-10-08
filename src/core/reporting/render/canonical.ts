@@ -1,6 +1,9 @@
+import { legacyUsdSchema } from '../../../shared/usdSchema'
 import { createHash } from 'node:crypto'
 import {
   reportDocumentSchema,
+  legacyReportDocumentSchema,
+  type LegacyReportSection,
   type ReportDocument,
   type ReportSection,
 } from '../../../shared/reportSchema'
@@ -12,7 +15,11 @@ function compare(a: string, b: string): number {
   return Number(a > b) - Number(a < b)
 }
 
-function orderedSection(section: ReportSection): ReportSection {
+function orderedSection(section: ReportSection): ReportSection
+function orderedSection(section: LegacyReportSection): LegacyReportSection
+function orderedSection(
+  section: ReportSection | LegacyReportSection,
+): ReportSection | LegacyReportSection {
   return {
     ...section,
     rows: section.rows
@@ -50,7 +57,7 @@ function scrubCanonical(document: ReportDocument, options: ReportRedaction): Rep
   return ordered({ ...clean, header: { ...clean.header, contentHash } })
 }
 
-function hash(document: ReportDocument): string {
+function hash(document: { header: { asOf: string; contentHash: string } }): string {
   const { asOf: _asOf, contentHash: _contentHash, ...header } = document.header
   return createHash('sha256')
     .update(bytes({ ...document, header }))
@@ -95,8 +102,52 @@ export function finalizeReport(
   return { ...clean, header: { ...clean.header, contentHash: hash(clean) } }
 }
 
+function migrateSection(section: LegacyReportSection): ReportSection {
+  return {
+    ...section,
+    rows: section.rows.map((row) => ({
+      ...row,
+      cells: Object.fromEntries(
+        Object.entries(row.cells).map(([key, cell]) => [
+          key,
+          cell.type === 'usd'
+            ? { ...cell, value: cell.value === null ? null : legacyUsdSchema.parse(cell.value) }
+            : cell,
+        ]),
+      ),
+    })),
+  }
+}
+
 /** Saved JSON must validate AND match its scrubbed canonical content. Fail without quoting it. */
 export function verifyReport(input: unknown, options: ReportRedaction = {}): ReportDocument {
+  const legacy = legacyReportDocumentSchema.safeParse(input)
+  if (legacy.success) {
+    const document = {
+      ...legacy.data,
+      needsYou: orderedSection(legacy.data.needsYou),
+      sections: legacy.data.sections.map((section) => orderedSection(section)),
+      sources: legacy.data.sources.toSorted((a, b) => compare(a.id, b.id)),
+    }
+    const { contentHash, ...header } = document.header
+    const clean = structuredClone({ ...document, header })
+    scrubFields(clean, reportScrubber(options))
+    const checked = legacyReportDocumentSchema.parse({
+      ...clean,
+      header: { ...clean.header, contentHash },
+    })
+    if (hash(checked) !== contentHash || bytes(checked) !== bytes(document))
+      throw new Error('Report content hash or redaction mismatch')
+    // Verify numeric bytes first, then migrate; rewriting prior to verification
+    // would reject every existing saved report that contained a dollar cell.
+    const exact = {
+      ...document,
+      moneyVersion: 2,
+      needsYou: migrateSection(document.needsYou),
+      sections: document.sections.map((section) => migrateSection(section)),
+    }
+    return finalizeReport(ordered(exact), options)
+  }
   const document = ordered(input)
   const clean = scrubCanonical(document, options)
   if (hash(clean) !== document.header.contentHash || bytes(clean) !== bytes(document)) {

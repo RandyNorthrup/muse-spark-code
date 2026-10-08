@@ -1,8 +1,9 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import { readAccountUsage } from '../../src/core/usage/accountUsage'
 import { evaluateAccountThresholds } from '../../src/core/accounts/thresholds'
 import type { AccountUsageTotals } from '../../src/shared/accounts'
-import { parseUsd, usdNumber } from '../../src/shared/accountUsd'
+import { parseUsd, usdDecimal } from '../../src/shared/accountUsd'
 import { UI_TEXT } from '../../src/shared/constants'
 import {
   USAGE_NOW,
@@ -39,7 +40,13 @@ describe('M108 J account aggregation', () => {
   it('keeps exact nano-USD liability and safe counts across settlement, reservation and uncertainty', () => {
     const f = usageFixture()
     f.records.splice(1)
-    f.records.push(usageRecord({ settledUsd: 0.2, reservedUsd: 0, uncertainUsd: 0 }))
+    f.records.push(
+      usageRecord({
+        settledUsd: PortUsd.from(0.2).toAmount(),
+        reservedUsd: PortUsd.from(0).toAmount(),
+        uncertainUsd: PortUsd.from(0).toAmount(),
+      }),
+    )
     const row = f.report().accounts[0]!
     expect(row.totals).toEqual({
       settledUsd: '0.3',
@@ -57,7 +64,13 @@ describe('M108 J account aggregation', () => {
       isReached: true,
     })
     f.records.length = 0
-    f.records.push(usageRecord({ settledUsd: '0.3', reservedUsd: 0, uncertainUsd: 0 }))
+    f.records.push(
+      usageRecord({
+        settledUsd: '0.3',
+        reservedUsd: PortUsd.from(0).toAmount(),
+        uncertainUsd: PortUsd.from(0).toAmount(),
+      }),
+    )
     f.catalog[0]!.accounts[0] = usageAccount('default', { spendUsd: { day: 0.3000000009 } })
     expect(f.report().accounts[0]?.meters[0]).toMatchObject({ threshold: '0.3', isReached: true })
     f.records.push(usageRecord({ requests: Number.MAX_SAFE_INTEGER }))
@@ -100,16 +113,16 @@ describe('M108 J account aggregation', () => {
         usageRecord({
           time: new Date(2026, 9, day).toISOString(),
           settledUsd,
-          reservedUsd: 0,
-          uncertainUsd: 0,
+          reservedUsd: PortUsd.from(0).toAmount(),
+          uncertainUsd: PortUsd.from(0).toAmount(),
         }),
       )
     f.records.push(
       usageRecord({
         time: new Date(2026, 8, 30, 23, 59).toISOString(),
         settledUsd: '9',
-        reservedUsd: 0,
-        uncertainUsd: 0,
+        reservedUsd: PortUsd.from(0).toAmount(),
+        uncertainUsd: PortUsd.from(0).toAmount(),
       }),
     )
     const queries: { start: string; end: string }[] = []
@@ -238,9 +251,11 @@ describe('M108 J account aggregation', () => {
             now: observed.getTime(),
             journal: {
               read: (query) => ({
-                settledUsd: Date.parse(old.time) >= Date.parse(query.start) ? 9.1 : 0.1,
-                reservedUsd: Number(reservedUsd),
-                uncertainUsd: Number(uncertainUsd),
+                settledUsd: PortUsd.from(
+                  Date.parse(old.time) >= Date.parse(query.start) ? 9.1 : 0.1,
+                ).toAmount(),
+                reservedUsd: PortUsd.from(reservedUsd).toAmount(),
+                uncertainUsd: PortUsd.from(uncertainUsd).toAmount(),
                 inputTokens: 0,
                 outputTokens: 0,
                 requests: 0,
@@ -564,8 +579,8 @@ describe('M108 J account aggregation', () => {
           provider,
           account,
           settledUsd: `0.${String(nano).padStart(9, '0')}`,
-          reservedUsd: 0,
-          uncertainUsd: 0,
+          reservedUsd: PortUsd.from(0).toAmount(),
+          uncertainUsd: PortUsd.from(0).toAmount(),
           inputTokens: tokens,
           outputTokens: 0,
         }),
@@ -582,9 +597,9 @@ describe('M108 J account aggregation', () => {
         .find((entry) => entry.provider === row.provider)!
         .accounts.find((entry) => entry.id === row.account)!
       const totals: AccountUsageTotals = {
-        settledUsd: usdNumber(truth.nano),
-        reservedUsd: 0,
-        uncertainUsd: 0,
+        settledUsd: PortUsd.from(usdDecimal(truth.nano)).toAmount(),
+        reservedUsd: PortUsd.from(0).toAmount(),
+        uncertainUsd: PortUsd.from(0).toAmount(),
         inputTokens: truth.tokens,
         outputTokens: 0,
         requests: truth.requests,

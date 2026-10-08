@@ -1,3 +1,4 @@
+import type { UsdAmount } from '../shared/usdSchema'
 // ACP /schedule translates to the same validated requests as the terminal.
 import { UI_TEXT } from '../shared/constants'
 import { parseScheduleCommand } from '../runtime/schedules/args'
@@ -8,7 +9,7 @@ export interface AcpScheduleContext {
   readonly sessionId: string
   readonly backend: 'museCode' | 'modelApi'
   readonly scheduledPrompts?: boolean
-  readonly maxBudgetUsd?: number
+  readonly maxBudgetUsd?: UsdAmount
 }
 export interface AcpSchedulePort {
   run(text: string, context: AcpScheduleContext): Promise<string>

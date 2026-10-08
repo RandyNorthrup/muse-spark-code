@@ -1,3 +1,4 @@
+import type { UsdAmount } from './usdSchema'
 // M108's local contracts, shared by every editor and the runtime. No vendor
 // response is parsed here; live wire shapes remain with their captured codecs.
 import * as z from 'zod/mini'
@@ -109,9 +110,9 @@ export interface AccountUsageQuery {
   readonly end: string
 }
 export interface AccountUsageTotals {
-  readonly settledUsd: number
-  readonly reservedUsd: number
-  readonly uncertainUsd: number
+  readonly settledUsd: UsdAmount
+  readonly reservedUsd: UsdAmount
+  readonly uncertainUsd: UsdAmount
   readonly inputTokens: number
   readonly outputTokens: number
   readonly requests: number

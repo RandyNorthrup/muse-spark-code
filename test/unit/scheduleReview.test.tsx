@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 // @vitest-environment jsdom
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
@@ -60,7 +61,10 @@ describe('RVM115V authority regressions', () => {
       let lists = 0
       let shouldFail = true
       const stored = scheduleViewV2Of(
-        fakeSchedule({ paused: true, grant: { rules: [], destinationIds: [], paidCapUsd: 0 } }),
+        fakeSchedule({
+          paused: true,
+          grant: { rules: [], destinationIds: [], paidCapUsd: PortUsd.from(0).toAmount() },
+        }),
       )
       const { request } = showScheduleSurface({}, (input) => {
         if (failure === 'acknowledgement' && input.method === 'schedules/pause')

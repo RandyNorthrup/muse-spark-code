@@ -19628,6 +19628,24 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### PORTS017 — Exact current money ports (2026-10-08)
+
+**Status 2026-10-08: in progress.** Base `1a2086399` exposes 21 numeric
+USD declarations in the unchanged R3 P3 inventory, including runtime schedule
+flags, schedule UI, account usage and batch voice beyond the brief's initial
+list. Parse settings, CLI input, JSON drafts and historical records at their
+validated boundaries into canonical `UsdAmount`. Carry exact amounts through
+schedule admission/consent, account totals, reporting facts and rental estimates;
+use exact comparisons and sums. Preserve numeric historical files with
+versioned reads, and retain existing captured external wire schemas. Add base-red
+precision/refusal/migration regressions and a byte-restored numeric-port drill.
+Fresh ordinary clone under `$TMPDIR`, `CI=true`: complete owning suites in
+three-file batches at repository deadlines, five typechecks, scoped lint/format,
+plain knip, duplication, localization and host API. Integrated full quality and
+existing bundle caps remain with the lead under the rig brief and §7.
+Certification: `docs/certification/int0170-combined.md`, Money ports (PORTS017).
+No merge, push, gate weakening, dependencies or live/paid calls.
+
 ### MONEY017 — Exact money and scheduled media after the 0.17.0 union (2026-10-08)
 
 **Status 2026-10-08: built.** Scoped fake-only certification is recorded below;
@@ -41181,6 +41199,11 @@ aggregate quality/coverage/platform matrix before integration/release. No
 threshold, ignore or rule is changed.
 
 ## 8. Escape hatches register
+
+| PORTS017 escape                                                      | Reason                                                                                                                                                    |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/helpers/malformedUsd.ts`: `input as unknown as UsdAmount` | Existing negative, NaN, infinity and overflow probes deliberately violate the typed port so their runtime refusals still execute.                         |
+| `test/unit/transcribeBatch.test.ts`: `'NaN' as UsdAmount`            | Intentional malformed canonical port; constructors refuse it, so the existing runtime refusal probe bypasses the brand without a credential or paid call. |
 
 | Location                                              | Escape hatch         | Reason                                                                                                                                                                                                                                                                                                                                 |
 | ----------------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

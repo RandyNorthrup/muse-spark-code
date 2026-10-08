@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import {
   ScheduleReportActionRunner,
@@ -26,7 +27,7 @@ const action: ScheduleReportAction = {
 async function setup(overrides: Partial<ScheduleV2> = {}) {
   const schedule = fakeSchedule({
     action,
-    grant: { rules: [], destinationIds: ['browser'], paidCapUsd: 0 },
+    grant: { rules: [], destinationIds: ['browser'], paidCapUsd: PortUsd.from(0).toAmount() },
     ...overrides,
   })
   const store = new FakeScheduleDisk().client()
@@ -102,7 +103,11 @@ describe('scheduled report action', () => {
     const result = await f.host.deliver(f.schedule, f.context, occurrence)
     expect(result.outcome).toBe('ran')
     expect(result.report).toEqual({ browser: { status: 'delivered', attempts: 1 } })
-    expect(result.cost).toEqual({ usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 })
+    expect(result.cost).toEqual({
+      usd: PortUsd.from(0).toAmount(),
+      certainty: 'exact',
+      retainedLiabilityUsd: PortUsd.from(0).toAmount(),
+    })
     expect(f.report).toHaveBeenCalledWith(f.schedule, f.context, '2026-10-05T12:01:00.000Z')
     expect(f.prompt).not.toHaveBeenCalled()
     expect(f.audit).toHaveBeenCalledWith({
@@ -165,7 +170,9 @@ describe('scheduled report action', () => {
       expect(f.report).not.toHaveBeenCalled()
       expect(f.audit).not.toHaveBeenCalled()
     }
-    const f = await setup({ grant: { rules: [], destinationIds: [], paidCapUsd: 0 } })
+    const f = await setup({
+      grant: { rules: [], destinationIds: [], paidCapUsd: PortUsd.from(0).toAmount() },
+    })
     await expectRefusedReport(f)
   })
   it('refuses planned destinations and missing runner bindings without a prompt fallback', async () => {
@@ -283,9 +290,21 @@ describe('scheduled report action', () => {
     const f = await setup()
     const result = await f.runner.run(f.schedule, f.context, f.schedule.nextFireAtMs!)
     for (const cost of [
-      { usd: 1, certainty: 'exact', retainedLiabilityUsd: 0 },
-      { usd: 0, certainty: 'unknown', retainedLiabilityUsd: 0 },
-      { usd: 0, certainty: 'exact', retainedLiabilityUsd: 1 },
+      {
+        usd: PortUsd.from(1).toAmount(),
+        certainty: 'exact',
+        retainedLiabilityUsd: PortUsd.from(0).toAmount(),
+      },
+      {
+        usd: PortUsd.from(0).toAmount(),
+        certainty: 'unknown',
+        retainedLiabilityUsd: PortUsd.from(0).toAmount(),
+      },
+      {
+        usd: PortUsd.from(0).toAmount(),
+        certainty: 'exact',
+        retainedLiabilityUsd: PortUsd.from(1).toAmount(),
+      },
     ]) {
       const host = new RuntimeScheduleHost({
         deliver: f.prompt,
@@ -322,7 +341,11 @@ describe('schedule_report admission', () => {
   it('requires complete destination authorization even when an agent reuses an approved id', async () => {
     const admit = vi.fn().mockResolvedValue({ kind: 'accepted' })
     const destinationsAllowed = vi.fn().mockResolvedValue(false)
-    const creator = { rules: [], destinationIds: ['browser'], paidCapUsd: 0 }
+    const creator = {
+      rules: [],
+      destinationIds: ['browser'],
+      paidCapUsd: PortUsd.from(0).toAmount(),
+    }
     const tool = scheduleReportTool(
       { admit, destinationsAllowed },
       { bounded: () => creator },
@@ -347,7 +370,11 @@ describe('schedule_report admission', () => {
     )
     for (const requested of subsets)
       for (const allowed of subsets) {
-        const grant = { rules: [], destinationIds: requested, paidCapUsd: 0 }
+        const grant = {
+          rules: [],
+          destinationIds: requested,
+          paidCapUsd: PortUsd.from(0).toAmount(),
+        }
         const creator = { ...grant, destinationIds: allowed }
         const admit = vi.fn().mockResolvedValue({ kind: 'accepted' })
         // A malicious intersection port returns a union; RA still cannot grant it.
@@ -368,7 +395,11 @@ describe('schedule_report admission', () => {
   })
   it('requires creator destination authority and routes bounded drafts through G admission', async () => {
     const admit = vi.fn().mockResolvedValue({ kind: 'accepted', id: 'report-1' })
-    const creator = { rules: [], destinationIds: ['browser'], paidCapUsd: 0 }
+    const creator = {
+      rules: [],
+      destinationIds: ['browser'],
+      paidCapUsd: PortUsd.from(0).toAmount(),
+    }
     const bounded = vi.fn().mockReturnValue(creator)
     const tool = scheduleReportTool(
       { admit, destinationsAllowed: () => Promise.resolve(true) },
@@ -393,7 +424,11 @@ describe('schedule_report admission', () => {
     expect(admit).not.toHaveBeenCalled()
     // G narrowed the grant after the draft was written: the draft and the
     // creator still name the destination, but the bounded grant does not.
-    bounded.mockReturnValue({ rules: [], destinationIds: [], paidCapUsd: 0 })
+    bounded.mockReturnValue({
+      rules: [],
+      destinationIds: [],
+      paidCapUsd: PortUsd.from(0).toAmount(),
+    })
     expect(await tool.execute(draft)).toMatchObject({
       reason: UI_TEXT.scheduleV2.reportAction.grantRequired,
     })
@@ -403,7 +438,11 @@ describe('schedule_report admission', () => {
     const admit = vi
       .fn()
       .mockResolvedValue({ kind: 'refused', reason: 'Charter forbids scheduling' })
-    const creator = { rules: [], destinationIds: ['browser'], paidCapUsd: 0 }
+    const creator = {
+      rules: [],
+      destinationIds: ['browser'],
+      paidCapUsd: PortUsd.from(0).toAmount(),
+    }
     const tool = scheduleReportTool(
       { admit, destinationsAllowed: () => Promise.resolve(true) },
       { bounded: () => creator },
@@ -417,7 +456,7 @@ describe('schedule_report admission', () => {
     for (const input of [
       fakeScheduleDraft(),
       { ...draft, creator: { kind: 'user' } },
-      { ...draft, paidCapUsd: 1 },
+      { ...draft, paidCapUsd: PortUsd.from(1).toAmount() },
       { ...draft, allowAgentReschedule: true },
     ]) {
       admit.mockClear()

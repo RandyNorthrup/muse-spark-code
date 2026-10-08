@@ -1,3 +1,4 @@
+import { usdAmountSchema } from '../../../../src/shared/usdSchema'
 import { vi } from 'vitest'
 import {
   AccountPool,
@@ -11,7 +12,7 @@ import type {
   AccountJournalReader,
   AccountUsageTotals,
 } from '../../../../src/shared/accounts'
-import { parseUsd, usdNumber, type Usd } from '../../../../src/shared/accountUsd'
+import { parseUsd, usdDecimal, type Usd } from '../../../../src/shared/accountUsd'
 import type { AccountLimitsSnapshot } from '../../../../src/core/accounts/thresholds'
 import { policyRig } from './policy'
 
@@ -72,9 +73,9 @@ export function poolRig(provider = 'anthropic', product = 'api') {
         }
       }
       return {
-        settledUsd: usdNumber(settled.get(query.account) ?? parseUsd(0)),
-        reservedUsd: usdNumber(reserved),
-        uncertainUsd: usdNumber(uncertain),
+        settledUsd: usdAmountSchema.parse(usdDecimal(settled.get(query.account) ?? parseUsd(0))),
+        reservedUsd: usdAmountSchema.parse(usdDecimal(reserved)),
+        uncertainUsd: usdAmountSchema.parse(usdDecimal(uncertain)),
         requests,
         inputTokens: 0,
         outputTokens: 0,

@@ -47,6 +47,10 @@ key to the CLI.
 [Troubleshooting](#troubleshooting) ·
 [Reporting a problem](#reporting-a-problem) · [Development](#development)
 
+Schedule budgets, consent and rental cost evidence use exact decimal USD. Saved
+reports write money version 2; historical numeric reports retain their original
+hash verification and migrate when read.
+
 ## What's new in 0.17.0
 
 - **Deterministic reports.** `/report` builds project, quality, milestone,

@@ -1,3 +1,4 @@
+import { Usd as PortUsd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import { ModelApiHost, ModelApiSession } from '../../src/core/backends/modelapi/ModelApiHost'
 import { fakeModelApi, fakeModelApiClient } from './helpers/fakeModelApi'
@@ -25,7 +26,11 @@ import { RACE_APPROVAL_ID, raceRequested, raceUpdated } from './helpers/stageRac
 const uncharged: ScheduleRunSettlement = {
   outcome: 'ran',
   refusedActions: [],
-  cost: { usd: 0, certainty: 'exact', retainedLiabilityUsd: 0 },
+  cost: {
+    usd: PortUsd.from(0).toAmount(),
+    certainty: 'exact',
+    retainedLiabilityUsd: PortUsd.from(0).toAmount(),
+  },
 }
 
 function deliveryFor(
@@ -296,7 +301,10 @@ describe('schedule delivery against the real Model API queue and lifecycle', () 
       first.resolve(undefined)
       await rig.waitIdle()
       rig.settleRun()
-      expect(await pending).toMatchObject({ outcome: 'missed', cost: { usd: 0 } })
+      expect(await pending).toMatchObject({
+        outcome: 'missed',
+        cost: { usd: PortUsd.from(0).toAmount() },
+      })
       expect(rig.api.responseBodies()).toHaveLength(1)
     } finally {
       await rig.close(admitted, first)

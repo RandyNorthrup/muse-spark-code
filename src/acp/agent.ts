@@ -1,3 +1,4 @@
+import type { UsdAmount } from '../shared/usdSchema'
 import { vaultApprovalText } from '../runtime/vault/vaultApproval'
 // The Muse Spark agent over the Agent Client Protocol (PLAN.md D62): one
 // client on stdio, any number of sessions, each an AgentSession of the
@@ -150,7 +151,7 @@ export interface AcpAgentOptions {
   readonly questionsDeferAfterSeconds?: number
   readonly scheduleAuthorization?: {
     readonly scheduledPrompts: boolean
-    readonly maxBudgetUsd?: number
+    readonly maxBudgetUsd?: UsdAmount
   }
   /** Headless exec cannot invoke user entry points, even through a prompt. */
   readonly isHeadless?: boolean

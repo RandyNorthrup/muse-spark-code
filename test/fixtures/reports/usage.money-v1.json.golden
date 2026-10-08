@@ -1,12 +1,11 @@
 {
   "format": "report-v1",
-  "moneyVersion": 2,
   "header": {
-    "kind": "estimate",
+    "kind": "usage",
     "scope": "Fixture workspace",
     "asOf": "2026-10-06T12:00:00+00:00",
     "generatorVersion": "0.14.2",
-    "contentHash": "37ffc48455ce5b0935df76fdcfcb9b0166537d6166dd7981a3b6181dece34935"
+    "contentHash": "8d5a738a73aa6dbde049e6407d8f0814ce9444b042fc3c566659cff978c4253b"
   },
   "needsYou": {
     "id": "needsYou",
@@ -60,30 +59,23 @@
   },
   "sections": [
     {
-      "id": "criticalPath",
-      "label": "criticalPath",
+      "id": "totals",
+      "label": "totals",
       "sortKey": "key",
       "columns": [
         {
-          "key": "name",
-          "label": "name"
-        },
-        {
-          "key": "state",
-          "label": "status"
+          "key": "cost",
+          "label": "cost"
         }
       ],
       "rows": [
         {
           "key": "a-M12",
           "cells": {
-            "name": {
-              "type": "text",
-              "value": "M12: fixture contracts | <release> & \"notes\""
-            },
-            "state": {
-              "type": "label",
-              "value": "planned"
+            "cost": {
+              "type": "usd",
+              "value": 0.1,
+              "certainty": "reported"
             }
           },
           "sourceIds": [
@@ -94,13 +86,10 @@
         {
           "key": "b-M110a0",
           "cells": {
-            "name": {
-              "type": "text",
-              "value": "M110a0: fixture runtime\nA second commit."
-            },
-            "state": {
-              "type": "label",
-              "value": "merged"
+            "cost": {
+              "type": "usd",
+              "value": null,
+              "certainty": "unknown"
             }
           },
           "sourceIds": [
@@ -111,8 +100,8 @@
       "omittedRows": 12
     },
     {
-      "id": "limitingResource",
-      "label": "limitingResource",
+      "id": "breakdown",
+      "label": "breakdown",
       "sortKey": "key",
       "columns": [
         {
@@ -162,110 +151,8 @@
       "omittedRows": 0
     },
     {
-      "id": "setups",
-      "label": "setups",
-      "sortKey": "key",
-      "columns": [
-        {
-          "key": "name",
-          "label": "name"
-        },
-        {
-          "key": "state",
-          "label": "status"
-        }
-      ],
-      "rows": [
-        {
-          "key": "a-M12",
-          "cells": {
-            "name": {
-              "type": "text",
-              "value": "M12: fixture contracts"
-            },
-            "state": {
-              "type": "label",
-              "value": "planned"
-            }
-          },
-          "sourceIds": [
-            "git",
-            "plan"
-          ]
-        },
-        {
-          "key": "b-M110a0",
-          "cells": {
-            "name": {
-              "type": "text",
-              "value": "M110a0: fixture runtime\nA second commit."
-            },
-            "state": {
-              "type": "label",
-              "value": "merged"
-            }
-          },
-          "sourceIds": [
-            "git"
-          ]
-        }
-      ],
-      "omittedRows": 0
-    },
-    {
-      "id": "inputs",
-      "label": "inputs",
-      "sortKey": "key",
-      "columns": [
-        {
-          "key": "name",
-          "label": "name"
-        },
-        {
-          "key": "state",
-          "label": "status"
-        }
-      ],
-      "rows": [
-        {
-          "key": "a-M12",
-          "cells": {
-            "name": {
-              "type": "text",
-              "value": "M12: fixture contracts"
-            },
-            "state": {
-              "type": "label",
-              "value": "planned"
-            }
-          },
-          "sourceIds": [
-            "git",
-            "plan"
-          ]
-        },
-        {
-          "key": "b-M110a0",
-          "cells": {
-            "name": {
-              "type": "text",
-              "value": "M110a0: fixture runtime\nA second commit."
-            },
-            "state": {
-              "type": "label",
-              "value": "merged"
-            }
-          },
-          "sourceIds": [
-            "git"
-          ]
-        }
-      ],
-      "omittedRows": 0
-    },
-    {
-      "id": "calibration",
-      "label": "calibration",
+      "id": "limits",
+      "label": "limits",
       "sortKey": "key",
       "columns": [
         {

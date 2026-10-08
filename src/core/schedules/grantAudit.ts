@@ -1,3 +1,4 @@
+import { minUsd, Usd } from '../../shared/usd'
 import type * as z from 'zod/mini'
 import {
   scheduleGrantAuditSchema,
@@ -49,7 +50,7 @@ export class ScheduleGrantEditor {
     const next = scheduleV2Schema.parse({
       ...current,
       grant: scheduleGrantSchema.parse(grant),
-      paidCapUsd: Math.min(current.paidCapUsd, grant.paidCapUsd),
+      paidCapUsd: minUsd(current.paidCapUsd, grant.paidCapUsd),
       paidConsent: undefined,
       updatedAtMs: this.now(),
     })
@@ -70,8 +71,8 @@ export class ScheduleGrantEditor {
       if (current === undefined) return false
       const next = scheduleV2Schema.parse({
         ...current,
-        grant: { rules: [], destinationIds: [], paidCapUsd: 0 },
-        paidCapUsd: 0,
+        grant: { rules: [], destinationIds: [], paidCapUsd: Usd.from(0).toAmount() },
+        paidCapUsd: Usd.from(0).toAmount(),
         paidConsent: undefined,
         updatedAtMs: this.now(),
       })

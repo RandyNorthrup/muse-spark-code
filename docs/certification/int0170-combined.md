@@ -438,3 +438,49 @@ All eight restored drill hashes match the committed source. Final receipt
 changes are documentation only. No dependencies, prices, limits, timeouts,
 ignores or lint levels changed; no paid/live model attempt occurred. The lane
 ran no full quality, merge, push or packaging, as directed by its brief.
+
+## Money ports (PORTS017)
+
+Kubuntu, `rel017/ports`, base `1a2086399`, 2026-10-08. Fake-only: no paid/live
+calls, credentials, dependencies, gate changes, merge or push. Full integrated
+quality and the inherited bundle caps remain assigned to the lead by the rig
+brief and PLAN §7. Current money ports carry canonical `UsdAmount`; token and
+count arithmetic stays numeric. These are internal ACP schedule context and
+CLI authorization fields, not fields of the external ACP specification.
+
+| Current port                                                               | Validated boundary (source line)                                                                                                                                                      | Regression / owning coverage                                                                                                                  |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `acp/agent.ts:154`, `acp/schedules.ts:12`: `maxBudgetUsd`                  | `runtime/schedules/args.ts:44` (`usdInputSchema`); forwarded by `runtime/cliArgs.ts:384` and runtime/ACP contexts                                                                     | `paidPortBoundaries`, `acpSchedules`, `acpRuntime`, `scheduleCommand`                                                                         |
+| `runtime/cliArgs.ts:87`, `runtime/schedules/args.ts:30,39`: `maxBudgetUsd` | `runtime/schedules/args.ts:44`, exact CLI decimal input                                                                                                                               | `paidPortBoundaries` CLI precision and malformed-input cases                                                                                  |
+| `runtime/schedules/registration.ts:53`: `maxBudgetUsd`                     | `runtime/schedules/registration.ts:70`: numeric unmarked/v1 wake records normalize on read; v2 writes are canonical                                                                   | `paidPortBoundaries` old numeric wake, `scheduleBackground`, `scheduleRegistration`                                                           |
+| `runtime/schedules/control.ts`: draft/grant `paidCapUsd`                   | `shared/scheduleV2.ts:45` validated JSON/disk money codec; CLI authorization above                                                                                                    | `scheduleSurface`, `scheduleRuntime`, `paidPortBoundaries`, `schedulePaid`                                                                    |
+| `core/estimator/recommend.ts:50,190`: `rentalCostP90Usd`                   | `core/estimator/recommend.ts:160` validated price cards; `:161` parses rates once; exact computed fraction at `:216`                                                                  | `estimatorRecommend`: decimal ties, sub-nano evidence, 0.1 + 0.2 rentals, malformed prices and overflow                                       |
+| `core/paid/paidConsent.ts:68`: `sharedDailyBudgetUsd`                      | `shared/scheduleV2.ts:45,230`; creation additionally validates the host identity before consent                                                                                       | `paidPortBoundaries` numeric v2 consent read, `schedulePaid`, `mediaClient`                                                                   |
+| `webview/schedules/ports.ts:56`: `sharedDailyBudgetUsd`                    | Same consent/host boundary; editor cap text uses `usdInputSchema` without a float conversion                                                                                          | `scheduleEditor`, `scheduleSurfaceWebview`, `schedulePaid`                                                                                    |
+| `core/reporting/sources/types.ts:140,146`: total/breakdown `costUsd`       | `core/reporting/sources/session.ts:25` validated source usage (`legacyUsdSchema`), shared by session and aggregate sources                                                            | `paidPortBoundaries` numeric usage, exact sum and malformed input; `report*`, `reporting*`                                                    |
+| Saved report USD cells                                                     | `core/reporting/render/canonical.ts` verifies the original numeric version-1 bytes/hash, then migrates to money version 2; `shared/reportSchema.ts` keeps both structural validations | `paidPortBoundaries` retained numeric fixture; `reportHistory`, `render.json`, all renderer goldens                                           |
+| `core/schedules/agentTools.ts:38,48`: authority/policy `paidCapUsd`        | `shared/scheduleV2.ts:45`; host caps and policy are checked with `nonnegativeUsdSchema` before exact intersections                                                                    | `agentSchedules`: exactly 0.1 settled + 0.2 allocation at a 0.3 cap and refusal of an additional sub-nano amount; existing malformed policies |
+| `core/schedules/agentTools.ts:92`: `settledUsd`, `uncertainUsd`            | `core/schedules/agentTools.ts:310` validated owner daily projection; exact sum includes active allocations                                                                            | `agentSchedules`, `scheduleJournal`, `unattended*`                                                                                            |
+| `core/schedules/agentTools.ts`: `alwaysPaidCapUsd`                         | Consent result validated before remembering; same exact policy cap                                                                                                                    | `agentSchedules` malformed Always caps and atomic allocation                                                                                  |
+| `shared/accounts.ts:113–115`: settled/reserved/uncertain totals            | `core/accounts/thresholds.ts:18` validated journal projection; `core/accounts/pool.ts` projects nano totals to canonical strings without a numeric round trip                         | `paidPortBoundaries` sub-nano headroom; `thresholds`, `accountFakes`, `accountUsage`, account pool suites                                     |
+| `core/voice/transcribeBatch.ts:203`: `dailyBudgetUsd`                      | Canonical caller amount checked with `nonnegativeUsdSchema` before shared money formatting                                                                                            | `paidPortBoundaries` exact batch question, `transcribeBatch` runtime refusal                                                                  |
+
+Schedule generation and delta envelopes now mark money version 2; historical
+unmarked envelopes remain readable through their validated v2 payload schemas.
+New model tool schemas declare canonical decimal strings. Schedule settled and
+retained fire costs carry exact amounts too. Report goldens were reviewed for
+the money-version marker and resulting hashes; the separate numeric legacy
+fixture remains to exercise the saved-file migration. No captured vendor frame
+was changed or invented.
+
+Initial unchanged inventory: **1 failed / 12 passed**, 21 numeric declarations.
+Final regression replay on base sources: **28 failed / 43 passed (71)**:
+`paidMoneyPorts` 14 failed / 12 passed (only 13 port-list additions),
+`paidPortBoundaries` 7 failed / 10 passed, `estimatorRecommend` 7 failed / 21 passed.
+All 41 source files were restored byte-exact after that replay.
+
+Numeric-port drill: `acp/schedules.ts` temporarily restored `maxBudgetUsd?: number`.
+The unchanged assertions fired: **2 failed / 24 passed**, exit 1. Restored
+SHA-256: `a7ec643d463749e445f1f4812bdd4d7dc347322394aa2514311182397dffc3a3`.
+Focused restored core runs passed 95, 81 and 63 tests at repository timeouts.
+Final fresh-clone gate receipts follow in the certification completion commit.
