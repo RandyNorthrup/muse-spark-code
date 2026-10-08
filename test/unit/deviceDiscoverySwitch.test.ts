@@ -7,18 +7,13 @@ import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DeviceDiscovery, type DeviceMdnsPort } from '../../src/host/devices/deviceDiscovery'
 import { DeviceDiscoverySwitch } from '../../src/host/devices/deviceDiscoverySwitch'
-import { DevicePairing } from '../../src/host/devices/devicePairing'
 import { DeviceStore } from '../../src/host/devices/deviceStore'
-import { DeviceSecrets, type DeviceExecutionHost } from '../../src/host/devices/deviceSecrets'
+import type { DeviceExecutionHost } from '../../src/host/devices/deviceSecrets'
 import type { DeviceWebviewRequest } from '../../src/shared/modelsPanel'
-import { deviceTestExpiry, deviceTestNow, removeDeviceFixture } from './helpers/deviceFixtures'
+import { removeDeviceFixture } from './helpers/deviceFixtures'
+import { laneTestHost, startLaneTestHost } from './helpers/deviceLaneHosts'
 
-const localHost: DeviceExecutionHost = {
-  ui: 'desktop',
-  remoteName: undefined,
-  execution: 'local',
-  secretLocation: 'execution-host',
-}
+const localHost: DeviceExecutionHost = laneTestHost
 const facts = {
   address: '10.0.0.1',
   port: 4321,
@@ -61,21 +56,6 @@ async function radio(id: string, port: DeviceMdnsPort, isOffering = true, host =
     fixture.parent = await realpath(await mkdtemp(path.join(tmpdir(), 'm100-d-switch-')))
   const store = await DeviceStore.create(path.join(fixture.parent, id), deviceId)
   stores.push(store)
-  const values = new Map<string, string>()
-  const secrets = new DeviceSecrets(
-    {
-      get: (key: string) => Promise.resolve(values.get(key)),
-      store: (key: string, value: string) => {
-        values.set(key, value)
-        return Promise.resolve()
-      },
-      delete: (key: string) => {
-        values.delete(key)
-        return Promise.resolve()
-      },
-    },
-    host,
-  )
   const discovery = new DeviceDiscovery(port, () => ['10.0.0.1'])
   const control = new DeviceDiscoverySwitch({
     host,
@@ -84,27 +64,7 @@ async function radio(id: string, port: DeviceMdnsPort, isOffering = true, host =
     isPairedReceiverOffering: () => isOffering,
     localFacts: () => Promise.resolve(facts),
   })
-  const adapter = new DevicePairing({
-    store,
-    secrets,
-    host,
-    now: () => deviceTestNow,
-    receiverIncarnationId: '1'.repeat(32),
-    setup: () =>
-      Promise.resolve({
-        endpoint: { address: '127.0.0.1', port: 34_567 },
-        certificateExpiresAt: deviceTestExpiry,
-        listenerApplication: 'node',
-        interfaceLabel: 'lo',
-      }),
-    disconnectPair: () => undefined,
-    otherAction: (request: DeviceWebviewRequest) =>
-      Promise.resolve({
-        viewId: request.viewId,
-        requestId: request.requestId,
-        failure: 'grant' as const,
-      }),
-  })
+  const { adapter } = startLaneTestHost(store, host)
   const act = (action: DeviceWebviewRequest['action']) =>
     control.handle({
       type: 'deviceRequest',

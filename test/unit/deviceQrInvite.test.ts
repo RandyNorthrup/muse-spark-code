@@ -8,11 +8,7 @@ import {
   createDeviceInvitation,
   DevicePairingError,
 } from '../../src/core/devices/pairing'
-import {
-  decodeScannedInviteText,
-  encodeQrInviteText,
-  qrInviteModules,
-} from '../../src/host/devices/qrInvite'
+import { decodeScannedInviteText, encodeQrInviteText } from '../../src/host/devices/qrInvite'
 import { deviceTestExpiry, deviceTestNow } from './helpers/deviceFixtures'
 
 const endpoint = { address: '127.0.0.1', port: 34_567 }
@@ -54,19 +50,13 @@ describe('QR invite identity', () => {
       DevicePairingError,
     )
   })
-  it('renders deterministic modules for validated text only', () => {
-    const text = encodeQrInviteText(invite('d'.repeat(32)), deviceTestNow)
-    const first = qrInviteModules(text, deviceTestNow)
-    const second = qrInviteModules(text, deviceTestNow)
-    expect(first.size).toBeGreaterThanOrEqual(21)
-    expect(first.size % 2).toBe(1)
-    expect(first.isDark(0, 0)).toBe(true)
-    for (let row = 0; row < first.size; row += 1)
-      for (const column of [0, first.size - 1])
-        expect(first.isDark(row, column)).toBe(second.isDark(row, column))
-    expect(() => qrInviteModules('not-an-invite', deviceTestNow)).toThrow(DevicePairingError)
-    expect(() => first.isDark(-1, 0)).toThrow(DevicePairingError)
-    expect(() => first.isDark(0, first.size)).toThrow(DevicePairingError)
+  it('keeps private-key material out of every renderable text', () => {
+    const invitation = invite('d'.repeat(32))
+    const text = encodeQrInviteText(invitation, deviceTestNow)
+    expect(text).not.toContain('PRIVATE KEY')
+    expect(text).not.toContain('privateKey')
+    // Pixels are lane U's lazy views; the host contract ends at this text.
+    expect(JSON.stringify(decodeScannedInviteText(text, deviceTestNow))).toBe(text)
   })
 })
 
