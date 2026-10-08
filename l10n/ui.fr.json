@@ -2540,6 +2540,7 @@
   "resourceRelocationNoRoute": "Le déplacement n’est pas encore disponible : il nécessite un appareil associé ou une route vers une machine d’exécution. Le travail reste sur cette machine.",
   "resourceUnavailable": "Cette mesure est indisponible sur cette machine.",
   "resourceGovernorOff": "Les limites de ressources sont désactivées sur cette machine.",
+  "resourceStatusRefused": "Le dernier état des ressources n’a pas pu être lu ; aucune mesure n’est donc affichée.",
   "resourceCpu": "Utilisation du processeur",
   "resourceMemory": "Mémoire utilisée",
   "resourceAvailableMemory": "Mémoire disponible",

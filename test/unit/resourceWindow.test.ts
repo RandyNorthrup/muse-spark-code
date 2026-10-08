@@ -363,8 +363,9 @@ describe('U–C1 VS Code window adapter', () => {
     )
   })
 
-  it('opens the chip popover in the surface in view for Show resources', async () => {
+  it('opens the chip popover at once in a surface in view that is ready', async () => {
     const h = windowHarness()
+    h.resources.surfaceReady(h.surface)
     await h.resources.show()
     expect(h.port.refreshStatus).toHaveBeenCalledTimes(1)
     expect(h.surface.reveal).toHaveBeenCalledTimes(1)
@@ -372,6 +373,23 @@ describe('U–C1 VS Code window adapter', () => {
     expect(h.surfaces.broadcast).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'resourceStatus' }),
     )
+  })
+
+  it('keeps the open for a registered surface until it is ready, then replays status and open', async () => {
+    // RVM107W1 P2-2: register, Show, then ready (VS Code drops earlier posts).
+    const h = windowHarness()
+    await h.resources.show()
+    expect(h.surface.reveal).toHaveBeenCalledTimes(1)
+    expect(h.surface.post).not.toHaveBeenCalled()
+    h.resources.surfaceReady(h.surface)
+    expect(h.surface.post.mock.calls.map(([message]) => message)).toEqual([
+      { type: 'resourceStatus', status: JSON.stringify(fakeStatus('pause')) },
+      { type: 'resourceOpen' },
+    ])
+    // Consumed once: a later ready of the same surface replays the status only.
+    h.resources.surfaceReady(h.surface)
+    expect(h.surface.post.mock.calls.at(-1)?.[0].type).toBe('resourceStatus')
+    expect(h.surface.post).toHaveBeenCalledTimes(3)
   })
 
   it('opens a conversation when none is in view and opens the popover once it is ready', async () => {
@@ -443,7 +461,7 @@ describe('U–C1 VS Code window adapter', () => {
     expect(h.port.settingsChanged).toHaveBeenCalledTimes(1)
   })
 
-  it('never sends a status beyond the message bound', () => {
+  it('sends a status beyond the message bound as refused, so the chip says unavailable', () => {
     const h = windowHarness()
     h.port.status.mockReturnValue({
       ...fakeStatus('pause'),
@@ -454,10 +472,14 @@ describe('U–C1 VS Code window adapter', () => {
       })),
     })
     h.load()
-    expect(h.surfaces.broadcast).not.toHaveBeenCalled()
+    expect(h.surfaces.broadcast.mock.calls).toEqual([[{ type: 'resourceStatus', status: null }]])
     expect(h.warn).toHaveBeenCalledWith(
-      'Resource status exceeds the window message bound; not sent',
+      'Resource status exceeds the window message bound; sent as refused',
     )
+    const ready = { post: vi.fn<(message: HostToWebviewMessage) => void>() }
+    h.resources.surfaceReady(ready)
+    expect(ready.post).toHaveBeenCalledWith({ type: 'resourceStatus', status: null })
+    expect(parseHostToWebviewMessage({ type: 'resourceStatus', status: null }).ok).toBe(true)
   })
 
   it('disposes the status item and its subscription exactly with the window', () => {

@@ -2540,6 +2540,7 @@
   "resourceRelocationNoRoute": "El traslado aún no está disponible: necesita un dispositivo vinculado o una ruta a una máquina de ejecución. El trabajo se queda en este equipo.",
   "resourceUnavailable": "Esta lectura no está disponible en este equipo.",
   "resourceGovernorOff": "Los límites de recursos están desactivados en este equipo.",
+  "resourceStatusRefused": "No se pudo leer el estado de recursos más reciente, así que no se muestran lecturas.",
   "resourceCpu": "Uso de CPU",
   "resourceMemory": "Memoria en uso",
   "resourceAvailableMemory": "Memoria disponible",

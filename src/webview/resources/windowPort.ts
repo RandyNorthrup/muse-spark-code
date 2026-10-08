@@ -1,6 +1,7 @@
 import type { WebviewToHostMessage } from '../../shared/protocol'
 import type { UiStore } from '../state/store'
-import { createResourceSurfaceLoader, type ResourceSurfaceLoader } from './resourcePort'
+import { createResourceSurfaceLoader } from './resourceLoader'
+import type { ResourceSurfaceLoader } from './resourcePort'
 
 type ResourceAction = Extract<WebviewToHostMessage, { type: 'resourceAction' }>['action']
 
@@ -17,7 +18,7 @@ export function windowResourceLoader(
     post({ type: 'resourceAction', action: name })
   }
   // One parsed object per status text: React's external-store contract.
-  const cached: { text: string | undefined; status: unknown } = {
+  const cached: { text: string | null | undefined; status: unknown } = {
     text: undefined,
     status: undefined,
   }
@@ -43,13 +44,13 @@ export function windowResourceLoader(
   )
 }
 
-/** Unreadable text is no status: the chip renders nothing for it. */
-function parsedJson(text: string | undefined): unknown {
-  if (text === undefined) return undefined
+/** No status yet is undefined; refused or unreadable text is null, which the chip shows as unavailable. */
+function parsedJson(text: string | null | undefined): unknown {
+  if (text === undefined || text === null) return text
   try {
     const value: unknown = JSON.parse(text)
     return value
   } catch {
-    return undefined
+    return null
   }
 }

@@ -70,17 +70,24 @@ export function createResourceWindow<Alignment>(
   deps: ResourceWindowDeps<Alignment>,
 ): ResourceWindow {
   const { vscode } = deps
-  let latest: string | undefined
-  let isOpenPending = false
+  // null: the latest status was refused (over the message bound).
+  let latest: string | null | undefined
+  // Show resources' open, kept until the intended surface is ready to hear it:
+  // a new conversation, or a registered surface still starting (VS Code drops
+  // posts made before a webview's listener is attached).
+  let isOpenPendingForNew = false
+  const ready = new WeakSet<object>()
+  const openPending = new WeakSet<object>()
   let attached: { readonly window: ResourceWindowHost; dispose(): void } | undefined
   let isDisposed = false
 
   const publish = (status: ResourceStatus) => {
-    const text = JSON.stringify(status)
-    if (text.length > RESOURCE_STATUS_MAX_CHARS) {
-      deps.warn('Resource status exceeds the window message bound; not sent')
-      return
-    }
+    const encoded = JSON.stringify(status)
+    // Over the bound, the chip says the status is unavailable instead of
+    // keeping an older reading; the log records why.
+    const text = encoded.length > RESOURCE_STATUS_MAX_CHARS ? null : encoded
+    if (text === null)
+      deps.warn('Resource status exceeds the window message bound; sent as refused')
     if (text === latest) return
     latest = text
     deps.surfaces.broadcast({ type: 'resourceStatus', status: text })
@@ -160,12 +167,13 @@ export function createResourceWindow<Alignment>(
     }
     const surface = deps.surfaces.active
     if (surface === undefined) {
-      isOpenPending = true
+      isOpenPendingForNew = true
       await deps.openConversation()
       return
     }
     surface.reveal()
-    surface.post({ type: 'resourceOpen' })
+    if (ready.has(surface)) surface.post({ type: 'resourceOpen' })
+    else openPending.add(surface)
   }
   const resume = async () => {
     const window = await loaded()
@@ -186,9 +194,11 @@ export function createResourceWindow<Alignment>(
   })
   return {
     surfaceReady: (surface) => {
+      ready.add(surface)
       if (latest !== undefined) surface.post({ type: 'resourceStatus', status: latest })
-      if (!isOpenPending) return
-      isOpenPending = false
+      const wasPending = openPending.delete(surface)
+      if (!wasPending && !isOpenPendingForNew) return
+      isOpenPendingForNew = false
       surface.post({ type: 'resourceOpen' })
     },
     action: async (action) => {

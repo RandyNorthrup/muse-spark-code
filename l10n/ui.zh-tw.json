@@ -2352,6 +2352,7 @@
   "resourceRelocationNoRoute": "移轉尚無法使用：需要配對裝置或通往執行機器的路由。工作將保留在此電腦上。",
   "resourceUnavailable": "此電腦無法提供這項讀數。",
   "resourceGovernorOff": "此電腦上的資源限制已關閉。",
+  "resourceStatusRefused": "無法讀取最新的資源狀態，因此不顯示任何讀數。",
   "resourceCpu": "CPU 使用率",
   "resourceMemory": "已用記憶體",
   "resourceAvailableMemory": "可用記憶體",

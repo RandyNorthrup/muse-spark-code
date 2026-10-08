@@ -18,6 +18,8 @@ interface SurfaceProps {
   readonly isModal?: boolean
   readonly keepFocus?: boolean | undefined
   readonly className?: string | undefined
+  /** Names an inline surface in its loading and failure rows ("Resources: …"). */
+  readonly label?: string | undefined
 }
 
 export function DeferredSurface({
@@ -40,6 +42,7 @@ function UnavailableSurface({
   failed = false,
   opener,
   className = 'palette history',
+  label,
 }: SurfaceProps & { readonly failed?: boolean; readonly opener?: Element | null }) {
   const container = useRef<HTMLDivElement>(null)
   const closeButton = useRef<HTMLButtonElement>(null)
@@ -73,15 +76,20 @@ function UnavailableSurface({
       document.removeEventListener('keydown', escape)
     }
   }, [isModal, keepFocus, onClose, trigger])
+  const scope = label === undefined ? '' : `${label}: `
   const row = failed ? (
     <div role="alert">
-      <p>{UI_TEXT.surfaceLoadFailed}</p>
+      <p>
+        {scope}
+        {UI_TEXT.surfaceLoadFailed}
+      </p>
       <button type="button" className="button-secondary" onClick={retrySurface}>
         {UI_TEXT.surfaceLoadRetry}
       </button>
     </div>
   ) : (
     <p role="status" data-deferred-loading>
+      {scope}
       {UI_TEXT.loadingOutput}
     </p>
   )
@@ -130,6 +138,7 @@ export function deferred<P extends object>(
       isModal: props.isModal ?? isModal,
       keepFocus: props.keepFocus,
       className: props.className,
+      label: props.label,
     }
     return (
       <SurfaceBoundary {...surfaceProps} opener={intent.opener}>

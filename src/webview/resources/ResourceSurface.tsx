@@ -16,7 +16,11 @@ import {
 } from '../../shared/resources'
 import type { ResourceSurfaceProps } from './resourcePort'
 
-/** Shared by the panel and companion. An absent or invalid status renders no readings. */
+/**
+ * Shared by the panel and companion. No status yet, or a governor switched off,
+ * renders nothing; a refused or invalid status shows the chip as unavailable,
+ * with no readings, rather than an old reading or nothing.
+ */
 export function ResourceSurface({ port, isInert = false, openRequest = 0 }: ResourceSurfaceProps) {
   const subscribe = useCallback((changed: () => void) => port.subscribe(changed), [port])
   const read = useCallback(() => port.getSnapshot(), [port])
@@ -54,23 +58,26 @@ export function ResourceSurface({ port, isInert = false, openRequest = 0 }: Reso
   useEffect(() => {
     if (isOpen && !isInert) closeButton.current?.focus()
   }, [isOpen, isInert, target])
-  if (!parsed.success || !parsed.data.settings.enabled) return null
+  if (snapshot === undefined || (parsed.success && !parsed.data.settings.enabled)) return null
   const close = () => {
     setIsOpen(false)
     chip.current?.focus()
   }
-  const status = parsed.data
-  const label = {
-    normal: UI_TEXT.resourceNormal,
-    throttle: UI_TEXT.resourceThrottle,
-    relocate: UI_TEXT.resourceRelocate,
-    pause: UI_TEXT.resourcePause,
-  }[status.level]
+  const status = parsed.success ? parsed.data : undefined
+  const label =
+    status === undefined
+      ? UI_TEXT.resourceUnknown
+      : {
+          normal: UI_TEXT.resourceNormal,
+          throttle: UI_TEXT.resourceThrottle,
+          relocate: UI_TEXT.resourceRelocate,
+          pause: UI_TEXT.resourcePause,
+        }[status.level]
   const content = (
     <div
       ref={anchor}
       className="resource-surface"
-      data-resource-level={status.level}
+      data-resource-level={status?.level ?? 'unknown'}
       inert={isInert}
     >
       <button
@@ -120,29 +127,10 @@ export function ResourceSurface({ port, isInert = false, openRequest = 0 }: Reso
               {UI_TEXT.usageClose}
             </button>
           </header>
-          <ResourceReadings status={status} />
-          {status.relocation === 'noRoute' ? <p>{UI_TEXT.resourceRelocationNoRoute}</p> : null}
-          {status.overrideUntilMs === null ? null : (
-            <p>
-              {fill(UI_TEXT.resourceOverrideNotice, {
-                time: formatDateTime(status.overrideUntilMs),
-              })}
-            </p>
-          )}
-          {status.queued.length === 0 ? null : (
-            <div className="resource-queue">
-              <p>{UI_TEXT.resourceWaiting}</p>
-              <ul>
-                {status.queued.map((row, index) => (
-                  <li key={`${row.kind}:${row.class}:${String(index)}`}>
-                    <code>
-                      {row.kind} / {row.class}
-                    </code>
-                    : {formatNumber(row.count)}
-                  </li>
-                ))}
-              </ul>
-            </div>
+          {status === undefined ? (
+            <p role="alert">{UI_TEXT.resourceStatusRefused}</p>
+          ) : (
+            <ResourceDetails status={status} />
           )}
           <footer>
             <button
@@ -181,6 +169,37 @@ export function ResourceSurface({ port, isInert = false, openRequest = 0 }: Reso
     </div>
   )
   return target === null ? content : createPortal(content, target)
+}
+
+function ResourceDetails({ status }: { readonly status: ResourceStatus }) {
+  return (
+    <>
+      <ResourceReadings status={status} />
+      {status.relocation === 'noRoute' ? <p>{UI_TEXT.resourceRelocationNoRoute}</p> : null}
+      {status.overrideUntilMs === null ? null : (
+        <p>
+          {fill(UI_TEXT.resourceOverrideNotice, {
+            time: formatDateTime(status.overrideUntilMs),
+          })}
+        </p>
+      )}
+      {status.queued.length === 0 ? null : (
+        <div className="resource-queue">
+          <p>{UI_TEXT.resourceWaiting}</p>
+          <ul>
+            {status.queued.map((row, index) => (
+              <li key={`${row.kind}:${row.class}:${String(index)}`}>
+                <code>
+                  {row.kind} / {row.class}
+                </code>
+                : {formatNumber(row.count)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </>
+  )
 }
 
 function ResourceReadings({ status }: { readonly status: ResourceStatus }) {

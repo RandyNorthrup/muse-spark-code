@@ -1076,9 +1076,11 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // M107 U–C1: the window governor's checked status as JSON text, bounded here.
   // resourceStatusSchema checks it strictly in the deferred chip before any
   // field is shown, so its parser never enters chat's startup bundle.
+  // null: the current status was refused (over the bound, or unreadable), so
+  // the chip says it is unavailable rather than keep an old reading.
   z.strictObject({
     type: z.literal('resourceStatus'),
-    status: z.string().check(z.minLength(1), z.maxLength(RESOURCE_STATUS_MAX_CHARS)),
+    status: z.nullable(z.string().check(z.minLength(1), z.maxLength(RESOURCE_STATUS_MAX_CHARS))),
   }),
   // Show resources: open the chip's popover in this surface.
   z.strictObject({ type: z.literal('resourceOpen') }),

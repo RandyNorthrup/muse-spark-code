@@ -2352,6 +2352,7 @@
   "resourceRelocationNoRoute": "이동은 아직 사용할 수 없습니다. 페어링된 장치나 실행 머신 경로가 필요합니다. 작업은 이 컴퓨터에서 계속됩니다.",
   "resourceUnavailable": "이 컴퓨터에서는 이 측정값을 사용할 수 없습니다.",
   "resourceGovernorOff": "이 컴퓨터에서 리소스 제한이 꺼져 있습니다.",
+  "resourceStatusRefused": "최신 리소스 상태를 읽을 수 없어 측정값을 표시하지 않습니다.",
   "resourceCpu": "CPU 사용량",
   "resourceMemory": "사용 중인 메모리",
   "resourceAvailableMemory": "사용 가능한 메모리",

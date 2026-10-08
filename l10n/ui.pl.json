@@ -2634,6 +2634,7 @@
   "resourceRelocationNoRoute": "Przenoszenie nie jest jeszcze dostępne: wymaga sparowanego urządzenia lub trasy do maszyny wykonawczej. Praca pozostaje na tym komputerze.",
   "resourceUnavailable": "Ten odczyt jest niedostępny na tym komputerze.",
   "resourceGovernorOff": "Limity zasobów są wyłączone na tym komputerze.",
+  "resourceStatusRefused": "Nie udało się odczytać najnowszego stanu zasobów, więc nie są wyświetlane żadne odczyty.",
   "resourceCpu": "Użycie procesora",
   "resourceMemory": "Pamięć w użyciu",
   "resourceAvailableMemory": "Dostępna pamięć",

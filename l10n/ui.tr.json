@@ -2446,6 +2446,7 @@
   "resourceRelocationNoRoute": "Taşıma henüz kullanılamıyor: eşleştirilmiş bir cihaz veya bir çalıştırma makinesine giden bir yol gerekir. İş bu makinede kalır.",
   "resourceUnavailable": "Bu ölçüm bu makinede kullanılamıyor.",
   "resourceGovernorOff": "Bu makinede kaynak sınırları kapalı.",
+  "resourceStatusRefused": "En son kaynak durumu okunamadı, bu nedenle hiçbir ölçüm gösterilmiyor.",
   "resourceCpu": "CPU kullanımı",
   "resourceMemory": "Kullanılan bellek",
   "resourceAvailableMemory": "Kullanılabilir bellek",

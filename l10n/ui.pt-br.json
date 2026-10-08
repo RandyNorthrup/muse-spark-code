@@ -2540,6 +2540,7 @@
   "resourceRelocationNoRoute": "A transferência ainda não está disponível: ela precisa de um dispositivo pareado ou de uma rota para uma máquina de execução. O trabalho continua nesta máquina.",
   "resourceUnavailable": "Esta leitura não está disponível nesta máquina.",
   "resourceGovernorOff": "Os limites de recursos estão desativados nesta máquina.",
+  "resourceStatusRefused": "Não foi possível ler o status de recursos mais recente, então nenhuma leitura é exibida.",
   "resourceCpu": "Uso da CPU",
   "resourceMemory": "Memória em uso",
   "resourceAvailableMemory": "Memória disponível",

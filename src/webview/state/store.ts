@@ -71,6 +71,18 @@ export function listenToHost(
       const reason = `Dropped malformed host message: ${parsed.error}`
       console.warn(reason)
       report('hostMessage', reason)
+      // M107: a refused resource status replaces the shown one with "unavailable".
+      if (
+        typeof event.data === 'object' &&
+        event.data !== null &&
+        'type' in event.data &&
+        event.data.type === 'resourceStatus'
+      )
+        store.dispatch({
+          type: 'hostMessage',
+          message: { type: 'resourceStatus', status: null },
+          at: now(),
+        })
       return
     }
     try {

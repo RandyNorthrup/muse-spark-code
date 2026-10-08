@@ -264,9 +264,10 @@ export interface UiState {
   readonly judge: JudgeStatus | undefined
   /**
    * M107 U–C1: this window governor's status as the host sent it (bounded
-   * JSON text; the deferred chip checks its schema). Machine-wide, never saved.
+   * JSON text; the deferred chip checks its schema); null when the current
+   * status was refused. Machine-wide, never saved.
    */
-  readonly resourceStatus: string | undefined
+  readonly resourceStatus: string | null | undefined
   /** Show resources asked this surface to open the chip's popover. */
   readonly resourceRequests: number
   /** Newest resolutions whose tool rows have not arrived yet; never saved. */
