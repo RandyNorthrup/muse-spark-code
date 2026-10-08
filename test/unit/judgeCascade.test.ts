@@ -271,6 +271,20 @@ function mutatingSide(
 
 const signal = () => new AbortController().signal
 
+/** A side whose profile carries a biased Platt fit (slope 1, intercept ln 3). */
+function biased(base: FakeSide, cap: JudgeCapability): FakeSide {
+  return {
+    ...base,
+    side: {
+      ...base.side,
+      profile: {
+        ...profileFor(cap, 'fit-7', 3),
+        fit: { method: 'platt', slope: 1, intercept: Math.log(3) },
+      },
+    },
+  }
+}
+
 describe('shouldCascadeFollowUp', () => {
   it('follows up below the entropy gate and rests above it', () => {
     expect(shouldCascadeFollowUp([entropyConfidence([0.99, 0.01])], false)).toBe(false)
@@ -424,6 +438,45 @@ describe('cascadeJudge', () => {
     }
   })
 
+  it('invokes the same model for a high-stakes family even when the separate answer cannot combine', async () => {
+    const separate = fakeSide(separateCap, { risk: [0.6, 0.4] }, { partial: true })
+    const same = fakeSide(sameCap, { risk: [0.6, 0.4] })
+    const outcome = await cascadeJudge(
+      request,
+      { ...options, highStakes: true },
+      depsFor(separate, same),
+      signal(),
+    )
+    expect(separate.run).toHaveBeenCalledTimes(1)
+    expect(same.run).toHaveBeenCalledTimes(1)
+    expect(outcome.outcome).toBe('answered')
+    if (outcome.outcome === 'answered') {
+      expect(outcome.result.muse['risk']).toMatchObject({ source: 'same', partial: false })
+    }
+  })
+
+  it('keeps a binary bias correction instead of renormalizing it away', async () => {
+    // Platt slope 1, intercept ln(3): p(yes) = 0.5 must calibrate to 0.75.
+    // Calibrating both masses and renormalizing would return 0.5.
+    const separate = biased(fakeSide(separateCap, { risk: [0.5, 0.5] }), separateCap)
+    const same = biased(fakeSide(sameCap, { risk: [0.5, 0.5] }, { weight: 1 }), sameCap)
+    const outcome = await cascadeJudge(request, options, depsFor(separate, same), signal())
+    expect(separate.run).toHaveBeenCalledTimes(1)
+    expect(same.run).toHaveBeenCalledTimes(1)
+    expect(outcome.outcome).toBe('answered')
+    if (outcome.outcome !== 'answered') {
+      return
+    }
+    const answer = outcome.result.answers['risk']
+    expect(answer?.type).toBe('noul')
+    if (answer?.type === 'noul') {
+      expect(answer.noul).toBeCloseTo(0.75, 10)
+      expect(answer.probabilities.true).toBeCloseTo(0.75, 10)
+      expect(answer.probabilities.false).toBeCloseTo(0.25, 10)
+    }
+    expect(outcome.result.muse['risk']?.source).toBe('both')
+  })
+
   it('leaves phase-1 behaviour on a failed separate output and names its source', async () => {
     const separate = fakeSide(
       separateCap,
@@ -519,13 +572,17 @@ describe('cascadeJudge', () => {
       return
     }
     const answer = outcome.result.answers['risk']
-    expect(answer).toMatchObject({
-      type: 'noul',
-      noul: 0.5,
-      probabilities: { true: 0.5, false: 0.5 },
-    })
+    // Close-to, not bit-exact: the binary complement carries each side's
+    // 1-ulp logit/sigmoid round-trip, where the old renormalize cancelled
+    // it. The contract (disagreement settles at 0.5 caution) is unchanged.
+    expect(answer?.type).toBe('noul')
+    if (answer?.type === 'noul') {
+      expect(answer.noul).toBeCloseTo(0.5, 10)
+      expect(answer.probabilities.true).toBeCloseTo(0.5, 10)
+      expect(answer.probabilities.false).toBeCloseTo(0.5, 10)
+    }
     const meta = outcome.result.muse['risk']
-    expect(meta?.confidence).toBe(0)
+    expect(meta?.confidence).toBeCloseTo(0, 10)
     expect(meta?.confidence).toBeLessThan(entropyConfidence([0.9, 0.1]))
     expect(meta?.confidence).toBeLessThan(entropyConfidence([0.1, 0.9]))
     expect(JSON.stringify(outcome)).not.toContain('allow')

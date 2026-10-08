@@ -260,6 +260,19 @@ describe('resolveJudgeMode2a', () => {
     ).toEqual({ mode: 'same', reason: 'auto-same' })
   })
 
+  it('requires explicit boolean verification and profile readiness, not truthy values', () => {
+    const unverified = JSON.parse('{"available":true,"verified":"false","profilesReady":true}')
+    expect(resolveJudgeMode2a({ ...context2a({ engine: 'auto' }), separate: unverified })).toEqual({
+      mode: 'same',
+      reason: 'auto-same',
+    })
+    const unready = JSON.parse('{"available":true,"verified":true,"profilesReady":"false"}')
+    expect(resolveJudgeMode2a({ ...context2a({ engine: 'both' }), separate: unready })).toEqual({
+      mode: 'off',
+      reason: 'profile-missing',
+    })
+  })
+
   it('lets explicit modes bypass the automatic ready-rate floor, and nothing else', () => {
     const low = { readyRate: 0.1, minReadyRate: 0.5 }
     expect(resolveJudgeMode2a(context2a({ engine: 'separate', ...low })).mode).toBe('separate')

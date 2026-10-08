@@ -175,12 +175,51 @@ interface EligibleAnswer {
   readonly weight: number
 }
 
+function calibratedWeight(applied: { readonly combinationWeight: number }): number | undefined {
+  return Number.isFinite(applied.combinationWeight) && applied.combinationWeight > 0
+    ? applied.combinationWeight
+    : undefined
+}
+
 function calibrateSide(
   side: JudgeCascadeSide,
   identity: CalibrationIdentity,
+  question: JudgeQuestion,
   distribution: readonly number[],
 ): EligibleAnswer | undefined {
   try {
+    if (question.type === 'noul') {
+      // Binary contract: the profile maps p(yes) and p(no) is its
+      // complement. Calibrating both masses and renormalizing would erase
+      // the fitted positive-class bias correction (two 0.5 masses through
+      // a biased profile renormalize back to 0.5).
+      if (distribution.length !== 2) {
+        return undefined
+      }
+      const mass = distribution[0]
+      if (mass === undefined) {
+        return undefined
+      }
+      const applied = applyCalibration(side.profile, identity, mass, false, side.limits)
+      if (applied.status !== 'calibrated') {
+        return undefined
+      }
+      if (
+        !Number.isFinite(applied.probability) ||
+        applied.probability < 0 ||
+        applied.probability > 1
+      ) {
+        return undefined
+      }
+      const weight = calibratedWeight(applied)
+      return weight === undefined
+        ? undefined
+        : { distribution, calibrated: [applied.probability, 1 - applied.probability], weight }
+    }
+    // Multi-alternative contract: each alternative's mass gets the same
+    // independent binary bias correction, renormalized to a distribution.
+    // There is no complement for three or more alternatives, so this is
+    // the cascade's stated combiner input (not B's evaluated predictor).
     const calibrated: number[] = []
     let weight: number | undefined
     for (const mass of distribution) {
@@ -196,9 +235,9 @@ function calibrateSide(
         return undefined
       }
       calibrated.push(applied.probability)
-      weight = applied.combinationWeight
+      weight = calibratedWeight(applied)
     }
-    if (weight === undefined || !Number.isFinite(weight) || weight <= 0) {
+    if (weight === undefined) {
       return undefined
     }
     let total = 0
@@ -252,7 +291,7 @@ function eligibleAnswer(
       criteriaVersion,
       fitVersion: side.fitVersion,
     }
-    return calibrateSide(side, identity, distribution)
+    return calibrateSide(side, identity, question, distribution)
   } catch {
     return undefined
   }
@@ -409,15 +448,20 @@ export async function cascadeJudge(
         eligible.set(id, answer)
       }
     }
-    if (eligible.size === 0) {
-      // The separate source answered, but nothing can enter the combiner:
-      // report it as it came rather than manufacturing a blend.
-      return separateAttempt.receipt.outcome
-    }
     const confidences = Array.from(eligible.values(), (answer) =>
       entropyConfidence(answer.distribution),
     )
-    if (!shouldCascadeFollowUp(confidences, options.highStakes)) {
+    // PLAN 2a: every high-stakes question invokes same. A separate answer
+    // that cannot enter the combiner (partial, top-1, uncalibrated) must
+    // not suppress that follow-up, so the high-stakes gate runs before
+    // the eligibility short-circuit (an empty confidence list would throw
+    // in the gate, and means no follow-up only outside high stakes).
+    const isNeedsFollowUp =
+      options.highStakes ||
+      (confidences.length > 0 && shouldCascadeFollowUp(confidences, options.highStakes))
+    if (!isNeedsFollowUp) {
+      // The separate source answered, but nothing can enter the combiner:
+      // report it as it came rather than manufacturing a blend.
       return separateAttempt.receipt.outcome
     }
     if (!isSameReady) {
