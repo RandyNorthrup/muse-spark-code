@@ -17,6 +17,7 @@ import { FeaturesTable } from './FeaturesTable'
 import { ModelDetail } from './ModelDetail'
 import { AttemptsSection } from './AttemptsSection'
 import { SavingsSection } from './SavingsSection'
+import { LazyResourcesSection } from './LazyResourcesSection'
 import { EmptyStates } from './EmptyStates'
 import { StackedColumns } from './charts/StackedColumns'
 import { MirroredColumns } from './charts/MirroredColumns'
@@ -207,6 +208,9 @@ export function UsageApp({
           <FeaturesTable features={state.features} />
           <AttemptsSection attempts={state.attempts} />
           <SavingsSection savings={state.savings} />
+          {state.resources === undefined ? null : (
+            <LazyResourcesSection history={state.resources} />
+          )}
           <footer>
             <p>
               {fill(USAGE_TEXT.retentionNote, {

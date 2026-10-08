@@ -127,7 +127,7 @@ export class NodeUsageFs implements UsageFs {
       await handle.close()
     }
   }
-  public async append(relative: string, line: string): Promise<void> {
+  public async append(relative: string, line: string, isDurable = false): Promise<void> {
     const file = await this.resolve(relative)
     await this.prepare(file)
     const handle = await open(
@@ -140,6 +140,7 @@ export class NodeUsageFs implements UsageFs {
     )
     try {
       await handle.writeFile(line, 'utf8')
+      if (isDurable) await handle.sync()
     } finally {
       await handle.close()
     }

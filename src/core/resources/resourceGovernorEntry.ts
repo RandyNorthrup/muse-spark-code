@@ -23,6 +23,10 @@ import { createMachineResourceSampler } from './sampler/system'
 import { LinuxResourceTreeReader } from './trees/linux'
 import { WindowsResourceTreeReader } from './trees/windows'
 export { createResources } from '../../runtime/resources/entry'
+import {
+  resourceHistoryRecorder,
+  type ResourceHistoryBinding,
+} from '../../runtime/resources/history'
 import { runTreeProgram } from './trees/run'
 import { powerShellQuoted } from '../shellQuote'
 import {
@@ -45,6 +49,8 @@ export interface ResourceHostSettings {
   readonly registryFile?: string | undefined
   readonly onCleanup?: ((result: CreatedCleanup) => void) | undefined
   readonly localization?: { readonly table: UiText; readonly locale: string } | undefined
+  /** M107 J/M102: record this window's samples into the machine journal, with usage consent. */
+  readonly history?: ResourceHistoryBinding | undefined
   readonly inspect: ResourceSettingsReader
   readonly onError: () => void
   readonly windowsJob?:
@@ -235,5 +241,20 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
     onCleanup: options.onCleanup,
     onError: options.onError,
   })
+  if (options.history !== undefined) {
+    // The governor's own sample and event streams; recording never gates admission.
+    const host = state.host
+    const recorder = resourceHistoryRecorder(
+      options.history,
+      { read: () => Promise.resolve(host.treeUsage()) },
+      options.onError,
+    )
+    governor.onSample(() => {
+      recorder.sample(governor.status([]))
+    })
+    events.subscribe((event) => {
+      recorder.event(event)
+    })
+  }
   return state.host
 }

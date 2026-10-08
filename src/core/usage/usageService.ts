@@ -8,6 +8,7 @@ import {
 } from '../../shared/constants'
 import { plural } from '../../shared/l10n/text'
 import { USAGE_TEXT, type UsageTable } from '../../shared/l10n/usageTable'
+import type { ResourceHistory } from '../../shared/resourceHistory'
 import type { UsageLimitSnapshot, UsageRecord } from '../../shared/usageJournal'
 import {
   parseUsagePageToServiceMessage,
@@ -66,6 +67,8 @@ export interface UsageServiceDeps {
   /** Host provides subscription/account snapshots; never requests a model. */
   readonly readLiveLimits: () => Promise<readonly UsageLimitSnapshot[]>
   readonly readAttempts: () => Promise<UsagePageState['attempts']>
+  /** M107 J: the machine resource journal's aggregate; a failure shows as unavailable. */
+  readonly readResources?: () => Promise<ResourceHistory>
   readonly providerConsoles: () => readonly UsagePageState['unreportedLimits'][number][]
   readonly exportFile: (
     format: Extract<UsagePageToServiceMessage, { type: 'usage/export' }>['format'],
@@ -110,6 +113,15 @@ function limitHistory(limits: readonly UsageLimitSnapshot[]): UsageLimitSnapshot
   }
   return Array.from(history, (entry) => entry[1]).toSorted((a, b) => a.observedAt - b.observedAt)
 }
+/** An unreadable resource journal never fails the usage page or invents data: null. */
+async function readResources(deps: UsageServiceDeps): Promise<ResourceHistory | null | undefined> {
+  if (deps.readResources === undefined) return undefined
+  try {
+    return await deps.readResources()
+  } catch {
+    return null
+  }
+}
 export function createUsageService(deps: UsageServiceDeps): UsageService {
   let query = DEFAULT_QUERY
   let selection: { provider: string; model: string } | undefined
@@ -118,11 +130,12 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
     selected: UsageQuery,
   ): Promise<{ journal: UsageJournalRead; state: UsagePageState }> {
     const now = deps.now()
-    const [journal, budgets, live, attempts] = await Promise.all([
+    const [journal, budgets, live, attempts, resources] = await Promise.all([
       deps.journal.read(),
       deps.readBudgets(),
       deps.readLiveLimits(),
       deps.readAttempts(),
+      readResources(deps),
     ])
     const aggregated = aggregateUsage(journal.records, journal.rollups, selected, now)
     const limits = limitHistory([
@@ -187,6 +200,7 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
           packedAvoided: aggregated.totals.packedAvoided,
         }),
       },
+      ...(resources !== undefined && { resources }),
     }
     if (selection !== undefined) {
       const { provider, model } = selection

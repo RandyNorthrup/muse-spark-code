@@ -59,6 +59,18 @@ export const RESOURCE_HISTORY_MAX_EVENTS = 1000
 export const RESOURCE_HISTORY_MAX_EVENT_TOTALS = 65
 export const RESOURCE_HISTORY_MAX_WORK_KINDS = 12
 export const RESOURCE_HISTORY_PAGE_SIZE = 60
+// M107 J/M102: the machine's resource journal, under the usage folder so the
+// usage page's Delete history also clears it. One append-only file per
+// recording process and UTC day; a whole journal read is bounded too.
+export const RESOURCE_JOURNAL_FOLDER = 'resources'
+export const RESOURCE_JOURNAL_VERSION = 1
+export const RESOURCE_JOURNAL_FILE_MAX_BYTES = 4 * 1024 * 1024
+export const RESOURCE_JOURNAL_READ_MAX_BYTES = 32 * 1024 * 1024
+// Day folders older than detail + this margin are removed; readers stop at
+// detail days, so a clock a day apart never reads a folder being removed.
+export const RESOURCE_JOURNAL_REMOVE_MARGIN_DAYS = 2
+// A record stamped further ahead than this (a wrong clock) is out of range.
+export const RESOURCE_JOURNAL_FUTURE_SKEW_MS = 5 * RESOURCE_HISTORY_MINUTE_MS
 export const RESOURCE_CPU_DEFAULT_PERCENT = 85
 export const RESOURCE_CPU_MIN_PERCENT = 30
 export const RESOURCE_MEMORY_DEFAULT_PERCENT = 90
