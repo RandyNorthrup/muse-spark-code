@@ -3057,6 +3057,11 @@ describe('FIXM116I4 model-start answer commits', () => {
     const f = await durableAnswerHarness()
     await f.h.run(async (client) => {
       const { sessionId, session } = await f.prepare(client)
+      const assertRetained = async () => {
+        expect(f.save).not.toHaveBeenCalled()
+        expect(f.isSent()).toBe(false)
+        expect(await f.store.load(sessionId)).toMatchObject([{ text: 'late: blue' }])
+      }
       // Model API acknowledges the turn as queued with a reserved user id.
       session.sendTurn.mockResolvedValueOnce({
         turnId: 'queued-1',
@@ -3070,16 +3075,12 @@ describe('FIXM116I4 model-start answer commits', () => {
       // The queued turn starts once the earlier running turn ends; submit hooks still to run.
       session.emit({ type: 'turnStarted', turnId: 'queued-1' })
       await settled()
-      expect(f.save).not.toHaveBeenCalled()
-      expect(f.isSent()).toBe(false)
-      expect(await f.store.load(sessionId)).toMatchObject([{ text: 'late: blue' }])
+      await assertRetained()
       // The UserPromptSubmit hook blocks: the user message leaves the replay, the turn ends.
       session.emit({ type: 'turnWithdrawn', turnId: 'queued-1', reason: 'stopped' })
       expect(await outcome).toBe(true)
       await f.registries[0]!.flush()
-      expect(f.save).not.toHaveBeenCalled()
-      expect(f.isSent()).toBe(false)
-      expect(await f.store.load(sessionId)).toMatchObject([{ text: 'late: blue' }])
+      await assertRetained()
       // The next prompt attaches the retained answer exactly once.
       session.sendTurn.mockResolvedValueOnce({ turnId: 'queued-2', disposition: 'started' })
       const retry = prompt(client, sessionId, 'retry')

@@ -498,7 +498,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:module`            | 2     |
 | `node:net`               | 13    |
 | `node:os`                | 25    |
-| `node:path`              | 144   |
+| `node:path`              | 145   |
 | `node:perf_hooks`        | 2     |
 | `node:process`           | 6     |
 | `node:readline`          | 1     |

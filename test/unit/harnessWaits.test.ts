@@ -282,13 +282,18 @@ describe('harness scenario event readiness', () => {
     expect(counts).toEqual([1, 0])
   })
 
-  it('holds readiness until scheduled events finish, then still waits for both paints', async () => {
+  it.each([
+    { reason: 'scheduled events finish', isColdStart: false },
+    { reason: 'a known scenario actually starts after the cold handshake', isColdStart: true },
+  ])('holds readiness until $reason, then still waits for both paints', async ({ isColdStart }) => {
     const source = harnessSection('const whenReady = async', '// A scan holds')
     const timers: ScheduledEvent[] = []
     const nextFrame = vi.fn(() => Promise.resolve())
     const settled = vi.fn()
     const context = {
       ...readinessPage(() => 0),
+      pendingScenarioEvents: isColdStart ? 0 : 1,
+      steps: isColdStart ? { ordinary: () => undefined } : {},
       nextFrame,
       readinessLater: (delay: number, run: () => void) => {
         timers.push({ delay, run })
@@ -300,32 +305,6 @@ describe('harness scenario event readiness', () => {
     expect(nextFrame).not.toHaveBeenCalled()
     expect(settled).not.toHaveBeenCalled()
     context.pendingScenarioEvents = 0
-    runNext(timers)
-    await vi.waitFor(() => {
-      expect(settled).toHaveBeenCalledOnce()
-    })
-    expect(nextFrame).toHaveBeenCalledTimes(2)
-  })
-
-  it('holds readiness until a known scenario actually starts after the cold handshake', async () => {
-    const source = harnessSection('const whenReady = async', '// A scan holds')
-    const timers: ScheduledEvent[] = []
-    const nextFrame = vi.fn(() => Promise.resolve())
-    const settled = vi.fn()
-    const context = {
-      ...readinessPage(() => 0),
-      pendingScenarioEvents: 0,
-      steps: { ordinary: () => undefined },
-      nextFrame,
-      readinessLater: (delay: number, run: () => void) => {
-        timers.push({ delay, run })
-      },
-      settled,
-    }
-    runInNewContext(`${source}\n void whenReady('ordinary').then(settled);`, context)
-    expect(timers[0]?.delay).toBe(50)
-    expect(nextFrame).not.toHaveBeenCalled()
-    expect(settled).not.toHaveBeenCalled()
     context.hasPlayedScenario = true
     runNext(timers)
     await vi.waitFor(() => {
