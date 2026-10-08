@@ -181,6 +181,28 @@ function calibratedWeight(applied: { readonly combinationWeight: number }): numb
     : undefined
 }
 
+interface AppliedSideMass {
+  readonly probability: number
+  readonly weight: number
+}
+
+/** One mass through this side's profile: the calibrated probability and B's fitted weight. */
+function applySideMass(
+  side: JudgeCascadeSide,
+  identity: CalibrationIdentity,
+  mass: number,
+): AppliedSideMass | undefined {
+  const applied = applyCalibration(side.profile, identity, mass, false, side.limits)
+  if (applied.status !== 'calibrated') {
+    return undefined
+  }
+  if (!Number.isFinite(applied.probability) || applied.probability < 0 || applied.probability > 1) {
+    return undefined
+  }
+  const weight = calibratedWeight(applied)
+  return weight === undefined ? undefined : { probability: applied.probability, weight }
+}
+
 function calibrateSide(
   side: JudgeCascadeSide,
   identity: CalibrationIdentity,
@@ -200,21 +222,14 @@ function calibrateSide(
       if (mass === undefined) {
         return undefined
       }
-      const applied = applyCalibration(side.profile, identity, mass, false, side.limits)
-      if (applied.status !== 'calibrated') {
-        return undefined
-      }
-      if (
-        !Number.isFinite(applied.probability) ||
-        applied.probability < 0 ||
-        applied.probability > 1
-      ) {
-        return undefined
-      }
-      const weight = calibratedWeight(applied)
-      return weight === undefined
+      const applied = applySideMass(side, identity, mass)
+      return applied === undefined
         ? undefined
-        : { distribution, calibrated: [applied.probability, 1 - applied.probability], weight }
+        : {
+            distribution,
+            calibrated: [applied.probability, 1 - applied.probability],
+            weight: applied.weight,
+          }
     }
     // Multi-alternative contract: each alternative's mass gets the same
     // independent binary bias correction, renormalized to a distribution.
@@ -223,19 +238,12 @@ function calibrateSide(
     const calibrated: number[] = []
     let weight: number | undefined
     for (const mass of distribution) {
-      const applied = applyCalibration(side.profile, identity, mass, false, side.limits)
-      if (applied.status !== 'calibrated') {
-        return undefined
-      }
-      if (
-        !Number.isFinite(applied.probability) ||
-        applied.probability < 0 ||
-        applied.probability > 1
-      ) {
+      const applied = applySideMass(side, identity, mass)
+      if (applied === undefined) {
         return undefined
       }
       calibrated.push(applied.probability)
-      weight = calibratedWeight(applied)
+      weight = applied.weight
     }
     if (weight === undefined) {
       return undefined

@@ -271,6 +271,42 @@ function mutatingSide(
 
 const signal = () => new AbortController().signal
 
+/** A noul `risk` answer reading `yes` (close-to: the binary complement carries a 1-ulp round-trip). */
+function expectRiskNoul(answer: JevAnswer | undefined, yes: number): void {
+  if (answer?.type !== 'noul') {
+    expect(answer?.type).toBe('noul')
+    return
+  }
+  expect(answer.noul).toBeCloseTo(yes, 10)
+  expect(answer.probabilities.true).toBeCloseTo(yes, 10)
+  expect(answer.probabilities.false).toBeCloseTo(1 - yes, 10)
+}
+
+/** A partial separate answer against an ordinary same side. */
+function partialSeparatePair(): { separate: FakeSide; same: FakeSide } {
+  return {
+    separate: fakeSide(separateCap, { risk: [0.6, 0.4] }, { partial: true }),
+    same: fakeSide(sameCap, { risk: [0.6, 0.4] }),
+  }
+}
+
+/** One cascade run that must dispatch both sides exactly once. */
+async function runBothOnce(
+  separate: FakeSide,
+  same: FakeSide,
+  opts: JudgeCascadeOptions = options,
+): Promise<JudgeOutcome> {
+  const outcome = await cascadeJudge(request, opts, depsFor(separate, same), signal())
+  expect(separate.run).toHaveBeenCalledTimes(1)
+  expect(same.run).toHaveBeenCalledTimes(1)
+  return outcome
+}
+
+/** A high-stakes run dispatches both sides exactly once and returns the outcome. */
+async function highStakesOutcome(separate: FakeSide, same: FakeSide): Promise<JudgeOutcome> {
+  return await runBothOnce(separate, same, { ...options, highStakes: true })
+}
+
 /** A side whose profile carries a biased Platt fit (slope 1, intercept ln 3). */
 function biased(base: FakeSide, cap: JudgeCapability): FakeSide {
   return {
@@ -389,20 +425,12 @@ describe('cascadeJudge', () => {
       { risk: [0.2, 0.8] },
       { weight: 1, costs: { reserved: 0.002, settled: 0.002, uncertain: 0 } },
     )
-    const outcome = await cascadeJudge(request, options, depsFor(separate, same), signal())
-    expect(separate.run).toHaveBeenCalledTimes(1)
-    expect(same.run).toHaveBeenCalledTimes(1)
+    const outcome = await runBothOnce(separate, same)
     expect(outcome.outcome).toBe('answered')
     if (outcome.outcome !== 'answered') {
       return
     }
-    const answer = outcome.result.answers['risk']
-    expect(answer?.type).toBe('noul')
-    if (answer?.type === 'noul') {
-      expect(answer.noul).toBeCloseTo(0.725, 10)
-      expect(answer.probabilities.true).toBeCloseTo(0.725, 10)
-      expect(answer.probabilities.false).toBeCloseTo(0.275, 10)
-    }
+    expectRiskNoul(outcome.result.answers['risk'], 0.725)
     const meta = outcome.result.muse['risk']
     expect(meta).toMatchObject({
       source: 'both',
@@ -424,14 +452,7 @@ describe('cascadeJudge', () => {
   it('always follows up for a high-stakes family, even when confident', async () => {
     const separate = fakeSide(separateCap, { risk: [0.99, 0.01] })
     const same = fakeSide(sameCap, { risk: [0.99, 0.01] }, { weight: 1 })
-    const outcome = await cascadeJudge(
-      request,
-      { ...options, highStakes: true },
-      depsFor(separate, same),
-      signal(),
-    )
-    expect(separate.run).toHaveBeenCalledTimes(1)
-    expect(same.run).toHaveBeenCalledTimes(1)
+    const outcome = await highStakesOutcome(separate, same)
     expect(outcome.outcome).toBe('answered')
     if (outcome.outcome === 'answered') {
       expect(outcome.result.muse['risk']?.source).toBe('both')
@@ -439,16 +460,8 @@ describe('cascadeJudge', () => {
   })
 
   it('invokes the same model for a high-stakes family even when the separate answer cannot combine', async () => {
-    const separate = fakeSide(separateCap, { risk: [0.6, 0.4] }, { partial: true })
-    const same = fakeSide(sameCap, { risk: [0.6, 0.4] })
-    const outcome = await cascadeJudge(
-      request,
-      { ...options, highStakes: true },
-      depsFor(separate, same),
-      signal(),
-    )
-    expect(separate.run).toHaveBeenCalledTimes(1)
-    expect(same.run).toHaveBeenCalledTimes(1)
+    const { separate, same } = partialSeparatePair()
+    const outcome = await highStakesOutcome(separate, same)
     expect(outcome.outcome).toBe('answered')
     if (outcome.outcome === 'answered') {
       expect(outcome.result.muse['risk']).toMatchObject({ source: 'same', partial: false })
@@ -460,20 +473,12 @@ describe('cascadeJudge', () => {
     // Calibrating both masses and renormalizing would return 0.5.
     const separate = biased(fakeSide(separateCap, { risk: [0.5, 0.5] }), separateCap)
     const same = biased(fakeSide(sameCap, { risk: [0.5, 0.5] }, { weight: 1 }), sameCap)
-    const outcome = await cascadeJudge(request, options, depsFor(separate, same), signal())
-    expect(separate.run).toHaveBeenCalledTimes(1)
-    expect(same.run).toHaveBeenCalledTimes(1)
+    const outcome = await runBothOnce(separate, same)
     expect(outcome.outcome).toBe('answered')
     if (outcome.outcome !== 'answered') {
       return
     }
-    const answer = outcome.result.answers['risk']
-    expect(answer?.type).toBe('noul')
-    if (answer?.type === 'noul') {
-      expect(answer.noul).toBeCloseTo(0.75, 10)
-      expect(answer.probabilities.true).toBeCloseTo(0.75, 10)
-      expect(answer.probabilities.false).toBeCloseTo(0.25, 10)
-    }
+    expectRiskNoul(outcome.result.answers['risk'], 0.75)
     expect(outcome.result.muse['risk']?.source).toBe('both')
   })
 
@@ -527,8 +532,7 @@ describe('cascadeJudge', () => {
   })
 
   it('keeps a partial separate result out of the combiner and reports it as it came', async () => {
-    const separate = fakeSide(separateCap, { risk: [0.6, 0.4] }, { partial: true })
-    const same = fakeSide(sameCap, { risk: [0.6, 0.4] })
+    const { separate, same } = partialSeparatePair()
     const outcome = await cascadeJudge(request, options, depsFor(separate, same), signal())
     expect(same.run).not.toHaveBeenCalled()
     expect(outcome.outcome).toBe('answered')
@@ -571,16 +575,9 @@ describe('cascadeJudge', () => {
     if (outcome.outcome !== 'answered') {
       return
     }
-    const answer = outcome.result.answers['risk']
-    // Close-to, not bit-exact: the binary complement carries each side's
-    // 1-ulp logit/sigmoid round-trip, where the old renormalize cancelled
-    // it. The contract (disagreement settles at 0.5 caution) is unchanged.
-    expect(answer?.type).toBe('noul')
-    if (answer?.type === 'noul') {
-      expect(answer.noul).toBeCloseTo(0.5, 10)
-      expect(answer.probabilities.true).toBeCloseTo(0.5, 10)
-      expect(answer.probabilities.false).toBeCloseTo(0.5, 10)
-    }
+    // Close-to, not bit-exact: disagreement settles at 0.5 caution, but
+    // each side's logit/sigmoid round-trip costs a ulp (see expectRiskNoul).
+    expectRiskNoul(outcome.result.answers['risk'], 0.5)
     const meta = outcome.result.muse['risk']
     expect(meta?.confidence).toBeCloseTo(0, 10)
     expect(meta?.confidence).toBeLessThan(entropyConfidence([0.9, 0.1]))
