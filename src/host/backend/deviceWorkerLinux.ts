@@ -405,6 +405,8 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
     const slotId = `${identity.attemptId}-${randomUUID().replaceAll('-', '')}`
     const unit = `muse-spark-device-${String(process.pid)}-${hostStart ?? ''}-${identity.receiverIncarnationId}-${slotId}.service`
     const inhibitor = unit.replace(/\.service$/, '-inhibit.service')
+    // The attempt's lifecycle owns this slot: only observed retirement (remove) or a proved
+    // refusal releases it, never a failed observer.
     slots.add(slotId)
     let hasSlot = true
     const releaseSlot = () => {
@@ -412,13 +414,16 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
       hasSlot = false
       slots.delete(slotId)
     }
-    // After any unit could have started, only observed absence of each unit refuses; an
-    // unproven unit keeps its slot and the attempt stays uncertain.
+    // After any unit could have started, refuse only once no launcher can still submit a unit
+    // and the manager then shows each unit gone; otherwise keep the slot, uncertain.
     const failed = async (
       error: unknown,
       units: readonly string[],
+      isLauncherDone: () => Promise<boolean> = () => Promise.resolve(true),
     ): Promise<DeviceWorkerLaunch> => {
+      if (!(await isLauncherDone())) return deviceWorkerUncertain(error)
       for (const name of units) if (!(await isUnitGone(name))) return deviceWorkerUncertain(error)
+      jobs.delete(unit)
       releaseSlot()
       return deviceWorkerRefused(error)
     }
@@ -489,6 +494,17 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
     child.stdin.on('error', () => {
       /* Failure is retained by the owning lifecycle. */
     })
+    // Closed and exited (or never spawned): this systemd-run client cannot submit its unit.
+    const isLauncherTerminal = () =>
+      output.isClosed() &&
+      (child.exitCode !== null || child.signalCode !== null || child.pid === undefined)
+    // Stop the launcher without activation, then observe it end within the frame deadline.
+    const hasLauncherEnded = async (): Promise<boolean> => {
+      if (!isLauncherTerminal()) child.kill()
+      const deadline = Date.now() + DEVICE_LIMITS.frameDeadlineMs
+      while (!isLauncherTerminal() && Date.now() < deadline) await delay(POSIX_TREE_EXIT_POLL_MS)
+      return isLauncherTerminal()
+    }
     void hold.closed
       .then(() => {
         if (!isRetired) requestStop()
@@ -535,9 +551,9 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
           await hold.release()
           return exit
         } catch {
+          // Unproved retirement keeps the slot: the observer never releases it.
           requestStop()
           await ignoreFailure(hold.release())
-          releaseSlot()
           throw new DeviceWorkerHostError('result')
         }
       })()
@@ -579,8 +595,9 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
         /* Emptiness stays unproven; the manager's view below decides. */
       }
       await ignoreFailure(hold.release())
-      // An unactivated unit is refused only once the manager shows both units gone.
-      return await failed(error, [unit, inhibitor])
+      // An unactivated unit is refused only once its launcher has ended and the manager then
+      // shows both units gone.
+      return await failed(error, [unit, inhibitor], hasLauncherEnded)
     }
   }
   let preparing: Promise<boolean> | undefined

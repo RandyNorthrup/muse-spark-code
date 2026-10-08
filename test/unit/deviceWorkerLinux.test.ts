@@ -83,6 +83,11 @@ function fixture(isInstant = false) {
     isOwnerReused: false,
     isOwnerUnreadable: false,
     canStopUnit: true,
+    isStopRefused: false,
+    readinessFailures: 0,
+    areUnitsAbsent: false,
+    isLauncherStuck: false,
+    failProcs: false,
   }
   // The manager's view: a stopped unit, or an inhibitor whose client closed, shows no cgroup.
   const goneUnits = new Set<string>()
@@ -99,6 +104,8 @@ function fixture(isInstant = false) {
     }
     if (isInstant) {
       const child = collect(instantChild(isInhibitor))
+      // A launcher that never ends, so it could still submit its unit.
+      if (!isInhibitor && state.isLauncherStuck) vi.spyOn(child, 'kill').mockReturnValue(true)
       if (isInhibitor) inhibitor = child
       else worker = child
       return child
@@ -122,6 +129,15 @@ function fixture(isInstant = false) {
     if (state.isManagerLost) return Promise.reject(new Error('manager lost'))
     if (args.includes('list-units'))
       return Promise.resolve(JSON.stringify(state.units.map((unit) => ({ unit }))))
+    const name = args[2] ?? ''
+    const isWorkerUnit = name.endsWith('.service') && !state.units.includes(name)
+    if (isWorkerUnit && state.isStopRefused && args.includes('stop'))
+      return Promise.reject(new Error('stop refused'))
+    const isReadinessShow = isWorkerUnit && args[1] === 'show' && !name.endsWith('-inhibit.service')
+    if (isReadinessShow && state.readinessFailures > 0) {
+      state.readinessFailures -= 1
+      return Promise.reject(new Error('manager query failed'))
+    }
     if (
       state.canStopOrphan &&
       args.includes('stop') &&
@@ -133,7 +149,7 @@ function fixture(isInstant = false) {
       // Orphans keep their own stop model (canStopOrphan) below.
       if (state.canStopUnit && !state.units.includes(args[2] ?? '')) goneUnits.add(args[2] ?? '')
     }
-    const isGone = state.isOrphanStopped || goneUnits.has(args[2] ?? '')
+    const isGone = state.isOrphanStopped || state.areUnitsAbsent || goneUnits.has(args[2] ?? '')
     return args.includes('--property=Version')
       ? Promise.resolve('257\n')
       : Promise.resolve(
@@ -158,7 +174,10 @@ function fixture(isInstant = false) {
     if (file === '/proc/self/cgroup') return Promise.resolve(`0::${state.transport}\n`)
     if (file.endsWith('pids.max')) return Promise.resolve(String(state.kernelLimit))
     if (file.endsWith('pids.current')) return Promise.resolve('1\n')
-    if (file.endsWith('cgroup.procs')) return Promise.resolve('11\n')
+    if (file.endsWith('cgroup.procs'))
+      return state.failProcs
+        ? Promise.reject(Object.assign(new Error('unreadable procs'), { code: 'EACCES' }))
+        : Promise.resolve('11\n')
     if (file.endsWith('cpu.stat')) return Promise.resolve('usage_usec 12\n')
     if (file.endsWith('memory.peak')) return Promise.resolve('4096\n')
     if (file.endsWith('type'))
@@ -345,22 +364,75 @@ describe('M100/H Linux platform port (fake manager/cgroup/inhibitor)', () => {
     expect(f.start).toHaveBeenCalledTimes(2)
     expect(f.worker()?.stdin.writableEnded).toBe(false)
   })
-  it('a never-activated unit the manager cannot show gone stays uncertain and keeps its slot', async () => {
+  it.each([
+    [
+      'before its retirement observer exists',
+      (f: ReturnType<typeof fixture>) => {
+        // Readiness reports resource pressure; Stop cannot make the unit gone.
+        f.state.result = 'resources'
+        f.state.canStopUnit = false
+      },
+    ],
+    [
+      'after its retirement observer started',
+      (f: ReturnType<typeof fixture>) => {
+        // Readiness passes, the final query cannot read the cgroup, and Stop is refused.
+        f.state.failProcs = true
+        f.state.isStopRefused = true
+      },
+    ],
+  ])(
+    'a never-activated unit left unproved %s stays uncertain and keeps its slot',
+    async (_case, inject) => {
+      const f = fixture(true)
+      inject(f)
+      for (let index = 0; index < DEVICE_LIMITS.unresolvedAttempts; index += 1) {
+        const launched = await f.driver.launch(command, environment, request)
+        expect(launched).toMatchObject({ kind: 'uncertain' })
+        // No sweep can observe this unit later: the attempt stays uncertain until recovery.
+        expect(launched).not.toHaveProperty('reclaimed')
+      }
+      const starts = f.start.mock.calls.length
+      expect(await f.driver.launch(command, environment, request)).toMatchObject({
+        kind: 'refused',
+        error: { detail: 'capacity' },
+      })
+      expect(f.start).toHaveBeenCalledTimes(starts)
+    },
+  )
+  it.each([
+    ['uncertain while its launcher has not ended', true, 'uncertain'],
+    ['refused once its launcher has ended', false, 'refused'],
+  ])('absent units after a failed readiness query are %s', async (_case, isLauncherStuck, kind) => {
     const f = fixture(true)
-    f.state.result = 'resources'
-    f.state.canStopUnit = false
-    for (let index = 0; index < DEVICE_LIMITS.unresolvedAttempts; index += 1) {
-      const launched = await f.driver.launch(command, environment, request)
-      expect(launched).toMatchObject({ kind: 'uncertain', error: { detail: 'capacity' } })
-      // No sweep can observe this unit later: the attempt stays uncertain until recovery.
-      expect(launched).not.toHaveProperty('reclaimed')
+    f.state.readinessFailures = 1
+    f.state.isStopRefused = true
+    f.state.areUnitsAbsent = true
+    f.state.isLauncherStuck = isLauncherStuck
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      const launched = f.driver.launch(command, environment, request)
+      const isSettled = await Promise.race([
+        (async () => {
+          await launched
+          return true
+        })(),
+        (async () => {
+          await vi.waitFor(() => {
+            expect(f.worker()?.kill).toHaveBeenCalled()
+          })
+          return false
+        })(),
+      ])
+      // The launcher gets the frame deadline to end; a stuck one is never proof.
+      if (!isSettled) vi.setSystemTime(Date.now() + DEVICE_LIMITS.frameDeadlineMs)
+      expect(await launched).toMatchObject({ kind, error: { detail: 'helper' } })
+      expect(f.worker()?.kill).toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
     }
-    const starts = f.start.mock.calls.length
-    expect(await f.driver.launch(command, environment, request)).toMatchObject({
-      kind: 'refused',
-      error: { detail: 'capacity' },
-    })
-    expect(f.start).toHaveBeenCalledTimes(starts)
+    // No activation was ever sent to the worker.
+    expect(f.worker()?.stdin.writableEnded).toBe(false)
   })
   it('even a working injected manager cannot launch without its runtime directory', async () => {
     const f = fixture()
