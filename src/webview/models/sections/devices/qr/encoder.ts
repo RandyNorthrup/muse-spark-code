@@ -1,7 +1,7 @@
-// M100 phase 2 (lane U): the narrow QR encoder interface. Text in, module
-// matrix out; the encoder is injected, never imported. The approved encoder
-// (proposed to the lead, not installed) lives in the lazy qr/ chunk behind
-// this interface; tests inject a fixed matrix.
+// M100 phase 2 (lanes U, W): the narrow QR encoder interface. Text in,
+// module matrix out. Callers inject an encoder (tests inject a fixed
+// matrix); the figure falls back to the installed approved encoder
+// (`qrGeneratorEncoder`) when none is injected.
 export interface QrModuleMatrix {
   readonly size: number
   readonly modules: readonly (readonly boolean[])[]

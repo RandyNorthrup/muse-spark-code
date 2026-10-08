@@ -1,12 +1,13 @@
-// M100 phase 2 (lane U): the lazy QR figure. Default export so the panel
-// loads this chunk only when a QR is shown. Dark modules on a fixed light
-// field with a four-module quiet zone in every theme, hc-dark included, plus
-// an accessible name. The selectable text fallback beside it is complete on
-// its own and is what ships until the lead approves an encoder: with no
-// injected encoder, or an encoder that throws or returns a non-matrix, this
+// M100 phase 2 (lanes U, W): the lazy QR figure. Default export so the
+// panel loads this chunk only when a QR is shown. Dark modules on a fixed
+// light field with a four-module quiet zone in every theme, hc-dark
+// included, plus an accessible name. The selectable text fallback beside it
+// is complete on its own. With no injected encoder the approved built-in
+// encoder renders the text; an encoder that throws or returns a non-matrix
 // renders nothing.
 import { DEVICE_LIMITS, UI_TEXT } from '../../../../../shared/constants'
 import { isQrModuleMatrix, type QrEncoder } from './encoder'
+import { qrGeneratorEncoder } from './qrGeneratorEncoder'
 
 const FIELD = '#ffffff'
 const MODULE = '#000000'
@@ -19,10 +20,10 @@ export default function QrFigure({
   readonly text: string
   readonly encode: QrEncoder | undefined
 }) {
-  if (encode === undefined) return null
+  const encoder = encode ?? qrGeneratorEncoder
   let matrix
   try {
-    matrix = encode(text)
+    matrix = encoder(text)
   } catch {
     return null
   }

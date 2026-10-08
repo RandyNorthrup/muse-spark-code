@@ -169,8 +169,14 @@ describe('M100P2U QR and text fallback', () => {
     }
   })
 
-  it('renders nothing without an encoder, a throwing encoder or a non-matrix', () => {
-    expect(QrFigure({ text: 'public', encode: undefined })).toBeNull()
+  it('falls back to the installed encoder without an injected one', () => {
+    const fallback = render(<QrFigure text="public" encode={undefined} />)
+    const svg = fallback.container.querySelector('svg')
+    expect(svg?.getAttribute('role')).toBe('img')
+    expect(svg?.getAttribute('aria-label')).toBe(EN.devices.qrCodeName)
+  })
+
+  it('renders nothing for a throwing encoder or a non-matrix', () => {
     const throwing = render(
       <QrFigure
         text="public"

@@ -15,6 +15,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { type ErrorReporter, reportWebviewErrorMessage, webviewErrorReport } from './errorReport'
 import { vsCodeHostBridge } from './hostBridge'
+import type { QrEncoder } from './models/sections/devices/qr/encoder'
 import { installEmbeddedTable } from './installTable'
 import { installSurfaceRetry, retrySurface } from './surfaceRetry'
 import { restoredUiState } from './state/snapshot'
@@ -107,22 +108,35 @@ function mountDevices(element: Element): void {
   const api = acquireVsCodeApi()
   const tableError = installEmbeddedTable(document)
   if (tableError !== undefined) throw tableError
-  createRoot(element).render(
-    <Suspense
-      fallback={
-        <main>
-          <p role="status">{UI_TEXT.loadingOutput}</p>
-        </main>
-      }
-    >
-      <DevicesApp
-        messages={window}
-        postMessage={(message) => {
-          api.postMessage(message)
-        }}
-      />
-    </Suspense>,
+  const root = createRoot(element)
+  const loading = (
+    <main>
+      <p role="status">{UI_TEXT.loadingOutput}</p>
+    </main>
   )
+  const render = (qrEncoder: QrEncoder | undefined) => {
+    root.render(
+      <Suspense fallback={loading}>
+        <DevicesApp
+          messages={window}
+          {...(qrEncoder === undefined ? {} : { qrEncoder })}
+          postMessage={(message) => {
+            api.postMessage(message)
+          }}
+        />
+      </Suspense>,
+    )
+  }
+  // The approved encoder stays in the lazy QR closure: a static import here
+  // would charge it to startup. Without it the text invitation still works.
+  render(undefined)
+  void import('./models/sections/devices/qr/qrGeneratorEncoder')
+    .then(({ qrGeneratorEncoder }) => {
+      render(qrGeneratorEncoder)
+    })
+    .catch(() => {
+      // The text invitation rendered above stays usable without QR pixels.
+    })
 }
 
 function mountTasks(element: Element): void {
