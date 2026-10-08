@@ -100,8 +100,8 @@ limit. Heavy commands run serially on macmini. Test execution retains the
 rig's maximum three files/workers per invocation and repository timeouts;
 partial coverage maps are merged once with the unchanged global thresholds.
 No test filter, skip, global timeout override, gate waiver or paid/live call
-is introduced. Fresh-clone commands/results and exact counts follow after
-verification; this initial merge record does not claim those gates passed.
+is introduced. The final fresh-clone commands/results and exact counts are
+recorded below and in `m100-phase2-base.json`.
 
 ### Initial integration regressions
 
@@ -212,7 +212,8 @@ intermediate collation commands failed; test collection continued. Final
 collation retains every test/error/module graph and uses the same pinned
 coverage-map merge in bounded groups, with an official direct/reduced-map
 equivalence check and final official threshold merge. G37/G38 and D100 record
-these rules; the final receipt will record the proof after final collation passes.
+these rules; the final receipt records the successful direct-map equivalence
+proof and unchanged-threshold merge.
 
 ### Joined guard-fire proofs
 
@@ -231,3 +232,89 @@ Restored startup/language files: **61 passed**. Restored Devices integration,
 phase-2 contracts and production chat mount: **47 passed**. All restored source
 SHA-256 pairs match; full values and red-log hashes are retained in the final
 base receipt. No temporary mutation is committed.
+
+### Final fresh-clone qualification
+
+Verified code/test revision `18fa2609023358c2ef3a34de6a8326d3b5a72eae`; fresh clone
+`/private/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m100p2base-ci-v64yxltl/repo`. `CI=true`, Node v24.21.0,
+npm 11.19.0, `npm ci` exit 0. All verification below uses this single
+revision; no coverage map from the earlier failing revision is reused.
+The final certification commit changes documentation only.
+
+| Gate command              | Exit |
+| ------------------------- | ---- |
+| `npm ci`                  | 0    |
+| `npm run typecheck`       | 0    |
+| `npm run lint`            | 0    |
+| `npm run format:check`    | 0    |
+| `npm run deadcode`        | 0    |
+| `npm run duplication`     | 0    |
+| `npm run cycles`          | 0    |
+| `npm run check:reference` | 0    |
+| `npm run check:l10n`      | 0    |
+| `npm run check:host-api`  | 0    |
+| `npm run build`           | 0    |
+
+`npm run typecheck` ran host, webview, unit, process-e2e and integration projects.
+Lint ran the complete repository JavaScript/CSS gates; PowerShell has its normal
+Darwin skip. Plain knip passed; duplication found zero clones; cycles examined
+866 files and found zero cycles. Reference, all 14 language tables and the host
+API record passed with zero problems. Production build includes the unchanged
+size, split, host-global and notices gates. No aggregate quality wrapper is run:
+the rig brief's enumerated gates are run individually and serially.
+
+The configured CI sequencer produced the complete, disjoint **846-file** manifest.
+All four memberships ran in **284** invocations, each at most three file arguments:
+`npx vitest run <files> --maxWorkers=3 --coverage --shard=1/1
+--reporter=default --reporter=blob --outputFile=<batch-report>`.
+All 284 exited 0 at the repository's own deadlines. No assertion-level filter,
+new skip or timeout override is used. Existing platform/live opt-in skips remain.
+
+| CI membership | Files | Passed tests | Existing skipped tests | Todo tests | Exit |
+| ------------- | ----- | ------------ | ---------------------- | ---------- | ---- |
+| 1             | 212   | 4528         | 11                     | 0          | 0    |
+| 2             | 212   | 3879         | 9                      | 0          | 0    |
+| 3             | 211   | 4426         | 36                     | 0          | 0    |
+| 4             | 211   | 4470         | 23                     | 0          | 0    |
+
+The final official merge reports **17303 passed**,
+**79 skipped**, **0 todo**,
+**0 failed tests**, across **846 files**. Per-shard reports and final
+counts agree. Every listed file is represented exactly once in the executed
+batch arguments and official merged test results.
+
+Coverage reduction is bounded to eight batch reports at a time and uses the
+pinned Vitest coverage provider's own `createCoverageMap.merge` semantics.
+All 284 raw reports are retained as gzip archives with
+byte-exact SHA-256 round-trip checks. Before the final merge, the first eight
+original reports (24 files) were merged directly by Vitest and
+through the reducer: all **982 complete coverage maps**, counters,
+locations and test counts are exactly equal. Tests, errors and module graphs
+remain in the reduced blobs. Vitest then officially merged each membership and
+finally all four together. Final command:
+`npx vitest run --merge-reports=<four-shard-directory> --maxWorkers=3 --coverage
+--reporter=default --reporter=json --outputFile=<summary>
+--coverage.reporter=text --coverage.reporter=lcov --coverage.reporter=json-summary`.
+It has **no shard flag** and exits **0**, enforcing the unchanged global thresholds.
+
+| Coverage   | Measured | Unchanged threshold | Covered / total |
+| ---------- | -------- | ------------------- | --------------- |
+| statements | 92.74%   | 90%                 | 72129 / 77771   |
+| branches   | 87.79%   | 85%                 | 50303 / 57298   |
+| functions  | 93.89%   | 90%                 | 14638 / 15590   |
+| lines      | 93.37%   | 90%                 | 68848 / 73731   |
+
+The build remains within every inherited cap, including activation
+**462.8/600 KiB**, Model API **456.0/475 KiB**, Devices host **80.7/100 KiB**,
+Devices UI **33.7/50 KiB**, surface English **24.1/25 KiB**, startup
+**733.8/900 KiB** and original deferred JS **31.9/50 KiB**. The full unit suite
+also passes the stricter unchanged **733.8 KiB** startup and **32.1 KiB** legacy
+deferred review assertions.
+
+`m100-phase2-base.json` records exact commands, results, counts, source identity,
+coverage, log/archive/membership hashes and every deliberate drill's matching
+before/restored SHA-256. The authorized merge is `1b24c700f`; structural repair
+commits are `390c156a8` and `18fa26090`. All commits use the repository hooks;
+lint-staged and gitleaks pass. No push, additional merge, gate waiver, live model
+attempt or paid call is made. Devices remains unshipped pending the phase-2
+product lanes and qualification W.
