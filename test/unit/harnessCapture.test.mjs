@@ -1,4 +1,6 @@
 import { readFileSync } from 'node:fs'
+import { setTimeout } from 'node:timers'
+import { URLSearchParams } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { JSDOM } from 'jsdom'
 import path from 'node:path'
@@ -23,6 +25,24 @@ const options = { width: 690, height: 760, profileDir: 'profile' }
 beforeEach(() => vi.clearAllMocks())
 
 describe('harness screenshot readiness', () => {
+  it('uses bounded scene readiness without the removed idle-delay global', async () => {
+    const whenReady = vi.fn().mockResolvedValue()
+    page.evaluate.mockImplementationOnce((source) =>
+      runInNewContext(source, {
+        themed: Promise.resolve(),
+        params: new URLSearchParams('scenario=question'),
+        whenReady,
+        harnessErrors: [],
+        setTimeout,
+      }),
+    )
+    await expect(
+      screenshotUrl('chrome', 'http://127.0.0.1/harness', 'shot.png', options),
+    ).resolves.toBe('shot.png')
+    expect(whenReady).toHaveBeenCalledExactlyOnceWith('question')
+    expect(page.screenshot).toHaveBeenCalledOnce()
+  })
+
   it('waits for scenario readiness before capturing and closes its browser', async () => {
     const { promise, resolve } = Promise.withResolvers()
     page.evaluate.mockReturnValueOnce(promise)
@@ -126,5 +146,41 @@ describe('legal keyboard scenario readiness', () => {
     await failed
     expect(run.tab.getByRole).not.toHaveBeenCalled()
     expect(waitFor).not.toHaveBeenCalled()
+  })
+})
+
+describe('harness composer readiness', () => {
+  it('waits past the transient sign-in gate until the composer can receive scene actions', () => {
+    const html = readFileSync(new URL('../harness/index.html', import.meta.url), 'utf8')
+    const start = html.indexOf('let hasPlayedScenario =')
+    const source = html.slice(start, html.indexOf('// `?theme=', start))
+    const dom = new JSDOM('<section class="gate">Signing in</section>')
+    const played = vi.fn()
+    let probe
+    try {
+      runInNewContext(source, {
+        window: dom.window,
+        harnessBundle: 'main',
+        scenario: 'question',
+        steps: { question: played },
+        whenFound: (selector, run) => {
+          probe = () => {
+            if (dom.window.document.querySelector(selector) !== null) run()
+          }
+          probe()
+        },
+      })
+      dom.window.dispatchEvent(new dom.window.Event('DOMContentLoaded'))
+      expect(played).not.toHaveBeenCalled()
+      dom.window.document.body.insertAdjacentHTML(
+        'beforeend',
+        '<form class="composer"><textarea></textarea></form>',
+      )
+      expect(probe).toBeDefined()
+      probe?.()
+      expect(played).toHaveBeenCalledOnce()
+    } finally {
+      dom.window.close()
+    }
   })
 })

@@ -64,6 +64,12 @@ key to the CLI.
   [Keeping your machine responsive](#keeping-your-machine-responsive) for the
   settings, available routes and remaining integration qualifications.
 
+- **Questions stay within reach.** Each question and MCP form has one interactive
+  card pinned above the composer. Its transcript marker opens and focuses that card.
+- **Agent outcomes and receipts.** Inspect agent activity, evidence-backed outcomes
+  and attempt history. Continue asks before resuming the same child; Retry requires
+  an isolated checkpoint. ACP editors can use `/agents` for the same local controls.
+
 ### Earlier in 0.15.0
 
 - **Bring your own models.** Add OpenAI, Anthropic and Gemini keys or local
@@ -113,7 +119,7 @@ key to the CLI.
   (`museSpark.questions.deferAfterSeconds`), Muse carries on with work that
   does not need the answer.
 - **Answer later.** An unanswered question becomes an **Open question** you can
-  answer any time from its card or the open-question chip; **Dismiss** closes it
+  answer any time using **Answer** on its transcript marker or the open-question chip; **Dismiss** closes it
   without an answer. A late answer reaches Muse once, as your own message, and
   approves nothing.
 - **Find open questions.** The view badge, tab title and History show how many
@@ -270,7 +276,7 @@ so they match the build.
   </tr>
   <tr>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/approval.png" alt="An approval card docked above the message box: Muse wants to Set-Content, step 1 of 2, a feedback box, and Allow once, Always allow in this workspace and Reject, one line each at one height; above it the diff tally, 2 files changed +3 −1 with Review; in the conversation the earlier steps fold into Read a file and edited 2 files, and the PowerShell row says it waits for your approval"><br><sub>An approval card, docked above the message box, with the CLI's own choices</sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/open-question.png" alt="An Open question in the attention dock: Colour, Blue, Green, Other, Submit and Explain instead; its folded transcript row and the 1 open question chip with Previous and Next controls remain visible"><br><sub>Answer an open question from the dock; its transcript row and navigation chip keep it easy to find</sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/question.png" alt="A compact Open question marker with Answer in the transcript and one question card pinned above the composer, with Colour and Toppings tabs, choices, Other, Submit and Explain instead"><br><sub>One question card, pinned above the message box; Answer on its transcript marker brings it into focus</sub></td>
   </tr>
   <tr>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/quote.png" alt="A reply right-clicked in its highlighted passage: three blue pills, Copy, Ask about this and Comment on this, fanned out from the pointer"><br><sub>Highlight, right-click: <b>Copy</b>, <b>Ask about this</b> or <b>Comment on this</b></sub></td>
@@ -285,6 +291,7 @@ so they match the build.
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/voice.png" alt="The composer listening: the red microphone and the Listening placeholder over a new conversation with its keyboard tips"><br><sub>Voice dictation: tap or hold, <code>Ctrl+D</code></sub></td>
   </tr>
   <tr>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/open-question.png" alt="An Open question in the attention dock: Colour, Blue, Green, Other, Submit and Explain instead; its folded transcript row and the 1 open question chip with Previous and Next controls remain visible"><br><sub>Answer an open question from the dock; its transcript row and navigation chip keep it easy to find</sub></td>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/help.png" alt="Help and Reference searched for Next open question, showing question-handling details, the deferral setting, and links to Next and Previous open question"><br><sub>Type <code>/help</code>: search the reference for features, commands, settings and shortcuts</sub></td>
   </tr>
 </table>
@@ -688,10 +695,12 @@ through the ACP agent on both backends are recorded in
 [M112's certification](docs/certification/m112.md); installed-editor checks
 remain with the release lead.
 The integrated panel pins agent questions in the attention dock above the
-composer, after approvals, and keeps the same card in the transcript. After
+composer, after approvals, and keeps only a compact marker in the transcript. After
 one minute Muse continues work that does not depend on the answer. The card
-becomes an **Open question**, still answerable from its row or the open-question
-chip. A card with focus or a draft stays expanded. **Dismiss** closes an open
+becomes an **Open question**. Its compact transcript marker keeps the icon,
+title and **Answer** button. Answer reopens the pinned card and focuses its first
+control, even after deferral; the open-question chip also opens it. A card with
+focus or a draft stays expanded. **Dismiss** closes an open
 question without guessing an answer. Approvals still wait for your decision;
 MCP forms keep their five-minute expiry and cannot be answered after expiry.
 
@@ -1168,6 +1177,33 @@ lock, so two agents updating the same note or index in the same instant could
 lose one of the writes.
 The `.muse-memory.lock` file can remain after its owner exits; its presence
 or stored PID alone does not show that a write is in progress.
+
+### Agent outcomes
+
+The Agent map separates **Active**, **Waiting** (approval, input, queued or
+interrupted) and **Inactive** from an ended agent's outcome: **Complete**,
+**Incomplete**, **Failed**, **Cancelled**, or **Ended, unverified**. Completion
+needs structured evidence. Budget limits, unfinished task lists and missing
+required checks are incomplete; failed final checks are failed. Final-message
+prose never certifies success. An ordinary native end without proof remains
+unverified.
+
+Select an ended agent for its redacted, size-limited receipt: reported file
+changes and line counts, commands/checks with supplied exits and durations,
+stop reason, final message, and observed attempt history. Missing evidence is
+labelled unavailable. **Continue** asks first, keeps the same child session and
+workspace edits, and sends failure/unfinished items followed by the original
+objective. Current permissions, paid-use consent and budgets still apply.
+**Retry** asks first and refuses when no isolated checkpoint is available.
+Today's children share the workspace or provide no captured checkpoint; shared
+changes are kept. Native ended-child recovery remains unavailable until its
+preservation guarantees are captured; interrupted Resume is unchanged.
+
+Other editors use ACP's local commands without a model request:
+`/agents`, `/agents receipt ID`, `/agents continue ID`, and `/agents retry ID`.
+Recovery asks through the editor's permission prompt even in Bypass. Workflow
+children and background tasks appear too; missing per-agent evidence and
+unsupported recovery are explicit.
 
 ### Custom agents
 

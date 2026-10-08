@@ -1,5 +1,6 @@
 import type { modelApiStatusSchema } from '../../shared/serviceStatus'
 import type { JudgeStatus } from '../../shared/judge'
+import { workflowChildSchema } from '../../shared/workflowChild'
 // Webview UI state: a pure reducer over host messages and local edits. No DOM
 // access here; the components apply focus and caret changes. Timestamps come
 // in with the action (`at`) so reasoning durations stay deterministic in tests.
@@ -941,15 +942,6 @@ function reportedImages(item: ItemSnapshot): readonly string[] | undefined {
 // One `children` element of a workflow item (MSP `WorkflowChild`, M47): its
 // identity and status are required; every other field is read on its own,
 // so one of another shape costs that field, never the agent or the run.
-const reportedChildSchema = z.object({
-  childId: z.string(),
-  attempt: z.number(),
-  status: z.string(),
-  label: z.optional(z.unknown()),
-  terminal: z.optional(z.unknown()),
-  durationMs: z.optional(z.unknown()),
-  usage: z.optional(z.unknown()),
-})
 
 function stringOf(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined
@@ -958,7 +950,7 @@ function stringOf(value: unknown): string | undefined {
 /** The agents a workflow item reports; undefined when it carries no list. */
 function reportedChildren(item: ItemSnapshot): readonly WorkflowChild[] | undefined {
   return item.children?.flatMap((raw) => {
-    const parsed = reportedChildSchema.safeParse(raw)
+    const parsed = workflowChildSchema.safeParse(raw)
     if (!parsed.success) {
       return []
     }
@@ -966,6 +958,7 @@ function reportedChildren(item: ItemSnapshot): readonly WorkflowChild[] | undefi
     return [
       {
         childId: child.childId,
+        agentEvidence: item.agentWorkflowEvidence?.[`${item.itemId}/${child.childId}`],
         attempt: child.attempt,
         status: child.status,
         label: stringOf(child.label),
@@ -1132,6 +1125,9 @@ function withBanner(state: UiState, name: string, reason: string): UiState {
 
 function toolEntry(item: ItemSnapshot): TranscriptEntry {
   return {
+    exitCode: item.exitCode,
+    durationMs: item.durationMs,
+    changedFiles: item.changedFiles,
     kind: 'tool',
     id: item.itemId,
     tool: item.tool ?? item.kind,
@@ -1179,6 +1175,7 @@ function userShellEntry(item: ItemSnapshot): UserShellEntry {
 
 function subagentEntry(item: ItemSnapshot, seq: number): SubagentEntry {
   return {
+    agentEvidence: item.agentEvidence,
     kind: 'subagent',
     id: item.itemId,
     seq,
@@ -1294,6 +1291,9 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
     case 'tool': {
       return {
         ...entry,
+        exitCode: item.exitCode ?? entry.exitCode,
+        durationMs: item.durationMs ?? entry.durationMs,
+        changedFiles: item.changedFiles ?? entry.changedFiles,
         tool: item.tool ?? entry.tool,
         args: item.args ?? entry.args,
         argumentPreview: item.argumentPreview,
@@ -1333,6 +1333,7 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
       const fresh = subagentEntry(item, entry.seq)
       return {
         ...entry,
+        agentEvidence: fresh.agentEvidence ?? entry.agentEvidence,
         paid: fresh.paid ?? entry.paid,
         role: fresh.role ?? entry.role,
         objective: fresh.objective ?? entry.objective,

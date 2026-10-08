@@ -32,8 +32,11 @@ import { RepeatGuard, toolRepeatKey } from './repeatGuard'
 import { recordPaidUse } from '../../paid/paidFeatures'
 import type { RecordedCall, UsageRecording } from '../../usage/recording'
 import type { UsageBudgetRead } from '../../usage/usageService'
-
 import type { PlanUsageRow, SubscriptionUsage } from '../../../shared/usage'
+import { finishedAgentEvidence } from '../../agent/agentEvidence'
+import { endedOutcome, agentStopReason, type AgentEvidence } from '../../../shared/agentOutcome'
+import { buildAgentReceipt, agentFilesFromPatch } from '../../../shared/agentReceipt'
+import { continuationNote, recoveryRefusal } from '../../../shared/agentRecovery'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
 // each a replayed conversation on `POST /v1/responses` (stateless reasoning
 // replay, `store: false`) with the in-process tool harness, the permission
@@ -945,6 +948,7 @@ interface TranscriptItem {
 interface ChildRecord {
   resourceStop?: AbortController | undefined
   resourceLease?: ResourceLease | undefined
+  evidence: AgentEvidence
   readonly id: string
   readonly role: string
   readonly objective: string
@@ -1387,6 +1391,8 @@ const FORWARDED_CHILD_EVENTS: ReadonlySet<AgentEvent['type']> = new Set([
   'approvalRequested',
   'approvalUpdated',
   'approvalResolved',
+  'questionRequested',
+  'questionSettled',
   'elicitationRequested',
   'elicitationSettled',
 ])
@@ -2216,6 +2222,26 @@ function waitFor<T>(signal: AbortSignal, register: (pending: Pending<T>) => void
   })
 }
 
+function modelOutputPage(content: string, request: OutputPageRequest): Promise<OutputPage> {
+  const bytes = Buffer.from(content, MODEL_API_OUTPUT_ENCODING)
+  // Pages start and end on character boundaries, as the CLI serves them (D26):
+  // a character split across two pages would decode as U+FFFD in both.
+  const start = characterStart(bytes, Math.min(request.offsetBytes, bytes.length))
+  let end = characterStart(bytes, Math.min(start + request.lengthBytes, bytes.length))
+  if (end <= start && start < bytes.length) {
+    end = characterEnd(bytes, start)
+  }
+  const slice = bytes.subarray(start, end)
+  return Promise.resolve({
+    content: slice.toString(MODEL_API_OUTPUT_ENCODING),
+    encoding: MODEL_API_OUTPUT_ENCODING,
+    mediaType: MODEL_API_OUTPUT_MEDIA_TYPE,
+    offsetBytes: start,
+    byteLen: slice.length,
+    eof: end >= bytes.length,
+  })
+}
+
 export class ModelApiSession implements AgentSession {
   private lastJudgeBody: CreateResponseBody | undefined
   private readonly listeners = new Set<SessionEventListener>()
@@ -2438,6 +2464,9 @@ export class ModelApiSession implements AgentSession {
   private compacting: AbortController | undefined
   private effort: string = DEFAULT_EFFORT
   private todos: readonly TodoItem[] = []
+  private todoTurnId: string | undefined
+  private outcomeStopReason: AgentEvidence['stopReason']
+  private responseIncomplete = false
   /** The session goal (M45, PLAN.md D38), in Muse Code's own record shape. */
   private goal: GoalRecord | undefined
   /** Accepted user goal commands invalidate goal tools from older requests. */
@@ -5141,6 +5170,9 @@ export class ModelApiSession implements AgentSession {
         return event.response
       }
       case 'response.incomplete': {
+        this.responseIncomplete = true
+        if (event.response.incomplete_details?.reason === 'max_output_tokens')
+          this.outcomeStopReason = 'budget'
         this.deps.log.warn(
           `Model API response ${event.response.id} incomplete: ${event.response.incomplete_details?.reason ?? 'no reason'}`,
         )
@@ -6418,6 +6450,7 @@ export class ModelApiSession implements AgentSession {
     }
     this.todos = next
     this.autoCompact.noteTodos(this.todos)
+    this.todoTurnId = turnId
     this.emit({ type: 'todoChanged', items: [...this.todos] })
     const summary = `${String(this.todos.length)} tasks`
     return { output: summary, visibleOutput: summary }
@@ -7529,6 +7562,7 @@ export class ModelApiSession implements AgentSession {
       childSessionId: child.session.sessionId,
       depth: SUBAGENT_DEPTH,
       controlStatus: child.state === 'result_ready' ? SUBAGENT_RESULT_READY : child.state,
+      agentEvidence: child.evidence,
       ...(isDone && { durationMs: this.deps.now() - child.startedAt }),
       usage: child.usage,
       paid: 'subagents',
@@ -7577,6 +7611,11 @@ export class ModelApiSession implements AgentSession {
       return
     }
     if (event.type === 'turnStarted') {
+      child.evidence = {
+        attempt: (child.evidence.attempts?.length ?? 0) + 1,
+        attempts: child.evidence.attempts ?? [],
+        inFlight: true,
+      }
       child.chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
     } else if (event.type === 'tokenUsage') {
       const latest = child.session.usage
@@ -7645,6 +7684,36 @@ export class ModelApiSession implements AgentSession {
         ...(text !== '' && { text: text.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS) }),
         ...(event.errorKind !== undefined && { errorKind: event.errorKind }),
       }
+      if (child.state === 'interrupted') {
+        child.evidence = { ...child.evidence, inFlight: false, waiting: 'interrupted' }
+      } else {
+        const items = child.session.transcript
+          .filter((entry) => entry.turnId === event.turnId)
+          .map((entry) => entry.item)
+        const terminalStop = agentStopReason(event.terminal)
+        const stopReason =
+          child.session.outcomeStopReason ?? (terminalStop === 'unknown' ? 'normal' : terminalStop)
+        const evidence = finishedAgentEvidence(
+          items,
+          child.session.todoTurnId === event.turnId ? child.session.todos : [],
+          stopReason,
+          child.session.checkCommands(),
+        )
+        if (child.session.responseIncomplete) evidence.reportedComplete = false
+        const receipt = buildAgentReceipt(items, evidence, text)
+        child.evidence = {
+          ...evidence,
+          attempt: child.evidence.attempt ?? 1,
+          attempts: [
+            ...(child.evidence.attempts ?? []),
+            {
+              number: child.evidence.attempt ?? 1,
+              outcome: endedOutcome({ status: event.terminal, evidence }),
+              receipt,
+            },
+          ],
+        }
+      }
       this.pendingChildResults.push({
         childId: child.id,
         text: `${MODEL_API_MODEL_TEXT.subagentResult}\n${child.id}: ${JSON.stringify({ ...child.result, summary: modelText.slice(0, SUBAGENT_SUMMARY_MAX_CHARS), text: modelText.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS) })}`,
@@ -7660,9 +7729,21 @@ export class ModelApiSession implements AgentSession {
       this.startQueuedChildren()
       return
     }
-    if (FORWARDED_CHILD_EVENTS.has(event.type)) {
-      this.emit(event)
+    if (!FORWARDED_CHILD_EVENTS.has(event.type)) {
+      return
     }
+
+    if (['approvalRequested', 'questionRequested', 'elicitationRequested'].includes(event.type)) {
+      child.evidence = {
+        ...child.evidence,
+        waiting: event.type === 'approvalRequested' ? 'approval' : 'input',
+      }
+      this.updateChild(child)
+    } else if (['approvalResolved', 'questionSettled', 'elicitationSettled'].includes(event.type)) {
+      child.evidence = { ...child.evidence, waiting: undefined }
+      this.updateChild(child)
+    }
+    this.emit(event)
   }
 
   /** A hidden continuation uses the original consent and its remaining request bound. */
@@ -8372,6 +8453,7 @@ export class ModelApiSession implements AgentSession {
       session: child,
       startedAt: this.deps.now(),
       state: 'queued',
+      evidence: { attempt: 1, attempts: [] },
       result: undefined,
       terminal: undefined,
       usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 },
@@ -10383,7 +10465,6 @@ export class ModelApiSession implements AgentSession {
       this.isSubagent &&
       (isSubagentTool(call.name) ||
         call.name === MODEL_API_TOOLS.askUser ||
-        call.name === MODEL_API_TOOLS.todoWrite ||
         call.name === MODEL_API_TOOLS.createGoal ||
         call.name === MODEL_API_TOOLS.getGoal ||
         call.name === MODEL_API_TOOLS.updateGoal ||
@@ -10826,6 +10907,13 @@ export class ModelApiSession implements AgentSession {
       ...started,
       status,
       visibleOutput: outcome.visibleOutput,
+      ...(outcome.exitCode !== undefined && { exitCode: outcome.exitCode }),
+      ...(started.recordedAt !== undefined && {
+        durationMs: Math.max(0, this.deps.now() - Date.parse(started.recordedAt)),
+      }),
+      ...(outcome.patch !== undefined && {
+        changedFiles: agentFilesFromPatch(outcome.patch.document),
+      }),
       ...(outcome.failureReason !== undefined && { failureReason: outcome.failureReason }),
       ...(outputRef !== undefined &&
         outcome.patch !== undefined && {
@@ -11043,6 +11131,7 @@ export class ModelApiSession implements AgentSession {
       turnId,
       tool: call.name,
       args: effectiveCall.arguments,
+      recordedAt: this.recordedNow(),
       ...(paid !== undefined && { paid }),
     }
     this.clearArgumentPreviewTimer(call.call_id)
@@ -12305,6 +12394,7 @@ export class ModelApiSession implements AgentSession {
       this.queuedTurns.unshift(this.queuedGoalWake())
     }
     this.promoteSteered(turn)
+    this.outcomeStopReason = 'budget'
     throw new Error(`stopped after ${String(MODEL_API_MAX_TOOL_ROUNDS)} tool rounds`)
   }
 
@@ -12368,6 +12458,8 @@ export class ModelApiSession implements AgentSession {
   }
 
   private async runTurn(queued: QueuedTurn): Promise<void> {
+    this.outcomeStopReason = undefined
+    this.responseIncomplete = false
     this.mediaNoticeSent = false
     const turn: ActiveTurn = {
       turnId: queued.turnId,
@@ -12536,7 +12628,15 @@ export class ModelApiSession implements AgentSession {
         }
       } else {
         terminal = FAILED
+        if (
+          error instanceof SessionBudgetExceededError ||
+          (error instanceof ChildTaskRefusedError &&
+            (error.kind === 'requestLimit' || error.kind === 'goalEnded'))
+        ) {
+          this.outcomeStopReason = 'budget'
+        }
         reason = error instanceof ChildTaskRefusedError ? error.visible : describe(error)
+        if (this.isSubagent && this.outcomeStopReason === 'budget') terminal = COMPLETED
         if (error instanceof ChildTaskRefusedError) {
           errorKind = `subagent_${error.kind}`
         } else if (error instanceof ContextOverflowError) {
@@ -14430,6 +14530,38 @@ export class ModelApiSession implements AgentSession {
     if (child === undefined) {
       throw new Error(`unknown subagent ${subagentId}`)
     }
+    if (action === 'continue' || action === 'retry') {
+      const isPlan = () => this.permissions.currentMode === 'denyUnmatched'
+      const refusal = recoveryRefusal(
+        {
+          status: child.terminal ?? IN_PROGRESS,
+          controlStatus: child.state,
+          evidence: child.evidence,
+        },
+        action,
+        this.deps.now(),
+      )
+      if (refusal !== undefined) throw new Error(refusal)
+      if (isPlan()) throw new Error(UI_TEXT.subagentPlanMode)
+      const receipt = child.evidence.attempts?.at(-1)?.receipt
+      if (receipt === undefined) throw new Error(UI_TEXT.agentContinueUnavailable)
+      const revision = child.revision
+      const task = continuationNote(receipt, child.objective, MODEL_API_MODEL_TEXT.subagentResume)
+      const grant = await this.confirmOwnerChildTask(child, task)
+      if (isPlan()) throw new Error(UI_TEXT.subagentPlanMode)
+      if (
+        this.isDisposed ||
+        child.revision !== revision ||
+        child.session.activeTurnId !== undefined
+      )
+        throw new Error(UI_TEXT.agentContinueUnavailable)
+      this.installChildGrant(child, grant)
+      child.pendingMessages.push(task)
+      child.state = 'queued'
+      this.updateChild(child)
+      this.startQueuedChildren()
+      return
+    }
     switch (action) {
       case 'readResult': {
         if (child.state !== 'result_ready') {
@@ -14575,26 +14707,9 @@ export class ModelApiSession implements AgentSession {
 
   public readOutput(request: OutputPageRequest): Promise<OutputPage> {
     const content = this.outputs.get(request.outputRef)
-    if (content === undefined) {
-      return Promise.reject(new Error(`unknown output ${request.outputRef}`))
-    }
-    const bytes = Buffer.from(content, MODEL_API_OUTPUT_ENCODING)
-    // Pages start and end on character boundaries, as the CLI serves them (D26):
-    // a character split across two pages would decode as U+FFFD in both.
-    const start = characterStart(bytes, Math.min(request.offsetBytes, bytes.length))
-    let end = characterStart(bytes, Math.min(start + request.lengthBytes, bytes.length))
-    if (end <= start && start < bytes.length) {
-      end = characterEnd(bytes, start)
-    }
-    const slice = bytes.subarray(start, end)
-    return Promise.resolve({
-      content: slice.toString(MODEL_API_OUTPUT_ENCODING),
-      encoding: MODEL_API_OUTPUT_ENCODING,
-      mediaType: MODEL_API_OUTPUT_MEDIA_TYPE,
-      offsetBytes: start,
-      byteLen: slice.length,
-      eof: end >= bytes.length,
-    })
+    return content === undefined
+      ? Promise.reject(new Error(`unknown output ${request.outputRef}`))
+      : modelOutputPage(content, request)
   }
 
   public async listSkills(): Promise<readonly SkillSummary[]> {
@@ -14889,6 +15004,7 @@ export class ModelApiSession implements AgentSession {
             checkpointRecording: child.session.inheritedRecording(),
           }),
           startedAt: child.startedAt,
+          evidence: child.evidence,
           state: child.state,
           ...(child.result !== undefined && { result: child.result }),
           ...(child.terminal !== undefined && { terminal: child.terminal }),
@@ -15003,6 +15119,7 @@ export class ModelApiSession implements AgentSession {
         parentTurnId: saved.parentTurnId,
         session,
         startedAt: saved.startedAt,
+        evidence: saved.evidence ?? {},
         state: saved.state === 'running' || saved.state === 'queued' ? 'interrupted' : saved.state,
         result: saved.result,
         terminal: saved.terminal,
@@ -15220,6 +15337,16 @@ export class ModelApiSession implements AgentSession {
         },
       },
     }
+  }
+
+  public childOutput(
+    sessionId: string,
+    request: OutputPageRequest,
+  ): Promise<OutputPage> | undefined {
+    for (const child of this.children.values()) {
+      if (child.session.sessionId === sessionId) return child.session.readOutput(request)
+    }
+    return undefined
   }
 
   /** Child transcripts are read through the host, not listed as conversations. */
@@ -15676,6 +15803,24 @@ export class ModelApiHost implements AgentHost {
     throw new Error(`session ${sessionId} is not held by this window`)
   }
 
+  private async storedHistorySource(sessionId: string): Promise<StoredSession> {
+    let source: StoredSession
+    if (this.stored.has(sessionId)) {
+      source = await this.storedSession(sessionId)
+    } else {
+      const childMarker = `:${SUBAGENT_ID_PREFIX}`
+      const separator = sessionId.lastIndexOf(childMarker)
+      const parentId = separator === -1 ? sessionId : sessionId.slice(0, separator)
+      const stored = await this.storedSession(parentId)
+      const child = stored.children?.find((entry) => entry.session.sessionId === sessionId)
+      if (child === undefined) {
+        throw new Error(`session ${sessionId} is not held by this window`)
+      }
+      source = child.session
+    }
+    return source
+  }
+
   /** The live session, or the stored one brought back into this window. */
   private async revive(sessionId: string, isSideChatRequired = false): Promise<ModelApiSession> {
     const live = this.sessions.get(sessionId)
@@ -15957,20 +16102,7 @@ export class ModelApiHost implements AgentHost {
         return child
       }
     }
-    let source: StoredSession
-    if (this.stored.has(sessionId)) {
-      source = await this.storedSession(sessionId)
-    } else {
-      const childMarker = `:${SUBAGENT_ID_PREFIX}`
-      const separator = sessionId.lastIndexOf(childMarker)
-      const parentId = separator === -1 ? sessionId : sessionId.slice(0, separator)
-      const stored = await this.storedSession(parentId)
-      const child = stored.children?.find((entry) => entry.session.sessionId === sessionId)
-      if (child === undefined) {
-        throw new Error(`session ${sessionId} is not held by this window`)
-      }
-      source = child.session
-    }
+    const source = await this.storedHistorySource(sessionId)
     return {
       mode: 'inline',
       sideChat: source.sideChat === true,
@@ -15981,7 +16113,24 @@ export class ModelApiHost implements AgentHost {
     }
   }
 
-  /** Extension-owned callers bind only an already loaded, currently owned parent. */
+  /** Inspect output in its owning session without attaching or starting a turn. */
+  public async readSessionOutput(
+    sessionId: string,
+    request: OutputPageRequest,
+  ): Promise<OutputPage> {
+    await this.requireAccountId()
+    const live = this.sessions.get(sessionId)
+    if (live !== undefined) return await live.readOutput(request)
+    for (const parent of this.sessions.values()) {
+      const page = parent.childOutput(sessionId, request)
+      if (page !== undefined) return await page
+    }
+    const source = await this.storedHistorySource(sessionId)
+    const content = source.outputs[request.outputRef]
+    if (content === undefined) throw new Error(`unknown output ${request.outputRef}`)
+    return await modelOutputPage(content, request)
+  }
+
   public async readUsageBudgets(): Promise<UsageBudgetRead[]> {
     const budgets: UsageBudgetRead[] = []
     for (const session of this.sessions.values()) {
@@ -15991,6 +16140,7 @@ export class ModelApiHost implements AgentHost {
     return budgets
   }
 
+  /** Extension-owned callers bind only an already loaded, currently owned parent. */
   public async getOwnedBudgetScope(
     sessionId: string,
   ): Promise<OwnedSessionBudgetScope | undefined> {

@@ -7,55 +7,7 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-### Changed
-
-- Rebuild 0.16.0 on the complete 0.15.0 candidate, preserving loop guarantees,
-  machine resource controls, provider/team/usage/legal features and prompt sharing.
-  Regenerate the combined reference and localization tables. Remove duplicated
-  headless engine loading and measure the combined deferred bundles with D6's
-  authorized 5% margin rounded to 25 KiB.
-
-
-### Fixed
-
-- Include all 35 bundled ACP runtime dependencies in its third-party notices,
-  selecting the actual staged shared/lazy bundles and usage browser chunks.
-- Include esbuild's namespaced resource-validation dependencies in release
-  CycloneDX inventories using normalized POSIX and Windows package paths.
-- Inventory ACP's actual staged shared/lazy bundles and usage browser assets,
-  retaining their runtime dependencies and excluding extension-only outputs.
-- Separate check-slot uncertainty cases and journal benchmark preparation,
-  retaining default test deadlines and the 300-ms warm-read requirement.
-- Run the actual badge/image gate in the ChatGPT package fixture under CI,
-  preserving the prohibition on offline badge overrides.
-- Reuse the headless tests' existing fake image transport for every package
-  guard, retaining CI and the real badge validator without an offline override.
-- Inspect the Team harness's real package inventory in an owned publication
-  tree, avoiding other test workers' temporary files within the same setup limit.
-- Compose exact money ports across the provider, team, usage and headless train;
-  keep subscription Plan turns independent of API budget journals and validate
-  output caps before clamping.
-- Ship and require the Darwin helper in ACP archives, retain native cleanup
-  refusals, and load each resource surface's own English fallback within its cap.
-- Pass Semgrep's worker option once, preserving the serial scan and every rule
-  and deadline after the release merge.
-- Install companion launch recovery labels through DOM text content, keeping
-  translated markup inert before the authenticated app starts.
-- Keep paid/reply browser fixtures on canonical decimal USD and wait for the
-  real settled harness when capturing README scenes with lazy imports.
-- Remove the obsolete source-map-js audit exception once the locked tree no
-  longer reports its advisory; retain the existing audit policy.
-- Restore queued late-question answers before ACP manual compaction, so the
-  next ordinary prompt delivers each answer once.
-- Count the shared chat/resource browser graph once in the split guard while
-  preserving independent-graph and model-text leak checks.
-- Forward the resource-wrapped headless result exit code after structured-output
-  validation, retaining schema mismatch code 10 and its accounted spend.
-
-### Changed
-
-- Avoid retaining unused exact-money schemas in unrelated lazy bundles while
-  preserving runtime validation of every used price and schema.
+### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
@@ -67,6 +19,7 @@ happened, not what was planned; superseded entries are kept.
   overrides. Session saves coalesce into one in-flight write plus the latest;
   parallel save failures are observed immediately while other sessions drain.
   History listing validates headers without replay/transcript validation.
+
 - M101 lane P1 (BYO codecs): one bad history item no longer breaks later
   requests. Blank text is dropped, empty tool results ride as
   `(no tool output)`, non-JSON tool arguments ride as `{}` (Ollama keeps its
@@ -91,15 +44,10 @@ happened, not what was planned; superseded entries are kept.
   Fakes only; no live
   or paid model call.
 
-### Documentation
-
-- A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
-  what went wrong while a fleet of agents built this project. For each one it
-  gives the rule that prevents it and the milestone that will enforce that
-  rule in the app's own orchestrator (D100).
+- Provider-specific retry-table binding remains pending for non-Meta transports;
+  the shared retry classifier does not certify endpoint quota refusal.
 
 ## [0.16.0] - 2026-10-07
-
 
 ### Highlights
 
@@ -114,6 +62,10 @@ happened, not what was planned; superseded entries are kept.
   refuse critical-volume writes; cleanup requires recorded ownership and proved
   process-tree exit.
   <!-- try: setting museSpark.resourceDiskMinFreeGiB -->
+- **Pinned questions.** One interactive question or MCP form stays above the
+  composer; transcript markers open and focus it.
+- **Agent outcomes.** Activity, evidence-backed outcomes and redacted receipts
+  show attempts and unfinished work, with confirmed Continue and guarded Retry.
 
 ### Added
 
@@ -136,6 +88,13 @@ happened, not what was planned; superseded entries are kept.
   admission and independent lazy control/history artifacts. Active editor,
   journal, paired-device and native-platform qualifications remain explicit in
   [the M107 record](docs/certification/m107.md).
+
+- Agent activity and structured outcomes, with bounded redacted receipts and
+  retained Model API attempt history. Continue asks before resuming the same
+  child and keeps its edits. Retry explains when an isolated checkpoint is
+  unavailable. Native ends without completion evidence remain unverified.
+  ACP editors get local `/agents` listing, receipts and confirmed recovery.
+  Model API children can keep their own task list without replacing the parent's.
 
 ### Changed
 
@@ -319,13 +278,57 @@ happened, not what was planned; superseded entries are kept.
   late imports cannot take focus; failed menus accept Escape and return focus
   to their trigger.
 
+- Rebuild 0.16.0 on the complete 0.15.0 candidate, preserving loop guarantees,
+  machine resource controls, provider/team/usage/legal features and prompt sharing.
+  Regenerate the combined reference and localization tables. Remove duplicated
+  headless engine loading and measure the combined deferred bundles with D6's
+  authorized 5% margin rounded to 25 KiB.
+
+- Avoid retaining unused exact-money schemas in unrelated lazy bundles while
+  preserving runtime validation of every used price and schema.
+
+### Fixed
+
+- Load packed runtime and English regions through explicit CommonJS requires
+  under Node 22 loader hooks, preserving archive digest checks and fallback.
+
+- Keep the GitHub-only badge authorization spread compliant with the existing
+  lint gate, retaining unauthenticated requests when no job token is supplied.
+
+- Deliver every long-reply harness frame before advancing the stream, keeping
+  readiness pending through completion within its existing deadline. Batch
+  validated deltas between paints and wait for the actual composer before
+  scene actions, preventing startup sign-in races in questions and reports.
+
+- Parse the full changelog in release and artifact test setup so version,
+  Highlights and lossless packing assertions keep their existing deadlines
+  under load.
+
+- Screenshot helpers use the harness's bounded scene readiness instead of a
+  removed idle-delay constant, preserving theme, font, paint and error checks.
+
+- ACP cancellation stops the running model turn while local agent inspection
+  waits, and a late cancelled read preserves newer command preparation.
+- Agent receipts read patch references through the child that owns them and
+  preserve earlier native attempt receipts while a new attempt is running.
+- Child completion evidence belongs to the current turn. Parent Model API
+  request bytes and cache prefixes keep their original tool order.
+- Windows shell credential regressions await the matching background completion
+  before cleanup and probe raw environment values within the default test deadline.
+- Prompt host shutdown awaits mirror merges and other admitted operations
+  before releasing storage, preventing Windows cleanup from racing a sync write.
+- Browser package tests build the chat, Help and What's New pages themselves,
+  so a clean CI shard needs no artifacts from an earlier production build.
+- The installed ACP help check validates its complete localization table,
+  retaining prompt and sharing labels in its exact output comparison.
+- Chat-share HTML encodes markup delimiters in one pass. Privacy regexes have
+  literal-metacharacter controls and documented, specific audit exceptions
+  for their escaped workspace, home and username fragments.
 - Keep every long-reply accessibility delta while yielding through a task port,
   avoiding nested timer throttling within the existing readiness deadline.
 
 - Check every staged ACP help language in bounded parallel batches, keeping
   cold package certification within its existing deadline.
-
-### Fixed
 
 - Accept Windows short temp-path spellings for team hints while refusing linked
   folders; avoid broad PowerShell module discovery in team native helpers and
@@ -363,9 +366,10 @@ happened, not what was planned; superseded entries are kept.
 - Keep Action reviews and low-budget refusals working for large release diffs
   by retaining only the bounded review prefix before exec.
 
-
-
-### Fixed
+- Keep each waiting or deferred question's interactive card pinned above the
+  composer. Its transcript marker's Answer button reopens and focuses that
+  card, including after deferral; MCP forms use the same compact marker.
+  Refresh Help & Reference and the README question screenshots.
 
 - Search usage-journal newlines in native byte arrays so cold scans retain their
   validation and finish within CI's existing deadline under coverage. Companion
@@ -399,10 +403,56 @@ happened, not what was planned; superseded entries are kept.
   output and repeated cold setup on hosted runners, preserving default deadlines,
   all randomized cases, offline replays and native Windows security checks.
 
-### Pending
+- Keep resource-only English in its independent fallback, removing duplicate
+  deferred-surface bytes while preserving the installed language and size caps.
+- Include all 35 bundled ACP runtime dependencies in its third-party notices,
+  selecting the actual staged shared/lazy bundles and usage browser chunks.
 
-- Provider-specific retry-table binding remains pending for non-Meta transports;
-  the shared retry classifier does not certify endpoint quota refusal.
+- Include esbuild's namespaced resource-validation dependencies in release
+  CycloneDX inventories using normalized POSIX and Windows package paths.
+
+- Inventory ACP's actual staged shared/lazy bundles and usage browser assets,
+  retaining their runtime dependencies and excluding extension-only outputs.
+
+- Separate check-slot uncertainty cases and journal benchmark preparation,
+  retaining default test deadlines and the 300-ms warm-read requirement.
+
+- Run the actual badge/image gate in the ChatGPT package fixture under CI,
+  preserving the prohibition on offline badge overrides.
+
+- Reuse the headless tests' existing fake image transport for every package
+  guard, retaining CI and the real badge validator without an offline override.
+
+- Inspect the Team harness's real package inventory in an owned publication
+  tree, avoiding other test workers' temporary files within the same setup limit.
+
+- Compose exact money ports across the provider, team, usage and headless train;
+  keep subscription Plan turns independent of API budget journals and validate
+  output caps before clamping.
+
+- Ship and require the Darwin helper in ACP archives, retain native cleanup
+  refusals, and load each resource surface's own English fallback within its cap.
+
+- Pass Semgrep's worker option once, preserving the serial scan and every rule
+  and deadline after the release merge.
+
+- Install companion launch recovery labels through DOM text content, keeping
+  translated markup inert before the authenticated app starts.
+
+- Keep paid/reply browser fixtures on canonical decimal USD and wait for the
+  real settled harness when capturing README scenes with lazy imports.
+
+- Remove the obsolete source-map-js audit exception once the locked tree no
+  longer reports its advisory; retain the existing audit policy.
+
+- Restore queued late-question answers before ACP manual compaction, so the
+  next ordinary prompt delivers each answer once.
+
+- Count the shared chat/resource browser graph once in the split guard while
+  preserving independent-graph and model-text leak checks.
+
+- Forward the resource-wrapped headless result exit code after structured-output
+  validation, retaining schema mismatch code 10 and its accounted spend.
 
 ### Documentation
 
@@ -424,6 +474,11 @@ happened, not what was planned; superseded entries are kept.
   sweep hits checked before a bulk edit), with D100 amendments for M96c,
   M107, M116 and M117. The playbook placement chapter gains lessons 11–20
   covering the same failures, still model-agnostic.
+
+- A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
+  what went wrong while a fleet of agents built this project. For each one it
+  gives the rule that prevents it and the milestone that will enforce that
+  rule in the app's own orchestrator (D100).
 
 ## [0.15.0] - 2026-10-06
 

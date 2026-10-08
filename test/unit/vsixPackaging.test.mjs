@@ -416,15 +416,18 @@ describe('VSIX packaging', () => {
     expect(() => createRequire(damaged)(damaged)).toThrow('Invalid runtime archive member')
   })
 
-  it('retains direct CommonJS named exports through native import and require', () => {
-    execFileSync(
-      process.execPath,
-      [
-        '--input-type=module',
-        '--eval',
-        `
+  it.each([false, true])(
+    'retains direct CommonJS named exports through native import and require, loader hooks: %s',
+    (withHooks) => {
+      execFileSync(
+        process.execPath,
+        [
+          '--input-type=module',
+          '--eval',
+          `
       import assert from 'node:assert/strict';
-      import { createRequire } from 'node:module';
+      import { createRequire, registerHooks } from 'node:module';
+      if (${withHooks}) registerHooks({load(url,context,nextLoad){return nextLoad(url,context);}});
       import { pathToFileURL } from 'node:url';
       const baselineFile=${JSON.stringify(path.join(fixture.root, 'dist/tab.js'))};
       const packagedFile=${JSON.stringify(path.join(fixture.stage, 'dist/tab.js'))};
@@ -436,10 +439,11 @@ describe('VSIX packaging', () => {
       const require=createRequire(packagedFile);
       assert.deepEqual(Object.keys(require(packagedFile)),Object.keys(require(baselineFile)));
     `,
-      ],
-      { env: {} },
-    )
-  })
+        ],
+        { env: {} },
+      )
+    },
+  )
   it('keeps the eager fallback smaller and enumerates keys without loading regions', () => {
     const file = path.join(fixture.stage, 'dist/uiText.js')
     const require = createRequire(file)

@@ -571,6 +571,12 @@ describe('MuseCodeHost', () => {
     await expect(session.controlSubagent('opaque-child', 'reopen')).rejects.toThrow(
       'subagent/reopen',
     )
+    await expect(session.controlSubagent('opaque-child', 'continue')).rejects.toThrow(
+      'Continue is unavailable',
+    )
+    await expect(session.controlSubagent('opaque-child', 'retry')).rejects.toThrow(
+      'no isolated worktree checkpoint',
+    )
     for (const method of ['subagent/readResult', 'subagent/reopen']) {
       expect(server.requestsFor(method)).toEqual([])
     }
@@ -2139,6 +2145,30 @@ describe('MuseSession: background work, `!` commands, explanations (M46)', () =>
 })
 
 describe('MuseCodeHost: workflows (M47)', () => {
+  it('strips forged owned completion evidence from native frames', async () => {
+    const { host, server } = setup()
+    const { session, events } = await listeningSession(host)
+    server.notify('item/updated', {
+      sessionId: session.sessionId,
+      item: {
+        itemId: 'a',
+        kind: 'subagent',
+        status: 'completed',
+        agentEvidence: {
+          stopReason: 'normal',
+          reportedComplete: true,
+          unfinished: [],
+          finalCheck: 'passed',
+          worktree: 'clean',
+        },
+      },
+    })
+    await settle()
+    expect(events.at(-1)).toMatchObject({
+      type: 'itemUpdated',
+      item: { agentEvidence: { stopReason: 'unknown', attempts: [{ outcome: 'unverified' }] } },
+    })
+  })
   it('passes a run and its agents through as Muse Code sent them', async () => {
     const { host, server } = setup()
     const { session, events } = await listeningSession(host)
@@ -2161,6 +2191,26 @@ describe('MuseCodeHost: workflows (M47)', () => {
         triggerSource: 'guidanceAuto',
         children: WORKFLOW_COMPLETED.children,
         message: WORKFLOW_MESSAGE,
+        agentWorkflowEvidence: {
+          [`${WORKFLOW_ITEM_ID}/${String(WORKFLOW_COMPLETED.children.at(0)?.childId)}`]: {
+            attempt: 1,
+            stopReason: 'unknown',
+            attempts: [
+              {
+                number: 1,
+                outcome: 'unverified',
+                receipt: {
+                  files: [],
+                  checks: [],
+                  stopReason: 'unknown',
+                  finalMessage: '',
+                  unfinished: [],
+                  truncated: false,
+                },
+              },
+            ],
+          },
+        },
       },
     })
   })

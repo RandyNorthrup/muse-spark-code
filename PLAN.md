@@ -16282,8 +16282,8 @@ The owner, 2026-10-05:
      group is one line. The dock stays within
      `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION` (half the view) with its own
      scroll, so the composer and the newest reply stay in sight.
-   - **The dock and the row are two views of one question.** The transcript
-     row keeps its card (decision 7); answering either settles both.
+   - **One interactive view per question, pinned in the dock.** The
+     transcript keeps a compact marker whose Answer opens the dock (decision 7).
    - **MCP forms join the dock** (a lead addition: they are questions too,
      and get lost the same way). They keep their 300-second deadline and
      their cancel. MCP has no late answer, so an expired form says so and
@@ -16395,9 +16395,14 @@ The owner, 2026-10-05:
 
 7. **Easy to pick out in the transcript.**
    - **Waiting and open rows** carry a left accent, the `question` codicon
-     and the label **Open question** before the header. An open row is
-     folded to one line (the header, **Answer** and an expand chevron) and
-     opens in place.
+     and the label **Open question** before the header. Both stay compact:
+     **Answer** opens or expands the docked card, scrolls it into view and
+     focuses its first control, including after deferral. The full card
+     never renders in the transcript. MCP forms follow the same rule.
+   - **Amended 2026-10-07 (QPIN), owner ruling:** "If we fixed the questions
+     so they are pinned to the bottom why is there still a screenshot of it
+     floating in the middle of the chat?" This corrects the earlier decision
+     to keep a second full interactive card in the transcript.
    - **Settled rows** each have their own label and icon: Answered, Answered
      later, Answered when asked again, Explained, Declined, Dismissed,
      Expired. None is told by colour alone; high-contrast themes use
@@ -18098,8 +18103,8 @@ The owner, 2026-10-05:
      group is one line. The dock stays within
      `ATTENTION_DOCK_MAX_VIEWPORT_FRACTION` (half the view) with its own
      scroll, so the composer and the newest reply stay in sight.
-   - **The dock and the row are two views of one question.** The transcript
-     row keeps its card (decision 7); answering either settles both.
+   - **One interactive view per question, pinned in the dock.** The
+     transcript keeps a compact marker whose Answer opens the dock (decision 7).
    - **MCP forms join the dock** (a lead addition: they are questions too,
      and get lost the same way). They keep their 300-second deadline and
      their cancel. MCP has no late answer, so an expired form says so and
@@ -18211,9 +18216,14 @@ The owner, 2026-10-05:
 
 7. **Easy to pick out in the transcript.**
    - **Waiting and open rows** carry a left accent, the `question` codicon
-     and the label **Open question** before the header. An open row is
-     folded to one line (the header, **Answer** and an expand chevron) and
-     opens in place.
+     and the label **Open question** before the header. Both stay compact:
+     **Answer** opens or expands the docked card, scrolls it into view and
+     focuses its first control, including after deferral. The full card
+     never renders in the transcript. MCP forms follow the same rule.
+   - **Amended 2026-10-07 (QPIN), owner ruling:** "If we fixed the questions
+     so they are pinned to the bottom why is there still a screenshot of it
+     floating in the middle of the chat?" This corrects the earlier decision
+     to keep a second full interactive card in the transcript.
    - **Settled rows** each have their own label and icon: Answered, Answered
      later, Answered when asked again, Explained, Declined, Dismissed,
      Expired. None is told by colour alone; high-contrast themes use
@@ -18778,6 +18788,35 @@ test that fails without the rule:
 
 Rows marked **covered** keep their existing decision as the owner: D87.14,
 D90.25, D96, D88 and D97.
+
+### D101 — Evidence-backed agent activity, outcomes and recovery (M119, owner 2026-10-06)
+
+The Agent map and ACP listing separate activity (Active, Waiting with a reason,
+Inactive) from ended outcomes (Complete, Incomplete, Failed, Cancelled,
+Ended, unverified). Structured evidence alone decides outcomes: normal stop,
+budget exhaustion, final check exits, unfinished items, required checks and
+worktree state. Missing evidence is unverified; a final message is never parsed
+for claims of completeness. Active means an in-flight call/tool or output in a
+named short window. Silence does not certify success.
+
+| Source                               | Available evidence                                                                                                                                   | Limits and recovery                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Muse Code subagents / child sessions | Captured M14/M18 item/control states, child-session transcript, tool calls, result and turn terminals                                                | No captured end reason, required-check declaration or private-worktree/checkpoint report. Ended normal agents remain unverified. Ended-child Continue refuses until preservation is captured; interrupted Resume is unchanged. Retry refuses without a verified isolated checkpoint. No new MSP fields or verbs guessed. |
+| Model API subagents                  | Owned child session, queued/running/interrupted/result/closed states, owned request/step budgets, tool exits and verification reports, final message | Children share the workspace; it is not their own worktree. Continue keeps the session and edits, obtains fresh paid consent and obeys current permissions/budgets. Retry refuses: resetting a shared workspace could destroy another agent's edits.                                                                     |
+| M47 workflow agents                  | Captured child ID, attempt, status, terminal, duration and usage; reconciled run report                                                              | No per-child session, commands, files or resumable checkpoint. Receipt explicitly marks missing evidence. Both recovery actions refuse with a reason.                                                                                                                                                                    |
+| Background tasks                     | Owned/captured tool arguments, output, exit and duration where reported                                                                              | Commands are tasks, not objective-completion proof. Missing exit evidence stays unverified. No resumable agent session/checkpoint; recovery refuses.                                                                                                                                                                     |
+| ACP / other editors                  | Same portable evidence mapping and receipts from session events/history                                                                              | Local /agents listing, receipt and explicitly confirmed Continue/Retry expose identical evidence and refusals; no model request for local inspection.                                                                                                                                                                    |
+
+Receipts are bounded, redacted using existing tool-output redaction and read on
+selection within the lazy Agent map budget. They list linked files and line
+counts where supplied, commands/check results with exit/duration where supplied,
+stop reason and final message. Missing fields are labelled unavailable, never
+empty success. Attempts retain prior receipts; recovery never happens
+implicitly. Continue includes the receipt's structured reason/unfinished items
+followed by the original objective unchanged. Retry starts only from a verified
+last commit/start checkpoint in an isolated worktree; otherwise explicit refusal.
+All UI strings ship in every translated table. Activity/outcome are text and
+outcome changes have a polite announcement. Harness states run in four themes.
 
 ## 3. Open questions (need the owner)
 
@@ -19654,6 +19693,132 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ### REL0160 — Prepare the 0.16.0 release (2026-10-06)
 
+**Status: M106/M107 joined; promotion waits on `sync/main-0160` and failed size qualifications.**
+The authorized first join is `git merge --no-ff m107/w` at `e8b6d24ae`,
+recorded as `06904a410`, onto main `8c6351d73`. Preserve all M107 repairs,
+generate reference/host/schema artifacts with their own generators, and move
+its unreleased notes out of older dated release sections into the 0.16.0 draft.
+Prepare three Highlights covering strict tool contracts and loop limits/previews,
+CPU/memory throttling and eligible relocation, and free-disk floors. Keep every
+named M107 native/editor/storage qualification visible; component tests do not
+certify a missing production binding.
+
+The round-2 brief authorizes `git merge --no-ff sync/m106-final` at
+`3e0c0c603`, completed as `61d61038e` with both feature sets and regenerated
+reference/host/schema records. Merge `sync/main-0160` when supplied with
+0.14.4/0.15.0, then bump the manifest/lock and generated ACP package together
+to **0.16.0**. Preserve main's 0.15.0 notes as README's **Earlier in 0.15**.
+Until then the 0.16.0 changelog/README stay explicit drafts and the manifest
+remains 0.14.3. Final merged-source receipts and size/native qualifications
+are recorded in `docs/certification/rel0160.md`; no failed gate is waived.
+
+### INT0160UX — Integrate 0.16.0 UI features on 0.15.0 (2026-10-07, linuxlt)
+
+- [x] Merge QPIN `dcac54ea5` with `git merge --no-ff`, retaining current
+      release repairs and the pinned question surface.
+- [x] Merge agent outcomes `c79cd749a` with `git merge --no-ff`, retaining
+      current team, question and agent-map behavior and all localized keys.
+- [x] Audit the older agent-outcomes changes against current runtime paths;
+      add regression tests and prove any repair with a byte-restored red drill.
+- [~] Verify committed code in a fresh clone after `npm ci`, with `CI=true`:
+  five typechecks, lint, formatting, plain knip, duplication, reference,
+  localization, unchanged production budgets and four default-timeout
+  coverage shards with merged thresholds.
+- [ ] Run the accessibility harness; regenerate README screenshots and replace
+      only images changed by these features. Record commands, counts, drills
+      and blockers in `docs/certification/int0160ux.md`.
+
+Fresh-clone lint reproduced an unchanged release-base violation in
+`scripts/check-badges.mjs`: its conditional job-token object spread violates
+`unicorn/consistent-conditional-object-spread`. INT0160UX's requirement to fix
+all verification failures includes this syntax-only gate repair. Preserve
+GitHub-only authorization and add empty/absent-token boundary coverage.
+The merged compact/agents command expectation also exposes one duplication:
+reuse the existing ACP command fixture with optional skill commands, keeping
+all ordering and command assertions intact. Update the existing ACP usage
+inventory assertions for the new local `/agents` command, retaining all usage
+routing/cancellation/no-model-call checks. The legal cap drill's fixture must
+use production's existing model-text compression plugin; its budget stays
+150 KiB and the real production build already passes. Add the plugin
+factory's minimal declaration so the fixture is checked without a suppression. Whole-shard verification
+also requires current App tests to answer in the attention dock, the warmer
+and bundle test to follow QPIN's single question/elicitation chunk, and every
+harness map opener to distinguish the Agent map pill from Side chat.
+Transcript folding tests must assert the unfurled marker; submitted markers
+and dock controls keep their lock checks. Crash/reload must restore exactly
+one interactive dock card and its transcript marker. Approval-first App
+fixtures must deliver host resolution before answering a question: approval
+priority remains intact. Share the five dock button queries inside the
+existing App test file to avoid duplicating long accessible-region selectors.
+Investigate the long-stream harness readiness failure
+without increasing its deadline; preserve every delta and completion. A real
+Chrome probe shows MessageChannel completion can precede delivery of queued
+window messages, leaving only a partial reply when readiness reports done.
+Advance the stream from delivery of its own window message instead, removing
+the second task per delta and keeping readiness pending through completion.
+The second fresh clone passes every static/unit/coverage gate, but the full
+browser run still exposes per-delta React renders under load. Deliver the same
+100-character frames synchronously in bounded batches, yielding through a task
+port between batches and retaining the completion-delivery fence. Do not change
+readiness bounds, workers or axe scope. Startup must wait for the composer or
+tasks surface; the transient initial sign-in gate is not scene readiness and
+can race question input or legal report delivery. Cover that startup boundary.
+The next fresh full shard exposes another load-sensitive fixture: parsing the
+entire changelog takes 6.508 seconds inside its five-second highlights test.
+Move that unchanged full parse into `beforeAll`, retaining both release/version
+assertions and the repository's existing test and hook deadlines. Prove the
+highlights assertion still rejects a missing release Highlights section with
+a byte-restored changelog mutation; do not shorten or bypass content validation.
+The responsive probe also exposes a stale `AXE_AFTER_MS` reference in the
+shared screenshot helper after the harness replaced idle timing with bounded
+readiness. Remove the obsolete delay and retain theme, scene, font/paint and
+error readiness through `whenReady`; exercise the actual evaluation string
+without that removed global, and prove the guard fires before restoring it.
+The fourth coverage run passes the release/version fixture but exposes the
+same expensive full-changelog parse in the lossless artifact suite: its
+packing test exceeds the five-second deadline at 5.596 seconds. Parse the
+complete real notes once in that suite's `beforeAll` and reuse them in both
+encoding cases. Preserve the existing named deadline on the other long case,
+all 40 KiB/decoded bounds and exact lossless comparisons. Prove corruption
+still fails the complete owning file, with a byte-restored encoder drill.
+
+Packaged exec reproduces a release-base Node 22 loader-hook failure before
+any dispatch: native CommonJS import lacks implicit `require.cache`. A small
+real Node 22 probe confirms explicit `createRequire(__filename).cache` remains
+available. Generate both archive wrappers with that explicit require, preserving
+member digests, bounded decoding, inline English fallback and named exports.
+Extend the existing native-import packaging regression to synchronous hooks;
+retain all built-engine, credential isolation and signal assertions/deadlines.
+
+Version remains 0.15.0. Entries belong under Unreleased. The rig brief permits
+these two merges and full fresh-clone verification; no other merge, push,
+rebase, paid/live model call, timeout or gate relaxation is authorized.
+
+### QPIN — One question card, pinned above the composer (2026-10-07)
+
+The owner: "If we fixed the questions so they are pinned to the bottom why
+is there still a screenshot of it floating in the middle of the chat?"
+Amend D92.1 and D92.7: waiting and deferred questions keep only a compact
+transcript marker (icon, Open question, title and Answer). Answer selects,
+expands, scrolls and focuses the dock's first control. MCP forms follow the
+same rule. Preserve late delivery, drafts, approval priority and settled
+summaries. Update Help & Reference in all 14 languages and README images.
+Sized screenshot captures must wait for the same scenario, fonts and paints
+as wide captures: the existing early locator wait raced lazy question UI.
+
+- [x] Implement the marker and explicit dock navigation; owning tests and
+      a deliberate duplicate-card regression drill with byte-exact restore.
+- [x] Restore question.png beside approval; regenerate question-related
+      README shots and question accessibility scenes in all four themes.
+- [x] Commit with hooks; verify a fresh clone with npm ci and CI=true:
+      complete owning suites three times at default timeouts, five
+      typechecks, lint, format, plain knip, duplication, build, reference
+      and localization, keeping all thresholds unchanged.
+
+Record receipts in docs/certification/question-pinned.md. Shared common.md
+and review-common.md were absent from both C:/lanes/_ctx and the rig note's
+~/lanes/_ctx; the rig brief and repository rules govern this repair.
+
 ### CI0150M — Round 3 macOS CI repairs (2026-10-07, macmini)
 
 - [x] Reproduce the journal coverage timeout and companion authentication race;
@@ -19683,15 +19848,6 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ### FIX0150R — Release review repairs for runners and usage (2026-10-07, macmini)
 
-**Status: M106/M107 joined; promotion waits on `sync/main-0160` and failed size qualifications.**
-The authorized first join is `git merge --no-ff m107/w` at `e8b6d24ae`,
-recorded as `06904a410`, onto main `8c6351d73`. Preserve all M107 repairs,
-generate reference/host/schema artifacts with their own generators, and move
-its unreleased notes out of older dated release sections into the 0.16.0 draft.
-Prepare three Highlights covering strict tool contracts and loop limits/previews,
-CPU/memory throttling and eligible relocation, and free-disk floors. Keep every
-named M107 native/editor/storage qualification visible; component tests do not
-certify a missing production binding.
 Repair PR #136 threads PRRT_kwDOUkzj5M6p1xVd, PRRT_kwDOUkzj5M6p1xVm
 and PRRT_kwDOUkzj5M6p1xVs only. Runner children use D89.5's shared credential
 predicate; runner configuration refuses credential-shaped environment names
@@ -19708,15 +19864,6 @@ Verify complete owning files three times after the brief's clean checkout,
 with `CI=true`, at repository timeouts and at most three files per invocation.
 Run all five typecheck projects and the scoped static/build gates. No dependency,
 new feature, provider-wire shape, paid/live call, merge or push is authorized.
-
-The round-2 brief authorizes `git merge --no-ff sync/m106-final` at
-`3e0c0c603`, completed as `61d61038e` with both feature sets and regenerated
-reference/host/schema records. Merge `sync/main-0160` when supplied with
-0.14.4/0.15.0, then bump the manifest/lock and generated ACP package together
-to **0.16.0**. Preserve main's 0.15.0 notes as README's **Earlier in 0.15**.
-Until then the 0.16.0 changelog/README stay explicit drafts and the manifest
-remains 0.14.3. Final merged-source receipts and size/native qualifications
-are recorded in `docs/certification/rel0160.md`; no failed gate is waived.
 
 ### CI0150W — Round 3 Windows CI verification (2026-10-07, win11)
 
@@ -44257,6 +44404,17 @@ ambient-type resolution and cross-file matcher/declaration scope; preserve
 both through repository-local temporary configs and the shared support roots.
 Final evidence is recorded in `docs/certification/macslow.md`.
 
+### QPIN lane verification (2026-10-07)
+
+The rig brief scopes this repair to fresh-clone owning suites three times at
+default deadlines, five typechecks, lint, formatting, plain knip, duplication,
+unchanged build caps, reference and localization, plus question screenshots
+and four-theme accessibility. All passed; receipts are in
+`docs/certification/question-pinned.md`. Full `npm run quality`, unrelated
+repository coverage and native/installed-editor/live certification remain
+with release integration. This is a scoped run, not a gate relaxation: no
+rule, ignore, threshold, budget or deadline changed.
+
 **CI0150M round 3 aggregate status (2026-10-07).** The attempted unmodified
 `npm run quality` passes static gates, then fails whole-repository tests in
 unowned clean-artifact/localization suites and load-sensitive cases. The common
@@ -44707,6 +44865,43 @@ Authority: the rig brief and lead decisions, refining D92/M112 from
       `docs/certification/m112-u.md`. Lead retains aggregate quality and existing
       Q/A/editor integration handoffs. No merge, push, dependency or gate widening.
 
+### M119 — Agent activity, honest outcomes and receipts (D101)
+
+Implementation evidence: Model API children previously could not write their own
+task list. Offer child-local `todo_write` (never forwarded to the parent list)
+as a structured unfinished-item declaration; absent a declaration, normal ends
+remain unverified. Parent conversation terminal behavior stays unchanged.
+Native ended-child Continue refuses until a capture proves preserved-session
+recovery; interrupted Resume remains the captured control.
+
+- [x] Record backend evidence and recovery limits before implementation.
+- [x] Portable structured outcome/activity mapping and bounded receipt evidence.
+- [x] Live Agent map, workflow and background task activity/outcomes; lazy receipts.
+- [x] Owner-confirmed Continue and Retry with honest unsupported refusals,
+      preserved original objective/session/edits and numbered attempt history.
+- [x] ACP /agents inspection, receipt and recovery parity for all editors.
+- [x] Fourteen translations, Help & Reference/feature catalog, README screenshots.
+- [x] Owning unit tests at default timeouts, intentional mapping failure with
+      byte-exact restoration, five typechecks, lint, prettier, plain knip,
+      duplication, localization/reference/host gates and unchanged production caps.
+- [x] Four-theme zero-violation harness scenes, CHANGELOG and certification record
+      in docs/certification/agent-outcomes.md with completed/blocked evidence.
+
+### FIXAGENTOUT — Independent M119 review repairs (2026-10-07)
+
+The five confirmed findings in RVAGENTOUTC are in scope: cancellation while ACP
+inspection reads history, unchanged parent request bytes, turn-local task
+completion evidence, child-scoped patch reads in both editors, and preservation
+of archived native attempts during active reads. Each repair gets a regression
+run against the reviewed `f50425ffa` tree, then complete owning files run three
+times in a fresh committed clone with CI enabled and repository-default timeouts.
+No wire field, dependency, command, translation or gate cap changes. Inspection
+must read output by its owning session without resuming that child.
+
+- [x] Five regressions fail on the reviewed revision and pass after repair.
+- [x] Fresh-clone repeated owning tests and individual static/build gates.
+- [x] CHANGELOG and `docs/certification/agent-outcomes.md` repair receipts.
+
 ## 7. Gates
 
 **REL0160 README guard (2026-10-06).** The pre-promotion draft belongs in
@@ -44791,6 +44986,13 @@ lead; no gate, threshold or timeout is weakened. The local Linux package
 omits the macOS helper, which cannot be built here; both size measurements
 use that same content set. External badge checks stay with the lead because
 the lane forbids network calls; staged badge/version validation still runs.
+**M119 scoped rig certification (2026-10-06–07).** The lane's shared brief
+prohibits aggregate quality, full-suite tests, live model calls and unlisted
+merges. Complete owning suites at default timeouts and the individual
+typecheck, lint, format, knip, duplication, localization, reference, host,
+production and four-theme accessibility checks certify the local work.
+The lead retains aggregate quality and live recovery/checkpoint captures.
+No gate is weakened. See `docs/certification/agent-outcomes.md`.
 
 **FIX0144W bounded Windows repair (2026-10-06).** The rig/shared brief
 prohibits aggregate quality and unlisted merges. Scoped default-timeout M118/D89.5
@@ -52930,3 +53132,13 @@ regenerate generated records, and run format, lint, typecheck, localization,
 reference, host API, production build and every conflict-owning test file at
 repository deadlines. Normal hooks and explicit staging remain required; no
 push, live calls or publication. Full release qualification stays with hosted CI.
+
+**REL0160B surface-English composition repair (2026-10-07).** The final
+M106/M107/QPIN/outcomes union exceeds the unchanged 25 KiB surface-English cap
+by 0.3 KiB. Resource-only keys already install through the independent resource
+fallback; exclude those duplicate values from the ordinary deferred-surface
+fallback using its actual entry readers. Preserve the complete table contract
+and shared keys. The browser fallback regression must load Help before resources,
+prove resource-only English remains deferred, then verify every English value
+and the installed language after both loaders. Prove the duplicate-selection
+mutation fails and restore bytes; no budget or localization contract changes.

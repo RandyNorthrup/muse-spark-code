@@ -103,6 +103,7 @@ export abstract class FakeAgentHost implements AgentHost {
     canEditSessions: true,
   }
   public readSession = unscripted('readSession')
+  public readSessionOutput = unscripted('readSessionOutput')
   public resumeSession = unscripted('resumeSession')
   public forkSession = unscripted('forkSession')
 

@@ -275,9 +275,12 @@ describe('the production webview chunks (FIX78W)', () => {
     )
   })
 
-  it.each(['WorkflowRun', 'ElicitationCard'])(
-    'shares %s between lazy surfaces without pulling its implementation into startup',
-    (name) => {
+  it.each([
+    ['WorkflowRun', 'WorkflowRun'],
+    ['ElicitationCard', 'QuestionUi'],
+  ])(
+    'keeps %s within its lazy %s surface without pulling its implementation into startup',
+    (name, surface) => {
       const source = `src/webview/components/${name}.tsx`
       const owners = Object.entries(built.outputs).filter(([, output]) =>
         Object.hasOwn(output.inputs, source),
@@ -286,13 +289,14 @@ describe('the production webview chunks (FIX78W)', () => {
       const [[owner]] = owners
       expect(initialOutputs().has(owner)).toBe(false)
       const roots = Object.entries(built.outputs).filter(
-        ([, output]) => output.entryPoint === source,
+        ([, output]) => output.entryPoint === `src/webview/components/${surface}.tsx`,
       )
       expect(roots).toHaveLength(1)
       const [[root, output]] = roots
-      expect(output.imports).toContainEqual(
-        expect.objectContaining({ path: owner, kind: 'import-statement' }),
-      )
+      if (root !== owner)
+        expect(output.imports).toContainEqual(
+          expect.objectContaining({ path: owner, kind: 'import-statement' }),
+        )
       expect(Object.values(built.outputs).flatMap((chunk) => chunk.imports)).toContainEqual(
         expect.objectContaining({ path: root, kind: 'dynamic-import' }),
       )

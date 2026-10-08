@@ -2431,7 +2431,7 @@
   "referenceCustomAgents": "在專案或個人 AGENT.md 檔案中定義自訂代理。選擇代理或要求 explore、second-opinion；工具允許清單限制其能力。Model API 子任務需要付費子代理同意。",
   "referenceCodeOutput": "複製會複製程式碼；插入在編輯器游標處寫入；套用取代編輯器選取範圍。開啟工具輸出可閱讀完整結果；截斷的輸出可分頁閱讀。 選取對話文字，可在輸入框中引用、提問、新增評論或複製。",
   "referencePaidContexts": "互動式 Model API 附加功能在消費前詢問，並使用共用每日預算。Muse Code 圖像和語音需要已儲存的 Model API 金鑰及明確啟用；該預算不涵蓋它們。ACP 付費功能預設關閉，需要 Model API 旗標和編輯器許可；一般 ACP 不強制硬預算。無介面圖像需要 acceptEdits、旗標及硬預算。帳戶與用量可忘記工作區付費許可。",
-  "referenceAcp": "已安裝技能會新增動態斜線命令，此靜態參考不列出它們。ACP 僅處理本機 /help、/compact、/legal、/usage、/resources, /resources resume, /usage resources, /questions、/answer, /prompt, /share 和已安裝技能；連結參考中的面板命令、設定和編輯器對話方塊屬於擴充功能流程。",
+  "referenceAcp": "已安裝技能會新增動態斜線命令，此靜態參考不列出它們。ACP 僅處理本機 /help、/compact、/legal、/usage、/resources, /resources resume, /usage resources, /questions、/answer, /prompt, /share, /agents 和已安裝技能；連結參考中的面板命令、設定和編輯器對話方塊屬於擴充功能流程。",
   "referenceSendKeys": "使用useCtrlEnterToSend選擇的操作傳送草稿。",
   "referenceNewlineKeys": "在草稿中插入新行。",
   "referenceDictationKeys": "將您的語音錄入輸入框（點一下切換，按住說話）",
@@ -2591,7 +2591,7 @@
   "openQuestionsTabCount": {
     "other": "{count} 個待回答"
   },
-  "referenceQuestionsDeferral": "在面板中，每個問題都會固定在訊息方塊上方，記錄中也會保留其卡片。超過 museSpark.questions.deferAfterSeconds（預設 60 秒；0 表示無限期等待）後，Muse 會繼續不依賴該答案的工作；卡片會變成待回答的問題，你可以稍後回答或關閉且不回答。稍後的回答是你自己的訊息，不會核准任何操作。下一個待回答的問題和上一個待回答的問題可在待回答的卡片之間切換。排程的提示會立即延後問題，無介面的 exec 會拒絕問題。在 ACP 中，--questions-defer-after 設定表單期限，/questions 列出待回答的問題，/answer <n> <text> 回答其中一個。",
+  "referenceQuestionsDeferral": "面板中，每個問題只有一張互動卡片，固定在訊息輸入欄上方。聊天記錄保留精簡的待回答問題標記；點選回答會開啟或展開固定卡片，並將焦點移至第一個控制項，延後後也一樣。MCP 表單遵循相同規則。 超過 museSpark.questions.deferAfterSeconds（預設 60 秒；0 表示無限期等待）後，Muse 會繼續不依賴該答案的工作；卡片會變成待回答的問題，你可以稍後回答或關閉且不回答。稍後的回答是你自己的訊息，不會核准任何操作。下一個待回答的問題和上一個待回答的問題可在待回答的卡片之間切換。排程的提示會立即延後問題，無介面的 exec 會拒絕問題。在 ACP 中，--questions-defer-after 設定表單期限，/questions 列出待回答的問題，/answer <n> <text> 回答其中一個。 選擇答案並提交、用自己的話說明，或取消。提交的答案及說明會在對話中傳給 Muse。",
   "resourceTransport": "傳輸失敗",
   "resourceOsService": "作業系統服務壓力",
   "referenceResources": "資源、服務及傳輸壓力會減少工作准入。每個工作都限制觀測到的程序數及建立次數；清理僅刪除已記錄的暫存根目錄。",
@@ -3973,5 +3973,45 @@
   "promptDeleteConfirm": "刪除此提示詞？",
   "promptLink": "從連結或gist原始內容網址匯入",
   "promptFromFile": "從檔案匯入",
-  "promptImportConfirm": "儲存匯入的提示詞"
+  "promptImportConfirm": "儲存匯入的提示詞",
+  "agentActivities": {
+    "active": "活躍",
+    "waiting": "等待",
+    "inactive": "非活躍"
+  },
+  "agentOutcomes": {
+    "complete": "完成",
+    "incomplete": "未完成",
+    "failed": "失敗",
+    "cancelled": "已取消",
+    "unverified": "已結束，未驗證"
+  },
+  "agentWaitingReasons": {
+    "approval": "核准",
+    "input": "輸入",
+    "queued": "排隊中",
+    "interrupted": "已中斷",
+    "idle": "近期無活動"
+  },
+  "agentStopReasons": {
+    "normal": "正常結束",
+    "budget": "預算耗盡",
+    "error": "錯誤",
+    "cancelled": "使用者停止",
+    "unknown": "無法使用"
+  },
+  "agentContinue": "繼續",
+  "agentRetry": "重試",
+  "agentReceipt": "代理記錄",
+  "agentReceiptFiles": "變更的檔案",
+  "agentReceiptChecks": "命令與檢查",
+  "agentReceiptStop": "停止原因",
+  "agentReceiptUnfinished": "未完成項目",
+  "agentReceiptHistory": "嘗試歷史",
+  "agentReceiptUnavailable": "此後端未提供這些證據。",
+  "agentReceiptTruncated": "記錄已達大小上限，部分證據已省略。",
+  "agentRecoveryConfirm": "{action}：{objective}？將套用目前權限和預算。",
+  "agentRetryUnavailable": "無法重試：此後端不提供隔離的工作樹檢查點。共用工作區的變更會保留。",
+  "agentContinueUnavailable": "此代理或其目前狀態無法繼續。",
+  "referenceAgentOutcomes": "代理顯示活動狀態和根據證據的結果。選取已結束的代理可查看有大小限制的記錄及嘗試歷史。確認後繼續會保留工作階段和變更；重試需要隔離的檢查點。缺少的證據顯示為未驗證。ACP：/agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

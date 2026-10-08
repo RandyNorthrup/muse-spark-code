@@ -268,6 +268,17 @@ export function featureCatalog(): readonly Feature[] {
       ['vscode', 'acp'],
     ),
     feature(
+      'agent-outcomes',
+      { ui: 'agentReceipt' },
+      { ui: 'referenceAgentOutcomes' },
+      [],
+      [],
+      'agent-outcomes',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
       'providers',
       { ui: 'modelsPanelTitle' },
       { ui: 'startWithOwnModelDetail' },
@@ -528,7 +539,7 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'questions',
       { ui: 'questionSubmit' },
-      { ui: 'referenceQuestions' },
+      { ui: 'referenceQuestionsDeferral' },
       ['nextOpenQuestion', 'previousOpenQuestion'],
       ['questions.deferAfterSeconds'],
       'questions',

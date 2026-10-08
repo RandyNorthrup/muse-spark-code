@@ -70,15 +70,16 @@ describe('the production browser English and full-table contract', () => {
     expect(() => EN.referenceSearch).toThrow('English surface is not loaded')
     const german = JSON.parse(readFileSync('l10n/ui.de.json', 'utf8'))
     setUiText(german, 'de')
+    await loadHelp()
+    expect(EN.referenceSearch).toEqual(canonical.referenceSearch)
+    expect(() => EN.resourceShow).toThrow('English surface is not loaded')
     await loadResources()
     const resourceKeys = browserTextKeys(
       [entries.resourceSurface, entries.resourceHistory],
       canonical,
     ).keys
     for (const key of resourceKeys) expect(EN[key], key).toEqual(canonical[key])
-    expect(() => EN.referenceSearch).toThrow('English surface is not loaded')
     expect(UI_TEXT.resourceTitle).toBe(german.resourceTitle)
-    await loadHelp()
     for (const key of fixture.keys) expect(EN[key], key).toEqual(canonical[key])
     expect(UI_TEXT.referenceSearch).toBe(german.referenceSearch)
     expect(uiLocale()).toBe('de')

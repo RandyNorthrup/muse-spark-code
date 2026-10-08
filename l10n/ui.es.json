@@ -2619,7 +2619,7 @@
   "referenceCustomAgents": "Define agentes en archivos AGENT.md del proyecto o personales. Selecciona un agente o pide explore o second-opinion; las listas de herramientas limitan sus capacidades. Las tareas secundarias Model API requieren consentimiento para subagentes de pago.",
   "referenceCodeOutput": "Copiar copia el código; Insertar escribe en el cursor; Aplicar reemplaza la selección del editor. Abre la salida para leerla completa; la salida recortada se puede paginar. Seleccionar texto de la conversación para citarlo en el cuadro de entrada, preguntar sobre él, comentar o copiarlo.",
   "referencePaidContexts": "Los extras interactivos Model API piden permiso antes de gastar y usan el presupuesto diario compartido. Las imágenes y la voz de Muse Code requieren una clave Model API guardada y activación explícita; ese presupuesto no las cubre. Las funciones ACP de pago están desactivadas por defecto y requieren opciones Model API y permiso del editor; ACP normal no exige un presupuesto estricto. Las imágenes sin interfaz requieren acceptEdits, la opción y un presupuesto estricto. Cuenta y uso permite olvidar permisos del espacio de trabajo.",
-  "referenceAcp": "Las habilidades instaladas añaden comandos dinámicos que esta referencia estática no enumera. ACP solo gestiona /help, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share locales y habilidades instaladas; los comandos del panel, ajustes y diálogos de la referencia enlazada son flujos de la extensión.",
+  "referenceAcp": "Las habilidades instaladas añaden comandos dinámicos que esta referencia estática no enumera. ACP solo gestiona /help, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /agents locales y habilidades instaladas; los comandos del panel, ajustes y diálogos de la referencia enlazada son flujos de la extensión.",
   "referenceSendKeys": "Enviar el borrador con el gesto elegido por useCtrlEnterToSend.",
   "referenceNewlineKeys": "Insertar una línea nueva en el borrador.",
   "referenceDictationKeys": "graba su voz en el cuadro de mensaje (pulse para alternar, mantenga pulsado para hablar)",
@@ -2783,7 +2783,7 @@
     "many": "{count} pendientes",
     "other": "{count} pendientes"
   },
-  "referenceQuestionsDeferral": "En el panel, cada pregunta se fija sobre el cuadro de mensaje y la transcripción conserva su tarjeta. Tras museSpark.questions.deferAfterSeconds (60 segundos por defecto; 0 espera indefinidamente), Muse continúa con el trabajo que no depende de la respuesta; la tarjeta pasa a ser una pregunta pendiente que puede responder más tarde o cerrar sin responder. Una respuesta tardía es su propio mensaje y no aprueba nada. Siguiente pregunta pendiente y Pregunta pendiente anterior recorren las tarjetas pendientes. Las solicitudes programadas posponen las preguntas de inmediato y exec sin interfaz las rechaza. En ACP, --questions-defer-after fija el plazo del formulario, /questions enumera las preguntas pendientes y /answer <n> <text> responde una.",
+  "referenceQuestionsDeferral": "En el panel, cada pregunta tiene una sola tarjeta interactiva fijada sobre el cuadro de mensaje. La transcripción conserva un marcador compacto de Pregunta pendiente; Responder abre o expande la tarjeta fijada y enfoca su primer control, incluso después de posponerla. Los formularios MCP siguen la misma regla. Tras museSpark.questions.deferAfterSeconds (60 segundos por defecto; 0 espera indefinidamente), Muse continúa con el trabajo que no depende de la respuesta; la tarjeta pasa a ser una pregunta pendiente que puede responder más tarde o cerrar sin responder. Una respuesta tardía es su propio mensaje y no aprueba nada. Siguiente pregunta pendiente y Pregunta pendiente anterior recorren las tarjetas pendientes. Las solicitudes programadas posponen las preguntas de inmediato y exec sin interfaz las rechaza. En ACP, --questions-defer-after fija el plazo del formulario, /questions enumera las preguntas pendientes y /answer <n> <text> responde una. Elige una respuesta y pulsa Enviar, explica con tus propias palabras o pulsa Cancelar. Muse recibe las respuestas y explicaciones enviadas en la conversación.",
   "resourceTransport": "Fallos de transporte",
   "resourceOsService": "Presión de los servicios del sistema",
   "referenceResources": "La presión de recursos, servicios y transporte reduce la admisión. Cada tarea tiene límites de procesos y creaciones observados; la limpieza elimina solo raíces temporales registradas.",
@@ -4261,5 +4261,45 @@
   "promptDeleteConfirm": "¿Eliminar este prompt?",
   "promptLink": "Importar desde enlace o URL de gist sin procesar",
   "promptFromFile": "Importar desde archivo",
-  "promptImportConfirm": "Guardar prompt importado"
+  "promptImportConfirm": "Guardar prompt importado",
+  "agentActivities": {
+    "active": "Activo",
+    "waiting": "En espera",
+    "inactive": "Inactivo"
+  },
+  "agentOutcomes": {
+    "complete": "Completo",
+    "incomplete": "Incompleto",
+    "failed": "Fallido",
+    "cancelled": "Cancelado",
+    "unverified": "Finalizado, sin verificar"
+  },
+  "agentWaitingReasons": {
+    "approval": "aprobación",
+    "input": "entrada",
+    "queued": "en cola",
+    "interrupted": "interrumpido",
+    "idle": "sin actividad reciente"
+  },
+  "agentStopReasons": {
+    "normal": "Fin normal",
+    "budget": "Presupuesto agotado",
+    "error": "Fallo",
+    "cancelled": "Detenido por el usuario",
+    "unknown": "No disponible"
+  },
+  "agentContinue": "Continuar",
+  "agentRetry": "Reintentar",
+  "agentReceipt": "Registro del agente",
+  "agentReceiptFiles": "Archivos modificados",
+  "agentReceiptChecks": "Comandos y comprobaciones",
+  "agentReceiptStop": "Motivo de finalización",
+  "agentReceiptUnfinished": "Elementos pendientes",
+  "agentReceiptHistory": "Historial de intentos",
+  "agentReceiptUnavailable": "Este backend no proporcionó esta evidencia.",
+  "agentReceiptTruncated": "El registro alcanzó su límite de tamaño; se omitió parte de la evidencia.",
+  "agentRecoveryConfirm": "{action}: {objective}? Se aplican los permisos y presupuestos actuales.",
+  "agentRetryUnavailable": "El reintento no está disponible: este backend no proporciona un punto de control aislado del árbol de trabajo. Se conservan los cambios del espacio compartido.",
+  "agentContinueUnavailable": "Continuar no está disponible para este agente o su estado actual.",
+  "referenceAgentOutcomes": "Los agentes muestran actividad y resultados basados en evidencia. Seleccione un agente finalizado para ver su registro limitado y su historial de intentos. Continuar conserva la sesión y los cambios tras confirmar; reintentar requiere un punto de control aislado. La evidencia ausente figura como no verificada. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

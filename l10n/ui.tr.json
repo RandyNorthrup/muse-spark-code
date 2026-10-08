@@ -2525,7 +2525,7 @@
   "referenceCustomAgents": "Ajanları proje veya kişisel AGENT.md dosyalarında tanımlayın. Bir ajan seçin ya da explore veya second-opinion isteyin; araç izin listeleri yetenekleri sınırlar. Model API alt görevleri ücretli alt ajan onayı gerektirir.",
   "referenceCodeOutput": "Kopyala kodu kopyalar; Ekle imleçte yazar; Uygula editör seçimini değiştirir. Tam araç çıktısını açın; kırpılmış çıktı sayfalanabilir. Görüşme metnini seçerek giriş alanında alıntılayın, hakkında soru sorun, yorum ekleyin veya kopyalayın.",
   "referencePaidContexts": "Etkileşimli Model API ekleri harcamadan önce sorar ve ortak günlük bütçeyi kullanır. Muse Code görselleri ve sesi kayıtlı Model API anahtarı ve açık etkinleştirme gerektirir; bu bütçe onları kapsamaz. Ücretli ACP özellikleri varsayılan kapalıdır, Model API bayrakları ve editör izni gerektirir; normal ACP zorunlu kesin bütçe istemez. Arayüzsüz görseller acceptEdits, bayrak ve kesin bütçe gerektirir. Hesap ve kullanım çalışma alanı onaylarını unutabilir.",
-  "referenceAcp": "Kurulu beceriler bu statik başvuruda listelenmeyen dinamik komutlar ekler. ACP yalnızca yerel /help, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share ve kurulu becerileri işler; bağlantıdaki panel komutları, ayarlar ve editör iletişimleri uzantı akışlarıdır.",
+  "referenceAcp": "Kurulu beceriler bu statik başvuruda listelenmeyen dinamik komutlar ekler. ACP yalnızca yerel /help, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /agents ve kurulu becerileri işler; bağlantıdaki panel komutları, ayarlar ve editör iletişimleri uzantı akışlarıdır.",
   "referenceSendKeys": "Taslağı useCtrlEnterToSend ile seçilen hareketle gönderin.",
   "referenceNewlineKeys": "Taslağa yeni satır ekleyin.",
   "referenceDictationKeys": "sesinizi mesaj kutusuna kaydeder (açıp kapatmak için dokunun, konuşmak için basılı tutun)",
@@ -2687,7 +2687,7 @@
     "one": "{count} açık",
     "other": "{count} açık"
   },
-  "referenceQuestionsDeferral": "Panelde her soru mesaj kutusunun üstüne sabitlenir ve döküm kartını saklar. museSpark.questions.deferAfterSeconds sonrasında (varsayılan 60 saniye; 0 süresiz bekler) Muse yanıta bağlı olmayan işlere devam eder; kart, daha sonra yanıtlayabileceğiniz veya yanıtlamadan kapatabileceğiniz açık bir soruya dönüşür. Geç bir yanıt sizin kendi mesajınızdır ve hiçbir şeyi onaylamaz. Sonraki açık soru ve Önceki açık soru açık kartlar arasında geçiş yapar. Zamanlanmış istemler soruları hemen erteler, headless exec ise soruları reddeder. ACP'de --questions-defer-after form süresini ayarlar, /questions açık soruları listeler ve /answer <n> <text> birini yanıtlar.",
+  "referenceQuestionsDeferral": "Panelde her sorunun mesaj alanının üzerinde sabitlenmiş tek bir etkileşimli kartı vardır. Konuşma dökümünde kısa bir Açık soru işareti kalır; Yanıtla, ertelemeden sonra da sabit kartı açar veya genişletir ve ilk denetime odaklanır. MCP formları da aynı kurala uyar. museSpark.questions.deferAfterSeconds sonrasında (varsayılan 60 saniye; 0 süresiz bekler) Muse yanıta bağlı olmayan işlere devam eder; kart, daha sonra yanıtlayabileceğiniz veya yanıtlamadan kapatabileceğiniz açık bir soruya dönüşür. Geç bir yanıt sizin kendi mesajınızdır ve hiçbir şeyi onaylamaz. Sonraki açık soru ve Önceki açık soru açık kartlar arasında geçiş yapar. Zamanlanmış istemler soruları hemen erteler, headless exec ise soruları reddeder. ACP'de --questions-defer-after form süresini ayarlar, /questions açık soruları listeler ve /answer <n> <text> birini yanıtlar. Bir yanıt seçip Gönder’e basın, kendi sözcüklerinizle açıklayın veya İptal’i seçin. Muse gönderilen yanıtları ve açıklamaları konuşmada alır.",
   "resourceTransport": "Aktarım hataları",
   "resourceOsService": "İşletim sistemi hizmet yükü",
   "referenceResources": "Kaynak, hizmet ve aktarım baskısı iş kabulünü azaltır. Her işin gözlenen süreç sayısı ve oluşumu için sınırları vardır; temizleme yalnızca kaydedilmiş geçici kökleri kaldırır.",
@@ -4117,5 +4117,45 @@
   "promptDeleteConfirm": "Bu istem silinsin mi?",
   "promptLink": "Bağlantıdan veya ham gist URL’sinden içe aktar",
   "promptFromFile": "Dosyadan içe aktar",
-  "promptImportConfirm": "İçe aktarılan istemi kaydet"
+  "promptImportConfirm": "İçe aktarılan istemi kaydet",
+  "agentActivities": {
+    "active": "Etkin",
+    "waiting": "Bekliyor",
+    "inactive": "Etkin değil"
+  },
+  "agentOutcomes": {
+    "complete": "Tamamlandı",
+    "incomplete": "Eksik",
+    "failed": "Başarısız",
+    "cancelled": "İptal edildi",
+    "unverified": "Bitti, doğrulanmadı"
+  },
+  "agentWaitingReasons": {
+    "approval": "onay",
+    "input": "girdi",
+    "queued": "sırada",
+    "interrupted": "kesintiye uğradı",
+    "idle": "yakın zamanda etkinlik yok"
+  },
+  "agentStopReasons": {
+    "normal": "Normal bitiş",
+    "budget": "Bütçe tükendi",
+    "error": "Hata",
+    "cancelled": "Kullanıcı durdurdu",
+    "unknown": "Kullanılamıyor"
+  },
+  "agentContinue": "Devam et",
+  "agentRetry": "Yeniden dene",
+  "agentReceipt": "Ajan kaydı",
+  "agentReceiptFiles": "Değişen dosyalar",
+  "agentReceiptChecks": "Komutlar ve kontroller",
+  "agentReceiptStop": "Durma nedeni",
+  "agentReceiptUnfinished": "Bitmemiş öğeler",
+  "agentReceiptHistory": "Deneme geçmişi",
+  "agentReceiptUnavailable": "Bu arka uç bu kanıtı sağlamadı.",
+  "agentReceiptTruncated": "Kayıt boyut sınırına ulaştı; bazı kanıtlar çıkarıldı.",
+  "agentRecoveryConfirm": "{action}: {objective}? Geçerli izinler ve bütçeler uygulanır.",
+  "agentRetryUnavailable": "Yeniden deneme kullanılamıyor: bu arka uç yalıtılmış çalışma ağacı kontrol noktası sağlamıyor. Ortak çalışma alanındaki değişiklikler korunur.",
+  "agentContinueUnavailable": "Bu ajan veya mevcut durumu için devam etme kullanılamıyor.",
+  "referenceAgentOutcomes": "Ajanlar etkinlik ve kanıta dayalı sonuçları gösterir. Sınırlı kayıt ve deneme geçmişi için bitmiş bir ajan seçin. Onaylanan devam işlemi oturumu ve değişiklikleri korur; yeniden deneme yalıtılmış kontrol noktası gerektirir. Eksik kanıt doğrulanmamış olarak gösterilir. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

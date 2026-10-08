@@ -56,18 +56,6 @@ import { Clipped, DiffTable } from './ToolBlocks'
 import { verifySummaryText } from '../../shared/verifyText'
 import { ThenRunBlock, VerifyBody } from './VerifyParts'
 
-const ElicitationCard = deferred(
-  async () => {
-    const module = await import('./ElicitationCard')
-    return { default: module.ElicitationCard }
-  },
-  false,
-  ({ form }) => (
-    <div className="question" role="group" aria-busy="true" aria-label={form.server}>
-      {form.server}: {UI_TEXT.loadingOutput}
-    </div>
-  ),
-)
 const GoalBody = deferred(async () => {
   const entry = await import('./ToolBodies')
   return { default: entry.GoalBody }
@@ -402,9 +390,6 @@ function ToolRowView({
   onAnswer,
   onCancelQuestion,
   onClarifyQuestion,
-  onAcceptElicitation,
-  onDeclineElicitation,
-  onCancelElicitation,
   onOpenEditDiff,
   onRevertEdit,
   onOpenFile,
@@ -426,7 +411,8 @@ function ToolRowView({
     entry.question !== undefined &&
     entry.question.isNoLongerOpen !== true &&
     ['waiting', 'open'].includes(entry.question.state ?? 'waiting')
-  const isWaiting = entry.approval !== undefined || isQuestionOpen
+  const isWaiting =
+    entry.approval !== undefined || isQuestionOpen || entry.elicitation !== undefined
   // Shell and edit rows show their body from the start, as Claude Code's do,
   // and so does a row with a picture (M43); the others open on click (M16).
   const [isOpen, setIsOpen] = useState(
@@ -634,40 +620,20 @@ function ToolRowView({
     entry.elicitationOutcome?.action === 'accept'
       ? UI_TEXT.questionAnswered
       : UI_TEXT.questionDeclined
-  let elicitationCard: ReactNode = null
-  if (entry.elicitation !== undefined) {
-    elicitationCard =
-      attention === undefined ? (
-        <ElicitationCard
-          key={entry.elicitation.elicitationId}
-          form={entry.elicitation}
-          onAccept={onAcceptElicitation}
-          onDecline={onDeclineElicitation}
-          onCancel={onCancelElicitation}
-        />
-      ) : (
-        <button
-          type="button"
-          className="button-secondary elicitation-docked"
-          onClick={() => {
-            if (entry.elicitation !== undefined)
-              attention.selectDockCard({ kind: 'elicitation', id: entry.elicitation.elicitationId })
-          }}
-        >
-          {entry.elicitation.server}: {UI_TEXT.questionAnswer}
-        </button>
-      )
-  }
   const hasBody = body !== null || images.length > 0
   return (
     <li
-      className={`${isWaiting ? 'tool tool-waiting' : 'tool'}${isQuestionOpen ? ' tool-question-open' : ''}`}
+      className={`${isWaiting ? 'tool tool-waiting' : 'tool'}${isQuestionOpen || entry.elicitation !== undefined ? ' tool-question-open' : ''}`}
       data-status={entry.status}
       data-entry-id={entry.id}
       data-role="tool"
       {...menu.rowProps}
     >
-      <div className="tool-header" hidden={entry.question !== undefined} inert={menu.isOpen}>
+      <div
+        className="tool-header"
+        hidden={entry.question !== undefined || entry.elicitation !== undefined}
+        inert={menu.isOpen}
+      >
         <button
           type="button"
           className="tool-toggle"
@@ -755,7 +721,9 @@ function ToolRowView({
           onClarify={onClarifyQuestion}
         />
       )}
-      {elicitationCard}
+      {entry.elicitation === undefined ? null : (
+        <DeferredQuestionCard elicitation={entry.elicitation} />
+      )}
       {entry.elicitationOutcome === undefined ? null : (
         <div className="tool-outcome">
           {entry.elicitationOutcome.action === 'cancel'

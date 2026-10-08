@@ -25,6 +25,21 @@
       "editors": ["vscode", "acp"]
     },
     {
+      "id": "agent-outcomes",
+      "name": { "ui": "agentReceipt" },
+      "summary": { "ui": "referenceAgentOutcomes" },
+      "description": { "ui": "referenceAgentOutcomes" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-outcomes",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "providers",
       "name": { "ui": "modelsPanelTitle" },
       "summary": { "ui": "startWithOwnModelDetail" },
@@ -689,8 +704,8 @@
     {
       "id": "questions",
       "name": { "ui": "questionSubmit" },
-      "summary": { "ui": "referenceQuestions" },
-      "description": { "ui": "referenceQuestions" },
+      "summary": { "ui": "referenceQuestionsDeferral" },
+      "description": { "ui": "referenceQuestionsDeferral" },
       "commands": ["museSpark.nextOpenQuestion", "museSpark.previousOpenQuestion"],
       "settings": ["museSpark.questions.deferAfterSeconds"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#questions",
@@ -4270,6 +4285,12 @@
       "name": "prompts share ID [--scope user|workspace] [--format md|html|json] [--destination copy|file|browser] [--out FILE]",
       "description": "Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.",
       "text": { "ui": "shareReviewPrivacy" }
+    },
+    {
+      "route": "acp",
+      "name": "/agents [receipt|continue|retry] [ID]",
+      "description": "Agents show activity and evidence-backed outcomes. Select an ended agent for its bounded receipt and attempt history. Continue keeps its session and changes after confirmation; Retry requires an isolated checkpoint. Missing evidence is shown as unverified. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
+      "text": { "ui": "referenceAgentOutcomes" }
     },
     {
       "route": "acp",

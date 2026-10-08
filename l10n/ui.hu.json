@@ -2525,7 +2525,7 @@
   "referenceCustomAgents": "Egyéni ügynököket projektbeli vagy személyes AGENT.md fájlokban adhat meg. Válasszon ügynököt, vagy kérjen explore vagy second-opinion feladatot; az eszközlisták szűkítik a képességeket. A Model API gyermekfeladatai fizetős alügynöki jóváhagyást igényelnek.",
   "referenceCodeOutput": "A Másolás másolja a kódot; a Beszúrás a kurzornál ír; az Alkalmazás a szerkesztő kijelölését cseréli. Nyissa meg a teljes eszközkimenetet; a levágott kimenet lapozható. Jelöljön ki szöveget a beszélgetésben, hogy idézze az üzenetmezőben, kérdezzen róla, megjegyzést fűzzön hozzá vagy másolja.",
   "referencePaidContexts": "Az interaktív Model API-extrák költés előtt engedélyt kérnek és a közös napi keretet használják. A Muse Code képeihez és hangjához tárolt Model API-kulcs és kifejezett bekapcsolás kell; ez a keret nem vonatkozik rájuk. Az ACP fizetős funkciói alapból kikapcsoltak, Model API-jelzőket és szerkesztői engedélyt igényelnek; a normál ACP nem követel szigorú keretet. A felület nélküli képekhez acceptEdits, a jelző és szigorú keret kell. A Fiók és használat törölheti a munkaterület jóváhagyásait.",
-  "referenceAcp": "A telepített készségek dinamikus parancsokat adnak hozzá, amelyeket ez a statikus referencia nem sorol fel. Az ACP csak a helyi /help, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share és a telepített készségek parancsait kezeli; a hivatkozott panelparancsok, beállítások és párbeszédablakok a bővítmény folyamatai.",
+  "referenceAcp": "A telepített készségek dinamikus parancsokat adnak hozzá, amelyeket ez a statikus referencia nem sorol fel. Az ACP csak a helyi /help, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /agents és a telepített készségek parancsait kezeli; a hivatkozott panelparancsok, beállítások és párbeszédablakok a bővítmény folyamatai.",
   "referenceSendKeys": "A piszkozat küldése a useCtrlEnterToSend által választott gesztussal.",
   "referenceNewlineKeys": "Új sor beszúrása a piszkozatba.",
   "referenceDictationKeys": "a hangját a szövegmezőbe rögzíti (koppintás: be/ki, nyomva tartás: beszéd)",
@@ -2687,7 +2687,7 @@
     "one": "{count} nyitott",
     "other": "{count} nyitott"
   },
-  "referenceQuestionsDeferral": "A panelen minden kérdés az üzenetmező fölé rögzül, és az átirat megtartja a kártyáját. A museSpark.questions.deferAfterSeconds után (alapértelmezés szerint 60 másodperc; 0 esetén korlátlan ideig vár) a Muse a választól független munkával folytatja; a kártya nyitott kérdéssé válik, amelyre később válaszolhat, vagy lezárhatja válasz nélkül. A késői válasz az Ön saját üzenete, és semmit sem hagy jóvá. A Következő nyitott kérdés és az Előző nyitott kérdés a nyitott kártyák között lép. Az ütemezett promptok azonnal elhalasztják a kérdéseket, a headless exec pedig elutasítja őket. ACP-ben a --questions-defer-after állítja be az űrlap határidejét, a /questions felsorolja a nyitott kérdéseket, a /answer <n> <text> pedig megválaszol egyet.",
+  "referenceQuestionsDeferral": "A panelen minden kérdéshez egyetlen interaktív kártya tartozik, az üzenetmező fölé rögzítve. Az átiratban egy tömör Nyitott kérdés jelölő marad; a Válasz megnyitja vagy kibontja a rögzített kártyát, és az első vezérlőjére helyezi a fókuszt, halasztás után is. Az MCP-űrlapokra ugyanez vonatkozik. A museSpark.questions.deferAfterSeconds után (alapértelmezés szerint 60 másodperc; 0 esetén korlátlan ideig vár) a Muse a választól független munkával folytatja; a kártya nyitott kérdéssé válik, amelyre később válaszolhat, vagy lezárhatja válasz nélkül. A késői válasz az Ön saját üzenete, és semmit sem hagy jóvá. A Következő nyitott kérdés és az Előző nyitott kérdés a nyitott kártyák között lép. Az ütemezett promptok azonnal elhalasztják a kérdéseket, a headless exec pedig elutasítja őket. ACP-ben a --questions-defer-after állítja be az űrlap határidejét, a /questions felsorolja a nyitott kérdéseket, a /answer <n> <text> pedig megválaszol egyet. Válasszon választ és küldje el a Küldés gombbal, magyarázza el saját szavaival, vagy válassza a Mégse lehetőséget. Muse a beszélgetésben megkapja az elküldött válaszokat és magyarázatokat.",
   "resourceTransport": "Átviteli hibák",
   "resourceOsService": "Operációs rendszer szolgáltatásainak terhelése",
   "referenceResources": "Az erőforrások, szolgáltatások és átvitel terhelése csökkenti a feladatok befogadását. Minden feladat korlátozza a megfigyelt folyamatok számát és létrehozását; a takarítás csak a nyilvántartott ideiglenes gyökereket törli.",
@@ -4117,5 +4117,45 @@
   "promptDeleteConfirm": "Törli ezt a promptot?",
   "promptLink": "Importálás hivatkozásból vagy nyers gist URL-ből",
   "promptFromFile": "Importálás fájlból",
-  "promptImportConfirm": "Importált prompt mentése"
+  "promptImportConfirm": "Importált prompt mentése",
+  "agentActivities": {
+    "active": "Aktív",
+    "waiting": "Várakozik",
+    "inactive": "Inaktív"
+  },
+  "agentOutcomes": {
+    "complete": "Kész",
+    "incomplete": "Befejezetlen",
+    "failed": "Sikertelen",
+    "cancelled": "Megszakítva",
+    "unverified": "Befejeződött, ellenőrizetlen"
+  },
+  "agentWaitingReasons": {
+    "approval": "jóváhagyás",
+    "input": "bevitel",
+    "queued": "sorban áll",
+    "interrupted": "megszakítva",
+    "idle": "nincs friss tevékenység"
+  },
+  "agentStopReasons": {
+    "normal": "Normál befejezés",
+    "budget": "Keret kimerült",
+    "error": "Hiba",
+    "cancelled": "Felhasználó leállította",
+    "unknown": "Nem elérhető"
+  },
+  "agentContinue": "Folytatás",
+  "agentRetry": "Újrapróbálás",
+  "agentReceipt": "Ügynök bizonylata",
+  "agentReceiptFiles": "Módosított fájlok",
+  "agentReceiptChecks": "Parancsok és ellenőrzések",
+  "agentReceiptStop": "Leállás oka",
+  "agentReceiptUnfinished": "Befejezetlen elemek",
+  "agentReceiptHistory": "Próbálkozások előzményei",
+  "agentReceiptUnavailable": "Ez a háttérrendszer nem adta meg ezeket a bizonyítékokat.",
+  "agentReceiptTruncated": "A bizonylat elérte a méretkorlátot; egyes bizonyítékok kimaradtak.",
+  "agentRecoveryConfirm": "{action}: {objective}? Az aktuális jogosultságok és keretek érvényesek.",
+  "agentRetryUnavailable": "Az újrapróbálás nem elérhető: a háttérrendszer nem biztosít elszigetelt munkafa-ellenőrzőpontot. A közös munkaterület módosításai megmaradnak.",
+  "agentContinueUnavailable": "A folytatás nem elérhető ennél az ügynöknél vagy a jelenlegi állapotában.",
+  "referenceAgentOutcomes": "Az ügynökök tevékenységet és bizonyítékokon alapuló eredményeket mutatnak. Válasszon befejezett ügynököt a korlátozott bizonylathoz és az előzményekhez. A megerősített folytatás megőrzi a munkamenetet és a módosításokat; az újrapróbálás elszigetelt ellenőrzőpontot igényel. A hiányzó bizonyíték ellenőrizetlen marad. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

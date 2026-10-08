@@ -7,6 +7,7 @@ import { nonnegativeUsdSchema } from './usd'
 // Shared by host and webview: no `vscode`, Node, or DOM imports.
 
 import * as z from 'zod/mini'
+import { agentEvidenceSchema, agentFileSchema } from './agentOutcome'
 import { scheduleViewSchema } from './schedule'
 import {
   CHECK_OUTCOMES,
@@ -237,6 +238,11 @@ const itemSnapshotSchema = z.object({
   ...itemSnapshotFields,
   /** Extension-owned display data, deliberately excluded from MSP's wire fields. */
   argumentPreview: z.optional(toolArgumentPreviewSchema),
+
+  // Owned evidence only: deliberately outside itemSnapshotFields / Muse Code's wire schema.
+  agentEvidence: z.optional(agentEvidenceSchema),
+  agentWorkflowEvidence: z.optional(z.record(z.string(), agentEvidenceSchema)),
+  changedFiles: z.optional(z.array(agentFileSchema)),
 })
 
 export type ItemSnapshot = z.infer<typeof itemSnapshotSchema>

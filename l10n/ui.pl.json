@@ -2713,7 +2713,7 @@
   "referenceCustomAgents": "Definiuj agentów w projektowych lub osobistych plikach AGENT.md. Wybierz agenta albo poproś o explore lub second-opinion; listy narzędzi ograniczają możliwości. Zadania potomne Model API wymagają zgody na płatnych podagentów.",
   "referenceCodeOutput": "Kopiuj kopiuje kod; Wstaw pisze przy kursorze; Zastosuj zastępuje zaznaczenie edytora. Otwórz pełne wyjście narzędzia; skrócone wyjście można stronicować. Zaznacz tekst rozmowy, aby zacytować go w polu wiadomości, zapytać o niego, dodać komentarz lub skopiować.",
   "referencePaidContexts": "Interaktywne dodatki Model API pytają przed wydatkiem i korzystają ze wspólnego budżetu dziennego. Obrazy i głos Muse Code wymagają zapisanego klucza Model API i jawnego włączenia; ten budżet ich nie obejmuje. Płatne funkcje ACP są domyślnie wyłączone i wymagają flag Model API oraz zgody edytora; zwykłe ACP nie wymaga twardego budżetu. Obrazy bez interfejsu wymagają acceptEdits, flagi i twardego budżetu. Konto i użycie może zapomnieć zgody obszaru roboczego.",
-  "referenceAcp": "Zainstalowane umiejętności dodają dynamiczne polecenia, których ta statyczna pomoc nie wymienia. ACP obsługuje tylko lokalne /help, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share i umiejętności; polecenia panelu, ustawienia i okna w połączonej pomocy to funkcje rozszerzenia.",
+  "referenceAcp": "Zainstalowane umiejętności dodają dynamiczne polecenia, których ta statyczna pomoc nie wymienia. ACP obsługuje tylko lokalne /help, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /agents i umiejętności; polecenia panelu, ustawienia i okna w połączonej pomocy to funkcje rozszerzenia.",
   "referenceSendKeys": "Wyślij szkic gestem wybranym przez useCtrlEnterToSend.",
   "referenceNewlineKeys": "Wstaw nowy wiersz w szkicu.",
   "referenceDictationKeys": "nagrywa Twój głos do pola wiadomości (naciśnij, aby przełączyć, lub przytrzymaj, aby mówić)",
@@ -2879,7 +2879,7 @@
     "many": "{count} otwartych",
     "other": "{count} otwartego"
   },
-  "referenceQuestionsDeferral": "W panelu każde pytanie jest przypinane nad polem wiadomości, a transkrypcja zachowuje jego kartę. Po museSpark.questions.deferAfterSeconds (domyślnie 60 sekund; 0 czeka bez limitu) Muse kontynuuje pracę niezależną od odpowiedzi; karta staje się otwartym pytaniem, na które możesz odpowiedzieć później lub je zamknąć bez odpowiedzi. Późna odpowiedź jest Twoją własną wiadomością i niczego nie zatwierdza. Następne otwarte pytanie i Poprzednie otwarte pytanie przechodzą między otwartymi kartami. Zaplanowane polecenia odkładają pytania od razu, a headless exec je odrzuca. W ACP --questions-defer-after ustawia termin formularza, /questions wyświetla otwarte pytania, a /answer <n> <text> odpowiada na jedno z nich.",
+  "referenceQuestionsDeferral": "W panelu każde pytanie ma tylko jedną interaktywną kartę przypiętą nad polem wiadomości. Zapis rozmowy zachowuje zwięzły znacznik Otwarte pytanie; Odpowiedz otwiera lub rozwija przypiętą kartę i przenosi fokus na jej pierwszą kontrolkę, również po odroczeniu. Ta sama zasada dotyczy formularzy MCP. Po museSpark.questions.deferAfterSeconds (domyślnie 60 sekund; 0 czeka bez limitu) Muse kontynuuje pracę niezależną od odpowiedzi; karta staje się otwartym pytaniem, na które możesz odpowiedzieć później lub je zamknąć bez odpowiedzi. Późna odpowiedź jest Twoją własną wiadomością i niczego nie zatwierdza. Następne otwarte pytanie i Poprzednie otwarte pytanie przechodzą między otwartymi kartami. Zaplanowane polecenia odkładają pytania od razu, a headless exec je odrzuca. W ACP --questions-defer-after ustawia termin formularza, /questions wyświetla otwarte pytania, a /answer <n> <text> odpowiada na jedno z nich. Wybierz odpowiedź i naciśnij Wyślij, wyjaśnij własnymi słowami albo wybierz Anuluj. Muse otrzymuje wysłane odpowiedzi i wyjaśnienia w rozmowie.",
   "resourceTransport": "Błędy transportu",
   "resourceOsService": "Obciążenie usług systemowych",
   "referenceResources": "Obciążenie zasobów, usług i transportu ogranicza przyjmowanie pracy. Każde zadanie ma limity obserwowanych procesów i ich tworzenia; czyszczenie usuwa tylko zarejestrowane katalogi tymczasowe.",
@@ -4405,5 +4405,45 @@
   "promptDeleteConfirm": "Usunąć ten prompt?",
   "promptLink": "Importuj z linku lub adresu surowego gistu",
   "promptFromFile": "Importuj z pliku",
-  "promptImportConfirm": "Zapisz zaimportowany prompt"
+  "promptImportConfirm": "Zapisz zaimportowany prompt",
+  "agentActivities": {
+    "active": "Aktywny",
+    "waiting": "Oczekuje",
+    "inactive": "Nieaktywny"
+  },
+  "agentOutcomes": {
+    "complete": "Ukończone",
+    "incomplete": "Nieukończone",
+    "failed": "Niepowodzenie",
+    "cancelled": "Anulowane",
+    "unverified": "Zakończone, niezweryfikowane"
+  },
+  "agentWaitingReasons": {
+    "approval": "zatwierdzenie",
+    "input": "dane wejściowe",
+    "queued": "w kolejce",
+    "interrupted": "przerwane",
+    "idle": "brak ostatniej aktywności"
+  },
+  "agentStopReasons": {
+    "normal": "Normalne zakończenie",
+    "budget": "Budżet wyczerpany",
+    "error": "Błąd",
+    "cancelled": "Zatrzymane przez użytkownika",
+    "unknown": "Niedostępne"
+  },
+  "agentContinue": "Kontynuuj",
+  "agentRetry": "Ponów",
+  "agentReceipt": "Raport agenta",
+  "agentReceiptFiles": "Zmienione pliki",
+  "agentReceiptChecks": "Polecenia i kontrole",
+  "agentReceiptStop": "Powód zatrzymania",
+  "agentReceiptUnfinished": "Nieukończone elementy",
+  "agentReceiptHistory": "Historia prób",
+  "agentReceiptUnavailable": "Ten backend nie dostarczył tych dowodów.",
+  "agentReceiptTruncated": "Raport osiągnął limit rozmiaru; część dowodów pominięto.",
+  "agentRecoveryConfirm": "{action}: {objective}? Obowiązują bieżące uprawnienia i budżety.",
+  "agentRetryUnavailable": "Ponowienie jest niedostępne: ten backend nie udostępnia izolowanego punktu kontrolnego drzewa roboczego. Zmiany wspólnego obszaru roboczego zostają zachowane.",
+  "agentContinueUnavailable": "Kontynuacja jest niedostępna dla tego agenta lub jego obecnego stanu.",
+  "referenceAgentOutcomes": "Agenci pokazują aktywność i wyniki oparte na dowodach. Wybierz zakończonego agenta, aby zobaczyć ograniczony raport i historię prób. Kontynuacja po potwierdzeniu zachowuje sesję i zmiany; ponowienie wymaga izolowanego punktu kontrolnego. Brakujące dowody pozostają niezweryfikowane. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

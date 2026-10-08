@@ -8,6 +8,7 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import { build } from 'esbuild'
+import { compressedModelText } from '../../scripts/lib/compressedModelText.mjs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import * as z from 'zod/mini'
@@ -142,6 +143,8 @@ beforeAll(async () => {
           sharedStructuredSchema,
           deferredTeamView,
           sharedModelApiBoundaries,
+          // Match the shipped prompt archive before checking real production caps.
+          ...(name === 'modelApi' ? [compressedModelText(true)] : []),
         ],
         external: ['vscode', '@napi-rs/keyring'],
       }),
@@ -742,7 +745,7 @@ describe('deferred cohort bundles', () => {
     }
     expect(createHash('sha256').update(readFileSync(file)).digest('hex')).toBe(hash)
     const green = runLegalGate('check-bundle-size')
-    expect(green.status, green.stderr).toBe(0)
+    expect(green.status, `${green.stdout}\n${green.stderr}`).toBe(0)
   })
 
   it('fires the legal scanner host-global guard and restores the artifact byte-exact', () => {
@@ -759,7 +762,7 @@ describe('deferred cohort bundles', () => {
     }
     expect(createHash('sha256').update(readFileSync(file)).digest('hex')).toBe(hash)
     const green = runLegalGate('check-host-globals')
-    expect(green.status, green.stderr).toBe(0)
+    expect(green.status, `${green.stdout}\n${green.stderr}`).toBe(0)
   })
 
   it('keeps board and best-of-N execution out of activation', () => {

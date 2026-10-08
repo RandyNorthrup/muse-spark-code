@@ -2619,7 +2619,7 @@
   "referenceCustomAgents": "Définissez les agents dans des fichiers AGENT.md du projet ou personnels. Sélectionnez un agent ou demandez explore ou second-opinion ; les listes d’outils limitent ses capacités. Les tâches enfants Model API exigent le consentement aux sous-agents payants.",
   "referenceCodeOutput": "Copier copie le code ; Insérer écrit au curseur ; Appliquer remplace la sélection de l’éditeur. Ouvrez la sortie d’un outil pour tout lire ; une sortie tronquée peut être paginée. Sélectionner du texte dans la conversation pour le citer dans la zone de saisie, poser une question, commenter ou le copier.",
   "referencePaidContexts": "Les extras Model API interactifs demandent l’accord avant toute dépense et partagent le budget quotidien. Les images et la voix Muse Code exigent une clé Model API enregistrée et une activation explicite ; ce budget ne les couvre pas. Les fonctions ACP payantes sont désactivées par défaut et exigent des options Model API et l’autorisation de l’éditeur ; ACP ordinaire n’impose aucun budget strict. Les images sans interface exigent acceptEdits, l’option et un budget strict. Compte et utilisation permet d’oublier les accords de cet espace de travail.",
-  "referenceAcp": "Les compétences installées ajoutent des commandes dynamiques, absentes de cette référence statique. ACP traite seulement /help, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share locaux et les compétences installées ; les commandes, paramètres et dialogues de l’éditeur dans la référence liée appartiennent à l’extension.",
+  "referenceAcp": "Les compétences installées ajoutent des commandes dynamiques, absentes de cette référence statique. ACP traite seulement /help, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /agents locaux et les compétences installées ; les commandes, paramètres et dialogues de l’éditeur dans la référence liée appartiennent à l’extension.",
   "referenceSendKeys": "Envoyer le brouillon avec le geste choisi par useCtrlEnterToSend.",
   "referenceNewlineKeys": "Insérer une nouvelle ligne dans le brouillon.",
   "referenceDictationKeys": "enregistre votre voix dans la zone de saisie (appuyez pour activer ou désactiver, maintenez pour parler)",
@@ -2783,7 +2783,7 @@
     "many": "{count} en attente",
     "other": "{count} en attente"
   },
-  "referenceQuestionsDeferral": "Dans le panneau, chaque question est épinglée au-dessus de la zone de message et la transcription conserve sa carte. Après museSpark.questions.deferAfterSeconds (60 secondes par défaut ; 0 attend indéfiniment), Muse poursuit le travail qui ne dépend pas de la réponse ; la carte devient une question en attente à laquelle vous pouvez répondre plus tard ou que vous pouvez fermer sans répondre. Une réponse tardive est votre propre message et n’approuve rien. Question en attente suivante et Question en attente précédente parcourent les cartes en attente. Les invites planifiées diffèrent les questions immédiatement et exec sans interface les refuse. Dans ACP, --questions-defer-after fixe le délai du formulaire, /questions liste les questions en attente et /answer <n> <text> répond à l’une d’elles.",
+  "referenceQuestionsDeferral": "Dans le panneau, chaque question possède une seule carte interactive épinglée au-dessus du champ de message. La transcription conserve un repère compact Question ouverte ; Répondre ouvre ou développe la carte épinglée et place le focus sur son premier contrôle, même après le report. Les formulaires MCP suivent la même règle. Après museSpark.questions.deferAfterSeconds (60 secondes par défaut ; 0 attend indéfiniment), Muse poursuit le travail qui ne dépend pas de la réponse ; la carte devient une question en attente à laquelle vous pouvez répondre plus tard ou que vous pouvez fermer sans répondre. Une réponse tardive est votre propre message et n’approuve rien. Question en attente suivante et Question en attente précédente parcourent les cartes en attente. Les invites planifiées diffèrent les questions immédiatement et exec sans interface les refuse. Dans ACP, --questions-defer-after fixe le délai du formulaire, /questions liste les questions en attente et /answer <n> <text> répond à l’une d’elles. Choisissez une réponse et cliquez sur Envoyer, expliquez avec vos propres mots ou cliquez sur Annuler. Muse reçoit les réponses et explications envoyées dans la conversation.",
   "resourceTransport": "Échecs du transport",
   "resourceOsService": "Pression sur les services système",
   "referenceResources": "La pression sur les ressources, les services et le transport réduit les admissions. Chaque tâche limite les processus et créations observés ; le nettoyage supprime uniquement les racines temporaires enregistrées.",
@@ -4261,5 +4261,45 @@
   "promptDeleteConfirm": "Supprimer ce prompt ?",
   "promptLink": "Importer depuis un lien ou une URL de gist brut",
   "promptFromFile": "Importer depuis un fichier",
-  "promptImportConfirm": "Enregistrer le prompt importé"
+  "promptImportConfirm": "Enregistrer le prompt importé",
+  "agentActivities": {
+    "active": "Actif",
+    "waiting": "En attente",
+    "inactive": "Inactif"
+  },
+  "agentOutcomes": {
+    "complete": "Terminé",
+    "incomplete": "Incomplet",
+    "failed": "Échec",
+    "cancelled": "Annulé",
+    "unverified": "Terminé, non vérifié"
+  },
+  "agentWaitingReasons": {
+    "approval": "approbation",
+    "input": "saisie",
+    "queued": "en file",
+    "interrupted": "interrompu",
+    "idle": "aucune activité récente"
+  },
+  "agentStopReasons": {
+    "normal": "Fin normale",
+    "budget": "Budget épuisé",
+    "error": "Erreur",
+    "cancelled": "Arrêté par l’utilisateur",
+    "unknown": "Indisponible"
+  },
+  "agentContinue": "Continuer",
+  "agentRetry": "Réessayer",
+  "agentReceipt": "Relevé de l’agent",
+  "agentReceiptFiles": "Fichiers modifiés",
+  "agentReceiptChecks": "Commandes et vérifications",
+  "agentReceiptStop": "Motif d’arrêt",
+  "agentReceiptUnfinished": "Éléments inachevés",
+  "agentReceiptHistory": "Historique des tentatives",
+  "agentReceiptUnavailable": "Ce backend n’a pas fourni ces preuves.",
+  "agentReceiptTruncated": "Le relevé a atteint sa limite de taille ; certaines preuves sont omises.",
+  "agentRecoveryConfirm": "{action} : {objective} ? Les autorisations et budgets actuels s’appliquent.",
+  "agentRetryUnavailable": "Nouvelle tentative indisponible : ce backend ne fournit aucun point de contrôle isolé de l’arbre de travail. Les modifications de l’espace partagé sont conservées.",
+  "agentContinueUnavailable": "La continuation est indisponible pour cet agent ou son état actuel.",
+  "referenceAgentOutcomes": "Les agents affichent leur activité et des résultats étayés. Sélectionnez un agent terminé pour son relevé limité et son historique. Continuer conserve la session et les modifications après confirmation ; réessayer exige un point de contrôle isolé. Les preuves manquantes restent non vérifiées. ACP : /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

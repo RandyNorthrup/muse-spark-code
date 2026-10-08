@@ -2713,7 +2713,7 @@
   "referenceCustomAgents": "Definujte agenty v projektových či osobních souborech AGENT.md. Vyberte agenta nebo požádejte o explore či second-opinion; seznamy nástrojů omezují schopnosti. Podúlohy Model API vyžadují souhlas s placenými podagenty.",
   "referenceCodeOutput": "Kopírovat kopíruje kód; Vložit píše u kurzoru; Použít nahradí výběr editoru. Otevřete úplný výstup nástroje; zkrácený výstup lze stránkovat. Vyberte text přepisu a citujte jej v editoru zprávy, položte k němu otázku, přidejte komentář nebo jej zkopírujte.",
   "referencePaidContexts": "Interaktivní doplňky Model API se ptají před útratou a používají společný denní rozpočet. Obrázky a hlas Muse Code vyžadují uložený klíč Model API a výslovné zapnutí; tento rozpočet je nepokrývá. Placené funkce ACP jsou ve výchozím stavu vypnuté a vyžadují příznaky Model API a souhlas editoru; běžné ACP nevyžaduje pevný rozpočet. Obrázky bez rozhraní vyžadují acceptEdits, příznak a pevný rozpočet. Účet a využití umožňuje zapomenout souhlasy pracovního prostoru.",
-  "referenceAcp": "Nainstalované dovednosti přidávají dynamické příkazy, které statická příručka neuvádí. ACP zpracovává jen místní /help, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share a dovednosti; příkazy panelu, nastavení a dialogy propojené příručky patří rozšíření.",
+  "referenceAcp": "Nainstalované dovednosti přidávají dynamické příkazy, které statická příručka neuvádí. ACP zpracovává jen místní /help, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /agents a dovednosti; příkazy panelu, nastavení a dialogy propojené příručky patří rozšíření.",
   "referenceSendKeys": "Odeslat zadání gestem podle useCtrlEnterToSend.",
   "referenceNewlineKeys": "Vložit nový řádek do zadání.",
   "referenceDictationKeys": "nahraje váš hlas do pole zprávy (klepnutím přepnete, podržením mluvíte)",
@@ -2879,7 +2879,7 @@
     "many": "{count} otevřené",
     "other": "{count} otevřených"
   },
-  "referenceQuestionsDeferral": "V panelu se každá otázka připne nad pole zprávy a přepis si ponechá její kartu. Po uplynutí museSpark.questions.deferAfterSeconds (výchozí 60 sekund; 0 čeká neomezeně) Muse pokračuje v práci, která na odpovědi nezávisí; karta se změní na otevřenou otázku, na kterou můžete odpovědět později nebo ji uzavřít bez odpovědi. Pozdní odpověď je vaše vlastní zpráva a nic neschvaluje. Další otevřená otázka a Předchozí otevřená otázka přecházejí mezi otevřenými kartami. Naplánované výzvy odkládají otázky okamžitě a headless exec otázky odmítá. V ACP nastavuje --questions-defer-after lhůtu formuláře, /questions vypíše otevřené otázky a /answer <n> <text> na jednu odpoví.",
+  "referenceQuestionsDeferral": "V panelu má každá otázka jedinou interaktivní kartu připnutou nad polem zprávy. Přepis obsahuje kompaktní značku Otevřená otázka; Odpovědět otevře nebo rozbalí připnutou kartu a zaměří její první ovládací prvek, i po odložení. Totéž platí pro formuláře MCP. Po uplynutí museSpark.questions.deferAfterSeconds (výchozí 60 sekund; 0 čeká neomezeně) Muse pokračuje v práci, která na odpovědi nezávisí; karta se změní na otevřenou otázku, na kterou můžete odpovědět později nebo ji uzavřít bez odpovědi. Pozdní odpověď je vaše vlastní zpráva a nic neschvaluje. Další otevřená otázka a Předchozí otevřená otázka přecházejí mezi otevřenými kartami. Naplánované výzvy odkládají otázky okamžitě a headless exec otázky odmítá. V ACP nastavuje --questions-defer-after lhůtu formuláře, /questions vypíše otevřené otázky a /answer <n> <text> na jednu odpoví. Vyberte odpověď a odešlete ji tlačítkem Odeslat, vysvětlete ji vlastními slovy nebo zvolte Zrušit. Muse v konverzaci obdrží odeslané odpovědi i vysvětlení.",
   "resourceTransport": "Selhání přenosu",
   "resourceOsService": "Tlak na služby OS",
   "referenceResources": "Zátěž prostředků, služeb a přenosu omezuje přijímání práce. Každá úloha má limity pozorovaných procesů a jejich vzniku; úklid odstraňuje pouze zaznamenané dočasné kořeny.",
@@ -4405,5 +4405,45 @@
   "promptDeleteConfirm": "Smazat tento prompt?",
   "promptLink": "Importovat z odkazu nebo adresy surového gistu",
   "promptFromFile": "Importovat ze souboru",
-  "promptImportConfirm": "Uložit importovaný prompt"
+  "promptImportConfirm": "Uložit importovaný prompt",
+  "agentActivities": {
+    "active": "Aktivní",
+    "waiting": "Čeká",
+    "inactive": "Neaktivní"
+  },
+  "agentOutcomes": {
+    "complete": "Dokončeno",
+    "incomplete": "Nedokončeno",
+    "failed": "Selhalo",
+    "cancelled": "Zrušeno",
+    "unverified": "Ukončeno, neověřeno"
+  },
+  "agentWaitingReasons": {
+    "approval": "schválení",
+    "input": "vstup",
+    "queued": "ve frontě",
+    "interrupted": "přerušeno",
+    "idle": "žádná nedávná aktivita"
+  },
+  "agentStopReasons": {
+    "normal": "Normální konec",
+    "budget": "Rozpočet vyčerpán",
+    "error": "Chyba",
+    "cancelled": "Zastaveno uživatelem",
+    "unknown": "Nedostupné"
+  },
+  "agentContinue": "Pokračovat",
+  "agentRetry": "Zkusit znovu",
+  "agentReceipt": "Záznam agenta",
+  "agentReceiptFiles": "Změněné soubory",
+  "agentReceiptChecks": "Příkazy a kontroly",
+  "agentReceiptStop": "Důvod ukončení",
+  "agentReceiptUnfinished": "Nedokončené položky",
+  "agentReceiptHistory": "Historie pokusů",
+  "agentReceiptUnavailable": "Tento backend tyto důkazy neposkytl.",
+  "agentReceiptTruncated": "Záznam dosáhl limitu velikosti; některé důkazy byly vynechány.",
+  "agentRecoveryConfirm": "{action}: {objective}? Platí aktuální oprávnění a rozpočty.",
+  "agentRetryUnavailable": "Opakování není dostupné: backend neposkytuje izolovaný kontrolní bod pracovního stromu. Změny sdíleného pracovního prostoru zůstanou zachovány.",
+  "agentContinueUnavailable": "Pokračování není pro tohoto agenta nebo jeho aktuální stav dostupné.",
+  "referenceAgentOutcomes": "Agenti zobrazují aktivitu a výsledky podložené důkazy. Výběrem ukončeného agenta otevřete omezený záznam a historii pokusů. Pokračování po potvrzení zachová relaci a změny; opakování vyžaduje izolovaný kontrolní bod. Chybějící důkazy jsou neověřené. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

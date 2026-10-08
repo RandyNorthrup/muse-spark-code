@@ -2525,7 +2525,7 @@
   "referenceCustomAgents": "Definieren Sie Agenten in projektbezogenen oder persönlichen AGENT.md-Dateien. Wählen Sie einen Agenten oder fragen Sie nach explore oder second-opinion; Werkzeuglisten begrenzen seine Fähigkeiten. Model API-Unteraufgaben benötigen die Zustimmung zu kostenpflichtigen Unteragenten.",
   "referenceCodeOutput": "Kopieren kopiert Code; Einfügen schreibt am Cursor; Anwenden ersetzt die Editor-Auswahl. Öffnen Sie Werkzeugausgaben vollständig; gekürzte Ausgaben können seitenweise gelesen werden. Text im Verlauf auswählen, um ihn im Eingabefeld zu zitieren, danach zu fragen, ihn zu kommentieren oder zu kopieren.",
   "referencePaidContexts": "Interaktive Model API-Extras fragen vor Ausgaben und nutzen das gemeinsame Tagesbudget. Muse Code-Bilder und -Sprache benötigen einen gespeicherten Model API-Schlüssel und ausdrückliche Aktivierung; dieses Budget gilt dort nicht. Kostenpflichtige ACP-Funktionen sind standardmäßig aus und benötigen Model API-Flags und Editor-Erlaubnis; normales ACP verlangt kein hartes Budget. Headless-Bilder benötigen acceptEdits, das Flag und ein hartes Budget. Konto und Nutzung kann gespeicherte Workspace-Zustimmungen vergessen.",
-  "referenceAcp": "Installierte Skills ergänzen dynamische Slash-Befehle, die hier nicht aufgelistet sind. ACP verarbeitet nur lokale /help, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share und installierte Skills; Panel-Befehle, Einstellungen und Editor-Dialoge der verlinkten Referenz sind Erweiterungsabläufe.",
+  "referenceAcp": "Installierte Skills ergänzen dynamische Slash-Befehle, die hier nicht aufgelistet sind. ACP verarbeitet nur lokale /help, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /agents und installierte Skills; Panel-Befehle, Einstellungen und Editor-Dialoge der verlinkten Referenz sind Erweiterungsabläufe.",
   "referenceSendKeys": "Die Eingabe mit der durch useCtrlEnterToSend gewählten Geste senden.",
   "referenceNewlineKeys": "Eine neue Zeile in die Eingabe einfügen.",
   "referenceDictationKeys": "nimmt Ihre Stimme in das Eingabefeld auf (tippen zum Umschalten, halten zum Sprechen)",
@@ -2687,7 +2687,7 @@
     "one": "{count} offen",
     "other": "{count} offen"
   },
-  "referenceQuestionsDeferral": "Im Panel wird jede Frage über dem Nachrichtenfeld angeheftet, und das Protokoll behält ihre Karte. Nach museSpark.questions.deferAfterSeconds (standardmäßig 60 Sekunden; 0 wartet unbegrenzt) setzt Muse Arbeit fort, die nicht von der Antwort abhängt; die Karte wird zu einer offenen Frage, die Sie später beantworten oder ohne Antwort schließen können. Eine späte Antwort ist Ihre eigene Nachricht und genehmigt nichts. Nächste offene Frage und Vorherige offene Frage wechseln zwischen offenen Karten. Geplante Prompts stellen Fragen sofort zurück, und headless exec lehnt Fragen ab. In ACP legt --questions-defer-after die Frist des Formulars fest, /questions listet offene Fragen auf und /answer <n> <text> beantwortet eine.",
+  "referenceQuestionsDeferral": "Im Panel hat jede Frage genau eine interaktive Karte, die über dem Nachrichtenfeld angeheftet ist. Im Verlauf bleibt eine kompakte Markierung Offene Frage; Antworten öffnet oder erweitert die angeheftete Karte und setzt den Fokus auf ihr erstes Bedienelement, auch nach dem Aufschub. Dasselbe gilt für MCP-Formulare. Nach museSpark.questions.deferAfterSeconds (standardmäßig 60 Sekunden; 0 wartet unbegrenzt) setzt Muse Arbeit fort, die nicht von der Antwort abhängt; die Karte wird zu einer offenen Frage, die Sie später beantworten oder ohne Antwort schließen können. Eine späte Antwort ist Ihre eigene Nachricht und genehmigt nichts. Nächste offene Frage und Vorherige offene Frage wechseln zwischen offenen Karten. Geplante Prompts stellen Fragen sofort zurück, und headless exec lehnt Fragen ab. In ACP legt --questions-defer-after die Frist des Formulars fest, /questions listet offene Fragen auf und /answer <n> <text> beantwortet eine. Wählen Sie eine Antwort und senden Sie sie mit Absenden, erklären Sie sich in eigenen Worten oder wählen Sie Abbrechen. Muse erhält die gesendeten Antworten und Erklärungen im Gespräch.",
   "resourceTransport": "Transportfehler",
   "resourceOsService": "Belastung der Betriebssystemdienste",
   "referenceResources": "Ressourcen-, Dienst- und Transportdruck begrenzen die Zulassung. Jeder Auftrag hat Grenzwerte für beobachtete Prozesse und Prozessstarts; die Bereinigung entfernt nur erfasste temporäre Wurzeln.",
@@ -4117,5 +4117,45 @@
   "promptDeleteConfirm": "Diesen Prompt löschen?",
   "promptLink": "Aus Link oder Roh-Gist-URL importieren",
   "promptFromFile": "Aus Datei importieren",
-  "promptImportConfirm": "Importierten Prompt speichern"
+  "promptImportConfirm": "Importierten Prompt speichern",
+  "agentActivities": {
+    "active": "Aktiv",
+    "waiting": "Wartend",
+    "inactive": "Inaktiv"
+  },
+  "agentOutcomes": {
+    "complete": "Vollständig",
+    "incomplete": "Unvollständig",
+    "failed": "Fehlgeschlagen",
+    "cancelled": "Abgebrochen",
+    "unverified": "Beendet, ungeprüft"
+  },
+  "agentWaitingReasons": {
+    "approval": "Genehmigung",
+    "input": "Eingabe",
+    "queued": "in Warteschlange",
+    "interrupted": "unterbrochen",
+    "idle": "keine aktuelle Aktivität"
+  },
+  "agentStopReasons": {
+    "normal": "Normal beendet",
+    "budget": "Budget ausgeschöpft",
+    "error": "Fehler",
+    "cancelled": "Vom Benutzer gestoppt",
+    "unknown": "Nicht verfügbar"
+  },
+  "agentContinue": "Fortsetzen",
+  "agentRetry": "Erneut versuchen",
+  "agentReceipt": "Agentenbeleg",
+  "agentReceiptFiles": "Geänderte Dateien",
+  "agentReceiptChecks": "Befehle und Prüfungen",
+  "agentReceiptStop": "Stoppgrund",
+  "agentReceiptUnfinished": "Unerledigte Aufgaben",
+  "agentReceiptHistory": "Versuchsverlauf",
+  "agentReceiptUnavailable": "Dieses Backend hat diese Nachweise nicht bereitgestellt.",
+  "agentReceiptTruncated": "Der Beleg hat seine Größenbegrenzung erreicht; einige Nachweise fehlen.",
+  "agentRecoveryConfirm": "{action}: {objective}? Aktuelle Berechtigungen und Budgets gelten.",
+  "agentRetryUnavailable": "Erneuter Versuch nicht verfügbar: Dieses Backend bietet keinen isolierten Worktree-Kontrollpunkt. Änderungen im gemeinsamen Arbeitsbereich bleiben erhalten.",
+  "agentContinueUnavailable": "Fortsetzen ist für diesen Agenten oder seinen aktuellen Zustand nicht verfügbar.",
+  "referenceAgentOutcomes": "Agenten zeigen Aktivität und nachweisgestützte Ergebnisse. Wählen Sie einen beendeten Agenten für seinen begrenzten Beleg und Versuchsverlauf. Fortsetzen bewahrt nach Bestätigung Sitzung und Änderungen; ein erneuter Versuch erfordert einen isolierten Kontrollpunkt. Fehlende Nachweise gelten als ungeprüft. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }

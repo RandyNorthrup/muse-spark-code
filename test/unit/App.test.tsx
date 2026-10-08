@@ -156,7 +156,13 @@ async function askColour() {
   await act(async () => {
     await import('../../src/webview/components/QuestionUi')
   })
-  fireEvent.click(within(screen.getByRole('main')).getByRole('radio', { name: 'Red' }))
+  const card = document.querySelector('[data-question-slot="dock"]')
+  if (!(card instanceof HTMLElement)) throw new Error('Missing pinned question card')
+  fireEvent.click(within(card).getByRole('radio', { name: 'Red' }))
+}
+
+function questionButton(name: 'Submit' | 'Cancel') {
+  return within(screen.getByRole('region', { name: 'Open question' })).getByRole('button', { name })
 }
 
 function renderReady(status: 'signedIn' | 'signedOut' = 'signedIn') {
@@ -1098,11 +1104,22 @@ describe('App transcript (M4)', () => {
     expect(screen.getByText('Allow once')).toBeDisabled()
     stageUpdate(1)
     expect(screen.getByText('Allow once')).toBeEnabled()
+    fireEvent.click(screen.getByText('Allow once'))
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'approvalResolved',
+        approvalId: 'a1',
+        itemId: 'c1',
+        decision: 'approved',
+        resolvedBy: 'user',
+      },
+    })
     await askColour()
 
     await act(async () => {
       await import('../../src/webview/components/QuestionUi')
-      fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
+      fireEvent.click(questionButton('Submit'))
     })
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'answerQuestion',
@@ -2483,9 +2500,9 @@ describe('App webview and UI state (M25)', () => {
 
     await act(async () => {
       await import('../../src/webview/components/QuestionUi')
-      fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
-      fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
-      fireEvent.click(within(screen.getByRole('main')).getByText('Cancel'))
+      fireEvent.click(questionButton('Submit'))
+      fireEvent.click(questionButton('Submit'))
+      fireEvent.click(questionButton('Cancel'))
     })
     const answers = () =>
       postMessage.mock.calls.filter(
@@ -2496,7 +2513,7 @@ describe('App webview and UI state (M25)', () => {
     deliver({ type: 'notice', level: 'error', text: 'The answer was not accepted: gone' })
     await act(async () => {
       await import('../../src/webview/components/QuestionUi')
-      fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
+      fireEvent.click(questionButton('Submit'))
     })
     expect(answers()).toHaveLength(2)
   })

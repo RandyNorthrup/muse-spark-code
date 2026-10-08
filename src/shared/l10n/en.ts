@@ -357,7 +357,7 @@ export const EN = {
   referenceQuestions:
     'Choose and Submit an answer, explain in your own words, or Cancel. Muse receives submitted answers and explanations in the conversation.',
   referenceQuestionsDeferral:
-    'In the panel, the attention dock pins each question above the composer, and the transcript keeps its card. After museSpark.questions.deferAfterSeconds (60 seconds by default; 0 waits indefinitely), Muse continues work that does not depend on the answer; the card becomes an open question that you can answer later or dismiss. A late answer is your own message and approves nothing. Next open question and Previous open question move between open cards. Scheduled prompts defer at once, and headless exec declines questions. In ACP, --questions-defer-after sets the form deadline, /questions lists open questions and /answer <n> <text> answers one.',
+    'In the panel, each question has one interactive card pinned above the composer. The transcript keeps a compact Open question marker; Answer opens or expands the docked card and focuses its first control, including after deferral. MCP forms follow the same rule. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (60 seconds by default; 0 waits indefinitely), Muse continues work that does not depend on the answer; the card becomes an open question that you can answer later or dismiss. A late answer is your own message and approves nothing. Next open question and Previous open question move between open cards. Scheduled prompts defer at once, and headless exec declines questions. In ACP, --questions-defer-after sets the form deadline, /questions lists open questions and /answer <n> <text> answers one.',
   referencePermissionLimits:
     'museCode:manual: Muse will ask before running commands; Muse Code edits workspace files without asking\nmuseCode:acceptEdits: On Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands\nmuseCode:plan: Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking\nmuseCode:bypassPermissions: Muse will edit files and run commands without asking\nmodelApi:manual: Muse will ask for approval before each edit and each command\nmodelApi:acceptEdits: Muse will edit files without asking and ask before running commands\nmodelApi:plan: Muse will explore the code and present a plan before editing\nmuseCode (museSpark.museCodeAutoReviewer=false): Muse Code runs the commands it judges simple without asking and asks before the rest\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse will edit files without asking, except protected files, and ask before commands\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse will edit files without asking, except protected files; a paid reviewer may allow some commands once, and you are asked about the rest\nThese Auto descriptions concern requests not settled by rules. The Model API reviewer additionally requires paid consent and budget admission. A declined or failed review leaves the decision to you. Ordinary ACP has neither reviewer.',
   referenceElicitationTitle: 'MCP elicitation',
@@ -395,7 +395,7 @@ export const EN = {
   referencePaidContexts:
     'Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.',
   referenceAcp:
-    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt and /share plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
+    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
   referenceWebFetchTitle: 'Web fetch',
   referenceWebFetchDetail:
     'Fetch public web pages as readable text, with permission and network checks.',
@@ -2326,6 +2326,44 @@ export const EN = {
   // M46: the header pill while background work runs and no agent is shown.
   backgroundTasksPillTitle: 'Show the background tasks',
   agentMapTitle: 'Agent map',
+  agentActivities: { active: 'Active', waiting: 'Waiting', inactive: 'Inactive' },
+  agentOutcomes: {
+    complete: 'Complete',
+    incomplete: 'Incomplete',
+    failed: 'Failed',
+    cancelled: 'Cancelled',
+    unverified: 'Ended, unverified',
+  },
+  agentWaitingReasons: {
+    approval: 'approval',
+    input: 'input',
+    queued: 'queued',
+    interrupted: 'interrupted',
+    idle: 'no recent activity',
+  },
+  agentStopReasons: {
+    normal: 'Normal end',
+    budget: 'Budget exhausted',
+    error: 'Error',
+    cancelled: 'Stopped by user',
+    unknown: 'Unavailable',
+  },
+  agentContinue: 'Continue',
+  agentRetry: 'Retry',
+  agentReceipt: 'Agent receipt',
+  agentReceiptFiles: 'Changed files',
+  agentReceiptChecks: 'Commands and checks',
+  agentReceiptStop: 'Stop reason',
+  agentReceiptUnfinished: 'Unfinished items',
+  agentReceiptHistory: 'Attempt history',
+  agentReceiptUnavailable: 'This backend did not provide this evidence.',
+  agentReceiptTruncated: 'The receipt reached its size limit; some evidence is omitted.',
+  agentRecoveryConfirm: '{action}: {objective}? The current permissions and budgets apply.',
+  agentRetryUnavailable:
+    'Retry is unavailable: this backend provides no isolated worktree checkpoint. Shared workspace changes are kept.',
+  agentContinueUnavailable: 'Continue is unavailable for this agent or its current state.',
+  referenceAgentOutcomes:
+    'Agents show activity and evidence-backed outcomes. Select an ended agent for its bounded receipt and attempt history. Continue keeps its session and changes after confirmation; Retry requires an isolated checkpoint. Missing evidence is shown as unverified. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.',
   agentMapHint: 'click an agent for details',
   agentMapEmpty: 'No subagents in this conversation.',
   // M96c (D75): scheduler, Traffic, recovery and user-level runners.

@@ -928,11 +928,11 @@ describe('M112 through the pinned ACP SDK client', () => {
     })
   })
 
-  it('reserved question commands replace skills of the same names', async () => {
+  it('reserved local commands replace skills of the same names', async () => {
     const h = agentHarness()
     await h.run(async (client) => {
       h.session.listSkills.mockResolvedValueOnce(
-        ['answer', 'questions'].map((selector) => ({
+        ['compact', 'agents', 'answer', 'questions'].map((selector) => ({
           selector,
           displayName: selector,
           description: 'skill collision',
@@ -946,12 +946,14 @@ describe('M112 through the pinned ACP SDK client', () => {
       expect(commands.map((command) => command.name)).toEqual([
         'help',
         'compact',
+        'agents',
         'answer',
         'questions',
       ])
       expect(commands.map((command) => command.description)).toEqual([
         UI_TEXT.referenceIntro,
         UI_TEXT.compactDetail,
+        UI_TEXT.referenceAgentOutcomes,
         UI_TEXT.acpAnswerHelp,
         UI_TEXT.acpQuestionsHelp,
       ])

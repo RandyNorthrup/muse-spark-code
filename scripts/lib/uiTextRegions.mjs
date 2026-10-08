@@ -328,6 +328,12 @@ export const compactBrowserUiText = {
       })
       const eagerSources = browserStartupSources(roots).files
       const { keys, files, eagerKeys } = browserTextKeys(entries, EN, eagerSources)
+      const surfaceKeys = browserTextKeys(
+        entries.filter(
+          (entry) => !Object.values(RESOURCE_WEBVIEW_ENTRIES).includes(entry.replaceAll('\\', '/')),
+        ),
+        EN,
+      ).keys
       const resourceKeys = browserTextKeys(Object.values(RESOURCE_WEBVIEW_ENTRIES), EN).keys
       const deferredKeys = [...keys].filter((key) => !eagerKeys.has(key))
       const readers = new Set([...keys].filter((key) => !deferredKeys.includes(key)))
@@ -349,6 +355,7 @@ export const compactBrowserUiText = {
         files,
         lanes,
         deferredKeys,
+        surfaceKeys: deferredKeys.filter((key) => surfaceKeys.has(key)),
         resourceKeys,
         contract,
         level: L10N_BROWSER_COMPRESSION_LEVEL,
@@ -388,7 +395,7 @@ export const compactBrowserUiText = {
     }))
     build.onLoad({ filter: /.*/, namespace: 'browser-surface-english' }, () => ({
       contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
-${inlineBrowserTable(Object.fromEntries(data.deferredKeys.toSorted((left, right) => (left < right ? -1 : Number(left > right))).map((key) => [key, data.EN[key]])), data.level)}
+${inlineBrowserTable(Object.fromEntries(data.surfaceKeys.toSorted((left, right) => (left < right ? -1 : Number(left > right))).map((key) => [key, data.EN[key]])), data.level)}
 installSurfaceEnglish(EN);`,
       loader: 'js',
     }))

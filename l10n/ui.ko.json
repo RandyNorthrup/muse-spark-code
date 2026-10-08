@@ -2431,7 +2431,7 @@
   "referenceCustomAgents": "프로젝트 또는 개인 AGENT.md 파일에서 에이전트를 정의하세요. 에이전트를 선택하거나 explore 또는 second-opinion을 요청하세요. 도구 허용 목록이 기능을 제한합니다. Model API 하위 작업은 유료 하위 에이전트 동의가 필요합니다.",
   "referenceCodeOutput": "복사는 코드를 복사하고 삽입은 커서에 쓰며 적용은 편집기 선택 영역을 바꿉니다. 도구 출력을 열어 전체 결과를 읽으세요. 잘린 출력은 페이지로 볼 수 있습니다. 대화 내용을 선택하면 입력창에 인용하거나 질문, 댓글 추가, 복사를 할 수 있습니다.",
   "referencePaidContexts": "대화형 Model API 추가 기능은 지출 전에 묻고 공통 일일 예산을 사용합니다. Muse Code 이미지와 음성은 저장된 Model API 키와 명시적 활성화가 필요하며 이 예산은 적용되지 않습니다. ACP 유료 기능은 기본으로 꺼져 있고 Model API 플래그와 편집기 권한이 필요합니다. 일반 ACP는 엄격한 예산이 필수가 아닙니다. 헤드리스 이미지는 acceptEdits, 플래그와 엄격한 예산이 필요합니다. 계정 및 사용량에서 작업 영역의 동의를 잊을 수 있습니다.",
-  "referenceAcp": "설치된 스킬은 동적 슬래시 명령을 추가하며 이 정적 참고 자료에는 목록이 없습니다. ACP는 로컬 /help, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share와 설치된 스킬만 처리합니다. 링크의 패널 명령, 설정 및 대화 상자는 확장 기능의 작업입니다.",
+  "referenceAcp": "설치된 스킬은 동적 슬래시 명령을 추가하며 이 정적 참고 자료에는 목록이 없습니다. ACP는 로컬 /help, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /agents와 설치된 스킬만 처리합니다. 링크의 패널 명령, 설정 및 대화 상자는 확장 기능의 작업입니다.",
   "referenceSendKeys": "useCtrlEnterToSend로 선택한 동작으로 초안을 전송합니다.",
   "referenceNewlineKeys": "초안에 새 줄을 삽입합니다.",
   "referenceDictationKeys": "음성을 입력란에 녹음(탭하여 전환, 길게 눌러 말하기)",
@@ -2591,7 +2591,7 @@
   "openQuestionsTabCount": {
     "other": "미답변 {count}개"
   },
-  "referenceQuestionsDeferral": "패널에서는 각 질문이 메시지 상자 위에 고정되고 대화 기록에도 카드가 남습니다. museSpark.questions.deferAfterSeconds(기본 60초, 0은 무기한 대기)가 지나면 Muse는 답변에 의존하지 않는 작업을 계속하고, 카드는 나중에 답변하거나 답변 없이 닫을 수 있는 미답변 질문이 됩니다. 나중에 보낸 답변은 사용자 자신의 메시지이며 아무것도 승인하지 않습니다. 다음 미답변 질문과 이전 미답변 질문으로 미답변 카드 사이를 이동합니다. 예약된 프롬프트는 질문을 즉시 보류하고, 헤드리스 exec는 질문을 거절합니다. ACP에서는 --questions-defer-after가 양식 기한을 설정하고, /questions는 미답변 질문을 나열하며, /answer <n> <text>는 그중 하나에 답변합니다.",
+  "referenceQuestionsDeferral": "패널에서 각 질문의 대화형 카드는 메시지 입력란 위에 고정된 하나뿐입니다. 대화 기록에는 간결한 미답변 질문 표시가 남습니다. 답변을 누르면 연기된 후에도 고정된 카드가 열리거나 펼쳐지고 첫 번째 컨트롤로 포커스가 이동합니다. MCP 양식에도 같은 규칙이 적용됩니다. museSpark.questions.deferAfterSeconds(기본 60초, 0은 무기한 대기)가 지나면 Muse는 답변에 의존하지 않는 작업을 계속하고, 카드는 나중에 답변하거나 답변 없이 닫을 수 있는 미답변 질문이 됩니다. 나중에 보낸 답변은 사용자 자신의 메시지이며 아무것도 승인하지 않습니다. 다음 미답변 질문과 이전 미답변 질문으로 미답변 카드 사이를 이동합니다. 예약된 프롬프트는 질문을 즉시 보류하고, 헤드리스 exec는 질문을 거절합니다. ACP에서는 --questions-defer-after가 양식 기한을 설정하고, /questions는 미답변 질문을 나열하며, /answer <n> <text>는 그중 하나에 답변합니다. 답변을 선택해 제출하거나, 자신의 말로 설명하거나, 취소할 수 있습니다. 제출한 답변과 설명은 대화에서 Muse에 전달됩니다.",
   "resourceTransport": "전송 실패",
   "resourceOsService": "OS 서비스 부하",
   "referenceResources": "리소스, 서비스 및 전송 부하가 작업 수락을 줄입니다. 각 작업에는 관측된 프로세스 수와 생성 수의 제한이 있으며, 정리는 기록된 임시 루트만 제거합니다.",
@@ -3973,5 +3973,45 @@
   "promptDeleteConfirm": "이 프롬프트를 삭제할까요?",
   "promptLink": "링크 또는 원시 gist URL에서 가져오기",
   "promptFromFile": "파일에서 가져오기",
-  "promptImportConfirm": "가져온 프롬프트 저장"
+  "promptImportConfirm": "가져온 프롬프트 저장",
+  "agentActivities": {
+    "active": "활성",
+    "waiting": "대기 중",
+    "inactive": "비활성"
+  },
+  "agentOutcomes": {
+    "complete": "완료",
+    "incomplete": "미완료",
+    "failed": "실패",
+    "cancelled": "취소됨",
+    "unverified": "종료, 미검증"
+  },
+  "agentWaitingReasons": {
+    "approval": "승인",
+    "input": "입력",
+    "queued": "대기열",
+    "interrupted": "중단됨",
+    "idle": "최근 활동 없음"
+  },
+  "agentStopReasons": {
+    "normal": "정상 종료",
+    "budget": "예산 소진",
+    "error": "오류",
+    "cancelled": "사용자가 중지함",
+    "unknown": "사용 불가"
+  },
+  "agentContinue": "계속",
+  "agentRetry": "다시 시도",
+  "agentReceipt": "에이전트 기록",
+  "agentReceiptFiles": "변경된 파일",
+  "agentReceiptChecks": "명령 및 검사",
+  "agentReceiptStop": "중지 이유",
+  "agentReceiptUnfinished": "미완료 항목",
+  "agentReceiptHistory": "시도 기록",
+  "agentReceiptUnavailable": "이 백엔드는 이 증거를 제공하지 않았습니다.",
+  "agentReceiptTruncated": "기록이 크기 제한에 도달하여 일부 증거가 생략되었습니다.",
+  "agentRecoveryConfirm": "{action}: {objective}? 현재 권한과 예산이 적용됩니다.",
+  "agentRetryUnavailable": "다시 시도할 수 없습니다. 이 백엔드는 격리된 작업 트리 체크포인트를 제공하지 않습니다. 공유 작업 공간의 변경 사항은 유지됩니다.",
+  "agentContinueUnavailable": "이 에이전트 또는 현재 상태에서는 계속할 수 없습니다.",
+  "referenceAgentOutcomes": "에이전트는 활동과 증거 기반 결과를 표시합니다. 종료된 에이전트를 선택하면 제한된 기록과 시도 내역을 볼 수 있습니다. 확인 후 계속하면 세션과 변경 사항이 유지되며, 다시 시도하려면 격리된 체크포인트가 필요합니다. 증거가 없으면 미검증으로 표시됩니다. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID."
 }
