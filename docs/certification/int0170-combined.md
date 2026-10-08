@@ -188,34 +188,35 @@ Updated by SPAWN017B; historical receipts below retain their original results.
 The inventory searches spawn/exec/fork/child-process imports in existing
 files added or changed since `4da4ef666`; deleted paths are excluded.
 
-| Site                                                       | Governance and containment                                                                                                                            |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `core/backends/musecode/MuseCodeHost.ts`, account MSP      | Governed: Repaired: account transport through `spawnResourceAccountConnection`; native job plus observed retirement.                                  |
-| `host/backend/museCodeBackendManager.ts`                   | Governed: Both account and ordinary paths share the MSP resource launch boundary.                                                                     |
-| `host/auth/accountHost.ts`                                 | Governed: Existing short-lived account path already uses `spawnResourceMuseConnection`.                                                               |
-| `core/backends/modelapi/mcp/pool.ts`                       | Governed: Delegates ordinary stdio to the host builder and credentialed stdio to the vault port.                                                      |
-| `host/backend/mcpServers.ts` and `mcpProcess.ts`           | Governed: Existing MCP admission/job/group boundary; new broker builder joins it.                                                                     |
-| `host/backend/mcpVault.ts`                                 | Governed: Repaired production vault stdio builder; authorization, scrub, expiry and revocation retained.                                              |
-| `core/media/convert.ts`, probe and encoder                 | Governed: Repaired: `spawnResourceProcess`; native payload PID is queried for RSS rather than sampling the launcher.                                  |
-| `core/media/record/macos.ts`, two injected spawn calls     | Honestly unavailable: M105 W leaves all installed recording drivers unbound; Help now says direct recording is unavailable.                           |
-| `core/reporting/history.ts`, identity probe                | Governed: Repaired: bounded `execResourceFile`, resource admission and contained helper.                                                              |
-| `core/reporting/sources/github.ts`, gh reads               | Governed: Repaired: same bounded command adapter; credential-stripped environment retained.                                                           |
-| `core/schedules/events/git.ts`, three Git reads            | Governed: Repaired: same adapter; trust and stable-read checks retained.                                                                              |
-| `runtime/reporting/sources.ts`, Git reads                  | Governed: Repaired: same adapter; nonzero results and bounds retained.                                                                                |
-| `runtime/schedules/nodeBackgroundIo.ts`, OS commands       | Governed: Repaired: same adapter; credential stripping and fixed program resolution retained.                                                         |
-| `runtime/schedules/nodeBackgroundIo.ts`, maintenance child | Governed: Repaired: resource process boundary, group containment, detached lifecycle retained. Native Darwin maintenance qualification is still owed. |
-| `core/vault/broker/peer.ts`, Unix peer helper              | Governed: Repaired: resource process boundary with the exact inherited socket descriptor.                                                             |
-| `runtime/vault/slots/macVaultTransport.ts`                 | Governed: Repaired: resource process boundary; private binary pipes and empty payload environment retained.                                           |
-| `runtime/vault/slots/windowsVaultTransport.ts`             | Governed: Repaired: job-backed guard process; readiness/digest checks still precede private input.                                                    |
-| `host/vault/vaultExecSpawn.ts`                             | Honestly unavailable: M109 W has no broker-backed service or installed feeder; commands refuse closed and Help names the absent broker.               |
-| `core/orchestration/playbook/modules.ts`, rename Git reads | Governed: Repaired: ordinary hook admission and required contained runner on Windows; POSIX tree supervisor otherwise.                                |
-| `core/orchestration/playbook/outcomes.ts`                  | Governed: Existing contained hook/Git runner; its child-process imports are types.                                                                    |
-| `host/team/acpProcess.ts`                                  | Governed: Existing `TeamChildLauncher` admission and contained transport.                                                                             |
-| `host/backend/toolIo.ts`                                   | Governed: Existing governed shell/resource command adapter; the original raw spawn is behind that boundary.                                           |
-| `host/processTree.ts`, native probes and POSIX supervisor  | Governed: Existing native containment/probe infrastructure, including the supervisor's payload spawn.                                                 |
-| `host/backend/jobBuild.ts`                                 | Bootstrap tier: shared runBootstrap, heavy admission, bounded output/deadline, OS whole-tree termination and observed exit.                           |
-| `host/vault/slots/windowsVaultBuild.ts`                    | Bootstrap tier: the public-source guard and job compiler both use the same admitted bootstrap runner.                                                 |
-| `runtime/main.ts`, browser opener and login terminal       | Governed: runtime login and Linux browser handlers use spawnResourceProcess; Windows/macOS OS openers use bounded execResourceFile.                   |
+| Site                                                                   | Governance and containment                                                                                                                                    |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `core/backends/musecode/MuseCodeHost.ts`, account MSP                  | Governed: Repaired: account transport through `spawnResourceAccountConnection`; native job plus observed retirement.                                          |
+| `host/backend/museCodeBackendManager.ts`                               | Governed: Both account and ordinary paths share the MSP resource launch boundary.                                                                             |
+| `host/auth/accountHost.ts`                                             | Governed: Existing short-lived account path already uses `spawnResourceMuseConnection`.                                                                       |
+| `core/backends/modelapi/mcp/pool.ts`                                   | Governed: Delegates ordinary stdio to the host builder and credentialed stdio to the vault port.                                                              |
+| `host/backend/mcpServers.ts` and `mcpProcess.ts`                       | Governed: Existing MCP admission/job/group boundary; new broker builder joins it.                                                                             |
+| `host/backend/mcpVault.ts`                                             | Governed: Repaired production vault stdio builder; authorization, scrub, expiry and revocation retained.                                                      |
+| `core/media/convert.ts`, probe and encoder                             | Governed: Repaired: `spawnResourceProcess`; native payload PID is queried for RSS rather than sampling the launcher.                                          |
+| `core/media/record/macos.ts`, two injected spawn calls                 | Honestly unavailable: M105 W leaves all installed recording drivers unbound; Help now says direct recording is unavailable.                                   |
+| `core/reporting/history.ts`, identity probe                            | Governed: Repaired: bounded `execResourceFile`, resource admission and contained helper.                                                                      |
+| `core/reporting/sources/github.ts`, gh reads                           | Governed: Repaired: same bounded command adapter; credential-stripped environment retained.                                                                   |
+| `core/schedules/events/git.ts`, three Git reads                        | Governed: Repaired: same adapter; trust and stable-read checks retained.                                                                                      |
+| `runtime/reporting/sources.ts`, Git reads                              | Governed: Repaired: same adapter; nonzero results and bounds retained.                                                                                        |
+| `runtime/schedules/nodeBackgroundIo.ts`, OS commands                   | Governed: Repaired: same adapter; credential stripping and fixed program resolution retained.                                                                 |
+| `runtime/schedules/nodeBackgroundIo.ts`, maintenance child             | Governed: Repaired: resource process boundary, group containment, detached lifecycle retained. Native Darwin maintenance qualification is still owed.         |
+| `core/vault/broker/peer.ts`, Unix peer helper                          | Governed: Repaired: resource process boundary with the exact inherited socket descriptor.                                                                     |
+| `runtime/vault/slots/macVaultTransport.ts`                             | Governed: Repaired: resource process boundary; private binary pipes and empty payload environment retained.                                                   |
+| `runtime/vault/slots/windowsVaultTransport.ts`                         | Governed: Repaired: job-backed guard process; readiness/digest checks still precede private input.                                                            |
+| `host/vault/vaultExecSpawn.ts`                                         | Honestly unavailable: M109 W has no broker-backed service or installed feeder; commands refuse closed and Help names the absent broker.                       |
+| `core/orchestration/playbook/modules.ts`, rename Git reads             | Governed: Repaired: ordinary hook admission and required contained runner on Windows; POSIX tree supervisor otherwise.                                        |
+| `core/orchestration/playbook/outcomes.ts`                              | Governed: Existing contained hook/Git runner; its child-process imports are types.                                                                            |
+| `host/team/acpProcess.ts`                                              | Governed: Existing `TeamChildLauncher` admission and contained transport.                                                                                     |
+| `host/backend/toolIo.ts`                                               | Governed: Existing governed shell/resource command adapter; the original raw spawn is behind that boundary.                                                   |
+| `host/processTree.ts`, native probes and POSIX supervisor              | Governed: Existing native containment/probe infrastructure, including the supervisor's payload spawn.                                                         |
+| `core/resources/bootstrap.ts`, compiler and emergency tree termination | Bootstrap tier: heavy admission, shared bounded launch and fixed credential-free OS tree termination; retirement remains available while admission is paused. |
+| `host/backend/jobBuild.ts`                                             | Bootstrap tier: shared runBootstrap, heavy admission, bounded output/deadline, OS whole-tree termination and observed exit.                                   |
+| `host/vault/slots/windowsVaultBuild.ts`                                | Bootstrap tier: the public-source guard and job compiler both use the same admitted bootstrap runner.                                                         |
+| `runtime/main.ts`, browser opener and login terminal                   | Governed: runtime login and Linux browser handlers use spawnResourceProcess; Windows/macOS OS openers use bounded execResourceFile.                           |
 
 **Historical SPAWN017 status before the follow-up:** the bootstrap entries and
 the runtime's then-unbound global resource
@@ -395,7 +396,7 @@ is asserted by its distinct internal code before the injected deadline,
 so a later timeout cannot masquerade as an output-cap failure.
 
 Final history replay on source commit `5128960ad`: 30/30 idle and 30/30
-loaded complete-file runs exited 0, 35 assertions each (2,100 total).
+loaded complete-file runs exited 0, 35 tests each (2,100 test executions).
 Loaded mode kept three owned CPU workers busy for the full sequence; they
 were retired in finally. No other test/typecheck/lint/build ran concurrently.
 Maximum complete-file elapsed time was 13,083 ms idle and 10,174 ms loaded.
@@ -410,3 +411,70 @@ retaining the real public guard/compiler and all existing native assertions.
 The native vault/account/bootstrap repeat passed 59 tests at repository
 timeouts, exit 0. Queue/containment and pause have separate production-boundary
 tests; this fixture transport is not a claim of an installed vault broker.
+
+Final item map (source and test lines are at qualified commit `19e889372`):
+
+| Item                    | Code                                                                                                                                                 | Regression and result                                                                                                                                                                                                                                   |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 Bootstrap tier        | `src/core/resources/bootstrap.ts:15`, `src/host/backend/jobBuild.ts:43`, `src/host/vault/slots/windowsVaultBuild.ts:34`                              | `spawnBootstrap.test.ts`: six cases pass; native root/child deadline and cancellation, output bound, compiler admission and both vault guard preparation attempts.                                                                                      |
+| 2 Runtime admission     | `src/runtime/resources/load.ts:95`, `src/runtime/main.ts:1584`                                                                                       | `spawnRuntimeAdmission.test.ts`: real queue and zero spawn at pause pass. `scheduleEvents.local.test.ts:81`: 11 pass, one retained real-Git failure, `Unavailable: gitRefs`; native created-file publication remains blocked after two repair attempts. |
+| 3 Unavailable builders  | `src/extension.ts:2074` and `:3363`, `src/host/media/previewPanel.ts:129`, `src/shared/featureCatalog.ts:29`, `src/shared/l10n/en.ts:425` and `:483` | `recordingPreview.test.ts`, `vault/vaultPanelBundle.test.ts`: 23 pass. `spawnBoundaries.test.ts:28` checks honest Help. PLAN M105 W final status, M105-R1-integration, M109 W service handoff; neither builder is installed.                            |
+| 4 History race          | `src/core/reporting/history.ts:464` and `:116`                                                                                                       | `reportHistory.test.ts:554` retains displaced-creator assertions; birth selector at `:189`. Thirty idle plus thirty loaded whole-file runs pass, 35 tests each. No added sleep/retry/deadline.                                                          |
+| 5 Runtime openers/login | `src/runtime/main.ts:639`, `:652`, `:1341`                                                                                                           | `spawnBoundaries.test.ts:21` guards the adapter/import boundary; `acpRuntime.test.ts` retains synchronous/async login lifecycle assertions. The complete login/runtime/host batch passes 73 tests. No OS-handoff exemption.                             |
+
+Fresh local clone at `19e889372`, `CI=true`, ordinary npm ci exit 0;
+901 packages, existing audit reports 2 low and 9 high findings. No dependency
+changed. Each gate below ran serially on win11. Complete test files use the
+repository's own timeout settings; no CLI timeout override or test filter.
+
+| Gate                                 | Exit | Receipt                                                                                                                   |
+| ------------------------------------ | ---- | ------------------------------------------------------------------------------------------------------------------------- |
+| typecheck:host                       | 0    | 46,597 ms                                                                                                                 |
+| typecheck:webview                    | 0    | 18,251 ms                                                                                                                 |
+| typecheck:unit                       | 0    | 103,787 ms                                                                                                                |
+| typecheck:e2e                        | 0    | 38,038 ms                                                                                                                 |
+| typecheck:integration                | 0    | 12,989 ms                                                                                                                 |
+| Changed-file ESLint --max-warnings=0 | 0    | 25 TypeScript files                                                                                                       |
+| Changed-file Prettier                | 0    | 47 files; final documentation additions checked separately                                                                |
+| Plain knip                           | 0    | Two existing configuration hints                                                                                          |
+| Full jscpd                           | 1    | Four inherited clones; baseline b6e717f74 also exits 1 with the same four pairs. The six files have no diff against base. |
+| check:l10n                           | 0    | 14 UI/14 usage tables, 0 problems                                                                                         |
+| check:host-api                       | 0    | 378 APIs, 49 vscode files, 30 Node built-ins, 71 theme variables; 0 problems                                              |
+| check:reference                      | 0    | 77 features, 69 commands, 100 settings, 29 slash commands, 257 CLI rows; current                                          |
+| Production build                     | 1    | Existing candidate caps listed below; none changed                                                                        |
+| Bootstrap/runtime/boundaries         | 0    | 16 tests, three files                                                                                                     |
+| Login/runtime/resource host          | 0    | 73 tests, three files                                                                                                     |
+| Unavailable recorder/vault           | 0    | 23 tests, two files                                                                                                       |
+| Native vault/account                 | 0    | 53 tests, two files                                                                                                       |
+| Real-Git schedule events             | 1    | 11 pass / one retained failure                                                                                            |
+
+Fresh tests total 176 passed / one failed. The passing history replays are
+additional. Nine deliberate red drills all exit 1 with byte-exact source
+restoration; the earlier attached-child control's exit 0 is excluded and
+documented above. Structured timings and exit codes are in
+`int0170-spawn2-receipts.json`.
+
+Measured budgets: extension 582.6/600 KiB, resourceGovernor 112.9/125 KiB,
+scheduleBackground 49.0/50 KiB and checkpointStore 83.3/225 KiB. Build fails
+on reporting 255.3/175, reportingNetwork 167.6/75, runtimeQuestions 25.5/25,
+conversation 255.0/250, runtimeEngine 895.6/875, usagePanel 83.3/75,
+headless 100.7/100, runtimeAccounts 341.2/300, webview surface English
+26.9/25, Palette 25.7/25 and estimator panel just above 25/25 KiB.
+No cap is raised. Size failure stops the chained build before split/global
+and notices checks; this record does not claim those later checks ran.
+
+Implementation/test commits: `e50ef9f49`, `5128960ad`, `19e889372`.
+Their installed lint-staged and gitleaks hooks exited 0; staged and committed
+differences were re-read after each hook. Aggregate quality remains lead-owned.
+The native schedule publication defect, existing duplication and candidate
+caps remain release blockers. This lane does not certify a complete runtime
+release. Final documentation formatting is checked separately and committed
+through the same installed hooks; the final report names that receipt commit.
+
+Cleanup: the verified scratch root is a plain directory, not a link, at
+`C:/Users/Randy/AppData/Local/Temp/l-SPAWN017B`. Automatic approval review
+rejected both checked-path and literal-path recursive PowerShell removals
+before execution, with the reason "blocked by policy" and no more specific
+explanation. The baseline/qualification clones, one owned runtime fixture
+directory and raw scratch logs remain there. No alternate-shell bypass was
+attempted. Structured receipts above were preserved in git before cleanup.

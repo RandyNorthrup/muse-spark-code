@@ -19,6 +19,11 @@ cause, retain every assertion and deadline, and run thirty idle and loaded
 replays. Baseline regressions, red drills, fresh-clone scoped gates and the
 completed spawn inventory belong in int0170-combined.md. Full quality remains
 with the lead under the shared lane rules; no cap or hook changes are allowed.
+Direct recording remains unavailable while M105 W's production recorder
+driver handoff is unbound (also M105-R1-integration in section 7). The M109 W
+certification leaves the broker-backed service absent, so its panel commands
+and exec feeder remain unavailable. Help must state those candidate limits;
+this follow-up installs neither builder.
 
 **SPAWN017 release repair (2026-10-08, win11).** Close the combined
 0.17.0 candidate's spawn governance gaps under M107/D87. Account-scoped MSP
@@ -36812,6 +36817,12 @@ registry to machine storage did not restore it. The shared two-failed-fixes
 rule stops further repair of this path; no assertion or deadline is changed.
 This is a release blocker, not a governance exemption. Exact qualification
 and the remaining native publication work are in int0170-combined.md.
+Fresh-clone full jscpd also exits 1 on four inherited clones. The same four
+clones reproduce on b6e717f74 and their six files are unchanged by this lane.
+The lead owns their joined-tree repair; the zero-clone threshold and all
+ignores remain unchanged. All five typechecks, changed-file lint/format,
+plain knip, localization, reference and host API pass. Existing candidate
+bundle caps remain enforced and failing; the resource bundle fits its cap.
 
 **SPAWN017 (2026-10-08):** the lane brief delegates aggregate quality to
 the lead and requires fresh-clone scoped delivery gates. Existing combined
