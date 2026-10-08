@@ -40,8 +40,8 @@ body {
 }
 
 .reporting-page :focus-visible {
-  outline: 2px solid var(--vscode-focusBorder);
-  outline-offset: 2px;
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
 }
 
 .reporting-page button:disabled,

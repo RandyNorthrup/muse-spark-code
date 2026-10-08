@@ -229,6 +229,20 @@ describe('D94 one token source', () => {
     }
   })
 
+  it('draws F2 focus rings and boundaries from M114 tokens, not direct host colours', () => {
+    const reporting = readFileSync('src/webview/reporting/styles.css', 'utf8')
+    expect(reporting).toMatch(
+      /\.reporting-page :focus-visible\s*\{[^}]*var\(--ms-focus-width\)[^}]*var\(--ms-text\)[^}]*var\(--ms-focus-offset\)[^}]*\}/s,
+    )
+    expect(reporting).not.toMatch(/:focus-visible\s*\{[^}]*var\(--vscode-focusBorder\)/s)
+    const models = readFileSync('src/webview/models/models.css', 'utf8')
+    expect(models).toMatch(/\.models-button\s*\{[^}]*border: 1px solid var\(--ms-border\)[^}]*\}/s)
+    const accounts = readFileSync('src/webview/models/sections/accounts/accounts.css', 'utf8')
+    expect(accounts).toMatch(
+      /\.account-picker\s*\{[^}]*border: 1px solid var\(--ms-border\)[^}]*\}/s,
+    )
+  })
+
   it('loads generated variables through both surface stylesheets without runtime JavaScript', async () => {
     for (const file of ['src/webview/styles.css', 'src/webview/whatsNew/whatsNew.css']) {
       expect(readFileSync(file, 'utf8')).toMatch(/@import url\(['"](?:\.\.\/)?tokens\.css['"]\);/)
