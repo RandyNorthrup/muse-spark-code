@@ -55,6 +55,12 @@ function canTakeVideo(model: AudioModelCapabilities, mime: string): boolean {
   return model.video === 'yes' && model.videoFormats.includes(mime)
 }
 
+/** U18 T9 converted the mp3 locally to 16 kHz mono WAV and the batch
+ * accepted it, so convertible audio is offered transcription wherever a
+ * converter can extract WAV, exactly like a video soundtrack. Formats
+ * without a conversion capture stay unoffered. */
+const CONVERTIBLE_AUDIO_MEDIA_TYPE = 'audio/mpeg'
+
 /** No vendor-wide defaults: unknown support never authorizes a native send. */
 export function audioRouteOptions(
   info: SoundMedia,
@@ -97,9 +103,9 @@ export function audioRouteOptions(
   if (
     context.isVoiceOn &&
     (context.batchFormats.includes(info.mediaType) ||
-      (info.kind === 'video' &&
-        context.canExtractWav &&
-        context.batchFormats.includes('audio/wav')))
+      (context.canExtractWav &&
+        context.batchFormats.includes('audio/wav') &&
+        (info.kind === 'video' || info.mediaType === CONVERTIBLE_AUDIO_MEDIA_TYPE)))
   ) {
     actions.push('transcribe')
   }

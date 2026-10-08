@@ -22,6 +22,7 @@ import {
   MEDIA_PROC_RSS_PATTERN,
   MEDIA_PROC_EXITED_PATTERN,
   MEDIA_PROC_RSS_UNIT_BYTES,
+  MUSE_VOICE_SAMPLE_RATE,
   SHELL_MAX_TIMEOUT_MS,
   UI_TEXT,
 } from '../../shared/constants'
@@ -69,7 +70,7 @@ interface VersionProbeOptions {
   readonly signal?: AbortSignal
 }
 
-interface ConverterVerification {
+export interface ConverterVerification {
   readonly trustedPath?: TrustedPathVerifier
   /** Raw bounded version stdout; an unrecognised banner is refused. */
   readonly probeVersion?: (
@@ -242,6 +243,17 @@ export type MediaConversionResult =
       readonly ok: true
       readonly path: string
       readonly info: Extract<MediaFileInfo, { kind: 'video' }>
+      readonly dispose: () => Promise<void>
+    }
+  | { readonly ok: false; readonly reason: string }
+
+/** `convertToWav16kMono` returns audio, never video: a separate result keeps
+ * the video-only `MediaConversionResult` honest. */
+export type WavConversionResult =
+  | {
+      readonly ok: true
+      readonly path: string
+      readonly info: Extract<MediaFileInfo, { kind: 'audio' }>
       readonly dispose: () => Promise<void>
     }
   | { readonly ok: false; readonly reason: string }
@@ -469,6 +481,122 @@ export async function convertToMp4(
     await chmod(output, OWNER_FILE_MODE)
     const result = await sniffFile(output, stat.size)
     if (!result.ok || result.info.kind !== 'video' || result.info.mediaType !== 'video/mp4')
+      return failed()
+    const admitted = checkMediaLimits(result.info, options.limits)
+    if (!admitted.ok) return { ok: false, reason: admitted.reason }
+    if (isAborted(options.signal)) return failed()
+    const ownedDirectory = directory
+    const dispose = () => rm(ownedDirectory, { recursive: true, force: true })
+    directory = undefined
+    return { ok: true, path: output, info: result.info, dispose }
+  } catch {
+    return failed()
+  } finally {
+    if (directory !== undefined) await rm(directory, { recursive: true, force: true })
+  }
+}
+
+/**
+ * Sound extraction for batch transcription (U18, D85.5): the batch endpoint
+ * refuses mp4, mov and mp3 sent as they are, and accepts 16 kHz mono WAV
+ * (`MUSE_VOICE_AUDIO_ENCODING`), so the product converts before it sends.
+ * ffmpeg renders exactly that (`-vn -ac 1 -ar 16000 -c:a pcm_s16le`, the
+ * lead's round-3 command); avconvert cannot express it through its preset
+ * interface, so only ffmpeg converts here. Owner-only output, verified by
+ * bytes before returning; dispose after upload/discard.
+ */
+export async function convertToWav16kMono(
+  inputPath: string,
+  converter: MediaConverter,
+  options: MediaConversionOptions = {},
+): Promise<WavConversionResult> {
+  const timeoutMs = options.timeoutMs ?? SHELL_MAX_TIMEOUT_MS
+  const maxOutputBytes = options.limits?.maxUploadBytes ?? MEDIA_CONVERSION_DEFAULT_OUTPUT_BYTES
+  const failed = () =>
+    ({
+      ok: false,
+      reason: fill(UI_TEXT.media.conversionFailed, { reason: converter.kind }),
+    }) as const
+  if (
+    !path.isAbsolute(inputPath) ||
+    !path.isAbsolute(converter.command) ||
+    converter.kind !== 'ffmpeg' ||
+    !Number.isSafeInteger(maxOutputBytes) ||
+    maxOutputBytes <= 0 ||
+    maxOutputBytes > MEDIA_MAX_UPLOAD_MIB * BYTES_PER_MIB ||
+    !Number.isSafeInteger(timeoutMs) ||
+    timeoutMs <= 0 ||
+    timeoutMs > SHELL_MAX_TIMEOUT_MS ||
+    options.signal?.aborted === true
+  )
+    return failed()
+  if (process.platform === 'win32' && options.createPrivateDirectory === undefined)
+    return { ok: false, reason: fill(UI_TEXT.media.conversionFailed, { reason: 'permissions' }) }
+  let directory: string | undefined
+  try {
+    const input = await lstat(inputPath)
+    if (!input.isFile()) return failed()
+    const source = await sniffFile(inputPath, input.size)
+    if (!source.ok || !(await hasKnownVersion(converter, options, options.signal))) return failed()
+    const readRssBytes =
+      options.readRssBytes ?? (process.platform === 'linux' ? readLinuxRssBytes : undefined)
+    if (readRssBytes === undefined) return failed()
+    if (options.readRssBytes === undefined) await readLinuxRssBytes(process.pid)
+    const privateDirectory =
+      options.createPrivateDirectory === undefined
+        ? await mkdtemp(path.join(tmpdir(), 'muse-media-'))
+        : await options.createPrivateDirectory()
+    if (!path.isAbsolute(privateDirectory)) throw new Error('Invalid private directory')
+    directory = privateDirectory
+    await chmod(directory, OWNER_DIRECTORY_MODE)
+    const output = path.join(directory, 'extracted.wav')
+    const reserved = await open(output, 'wx', OWNER_FILE_MODE)
+    await reserved.close()
+    // Recheck immediately before encoding: discovery/probing does not grant trust.
+    if (!(await isTrusted(converter, options)) || isAborted(options.signal)) return failed()
+    const env = converterEnvironment()
+    await (options.run ?? runConverter)(
+      converter.command,
+      [
+        '-nostdin',
+        '-max_alloc',
+        String(MEDIA_CONVERSION_MAX_RSS_BYTES),
+        '-hide_banner',
+        '-loglevel',
+        'error',
+        '-y',
+        '-protocol_whitelist',
+        'file',
+        '-i',
+        inputPath,
+        '-vn',
+        '-ac',
+        '1',
+        '-ar',
+        String(MUSE_VOICE_SAMPLE_RATE),
+        '-c:a',
+        'pcm_s16le',
+        '-f',
+        'wav',
+        output,
+      ],
+      {
+        cwd: directory,
+        env,
+        timeoutMs,
+        outputPath: output,
+        maxOutputBytes,
+        maxRssBytes: MEDIA_CONVERSION_MAX_RSS_BYTES,
+        readRssBytes,
+        ...(options.signal !== undefined && { signal: options.signal }),
+      },
+    )
+    if (isAborted(options.signal)) return failed()
+    const stat = await lstat(output)
+    if (!stat.isFile()) return failed()
+    await chmod(output, OWNER_FILE_MODE)
+    const result = await sniffFile(output, stat.size)
+    if (!result.ok || result.info.kind !== 'audio' || result.info.mediaType !== 'audio/wav')
       return failed()
     const admitted = checkMediaLimits(result.info, options.limits)
     if (!admitted.ok) return { ok: false, reason: admitted.reason }

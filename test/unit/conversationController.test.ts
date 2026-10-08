@@ -2083,6 +2083,17 @@ describe('ConversationController: context', () => {
     },
   )
 
+  it('refuses clip.mp4 on the Muse Code backend with the honest reason, never a chip (U16)', async () => {
+    const t = setup()
+    t.setPicked([{ name: 'clip.mp4', fsPath: '/ws/clip.mp4', relativePath: 'clip.mp4' }])
+    await t.controller.handle({ type: 'pickFile' })
+    // U16: Muse Code 1.4.2 sends `@clip.mp4` as text only, so the product
+    // takes the refusal path before any port, chip or model call.
+    expect(t.surface.posted).toEqual([
+      { type: 'attachmentRejected', name: 'clip.mp4', reason: UI_TEXT.media.museCodeRefusal },
+    ])
+  })
+
   it('preserves the .pdf filename cap and invalid-PDF refusal for non-PDF bytes', async () => {
     const t = setup()
     const { controller } = modelApiController(t)
