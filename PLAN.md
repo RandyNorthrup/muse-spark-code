@@ -28745,20 +28745,24 @@ Total: about 100 lane-hours.
 
 ### M116 — The orchestrator playbook (D96)
 
-**Round-four delivery repair (FIXM116I4, 2026-10-07, implemented; CI certification in progress).**
+**Round-four delivery repair (FIXM116I4, 2026-10-07, implemented and certified locally).**
 Commit an ACP queued-answer lease only when its carrying turn reaches the
 model. A `queued` submission keeps ownership bound to its turn id until
-`turnStarted`; withdrawal, Stop, release, host exit and failed/refused sends
-release without a durable write or sent announcement. Model API's early
-`started` ack precedes submit hooks, so use its existing `messageAdmitted`
-event, emitted for the initial user message at the client's request-start
-boundary, to confirm dispatch after hooks and request admission. Keep the
-active prompt busy if commit persistence fails. Certify real-registry,
-durable-file regressions against `64f0e8ed7`, then fresh-clone CI checks
-three times with default timeouts and unchanged gates/budgets. Existing
-planner/editor handoffs remain the next implementation slice.
-The crash test's child is an explicit Knip entry because its esbuild path
-is executable test input, which Knip cannot trace; no ignore or rule changes.
+`turnStarted`; withdrawal, unqueue, Stop, release, host exit and failed/refused
+sends release without a durable write or sent announcement. Model API's
+ack precedes submit hooks, so its existing `messageAdmitted` event confirms
+actual request dispatch after hooks and final admission. Commit failure
+keeps the durable prefix and a still-active prompt busy. Real-registry and
+file-backed regressions, including actual process kill/reload, fail on
+`64f0e8ed7`; three named guard drills fire and restore byte-exact. Fresh-clone
+CI verification passes the final owning groups three times (2,532 test
+executions), all five typechecks and required static/build gates, with no
+raised timeout or cap. Register the path-built crash child as an executable
+Knip entry and share repeated test setup; neither gate is weakened.
+Evidence: `docs/certification/m116.md`, round 4. Ready for lead review and
+integration. Next implementation slice remains M96 planner/panel installation,
+then installed-editor/accessibility checks and the existing
+M107/M110/M115w/M113/headless bindings.
 
 **Round-three redesign (FIXM116I3, 2026-10-07).** Replace the destructive
 ACP queued-answer read with an exclusive, non-destructive token lease.
