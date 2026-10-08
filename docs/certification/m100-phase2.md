@@ -1799,3 +1799,547 @@ neighbours `deviceReceiver` 49, `channel` 24.
 Not run here: the full `npm run quality` on the joined tree (lane R's wiring
 contract asks for it) and the lanes' requests to the lead and lane W, which
 stay open for the lead.
+
+## Lane V — verified inputs and capability advertisement
+
+2026-10-07, win11 rig, `C:/lanes/M100P2V`, branch `m100/p2-v`, base
+`81f070674`. Codex completed the inherited, uncommitted implementation
+after the Muse shell failure; no ACL, permission or sandbox setting changed.
+Model attempts **0**, inference spend **0**; all tests use injected fakes,
+with no listener or real second device. Exclusive files only: new
+`src/core/devices/inputManifest.ts`, `src/core/devices/capability.ts`, their
+two owning test files, and this lane's certification section. Shared schemas,
+caps, strings and gate settings are unchanged. README, CHANGELOG, feature
+reference and shipped wiring remain lane W's assigned regions.
+
+### Acceptance mapping
+
+| Requirement                                                               | Implementation and owning tests                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Result / red drills                                                                                                                                                         |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Content-addressed inputs plus base objects, verified before start (G1/G2) | `inputManifest.ts:58` strict versioned manifest, bounded items/paths/bytes, matched 40/64-hex Git objects; `:88` Windows path normalization; `:108` fixed-order digest; `:145` dispatch/manifest parse and attempt/base/tree/digest binding, both base-object checks, every file's digest and byte size. `deviceInputManifest.test.ts`: complete copy, missing plan, missing commit/tree, mismatched content/size, each dispatch binding, invalid shapes, caps, duplicate normalized paths, Windows end to end. | Done in lane V's verifier; caller must await it before admission/start (lane W). V1–V9.                                                                                     |
+| Measured capability advertisement under lane 0's schema and cap           | `capability.ts:23` stamps measured fields and parses; `:38` wire parse and future-clock bound; `:54` offer binds device/incarnation/platform/workers. `deviceCapability.test.ts`: measured build/admit, field-invalid and oversize refusal, multibyte UTF-8 cap, skew edge, all offer refusals.                                                                                                                                                                                                                 | Done for the fields in the accepted contract; no truncation. V10–V16. Hardware inventory beyond presence flags needs the contract clarification below.                      |
+| Live pressure and transport failure signals for M107 (G12)                | `capability.ts:93` passes aggregate CPU/memory/disk pressure, power and measured slot cap; reports reset delta plus elapsed milliseconds (rate division belongs to M107). Missing/nonadvancing samples or counter restarts return nulls; invalid previous measurements refuse. Owning tests: shapes pressure and transport signals; counter restarts/reversed time; invalid clocks/samples.                                                                                                                     | Done for accepted aggregate fields, V17–V19. Separate OS-service pressure is blocked on lane 0's absent field; actual sampling and governor consumption belong to H/W/M107. |
+
+Completion review fixed unchecked input byte sizes, duplicate normalized
+paths, missing offer device-id binding, invalid sampling clocks and negative
+transport deltas after counter restarts. Assertions were added or strengthened;
+none was weakened or skipped. The attempt-binding test uses a correctly
+rehashed manifest for a different attempt, so it independently proves the
+identity guard. The duplication finding in the oversize fixture was removed
+within the owning tests.
+
+### Test-fire proofs
+
+Each mutation ran only its owning test file, using the repository default
+timeout and `--maxWorkers=3` (no `--testTimeout`). Every row exited **1**
+with the listed assertion-failure count, then restored the source from its
+original in-memory bytes and checked the SHA-256 before/after.
+
+`M` = `src/core/devices/inputManifest.ts`, owning file
+`test/unit/deviceInputManifest.test.ts`; `C` = `src/core/devices/capability.ts`,
+owning file `test/unit/deviceCapability.test.ts`.
+
+| Drill | File / intentional break                   | Owning test selector                                        | Failures |
+| ----- | ------------------------------------------ | ----------------------------------------------------------- | -------- |
+| V1    | M: disable missing/digest/size refusal     | refuses a plan file; refuses mismatched content             | 2        |
+| V2    | M: disable both base-object checks         | refuses a base commit                                       | 1        |
+| V3    | M: remove digest binding                   | refuses a manifest the dispatch                             | 1        |
+| V4    | M: remove attempt identity binding         | refuses a manifest the dispatch                             | 1        |
+| V5    | M: remove base binding                     | refuses a manifest the dispatch                             | 1        |
+| V6    | M: remove tree binding                     | refuses a manifest the dispatch                             | 1        |
+| V7    | M: ignore declared byte size               | refuses a worker input with                                 | 1        |
+| V8    | M: allow duplicate paths                   | refuses duplicate paths                                     | 1        |
+| V9    | M: disable relative-path validation        | refuses unsafe paths                                        | 1        |
+| V10   | C: build without schema parsing            | refuses a measurement that serializes; applies the byte cap | 2        |
+| V11   | C: admit wire input without schema parsing | refuses future-dated; applies the byte cap                  | 2        |
+| V12   | C: remove future-skew check                | refuses future-dated                                        | 1        |
+| V13   | C: remove offer device binding             | binds offers                                                | 1        |
+| V14   | C: remove incarnation binding              | binds offers                                                | 1        |
+| V15   | C: remove platform binding                 | binds offers                                                | 1        |
+| V16   | C: remove measured slot cap                | binds offers                                                | 1        |
+| V17   | C: emit zero CPU pressure                  | shapes pressure and transport                               | 1        |
+| V18   | C: emit zero transport delta               | shapes pressure and transport                               | 1        |
+| V19   | C: remove counter-restart guard            | does not invent a transport rate                            | 1        |
+
+Byte-exact restored SHA-256 (the same hash on every drill of that file):
+
+- M: `a8d7dc21e9bde74619feea1188ab0528b076aa4c4b3b8f80c38adb805d1d2ca5`.
+- C: `b11f7f076e93ad1ef1ace8de9484be650211283bab46063318986d9dffb19a85`.
+
+Restored owning run: `npx.cmd vitest run test/unit/deviceInputManifest.test.ts
+test/unit/deviceCapability.test.ts --maxWorkers=3`, **25 passed** (15 manifest,
+10 capability), exit **0**, repository-default timeouts.
+
+### Worktree verification
+
+| Gate                                                          | Exit / receipt                                                                                 |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Five typecheck projects (`npm.cmd run typecheck`)             | 0; host, webview, unit, e2e, integration                                                       |
+| Changed TypeScript ESLint (`npx.cmd eslint --max-warnings=0`) | 0                                                                                              |
+| Changed-file Prettier                                         | 0                                                                                              |
+| Plain `npx.cmd knip`                                          | 0; two pre-existing configuration hints                                                        |
+| `npm.cmd run duplication` (jscpd)                             | 0; zero clones                                                                                 |
+| `node scripts/check-l10n.mjs`                                 | 0; 14 tables, zero problems                                                                    |
+| `npm.cmd run check:reference`                                 | 0; 53 features, Devices 18 entries, current                                                    |
+| `npm.cmd run check:host-api`                                  | 1; generated Node reader count: `node:crypto` 55 → 56; regeneration is lane W's exclusive file |
+| `npm.cmd run build`                                           | 0; unchanged caps, split/host-globals/notices clean; `dist/devices.js` 80.6/100 KiB            |
+
+The production build still contains the phase-1 Devices implementation:
+passing it proves existing bundle gates, not shipped phase-2 wiring. The
+joined-tree full `npm run quality`, coverage/integration/a11y and installed
+four-device qualification are explicitly lane W's acceptance, not a receipt
+claimed by this lane.
+
+### Fresh-clone CI verification
+
+Verified implementation commit `d89b9c69219d8b7260b9db8f4481f0a61cc446be`
+in `C:/lanes/_verify/M100P2V-20261007-2150`, cloned directly from the committed
+worktree with `git clone --no-hardlinks --branch m100/p2-v`. Every command
+ran with `CI=true`; `npm.cmd ci` exited **0** (898 installed packages).
+Its install audit reported 12 issues (2 low, 10 high) in the unchanged lockfile;
+this lane adds or changes no dependency and makes no full security-gate claim.
+
+- Owning test command above ran **three times**, repository-default timeouts:
+  **25 passed / 25 passed / 25 passed**, each exit **0** (15 manifest,
+  10 capability); durations 2.16 s, 1.85 s and 1.83 s.
+- Every gate in the worktree table was repeated in this fresh clone with
+  the same exit code: host/webview/unit/e2e/integration typechecks **0**,
+  changed-file ESLint **0**, changed-file Prettier **0**, plain knip **0**,
+  duplication **0**, localization **0**, reference **0**, production build
+  **0**. Host API **1** with only the same `node:crypto` count 55 → 56
+  request; its assigned generated file was left unchanged.
+- Source SHA-256 matches both restored drill hashes above; the fresh clone
+  remains clean after all checks. The original worktree's implementation
+  commit used normal hooks: ESLint/Prettier and the staged gitleaks scan
+  passed, with no leaks and no bypass.
+
+### Requests to the lead
+
+- Lane W: await `verifyDispatchInputs` with a worker-local reader before
+  admission/start; transport the manifest/base objects first; wire capability
+  build/admit, offer admission and signals into the lazy Devices bundle and
+  M107. Sample baselines must belong to the same device/incarnation.
+- Lane W: regenerate the assigned host API record with
+  `npm.cmd run check:host-api -- --write`; the exact current diff is the
+  `node:crypto` reader count 55 → 56. Carry this change into the joined-tree
+  README/CHANGELOG/reference and full gate.
+- Contract question (lane 0): `deviceCapabilitySchema` has hardware-presence
+  booleans and aggregate CPU/memory/disk pressure, but no hardware inventory
+  or separate OS-service pressure. Clarify whether those satisfy the PLAN
+  bullet; otherwise add the versioned fields in the shared contract before
+  lane H measures and lane V/W admits/consumes them. This lane did not guess
+  or broaden a shared wire shape.
+- Optional contract consolidation: export the canonical `relativePath` and
+  `gitObject` schemas so the compact manifest mirrors can reuse them.
+
+### Review RVM100P2V round 1 (FIXM100P2V, 2026-10-07)
+
+Branch `m100/p2-v-fix`, base `d8960e6bfa38c6af37c79a03724f407bd6967dbc`,
+Windows 11 rig. Both review findings are fixed. The brief explicitly extends
+this correction to the shared path helpers; other lanes' regions and generated
+records remain their owners' work. No live model call, real-device pairing,
+new dependency, wire shape, user-facing string or widened gate is involved.
+
+| Finding                                         | Fix and regression evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2: manifest uniqueness misses Windows aliases  | `src/core/devices/inputManifest.ts:73` compares `windowsPathIdentity` for every item at schema admission, so build and worker verification refuse collisions with `invalid-frame` on **every platform**, before any base-object or input read. `test/unit/deviceInputManifest.test.ts:315` covers all five review pairs, mixed case, trailing dots/spaces on multiple segments, Windows separators and AUX/NUL/COM/LPT names; each pair asserts build, wire-schema and worker refusal with no reads.                                                                                                                                                                                                                                                                                      |
+| P2: trailing protected-name aliases             | The one shared implementation is `src/core/pathIdentity.ts:6` (trailing-name trimming) and `:11` (Windows normalization, separator and case identity). Workspace confinement, held-tree writable names and Windows folding, `isSamePath`/folder membership, and shared protected-name checks all use it. `src/core/protectedPaths.ts:33` treats `.git.`, mixed-case/backslash variants, aliased workflow directories and `AGENTS.md. ` as protected everywhere. It preserves every segment of unresolved approval paths. `test/unit/deviceInputManifest.test.ts:341` and `test/unit/pathIdentity.test.ts` cover protection, path comparisons and confinement; existing `heldTree.test.ts` and the workspace-path cases in `modelApiTools.test.ts` cover their unchanged rejection policy. |
+| P3: offer admission skips future-skew admission | `src/core/devices/capability.ts:53` accepts unknown boundary values and an explicit receiver clock, calls `admitCapability` once (schema, UTF-8 cap, clock/future skew), then parses and binds the offer. `test/unit/deviceCapability.test.ts:143` reproduces exactly `now=1700000000000`, `observedAt=1700000030001`, skew=30000; it refuses the future value and accepts the exact boundary. The next test proves malformed/oversized/multibyte advertisements and invalid clocks refuse before offer binding.                                                                                                                                                                                                                                                                          |
+
+**Path policy decision:** manifest uniqueness deliberately uses the Windows
+identity on Linux, macOS and Windows alike; it cannot change with the receiver's
+OS. Stored wire spellings and digest serialization remain unchanged. A segment
+that becomes a protected name after Windows drops trailing dots/spaces is
+protected on every platform. This does not make reserved device names ordinary
+files: the existing Windows workspace/held-tree refusal stays in force.
+
+**Native Windows evidence:** the default-timeout test at
+`deviceInputManifest.test.ts:345` creates an isolated temporary copy and opens
+both spellings of the case, trailing-dot, trailing-space, `.git.` and separator
+pairs using ordinary `CreateFileW`; `GetFinalPathNameByHandleW` reports the
+identical file for each pair. `test/unit/helpers/windowsFileIdentity.ps1` runs
+one hidden, noninteractive PowerShell process with process-only execution
+policy. Handles and temporary files are cleaned up. Node/libuv's extended-path
+opens retain trailing dots on this rig, so that API cannot prove the ordinary
+Win32 rule; this test exercises Win32 directly. Reserved devices are tested
+with pure comparisons and refusals, never opened.
+
+#### Base failure proof
+
+Fresh clone `C:/lanes/_verify/FIXM100P2V-base-20261008` at the exact base above;
+only the two updated regression test files and the native test helper were
+overlaid. `CI=true`, `npm.cmd ci` **0**, then
+`npx.cmd vitest run test/unit/deviceInputManifest.test.ts
+test/unit/deviceCapability.test.ts --maxWorkers=3`, repository-default
+timeouts, **1**: **18 failed, 26 passed** (manifest **16 failed/16 passed**;
+capability **2 failed/10 passed**). All 25 original tests and the native
+Win32 proof passed; the new assertions exposed the two review defects.
+
+#### Correction red drills
+
+Each drill used the direct Vitest CLI with `--maxWorkers=3`, the owning file
+and the named selector, repository-default timeouts. A selector leaves
+unselected tests pending; no assertion was weakened or disabled. Each mutation
+was restored from its saved bytes in `finally`, then the SHA-256 was checked.
+
+| Drill           | Intentional break / owning selector                                                                                    | Exit / failures | Restored SHA-256                                                   |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------ |
+| V-fix-identity  | `inputManifest.ts`: replace canonical uniqueness with raw path characters; `refuses Windows identity collisions`       | 1 / 12          | `1baee6a4f2f330bfbf22f1cc02aa3e4352b95373f3b589139f33d71e97575e4e` |
+| V-fix-protected | `protectedPaths.ts`: case fold only, without Windows name identity; `recognizes protected names`                       | 1 / 4           | `8e92b85758d6da2e1933e28d03425b5918cd545ffedbd4d02ec843ca2e94233c` |
+| V-fix-offer     | `capability.ts`: parse capability schema instead of calling admission; `review future-dated\|admits schema, UTF-8 cap` | 1 / 2           | `84d8d2a0f0e39c3b36c7b50d5da5c8c19f77be3ed56490be115761521b6107ec` |
+
+Restored worktree run: manifest/capability/held-tree **99 passed**, exit **0**.
+Shared identity/workspace-tools/held-tree run **104 passed**, exit **0**.
+All five worktree typecheck projects **0**. Implementation commit
+`ac0d4d6b66ec9d0e18383330c0fcf1f6df3444b6` used normal hooks: changed-file
+ESLint/Prettier and staged gitleaks **0**, no leaks. The staged/committed diff
+was re-read after the hook, and all three restored source hashes still match.
+
+#### Fresh-clone final verification
+
+Exact implementation commit above, cloned with `--no-hardlinks` into
+`C:/lanes/_verify/FIXM100P2V-ci-20261008`. Every command ran with `CI=true`;
+`npm.cmd ci` exited **0**, 898 installed packages. The unchanged lockfile's
+install audit reports 12 issues (2 low, 10 high); no dependency changed and
+this correction makes no full security-gate claim.
+
+The owning suites ran **three times**, at most three files per invocation,
+`--maxWorkers=3`, with repository-default timeouts and no `--testTimeout`:
+
+- `npx.cmd vitest run test/unit/deviceInputManifest.test.ts
+test/unit/deviceCapability.test.ts test/unit/heldTree.test.ts --maxWorkers=3`:
+  **99 / 99 / 99 passed**, exits **0 / 0 / 0**; durations 3.43 s, 3.11 s,
+  3.08 s. Counts: manifest 32, capability 12, held tree 55. The native
+  Windows proof ran and passed each time.
+- `npx.cmd vitest run test/unit/pathIdentity.test.ts
+test/unit/modelApiTools.test.ts --maxWorkers=3`:
+  **49 / 49 / 49 passed**, exits **0 / 0 / 0**; durations 3.67 s, 2.60 s,
+  2.67 s. Counts: shared identity 8, workspace-path/tool cases 41.
+- Total: **148 tests per round, 444 passing executions**, no skipped test
+  in any of these final Windows runs.
+
+| Fresh-clone gate                                        | Exit / receipt                                                                                                                                  |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Five typecheck projects (`npm.cmd run typecheck`)       | 0; host, webview, unit, e2e and integration                                                                                                     |
+| Changed TypeScript ESLint, `--max-warnings=0`           | 0                                                                                                                                               |
+| Changed-file Prettier (TypeScript and certification)    | 0                                                                                                                                               |
+| Native test helper, PSScriptAnalyzer 1.25.0 / PSGallery | 0; zero findings                                                                                                                                |
+| Plain `npx.cmd knip`                                    | 0; the same two pre-existing configuration hints                                                                                                |
+| `npm.cmd run duplication`                               | 0; jscpd, zero clones                                                                                                                           |
+| `npm.cmd run check:l10n`                                | 0; 14 tables, 169 manifest strings, 657 source files, zero problems                                                                             |
+| `npm.cmd run check:reference`                           | 0; 53 features, 18 Devices entries, current                                                                                                     |
+| `npm.cmd run check:host-api`                            | 1; only generated reader counts: `node:crypto` 55 → 56 (base lane V) and `node:path` 89 → 90 (shared helper); lane W owns regeneration          |
+| `npm.cmd run build`                                     | 0; all unchanged size/split/host-globals/notices gates pass; Devices 80.6/100 KiB, webview startup 738.0/900 KiB, original deferred 32.1/50 KiB |
+
+All three source SHA-256 values match the drill restores and committed worktree;
+the fresh clone remains clean after verification. Phase-2 manifest/capability
+wiring and the joined-tree full `npm run quality` remain lane W's acceptance,
+as in the original lane V record; no full-quality result is claimed here.
+
+Integration requests remain with lane W: call `admitOfferCapability` with the
+receiver's current clock (a separate admission call is no longer needed),
+regenerate its host API record for the two count changes above, and carry these behavior corrections
+into its assigned Unreleased changelog and joined-tree full quality gate.
+
+### Lane V second review correction — Win32 is the identity oracle
+
+2026-10-08, win11 rig, `C:/lanes/FIXM100P2V2`, branch `m100/p2-v-fix2`,
+base `32c55827f`. Read the shared phase-2 rules and both reviews,
+`RVM100P2V.report.md` then `RVM100P2VB.report.md`. No merge, push, model
+request, paid use, listener or real second device. This corrects the first
+review's overbroad intermediate-name identity; the earlier certification's
+claim that every segment drops all trailing dots/spaces is superseded here.
+
+| Finding                                                 | Root correction and regression                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| P2: canonical POSIX backslashes became separators       | `src/core/protectedPaths.ts` receives the resolver's already-canonical relative path and splits only `/`. It never infers an OS from a backslash. Case and conservative protected-name refusals remain. `pathIdentity.test.ts` and `workspacePath.test.ts` cover Linux and macOS literal backslashes; the original `permissions.test.ts` Windows-versus-POSIX regression also passes. MSP's separate raw-subject entrypoint retains its documented conservative separator conversion.                                                                                                                                                                                                                                                                                                      |
+| P2: distinct intermediate Windows directories collapsed | `src/core/pathIdentity.ts` is the single lexical Windows identity: only one trailing intermediate period is removed; multiple periods and spaces remain; a terminal name loses trailing periods/spaces only without a final separator. Exact extended paths bypass normalization. `paths.ts` folds before `path.relative` can discard that separator. `pathIdentity.test.ts` corrects the wrong containment assertion and checks the native oracle. Manifest tests admit distinct `plans..` and `plans. ` directories while preserving all 12 true-collision refusals. `worktreeConversations.test.ts` refuses to transfer confirmed trust to either distinct directory; `fsAtomic.test.ts` refuses an approval bound to the other directory before rename, preserving the original bytes. |
+
+Workspace and held-tree writable-name refusals retain their prior conservative
+policy: they refuse trailing dots/spaces and device names before writing.
+`windowsName` documents that policy rather than claiming all intermediate
+Windows names normalize that way. Manifest uniqueness still applies the one
+Windows identity on every platform, with stored wire spelling and digests
+unchanged. No schema, cap, timeout, assertion or gate was relaxed.
+
+#### Native OS oracle
+
+Read Microsoft's [Windows path normalization](https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats#path-normalization),
+including the Windows 11 legacy-device note and exact extended-path exception.
+The strict-zod-parsed native receipt comes from
+`test/unit/helpers/windowsFileIdentity.ps1`, one hidden noninteractive process.
+Fixtures are created by `CreateDirectoryW` and `CreateFileW`, ordinary aliases
+are opened by `CreateFileW`, and disk identities come from
+`GetFileInformationByHandle` (volume serial plus 64-bit file index). Directory
+handle identities determine containment independently of the TypeScript
+helper. `GetFullPathNameW` additionally checks ordinary normalized spelling;
+exact extended opens bypass that call, as Win32 does. Handles and temporary
+trees are cleaned in `finally`. The test uses the repository's default 5 s
+deadline, without `--testTimeout`.
+
+All 11 rows assert `windowsPathIdentity`, `isSamePath`, and `isWithinFolder`
+against the native result:
+
+| First spelling / second spelling (inside a fresh temporary root) | Native result                                                   | Inside second folder            |
+| ---------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------- |
+| `name.` / `name`                                                 | Same volume and file index                                      | Yes                             |
+| `name ` / `name`                                                 | Same volume and file index                                      | Yes                             |
+| `name. .` / `name`                                               | Same volume and file index                                      | Yes                             |
+| `a.\child` / `a\child`                                           | Same volume and file index; same directory index                | Yes                             |
+| `a..\child` / `a\child`                                          | Distinct file and directory indexes                             | No                              |
+| `a. \child` / `a\child`                                          | Distinct file and directory indexes                             | No                              |
+| `NAME` / `name`                                                  | Same volume and file index                                      | Yes                             |
+| `a. \` / `a\`                                                    | Distinct directory indexes; final separator preserves the space | No                              |
+| Exact extended `\\?\<root>\literal.` / ordinary `literal`        | Distinct file indexes; extended final period remains            | Yes, both in the temporary root |
+| `NUL` / `nul`                                                    | Same character device (`GetFileType = 2`), no disk file index   | No                              |
+| `nul.txt` / `NUL.TXT`                                            | Same disk volume and file index on Windows 11                   | Yes                             |
+
+The reserved-name row is honest about the OS: NUL has no volume/file index.
+`CreateDirectoryW(NUL)` returns success here but creates no disk directory;
+an exact extended-path open returns `ERROR_FILE_NOT_FOUND` (2). Workspace
+policy refuses both `NUL` and `nul.txt` regardless of that OS difference.
+No console, serial or printer device is read or written. Disk opens request
+no read/write access.
+
+#### Exact-base regression and red drills
+
+Fresh clone `C:/lanes/_verify/FIXM100P2V2-base-20261008`, exact base above,
+`CI=true`, `npm.cmd ci` **0**. Only the four updated regression test files,
+the new workspace-path suite and native helper were overlaid; base production
+code was untouched. Default deadlines, `--maxWorkers=3`, at most three files:
+
+- `pathIdentity`, `deviceInputManifest`, `permissions`: **9 failed / 104 passed**,
+  exit **1** (including the original permissions regression).
+- `fsAtomic`, `worktreeConversations`, `workspacePath`: **6 failed / 47 passed /
+  1 skipped**, exit **1**. The existing POSIX-only file-mode test is the skip.
+- Total: **15 failed / 151 passed / 1 existing platform skip**. Every new
+  defect regression fails on the base; Windows writable-name policy controls
+  and the remaining existing assertions pass.
+
+Each drill saved bytes, mutated one guard, ran the direct Vitest CLI, restored
+bytes in `finally`, and verified SHA-256 equality. Unselected tests are pending
+because of the named selector, not disabled assertions.
+
+| Drill          | Intentional break / selector                                                                                                                                                            | Exit / failures | Restored source SHA-256                                            |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------ |
+| V2-POSIX       | Reinsert unconditional backslash separation in `protectedPaths.ts`; `POSIX backslashes\|backslashes separate\|resolved path segments` across identity, permissions and workspace suites | 1 / 5           | `a818814250524529f7b0e843a49bbbb1ff68684a19411f02621bd39a3b04cc80` |
+| V2-Win32       | Trim all intermediate dots/spaces in `pathIdentity.ts`; `intermediate\|folder membership\|native Win32\|confirmed trust to a distinct` across identity, manifest and worktree suites    | 1 / 8           | `62886fe56759df7e0ca37f7dce65eefd9a3bad03b40417d60885aeda0555a469` |
+| V2-containment | Restore resolve-before-fold in `paths.ts`; `native Win32`                                                                                                                               | 1 / 1           | `b35833024b5ca8b7d27ca7e1261f2cc3f793c670388217a812d2258288746ac3` |
+
+Restored worktree: identity/manifest/permissions **113 passed**; atomic writes,
+worktree trust and workspace paths **53 passed / 1 existing platform skip**;
+held-tree/tools/Muse Code protected writes **121 passed**. Five typecheck
+projects, changed-file ESLint/Prettier, and PSScriptAnalyzer 1.25.0/PSGallery
+for the changed helper exit **0**. Fresh-clone final receipts follow separately.
+
+Lane W still owns its host API record regeneration, Unreleased changelog and
+joined-tree full `npm run quality`. Carry these shared protection/identity
+corrections into that integrated gate; this lane claims only its actual checks.
+
+#### Second-review fresh-clone final verification
+
+Implementation `a5e2830bc46f13ac8e622f09983ecb13d3e8e4f9`, normal hooks
+enabled: changed-file ESLint/Prettier and staged gitleaks **0**, no leaks.
+The staged diff was re-read after the hook (empty after commit), then the
+committed implementation/test diff was re-read. All three restored source
+hashes above still match. No manually invoked stash, merge or push.
+
+Fresh clone with `--no-hardlinks` at that exact commit:
+`C:/lanes/_verify/FIXM100P2V2-ci-20261008`. Every verification shell sets
+`CI=true`; `npm.cmd ci` **0**, 898 installed packages. No dependency changed;
+the unchanged install audit reports the same 12 issues (2 low, 10 high).
+This is not a full security/audit gate receipt.
+
+Each group ran with `npx.cmd vitest run <three files> --maxWorkers=3`,
+repository-default deadlines and no timeout override:
+
+| Owning suites                                             | Round 1                                     | Round 2                                     | Round 3                                     | Exits     |
+| --------------------------------------------------------- | ------------------------------------------- | ------------------------------------------- | ------------------------------------------- | --------- |
+| `deviceInputManifest`, `deviceCapability`, `pathIdentity` | 59 passed; 4.61 s                           | 59 passed; 3.84 s                           | 59 passed; 3.85 s                           | 0 / 0 / 0 |
+| `permissions`, `heldTree`, `workspacePath`                | 129 passed; 2.87 s                          | 129 passed; 2.60 s                          | 129 passed; 2.61 s                          | 0 / 0 / 0 |
+| `modelApiTools`, `fsAtomic`, `worktreeConversations`      | 86 passed, 1 existing platform skip; 4.54 s | 86 passed, 1 existing platform skip; 3.74 s | 86 passed, 1 existing platform skip; 3.74 s | 0 / 0 / 0 |
+
+Total **274 passed per round, 822 passing executions**, with the same existing
+POSIX-only atomic-write mode test skipped once each round on Windows. Both
+native Windows identity tests ran and passed every round; no new test skipped.
+The new `workspacePath.test.ts` isolates the prior writable-name policy and
+canonical separator contract already exercised by the tools/permissions suites.
+
+| Fresh-clone gate                                               | Exit / receipt                                                                                                                                           |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm.cmd run typecheck`                                        | 0; host, webview, unit, e2e and integration projects                                                                                                     |
+| Changed-file ESLint, `--max-warnings=0`                        | 0; all eight changed TypeScript files                                                                                                                    |
+| Changed-file Prettier                                          | 0; TypeScript and certification                                                                                                                          |
+| Changed PowerShell helper, PSScriptAnalyzer 1.25.0 / PSGallery | 0; zero findings                                                                                                                                         |
+| Plain `npx.cmd knip`                                           | 0; same two pre-existing configuration hints                                                                                                             |
+| `npm.cmd run duplication`                                      | 0; jscpd, zero clones                                                                                                                                    |
+| `npm.cmd run check:l10n`                                       | 0; 14 tables, 169 manifest strings, 657 source files, zero problems                                                                                      |
+| `npm.cmd run check:reference`                                  | 0; 53 features, 18 Devices entries; current                                                                                                              |
+| `npm.cmd run check:host-api`                                   | 1; same inherited generated reader counts: `node:crypto` 55 → 56 and `node:path` 89 → 90; lane W owns regeneration                                       |
+| `npm.cmd run build`                                            | 0; unchanged size, split, host-global and notices gates; extension 442.0/600 KiB, Devices 80.6/100 KiB, webview startup 738.0/900 KiB, ACP 824.0/850 KiB |
+
+The fresh clone remains clean after every check. Production source SHA-256
+values match the drill restores and committed worktree. This final addition
+changes certification text only; it does not change the tested implementation.
+Integration requests remain the lane W requests above. There is no contract
+change request and no full-quality, installed-host or live-model claim.
+
+### Lane V round 3 redesign — refuse nonportable manifest spellings (2026-10-08)
+
+Brief `C:/lanes/_ctx/FIXM100P2V3.rig.md`, shared rules
+`C:/lanes/_ctx/codex/M100P2-common.md`; reviews RVM100P2V, VB and VC read
+in that order. Branch `m100/p2-v-fix3` from `851a23341`; implementation
+`7a1ae34606f5e88c1dd32bbb5f163b48f3b92a2c`. This section supersedes the
+earlier rounds' implementation descriptions; their receipts remain historical.
+
+The owner's round-three decision changes the approach: a manifest is a
+portable spelling contract, not an emulation of Win32 file identity. Each
+review exposed another mismatch between string normalization and an OS open,
+and the extraction had extended that approximation into unrelated guards.
+This redesign implements the existing PLAN lane V input-validation scope;
+it adds no protocol, feature, dependency, setting, command or UI string.
+
+#### Grammar and dispatch order
+
+`src/core/devices/inputManifest.ts` validates the original path at both build
+and wire admission. It never rewrites the builder's path or reader's lookup.
+
+| Rule                                                                       | Implementation / test                                                                                                                                                                       |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Relative, `/` separators only; no backslash, colon, drive or device prefix | ASCII segment whitelist plus nonempty segments; reviewed-spelling table and generated forbidden characters                                                                                  |
+| Every segment uses ASCII letters, digits, space, `._-+@`                   | Negative character class; generated accepted segments exercise every allowed character and 256 deterministic combinations                                                                   |
+| No empty, `.` or `..` segment; no segment ending in dot or space           | Explicit segment checks, including intermediate segments; generated forbidden segment and trailing-run cases                                                                                |
+| No Windows reserved name, regardless of case or extension                  | CON, PRN, AUX, NUL, COM0–9, LPT0–9, CONIN$, CONOUT$ and COM/LPT superscript ¹²³ variants; generated names in first and last positions, upper/lowercase, bare, `.txt`, ` .txt` and `:` forms |
+| At most 512 characters in the whole path                                   | Existing `DEVICE_LIMITS.pathChars`; the boundary is accepted and boundary + 1 refused                                                                                                       |
+| One item per case-folded valid path                                        | `item.path.toLowerCase()` uniqueness; original twelve collision rows retained, with case-only pairs equated and invalid spellings refused individually                                      |
+| Protected names compared only after manifest validation                    | Valid `.GiT/config`, `.CLAUDE/settings.json`, `.GitHub/workflows/build.yml` and `AGENTS.MD` retain protection through the restored helper; trailing aliases fail grammar first              |
+
+Dollar signs, superscript digits, all other Unicode and NTFS short-name `~`
+spellings are also excluded by the character whitelist. Reserved ASCII names
+with spaces before their extension are explicitly refused. No platform-specific
+path emulation remains in this module. The 78 reviewed-spelling cases and
+generated forbidden cases assert `invalid-frame` at build/schema/dispatch and
+empty base-object and file-read lists. The grammar table runs on every platform;
+only the native filesystem proof is Windows-specific. This rig ran Windows 11.
+
+Dispatch digest/attempt/base/tree binding, missing input, changed content/size
+and missing base-object refusals remain covered. The capability module is
+unchanged from `851a23341`, retaining offer future-skew admission and measured
+governor signals. Original lane V acceptance/drill records above still apply.
+
+#### Shared restoration
+
+The following command exits **0** with no diff:
+
+```text
+git diff --exit-code 81f070674 HEAD -- src/core/paths.ts src/core/workspacePath.ts src/core/git/heldTree.ts src/core/protectedPaths.ts test/unit/fsAtomic.test.ts test/unit/worktreeConversations.test.ts
+```
+
+Those four production helpers and two modified shared suites are exactly the
+base Git blobs. Permissions, held-tree and checkpoint suites were never changed
+by this correction. The previously added `workspacePath.test.ts` remains
+unchanged: its eight tests isolate the base Windows refusal and canonical
+POSIX separator behavior and pass with the restored source. That new suite is
+the only retained shared-test addition relative to `81f070674`.
+
+Deleted `src/core/pathIdentity.ts`, its approximation-specific suite, and
+`test/unit/helpers/windowsFileIdentity.ps1`; no external reader needs them.
+The manifest's native proof now opens both `plans/q3.md` and `Plans/Q3.MD`
+through Node's real filesystem handles, checks nonzero inode and matching
+BigInt device/inode identity, and closes both handles in `finally`. It passed
+on this Windows rig. Obsolete normalization/alias-acceptance assertions were
+replaced with strict-refusal assertions; shared tests were restored as directed.
+No assertion was disabled and no timeout, threshold, ignore or rule was weakened.
+Pre-existing shared-helper device-path gaps belong to the lead's separate audit.
+
+#### Exact-base regressions and red drills
+
+Isolated local clone `C:/lanes/_verify/FIXM100P2V3-base-proof-20261008`,
+`CI=true`, repository-default deadlines, `--maxWorkers=3`, no timeout override.
+The clone uses a junction to the worktree's installed dependencies; this is a
+base regression receipt, not the fresh `npm ci` verification below. Production
+files at each base were untouched; only regression tests were overlaid.
+
+| Base / selected regression                                                                                                                                                                 | Result                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `d8960e6bf`; current manifest/capability suites, `refuses Windows identity collisions\|refuses the review future-dated`                                                                    | Exit 1; all 13 selected regressions fail (12 manifest collision rows, 1 future offer)                 |
+| `32c55827f`; unchanged permissions regression plus the `851a23341` atomic-write/worktree intermediate-name assertions, `different intermediate\|distinct.*directory\|backslashes separate` | Exit 1; all 5 selected regressions fail (1 POSIX separator, 2 atomic-write binding, 2 worktree trust) |
+
+The overlaid tests were restored afterward; the base-proof clone is clean.
+Each drill saves the final committed source bytes, changes one guard, runs
+the manifest suite, restores in `finally`, then checks byte-exact SHA-256
+equality. The first four use selector `refuses reviewed spelling\|refuses
+generated members\|refuses Windows identity collisions`; the grammar drill
+selects the first two groups and the allowed-set drill selects `accepts
+generated portable segments`. Unselected tests are pending under the
+selector, not disabled.
+
+| Drill           | Intentional break                                                                             | Exit / failures |
+| --------------- | --------------------------------------------------------------------------------------------- | --------------- |
+| V3-backslash    | Remove backslashes only from the character check, admitting their original spelling           | 1 / 9           |
+| V3-trailing-dot | Remove the trailing-dot/space segment refusal                                                 | 1 / 23          |
+| V3-reserved     | Remove the reserved-device-name refusal                                                       | 1 / 9           |
+| V3-case         | Replace case-folded uniqueness with raw spelling                                              | 1 / 2           |
+| V3-grammar      | Remove path grammar refinement; all 78 table rows plus the forbidden-class property test fail | 1 / 79          |
+| V3-allowed-set  | Exclude `@` from the allowed character set; the generated acceptance property fails           | 1 / 1           |
+
+All six restored SHA-256 values:
+`f830f1a9c7a63827607456708069b6d7b01d2070f3607ab32d6561b5efde52f3`.
+Logs: `C:/lanes/_ctx/FIXM100P2V3-drill-final-*.log` and
+`FIXM100P2V3-base-round1.log` / `FIXM100P2V3-base-round2.log`.
+
+#### Fresh-clone CI gates
+
+Fresh clone with `git clone --no-hardlinks` at implementation
+`7a1ae34606f5e88c1dd32bbb5f163b48f3b92a2c`:
+`C:/lanes/_verify/FIXM100P2V3-ci-20261008`. Each shell sets `CI=true`.
+`npm.cmd ci` exits **0**, with 898 packages installed; the unchanged install
+audit still reports 12 issues (2 low, 10 high). No dependency was changed.
+
+Every group ran with `npx.cmd vitest run <files> --maxWorkers=3`, at most
+three files per invocation, repository-default deadlines and no `--testTimeout`.
+Existing real-Git checkpoint tests retain their named `REAL_GIT_TIMEOUT_MS`
+deadline and documented reason; no test was given a new timeout.
+
+| Suites                                                                 | Round 1                                        | Round 2                                        | Round 3                                        | Exits     |
+| ---------------------------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------- | ---------------------------------------------- | --------- |
+| `deviceInputManifest`, `deviceCapability`, `workspacePath`             | 131 passed; 3.37 s                             | 131 passed; 2.97 s                             | 131 passed; 2.94 s                             | 0 / 0 / 0 |
+| `permissions`, `heldTree`, `fsAtomic`                                  | 146 passed, 1 existing platform skip; 3.31 s   | 146 passed, 1 existing platform skip; 3.11 s   | 146 passed, 1 existing platform skip; 3.03 s   | 0 / 0 / 0 |
+| `worktreeConversations`, `checkpointLocation`, `checkpointStoreBundle` | 28 passed; 17.59 s                             | 28 passed; 16.66 s                             | 28 passed; 16.54 s                             | 0 / 0 / 0 |
+| `checkpointStore`, `checkpointStoreGuards`, `checkpointStorageGuards`  | 37 passed, 3 existing platform skips; 170.05 s | 37 passed, 3 existing platform skips; 165.05 s | 37 passed, 3 existing platform skips; 178.24 s | 0 / 0 / 0 |
+| `checkpointStoreWindows`                                               | 33 passed; 122.63 s                            | 33 passed; 127.08 s                            | 33 passed; 156.02 s                            | 0 / 0 / 0 |
+
+Total **375 passed per round, 1,125 passing executions across 13 suites**.
+The four pre-existing Windows skips each round are POSIX permission/execute-bit
+semantics and a colon filename Windows cannot create. No new test is skipped;
+the native Windows case proof runs and passes each round. After the final
+drills, the restored worktree's manifest/capability/workspace-path group also
+passes **131/131**, exit **0**, default deadlines (3.25 s).
+
+| Gate                                    | Exit / receipt                                                                                                                                                                |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm.cmd run typecheck`                 | 0; host, webview, unit, e2e and integration projects                                                                                                                          |
+| Changed-file ESLint, `--max-warnings=0` | 0; all eight surviving changed TypeScript files                                                                                                                               |
+| Changed-file Prettier                   | 0; all eight TypeScript files; certification separately checked after formatting                                                                                              |
+| Plain `npx.cmd knip`                    | 0; the same two pre-existing configuration hints                                                                                                                              |
+| `npm.cmd run duplication`               | 0; jscpd, zero clones                                                                                                                                                         |
+| `npm.cmd run check:l10n`                | 0; 14 tables, 169 manifest strings, 656 source files, zero problems                                                                                                           |
+| `npm.cmd run check:reference`           | 0; 53 features, 46 commands, 60 settings, 26 slash entries, 122 CLI entries, 18 Devices entries; current                                                                      |
+| `npm.cmd run check:host-api`            | 1; only the inherited generated `node:crypto` reader count, 55 → 56; restoring the helpers removed the prior `node:path` count difference                                     |
+| `npm.cmd run build`                     | 0; size, split, host-global and notices checks all pass with unchanged caps; extension 441.6/600 KiB, Devices 80.6/100 KiB, webview startup 738.0/900 KiB, ACP 823.6/850 KiB  |
+| `npm.cmd run quality`                   | 1 at `check:host-api`; global formatting, JS/CSS/PowerShell lint (zero analyzer findings), all five typechecks, badges, localization and reference passed before that refusal |
+
+Normal implementation-commit hooks passed: changed-file ESLint/Prettier and
+staged gitleaks, no leaks. The staged diff was re-read after the hook run
+(empty after commit), then the committed source/test diff was read in full.
+The source hash matches every final drill restore. No manual stash, merge,
+rebase, push, live model call or real-device pairing occurred.
+
+Lane W owns `docs/ide-compatibility/host-api.md`, README, CHANGELOG and the
+joined-tree full gate in the PLAN ownership table and shared brief. Request:
+regenerate the host API record at integration, carry the strict grammar and
+shared restoration into the Unreleased changelog, then run the joined-tree
+quality/coverage/integration/a11y/security gates. No gate was weakened to hide
+the mismatch and no full-quality or audit success is claimed here. Existing
+wiring and capability-contract requests in the original lane V section remain;
+this redesign requests no additional contract change.
