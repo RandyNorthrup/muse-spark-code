@@ -35818,6 +35818,18 @@ paid/live call or physical-device qualification is introduced.
 
 ### M100 phase 2 — bound owners, discovery, hardened hosts, per-action control (D80, planned)
 
+**M100P2HM6 round-3 redesign (2026-10-08, before implementation).** Replace
+both Darwin process wrappers with one bounded, injected-spawn primitive. It
+classifies synchronous throws, error events, exits, deadlines and output bounds
+before any caller sees them; one errno table makes EAGAIN/ENOMEM/EMFILE/ENFILE
+retryable capacity and missing/inaccessible executables definitive helper errors.
+Preparation is explicit unknown/preparing/ready/notGui/broken state, shares an
+in-flight preparation, and retains only definitive outcomes. Capacity, timeout
+and lost observations return to unknown. Keep all native macOS cases; add the
+failure-mode-by-spawn-site table, baseline proofs on `c94ddce3c`, bypass/cache
+red drills, and fresh-clone three-run static/build qualification. Shared W-owned
+docs/inventories remain lead requests; no deadline, cap or assertion changes.
+
 **M100P2HM5 review closure (2026-10-08, before implementation).** Share the
 Darwin runner's spawn-error mapping with the bounded Aqua probe: `EAGAIN`
 and `ENOMEM` reject as transient `capacity`, so preparation retries instead
@@ -41502,9 +41514,10 @@ is relaxed. No live or paid calls, push, rebase or merge.
 
 ## 7. Gates
 
-**M100P2HM4/HM5 scoped review gate (2026-10-08, macmini).** Hooked commits are
+**M100P2HM4/HM5/HM6 scoped review gate (2026-10-08, macmini).** Hooked commits are
 local checkpoints; the owner's 60-minute H brief requires fresh-clone scoped
-tests and static/build gates; HM5's 30-minute follow-up uses the same scope.
+tests and static/build gates; HM5's 30-minute and HM6's 60-minute follow-ups
+use the same scope.
 Full `npm run quality` and integrated platform
 qualification remain W's required gate before integration. No threshold,
 timeout, assertion or ignore changes. The inherited stale host API inventory

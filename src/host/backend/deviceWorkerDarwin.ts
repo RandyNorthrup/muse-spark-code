@@ -1,5 +1,5 @@
 // M100/H: a GUI launchd job with supervised caps and kernel coalition retirement.
-import { execFile, spawn } from 'node:child_process'
+import { spawn, type ChildProcess, type SpawnOptions } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import { lstat, mkdir, open, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -20,7 +20,24 @@ import {
   type DeviceWorkerDriver,
   type DeviceWorkerJob,
 } from '../devices/deviceWorkerHost'
-import type { RunProgram } from '../processTree'
+
+// Darwin posix_spawn(2): path/format/permission failures are definitive; memory
+// and process limits are capacity. pipe(2): EMFILE/ENFILE exhaust the descriptors
+// needed to spawn with pipes. Sources and Node's throw/event split: HM6 record.
+const spawnErrnos: Readonly<Record<string, 'capacity' | 'helper' | undefined>> = {
+  EAGAIN: 'capacity',
+  ENOMEM: 'capacity',
+  EMFILE: 'capacity',
+  ENFILE: 'capacity',
+  ENOENT: 'helper',
+  EACCES: 'helper',
+  ENOEXEC: 'helper',
+  ENOTDIR: 'helper',
+  ELOOP: 'helper',
+  ENAMETOOLONG: 'helper',
+  E2BIG: 'helper',
+  EINVAL: 'helper',
+}
 
 // Compile beside the private attempt store. No SDK, shell, inherited credential,
 // system service, login trigger, or plain-spawn fallback is used for the worker.
@@ -74,7 +91,10 @@ static BOOL save(NSString *file, id value) {
   return data && [data writeToFile:file options:NSDataWritingAtomic error:nil];
 }
 static BOOL present(NSString *file) { return access(file.fileSystemRepresentation, F_OK) == 0; }
-static BOOL capacity(int error) { return error == EAGAIN || error == ENOMEM; }
+static BOOL capacity(int error) { return ${Object.entries(spawnErrnos)
+  .filter(([, detail]) => detail === 'capacity')
+  .map(([code]) => `error == ${code}`)
+  .join(' || ')}; }
 static BOOL members(uint64_t id, BOOL stop, uint64_t *memory) {
   int bytes = proc_listpids(PROC_UID_ONLY, getuid(), NULL, 0);
   if (bytes <= 0) return NO;
@@ -243,73 +263,109 @@ const resultSchema = z.strictObject({
   failure: z.enum(['none', 'capacity', 'unsupported-host']),
 })
 
-function spawnFailure(error: unknown): DeviceWorkerHostError {
-  const isCapacity =
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error.code === 'EAGAIN' || error.code === 'ENOMEM')
-  return new DeviceWorkerHostError(isCapacity ? 'capacity' : 'helper')
+type ProgramFailureKind = 'spawn' | 'exit' | 'timeout' | 'output'
+class DarwinProgramError extends DeviceWorkerHostError {
+  public constructor(
+    public readonly kind: ProgramFailureKind,
+    detail: 'capacity' | 'helper',
+    public readonly isRetryable: boolean,
+  ) {
+    super(detail)
+  }
 }
 
-// A GUI domain's service listing grows without bound; the session line is near
-// its start. Stop the child once that complete line is read, keeping a byte cap
-// and deadline for malformed/missing answers. Never buffer the service list.
-const session: RunProgram = (file, args, env) =>
-  new Promise((resolve, reject) => {
-    const child = spawn(file, [...args], { env, stdio: ['ignore', 'pipe', 'ignore'] })
-    let output = ''
+type SpawnChild = (file: string, args: readonly string[], options: SpawnOptions) => ChildProcess
+type ProgramResult =
+  { kind: 'success'; stdout: string } | { kind: 'failure'; error: DeviceWorkerHostError }
+
+function spawnFailure(error: unknown): DarwinProgramError {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
+  const detail = typeof code === 'string' ? spawnErrnos[code] : undefined
+  // Unknown/I/O failures cannot establish that this host lacks GUI support.
+  return new DarwinProgramError('spawn', detail ?? 'helper', detail !== 'helper')
+}
+
+/** The driver's only process-start boundary, including the early Aqua reader. */
+function program(
+  spawnChild: SpawnChild,
+  file: string,
+  args: readonly string[],
+  env: NodeJS.ProcessEnv,
+  isSessionOnly: boolean,
+): Promise<ProgramResult> {
+  return new Promise((resolve) => {
+    let child: ChildProcess
+    try {
+      child = spawnChild(file, [...args], { env, stdio: ['ignore', 'pipe', 'pipe'] })
+    } catch (error) {
+      resolve({ kind: 'failure', error: spawnFailure(error) })
+      return
+    }
     let isSettled = false
-    const finish = (answer?: string, error?: DeviceWorkerHostError) => {
+    const chunks: Buffer[] = []
+    const finish = (result: ProgramResult, shouldStop: boolean) => {
       if (isSettled) return
       isSettled = true
       clearTimeout(deadline)
-      child.kill()
-      if (answer === undefined) reject(error ?? new DeviceWorkerHostError('helper'))
-      else resolve(answer)
+      if (shouldStop) child.kill('SIGKILL')
+      resolve(result)
     }
     const deadline = setTimeout(() => {
-      finish()
+      finish({ kind: 'failure', error: new DarwinProgramError('timeout', 'capacity', true) }, true)
     }, DEVICE_LIMITS.frameDeadlineMs)
-    child.stdout.on('data', (chunk: Buffer) => {
-      if (isSettled) return
-      output += chunk
-        .subarray(0, DEVICE_LIMITS.frameBytes - Buffer.byteLength(output))
-        .toString('utf8')
-      const line = /^\s*session = ([^\r\n]+)\r?\n/m.exec(output)
-      if (line !== null) finish(`session = ${line[1] ?? ''}`)
-      else if (Buffer.byteLength(output) >= DEVICE_LIMITS.frameBytes) finish()
-    })
     child.once('error', (error) => {
-      finish(undefined, spawnFailure(error))
+      finish({ kind: 'failure', error: spawnFailure(error) }, true)
     })
-    child.once('close', () => {
-      finish()
+    child.once('close', (code: number | null) => {
+      finish(
+        code === 0 && !isSessionOnly && child.stdout !== null && child.stderr !== null
+          ? { kind: 'success', stdout: Buffer.concat(chunks).toString('utf8') }
+          : { kind: 'failure', error: new DarwinProgramError('exit', 'helper', code === null) },
+        false,
+      )
+    })
+    let stdoutBytes = 0
+    let stderrBytes = 0
+    child.stdout?.on('data', (chunk: Buffer) => {
+      if (isSettled) return
+      chunks.push(Buffer.from(chunk.subarray(0, DEVICE_LIMITS.frameBytes - stdoutBytes)))
+      stdoutBytes += chunk.byteLength
+      if (isSessionOnly) {
+        // A GUI listing can grow without bound. A complete session line within
+        // the kept prefix is sufficient; never retain the trailing services.
+        const line = /^\s*session = ([^\r\n]+)\r?\n/m.exec(Buffer.concat(chunks).toString('utf8'))
+        if (line !== null) {
+          finish({ kind: 'success', stdout: `session = ${line[1] ?? ''}` }, true)
+          return
+        }
+      }
+      if (stdoutBytes > DEVICE_LIMITS.frameBytes)
+        finish({ kind: 'failure', error: new DarwinProgramError('output', 'helper', false) }, true)
+    })
+    child.stderr?.on('data', (chunk: Buffer) => {
+      if (isSettled) return
+      stderrBytes += chunk.byteLength
+      if (stderrBytes > DEVICE_LIMITS.frameBytes)
+        finish({ kind: 'failure', error: new DarwinProgramError('output', 'helper', false) }, true)
     })
   })
+}
 
-const run: RunProgram = (file, args, env) =>
-  new Promise((resolve, reject) => {
-    const child = execFile(
-      file,
-      [...args],
-      {
-        env,
-        timeout: DEVICE_LIMITS.frameDeadlineMs,
-        maxBuffer: DEVICE_LIMITS.frameBytes,
-      },
-      (error, stdout) => {
-        if (error === null) resolve(stdout)
-        else reject(spawnFailure(error))
-      },
-    )
-    child.stdin?.end()
-  })
+type PreparationOutcome =
+  | { kind: 'ready' | 'notGui' }
+  | { kind: 'broken'; error: DeviceWorkerHostError }
+  | { kind: 'retry'; error: DeviceWorkerHostError }
+type PreparationState =
+  | { kind: 'unknown' }
+  | { kind: 'preparing'; result: Promise<PreparationOutcome> }
+  | { kind: 'ready' | 'notGui' }
+  | { kind: 'broken'; error: DeviceWorkerHostError }
 
 export interface DeviceWorkerDarwinDeps {
   readonly storageDir: string
   readonly environment: NodeJS.ProcessEnv
-  readonly run?: RunProgram
+  readonly spawn?: SpawnChild
   readonly uid?: number
 }
 
@@ -357,7 +413,16 @@ function xml(value: string): string {
 
 /** No GUI domain, compiler, coalition ABI or assertion means unsupported-host. */
 export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDriver {
-  const invoke = deps.run ?? run
+  const invoke = async (
+    file: string,
+    args: readonly string[],
+    environment: NodeJS.ProcessEnv,
+    isSessionOnly = false,
+  ): Promise<string> => {
+    const result = await program(deps.spawn ?? spawn, file, args, environment, isSessionOnly)
+    if (result.kind === 'failure') throw result.error
+    return result.stdout
+  }
   const env = workerEnvironment(deps.environment, 'darwin')
   const uid = deps.uid ?? (typeof process.getuid === 'function' ? process.getuid() : undefined)
   const domain = `gui/${String(uid)}`
@@ -367,7 +432,7 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
     `worker-${createHash('sha256').update(helperSource).digest('hex')}`,
   )
   const jobs = new Map<string, { directory: string; pid: number }>()
-  let preparing: Promise<boolean> | undefined
+  let preparation: PreparationState = { kind: 'unknown' }
   let allocating = Promise.resolve()
   const call = (args: string[]) => invoke('/bin/launchctl', args, env)
   const prepareRoot = async (): Promise<void> => {
@@ -487,10 +552,12 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
           }
           await delay(POSIX_TREE_EXIT_POLL_MS)
         }
-      } catch {
+      } catch (error) {
         // Once launched, every failed observation is uncertainty, including a
         // manager/inspection helper's typed startup failure. None proves exit.
-        throw new DeviceWorkerHostError('result')
+        const failure = new DeviceWorkerHostError('result')
+        failure.cause = error
+        throw failure
       }
     })()
     void retirement.catch(() => {
@@ -513,11 +580,11 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
       },
     }
   }
-  const isPrepared = async (): Promise<boolean> => {
+  const prepareWorker = async (): Promise<PreparationOutcome> => {
     try {
-      if (uid === undefined) return false
-      const domainInfo = await (deps.run ?? session)('/bin/launchctl', ['print', domain], env)
-      if (!/^\s*session = Aqua\s*$/m.test(domainInfo)) return false
+      if (uid === undefined) return { kind: 'notGui' }
+      const domainInfo = await invoke('/bin/launchctl', ['print', domain], env, true)
+      if (!/^\s*session = Aqua\s*$/m.test(domainInfo)) return { kind: 'notGui' }
       await prepareRoot()
       if (!(await isPresent(target))) {
         const stem = path.join(root, randomUUID())
@@ -546,47 +613,66 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
       }
       const probe = selfTestSchema.parse(JSON.parse(await invoke(target, ['--self-test'], env)))
       if (probe.failure === 'capacity') throw new DeviceWorkerHostError('capacity')
-      if (!probe.jobProbe || !probe.query) return false
+      if (!probe.jobProbe || !probe.query) throw new DeviceWorkerHostError('helper')
       parseDeviceWorkerQuery(JSON.parse(await invoke(target, ['--query'], env)))
       const job = await rawLaunch(
         { executable: '/usr/bin/true', args: [], cwd: root, requiredTools: [] },
         env,
         1,
       )
+      let hasRetired = false
       try {
         await job.activate()
         const result = resultSchema.parse(await job.retirement)
-        return result.exitCode === 0 && result.failure === 'none'
+        hasRetired = true
+        if (result.failure === 'capacity') throw new DeviceWorkerHostError('capacity')
+        if (result.exitCode !== 0 || result.failure !== 'none')
+          throw new DeviceWorkerHostError('helper')
+        return { kind: 'ready' }
       } finally {
         await job.cancel()
-        await job.remove()
+        if (hasRetired) await job.remove()
       }
     } catch (error) {
-      if (error instanceof DeviceWorkerHostError && error.detail === 'capacity') throw error
-      return false
+      const failure =
+        error instanceof DeviceWorkerHostError ? error : new DeviceWorkerHostError('helper')
+      const isRetryable =
+        failure instanceof DarwinProgramError
+          ? failure.isRetryable
+          : failure.detail === 'capacity' || failure.detail === 'result'
+      return { kind: isRetryable ? 'retry' : 'broken', error: failure }
     }
   }
-  const prepare = (): Promise<boolean> => {
-    preparing ??= (async () => {
-      try {
-        return await isPrepared()
-      } catch (error) {
-        preparing = undefined
-        throw error
-      }
-    })()
-    return preparing
+  const isPrepared = async (): Promise<boolean> => {
+    if (preparation.kind === 'unknown') {
+      // Set preparing before any caller can start a second preparation.
+      const result = (async () => {
+        const outcome = await prepareWorker()
+        preparation = outcome.kind === 'retry' ? { kind: 'unknown' } : outcome
+        return outcome
+      })()
+      preparation = { kind: 'preparing', result }
+    }
+    const outcome = preparation.kind === 'preparing' ? await preparation.result : preparation
+    if (outcome.kind === 'retry') throw outcome.error
+    return outcome.kind === 'ready'
   }
   return {
     platform: 'darwin',
-    selfTest: prepare,
+    selfTest: isPrepared,
     launch: async (command, environment, attempt) => {
       admittedProcessLimit(attempt)
-      if (!(await prepare())) throw new DeviceWorkerHostError('helper')
+      if (!(await isPrepared()))
+        throw preparation.kind === 'broken'
+          ? preparation.error
+          : new DeviceWorkerHostError('helper')
       return await rawLaunch(command, environment, admittedProcessLimit(attempt))
     },
     query: async () => {
-      if (!(await prepare())) throw new DeviceWorkerHostError('helper')
+      if (!(await isPrepared()))
+        throw preparation.kind === 'broken'
+          ? preparation.error
+          : new DeviceWorkerHostError('helper')
       const query = parseDeviceWorkerQuery(JSON.parse(await invoke(target, ['--query'], env)))
       for (const [service, job] of jobs) {
         const printed = await call(['print', service])

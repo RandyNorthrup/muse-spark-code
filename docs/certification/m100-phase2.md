@@ -1518,3 +1518,111 @@ regions, and this macOS certification subsection. No push, merge, rebase,
 manual stash, credential read, model/paid call or nonloopback listener. The
 verification clone and private receipt folder are removed after final
 documentation validation.
+
+#### M100P2HM6 — macOS review round 3: spawn and preparation redesign (2026-10-08)
+
+Branch `m100/p2-h-darwin6`, base **`c94ddce3c`**. Read reviews
+`RVM100P2HMB`, `RVM100P2HMC`, then `RVM100P2HMD`. Three successive reviews
+found different delivery paths for the same cache defect. A shared error-event
+mapping was insufficient: Node can throw before a child/listener exists. This
+round replaces both runners rather than adding another call-site catch.
+
+`program` is the driver's sole process-start primitive, with injected spawn,
+stdin on `/dev/null`, independent bounded stdout/stderr and the unchanged
+`frameDeadlineMs`. It returns a discriminated success/failure; failures retain
+`kind`, `detail` and `isRetryable`. Synchronous throws and error events use one
+errno table. Nonzero/signal exits, deadlines and oversized output also settle
+once. The Aqua mode consumes only a complete session line inside the bounded
+prefix and kills the listing process; it never retains the unbounded service
+listing. An absent pipe does not preempt Node's later capacity error event.
+All clang, helper, launchctl and ps calls use this primitive. Power stays in
+the native IOPM assertion; there is no caffeinate subprocess to bypass it.
+The native self-test/worker capacity predicate is generated from the same table.
+
+Preparation is **unknown → preparing → ready / notGui / broken**. All callers
+share the preparing promise. A retryable outcome restores unknown before it
+returns to the caller. Non-Aqua and definitive helper errors remain cached;
+capacity, timeout, unclassified I/O/launch errors and lost observations retry.
+A ready factory retains its confirmed preparation across a later query failure.
+Failed retirement observations remain typed uncertainty, with their original
+program failure as the cause: they never prove exit, release occupancy or allow
+removal. Preparation cleanup no longer replaces that failure with an attempted
+removal of an unobserved job.
+
+| Spawn errno                              | Meaning on macOS                                                                                | Typed detail / caching   |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------ |
+| EAGAIN                                   | Process/task or per-user process ceiling                                                        | capacity; unknown, retry |
+| ENOMEM                                   | Insufficient memory for the new process                                                         | capacity; unknown, retry |
+| EMFILE / ENFILE                          | Per-process descriptors / system file table exhausted while creating spawn pipes                | capacity; unknown, retry |
+| ENOENT / EACCES                          | Missing executable / path search or execution denied                                            | helper; broken, cached   |
+| ENOEXEC / ENOTDIR / ELOOP / ENAMETOOLONG | Invalid executable format / non-directory path component / symlink loop / excessive path length | helper; broken, cached   |
+| E2BIG / EINVAL                           | Arguments exceed the system limit / invalid spawn configuration                                 | helper; broken, cached   |
+| EIO / ETXTBSY / unclassified code        | I/O failure / executable busy / insufficient evidence                                           | helper; unknown, retry   |
+
+Sources: Apple's [posix_spawn(2)](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/posix_spawn.2.html)
+for path, format, permission, argument and memory failures;
+[pipe(2)](https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/pipe.2.html)
+for descriptor exhaustion; XNU's [kern_fork.c](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_fork.c)
+for process-limit EAGAIN. Node [24.21.0 ChildProcess.spawn](https://github.com/nodejs/node/blob/v24.21.0/lib/internal/child_process.js)
+and [26.0.0](https://github.com/nodejs/node/blob/v26.0.0/lib/internal/child_process.js)
+schedule error events for EACCES/EAGAIN/EMFILE/ENFILE/ENOENT, return early for
+EMFILE/ENFILE before creating streams, and throw other failures, including
+ENOMEM. [libuv 1.52.1](https://github.com/libuv/libuv/blob/v1.52.1/src/unix/process.c)
+uses Darwin posix_spawn and returns its errno through UV__ERR. No real memory
+or system-descriptor exhaustion is attempted; these paths use injected failures.
+
+**Test table:** twelve process sites × twenty-three failure deliveries =
+**276 cells**, plus one concurrent-launch/share/retry test. Every cell asserts
+the typed result, whether preparation is retained, and that an eligible retry
+reaches bootstrap on the same factory. Definitive failures make no further
+process call. Retirement inspection failures keep the outer uncertain result
+and still prove retry of preparation; query failures preserve ready state.
+
+| Axis                            | Cases                                                                                                                                                                                     |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Process sites                   | Aqua probe; clang; native self-test; initial helper query; bootstrap; readiness print; retirement print; coalition count; ps; bootout; ready-factory helper query; active-job query print |
+| Capacity delivery               | Synchronous throw and error event for each of ENOMEM, EAGAIN, EMFILE and ENFILE (8)                                                                                                       |
+| Definitive delivery             | Error event for ENOENT, EACCES, ENOEXEC, ENOTDIR, ELOOP, ENAMETOOLONG, E2BIG and EINVAL (8)                                                                                               |
+| Unclassified/transient delivery | Synchronous EIO, ETXTBSY and unknown-code throws (3)                                                                                                                                      |
+| Other failure modes             | Nonzero exit, deadline, stdout overflow, stderr overflow (4)                                                                                                                              |
+| Native cases                    | All 25 prior macOS cases retained; two added real-GUI retries after synchronous EAGAIN/ENOMEM injection: 27 macOS cases, none skipped                                                     |
+
+**Base proof:** replacing only the Darwin production file with `c94ddce3c`
+while retaining these tests yields **exit 1, 279 failed, 0 passed, 31 filtered**.
+The selected regressions are the 277 table/concurrency cases and the two added
+native synchronous-throw cases. The baseline lacks the single injected-spawn
+boundary: its legacy execFile calls hit the explicit forbidden-bypass guard.
+The two native synchronous cases directly reproduce cached unsupported-host
+instead of capacity. Source is restored in finally, byte-exact.
+
+| Red drill        | Deliberate break                                                             | Exit / failed assertions                                                   |
+| ---------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Primitive bypass | Aqua call starts injected spawn directly rather than passing through program | 1 / 1: the Aqua synchronous ENOMEM table cell loses typed capacity         |
+| Transient cache  | Store retry as broken instead of restoring unknown                           | 1 / 3: synchronous ENOMEM retry, timeout retry and concurrent shared retry |
+
+Production SHA-256 before/after the baseline and both drills:
+`b108ca8cbb5f70e86a941e9dfa9bf0e9e9e54bd7b6966e6cc7a2b37fe6be0232`.
+Restored local owning run: **349 passed, 0 failed, 7 Windows-native skipped**,
+including all **27 macOS-native cases**. Default repository timeouts throughout;
+deadline tests advance fake timers rather than waiting ten real seconds.
+
+Exploration uncovered two fixture errors, corrected without changing an
+assertion: active-job classification incorrectly intercepted a retry's readiness
+print, and the first baseline concurrency fixture omitted the global process
+fence. That old-driver run left two unactivated registrations, which contaminated
+four subsequent native power assertions. Their exact baseline-owned launchd
+labels were booted out; both process APIs are now fenced before every table or
+concurrency test. The restored owning run above passes all power assertions.
+The final baseline proof uses the corrected fixture. No other job was stopped.
+
+Hooked local checkpoints retain both repository checks (lint-staged and
+staged gitleaks). A private temporary hook copy adds only `--no-stash` to
+lint-staged, honoring this brief's ban on stash without disabling a check.
+The staged/committed diff is re-read after each hook run. Full aggregate quality
+and installed platform qualification remain W's gate under PLAN section 7.
+No dependency, setting, command, translation, wire shape, cap or timeout changes.
+
+**Lead/W request:** add this change to the W-owned Unreleased changelog:
+“Route every macOS Devices process through one bounded spawn primitive and
+retry preparation after transient process, memory, descriptor or timeout failures.”
+The inherited host-API inventory and lazy factory wiring remain W-owned.

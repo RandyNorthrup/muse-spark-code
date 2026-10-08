@@ -38,8 +38,14 @@ import { executionProtection, signedDispatch } from './helpers/deviceExecutionFi
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { deviceFailureText } from '../../src/webview/models/sections/agents/devicePresentation'
 import type { DeviceWorkerCommand } from '../../src/host/devices/deviceWorkerHost'
+import type * as FsPromises from 'node:fs/promises'
 import type * as ChildProcessModule from 'node:child_process'
 import { openWorkerReceiver } from './helpers/deviceWorkerReceiver'
+import {
+  darwinSpawnFixture,
+  darwinSpawnSites,
+  darwinSpawnFailures,
+} from './helpers/deviceDarwinSpawn'
 
 vi.mock('node:fs/promises', { spy: true })
 vi.mock('node:child_process', { spy: true })
@@ -59,6 +65,35 @@ const run: RunProgram = (file, args, env) =>
     )
     child.stdin?.end()
   })
+// Native output/failure transformations live in the fixture's injected spawn;
+// the production driver always starts children through its one primitive.
+function fromRun(invoke: RunProgram) {
+  return (file: string, args: readonly string[], options: ChildProcessModule.SpawnOptions) => {
+    const child = new ChildProcess()
+    const stdout = new PassThrough()
+    const stderr = new PassThrough()
+    child.stdout = stdout
+    child.stderr = stderr
+    vi.spyOn(child, 'kill').mockReturnValue(false)
+    void invoke(file, args, options.env ?? {})
+      .then((output) => {
+        stdout.end(`${output}\n`)
+        child.emit('close', 0)
+      })
+      .catch((error: unknown) => {
+        const code =
+          typeof error === 'object' &&
+          error !== null &&
+          'detail' in error &&
+          error.detail === 'capacity'
+            ? 'EAGAIN'
+            : 'ENOENT'
+        child.emit('error', Object.assign(new Error('native fixture failure'), { code }))
+        child.emit('close', -1)
+      })
+    return child
+  }
+}
 const usage = {
   settlementId: 'a'.repeat(32),
   payer: 'local',
@@ -89,7 +124,11 @@ function escapeTree(processes: number) {
   return darwinEscapeTree(run, native(), state.directory, attemptWith(processes))
 }
 function freshDriver(invoke: RunProgram = run) {
-  return deviceWorkerDarwin({ storageDir: state.directory, environment: process.env, run: invoke })
+  return deviceWorkerDarwin({
+    storageDir: state.directory,
+    environment: process.env,
+    spawn: fromRun(invoke),
+  })
 }
 function launch(
   script: string,
@@ -159,6 +198,155 @@ async function recover(job: DeviceWorkerJob) {
   })
 }
 
+async function fakeDarwinDirectories() {
+  // Preserve real file identities; only fake Darwin directory mode bits.
+  const actualFs = await vi.importActual<typeof FsPromises>('node:fs/promises')
+  vi.mocked(lstat).mockImplementation(async (...args) => {
+    const info = await actualFs.lstat(...args)
+    const mode = info.mode
+    if (typeof mode === 'number' && info.isDirectory()) info.mode = mode & ~0o077
+    return info
+  })
+}
+
+describe('M100/H spawn boundary', () => {
+  const cases = darwinSpawnSites.flatMap((site) =>
+    darwinSpawnFailures.map((failure) => ({ site, failure, name: `${site}: ${failure.name}` })),
+  )
+  it('concurrent launches share preparation, then retry one transient outcome together', async () => {
+    const failure = darwinSpawnFailures[0]
+    if (failure === undefined) throw new Error('failure fixture missing')
+    const fixture = await darwinSpawnFixture('aqua', failure)
+    vi.mocked(spawn).mockImplementation(fixture.spawn)
+    vi.mocked(execFile).mockImplementation(() => {
+      throw Object.assign(new Error('forbidden primitive bypass'), { code: 'ENOMEM' })
+    })
+    await fakeDarwinDirectories()
+    const driver = deviceWorkerDarwin({
+      storageDir: fixture.directory,
+      environment: {},
+      uid: fixture.uid,
+      spawn: fixture.spawn,
+    })
+    const start = () =>
+      driver.launch(
+        { executable: '/usr/bin/true', args: [], cwd: fixture.directory, requiredTools: [] },
+        {},
+        attemptWith(),
+      )
+    try {
+      const first = await Promise.allSettled([start(), start(), driver.selfTest()])
+      for (const result of first)
+        expect(result).toMatchObject({ status: 'rejected', reason: { detail: 'capacity' } })
+      expect(fixture.calls).toEqual(['aqua'])
+      fixture.disableFailure()
+      const [left, right, supported] = await Promise.all([start(), start(), driver.selfTest()])
+      expect(supported).toBe(true)
+      expect(fixture.calls.filter((site) => site === 'aqua')).toHaveLength(2)
+      expect(fixture.calls.filter((site) => site === 'self-test')).toHaveLength(1)
+      expect(fixture.calls.filter((site) => site === 'bootstrap')).toHaveLength(3)
+      for (const job of [left, right]) {
+        await job.activate()
+        await job.retirement
+        await job.remove()
+      }
+      expect(await driver.selfTest()).toBe(true)
+      expect(fixture.calls.filter((site) => site === 'aqua')).toHaveLength(2)
+    } finally {
+      vi.mocked(spawn).mockRestore()
+      vi.mocked(execFile).mockRestore()
+      vi.mocked(lstat).mockRestore()
+      await fixture.clean()
+    }
+  })
+  it.each(cases)(
+    '$name has a typed result and correct preparation caching',
+    async ({ site, failure }) => {
+      const fixture = await darwinSpawnFixture(site, failure)
+      // A bypass of injected spawn must be visible, including on the old base.
+      vi.mocked(spawn).mockImplementation(fixture.spawn)
+      vi.mocked(execFile).mockImplementation(() => {
+        throw Object.assign(new Error('forbidden primitive bypass'), { code: 'ENOMEM' })
+      })
+      await fakeDarwinDirectories()
+      const driver = deviceWorkerDarwin({
+        storageDir: fixture.directory,
+        environment: {},
+        uid: fixture.uid,
+        spawn: fixture.spawn,
+      })
+      const start = () =>
+        driver.launch(
+          { executable: '/usr/bin/true', args: [], cwd: fixture.directory, requiredTools: [] },
+          {},
+          attemptWith(),
+        )
+      let job: DeviceWorkerJob | undefined
+      try {
+        if (site === 'query' || site === 'active-print') {
+          expect(await driver.selfTest()).toBe(true)
+          fixture.disableFailure()
+          if (site === 'active-print') job = await start()
+          fixture.ready()
+        }
+        if (failure.delivery === 'timeout')
+          vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+        const operation = site === 'query' || site === 'active-print' ? driver.query() : start()
+        const result = (async () => {
+          try {
+            return await operation
+          } catch (error) {
+            return error
+          }
+        })()
+        if (failure.delivery === 'timeout') {
+          await fixture.injected
+          await vi.advanceTimersByTimeAsync(DEVICE_LIMITS.frameDeadlineMs)
+        }
+        const expected = {
+          kind: failure.kind,
+          detail: failure.detail,
+          isRetryable: failure.retryable,
+        }
+        const isObserving = ['retirement-print', 'count', 'ps'].includes(site)
+        expect(await result).toMatchObject(
+          isObserving ? { reason: 'uncertain', cause: expected } : expected,
+        )
+        const aquaReads = fixture.calls.filter((current) => current === 'aqua').length
+        const calls = fixture.calls.length
+        fixture.disableFailure()
+        vi.useRealTimers()
+        const isCached =
+          !failure.retryable && !isObserving && site !== 'query' && site !== 'active-print'
+        if (isCached) {
+          await expect(start()).rejects.toMatchObject(expected)
+          expect(fixture.calls).toHaveLength(calls)
+        } else {
+          const retry = await start()
+          await retry.activate()
+          await retry.retirement
+          await retry.remove()
+          expect(fixture.calls.slice(calls)).toContain('bootstrap')
+          expect(fixture.calls.filter((current) => current === 'aqua')).toHaveLength(
+            aquaReads + (site === 'query' || site === 'active-print' ? 0 : 1),
+          )
+        }
+        if (job !== undefined) {
+          await job.cancel()
+          await job.retirement
+          await job.remove()
+        }
+      } finally {
+        vi.useRealTimers()
+        vi.mocked(spawn).mockRestore()
+        vi.mocked(execFile).mockRestore()
+        vi.mocked(lstat).mockRestore()
+        await fixture.clean()
+      }
+    },
+  )
+})
+
 describe('M100/H Darwin unsupported manager port', () => {
   it('reads the Aqua session before an overflowing service listing and stops the query child', async () => {
     const actual = await vi.importActual<typeof ChildProcessModule>('node:child_process')
@@ -203,7 +391,11 @@ describe('M100/H Darwin unsupported manager port', () => {
     async (processes) => {
       const directory = await mkdtemp(path.join(tmpdir(), 'm100-darwin-invalid-cap-'))
       const invoke = vi.fn<RunProgram>().mockRejectedValue(new Error('forbidden native call'))
-      const driver = deviceWorkerDarwin({ storageDir: directory, environment: {}, run: invoke })
+      const driver = deviceWorkerDarwin({
+        storageDir: directory,
+        environment: {},
+        spawn: fromRun(invoke),
+      })
       try {
         await expect(
           driver.launch(
@@ -260,7 +452,7 @@ describe('M100/H Darwin unsupported manager port', () => {
         storageDir: directory,
         environment: {},
         uid: owner.uid,
-        run: invoke,
+        spawn: fromRun(invoke),
       })
       const start = () =>
         driver.launch(
@@ -286,7 +478,7 @@ describe('M100/H Darwin unsupported manager port', () => {
       storageDir: tmpdir(),
       environment: {},
       uid: 502,
-      run: invoke,
+      spawn: fromRun(invoke),
     })
     expect(await driver.selfTest()).toBe(false)
     await expect(
@@ -308,7 +500,7 @@ describe('M100/H Darwin unsupported manager port', () => {
       storageDir: tmpdir(),
       environment: {},
       uid: 502,
-      run: invoke,
+      spawn: fromRun(invoke),
     })
     expect(await driver.selfTest()).toBe(false)
     expect(await driver.selfTest()).toBe(false)
@@ -644,14 +836,21 @@ int main(int argc, char **argv) {
     const info = await lstat(path.join(state.directory, 'device-workers-darwin'))
     expect(info.mode & 0o777).toBe(0o700)
   })
-  it.each(['EAGAIN', 'ENOMEM'])(
-    'retries the Aqua probe after transient spawn %s and launches a real GUI job',
-    async (code) => {
+  it.each(
+    ['EAGAIN', 'ENOMEM'].flatMap((code) =>
+      ['error', 'throw'].map((delivery) => ({ code, delivery })),
+    ),
+  )(
+    'retries the Aqua probe after transient spawn $delivery $code and launches a real GUI job',
+    async ({ code, delivery }) => {
       vi.mocked(spawn).mockClear()
       vi.mocked(execFile).mockClear()
       vi.mocked(spawn).mockImplementationOnce(() => {
+        if (delivery === 'throw')
+          throw Object.assign(new Error('injected process pressure'), { code })
         const child = new ChildProcess()
         child.stdout = new PassThrough()
+        child.stderr = new PassThrough()
         // An unspawned native handle must never signal the test process group.
         vi.spyOn(child, 'kill').mockReturnValue(false)
         queueMicrotask(() => {
@@ -673,10 +872,14 @@ int main(int argc, char **argv) {
         expect(execFile).not.toHaveBeenCalled()
         expect(await attempts()).toEqual([])
         await complete(await launch('process.exit(0)', driver))
-        expect(spawn).toHaveBeenCalledTimes(2)
-        expect(vi.mocked(execFile).mock.calls.some(([, args]) => args?.[0] === 'bootstrap')).toBe(
-          true,
-        )
+        expect(
+          vi
+            .mocked(spawn)
+            .mock.calls.filter(
+              ([, args]) => args[0] === 'print' && args[1] === `gui/${String(uid())}`,
+            ),
+        ).toHaveLength(2)
+        expect(vi.mocked(spawn).mock.calls.some(([, args]) => args[0] === 'bootstrap')).toBe(true)
         expect(await attempts()).toEqual([])
       } finally {
         vi.mocked(spawn).mockRestore()
