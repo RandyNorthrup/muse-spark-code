@@ -3,6 +3,7 @@ import { access, mkdtemp, mkdir, readFile, readdir, rm, writeFile, lstat } from 
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import * as z from 'zod/mini'
 import { deviceWorkerDarwin } from '../../src/host/backend/deviceWorkerDarwin'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
 import { workerEnvironment } from '../../src/core/team/refFence'
@@ -12,6 +13,7 @@ import {
   selectDeviceWorkerDriver,
   type DeviceWorkerJob,
   type DeviceWorkerDriver,
+  type DeviceWorkerAttempt,
 } from '../../src/host/devices/deviceWorkerHost'
 import type { RunProgram } from '../../src/host/processTree'
 import { deviceCheck, deviceGrant } from './helpers/deviceFixtures'
@@ -42,6 +44,10 @@ const usage = {
   returnedUsd: 0,
   retainedLiabilityUsd: 0,
 } as const
+function attemptWith(processes: number = DEVICE_LIMITS.processes): DeviceWorkerAttempt {
+  const request = deviceCheck(deviceGrant('a'.repeat(32)))
+  return { identity: request.identity, caps: { ...request.caps, processes } }
+}
 const boundary = { beforeAction: () => Promise.resolve(), beforePaidUse: () => Promise.resolve() }
 const state: { directory: string; native?: DeviceWorkerDriver; labels: Set<string> } = {
   directory: '',
@@ -73,6 +79,7 @@ function launch(
   return driver.launch(
     { executable: process.execPath, args: ['-e', script], cwd: state.directory, requiredTools: [] },
     env,
+    attemptWith(),
   )
 }
 async function ready(marker: string) {
@@ -95,6 +102,13 @@ async function attempts() {
 async function assertions() {
   return await run('/usr/bin/pmset', ['-g', 'assertions'], {})
 }
+async function helperFile() {
+  const root = path.join(state.directory, 'device-workers-darwin')
+  const names = await readdir(root)
+  const name = names.find((entry) => entry.startsWith('worker-'))
+  if (name === undefined) throw new Error('native helper missing')
+  return path.join(root, name)
+}
 async function clean(job: DeviceWorkerJob) {
   await job.cancel()
   await job.retirement
@@ -110,6 +124,27 @@ async function recover(job: DeviceWorkerJob) {
 }
 
 describe('M100/H Darwin unsupported manager port', () => {
+  it.each([0, DEVICE_LIMITS.processes + 1])(
+    'refuses process cap %s before any native call or attempt directory',
+    async (processes) => {
+      const directory = await mkdtemp(path.join(tmpdir(), 'm100-darwin-invalid-cap-'))
+      const invoke = vi.fn<RunProgram>().mockRejectedValue(new Error('forbidden native call'))
+      const driver = deviceWorkerDarwin({ storageDir: directory, environment: {}, run: invoke })
+      try {
+        await expect(
+          driver.launch(
+            { executable: process.execPath, args: [], cwd: directory, requiredTools: [] },
+            {},
+            attemptWith(processes),
+          ),
+        ).rejects.toMatchObject({ reason: 'unsupported-host', detail: 'preflight' })
+        expect(invoke).not.toHaveBeenCalled()
+        expect(await readdir(directory)).toEqual([])
+      } finally {
+        await rm(directory, { recursive: true, force: true })
+      }
+    },
+  )
   it('retained attempts refuse capacity before bootstrap, including a cold self-test', async () => {
     const directory = await mkdtemp(path.join(tmpdir(), 'm100-darwin-cap-'))
     const owner = await lstat(directory)
@@ -121,6 +156,13 @@ describe('M100/H Darwin unsupported manager port', () => {
         await writeFile(output, 'fake helper')
         return ''
       }
+      if (args[0] === '--self-test')
+        return JSON.stringify({
+          jobProbe: true,
+          query: true,
+          power: 'unknown',
+          scheduler: 'untested',
+        })
       return JSON.stringify({
         context: { session: owner.uid, station: 'gui', desktop: 'transport' },
         power: 'unknown',
@@ -150,6 +192,7 @@ describe('M100/H Darwin unsupported manager port', () => {
         driver.launch(
           { executable: process.execPath, args: [], cwd: directory, requiredTools: [] },
           {},
+          attemptWith(),
         ),
       ).rejects.toMatchObject({ reason: 'capacity' })
       expect(invoke.mock.calls.every(([, args]) => args[0] !== 'bootstrap')).toBe(true)
@@ -171,6 +214,7 @@ describe('M100/H Darwin unsupported manager port', () => {
       driver.launch(
         { executable: process.execPath, args: [], cwd: tmpdir(), requiredTools: [] },
         {},
+        attemptWith(),
       ),
     ).rejects.toMatchObject({ reason: 'unsupported-host', detail: 'helper' })
     expect(invoke).toHaveBeenCalledExactlyOnceWith(
@@ -203,6 +247,35 @@ describe.skipIf(process.platform !== 'darwin')('M100/H actual launchd GUI job', 
       },
     })
     expect(await native().selfTest()).toBe(true)
+    const source = path.join(state.directory, 'uid-limit-probe.c')
+    await writeFile(
+      source,
+      String.raw`
+#include <libproc.h>
+#include <sys/resource.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <spawn.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+int main(void) {
+  int bytes = proc_listpids(PROC_UID_ONLY, getuid(), NULL, 0);
+  if (bytes <= 0) return 1;
+  pid_t *pids = calloc(1, bytes); if (!pids) return 1;
+  int actual = proc_listpids(PROC_UID_ONLY, getuid(), pids, bytes);
+  free(pids); if (actual <= 0) return 1;
+  struct rlimit limit = {2, 2}; if (setrlimit(RLIMIT_NPROC, &limit)) return 1;
+  char *args[] = {"/usr/bin/true", NULL}, *env[] = {NULL}; pid_t child;
+  int error = posix_spawn(&child, args[0], NULL, NULL, args, env);
+  if (!error) { int status; if (waitpid(child, &status, 0) != child) return 1; }
+  printf("{\"uidProcesses\":%lu,\"cap\":2,\"firstChildRefused\":%s}",
+    (unsigned long)(actual / sizeof(pid_t)), error == EAGAIN ? "true" : "false");
+  return 0;
+}
+`,
+    )
+    await run('/usr/bin/clang', [source, '-o', path.join(state.directory, 'uid-limit-probe')], {})
   })
   afterAll(async () => {
     try {
@@ -223,6 +296,111 @@ describe.skipIf(process.platform !== 'darwin')('M100/H actual launchd GUI job', 
       await rm(state.directory, { recursive: true, force: true })
     }
   })
+  it('proves natively that NumberOfProcesses cannot supply two per-job slots for this UID', async () => {
+    const answer = z
+      .strictObject({
+        uidProcesses: z.int(),
+        cap: z.literal(2),
+        firstChildRefused: z.boolean(),
+      })
+      .parse(JSON.parse(await run(path.join(state.directory, 'uid-limit-probe'), [], {})))
+    expect(answer).toMatchObject({ cap: 2, firstChildRefused: true })
+    expect(answer.uidProcesses).toBeGreaterThan(2)
+  })
+  it('refuses a third process at cap 2 and permits retry after the held child exits', async () => {
+    const script = `
+const { spawn } = require('node:child_process');
+const { once } = require('node:events');
+function trySpawn() {
+  return new Promise(resolve => {
+    const child = spawn('/usr/bin/true', [], { stdio: 'ignore' });
+    child.once('error', error => resolve(error.code));
+    child.once('exit', code => resolve(code));
+  });
+}
+(async () => {
+  const held = spawn(process.execPath, ['-e', 'setInterval(()=>{},100);process.send("ready")'],
+    { stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
+  await once(held, 'message');
+  const third = await trySpawn();
+  const exit = once(held, 'exit'); held.kill(); await exit;
+  const retry = await trySpawn();
+  process.stdout.write(JSON.stringify({ third, retry }));
+})();
+`
+    const job = await native().launch(
+      {
+        executable: process.execPath,
+        args: ['-e', script],
+        cwd: state.directory,
+        requiredTools: [],
+      },
+      {},
+      attemptWith(2),
+    )
+    try {
+      await job.activate()
+      const result = z
+        .strictObject({ exitCode: z.int(), stdout: z.string(), failure: z.string() })
+        .parse(await job.retirement)
+      expect(result).toMatchObject({ exitCode: 0, failure: 'none' })
+      expect(JSON.parse(result.stdout)).toEqual({ third: 'EAGAIN', retry: 0 })
+    } finally {
+      await clean(job)
+    }
+  })
+  it('settles an unenforceable native cap as refused not-run work and releases once', async () => {
+    const release = vi.fn(() => Promise.resolve())
+    const host = new DeviceWorkerHost({
+      driver: native(),
+      environment: process.env,
+      retain: () => Promise.resolve(),
+      reserve: () => Promise.resolve({ usage, pause: () => Promise.resolve(), release }),
+      command: () =>
+        Promise.resolve({
+          executable: process.execPath,
+          args: [],
+          cwd: state.directory,
+          requiredTools: [],
+        }),
+      recordEnvironment: () => Promise.resolve(),
+      pressure: () => undefined,
+    })
+    const attempt = await host.admit(deviceCheck(deviceGrant('a'.repeat(32))))
+    await expect(attempt.start(boundary)).rejects.toMatchObject({ reason: 'unsupported-host' })
+    await expect(attempt.retirement).resolves.toEqual({ refused: true, usage })
+    await attempt.release()
+    await attempt.release()
+    expect(release).toHaveBeenCalledOnce()
+    expect(await attempts()).toEqual([])
+  })
+  it('reports only the native job probe and leaves scheduler qualification unclaimed', async () => {
+    const answer: unknown = JSON.parse(await run(await helperFile(), ['--self-test'], {}))
+    expect(answer).toEqual({
+      jobProbe: true,
+      query: true,
+      power: expect.stringMatching(/^(?:ac|battery|unknown)$/),
+      scheduler: 'untested',
+    })
+  })
+  it.each([1, 2, DEVICE_LIMITS.processes])(
+    'refuses unenforceable per-job cap %s without activating a worker',
+    async (processes) => {
+      const invoke = vi.fn<RunProgram>(run)
+      const driver = freshDriver(invoke)
+      expect(await driver.selfTest()).toBe(true)
+      const calls = invoke.mock.calls.length
+      await expect(
+        driver.launch(
+          { executable: process.execPath, args: [], cwd: state.directory, requiredTools: [] },
+          {},
+          attemptWith(processes),
+        ),
+      ).rejects.toMatchObject({ reason: 'unsupported-host', detail: 'helper' })
+      expect(invoke.mock.calls).toHaveLength(calls)
+      expect(await attempts()).toEqual([])
+    },
+  )
   it('self-tests a real GUI job and leaves no registration or inhibitor', async () => {
     expect(await native().query()).toMatchObject({
       context: { station: 'gui' },
@@ -435,6 +613,7 @@ describe.skipIf(process.platform !== 'darwin')('M100/H actual launchd GUI job', 
           requiredTools: [],
         },
         {},
+        attemptWith(),
       ),
     ).rejects.toMatchObject({ reason: 'unsupported-host' })
     expect(invoke).toHaveBeenCalledOnce()
@@ -461,11 +640,7 @@ describe.skipIf(process.platform !== 'darwin')('M100/H actual launchd GUI job', 
     }
   })
   it('a corrupt cached helper fails a new factory self-test and never falls back', async () => {
-    const root = path.join(state.directory, 'device-workers-darwin')
-    const names = await readdir(root)
-    const name = names.find((entry) => entry.startsWith('worker-'))
-    if (name === undefined) throw new Error('native helper missing')
-    await writeFile(path.join(root, name), 'corrupted native helper')
+    await writeFile(await helperFile(), 'corrupted native helper')
     const invoke = vi.fn<RunProgram>(run)
     const driver = freshDriver(invoke)
     expect(await driver.selfTest()).toBe(false)
@@ -473,6 +648,7 @@ describe.skipIf(process.platform !== 'darwin')('M100/H actual launchd GUI job', 
       driver.launch(
         { executable: process.execPath, args: [], cwd: state.directory, requiredTools: [] },
         {},
+        attemptWith(),
       ),
     ).rejects.toMatchObject({ reason: 'unsupported-host' })
     expect(invoke.mock.calls.some(([, args]) => args[0] === 'bootstrap')).toBe(false)

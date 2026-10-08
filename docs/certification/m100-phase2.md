@@ -1021,3 +1021,80 @@ installed-editor packaging or the fully bound production offer. No push or
 model call; W's bindings, battery/unknown admission prompt, shared docs,
 generated host inventory, bundle measurement and joined qualification remain
 the lead requests above.
+
+#### Darwin attempt-caps continuation — M100P2HM2 (macmini, 2026-10-08)
+
+**Blocked: strict per-job spawn admission is not available in the existing
+Darwin helper.** This continuation follows the brief's explicit fallback,
+"Refuse an unenforceable cap rather than ignoring it." Real Darwin attempts
+now refuse with `unsupported-host`; the earlier continuation's launch receipts
+remain historical evidence and do not qualify execution under the attempt-caps
+contract. The nine existing launch-behavior cases and the new cap-2 case retain
+all their assertions and fail against this refusal. This is not a green lane or
+a claim of macOS execution support.
+
+Worktree `/Users/randy/lanes/M100P2HM2`, branch `m100/p2-h-darwin2`, base
+`b0fe91da3`. The authorized `git merge --no-ff m100/p2-h-darwin` was committed
+as **c7c3ff2e1** with hooks enabled. The host merged automatically, retaining
+`DeviceWorkerAttempt`, frozen identity/caps at the launch call and all pre-job
+`{ refused: true, usage }` settlements. Conflict resolution kept both host-test
+imports/coverage and both certification subsections. The Windows driver/helper
+and receiver are unchanged from the contract branch.
+
+| Brief item                                                  | Result and evidence                                                                                                                                                                                                                                                                                                                                                                            |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Merge the previous Darwin driver while keeping the contract | Done: the merge has parents `b0fe91da3` and `e57306fd8`; contract launch call and pre-job settlements retained.                                                                                                                                                                                                                                                                                |
+| Use the admitted process limit; refuse an unenforceable cap | `launch(command, env, attempt)` calls shared `admittedProcessLimit(attempt)` before self-test, allocation or launchctl. Caps 0/129 refuse with `unsupported-host`/`preflight` and no native calls or directories. Valid caps 1/2/128 refuse with `unsupported-host`/`helper`: no arbitrary worker is activated. Only the fixed local `/usr/bin/true` factory probe uses `rawLaunch`, at cap 1. |
+| Match the helper self-test shape                            | Native `--self-test` returns exactly `{ jobProbe: true, query: true, power, scheduler: 'untested' }`, parsed with a strict zod schema. The native case checks that JSON; the factory separately tests an actual GUI launchd registration, without treating the primitive JSON as scheduler qualification.                                                                                      |
+| Settle pre-job refusal as not-run                           | Native driver through the real host: `start` rejects `unsupported-host`, retirement resolves `{ refused: true, usage }`, two `release` calls invoke the reservation release once, no attempt directory remains. The joined portable receiver tests also retain the lead's four refused-journal cases.                                                                                          |
+| Native cap 2: refuse third process, then admit after exit   | **Blocked.** A committed native case preserves exactly these assertions. A diagnostic temporarily allowed the existing coalition poller to launch with the actual admitted cap 2: both third spawn and retry returned exit 0; the test expected `third: 'EAGAIN'` and failed. Source restored byte-exact. An unenforceable poller is therefore not used for real attempts.                     |
+
+**Why launchd's resource-limit keys are not used.** The installed
+`launchd.plist(5)` and [Apple's launchd manual](https://github.com/apple-oss-distributions/launchd/blob/main/man/launchd.plist.5)
+define `NumberOfProcesses` as the simultaneous count for the UID, not this
+job. [XNU's fork implementation](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_fork.c)
+checks `RLIMIT_NPROC` against `chgproccnt(uid, 1)`. A native C fixture on this
+Mac sets its own soft and hard `RLIMIT_NPROC` to 2, observes more than two
+already-existing UID processes, and gets `EAGAIN` for its **first** child.
+It changes only the fixture process's inherited limits, not any launchd,
+user, sysctl or machine setting. Adding a snapshot of other UID processes to
+the cap is unsafe: those processes can exit and leave extra worker slots.
+
+Coalition counts prove whole-descendant retirement, but polling observes
+creation after it happened. The native cap-2 diagnostic proves a short-lived
+third process can execute and exit between polls. Killing observed overflow
+also cannot provide the required refused-spawn-then-retry behavior. No
+per-job process-count admission operation is supplied by the coalition
+resource-usage interface used here. No same-user limit, registry/system
+change, privileged service, interposition or cooperative test shim is claimed
+as a hard per-job bound.
+
+**Guard-fire receipts.** Complete three owning files, `CI=true`,
+`--maxWorkers=3`, repository default deadlines, at most three files per run.
+The restored suite has ten blocked native failures; the table separates each
+mutation's additional failures from those unchanged baseline failures.
+
+| Drill                        | Deliberate break                                                                         | Additional failures                                                                                   | Exit / restoration                                                                                                                                               |
+| ---------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| caps-global                  | Replace the attempt's process cap with `DEVICE_LIMITS.processes` at validation           | Both 0/129 cases reach native preparation instead of refusing before any call (wrong refusal detail). | Exit 1; 12 failed, 49 passed, 7 Windows-native skipped. Darwin SHA-256 restored byte-exact. This proves validation; hard native cap enforcement remains blocked. |
+| drop-attempt                 | Drop the host's third launch argument                                                    | Four portable identity/environment/zero-cap cases and the new native refused-settlement case fail.    | Exit 1; 15 failed, 46 passed, 7 Windows-native skipped. Host SHA-256 restored byte-exact.                                                                        |
+| native-accounting diagnostic | Temporarily permit real attempts through `rawLaunch(..., admittedProcessLimit(attempt))` | The native cap-2 test receives `{ third: 0, retry: 0 }`, rather than `{ third: 'EAGAIN', retry: 0 }`. | Focused diagnostic exit 1; Darwin source restored byte-exact. Other tests were filtered for this diagnostic only.                                                |
+
+Restored production SHA-256 values:
+
+- Darwin: `9682c6d5377dcbff7a9febba1400788d5ab01440aae26826e34a31b0f8bdb240`.
+- Host: `6340c2feaa7dce231dee0650087e504c97c0944a3825c049e077ddd4d2082e82`.
+
+The merged baseline, before the refusal change, ran **52 passed + 7
+Windows-native skipped**, including all twelve original macOS native cases.
+That baseline passes the old behavior, not the strict admitted-cap contract.
+The final committed-code fresh-clone verification is recorded below.
+
+**Lead request.** Choose a mechanism that can authorize every descendant spawn
+before execution (or a separately isolated execution backend) before enabling
+Darwin offers. Preserve the cap-2 refused-spawn/retry assertion. Per-UID rlimits
+and a post-creation poller are not such a mechanism. Keep this lane blocked;
+W still owns full quality, shared PLAN deferral entries, generated host API,
+README/CHANGELOG/reference changes and installed-editor qualification. No
+assertion, deadline or cap was weakened; no model call, dependency change,
+push, stash command, rebase or additional merge was made.

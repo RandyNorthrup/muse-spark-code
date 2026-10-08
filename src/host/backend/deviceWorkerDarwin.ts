@@ -14,6 +14,7 @@ import {
 } from '../../shared/constants'
 import {
   DeviceWorkerHostError,
+  admittedProcessLimit,
   parseDeviceWorkerQuery,
   type DeviceWorkerCommand,
   type DeviceWorkerDriver,
@@ -104,6 +105,17 @@ static void drain(int *fd, NSMutableData *out, NSUInteger limit, BOOL *overflow)
 }
 int main(int argc, const char **argv) { @autoreleasepool {
   umask(0077);
+  if (argc == 2 && !strcmp(argv[1], "--self-test")) {
+    uint64_t active, cpu;
+    if (!counts(coalition(getpid()), &active, &cpu)) return 1;
+    char *args[] = {"/usr/bin/true", NULL}; char *env[] = {NULL};
+    pid_t child; int status;
+    if (posix_spawn(&child, args[0], NULL, NULL, args, env) || waitpid(child, &status, 0) != child ||
+        !WIFEXITED(status) || WEXITSTATUS(status) != 0) return 1;
+    NSData *data = [NSJSONSerialization dataWithJSONObject:
+      @{@"jobProbe":@YES,@"query":@YES,@"power":power(),@"scheduler":@"untested"} options:0 error:nil];
+    return write(STDOUT_FILENO, data.bytes, data.length) == data.length ? 0 : 1;
+  }
   if (argc == 2 && !strcmp(argv[1], "--query")) {
     NSData *data = [NSJSONSerialization dataWithJSONObject:query(@"transport",0,0,0,NO) options:0 error:nil];
     return write(STDOUT_FILENO, data.bytes, data.length) == data.length ? 0 : 1;
@@ -191,6 +203,12 @@ int main(int argc, const char **argv) { @autoreleasepool {
 } }
 `
 
+const selfTestSchema = z.strictObject({
+  jobProbe: z.boolean(),
+  query: z.boolean(),
+  power: z.enum(['ac', 'battery', 'unknown']),
+  scheduler: z.literal('untested'),
+})
 const readySchema = z.strictObject({
   pid: z.int().check(z.gt(1)),
   coalition: z.int().check(z.gt(0)),
@@ -323,6 +341,7 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
   const rawLaunch = async (
     command: DeviceWorkerCommand,
     environment: NodeJS.ProcessEnv,
+    maxProcesses: number,
   ): Promise<DeviceWorkerJob> => {
     const label = `com.musespark.device.${randomUUID().replaceAll('-', '')}`
     const directory = path.join(root, `attempt-${label}`)
@@ -336,7 +355,7 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
       cwd: command.cwd,
       environment: workerEnvironment(environment, 'darwin'),
       outputBytes: DEVICE_LIMITS.frameBytes,
-      maxProcesses: DEVICE_LIMITS.processes,
+      maxProcesses,
       pollUs: POSIX_TREE_EXIT_POLL_MS * MILLISECONDS_PER_SECOND,
     }
     const encoded = JSON.stringify(config)
@@ -463,10 +482,13 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
           await rm(stem, { force: true })
         }
       }
+      const probe = selfTestSchema.parse(JSON.parse(await invoke(target, ['--self-test'], env)))
+      if (!probe.jobProbe || !probe.query) return false
       parseDeviceWorkerQuery(JSON.parse(await invoke(target, ['--query'], env)))
       const job = await rawLaunch(
         { executable: '/usr/bin/true', args: [], cwd: root, requiredTools: [] },
         env,
+        1,
       )
       try {
         await job.activate()
@@ -484,9 +506,14 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
   return {
     platform: 'darwin',
     selfTest: () => (preparing ??= isPrepared()),
-    launch: async (command, environment) => {
+    launch: async (_command, _environment, attempt) => {
+      admittedProcessLimit(attempt)
       if (!(await (preparing ??= isPrepared()))) throw new DeviceWorkerHostError('helper')
-      return await rawLaunch(command, environment)
+      // launchd's NumberOfProcesses is UID-wide. Coalition polling observes
+      // descendants only after creation, so it cannot enforce spawn admission.
+      // Keep real attempts refused until a per-job admission mechanism exists;
+      // the private rawLaunch above is only the fixed /usr/bin/true self-test.
+      throw new DeviceWorkerHostError('helper')
     },
     query: async () => {
       if (!(await (preparing ??= isPrepared()))) throw new DeviceWorkerHostError('helper')
