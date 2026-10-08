@@ -219,12 +219,12 @@ retains a total of exactly USD 1. Both ordinary and atomic-admission competitors
 are covered. Serialization does not replace the caller's cap check or pretend
 that the cap-free `reserve` itself has a spending limit.
 
-| Item                                             | Fix                                                                              | Regression                                                                                                     |
-| ------------------------------------------------ | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| 1 production prerequisites / honest availability | `ModelApiHost.ts:8461`, `tools.ts:1193`; README, CHANGELOG and feature reference | `modelApiProductionMedia`: four production-factory scheduled refusals                                          |
-| 2 production calibrated media receipts           | Blocked: D85.6 U6c and M105 recorded storage/codec/calibration inputs absent     | Existing `modelApiMedia` injection tests retained; no production success claim                                 |
-| 3 exact media tariff port                        | `mediaCost.ts:237`, `:257` exact prices and validation                           | `mediaAccounting`: untyped numeric caller refuses before either ledger; exact caller fixtures in `mediaClient` |
-| 4 ordinary/admitted lock                         | `sessionBudgetJournal.ts:547`, `:613` shared reservation lock                    | `sessionBudgetJournal`: both concurrent competitors at exactly remaining headroom                              |
+| Item                                             | Fix                                                                              | Regression                                                                                                            |
+| ------------------------------------------------ | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| 1 production prerequisites / honest availability | `ModelApiHost.ts:8461`, `tools.ts:1193`; README, CHANGELOG and feature reference | `modelApiProductionMedia.test.ts:26`: four production-factory scheduled refusals                                      |
+| 2 production calibrated media receipts           | Blocked: D85.6 U6c and M105 recorded storage/codec/calibration inputs absent     | Existing `modelApiMedia` injection tests retained; no production success claim                                        |
+| 3 exact media tariff port                        | `mediaCost.ts:237`, `:257` exact prices and validation                           | `mediaAccounting.test.ts:79`: numeric caller refuses before either ledger; exact fixtures in `mediaClient.test.ts:72` |
+| 4 ordinary/admitted lock                         | `sessionBudgetJournal.ts:547`, `:613` shared reservation lock                    | `sessionBudgetJournal.test.ts:267`: both competitors at exactly remaining headroom                                    |
 
 Base production-source runs at repository deadlines:
 
@@ -250,7 +250,7 @@ The explicit refusal drill restores base `ModelApiHost.ts`: **4 failed /
 The latest three owning suites (journal, accounting, production factory) pass
 **75 tests**, exit 0, after lint fixture corrections.
 
-Fresh-clone initial verification is against implementation `18a807dde`, after
+Fresh-clone verification started at implementation `18a807dde`, after
 ordinary `npm ci` installed 902 packages with the unchanged lockfile. Every
 command uses `CI=true`; tests have at most three files, `--maxWorkers=3` and
 the repository deadlines. No test is skipped, filtered by case or weakened.
@@ -307,6 +307,39 @@ runtimeEngine, usagePanel, headless, runtimeAccounts, surface English, Palette
 and estimator panel. The base also reproduces the separate split failure.
 No cap, split allow-list, ignore or threshold is changed. This lane's full-quality
 boundary stays with the lead, as the brief requires.
+
+Final fresh-clone qualification uses `28ffed40b`, fetched locally after normal
+hooks. The only code delta from the first qualification is the unchanged-policy
+factory fixture setup; unit types, all changed-file eslint/format, complete and
+scoped duplication, localization/reference/host API/plan checks and production
+build/audits were rerun. Host/webview/e2e/integration typechecks and plain knip
+had already passed on identical production sources. No code was rewritten by
+hooks; all three drilled production SHA-256 values still match.
+
+| Final gate                                         | Exit   | Receipt                                                                         |
+| -------------------------------------------------- | ------ | ------------------------------------------------------------------------------- |
+| Changed owning suites                              | 0      | **75 passed**, zero failed, default deadlines                                   |
+| Unit typecheck / changed eslint / changed Prettier | 0 each | Corrected fixture and final docs                                                |
+| Full / changed-file jscpd                          | 1 / 0  | Exactly three inherited clones / zero clones                                    |
+| Localization / reference / host API / plan         | 0 each | Current and complete                                                            |
+| Production build                                   | 1      | Same nine inherited caps; **Model API 521.8/525**, **activation 571.4/600 KiB** |
+| Split / host-globals                               | 1 / 0  | Same base split failure / no global violations                                  |
+
+M105's cost certification additionally confirms that U4 summary numbers are
+**test projections only**, with no production calibration seed
+(`docs/certification/m105-c-cost-(b).md:53`). Its storage handoff (`:106`) and
+`docs/certification/m105-captures.md:47` still require U6c. The owner was asked
+for existing evidence paths; none was supplied in this run. Production binding
+and the four requested successful tariff receipts remain explicitly open.
+All implemented guards fired on base production sources (seven failing new
+cases in total), then restored byte-exact. No paid/live attempt was made.
+
+Implementation and fixture/certification commits: `18a807dde`, `28ffed40b`.
+Both ran the repository's installed hooks; staged and committed diffs were
+reread. The final documentation-only receipt commit also uses normal hooks.
+Scratch logs/results are kept in the worktree's ignored `temp/fresh-gates/`;
+the private ordinary clone under `$TMPDIR` is removed before the final report.
+No push, merge, rebase, manual stash, raised timeout or altered gate.
 
 ### MONEY017B review repair (RVMONEY017, 2026-10-08)
 
