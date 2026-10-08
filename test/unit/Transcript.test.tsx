@@ -149,7 +149,7 @@ describe('Transcript', () => {
     expect(screen.getByText('Thinking…').closest('.status-line')).not.toBeNull()
   })
 
-  it('labels a reply’s dollar amount estimated and shows it only while the setting is on (M82)', () => {
+  it('labels a reply’s dollar amount estimated and shows it only while the setting is on (M82)', async () => {
     setUiText(EN, 'en')
     const reply: TranscriptEntry = {
       kind: 'assistant',
@@ -162,7 +162,10 @@ describe('Transcript', () => {
     const { rerender } = mountTranscript([reply])
     expect(screen.queryByText('12.3K in · 678 out · estimated $0.0180')).toBeNull()
     rerender({ showReplyUsage: true })
-    expect(screen.getByText('12.3K in · 678 out · estimated $0.0180')).toBeInTheDocument()
+    // The exact cost arrives with the lazy money chunk (STARTUP017): the
+    // line is absent, never guessed, then states the same amount.
+    expect(screen.queryByText('12.3K in · 678 out · estimated $0.0180')).toBeNull()
+    expect(await screen.findByText('12.3K in · 678 out · estimated $0.0180')).toBeInTheDocument()
   })
 
   it('streams the summary while thinking and leaves a plain "Thought for" line after (M16)', () => {
@@ -1072,7 +1075,7 @@ describe('Transcript replies (M25)', () => {
 })
 
 describe('Transcript: paid rows and cited sources (M33)', () => {
-  it('marks a paid row, with its price in the tooltip, and shows the search query', () => {
+  it('marks a paid row, with its price in the tooltip, and shows the search query', async () => {
     renderSteps([
       tool({
         id: 'ws',
@@ -1087,10 +1090,13 @@ describe('Transcript: paid rows and cited sources (M33)', () => {
     expect(screen.getByText('vite 7 release')).toBeInTheDocument()
     const badges = screen.getAllByText('paid')
     expect(badges).toHaveLength(1)
-    expect(badges[0]).toHaveAttribute(
-      'title',
+    // The badge paints at once; its exact price tooltip arrives with the
+    // lazy money chunk (STARTUP017), never guessed.
+    expect(badges[0]).not.toHaveAttribute('title')
+    const titled = await screen.findByTitle(
       'Billed to your Model API key: $2.50 per 1,000 searches',
     )
+    expect(titled).toBe(badges[0])
   })
 
   it('lists a finished reply’s sources, each opening like the reply’s own links', () => {

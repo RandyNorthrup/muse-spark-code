@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Pending
 
+- Chat startup no longer carries exact money arithmetic: `Usd`, paid tariffs
+  and usage estimates load with a lazy money chunk after first paint
+  (STARTUP017). Feature names, badges, buttons and tooltips paint at once;
+  exact prices fill in exactly, never guessed, with existing loading and
+  failure states on every lazy surface. The `/schedule` prompt mapping also
+  loads on first submit. Startup is 760,051 B against the 751,411 B ratchet;
+  the measured first-paint remainder stays for the lead's decision.
+
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive

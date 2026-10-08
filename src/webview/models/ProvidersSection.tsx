@@ -6,7 +6,13 @@
 import { useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
-import { formatUsd } from '../../shared/l10n/exactUsd'
+import { useFormatUsd } from '../money'
+
+/** A usage amount with the lazy money chunk's exact display. */
+function UsageAmount({ usd }: { readonly usd: number }) {
+  const formatted = useFormatUsd(usd, 2)
+  return formatted === undefined ? null : <>{formatted}</>
+}
 import type {
   ModelsPanelState,
   PanelDraft,
@@ -14,7 +20,7 @@ import type {
   ProviderState,
   ProviderTest,
 } from '../../shared/modelsPanel'
-import { formatTestCost } from './components/CostNotice'
+import { useFormatTestCost } from '../money'
 import { InlineError } from './components/InlineError'
 import { KeyState } from './components/KeyState'
 import { ScanStatus } from './components/ScanStatus'
@@ -32,6 +38,8 @@ function TestLine({
   // Declining the paid check only puts it away; the next Test asks again.
   const [costDismissed, setCostDismissed] = useState(false)
   const test: ProviderTest = provider.test
+  // The exact cost arrives with the lazy money chunk; the notice waits.
+  const testCost = useFormatTestCost(test.costUsd)
   if (test.status === 'testing') {
     return (
       <p className="models-hint" role="status">
@@ -54,7 +62,9 @@ function TestLine({
   if (!costDismissed && test.status === 'needs-cost' && test.costUsd !== undefined) {
     return (
       <div className="models-cost-notice">
-        <p>{fill(UI_TEXT.providerTestPaid, { cost: formatTestCost(test.costUsd) })}</p>
+        {testCost === undefined ? null : (
+          <p>{fill(UI_TEXT.providerTestPaid, { cost: testCost })}</p>
+        )}
         <button
           type="button"
           className="models-button-primary"
@@ -111,7 +121,9 @@ function KeyUsage({ provider }: { readonly provider: ProviderState }) {
         {rows.map(([label, usd]) => (
           <div key={label} className="models-usage-row">
             <dt>{label}</dt>
-            <dd>{formatUsd(usd, 2)}</dd>
+            <dd>
+              <UsageAmount usd={usd} />
+            </dd>
           </div>
         ))}
       </dl>

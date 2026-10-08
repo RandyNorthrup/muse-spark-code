@@ -62,7 +62,6 @@ import {
 import { fill } from '../../shared/l10n/text'
 import { hasPdfHeader } from '../../shared/pdfHeader'
 import { isPrivateFileName } from '../../shared/privateFiles'
-import { paidFeaturePrice } from '../../shared/paid'
 import type { AttachmentSummary, MentionItem, SettingsSnapshot } from '../../shared/protocol'
 import type { SlashCommand } from '../../shared/slashCommands'
 import { rankSlashCommands } from '../../shared/slashRank'
@@ -89,6 +88,7 @@ import { modeIcon } from './modeIcons'
 import type { PaletteKeys } from './Palette'
 import type { MenuEntry } from './PopoverMenu'
 import { PALETTE_LISTBOX_ID } from '../../shared/constants'
+import { usePaidFeaturePrice } from '../money'
 import { retrySurface } from '../surfaceRetry'
 import { SLASH_LISTBOX_ID, SLASH_OPTION_ID_PREFIX, slashOptionId } from './menuIds'
 
@@ -145,7 +145,7 @@ export interface ComposerProps {
   /** The reported context usage the meter draws (M87); no window, no meter. */
   readonly context: ContextMeterProps['context']
   /** The paid features that are on (M33, PLAN.md D30); undefined hides the badge. */
-  readonly paidBadge: { readonly label: string; readonly title: string } | undefined
+  readonly paidBadge: { readonly label: string; readonly title: string | undefined } | undefined
   /** The badge opens Account & usage, where this window's tally is. */
   readonly onOpenUsage: () => void
   readonly focusRequests: number
@@ -336,16 +336,21 @@ function isDictationRelease(event: KeyboardEvent<HTMLElement>): boolean {
   return webviewKey('composer.dictation', event, 'up') === 'release'
 }
 
-function dictationTitle(dictation: DictationUiState): string {
+function dictationTitle(
+  dictation: DictationUiState,
+  voicePrice: string | undefined,
+): string | undefined {
   switch (dictation.status) {
     case 'unavailable': {
       return dictation.reason ?? UI_TEXT.dictationUnavailable
     }
     case 'idle': {
-      // The paid engine says so, with its price (M35, PLAN.md D30).
-      return dictation.engine === 'museVoice'
-        ? fill(UI_TEXT.dictationPaidTitle, { price: paidFeaturePrice('voice') })
-        : UI_TEXT.dictationTitle
+      // The paid engine says so, with its price (M35, PLAN.md D30). The
+      // tooltip waits for the lazy money chunk rather than showing a guess.
+      if (dictation.engine !== 'museVoice') return UI_TEXT.dictationTitle
+      return voicePrice === undefined
+        ? undefined
+        : fill(UI_TEXT.dictationPaidTitle, { price: voicePrice })
     }
     case 'starting':
     case 'listening': {
@@ -460,6 +465,8 @@ export function Composer(props: ComposerProps) {
     const settled = new Set(attachmentSettlements)
     pendingFiles.current = pendingFiles.current.filter((pending) => !settled.has(pending.requestId))
   }, [attachmentSettlements])
+  // The dictate tooltip's exact voice price arrives with the lazy money chunk.
+  const voicePrice = usePaidFeaturePrice('voice')
   const [caret, setCaret] = useState(0)
   const [mentionIndex, setMentionIndex] = useState(0)
   const [dismissedMention, setDismissedMention] = useState<number | undefined>(undefined)
@@ -1329,7 +1336,7 @@ export function Composer(props: ComposerProps) {
           <button
             type="button"
             className={`icon-button mic-button mic-${dictation.status}${dictation.engine === 'museVoice' ? ' mic-paid' : ''} chat-control`}
-            title={dictationTitle(dictation)}
+            title={dictationTitle(dictation, voicePrice)}
             aria-label={
               dictation.engine === 'museVoice' ? UI_TEXT.dictationPaidLabel : UI_TEXT.dictationLabel
             }

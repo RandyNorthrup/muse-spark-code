@@ -15,8 +15,23 @@ import {
   UI_TEXT,
   uiLocale,
 } from '../../shared/l10n/text'
-import { formatUsd } from '../../shared/l10n/exactUsd'
+import { useFormatUsd } from '../money'
 import './estimator.css'
+
+/**
+ * A machine's hourly price (STARTUP017): the port's fake in tests, otherwise
+ * the lazy money chunk's exact display. Nothing renders until one is known.
+ */
+function MachinePrice({
+  port,
+  price,
+}: {
+  readonly port: EstimatorPanelPort
+  readonly price: CatalogPrice
+}) {
+  const formatted = useFormatUsd(price.hourlyUsd, 2)
+  return port.price === undefined ? <>{formatted ?? null}</> : <>{port.price(price)}</>
+}
 
 export interface EstimatorPanelPort {
   context(): Pick<EstimateRequest, 'asOf' | 'optimize'>
@@ -383,7 +398,7 @@ export default function EstimatorPanel({
                       UI_TEXT.estimateNoPrice
                     ) : (
                       <>
-                        {UI_TEXT.estimateHourly}: {(port.price ?? defaultPrice)(machine.price)}
+                        {UI_TEXT.estimateHourly}: <MachinePrice port={port} price={machine.price} />
                         <br />
                         {fill(UI_TEXT.estimateCatalog, {
                           date: new Intl.DateTimeFormat(uiLocale(), {
@@ -536,8 +551,4 @@ function Gantt({ section }: { readonly section: EstimateSection }) {
       </ul>
     </section>
   )
-}
-
-function defaultPrice(price: CatalogPrice): string {
-  return formatUsd(price.hourlyUsd, 2)
 }

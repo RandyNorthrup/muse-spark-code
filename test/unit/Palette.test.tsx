@@ -223,7 +223,7 @@ describe('Palette (models view)', () => {
     expect(props.onClose).not.toHaveBeenCalled()
   })
 
-  it('groups by provider with pinned favourites first and the provider rows last', () => {
+  it('groups by provider with pinned favourites first and the provider rows last', async () => {
     const { props } = renderPalette({
       view: 'models',
       currentModelId: 'openrouter/deepseek/deepseek-v3',
@@ -257,6 +257,15 @@ describe('Palette (models view)', () => {
         },
       ],
     })
+    // Priced rows read without prices until the lazy money chunk arrives.
+    expect(screen.getAllByRole('option').map((node) => node.textContent)).toEqual([
+      `DeepSeek V364K contextCurrent${UI_TEXT.paletteTips.switchModel}`,
+      `Muse Spark 1.31M context${UI_TEXT.paletteTips.switchModel}`,
+      `qwen3:8b32.8K context · local${UI_TEXT.paletteTips.switchModel}`,
+      'Add a model provider…',
+      'Manage models…',
+    ])
+    await screen.findByText(/\$0\.2700 in · \$1\.10 out/)
     const options = screen.getAllByRole('option')
     expect(options.map((node) => node.textContent)).toEqual([
       `DeepSeek V364K context · $0.2700 in · $1.10 out (per M tokens)Current${UI_TEXT.paletteTips.switchModel}`,

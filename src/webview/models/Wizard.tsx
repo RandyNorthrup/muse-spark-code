@@ -6,10 +6,10 @@
 // provider in `providers.json`, no secret in SecretStorage.
 
 import { useState } from 'react'
-import { usdInputSchema, isPositiveUsd } from '../../shared/usd'
+import { usdInputSchema } from '../../shared/usdSchema'
 import { UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
-import { formatUsd } from '../../shared/l10n/exactUsd'
+import { loadMoneyDisplay, useMoneyDisplay } from '../money'
 import type {
   ModelsCustomFormat,
   ModelsPanelState,
@@ -537,6 +537,8 @@ function PrivacyStep({ panelState, draft, post, onClose }: Omit<WizardProps, 'on
 
 function SuggestionsStep({ panelState, draft, post, onClose, onNavigateModels }: WizardProps) {
   const [budgetOverride, setBudgetOverride] = useState('')
+  // The suggested budget's exact display arrives with the lazy money chunk.
+  const money = useMoneyDisplay()
   const ticked = draft.models
   return (
     <div className="models-wizard-step">
@@ -563,16 +565,29 @@ function SuggestionsStep({ panelState, draft, post, onClose, onNavigateModels }:
             key={suggestion.kind}
             title={UI_TEXT.suggestSessionBudget}
             reason={suggestion.reason}
-            value={formatUsd(suggestion.usd, 2)}
+            value={money?.formatMoney(suggestion.usd, 2) ?? ''}
             accepted={suggestion.accepted}
             onAccept={() => {
               post({ type: 'suggestions/accept', kind: 'sessionBudget' })
             }}
             onChange={() => {
-              const usd = usdInputSchema.safeParse(budgetOverride.trim())
-              if (usd.success && isPositiveUsd(usd.data)) {
-                post({ type: 'suggestions/change', kind: 'sessionBudget', usd: usd.data })
+              // An override posts only when it parses and is positive; like
+              // any other unparseable input, nothing posts while the money
+              // chunk loads or when it fails.
+              const parsed = usdInputSchema.safeParse(budgetOverride.trim())
+              if (!parsed.success) {
+                return
               }
+              const amount = parsed.data
+              void loadMoneyDisplay()
+                .then((display) => {
+                  if (display.isPositiveUsd(amount)) {
+                    post({ type: 'suggestions/change', kind: 'sessionBudget', usd: amount })
+                  }
+                })
+                .catch(() => {
+                  // A failed chunk load posts nothing, like invalid input.
+                })
             }}
           />
         ),

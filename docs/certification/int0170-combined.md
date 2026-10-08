@@ -333,3 +333,100 @@ Windows gates, all exit 0:
 - check:l10n, check:reference and check:host-api
 
 jscpd still reports the other three clones listed above (left lane).
+
+## Startup (STARTUP017)
+
+Lane `rel017/startup` (`94eefd28e`), macbook rig worktree. The owner's rule
+stands: the ratchet is met by shrinking, not by moving the number, so the
+751,411 B ratchet and both `webviewBundle` assertions are unedited.
+
+### Before and after (rig `npm run build` / `node scripts/build.mjs --production`, bytes)
+
+| Chat startup (`dist/webview/main.js` + static imports) | Bytes     |
+| ------------------------------------------------------ | --------- |
+| 0.16.0 (`4da4ef666`, same rig)                         | 749,987   |
+| 0.17 candidate (brief)                                 | 766,223   |
+| Lane base, rig build                                   | 766,296   |
+| After this lane, rig build                             | 760,051   |
+| Ratchet (0.16.0 baseline)                              | 751,411   |
+| **Remainder over ratchet**                             | **8,640** |
+
+(The `webviewBundle` fixture build measures 760,149 B against 751,411.2 B:
+over by 8,738 B. Saved 6,147 B of the 14,885 B gap.)
+
+### What 0.17 added (metafile startup-input diff, 0.16.0 → lane base)
+
+| Module(s)                                                                                  | +Bytes | First paint?                                                                                                |
+| ------------------------------------------------------------------------------------------ | ------ | ----------------------------------------------------------------------------------------------------------- |
+| `src/shared/l10n/en.ts` (new strings)                                                      | 8,951  | yes: per-key split already ships only referenced keys; lazy-only values verified absent from startup chunks |
+| `src/webview/App.tsx` (feature growth)                                                     | 7,680  | yes: the main component                                                                                     |
+| `src/shared/scheduleV2.ts` + `scheduleEvents` + `core/schedules/time/cron.ts`              | 8,424  | yes: `protocol.ts` validates schedule messages; `toolPresentation` renders restored schedule rows           |
+| `src/shared/media.ts`, `src/shared/patchDocument.ts`                                       | 2,930  | yes: `protocol.ts` validates attachment/patch messages                                                      |
+| `src/shared/constants.ts`, `src/shared/protocol.ts`, `uiState`, `store`, `Composer` growth | ~5,000 | yes: first-paint state and components                                                                       |
+| `src/shared/redact.ts`                                                                     | 1,625  | yes: via `errorReport` → `problemReport`                                                                    |
+| `schedules/prompt.ts`                                                                      | 1,374  | **no**: `/schedule` submit only → lazy (below)                                                              |
+| `schedules/presentation.ts`                                                                | 1,205  | yes: restored schedule settlement rows                                                                      |
+| Money closure (`paid`, `usd`, `exactUsd`, `insights`, `tokenRatePrice`)                    | ~6,800 | **no** → lazy hub (below)                                                                                   |
+
+### Each module moved (all out of the startup closure, verified in `dist/meta/webview.json`)
+
+| Moved                                                                                                                                                                          | Mechanism                                                                                                                                                                                                                                                                       | Behaviour                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shared/usd.ts` (`Usd`, exact arithmetic)                                                                                                                                      | schema-only importers repoint to `shared/usdSchema.ts` (`agentEvents`, `paidBoundary`, `transcriptEntries`, `protocol`→`paidBoundary`, `constants.ts:1`, `modelsPanel.ts`); display through the hub                                                                             | parsing/validation identical (same schemas); display exact once loaded                                                                                     |
+| `shared/paid.ts` (prices, tariffs)                                                                                                                                             | `paidFeatureName` + `usablePaidFeatures` moved to `paidBoundary.ts` (constants + `UI_TEXT` only, no `protocol` import, keeping it acyclic); `paid.ts` re-exports them and the hub's `formatUsd`/`Usd`/`isPositiveUsd`; tooltip/cost call sites use `src/webview/money.ts` hooks | names paint with startup; prices fill in exactly; tooltips omitted (never guessed) while loading                                                           |
+| `core/usage/insights.ts` (`formatUsd`, estimates)                                                                                                                              | `Transcript` reply-usage cost → `useReplyUsageText`; lazy surfaces keep their imports                                                                                                                                                                                           | usage line pops in once per restored transcript, exact; tokens were never async                                                                            |
+| `shared/l10n/exactUsd.ts`, `shared/tokenRatePrice.ts`                                                                                                                          | follow the above out; reached only through the hub                                                                                                                                                                                                                              | —                                                                                                                                                          |
+| `webview/schedules/prompt.ts`                                                                                                                                                  | `/schedule` submit path dynamic-imports it (estimate-precedent); failure warns `scheduleCommandFailed`                                                                                                                                                                          | same mapping; prefix check stays sync                                                                                                                      |
+| Palette prices (`priceText`), paid toggle prices (`paidItems`), estimator `defaultPrice`, models `Wizard`/`ModelsSection`/`ProvidersSection`/`CostNotice`, usage `ModelDetail` | all through the hub (`useFormatUsd`, `useConservativeUsd`, `useFormatTestCost`, `usePriceOf`, `useMoneyDisplay`, `loadMoneyDisplay`)                                                                                                                                            | buttons/interaction never wait; only price text waits; no wrong numbers; `buildPalette` keeps purity via an injected `priceOf` (tests inject the sync one) |
+
+New deferred budgets (`scripts/lib/webviewBundles.mjs`, measured + 15% → 25 KiB
+scale): `exact money` 12.5 KiB (paid + insights closures), `prompt.ts` joins
+`schedule surface` (39.1/50 KiB). Deferring money reattributes its shared
+chunks into lazy closures; Palette (22.3/25), estimator panel (24.9/25) and
+the models body (73.8/75) are back inside their caps through the hub above.
+
+### Guards and red drills
+
+| Guard                                                                                                                                                        | Break                                                 | Result                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `scripts/check-bundle-split.mjs` `MONEY_STARTUP_NEVER` (`usd.ts`, `exactUsd`, `tokenRatePrice`, `insights.ts`, `paid.ts` never in the initial webview graph) | `src/webview/money.ts` value-imported `../shared/usd` | exit 1: `dist/webview/chunks/4DFTTBSW.js carries exact-money src/shared/usd.ts in the initial webview graph`; pass on revert |
+| `webviewBundle` "loads exact USD arithmetic and display only with lazy media pricing"                                                                        | — (unbroken)                                          | pass                                                                                                                         |
+
+### Tests and gates (rig, default timeouts, ≤3 files per run)
+
+- New `test/unit/moneyDisplay.test.tsx` (11): hub parity against the direct
+  arithmetic for every exposed display, loading-then-exact hooks,
+  chunk-failure and tariff-refusal withholding without throwing, retry after
+  failure, `PaidBadge` painting at once with the tooltip filling in.
+- Updated: `modelsComponents` (async `CostNotice`), `paletteRegistry`
+  (sync `priceOf` injection + priceless-rows test), `Composer` (mic tooltip),
+  `Transcript` (usage cost, paid-row tooltip), `Palette` (unpriced-then-priced
+  rows), `warmDeferredSurfaces` helper (new `schedules/prompt` surface).
+- Suites: webviewBundle 55/56 (only the ratchet fails, unedited),
+  deferredBundles 113/113, moneyDisplay/modelsComponents/paletteRegistry
+  80/80, Composer/Transcript/Palette 181/181, estimatorPanel/paidFeatures
+  pass, schedulePrompt passes, AppPalette ×2 + modelsWebviewEntry pass,
+  providerWizardSave/scheduleSurfaceWebview/estimatorPrices 48/48.
+- Pre-existing failures, unchanged by this lane (other lanes' territory,
+  listed in CAPS017 §Tests): warmDeferredSurfaces `ElicitationCard` hunk,
+  paidDailyBudget/accountPaidConsent (numeric-vs-decimal ledger),
+  paidMoneyPorts (no touched file listed), jscpd's 3 clones
+  (`acp/agent.ts`, questions helper, paidDailyBudget test).
+- Gates, all exit 0: five typechecks; eslint `--max-warnings=0` and prettier
+  on all 31 changed/new files; plain knip (hub destructures the dynamic
+  imports so member use traces; dead `paidStateSchema` re-export removed);
+  `check:l10n` (no new keys); full `npm run build` with every cap.
+- Not run on this rig: the harness/Chrome suites (sandbox blocks Chrome;
+  the lead runs those outside the sandbox), live/e2e bills.
+
+### Remainder for the lead (D6)
+
+8,640 B over the ratchet, all first-paint-anchored and measured, not moved:
+
+- schedule/media/patch schemas via `protocol.ts` (message validation for
+  restored state), `toolPresentation` schedule parsing via `stepSummary` →
+  `Transcript` (restored rows), `redact.ts` via `errorReport`, the `en.ts`
+  startup slice (only referenced keys ship), and `App`/`Composer`/`uiState`
+  feature growth. No further user-triggered-only module remains in startup:
+  `rankSlashCommands` (487 B) must rank synchronously on each keystroke and
+  `diffTally` (466 B) decides the tally entry on first paint.

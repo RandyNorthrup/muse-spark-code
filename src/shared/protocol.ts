@@ -67,7 +67,7 @@ import {
   mediaChipSchema,
   mediaContributorChoiceSchema,
 } from './media'
-import { paidStateSchema } from './paid'
+import { paidStateSchema } from './paidBoundary'
 import { patchHunkSchema } from './patchDocument'
 import { reviewRequestSchema } from './reviewCommand'
 import { scheduleCadenceSchema } from './schedule'

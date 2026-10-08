@@ -270,8 +270,21 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
   // measured, plus 15%, rounded up to 25 KiB (PLAN.md D6).
   {
     name: 'schedule surface',
-    entries: ['src/webview/schedules/ScheduleSurfaceView.tsx', 'src/webview/schedules/channel.ts'],
+    entries: [
+      'src/webview/schedules/ScheduleSurfaceView.tsx',
+      'src/webview/schedules/channel.ts',
+      // STARTUP017: `/schedule` prompt mapping loads on first submit.
+      'src/webview/schedules/prompt.ts',
+    ],
     budgetKiB: 50,
+  },
+  // STARTUP017: exact money display (feature prices, reply costs) loads
+  // after first paint for tooltips and usage lines: 12.4 KiB measured,
+  // plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  {
+    name: 'exact money',
+    entries: ['src/shared/paid.ts', 'src/core/usage/insights.ts'],
+    budgetKiB: 25,
   },
   // FIXM116I: the startup diet's on-demand overlays (measured 5.5 KiB
   // unregistered; +15% rounded up to 10 KiB). The chat's first paint keeps

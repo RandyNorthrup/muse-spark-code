@@ -10,6 +10,8 @@ export async function warmDeferredSurfaces(): Promise<void> {
     import('../../../src/webview/playbook/PlaybookPanel'),
     import('../../../src/webview/playbook/PlaybookRows'),
     import('../../../src/webview/schedules/channel'),
+    // STARTUP017: `/schedule` prompt mapping loads on first submit.
+    import('../../../src/webview/schedules/prompt'),
     import('../../../src/webview/schedules/ScheduleRunBody'),
     import('../../../src/webview/schedules/ScheduleSurfaceView'),
     import('../../../src/webview/reporting/UsageReportAction'),

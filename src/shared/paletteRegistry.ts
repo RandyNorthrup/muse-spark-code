@@ -10,7 +10,8 @@ import {
 } from './constants'
 import { effortLabel, effortLevelsFor } from './effort'
 import { fill } from './l10n/text'
-import { paidFeatureName, paidFeaturePrice, usablePaidFeatures } from './paid'
+import { paidFeatureName, usablePaidFeatures } from './paidBoundary'
+import type { PaidFeature } from './constants'
 import type { BackendKind, SkillOption } from './protocol'
 import type { PaletteContext, PaletteGroup, PaletteItem, UsageTotals } from './palette'
 import { backendLabel, contextWindowLabel, formatTokenWindow } from './paletteFormatting'
@@ -111,19 +112,25 @@ function museConfigItems(backend: BackendKind | undefined): readonly PaletteItem
  * The paid features' toggles (M33, PLAN.md D30), where they can be used: all
  * on the Model API backend, and on Muse Code the key's images and voice when
  * a key is stored (M44). Each names its price, and turning one on asks the
- * host's confirmation first.
+ * host's confirmation first. Prices arrive with the lazy money chunk
+ * (STARTUP017): unknown while it loads, so rows read without prices rather
+ * than with guessed ones.
  */
-function paidItems(context: PaletteContext): readonly PaletteItem[] {
+function paidItems(
+  context: PaletteContext,
+  priceOf: ((feature: PaidFeature) => string | undefined) | undefined,
+): readonly PaletteItem[] {
   return usablePaidFeatures(context.backend, context.isKeyStored).map((feature) => {
     const isOn = context.paidFeatures.includes(feature)
-    const price = paidFeaturePrice(feature)
+    const price = priceOf?.(feature)
     return {
       id: `paid:${feature}`,
       label: fill(UI_TEXT.paidToggleLabel, { feature: paidFeatureName(feature) }),
-      detail: price,
-      ...(feature === 'teamWorkers' && {
-        tip: fill(UI_TEXT.paidConfirmTeamWorkers, { price }),
-      }),
+      ...(price !== undefined && { detail: price }),
+      ...(feature === 'teamWorkers' &&
+        price !== undefined && {
+          tip: fill(UI_TEXT.paidConfirmTeamWorkers, { price }),
+        }),
       widget: { kind: 'toggle', isOn },
       action: { type: 'setPaidFeature', feature, isOn: !isOn },
     }
@@ -306,7 +313,10 @@ function skillItems(skills: readonly SkillOption[] | undefined): readonly Palett
     }))
 }
 
-export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
+export function buildPalette(
+  context: PaletteContext,
+  priceOf?: (feature: PaidFeature) => string | undefined,
+): readonly PaletteGroup[] {
   const groups: readonly PaletteGroup[] = [
     {
       id: 'context',
@@ -529,7 +539,7 @@ export function buildPalette(context: PaletteContext): readonly PaletteGroup[] {
           },
           action: { type: 'openSettings' },
         },
-        ...paidItems(context),
+        ...paidItems(context, priceOf),
         { id: 'signOut', label: UI_TEXT.signOutItem, action: { type: 'signOut' } },
       ],
     },
