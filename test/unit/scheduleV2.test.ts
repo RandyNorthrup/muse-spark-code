@@ -2,7 +2,7 @@ import { mkdtempSync } from 'node:fs'
 import { readFile, stat, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import { createFileScheduleStore } from '../../src/host/backend/fileScheduleStore'
 import {
   SCHEDULE_MIN_INTERVAL_MS,
@@ -33,6 +33,7 @@ import {
   scheduleTimeTriggerSchema,
   scheduleV1ToV2,
   scheduleV2Schema,
+  scheduleZoneSchema,
   scheduleViewV2Of,
   type ScheduleTimeTrigger,
   type ScheduleTarget,
@@ -903,4 +904,21 @@ describe('M52 migration mapping', () => {
     expect(jobs.map((job) => scheduleV1ToV2(job, 'workspace-1', 'UTC'))).toHaveLength(1)
     expect(await reopened.list(old.sessionId)).toEqual([old])
   })
+})
+
+it('reuses validated time zones without rebuilding Intl on every journal parse', () => {
+  const constructor = vi.spyOn(Intl, 'DateTimeFormat')
+  try {
+    for (let index = 0; index < 100; index += 1)
+      expect(scheduleZoneSchema.safeParse('Atlantic/Reykjavik').success).toBe(true)
+    expect(constructor).toHaveBeenCalledOnce()
+    expect(scheduleZoneSchema.safeParse('+02:00').success).toBe(false)
+    expect(scheduleZoneSchema.safeParse('invalid-zone').success).toBe(false)
+    expect(scheduleZoneSchema.safeParse('Atlantic/Reykjavik').success).toBe(true)
+    expect(scheduleZoneSchema.safeParse('Europe/Paris').success).toBe(true)
+    expect(scheduleZoneSchema.safeParse('Atlantic/Reykjavik').success).toBe(true)
+    expect(constructor).toHaveBeenCalledTimes(5)
+  } finally {
+    constructor.mockRestore()
+  }
 })
