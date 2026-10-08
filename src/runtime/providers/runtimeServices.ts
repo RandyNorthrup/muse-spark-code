@@ -306,7 +306,9 @@ export function createRuntimeAccountServices(
     resources: {
       // Profile processes, credential slots and pool registration need
       // M109's broker binding. Nothing starts here; the failure names
-      // the missing binding instead of running half a profile.
+      // the missing binding instead of running half a profile. Foreign
+      // reset (DEVID017C) clears the record without this port, so the
+      // unbound stub never blocks recovery.
       start: developerUnavailableProfile,
       stop: developerUnavailableProfile,
       remove: developerUnavailableProfile,

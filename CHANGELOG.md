@@ -54,6 +54,15 @@ happened, not what was planned; superseded entries are kept.
   raw hostname leaves stored state at once; a different machine identity is
   refused with an honest message and `developer reset` recovers.
 
+- DEVID017C (developer machine id, review round 3): the id is published by
+  staging the full value to a private temp file, fsyncing it and claiming
+  the final name with `link`, so a racing reader sees no file or the
+  complete id, never a prefix; only the exact 64-lowercase-hex format
+  loads, anything else refuses honestly. Foreign reset asks first with
+  nothing mutated before the answer, never re-binds the grant, and clears
+  without stopping through this machine's resource port; profile folders
+  stay on disk. Cancel leaves everything unchanged.
+
 ## [0.17.0] - 2026-10-08
 
 ### Highlights

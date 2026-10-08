@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto'
-import { mkdir, open, readFile } from 'node:fs/promises'
+import { link, mkdir, open, readFile, rm } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as pause } from 'node:timers/promises'
 import {
@@ -10,6 +10,8 @@ import {
   DEVELOPER_MACHINE_ID_FILE,
   DEVELOPER_MACHINE_ID_READ_ATTEMPTS,
   DEVELOPER_MACHINE_ID_READ_DELAY_MS,
+  DEVELOPER_MACHINE_ID_TMP_PID_RADIX,
+  DEVELOPER_MACHINE_ID_TMP_SUFFIX_BYTES,
 } from '../../shared/constants'
 import { DeveloperOptionsError } from './developerOptions'
 
@@ -25,19 +27,38 @@ export function developerMachineIdFile(dataDir: string): string {
   return path.join(dataDir, DEVELOPER_MACHINE_ID_FILE)
 }
 
-function isStoredMachineId(value: string): boolean {
-  // The same shape the state schema admits
-  // (`src/shared/developerOptions.ts`): the stored identity must unlock
-  // this machine's state, never fail parsing it.
-  return /^[a-zA-Z0-9_-]{1,100}$/.test(value)
+function isPublishedMachineId(value: string): boolean {
+  // The exact publication format only: 64 lowercase hex characters with one
+  // optional trailing newline. A partial prefix, garbage or a short value
+  // is unreadable, never an identity.
+  return /^[0-9a-f]{64}\n?$/.test(value)
 }
 
-/** Load the machine's stable id, creating it once (DEVID017B). The first
- * writer wins through an exclusive create, like the repository's other
- * atomic creates (`providersFile.ts`, the calibration journal): racers that
- * lose read the winner's file, waiting briefly for its bytes. A missing,
- * unreadable or invalid file refuses honestly; the id is never derived from
- * the hostname, so renames change nothing. */
+/** Read a published id, waiting briefly for a racing creator to finish. */
+async function readPublishedMachineId(file: string): Promise<string> {
+  for (let attempt = 1; ; attempt += 1) {
+    let text: string
+    try {
+      text = await readFile(file, 'utf8')
+    } catch {
+      throw new DeveloperOptionsError('unavailable')
+    }
+    if (isPublishedMachineId(text)) return text.endsWith('\n') ? text.slice(0, -1) : text
+    if (attempt >= DEVELOPER_MACHINE_ID_READ_ATTEMPTS)
+      throw new DeveloperOptionsError('unavailable')
+    await pause(DEVELOPER_MACHINE_ID_READ_DELAY_MS)
+  }
+}
+
+/** Load the machine's stable id, creating it once (DEVID017B, redesigned
+ * DEVID017C). The full id is staged to a private temp file in the same
+ * folder and fsynced, then published atomically and exclusively with
+ * `link`, which fails when the final name exists — the calibration
+ * journal's (`src/core/estimator/calibration/journal.ts`) claim pattern,
+ * which also links on Windows. The temp file is removed afterwards. A
+ * reader racing a creator therefore sees no file or the complete id, never
+ * a prefix. A missing, unreadable or invalid file refuses honestly; the id
+ * is never derived from the hostname, so renames change nothing. */
 export async function loadDeveloperMachineId(dataDir: string): Promise<string> {
   const file = developerMachineIdFile(dataDir)
   try {
@@ -46,31 +67,31 @@ export async function loadDeveloperMachineId(dataDir: string): Promise<string> {
     throw new DeveloperOptionsError('unavailable')
   }
   const fresh = randomBytes(DEVELOPER_MACHINE_ID_BYTES).toString('hex')
+  const temporary = path.join(
+    dataDir,
+    `${DEVELOPER_MACHINE_ID_FILE}.${process.pid.toString(DEVELOPER_MACHINE_ID_TMP_PID_RADIX)}-${randomBytes(DEVELOPER_MACHINE_ID_TMP_SUFFIX_BYTES).toString('hex')}.tmp`,
+  )
   try {
-    const handle = await open(file, 'wx', DEVELOPER_FILE_MODE)
+    const staged = await open(temporary, 'wx', DEVELOPER_FILE_MODE)
     try {
-      await handle.writeFile(`${fresh}\n`, 'utf8')
-      await handle.sync()
+      await staged.writeFile(`${fresh}\n`, 'utf8')
+      await staged.sync()
     } finally {
-      await handle.close()
+      await staged.close()
     }
-    return fresh
+  } catch {
+    throw new DeveloperOptionsError('unavailable')
+  }
+  try {
+    await link(temporary, file)
   } catch (error: unknown) {
+    await rm(temporary, { force: true })
+    // Another creator published first: its id is authoritative, never ours.
     if (!hasCode(error, 'EEXIST')) throw new DeveloperOptionsError('unavailable')
+    return await readPublishedMachineId(file)
   }
-  for (let attempt = 1; ; attempt += 1) {
-    let text: string
-    try {
-      text = await readFile(file, 'utf8')
-    } catch {
-      throw new DeveloperOptionsError('unavailable')
-    }
-    const id = text.trim()
-    if (isStoredMachineId(id)) return id
-    if (attempt >= DEVELOPER_MACHINE_ID_READ_ATTEMPTS)
-      throw new DeveloperOptionsError('unavailable')
-    await pause(DEVELOPER_MACHINE_ID_READ_DELAY_MS)
-  }
+  await rm(temporary, { force: true })
+  return fresh
 }
 
 /** The DEVID017 derivation, kept only to recognise stored state from before

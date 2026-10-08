@@ -417,8 +417,8 @@ rig): the hostname digest is replaced by a stored random id.
   recovers through `DeveloperOptions.resetForeign`
   (`src/core/developer/developerOptions.ts:130`, terminal source
   `terminal` via `developerReset` in
-  `src/runtime/providers/runtimeServices.ts:69`), which stops and removes
-  profiles only after confirmation; profiles stay on disk until then.
+  `src/runtime/providers/runtimeServices.ts:69`). (Round 3 corrected this
+  passage: foreign reset asks first and never stops — see Round 3 below.)
   Wording correction: what is refused is another **hostname**, not
   necessarily another physical machine (a copied grant under the same
   hostname is still accepted).
@@ -449,3 +449,68 @@ rig): the hostname digest is replaced by a stored random id.
   `developerLocalFiles` (11 tests) fails identically on the base: the
   macOS `/var`-symlink directory guard, byte-identical files, left for its
   owner.
+
+Round 3 (`rel017/devid3`, review RVDEVID017B, worktree on the `macmini`
+rig): the publish and the foreign reset are redesigned, not patched.
+
+- **Publish.** The full id is staged to a private temp file in the same
+  folder (`machine-id.<pid>-<random>.tmp`, `0600`), fsynced, then
+  published atomically and exclusively with `link`, which fails when the
+  final name exists — the calibration journal's
+  (`src/core/estimator/calibration/journal.ts`) claim pattern, which also
+  links on Windows, so no separate Windows helper was needed. The temp
+  file is removed afterwards on both the win and lose paths
+  (`loadDeveloperMachineId`, `src/core/developer/machineId.ts:62`; temp
+  name constants `DEVELOPER_MACHINE_ID_TMP_PID_RADIX/SUFFIX_BYTES` in
+  `src/shared/constants.ts`). A reader racing a creator sees no file or
+  the complete id, never a prefix. The loader accepts only the exact
+  format — 64 lowercase hex with one optional trailing newline
+  (`isPublishedMachineId`, same file): a 16-hex prefix, `a`, `garbage`
+  and an empty file all refuse honestly with `unavailable`.
+- **Foreign reset.** `DeveloperOptions.resetForeign`
+  (`src/core/developer/developerOptions.ts:141`) asks for confirmation
+  first with nothing mutated before the answer, then on confirmation
+  clears the foreign unlock and registration to a fresh record for this
+  machine with a single `reset` audit row. A grant bound to another
+  machine id is never re-bound to this machine by any path: not before
+  confirmation, not in a `finally` (there is none anymore), not on cancel
+  or failure. Profiles recorded under the foreign id cannot be running
+  under this machine's authority, so they are cleared from the record
+  without `stopAll` through this machine's resource port — which is why
+  recovery now works with the runtime's unbound stub
+  (`src/runtime/providers/runtimeServices.ts:311`). The audit records
+  exactly that: a reset with no stop and no disable. Profile state
+  folders and credential slots stay on disk: PLAN D88 (b) gives Reset the
+  job of turning every option off and stopping the profiles
+  (PLAN.md:12407), never of deleting profile folders. Cancel leaves
+  stored identity, unlock, profiles and audit unchanged, and the next
+  open still refuses with `differentMachine`.
+- **Tests** (`test/unit/developerOptionsMachineId.test.ts`, 21/21): the
+  four refusal cases (prefix, `a`, `garbage`, empty — the file unchanged
+  afterwards); a held partial publish that completes 30 ms later is never
+  adopted, the complete id is read instead; concurrent creators produce
+  one id with no staging litter; decline leaves everything unchanged with
+  no stop/remove call and the next open still refused; confirmation with
+  an always-failing resource port clears to a fresh record with a single
+  `reset` audit row and no stop/remove call, and the next open succeeds
+  fresh; a failing save transfers nothing. The terminal test now carries
+  one profile through the real unbound runtime port: reset exits 0 and
+  the next status is locked. Repo default timeouts.
+- **Drills.** Loosening the validator to the old shape turns the prefix,
+  `a` and `garbage` refusal tests red; restoring a pre-confirmation
+  re-binding save turns the decline test red; both restored to green. The
+  new suite run against base `53c787184` (worktree under `$TMPDIR`, since
+  removed) fails 7 ways: the three refusals, the held publish, the
+  decline, the unbound-port confirmation and the terminal recovery with a
+  profile. (The empty-file refusal and the save-failure guard pass on the
+  base too, as designed.)
+- **Gates.** Five typechecks exit 0; eslint `--max-warnings=0` and prettier
+  on changed files exit 0; `check:l10n` exit 0 (no new user-facing
+  string); `check:host-api` exit 0 (no new module: `link`/`rm` join the
+  existing `node:fs/promises` import); plain knip exit 0; jscpd reports
+  only the same three pre-existing clones in untouched files.
+  `accountPaidConsent` (2 tests) fails identically on the base:
+  byte-identical files, another lane's quote shape, left for its owner.
+  `accountsPanel.a11y` cannot run here: its harness needs loopback
+  listening, which this rig's sandbox blocks (`listen EPERM 127.0.0.1`);
+  reported, not worked around.

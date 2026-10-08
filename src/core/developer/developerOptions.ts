@@ -122,11 +122,22 @@ export class DeveloperOptions {
     return owner
   }
 
-  /** Reset state bound to another machine's identity (DEVID017B). `open`
-   * refuses such state, so the terminal `developer reset` recovers through
-   * here without an owner. Like `reset`, revocation starts before the
-   * destructive confirmation is answered; denying re-refuses with the honest
-   * identity message and loses nothing (the unlock and profiles stay). */
+  /** Reset state bound to another machine's identity (DEVID017B, redesigned
+   * DEVID017C). `open` refuses such state, so the terminal `developer reset`
+   * recovers through here without an owner. Confirmation comes first and
+   * nothing is mutated before the answer: denying re-refuses with the honest
+   * identity message and leaves everything — stored identity, unlock,
+   * profiles, audit — unchanged, so the next open still refuses with
+   * `differentMachine`. On confirmation the foreign unlock and registration
+   * are cleared to a fresh record for this machine; nothing is transferred,
+   * on no path: not before confirmation, not in a `finally`, not on cancel
+   * or failure. Profiles recorded under the foreign id cannot be running
+   * under this machine's authority, so they are cleared from the record
+   * without stopping through this machine's resource port — and the single
+   * `reset` audit row records exactly that: a reset with no stop and no
+   * disable. Their state folders and credential slots stay on disk: PLAN
+   * D88 (b) gives Reset the job of turning every option off and stopping
+   * the profiles (PLAN.md:12407), never of deleting profile folders. */
   public static async resetForeign(
     deps: DeveloperOptionsDeps,
     source: DeveloperAudit['source'],
@@ -134,23 +145,17 @@ export class DeveloperOptions {
     const stored = await deps.store.read()
     const parsed = stored === undefined ? undefined : developerStateSchema.safeParse(stored)
     if (parsed?.success !== true) throw new DeveloperOptionsError('differentMachine')
-    const owner = new DeveloperOptions(deps, parsed.data)
-    try {
-      await owner.stopAll()
-    } finally {
-      await owner.save(
-        { ...owner.state, machineId: deps.machineId, isMultipleAccountsOn: false },
-        'disable',
-        'lifecycle',
-      )
-    }
     if (!(await deps.confirm('reset'))) throw new DeveloperOptionsError('differentMachine')
-    for (const profile of owner.state.profiles) await deps.resources.remove(profile)
-    await owner.save(
-      { ...owner.state, unlockedAt: null, expiresAt: null, profiles: [] },
-      'reset',
-      source,
-    )
+    const cleared = developerStateSchema.parse({
+      v: 1,
+      machineId: deps.machineId,
+      unlockedAt: null,
+      expiresAt: null,
+      isMultipleAccountsOn: false,
+      profiles: [],
+    })
+    const owner = new DeveloperOptions(deps, cleared)
+    await owner.save(owner.state, 'reset', source)
     return owner.snapshot()
   }
 

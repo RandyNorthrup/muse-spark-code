@@ -7677,6 +7677,11 @@ export const DEVELOPER_MACHINE_ID_FILE = 'machine-id'
 export const DEVELOPER_MACHINE_ID_BYTES = 32
 export const DEVELOPER_MACHINE_ID_READ_ATTEMPTS = 10
 export const DEVELOPER_MACHINE_ID_READ_DELAY_MS = 10
+// DEVID017C: the staged claim file published with `link`
+// (core/developer/machineId.ts): the pid in base 36 plus random bytes,
+// unique per publishing process.
+export const DEVELOPER_MACHINE_ID_TMP_PID_RADIX = 36
+export const DEVELOPER_MACHINE_ID_TMP_SUFFIX_BYTES = 8
 // DEVID017: domain separation for the legacy hostname derivation, kept only
 // to recognise stored state from before DEVID017B (core/developer/machineId.ts).
 export const DEVELOPER_MACHINE_ID_DOMAIN = 'muse-spark-developer-machine/v1'

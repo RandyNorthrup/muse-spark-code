@@ -1,4 +1,12 @@
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { hostname, tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -9,9 +17,15 @@ import {
   loadDeveloperMachineId,
 } from '../../src/core/developer/machineId'
 import { DeveloperOptions, DeveloperOptionsError } from '../../src/core/developer/developerOptions'
+import type { DeveloperProfileResources } from '../../src/core/developer/localProfiles'
 import { createRuntimeAccountServices } from '../../src/runtime/providers/runtimeServices'
 import { runTerminalDeveloperCommand } from '../../src/runtime/providers/accountsEntry'
-import { DEVELOPER_FILES, DEVELOPER_UNLOCK_MS, UI_TEXT } from '../../src/shared/constants'
+import {
+  DEVELOPER_FILES,
+  DEVELOPER_MACHINE_ID_FILE,
+  DEVELOPER_UNLOCK_MS,
+  UI_TEXT,
+} from '../../src/shared/constants'
 import { developerStateSchema } from '../../src/shared/developerOptions'
 import { developerFixture } from './helpers/developer'
 import { memoryKeyring } from './helpers/keyring'
@@ -137,7 +151,41 @@ describe('developer machine identity (DEVID017B)', () => {
     const folder = freshDir()
     const ids = await Promise.all(Array.from({ length: 8 }, () => loadDeveloperMachineId(folder)))
     expect(new Set(ids).size).toBe(1)
-    expect(readFileSync(developerMachineIdFile(folder), 'utf8').trim()).toBe(ids[0])
+    const winner = ids[0]
+    if (winner === undefined) throw new Error('concurrent creators published no id')
+    expect(readFileSync(developerMachineIdFile(folder), 'utf8')).toBe(`${winner}\n`)
+    // The staging files are gone: only the published id remains.
+    expect(readdirSync(folder)).toEqual([DEVELOPER_MACHINE_ID_FILE])
+  })
+
+  it.each([
+    ['a partial prefix', '0123456789abcdef'],
+    ['a single character', 'a'],
+    ['garbage', 'garbage'],
+    ['an empty file', ''],
+  ])('refuses %s instead of adopting it as the identity', async (_label, contents) => {
+    const folder = freshDir()
+    writeFileSync(developerMachineIdFile(folder), contents)
+    await expect(loadDeveloperMachineId(folder)).rejects.toMatchObject({
+      code: 'unavailable',
+      message: UI_TEXT.developer.unavailable,
+    })
+    // The refusal changed nothing: no prefix became an id.
+    expect(readFileSync(developerMachineIdFile(folder), 'utf8')).toBe(contents)
+  })
+
+  it('never adopts a held partial publish, reading the complete id instead', async () => {
+    const folder = freshDir()
+    const file = developerMachineIdFile(folder)
+    // A creator held mid-publish has only 16 of the 64 characters visible
+    // at the published name; it finishes 30 ms later (well inside the
+    // reader's retry budget). The reader must never adopt the prefix.
+    const completeId = 'ab'.repeat(32)
+    writeFileSync(file, '0123456789abcdef')
+    setTimeout(() => {
+      writeFileSync(file, `${completeId}\n`)
+    }, 30)
+    await expect(loadDeveloperMachineId(folder)).resolves.toBe(completeId)
   })
 
   it('refuses honestly when the id file cannot be created or read', async () => {
@@ -179,27 +227,85 @@ describe('developer machine identity (DEVID017B)', () => {
     expect(h.persisted()).toEqual(legacy)
   })
 
-  it('resets foreign state after confirmation and keeps it on denial', async () => {
+  it('leaves foreign state untouched when reset is declined', async () => {
     const legacy = unlockedGrant('other-machine-identity')
-    const denied = developerFixture(structuredClone(legacy))
-    await expect(
-      DeveloperOptions.resetForeign(
-        { ...denied.deps, machineId: STABLE_ID, confirm: () => Promise.resolve(false) },
-        'terminal',
-      ),
-    ).rejects.toMatchObject({ code: 'differentMachine' })
-    expect(developerStateSchema.parse(denied.persisted()).profiles).toEqual(legacy.profiles)
-
     const h = developerFixture(structuredClone(legacy))
+    const confirm = vi.fn(() => Promise.resolve(false))
+    await expect(
+      DeveloperOptions.resetForeign({ ...h.deps, machineId: STABLE_ID, confirm }, 'terminal'),
+    ).rejects.toMatchObject({
+      code: 'differentMachine',
+      message: UI_TEXT.developer.differentMachine,
+    })
+    expect(confirm).toHaveBeenCalledTimes(1)
+    // Nothing was mutated before the answer: identity, unlock, profiles
+    // and audit sit exactly as before — nothing was re-bound.
+    expect(h.persisted()).toEqual(legacy)
+    expect(h.audits).toEqual([])
+    expect(h.resources.stop).not.toHaveBeenCalled()
+    expect(h.resources.remove).not.toHaveBeenCalled()
+    // The next open still refuses with the honest identity message.
+    await expect(
+      DeveloperOptions.open({
+        ...h.deps,
+        machineId: STABLE_ID,
+        previousMachineIds: developerMachineIdAliases(hostname()),
+      }),
+    ).rejects.toMatchObject({ code: 'differentMachine' })
+  })
+
+  it('clears foreign state on confirmation without stopping or transferring', async () => {
+    const legacy = unlockedGrant('other-machine-identity')
+    const h = developerFixture(structuredClone(legacy))
+    // The runtime's resource port is unbound, so every call fails.
+    // Recovery must still clear: foreign profiles are never stopped here.
+    const unbound: DeveloperProfileResources = {
+      start: vi.fn<DeveloperProfileResources['start']>(() =>
+        Promise.reject(new DeveloperOptionsError('unavailable')),
+      ),
+      stop: vi.fn<DeveloperProfileResources['stop']>(() =>
+        Promise.reject(new DeveloperOptionsError('unavailable')),
+      ),
+      remove: vi.fn<DeveloperProfileResources['remove']>(() =>
+        Promise.reject(new DeveloperOptionsError('unavailable')),
+      ),
+    }
     const snapshot = await DeveloperOptions.resetForeign(
-      { ...h.deps, machineId: STABLE_ID },
+      { ...h.deps, machineId: STABLE_ID, resources: unbound },
       'terminal',
     )
-    expect(snapshot).toMatchObject({ isUnlocked: false, profiles: [] })
+    expect(snapshot).toMatchObject({
+      isUnlocked: false,
+      isMultipleAccountsOn: false,
+      expiresAt: null,
+      profiles: [],
+    })
     const cleared = developerStateSchema.parse(h.persisted())
-    expect(cleared).toMatchObject({ machineId: STABLE_ID, profiles: [] })
-    expect(h.resources.remove).toHaveBeenCalledTimes(1)
-    expect(h.audits.at(-1)).toMatchObject({ action: 'reset' })
+    expect(cleared.machineId).toBe(STABLE_ID)
+    expect(cleared.unlockedAt).toBeNull()
+    expect(cleared.expiresAt).toBeNull()
+    expect(cleared.isMultipleAccountsOn).toBe(false)
+    expect(cleared.profiles).toEqual([])
+    // Nothing of the grant moved across: no stop, no removal, and the
+    // only audit row is the reset itself — no disable, no per-profile row.
+    expect(unbound.stop).not.toHaveBeenCalled()
+    expect(unbound.remove).not.toHaveBeenCalled()
+    expect(h.audits).toEqual([expect.objectContaining({ action: 'reset', source: 'terminal' })])
+    // The next open on this machine is a fresh state, not a refusal.
+    const owner = await DeveloperOptions.open({ ...h.deps, machineId: STABLE_ID })
+    expect(owner.snapshot()).toMatchObject({ isUnlocked: false, profiles: [] })
+  })
+
+  it('transfers nothing when the reset save fails', async () => {
+    const legacy = unlockedGrant('other-machine-identity')
+    const h = developerFixture(structuredClone(legacy))
+    vi.mocked(h.deps.store.commit).mockRejectedValueOnce(new Error('disk full'))
+    await expect(
+      DeveloperOptions.resetForeign({ ...h.deps, machineId: STABLE_ID }, 'terminal'),
+    ).rejects.toThrow('disk full')
+    // The foreign grant sits exactly as before: no re-bind, no clearing.
+    expect(h.persisted()).toEqual(legacy)
+    expect(h.audits).toEqual([])
   })
 
   it('opens on this machine and persists the stored id', async () => {
@@ -238,6 +344,8 @@ describe('developer machine identity (DEVID017B)', () => {
         machineId: 'foreign-machine-identity',
         unlockedAt,
         expiresAt: unlockedAt + DEVELOPER_UNLOCK_MS,
+        isMultipleAccountsOn: true,
+        profiles: [{ id: 'profile-one', provider: 'meta', account: 'work' }],
       }),
     )
     const input = { dataDir: folder, openEntry: memoryKeyring().openEntry }
@@ -263,7 +371,14 @@ describe('developer machine identity (DEVID017B)', () => {
     const cleared = developerStateSchema.parse(
       JSON.parse(readFileSync(path.join(folder, 'developer', DEVELOPER_FILES.state), 'utf8')),
     )
-    expect(cleared).toMatchObject({ profiles: [] })
+    // The runtime's resource port is unbound, yet recovery cleared the
+    // foreign grant: no unlock, no registration, nothing transferred.
+    expect(cleared).toMatchObject({
+      unlockedAt: null,
+      expiresAt: null,
+      isMultipleAccountsOn: false,
+      profiles: [],
+    })
     expect(cleared.machineId).toBe(await loadDeveloperMachineId(folder))
 
     const again = await runTerminalDeveloperCommand(
