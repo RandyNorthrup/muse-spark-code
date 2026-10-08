@@ -9,6 +9,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Bounded helper commands (Git and gh reads, birth probes, schedule OS
+  commands, URL openers) keep resource admission and tree containment
+  without a per-command temporary folder. That folder needed a packaged
+  native helper, so source checkouts on Linux and macOS refused every Git
+  read. On Windows it cost six PowerShell starts per command. The runtime
+  now prepares its Windows job helpers once instead of on every launch.
+
 - Containment-helper compilation uses heavy bootstrap admission, bounded
   output and whole-tree deadline/cancellation. Runtime commands bind global
   admission; login and browser processes use governed launch. Windows report

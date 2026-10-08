@@ -48,7 +48,7 @@ interface Work {
   temp: ResourceTempRoot | undefined
   failed: boolean
   checkpoint: boolean
-  bootstrap: boolean
+  tempFree: boolean
   members: Set<string>
   births: number[]
   limited: boolean
@@ -115,7 +115,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   }
 
   private finishTemp(work: Work): void {
-    if (work.checkpoint || work.bootstrap) return
+    if (work.checkpoint || work.tempFree) return
     this.retired.add(work.owner)
     const finish =
       work.temp === undefined
@@ -293,7 +293,8 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     workClass?: ResourceClass | 'checkpoint',
     isDiskHeavy = kind === 'check' || kind === 'browserCheck',
     checkpointDestination?: string,
-    isBootstrap = false,
+    // Bootstrap compilation and bounded harness commands own no per-tree temp root.
+    isTempFree = false,
   ): Promise<ResourceLease> {
     if (this.disposed) throw new Error('Resource launch host disposed')
     const settings = this.options.settings()
@@ -338,7 +339,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       temp: undefined,
       failed: false,
       checkpoint: isCheckpoint,
-      bootstrap: isBootstrap,
+      tempFree: isTempFree,
       members: new Set(),
       births: [],
       limited: false,
@@ -346,7 +347,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     this.work.add(work)
     let creating: Promise<ResourceTempRoot> | undefined
     try {
-      if (!isCheckpoint && !isBootstrap) creating = this.options.tempRoots?.create(work.owner)
+      if (!isCheckpoint && !isTempFree) creating = this.options.tempRoots?.create(work.owner)
       if (creating !== undefined) work.temp = await this.waitAdmission(creating, signal)
     } catch (error: unknown) {
       if (creating !== undefined && (signal?.aborted === true || this.isClosed())) {

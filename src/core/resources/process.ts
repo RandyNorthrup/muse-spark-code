@@ -1,6 +1,6 @@
 import { spawn, type SpawnOptionsWithoutStdio } from 'node:child_process'
 import { admitResource, resourceWindowsJob, stopResourceTree } from './admission'
-import { resourceEnvironment } from './launch'
+import { resourceEnvironment, type ResourceLease } from './launch'
 
 /** Portable payload launch; platform helpers stay behind the first-use boundary. */
 export async function spawnResourceProcess(
@@ -10,6 +10,37 @@ export async function spawnResourceProcess(
   extraDescriptors: readonly number[] = [],
 ) {
   const resource = await admitResource('other', options.signal)
+  return await launchAdmitted(file, args, options, extraDescriptors, resource)
+}
+
+/**
+ * Bounded harness commands (captured, capped output and a deadline) keep the same
+ * admission, containment and whole-tree retirement; a per-command temp root would
+ * cost six native created-file round trips for a directory nothing writes.
+ */
+export async function spawnResourceCommand(
+  file: string,
+  args: readonly string[],
+  options: SpawnOptionsWithoutStdio,
+) {
+  const resource = await admitResource(
+    'other',
+    options.signal,
+    undefined,
+    undefined,
+    undefined,
+    true,
+  )
+  return await launchAdmitted(file, args, options, [], resource)
+}
+
+async function launchAdmitted(
+  file: string,
+  args: readonly string[],
+  options: SpawnOptionsWithoutStdio,
+  extraDescriptors: readonly number[],
+  resource: ResourceLease | undefined,
+) {
   if (resource === undefined) throw new Error('Resource admission unavailable')
   let hasSpawned = false
   let jobName: string | undefined

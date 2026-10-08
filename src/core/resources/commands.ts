@@ -4,7 +4,7 @@ import path from 'node:path'
 import { resolveExecutable } from '../executables'
 import { environmentValue } from '../backends/musecode/launch'
 import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../../shared/constants'
-import { spawnResourceProcess } from './process'
+import { spawnResourceCommand } from './process'
 
 /** execFile-compatible bounded results, using the ordinary governed command runner. */
 export async function execResourceFile(
@@ -21,7 +21,7 @@ export async function execResourceFile(
         fileExists: existsSync,
       })
   if (file === undefined || !existsSync(file)) throw new Error('Governed command unavailable')
-  const { child, stop } = await spawnResourceProcess(file, args, {
+  const { child, stop } = await spawnResourceCommand(file, args, {
     env,
     ...(options.cwd !== undefined && { cwd: options.cwd }),
     ...(options.signal !== undefined && { signal: options.signal }),

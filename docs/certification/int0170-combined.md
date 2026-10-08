@@ -334,11 +334,9 @@ follow-up's bootstrap tier and honest unavailable states.
    existing createRuntimeResourceHost queue, prepares native jobs lazily in
    resourceGovernor.js and disposes the binding. spawnRuntimeAdmission proves
    shared heavy admission, governor pause refusal and shutdown refusal.
-   The real-Git schedule assertion remains failing: the first binding attempt
-   reached native created-file publication refusal; moving the registry under
-   machine storage did not restore the test. Common.md's two-failed-fixes rule
-   stops this path. Its assertions and deadlines are unchanged. This native
-   publication defect is a release blocker; admission is never bypassed.
+   The real-Git schedule refusal's root cause, repair and receipts are under
+   "Root cause of the real-Git refusal (SPAWN017C)" below. Its assertions and
+   deadlines are unchanged; admission is never bypassed.
 3. Uninstalled builders: PLAN M105 W final status and section 7's
    M105-R1 integration deferral leave the trusted helper, process tree and
    installed recorder driver unbound; extension.ts supplies no driver and
@@ -372,8 +370,8 @@ are cleaned after drills. Restored initial batch: 41 tests in three files,
 exit 0, repository default timeouts. No timeout override was used.
 
 Full quality belongs to the lead under common.md and PLAN section 7. The
-native schedule publication failure remains explicitly blocked, so this
-record does not certify a regression-free runtime release.
+Windows tree-reader residual (SPAWN017C below) remains open, so this record
+does not certify a regression-free runtime release.
 
 Implementation commit e50ef9f49 passed the installed lint-staged and gitleaks hooks. The staged and committed source differences were re-read. Native account/job and boundary batch passed 14 tests; the subsequent login/runtime/resource-host batch passed 73 tests. Final bootstrap/runtime/Help boundary batch passed 15 tests, including an actual spawn spy proving zero compiler launches at governor pause.
 
@@ -414,13 +412,13 @@ tests; this fixture transport is not a claim of an installed vault broker.
 
 Final item map (source and test lines are at qualified commit `19e889372`):
 
-| Item                    | Code                                                                                                                                                 | Regression and result                                                                                                                                                                                                                                   |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1 Bootstrap tier        | `src/core/resources/bootstrap.ts:15`, `src/host/backend/jobBuild.ts:43`, `src/host/vault/slots/windowsVaultBuild.ts:34`                              | `spawnBootstrap.test.ts`: six cases pass; native root/child deadline and cancellation, output bound, compiler admission and both vault guard preparation attempts.                                                                                      |
-| 2 Runtime admission     | `src/runtime/resources/load.ts:95`, `src/runtime/main.ts:1584`                                                                                       | `spawnRuntimeAdmission.test.ts`: real queue and zero spawn at pause pass. `scheduleEvents.local.test.ts:81`: 11 pass, one retained real-Git failure, `Unavailable: gitRefs`; native created-file publication remains blocked after two repair attempts. |
-| 3 Unavailable builders  | `src/extension.ts:2074` and `:3363`, `src/host/media/previewPanel.ts:129`, `src/shared/featureCatalog.ts:29`, `src/shared/l10n/en.ts:425` and `:483` | `recordingPreview.test.ts`, `vault/vaultPanelBundle.test.ts`: 23 pass. `spawnBoundaries.test.ts:28` checks honest Help. PLAN M105 W final status, M105-R1-integration, M109 W service handoff; neither builder is installed.                            |
-| 4 History race          | `src/core/reporting/history.ts:464` and `:116`                                                                                                       | `reportHistory.test.ts:554` retains displaced-creator assertions; birth selector at `:189`. Thirty idle plus thirty loaded whole-file runs pass, 35 tests each. No added sleep/retry/deadline.                                                          |
-| 5 Runtime openers/login | `src/runtime/main.ts:639`, `:652`, `:1341`                                                                                                           | `spawnBoundaries.test.ts:21` guards the adapter/import boundary; `acpRuntime.test.ts` retains synchronous/async login lifecycle assertions. The complete login/runtime/host batch passes 73 tests. No OS-handoff exemption.                             |
+| Item                    | Code                                                                                                                                                 | Regression and result                                                                                                                                                                                                        |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 Bootstrap tier        | `src/core/resources/bootstrap.ts:15`, `src/host/backend/jobBuild.ts:43`, `src/host/vault/slots/windowsVaultBuild.ts:34`                              | `spawnBootstrap.test.ts`: six cases pass; native root/child deadline and cancellation, output bound, compiler admission and both vault guard preparation attempts.                                                           |
+| 2 Runtime admission     | `src/runtime/resources/load.ts:95`, `src/runtime/main.ts:1584`                                                                                       | `spawnRuntimeAdmission.test.ts`: real queue and zero spawn at pause pass. `scheduleEvents.local.test.ts:81` failed here (`Unavailable: gitRefs`); root cause and repair: SPAWN017C below.                                    |
+| 3 Unavailable builders  | `src/extension.ts:2074` and `:3363`, `src/host/media/previewPanel.ts:129`, `src/shared/featureCatalog.ts:29`, `src/shared/l10n/en.ts:425` and `:483` | `recordingPreview.test.ts`, `vault/vaultPanelBundle.test.ts`: 23 pass. `spawnBoundaries.test.ts:28` checks honest Help. PLAN M105 W final status, M105-R1-integration, M109 W service handoff; neither builder is installed. |
+| 4 History race          | `src/core/reporting/history.ts:464` and `:116`                                                                                                       | `reportHistory.test.ts:554` retains displaced-creator assertions; birth selector at `:189`. Thirty idle plus thirty loaded whole-file runs pass, 35 tests each. No added sleep/retry/deadline.                               |
+| 5 Runtime openers/login | `src/runtime/main.ts:639`, `:652`, `:1341`                                                                                                           | `spawnBoundaries.test.ts:21` guards the adapter/import boundary; `acpRuntime.test.ts` retains synchronous/async login lifecycle assertions. The complete login/runtime/host batch passes 73 tests. No OS-handoff exemption.  |
 
 Fresh local clone at `19e889372`, `CI=true`, ordinary npm ci exit 0;
 901 packages, existing audit reports 2 low and 9 high findings. No dependency
@@ -446,9 +444,9 @@ repository's own timeout settings; no CLI timeout override or test filter.
 | Login/runtime/resource host          | 0    | 73 tests, three files                                                                                                     |
 | Unavailable recorder/vault           | 0    | 23 tests, two files                                                                                                       |
 | Native vault/account                 | 0    | 53 tests, two files                                                                                                       |
-| Real-Git schedule events             | 1    | 11 pass / one retained failure                                                                                            |
+| Real-Git schedule events             | 1    | 11 pass / one failure at `19e889372`; repaired by SPAWN017C below                                                         |
 
-Fresh tests total 176 passed / one failed. The passing history replays are
+Fresh tests total 176 passed / one failed at `19e889372`. The passing history replays are
 additional. Nine deliberate red drills all exit 1 with byte-exact source
 restoration; the earlier attached-child control's exit 0 is excluded and
 documented above. Structured timings and exit codes are in
@@ -466,8 +464,8 @@ and notices checks; this record does not claim those later checks ran.
 Implementation/test commits: `e50ef9f49`, `5128960ad`, `19e889372`.
 Their installed lint-staged and gitleaks hooks exited 0; staged and committed
 differences were re-read after each hook. Aggregate quality remains lead-owned.
-The native schedule publication defect, existing duplication and candidate
-caps remain release blockers. This lane does not certify a complete runtime
+Existing duplication and candidate caps remain release blockers; the
+schedule refusal and its Windows residual are recorded in SPAWN017C below. This lane does not certify a complete runtime
 release. Final documentation formatting is checked separately and committed
 through the same installed hooks; the final report names that receipt commit.
 
@@ -478,3 +476,109 @@ before execution, with the reason "blocked by policy" and no more specific
 explanation. The baseline/qualification clones, one owned runtime fixture
 directory and raw scratch logs remain there. No alternate-shell bypass was
 attempted. Structured receipts above were preserved in git before cleanup.
+
+### Root cause of the real-Git refusal (SPAWN017C)
+
+Windows 11 host plus the Kubuntu, Mac mini and win11 rigs; branch
+`rel017/spawn3` from `fb0b12aa3`. No push, live or paid call, credential,
+dependency, gate, cap, hook or timeout change.
+
+**Reproduction at `fb0b12aa3`.** `scheduleEvents.local.test.ts:81` fails on
+every platform, in two ways. Kubuntu and the Mac mini refuse within 0.2 s
+with `Unavailable: gitRefs`. A scratch probe showed the hidden error:
+`spawn <checkout>/src/core/native/linux/x64/muse-created ENOENT` (macOS:
+`src/core/native/darwin/muse-dictate --created-directory`), raised by a temp
+root's manifest `publish`. On win11 and on the host the case times out at
+15 s: one governed `git --version` takes 2.5–2.9 s on win11 (11–31 s on the
+loaded host). So the failure is not Windows-only.
+
+**Root cause.** `execResourceFile` admitted every bounded command as
+ordinary work (base `commands.ts:24`, `process.ts:12`). Ordinary admission
+allocates a per-tree temp root (base `launchHost.ts:349`). Each root costs
+six native created-file operations: intent publish, create and publish,
+then finish publish, remove and publish (`createdRegistry.ts:447`, `:553`,
+`:576`). The governor resolves the POSIX helper relative to its own module
+(`resourceGovernorEntry.ts:99`, `:129`). That path exists only in packaged
+layouts, where the VSIX and the ACP package stage `native/` beside `dist/`.
+It is absent from a source checkout and from the CI unit job, which has no
+build step. On Windows each operation is a cold PowerShell assembly load,
+and each first calls `windowsJob()` (`resourceGovernorEntry.ts:103`). The
+runtime's `windowsJob` (base `load.ts:93`) built fresh helper factories on
+every call (`entry.ts:41`, `:42`). Every call therefore re-ran the
+PowerShell join self-test and the MCP executable self-test: about thirteen
+cold process starts per governed Git command. Binding admission exposed
+this path; moving the registry changed its location, not the helper or its
+cost, so neither earlier attempt could help.
+
+**Repair.**
+
+- `src/core/resources/process.ts:21` adds `spawnResourceCommand`, used by
+  `commands.ts:24`. Bounded commands keep `admitResource` admission, Windows
+  job or POSIX group containment, whole-tree retirement and stop. They take
+  the temp-free tier bootstrap already used (`admission.ts:77`,
+  `launchHost.ts:118`, `:297`, `:350`). Ordinary launches still call
+  `admitResource('other', signal)` and still get a temp root. PLAN D87.14
+  records the narrowing.
+- `src/runtime/resources/load.ts:84` prepares the runtime's Windows job
+  helpers once per binding, as the extension does at activation. It shares
+  an in-flight preparation and retries a failed one.
+- `src/core/schedules/events/git.ts:120` keeps the fixed `gitRefs` reason
+  and attaches the actual refusal as `cause`; the message itself is unchanged.
+
+Measured on win11 over 13 governed reads: memoized helpers with temp roots
+took 72.7 s; with both repairs, 11.2 s (0.7–0.9 s per read).
+
+**Regressions** (`test/unit/spawnRuntimeAdmission.test.ts:70`, `:130`,
+`:154`). They prove one helper preparation with a retried failure, a bounded
+command admitted through the runtime queue without `TreeTempRoots.create`,
+and the refusal kept as `cause`. On `fb0b12aa3` sources, with only this file
+copied, each rig gave 3 failed and 1 passed: four preparations instead of
+two; POSIX helper ENOENT, or `create` called once on Windows; no `cause`.
+
+**Red drill.** With the six repaired sources set back to their `fb0b12aa3`
+bytes, Kubuntu and win11 each exited 1 with 4 failed and 12 passed: the
+three regressions plus the real-Git case (a 106 ms refusal on Kubuntu, a
+15,012 ms timeout on win11). After restoration all six SHA-256 sums matched.
+
+**Gates on the final code.** The rigs were shared with other lanes. Each
+vitest call ran at most three files with repository timeouts.
+
+| Gate                                                        | Exit     | Receipt                                                                                                                    |
+| ----------------------------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------- |
+| scheduleEvents.local, three runs                            | 0        | Real-Git case: Kubuntu 710/714/768 ms, Mac mini 1,091/1,086/1,173 ms, win11 12,471/12,375/14,566 ms (quieter: 10.7–11.3 s) |
+| spawnRuntimeAdmission, 44 schedule\* and unattended\* files | 1 (base) | Only failures that reproduce on untouched `fb0b12aa3` on the same rig; see below                                           |
+| Related resource and spawn suites                           | 1 (base) | Same; spawnGovernance, spawnBoundaries, spawnBootstrap and spawnRuntimeAdmission pass on every rig                         |
+| Five typechecks                                             | 0        | host 168 s, webview 102 s, unit 473 s, e2e 227 s, integration 79 s                                                         |
+| ESLint `--max-warnings=0`                                   | 0        | Seven changed TypeScript files                                                                                             |
+| Prettier                                                    | 0        | Seven TypeScript files, PLAN.md, CHANGELOG.md, this record                                                                 |
+| jscpd, changed files                                        | 0        | Seven files, zero clones                                                                                                   |
+| Plain knip                                                  | 0        | Two existing configuration hints                                                                                           |
+| check:host-api                                              | 0        | 378 APIs, 49 vscode files, 30 Node built-ins, 71 theme variables; 0 problems                                               |
+
+The inherited failures, each reproduced on `fb0b12aa3` on the same rig:
+schedulePaid (three cases, every rig); deferredBundles (three);
+modelApiHost (two); nativeScheduleBackground (one or two);
+windowsVaultTransport (three); windowsVaultNative ACL cases and the
+scheduleStore junction EPERM (win11). Also inherited: the suite-level native
+helper refusals of resourceDiskAdmission, resourceMuseLifecycle and
+resourceWindowsLaunch (win11), and the Mac mini's load-sensitive
+scheduleMigrate, scheduleStore and scheduleRuntime cases (base: seven and
+eight failures there). Two Kubuntu scheduleMigrate timeouts under shared
+load passed on re-run, 74 of 74. A first cut changed the ordinary admission
+call that spawnGovernance asserts; restoring that call shape fixed it. After
+one 15 s timeout under shared load, it passed 20 of 20 on win11.
+
+**Windows residual, not certified.** Limited to four CPUs (affinity 0xF on
+win11, the hosted-runner size), the real-Git case still times out: 15,013 ms
+and 15,039 ms. Each governed Windows launch still starts the MCP job
+launcher (0.2–0.35 s). It also queues up to six cold PowerShell tree
+queries (root, membership, members, usage, retirement twice) of 0.25–0.43 s
+each; traces show about three per command. That is the T reader's per-query
+design (`trees/windows.ts:43`), shared by every governed Windows launch.
+Removing it needs a persistent native reader or launcher-attested job-empty
+retirement. That is a redesign for the lead, not another patch, so hosted
+Windows CI may still fail this case.
+
+Cleanup: the scratch probes, the base worktree, and the win11 one-off task
+with its command file are removed. Raw receipts stay in the session
+scratchpad.

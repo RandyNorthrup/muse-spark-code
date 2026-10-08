@@ -115,8 +115,9 @@ export function localGitRefs(
         const current = capability()
         if (!current.available) throw new Error(current.reason)
         return refs
-      } catch {
-        throw new Error(unavailableSource('gitRefs').reason)
+      } catch (error: unknown) {
+        // The fixed reason is what callers show; the cause keeps the actual refusal.
+        throw new Error(unavailableSource('gitRefs').reason, { cause: error })
       }
     },
   }

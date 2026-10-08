@@ -1,5 +1,16 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**SPAWN017C gitRefs root cause (2026-10-08, win11).** Bounded harness
+commands (`execResourceFile`: Git, gh, birth probes, OS schedule commands,
+openers) keep ordinary admission, containment and whole-tree retirement but
+own no per-command temp root, like bootstrap. Each root cost six native
+created-file round trips, needing a packaged helper (absent from source on
+POSIX) and six cold PowerShell starts on Windows. The runtime prepares its
+Windows job helpers once, as the extension does; a failure is retried. The
+Git source keeps its fixed reason and attaches the actual refusal as `cause`.
+The Windows tree reader's cold PowerShell per query remains a redesign item
+(section 7); receipts are in int0170-combined.md (SPAWN017B section).
+
 **SPAWN017B cold-probe finding (2026-10-08).** The third complete-file idle
 replay fails before lock admission because PowerShell's Get-Process discovery
 consumes the unchanged birth-probe bound. Read the same OS birth identity
@@ -12100,6 +12111,9 @@ one governor for everything the harness starts.
       - Every governed child runs with `TMPDIR`, `TEMP` and `TMP` pointed
         at a temp root the harness owns for that tree. Browsers launched
         for tests get their own profile and cache folders in that root.
+        **Narrowed by SPAWN017C (2026-10-08):** bounded harness commands
+        (captured, capped output and a deadline) and bootstrap compilation
+        stay admitted, contained and retired but own no temp root.
       - When the tree exits, its root is removed. A failed run's root is
         kept for `RESOURCE_TEMP_KEEP_MS` (24 hours) for debugging and is
         then removed.
@@ -36807,6 +36821,17 @@ lane A's first step.
 ---
 
 ## 7. Gates
+
+**SPAWN017C Windows residual (2026-10-08).** Bounded commands no longer
+build temp roots, and the runtime prepares its job helpers once. With those
+fixes the real-Git schedule regression passes on Kubuntu and the Mac mini.
+On win11 it passes at about 10.5 s of its 15 s budget with ten CPUs, but
+times out with four, the hosted-runner size. Each governed Windows launch
+still starts a launcher and up to six cold PowerShell tree queries (root,
+membership, members, usage, retirement). This is the T reader's
+per-query design. Removing that cost needs a persistent reader or
+launcher-attested retirement. That is a redesign for the lead, not a
+third patch. No assertion or deadline is changed.
 
 **SPAWN017B scoped delivery and stop (2026-10-08).** Shared common.md forbids
 aggregate quality on this lane; the lead owns it. Retain all caps and run
