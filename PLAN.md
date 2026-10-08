@@ -40462,6 +40462,23 @@ equivalent; MHP and companion hosts reuse the same adapter and chip once
 M104 binds their bridges. Receipts:
 [`docs/certification/m107.md`](docs/certification/m107.md#m107-w-chip--window-binding).
 
+**FIXM107W1D host-issued document identity and one Show operation
+(2026-10-08).** RVM107W1D found five more P2s in the open handshake (round
+five), so it is redesigned, not patched. `configureWebview` names every
+document it builds (`data-document-id` on the body; `ChatSurface.documentId`),
+and Reload issues a new id at once. The chip only echoes that id. The window
+accepts a pull or ack only under the surface's current id, and an ack only
+for the seq it offered to that id, so arrival order decides nothing. Each
+Show is one operation with an AbortController: a newer Show, its target's
+removal or disposal aborts it; every await is followed by an abort check,
+and it withdraws only its own open. Show reads the governor first, so an
+off governor opens and focuses nothing, and the conversation opening is
+awaited as soon as it starts. Regressions run through the production webview
+setup, panel and sidebar adapters and the registry, and 7 fail on
+`f2708deeb`. Chat startup is unchanged. Status: repaired on `m107/w-chip`,
+awaiting re-review. M104 bridge parity, M102 history and the lead's full
+quality and installed-editor receipts remain separate.
+
 **FIXM107W1C pull model (2026-10-08).** RVM107W1C's four P2s led the lead to
 replace pushed opens with a pull model. Each chat document's chip mints a
 nonce and pulls on mount. Show binds its target and a monotonically
