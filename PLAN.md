@@ -18060,7 +18060,12 @@ test that fails without the rule:
     them (test `heavyGateTakesMachineSlot`); the slot is owned by the run's
     process tree, so heavy gates nested in that tree (a quality script
     running lint and the browser harness) inherit it, reentrant, and
-    separate runs queue (test `nestedHeavyGatesInheritSlot`).
+    separate runs queue (test `nestedHeavyGatesInheritSlot`). G65 every Git
+    command a job runs has automatic maintenance off (`maintenance.auto=false`,
+    `gc.auto=0`), and a local origin a job pushes to sets `receive.autoGc=false`
+    in its own configuration, because that maintenance detaches with `setsid`
+    and escapes G38's process-tree kill (test `jobGitStartsNoMaintenance`); the
+    M96c lane runner gives lanes the same Git environment.
 11. **M116 (playbook, 2026-10-07):** G42 pipelined, stacked release
     integration with early draft PRs (test `releasesPipelineOnCandidate`);
     G43 a worker green labelled worker-certified unless verified from a
