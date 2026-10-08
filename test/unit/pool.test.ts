@@ -136,7 +136,7 @@ describe('M108 account pool request boundaries', () => {
         type: 'swap',
         account: 'c',
         previousAccount: 'a',
-        coldCacheUsd: 0.02,
+        coldCacheUsd: '0.02',
       }),
     ])
     expect(t.ask).not.toHaveBeenCalled()
@@ -294,11 +294,22 @@ describe('M108 account pool request boundaries', () => {
     t.deps.coldCache = () => parseUsd('0.2')
     expect(await t.run()).toBe('b')
     expect(t.claims[0]!.estimate.costUsd).toBe(parseUsd('0.3'))
-    expect(t.events[0]).toMatchObject({ type: 'swap', coldCacheUsd: 0.2 })
+    expect(t.events[0]).toMatchObject({ type: 'swap', coldCacheUsd: '0.2' })
     const capped = poolRig()
     capped.rows[0]!.thresholds = { requests: { day: 0 } }
     capped.rows[1]!.thresholds = { spendUsd: { day: usdInputSchema.parse('0.11') } }
     expect(await capped.run()).toBe('c')
+  })
+
+  it('carries a cold-cache estimate above double precision exactly in the swap row', async () => {
+    const t = poolRig()
+    t.rows[0]!.thresholds = { requests: { day: 0 } }
+    const coldCache = parseUsd('9007199254740990.000000001')
+    t.deps.coldCache = () => coldCache
+    t.cap.value = parseUsd('9007199254740991')
+    expect(await t.run()).toBe('b')
+    expect(t.events[0]).toMatchObject({ type: 'swap', coldCacheUsd: '9007199254740990.000000001' })
+    expect(t.claims[0]!.estimate.costUsd).toBe(coldCache + parseUsd('0.1'))
   })
 
   it('never resets the original shared budget at a swap, and refunds a known nonsend', async () => {
@@ -411,14 +422,15 @@ describe('M108 account pool request boundaries', () => {
     expect(t.claims[1]!.actual).toBe(parseUsd(0))
   })
 
-  it('refuses money precision loss and negative settlements instead of releasing liability', async () => {
+  it('refuses an unaffordable exact estimate and negative settlements instead of releasing liability', async () => {
     const t = poolRig()
     await expect(
       t.run({
         estimate: { ...poolRequest().estimate, costUsd: parseUsd('9007199254740990.000000001') },
       }),
-    ).rejects.toThrow()
-    expect(t.claims).toHaveLength(0)
+    ).rejects.toThrow('shared budget exceeded')
+    expect(t.claims).toHaveLength(1)
+    expect(t.claims[0]!.actual).toBe(parseUsd(0))
     await expect(
       t.pool.run(poolRequest(), async (admission) => {
         await Promise.resolve()
@@ -426,7 +438,7 @@ describe('M108 account pool request boundaries', () => {
         return { value: 'invalid', actualUsd: -1n }
       }),
     ).rejects.toThrow()
-    expect(t.claims[0]!.actual).toBeNull()
+    expect(t.claims[1]!.actual).toBeNull()
   })
 
   it('refuses a negative cold-cache estimate or a dispatch that skipped its final guard', async () => {

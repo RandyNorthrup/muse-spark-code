@@ -531,7 +531,7 @@ describe('M108 picker, transcript and policy question', () => {
             previousAccount: 'work',
             time: '2026-10-06T00:00:00Z',
             trigger,
-            coldCacheUsd: 0.000000001,
+            coldCacheUsd: usdInputSchema.parse('0.000000001'),
           },
           {
             type: 'stop',
@@ -547,7 +547,7 @@ describe('M108 picker, transcript and policy question', () => {
             previousAccount: 'work',
             time: '2026-10-06T00:00:00Z',
             trigger,
-            coldCacheUsd: 999,
+            coldCacheUsd: usdInputSchema.parse('999'),
           },
         ].map((event) => ({ event, resetAt: event.type === 'stop' ? trigger.resetAt : null }))}
       />,

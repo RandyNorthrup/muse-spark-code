@@ -142,9 +142,10 @@ describe('M108 local accounts contracts', () => {
       previousAccount: 'work',
       time,
       trigger,
-      coldCacheUsd: 0.01,
+      coldCacheUsd: '0.01',
     }
     expect(accountEventSchema.parse(event)).toEqual(event)
+    expect(accountEventSchema.parse({ ...event, coldCacheUsd: 0.01 })).toEqual(event)
     const journalRecord = z.strictObject({ time: z.iso.datetime(), ...usageAccountFields })
     expect(journalRecord.parse({ time })).toEqual({ time })
     expect(journalRecord.parse({ time, account: 'work' })).toEqual({ time, account: 'work' })

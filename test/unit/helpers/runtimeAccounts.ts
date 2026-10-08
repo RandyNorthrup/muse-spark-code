@@ -111,7 +111,7 @@ export function accountSwap(): AccountEvent {
     account: 'work',
     previousAccount: 'default',
     time: '2026-10-06T12:00:00Z',
-    coldCacheUsd: 0.1,
+    coldCacheUsd: usdInputSchema.parse('0.1'),
     trigger: {
       kind: 'userCap',
       metric: 'spendUsd',
