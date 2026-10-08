@@ -138,6 +138,12 @@ export function createWindowJudge(
         let consent: 'unasked' | 'granted' | 'declined' = 'unasked'
         let isRemembered = false
         const isCurrent = () => JSON.stringify(deps.context(action)) === identity
+        const isPhase1SourceAvailable = () =>
+          initial.backend === 'museCode'
+            ? readSettings()
+            : deps.ledger !== undefined &&
+              initial.contextLimit !== undefined &&
+              deps.modelApi(action) !== undefined
         const context = () => ({
           ...deps.phase2?.binding(action)?.context,
           engine: deps.engine(),
@@ -159,11 +165,7 @@ export function createWindowJudge(
           sourceAvailable:
             isCurrent() &&
             (deps.phase2?.binding(action) === undefined
-              ? initial.backend === 'museCode'
-                ? readSettings()
-                : deps.ledger !== undefined &&
-                  initial.contextLimit !== undefined &&
-                  deps.modelApi(action) !== undefined
+              ? isPhase1SourceAvailable()
               : deps.phase2.binding(action)?.context.sourceAvailable === true),
         })
         const binding = (signal: AbortSignal): JudgeAdmissionBinding => {
@@ -275,10 +277,10 @@ export function createWindowJudge(
                           (answer) =>
                             answer.type === 'noul' && answer.noul >= JUDGE_ADVISORY_THRESHOLD,
                         )
-                      entries.settle(
-                        job.entryKey,
-                        outcome.outcome === 'no-answer' ? 'failed' : isCaution ? 'caution' : 'none',
-                      )
+                      let settlement: 'failed' | 'caution' | 'none' = 'none'
+                      if (outcome.outcome === 'no-answer') settlement = 'failed'
+                      else if (isCaution) settlement = 'caution'
+                      entries.settle(job.entryKey, settlement)
                     })
                     .catch(onError)
                 },
