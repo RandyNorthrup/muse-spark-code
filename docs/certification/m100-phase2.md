@@ -640,8 +640,9 @@ under `/tmp/m100p2a-drills-*` on this rig.
   `{ kind: 'presenceRelay', relay: devicePresenceRelaySchema }`. The
   orchestrator renders the correlated `waiting` reply with `waitingText(device)`
   and treats attested replies as status only; it never calls a local answer
-  or `attestStepUp` from peer content. The attempt-aware binding below now covers repeated pre-start policy
-  checks and spends the approval at launch or terminal admission. No physical executor is supplied by this lane.
+  or `attestStepUp` from peer content. The attempt-aware binding below covers
+  repeated pre-start policy checks and spends the approval at launch or terminal
+  admission. No physical executor is supplied by this lane.
 - W owns joined CHANGELOG/feature catalog/README/SECURITY updates, final lazy
   entry wiring and fully wired bundle measurement, aggregate `npm run quality`
   and installed-host qualification. No extra command, setting or dependency
@@ -809,3 +810,62 @@ confirmed-receiver and waiting-relay fixture setup removes all clones while
 keeping every case and assertion: **90 owning tests still pass**, duplication
 **0 clones**, changed-test ESLint exit **0**. Final verification uses two-file
 batches, at most three workers, without a timeout override.
+
+#### Final fresh-clone repair receipt
+
+Verified commit `950dfc8aa16ed0cd94c94b8c72660297a9ea7a73` (the fixes plus
+shared test setup), cloned directly from this worktree into
+`/tmp/fixm100p2a-final-verify-20261007-final`. Node **24.21.0**, npm **11.19.0**.
+`CI=true npm ci` run with the clone as its working directory exited **0**;
+source hashes match all drill receipts, and both worktree and clone were clean.
+The test-setup commit also passed ESLint/Prettier and Gitleaks hooks; its staged
+and committed diff was reread after the hook.
+
+All four owning files ran **three consecutive complete times**, in two-file
+batches with `CI=true`, `--maxWorkers=3`, repository default timeouts and no
+`--testTimeout`. Each pass: **163 passed** (**90** action-grants/presence-relay
+and **73** receiver/channel); no filters, skipped cases or relaxed assertions.
+Batch durations: **6.10 + 10.85 s**, **7.27 + 11.90 s**, **7.08 + 12.06 s**.
+The five compiler projects (`npm run typecheck`) exited **0**, 0 errors.
+Receipts are `temp/fixm100p2a/fresh-tests.json`, `fresh-tests-*.log`,
+`npm-ci-final-direct.log` and `fresh-typecheck.log`.
+
+The final shared-setup tests were also rerun against `5bbefbd4f`: **25 failed /
+65 passed**, unchanged finding counts. All **11** guard drills were repeated
+against those final tests with the same assertion failures and byte-exact
+source hashes. Receipts: `base-refactored-regressions.log`, `drills-final.log`.
+
+Fresh-clone gate exits (all commands ran with `CI=true`):
+
+| Gate                                       | Exit | Result                                                              |
+| ------------------------------------------ | ---- | ------------------------------------------------------------------- |
+| `npm run typecheck`                        | 0    | All five projects; 0 errors                                         |
+| `npm run lint`                             | 0    | Full JS/TS and CSS; PowerShell's expected darwin platform skip      |
+| `npx prettier --check <six changed files>` | 0    | All clean                                                           |
+| Plain `npx knip`                           | 0    | Only existing vendor/axe-core configuration hints                   |
+| `npm run duplication`                      | 0    | 0 clones                                                            |
+| `npm run check:reference`                  | 0    | Current, 18 Devices entries                                         |
+| `node scripts/check-l10n.mjs`              | 0    | 14 UI/14 usage tables, 0 problems                                   |
+| `npm run check:host-api`                   | 1    | Existing generated inventory mismatch, two Node reader counts below |
+| `npm run cycles`                           | 0    | No cycles                                                           |
+| `npm run build`                            | 0    | All budgets, splits, host globals and notices passed                |
+
+Production budget receipts (KiB): Devices **82.6/100**, activation
+**462.8/600**, Model API **456.0/475**, ACP **155.3/850**, webview startup
+**733.8/900**, original deferred webview **31.9/50**. No cap changed;
+the stricter 733.8 KiB startup review baseline also stays intact. Notices
+cover **88 bundled packages**. Gate details are `fresh-gates.json` and
+`fresh-<gate>.log` alongside the test/drill receipts.
+
+**Integration request, W-owned file:** refresh
+`docs/ide-compatibility/host-api.md` with `npm run check:host-api -- --write`,
+review the two inherited reader-count updates (`node:crypto` **93 → 94**,
+`node:path` **125 → 126**), then rerun the inventory gate. This repair adds
+no Node import reader beyond lane A's already recorded two changes. Inventory
+facts remain **366 VS Code APIs**, **43 VS Code-importing files**, **28 Node
+built-ins**, **70 theme variables**. No shared generated record was edited here.
+
+All three review findings are fixed and all final owning verification passes.
+The inventory refresh, joined CHANGELOG/docs and aggregate `npm run quality`
+remain lane W's explicit ownership under `M100P2-common.md` and the PLAN.md
+phase-2 table. No merge, push, rebase, live call or paid call was made.
