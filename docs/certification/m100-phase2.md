@@ -1098,3 +1098,44 @@ W still owns full quality, shared PLAN deferral entries, generated host API,
 README/CHANGELOG/reference changes and installed-editor qualification. No
 assertion, deadline or cap was weakened; no model call, dependency change,
 push, stash command, rebase or additional merge was made.
+
+##### M100P2HM2 committed-code verification
+
+Implementation **de27ba82a**, merge **c7c3ff2e1**. Both commits ran the
+repository hooks (lint-staged ESLint/Prettier and staged gitleaks) with exit 0;
+post-hook diffs and the empty index were reread. The final production hashes
+above match the committed files. The accounting diagnostic was repeated after
+the final source change, again receiving `{ third: 0, retry: 0 }` and restoring
+the Darwin file to that exact hash.
+
+Fresh local Git clone `/tmp/M100P2HM2-verify-de27ba82a`, Node **24.21.0**,
+npm **11.19.0**, macOS **15.7.4**, `CI=true npm ci`: **exit 0**.
+The unchanged pinned tree reports 11 existing audit findings (2 low, 9 high);
+no audit fix, dependency or lockfile change was made.
+
+| Required check in the fresh clone                                                                                | Exit and result                                                                                                                                                                                                                                                                                                               |
+| ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Three complete owning runs: `deviceWorkerHost`, `deviceWorkerHostNative`, `deviceWorkerDarwin`, `--maxWorkers=3` | **1 / 1 / 1**: each has **51 passed, 10 failed, 7 Windows-native skipped**. Vitest durations **4.51 / 4.35 / 4.32 s**. All **19 macOS native cases ran**; none skipped. Failures are the retained nine launch-behavior cases plus the new strict cap-2 proof, all refused by the unsupported-host guard; no timeout failures. |
+| Five compiler projects: host, webview, unit, e2e, integration                                                    | **0** for all five, through `npm run typecheck`.                                                                                                                                                                                                                                                                              |
+| ESLint on all changed TS files, `--max-warnings=0`                                                               | **0**.                                                                                                                                                                                                                                                                                                                        |
+| Prettier on all five changed files                                                                               | **0**.                                                                                                                                                                                                                                                                                                                        |
+| Plain knip                                                                                                       | **0**, unchanged configuration.                                                                                                                                                                                                                                                                                               |
+| Plain jscpd                                                                                                      | **0**, zero clones. The initial local run found the duplicated helper schema and cached-helper lookup; the Darwin probe now handles negative flags explicitly and the tests share the lookup. No ignore or threshold change.                                                                                                  |
+| `check:reference`                                                                                                | **0**, existing Devices reference remains current.                                                                                                                                                                                                                                                                            |
+| `check:l10n`                                                                                                     | **0**, no string/table change or missing key.                                                                                                                                                                                                                                                                                 |
+| `check:host-api`                                                                                                 | **1**, W's stale generated Node import counts, described below.                                                                                                                                                                                                                                                               |
+| Production `npm run build`, including unchanged size/split/global/notices gates                                  | **0**. Devices **81.8/100 KiB**, activation **462.8/600 KiB**, Model API **456.0/475 KiB**, Devices webview **33.9/50 KiB**, chat startup **733.8/900 KiB**. These measure the existing entry, not a newly bound Darwin factory.                                                                                              |
+
+Host API totals remain **366 VS Code APIs, 43 vscode-importing files, 28 Node
+built-ins and 70 theme variables**. W must regenerate its owned inventory:
+child_process **16→18**, crypto **93→95**, fs **44→45**, fs/promises
+**74→77**, path **125→128**, timers/promises **15→17**. The lane does not edit
+that shared generated file or suppress its failure.
+
+The required scoped checks were all executed; owning tests and host API did
+**not** pass. Full quality is not claimed and this branch is not ready for
+integration as a working macOS execution driver. The strict spawn-admission
+mechanism and the cap-2 native proof remain the blocker. No native assertion
+was removed or weakened, no timeout override or gate relaxation was used,
+and no push or model call occurred. The verification follow-up changes this
+certification region only; production/test hashes remain those of de27ba82a.
