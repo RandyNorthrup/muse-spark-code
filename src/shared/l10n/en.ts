@@ -201,6 +201,25 @@ export const EN = {
       'A late result arrived after its lease and is quarantined instead of applied.',
     ownerMismatch: 'This pair key belongs to a different owner. Pair again as the right owner.',
     stepUpWaiting: 'Waiting for step-up approval on {device}.',
+    qrCodeName: 'QR code of the public invitation',
+    discoveryAdvertises:
+      'Discovery advertises {service} on port {port} (protocol version {version}). Discovery grants no trust.',
+    owners: 'Owners and grants',
+    grantRepository: 'Repository',
+    grantQuota: 'Quota',
+    grantExpiry: 'Expires',
+    revokeGrant: 'Revoke grant',
+    power: 'Power',
+    powerAc: 'AC power',
+    powerBattery: 'Battery',
+    powerUnknown: 'Unknown',
+    sleepInhibited: 'Sleep inhibited',
+    cpuPressure: 'CPU',
+    memoryPressure: 'Memory',
+    diskPressure: 'Disk',
+    transportResets: 'Transport resets',
+    blockedRecovery:
+      'If the listening application is running, allow {application} through the operating-system firewall for {interface}, or ask an administrator for scoped access to {address}:{port}. Nothing here changes the firewall, and access may still need approval.',
   },
 
   referenceAgentControls:

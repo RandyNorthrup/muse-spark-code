@@ -7,6 +7,9 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Show the phase-2 Devices views (QR with text fallback, discovery details,
+  owners and grants with revoke, step-up prompts, power and pressure, blocked
+  recovery) against fakes behind the existing Devices budgets.
 - Keep every long-reply accessibility delta while yielding through a task port,
   avoiding nested timer throttling within the existing readiness deadline.
 

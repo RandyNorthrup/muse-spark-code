@@ -78,19 +78,19 @@ Devices remains unshipped. Model attempts **0**, inference spend **0**.
 
 ### Conflicts (19 files)
 
-| Files                                                                                                               | Resolution                                                                                                                                                                |
-| ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `CHANGELOG.md`                                                                                                      | Preserve release history and existing Unreleased fixes; place all incoming Devices entries under Unreleased.                                                              |
-| `PLAN.md`                                                                                                           | Preserve both branches' phase-2 plan, gate records, escape-hatch register and residual-risk records.                                                                      |
-| `docs/orchestration-gotchas.md`                                                                                     | Retain every release rule/id, including G29–G33; add incoming channel, Windows host and auth rules as G34–G36 to avoid duplicate ids (now main's G50–G52; see the lead integration).                                     |
-| `knip.jsonc`, `package.json`                                                                                        | Union entry inventories, retain the release's compiler/quality/reference scripts, add both Devices cycle entries.                                                         |
-| `scripts/build.mjs`, `scripts/check-bundle-split.mjs`, `scripts/lib/deferredBundles.mjs`, `scripts/package-acp.mjs` | Keep every release bundle, lazy mapping and text guard; add Devices with its inherited independent budgets. Existing caps are unchanged.                                  |
-| `scripts/gen-reference.mjs`                                                                                         | Run the complete release reference generator, the incoming Devices inventory and the release sharing inventory together.                                                  |
-| `src/shared/l10n/en.ts`                                                                                             | Union English keys; all 14 translated tables merge automatically with both branches' keys and values.                                                                     |
-| `src/shared/modelsPanel.ts`                                                                                         | Retain complete provider/team/traffic boundaries; move the strict Devices region into `src/shared/devicesPanel.ts` so unrelated validators stay outside its lazy closure. |
-| `scripts/lib/harnessServer.mjs`, `test/harness/index.html`                                                          | Retain every release scenario and fake-host handler, add Devices scenes, sizing and request/reply handling.                                                               |
-| `test/unit/bundleSize.test.mjs`, `test/unit/deferredBundles.test.ts`, `test/unit/webviewBundles.test.mjs`           | Retain release tests/setup and add the incoming Devices budget, build entry and Windows-separator closure assertion.                                                      |
-| `docs/ide-compatibility/host-api.md`, `src/shared/reference/reference.generated.ts`                                 | Regenerate with `npm run check:host-api -- --write` and `npm run reference:generate`; no hand-edited generated output.                                                    |
+| Files                                                                                                               | Resolution                                                                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `CHANGELOG.md`                                                                                                      | Preserve release history and existing Unreleased fixes; place all incoming Devices entries under Unreleased.                                                                         |
+| `PLAN.md`                                                                                                           | Preserve both branches' phase-2 plan, gate records, escape-hatch register and residual-risk records.                                                                                 |
+| `docs/orchestration-gotchas.md`                                                                                     | Retain every release rule/id, including G29–G33; add incoming channel, Windows host and auth rules as G34–G36 to avoid duplicate ids (now main's G50–G52; see the lead integration). |
+| `knip.jsonc`, `package.json`                                                                                        | Union entry inventories, retain the release's compiler/quality/reference scripts, add both Devices cycle entries.                                                                    |
+| `scripts/build.mjs`, `scripts/check-bundle-split.mjs`, `scripts/lib/deferredBundles.mjs`, `scripts/package-acp.mjs` | Keep every release bundle, lazy mapping and text guard; add Devices with its inherited independent budgets. Existing caps are unchanged.                                             |
+| `scripts/gen-reference.mjs`                                                                                         | Run the complete release reference generator, the incoming Devices inventory and the release sharing inventory together.                                                             |
+| `src/shared/l10n/en.ts`                                                                                             | Union English keys; all 14 translated tables merge automatically with both branches' keys and values.                                                                                |
+| `src/shared/modelsPanel.ts`                                                                                         | Retain complete provider/team/traffic boundaries; move the strict Devices region into `src/shared/devicesPanel.ts` so unrelated validators stay outside its lazy closure.            |
+| `scripts/lib/harnessServer.mjs`, `test/harness/index.html`                                                          | Retain every release scenario and fake-host handler, add Devices scenes, sizing and request/reply handling.                                                                          |
+| `test/unit/bundleSize.test.mjs`, `test/unit/deferredBundles.test.ts`, `test/unit/webviewBundles.test.mjs`           | Retain release tests/setup and add the incoming Devices budget, build entry and Windows-separator closure assertion.                                                                 |
+| `docs/ide-compatibility/host-api.md`, `src/shared/reference/reference.generated.ts`                                 | Regenerate with `npm run check:host-api -- --write` and `npm run reference:generate`; no hand-edited generated output.                                                               |
 
 ### Verification scope
 
@@ -553,3 +553,146 @@ test/unit/channel.test.ts test/unit/deviceMultiplexedChannel.test.ts
   (0 errors), duplication (**0 clones**), `check:l10n` (**14 tables**,
   **0 problems**), `check:host-api` (**0 problems**), `npm run build`
   (all budgets ok, Devices **81.6/100 KiB**): all exit **0**.
+
+## Lane U — Devices UI phase 2 (M100P2U, 2026-10-07)
+
+Worktree `/Users/randy/lanes/M100P2U`, branch `m100/p2-u`, base
+`466a7a8e4` (phase-2 integration with lanes 0 and C). Lane D's
+`encodeQrInviteText` is not on this base, so its text contract is faked
+as the canonical JSON of the public invitation; lanes A, K, V and H
+outputs are faked by the panel setup facts, which lane W wires to the
+real host. Model attempts **0**, inference spend **0**. No dependency
+installed.
+
+New views (exclusive): `src/webview/models/sections/devices/qr/`
+(`inviteText.ts`, `encoder.ts`, `QrFigure.tsx`), `discovery/`,
+`grants/`, `prompts/`, `power/`, `setup/`. Mounts (add-only):
+`DevicesView.tsx` (phase-2 sections behind the same action-bound setup
+as the card) and `DevicesApp.tsx` (lazy `qr/` chunk behind `renderQr`).
+Panel (add-only, `src/shared/devicesPanel.ts`): one added message kind
+`revokeGrant`, plus strict optional setup facts `discovery`, `owners`
+(4 max, 16 grants max, reusing lane 0's `deviceGrantSchema`),
+`capability`, `throttled`, `stepUp` and `grantRefusal`. Strings
+(add-only): 17 Devices keys in `en.ts`, all 14 `l10n/ui.*.json` tables
+(real translations; `CPU`/`Disk`/`Repository`/`Quota` loanwords
+allowlisted per locale in `untranslated.json`), plus
+`qrQuietZoneModules: 4` in `DEVICE_LIMITS`. Harness (add-only):
+`devices-qr`, `devices-discovery`, `devices-owners`,
+`devices-prompts-narrow`, `devices-power`, `devices-blocked` scenes,
+fixtures, a `revokeGrant` reply branch and the `SCENARIOS`/`SIZED`
+entries.
+
+1. **QR and text fallback** (`QrFigure.tsx`, `inviteText.ts`,
+   `encoder.ts`): the encoder gets `fakeQrInviteText` output byte for
+   byte (test compares); dark `#000000` modules on a fixed `#ffffff`
+   field with a four-module quiet zone in every theme including hc-dark,
+   `role="img"` with the `qrCodeName` accessible name; the selectable
+   text and `copyInvitation` button are always rendered and focusable,
+   never behind a toggle. The strict invitation schema refuses a planted
+   `privateKey`, so no secret reaches the view.
+2. **Discovery switch** (`DiscoveryDetails.tsx`): off by default
+   (`discoveryDefault: false`; rendering with discovery off sends no
+   request — `port.request` uncalled). The details name the exact opaque
+   service id, port and protocol version and that discovery grants no
+   trust.
+3. **Owners and grants** (`OwnerGrants.tsx`): up to 4 owners × 16 grants
+   (the schema refuses wider shapes before display), each grant showing
+   role, mode, repository, lanes/checks, quota and expiry with a revoke
+   action sending the one added `revokeGrant` kind. `grant-expired` →
+   `grantExpired`, `owner-mismatch` → `ownerMismatch`
+   (`grantRefusalText`; revoked → `revokedHelp`, all else → `grantHelp`).
+4. **Per-action prompts** (`ActionPrompts.tsx`): `stepUpWaiting` names
+   the device (the `waitingApproval` device name stays covered on
+   `DeviceCard`); the prompt view renders no button, so no orchestrator
+   control answers a presence prompt.
+5. **Power and pressure** (`PowerView.tsx`): `power` (ac/battery/
+   unknown), `sleepInhibited`, CPU/memory/disk percents, transport
+   resets, `throttled` with `throttledHelp` and `unknownSince`. The view
+   renders no offline/down state (G5, G34).
+6. **Blocked or unreachable** (`BlockedSetup.tsx` + card): the summary
+   fills application, interface, address and port from host state;
+   `blockedRecovery` adds OS-firewall and administrator steps, never
+   promises prompt-free or admin-free access and changes nothing.
+   Unresolved attempts and liability stay shown through every retry; an
+   unbound (foreign) setup supplies no facts (phase-1 binding test
+   caught this during the lane and now passes).
+7. **Keyboard, themes and width**: decision rows keep the phase-1
+   two-button contract (the single revoke button deliberately avoids
+   `.device-decisions`); new views add no keyboard traps and reuse
+   labelled native controls. **Blocked**: `scripts/devices-keyboard.mjs`,
+   `npm run test:a11y` and the harness shots in four themes plus the
+   pseudo-locale cannot run on this rig — the sandbox denies every
+   `listen()` (`EPERM` on `127.0.0.1` and wildcard) and unsandboxed
+   execution needs a human approver while approval is bypassed, so
+   `serveRepo` cannot start; `npm view` is likewise unavailable
+   (root-owned npm cache plus no registry). The six scenes are written
+   reply-driven like the existing ones, every fixture setup parses under
+   the strict schemas (throwaway probe, then removed), and the unit
+   suite covers labels, focus order, roles and the 320 px decision-row
+   contract. These three checks plus shot review must run on the lead's
+   host before integration.
+
+### Red drills (each: break, owning tests fail, restore byte-exact)
+
+- Message schema: drop `grantId` from `revokeGrant` → 2 failures
+  (revoke send + missing-grant refusal). Restored:
+  `9548bcaf8908ff41d08a872b8434128be6cd6d39cc0dd268e96364c5f78c1273`.
+- Focus label: remove the QR `aria-label` → 2 failures (quiet-zone
+  render + keyboard text test). Restored (plus the staged lint fix
+  re-applied after an over-broad `git checkout --` reverted it):
+  `e0358bdca8e31fb59507873f83ab61532e99d0f6707ed7015728fe17881c6e33`
+  pre-drill.
+- Status mapping: `grant-expired` → `grantHelp` → 1 failure.
+  Restored:
+  `8259cba496e5241f68eefddc750e94909253c18804afba829a739909e47d285b`.
+- Recovery mapping: throttled renders `offline` → 1 failure.
+  Restored:
+  `fb488b6fe16932561766150162b704dc467f400093e23df7ab44c1d4035fa04b`.
+
+### Verification (worktree, default timeouts)
+
+- `npx vitest run test/unit/devicesPhase2Views.test.tsx --maxWorkers=3`
+  three times: **21 passed each**, default timeouts.
+- Regression: `DevicesView` + `DevicesApp` + `devicesPanel` **112
+  passed**; `devices` + `devicePanel` + `deviceGrants` **131 passed**.
+- `npm run typecheck` (all five projects): exit **0**. `npm run lint`
+  (incl. `lint:css`; PSScriptAnalyzer reports its darwin skip): exit
+  **0**. Prettier on every changed file: clean. Plain `npx knip`: exit
+  **0** (only the two pre-existing configuration hints).
+  `npm run duplication`: **0 clones**. `npm run check:reference`:
+  current (**18 Devices entries**). `node scripts/check-l10n.mjs`:
+  **14 tables, 0 problems**. `npm run check:host-api`: **0 problems**.
+- `npm run build`: exit **0** with caps unchanged — Devices browser
+  closure **39.1/50 KiB**, chat startup (`main.js` + static imports)
+  **733.9/900 KiB**, `dist/devices.js` **82.2/100 KiB**. The proposed
+  encoder (+21,323 bytes minified, lane D's figure) lands in the lazy
+  `qr/` chunk, not the closure, so both caps stand.
+- Fresh-clone verification (`git clone` + `npm ci` + three owning runs
+  - gates) could not run here (no registry/cache); it must run on the
+    lead's host.
+
+### Request to the lead: QR encoder dependency (proposed, not installed)
+
+- Purpose: encode the exact public invite text (`fakeQrInviteText`
+  output) into a module matrix inside the lazy `qr/` chunk, behind the
+  `QrEncoder` interface (text in, matrix out); tests inject a fixed
+  matrix. The text fallback is complete and is what ships meanwhile.
+- Package: `qrcode-generator@2.0.4`, MIT, zero dependencies, no peers,
+  its own types, no network or native code (lane D's measurement).
+- Size: 21,323 bytes minified into the lazy chunk; Devices closure
+  stays **39.1/50 KiB**, chat startup **733.9/900 KiB**.
+- Peers/dependencies: per lane D, none; `npm view` could not be re-run
+  from this rig (see above) — confirm at install time with
+  `npm view qrcode-generator@2.0.4 peerDependencies dependencies`,
+  `npm audit`, and the third-party notices entry per AGENTS.md rule 9.
+
+### Further requests to the lead
+
+- Lane W: wire the real `discovery`, `owners`, `capability`,
+  `throttled`, `stepUp` and `grantRefusal` host values behind the new
+  setup facts; adopt or replace `fakeQrInviteText` with lane D's
+  `encodeQrInviteText` (byte-for-byte contract above).
+- Run on the host before integration: `scripts/devices-keyboard.mjs`,
+  `npm run test:a11y`, the six new harness scenes with shots in all
+  four themes and the pseudo-locale under
+  `docs/certification/m100-p2-u-shots/`, and the fresh-clone receipt.

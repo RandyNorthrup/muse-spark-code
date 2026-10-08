@@ -27,6 +27,9 @@ export const DEVICE_LIMITS = {
   certificateLifetimeMs: 2_592_000_000,
   uiRequestTimeoutMs: 10_000,
   fingerprintGroupChars: 4,
+  // M100 phase 2 (lane U): the QR quiet zone is four modules on every side,
+  // in every theme. The renderer reads this, never a literal.
+  qrQuietZoneModules: 4,
   // UI observations use Unix milliseconds, from the epoch through 2100-01-01.
   observationMaxMs: 4_102_444_800_000,
   clockSkewMs: 30_000,

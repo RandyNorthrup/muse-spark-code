@@ -86,7 +86,9 @@
       "modelColumns.name",
       "usageLimit",
       "teamTemplates.solo",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "devices.cpuPressure",
+      "devices.diskPressure"
     ],
     "tr": [
       "groupModel",
@@ -98,7 +100,9 @@
       "modelColumns.name",
       "usageLimit",
       "teamTemplates.solo",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "devices.cpuPressure",
+      "devices.diskPressure"
     ],
     "pl": [
       "groupModel",
@@ -120,7 +124,8 @@
       "modelColumns.name",
       "usageLimit",
       "teamTemplates.solo",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "devices.cpuPressure"
     ],
     "de": [
       "groupSkills",
@@ -164,7 +169,9 @@
       "teamTemplateSolo",
       "teamTreeLabel",
       "teamOrchestrator",
-      "teamUsageTitle"
+      "teamUsageTitle",
+      "devices.grantRepository",
+      "devices.cpuPressure"
     ],
     "es": [
       "hooksItem",
@@ -181,7 +188,8 @@
       "teamTemplates.solo",
       "teamSetupSteps.pools",
       "teamCapabilityWarning",
-      "teamUsageTokens"
+      "teamUsageTokens",
+      "devices.cpuPressure"
     ],
     "pt-br": [
       "agentTokens",
@@ -196,7 +204,8 @@
       "teamTemplates.solo",
       "teamSetupSteps.pools",
       "teamCapabilityWarning",
-      "teamUsageTokens"
+      "teamUsageTokens",
+      "devices.cpuPressure"
     ],
     "fr": [
       "modesTitle",
@@ -224,7 +233,8 @@
       "teamTemplates.solo",
       "teamSetupSteps.pools",
       "teamTemplateSolo",
-      "teamIntensityLevels.minimal"
+      "teamIntensityLevels.minimal",
+      "devices.grantQuota"
     ],
     "it": [
       "usageAccount",
@@ -242,10 +252,14 @@
       "teamTemplates.solo",
       "teamCapabilityWarning",
       "teamTreeLabel",
-      "teamUsageTitle"
+      "teamUsageTitle",
+      "devices.grantRepository",
+      "devices.grantQuota",
+      "devices.cpuPressure"
     ],
-    "zh-cn": ["toolLabels.shell"],
-    "zh-tw": ["toolLabels.shell"],
+    "zh-cn": ["toolLabels.shell", "devices.cpuPressure"],
+    "zh-tw": ["toolLabels.shell", "devices.cpuPressure"],
+    "ja": ["devices.cpuPressure"],
     "hu": [
       "toolLabels.shell",
       "imageBuyPrompt",
@@ -253,10 +267,11 @@
       "agentImportKindHook",
       "usageLimit",
       "teamIntensityLevels.max",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "devices.cpuPressure"
     ],
-    "ko": ["gitChangeCounts", "teamCapabilityWarning"],
-    "ru": ["gitChangeCounts", "teamCapabilityWarning"]
+    "ko": ["gitChangeCounts", "teamCapabilityWarning", "devices.cpuPressure"],
+    "ru": ["gitChangeCounts", "teamCapabilityWarning", "devices.cpuPressure"]
   },
   "manifest": {
     "*": ["viewsContainers.museSpark.title", "command.category", "config.title"],

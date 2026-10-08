@@ -3,11 +3,15 @@ import * as z from 'zod/mini'
 import { DEVICE_LIMITS } from './constants'
 import {
   DEVICE_FAILURES,
+  deviceCapabilitySchema,
   deviceCapsSchema,
   deviceEndpointSchema,
+  deviceGrantRefusalSchema,
+  deviceGrantSchema,
   deviceInvitationSchema,
   deviceOfferSchema,
   devicePairingConfirmationSchema,
+  deviceThrottledSchema,
 } from './devices'
 
 const devicePanelId = z.string().check(z.regex(/^[a-f0-9]{32}$(?![\s\S])/))
@@ -53,6 +57,15 @@ export const devicesPanelStateSchema = z.discriminatedUnion('enabled', [
 ])
 export type DevicesPanelState = z.infer<typeof devicesPanelStateSchema>
 
+// M100 phase 2 (lane U): owners bound to a device, each with revocable
+// per-action grants. The host enforces ownersPerDevice and grantsPerOwner;
+// the schema refuses wider shapes before display.
+const deviceOwnerGrantsSchema = z.strictObject({
+  ownerId: devicePanelId,
+  grants: z.array(deviceGrantSchema).check(z.maxLength(DEVICE_LIMITS.grantsPerOwner)),
+})
+export type DeviceOwnerGrants = z.infer<typeof deviceOwnerGrantsSchema>
+
 // These are local UI requests, never transport RPCs or permissions. The host
 // picks a trusted repository via its own picker; no path arrives from the UI.
 const action = z.discriminatedUnion('kind', [
@@ -86,6 +99,15 @@ const action = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('pauseOffers'), pairId: devicePanelId }),
   z.strictObject({ kind: z.literal('unlink'), pairId: devicePanelId }),
   z.strictObject({ kind: z.literal('resumeQueue'), pairId: devicePanelId, boardId: devicePanelId }),
+  // M100 phase 2 (lane U): the one added message kind for this lane. Revoking
+  // a grant never answers a presence prompt; step-up is confirmed on the
+  // device, never through this request.
+  z.strictObject({
+    kind: z.literal('revokeGrant'),
+    pairId: devicePanelId,
+    ownerId: devicePanelId,
+    grantId: devicePanelId,
+  }),
 ])
 export const deviceWebviewRequestSchema = z.strictObject({
   type: z.literal('deviceRequest'),
@@ -111,6 +133,24 @@ export const deviceHostMessageSchema = z.strictObject({
       listenerApplication: z.optional(label),
       interfaceLabel: z.optional(label),
       failure: z.optional(z.enum(DEVICE_FAILURES)),
+      // M100 phase 2 (lane U): phase-2 view facts. Discovery names exactly
+      // what is advertised; owners carry the bound grants; capability and
+      // throttling feed the power view; stepUp names the grant waiting on the
+      // device; grantRefusal maps the typed refusal to its state. W wires the
+      // real host values; until then fakes stand in.
+      discovery: z.optional(
+        z.strictObject({
+          serviceId: label,
+          port: z.int().check(z.gte(1), z.lte(DEVICE_LIMITS.portMax)),
+        }),
+      ),
+      owners: z.optional(
+        z.array(deviceOwnerGrantsSchema).check(z.maxLength(DEVICE_LIMITS.ownersPerDevice)),
+      ),
+      capability: z.optional(deviceCapabilitySchema),
+      throttled: z.optional(deviceThrottledSchema),
+      stepUp: z.optional(z.strictObject({ grantId: devicePanelId })),
+      grantRefusal: z.optional(deviceGrantRefusalSchema),
     }),
   ),
 })

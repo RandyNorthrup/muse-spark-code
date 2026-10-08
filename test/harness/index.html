@@ -451,6 +451,44 @@
         spendUsd: 1,
         artifactBytes: 1024,
       }
+      // M100P2U: synthetic phase-2 view facts; lane W wires the real host.
+      const deviceOwnerGrant = {
+        version: 1,
+        grantId: 'c'.repeat(32),
+        grantRevision: 1,
+        pairId: devicePair,
+        ownerId: 'a'.repeat(32),
+        roleId: '3'.repeat(32),
+        mode: 'manual',
+        repositoryId: 'b'.repeat(32),
+        lanes: true,
+        checks: false,
+        quota: deviceCaps,
+        issuedAt: 1000,
+        expiresAt: 2000,
+        requiresStepUp: false,
+      }
+      const deviceCapability = {
+        version: 1,
+        deviceId,
+        receiverIncarnationId: '9'.repeat(32),
+        observedAt: 1000,
+        platform: 'darwin',
+        osVersion: '26.0',
+        tools: ['read'],
+        engines: [],
+        presence: { touchId: true, windowsHello: false, tpm: false, secureEnclave: true },
+        power: 'battery',
+        sleepInhibited: true,
+        slotCap: 2,
+        pressure: { cpuPercent: 42, memoryPercent: 61, diskPercent: 73, transportResets: 3 },
+      }
+      const deviceThrottled = {
+        version: 1,
+        pairId: devicePair,
+        unknownSince: 1000,
+        reason: 'pressure',
+      }
       const deviceOffer = {
         deviceId,
         receiverIncarnationId: '9'.repeat(32),
@@ -495,7 +533,27 @@
                 : name.includes('paused')
                   ? 'paused'
                   : 'connected'
-        return {
+        // M100P2U: phase-2 setup facts per new scene; lane W wires the host.
+        let setup
+        if (name === 'devices-discovery')
+          setup = { discovery: { serviceId: '_musespark._tcp', port: 32123 } }
+        else if (name === 'devices-owners')
+          setup = {
+            owners: [{ ownerId: 'a'.repeat(32), grants: [deviceOwnerGrant] }],
+            grantRefusal: {
+              version: 1,
+              pairId: devicePair,
+              ownerId: 'a'.repeat(32),
+              reason: 'grant-expired',
+              retryable: false,
+            },
+          }
+        else if (name === 'devices-prompts-narrow') setup = { stepUp: { grantId: 'c'.repeat(32) } }
+        else if (name === 'devices-power')
+          setup = { capability: deviceCapability, throttled: deviceThrottled }
+        else if (name === 'devices-blocked')
+          setup = { listenerApplication: 'Editor host', interfaceLabel: 'LAN en0' }
+        const message = {
           type: 'deviceState',
           revision: ++deviceRevision,
           state:
@@ -503,7 +561,7 @@
               ? { enabled: false }
               : {
                   enabled: true,
-                  discoveryEnabled: false,
+                  discoveryEnabled: name === 'devices-discovery',
                   devices: [
                     {
                       deviceId,
@@ -513,7 +571,8 @@
                       endpoint: deviceInvitation.endpoint,
                       status,
                       lastObservedAt: 1000,
-                      waitingApprovals: name.includes('waiting') ? 1 : 0,
+                      waitingApprovals:
+                        name.includes('waiting') || name === 'devices-prompts-narrow' ? 1 : 0,
                       unresolvedAttempts: status === 'connected' ? 0 : 1,
                       retainedLiabilityUsd: status === 'connected' ? 0 : 1,
                       offers: [deviceOffer],
@@ -521,10 +580,15 @@
                   ],
                 },
         }
+        if (setup !== undefined) message.setup = setup
+        return message
       }
       const deviceReply = (message) => {
         const response = deviceFixture(scenarioName)
+        // M100P2U: keep the fixture's phase-2 facts and add the reply's
+        // correlation ids, so the strict panel schema parses.
         response.setup = {
+          ...response.setup,
           viewId: message.viewId,
           requestId: message.requestId,
           listenerApplication: 'Editor host',
@@ -532,6 +596,14 @@
         }
         if (scenarioName.includes('blocked')) response.setup.failure = 'blocked-or-unreachable'
         if (message.action.kind === 'pair') response.setup.invitation = deviceInvitation
+        if (message.action.kind === 'revokeGrant')
+          response.setup.grantRefusal = {
+            version: 1,
+            pairId: devicePair,
+            ownerId: message.action.ownerId,
+            reason: 'grant-revoked',
+            retryable: false,
+          }
         if (message.action.kind === 'importInvitation')
           response.setup.invitation = devicePeerInvitation
         if (message.action.kind === 'confirmFingerprint')
@@ -6157,6 +6229,13 @@
         'devices-incompatible',
         'devices-offline-narrow',
         'devices-paused-narrow',
+        // M100P2U: phase-2 views against fakes; lane W wires the host.
+        'devices-qr',
+        'devices-discovery',
+        'devices-owners',
+        'devices-prompts-narrow',
+        'devices-power',
+        'devices-blocked',
       ]
       for (const name of deviceScenes) {
         steps[name] = () => {
@@ -6197,6 +6276,40 @@
             } else if (name === 'devices-blocked-narrow') {
               document.querySelector('.device-card form button[type="submit"]').click()
               whenFound('.devices-view [role="alert"]', checkWidth)
+            } else if (name === 'devices-qr') {
+              document.querySelector('.device-pairing button').click()
+              whenFound('.device-public-text textarea', () => {
+                const form = document.querySelector('.device-pairing form')
+                setValue(
+                  form.querySelector('textarea'),
+                  HTMLTextAreaElement.prototype,
+                  JSON.stringify(devicePeerInvitation),
+                )
+                form.querySelector('button[type="submit"]').click()
+                whenFound('.device-comparison', () => {
+                  document.querySelector('.device-public-text button').focus()
+                  checkWidth()
+                })
+              })
+            } else if (name === 'devices-discovery') {
+              // Setup facts arrive on the reply: summon one with the switch.
+              document.querySelector('.devices-view label input[type="checkbox"]').click()
+              whenFound('.device-discovery-details', checkWidth)
+            } else if (name === 'devices-owners') {
+              document.querySelector('.devices-view label input[type="checkbox"]').click()
+              whenFound('.device-owners button', () => {
+                document.querySelector('.device-owners button').click()
+                whenFound('.devices-view [role="alert"]', checkWidth)
+              })
+            } else if (name === 'devices-prompts-narrow') {
+              document.querySelector('.devices-view label input[type="checkbox"]').click()
+              whenFound('.device-prompts', checkWidth)
+            } else if (name === 'devices-power') {
+              document.querySelector('.devices-view label input[type="checkbox"]').click()
+              whenFound('.device-power', checkWidth)
+            } else if (name === 'devices-blocked') {
+              document.querySelector('.device-card form button[type="submit"]').click()
+              whenFound('.device-blocked-setup', checkWidth)
             } else if (name === 'devices-unlink-narrow') {
               document.querySelector('.device-actions button:last-child').click()
               whenFound('.device-unlink', checkWidth)

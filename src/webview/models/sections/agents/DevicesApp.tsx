@@ -1,6 +1,15 @@
 // An explicit Devices document has its own validated message channel, without
 // the chat store, chat ready request, credential read or model probe.
-import { Component, type ReactNode, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  Component,
+  lazy,
+  Suspense,
+  type ReactNode,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { UI_TEXT } from '../../../../shared/constants'
 import {
   parseDeviceHostMessage,
@@ -16,6 +25,23 @@ import { DevicesView } from './DevicesView'
 interface DevicesAppProps {
   readonly messages: MessageSource
   readonly postMessage: (message: DeviceWebviewRequest) => void
+}
+
+// M100 phase 2 (lane U): the lazy qr/ chunk loads only when a QR is shown.
+// A chunk failure falls back to the complete text invite; the encoder itself
+// is injected only after the lead approves one, so this renders nothing yet
+// and the text fallback is what ships.
+const QrFigure = lazy(async () => {
+  try {
+    const figure = await import('../devices/qr/QrFigure')
+    return { default: figure.default }
+  } catch {
+    return { default: QrMissing }
+  }
+})
+
+function QrMissing(): null {
+  return null
 }
 
 export function DevicesApp(props: DevicesAppProps) {
@@ -149,7 +175,17 @@ function DevicesDocument({ messages, postMessage }: DevicesAppProps) {
   }, [bridge, messages])
   return (
     <main>
-      <DevicesView message={message} port={bridge.port} onState={accept} explicitSetup />
+      <DevicesView
+        message={message}
+        port={bridge.port}
+        onState={accept}
+        explicitSetup
+        renderQr={(text) => (
+          <Suspense fallback={null}>
+            <QrFigure text={text} encode={undefined} />
+          </Suspense>
+        )}
+      />
     </main>
   )
 }
