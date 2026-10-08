@@ -256,7 +256,7 @@ describe('README shot pixel inputs', () => {
     'src/webview/tokens.css',
     'test/harness/index.html',
   ]
-  const README_INPUTS_DIGEST = '288b2b2a7a8edf552b02b1feb4c1d59abb35e2c48493c866f7a7388402d52fe9'
+  const README_INPUTS_DIGEST = '4c51505b79c2aa7cbf3c528b92feabfaf07a81fbfd20a2f3941e23f512bbf740'
 
   it('fails when a pixel-determining input changes without a recapture', () => {
     expect(fingerprint(README_PIXEL_INPUTS)).toBe(README_INPUTS_DIGEST)

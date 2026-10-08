@@ -19164,6 +19164,8 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ### FLAKETH20 — Explain and repair the Windows team harness hang (2026-10-07)
 
+**Status 2026-10-07: built.** Scoped Windows receipts are in `docs/certification/flake-team-harness-20.md`; Linux integration certification remains separate.
+
 - [x] Measure the unchanged full file and case 20 with CI=true and V8 coverage.
 - [x] Keep bounded console, page-error and request-failure evidence on failed
       harness readiness, with a wait shorter than the existing case deadline.
