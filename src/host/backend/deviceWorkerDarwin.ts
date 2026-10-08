@@ -800,7 +800,6 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
           : new DeviceWorkerHostError('helper')
       const query = parseDeviceWorkerQuery(JSON.parse(await invoke(target, ['--query'], env)))
       for (const [service, job] of jobs) {
-        if (job.ready === undefined || job.pending) continue
         const printed = await call(['print', service])
         if (!/^\s*pid = \d+\s*$/m.test(printed)) continue
         const value = await readBounded(

@@ -1708,7 +1708,7 @@ refuse proof; process groups never replace coalition membership.
 
 | Acceptance                                                               | Test                                                                                                                                                                              |
 | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Probe reclaimed after repeated retryable observation failure             | One factory, **200 consecutive** failures, zero attempt directories and fake-manager registrations after every failure, then bootstrap, real launch completion and a clean query. |
+| Probe reclaimed after repeated retryable observation failure             | One factory, **200 consecutive** failures, zero attempt directories and fake-manager registrations after every failure, then bootstrap, launch completion and a clean query.      |
 | Recovery after the full retained-attempt ceiling                         | **128 dead pending probes** with count inspection held unavailable, then restored inspection, sweep, preparation/bootstrap, completion and an empty store/map.                    |
 | Capacity sweep also handles ordinary attempts                            | A ready factory accumulates **128 ordinary attempts**, loses their manager registrations, and reclaims observed empty membership before refusing the next allocation.             |
 | Every observing-site matrix cell checks cleanup                          | All **72 retirement-print/count/ps cells** in the unchanged **288-cell** delivery/site table assert an empty attempt store after recovery.                                        |
@@ -1717,16 +1717,16 @@ refuse proof; process groups never replace coalition membership.
 
 **Base and required red drills:** repository default timeouts, no raised deadline.
 Final production SHA-256:
-`1b82565beaddd90699603e7cc7ebe58e2d2c8a08f02ce25614756e45bf93653b`.
+`af963b66525b552dcc8289ca98965416f538a7c0347c223d3a437af68bbe8c4b`.
 Every mutation was restored in finally and its SHA-256 checked byte-exact.
 
-| Mutation                                                                                        | Result                                                                                                     |
-| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Production file from `bf57f638b`, new 200/128/ordinary regressions and observing cells retained | **Exit 1: 75 failed, 0 passed, 256 filtered**, 4.106 s.                                                    |
-| Same base, native one-shot count-pressure regression                                            | **Exit 1: 1 failed, 0 passed, 330 filtered**, 0.397 s.                                                     |
-| Same base, native pending-count recovery regression                                             | **Exit 1: 1 failed, 0 passed, 330 filtered**, 1.227 s.                                                     |
-| Skip the failed-observation reclaim in preparation's finally                                    | **Exit 1: 2 failed, 0 passed, 329 filtered**, 0.062 s (200 stress and retirement-print ENOMEM).            |
-| Skip the sweep                                                                                  | **Exit 1: 2 failed, 0 passed, 329 filtered**, 0.881 s (128 pending probes and ordinary capacity recovery). |
+| Mutation                                                                                        | Result                                                                                                          |
+| ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Production file from `bf57f638b`, new 200/128/ordinary regressions and observing cells retained | **Exit 1: 75 failed, 0 passed, 257 filtered**, 5.562 s wall.                                                    |
+| Same base, native one-shot count-pressure regression                                            | **Exit 1: 1 failed, 0 passed, 331 filtered**, 3.155 s wall.                                                     |
+| Same base, native pending-count recovery regression                                             | **Exit 1: 1 failed, 0 passed, 331 filtered**, 3.763 s wall.                                                     |
+| Skip the failed-observation reclaim in preparation's finally                                    | **Exit 1: 2 failed, 0 passed, 330 filtered**, 1.519 s wall (200 stress and retirement-print ENOMEM).            |
+| Skip the sweep                                                                                  | **Exit 1: 2 failed, 0 passed, 330 filtered**, 2.336 s wall (128 pending probes and ordinary capacity recovery). |
 
 Additional guard drills used the final 332-test file: ignoring the membership
 proof failed **2** live-membership cases; skipping owned-directory identity
@@ -1745,3 +1745,17 @@ and inventory: carry an Unreleased note that macOS probe failures no longer
 leave attempts that permanently exhaust preparation capacity. Aggregate quality
 and installed cross-platform qualification remain W's integration obligations
 under PLAN §7; this lane runs the brief's scoped fresh-clone gates.
+
+The final source also preserves query uncertainty for retained jobs instead of
+skipping their manager observation. After extracting the repeated recovery
+assertions into one test helper, plain jscpd reports zero clones with its unchanged
+zero threshold. All base proofs and all five guard drills above were repeated on
+this final source, followed by the restored selection: **exit 0, 82 passed,
+0 failed, 250 filtered** (18.058 s wall).
+
+Implementation checkpoint **`d228495f3`** ran both repository hooks successfully.
+That first hook invocation inadvertently used lint-staged's automatic temporary
+backup; lint-staged cleaned it normally. No manual stash was run. Subsequent
+commits use a private temporary copy of the unchanged pre-commit checks, with
+`set -e` and only `--no-stash` added to lint-staged; ESLint, Prettier and staged
+gitleaks remain enabled. Post-hook staged/committed snapshots are reread.

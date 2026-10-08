@@ -252,6 +252,15 @@ const restoreFixture = async (fixture: Awaited<ReturnType<typeof reclamationFixt
   vi.mocked(lstat).mockRestore()
   await fixture.clean()
 }
+async function recoverFixture(fixture: Awaited<ReturnType<typeof reclamationFixture>>) {
+  const calls = fixture.calls.length
+  fixture.disableFailure()
+  const job = await fixture.start()
+  expect(fixture.calls.slice(calls)).toContain('bootstrap')
+  await complete(job)
+  expect(await attemptNames(fixture.directory)).toEqual([])
+  expect(await fixture.driver.query()).toMatchObject({ activeProcesses: 0 })
+}
 describe('M100/H spawn boundary', () => {
   const cases = darwinSpawnSites.flatMap((site) =>
     darwinSpawnFailures.map((failure) => ({ site, failure, name: `${site}: ${failure.name}` })),
@@ -264,13 +273,7 @@ describe('M100/H spawn boundary', () => {
         expect(await attemptNames(fixture.directory)).toEqual([])
         expect(fixture.jobs.size).toBe(0)
       }
-      const calls = fixture.calls.length
-      fixture.disableFailure()
-      const job = await fixture.start()
-      expect(fixture.calls.slice(calls)).toContain('bootstrap')
-      await complete(job)
-      expect(await attemptNames(fixture.directory)).toEqual([])
-      expect(await fixture.driver.query()).toMatchObject({ activeProcesses: 0 })
+      await recoverFixture(fixture)
     } finally {
       await restoreFixture(fixture)
     }
@@ -282,13 +285,7 @@ describe('M100/H spawn boundary', () => {
         await expect(fixture.start()).rejects.toMatchObject({ reason: 'uncertain' })
       expect(await attemptNames(fixture.directory)).toHaveLength(DEVICE_LIMITS.unresolvedAttempts)
       expect(fixture.jobs.size).toBe(0)
-      const calls = fixture.calls.length
-      fixture.disableFailure()
-      const job = await fixture.start()
-      expect(fixture.calls.slice(calls)).toContain('bootstrap')
-      await complete(job)
-      expect(await attemptNames(fixture.directory)).toEqual([])
-      expect(await fixture.driver.query()).toMatchObject({ activeProcesses: 0 })
+      await recoverFixture(fixture)
     } finally {
       await restoreFixture(fixture)
     }
