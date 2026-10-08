@@ -776,6 +776,7 @@
       "other": "{days} günde {count} kez çalışırdı"
     }
   },
+  "scheduledMediaUnavailable": "Zamanlanmış turlar henüz video veya ses okuyamıyor: doğrulanmış yükleme depolaması ve medya faturalandırması kullanılamıyor.",
   "media": {
     "recordingScreenPermissionRequired": "Ekran kaydı izni verilmemiş.",
     "recordingMicrophonePermissionDenied": "Mikrofon izni reddedildi.",

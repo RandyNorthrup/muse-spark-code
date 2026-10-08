@@ -8459,6 +8459,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       seen: this.seenFiles,
       provisionalSeen,
       files: this.policy().files,
+      ...(media === undefined &&
+        this.getScheduledRun() !== undefined && {
+          media: { reason: UI_TEXT.scheduledMediaUnavailable },
+        }),
       ...(media !== undefined && {
         media: {
           prepare: (file: ReadMediaFile, toolSignal?: AbortSignal) =>

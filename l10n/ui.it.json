@@ -779,6 +779,7 @@
       "many": "Si sarebbe eseguito {count} volte in {days} giorni"
     }
   },
+  "scheduledMediaUnavailable": "I turni pianificati non possono ancora leggere video o audio: l’archiviazione verificata dei caricamenti e la fatturazione dei contenuti multimediali non sono disponibili.",
   "media": {
     "recordingScreenPermissionRequired": "L’autorizzazione alla registrazione dello schermo non è stata concessa.",
     "recordingMicrophonePermissionDenied": "L’autorizzazione del microfono è stata negata.",

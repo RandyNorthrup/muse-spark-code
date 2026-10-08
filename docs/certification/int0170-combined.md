@@ -165,6 +165,91 @@ journal coverage time) was not addressed in this pass.
 
 ## Money and schedule ledger (MONEY017)
 
+### MONEY017C production audit and repair (2026-10-08)
+
+macmini, `rel017/money3`, base `1a2086399`. Fake HTTP only; no credentials,
+paid/live calls, hook changes, merge, rebase or push. The rig brief delegates
+aggregate quality and the nine unrelated integrated bundle caps to the lead.
+
+**Production media remains blocked by recorded prerequisites.** D95.1/3 and
+MONEY017 intend scheduled media reads. D85.6 (PLAN.md:11495–11502) explicitly
+prohibits shipping an upload default until the U6c storage billing finding is
+recorded. M105's current status says U6c is unknown; the production storage and
+ownership bridge, captured Responses media codec, selected-model capabilities,
+and calibration readers are open (`docs/certification/m105.md:117`, `:121`,
+`:126`, `:130`, `:133`). Searches find no production `UploadLedgerStorage`
+implementation, media codec factory or calibration catalogue to bind. M108 is
+accounts, while the media milestone named in the brief is M105.
+A summary of a capture cannot supply the missing wire frame under AGENTS 14.
+The lane requested any existing evidence paths from the owner and continued
+independent repairs. No free storage tariff, codec or calibration was invented.
+
+README and Unreleased now describe production availability accurately; the
+reference includes the limitation. The shared Model API engine returns a
+localized, explicit scheduled-video/audio refusal while its upload adapter is
+unavailable, in VS Code and the runtime/ACP factory path. Interactive refusals,
+inline images/PDFs and injected-port accounting keep their existing behavior.
+All fourteen translated tables carry the new sentence.
+
+The new `modelApiProductionMedia` suite calls `createModelApiHost` with the
+ordinary production dependency shape and fake HTTP, injecting **no replay,
+codec, calibration or upload port**. Four cases cover scheduled video/audio,
+with and without the native reader. The next request contains the explicit
+refusal, no file ID or durable media entry, and no upload HTTP occurs. The
+existing injected-port tariff/follow-up tests remain unchanged. The requested
+production calibrated-reserve, one-nano-below-cap, settlement and uncalibrated
+audio receipts cannot be produced without the missing prerequisites and remain
+outstanding. This is not a claim that the requested production wiring is done.
+
+`reserveMediaRequest` now accepts `UsdAmount` only for all three tariffs and
+validates them before either ledger admits. Its two numeric test callers now
+construct exact decimal amounts; other money ports are untouched. A JavaScript
+caller attempting numbers is explicitly rejected instead of silently accepted.
+
+Ordinary `reserve` has no cap argument: its returned durable claims can total
+more than a caller's cap. The synchronous `claim.check(cap)` before dispatch
+is still the admission fence, and an unsent owner refunds only its own row.
+On the base, ordinary publication also bypassed `reserveAdmitted`'s lock;
+a competing owner could publish while an earlier claim was incomplete. Both
+reservation methods now use exactly the same existing scope lock. The real-disk
+regression starts with USD 0.4 spent and two simultaneous USD 0.6 requests
+against USD 1: it holds the first publication, proves the second waits on the
+lock, admits the first at precisely the cap, refuses/refunds the second and
+retains a total of exactly USD 1. Both ordinary and atomic-admission competitors
+are covered. Serialization does not replace the caller's cap check or pretend
+that the cap-free `reserve` itself has a spending limit.
+
+| Item                                             | Fix                                                                                                  | Regression                                                                                                     |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| 1 production prerequisites / honest availability | `ModelApiHost.ts` fileToolContext, `tools.ts` readMediaFile; README, CHANGELOG and feature reference | `modelApiProductionMedia`: four production-factory scheduled refusals                                          |
+| 2 production calibrated media receipts           | Blocked: D85.6 U6c and M105 recorded storage/codec/calibration inputs absent                         | Existing `modelApiMedia` injection tests retained; no production success claim                                 |
+| 3 exact media tariff port                        | `mediaCost.ts` reserveMediaRequest prices and validation                                             | `mediaAccounting`: untyped numeric caller refuses before either ledger; exact caller fixtures in `mediaClient` |
+| 4 ordinary/admitted lock                         | `sessionBudgetJournal.ts` withReservationLock and reserve                                            | `sessionBudgetJournal`: both concurrent competitors at exactly remaining headroom                              |
+
+Base production-source runs at repository deadlines:
+
+- `mediaAccounting` + `mediaClient`: **1 failed / 39 passed (40)**.
+- `sessionBudgetJournal`, first ordinary regression: **1 failed / 51 passed (52)**.
+- Both final journal regressions plus numeric regression: **3 failed /
+  90 passed (93)** across three files, exit 1.
+- `modelApiProductionMedia`: **4 failed / 0 passed (4)**, exit 1. The test's
+  new English sentence was present while the production sources were unchanged.
+
+The numeric and locking red drill restores both production files from
+`1a2086399` and then restores the repaired bytes exactly. SHA-256:
+`mediaCost.ts` `cf49a0595d9fb3ded0708c1e21212fe03c0e547be2ecdf5b53f84b2002e2626c`;
+`sessionBudgetJournal.ts` `3231c1d04b558c4f6649dc50de44c99e93750d2429af8cc113b0aec71ae30276`.
+Restored owning three files: **93 passed**, exit 0. Production-factory,
+`modelApiMedia` and `modelApiMediaTools`: **34 passed**, exit 0.
+Initial static checks identified test-only async/URL/promise idioms and the
+fake settlement's required total return; those fixtures were corrected without
+weakening assertions or changing any timeout. Final fresh-clone CI receipts,
+production sizes are appended after verification.
+The explicit refusal drill restores base `ModelApiHost.ts`: **4 failed /
+0 passed (4)**, exit 1, then restores repaired SHA-256 `a2b4137d162cda5a28c835ea7f443521d6fb3f82587ac7b995160f5a3e537802` exactly.
+The latest three owning suites (journal, accounting, production factory) pass
+**75 tests**, exit 0, after lint fixture corrections.
+
 ### MONEY017B review repair (RVMONEY017, 2026-10-08)
 
 Kubuntu, `rel017/money2`, base `054a9fd12`. The same fake-only and scoped

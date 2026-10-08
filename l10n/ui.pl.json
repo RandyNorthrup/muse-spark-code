@@ -782,6 +782,7 @@
       "many": "Uruchomiłby się {count} razy w ciągu {days} dni"
     }
   },
+  "scheduledMediaUnavailable": "Zaplanowane tury nie mogą jeszcze odczytywać wideo ani audio: zweryfikowany magazyn przesłanych plików i rozliczanie mediów są niedostępne.",
   "media": {
     "recordingScreenPermissionRequired": "Nie udzielono uprawnienia do nagrywania ekranu.",
     "recordingMicrophonePermissionDenied": "Odmówiono uprawnienia do mikrofonu.",

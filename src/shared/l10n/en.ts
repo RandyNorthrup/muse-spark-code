@@ -944,6 +944,8 @@ export const EN = {
     }),
   },
   // M105 / D85: read UI_TEXT.media at use time. Lane W isolates this region.
+  scheduledMediaUnavailable:
+    'Scheduled turns cannot read video or audio yet: verified upload storage and media billing are unavailable.',
   media: {
     recordingScreenPermissionRequired: 'Screen Recording permission has not been granted.',
     recordingMicrophonePermissionDenied: 'Microphone permission was denied.',

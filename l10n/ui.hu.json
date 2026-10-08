@@ -776,6 +776,7 @@
       "other": "{days} nap alatt {count} alkalommal futott volna"
     }
   },
+  "scheduledMediaUnavailable": "Az ütemezett körök még nem tudnak videót vagy hangot olvasni: az ellenőrzött feltöltési tárhely és médiaelszámolás nem érhető el.",
   "media": {
     "recordingScreenPermissionRequired": "A képernyőfelvétel engedélye nincs megadva.",
     "recordingMicrophonePermissionDenied": "A mikrofon engedélyét megtagadták.",

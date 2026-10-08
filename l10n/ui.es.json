@@ -779,6 +779,7 @@
       "many": "Se habría ejecutado {count} veces en {days} días"
     }
   },
+  "scheduledMediaUnavailable": "Los turnos programados aún no pueden leer vídeo ni audio: el almacenamiento de archivos subidos y la facturación de medios verificados no están disponibles.",
   "media": {
     "recordingScreenPermissionRequired": "No se ha concedido permiso para grabar la pantalla.",
     "recordingMicrophonePermissionDenied": "Se ha denegado el permiso del micrófono.",

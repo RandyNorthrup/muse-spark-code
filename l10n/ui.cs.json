@@ -782,6 +782,7 @@
       "many": "Spustilo by se {count}krát za {days} dní"
     }
   },
+  "scheduledMediaUnavailable": "Plánované tahy zatím nemohou číst video ani zvuk: ověřené úložiště pro nahrávání a účtování médií nejsou k dispozici.",
   "media": {
     "recordingScreenPermissionRequired": "Oprávnění k nahrávání obrazovky nebylo uděleno.",
     "recordingMicrophonePermissionDenied": "Oprávnění k mikrofonu bylo zamítnuto.",

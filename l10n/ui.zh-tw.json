@@ -773,6 +773,7 @@
       "other": "在{days}天內原本會執行{count}次"
     }
   },
+  "scheduledMediaUnavailable": "排程執行的回合暫時無法讀取影片或音訊：經過驗證的上傳儲存空間和媒體計費尚無法使用。",
   "media": {
     "recordingScreenPermissionRequired": "尚未授予螢幕錄製權限。",
     "recordingMicrophonePermissionDenied": "麥克風權限遭到拒絕。",

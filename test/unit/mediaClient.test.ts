@@ -68,7 +68,11 @@ async function setup(reply?: ScriptedReply) {
     ],
     textInputTokens: 170,
     maxOutputTokens: 100,
-    prices: { input: 0.1, output: 0.2, cachedInput: 0.025 },
+    prices: {
+      input: Usd.from('0.1').toAmount(),
+      output: Usd.from('0.2').toAmount(),
+      cachedInput: Usd.from('0.025').toAmount(),
+    },
     captureId: 'fake-terminal',
     session: { reserve: () => Promise.resolve(claims[0]!) },
     daily: { reserve: () => Promise.resolve(claims[1]!) },

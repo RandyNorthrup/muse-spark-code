@@ -897,7 +897,7 @@ export function featureCatalog(): readonly Feature[] {
         true,
         ['vscode'],
       ),
-      details: [{ ui: 'referenceAttachments' }],
+      details: [{ ui: 'referenceAttachments' }, { ui: 'scheduledMediaUnavailable' }],
     },
     feature(
       'subagents',

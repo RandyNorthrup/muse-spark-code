@@ -265,6 +265,79 @@ async function prepareChargeSequence() {
 }
 
 describe('the real-disk session budget journal (M82)', () => {
+  it.each(['ordinary', 'admitted'] as const)(
+    'serializes an ordinary reserve against %s admission at exactly the remaining headroom',
+    async (kind) => {
+      const t = await setup(snapshot({ budgetSpentUsd: 0.4 }))
+      await t.budget.read(SESSION, ACCOUNT)
+      const entered = Promise.withResolvers<undefined>()
+      const release = Promise.withResolvers<undefined>()
+      const contended = Promise.withResolvers<undefined>()
+      const retry = Promise.withResolvers<undefined>()
+      const first = createSessionBudgetJournal({
+        directory: t.directory,
+        loadSession: () => Promise.resolve(snapshot({ budgetSpentUsd: 0.4 })),
+        sleep: () => Promise.resolve(),
+        rename: async (from, to) => {
+          if (path.basename(to) === 'claim.json') {
+            entered.resolve(undefined)
+            await release.promise
+          }
+          await rename(from, to)
+        },
+      })
+      const second = createSessionBudgetJournal({
+        directory: t.directory,
+        loadSession: () => Promise.resolve(snapshot()),
+        sleep: () => {
+          contended.resolve(undefined)
+          return retry.promise
+        },
+      })
+      const cap = Usd.from(1).toAmount()
+      const headroom = Usd.from('0.6').toAmount()
+      const reserving = first.reserve(SESSION, ACCOUNT, headroom)
+      await entered.promise
+      const competing =
+        kind === 'ordinary'
+          ? second.reserve(SESSION, ACCOUNT, headroom)
+          : second.reserveAdmitted(SESSION, ACCOUNT, headroom, cap)
+      const outcome = (async () => {
+        try {
+          await competing
+          return 'published'
+        } catch {
+          return 'failed'
+        }
+      })()
+      const waiting = async () => {
+        await contended.promise
+        return 'locked'
+      }
+      try {
+        expect(await Promise.race([waiting(), outcome])).toBe('locked')
+      } finally {
+        release.resolve(undefined)
+      }
+      const admitted = await reserving
+      try {
+        expect(admitted.check(cap).spentUsd).toBe(cap)
+      } finally {
+        retry.resolve(undefined)
+      }
+      if (kind === 'ordinary') {
+        const refused = await competing
+        expect(() => refused.check(cap)).toThrow('budget')
+        await refused.settle(Usd.from(0).toAmount())
+      } else {
+        await expect(competing).rejects.toThrow('budget')
+      }
+      expect(admitted.check(cap).spentUsd).toBe(cap)
+      const total = await t.budget.read(SESSION, ACCOUNT)
+      expect(total.spentUsd).toBe(cap)
+    },
+  )
+
   it('preserves the reviewer tariff product through admission and persistence without binary ports', async () => {
     const t = await setup()
     const allowance = searchAllowanceUsd(3, Usd.from('0.12345678901234566').toAmount())

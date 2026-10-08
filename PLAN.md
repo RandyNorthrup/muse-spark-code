@@ -19659,6 +19659,20 @@ concurrent admissions cannot take its held headroom. Regressions run once on
 CI scoped gates use default deadlines. Full quality remains with the lead per
 §7 and the rig brief. No merge, push, live/paid call or gate changes.
 
+**MONEY017C production audit (2026-10-08, macmini).** Read D85.6/13,
+M105's current binding inventory, M108 and D95.3/M115 before changing code.
+Scheduled reads are intended, but D85.6 prohibits uploads until the U6c storage
+billing finding exists; M105 explicitly records the provider/account storage,
+captured Responses media codec and calibration readers as open. Do not invent
+free storage, wire frames or production calibration from fake tests. Ask for
+existing evidence paths while repairing the independently authorized exact-money
+port and auditing ordinary/admitted journal concurrency. If those evidence
+inputs remain absent, correct advertised availability and make the scheduled
+refusal explicit; certify the real production factory's refusal with fake HTTP,
+leaving upload/follow-up certification explicitly outstanding. All editors use
+the same factory. Preserve the existing caps and lazy boundaries, default test
+deadlines and assertions; fresh-clone scoped gates and normal hooks apply.
+
 Implemented: the three schedule failures were expectation ports; its durable
 ledger is unchanged. Media transfers its daily claim to the schedule, retains
 frozen-tariff settlement and hosted allowance, and records checked native source

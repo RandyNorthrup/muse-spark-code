@@ -49,7 +49,11 @@ function setup() {
     textInputTokens: 170,
     maxOutputTokens: 100,
     captureId: 'settled-turn',
-    prices: { input: 0.1, cachedInput: 0.025, output: 0.2 },
+    prices: {
+      input: Usd.from('0.1').toAmount(),
+      cachedInput: Usd.from('0.025').toAmount(),
+      output: Usd.from('0.2').toAmount(),
+    },
     session,
     daily,
   }
@@ -72,6 +76,15 @@ function holdSettlement(claim: ReturnType<typeof setup>['daily']['claim']) {
 }
 
 describe('media request accounting', () => {
+  it('refuses JavaScript numeric tariffs before either ledger admits', async () => {
+    const t = setup()
+    const request = { ...t.request, prices: { input: 0.1, cachedInput: 0.025, output: 0.2 } }
+    // Reflect models an untyped JavaScript caller without weakening the public signature.
+    await expect(Reflect.apply(reserveMediaRequest, undefined, [request])).rejects.toThrow()
+    expect(t.session.reserve).not.toHaveBeenCalled()
+    expect(t.daily.reserve).not.toHaveBeenCalled()
+  })
+
   it('refuses an over-reserve bill and retains the admitted liability', async () => {
     const t = setup()
     const reservation = await reserveMediaRequest(t.request)
@@ -313,8 +326,22 @@ describe('media request accounting', () => {
   it('refuses malformed tariffs or token allowances before admission', async () => {
     const t = setup()
     for (const request of [
-      { ...t.request, prices: { input: -1, cachedInput: 0, output: 1 } },
-      { ...t.request, prices: { input: 1, cachedInput: 2, output: 1 } },
+      {
+        ...t.request,
+        prices: {
+          input: Usd.from(-1).toAmount(),
+          cachedInput: Usd.from(0).toAmount(),
+          output: Usd.from(1).toAmount(),
+        },
+      },
+      {
+        ...t.request,
+        prices: {
+          input: Usd.from(1).toAmount(),
+          cachedInput: Usd.from(2).toAmount(),
+          output: Usd.from(1).toAmount(),
+        },
+      },
       { ...t.request, maxOutputTokens: Infinity },
       { ...t.request, textInputTokens: 0.5 },
     ])
@@ -362,7 +389,7 @@ describe('media request accounting', () => {
   it('snapshots admitted metadata and tariffs for settlement after a UI change', async () => {
     const t = setup()
     const reservation = await reserveMediaRequest(t.request)
-    t.request.prices.input = 999
+    t.request.prices.input = Usd.from(999).toAmount()
     t.item.info.durationSeconds = 1
     reservation.started()
     await reservation.settle({ input_tokens: 3000, output_tokens: 40 })

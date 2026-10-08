@@ -776,6 +776,7 @@
       "other": "Wäre {count} Mal in {days} Tagen gelaufen"
     }
   },
+  "scheduledMediaUnavailable": "Geplante Durchläufe können noch keine Videos oder Audiodateien lesen: verifizierter Upload-Speicher und die Medienabrechnung sind nicht verfügbar.",
   "media": {
     "recordingScreenPermissionRequired": "Die Berechtigung zur Bildschirmaufnahme wurde nicht erteilt.",
     "recordingMicrophonePermissionDenied": "Die Mikrofonberechtigung wurde verweigert.",

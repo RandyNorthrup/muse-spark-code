@@ -773,6 +773,7 @@
       "other": "在{days}天内本应执行{count}次"
     }
   },
+  "scheduledMediaUnavailable": "计划运行的轮次暂时无法读取视频或音频：经过验证的上传存储和媒体计费尚不可用。",
   "media": {
     "recordingScreenPermissionRequired": "尚未授予屏幕录制权限。",
     "recordingMicrophonePermissionDenied": "麦克风权限被拒绝。",

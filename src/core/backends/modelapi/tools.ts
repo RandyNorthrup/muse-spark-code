@@ -381,9 +381,9 @@ export interface ToolContext {
   /** Selected model's context window, supplied by the engine (M101). */
   readonly contextTokens?: number | undefined
   /** W binds selected-model admission, consent, exact reservation and the session upload ledger. */
-  readonly media?: {
-    readonly prepare: (file: ReadMediaFile, signal?: AbortSignal) => Promise<UploadedMediaRef>
-  }
+  readonly media?:
+    | { readonly prepare: (file: ReadMediaFile, signal?: AbortSignal) => Promise<UploadedMediaRef> }
+    | { readonly reason: string }
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   /**
@@ -1190,7 +1190,11 @@ async function readMediaFile(
   // The confined read and sniff run before any billing words: a renamed
   // text file is an unknown type, not an unverified account (M105 E2 review).
   const readMedia = context.io.readMedia
-  if (readMedia === undefined) return failure(UI_TEXT.media.uploadStorageUnknown)
+  const unavailable =
+    context.media !== undefined && 'reason' in context.media
+      ? context.media.reason
+      : UI_TEXT.media.uploadStorageUnknown
+  if (readMedia === undefined) return failure(unavailable)
   try {
     context.signal?.throwIfAborted()
     const read = await readMedia(
@@ -1207,7 +1211,7 @@ async function readMediaFile(
     if ('kind' in read) return failure(read.reason)
     // Real media with no upload binding: the pipeline is unbound, and only now
     // is the billing sentence honest.
-    if (context.media === undefined) return failure(UI_TEXT.media.uploadStorageUnknown)
+    if (context.media === undefined || 'reason' in context.media) return failure(unavailable)
     const uploaded = uploadedMediaRefSchema.parse(await context.media.prepare(read, context.signal))
     context.signal?.throwIfAborted()
     if (

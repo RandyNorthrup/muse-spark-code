@@ -773,6 +773,7 @@
       "other": "{days}일 동안 {count}회 실행되었을 것입니다"
     }
   },
+  "scheduledMediaUnavailable": "예약된 턴은 아직 동영상이나 오디오를 읽을 수 없습니다. 검증된 업로드 저장소와 미디어 과금을 사용할 수 없습니다.",
   "media": {
     "recordingScreenPermissionRequired": "화면 녹화 권한이 부여되지 않았습니다.",
     "recordingMicrophonePermissionDenied": "마이크 권한이 거부되었습니다.",

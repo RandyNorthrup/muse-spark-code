@@ -9,12 +9,21 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- Production scheduled media requests claim their calibrated upper bound
+- Media request tariffs accept exact USD amounts only and reject numeric
+  JavaScript callers before admission. Ordinary session reservations share the
+  atomic-admission lock, preventing competing owners from publishing during an
+  unfinished claim and preserving cap checks at the remaining headroom.
+
+- The media accounting core claims its calibrated upper bound
   against both schedule and shared daily caps, including replayed file IDs,
-  settle the admitted media tariff once, and retain uncertain liabilities.
+  settles the admitted media tariff once, and retains uncertain liabilities.
   Above-reserve bills refuse settlement; daily claim transfers secure their
   replacement before releasing held budget.
-  Media read-file references carry their checked source into the run ledger;
+  Production video/audio uploads remain unavailable pending verified storage
+  billing and captured codec/calibration bindings (PLAN D85.6, M105). Scheduled
+  reads now explain that limitation explicitly in every editor.
+  Media read-file references through a bound adapter carry their checked source
+  into the run ledger;
   stopped reads cannot publish a new proof.
 
 - The 0.17.0 integration's daily-budget and durable schedule tests now assert

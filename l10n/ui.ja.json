@@ -773,6 +773,7 @@
       "other": "{days}日間で{count}回実行される予定でした"
     }
   },
+  "scheduledMediaUnavailable": "スケジュールされたターンは、まだ動画や音声を読み込めません。検証済みのアップロードストレージとメディア課金を利用できません。",
   "media": {
     "recordingScreenPermissionRequired": "画面録画のアクセス権は付与されていません。",
     "recordingMicrophonePermissionDenied": "マイクのアクセス権が拒否されました。",

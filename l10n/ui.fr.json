@@ -779,6 +779,7 @@
       "many": "Se serait exécuté {count} fois en {days} jours"
     }
   },
+  "scheduledMediaUnavailable": "Les tours planifiés ne peuvent pas encore lire de vidéo ou de son : le stockage des fichiers téléversés et la facturation des médias vérifiés ne sont pas disponibles.",
   "media": {
     "recordingScreenPermissionRequired": "L’autorisation d’enregistrement de l’écran n’a pas été accordée.",
     "recordingMicrophonePermissionDenied": "L’autorisation du microphone a été refusée.",

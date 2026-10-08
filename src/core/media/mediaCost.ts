@@ -9,7 +9,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { Usd, type UsdAmount } from '../../shared/usd'
+import { Usd, usdAmountSchema, type UsdAmount } from '../../shared/usd'
 import { mediaInfoSchema, mediaEstimateSchema, type MediaInfo } from '../../shared/media'
 import { usageSchema, type Usage } from '../backends/modelapi/schemas'
 import type { CoreLogger } from '../logging'
@@ -234,9 +234,9 @@ export async function reserveMediaRequest(request: {
   readonly estimator: MediaCostEstimator
   readonly log: Pick<CoreLogger, 'warn'>
   readonly prices: {
-    readonly input: number | UsdAmount
-    readonly output: number | UsdAmount
-    readonly cachedInput: number | UsdAmount
+    readonly input: UsdAmount
+    readonly output: UsdAmount
+    readonly cachedInput: UsdAmount
   }
   readonly session: MediaCostLedger
   readonly daily?: MediaCostLedger
@@ -254,7 +254,7 @@ export async function reserveMediaRequest(request: {
   tokens.parse(request.textInputTokens)
   tokens.parse(request.maxOutputTokens)
   for (const price of Object.values(request.prices))
-    if (Usd.from(price).compare(Usd.from(0)) < 0)
+    if (!usdAmountSchema.safeParse(price).success || Usd.from(price).compare(Usd.from(0)) < 0)
       throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
   let inputTokens = request.textInputTokens
   for (const item of request.items) {

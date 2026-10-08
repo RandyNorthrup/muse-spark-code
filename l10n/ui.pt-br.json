@@ -779,6 +779,7 @@
       "many": "Teria executado {count} vezes em {days} dias"
     }
   },
+  "scheduledMediaUnavailable": "Os turnos agendados ainda não podem ler vídeo ou áudio: o armazenamento de uploads e a cobrança de mídia verificados não estão disponíveis.",
   "media": {
     "recordingScreenPermissionRequired": "A permissão para gravar a tela não foi concedida.",
     "recordingMicrophonePermissionDenied": "A permissão do microfone foi negada.",
