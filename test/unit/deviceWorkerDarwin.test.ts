@@ -16,6 +16,8 @@ import {
 import type { RunProgram } from '../../src/host/processTree'
 import { deviceCheck, deviceGrant } from './helpers/deviceFixtures'
 
+vi.mock('node:fs/promises', { spy: true })
+
 const run: RunProgram = (file, args, env) =>
   new Promise((resolve, reject) => {
     if (file === '/bin/launchctl' && args[0] === 'bootstrap' && args[2] !== undefined)
@@ -133,6 +135,11 @@ describe('M100/H Darwin unsupported manager port', () => {
       await mkdir(root, { mode: 0o700 })
       for (let index = 0; index < DEVICE_LIMITS.unresolvedAttempts; index += 1)
         await mkdir(path.join(root, `attempt-${String(index)}`))
+      // This fake Darwin port needs POSIX mode bits even on Windows. The native
+      // suite uses the real filesystem through the default passthrough spy.
+      const sample = await lstat(root)
+      sample.mode &= ~0o077
+      vi.mocked(lstat).mockResolvedValue(sample)
       const driver = deviceWorkerDarwin({
         storageDir: directory,
         environment: {},
@@ -147,6 +154,7 @@ describe('M100/H Darwin unsupported manager port', () => {
       ).rejects.toMatchObject({ reason: 'capacity' })
       expect(invoke.mock.calls.every(([, args]) => args[0] !== 'bootstrap')).toBe(true)
     } finally {
+      vi.mocked(lstat).mockRestore()
       await rm(directory, { recursive: true, force: true })
     }
   })
