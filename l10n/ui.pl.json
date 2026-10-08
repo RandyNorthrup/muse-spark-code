@@ -4277,9 +4277,13 @@
     "questions-defer-after": "--questions-defer-after <seconds>  Domyślnie odraczaj pytania po 60 sekundach; 0 nigdy, 1–9 oznacza 10, maksymalnie 3600",
     "attach": "Załącz ten plik multimedialny; dla kolejnych plików powtórz opcję.",
     "record": "Odmowa w trybach headless: nie ma nikogo, kto obejrzałby nagranie.",
-    "account": "--account <id>                    Konto do użycia (auth set, serve, exec).",
+    "account": "--account <id>                    Konto do użycia (auth set, exec).",
     "account-pool": "--account-pool                  Żąda puli kont; niedostępna do czasu podłączenia zarządcy zasobów. Nigdy z key-stdin w CI.",
-    "vault": "--vault                          Zezwól headless exec na używanie elementów sejfu z grantami bez nadzoru"
+    "vault": "--vault                          Zezwól headless exec na używanie elementów sejfu z grantami bez nadzoru",
+    "fleet": "--fleet current|minimum|optimum: Obecna flota / Minimalna konfiguracja / Optymalna konfiguracja",
+    "seed": "--seed <seed>: Ziarno symulacji",
+    "estimate-by": "--by <date>: Termin",
+    "estimate-format": "--format md|html|json|text: Format wyjściowy"
   },
   "referenceExecImages": "Obrazy bez interfejsu wymagają --image-generation, acceptEdits i wystarczającego twardego budżetu. Nie ma pytania o cenę; żądania wymagające uprawnienia są odrzucane.",
   "referencePopoverKeys": "Przeglądaj opcje, zmień wartość, wybierz opcję albo zamknij menu.",

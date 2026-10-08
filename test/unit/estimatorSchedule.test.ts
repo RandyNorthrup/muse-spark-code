@@ -1,16 +1,54 @@
 import { describe, expect, it } from 'vitest'
-import { prepareEstimateSchedule } from '../../src/core/estimator/schedule'
-import { estimateLaneSchema } from '../../src/shared/estimate'
+import { EstimateSchedulingError, prepareEstimateSchedule } from '../../src/core/estimator/schedule'
+import { estimateLaneSchema, type FleetSnapshot } from '../../src/shared/estimate'
 import { ESTIMATE_MAX_ITEMS } from '../../src/shared/constants'
 import dags from '../fixtures/estimator/dags.json'
 import repository from '../fixtures/estimator/repository-history.json'
 import { fakeFleet, ESTIMATOR_AS_OF } from './helpers/estimator/fakes'
-import { amount, scheduleFleet, scheduleLane } from './helpers/estimatorScheduleFixtures'
+import {
+  amount,
+  planHours,
+  sampledHours,
+  scheduleFleet,
+  scheduleLane,
+} from './helpers/estimatorScheduleFixtures'
 
 function runSample(duration: number, lane = scheduleLane('A')) {
   return prepareEstimateSchedule([lane], scheduleFleet()).run(
-    new Map([['A', new Map([['linux-x64-builder', duration]])]]),
+    new Map([['A', new Map([['linux-x64-builder', planHours(duration)]])]]),
   )
+}
+
+/** A single-slot fleet whose only account quota expired long ago. */
+function expiredQuotaFleet(): FleetSnapshot {
+  const fleet = scheduleFleet(1)
+  fleet.accounts[0]!.usageLimits = [
+    {
+      id: 'old',
+      kind: 'rolling',
+      periodSeconds: 3600,
+      unit: 'requests',
+      remaining: 0,
+      allowance: 1,
+      resetsAt: '2026-01-01T00:00:00.000Z',
+      timeZone: 'UTC',
+    },
+  ]
+  return fleet
+}
+
+/** Seventeen slots across twelve accounts where only the last admits work. */
+function crowdedAccountsFleet(): FleetSnapshot {
+  const fleet = scheduleFleet(17)
+  const account = fleet.accounts[0]!
+  fleet.accounts = Array.from({ length: 12 }, (_, index) => ({
+    ...structuredClone(account),
+    id: `account-${String(index).padStart(2, '0')}`,
+    requestsPerMinute: index === 11 ? account.requestsPerMinute : 0,
+  }))
+  for (const [index, slot] of fleet.slots.entries())
+    slot.accountId = fleet.accounts[Math.min(index, 11)]!.id
+  return fleet
 }
 
 describe('M117 resource list scheduling', () => {
@@ -117,15 +155,7 @@ describe('M117 resource list scheduling', () => {
   })
 
   it('labels bounded account-selection fallback instead of claiming exact search', () => {
-    const fleet = scheduleFleet(17)
-    const account = fleet.accounts[0]!
-    fleet.accounts = Array.from({ length: 12 }, (_, index) => ({
-      ...structuredClone(account),
-      id: `account-${String(index).padStart(2, '0')}`,
-      requestsPerMinute: index === 11 ? account.requestsPerMinute : 0,
-    }))
-    for (const [index, slot] of fleet.slots.entries())
-      slot.accountId = fleet.accounts[Math.min(index, 11)]!.id
+    const fleet = crowdedAccountsFleet()
     const lane = scheduleLane('A')
     lane.resources.slots = amount(6)
     const result = prepareEstimateSchedule([lane], fleet).run()
@@ -250,12 +280,12 @@ describe('M117 resource list scheduling', () => {
       scheduleLane('B', { affinity: { ...macLane.affinity, os: ['linux', 'macos'] } }),
     ]
     const durations = new Map([
-      ['A', new Map([['macos-arm64-builder', 1]])],
+      ['A', new Map([['macos-arm64-builder', planHours(1)]])],
       [
         'B',
         new Map([
-          ['linux-x64-builder', 2],
-          ['macos-arm64-builder', 1],
+          ['linux-x64-builder', planHours(2)],
+          ['macos-arm64-builder', planHours(1)],
         ]),
       ],
     ])
@@ -501,13 +531,37 @@ describe('M117 resource list scheduling', () => {
     ]
     const scheduler = prepareEstimateSchedule([scheduleLane('A')], fleet)
     const run = (hours: number) =>
-      scheduler.run(new Map([['A', new Map([['linux-x64-builder', hours]])]]))
+      scheduler.run(new Map([['A', new Map([['linux-x64-builder', planHours(hours)]])]]))
     const short = run(0.5)
     expect(short.finishHours).toBe(0.5)
     const long = run(2)
     expect(long.finishHours).toBe(3)
     expect(long.schedule[0]!.start).toBe('2026-10-06T13:00:00.000Z')
     expect(run(0.5)).toEqual(short)
+  })
+
+  it('schedules evidenced samples by their hours and refuses dishonest evidence', () => {
+    const fleet = scheduleFleet()
+    const sampled = new Map([['A', new Map([['linux-x64-builder', sampledHours(1, 20)]])]])
+    expect(prepareEstimateSchedule([scheduleLane('A')], fleet).run(sampled).finishHours).toBe(1)
+    const zeroSampleCalibration = new Map([
+      ['A', new Map([['linux-x64-builder', { ...sampledHours(1, 20), samples: 0 }]])],
+    ])
+    expect(() =>
+      prepareEstimateSchedule([scheduleLane('A')], fleet).run(zeroSampleCalibration),
+    ).toThrow('invalid-duration-evidence')
+    const fractionalSamples = new Map([
+      ['A', new Map([['linux-x64-builder', { ...sampledHours(1, 20), samples: 0.5 }]])],
+    ])
+    expect(() =>
+      prepareEstimateSchedule([scheduleLane('A')], fleet).run(fractionalSamples),
+    ).toThrow('invalid-duration-evidence')
+    const sampledAssumption = new Map([
+      ['A', new Map([['linux-x64-builder', { ...planHours(1), samples: 5 }]])],
+    ])
+    expect(() =>
+      prepareEstimateSchedule([scheduleLane('A')], fleet).run(sampledAssumption),
+    ).toThrow('invalid-duration-evidence')
   })
 
   it('validates boundaries, sampled durations, floors and date overflow', () => {
@@ -545,8 +599,8 @@ describe('M117 resource list scheduling', () => {
 
   it('requires exact duration coverage and a valid projected fleet boundary', () => {
     const map = new Map([
-      ['A', new Map([['linux-x64-builder', 1]])],
-      ['extra', new Map([['linux-x64-builder', 1]])],
+      ['A', new Map([['linux-x64-builder', planHours(1)]])],
+      ['extra', new Map([['linux-x64-builder', planHours(1)]])],
     ])
     expect(() => prepareEstimateSchedule([scheduleLane('A')], scheduleFleet()).run(map)).toThrow(
       'duration-coverage',
@@ -561,8 +615,8 @@ describe('M117 resource list scheduling', () => {
       [
         'A',
         new Map([
-          ['linux-x64-builder', 1],
-          ['unrelated', 1],
+          ['linux-x64-builder', planHours(1)],
+          ['unrelated', planHours(1)],
         ]),
       ],
     ])
@@ -570,7 +624,7 @@ describe('M117 resource list scheduling', () => {
       prepareEstimateSchedule([scheduleLane('A')], scheduleFleet()).run(durations),
     ).toThrow('duration-class')
     durations.get('A')!.delete('unrelated')
-    durations.get('A')!.set('macos-arm64-builder', NaN)
+    durations.get('A')!.set('macos-arm64-builder', planHours(NaN))
     expect(() =>
       prepareEstimateSchedule(
         [
@@ -584,27 +638,28 @@ describe('M117 resource list scheduling', () => {
   })
 
   it('bounds an expired quota recurrence rather than freezing the estimator', () => {
-    const fleet = scheduleFleet(1)
-    fleet.accounts[0]!.usageLimits = [
-      {
-        id: 'old',
-        kind: 'rolling',
-        periodSeconds: 3600,
-        unit: 'requests',
-        remaining: 0,
-        allowance: 1,
-        resetsAt: '2026-01-01T00:00:00.000Z',
-        timeZone: 'UTC',
-      },
-    ]
+    const fleet = expiredQuotaFleet()
     expect(() => prepareEstimateSchedule([scheduleLane('A')], fleet).run()).toThrow('quota-horizon')
+  })
+
+  it('reports placement refusals as scheduling errors so R can rank other candidates', () => {
+    const quota = expiredQuotaFleet()
+    expect(() => prepareEstimateSchedule([scheduleLane('A')], quota).run()).toThrow(
+      EstimateSchedulingError,
+    )
+    expect(() => runSample(Number.MAX_VALUE)).toThrow(EstimateSchedulingError)
+    const crowded = crowdedAccountsFleet()
+    const lane = scheduleLane('A')
+    lane.resources.slots = amount(6)
+    crowded.accounts.at(-1)!.requestsPerMinute = 0
+    expect(() => prepareEstimateSchedule([lane], crowded).run()).toThrow(EstimateSchedulingError)
   })
 
   it('recomputes sampled priorities, critical paths and slack without dividing lane time', () => {
     const lanes = [scheduleLane('A'), scheduleLane('Z')]
     const durations = new Map([
-      ['A', new Map([['linux-x64-builder', 1]])],
-      ['Z', new Map([['linux-x64-builder', 4]])],
+      ['A', new Map([['linux-x64-builder', planHours(1)]])],
+      ['Z', new Map([['linux-x64-builder', planHours(4)]])],
     ])
     const result = prepareEstimateSchedule(lanes, scheduleFleet(1)).run(durations)
     expect(

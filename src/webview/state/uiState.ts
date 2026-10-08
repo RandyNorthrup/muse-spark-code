@@ -465,6 +465,10 @@ export interface UiState {
   /** Extension-owned Model API schedules for this session (M52). */
   readonly schedules: readonly ScheduleView[]
   /** The capacity estimator's latest section (M117, PLAN.md D97); the panel renders it. Never saved. */
+  readonly estimatorRequestId?: string | undefined
+  readonly estimatorFailure?: { requestId?: string | undefined; reason: string } | undefined
+  readonly estimatorStarted?:
+    { requestId?: string | undefined; error?: string | undefined } | undefined
   readonly estimator: EstimateSection | undefined
   /** Git and pull requests (M71): the host's cards and the open form. */
   readonly git: GitUiState
@@ -2473,6 +2477,9 @@ function clearedConversation(state: UiState): UiState {
     goal: undefined,
     schedules: [],
     estimator: undefined,
+    estimatorRequestId: undefined,
+    estimatorFailure: undefined,
+    estimatorStarted: undefined,
     // A new conversation starts without a form; the host says what else stays.
     git: { ...state.git, form: undefined },
     outputPages: {},
@@ -2771,7 +2778,13 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     case 'estimatorSection': {
       // The estimator's latest section (M117): a new section reveals the
       // panel, which renders it byte-identical through its validated port.
-      return { ...state, estimator: message.section }
+      return { ...state, estimator: message.section, estimatorRequestId: message.requestId }
+    }
+    case 'estimatorFailure': {
+      return { ...state, estimatorFailure: message }
+    }
+    case 'estimatorStarted': {
+      return { ...state, estimatorStarted: message }
     }
     case 'openHelp': {
       return { ...state, helpRequests: state.helpRequests + 1 }

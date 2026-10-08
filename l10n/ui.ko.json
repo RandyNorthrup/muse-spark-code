@@ -3851,9 +3851,13 @@
     "questions-defer-after": "--questions-defer-after <seconds>  기본적으로 60초 후 질문 보류; 0은 보류하지 않음, 1–9는 10으로 처리, 최대 3600",
     "attach": "이 미디어 파일을 첨부합니다. 파일이 더 있으면 옵션을 반복하세요.",
     "record": "헤드리스 실행에서는 거부됩니다. 녹화를 미리 볼 사람이 없습니다.",
-    "account": "--account <id>                    사용할 계정 (auth set, serve, exec).",
+    "account": "--account <id>                    사용할 계정 (auth set, exec).",
     "account-pool": "--account-pool                  계정 풀을 요청합니다. 리소스 관리자가 연결될 때까지 사용할 수 없습니다. CI에서 key-stdin과 함께 사용할 수 없습니다.",
-    "vault": "--vault                          무인 grant로 Vault 항목을 headless exec가 사용할 수 있도록 허용합니다"
+    "vault": "--vault                          무인 grant로 Vault 항목을 headless exec가 사용할 수 있도록 허용합니다",
+    "fleet": "--fleet current|minimum|optimum: 현재 장비 구성 / 최소 구성 / 최적 구성",
+    "seed": "--seed <seed>: 시뮬레이션 시드",
+    "estimate-by": "--by <date>: 마감일",
+    "estimate-format": "--format md|html|json|text: 출력 형식"
   },
   "referenceExecImages": "헤드리스 이미지에는 --image-generation, acceptEdits 및 충분한 엄격한 예산이 필요합니다. 가격 확인 질문은 표시되지 않으며 권한이 필요한 요청은 거부됩니다.",
   "referencePopoverKeys": "옵션을 탐색하고 값을 조정하고 선택하거나 메뉴를 닫습니다.",

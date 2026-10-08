@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { findEstimateBottleneck } from '../../src/core/estimator/bottleneck'
 import { prepareEstimateSchedule } from '../../src/core/estimator/schedule'
-import { amount, scheduleFleet, scheduleLane } from './helpers/estimatorScheduleFixtures'
+import { amount, planHours, scheduleFleet, scheduleLane } from './helpers/estimatorScheduleFixtures'
 
 describe('M117 limiting resource', () => {
   it('refuses to claim a critical path when coupled constraints require joint expansion', () => {
@@ -89,8 +89,8 @@ describe('M117 limiting resource', () => {
   it('uses identical sampled durations for the baseline and every relaxation', () => {
     const lanes = [scheduleLane('A'), scheduleLane('B')]
     const durations = new Map([
-      ['A', new Map([['linux-x64-builder', 4]])],
-      ['B', new Map([['linux-x64-builder', 2]])],
+      ['A', new Map([['linux-x64-builder', planHours(4)]])],
+      ['B', new Map([['linux-x64-builder', planHours(2)]])],
     ])
     expect(findEstimateBottleneck(lanes, scheduleFleet(1), durations)).toEqual({
       kind: 'machines',

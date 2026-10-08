@@ -326,17 +326,6 @@ export const compactBrowserUiText = {
         level: L10N_BROWSER_COMPRESSION_LEVEL,
       }
     })
-    // Only browser protocol validators use the first-use adapter. Node readers
-    // keep the complete schemas through their shared contract bundle.
-    build.onLoad({ filter: /[/\\]shared[/\\]protocol\.ts$/ }, (args) => ({
-      contents: readFileSync(args.path, 'utf8').replace(
-        "from './estimate'",
-        "from '../webview/estimator/lazyContracts'",
-      ),
-      loader: 'ts',
-      resolveDir: path.dirname(args.path),
-      watchFiles: [args.path],
-    }))
     build.onLoad({ filter: /[/\\]l10n[/\\]vaultEnglish\.ts$/ }, (args) => {
       const property = uiTextProperties().find((property) => property.key === 'vault')
       if (property === undefined) throw new Error('Missing canonical vault English')
@@ -360,6 +349,7 @@ export const compactBrowserUiText = {
       'browser-table-contract',
       'browser-surface-english',
       'browser-reference-english',
+      'browser-account-english',
     ]) {
       build.onResolve({ filter: /.*/, namespace }, (args) => {
         if (args.path === path.resolve(TABLE).replaceAll('\\', '/'))
@@ -373,7 +363,7 @@ export const compactBrowserUiText = {
     }))
     build.onLoad({ filter: /[/\\]l10n[/\\]deferredEnglish\.ts$/ }, () => ({
       contents:
-        "export async function loadDeferredEnglish() { await Promise.all([import('browser-surface-english'), import('browser-reference-english')]) }",
+        "export async function loadDeferredEnglish() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english')]) }",
       loader: 'js',
     }))
     build.onLoad({ filter: /[/\\]installTable\.ts$/ }, (args) => ({
@@ -389,6 +379,14 @@ export const compactBrowserUiText = {
       path: 'browser-surface-english',
       namespace: 'browser-surface-english',
     }))
+    build.onResolve({ filter: /^browser-account-english$/ }, () => ({
+      path: 'browser-account-english',
+      namespace: 'browser-account-english',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-account-english' }, () => ({
+      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';\n${inlineBrowserTable(Object.fromEntries(data.deferredKeys.filter((key) => /^(?:accounts|developer)$/.test(key)).map((key) => [key, data.EN[key]])), data.level)}\ninstallSurfaceEnglish(EN);`,
+      loader: 'js',
+    }))
     build.onResolve({ filter: /^browser-reference-english$/ }, () => ({
       path: 'browser-reference-english',
       namespace: 'browser-reference-english',
@@ -399,7 +397,7 @@ export const compactBrowserUiText = {
     }))
     build.onLoad({ filter: /.*/, namespace: 'browser-surface-english' }, () => ({
       contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
-${inlineBrowserTable(Object.fromEntries(data.deferredKeys.filter((key) => !/^reference|^(?:acpUsage|reportUsage)$/.test(key)).map((key) => [key, data.EN[key]])), data.level)}
+${inlineBrowserTable(Object.fromEntries(data.deferredKeys.filter((key) => !/^reference|^(?:acpUsage|reportUsage|accounts|developer)$/.test(key)).map((key) => [key, data.EN[key]])), data.level)}
 installSurfaceEnglish(EN);`,
       loader: 'js',
     }))
@@ -426,7 +424,7 @@ installSurfaceEnglish(EN);`,
           edits.push({
             start: argument.getStart(tree),
             end: argument.end,
-            source: `async () => { await Promise.all([import('browser-surface-english'), import('browser-reference-english')]); return await (${argument.getText(tree)})() }`,
+            source: `async () => { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english')]); return await (${argument.getText(tree)})() }`,
           })
         }
         ts.forEachChild(node, visit)

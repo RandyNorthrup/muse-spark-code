@@ -12,6 +12,7 @@ import {
 import {
   type HostToWebviewMessage,
   parseWebviewToHostMessage,
+  isEstimatorWebviewMessage,
   type SettingsSnapshot,
 } from '../../shared/protocol'
 import { buildWebviewHtml, createNonce } from '../html'
@@ -97,10 +98,14 @@ export function configureWebview(
   applyHtml()
 
   let restoredSessionId = options.restoredSessionId
+  let isActive = true
+  let estimatorGeneration = 0
   const surface: ChatSurface = {
     id: options.id,
     isSideChat: options.isSideChat === true,
     post(message) {
+      if (message.type === 'conversationCleared' || message.type === 'historyLoaded')
+        estimatorGeneration++
       if (isRestoreEnding(message)) {
         restoredSessionId = undefined
       }
@@ -114,18 +119,42 @@ export function configureWebview(
       return restoredSessionId
     },
     dispose() {
+      isActive = false
+      estimatorGeneration++
       subscription.dispose()
     },
   }
 
   const logWebviewError = webviewErrorLog(context.log, Date.now)
   const subscription = webview.onDidReceiveMessage((raw: unknown) => {
+    if (isEstimatorWebviewMessage(raw)) {
+      const generation = estimatorGeneration
+      void import('../../shared/estimatorProtocol')
+        .then((parser) => {
+          if (!isActive || generation !== estimatorGeneration) return
+          const parsed = parser.parseEstimatorToHostMessage(raw)
+          if (!parsed.ok) {
+            context.log.warn(`Dropped malformed webview message: ${parsed.error}`)
+            return
+          }
+          context.onConversationMessage(surface, parsed.message)
+        })
+        .catch((error: unknown) => {
+          if (!isActive || generation !== estimatorGeneration) return
+          context.log.error(`Estimator boundary unavailable: ${String(error)}`)
+          surface.post({ type: 'estimatorFailure', reason: UI_TEXT.estimateUnavailable })
+          surface.post({ type: 'estimatorStarted', error: UI_TEXT.estimateUnavailable })
+          surface.post({ type: 'notice', level: 'warning', text: UI_TEXT.estimateUnavailable })
+        })
+      return
+    }
     const parsed = parseWebviewToHostMessage(raw)
     if (!parsed.ok) {
       context.log.warn(`Dropped malformed webview message: ${parsed.error}`)
       return
     }
     const { message } = parsed
+    if (message.type === 'clearConversation') estimatorGeneration++
     switch (message.type) {
       case 'ready': {
         surface.post(buildInitMessage(context, surface.isSideChat === true))

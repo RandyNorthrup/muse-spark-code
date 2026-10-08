@@ -100,6 +100,7 @@ beforeAll(async () => {
   writeFileSync(path.join(fixture.root, 'PLAN.md'), 'must not ship')
   for (const file of [
     'dist/extension.js',
+    'dist/estimator.js',
     'dist/validation.js',
     'dist/media.js',
     'dist/screenRecord.js',
@@ -309,6 +310,7 @@ describe('VSIX packaging', () => {
     const packaged = fixture.packagedFiles
     expect(packaged).toEqual(
       expect.arrayContaining([
+        'dist/estimator.js',
         'dist/validation.js',
         'dist/media.js',
         'dist/screenRecord.js',

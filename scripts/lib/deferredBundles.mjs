@@ -97,7 +97,7 @@ export const DEFERRED = [
   {
     output: 'dist/estimateContracts.js',
     metafile: 'dist/meta/estimateContracts.json',
-    files: ['src/shared/estimate.ts'],
+    files: ['src/shared/estimate.ts', 'src/shared/estimatorProtocol.ts'],
   },
   {
     output: 'dist/modelApiBoundaries.js',
@@ -741,11 +741,15 @@ export const sharedModelApiBoundaries = {
     build.onResolve(
       {
         filter:
-          /\/(?:schemas|teamConversation|paidBoundary|legal|legalScanTool|vault|vaultProtocol|vaultPanel|taint|schema|toolSchema|redact|estimate)(?:\.[jt]s)?$/,
+          /\/(?:schemas|teamConversation|paidBoundary|legal|legalScanTool|vault|vaultProtocol|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
-        if (source === path.resolve('src/shared/estimate.ts'))
+        if (
+          ['src/shared/estimate.ts', 'src/shared/estimatorProtocol.ts'].some(
+            (file) => source === path.resolve(file),
+          )
+        )
           return path.resolve(build.initialOptions.outfile ?? '') ===
             path.resolve('dist/estimateContracts.js')
             ? undefined

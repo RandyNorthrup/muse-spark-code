@@ -9,6 +9,7 @@ import {
 import { UI_TEXT } from '../../../shared/l10n/text'
 import { calibrationFailure, canonicalHistory } from './records'
 import { calibrationPrior } from './prior'
+import { engineFindingRate } from '../baseRisk'
 
 type Quantity = EstimateLane['resources']['ciMinutes']
 type KnownQuantity = Extract<Quantity, { status: 'known' }>
@@ -145,6 +146,7 @@ export function fitCalibration(
     ? risks.reduce((total, risk) => total + risk.redesigns, 0) /
       risks.reduce((total, risk) => total + risk.exposures, 0)
     : prior.redesignRisk
+  const findingSamples = metadata.filter((record) => record.review.status === 'known').length
   const ci = metadata.flatMap((record) => (record.ciHours === undefined ? [] : [record.ciHours]))
   return {
     calibration: {
@@ -157,6 +159,16 @@ export function fitCalibration(
       sigma,
       reviewRoundRate,
       redesignRisk,
+      firstPassFindingRate:
+        findingSamples === 0
+          ? {
+              status: 'unknown',
+              value: null,
+              basis: 'unknown',
+              samples: 0,
+              uncertainty: { kind: 'unknown' },
+            }
+          : known(engineFindingRate(metadata, engine), 'history', findingSamples),
     },
     durationBasis,
     reviewSamples: reviews.length,

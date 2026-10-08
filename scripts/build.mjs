@@ -775,7 +775,7 @@ const vaultBoundariesOptions = {
 const estimateContractsOptions = {
   ...modelApiOptions,
   plugins: [sharedUiText, sharedValidation],
-  entryPoints: ['src/shared/estimate.ts'],
+  entryPoints: ['src/shared/estimateContractsEntry.ts'],
   outfile: 'dist/estimateContracts.js',
 }
 

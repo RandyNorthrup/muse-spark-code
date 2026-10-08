@@ -3851,9 +3851,13 @@
     "questions-defer-after": "--questions-defer-after <seconds>  默认在60秒后暂缓问题；0表示从不暂缓，1–9按10处理，最大3600",
     "attach": "附加此媒体文件；更多文件请重复该选项。",
     "record": "无头运行中会被拒绝：没有人可以预览录制内容。",
-    "account": "--account <id>                    要使用的账号（auth set、serve、exec）。",
+    "account": "--account <id>                    要使用的账号（auth set、exec）。",
     "account-pool": "--account-pool                  请求账户池；连接其资源管理组件之前不可用。CI 中不可与 key-stdin 一起使用。",
-    "vault": "--vault                          允许 headless exec 使用具有无人值守授权的保管库项"
+    "vault": "--vault                          允许 headless exec 使用具有无人值守授权的保管库项",
+    "fleet": "--fleet current|minimum|optimum: 当前设备群 / 最小配置 / 最优配置",
+    "seed": "--seed <seed>: 模拟种子",
+    "estimate-by": "--by <date>: 截止日期",
+    "estimate-format": "--format md|html|json|text: 输出格式"
   },
   "referenceExecImages": "无界面图像需要 --image-generation、acceptEdits 和充足的硬性预算。不显示价格确认问题；需要许可的请求会被拒绝。",
   "referencePopoverKeys": "浏览选项、调整值、选择选项或关闭菜单。",

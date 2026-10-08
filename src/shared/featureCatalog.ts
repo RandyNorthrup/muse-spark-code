@@ -820,6 +820,9 @@ export function featureCatalog(): readonly Feature[] {
       ['estimate'],
       ['estimator.optimize', 'estimator.priceLookup'],
       'estimates',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
     ),
     feature(
       'support',
@@ -884,6 +887,7 @@ const REFERENCE_DETAILS: Readonly<
   Record<string, readonly Extract<ReferenceText, { ui: unknown }>['ui'][]>
 > = {
   providers: ['providerOpenRouterServices'],
+  estimator: ['estimateCliHelp'],
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],
   account: ['signInBrowserDetail', 'signInApiKeyDetail', 'installDetail', 'referenceSecretPrompt'],

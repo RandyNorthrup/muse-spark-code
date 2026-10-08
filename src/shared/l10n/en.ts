@@ -270,8 +270,8 @@ export const EN = {
     'permission-mode': 'Choose how Muse asks before it acts.',
     model: 'Choose the model for this run.',
     provider:
-      '--provider <id>                   The provider the account belongs to (auth set, serve).',
-    account: '--account <id>                    The account to use (auth set, serve, exec).',
+      '--provider <id>                   The provider the account belongs to (auth set/status/clear).',
+    account: '--account <id>                    The account to use (auth set, exec).',
     'account-pool':
       '--account-pool                  Request account pooling. Requires a bound resource owner; excludes key-stdin in CI.',
     effort: 'Choose how much effort Muse puts into each reply.',
@@ -289,6 +289,10 @@ export const EN = {
     description: '--description <text>  What was happening, in your own words',
     'no-facts': '--no-facts           Leave the support facts out',
     'no-events': '--no-events          Leave the recent events out',
+    'estimate-by': '--by <date>: Deadline',
+    fleet: '--fleet current|minimum|optimum: Current / Minimum / Optimum',
+    'estimate-format': '--format md|html|json|text: Output format',
+    seed: '--seed <seed>: Simulation seed',
   },
   referenceScanSecrets:
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',

@@ -19054,7 +19054,13 @@ fabricated native artifacts.
       package/ACP suites pass 59 tests on Node 22 at repository deadlines.
 - [x] Merge `m105/e3-fix`; union Unreleased notes. Companion suites pass
       91 tests, including real browser transport, at repository deadlines.
-- [ ] Merge `m117/w-fix3`; preserve integration boundaries and release behavior.
+- [x] Merge `m117/w-fix3`; preserve integration boundaries and release behavior.
+      Resolve size regressions structurally: formatting callers import the
+      existing localization helper rather than the whole palette; estimator
+      grammar owns its small options table; display-only catalog prices use
+      Intl without admission arithmetic; estimator envelopes share the lazy
+      estimate-contract bundle; optional account English gets a measured
+      first-use region. Existing startup and deferred caps remain unchanged.
 - [ ] Repair every remaining test, vault-default and SAST failure by cause;
       add failing-before/passing-after regressions and byte-exact guard drills.
 - [ ] Recover startup through first-use chunks and deduplication, retaining
@@ -41315,7 +41321,36 @@ core.hooksPath`, an edit under `.husky/`, a delegate re-asking a refused
 
 ### M117 — The capacity estimator (D97)
 
-**Lane P implementation (2026-10-06).** After the explicitly required
+**FIXM117I integration review repair (2026-10-07, scoped repair complete).** Address
+C-RVM117W findings 1–14 with failing regressions against integration
+`7b89ea37afc4bffe77d43670e3f224ec4043d91e` (the rig's copy of
+`refs/rigs/macmini/m117/w`; that symbolic ref is absent locally). Ship the
+lazy engine in both products and the private test package; fit candidate
+classes, continue setup search when the current fleet is infeasible, retain
+simulation qualifications and parameter-specific evidence, complete tagged
+engine profiles and standalone CLI routing. Settle correlated panel failures,
+replay the first forecast, cancel estimates and clear inputs on session
+replacement, bind existing-fleet first-wave dispatch and isolate modal focus.
+Repair portable determinism children and both unchanged FIXDIET1 limits.
+Cheap P3 repairs cover bounded goal expansion, merged affinity normalization
+and honest public/internal handoffs; per-node duration evidence is assessed
+separately. No live/paid calls, merges, pushes, dependencies or cap changes.
+Each finished piece commits with hooks; final verification uses a fresh clone,
+`CI=true`, complete owning files three times at repository timeouts, five
+TypeScript projects and the scoped lane gates. Integrated quality, remote badges,
+Windows lint and installed-editor/cross-rig checks remain lead-owned commands
+in `docs/certification/m117.md`.
+
+Repair plan: [x] packaging; [x] engine/evidence; [x] UI/session/CLI;
+[x] size/portable tests; [x] fresh-clone verification and certification.
+
+The complete accessibility matrix exposed stale fake-host initialization:
+its settings omitted required `estimator.optimize`. The corrected fixture and
+real-fixture initialization regression keep production validation strict.
+Fresh committed-source verification passes the full 716-page matrix.
+Final receipts are in `docs/certification/m117.md`.
+
+**Lane P implementation plan (2026-10-06; partial, corrected 2026-10-07).** After the explicitly required
 `m117/s` and `m117/c` no-fast-forward merges, implement D97.7 only in
 `src/core/estimator/provision/**`, owning fake-only tests and
 `docs/certification/m117-p-spin-it-up.md`. A serialized first-wave owner
@@ -41326,6 +41361,12 @@ provider's HTTPS origin and exact operation paths before every broker call;
 redirects, billing, payment, sign-up and account paths are refused. Captured
 provider codecs and the credential-owning M109 transport are injected;
 no external wire shape or credential is invented.
+
+**Slice 1 is implemented:** provider adapter and serialized audited first-wave
+owner, certified with fakes. **Slice 2 is not implemented:** the portable
+provisioning lifecycle and its liability/teardown tests remain
+`M117-P-Slice2-lifecycle`, separate from external milestone bindings. The
+following paragraph describes the planned Slice 2 behavior.
 
 Provisioning requires all installer/pairing bindings and an explicit run
 budget, with no default. Quotes retain exact nano-USD fractions for each
@@ -42752,6 +42793,18 @@ directly on macmini. Full integrated quality remains the lead's. No caps,
 thresholds, ignores or rule levels change. Contract-only exports have test
 and schema-generator consumers until P/C/X merge; the lead must then check
 production consumers and remove any unused contract instead of adding ignores.
+**FIXM117I scoped rig certification (2026-10-07, linuxlt).** The specific
+lane/shared brief prohibits aggregate quality, full-unit runs, merges and
+pushes. Fresh committed source `c129da97` with `CI=true npm ci` passes 42
+complete owning files three times (1,806 tests each), default timeouts, five
+typechecks, scoped lint/format, plain Knip, duplication, unchanged build caps,
+reference, localization and host-API gates. Browser e2e: 11 passed; accessibility:
+716 pages, zero violations/undecided rules/exemptions/missing results. Three
+unpacked packages pass fake-only engine/wire/first-wave smoke; installed CLI
+help passes. Remote badges, Windows PowerShell lint, integrated quality and
+installed-editor/cross-rig receipts remain lead-owned. No P1/P2 deferral;
+per-node duration evidence and P Slice 2 remain explicit internal work, and
+production handoffs remain unavailable. Evidence: `docs/certification/m117.md`.
 
 **REL0143F release CI repair (2026-10-06, Kubuntu).** The complete configured
 Vitest matrix passes at repository default timeouts (532 files, 11,430 passing
@@ -49377,6 +49430,12 @@ before a repaired one loads (2026-09-30).
   remain lead-owned handoffs, not accepted review findings. Evidence:
   `docs/certification/m117-c-calibration.md`.
 
+- **FIXM117I retained P3 duration evidence (finding 17): closed by FIXM117I2.**
+  DAG nodes and the sampled-duration map carry `EstimateDurationEvidence`
+  (unit, source, basis, samples); plan defaults are assumption/0, an
+  assumption with samples is refused, and a date claims calibration only when
+  its trial's samples are calibrated (RVF117I2, 2026-10-07). Nothing deferred.
+
 - **FIXM117S review outcome (2026-10-06).** All four RVM117S P2s are
   fixed; no review finding is deferred. Account-count search is exact up to
   the existing 512-allocation bound; larger products use a deterministic
@@ -49399,9 +49458,13 @@ before a repaired one loads (2026-09-30).
   followed by a standalone pass and a complete unchanged 70/70 green run;
   the certificate retains all samples without claiming calibrated timing or
   its cause. The named handoff includes aggregate/cross-rig performance acceptance.
-- **M117-P provisioning bindings.** The P core uses injected five-operation,
-  connected-provider broker/codec, board/playbook and cloud-init/install/pair/
-  wipe ports; none exposes a credential value. Actual M96/M109/M110d/M110f/
+- **M117-P provisioning bindings (partial).** Slice 1 implements the
+  five-operation connected-provider adapter and audited first-wave owner.
+  **M117-P-Slice2-lifecycle** is absent internally: liability reservations,
+  separate spend confirmations, lifetime/idle teardown, Keep, installation/
+  pairing and wipe/delete orchestration plus their fake tests are still
+  planned. The following requirements are prerequisites for that future
+  implementation, not certification of shipped behavior. Actual M96/M109/M110d/M110f/
   M116 bindings and captured service codecs remain the named handoffs in
   `docs/certification/m117-p-spin-it-up.md`. Until bound, rentals remain
   advice-only. The hard run cap applies to exact admitted hourly-tariff
@@ -51646,6 +51709,11 @@ run IDs, tag commit and publication channels remain for the lead. No push or
 publication was performed on this rig.
 
 - **M117W-STARTUP — LEAD DECISION REQUESTED 2026-10-07 (not waived).**
+- **M117W-STARTUP — resolved by FIXM117I 2026-10-07, caps unchanged.**
+  First-use estimator validation and palette data now remove the eager
+  regression; shared scrolling markup removes the original deferred excess.
+  Fresh-clone measurements are recorded in `docs/certification/m117.md`.
+  The following W receipt is historical, superseded by that repair.
   M117's measured webview startup closure is 766,692 bytes (748.7 KiB)
   against the FIXDIET1 regression baseline's 751,392 bytes (733.8 KiB):
   15,300 bytes over, while the D6 900 KiB hard cap passes with margin.

@@ -79,7 +79,7 @@ import {
   requestLegalFixMessageSchema,
 } from './legalFix'
 import { boardRowSchema } from './sessionBoard'
-import { estimateRequestSchema, estimateSectionSchema } from './estimate'
+import type { EstimatorToHostMessage, HostToEstimatorMessage } from './estimatorProtocol'
 import { sessionRowSchema } from './sessions'
 import {
   accountFactsSchema,
@@ -877,16 +877,10 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('reportWebviewError'),
     ...reportWebviewErrorSchema.shape,
   }),
-  // The capacity estimator (M117, PLAN.md D97): run an estimate from the
-  // parsed request; the host answers with `estimatorSection`. Strict: the
-  // request is validated before anything runs.
-  z.strictObject({ type: z.literal('estimateRun'), request: estimateRequestSchema }),
-  // Start the audited first contract wave from the last estimate's inputs;
-  // the host answers with a notice naming what started or the refusal.
-  z.strictObject({ type: z.literal('estimateSpinUp') }),
 ])
 
-export type WebviewToHostMessage = z.infer<typeof webviewToHostMessageSchema> | TeamTreeAction
+export type WebviewToHostMessage =
+  z.infer<typeof webviewToHostMessageSchema> | TeamTreeAction | EstimatorToHostMessage
 
 const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({
@@ -1316,15 +1310,13 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     issueFallback: z.optional(z.boolean()),
     reason: z.optional(z.enum(REPORT_EXPORT_REASONS)),
   }),
-  // The capacity estimator's latest section (M117, PLAN.md D97): the panel
-  // renders it, and a new section reveals the panel.
-  z.object({ type: z.literal('estimatorSection'), section: estimateSectionSchema }),
   // The extension's `museSpark.estimate` command: focus the composer with
   // `/estimate ` ready for the goal.
   z.object({ type: z.literal('openEstimator') }),
 ])
 
-export type HostToWebviewMessage = z.infer<typeof hostToWebviewMessageSchema> | TeamTreeUpdate
+export type HostToWebviewMessage =
+  z.infer<typeof hostToWebviewMessageSchema> | TeamTreeUpdate | HostToEstimatorMessage
 
 const teamSchemas: {
   action: z.ZodMiniType<TeamTreeAction> | undefined
@@ -1373,5 +1365,24 @@ export function parseHostToWebviewMessage(input: unknown): ParseResult<HostToWeb
       ? teamSchemas.update
       : hostToWebviewMessageSchema,
     input,
+  )
+}
+
+/** Only select the parser here; its lazy Zod schema validates every payload. */
+export function isEstimatorHostMessage(input: unknown): boolean {
+  return (
+    typeof input === 'object' &&
+    input !== null &&
+    'type' in input &&
+    typeof input.type === 'string' &&
+    ['estimatorSection', 'estimatorFailure', 'estimatorStarted'].includes(input.type)
+  )
+}
+export function isEstimatorWebviewMessage(input: unknown): boolean {
+  return (
+    typeof input === 'object' &&
+    input !== null &&
+    'type' in input &&
+    (input.type === 'estimateRun' || input.type === 'estimateSpinUp')
   )
 }

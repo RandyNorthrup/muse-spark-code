@@ -1407,6 +1407,8 @@ Commands: —. Settings: `museSpark.judge.engine`. [Documentation](https://githu
 
 Ship-date forecast for a goal from the current fleet, or the setup a target date needs.
 
+Estimate a goal using linked machines, agent slots, accounts and CI; no model call.
+
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: `museSpark.estimate`. Settings: `museSpark.estimator.optimize`, `museSpark.estimator.priceLookup`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#estimates)
@@ -3223,6 +3225,7 @@ These are defaults; editor customizations take precedence.
 - `scan-secrets`: Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.
 - `providers accounts`: Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input.
 - `developer`: Show or unlock machine-local developer options. Profile operations require a connected resource owner.
+- `estimate <goal> [--by <date>] [--fleet current|minimum|optimum] [--format md|html|json|text] [--seed <seed>]`: Estimate a goal using linked machines, agent slots, accounts and CI; no model call.
 - `report`: Usage:
   muse-spark-code-acp report [--out &lt;file&gt;] [--description &lt;text&gt;] [--no-facts] [--no-events]
   Prints the scrubbed problem report to stdout, or writes it to &lt;file&gt; with --out.
@@ -3345,9 +3348,9 @@ These are defaults; editor customizations take precedence.
 - `authSet: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"refused":true,"default":false}`
 - `authSet: --usage-history <value>`: --usage-history: Track cost, tokens and limits across editors. `{"type":"string","repeatable":false,"enum":["on","off"],"default":"on","purpose":"acceptedUnused"}`
 - `authSet: --no-auto-compaction`: autoCompactionEvaluation: --no-auto-compaction: Automatic compaction is awaiting evaluation and is inactive. `{"type":"boolean","repeatable":false,"purpose":"acceptedUnused","effective":"evaluationPending","default":false}`
-- `authSet: --provider <value>`: --provider &lt;id&gt; The provider the account belongs to (auth set, serve). `{"type":"string","repeatable":false}`
+- `authSet: --provider <value>`: --provider &lt;id&gt; The provider the account belongs to (auth set/status/clear). `{"type":"string","repeatable":false}`
 - `authSet: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
-- `authSet: --account <value>`: --account &lt;id&gt; The account to use (auth set, serve, exec). `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
+- `authSet: --account <value>`: --account &lt;id&gt; The account to use (auth set, exec). `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authSet: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","refused":true,"repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authSet: --muse-binary <value>`: --muse-binary &lt;path&gt; The Muse Code CLI to run `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
@@ -3370,6 +3373,7 @@ These are defaults; editor customizations take precedence.
 - `authStatus: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"refused":true,"default":false}`
 - `authStatus: --usage-history <value>`: --usage-history: Track cost, tokens and limits across editors. `{"type":"string","repeatable":false,"enum":["on","off"],"default":"on","purpose":"acceptedUnused"}`
 - `authStatus: --no-auto-compaction`: autoCompactionEvaluation: --no-auto-compaction: Automatic compaction is awaiting evaluation and is inactive. `{"type":"boolean","repeatable":false,"purpose":"acceptedUnused","effective":"evaluationPending","default":false}`
+- `authStatus: --provider <value>`: --provider &lt;id&gt; The provider the account belongs to (auth set/status/clear). `{"type":"string","repeatable":false}`
 - `authStatus: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
 - `authStatus: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authStatus: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","refused":true,"repeatable":false,"default":false,"purpose":"acceptedUnused"}`
@@ -3393,6 +3397,7 @@ These are defaults; editor customizations take precedence.
 - `authClear: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"refused":true,"default":false}`
 - `authClear: --usage-history <value>`: --usage-history: Track cost, tokens and limits across editors. `{"type":"string","repeatable":false,"enum":["on","off"],"default":"on","purpose":"acceptedUnused"}`
 - `authClear: --no-auto-compaction`: autoCompactionEvaluation: --no-auto-compaction: Automatic compaction is awaiting evaluation and is inactive. `{"type":"boolean","repeatable":false,"purpose":"acceptedUnused","effective":"evaluationPending","default":false}`
+- `authClear: --provider <value>`: --provider &lt;id&gt; The provider the account belongs to (auth set/status/clear). `{"type":"string","repeatable":false}`
 - `authClear: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"acceptedUnused"}`
 - `authClear: --trust-workspace`: --trust-workspace Load the folder’s rules, skills and memory `{"type":"boolean","repeatable":false,"default":false,"purpose":"acceptedUnused"}`
 - `authClear: --maintenance`: Run the Setup maintenance event instead of init. `{"type":"boolean","refused":true,"repeatable":false,"default":false,"purpose":"acceptedUnused"}`
@@ -3406,17 +3411,17 @@ These are defaults; editor customizations take precedence.
 - `authClear: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after 60 seconds by default; 0 never, 1–9 read as 10, maximum 3600 `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authClear: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authClear: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
-- `exec: --provider <value>`: --provider &lt;id&gt; The provider the account belongs to (auth set, serve). `{"type":"string","repeatable":false,"purpose":"provider"}`
+- `exec: --provider <value>`: --provider &lt;id&gt; The provider the account belongs to (auth set/status/clear). `{"type":"string","repeatable":false,"purpose":"provider"}`
 - `exec: --no-auto-compaction`: autoCompactionEvaluation: --no-auto-compaction: Automatic compaction is awaiting evaluation and is inactive. `{"type":"boolean","repeatable":false,"purpose":"no-auto-compaction","effective":"evaluationPending","default":false}`
 - `exec: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"backend"}`
 - `exec: --cwd <value>`: Use this directory as the workspace. `{"type":"string","repeatable":false,"purpose":"cwd"}`
 - `exec: --prompt-file <value>`: Read the prompt from this file. `{"type":"string","repeatable":false,"maximumBytes":262144,"purpose":"prompt"}`
 - `exec: --untrusted-file <value>`: Attach this file as untrusted data; repeat the option for more files. `{"type":"string","repeatable":true,"maxItems":8,"perFileMaxBytes":1048576,"totalMaxBytes":2097152,"purpose":"untrustedFiles"}`
 - `exec: --attach <value>`: Attach this media file; repeat the option for more files. `{"type":"string","repeatable":true,"purpose":"attach"}`
-- `exec: --record`: Refused for headless runs: nobody is there to preview a recording. `{"type":"boolean","repeatable":false,"default":false,"purpose":"record"}`
+- `exec: --record`: Refused for headless runs: nobody is there to preview a recording. `{"type":"boolean","repeatable":false,"default":false,"refused":true,"purpose":"record"}`
 - `exec: --permission-mode <value>`: Choose how Muse asks before it acts. `{"type":"string","repeatable":false,"enum":["plan","acceptEdits"],"default":"plan","purpose":"permission-mode"}`
 - `exec: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":false,"purpose":"model"}`
-- `exec: --account <value>`: --account &lt;id&gt; The account to use (auth set, serve, exec). `{"type":"string","repeatable":false,"purpose":"account"}`
+- `exec: --account <value>`: --account &lt;id&gt; The account to use (auth set, exec). `{"type":"string","repeatable":false,"purpose":"account"}`
 - `exec: --account-pool`: --account-pool Request account pooling. Requires a bound resource owner; excludes key-stdin in CI. `{"type":"boolean","repeatable":false,"default":false,"purpose":"account-pool"}`
 - `exec: --effort <value>`: Choose how much effort Muse puts into each reply. `{"type":"string","repeatable":false,"enum":["minimal","low","medium","high","xhigh","max"],"purpose":"effort"}`
 - `exec: --output <value>`: Choose the result format: text, json or jsonl. `{"type":"string","repeatable":false,"enum":["text","json","jsonl"],"default":"text","purpose":"output"}`
@@ -3443,6 +3448,11 @@ These are defaults; editor customizations take precedence.
 - `report: --no-facts`: --no-facts Leave the support facts out `{"type":"boolean","repeatable":false,"default":false}`
 - `report: --no-events`: --no-events Leave the recent events out `{"type":"boolean","repeatable":false,"default":false}`
 - `report: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
+- `estimate: --by <value>`: --by &lt;date&gt;: Deadline `{"type":"string","repeatable":false,"enum":["provider","model","kind","client"]}`
+- `estimate: --fleet <value>`: --fleet current|minimum|optimum: Current / Minimum / Optimum `{"type":"string","repeatable":false}`
+- `estimate: --format <value>`: --format md|html|json|text: Output format `{"type":"string","repeatable":false}`
+- `estimate: --seed <value>`: --seed &lt;seed&gt;: Simulation seed `{"type":"string","repeatable":false}`
+- `estimate: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `exec <prompt> | exec - | exec --prompt-file <file>`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --ephemeral / --key-stdin / --image-generation; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.
 - `scan-secrets <file> [--key-stdin]`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.
 

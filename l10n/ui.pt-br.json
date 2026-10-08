@@ -4135,9 +4135,13 @@
     "questions-defer-after": "--questions-defer-after <seconds>  Adiar perguntas após 60 segundos por padrão; 0 nunca, 1–9 são lidos como 10, máximo 3600",
     "attach": "Anexe este arquivo de mídia; repita a opção para mais arquivos.",
     "record": "Recusado em execuções headless: ninguém está aqui para pré-visualizar a gravação.",
-    "account": "--account <id>                    A conta a ser usada (auth set, serve, exec).",
+    "account": "--account <id>                    A conta a ser usada (auth set, exec).",
     "account-pool": "--account-pool                  Solicita um pool de contas; indisponível até conectar seu gerenciador de recursos. Nunca com key-stdin em CI.",
-    "vault": "--vault                          Permitir que o headless exec use itens do cofre com concessões autônomas"
+    "vault": "--vault                          Permitir que o headless exec use itens do cofre com concessões autônomas",
+    "fleet": "--fleet current|minimum|optimum: Frota atual / Configuração mínima / Configuração ideal",
+    "seed": "--seed <seed>: Semente da simulação",
+    "estimate-by": "--by <date>: Prazo",
+    "estimate-format": "--format md|html|json|text: Formato de saída"
   },
   "referenceExecImages": "Imagens sem interface exigem --image-generation, acceptEdits e um orçamento rígido suficiente. Não há pergunta sobre o preço; solicitações que exigem permissão são recusadas.",
   "referencePopoverKeys": "Percorrer opções, ajustar um valor, escolher uma opção ou fechar o menu.",

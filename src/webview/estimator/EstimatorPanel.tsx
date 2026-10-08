@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import {
   estimateRequestSchema,
   estimateSectionSchema,
@@ -16,7 +16,6 @@ import {
   UI_TEXT,
   uiLocale,
 } from '../../shared/l10n/text'
-import { displayUsdNanos, usdNanos } from '../../shared/usd'
 import './estimator.css'
 
 export interface EstimatorPanelPort {
@@ -24,6 +23,7 @@ export interface EstimatorPanelPort {
   estimate(request: EstimateRequest, signal: AbortSignal): Promise<unknown>
   /** Validated refreshed sections from U's view session, bound to M115 by W. */
   subscribe(listener: (section: unknown) => void): () => void
+  startExisting?(section: EstimateSection, setup: EstimateSection['setups'][number]): Promise<void>
   price?(price: CatalogPrice): string
   readonly provision:
     | { readonly state: 'waiting'; readonly dependency: string }
@@ -59,10 +59,12 @@ export default function EstimatorPanel({
   port,
   initial,
   initialSection,
+  isInert = false,
 }: {
   readonly port: EstimatorPanelPort
   readonly initial?: EstimateRequest
-  readonly initialSection?: EstimateSection
+  readonly initialSection?: EstimateSection | undefined
+  readonly isInert?: boolean
 }) {
   const id = useId()
   const [goal, setGoal] = useState(initial === undefined ? '' : goalText(initial))
@@ -74,7 +76,13 @@ export default function EstimatorPanel({
   const [section, setSection] = useState<EstimateSection | undefined>(() =>
     initialSection === undefined ? undefined : estimateSectionSchema.parse(initialSection),
   )
-  const [selected, setSelected] = useState<EstimateSection['setups'][number]['kind']>('current')
+  // A section without a current setup still opens on its first available
+  // setup; the radio must never point at a card that is not rendered.
+  const [selected, setSelected] = useState<EstimateSection['setups'][number]['kind']>(() => {
+    if (initialSection === undefined) return 'current'
+    const parsed = estimateSectionSchema.parse(initialSection)
+    return parsed.setups[0]?.kind ?? 'current'
+  })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [spinning, setSpinning] = useState(false)
@@ -82,6 +90,29 @@ export default function EstimatorPanel({
   const pending = useRef<AbortController | undefined>(undefined)
   const spinCycle = useRef(0)
   const latestAsOf = useRef(initialSection?.asOf ?? '')
+
+  const [received, setReceived] = useState(initialSection)
+  if (received !== initialSection) {
+    setReceived(initialSection)
+    if (initialSection !== undefined) {
+      const next = estimateSectionSchema.parse(initialSection)
+      setSection(next)
+      setGoal(goalText(next.inputs.request))
+      setDeadline(next.inputs.request.deadline ?? '')
+      setFleet(next.inputs.request.fleet)
+      setOptimize(next.inputs.request.optimize)
+      setSelected((previous) =>
+        next.setups.some((setup) => setup.kind === previous)
+          ? previous
+          : (next.setups[0]?.kind ?? 'current'),
+      )
+    }
+  }
+  useEffect(() => {
+    if (initialSection === undefined) return
+    active.current = initialSection.inputs.request
+    latestAsOf.current = initialSection.asOf
+  }, [initialSection])
 
   useEffect(() => {
     const unsubscribe = port.subscribe((value) => {
@@ -103,6 +134,11 @@ export default function EstimatorPanel({
       setBusy(false)
       setError('')
       setSection(next)
+      setSelected((previous) =>
+        next.setups.some((setup) => setup.kind === previous)
+          ? previous
+          : (next.setups[0]?.kind ?? 'current'),
+      )
     })
     return () => {
       // The adapter is being replaced (or the panel closed): drop its request,
@@ -160,8 +196,11 @@ export default function EstimatorPanel({
           ? selected
           : (next.setups[0]?.kind ?? 'current'),
       )
-    } catch {
-      if (!controller.signal.aborted)
+    } catch (error: unknown) {
+      if (
+        !controller.signal.aborted &&
+        !(error instanceof DOMException && error.name === 'AbortError')
+      )
         setError(fill(UI_TEXT.estimateFailed, { detail: 'estimate-unavailable' }))
     } finally {
       if (pending.current === controller && !controller.signal.aborted) setBusy(false)
@@ -175,14 +214,17 @@ export default function EstimatorPanel({
       section === undefined ||
       setup === undefined ||
       setup.provisioning === 'adviceOnly' ||
-      port.provision.state !== 'ready'
+      ((setup.provisioning !== 'existing' || port.startExisting === undefined) &&
+        port.provision.state !== 'ready')
     )
       return
     setSpinning(true)
     setError('')
     const cycle = spinCycle.current
     try {
-      await port.provision.spinUp(section, setup)
+      if (setup.provisioning === 'existing' && port.startExisting !== undefined)
+        await port.startExisting(section, setup)
+      else if (port.provision.state === 'ready') await port.provision.spinUp(section, setup)
     } catch {
       if (cycle === spinCycle.current)
         setError(fill(UI_TEXT.estimateFailed, { detail: 'start-unavailable' }))
@@ -193,11 +235,17 @@ export default function EstimatorPanel({
 
   const setup = section?.setups.find((candidate) => candidate.kind === selected)
   let waiting = ''
-  if (port.provision.state === 'waiting')
+  // With no selected setup there is nothing to spin up: report nothing
+  // rather than the rental-provider wait for a card that is not selected.
+  if (
+    setup !== undefined &&
+    port.provision.state === 'waiting' &&
+    (setup.provisioning !== 'existing' || port.startExisting === undefined)
+  )
     waiting = fill(UI_TEXT.estimateWaiting, { dependency: port.provision.dependency })
   else if (setup?.provisioning === 'adviceOnly') waiting = UI_TEXT.estimateAdvice
   return (
-    <main className="estimator" aria-labelledby={`${id}-title`}>
+    <section className="estimator" aria-labelledby={`${id}-title`} inert={isInert}>
       <h1 id={`${id}-title`}>{UI_TEXT.estimateTitle}</h1>
       <form
         onSubmit={(event) => {
@@ -287,6 +335,17 @@ export default function EstimatorPanel({
                 lanes: (section.risks ?? []).map((risk) => risk.laneId).join(', '),
               })}
             </p>
+          )}
+          {section.currentRefusal !== undefined && (
+            <p role="alert">{fill(UI_TEXT.estimateFailed, { detail: section.currentRefusal })}</p>
+          )}
+          {(section.qualifications ?? []).map((row) =>
+            row.unknownLimits.length === 0 ? null : (
+              <p key={row.setup} role="status">
+                {setupName(row.setup)} · {UI_TEXT.estimateUncertainty}:{' '}
+                {row.unknownLimits.join(', ')}
+              </p>
+            ),
           )}
           <Gantt section={section} />
           <fieldset className="estimator-setups">
@@ -392,7 +451,7 @@ export default function EstimatorPanel({
           </section>
         </>
       )}
-    </main>
+    </section>
   )
 }
 
@@ -480,53 +539,5 @@ function Gantt({ section }: { readonly section: EstimateSection }) {
 }
 
 function defaultPrice(price: CatalogPrice): string {
-  return formatUsd(displayUsdNanos(usdNanos(price.hourlyUsd)), 2)
-}
-
-/** Chat session state is instantiated only when the estimator first appears. */
-export function EstimatorConversation({
-  section,
-  optimize,
-  onRun,
-}: {
-  readonly section: EstimateSection
-  readonly optimize: EstimateRequest['optimize']
-  readonly onRun: (request: EstimateRequest) => void
-}) {
-  const pending = useRef<((value: EstimateSection) => void)[]>([])
-  const subscribers = useRef(new Set<(value: EstimateSection) => void>())
-  const port = useMemo<EstimatorPanelPort>(
-    () => ({
-      context: () => ({ asOf: new Date().toISOString(), optimize }),
-      estimate: (request, signal) =>
-        new Promise<EstimateSection>((resolve, reject) => {
-          if (signal.aborted) {
-            reject(new DOMException('The estimate was replaced', 'AbortError'))
-            return
-          }
-          const abort = () => {
-            reject(new DOMException('The estimate was replaced', 'AbortError'))
-          }
-          signal.addEventListener('abort', abort, { once: true })
-          pending.current.push((value) => {
-            signal.removeEventListener('abort', abort)
-            resolve(value)
-          })
-          onRun(request)
-        }),
-      subscribe: (listener) => {
-        subscribers.current.add(listener)
-        return () => {
-          subscribers.current.delete(listener)
-        }
-      },
-      provision: { state: 'waiting', dependency: 'M117-P-M109-provider' },
-    }),
-    [onRun, optimize],
-  )
-  useEffect(() => {
-    for (const resolve of pending.current.splice(0)) resolve(section)
-    for (const listener of subscribers.current) listener(section)
-  }, [section])
-  return <EstimatorPanel port={port} initial={section.inputs.request} initialSection={section} />
+  return formatUsd(price.hourlyUsd, 2)
 }

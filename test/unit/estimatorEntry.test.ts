@@ -11,8 +11,15 @@ import {
 } from '../../src/host/estimator/estimatorEntry'
 import { isEstimatorBundle } from '../../src/host/estimator/estimatorBundle'
 import { ESTIMATOR_AS_OF, FakeEstimateStart } from './helpers/estimator/fakes'
-import { chainSnapshot } from './helpers/estimator/fixtures'
-import { scheduleFleet, simulationInputs } from './helpers/estimatorScheduleFixtures'
+import { fakeHistoryRecord, chainSnapshot } from './helpers/estimator/fixtures'
+import { recommendationFixture } from './helpers/estimatorRecommendFixtures'
+import * as simulation from '../../src/core/estimator/simulate'
+import {
+  amount,
+  scheduleLane,
+  scheduleFleet,
+  simulationInputs,
+} from './helpers/estimatorScheduleFixtures'
 
 function ports(
   board = new FakeEstimateStart(),
@@ -71,6 +78,219 @@ describe('M117 estimator bundle assembly', () => {
       ).toBe(true)
     expect(parsed.risks ?? []).toEqual([])
     expect(parsed.setups.length).toBeGreaterThan(0)
+  })
+  it('fits new rental classes and searches their faster setup', async () => {
+    const fixture = recommendationFixture(1)
+    const rental = fixture.pool.machines.find((machine) => machine.source === 'rented')!
+    Object.assign(rental, { classId: 'linux-x64-small', cores: 2, ramGiB: 4 })
+    const source = ports()
+    const snapshot = chainSnapshot()
+    snapshot.lanes = fixture.inputs.lanes.map((lane) => ({
+      lane: { ...lane, id: `M117:${lane.id}` },
+    }))
+    snapshot.milestones[0]!.laneIds = snapshot.lanes.map(({ lane }) => lane.id)
+    source.snapshot = () => Promise.resolve(snapshot)
+    source.fleet = () => Promise.resolve(fixture.inputs.fleet)
+    source.candidatePool = () => Promise.resolve(fixture.pool)
+    const result = await createEstimatorRun(source, EN, BASE_LOCALE).estimate(
+      { ...request(), fleet: 'optimum', optimize: 'speed', seed: 'rental' },
+      new AbortController().signal,
+    )
+    expect(result.calibration.some((row) => row.machineClassId === rental.classId)).toBe(true)
+    const current = result.setups.find((setup) => setup.kind === 'current')!
+    const fastest = result.setups.find((setup) => setup.kind === 'optimumSpeed')!
+    expect(Date.parse(fastest.p90)).toBeLessThan(Date.parse(current.p90))
+    expect(fastest.machines.some((machine) => machine.classId === rental.classId)).toBe(true)
+  })
+  it('searches a feasible minimum while retaining the current fleet refusal', async () => {
+    const source = ports()
+    const snapshot = chainSnapshot()
+    snapshot.lanes = [
+      {
+        lane: scheduleLane('M117:A', {
+          resources: {
+            ...scheduleLane('M117:A').resources,
+            slots: amount(2),
+          },
+        }),
+      },
+    ]
+    snapshot.milestones[0]!.laneIds = ['M117:A']
+    const fleet = scheduleFleet(1)
+    const pool = structuredClone(fleet)
+    const extra = {
+      ...structuredClone(scheduleFleet(2).machines[0]!),
+      id: 'extra',
+      source: 'node' as const,
+    }
+    pool.machines.push(extra)
+    pool.slots.push(
+      ...scheduleFleet(2).slots.map((slot) => ({
+        ...slot,
+        id: `extra-${slot.id}`,
+        machineId: extra.id,
+      })),
+    )
+    source.snapshot = () => Promise.resolve(snapshot)
+    source.fleet = () => Promise.resolve(fleet)
+    source.candidatePool = () => Promise.resolve(pool)
+    const result = await createEstimatorRun(source, EN, BASE_LOCALE).estimate(
+      { ...request(), fleet: 'minimum', deadline: '2026-10-09T12:00:00.000Z' },
+      new AbortController().signal,
+    )
+    expect(result.currentRefusal).toContain('unschedulable:M117:A')
+    expect(result.setups.some((setup) => setup.kind === 'minimumP90' && setup.meetsDeadline)).toBe(
+      true,
+    )
+    expect(result.setups.some((setup) => setup.kind === 'current')).toBe(false)
+    expect(result.forecastFleet?.machines.some((machine) => machine.id === 'extra')).toBe(true)
+    estimateSectionSchema.parse(result)
+  })
+  it('keeps ranking candidates when a pool subset hits a scheduling refusal', async () => {
+    const source = ports()
+    const snapshot = chainSnapshot()
+    snapshot.lanes = [{ lane: scheduleLane('M117:A') }]
+    snapshot.milestones[0]!.laneIds = ['M117:A']
+    const fleet = scheduleFleet(1)
+    const pool = structuredClone(fleet)
+    const extra = {
+      ...structuredClone(scheduleFleet(1).machines[0]!),
+      id: 'extra',
+      source: 'node' as const,
+    }
+    pool.machines.push(extra)
+    const limited = {
+      ...structuredClone(pool.accounts[0]!),
+      id: 'limited',
+      usageLimits: [
+        {
+          id: 'old',
+          kind: 'rolling' as const,
+          periodSeconds: 3600,
+          unit: 'requests' as const,
+          remaining: 0,
+          allowance: 1,
+          resetsAt: '2026-01-01T00:00:00.000Z',
+          timeZone: 'UTC',
+        },
+      ],
+    }
+    pool.accounts.push(limited)
+    pool.slots.push({
+      id: 'extra-slot',
+      machineId: extra.id,
+      roleId: pool.roles[0]!.id,
+      accountId: limited.id,
+    })
+    source.snapshot = () => Promise.resolve(snapshot)
+    source.fleet = () => Promise.resolve(structuredClone(fleet))
+    source.candidatePool = () => Promise.resolve(structuredClone(pool))
+    const result = await createEstimatorRun(source, EN, BASE_LOCALE).estimate(
+      request(),
+      new AbortController().signal,
+    )
+    expect(result.setups.some((setup) => setup.kind === 'current')).toBe(true)
+    expect(result.currentRefusal).toBeUndefined()
+    expect(Date.parse(result.p50)).toBeGreaterThan(Date.parse(ESTIMATOR_AS_OF))
+    expect(Date.parse(result.p50)).toBeLessThanOrEqual(Date.parse('2026-10-06T14:00:00.000Z'))
+    estimateSectionSchema.parse(result)
+  })
+  it('propagates engine faults instead of classifying them as infeasible fleets', async () => {
+    const real = simulation.simulateEstimate
+    let calls = 0
+    vi.spyOn(simulation, 'simulateEstimate').mockImplementation((...args) => {
+      if (++calls > 1) throw new Error('Estimate failed: missing-fit')
+      return real(...args)
+    })
+    await expect(
+      createEstimatorRun(ports(), EN, BASE_LOCALE).estimate(
+        request(),
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow('missing-fit')
+  })
+  it('retains named unknown supply and approximate placement qualifications', async () => {
+    const source = ports()
+    const fleet = scheduleFleet(1)
+    fleet.machines[0]!.capacityByKind.push({ kind: 'contracts', slots: 1 })
+    delete fleet.accounts[0]!.usageLimits
+    source.fleet = source.candidatePool = () => Promise.resolve(fleet)
+    const real = simulation.simulateEstimate
+    vi.spyOn(simulation, 'simulateEstimate').mockImplementation((...args) => {
+      const result = real(...args)
+      result.unknownLimits.push('M117:A:account-selection-approximate')
+      return result
+    })
+    const result = await createEstimatorRun(source, EN, BASE_LOCALE).estimate(
+      request(),
+      new AbortController().signal,
+    )
+    expect(result.qualifications).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          setup: 'current',
+          unknownLimits: expect.arrayContaining([
+            'account-1:usageLimits',
+            'M117:A:account-selection-approximate',
+          ]),
+        }),
+      ]),
+    )
+  })
+  it('discloses duration, review and redesign parameters using their own evidence', async () => {
+    const source = ports()
+    source.history = () =>
+      Promise.resolve(
+        Array.from({ length: 20 }, (_, index) => ({
+          ...fakeHistoryRecord(`M117:H${String(index)}`),
+          review: { status: 'unknown' },
+        })),
+      )
+    const result = await createEstimatorRun(source, EN, BASE_LOCALE).estimate(
+      request(),
+      new AbortController().signal,
+    )
+    const index = result.calibration.findIndex(
+      (row) => row.kind === 'core' && row.engine === undefined,
+    )
+    const disclosure = (parameter: string) =>
+      result.disclosures.find((row) => row.path === `/calibration/${String(index)}/${parameter}`)
+    expect(disclosure('mu')).toMatchObject({ basis: 'calibration', samples: 20 })
+    expect(disclosure('reviewRoundRate')).toMatchObject({ basis: 'assumption', samples: 0 })
+    expect(disclosure('redesignRisk')).toMatchObject({ basis: 'assumption', samples: 0 })
+  })
+  it('qualifies forecast dates with each setup trial sampled-duration evidence', async () => {
+    const source = ports()
+    source.history = () =>
+      Promise.resolve(
+        (['core', 'contracts'] as const).flatMap((kind) =>
+          Array.from({ length: 20 }, (_, index) => ({
+            ...fakeHistoryRecord(`M117:${kind}-${String(index)}`),
+            kind,
+            review: { status: 'unknown' },
+          })),
+        ),
+      )
+    const result = await createEstimatorRun(source, EN, BASE_LOCALE).estimate(
+      { ...request(), fleet: 'minimum', deadline: '2026-10-09T12:00:00.000Z' },
+      new AbortController().signal,
+    )
+    expect(result.setups.length).toBeGreaterThan(1)
+    const paths = [
+      '/p50',
+      '/p90',
+      ...result.setups.flatMap((_, index) => [
+        `/setups/${String(index)}/p50`,
+        `/setups/${String(index)}/p90`,
+      ]),
+    ]
+    expect(paths.length).toBeGreaterThan(2)
+    for (const path of paths)
+      expect(result.disclosures.find((row) => row.path === path)).toMatchObject({
+        basis: 'calibration',
+        samples: 20,
+      })
+    estimateSectionSchema.parse(result)
   })
   it('names stale-base lanes as risks without pricing them', async () => {
     const source = ports()

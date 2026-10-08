@@ -1,5 +1,7 @@
 import { loadDeferredEnglish } from '../shared/l10n/deferredEnglish'
+import type * as PaletteModule from '../shared/palette'
 import { JudgeStatusLine } from './components/JudgeStatusLine'
+import { retrySurface } from './surfaceRetry'
 import {
   type ReactNode,
   Suspense,
@@ -48,7 +50,8 @@ import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
 import { parseHandoffPrompt } from '../shared/handoff'
 import { parseLoopPrompt } from '../core/backends/modelapi/schedules'
 import { fill, formatNumber, plural, templateParts } from '../shared/l10n/text'
-import type { EstimateRequest } from '../shared/estimate'
+import type { EstimateRequest, EstimateSection } from '../shared/estimate'
+import type { EstimatorPanelPort } from './estimator/EstimatorPanel'
 import { isEstimateCommandText } from './estimator/commandPrefix'
 import {
   availablePermissionModes,
@@ -56,8 +59,8 @@ import {
   permissionModeDetail,
 } from '../shared/permissionModes'
 import { paidFeatureName, paidFeaturePrice, usablePaidFeatures } from '../shared/paid'
-import { buildPalette, type PaletteAction } from '../shared/palette'
-import { type SlashCommand, slashCommandsOf } from '../shared/slashCommands'
+import type { PaletteAction } from '../shared/palette'
+import type { SlashCommand } from '../shared/slashCommands'
 import type { GitAction, GitDraftKind } from '../shared/git'
 import type {
   ChatReference,
@@ -117,7 +120,7 @@ import {
 import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
 import { Modal } from './components/Modal'
-import { deferred } from './components/DeferredSurface'
+import { deferred, UnavailableSurface } from './components/DeferredSurface'
 
 const LegalReport = deferred(async () => {
   const module = await import('./components/LegalReport')
@@ -138,7 +141,7 @@ const SchedulePanel = deferred(async () => {
 })
 const EstimatorPanel = deferred(async () => {
   const module = await import('./estimator/EstimatorPanel')
-  return { default: module.EstimatorConversation }
+  return { default: module.default }
 })
 const Palette = deferred(async () => {
   const module = await import('./components/Palette')
@@ -793,13 +796,122 @@ export function App({
   // Runs post `estimateRun`; the host answers with `estimatorSection`, which
   // reveals the panel and settles every pending run. Re-estimates are
   // legitimate (the panel's Refresh), so runs are never deduplicated here.
+  const estimatePendings = useRef(
+    new Map<string, { resolve(section: EstimateSection): void; reject(error: Error): void }>(),
+  )
+  const estimateStarts = useRef(new Map<string, { resolve(): void; reject(error: Error): void }>())
+  const estimateSequence = useRef(0)
+  const estimateCurrentId = useRef<string | undefined>(undefined)
+  const [estimateDisplayId, setEstimateDisplayId] = useState<string | undefined>(undefined)
+  const [estimateLastRequest, setEstimateLastRequest] = useState<EstimateRequest | undefined>(
+    undefined,
+  )
+  const estimateSubscribers = useRef(new Set<(section: EstimateSection) => void>())
   const postEstimateRun = useCallback(
-    (request: EstimateRequest) => {
-      postMessage({ type: 'estimateRun', request })
+    (request: EstimateRequest, requestId?: string) => {
+      const id = requestId ?? `estimate-${String(++estimateSequence.current)}`
+      estimateCurrentId.current = id
+      setEstimateDisplayId(id)
+      for (const [pendingId, pending] of estimatePendings.current) {
+        if (pendingId === id) continue
+        pending.reject(new DOMException('The estimate was replaced', 'AbortError'))
+        estimatePendings.current.delete(pendingId)
+      }
+      setEstimateLastRequest(request)
+      postMessage({ type: 'estimateRun', requestId: id, request })
     },
     [postMessage],
   )
+  const estimatorSection = state.estimator
+  const estimatorRequestId = state.estimatorRequestId
+  useEffect(() => {
+    if (estimatorSection === undefined || estimatorRequestId !== estimateCurrentId.current) return
+    if (estimatorRequestId !== undefined) {
+      estimatePendings.current.get(estimatorRequestId)?.resolve(estimatorSection)
+      estimatePendings.current.delete(estimatorRequestId)
+    }
+    for (const listener of estimateSubscribers.current) listener(estimatorSection)
+  }, [estimatorSection, estimatorRequestId])
+  const estimatorFailure = state.estimatorFailure
+  useEffect(() => {
+    if (estimatorFailure === undefined) return
+    const requestId = estimatorFailure.requestId ?? estimateCurrentId.current
+    if (requestId === undefined) return
+    estimatePendings.current.get(requestId)?.reject(new Error(estimatorFailure.reason))
+    estimatePendings.current.delete(requestId)
+  }, [estimatorFailure])
+  const estimatorStarted = state.estimatorStarted
+  useEffect(() => {
+    if (estimatorStarted === undefined) return
+    if (estimatorStarted.requestId === undefined) {
+      if (estimatorStarted.error !== undefined) {
+        for (const pending of estimateStarts.current.values())
+          pending.reject(new Error(estimatorStarted.error))
+        estimateStarts.current.clear()
+      }
+      return
+    }
+    const pending = estimateStarts.current.get(estimatorStarted.requestId)
+    if (estimatorStarted.error === undefined) pending?.resolve()
+    else pending?.reject(new Error(estimatorStarted.error))
+    estimateStarts.current.delete(estimatorStarted.requestId)
+  }, [estimatorStarted])
+  const estimatorSession = state.sessionId
+  useEffect(() => {
+    const estimates = estimatePendings.current
+    const starts = estimateStarts.current
+    return () => {
+      for (const pending of estimates.values()) pending.reject(new Error('estimate-replaced'))
+      estimates.clear()
+      for (const pending of starts.values()) pending.reject(new Error('estimate-replaced'))
+      starts.clear()
+      estimateCurrentId.current = undefined
+    }
+  }, [estimatorSession])
   const estimatorOptimize = state.settings?.['estimator.optimize'] ?? 'cost'
+  const estimatorPort = useMemo<EstimatorPanelPort>(
+    () => ({
+      context: () => ({ asOf: new Date().toISOString(), optimize: estimatorOptimize }),
+      estimate: (request, signal) =>
+        new Promise<EstimateSection>((resolve, reject) => {
+          if (signal.aborted) {
+            reject(new DOMException('The estimate was replaced', 'AbortError'))
+            return
+          }
+          const requestId = `estimate-${String(++estimateSequence.current)}`
+          const onAbort = () => {
+            estimatePendings.current.delete(requestId)
+            reject(new DOMException('The estimate was replaced', 'AbortError'))
+          }
+          signal.addEventListener('abort', onAbort, { once: true })
+          estimatePendings.current.set(requestId, {
+            resolve: (section) => {
+              signal.removeEventListener('abort', onAbort)
+              resolve(section)
+            },
+            reject: (error) => {
+              signal.removeEventListener('abort', onAbort)
+              reject(error)
+            },
+          })
+          postEstimateRun(request, requestId)
+        }),
+      subscribe: (listener) => {
+        estimateSubscribers.current.add(listener)
+        return () => {
+          estimateSubscribers.current.delete(listener)
+        }
+      },
+      startExisting: (_section, setup) =>
+        new Promise<void>((resolve, reject) => {
+          const requestId = `estimate-start-${String(++estimateSequence.current)}`
+          estimateStarts.current.set(requestId, { resolve, reject })
+          postMessage({ type: 'estimateSpinUp', requestId, setup: setup.kind })
+        }),
+      provision: { state: 'waiting', dependency: 'M117-P-M109-provider' },
+    }),
+    [postEstimateRun, postMessage, estimatorOptimize],
+  )
   // The extension's `museSpark.estimate` command (M117).
   const estimatorRequests = state.estimatorRequests
   const seenEstimatorRequests = useRef(estimatorRequests)
@@ -2120,9 +2232,28 @@ export function App({
     ],
   )
 
+  const [paletteModule, setPaletteModule] = useState<typeof PaletteModule>()
+  const [paletteFailed, setPaletteFailed] = useState(false)
+  const requiresPalette =
+    state.draft.startsWith('/') || overlay === 'actions' || overlay === 'models'
+  useEffect(() => {
+    if (!requiresPalette || paletteModule !== undefined) return
+    let isActive = true
+    void import('../shared/palette')
+      .then((module) => {
+        if (isActive) setPaletteModule(module)
+      })
+      .catch(() => {
+        if (isActive) setPaletteFailed(true)
+      })
+    return () => {
+      isActive = false
+    }
+  }, [requiresPalette, paletteModule])
+
   const paletteGroups = useMemo(
     () =>
-      buildPalette({
+      paletteModule?.buildPalette({
         arePromptCommandsBound: true,
         currentModel: state.model,
         models: state.models,
@@ -2139,8 +2270,9 @@ export function App({
         // The estimator is bound in this surface (M117): its row inserts
         // `/estimate`, which the submit path handles below.
         estimateAvailable: true,
-      }),
+      }) ?? [],
     [
+      paletteModule,
       state.paid.isKeyStored,
       state.model,
       state.models,
@@ -2177,7 +2309,10 @@ export function App({
   // The prompt's "/" menus (M38). A row chosen there takes the `/` with it,
   // unless it leaves the palette open; a skill becomes `/selector ` for its
   // arguments.
-  const slashCommands = useMemo(() => slashCommandsOf(paletteGroups), [paletteGroups])
+  const slashCommands = useMemo(
+    () => paletteModule?.slashCommandsOf(paletteGroups) ?? [],
+    [paletteGroups, paletteModule],
+  )
   const slashPaletteKeys = useRef<PaletteKeys>(null)
   const onPromptAction = useCallback(
     (action: PaletteAction) => {
@@ -2207,23 +2342,40 @@ export function App({
     }
   }, [store, postMessage])
   const renderSlashPalette = useCallback(
-    (slot: SlashPaletteSlot) => (
-      <Palette
-        view="actions"
-        groups={paletteGroups}
-        models={state.models}
-        currentModelId={state.model?.modelId}
-        onAction={onPromptAction}
-        onSelectModel={onSelectModel}
-        onBack={onPaletteBack}
-        onClose={slot.onClose}
-        isAttached
-        keepFocus
-        keys={slashPaletteKeys}
-        onActiveRowChange={slot.onActiveRowChange}
-      />
-    ),
-    [paletteGroups, state.models, state.model, onPromptAction, onSelectModel, onPaletteBack],
+    (slot: SlashPaletteSlot) =>
+      paletteModule === undefined ? (
+        <UnavailableSurface
+          isModal={false}
+          keepFocus
+          failed={paletteFailed}
+          onClose={slot.onClose}
+        />
+      ) : (
+        <Palette
+          view="actions"
+          groups={paletteGroups}
+          models={state.models}
+          currentModelId={state.model?.modelId}
+          onAction={onPromptAction}
+          onSelectModel={onSelectModel}
+          onBack={onPaletteBack}
+          onClose={slot.onClose}
+          isAttached
+          keepFocus
+          keys={slashPaletteKeys}
+          onActiveRowChange={slot.onActiveRowChange}
+        />
+      ),
+    [
+      paletteGroups,
+      paletteModule,
+      paletteFailed,
+      state.models,
+      state.model,
+      onPromptAction,
+      onSelectModel,
+      onPaletteBack,
+    ],
   )
   const modeEntries = useMemo(
     (): readonly MenuEntry[] =>
@@ -2450,19 +2602,22 @@ export function App({
   switch (overlay) {
     case 'actions':
     case 'models': {
-      floating = (
-        <Palette
-          key={overlay}
-          view={overlay}
-          groups={paletteGroups}
-          models={state.models}
-          currentModelId={state.model?.modelId}
-          onAction={onPaletteAction}
-          onSelectModel={onSelectModel}
-          onBack={onPaletteBack}
-          onClose={closeOverlay}
-        />
-      )
+      floating =
+        paletteModule === undefined ? (
+          <UnavailableSurface isModal={false} failed={paletteFailed} onClose={closeOverlay} />
+        ) : (
+          <Palette
+            key={overlay}
+            view={overlay}
+            groups={paletteGroups}
+            models={state.models}
+            currentModelId={state.model?.modelId}
+            onAction={onPaletteAction}
+            onSelectModel={onSelectModel}
+            onBack={onPaletteBack}
+            onClose={closeOverlay}
+          />
+        )
       break
     }
     case 'modes': {
@@ -2876,12 +3031,23 @@ export function App({
             onEnable={onScheduleEnable}
           />
         )}
-        {state.estimator === undefined ? null : (
+        {estimatorFailure?.reason === UI_TEXT.surfaceLoadFailed ? (
+          <div role="alert" inert={isModalOpen}>
+            {UI_TEXT.surfaceLoadFailed}
+            <button type="button" onClick={retrySurface}>
+              {UI_TEXT.surfaceLoadRetry}
+            </button>
+          </div>
+        ) : null}
+        {estimateLastRequest === undefined || state.estimator === undefined ? null : (
           <EstimatorPanel
             key={state.sessionId}
-            section={state.estimator}
-            optimize={estimatorOptimize}
-            onRun={postEstimateRun}
+            port={estimatorPort}
+            initial={estimateLastRequest}
+            initialSection={
+              state.estimatorRequestId === estimateDisplayId ? state.estimator : undefined
+            }
+            isInert={isModalOpen}
           />
         )}
         <TodoPanel items={state.todos} isInert={isModalOpen} onOpenInTab={onOpenTasksTab} />

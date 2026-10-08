@@ -585,6 +585,20 @@ export const estimateSectionSchema = z
         ),
       ),
     setups: z.array(setupSchema),
+    // A requested setup can be feasible while the current fleet is refused.
+    currentRefusal: z.optional(z.string().check(z.minLength(1))),
+    forecastFleet: z.optional(fleetSnapshotSchema),
+    setupFleets: z.optional(
+      z.array(z.strictObject({ kind: setupSchema.shape.kind, fleet: fleetSnapshotSchema })),
+    ),
+    qualifications: z.optional(
+      z.array(
+        z.strictObject({
+          setup: setupSchema.shape.kind,
+          unknownLimits: z.array(z.string().check(z.minLength(1))),
+        }),
+      ),
+    ),
     inputs: estimateInputsSchema,
     disclosures: z.array(disclosureSchema),
     calibration: z.array(
@@ -602,6 +616,7 @@ export const estimateSectionSchema = z
           sigma: z.number().check(z.positive()),
           reviewRoundRate: z.number().check(z.nonnegative(), z.maximum(1)),
           redesignRisk: z.number().check(z.nonnegative(), z.maximum(1)),
+          firstPassFindingRate: z.optional(demand),
         })
         .check(
           z.refine(
@@ -655,7 +670,7 @@ export const estimateSectionSchema = z
         ) &&
         estimate.schedule.every((entry) => {
           const lane = estimate.inputs.lanes.find((lane) => lane.id === entry.laneId)
-          const machine = estimate.inputs.fleet.machines.find(
+          const machine = (estimate.forecastFleet ?? estimate.inputs.fleet).machines.find(
             (machine) => machine.id === entry.machineId,
           )
           return estimate.calibration.some(

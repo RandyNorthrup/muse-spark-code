@@ -3851,9 +3851,13 @@
     "questions-defer-after": "--questions-defer-after <seconds>  預設在60秒後暫緩問題；0表示永不暫緩，1–9視為10，最大3600",
     "attach": "附加此媒體檔案；更多檔案請重複該選項。",
     "record": "無頭執行中會被拒絕：沒有人可以預覽錄製內容。",
-    "account": "--account <id>                    要使用的帳號（auth set、serve、exec）。",
+    "account": "--account <id>                    要使用的帳號（auth set、exec）。",
     "account-pool": "--account-pool                  要求帳戶集區；連接其資源管理元件之前無法使用。CI 中不可與 key-stdin 一起使用。",
-    "vault": "--vault                          允許 headless exec 使用具有無人值守授權的保管庫項"
+    "vault": "--vault                          允許 headless exec 使用具有無人值守授權的保管庫項",
+    "fleet": "--fleet current|minimum|optimum: 目前設備群 / 最小組態 / 最佳組態",
+    "seed": "--seed <seed>: 模擬種子",
+    "estimate-by": "--by <date>: 截止日期",
+    "estimate-format": "--format md|html|json|text: 輸出格式"
   },
   "referenceExecImages": "無介面圖像需要 --image-generation、acceptEdits 和充足的硬性預算。不顯示價格確認問題；需要許可的請求會被拒絕。",
   "referencePopoverKeys": "瀏覽選項、調整值、選取選項或關閉選單。",

@@ -32,7 +32,7 @@ import {
   usablePaidFeatures,
   modelApiPaidTier,
 } from '../../shared/paid'
-import { formatTokenWindow } from '../../shared/palette'
+import { formatTokenWindow } from '../../shared/l10n/text'
 import { relativeTime } from '../../shared/sessions'
 import {
   barValue,

@@ -4135,9 +4135,13 @@
     "questions-defer-after": "--questions-defer-after <seconds>  Différer les questions après 60 secondes par défaut ; 0 jamais, 1–9 valent 10, maximum 3600",
     "attach": "Joindre ce fichier multimédia ; répétez l’option pour d’autres fichiers.",
     "record": "Refusé en mode headless : personne n’est là pour prévisualiser l’enregistrement.",
-    "account": "--account <id>                    Le compte à utiliser (auth set, serve, exec).",
+    "account": "--account <id>                    Le compte à utiliser (auth set, exec).",
     "account-pool": "--account-pool                  Demande un pool de comptes ; indisponible tant que son gestionnaire de ressources n’est pas connecté. Jamais avec key-stdin en CI.",
-    "vault": "--vault                          Autoriser headless exec à utiliser les éléments du coffre avec des autorisations sans surveillance"
+    "vault": "--vault                          Autoriser headless exec à utiliser les éléments du coffre avec des autorisations sans surveillance",
+    "fleet": "--fleet current|minimum|optimum: Parc actuel / Configuration minimale / Configuration optimale",
+    "seed": "--seed <seed>: Graine de simulation",
+    "estimate-by": "--by <date>: Échéance",
+    "estimate-format": "--format md|html|json|text: Format de sortie"
   },
   "referenceExecImages": "Les images sans interface exigent --image-generation, acceptEdits et un budget strict suffisant. Aucune confirmation du prix ; les demandes nécessitant une autorisation sont refusées.",
   "referencePopoverKeys": "Parcourir les options, ajuster une valeur, choisir une option ou fermer le menu.",

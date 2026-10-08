@@ -17,6 +17,7 @@ import {
 } from '../../shared/constants'
 import { UI_TEXT, fill } from '../../shared/l10n/text'
 import { compareEstimateIds } from './goal'
+import { planDurationEvidence, type EstimateDurationEvidence } from './dag'
 import { canEstimateMachineRun, prepareEstimateSchedule } from './schedule'
 
 type Quantity = EstimateLane['resources']['ciMinutes']
@@ -39,6 +40,9 @@ export interface EstimateDurationSample {
   hours: number
   reviewRounds: number
   redesigns: number
+  /** The duration's own evidence, frozen: plan assumption or the model's
+   * calibration fit with its sample count. `evidence.hours` equals `hours`. */
+  evidence: EstimateDurationEvidence
 }
 
 export interface EstimateSimulation {
@@ -135,15 +139,18 @@ function sample(
   model: EstimateDurationModel,
   random: () => number,
 ): Omit<EstimateDurationSample, 'laneId' | 'machineClassId'> {
-  if (model.kind === 'fixed')
+  if (model.kind === 'fixed') {
+    const hours = Math.max(
+      lane.state === 'running' ? lane.minimumRemainingHours : 0,
+      value(model.hours),
+    )
     return {
-      hours: Math.max(
-        lane.state === 'running' ? lane.minimumRemainingHours : 0,
-        value(model.hours),
-      ),
+      hours,
       reviewRounds: 0,
       redesigns: 0,
+      evidence: planDurationEvidence(hours),
     }
+  }
   const row = model.calibration
   const normal = Math.sqrt(2 * -Math.log(random())) * Math.cos(2 * Math.PI * random())
   const total = lane.estimatedHours * Math.exp(row.mu + row.sigma * normal)
@@ -166,16 +173,28 @@ function sample(
     reviewRounds * value(model.reviewHours) +
     redesigns * value(model.redesignHours)
   if (!Number.isFinite(hours)) refuse('duration-model-overflow')
-  return { hours, reviewRounds, redesigns }
+  // The sampled total rides the fitted actual/estimated ratio: its evidence
+  // is the fit (calibration with its samples) or the uncalibrated prior.
+  // Per-trial samples stay type-frozen only: a runtime freeze on every one of
+  // the 2,000 trials' draws costs more than it protects. DAG nodes freeze.
+  const isFitted = row.basis === 'fitted'
+  const evidence: EstimateDurationEvidence = {
+    hours,
+    unit: 'hour',
+    source: 'sample',
+    basis: isFitted ? 'calibration' : 'assumption',
+    samples: isFitted ? row.samples : 0,
+  }
+  return { hours, reviewRounds, redesigns, evidence }
 }
 
 export function estimateDurationMap(
   samples: readonly EstimateDurationSample[],
-): Map<string, Map<string, number>> {
-  const durations = new Map<string, Map<string, number>>()
+): Map<string, Map<string, EstimateDurationEvidence>> {
+  const durations = new Map<string, Map<string, EstimateDurationEvidence>>()
   for (const entry of samples) {
-    const classes = durations.get(entry.laneId) ?? new Map<string, number>()
-    classes.set(entry.machineClassId, entry.hours)
+    const classes = durations.get(entry.laneId) ?? new Map<string, EstimateDurationEvidence>()
+    classes.set(entry.machineClassId, entry.evidence)
     durations.set(entry.laneId, classes)
   }
   return durations
@@ -226,7 +245,7 @@ export function simulateEstimate(
         laneId,
         machineClassId,
         ...(lane.state === 'merged'
-          ? { hours: 0, reviewRounds: 0, redesigns: 0 }
+          ? { hours: 0, reviewRounds: 0, redesigns: 0, evidence: planDurationEvidence(0) }
           : sample(lane, model, random)),
       }
     })

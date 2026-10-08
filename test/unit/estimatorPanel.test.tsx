@@ -1,10 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import EstimatorPanel, {
-  EstimatorConversation,
-  type EstimatorPanelPort,
-} from '../../src/webview/estimator/EstimatorPanel'
+import EstimatorPanel, { type EstimatorPanelPort } from '../../src/webview/estimator/EstimatorPanel'
 import { type EstimateRequest, type EstimateSection } from '../../src/shared/estimate'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { fakeEstimate } from './helpers/estimator/fixtures'
@@ -209,6 +206,38 @@ describe('M117 Estimator panel', () => {
     expect(screen.getByRole('alert').textContent).toBe(UI_TEXT.estimateDisclosureMissing)
   })
 
+  it('selects the first available setup when the section has no current fleet', async () => {
+    const h = harness()
+    const startExisting = vi.fn(() => Promise.resolve())
+    const base = fakeEstimate()
+    const section: EstimateSection = {
+      ...base,
+      currentRefusal: 'unschedulable:M117:A',
+      setups: [{ ...base.setups[0]!, kind: 'minimumP90', meetsDeadline: true }],
+    }
+    render(
+      <EstimatorPanel
+        port={{ ...h.port, startExisting }}
+        initial={section.inputs.request}
+        initialSection={section}
+      />,
+    )
+    await screen.findByRole('heading', { name: UI_TEXT.estimateSchedule })
+    const radio = screen.getByRole('radio', { name: new RegExp(UI_TEXT.estimateMinimum) })
+    expect(radio).toHaveProperty('checked', true)
+    expect(screen.queryByText(/M117-P-start/)).toBeNull()
+    const spin = screen.getByRole('button', { name: UI_TEXT.estimateSpinUp })
+    expect(spin.hasAttribute('disabled')).toBe(false)
+    fireEvent.click(spin)
+    await waitFor(() => {
+      expect(startExisting).toHaveBeenCalledTimes(1)
+    })
+    expect(startExisting).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'estimate' }),
+      expect.objectContaining({ kind: 'minimumP90' }),
+    )
+  })
+
   it('aborts in-flight work and unsubscribes when the panel closes', async () => {
     const pending = Promise.withResolvers<EstimateSection>()
     const h = harness()
@@ -343,7 +372,10 @@ describe('M117 Estimator panel', () => {
 })
 
 it('shows the first chat estimate before any refresh subscription fires', () => {
-  render(<EstimatorConversation section={fakeEstimate()} optimize="cost" onRun={vi.fn()} />)
+  const h = harness()
+  const section = fakeEstimate()
+  render(<EstimatorPanel port={h.port} initial={section.inputs.request} initialSection={section} />)
   expect(screen.getByRole('heading', { name: UI_TEXT.estimateSchedule })).toBeVisible()
   expect(screen.getByText(UI_TEXT.estimateP90)).toBeVisible()
+  expect(h.estimate).not.toHaveBeenCalled()
 })

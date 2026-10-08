@@ -4135,9 +4135,13 @@
     "questions-defer-after": "--questions-defer-after <seconds>  Rimandare le domande dopo 60 secondi per impostazione predefinita; 0 mai, 1–9 valgono 10, massimo 3600",
     "attach": "Allega questo file multimediale; ripeti l’opzione per altri file.",
     "record": "Rifiutato nelle esecuzioni headless: nessuno può visualizzare in anteprima la registrazione.",
-    "account": "--account <id>                    L’account da usare (auth set, serve, exec).",
+    "account": "--account <id>                    L’account da usare (auth set, exec).",
     "account-pool": "--account-pool                  Richiede un pool di account; non disponibile finché il gestore delle risorse non è collegato. Mai con key-stdin in CI.",
-    "vault": "--vault                          Consenti a headless exec di usare gli elementi del vault con concessioni non presidiate"
+    "vault": "--vault                          Consenti a headless exec di usare gli elementi del vault con concessioni non presidiate",
+    "fleet": "--fleet current|minimum|optimum: Parco macchine attuale / Configurazione minima / Configurazione ottimale",
+    "seed": "--seed <seed>: Seme della simulazione",
+    "estimate-by": "--by <date>: Scadenza",
+    "estimate-format": "--format md|html|json|text: Formato di uscita"
   },
   "referenceExecImages": "Le immagini senza interfaccia richiedono --image-generation, acceptEdits e un budget rigido sufficiente. Non viene chiesta conferma del prezzo; le richieste che necessitano di permesso vengono rifiutate.",
   "referencePopoverKeys": "Scorrere opzioni, regolare un valore, scegliere un’opzione o chiudere il menu.",

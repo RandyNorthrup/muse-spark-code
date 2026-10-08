@@ -490,3 +490,40 @@ describe('M117 goal resolution', () => {
     ).rejects.toThrow('lane-limit')
   })
 })
+
+describe('M117 bounded snapshots and merged affinity sets', () => {
+  it('refuses an oversized snapshot before reading any lane projection', async () => {
+    const snapshot = goalSnapshot()
+    let reads = 0
+    snapshot.lanes = Array.from({ length: 2048 }, (_, index) => ({
+      get lane() {
+        reads++
+        return goalLane(`M112:L${String(index)}`)
+      },
+    }))
+    snapshot.milestones = [{ id: 'M112', laneIds: ['M112:L2047'] }]
+    snapshot.pullRequests = []
+    snapshot.issues = []
+    snapshot.releases = []
+    await expect(
+      resolveEstimateGoal(parseEstimateGoal('M112')!, ESTIMATOR_AS_OF, {
+        snapshot: () => Promise.resolve(snapshot),
+      }),
+    ).rejects.toThrow()
+    expect(reads).toBe(0)
+  })
+  it('canonicalizes equivalent merged affinity sets without imposing file constraints', async () => {
+    const snapshot = goalSnapshot()
+    const lane = snapshot.lanes[0]!.lane
+    lane.state = 'merged'
+    lane.files = ['native/windows/**', 'native/darwin/**']
+    lane.affinity.os = ['windows', 'macos']
+    const run = () =>
+      resolveEstimateGoal(parseEstimateGoal('M112')!, ESTIMATOR_AS_OF, {
+        snapshot: () => Promise.resolve(snapshot),
+      })
+    const first = await run()
+    lane.affinity.os.reverse()
+    expect(JSON.stringify(await run())).toBe(JSON.stringify(first))
+  })
+})

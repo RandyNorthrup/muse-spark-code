@@ -1568,7 +1568,7 @@
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
-      "details": [],
+      "details": [{ "ui": "estimateCliHelp" }],
       "facts": {},
       "editors": ["vscode", "acp"]
     },
@@ -4106,6 +4106,12 @@
       "text": { "ui": "referenceDeveloper" }
     },
     {
+      "route": "estimate",
+      "name": "estimate <goal> [--by <date>] [--fleet current|minimum|optimum] [--format md|html|json|text] [--seed <seed>]",
+      "description": "Estimate a goal using linked machines, agent slots, accounts and CI; no model call.",
+      "text": { "ui": "estimateCliHelp" }
+    },
+    {
       "route": "report",
       "name": "report",
       "description": "Usage:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Prints the scrubbed problem report to stdout, or writes it to <file> with --out.\n  Starts no backend, signs in nowhere, and opens no browser.\nOptions:\n  --out <file>         Write the report to a file instead of stdout\n  --description <text>  What was happening, in your own words\n  --no-facts           Leave the support facts out\n  --no-events          Leave the recent events out",
@@ -5127,7 +5133,7 @@
     {
       "route": "authSet",
       "name": "authSet: --provider <value>",
-      "description": "--provider <id>                   The provider the account belongs to (auth set, serve).",
+      "description": "--provider <id>                   The provider the account belongs to (auth set/status/clear).",
       "text": { "cli": "provider" },
       "contract": { "type": "string", "repeatable": false }
     },
@@ -5147,7 +5153,7 @@
     {
       "route": "authSet",
       "name": "authSet: --account <value>",
-      "description": "--account <id>                    The account to use (auth set, serve, exec).",
+      "description": "--account <id>                    The account to use (auth set, exec).",
       "text": { "cli": "account" },
       "contract": { "type": "string", "repeatable": false, "purpose": "acceptedUnused" }
     },
@@ -5373,6 +5379,13 @@
         "effective": "evaluationPending",
         "default": false
       }
+    },
+    {
+      "route": "authStatus",
+      "name": "authStatus: --provider <value>",
+      "description": "--provider <id>                   The provider the account belongs to (auth set/status/clear).",
+      "text": { "cli": "provider" },
+      "contract": { "type": "string", "repeatable": false }
     },
     {
       "route": "authStatus",
@@ -5612,6 +5625,13 @@
     },
     {
       "route": "authClear",
+      "name": "authClear: --provider <value>",
+      "description": "--provider <id>                   The provider the account belongs to (auth set/status/clear).",
+      "text": { "cli": "provider" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "authClear",
       "name": "authClear: --backend <value>",
       "description": "--backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key",
       "text": { "cli": "backend" },
@@ -5752,7 +5772,7 @@
     {
       "route": "exec",
       "name": "exec: --provider <value>",
-      "description": "--provider <id>                   The provider the account belongs to (auth set, serve).",
+      "description": "--provider <id>                   The provider the account belongs to (auth set/status/clear).",
       "text": { "cli": "provider" },
       "contract": { "type": "string", "repeatable": false, "purpose": "provider" }
     },
@@ -5831,7 +5851,13 @@
       "name": "exec: --record",
       "description": "Refused for headless runs: nobody is there to preview a recording.",
       "text": { "cli": "record" },
-      "contract": { "type": "boolean", "repeatable": false, "default": false, "purpose": "record" }
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "refused": true,
+        "purpose": "record"
+      }
     },
     {
       "route": "exec",
@@ -5856,7 +5882,7 @@
     {
       "route": "exec",
       "name": "exec: --account <value>",
-      "description": "--account <id>                    The account to use (auth set, serve, exec).",
+      "description": "--account <id>                    The account to use (auth set, exec).",
       "text": { "cli": "account" },
       "contract": { "type": "string", "repeatable": false, "purpose": "account" }
     },
@@ -6129,6 +6155,45 @@
     {
       "route": "report",
       "name": "report: --help / -h",
+      "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
+      "text": { "cli": "help" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "estimate",
+      "name": "estimate: --by <value>",
+      "description": "--by <date>: Deadline",
+      "text": { "cli": "estimate-by" },
+      "contract": {
+        "type": "string",
+        "repeatable": false,
+        "enum": ["provider", "model", "kind", "client"]
+      }
+    },
+    {
+      "route": "estimate",
+      "name": "estimate: --fleet <value>",
+      "description": "--fleet current|minimum|optimum: Current / Minimum / Optimum",
+      "text": { "cli": "fleet" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "estimate",
+      "name": "estimate: --format <value>",
+      "description": "--format md|html|json|text: Output format",
+      "text": { "cli": "estimate-format" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "estimate",
+      "name": "estimate: --seed <value>",
+      "description": "--seed <seed>: Simulation seed",
+      "text": { "cli": "seed" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "estimate",
+      "name": "estimate: --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "cli": "help" },
       "contract": { "type": "boolean", "repeatable": false, "default": false }

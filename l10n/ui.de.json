@@ -3993,9 +3993,13 @@
     "questions-defer-after": "--questions-defer-after <seconds>  Fragen standardmäßig nach 60 Sekunden zurückstellen; 0 nie, 1–9 gelten als 10, höchstens 3600",
     "attach": "Diese Mediendatei anhängen; für weitere Dateien die Option wiederholen.",
     "record": "Für Headless-Läufe abgelehnt: Niemand ist da, um eine Aufnahme zu prüfen.",
-    "account": "--account <id>                    Das zu verwendende Konto (auth set, serve, exec).",
+    "account": "--account <id>                    Das zu verwendende Konto (auth set, exec).",
     "account-pool": "--account-pool                  Kontenpool anfordern; erst verfügbar, wenn sein Ressourcenverwalter angebunden ist. Nie mit key-stdin in CI.",
-    "vault": "--vault                          Headless-exec erlauben, Tresoreinträge mit unbeaufsichtigten Freigaben zu verwenden"
+    "vault": "--vault                          Headless-exec erlauben, Tresoreinträge mit unbeaufsichtigten Freigaben zu verwenden",
+    "fleet": "--fleet current|minimum|optimum: Aktueller Gerätebestand / Minimale Ausstattung / Optimale Ausstattung",
+    "seed": "--seed <seed>: Startwert der Simulation",
+    "estimate-by": "--by <date>: Frist",
+    "estimate-format": "--format md|html|json|text: Ausgabeformat"
   },
   "referenceExecImages": "Bilder ohne Oberfläche erfordern --image-generation, acceptEdits und ein ausreichendes festes Budget. Es gibt keine Preisabfrage; Anfragen mit Genehmigungspflicht werden abgelehnt.",
   "referencePopoverKeys": "Optionen durchlaufen, einen Wert ändern, eine Option wählen oder das Menü schließen.",

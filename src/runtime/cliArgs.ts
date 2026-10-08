@@ -108,6 +108,7 @@ export type RuntimeCommand =
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
   | { readonly command: 'report'; readonly options: ReportOptions }
   | { readonly command: 'legal'; readonly options: LegalOptions }
+  | { readonly command: 'estimate'; readonly argv: readonly string[] }
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
   | {
@@ -266,6 +267,7 @@ export function parseCommandLine<T>(
       ? { command: 'invalid', reason: vaultUsage(), exitCode: 2 }
       : { command: 'vault', options }
   }
+  if (argv[0] === 'estimate') return { command: 'estimate', argv: argv.slice(1) }
   if (argv[0] === 'exec' || argv[0] === 'scan-secrets') return parseHeadless(argv)
   if (argv[0] === 'report') return parseReport(argv.slice(1))
   if (argv[0] === 'legal') return parseLegalCommand(argv)

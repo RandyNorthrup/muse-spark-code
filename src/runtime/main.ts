@@ -66,7 +66,7 @@ import { acpSharingCommands } from '../acp/sharing'
 import type { RuntimeSharingPorts } from './sharing/sharingEntry'
 import { formatAcpUsage } from './cliOptions'
 import { referenceLoader } from '../host/referenceLoader'
-import { createRuntimeEstimate } from './estimator/ports'
+import { createRuntimeEstimate, runRuntimeEstimateCommand } from './estimator/ports'
 import { REFERENCE_BUNDLE_FILE } from '../shared/constants'
 import { UI_TEXT as referenceTable } from '../shared/l10n/text'
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
@@ -1138,6 +1138,18 @@ async function main(): Promise<number> {
     case 'providersRemove': {
       const { providersRemove } = await import('./providersCommands')
       return await providersRemove(await providersDeps(), command.provider)
+    }
+    case 'estimate': {
+      return await runRuntimeEstimateCommand(command.argv, {
+        bundlePath: path.join(__dirname, ESTIMATOR_BUNDLE_FILE),
+        log,
+        write: (text) => {
+          process.stdout.write(text)
+        },
+        error: (text) => {
+          writeLine(process.stderr, text)
+        },
+      })
     }
     case 'report': {
       // No backend, no auth flow and no model startup: only local, capped

@@ -1,5 +1,6 @@
 import { type EstimateLane, type EstimateSection, type FleetSnapshot } from '../../shared/estimate'
 import { prepareEstimateSchedule, type EstimateRelaxation } from './schedule'
+import { type EstimateDurationEvidence } from './dag'
 import { UI_TEXT, fill } from '../../shared/l10n/text'
 
 /** Remove one resource class at a time, using the same duration samples.
@@ -10,7 +11,7 @@ import { UI_TEXT, fill } from '../../shared/l10n/text'
 export function findEstimateBottleneck(
   lanes: readonly EstimateLane[],
   fleet: FleetSnapshot,
-  durations?: ReadonlyMap<string, ReadonlyMap<string, number>>,
+  durations?: ReadonlyMap<string, ReadonlyMap<string, EstimateDurationEvidence>>,
 ): EstimateSection['limitingResource'] {
   const baseline = prepareEstimateSchedule(lanes, fleet).run(durations)
   let result: EstimateSection['limitingResource'] = {

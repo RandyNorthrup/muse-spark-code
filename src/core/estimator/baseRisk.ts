@@ -65,7 +65,7 @@ export function engineFindingRate(
   if (!historyRecordSchema.shape.engine.safeParse(engine).success)
     throw calibrationFailure('invalidEngine')
   const scoped = values.filter(
-    (value) => value.engine === engine && value.review.status === 'known',
+    (value) => (engine === undefined || value.engine === engine) && value.review.status === 'known',
   )
   return scoped.length === 0
     ? 0

@@ -1906,30 +1906,31 @@ both backends, as Muse Code's `/goal` does.
 
 ## Estimates
 
-Ask when a goal will ship with the fleet already linked, or what setup a
-target date needs. `/estimate <goal> [--by <date>] [--fleet
-current|minimum|optimum]` works in the composer, in the ACP agent, and from
-the **Open Estimator** command; every surface runs the same engine, loaded
-lazily the first time an estimate runs.
+The estimator routes are wired, but real forecasts are **not available yet**.
+The composer `/estimate <goal> [--by <date>] [--fleet
+current|minimum|optimum]`, ACP `/estimate`, **Open Estimator**, and standalone
+`muse-spark-code-acp estimate` use one lazy engine. Production snapshots refuse
+with `M117-W-M113-plan-reader` until the plan reader lands; fleet/catalog
+integration also waits for M113. `muse-spark-code-acp estimate --help` shows the
+standalone syntax without starting a model or asking for credentials.
 
-- **The answer.** P50 and P90 dates, the lane schedule with its critical
-  path, the limiting resource, and the setups: the current fleet, the
-  minimum at P50 and at P90, and the optimum by lowest cost or fastest
-  finish. A finished lane re-estimates the remainder and shows the drift.
-- **Honest numbers.** Every figure carries its calibration disclosure with
-  the sample size; below 20 samples a kind says Uncalibrated prior. Jobs
-  started from a base older than seven days are flagged as a schedule risk
-  until they rebase.
-- **Spin it up** starts the first contract-first wave once contracts are
-  reviewed and prerequisites merged. Rented servers stay advice-only until
-  the provider binding lands: each server's price and the total will show
-  before each spend is confirmed separately, a server past the explicit run
-  budget is refused before any request, billing, payment, sign-up and
-  account endpoints are refused outright, and an idle server is torn down
-  after its notice unless kept.
+- **Verified with fakes.** The engine returns P50/P90 dates, critical-path
+  schedules, limiting resources and current/minimum/optimum setups. Figures
+  carry parameter-specific evidence and sample sizes; unknown capacity and
+  approximate placement stay qualified. Below 20 samples, fitted parameters
+  remain priors. Bases older than seven days carry a schedule-risk flag.
+- **Existing fleet.** The panel sends an audited, contract-first first-wave
+  request independently of rental readiness. Production dispatch still
+  refuses with `M117-W-M96-board`. Finished-lane history updates and automatic
+  production refresh wait for M115.
+- **Rentals remain advice-only.** M109/M110 provider/install/pair bindings
+  and P's internal Slice 2 provisioning lifecycle are still absent. Liability
+  reservation, separate spend confirmation, funded-deadline/idle teardown,
+  Keep and wipe-before-delete are planned, not shipped behavior. No rental
+  creation is enabled.
 - **Settings** (this machine): `museSpark.estimator.optimize` (`cost` or
   `speed`) and `museSpark.estimator.priceLookup`, which follows the Reports
-  network policy; each catalog price shows its date.
+  network policy; catalog quotes retain their dates.
 
 ## Review
 

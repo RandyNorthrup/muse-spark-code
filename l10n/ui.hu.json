@@ -3993,9 +3993,13 @@
     "questions-defer-after": "--questions-defer-after <seconds>  Alapértelmezés szerint 60 másodperc után halassza el a kérdéseket; 0 soha, 1–9 értéke 10, legfeljebb 3600",
     "attach": "Csatolja ezt a médiafájlt; további fájlokhoz ismételje meg a kapcsolót.",
     "record": "Fej nélküli futtatáskor elutasítva: nincs, aki megnézze a felvételt.",
-    "account": "--account <id>                    A használandó fiók (auth set, serve, exec).",
+    "account": "--account <id>                    A használandó fiók (auth set, exec).",
     "account-pool": "--account-pool                  Fiókcsoportot kér; az erőforrás-kezelő csatlakoztatásáig nem érhető el. CI-ben soha nem használható key-stdin mellett.",
-    "vault": "--vault                          A headless exec használhatja a tároló elemeit felügyelet nélküli engedélyekkel"
+    "vault": "--vault                          A headless exec használhatja a tároló elemeit felügyelet nélküli engedélyekkel",
+    "fleet": "--fleet current|minimum|optimum: Jelenlegi géppark / Minimális összeállítás / Optimális összeállítás",
+    "seed": "--seed <seed>: Szimulációs kezdőérték",
+    "estimate-by": "--by <date>: Határidő",
+    "estimate-format": "--format md|html|json|text: Kimeneti formátum"
   },
   "referenceExecImages": "A felület nélküli képekhez --image-generation, acceptEdits és elegendő szigorú keret szükséges. Nincs árjóváhagyási kérdés; az engedélyköteles kérések elutasításra kerülnek.",
   "referencePopoverKeys": "Opciók bejárása, érték módosítása, kiválasztás vagy a menü bezárása.",

@@ -3851,9 +3851,13 @@
     "questions-defer-after": "--questions-defer-after <seconds>  既定では60秒後に質問を保留；0は保留しない、1～9は10として扱い、上限3600",
     "attach": "このメディアファイルを添付する。ファイルが複数ある場合はオプションを繰り返す。",
     "record": "ヘッドレス実行では拒否される。録画をプレビューする人がいないため。",
-    "account": "--account <id>                    使用するアカウント (auth set, serve, exec)。",
+    "account": "--account <id>                    使用するアカウント (auth set, exec)。",
     "account-pool": "--account-pool                  アカウントプールを要求します。リソース管理機構の接続まで利用できません。CI の key-stdin では使用できません。",
-    "vault": "--vault                          無人grantでVault項目をheadless execが使用できるようにします"
+    "vault": "--vault                          無人grantでVault項目をheadless execが使用できるようにします",
+    "fleet": "--fleet current|minimum|optimum: 現在のマシン群 / 最小構成 / 最適構成",
+    "seed": "--seed <seed>: シミュレーションのシード",
+    "estimate-by": "--by <date>: 期限",
+    "estimate-format": "--format md|html|json|text: 出力形式"
   },
   "referenceExecImages": "ヘッドレス画像には --image-generation、acceptEdits、十分な厳格な予算が必要です。価格の確認は表示されず、許可が必要な要求は拒否されます。",
   "referencePopoverKeys": "選択肢を移動し、値を調整し、選択するか、メニューを閉じます。",

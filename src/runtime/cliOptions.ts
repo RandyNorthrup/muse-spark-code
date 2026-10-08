@@ -1,3 +1,4 @@
+import { ESTIMATE_OPTIONS } from './estimator/options'
 import type { UiText } from '../shared/l10n/en'
 import { sharingHelp } from '../shared/featureCatalog'
 import { fill } from '../shared/l10n/text'
@@ -127,6 +128,7 @@ export const CLI_OPTION_REGISTRY = {
   exec: { options: EXEC_OPTIONS },
   'scan-secrets': { options: SCAN_OPTIONS },
   report: { options: REPORT_OPTIONS },
+  estimate: { options: ESTIMATE_OPTIONS, text: { by: 'estimate-by', format: 'estimate-format' } },
 } as const
 
 // The description map is exhaustive over the parser's option names. It never
@@ -184,6 +186,8 @@ export const CLI_OPTION_TEXT = {
   description: 'description',
   'no-facts': 'no-facts',
   'no-events': 'no-events',
+  fleet: 'fleet',
+  seed: 'seed',
 } as const satisfies Readonly<
   Record<
     | keyof typeof COMMON_OPTIONS
@@ -191,7 +195,8 @@ export const CLI_OPTION_TEXT = {
     | keyof typeof SCAN_OPTIONS
     | keyof typeof REPORT_OPTIONS
     | keyof typeof CLI_OPTION_REGISTRY.usage.options
-    | keyof typeof CLI_OPTION_REGISTRY.legal.options,
+    | keyof typeof CLI_OPTION_REGISTRY.legal.options
+    | keyof typeof ESTIMATE_OPTIONS,
     keyof UiText['referenceCliOptions']
   >
 >

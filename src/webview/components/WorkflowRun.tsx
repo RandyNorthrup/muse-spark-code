@@ -8,7 +8,7 @@
 
 import { UI_TEXT } from '../../shared/constants'
 import { fill, plural } from '../../shared/l10n/text'
-import { formatTokenWindow } from '../../shared/palette'
+import { formatTokenWindow } from '../../shared/l10n/text'
 import { agentStatusLabel, formatDurationMs } from '../agentFormat'
 import type { WorkflowChild, WorkflowEntry } from '../state/uiState'
 import {

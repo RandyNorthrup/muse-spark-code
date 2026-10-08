@@ -143,6 +143,7 @@ export async function referenceSources(root) {
   )
   const files = [
     'src/shared/protocol.ts',
+    'src/shared/estimatorProtocol.ts',
     'src/runtime/backends.ts',
     'src/extension.ts',
     'src/acp/agent.ts',
@@ -406,6 +407,10 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     .split('export type WebviewToHostMessage', 1)[0]
   const operationNames = [
     ...source.HOST_ACTIONS,
+    ...source.evidence['src/shared/estimatorProtocol.ts']
+      .split('const hostToEstimatorSchema', 1)[0]
+      .matchAll(/type: z.literal\('([^']+)'\)/g)
+      .map((match) => match[1]),
     ...protocol.matchAll(/type: z.literal\('([^']+)'\)/g).map((match) => match[1]),
   ]
   for (const operation of operationNames) {
@@ -796,7 +801,11 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       errors.push(`CLI option lacks contract: --${option.name}`)
     const routes = option.routes
     for (const route of routes) {
-      let text = { cli: source.CLI_OPTION_TEXT[option.name] }
+      let text = {
+        cli:
+          source.CLI_OPTION_REGISTRY[route]?.text?.[option.name] ??
+          source.CLI_OPTION_TEXT[option.name],
+      }
       if (route === 'exec' && option.name === 'image-generation')
         text = { ui: 'referenceExecImages' }
       else if (
@@ -808,14 +817,12 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
         text = { ui: 'referenceExecContract' }
       text = source.referenceDescription(text)
 
-      // M108/W: --provider/--account select a credential slot, so the parser
-      // refuses them outside `auth set` (cliArgs' hasTarget check) and exec's
-      // own --account. A row claiming another route accepts them would be
-      // false (and bloat dist/reference.js past its cap).
+      // Account targeting is limited to auth set and exec. The release's
+      // provider-only auth status/clear routes still select a provider.
       if (
-        route !== 'authSet' &&
-        route !== 'exec' &&
-        (option.name === 'provider' || option.name === 'account')
+        (option.name === 'account' && !['authSet', 'exec'].includes(route)) ||
+        (option.name === 'provider' &&
+          !['authSet', 'authStatus', 'authClear', 'exec'].includes(route))
       )
         continue
 
@@ -890,9 +897,12 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
             }),
           ...(route === 'setup' && option.name === 'maintenance' && { event: 'maintenance' }),
           ...(route === 'exec' && {
-            ...(['trust-workspace', 'allow-dangerously-skip-permissions', 'web-search'].includes(
-              option.name,
-            ) && { refused: true }),
+            ...([
+              'trust-workspace',
+              'allow-dangerously-skip-permissions',
+              'web-search',
+              'record',
+            ].includes(option.name) && { refused: true }),
             purpose:
               {
                 'max-requests': 'maxRequests',

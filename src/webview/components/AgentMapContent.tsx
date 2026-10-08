@@ -18,7 +18,7 @@ import {
 } from '../../shared/constants'
 import type { TokenUsage } from '../../shared/agentEvents'
 import { fill, plural } from '../../shared/l10n/text'
-import { formatTokenWindow } from '../../shared/palette'
+import { formatTokenWindow } from '../../shared/l10n/text'
 import type { BackendKind } from '../../shared/protocol'
 import type { TeamTreeData } from '../../shared/teamView'
 import {

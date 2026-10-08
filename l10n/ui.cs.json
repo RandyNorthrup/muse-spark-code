@@ -4277,9 +4277,13 @@
     "questions-defer-after": "--questions-defer-after <seconds>  Ve výchozím nastavení odložit otázky po 60 sekundách; 0 nikdy, 1–9 se bere jako 10, nejvýše 3600",
     "attach": "Přiložte tento mediální soubor; pro další soubory volbu opakujte.",
     "record": "Pro bezobslužná spuštění odmítnuto: záznam nemá kdo prohlédnout.",
-    "account": "--account <id>                    Účet k použití (auth set, serve, exec).",
+    "account": "--account <id>                    Účet k použití (auth set, exec).",
     "account-pool": "--account-pool                  Požádá o sdílení účtů; nedostupné, dokud není připojen vlastník prostředků. Nikdy s key-stdin v CI.",
-    "vault": "--vault                          Povolit headless exec používat položky trezoru s bezobslužnými granty"
+    "vault": "--vault                          Povolit headless exec používat položky trezoru s bezobslužnými granty",
+    "fleet": "--fleet current|minimum|optimum: Aktuální flotila / Minimální sestava / Optimální sestava",
+    "seed": "--seed <seed>: Počáteční hodnota simulace",
+    "estimate-by": "--by <date>: Termín",
+    "estimate-format": "--format md|html|json|text: Výstupní formát"
   },
   "referenceExecImages": "Obrázky bez rozhraní vyžadují --image-generation, acceptEdits a dostatečný pevný rozpočet. Cena se nepotvrzuje; požadavky vyžadující oprávnění jsou odmítnuty.",
   "referencePopoverKeys": "Procházet možnosti, upravit hodnotu, vybrat možnost nebo zavřít nabídku.",

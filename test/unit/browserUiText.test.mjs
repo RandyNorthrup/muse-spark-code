@@ -30,7 +30,7 @@ beforeAll(async () => {
 export { EN, EN_SHAPE } from '${english}';
 export { UI_TEXT, setUiText, uiLocale } from '${text}';
 export { installEmbeddedTable } from '${installer}';
-export async function loadHelp() { await Promise.all([import('browser-surface-english'), import('browser-reference-english')]) }
+export async function loadHelp() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english')]) }
 `,
   )
   fixture.canonical = await loadL10n(process.cwd())
@@ -65,6 +65,7 @@ describe('the production browser English and full-table contract', () => {
     expect(Object.hasOwn(EN, 'execBudgetRequired')).toBe(false)
     expect(EN.composerLabel).toBe(canonical.composerLabel)
     expect(() => EN.referenceSearch).toThrow('English surface is not loaded')
+    expect(() => EN.accounts).toThrow('English surface is not loaded')
     const german = JSON.parse(readFileSync('l10n/ui.de.json', 'utf8'))
     setUiText(german, 'de')
     await loadHelp()

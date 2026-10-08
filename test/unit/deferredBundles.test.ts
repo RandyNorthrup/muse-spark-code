@@ -10,6 +10,7 @@ import vm from 'node:vm'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
+import { isEstimatorBundle } from '../../src/host/estimator/estimatorBundle'
 import { EN } from '../../src/shared/l10n/en'
 import { L10N_COMPRESSION_QUALITY } from '../../src/shared/constants'
 import {
@@ -85,7 +86,7 @@ beforeAll(async () => {
     ...Object.entries({
       vaultBoundaries: 'src/shared/vaultBoundariesEntry.ts',
       estimator: 'src/host/estimator/estimatorEntry.ts',
-      estimateContracts: 'src/shared/estimate.ts',
+      estimateContracts: 'src/shared/estimateContractsEntry.ts',
       media: 'src/host/media/mediaEntry.ts',
       runtimeAccounts: 'src/runtime/providers/accountsEntry.ts',
       questionNotes: 'src/core/questions/deferralEntry.ts',
@@ -628,6 +629,10 @@ describe('deferred cohort bundles', () => {
     expect(bundle).toHaveProperty('runChatGptProviderCommand', expect.any(Function))
     expect(bundle).toHaveProperty('chatGptAuthenticationMethods', expect.any(Function))
   })
+  it('loads the shipped estimator against the shared validation runtime', () => {
+    expect(isEstimatorBundle(loadSupportBundle('estimator'))).toBe(true)
+  })
+
   it('loads the activation entry without requiring either action bundle', () => {
     const entry = bundleFile('extension')
     expect(bundleText('extension')).toContain('conversation.js')

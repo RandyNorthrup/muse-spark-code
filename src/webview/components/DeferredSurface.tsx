@@ -34,7 +34,7 @@ export function DeferredSurface({
 }
 
 /** Loading and failure retain the same dismissal contract as an open menu. */
-function UnavailableSurface({
+export function UnavailableSurface({
   onClose,
   isModal = true,
   keepFocus = false,

@@ -38,12 +38,13 @@ import {
 } from '../../shared/estimate'
 import { displayUsdNanos, usdNanos } from '../../shared/usd'
 import { resolveEstimateGoal, type EstimateGoalSourcesPort } from '../../core/estimator/goal'
-import { canEstimateMachineRun } from '../../core/estimator/schedule'
+import { EstimateSchedulingError, canEstimateMachineRun } from '../../core/estimator/schedule'
 import { fitCalibration, type CalibrationFit } from '../../core/estimator/calibration/fit'
 import {
   estimateDurationMap,
   simulateEstimate,
   type EstimateDurationPort,
+  type EstimateDurationSample,
 } from '../../core/estimator/simulate'
 import { findEstimateBottleneck } from '../../core/estimator/bottleneck'
 import { recommendEstimate } from '../../core/estimator/recommend'
@@ -139,9 +140,11 @@ export function createEstimatorRun(
         fleet,
         history,
       })
+      const pool = fleetSnapshotSchema.parse(await ports.candidatePool(inputs.lanes))
+      signal.throwIfAborted()
       const pairs: { kind: string; machineClassId: string }[] = []
       for (const lane of inputs.lanes)
-        for (const machine of inputs.fleet.machines) {
+        for (const machine of pool.machines) {
           if (!canEstimateMachineRun(lane, machine)) continue
           if (
             pairs.every(
@@ -188,63 +191,108 @@ export function createEstimatorRun(
           }
         },
       }
-      const simulation = simulateEstimate(inputs, durationPort)
+      const forecast = (variant: EstimateInputs) => {
+        try {
+          return {
+            status: 'feasible' as const,
+            simulation: simulateEstimate(variant, durationPort),
+          }
+        } catch (error: unknown) {
+          if (error instanceof EstimateSchedulingError)
+            return { status: 'infeasible' as const, reason: error.reason }
+          throw error
+        }
+      }
       signal.throwIfAborted()
-      const durations = estimateDurationMap(simulation.durationSamples)
-      const limitingResource = findEstimateBottleneck(inputs.lanes, inputs.fleet, durations)
       const lookup = ports.priceLookup()
       const catalog =
         lookup.enabled && lookup.networkAllowed
           ? await lookupEstimatePrices({ ...lookup, asOf: parsed.asOf }, ports.prices())
           : { rows: [], sources: [], unavailable: [] }
       signal.throwIfAborted()
-      const pool = fleetSnapshotSchema.parse(await ports.candidatePool(inputs.lanes))
-      const [failurePrefix = 'Estimate failed: '] = UI_TEXT.estimateFailed.split('{detail}', 2)
       const recommendation = recommendEstimate(
         inputs,
         pool,
-        {
-          forecast: (variant) => {
-            try {
-              return {
-                status: 'feasible' as const,
-                simulation: simulateEstimate(variant, durationPort),
-              }
-            } catch (error: unknown) {
-              // S refuses infeasible fleets as estimate failures; bugs propagate.
-              if (error instanceof Error && error.message.startsWith(failurePrefix))
-                return { status: 'infeasible' as const, reason: error.message }
-              throw error
-            }
-          },
-        },
+        { forecast },
         catalog.rows.flatMap((row) =>
           pool.machines
             .filter((machine) => machine.classId === row.classId)
             .map((machine) => ({ machineId: machine.id, price: row.price })),
         ),
       )
-      const fittedSamples = calibration
-        .filter((row) => row.basis === 'fitted')
-        .map((row) => row.samples)
-      const dateEvidence: Omit<Disclosure, 'path'> =
-        fittedSamples.length === 0
-          ? { ...assumed }
-          : {
+      const current = recommendation.evaluations[0]
+      const preferredKinds =
+        parsed.fleet === 'minimum'
+          ? ['minimumP90', 'minimumP50']
+          : [parsed.optimize === 'cost' ? 'optimumCost' : 'optimumSpeed']
+      const selected =
+        current?.forecast.status === 'feasible'
+          ? current
+          : recommendation.evaluations[
+              recommendation.selections.find((selection) => preferredKinds.includes(selection.kind))
+                ?.evaluation ?? -1
+            ]
+      if (selected?.forecast.status !== 'feasible')
+        refuse(
+          current?.forecast.status === 'infeasible' ? current.forecast.reason : 'no-feasible-setup',
+        )
+      if (parsed.fleet === 'current' && current?.forecast.status === 'infeasible')
+        refuse(current.forecast.reason)
+      const simulation = selected.forecast.simulation
+      const forecastInputs = { ...inputs, fleet: selected.fleet }
+      const durations = estimateDurationMap(simulation.durationSamples)
+      const limitingResource = findEstimateBottleneck(inputs.lanes, selected.fleet, durations)
+      const qualifications = recommendation.selections.flatMap((selection) => {
+        const evaluation = recommendation.evaluations[selection.evaluation]
+        return evaluation?.forecast.status === 'feasible'
+          ? [{ setup: selection.kind, unknownLimits: evaluation.forecast.simulation.unknownLimits }]
+          : []
+      })
+      const setupFleets = recommendation.selections.map((selection) => ({
+        kind: selection.kind,
+        fleet:
+          recommendation.evaluations[selection.evaluation]?.fleet ?? refuse('missing-selection'),
+      }))
+      // Each setup's dates are qualified by its own representative trial's
+      // sampled-duration evidence: calibration with the fit's samples, or a
+      // plan assumption. The fits only fit the models; the samples ran.
+      const setupSamples = new Map(
+        recommendation.selections.flatMap((selection) => {
+          const evaluation = recommendation.evaluations[selection.evaluation]
+          return evaluation?.forecast.status === 'feasible'
+            ? [[selection.kind, evaluation.forecast.simulation.durationSamples] as const]
+            : []
+        }),
+      )
+      const dateEvidence = (
+        fleet: typeof inputs.fleet,
+        p50: string,
+        p90: string,
+        samples: readonly EstimateDurationSample[],
+      ): Omit<Disclosure, 'path'> => {
+        const evidence = new Map(
+          samples.map((sample) => [`${sample.laneId}:${sample.machineClassId}`, sample.evidence]),
+        )
+        const models = inputs.lanes
+          .filter((lane) => lane.state !== 'merged')
+          .flatMap((lane) =>
+            fleet.machines
+              .filter((machine) => canEstimateMachineRun(lane, machine))
+              .map((machine) => evidence.get(`${lane.id}:${machine.classId}`)),
+          )
+        return models.length > 0 && models.every((entry) => entry?.basis === 'calibration')
+          ? {
               basis: 'calibration',
-              samples: Math.min(...fittedSamples),
-              uncertainty: {
-                kind: 'time',
-                earliest: simulation.p50,
-                latest: simulation.p90,
-              },
+              samples: Math.min(...models.map((entry) => entry?.samples ?? 0)),
+              uncertainty: { kind: 'time', earliest: p50, latest: p90 },
             }
+          : { ...assumed }
+      }
       const rowEvidence = new Map(
         calibration.map((row, index) => [
           `/calibration/${String(index)}`,
-          row.basis === 'fitted'
-            ? { basis: 'calibration' as const, samples: row.samples }
-            : { basis: 'assumption' as const, samples: 0 },
+          fits.get(`${row.kind}:${row.machineClassId}:${row.engine ?? ''}`)?.evidence ??
+            refuse('missing-fit'),
         ]),
       )
       const draft = {
@@ -260,20 +308,48 @@ export function createEstimatorRun(
         limitingResource,
         setups: recommendation.setups,
         inputs,
+        ...(current?.forecast.status === 'infeasible' && {
+          currentRefusal: current.forecast.reason,
+          forecastFleet: forecastInputs.fleet,
+        }),
+        setupFleets,
+        qualifications,
         calibration,
         risks: baseRisks(inputs.lanes, parsed.asOf),
       }
       const disclosures: Disclosure[] = []
       for (const [path] of disclosureTargets(draft)) {
         if (/\/p50$|\/p90$/.test(path)) {
-          disclosures.push({ ...dateEvidence, path })
+          const match = /^\/setups\/(\d+)\//.exec(path)
+          const setup = match ? draft.setups[Number(match[1])] : undefined
+          const fleet = setup
+            ? (setupFleets.find((row) => row.kind === setup.kind)?.fleet ?? selected.fleet)
+            : selected.fleet
+          disclosures.push({
+            ...dateEvidence(
+              fleet,
+              setup?.p50 ?? simulation.p50,
+              setup?.p90 ?? simulation.p90,
+              (setup && setupSamples.get(setup.kind)) ?? simulation.durationSamples,
+            ),
+            path,
+          })
           continue
         }
         const segments = path.slice(1).split('/')
         const rowKey = segments.length > 2 ? `/${segments[0] ?? ''}/${segments[1] ?? ''}` : ''
         const row = rowKey.startsWith('/calibration/') ? rowEvidence.get(rowKey) : undefined
-        if (row !== undefined) {
-          disclosures.push({ ...row, path, uncertainty: { kind: 'unknown' } })
+        const parameter = segments[2]
+        if (row !== undefined && parameter !== undefined && segments.slice(2).length === 1) {
+          let evidence = row.durationParameters
+          if (parameter === 'reviewRoundRate') evidence = row.reviewRoundRate
+          else if (parameter === 'redesignRisk') evidence = row.redesignRisk
+          disclosures.push({
+            path,
+            basis: evidence.basis,
+            samples: evidence.samples,
+            uncertainty: evidence.uncertainty,
+          })
           continue
         }
         const parent = atPath(draft, `/${segments.slice(0, -1).join('/')}`)

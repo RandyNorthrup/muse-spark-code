@@ -84,6 +84,11 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     budgetKiB: 25,
   },
   {
+    name: 'account English',
+    entries: ['browser-account-english:browser-account-english'],
+    budgetKiB: 25,
+  },
+  {
     name: 'help reference',
     entries: [
       'src/webview/components/ReferencePage.tsx',
@@ -119,7 +124,10 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     'ReviewCommentForm',
   ].map((name) => ({
     name,
-    entries: [`src/webview/components/${name}.tsx`],
+    entries: [
+      `src/webview/components/${name}.tsx`,
+      ...(name === 'Palette' ? ['src/shared/palette.ts'] : []),
+    ],
     budgetKiB: 25,
   })),
   {
@@ -196,6 +204,7 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
       'src/webview/estimator/EstimatorPanel.tsx',
       'src/webview/estimator/composer.ts',
       'src/shared/estimate.ts',
+      'src/shared/estimatorProtocol.ts',
     ],
     budgetKiB: 25,
   },

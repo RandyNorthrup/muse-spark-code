@@ -8,7 +8,6 @@ import { App } from '../../src/webview/App'
 import { ErrorBoundary } from '../../src/webview/components/ErrorBoundary'
 import type { ErrorReporter } from '../../src/webview/errorReport'
 import { restoredUiState, type WebviewState } from '../../src/webview/state/snapshot'
-import { ensureEstimateContracts } from '../../src/webview/estimator/lazyContracts'
 import { createUiStore, listenToHost, persistStore } from '../../src/webview/state/store'
 import { initialUiState } from '../../src/webview/state/uiState'
 import { installSurfaceRetry, retrySurface } from '../../src/webview/surfaceRetry'
@@ -112,6 +111,40 @@ describe('the UI store (M25)', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     vi.useRealTimers()
+  })
+
+  it('validates lazy estimator replies before storage and keeps their correlation', async () => {
+    const store = createUiStore(initialUiState)
+    const report = vi.fn<ErrorReporter>()
+    const stop = listenToHost(store, window, () => 0, report)
+    deliver({ type: 'estimatorSection', requestId: 'request-1', section: fakeEstimate() })
+    await vi.waitFor(() => {
+      expect(store.getState().estimatorRequestId).toBe('request-1')
+    })
+    deliver({ type: 'estimatorSection', section: { p50: 'bad' } })
+    await vi.waitFor(() => {
+      expect(report).toHaveBeenCalled()
+    })
+    expect(store.getState().estimatorRequestId).toBe('request-1')
+    stop()
+  })
+
+  it('drops estimator replies whose parser finishes after a conversation clear or unsubscribe', async () => {
+    for (const close of ['clear', 'unsubscribe']) {
+      const store = createUiStore(initialUiState)
+      const dispatch = vi.spyOn(store, 'dispatch')
+      const stop = listenToHost(store, window, () => 0, vi.fn())
+      deliver({ type: 'estimatorSection', section: fakeEstimate() })
+      if (close === 'clear') deliver({ type: 'conversationCleared', attachmentEpoch: 1 })
+      else stop()
+      await import('../../src/shared/estimatorProtocol')
+      expect(
+        dispatch.mock.calls.filter(
+          ([action]) => action.type === 'hostMessage' && action.message.type === 'estimatorSection',
+        ),
+      ).toHaveLength(0)
+      stop()
+    }
   })
 
   // M39: outside React's error boundary, a throwing reducer lost the message
@@ -340,7 +373,7 @@ it('discards an estimator frame whose listener closes during first-use loading',
     new MessageEvent('message', { data: { type: 'estimatorSection', section: fakeEstimate() } }),
   )
   stop()
-  await ensureEstimateContracts()
+  await import('../../src/shared/estimatorProtocol')
   await Promise.resolve()
   expect(store.getState().estimator).toBeUndefined()
 })

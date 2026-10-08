@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { buildSync } from 'esbuild'
 import { spawnSync } from 'node:child_process'
 import {
@@ -511,5 +512,45 @@ describe('M117 re-estimation and TUI', () => {
     controls?.close()
     await session.refresh()
     expect(show).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('M117 standalone runtime entry', () => {
+  let entry: string
+  beforeAll(() => {
+    entry = buildSync({
+      entryPoints: ['src/runtime/main.ts'],
+      bundle: true,
+      platform: 'node',
+      format: 'cjs',
+      write: false,
+      external: ['@napi-rs/keyring'],
+    }).outputFiles[0]!.text
+  })
+  it('routes estimate arguments before common runtime flags parse them', () => {
+    const argv = [
+      'M117',
+      '--format',
+      'json',
+      '--seed',
+      'repeat',
+      '--fleet',
+      'minimum',
+      '--by',
+      '2026-10-09',
+    ]
+    expect(parseCommandLine(['estimate', ...argv])).toEqual({ command: 'estimate', argv })
+  })
+  it('dispatches estimate help through the production entry without auth or model startup', () => {
+    const result = spawnSync(process.execPath, ['-', 'estimate', '--help'], {
+      input: entry,
+      cwd: process.cwd(),
+      env: { PATH: process.env['PATH'], LANG: 'en_US.UTF-8' },
+      encoding: 'utf8',
+    })
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout).toContain('muse-spark-code-acp estimate')
+    expect(result.stdout).toContain('--format md|html|json|text')
+    expect(result.stderr).not.toContain('Unknown argument')
   })
 })

@@ -3993,9 +3993,13 @@
     "questions-defer-after": "--questions-defer-after <seconds>  Soruları varsayılan olarak 60 saniye sonra ertele; 0 hiçbir zaman, 1–9 değeri 10 sayılır, en fazla 3600",
     "attach": "Bu medya dosyasını ekleyin; daha fazla dosya için seçeneği yineleyin.",
     "record": "Headless çalıştırmalarda reddedilir: kaydı önizleyecek kimse yok.",
-    "account": "--account <id>                    Kullanılacak hesap (auth set, serve, exec).",
+    "account": "--account <id>                    Kullanılacak hesap (auth set, exec).",
     "account-pool": "--account-pool                  Hesap havuzu ister; kaynak yöneticisi bağlanana kadar kullanılamaz. CI içinde key-stdin ile asla kullanılamaz.",
-    "vault": "--vault                          Headless exec'in gözetimsiz izinlerdeki kasa öğelerini kullanmasına izin ver"
+    "vault": "--vault                          Headless exec'in gözetimsiz izinlerdeki kasa öğelerini kullanmasına izin ver",
+    "fleet": "--fleet current|minimum|optimum: Mevcut makine grubu / Asgari kurulum / En uygun kurulum",
+    "seed": "--seed <seed>: Simülasyon tohumu",
+    "estimate-by": "--by <date>: Son tarih",
+    "estimate-format": "--format md|html|json|text: Çıktı biçimi"
   },
   "referenceExecImages": "Arayüzsüz görüntüler --image-generation, acceptEdits ve yeterli kesin bütçe gerektirir. Fiyat sorusu gösterilmez; izin gerektiren istekler reddedilir.",
   "referencePopoverKeys": "Seçenekleri gezin, değeri ayarlayın, bir seçenek seçin veya menüyü kapatın.",
