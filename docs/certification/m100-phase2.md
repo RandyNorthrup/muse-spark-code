@@ -1890,3 +1890,52 @@ integration gates under PLAN §7. W also owns the inherited host API inventory
 and product changelog: carry an Unreleased note that macOS attempts now share
 one lifecycle, reclaim pre-ready failures and keep pending attempts out of query.
 No new command, setting, string, dependency or shared contract is introduced.
+
+##### HM8 final committed-source qualification
+
+Implementation checkpoint **`62166126b`**, filesystem-boundary follow-up and
+final source/test checkpoint **`7d0928cf0`**. Both ran the repository's installed
+hooks, `core.hooksPath=.husky/_`, with lint-staged's normal internal backup,
+ESLint/Prettier and staged gitleaks; **all hook checks exit 0**. No hook was
+copied, wrapped, substituted or edited. The staged/committed diffs were reread
+after each hook, and the final production SHA-256 matches the guard-fire hash.
+
+The final checkpoint was independently cloned under
+`$TMPDIR/M100P2HM8-final-ynqjf6zh/checkout`, with fresh **`CI=true npm ci: exit 0`**.
+Node **24.21.0**, npm **11.19.0**, macOS **15.7.4**, UID **502 / Aqua gui/502**.
+Every gate below ran with **CI=true**. Vitest used repository deadlines and
+`--maxWorkers=3`, at most three complete files per invocation; no `--testTimeout`.
+All native macOS cases ran; skips are Windows-only. This is the final source,
+including the timeout-kind regression and unchanged native helper template.
+
+| Gate                                                              | Exit / receipt                                                                                                                                                                                     |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Complete H owning files, three runs                               | **0 / 0 / 0**. Each **493 passed, 0 failed, 7 Windows-only skipped**; **66.63 / 65.11 / 65.66 s wall**.                                                                                            |
+| Native and table completeness from each JSON report               | **30 / 30 / 30 native**, **90 / 90 / 90 lifecycle cells**, **312 / 312 / 312 spawn cells**, every case passed. The 200-failure and 128-recovery cases passed in every run.                         |
+| Complete deviceReceiver file                                      | **0**, **49 passed, 0 failed, 0 skipped**, **11.25 s wall**.                                                                                                                                       |
+| Five compiler projects: host, webview, unit, e2e, integration     | **0 / 0 / 0 / 0 / 0**. Each npm script ran separately.                                                                                                                                             |
+| ESLint, all three changed TS files, max-warnings=0                | **0**.                                                                                                                                                                                             |
+| Prettier, all five changed files                                  | **0**; final receipt prose also checked after its hook.                                                                                                                                            |
+| Plain knip                                                        | **0**.                                                                                                                                                                                             |
+| Plain jscpd, unchanged zero threshold                             | **0**, zero clones.                                                                                                                                                                                |
+| check:reference                                                   | **0**; all generated reference coverage and freshness current.                                                                                                                                     |
+| check:l10n                                                        | **0**: 14 UI tables, 14 usage tables, 197 manifest strings, 991 source files; zero problems.                                                                                                       |
+| check:host-api                                                    | **1**: the same inherited W-owned six Node import-count mismatches documented by HM7, below. No regeneration, suppression or gate change.                                                          |
+| Production build, unchanged size/split/host-globals/notices gates | **0**: activation **462.8/600 KiB**, Devices **82.0/100 KiB**, Model API **456.0/475 KiB**, Devices browser **34.0/50 KiB**, chat startup **733.8/900 KiB**, original deferred JS **31.9/50 KiB**. |
+
+**Lead/W requests:** regenerate the inherited host API inventory:
+child_process **16→18**, crypto **93→95**, fs **44→45**, fs/promises **74→77**,
+path **125→128**, timers/promises **15→17**. Totals remain **366 VS Code APIs,
+43 importing files, 28 Node built-ins, 70 theme variables**. Carry the Unreleased
+note above, run aggregate quality and installed cross-platform qualification,
+and bind this driver through W's lazy native factory: this lane's source has no
+production caller of `deviceWorkerDarwin` or `selectDeviceWorkerDriver` yet.
+The build measures existing lazy entries and is not an installed-driver receipt.
+No H lifecycle finding is deferred; no shared contract, feature catalog or
+product file was changed outside the lane's ownership.
+
+Changed files: `src/host/backend/deviceWorkerDarwin.ts`,
+`test/unit/deviceWorkerDarwin.test.ts`, `test/unit/helpers/deviceDarwinSpawn.ts`,
+PLAN's H scope/gate regions, and this H/macOS certification subsection.
+Both private verification clones are removed after validation. No push, merge,
+rebase, manual stash, credential read, paid/live model call or nonloopback listener.
