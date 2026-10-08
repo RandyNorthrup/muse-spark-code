@@ -533,26 +533,6 @@
                 : name.includes('paused')
                   ? 'paused'
                   : 'connected'
-        // M100P2U: phase-2 setup facts per new scene; lane W wires the host.
-        let setup
-        if (name === 'devices-discovery')
-          setup = { discovery: { serviceId: '_musespark._tcp', port: 32123 } }
-        else if (name === 'devices-owners')
-          setup = {
-            owners: [{ ownerId: 'a'.repeat(32), grants: [deviceOwnerGrant] }],
-            grantRefusal: {
-              version: 1,
-              pairId: devicePair,
-              ownerId: 'a'.repeat(32),
-              reason: 'grant-expired',
-              retryable: false,
-            },
-          }
-        else if (name === 'devices-prompts-narrow') setup = { stepUp: { grantId: 'c'.repeat(32) } }
-        else if (name === 'devices-power')
-          setup = { capability: deviceCapability, throttled: deviceThrottled }
-        else if (name === 'devices-blocked')
-          setup = { listenerApplication: 'Editor host', interfaceLabel: 'LAN en0' }
         const message = {
           type: 'deviceState',
           revision: ++deviceRevision,
@@ -580,15 +560,35 @@
                   ],
                 },
         }
-        if (setup !== undefined) message.setup = setup
         return message
       }
       const deviceReply = (message) => {
         const response = deviceFixture(scenarioName)
+        // Action facts are emitted only in correlated replies.
+        let setup
+        if (scenarioName === 'devices-discovery')
+          setup = { discovery: { serviceId: '_musespark._tcp', port: 32123 } }
+        else if (scenarioName === 'devices-owners')
+          setup = {
+            owners: [{ ownerId: 'a'.repeat(32), grants: [deviceOwnerGrant] }],
+            grantRefusal: {
+              version: 1,
+              pairId: devicePair,
+              ownerId: 'a'.repeat(32),
+              reason: 'grant-expired',
+              retryable: false,
+            },
+          }
+        else if (scenarioName === 'devices-prompts-narrow')
+          setup = { stepUp: { grantId: 'c'.repeat(32) } }
+        else if (scenarioName === 'devices-power')
+          setup = { capability: deviceCapability, throttled: deviceThrottled }
+        else if (scenarioName === 'devices-blocked')
+          setup = { listenerApplication: 'Editor host', interfaceLabel: 'LAN en0' }
         // M100P2U: keep the fixture's phase-2 facts and add the reply's
         // correlation ids, so the strict panel schema parses.
         response.setup = {
-          ...response.setup,
+          ...setup,
           viewId: message.viewId,
           requestId: message.requestId,
           listenerApplication: 'Editor host',
@@ -6296,13 +6296,13 @@
               document.querySelector('.devices-view label input[type="checkbox"]').click()
               whenFound('.device-discovery-details', checkWidth)
             } else if (name === 'devices-owners') {
-              document.querySelector('.devices-view label input[type="checkbox"]').click()
+              document.querySelector('.device-actions button:first-child').click()
               whenFound('.device-owners button', () => {
                 document.querySelector('.device-owners button').click()
                 whenFound('.devices-view [role="alert"]', checkWidth)
               })
             } else if (name === 'devices-prompts-narrow') {
-              document.querySelector('.devices-view label input[type="checkbox"]').click()
+              document.querySelector('.device-actions button:first-child').click()
               whenFound('.device-prompts', checkWidth)
             } else if (name === 'devices-power') {
               document.querySelector('.devices-view label input[type="checkbox"]').click()
@@ -6350,15 +6350,17 @@
       const playScenario = () => {
         if (
           !hasPageLoaded ||
-          !hasWebviewReady ||
+          (!hasWebviewReady && !scenario?.startsWith('devices-')) ||
           hasPlayedScenario ||
           scenario === null ||
           !(scenario in steps)
         )
           return
         hasPlayedScenario = true
-        const surface =
-          harnessBundle === 'models'
+        // Devices has no chat-ready request; its mounted document is the handshake.
+        const surface = scenario.startsWith('devices-')
+          ? '.devices-view'
+          : harnessBundle === 'models'
             ? '.models-panel section'
             : 'textarea, .gate, .todo-surface, [role="alert"]'
         whenFound(surface, () => steps[scenario]())

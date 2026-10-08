@@ -4,7 +4,12 @@
 // lanes/checks, quota and expiry, with a revoke action. Typed refusals map
 // to their states; revoking never answers a presence prompt.
 import { UI_TEXT } from '../../../../../shared/constants'
-import { formatDateTime, formatNumber, formatUsd } from '../../../../../shared/l10n/text'
+import {
+  formatBytes,
+  formatDateTime,
+  formatNumber,
+  formatUsd,
+} from '../../../../../shared/l10n/text'
 import type {
   DEVICE_GRANT_REFUSALS,
   DeviceGrant,
@@ -35,7 +40,7 @@ export function OwnerGrants({
   refusal,
   onRevoke,
 }: {
-  readonly owners: readonly DeviceOwnerGrants[]
+  readonly owners: readonly DeviceOwnerGrants[] | undefined
   readonly busy: boolean
   readonly refusal: DeviceGrantRefusal | undefined
   readonly onRevoke: (ownerId: string, grantId: string) => void
@@ -44,29 +49,30 @@ export function OwnerGrants({
     <section className="device-owners" aria-label={UI_TEXT.devices.owners}>
       <h3>{UI_TEXT.devices.owners}</h3>
       {refusal !== undefined && <p role="alert">{grantRefusalText(refusal.reason)}</p>}
-      {owners.length === 0 ? (
-        <p>{UI_TEXT.devices.noOffers}</p>
-      ) : (
-        <ul>
-          {owners.map((owner) => (
-            <li key={owner.ownerId}>
-              <code>{owner.ownerId}</code>
-              <ul>
-                {owner.grants.map((grant) => (
-                  <GrantRow
-                    key={grant.grantId}
-                    grant={grant}
-                    busy={busy}
-                    onRevoke={() => {
-                      onRevoke(owner.ownerId, grant.grantId)
-                    }}
-                  />
-                ))}
-              </ul>
-            </li>
-          ))}
-        </ul>
-      )}
+      {owners !== undefined &&
+        (owners.length === 0 ? (
+          <p>{UI_TEXT.devices.noOffers}</p>
+        ) : (
+          <ul>
+            {owners.map((owner) => (
+              <li key={owner.ownerId}>
+                <code>{owner.ownerId}</code>
+                <ul>
+                  {owner.grants.map((grant) => (
+                    <GrantRow
+                      key={grant.grantId}
+                      grant={grant}
+                      busy={busy}
+                      onRevoke={() => {
+                        onRevoke(owner.ownerId, grant.grantId)
+                      }}
+                    />
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        ))}
     </section>
   )
 }
@@ -101,8 +107,21 @@ function GrantRow({
         <div>
           <dt>{UI_TEXT.devices.grantQuota}</dt>
           <dd>
-            {formatNumber(grant.quota.workers)} / {formatNumber(grant.quota.processes)} /{' '}
-            {formatNumber(grant.quota.tokens)} / {formatUsd(grant.quota.spendUsd, 2)}
+            <dl className="device-facts">
+              {[
+                [UI_TEXT.devices.workers, formatNumber(grant.quota.workers)],
+                [UI_TEXT.devices.processes, formatNumber(grant.quota.processes)],
+                [UI_TEXT.devices.heavyChecks, formatNumber(grant.quota.heavyChecks)],
+                [UI_TEXT.devices.tokens, formatNumber(grant.quota.tokens)],
+                [UI_TEXT.devices.spend, formatUsd(grant.quota.spendUsd, 2)],
+                [UI_TEXT.devices.artifact, formatBytes(grant.quota.artifactBytes)],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
           </dd>
         </div>
         <div>

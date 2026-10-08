@@ -45,6 +45,11 @@ afterEach(() => {
   vi.useRealTimers()
 })
 describe('M100 U explicit webview bridge', () => {
+  it('uses the text-only pairing UI without a QR renderer when no encoder is configured', () => {
+    render(<DevicesApp messages={window} postMessage={vi.fn()} />)
+    expect(seen.props.at(-1)?.renderQr).toBeUndefined()
+  })
+
   it('rejects pairing data when a newer parent observation precedes the child commit', async () => {
     const postMessage = vi.fn<(message: DeviceWebviewRequest) => void>()
     render(<DevicesApp messages={window} postMessage={postMessage} />)

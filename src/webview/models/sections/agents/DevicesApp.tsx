@@ -5,6 +5,7 @@ import {
   lazy,
   Suspense,
   type ReactNode,
+  type ComponentType,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -19,29 +20,51 @@ import {
   type DevicesPanelPort,
   type DeviceWebviewRequest,
 } from '../../../../shared/devicesPanel'
+import type { QrEncoder } from '../devices/qr/encoder'
 import type { MessageSource } from '../../../hostBridge'
 import { DevicesView } from './DevicesView'
 
 interface DevicesAppProps {
+  readonly qrEncoder?: QrEncoder
+  readonly loadQr?: QrLoader
   readonly messages: MessageSource
   readonly postMessage: (message: DeviceWebviewRequest) => void
 }
 
-// M100 phase 2 (lane U): the lazy qr/ chunk loads only when a QR is shown.
-// A chunk failure falls back to the complete text invite; the encoder itself
-// is injected only after the lead approves one, so this renders nothing yet
-// and the text fallback is what ships.
-const QrFigure = lazy(async () => {
-  try {
-    const figure = await import('../devices/qr/QrFigure')
-    return { default: figure.default }
-  } catch {
-    return { default: QrMissing }
-  }
-})
+interface QrProps {
+  readonly text: string
+  readonly encode: QrEncoder | undefined
+}
+type QrLoader = () => Promise<{ default: ComponentType<QrProps> }>
+const loadQrFigure: QrLoader = () => import('../devices/qr/QrFigure')
 
-function QrMissing(): null {
-  return null
+// Each invitation reply owns a fresh lazy intent. Text remains usable during
+// loading/failure; Retry creates a new import rather than caching a null result.
+class QrBoundary extends Component<QrProps & { readonly load: QrLoader }> {
+  public static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  public override state = { failed: false, Figure: lazy(this.props.load) }
+  public override render() {
+    const Figure = this.state.Figure
+    return this.state.failed ? (
+      <div role="alert">
+        <p>{UI_TEXT.surfaceLoadFailed}</p>
+        <button
+          type="button"
+          onClick={() => {
+            this.setState({ failed: false, Figure: lazy(this.props.load) })
+          }}
+        >
+          {UI_TEXT.surfaceLoadRetry}
+        </button>
+      </div>
+    ) : (
+      <Suspense fallback={<p role="status">{UI_TEXT.loadingOutput}</p>}>
+        <Figure text={this.props.text} encode={this.props.encode} />
+      </Suspense>
+    )
+  }
 }
 
 export function DevicesApp(props: DevicesAppProps) {
@@ -77,7 +100,12 @@ class DevicesErrorBoundary extends Component<{ readonly children: ReactNode }> {
   }
 }
 
-function DevicesDocument({ messages, postMessage }: DevicesAppProps) {
+function DevicesDocument({
+  messages,
+  postMessage,
+  qrEncoder,
+  loadQr = loadQrFigure,
+}: DevicesAppProps) {
   const [message, setMessage] = useState<DeviceHostMessage>({
     type: 'deviceState',
     revision: 0,
@@ -180,11 +208,18 @@ function DevicesDocument({ messages, postMessage }: DevicesAppProps) {
         port={bridge.port}
         onState={accept}
         explicitSetup
-        renderQr={(text) => (
-          <Suspense fallback={null}>
-            <QrFigure text={text} encode={undefined} />
-          </Suspense>
-        )}
+        renderQr={
+          qrEncoder === undefined
+            ? undefined
+            : (text) => (
+                <QrBoundary
+                  key={message.setup?.requestId}
+                  text={text}
+                  encode={qrEncoder}
+                  load={loadQr}
+                />
+              )
+        }
       />
     </main>
   )

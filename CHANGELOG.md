@@ -18,6 +18,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Register the lazy Devices QR budget, skip loading without an encoder and
+  show loading, failure and retry when configured; fit large QR codes to narrow
+  panels while preserving their quiet zone.
+- Keep Devices harness setup in correlated replies and bind owner/prompt scenes
+  to their peer. Show throttled cards consistently, retain refusal-only grant
+  replies, and label all six grant quota dimensions with localized units.
+
 - Include the Devices runtime in isolated ACP/VSIX package fixtures so positive
   archive checks and missing-bundle refusals exercise the complete inventory.
 - Keep the real-TLS Devices flood test focused on bounded transport and

@@ -6,7 +6,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
-import { formatNumber, setUiText } from '../../src/shared/l10n/text'
+import { formatBytes, formatNumber, formatUsd, setUiText } from '../../src/shared/l10n/text'
 import { deviceInvitationSchema } from '../../src/shared/devices'
 import type { DeviceCapability, DeviceGrant, DeviceThrottled } from '../../src/shared/devices'
 import { parseDeviceHostMessage, parseDeviceWebviewRequest } from '../../src/shared/devicesPanel'
@@ -533,5 +533,118 @@ describe('M100P2U blocked setup', () => {
     expect(screen.getByText(/ask an administrator for scoped access/)).toHaveTextContent(
       `10.2.3.4:${formatNumber(32_123)}`,
     )
+  })
+})
+
+describe('RVM100P2U combined presentation regressions', () => {
+  it.each([true, false])('applies only matching peer throttle (matching=%s)', async (matching) => {
+    const message = uiMessage({ status: 'offline' })
+    const port = uiPort({
+      ...message,
+      setup: {
+        viewId: UI_PAIR_ID,
+        requestId: UI_PAIR_ID,
+        throttled: uiThrottled({ pairId: matching ? UI_PAIR_ID : 'f'.repeat(32) }),
+      },
+    })
+    render(<DevicesView message={message} port={port} onState={() => true} explicitSetup />)
+    fireEvent.click(screen.getByRole('button', { name: EN.devices.pause }))
+    await screen.findByText(EN.devices.throttledHelp)
+    const card = within(screen.getByRole('article', { name: uiDevice.label }))
+    expect(card.getByRole('status')).toHaveTextContent(
+      matching ? EN.devices.throttled : EN.devices.offline,
+    )
+    if (matching) {
+      expect(card.getByText(/Unknown since/)).toBeVisible()
+      expect(screen.queryByText(EN.devices.offline, { exact: true })).toBeNull()
+    } else {
+      expect(card.queryByText(/Unknown since/)).toBeNull()
+    }
+  })
+
+  it.each(['grant-expired', 'owner-mismatch'] as const)(
+    'shows a %s refusal-only reply after revoke',
+    async (reason) => {
+      const port = uiPort({
+        ...uiMessage(),
+        setup: {
+          viewId: UI_PAIR_ID,
+          requestId: UI_PAIR_ID,
+          owners: [{ ownerId: OWNER_A, grants: [uiGrant()] }],
+        },
+      })
+      render(<DevicesView message={uiMessage()} port={port} onState={() => true} explicitSetup />)
+      fireEvent.click(screen.getByRole('button', { name: EN.devices.pause }))
+      const revoke = await screen.findByRole('button', { name: EN.devices.revokeGrant })
+      port.request.mockImplementationOnce((request) =>
+        Promise.resolve({
+          ...uiMessage(),
+          revision: 3,
+          setup: {
+            viewId: request.viewId,
+            requestId: request.requestId,
+            grantRefusal: {
+              version: DEVICE_LIMITS.protocolVersion,
+              pairId: UI_PAIR_ID,
+              ownerId: OWNER_A,
+              reason,
+              retryable: false,
+            },
+          },
+        }),
+      )
+      fireEvent.click(revoke)
+      expect(await screen.findByRole('alert')).toHaveTextContent(grantRefusalText(reason))
+      expect(screen.queryByRole('button', { name: EN.devices.revokeGrant })).toBeNull()
+    },
+  )
+
+  it('shows all six quota dimensions and distinguishes heavy checks and artifact authority', () => {
+    const first = uiGrant()
+    const second = uiGrant({
+      grantId: 'f'.repeat(32),
+      quota: { ...first.quota, heavyChecks: 8, artifactBytes: 64 * 1024 * 1024 },
+    })
+    render(
+      <OwnerGrants
+        owners={[{ ownerId: OWNER_A, grants: [first, second] }]}
+        busy={false}
+        refusal={undefined}
+        onRevoke={vi.fn()}
+      />,
+    )
+    const rows = screen
+      .getAllByRole('button', { name: EN.devices.revokeGrant })
+      .map((button) => button.closest('li')!)
+    for (const [index, grant] of [first, second].entries()) {
+      const row = within(rows[index]!)
+      for (const [label, value] of [
+        [EN.devices.workers, formatNumber(grant.quota.workers)],
+        [EN.devices.processes, formatNumber(grant.quota.processes)],
+        [EN.devices.heavyChecks, formatNumber(grant.quota.heavyChecks)],
+        [EN.devices.tokens, formatNumber(grant.quota.tokens)],
+        [EN.devices.spend, formatUsd(grant.quota.spendUsd, 2)],
+        [EN.devices.artifact, formatBytes(grant.quota.artifactBytes)],
+      ]) {
+        expect(row.getByText(label!).nextElementSibling).toHaveTextContent(value!)
+      }
+    }
+    expect(rows[0]!.textContent).not.toBe(rows[1]!.textContent)
+  })
+
+  it('constrains a 177-module QR while retaining its viewBox and quiet zone', () => {
+    const matrix = {
+      size: 177,
+      modules: Array.from({ length: 177 }, () => Array.from({ length: 177 }, () => true)),
+    }
+    const { container } = render(<QrFigure text="public" encode={() => matrix} />)
+    const svg = container.querySelector('svg')!
+    expect(svg.getAttribute('viewBox')).toBe('0 0 185 185')
+    expect(svg.getAttribute('preserveAspectRatio')).toBe('xMidYMid meet')
+    expect(svg.style.maxWidth).toBe('100%')
+    expect(svg.style.height).toBe('auto')
+    const dark = svg.querySelectorAll('rect')[1]!
+    expect(dark.getAttribute('x')).toBe('4')
+    expect(dark.getAttribute('y')).toBe('4')
   })
 })

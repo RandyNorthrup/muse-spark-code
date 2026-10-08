@@ -35818,6 +35818,21 @@ paid/live call or physical-device qualification is introduced.
 
 ### M100 phase 2 — bound owners, discovery, hardened hosts, per-action control (D80, planned)
 
+**FIXM100P2U review repair (2026-10-07, linuxlt).** Repair all eight
+RVM100P2U findings within lane U and the brief's approved build inventory
+regions. Plan: add regressions and run them on `025b3accc`; register a
+measured lazy QR budget without changing existing caps; correct correlated
+harness facts and peer-bound actions; show throttling consistently, render
+refusal-only replies and all six grant quotas; make QR responsive and its
+optional loader honest/retryable. Prove red drills with byte-exact restoration,
+then verify committed work in a fresh `npm ci` clone (`CI=true`) with three
+owning runs at repository deadlines, five typechecks, changed-file lint/format,
+knip, duplication, localization/reference/host API, production budgets,
+six-scene browser/a11y proof and Devices keyboard checks. No merge, push,
+dependency install, paid call or real pairing. Aggregate quality and installed
+host qualification remain lane W's joined-tree obligation. Receipts and
+remaining wiring requests belong in lane U's certification section.
+
 **M100P2BASE integration scope (2026-10-07, macmini).** Merge only
 `23c67925f` into release head `9d1ab33c3` with `--no-ff`, preserving both
 branches and 0.15.0. Rebuild generated inventories. Verify committed work
@@ -41476,6 +41491,14 @@ is relaxed. No live or paid calls, push, rebase or merge.
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
+
+**FIXM100P2U scoped certification (2026-10-07).** The 90-minute rig brief
+requires fresh-clone owning suites and scoped static/build/browser checks;
+aggregate `npm run quality`, whole-repository coverage and installed-host
+qualification remain lane W's joined-tree obligation, as phase-2 ownership
+specifies. No gate, cap, timeout or assertion is weakened. Review-repair
+receipts and outstanding wiring are in lane U's section of
+`docs/certification/m100-phase2.md`.
 
 **MACSLOW bounded certification (2026-10-07, macmini).** The lane's shared
 rules prohibit aggregate quality and delegate it to the lead. Run complete

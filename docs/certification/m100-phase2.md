@@ -616,21 +616,14 @@ entries.
    Unresolved attempts and liability stay shown through every retry; an
    unbound (foreign) setup supplies no facts (phase-1 binding test
    caught this during the lane and now passes).
-7. **Keyboard, themes and width**: decision rows keep the phase-1
-   two-button contract (the single revoke button deliberately avoids
-   `.device-decisions`); new views add no keyboard traps and reuse
-   labelled native controls. **Blocked on this rig**:
-   `scripts/devices-keyboard.mjs`, `npm run test:a11y` and the harness
-   shots in four themes plus the pseudo-locale cannot start here — the
-   sandbox denies every `listen()` (`EPERM` on `127.0.0.1` and
-   wildcard), so `serveRepo` never starts, and a launched Chrome is
-   killed at once (even `kill` returns `EPERM`, pid 24846). The
-   keyboard script fails identically in the fresh clone below. The six
-   scenes are written reply-driven like the existing ones, every
-   fixture setup parses under the strict schemas (throwaway probe, then
-   removed), and the unit suite covers labels, focus order, roles and
-   the 320 px decision-row contract. These three checks plus shot
-   review must run on the lead's host before integration.
+7. **Keyboard, themes and width**: native controls and the two-button
+   decision-row contract remain. The original sandbox and fixture claims below
+   were invalidated by RVM100P2U; the repair runs on unrestricted `linuxlt`.
+   Real Chrome now proves all six scenes ready at 320 px, with correlated setup
+   replies and peer-bound owner/prompt actions. The additional startup repair
+   waits for the mounted Devices document because Devices deliberately sends
+   no chat-ready handshake. Four-theme a11y/keyboard and pseudo-locale receipts
+   are tracked in the review-repair record below.
 
 ### Red drills (each: break, owning tests fail, restore byte-exact)
 
@@ -649,41 +642,69 @@ entries.
   Restored:
   `fb488b6fe16932561766150162b704dc467f400093e23df7ab44c1d4035fa04b`.
 
-### Verification (worktree, default timeouts)
+### FIXM100P2U — review round 1 repair (2026-10-07, linuxlt)
 
-- `npx vitest run test/unit/devicesPhase2Views.test.tsx --maxWorkers=3`
-  three times: **21 passed each**, default timeouts.
-- Regression: `DevicesView` + `DevicesApp` + `devicesPanel` **112
-  passed**; `devices` + `devicePanel` + `deviceGrants` **131 passed**.
-- `npm run typecheck` (all five projects): exit **0**. `npm run lint`
-  (incl. `lint:css`; PSScriptAnalyzer reports its darwin skip): exit
-  **0**. Prettier on every changed file: clean. Plain `npx knip`: exit
-  **0** (only the two pre-existing configuration hints).
-  `npm run duplication`: **0 clones**. `npm run check:reference`:
-  current (**18 Devices entries**). `node scripts/check-l10n.mjs`:
-  **14 tables, 0 problems**. `npm run check:host-api`: **0 problems**.
-- `npm run build`: exit **0** with caps unchanged — Devices browser
-  closure **39.1/50 KiB**, chat startup (`main.js` + static imports)
-  **733.9/900 KiB**, `dist/devices.js` **82.2/100 KiB**. The proposed
-  encoder (+21,323 bytes minified, lane D's figure) lands in the lazy
-  `qr/` chunk, not the closure, so both caps stand.
-- Fresh-clone receipt: `/tmp/m100p2u-verify`, cloned from this worktree
-  at `ed858d811`, `CI=true npm ci` exit **0** (clean cache dir; the
-  default npm cache is root-owned on this rig). With `CI=true` at
-  default timeouts: three consecutive owning runs **21 passed each**;
-  `npm run typecheck` (all five projects), `npm run lint` (incl.
-  `lint:css`), prettier on the commit's files, plain `npx knip` (only
-  the two pre-existing hints), `npm run duplication` (**0 clones**),
-  `npm run check:reference` (current, **18 Devices entries**),
-  `node scripts/check-l10n.mjs` (**14 tables, 0 problems**),
-  `npm run check:host-api` (**0 problems**), `npm run build` (all
-  budgets ok: Devices **39.1/50 KiB**, startup **733.9/900 KiB**,
-  `dist/devices.js` **82.2/100 KiB**): all exit **0**.
-  `scripts/devices-keyboard.mjs` fails there identically (`listen
-EPERM`), so the keyboard, a11y and shot checks stay with the lead's
-  host.
+The original successful-build and schema-only harness receipts are superseded:
+RVM100P2U reproduced an unlisted QR surface, invalid initial setup, unbound
+owner/prompt actions and no real-browser readiness. This record reports the
+repaired committed tree. Shared-file approvals come from the rig brief;
+`qrcode-generator@2.0.4` remains lane W's install, with no dependency change here.
+No model attempts, inference spend, real pairing or non-loopback listeners.
 
-### Request to the lead: QR encoder dependency (proposed, not installed)
+| Finding | Root repair and regression                                                                                                                                                                                                                                          |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 P2    | `scripts/lib/webviewBundles.mjs`: QR inventory derives into the split gate, separate 25 KiB cap; `webviewBundles.test.mjs` proves complete closure and unchanged 50 KiB legacy/Devices caps with Windows paths.                                                     |
+| 2 P2    | `test/harness/index.html`: initial states omit setup, replies alone supply correlated facts; `devicesPhase2Harness.test.mjs` tests all six actual fixture declarations and Chrome readiness. Devices startup waits for its mounted document rather than chat-ready. |
+| 3 P2    | Owner/step-up harness scenes click peer-bound Pause; same suite asserts selectors and real owner/prompt readiness.                                                                                                                                                  |
+| 4 P2    | `DeviceCard.tsx` receives the observation independently of action facts and matches its pair; combined `devicesPhase2Views.test.tsx` tests matching and foreign throttles, status and unknown time.                                                                 |
+| 5 P2    | `DevicesView.tsx` mounts `OwnerGrants` for a bound refusal alone; same suite tests revoke then refusal-only `grant-expired` and `owner-mismatch`, with no stale revoke button.                                                                                      |
+| 6 P2    | `OwnerGrants.tsx` labels all six quota dimensions using existing translations and Intl formats; two grants differing only in heavy checks/artifact bytes visibly differ.                                                                                            |
+| 7 P2    | `QrFigure.tsx` clamps SVG width and auto height, preserves aspect ratio/viewBox/quiet zone; unit regression plus real 177-module matrix in a 320 px harness.                                                                                                        |
+| 8 P3    | `DevicesApp.tsx` skips QR rendering/import without an encoder; configured QR announces loading, keeps selectable text, reports failure with Retry, and owns a fresh lazy intent on the next Pair. `devicesQrLoading.test.tsx` and `DevicesApp.test.tsx` prove it.   |
+
+**Base failures on `025b3accc`, before implementation changes:** existing
+phase-2 suite plus six regressions **5 failed / 22 passed**; budget suite
+**1 failed / 12 passed**; corrected QR lifecycle suite **2 failed / 1 passed**;
+App suite **1 failed / 19 passed**; harness suite **14 failed / 1 passed**
+(5 initial snapshots, 2 peer actions, all 6 scene readiness and the large-QR
+browser case). Combined: **23 failed / 55 passed**, five files. An initial
+loader assertion compared JSON property order and caused one extra unrelated
+failure; corrected to semantic invitation equality and rerun on unchanged base.
+The QR browser base readiness failure also exposed the missing document startup;
+the responsive drill below independently proves the actual width guard fires.
+
+**Drills:** each temporarily removes a guard, runs its targeted test (or real
+split gate), checks nonzero exit, then restores exact source bytes and confirms
+SHA-256. Target selection excludes unrelated cases; final owning verification
+runs every test without selection, skips or timeout overrides.
+
+| Drill        | Red result                 | Restored SHA-256                                                   |
+| ------------ | -------------------------- | ------------------------------------------------------------------ |
+| 1-budget     | split gate failed (exit 1) | `a4dfe9ab8ebd21905470e4f81a11755c4126f6fa8d44717b357b0066bf82e16c` |
+| 2-initial    | 6 failed                   | 9 skipped (15) (exit 1)                                            | `87c78e0044cb41ee438ad2f9f912004eb98b92927fca0d9a952cb1d0d1435269` |
+| 3-binding    | 1 failed                   | 1 passed                                                           | 13 skipped (15) (exit 1)                                           | `87c78e0044cb41ee438ad2f9f912004eb98b92927fca0d9a952cb1d0d1435269` |
+| 4-throttle   | 1 failed                   | 1 passed                                                           | 25 skipped (27) (exit 1)                                           | `62b7a0e5e38b54bf3bc66109897913c655a2bf8cc694bcbe34780fe4bf132219` |
+| 5-refusal    | 2 failed                   | 25 skipped (27) (exit 1)                                           | `62b7a0e5e38b54bf3bc66109897913c655a2bf8cc694bcbe34780fe4bf132219` |
+| 6-quotas     | 1 failed                   | 26 skipped (27) (exit 1)                                           | `7d06b97407b5f73e4f33a78e44c9c2f63c082c405f33bac3565281bd5d304495` |
+| 7-responsive | 1 failed                   | 14 skipped (15) (exit 1)                                           | `6fe55fdaece29a492df162bc1d62256d51c03fe5290c976925512c71a3760e1d` |
+| 8-next-pair  | 1 failed                   | 2 skipped (3) (exit 1)                                             | `f5cc7e1435bd465dd2fe97f973144be0c0b261fa3ae470d9555a5abcf675b0fe` |
+| 8-no-encoder | 1 failed                   | 19 skipped (20) (exit 1)                                           | `f5cc7e1435bd465dd2fe97f973144be0c0b261fa3ae470d9555a5abcf675b0fe` |
+
+**Worktree receipts:** five typechecks and changed-file ESLint exit 0.
+Production `npm run build` exit 0, caps unchanged: chat startup **733.9/900
+KiB**, legacy deferred **31.9/50 KiB**, Devices browser **40.1/50 KiB**,
+QR **0.9/25 KiB**, host Devices **82.2/100 KiB**. The approved encoder's
+21,323-byte estimate plus the figure fits the new 25 KiB budget, but its
+installed measurement remains W's responsibility. All six Chrome scenes and
+large-QR measurement pass; restored owning batches pass **43 + 113 = 156 tests**, without test selection or timeout overrides. Plain knip (two inherited hints), duplication (**0 clones**), l10n (**14 tables, 0 problems**), reference and host API all exit **0**.
+
+**Fresh clone:** required next: `npm ci`, `CI=true`, six owning files three
+full passes at repository deadlines, five typechecks, changed-file ESLint and
+prettier, plain knip, duplication, l10n, reference, host API, production build,
+six-scene a11y and Devices keyboard. Results are added after the first code
+commit; nothing pending is reported as certified.
+
+### Lane W handoff: approved QR encoder dependency (not installed here)
 
 - Purpose: encode the exact public invite text (`fakeQrInviteText`
   output) into a module matrix inside the lazy `qr/` chunk, behind the
@@ -692,7 +713,7 @@ EPERM`), so the keyboard, a11y and shot checks stay with the lead's
 - Package: `qrcode-generator@2.0.4`, MIT, zero dependencies, no peers,
   its own types, no network or native code (lane D's measurement).
 - Size: 21,323 bytes minified into the lazy chunk; Devices closure
-  stays **39.1/50 KiB**, chat startup **733.9/900 KiB**.
+  measures **40.1/50 KiB**, chat startup **733.9/900 KiB** on the repaired tree.
 - Peers/dependencies: confirmed empty by `npm view
 qrcode-generator@2.0.4` on 2026-10-07 (`dependencies {}`,
   `peerDependencies {}` print nothing; `license MIT`, `version 2.0.4`,
@@ -706,9 +727,6 @@ qrcode-generator@2.0.4` on 2026-10-07 (`dependencies {}`,
   `throttled`, `stepUp` and `grantRefusal` host values behind the new
   setup facts; adopt or replace `fakeQrInviteText` with lane D's
   `encodeQrInviteText` (byte-for-byte contract above).
-- Run on the host before integration: `scripts/devices-keyboard.mjs`,
-  `npm run test:a11y`, and the six new harness scenes with shots in all
-  four themes and the pseudo-locale under
-  `docs/certification/m100-p2-u-shots/` (look at every image before
-  recording it). The fresh-clone receipt above already covers the
-  server-free gates.
+- Lane W retains real-host wiring, the actual encoder install/measurement and
+  installed-host/four-device qualification. The repair's fresh-clone browser,
+  a11y and keyboard receipts replace the original sandbox-blocked requests.

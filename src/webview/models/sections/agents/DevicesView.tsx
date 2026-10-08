@@ -268,12 +268,13 @@ export function DevicesView({
                 <DeviceCard
                   device={device}
                   setup={boundSetup}
+                  throttled={setup?.throttled}
                   isUnsupportedHost={setup?.failure === 'unsupported-host'}
                   boards={boards}
                   busy={busy}
                   send={send}
                 />
-                {boundSetup?.owners !== undefined && (
+                {(boundSetup?.owners !== undefined || boundSetup?.grantRefusal !== undefined) && (
                   <OwnerGrants
                     owners={boundSetup.owners}
                     busy={busy}

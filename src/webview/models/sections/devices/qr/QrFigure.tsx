@@ -50,6 +50,8 @@ export default function QrFigure({
       role="img"
       aria-label={UI_TEXT.devices.qrCodeName}
       viewBox={`0 0 ${extent} ${extent}`}
+      preserveAspectRatio="xMidYMid meet"
+      style={{ maxWidth: '100%', height: 'auto' }}
       fill={MODULE}
       width={cells * MODULE_PX}
       height={cells * MODULE_PX}

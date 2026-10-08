@@ -7,6 +7,7 @@ import type {
   DeviceHostMessage,
   DevicesPanelState,
 } from '../../../../shared/devicesPanel'
+import type { DeviceThrottled } from '../../../../shared/devices'
 import { webviewKey } from '../../../../shared/keybindings'
 import type { DeviceAction } from './DevicePairing'
 import { deviceObservationText, deviceStatusText } from './devicePresentation'
@@ -25,6 +26,7 @@ export interface DeviceBoardBinding {
 export function DeviceCard({
   device,
   setup,
+  throttled,
   isUnsupportedHost = false,
   boards,
   busy,
@@ -32,6 +34,7 @@ export function DeviceCard({
 }: {
   readonly device: DeviceRow
   readonly setup: DeviceHostMessage['setup']
+  readonly throttled?: DeviceThrottled | undefined
   readonly isUnsupportedHost?: boolean
   readonly boards: readonly DeviceBoardBinding[]
   readonly busy: boolean
@@ -43,12 +46,22 @@ export function DeviceCard({
   const act = (action: DeviceAction) => {
     void send(action)
   }
+  const observation = throttled?.pairId === device.pairId ? throttled : undefined
   const canResume =
     device.unresolvedAttempts === 0 && (device.status === 'connected' || device.status === 'paused')
   return (
     <article className="device-card" aria-labelledby={titleId}>
       <h2 id={titleId}>{device.label}</h2>
-      <p role="status">{deviceStatusText(device.status)}</p>
+      <p role="status">
+        {observation === undefined ? deviceStatusText(device.status) : UI_TEXT.devices.throttled}
+      </p>
+      {observation !== undefined && (
+        <p>
+          {fill(UI_TEXT.devices.unknownSince, {
+            time: deviceObservationText(observation.unknownSince),
+          })}
+        </p>
+      )}
       {device.status === 'incompatible' && <p>{UI_TEXT.devices.protocolMismatch}</p>}
       <DeviceFingerprint label={UI_TEXT.devices.fingerprint} fingerprint={device.fingerprint} />
       {device.lastObservedAt !== undefined && (
