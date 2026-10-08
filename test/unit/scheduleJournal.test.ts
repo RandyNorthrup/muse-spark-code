@@ -70,6 +70,22 @@ function pauseActivation<T>(fs: MemoryScheduleFs, work: () => Promise<T>) {
 }
 
 describe('bounded schedule generations', () => {
+  it('rereads and rejects a changed base snapshot after warming its validation cache', async () => {
+    const fs = new MemoryScheduleFs()
+    const journal = counter(fs)
+    await journal.increment()
+    await journal.read()
+    const file = `counter/${generationOf(fs, 'counter')}/state.json`
+    const snapshot = z
+      .object({
+        revision: z.number(),
+        value: z.unknown(),
+        fencingToken: z.optional(z.number()),
+      })
+      .parse(JSON.parse(fs.files.get(file) ?? 'null'))
+    fs.files.set(file, JSON.stringify({ ...snapshot, value: { values: { n: 'corrupt' } } }))
+    await expect(journal.read()).rejects.toThrow()
+  })
   it.each(['read', 'unchanged transaction'] as const)(
     'refuses an in-flight stale commit after a %s takeover acquires a journal token',
     async (kind) => {

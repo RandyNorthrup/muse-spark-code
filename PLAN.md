@@ -18152,6 +18152,8 @@ numbers. Research: `docs/certification/m97-research.md`.
 
 ## 3. Open questions (need the owner)
 
+INT0170B integration question (2026-10-07): the M115 v2 panel bridge exists but is not passed from extension activation to the conversation controller. Its current factory opens the standalone runtime binding, whose OS credential/host lifetime differs from VS Code SecretStorage and the active editor session. Binding that factory directly would select the wrong owner/credential adapter. The combined editor binding requires a scoped host adapter; this lane records the gap instead of claiming v2 editor delivery is complete. The existing schedule path and its tests remain.
+
 - **Q-TRAIN15G-DIET1 (2026-10-06):** main’s exact 733.8/32.1-KiB
   regression capture does not fit the integrated train, although unchanged
   900/50-KiB production gates pass. The rig brief approves only the universal
@@ -44007,6 +44009,8 @@ lane A's first step.
 **INT0170B browser test stop (2026-10-07).** The first repair waited for native mount and closed failed pages but retained 61 failures. A second repair supplied the required `settings.schedules` fake-host field: the panel and capture files pass, while six conversation-review cases still inspect `.tool-toggle` before deferred rows appear. The common two-failed-fixes stop applies to those six cases; no additional timing rewrite or deadline change is attempted.
 
 **INT0170B render-cost fixture stop (2026-10-07).** Awaiting the deferred row failed while the group remained folded; explicitly opening that group still failed the fixture's `/Read t3.ts/` accessible-name lookup. The common two-failed-fixes stop applies; the original row-count and highlight assertions and default deadline remain. This isolated fixture needs a reviewed follow-up, not a performance pass claim.
+
+**INT0170B exec archive fixture stop (2026-10-07).** Sharing schedule usage through the CLI formatter cleared installed help checks but the exec private fixture still lacked new bundles. Copying the real built JS inputs makes all remaining process/admission cases pass except the single shipping-schema assertion, which requires legacy key-major archive fields from a leaf-major archive. The shared two-failed-fixes stop applies to that remaining case; no archive assertion or production format is weakened. Exact final Linux/package commands still execute it.
 
 **INT0170B startup ratchet stop (2026-10-07).** The shared stop rule applies after two unsuccessful repairs of the merged first-paint ratchet: lazy tool rows recover about 13 KiB; first-use schedule channel recovers another KiB. The owning regression still sees 751,494 bytes against 751,411.2 (733.8 KiB), and the legacy deferred inventory is 32.9 KiB against its 32.1 KiB review ratchet because diff.ts is newly deferred and shared with ReviewPane. The 900/50 KiB hard build caps pass. Neither ratchet is relaxed; this path remains blocked for owner review while other requested repairs continue.
 

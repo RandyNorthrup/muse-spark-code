@@ -289,6 +289,7 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
       .object({
         acpUsage: z.string(),
         acpChatGpt: z.object({ usage: z.string() }),
+        scheduleV2: z.object({ runtime: z.object({ usage: z.string() }) }),
         helpReferenceTitle: z.string(),
         referenceIntro: z.string(),
         promptLibrary: z.string(),
@@ -313,6 +314,10 @@ describe('the ACP agent over stdio (M63)', { timeout: TEST_TIMEOUT_MS }, () => {
       ...UI_TEXT,
       ...translation,
       acpChatGpt: { ...UI_TEXT.acpChatGpt, ...translation.acpChatGpt },
+      scheduleV2: {
+        ...UI_TEXT.scheduleV2,
+        runtime: { ...UI_TEXT.scheduleV2.runtime, ...translation.scheduleV2.runtime },
+      },
     }
     const help = spawnSync(process.execPath, [AGENT, '--help'], {
       encoding: 'utf8',

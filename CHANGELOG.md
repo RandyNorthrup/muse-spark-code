@@ -7,6 +7,9 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Reuse a validated schedule-journal base only while its exact serialized
+  bytes match; reread storage and validate every change and lease as before.
+
 - Include schedule usage in the shared CLI help formatter and keep the native
   theme bridge within its existing budget while validating original role keys.
 

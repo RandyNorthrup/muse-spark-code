@@ -238,53 +238,10 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
       devDependencies: { '@napi-rs/keyring': '2.1.0' },
     }),
   )
-  for (const bundle of [
-    'acp',
-    'headless',
-    'sharingRuntime',
-    // M112: the lazy ACP forms, the private registry and the deferral note.
-    'acpQuestions',
-    'runtimeQuestions',
-    'questionNotes',
-    // M114 F: the runtime-only font installer.
-    'fontsInstall',
-    'modelApi',
-    'modelApiHooks',
-    'modelApiMcp',
-    'runtimeAccounting',
-    'runtimeEngine',
-    'providerPolicy',
-    'modelApiBoundaries',
-    'providers',
-    'subscriptions',
-    'configuredProviders',
-    'reviewer',
-    'legalScan',
-    'team',
-    'teamScheduler',
-    'teamRunners',
-    // M91: the adapters, the hook and MCP-form runtime, the window's hook runner.
-    'foreignHooks',
-    'hookRuntime',
-    'extensionHooks',
-    'recorder',
-    'reference',
-    'reporting',
-    'reportingNetwork',
-    'reportingDestinations',
-    'uiText',
-    'uiTextRuntime',
-    'uiTextHooks',
-    'uiTextSurfaces',
-    'wire',
-    'validation',
-    'searchWorker',
-    'imageResizeWorker',
-    'pageWorker',
-    'usageService',
-    'usageCompanion',
-  ]) {
-    cpSync(path.join(BUILD_ROOT, 'dist', `${bundle}.js`), path.join(dir, 'dist', `${bundle}.js`))
+  const productionFiles = readdirSync(path.join(BUILD_ROOT, 'dist'))
+  for (const file of productionFiles) {
+    if (file.endsWith('.js'))
+      cpSync(path.join(BUILD_ROOT, 'dist', file), path.join(dir, 'dist', file))
   }
   cpSync(
     path.join(BUILD_ROOT, 'dist/providerCatalog.json'),

@@ -82,6 +82,10 @@ export function createScheduleJournal<T extends Collections>(
   parse: (input: unknown) => T,
   initial: T,
 ) {
+  // Repeated lease acquisition rereads the same bounded base snapshot.
+  // Cache only its validated bytes; every read still observes disk changes.
+  let snapshotCache:
+    { content: string; revision: number; value: T; fencingToken?: number | undefined } | undefined
   const pointerFile = `${directory}/current.json`
   const fences = `generationFences/${createHash('sha256').update(directory).digest('hex')}`
   const pointer = async () => {
@@ -128,9 +132,13 @@ export function createScheduleJournal<T extends Collections>(
     const folder = `${directory}/${active.generation}`
     const content = await fs.read(`${folder}/state.json`)
     if (content === undefined) throw new Error('scheduleIndexMissing')
-    const snapshot = envelopeSchema.parse(parseScheduleStoredJson(content))
+    if (snapshotCache?.content !== content) {
+      const envelope = envelopeSchema.parse(parseScheduleStoredJson(content))
+      snapshotCache = { ...envelope, content, value: parse(envelope.value) }
+    }
+    const snapshot = snapshotCache
     if (snapshot.revision !== active.revision) throw new Error('scheduleIndexRevisionMismatch')
-    const next: Collections = structuredClone(parse(snapshot.value))
+    const next: Collections = structuredClone(snapshot.value)
     let revision = snapshot.revision
     let bytes = 0
     let ops = 0
