@@ -87,7 +87,15 @@ async function swapScene() {
     await actual.rename(resourcesRoot(data), path.join(root, 'moved'))
     await symlink(other, resourcesRoot(data), 'junction')
   }
-  return { other, journal, swap }
+  return { data, other, journal, swap }
+}
+/** The production recorder on its own data folder, recording with the host's consent on. */
+function windowRecorder(folder: string) {
+  return resourceHistoryRecorder(
+    { dataFolder: folder, isEnabled: () => true },
+    { read: () => Promise.resolve([]) },
+    vi.fn(),
+  )
 }
 
 describe('RVM107W2 P1: removal is confined to the validated directory', () => {
@@ -102,15 +110,9 @@ describe('RVM107W2 P1: removal is confined to the validated directory', () => {
   })
 
   it('makes the shared removal primitive itself refuse a swap right before rm', async () => {
-    const root = await temporary()
-    const data = path.join(root, 'data')
-    const other = path.join(root, 'unrelated')
-    await mkdir(path.join(other, '2026-01-01'), { recursive: true })
-    await writeFile(path.join(other, '2026-01-01', 'proof'), 'keep')
-    await mkdir(path.join(resourcesRoot(data), '2026-01-01'), { recursive: true })
+    const { data, other, swap } = await swapScene()
     vi.mocked(fsPromises.rm).mockImplementationOnce(async (...args) => {
-      await actual.rename(resourcesRoot(data), path.join(root, 'moved'))
-      await symlink(other, resourcesRoot(data), 'junction')
+      await swap()
       await actual.rm(...args)
     })
     const fs = new NodeUsageFs(data)
@@ -140,11 +142,7 @@ describe('RVM107W2 P2: consent, delete boundary, retries, disposal and read boun
   it('never writes a reading collected while history was off after history is turned on', async () => {
     const folder = await temporary()
     await writeFile(path.join(folder, USAGE_SETTINGS_FILE), '{"enabled":false,"days":365}')
-    const recorder = resourceHistoryRecorder(
-      { dataFolder: folder, isEnabled: () => true },
-      { read: () => Promise.resolve([]) },
-      vi.fn(),
-    )
+    const recorder = windowRecorder(folder)
     // The reviewer's sequence: an open minute collected while off, then consent, then a flush.
     recorder.sample(historyStatus(Date.now()))
     await writeFile(path.join(folder, USAGE_SETTINGS_FILE), '{"enabled":true,"days":365}')
@@ -155,11 +153,7 @@ describe('RVM107W2 P2: consent, delete boundary, retries, disposal and read boun
 
   it('drops a collector open minute when Delete history completes through the usage page', async () => {
     const folder = await temporary()
-    const recorder = resourceHistoryRecorder(
-      { dataFolder: folder, isEnabled: () => true },
-      { read: () => Promise.resolve([]) },
-      vi.fn(),
-    )
+    const recorder = windowRecorder(folder)
     // Collected before the delete and still open in the collector.
     recorder.sample(historyStatus(Date.now() - 1000))
     const posted: unknown[] = []

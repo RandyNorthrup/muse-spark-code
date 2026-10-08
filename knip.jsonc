@@ -109,6 +109,7 @@
     "test/unit/**/*.test.{ts,tsx,mjs}",
     // Standalone browser checks invoked by path; usageHost is bundled by them.
     "test/harness/usage-check.mjs",
+    "test/harness/usage-resource-scenes.mjs",
     "test/harness/usage-companion.mjs",
     "test/harness/usage-accounts.mjs",
     "test/harness/usage-contrast.mjs",

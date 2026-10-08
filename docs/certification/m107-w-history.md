@@ -170,3 +170,38 @@ daily rows: **12 of 12 failed while mutated**, all restored identical.
 Kubuntu runs on the repaired tree: 20 owning files, **361 passed, 1 failed**
 (an older bounds test whose fake returned zero bytes; it now reads real bytes)
 before the final fixes; the final run is recorded below.
+
+Final Kubuntu run on the repaired tree (`4edd06c86` + `d17abcddf`):
+**24 files, 387 passed, 0 failed**; after the duplication refactor the four
+owning files ran again: **32 passed**.
+
+FIXM107W2 gates, host: `npm run typecheck` (five projects) **0**; ESLint
+`--max-warnings=0` on every changed source/test/script **0**; `build` **0**
+(size, split, host-globals, notices); `cycles` **0**; `check:l10n` **0**
+(14 UI and 14 usage tables, 0 problems); `check:reference` **0**. First-pass
+failures, then fixed and rerun to **0**: Prettier `--check` (the runner had
+passed the 24 PNG shots, which have no parser; text files only: 0); knip (the
+new scene script, now a harness entry in `knip.jsonc`: 0); jscpd (three
+clones: the journal's two JSON readers now share `readJson`, the review tests
+share `swapScene`/`windowRecorder`: 0); `check:host-api` (four new importers,
+all `src/runtime/usage/resourceResetFile.ts`: `node:fs` 46 → 47,
+`node:fs/promises` 81 → 82, `node:path` 140 → 141, `node:timers/promises`
+18 → 19; regenerated with `--write`, reviewed, recheck 0).
+
+| Artifact / closure               | 352e040dd KiB | FIXM107W2 KiB | Cap KiB |
+| -------------------------------- | ------------: | ------------: | ------: |
+| `dist/resourceGovernor.js`       |         110.5 |         119.3 |     125 |
+| `dist/resourceAdmission.js`      |           1.9 |           2.0 |      25 |
+| `dist/usageService.js`           |          88.8 |          97.0 |     100 |
+| `dist/usagePanel.js`             |          71.8 |          72.4 |      75 |
+| `dist/usageCompanion.js`         |          43.3 |          43.8 |      50 |
+| `dist/webview/usage.js` + static |         376.8 |         377.5 |     500 |
+| Usage body (lazy)                |          36.2 |          36.2 |      50 |
+| Resource history closure         |          44.4 |          46.6 |      50 |
+| Surface English (deferred table) |          24.8 |          24.8 |      25 |
+| Webview startup + static chunks  |         732.6 |         732.7 |     900 |
+| `dist/extension.js`              |         509.7 |         509.7 |     600 |
+
+`usageService.js` (97.0/100) and `resourceGovernor.js` (119.3/125) are now the
+tightest caps on this path; no cap changed. Sizes are from the production build of
+`4edd06c86`; the later `readJson` refactor only removes duplicated code.

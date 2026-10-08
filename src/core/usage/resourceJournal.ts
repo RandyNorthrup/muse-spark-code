@@ -280,6 +280,29 @@ export class ResourceJournal implements ResourceRecordSink {
     return next
   }
 
+  /**
+   * One whole JSON file within `maxBytes` and the remaining read `budget`,
+   * charged the bytes actually read; a vanished file is undefined.
+   */
+  private async readJson(
+    file: string,
+    maxBytes: number,
+    oversize: ResourceJournalFailure,
+    budget: number,
+  ): Promise<{ value: unknown; bytes: number } | undefined> {
+    const stat = await this.fs.stat(file)
+    if (stat === undefined) return undefined
+    if (stat.size > maxBytes) throw new ResourceJournalError(oversize)
+    if (stat.size > budget) throw new ResourceJournalError('resourceHistoryTooLarge')
+    const content = await this.fs.read(file, 0, stat.size)
+    if (content.byteLength > budget) throw new ResourceJournalError('resourceHistoryTooLarge')
+    try {
+      return { value: JSON.parse(decoder.decode(content)), bytes: content.byteLength }
+    } catch {
+      throw new ResourceJournalError('resourceHistoryCorrupt')
+    }
+  }
+
   /** A day's journal files, each collector's generations in order. */
   private async dayFiles(day: string) {
     const names = await this.fs.list(`${RESOURCE_JOURNAL_ROOT}/${day}`)
@@ -322,20 +345,15 @@ export class ResourceJournal implements ResourceRecordSink {
     for (const name of names) {
       const month = MONTH_PATTERN.exec(name)?.[1]
       if (month === undefined) continue
-      const file = `${ROLLUPS_ROOT}/${name}`
-      const stat = await this.fs.stat(file)
-      if (stat === undefined) continue
-      if (stat.size > RESOURCE_JOURNAL_FILE_MAX_BYTES || bytes + stat.size > budget)
-        throw new ResourceJournalError('resourceHistoryTooLarge')
-      const content = await this.fs.read(file, 0, stat.size)
-      bytes += content.byteLength
-      if (bytes > budget) throw new ResourceJournalError('resourceHistoryTooLarge')
-      let value: unknown
-      try {
-        value = JSON.parse(decoder.decode(content))
-      } catch {
-        throw new ResourceJournalError('resourceHistoryCorrupt')
-      }
+      const read = await this.readJson(
+        `${ROLLUPS_ROOT}/${name}`,
+        RESOURCE_JOURNAL_FILE_MAX_BYTES,
+        'resourceHistoryTooLarge',
+        budget - bytes,
+      )
+      if (read === undefined) continue
+      bytes += read.bytes
+      const value = read.value
       if (isNewer(value)) {
         newer.add(month)
         continue
@@ -430,21 +448,15 @@ export class ResourceJournal implements ResourceRecordSink {
     for (const name of names) {
       const writer = LIVE_PATTERN.exec(name)?.[1]
       if (writer === undefined) continue
-      const file = `${LIVE_ROOT}/${name}`
-      const stat = await this.fs.stat(file)
-      if (stat === undefined) continue
-      if (stat.size >= USAGE_RECORD_MAX_BYTES)
-        throw new ResourceJournalError('resourceHistoryCorrupt')
-      if (bytes + stat.size > budget) throw new ResourceJournalError('resourceHistoryTooLarge')
-      const content = await this.fs.read(file, 0, stat.size)
-      bytes += content.byteLength
-      if (bytes > budget) throw new ResourceJournalError('resourceHistoryTooLarge')
-      let value: unknown
-      try {
-        value = JSON.parse(decoder.decode(content))
-      } catch {
-        throw new ResourceJournalError('resourceHistoryCorrupt')
-      }
+      const read = await this.readJson(
+        `${LIVE_ROOT}/${name}`,
+        USAGE_RECORD_MAX_BYTES - 1,
+        'resourceHistoryCorrupt',
+        budget - bytes,
+      )
+      if (read === undefined) continue
+      bytes += read.bytes
+      const value = read.value
       if (isNewer(value)) continue
       const result = liveSchema.safeParse(value)
       if (!result.success) throw new ResourceJournalError('resourceHistoryCorrupt')
