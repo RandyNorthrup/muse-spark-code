@@ -3,9 +3,9 @@
 // Identity is the pair key, not the address: the session is scoped to one
 // pairId and no function here takes an endpoint. Reconnect reconciles the
 // original attempt identities, resends only unacknowledged envelopes, and
-// re-dispatches only from the last acknowledged checkpoint under a new
-// epoch. A quarantined ack stops a resend but never advances the resume
-// position: only accepted content is resumed from.
+// re-dispatches from the last acknowledged checkpoint under a new epoch,
+// retaining the lease's opening checkpoint if no result was accepted.
+// A quarantined ack stops a resend but never advances the resume position.
 import * as z from 'zod/mini'
 import { DEVICE_LIMITS } from '../../shared/constants'
 import {
@@ -104,7 +104,7 @@ export class DeviceReconnectSession {
     return structuredClone(next)
   }
 
-  /** G6: re-dispatch only after expiry, under a new epoch, from the last acknowledged checkpoint. */
+  /** G6: after expiry, resume accepted progress or the opening checkpoint under a new epoch. */
   public reopenAttempt(
     identity: DeviceAttemptIdentity,
     envelopes: readonly DeviceResultEnvelope[],
@@ -113,8 +113,9 @@ export class DeviceReconnectSession {
     leaseMs: number,
   ): DeviceEpochState {
     const current = this.leaseOf(identity)
-    const checkpoint = lastAcknowledgedCheckpoint(current.identity, envelopes, acks, current.epoch)
-    if (checkpoint === undefined) throw new DeviceEpochError('uncertain')
+    const checkpoint =
+      lastAcknowledgedCheckpoint(current.identity, envelopes, acks, current.epoch) ??
+      current.checkpoint
     const next = reopenLease(current, checkpoint, now, leaseMs)
     this.leases.set(next.identity.attemptId, next)
     return structuredClone(next)
@@ -147,8 +148,8 @@ export function partitionByAck(
  * The resume position for an attempt: the result digest of its acked
  * envelope at the highest acked epoch. Only accepted content advances the
  * position; a quarantined ack stops its resend without moving it. Undefined
- * when nothing was acknowledged: without it there is no checkpoint to
- * re-dispatch from.
+ * when nothing was acknowledged: reopening then keeps the lease's opening
+ * checkpoint.
  */
 export function lastAcknowledgedCheckpoint(
   identity: DeviceAttemptIdentity,

@@ -1,9 +1,14 @@
 import { writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { DEVICE_LIMITS, UI_TEXT } from '../../src/shared/constants'
 import { fill, formatTime } from '../../src/shared/l10n/text'
-import type { DeviceAttemptIdentity, DeviceResultAck } from '../../src/shared/devices'
+import type {
+  DeviceAttemptIdentity,
+  DeviceResultAck,
+  DeviceResultEnvelope,
+} from '../../src/shared/devices'
+import { AttemptJournal, DeviceJournalError } from '../../src/core/devices/attemptJournal'
 import { ResultChannel } from '../../src/core/devices/resultChannel'
 import { DeviceEpochError } from '../../src/core/devices/epochs'
 import {
@@ -102,7 +107,7 @@ describe('pair-keyed reconnect session', () => {
     expect(session.stateOf(ID)?.epoch).toBe(1)
   })
 
-  it('refuses reopening without an acknowledged checkpoint in the expired epoch', () => {
+  it('keeps the opening checkpoint when only a future epoch was acknowledged', () => {
     const session = new DeviceReconnectSession(PAIR)
     session.openAttempt(ID, CHECKPOINT, NOW, LEASE_MS)
     session.expireAttempt(ID, NOW + LEASE_MS)
@@ -115,12 +120,14 @@ describe('pair-keyed reconnect session', () => {
       disposition: 'accepted',
       acknowledgedAt: NOW,
     }
-    refusesWith(() => session.reopenAttempt(ID, [], [], NOW + LEASE_MS, LEASE_MS), 'uncertain')
-    refusesWith(
-      () => session.reopenAttempt(ID, [envelope(2)], [ack], NOW + LEASE_MS, LEASE_MS),
-      'uncertain',
-    )
-    expect(session.stateOf(ID)?.epoch).toBe(1)
+    const next = session.reopenAttempt(ID, [envelope(2)], [ack], NOW + LEASE_MS, LEASE_MS)
+    expect(next).toMatchObject({
+      identity: ID,
+      epoch: 2,
+      checkpoint: CHECKPOINT,
+      status: 'current',
+    })
+    expect(session.stateOf(ID)).toEqual(next)
   })
 
   it('bounds restored and freshly opened lease identities', () => {
@@ -230,9 +237,71 @@ describe('resume from acknowledgements', () => {
   })
 })
 
-const lane = useExecutionFixture('check')
+describe('outage recovery after lease expiry', () => {
+  it.each(['absent', 'quarantined at expiry'])(
+    're-dispatches from the opening checkpoint when the old result is %s',
+    async (resultState) => {
+      const session = new DeviceReconnectSession(PAIR)
+      session.openAttempt(ID, CHECKPOINT, NOW, LEASE_MS)
+      session.notePollFailed(ID, NOW)
+      const now = NOW + LEASE_MS
+      const channel = new ResultChannel(
+        memoryStore(),
+        (identity) => session.stateOf(identity),
+        () => now,
+      )
+      const old = envelope(1)
+      const envelopes: DeviceResultEnvelope[] = []
+      const acks: DeviceResultAck[] = []
+      if (resultState === 'quarantined at expiry') {
+        const ack = await channel.publish(old)
+        expect(ack.disposition).toBe('quarantined')
+        envelopes.push(old)
+        acks.push(ack)
+      }
+      expect(lastAcknowledgedCheckpoint(ID, envelopes, acks)).toBeUndefined()
+      session.expireAttempt(ID, now)
+      const next = session.reopenAttempt(ID, envelopes, acks, now, LEASE_MS)
+      expect(next).toMatchObject({
+        identity: ID,
+        epoch: 2,
+        checkpoint: CHECKPOINT,
+        status: 'current',
+        leaseExpiresAt: now + LEASE_MS,
+      })
+      expect(session.stateOf(ID)).toEqual(next)
+      refusesWith(() => session.reopenAttempt(ID, [], [], now, LEASE_MS), 'lease-held')
+      const late = await channel.publish(old)
+      expect(late.disposition).toBe('quarantined')
+      expect(await channel.publish(old)).toEqual(late)
+      if (acks[0] !== undefined) expect(late).toEqual(acks[0])
+      const recovered = envelope(2)
+      const accepted = await channel.publish(recovered)
+      expect(accepted.disposition).toBe('accepted')
+      expect(lastAcknowledgedCheckpoint(ID, [old, recovered], [late, accepted])).toBe(RESULT)
+      expect(session.stateOf(ID)).toEqual(next)
+    },
+  )
+})
+
+describe('reconnect without journal storage', () => {
+  beforeAll(() => {
+    vi.spyOn(AttemptJournal, 'create').mockRejectedValue(new DeviceJournalError('storage'))
+  })
+  afterAll(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('runs pure reconnect assertions even when journal creation would refuse storage', () => {
+    expect(new DeviceReconnectSession(PAIR).stateOf(ID)).toBeUndefined()
+    expect(partitionByAck([], [])).toEqual({ resend: [], settled: [] })
+    expect(AttemptJournal.create).not.toHaveBeenCalled()
+  })
+})
 
 describe('reconnect never launches twice', () => {
+  const lane = useExecutionFixture('check')
+
   it('drops the admission reply and resends: the launch counter shows one start', async () => {
     const { receiver, request, execution, fixture: launches } = lane()
     const first = await responseBody(receiver.dispatch(request))

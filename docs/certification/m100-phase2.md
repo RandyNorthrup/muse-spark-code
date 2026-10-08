@@ -95,7 +95,7 @@ No new strings, dependencies, commands, settings or constants. Model attempts
 | Lost admission reply never starts twice             | real phase-1 `DeviceReceiver.dispatch` and `AttemptJournal.lookup`, unchanged                                                                                           | `deviceReconnect`: drops the admission reply; admission and launch counters each 1                                                         | R3                                  |
 | Failed poll reads unknown since time, never running | `epochs.ts:86`, earliest failure retained; `unknownSinceText` reads runtime `UI_TEXT` and `formatTime`                                                                  | `deviceEpochs`: marks a failed poll, earliest unknown time; `deviceReconnect`: failed-poll text                                            | R4                                  |
 | Explicit lease expiry before a new epoch            | `epochs.ts:119`, expired status and elapsed deadline both required, epoch increment checked                                                                             | `deviceEpochs`: advance every timeout, early expiry/reopen refusal, future expiry marker                                                   | R5                                  |
-| Re-dispatch from the last acknowledged checkpoint   | `reconnect.ts:108`, derives checkpoint from parsed accepted/duplicate acks no later than the expired epoch                                                              | `deviceReconnect`: ignores quarantine; refuses missing/future acknowledged checkpoints                                                     | R6                                  |
+| Re-dispatch from the last acknowledged checkpoint   | `reconnect.ts:116`, accepted/duplicate acks no later than the expired epoch win; absent accepted progress keeps the expired lease's opening checkpoint                  | `deviceReconnect`: no-result outage, expiry quarantine, future ack ignored; accepted progress still wins                                   | R6, P2-R                            |
 | Late results quarantine                             | `resultChannel.ts:92`, reconciled lease is the authority, including before any new-epoch result arrives and at expiry                                                   | `deviceResultChannel`: old epoch before a new result, expired/future/missing lease                                                         | R7                                  |
 | Content-addressed results acknowledged once         | `resultChannel.ts:92`, serialized durable receipt per epoch; repeat payload checked in full; persistent quarantine timestamps and older accepted receipts               | `deviceResultChannel`: accepts once, simultaneous resends, conflicting payload, time and restart, older accepted receipt                   | R8; six pre-fix regression failures |
 | Corrupt durable state refuses, never empty success  | zod parses every load, binds receipt identity/epoch/digest/settlement; storage failure latches closed                                                                   | `deviceResultChannel`: corrupt/failing store and uncertain save; real receiver test refuses corrupt `attempts.json` before admission/start | R9, R11                             |
@@ -202,8 +202,8 @@ Instantiate one `ResultChannel(store, leaseOf, clock)` per pair with the
 reconciled receiver lease lookup; an incoming result is never its own epoch
 authority. Persist lease mutations before redispatch and restore through
 `DeviceReconnectSession.track`; a conflicting restore refuses. `reopenAttempt`
-takes envelopes/acks and derives its checkpoint, rather than accepting an
-unproved digest. The result store must atomically persist the full bounded
+takes envelopes/acks and derives accepted progress or retains the expired
+lease's opening checkpoint. The result store must atomically persist the full bounded
 receipt record before resolving a save, reject unavailable or corrupt
 initialized storage, and return undefined only for a genuinely new attempt.
 The portable lane adds no installed listener, physical executor or storage
@@ -214,3 +214,44 @@ remain with lane W as assigned by PLAN, not a claim of this lane's certification
 Lead request: regenerate `docs/ide-compatibility/host-api.md` in lane W
 with `npm run check:host-api -- --write` (the expected change on this base is
 `node:crypto` imports 55 to 56). No shared-contract change is requested.
+
+### Review round 1 fixes (FIXM100P2R)
+
+2026-10-07, win11 rig, branch `m100/p2-r-fix`, base `44fffb8c8`;
+review `C:/lanes/_ctx/codex/RVM100P2R.report.md` read in full.
+Only `reconnect.ts`, its owning test and this lane R section change.
+Model attempts **0**, spend **0**; all tests use fakes and no listener.
+
+The recorded R6 refusal changes because G6 requires recovery after a whole
+lease without accepted progress: the lease's opening checkpoint remains valid.
+
+- **P2 fixed:** `reopenAttempt` uses `current.checkpoint` when no accepted or
+  duplicate acknowledgement supplies a checkpoint through the expired epoch.
+  An accepted checkpoint still wins; future and quarantined acknowledgements
+  never advance it. The replacement contract test checks future-epoch acks,
+  and two outage regressions check an absent result and a result quarantined
+  exactly at expiry. Both reopen at epoch 2, keep the original identity and
+  checkpoint, refuse a second reopen while leased, quarantine old-epoch late
+  results (including resends), and accept the recovered epoch's result.
+- **P3 fixed:** `useExecutionFixture('check')` is scoped to the receiver's
+  `reconnect never launches twice` block. A separate pure reconnect regression
+  makes `AttemptJournal.create` reject with `storage`, reaches its assertions,
+  and verifies journal creation was never called. The two receiver tests still
+  exercise real durable storage; no assertion or storage guard is relaxed.
+
+With the final regression tests added and both fixes withheld on base
+`44fffb8c8`, the three owning suites returned **exit 1: 4 failed, 46 passed**
+(50 tests). P2 accounts for three `DeviceEpochError: uncertain` failures;
+P3 accounts for one `DeviceJournalError: storage` failure in fixture setup.
+After both fixes and drills, the identical command returned **exit 0: 50 passed**
+(deviceEpochs 13, deviceReconnect 17, deviceResultChannel 20).
+Every run used repository default timeouts and `--maxWorkers=3`, at most three files.
+
+| Drill | Deliberate break                                                            | Observed red result                                                                     | Restored SHA-256                                                                               |
+| ----- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| P2-R  | Replace the opening-checkpoint fallback with the former `uncertain` refusal | 3 failed, 14 unselected; exit 1 (`opening checkpoint` filter)                           | `ec04e198e8cd517d8d54881782e2f28ad84471ee2a13ffd8816da19cd82bdd67` (`reconnect.ts`)            |
+| P3-R  | Move the receiver fixture back to module scope                              | Storage-refusal regression fails before its assertions: 1 failed, 16 unselected; exit 1 | `f5c16e6eab65012b5a8491426ac66402469aa6c792350240be7a3c8f2a9fd220` (`deviceReconnect.test.ts`) |
+
+Both restores matched the pre-drill file bytes and SHA-256. Logs are outside
+the worktree in `C:/lanes/FIXM100P2R-verify-20261007/P2-drill.log` and
+`P3-drill.log`. Fresh-clone verification is recorded with the follow-up receipt.
