@@ -226,12 +226,16 @@ export function parseEmbeddingDataset(
 }
 
 /**
- * The digest binds the exact head bytes: identity, evidence, weights, bias
- * and trained-label count, in a fixed key order. A stored head whose bytes
- * changed after training never verifies.
+ * The digest binds the exact head bytes: identity, evidence, weights, bias,
+ * trained-label count and the stored split partitions, in a fixed key order.
+ * A stored head whose bytes changed after training never verifies, including
+ * an edited partition record.
  */
 export function embeddingHeadDigest(
-  head: Pick<EmbeddingHead, 'identity' | 'evidence' | 'weights' | 'bias' | 'trainedLabels'>,
+  head: Pick<
+    EmbeddingHead,
+    'identity' | 'evidence' | 'weights' | 'bias' | 'trainedLabels' | 'partitions'
+  >,
 ): string {
   const canonical = JSON.stringify({
     version: 1,
@@ -240,8 +244,59 @@ export function embeddingHeadDigest(
     weights: head.weights,
     bias: head.bias,
     trainedLabels: head.trainedLabels,
+    partitions: head.partitions,
   })
   return createHash('sha256').update(canonical, 'utf8').digest('hex')
+}
+
+/**
+ * The stored partition record must itself describe disjoint held-out splits:
+ * every split keeps its ids, labels and groups, and no task or repository
+ * group, sample id or label id names two splits. A re-digested but
+ * overlapping or emptied record still refuses.
+ */
+function partitionsReason(partitions: EmbeddingHead['partitions']): EmbeddingReason | undefined {
+  const splits = [
+    ['fit', partitions.fit],
+    ['tuning', partitions.tuning],
+    ['evaluation', partitions.evaluation],
+  ] as const
+  if (
+    splits.some(
+      ([, partition]) =>
+        partition.ids.length === 0 ||
+        partition.labels.length === 0 ||
+        partition.tasks.length === 0 ||
+        partition.repositories.length === 0,
+    )
+  ) {
+    return 'missing-split'
+  }
+  const seenIds = new Set<string>()
+  for (const [, partition] of splits) {
+    for (const id of partition.ids) {
+      if (seenIds.has(`sample:${id}`)) return 'duplicate-label'
+      seenIds.add(`sample:${id}`)
+    }
+    for (const label of partition.labels) {
+      if (seenIds.has(`label:${label}`)) return 'duplicate-label'
+      seenIds.add(`label:${label}`)
+    }
+  }
+  const groupOwner = new Map<string, string>()
+  for (const [split, partition] of splits) {
+    for (const [kind, names] of [
+      ['task', partition.tasks],
+      ['repository', partition.repositories],
+    ] as const) {
+      for (const name of names) {
+        const owned = groupOwner.get(`${kind}:${name}`)
+        if (owned !== undefined && owned !== split) return 'overlapping-groups'
+        groupOwner.set(`${kind}:${name}`, split)
+      }
+    }
+  }
+  return undefined
 }
 
 /** A stored head loads only with its training digest and exact dimension. */
@@ -254,6 +309,8 @@ export function parseEmbeddingHead(
   if (head.weights.length !== head.identity.dimension) {
     return embeddingFailure('dimension-mismatch')
   }
+  const partitionsFailure = partitionsReason(head.partitions)
+  if (partitionsFailure !== undefined) return embeddingFailure(partitionsFailure)
   return embeddingHeadDigest(head) === head.digest
     ? { status: 'valid', head }
     : embeddingFailure('weight-digest-mismatch')

@@ -1,14 +1,14 @@
 // Fast-path routing guards for the embedding shortcut (M98 phase 2, lane I).
 // Fakes and synthetic fixtures only; no live, paid or local model calls.
 
-import { describe, expect, it, type vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   runEmbeddingJudge,
   type EmbeddingRouteDependencies,
   type EmbeddingSource,
 } from '../../src/core/judge/embedding/route'
 import { JUDGE_EMBED_FALLBACK_CONFIDENCE } from '../../src/shared/constants'
-import type { JudgeRequest } from '../../src/core/judge/schema'
+import type { JudgeOutcome, JudgeRequest } from '../../src/core/judge/schema'
 import { embeddingHeadDigest } from '../../src/core/judge/embedding/schema'
 import {
   confidentVectors,
@@ -19,6 +19,14 @@ import {
 
 const options = { optedIn: true, confidential: false }
 const signal = (): AbortSignal => new AbortController().signal
+
+/** The same state and instructions under one binary framing. */
+function framed(criteria: { true: string; false: string }): JudgeRequest {
+  return {
+    state: noulRequest.state,
+    questions: { risk: { type: 'noul', instructions: 'Can it destroy data?', criteria } },
+  }
+}
 
 /** The full judge answered; the embedding leg spent nothing and ran nothing. */
 async function expectQuietFallback(
@@ -82,6 +90,23 @@ describe('embedding fast path', () => {
     })
     await expectQuietFallback(deps, fallbackCalls, embed, claims)
   })
+
+  it.each([
+    ['prompt', { promptVersion: 'prompt-2' }],
+    ['criteria', { criteriaVersion: 'criteria-2' }],
+    ['fit', { fitVersion: 'fit-2' }],
+  ])(
+    'falls back on a head from an obsolete %s version without embedding',
+    async (_case, changed) => {
+      // The head is current (prompt-1/criteria-1/fit-1); only the request's
+      // newer versions may refuse it.
+      const { deps, fallbackCalls, claims, embed } = routeDependencies({
+        ...changed,
+        source: { embed: () => Promise.resolve(confidentVectors) },
+      })
+      await expectQuietFallback(deps, fallbackCalls, embed, claims)
+    },
+  )
 
   it('falls back on a head whose dimension disagrees with its weights', async () => {
     const head = trainedHead()
@@ -156,6 +181,150 @@ describe('embedding fast path', () => {
     })
     expect(fallbackCalls).toHaveLength(1)
     expect(embed).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends each binary question complete with its criteria', async () => {
+    const seen: string[][] = []
+    const { deps } = routeDependencies({
+      source: {
+        embed: (inputs: readonly string[]) => {
+          seen.push([...inputs])
+          return Promise.resolve(confidentVectors)
+        },
+      },
+    })
+    const forward = { true: 'the command destroys data', false: 'the command is safe' }
+    const reversed = { true: 'the command is safe', false: 'the command destroys data' }
+    for (const criteria of [forward, reversed]) {
+      const outcome = await runEmbeddingJudge(framed(criteria), options, deps, signal())
+      expect(outcome.outcome).toBe('answered')
+    }
+    expect(seen).toHaveLength(2)
+    // Reversed meanings never share an embedding input.
+    expect(seen[0]?.[0]).not.toBe(seen[1]?.[0])
+    expect(JSON.parse(seen[0]?.[0] ?? '')).toMatchObject({ criteria: forward })
+    expect(JSON.parse(seen[1]?.[0] ?? '')).toMatchObject({ criteria: reversed })
+  })
+
+  it('answers nothing when Stop aborts while admission waits', async () => {
+    const controller = new AbortController()
+    const { deps, fallbackCalls, embed } = routeDependencies({
+      admission: {
+        run: vi.fn(() => {
+          controller.abort()
+          return Promise.resolve({
+            reservedCostUsd: 0.0002,
+            settledCostUsd: 0.0002,
+            uncertainCostUsd: 0,
+          })
+        }),
+      },
+    })
+    expect(await runEmbeddingJudge(noulRequest, options, deps, controller.signal)).toEqual({
+      outcome: 'no-answer',
+      reason: 'cancelled',
+    })
+    expect(embed).not.toHaveBeenCalled()
+    expect(fallbackCalls).toHaveLength(0)
+  })
+
+  it('answers nothing when Stop aborts while embedding waits', async () => {
+    const controller = new AbortController()
+    const { deps, fallbackCalls } = routeDependencies({
+      source: {
+        embed: () => {
+          controller.abort()
+          return Promise.resolve(confidentVectors)
+        },
+      },
+    })
+    expect(await runEmbeddingJudge(noulRequest, options, deps, controller.signal)).toEqual({
+      outcome: 'no-answer',
+      reason: 'cancelled',
+    })
+    expect(fallbackCalls).toHaveLength(0)
+  })
+
+  it('falls back to the full judge when the embedding call rejects', async () => {
+    const { deps, fallbackCalls, embed } = routeDependencies({
+      source: { embed: () => Promise.reject(new Error('fixture network failure')) },
+    })
+    const outcome = await runEmbeddingJudge(noulRequest, options, deps, signal())
+    expect(outcome.outcome).toBe('answered')
+    if (outcome.outcome !== 'answered') throw new Error('expected the full judge')
+    expect(outcome.result.muse['risk']?.technique).toBe('stated')
+    expect(embed).toHaveBeenCalledTimes(1)
+    expect(fallbackCalls).toHaveLength(1)
+  })
+
+  it('refuses without fallback when admission rejects', async () => {
+    const { deps, fallbackCalls, embed } = routeDependencies({
+      admission: { run: () => Promise.reject(new Error('fixture over budget')) },
+    })
+    expect(await runEmbeddingJudge(noulRequest, options, deps, signal())).toEqual({
+      outcome: 'no-answer',
+      reason: 'engine-failure',
+    })
+    expect(embed).not.toHaveBeenCalled()
+    expect(fallbackCalls).toHaveLength(0)
+  })
+
+  it('keeps the embedding leg usage and cost in a fallback answer', async () => {
+    const { deps, embed } = routeDependencies({
+      source: { embed: () => Promise.resolve([[0.5, 0.5, 0.5]]) },
+    })
+    const outcome = await runEmbeddingJudge(noulRequest, options, deps, signal())
+    expect(outcome.outcome).toBe('answered')
+    if (outcome.outcome !== 'answered') throw new Error('expected fallback')
+    // Both legs spent: 40 full-judge tokens beside 12 embedding tokens.
+    expect(outcome.result.usage).toMatchObject({ input_tokens: 52, output_tokens: 1 })
+    const meta = outcome.result.muse['risk']
+    // The fixture fallback carries no cost; the embedding leg reserved $0.0002.
+    expect(meta?.reservedCostUsd).toBeCloseTo(0.0002)
+    expect(meta?.settledCostUsd).toBeCloseTo(0.0002)
+    expect(meta?.uncertainCostUsd).toBe(0)
+    expect(embed).toHaveBeenCalledTimes(1)
+  })
+
+  it('adds both legs when the fallback reports its own cost', async () => {
+    const { deps } = routeDependencies({
+      source: { embed: () => Promise.resolve([[0.5, 0.5, 0.5]]) },
+      fallback: {
+        run: (): Promise<JudgeOutcome> =>
+          Promise.resolve({
+            outcome: 'answered',
+            result: {
+              model: 'fixture-model',
+              answers: {
+                risk: { type: 'noul', noul: 0.7, probabilities: { true: 0.7, false: 0.3 } },
+              },
+              muse: {
+                risk: {
+                  source: 'same',
+                  model: 'fixture-model',
+                  technique: 'stated',
+                  label: 'uncalibrated',
+                  confidence: 0.2,
+                  partial: false,
+                  reservedCostUsd: 0.001,
+                  settledCostUsd: 0.001,
+                  uncertainCostUsd: 0,
+                },
+              },
+              usage: { input_tokens: 40, output_tokens: 1 },
+            },
+          }),
+      },
+    })
+    const outcome = await runEmbeddingJudge(noulRequest, options, deps, signal())
+    expect(outcome.outcome).toBe('answered')
+    if (outcome.outcome !== 'answered') throw new Error('expected fallback')
+    // 40 full-judge tokens beside 12 embedding tokens; $0.001 beside $0.0002.
+    expect(outcome.result.usage).toMatchObject({ input_tokens: 52, output_tokens: 1 })
+    const meta = outcome.result.muse['risk']
+    expect(meta?.reservedCostUsd).toBeCloseTo(0.0012)
+    expect(meta?.settledCostUsd).toBeCloseTo(0.0012)
+    expect(meta?.uncertainCostUsd).toBe(0)
   })
 })
 

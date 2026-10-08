@@ -161,6 +161,65 @@ describe('embedding head fitting', () => {
     })
   })
 
+  it('binds the stored partitions to the head digest', () => {
+    const head = trainedHead()
+    // A trimmed but otherwise disjoint record: only the digest may refuse it.
+    const trimmed = {
+      ...head,
+      partitions: {
+        ...head.partitions,
+        evaluation: {
+          ...head.partitions.evaluation,
+          ids: head.partitions.evaluation.ids.slice(1),
+          labels: head.partitions.evaluation.labels.slice(1),
+        },
+      },
+    }
+    // Untouched digest: the edited record no longer verifies.
+    expect(parseEmbeddingHead(trimmed)).toEqual({
+      status: 'refused',
+      reason: 'weight-digest-mismatch',
+    })
+    expect(parseWeightEnvelope(weightEnvelopeFor(trimmed))).toEqual({
+      status: 'refused',
+      reason: 'weight-digest-mismatch',
+    })
+  })
+
+  it('refuses a re-digested record with overlapping or emptied partitions', () => {
+    const head = trainedHead()
+    const overlapping = {
+      ...head,
+      partitions: {
+        ...head.partitions,
+        evaluation: {
+          ...head.partitions.evaluation,
+          tasks: head.partitions.fit.tasks,
+          repositories: head.partitions.fit.repositories,
+        },
+      },
+    }
+    const relabelled = { ...overlapping, digest: embeddingHeadDigest(overlapping) }
+    expect(parseEmbeddingHead(relabelled)).toEqual({
+      status: 'refused',
+      reason: 'overlapping-groups',
+    })
+    expect(parseWeightEnvelope(weightEnvelopeFor(relabelled)).status).toBe('refused')
+    const emptied = {
+      ...head,
+      partitions: {
+        ...head.partitions,
+        evaluation: { ids: [], labels: [], tasks: [], repositories: [] },
+      },
+    }
+    const reemptied = { ...emptied, digest: embeddingHeadDigest(emptied) }
+    expect(parseEmbeddingHead(reemptied)).toEqual({
+      status: 'refused',
+      reason: 'missing-split',
+    })
+    expect(parseWeightEnvelope(weightEnvelopeFor(reemptied)).status).toBe('refused')
+  })
+
   it('loads weights only from the global-storage envelope, never a package', () => {
     const head = trainedHead()
     expect(parseWeightEnvelope(weightEnvelopeFor(head)).status).toBe('valid')

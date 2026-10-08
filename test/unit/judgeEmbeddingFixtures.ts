@@ -206,6 +206,9 @@ export function routeDependencies(
   input: {
     readonly source?: Partial<EmbeddingSource> | undefined
     readonly family?: string | undefined
+    readonly promptVersion?: string | undefined
+    readonly criteriaVersion?: string | undefined
+    readonly fitVersion?: string | undefined
     readonly head?: unknown
     readonly fallback?: EmbeddingFallback | undefined
     readonly admission?: EmbeddingAdmission | undefined
@@ -223,6 +226,9 @@ export function routeDependencies(
   const deps: EmbeddingRouteDependencies = {
     source: built.source,
     family: input.family ?? 'risk.destructive',
+    promptVersion: input.promptVersion ?? 'prompt-1',
+    criteriaVersion: input.criteriaVersion ?? 'criteria-1',
+    fitVersion: input.fitVersion ?? 'fit-1',
     head: input.head === undefined ? trainedHead() : input.head,
     fallback: input.fallback ?? fallback,
     admission: input.admission ?? admission,

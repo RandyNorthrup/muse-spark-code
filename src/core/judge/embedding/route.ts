@@ -78,6 +78,10 @@ export interface EmbeddingRouteOptions {
 export interface EmbeddingRouteDependencies {
   readonly source: EmbeddingSource
   readonly family: string
+  /** The current request's framing and training lineage: every field binds. */
+  readonly promptVersion: string
+  readonly criteriaVersion: string
+  readonly fitVersion: string
   readonly head: unknown
   readonly fallback?: EmbeddingFallback | undefined
   readonly admission: EmbeddingAdmission
@@ -87,6 +91,15 @@ type NoAnswer = Extract<JudgeOutcome, { outcome: 'no-answer' }>
 
 function refusal(reason: NoAnswer['reason']): JudgeOutcome {
   return { outcome: 'no-answer', reason }
+}
+
+/**
+ * Read the signal anew after every wait. `aborted` mutates under its
+ * readonly field, so a single early check never covers a later wait; the
+ * indirection also keeps the check outside any earlier narrowing.
+ */
+function wasAborted(signal: AbortSignal): boolean {
+  return signal.aborted
 }
 
 /**
@@ -101,23 +114,39 @@ function isEmbeddingPermitted(source: EmbeddingSource, isConfidential: boolean):
   )
 }
 
-/** The head must be this source's, this family's, and this dimension's. */
-function isMatchingHead(head: EmbeddingHead, source: EmbeddingSource, family: string): boolean {
+/**
+ * The head must be this source's, this family's, this dimension's, and the
+ * current prompt, criteria and fit versions'. A verifying head trained or
+ * framed under older versions never answers: it defers to the full judge.
+ */
+function isMatchingHead(head: EmbeddingHead, deps: EmbeddingRouteDependencies): boolean {
+  const source = deps.source
   return (
     head.identity.providerId === source.providerId &&
     head.identity.model === source.model &&
     head.identity.modelVersion === source.modelVersion &&
     head.identity.endpoint === source.endpoint &&
     head.identity.source === source.source &&
-    head.identity.family === family &&
-    head.identity.dimension === source.dimension
+    head.identity.family === deps.family &&
+    head.identity.dimension === source.dimension &&
+    head.identity.promptVersion === deps.promptVersion &&
+    head.identity.criteriaVersion === deps.criteriaVersion &&
+    head.identity.fitVersion === deps.fitVersion
   )
 }
 
-/** One embed input per question: the complete state beside its instructions. */
+/**
+ * One embed input per question: the complete state beside its instructions
+ * and the binary question's criteria. The criteria define what `true` and
+ * `false` mean, so two framings of the same state never share an input.
+ */
 function embedInputs(request: JudgeRequest): string[] {
   return Object.values(request.questions).map((question) =>
-    JSON.stringify({ state: request.state, instructions: question.instructions }),
+    JSON.stringify({
+      state: request.state,
+      instructions: question.instructions,
+      criteria: question.criteria ?? null,
+    }),
   )
 }
 
@@ -161,9 +190,48 @@ function embeddingAnswer(
 }
 
 /**
+ * A fallback answer after the embedding leg already reserved its worst-case
+ * cost must account both legs: the embedding input tokens join the usage and
+ * its reserved, settled and uncertain dollars join every verdict's muse. A
+ * fallback no-answer carries no usage, so it passes through unchanged.
+ */
+function withEmbeddingLeg(
+  outcome: JudgeOutcome,
+  source: EmbeddingSource,
+  receipt: EmbeddingReceipt,
+): JudgeOutcome {
+  if (outcome.outcome !== 'answered') return outcome
+  const muse: Extract<JudgeOutcome, { outcome: 'answered' }>['result']['muse'] = {}
+  for (const [id, meta] of Object.entries(outcome.result.muse)) {
+    muse[id] = {
+      ...meta,
+      reservedCostUsd: (meta.reservedCostUsd ?? 0) + receipt.reservedCostUsd,
+      settledCostUsd: (meta.settledCostUsd ?? 0) + receipt.settledCostUsd,
+      uncertainCostUsd: (meta.uncertainCostUsd ?? 0) + receipt.uncertainCostUsd,
+    }
+  }
+  return judgeOutcomeSchema.parse({
+    outcome: 'answered',
+    result: {
+      ...outcome.result,
+      answers: outcome.result.answers,
+      muse,
+      usage: {
+        ...outcome.result.usage,
+        input_tokens: outcome.result.usage.input_tokens + source.inputTokens,
+        output_tokens: outcome.result.usage.output_tokens,
+      },
+    },
+  })
+}
+
+/**
  * Run the fast path, falling back to the allowed full judge whenever the
  * head cannot answer. Only all-`noul` requests shortcut; a `choice` or
- * `score` question has no logistic head and rides the full judge whole.
+ * `score` question has no logistic head and rides the full judge whole. A
+ * rejected embedding call falls back like a malformed one; a refused
+ * admission or a caught cancellation stays fail-closed with an explicit
+ * no-answer instead.
  */
 export async function runEmbeddingJudge(
   input: unknown,
@@ -185,22 +253,39 @@ export async function runEmbeddingJudge(
     return await fallback.run(request, signal)
   }
   const head = parseEmbeddingHead(deps.head)
-  if (head.status !== 'valid' || !isMatchingHead(head.head, deps.source, deps.family)) {
+  if (head.status !== 'valid' || !isMatchingHead(head.head, deps)) {
     return await fallback.run(request, signal)
   }
-  const receipt = receiptSchema.parse(
-    await deps.admission.run(
-      { inputTokens: deps.source.inputTokens, uncachedCostUsd: deps.source.uncachedCostUsd },
-      signal,
-    ),
-  )
-  const vectors = await deps.source.embed(embedInputs(request), signal)
+  let receipt: EmbeddingReceipt
+  try {
+    receipt = receiptSchema.parse(
+      await deps.admission.run(
+        { inputTokens: deps.source.inputTokens, uncachedCostUsd: deps.source.uncachedCostUsd },
+        signal,
+      ),
+    )
+  } catch {
+    return refusal(wasAborted(signal) ? 'cancelled' : 'engine-failure')
+  }
+  if (wasAborted(signal)) return refusal('cancelled')
+  /** The allowed full judge decides, with the embedding leg's cost kept. */
+  const fallbackWithLeg = async (): Promise<JudgeOutcome> =>
+    wasAborted(signal)
+      ? refusal('cancelled')
+      : withEmbeddingLeg(await fallback.run(request, signal), deps.source, receipt)
+  let vectors: readonly (readonly number[])[]
+  try {
+    vectors = await deps.source.embed(embedInputs(request), signal)
+  } catch {
+    return wasAborted(signal) ? refusal('cancelled') : await fallbackWithLeg()
+  }
+  if (wasAborted(signal)) return refusal('cancelled')
   const ids = Object.keys(request.questions)
-  if (vectors.length !== ids.length) return await fallback.run(request, signal)
+  if (vectors.length !== ids.length) return await fallbackWithLeg()
   const probabilities: number[] = []
   for (const vector of vectors) {
     const probability = scoreEmbedding(head.head.weights, head.head.bias, vector)
-    if (probability === undefined) return await fallback.run(request, signal)
+    if (probability === undefined) return await fallbackWithLeg()
     probabilities.push(probability)
   }
   const isConfident = probabilities.every(
@@ -209,5 +294,5 @@ export async function runEmbeddingJudge(
   )
   return isConfident
     ? embeddingAnswer(request, probabilities, deps.source, receipt)
-    : await fallback.run(request, signal)
+    : await fallbackWithLeg()
 }
