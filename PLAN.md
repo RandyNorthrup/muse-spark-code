@@ -41502,9 +41502,10 @@ is relaxed. No live or paid calls, push, rebase or merge.
 
 ## 7. Gates
 
-**M100P2HM4 scoped review gate (2026-10-08, macmini).** Hooked commits are
+**M100P2HM4/HM5 scoped review gate (2026-10-08, macmini).** Hooked commits are
 local checkpoints; the owner's 60-minute H brief requires fresh-clone scoped
-tests and static/build gates. Full `npm run quality` and integrated platform
+tests and static/build gates; HM5's 30-minute follow-up uses the same scope.
+Full `npm run quality` and integrated platform
 qualification remain W's required gate before integration. No threshold,
 timeout, assertion or ignore changes. The inherited stale host API inventory
 remains W-owned and is reported separately in the macOS certification record.

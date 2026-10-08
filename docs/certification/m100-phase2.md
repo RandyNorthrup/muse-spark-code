@@ -1468,3 +1468,53 @@ retrying Darwin preparation after probe/native self-test spawn pressure. The
 inherited stale host-API inventory and full `npm run quality` remain W's
 integration gate under PLAN section 7; no shared inventory, product doc,
 translation, dependency, command, setting or gate is changed by this lane.
+
+##### HM5 committed-source fresh-clone verification
+
+Implementation **`03862a3f0`**, with repository hooks enabled: changed-file
+ESLint/Prettier and staged gitleaks all exit **0**. Post-hook source/test diffs
+were reread; the index and worktree were clean. The source SHA-256 above is
+unchanged; the final test SHA-256 is
+**`1adb550641b37becdeaee45bf118b7b5a0296141dafc32bb5d87878352a99d08`**.
+
+Fresh clone **`$TMPDIR/M100P2HM5-verify.gDm3gE`**, Node **24.21.0**, npm
+**11.19.0**, macOS **15.7.4**, UID **502**. `CI=true npm ci`: **exit 0**;
+unchanged lockfile, 902 packages installed, the same 11 inherited audit findings
+(2 low, 9 high). No audit fix or dependency change.
+
+| Fresh-clone check                                                                 | Exit / result                                                                                                                                                                                                                                                                                        |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Complete three H owning files, three runs, `--maxWorkers=3`, repository deadlines | **0 / 0 / 0**: each **70 passed, 0 failed, 7 Windows-native skipped**. All **25 macOS native cases** and **6 portable Darwin cases** passed each time, verified in JSON reports; no macOS skips. Durations **15.77 / 15.92 / 15.40 s**.                                                              |
+| Five compiler projects: host, webview, unit, e2e, integration                     | **0 / 0 / 0 / 0 / 0**, through `npm run typecheck`.                                                                                                                                                                                                                                                  |
+| ESLint, both changed TS files, `--max-warnings=0`                                 | **0**.                                                                                                                                                                                                                                                                                               |
+| Prettier, all four changed TS/Markdown files                                      | **0**; final documentation is also formatted and checked after its hook run.                                                                                                                                                                                                                         |
+| Plain Knip                                                                        | **0**, unchanged configuration.                                                                                                                                                                                                                                                                      |
+| Plain jscpd                                                                       | **0**, zero clones, original zero threshold.                                                                                                                                                                                                                                                         |
+| `check:reference`                                                                 | **0**, current catalog including 18 Devices entries.                                                                                                                                                                                                                                                 |
+| `check:l10n`                                                                      | **0**, 14 UI/usage tables, 197 manifest strings, 991 source files, zero problems.                                                                                                                                                                                                                    |
+| `check:host-api`                                                                  | **1**, the exact inherited six W-owned count differences; no suppression or regeneration.                                                                                                                                                                                                            |
+| Production `npm run build`: size/split/host globals/notices                       | **0**, every cap unchanged. Devices **82.0/100 KiB**, activation **462.8/600 KiB**, Model API **456.0/475 KiB**, Devices webview **34.0/50 KiB**, chat startup **733.8/900 KiB**, original deferred JS **31.9/50 KiB**. This measures the current lazy entry; W still owns Darwin's factory binding. |
+
+After the duplication refactor and implementation commit, the complete base
+proof was repeated: **exit 1, 67 passed, 3 failed, 7 skipped**, **13.89 s**.
+Both red drills were repeated against the committed source and final tests:
+probe mapping **exit 1, 68 passed, 2 failed, 7 skipped**, **15.77 s**; native
+self-test mapping **exit 1, 69 passed, 1 failed, 7 skipped**, **15.19 s**.
+Every repeat restored the production hash above byte-exact in `finally`.
+Final restored complete owning run: **exit 0, 70 passed, 7 Windows-native
+skipped**, **15.40 s**; all **25 macOS native cases** pass. No raised timeout,
+assertion removal, test skip, retry or gate weakening was used.
+
+**Lead/W requests.** Regenerate the inherited host-API inventory:
+child_process **16→18**, crypto **93→95**, fs **44→45**, fs/promises **74→77**,
+path **125→128**, timers/promises **15→17**; totals stay **366 VS Code APIs,
+43 importing files, 28 Node built-ins, 70 theme variables**. Add the
+CHANGELOG note above with the integrated H fix. Full `npm run quality`, lazy
+factory wiring and installed/cross-platform qualification remain W's explicit
+obligations under PLAN section 7. No reviewed H finding is deferred.
+
+Changed files: the Darwin driver, its owning tests, PLAN's H review/gate
+regions, and this macOS certification subsection. No push, merge, rebase,
+manual stash, credential read, model/paid call or nonloopback listener. The
+verification clone and private receipt folder are removed after final
+documentation validation.
