@@ -9,6 +9,8 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Guard the lazy slash-command registration as a deferred chat entry without adding activation bytes.
+
 - Restore the Schedule Prompt, Schedules and Schedule Timeline editor commands, including panels opened on demand.
 - Reuse successful time-zone validation during repeated schedule journal reads, preserving storage checks and workload deadlines.
 - Resolve visual replay fixtures from the running gate when historical render sources predate them, and guard Help document IDs against duplication.

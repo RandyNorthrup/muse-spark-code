@@ -1,5 +1,20 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**LEFT017B visual and deferred-entry completion (2026-10-08, linuxlt).**
+The continuation brief removes LEFT017's mapping scope limit: certify every
+current renderer through an actual harness scene, preserve six themes, two
+widths and all interaction states, refresh source/theme receipts through the
+repository generators, and review every rendered image. Register the intended
+lazy schedule slash-command entry without increasing activation's byte cap.
+No waivers, assertion weakening, paid/live calls, merge or push. Existing
+unrelated bundle caps remain the shrinking lane's responsibility.
+
+- [~] Complete current renderer mappings and add missing real-component scenes.
+- [ ] Refresh theme/source receipts and generate/review the complete Chrome archive.
+- [x] Deferred slash-command entry registered; activation 587,451 bytes; eager-import guard drill passed.
+- [ ] Replay visual owners and scoped static gates in a fresh npm-ci CI clone.
+- [ ] Record image reviews, findings, gate exits and hooks-on commits in LEFT017.
+
 **FIX0160W2 hosted Windows repair (2026-10-07, win11).** Reproduce the three
 remaining suites with an actual 8.3 TEMP/TMP alias and fresh PowerShell
 processes. Resolve compiler storage and returned helper paths to native long

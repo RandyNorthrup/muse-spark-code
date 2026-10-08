@@ -165,6 +165,30 @@ journal coverage time) was not addressed in this pass.
 
 ## Leftovers (LEFT017)
 
+### LEFT017B continuation (2026-10-08, linuxlt)
+
+Branch `rel017/left2`, base `e2605a991`. The continuation brief authorizes the
+complete renderer/scene expansion without the earlier mapping scope limit.
+No merge, push, live/paid call, changed timeout, byte cap or pixel tolerance.
+
+- Deferred slash-command registration: the real split gate first exits 1 on
+  `Unlisted deferred webview surface src/shared/slashCommands.ts`; after adding
+  its source to the existing deferred inventory it exits 0. Activation remains
+  exactly 587,451 bytes (cap 614,400).
+- The new complete `slashCommandsBundle.test.mjs` owner passes 1/1 at the
+  repository deadline. Its deliberate eager-import mutation fails on the
+  actual emitted startup graph; restoring `App.tsx` SHA-256
+  `0aca24f6b41cac35a616cf5989f77e9d33064b182cb5774c7163a4879b00608c`
+  restores the whole owner to green. The fixture copies the production
+  formatter configuration so a disk-backed external temp root stays valid.
+- Baseline visual owners reproduce four failures: current renderer inventory,
+  two theme read inventories and current audit/source coverage (24 tests pass).
+  The three stale `visualMatrix` assertions are retained unchanged.
+- Mapping, mounted Chrome capture, image review and fresh-clone gate receipts
+  follow below when complete; no visual certification is claimed yet.
+
+### Earlier LEFT017 receipts
+
 Lane `rel017/left`, base `7a4fc2ab3`, Linux rig, 2026-10-08. All tests
 use repository deadlines, hooks remain enabled, no merge or push.
 
