@@ -3,8 +3,8 @@
 import * as z from 'zod/mini'
 import { JUDGE_MIN_READY_RATE } from '../../shared/constants'
 import { reportCalibration } from './calibration/report'
+import { judgeEvidenceRowIdentity } from './schema'
 import {
-  judgeEvidenceRowIdentity,
   parseCalibrationDataset,
   parseCalibrationProfile,
   type CalibrationLimits,

@@ -70,18 +70,6 @@ const identitySchema = z.strictObject({
 })
 export type CalibrationIdentity = z.infer<typeof identitySchema>
 
-/**
- * Held-out label identity shared by the cascade adoption record and the
- * embedding family manifest: one shape, so the two evidence schemas cannot
- * drift apart.
- */
-export const judgeEvidenceRowIdentity = {
-  id: z.string().check(z.minLength(1)),
-  labelId: z.string().check(z.minLength(1)),
-  taskGroup: z.string().check(z.minLength(1)),
-  repositoryGroup: z.string().check(z.minLength(1)),
-}
-
 const sampleSchema = z.strictObject({
   id: z.string(),
   labelId: z.string(),

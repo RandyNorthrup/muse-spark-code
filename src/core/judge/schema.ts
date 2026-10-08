@@ -357,6 +357,19 @@ export const judgeProfileIdentitySchema = z.strictObject({
 })
 export type JudgeProfileIdentity = z.infer<typeof judgeProfileIdentitySchema>
 
+/**
+ * Held-out label identity shared by the cascade adoption record and the
+ * embedding family manifest: one shape, so the two evidence schemas cannot
+ * drift apart. It lives beside the profile identity because both the judge
+ * bundle and the judge sources bundle already carry this module.
+ */
+export const judgeEvidenceRowIdentity = {
+  id: z.string().check(z.minLength(1)),
+  labelId: z.string().check(z.minLength(1)),
+  taskGroup: z.string().check(z.minLength(1)),
+  repositoryGroup: z.string().check(z.minLength(1)),
+}
+
 /** Stable, content-free refusal codes shared by sources, CLI and panel. */
 export const JUDGE_NO_ANSWER_REASONS = [
   'explicit-off',
