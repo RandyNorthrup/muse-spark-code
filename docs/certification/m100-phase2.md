@@ -2012,3 +2012,34 @@ failures, and surfaces retained reclamation uncertainty. Full `npm run quality`,
 the inherited host API inventory, lazy production factory binding and installed
 cross-platform qualification remain W's integration duties under PLAN §7.
 No reviewed H finding is deferred or shared-file ownership widened.
+
+##### HM9 default-deadline fixture follow-up
+
+Initial committed implementation **`82a114c0e`** passed the installed hooks;
+its staged/committed diff was reread, and its source hash matches the drill hash.
+Its first fresh clone ran all gates with `CI=true` after fresh `npm ci` (exit 0).
+The three owning exits were **0 / 0 / 1**, counts **502 / 502 / 501 passed**,
+**0 / 0 / 1 failed**, and seven Windows skips each. All **31 native cases**
+passed in every run. On run three, the ordinary 128-attempt fake case exceeded
+5 s; its partner took 4812.7 ms. This is a failed qualification, not a passing
+receipt. Receiver and every compiler/static/build gate passed there except the
+known inherited W-owned host API inventory (exit 1).
+
+The cause was the global child-process module spy wrapping every method of
+thousands of synthetic ChildProcess instances. The fixture now obtains the
+actual **unspawned** constructor through `vi.importActual` and assigns its safe
+synthetic kill behavior directly. Every spawn still crosses the injected port;
+none of these children is spawned or runs native kill. Real filesystem removal,
+all 128 attempts, all process-boundary deliveries, native cases, assertions and
+repository deadlines remain. No production byte changes. The two stress cases
+then passed together in **4.17 s**, including transform/setup.
+
+With this final fixture, the exact base and both red drills were repeated:
+base **exit 1, 9 failed / 0 passed / 454 filtered, 3.96 s**;
+remove-stop **exit 1, 7 failed / 0 passed / 456 filtered, 3.79 s**;
+early-return **exit 1, 2 failed / 0 passed / 461 filtered, 1.57 s**.
+Every run restored the same production SHA-256 above byte-exact in finally.
+Changed-fixture ESLint/Prettier and plain jscpd pass, with zero clones.
+Restored complete local H suite: **exit 0, 502 passed, 0 failed,
+7 Windows-only skipped**, **66.78 s**, including all 31 native cases.
+Final qualification restarts from a fresh clone of the committed fixture fix.

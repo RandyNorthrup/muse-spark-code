@@ -1,4 +1,5 @@
-import { ChildProcess, type SpawnOptions } from 'node:child_process'
+import type { SpawnOptions } from 'node:child_process'
+import type * as ChildProcessModule from 'node:child_process'
 import { access, lstat, mkdtemp, readFile, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -105,6 +106,9 @@ const configSchema = z.object({ directory: z.string(), label: z.string() })
 
 /** Fake launchd/filesystem handshake; every process still crosses injected spawn. */
 export async function darwinSpawnFixture(site: DarwinSpawnSite, failure: DarwinSpawnFailure) {
+  // The module spy wraps every ChildProcess instance method. Use its actual
+  // unspawned constructor while retaining the injected spawn boundary.
+  const { ChildProcess } = await vi.importActual<typeof ChildProcessModule>('node:child_process')
   const directory = await mkdtemp(path.join(tmpdir(), 'm100-darwin-spawn-'))
   const owner = await lstat(directory)
   const calls: DarwinSpawnSite[] = []
@@ -275,10 +279,12 @@ export async function darwinSpawnFixture(site: DarwinSpawnSite, failure: DarwinS
     // must win over absent streams, not turn pressure into a helper refusal.
     child.stdout = shouldFail && failure.delivery === 'error' ? null : stdout
     child.stderr = shouldFail && failure.delivery === 'error' ? null : stderr
-    vi.spyOn(child, 'kill').mockImplementation(() => {
+    // A direct stub avoids retaining thousands of spies in the 128-attempt
+    // sweep fixtures, and never calls kill on an unspawned native child.
+    child.kill = () => {
       queueMicrotask(() => child.emit('close', null))
       return true
-    })
+    }
     if (shouldFail) {
       queueMicrotask(() => {
         switch (failure.delivery) {
