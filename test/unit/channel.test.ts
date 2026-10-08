@@ -353,6 +353,57 @@ describe('multiplexed portable channel', () => {
     source.close()
     expect(() => source.enqueue(stopMessage)).toThrow('revoked')
   })
+  it('rejects result and result-ack envelopes naming a different incarnation', () => {
+    const { source, target } = cores()
+    const foreign = {
+      pairId: channelReady.pairId,
+      receiverIncarnationId: '9'.repeat(32),
+      boardId: 'd'.repeat(32),
+      taskId: 'e'.repeat(32),
+      attemptId: 'f'.repeat(32),
+    }
+    const result = {
+      version: 1 as const,
+      identity: foreign,
+      epoch: 1,
+      checkpoint: 'f'.repeat(64),
+      resultDigest: '0'.repeat(64),
+      resultBytes: 100,
+      recordedAt: 1000,
+    }
+    expect(() => source.enqueue({ kind: 'result', result })).toThrow('invalid-frame')
+    expect(() =>
+      source.enqueue({
+        kind: 'resultAck',
+        ack: {
+          version: 1,
+          identity: foreign,
+          epoch: 1,
+          resultDigest: result.resultDigest,
+          settlementId: 'e'.repeat(32),
+          disposition: 'accepted',
+          acknowledgedAt: 2000,
+        },
+      }),
+    ).toThrow('invalid-frame')
+    expect(target.takeIncoming(false)).toBeUndefined()
+    const own = { ...foreign, receiverIncarnationId: channelReady.receiverIncarnationId }
+    expect(source.enqueue({ kind: 'result', result: { ...result, identity: own } })).toBe(true)
+    expect(
+      source.enqueue({
+        kind: 'resultAck',
+        ack: {
+          version: 1,
+          identity: own,
+          epoch: 1,
+          resultDigest: result.resultDigest,
+          settlementId: 'e'.repeat(32),
+          disposition: 'accepted',
+          acknowledgedAt: 2000,
+        },
+      }),
+    ).toBe(true)
+  })
 })
 
 it('rejects duplicate inner keys and caps assembly bytes before parsing', () => {
@@ -530,6 +581,24 @@ describe('host handshake pacing G29–G31', () => {
     expect(await channel?.ready).toEqual(restarted)
     expect(dial).toHaveBeenCalledOnce()
     expect(incoming).toHaveBeenCalledOnce()
+  })
+  it('lets an unsettled outbound retry adopt a restarted receiver incarnation', async () => {
+    pacingClock()
+    const restarted = { ...channelReady, receiverIncarnationId: '9'.repeat(32) }
+    const dial = vi.fn<DeviceChannelDialer['dial']>(() =>
+      Promise.reject(new DeviceChannelDialFailure('transport')),
+    )
+    const { pool } = pacer({ dial })
+    const first = pool.connect(channelPeer(), channelReady, channelPort())
+    await tick()
+    expect(dial).toHaveBeenCalledOnce()
+    dial.mockImplementation(() => Promise.resolve(fakeChannelSocket(restarted).socket))
+    const second = pool.connect(channelPeer(), restarted, channelPort())
+    expect(second).toBe(first)
+    await vi.advanceTimersByTimeAsync(DEVICE_LIMITS.handshakeBackoffBaseMs)
+    const channel = await second
+    expect(await channel.ready).toEqual(restarted)
+    expect(dial).toHaveBeenCalledTimes(2)
   })
   it('queues a handshake burst past pendingHandshakes under backoff', async () => {
     pacingClock()

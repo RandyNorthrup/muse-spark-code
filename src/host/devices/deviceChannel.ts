@@ -693,10 +693,19 @@ export class PacedDeviceChannels {
         return Promise.reject(new DeviceChannelDialFailure('authentication'))
       if (existing.ready.receiverIncarnationId !== parsed.receiverIncarnationId) {
         // A current incarnation supplied by the authenticated owner may replace
-        // a closed channel, never a live/pending one or an attempt's identity.
+        // a closed channel, a settled attempt, or an unsettled outbound retry
+        // still waiting for backoff — never a live channel or a dial in
+        // flight, whose attempt keeps its own identity.
+        const isWaitingOutboundRetry =
+          !isReceiver &&
+          !existing.isReceiver &&
+          !existing.running &&
+          existing.channel === undefined &&
+          !existing.settled
         if (
-          existing.running ||
-          (existing.channel === undefined ? !existing.settled : !existing.channel.closed)
+          !isWaitingOutboundRetry &&
+          (existing.running ||
+            (existing.channel === undefined ? !existing.settled : !existing.channel.closed))
         )
           return Promise.reject(new Error('unknown'))
         existing.ready = parsed

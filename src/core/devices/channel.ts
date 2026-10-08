@@ -236,11 +236,13 @@ export class MultiplexedDeviceChannel {
       }
       case 'result': {
         pairId = message.result.identity.pairId
+        incarnation = message.result.identity.receiverIncarnationId
         limit = DEVICE_LIMITS.resultEnvelopeBytes
         break
       }
       case 'resultAck': {
         pairId = message.ack.identity.pairId
+        incarnation = message.ack.identity.receiverIncarnationId
         limit = DEVICE_LIMITS.resultEnvelopeBytes
         break
       }
