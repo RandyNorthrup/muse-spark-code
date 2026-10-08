@@ -1,6 +1,5 @@
 **
 !dist/extension.js
-!dist/estimator.js
 !dist/questionNotes.js
 !dist/conversation.js
 !dist/tab.js

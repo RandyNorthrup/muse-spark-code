@@ -131,7 +131,7 @@ async function openPane() {
   deliverEdit('ed1', 't1')
   deliverEdit('ed2', 't1')
   fireEvent.click(screen.getByRole('button', { name: 'Commands' }))
-  fireEvent.click(screen.getByRole('option', { name: /Review this conversation’s changes/ }))
+  fireEvent.click(await screen.findByRole('option', { name: /Review this conversation’s changes/ }))
   const [request] = posted(postMessage, 'readReviewChanges')
   if (request?.type !== 'readReviewChanges') {
     throw new Error('expected the pane to ask for the changes')

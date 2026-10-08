@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Honor the approved audio model for its message's ordinary requests while
+  retaining model, key and audio consent fences. Keep new vault and estimator
+  bundles in the problem recorder's exact package-frame inventory.
+
 - Vault output scanning runs faster while retaining its redactions and stream
   boundaries. SSH host wildcards preserve Unicode case matching without
   constructing wildcard regexes. Estimator HTML exports reuse the common encoder.

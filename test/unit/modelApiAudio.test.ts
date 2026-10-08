@@ -75,10 +75,14 @@ describe('M105-A per-message Model API audio preparation port', () => {
       )
       await r.session.sendTurn([{ type: 'text', text: 'hear this soundtrack' }])
       await r.turnDone()
-      expect(r.api.responseBodies().map((body) => body['model'])).toEqual([
-        'muse-spark-1.2',
-        'muse-spark-1.2',
-      ])
+      expect(
+        r.api.responseBodies().map((body) => body['model']),
+        JSON.stringify(
+          r.events.filter(
+            (event) => event.type === 'turnCompleted' || event.type === 'backendNotice',
+          ),
+        ),
+      ).toEqual(['muse-spark-1.2', 'muse-spark-1.2'])
       expect(r.session.modelId).toBe('muse-spark-1.3')
       expect(r.events).toContainEqual({
         type: 'backendNotice',

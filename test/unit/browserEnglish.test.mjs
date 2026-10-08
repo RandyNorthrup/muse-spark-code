@@ -48,7 +48,7 @@ const embedded = (table) => ({
 })
 it('keeps account, developer and help values out of startup and loads them exactly on demand', async () => {
   expect(built.bundle.UI_TEXT.sendTitle).toBe(EN.sendTitle)
-  expect(built.bundle.UI_TEXT.referenceIntro).toBe(EN.referenceIntro)
+  expect(() => built.bundle.UI_TEXT.referenceIntro).toThrow('English surface is not loaded')
   expect(() => built.bundle.UI_TEXT.accounts).toThrow('English surface is not loaded')
   const chunk = Object.entries(built.meta.outputs).find(([, output]) =>
     Object.hasOwn(output.inputs, 'browser-surface-english:browser-surface-english'),

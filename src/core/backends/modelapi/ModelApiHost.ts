@@ -3983,9 +3983,13 @@ export class ModelApiSession implements AgentSession {
         !isCompaction && this.compacting === undefined
           ? this.assertContextFits(body)
           : contextModelFor(this.deps, body.model)
+      const requestModelId =
+        isCompaction || directBudget !== undefined
+          ? this.modelId
+          : (this.active?.audioMessage?.modelId ?? this.modelId)
       if (
         revision !== this.modelRevision ||
-        body.model !== this.modelId ||
+        body.model !== requestModelId ||
         !resolved.isCurrent() ||
         (expectedKeyDigest !== undefined && keyDigest !== expectedKeyDigest)
       ) {

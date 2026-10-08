@@ -34,9 +34,9 @@ import { packRuntimeArchive } from './lib/packageArchive.mjs'
 const STAGE = path.join('dist', 'acp-package')
 const BUNDLES = [
   'acp.js',
+  'estimator.js',
   'headless.js',
   'sharingRuntime.js',
-  'estimator.js',
   'acpQuestions.js',
   'runtimeQuestions.js',
   'runtimeAccounts.js',
@@ -50,7 +50,6 @@ const BUNDLES = [
   'modelApiBoundaries.js',
   'vault.js',
   'vaultBoundaries.js',
-  'estimator.js',
   'estimateContracts.js',
   'legalScan.js',
   'providers.js',

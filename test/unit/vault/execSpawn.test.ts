@@ -247,12 +247,12 @@ describe('M109 X native feeder boundary', () => {
     try {
       controller.abort()
       await vi.advanceTimersByTimeAsync(PROCESS_TABLE_TIMEOUT_MS)
+      await pending
       expect(observed.result).toMatchObject({
         stdout: '',
         stderr: UI_TEXT.vault.noAccess,
         exitCode: null,
       })
-      await pending
     } finally {
       vi.useRealTimers()
       if (root.child) await terminateTree(root.child)

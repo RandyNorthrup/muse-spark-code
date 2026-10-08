@@ -689,7 +689,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'mediaAudioAction',
   // M109 (PLAN.md D89): the vault's protection, fence and locks, all
   // machine-scoped, so no workspace can change them.
-  'vault',
+  'vault.enabled',
   'vault.protection',
   'vault.agentFence',
   'vault.lockAfterIdleMinutes',
@@ -5157,6 +5157,10 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/webview/referencePage.js',
   'dist/reference.js',
   'dist/report.js',
+  'dist/vault.js',
+  'dist/vaultBoundaries.js',
+  'dist/estimator.js',
+  'dist/estimateContracts.js',
   'dist/recorder.js',
   'dist/media.js',
   'dist/screenRecord.js',

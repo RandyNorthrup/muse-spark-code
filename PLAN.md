@@ -19098,6 +19098,23 @@ before completion. No push, rebase, model calls or fabricated native artifacts.
       the existing one-pass HTML encoder. No suppression or scanner downgrade.
       Direct SSH matching retains the former Unicode case equivalences (long s,
       Greek final sigma); regressions cover these alongside literal punctuation.
+      Full coverage shards also expose stale test composition: machine-scope
+      metadata must name `vault.enabled`; cold review actions await the palette;
+      package/localization fixtures carry the estimator option module and the
+      fake-only launcher builds its required estimator entry. Warmup includes
+      the palette grammar, cold English tests assert first-use help loading,
+      and independent large export refusal scenarios get independent cases
+      without changing their data, assertions, limits or default deadlines.
+      Register vault/estimator bundles in the recorder's exact package-frame
+      vocabulary, remove duplicate package-input rows, open folded steps before
+      measuring transcript renders, and await real native close after the fake
+      termination deadline. Investigate audio dispatch with its terminal events.
+      The final ordinary-send guard compared a prepared per-message audio model
+      against the unchanged session model, rejecting every approved override.
+      Compare ordinary requests with the current prepared model; compaction and
+      direct paid requests retain the configured-model check. Preserve revision,
+      resolved-model, key, abort and prepared-audio fences; certify the existing
+      multi-request override and refusal regressions and a restored guard drill.
 - [ ] Recover startup through first-use chunks and deduplication, retaining
       its 751,411-byte regression cap. Shrink VSIX/account closure first;
       only their caps may use measured universal bytes +5%, rounded up to

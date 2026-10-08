@@ -313,7 +313,8 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
   cpSync(path.join(ROOT, 'src/shared'), path.join(dir, 'src/shared'), { recursive: true })
   mkdirSync(path.join(dir, 'src/core/judge'), { recursive: true })
   cpSync(path.join(ROOT, 'src/core/judge/engine.ts'), path.join(dir, 'src/core/judge/engine.ts'))
-  mkdirSync(path.join(dir, 'src/runtime'), { recursive: true })
+  mkdirSync(path.join(dir, 'src/runtime/estimator'), { recursive: true })
+  cpSync('src/runtime/estimator/options.ts', path.join(dir, 'src/runtime/estimator/options.ts'))
   cpSync(path.join(ROOT, 'src/runtime/cliOptions.ts'), path.join(dir, 'src/runtime/cliOptions.ts'))
   cpSync(path.join(ROOT, 'src/core/whatsNew'), path.join(dir, 'src/core/whatsNew'), {
     recursive: true,
