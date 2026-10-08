@@ -1288,6 +1288,12 @@ export const MEDIA_CALIBRATION_VIDEO_MAX_SECONDS = 600
 // headroom for unobserved variance. Re-tune only from new captures.
 export const MEDIA_ESTIMATE_SAFETY_FACTOR = 2
 export const MEDIA_FILE_ID_MIN_BYTES = 1024 * 1024
+// The upload ledger and calibration store share the repository's
+// cross-process mutex (core/fileLock, the session-budget design): never
+// stolen, so a holder that pauses mid-acquire keeps its critical section.
+// Uploads ride inside the lock, so the wait covers a slow provider round.
+export const MEDIA_UPLOAD_LOCK_ATTEMPTS = 200
+export const MEDIA_UPLOAD_LOCK_WAIT_MS = 25
 /** Meta's per-team Files pool (D85.2): usage is shown against this, never billed (U6c). */
 export const MEDIA_PROVIDER_POOL_BYTES = 100 * 1024 * 1024 * 1024
 export const MEDIA_SNIFF_MAX_BYTES = 1024 * 1024

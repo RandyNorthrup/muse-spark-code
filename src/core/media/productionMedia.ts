@@ -13,16 +13,24 @@
 // port (D85.7), which binds before any upload. The source re-read resolves
 // the adopted workspace-relative name under the workspace root and fails
 // closed (expired) when the file is gone or changed.
-import { mkdir, readFile, readdir, rename, rm, rmdir, writeFile } from 'node:fs/promises'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
+import { withMkdirLock } from '../fileLock'
 import {
   MEDIA_ESTIMATE_SAFETY_FACTOR,
   MEDIA_MAX_UPLOAD_MIB,
+  MEDIA_UPLOAD_LOCK_ATTEMPTS,
+  MEDIA_UPLOAD_LOCK_WAIT_MS,
   BYTES_PER_MIB,
   MEDIA_PROVIDER_POOL_BYTES,
 } from '../../shared/constants'
+import {
+  accountLedgerDirectory,
+  fileUploadLedgerStorage,
+  writeStateAtomically,
+  type LedgerStoreLock,
+} from './uploadLedgerStorage'
 import type { CoreLogger } from '../logging'
 import type { ModelApiClient } from '../backends/modelapi/client'
 import { FilesApi } from '../backends/modelapi/files'
@@ -33,16 +41,12 @@ import { productionCalibrationSeeds } from './mediaCalibration'
 import { responsesMediaCodec } from './responsesMediaCodec'
 import { metaMediaCapabilities } from './metaMediaCapabilities'
 import { ReplayMedia, type ReplayMediaDeps, type StoredMediaPart } from './replayMedia'
-import type { UploadLedgerStorage } from './uploadLedger'
 import { UploadLedger } from './uploadLedger'
 
-const LEDGER_FILE = 'uploads.json'
 const CALIBRATION_FILE = 'calibration.json'
 const LOCK_SUFFIX = '.lock'
-const LOCK_WAIT_MS = 25
-const LOCK_ATTEMPTS = 200
-const OWNER_DIRECTORY_MODE = 0o700
-const OWNER_FILE_MODE = 0o600
+
+export type MediaStoreLock = LedgerStoreLock
 
 function containedFile(directory: string, name: string): string {
   const resolved = path.resolve(directory, name)
@@ -51,117 +55,36 @@ function containedFile(directory: string, name: string): string {
   return resolved
 }
 
-function isLivePid(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error: unknown) {
-    // ESRCH means the holder is gone; any other failure keeps the lock.
-    return (
-      typeof error === 'object' &&
-      error !== null &&
-      'code' in error &&
-      (error as { code?: unknown }).code !== 'ESRCH'
-    )
-  }
+/** Holds the calibration mutex across the operation (core/fileLock, never stolen). */
+function withCalibrationLock<T>(
+  directory: string,
+  options: MediaStoreLock | undefined,
+  operation: () => Promise<T>,
+): Promise<T> {
+  return withMkdirLock(
+    containedFile(directory, `${CALIBRATION_FILE}${LOCK_SUFFIX}`),
+    {
+      sleep:
+        options?.sleep ?? ((ms: number) => new Promise<void>((settle) => setTimeout(settle, ms))),
+      attempts: options?.attempts ?? MEDIA_UPLOAD_LOCK_ATTEMPTS,
+      waitMs: options?.waitMs ?? MEDIA_UPLOAD_LOCK_WAIT_MS,
+      locked: () => new Error('Media calibration is locked'),
+    },
+    operation,
+  )
 }
-
-/** Atomic writes under a cross-process mutex; a stale holder never blocks. */
-export function fileUploadLedgerStorage(directory: string): UploadLedgerStorage {
-  const stateFile = () => containedFile(directory, LEDGER_FILE)
-  const lockDir = () => containedFile(directory, `${LEDGER_FILE}${LOCK_SUFFIX}`)
-  const occupantFile = () => path.join(lockDir(), String(process.pid))
-  const acquire = async (): Promise<void> => {
-    await mkdir(directory, { recursive: true, mode: OWNER_DIRECTORY_MODE })
-    for (let attempt = 0; attempt < LOCK_ATTEMPTS; attempt++) {
-      try {
-        await mkdir(lockDir())
-        await writeFile(occupantFile(), `${String(process.pid)} ${String(Date.now())}`, {
-          mode: OWNER_FILE_MODE,
-        })
-        return
-      } catch (error: unknown) {
-        if (typeof error !== 'object' || error === null || !('code' in error)) throw error
-        if ((error as { code: string }).code !== 'EEXIST') throw error
-      }
-      // A holder that died between mkdir and its pid write leaves an empty
-      // directory; a vanished directory means a rival won the race.
-      let pids: string[]
-      try {
-        pids = await readdir(lockDir())
-      } catch {
-        continue
-      }
-      if (pids.every((pid) => !Number.isSafeInteger(Number(pid)) || !isLivePid(Number(pid)))) {
-        try {
-          await rm(lockDir(), { recursive: true, force: true })
-        } catch {
-          // A rival won the race; fall through to the wait.
-        }
-        continue
-      }
-      await new Promise((settle) => setTimeout(settle, LOCK_WAIT_MS))
-    }
-    throw new Error('Upload ledger is locked')
-  }
-  const release = async (): Promise<void> => {
-    // Never clear a rival's lock: if the occupant is not this process, the
-    // lock was stolen mid-hold and its owner releases it.
-    try {
-      const held = await readFile(occupantFile(), 'utf8')
-      const occupant = held.split(' ', 2)[0] ?? ''
-      if (occupant !== String(process.pid)) return
-    } catch {
-      return
-    }
-    await rm(occupantFile(), { force: true })
-    try {
-      await rmdir(lockDir())
-    } catch {
-      // A rival already cleared it; nothing is held either way.
-    }
-  }
-  return {
-    async read(): Promise<unknown> {
-      try {
-        return JSON.parse(await readFile(stateFile(), 'utf8'))
-      } catch (error: unknown) {
-        if (
-          typeof error === 'object' &&
-          error !== null &&
-          'code' in error &&
-          (error as { code: string }).code === 'ENOENT'
-        )
-          return undefined
-        throw error
-      }
-    },
-    async write(state): Promise<void> {
-      await mkdir(directory, { recursive: true, mode: OWNER_DIRECTORY_MODE })
-      const staging = containedFile(directory, `${LEDGER_FILE}.${String(process.pid)}.tmp`)
-      await writeFile(staging, JSON.stringify(state), { mode: OWNER_FILE_MODE })
-      await rename(staging, stateFile())
-    },
-    async withLock<T>(operation: () => Promise<T>): Promise<T> {
-      await acquire()
-      try {
-        return await operation()
-      } finally {
-        await release()
-      }
-    },
-  }
-}
-
 export interface ProductionMediaStore {
   readonly read: () => unknown
   readonly write: (points: readonly CalibrationPoint[]) => Promise<void>
+  /** The shared mutex around read-merge-write, so no settlement is lost. */
+  readonly withLock: <T>(operation: () => Promise<T>) => Promise<T>
 }
 
 /** The estimator's file store: seeds while nothing local settled yet. */
 export function fileCalibrationStore(
   directory: string,
   log: Pick<CoreLogger, 'warn'>,
+  lock?: MediaStoreLock,
 ): ProductionMediaStore {
   const pointsSchema = z.array(calibrationPointSchema)
   return {
@@ -189,13 +112,10 @@ export function fileCalibrationStore(
       return parsed.data
     },
     write: async (points): Promise<void> => {
-      await mkdir(directory, { recursive: true, mode: OWNER_DIRECTORY_MODE })
-      const staging = containedFile(directory, `${CALIBRATION_FILE}.${String(process.pid)}.tmp`)
-      await writeFile(staging, JSON.stringify(pointsSchema.parse(points)), {
-        mode: OWNER_FILE_MODE,
-      })
-      await rename(staging, containedFile(directory, CALIBRATION_FILE))
+      await writeStateAtomically(directory, CALIBRATION_FILE, pointsSchema.parse(points))
     },
+    withLock: async <T>(operation: () => Promise<T>): Promise<T> =>
+      await withCalibrationLock(directory, lock, operation),
   }
 }
 
@@ -211,6 +131,15 @@ export interface ProductionMediaDeps {
   readonly authorize: ReplayMediaDeps['authorize']
   readonly compactionTail?: ReplayMediaDeps['compactionTail']
   readonly now?: () => number
+  readonly lock?: MediaStoreLock
+}
+
+/** One upload ledger per account (provider plus account id): a switched key
+ * starts in its own empty directory, so a fresh upload never fails on
+ * another account's state, and another account's files are never replayed.
+ * The ledger's own account check still guards a replaced directory. */
+export function productionMediaDirectory(directory: string, accountId: string): string {
+  return accountLedgerDirectory(directory, accountId)
 }
 
 /** The session replay over the real upload storage and calibration. */
@@ -223,8 +152,9 @@ export function createProductionMediaReplay(deps: ProductionMediaDeps): ReplayMe
     // request to the key digest and refuses on an account change.
     authorizeUpload: () => Promise.resolve(),
   })
+  const accountDirectory = productionMediaDirectory(deps.directory, deps.accountId)
   const ledger = new UploadLedger({
-    storage: fileUploadLedgerStorage(deps.directory),
+    storage: fileUploadLedgerStorage(accountDirectory, deps.lock),
     files,
     accountId: deps.accountId,
     provider: 'meta',
@@ -232,10 +162,11 @@ export function createProductionMediaReplay(deps: ProductionMediaDeps): ReplayMe
     currentAccountId: deps.currentAccountId,
     now: deps.now ?? (() => Date.now()),
   })
-  const store = fileCalibrationStore(deps.directory, deps.log)
+  const store = fileCalibrationStore(accountDirectory, deps.log, deps.lock)
   const estimator = new MediaCostEstimator({
     read: store.read,
     write: store.write,
+    withLock: store.withLock,
     safetyFactor: MEDIA_ESTIMATE_SAFETY_FACTOR,
   })
   return new ReplayMedia(deps.sessionId, {

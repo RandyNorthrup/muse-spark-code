@@ -7,7 +7,10 @@ import { createModelApiHost } from '../../src/host/backend/modelApiEntry'
 import { ModelApiBackendManager } from '../../src/host/backend/modelApiBackendManager'
 import { fakeManagerDeps } from './helpers/modelApiManager'
 import { MediaBudget } from '../../src/core/backends/modelapi/mediaBudget'
-import { createProductionMediaReplay } from '../../src/core/media/productionMedia'
+import {
+  createProductionMediaReplay,
+  productionMediaDirectory,
+} from '../../src/core/media/productionMedia'
 import { fill } from '../../src/shared/l10n/text'
 import {
   MODEL_API_PRICES_PER_MILLION,
@@ -330,12 +333,26 @@ describe('production media through the real factory (MONEY017D)', () => {
       // new local observation beside the seeds.
       expect(settlements).toHaveLength(2)
       const calibration = JSON.parse(
-        readFileSync(path.join(rig.ledgerDir, 'calibration.json'), 'utf8'),
+        readFileSync(
+          path.join(
+            productionMediaDirectory(rig.ledgerDir, FAKE_MODEL_API_ACCOUNT_ID),
+            'calibration.json',
+          ),
+          'utf8',
+        ),
       ) as { inputTokens: number; upperOnly: boolean }[]
       expect(calibration).toHaveLength(24)
       expect(calibration[23]).toMatchObject({ inputTokens: 2800, upperOnly: false })
       expect(
-        JSON.parse(readFileSync(path.join(rig.ledgerDir, 'uploads.json'), 'utf8')),
+        JSON.parse(
+          readFileSync(
+            path.join(
+              productionMediaDirectory(rig.ledgerDir, FAKE_MODEL_API_ACCOUNT_ID),
+              'uploads.json',
+            ),
+            'utf8',
+          ),
+        ),
       ).toMatchObject({
         accountId: FAKE_MODEL_API_ACCOUNT_ID,
       })
@@ -565,7 +582,13 @@ describe('production media through the real factory (MONEY017D)', () => {
       expect(settled).toHaveLength(1)
       expect(Usd.from(settled[0]!).compare(Usd.from(expected))).toBeLessThanOrEqual(0)
       const calibration = JSON.parse(
-        readFileSync(path.join(ledgerDir, 'calibration.json'), 'utf8'),
+        readFileSync(
+          path.join(
+            productionMediaDirectory(ledgerDir, FAKE_MODEL_API_ACCOUNT_ID),
+            'calibration.json',
+          ),
+          'utf8',
+        ),
       ) as { inputTokens: number }[]
       expect(calibration).toHaveLength(24)
       // Detail never changes the estimate: the codec always replays `auto`.

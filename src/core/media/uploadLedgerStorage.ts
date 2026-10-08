@@ -1,0 +1,98 @@
+// The upload ledger's file storage (D85.2): atomic writes under the
+// repository's shared cross-process mutex (core/fileLock, the
+// session-budget design, never stolen). Shared by the media replay and the
+// session store's ownership binding, so both hold the same lock.
+import { randomUUID } from 'node:crypto'
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import path from 'node:path'
+import { withMkdirLock } from '../fileLock'
+import { MEDIA_UPLOAD_LOCK_ATTEMPTS, MEDIA_UPLOAD_LOCK_WAIT_MS } from '../../shared/constants'
+import type { UploadLedgerStorage } from './uploadLedger'
+
+export const UPLOAD_LEDGER_FILE = 'uploads.json'
+const LOCK_SUFFIX = '.lock'
+const OWNER_DIRECTORY_MODE = 0o700
+const OWNER_FILE_MODE = 0o600
+
+/** The account's ledger directory beneath the uploads root (one per account). */
+export function accountLedgerDirectory(root: string, accountId: string): string {
+  const directory = path.join(root, accountId)
+  const resolved = path.resolve(directory)
+  const base = path.resolve(root)
+  if (resolved !== base && !resolved.startsWith(`${base}${path.sep}`))
+    throw new Error('Media path escapes its directory')
+  return directory
+}
+
+export interface LedgerStoreLock {
+  /** Waits between attempts; injected so tests do not sleep. */
+  readonly sleep?: (ms: number) => Promise<void>
+  /** Bounded attempts before the scope fails closed; the tuned default stands in. */
+  readonly attempts?: number
+  /** Milliseconds between attempts; the tuned default stands in. */
+  readonly waitMs?: number
+}
+
+const defaultSleep = (ms: number) => new Promise<void>((settle) => setTimeout(settle, ms))
+
+// Staging names are unique per writer (process and random), so two
+// sessions in one process never share a temporary file on the way to rename.
+function stagingFile(directory: string, fileName: string): string {
+  return path.join(directory, `${fileName}.${String(process.pid)}.${randomUUID()}.tmp`)
+}
+
+/** Atomically replaces one JSON state file through a unique staging name. */
+export async function writeStateAtomically(
+  directory: string,
+  fileName: string,
+  state: unknown,
+): Promise<void> {
+  await mkdir(directory, { recursive: true, mode: OWNER_DIRECTORY_MODE })
+  const staging = stagingFile(directory, fileName)
+  try {
+    await writeFile(staging, JSON.stringify(state), { mode: OWNER_FILE_MODE })
+    await rename(staging, path.join(directory, fileName))
+  } catch (error: unknown) {
+    await rm(staging, { force: true })
+    throw error
+  }
+}
+
+/** Atomic writes under the shared cross-process mutex (core/fileLock). */
+export function fileUploadLedgerStorage(
+  directory: string,
+  lock?: LedgerStoreLock,
+): UploadLedgerStorage {
+  const stateFile = path.join(directory, UPLOAD_LEDGER_FILE)
+  return {
+    async read(): Promise<unknown> {
+      try {
+        return JSON.parse(await readFile(stateFile, 'utf8'))
+      } catch (error: unknown) {
+        if (
+          typeof error === 'object' &&
+          error !== null &&
+          'code' in error &&
+          (error as { code: string }).code === 'ENOENT'
+        )
+          return undefined
+        throw error
+      }
+    },
+    async write(state): Promise<void> {
+      await writeStateAtomically(directory, UPLOAD_LEDGER_FILE, state)
+    },
+    async withLock<T>(operation: () => Promise<T>): Promise<T> {
+      return await withMkdirLock(
+        `${stateFile}${LOCK_SUFFIX}`,
+        {
+          sleep: lock?.sleep ?? defaultSleep,
+          attempts: lock?.attempts ?? MEDIA_UPLOAD_LOCK_ATTEMPTS,
+          waitMs: lock?.waitMs ?? MEDIA_UPLOAD_LOCK_WAIT_MS,
+          locked: () => new Error('Upload ledger is locked'),
+        },
+        operation,
+      )
+    },
+  }
+}

@@ -91,6 +91,8 @@ export class MediaCostEstimator {
     private readonly deps: {
       readonly read: () => unknown
       readonly write: (points: readonly CalibrationPoint[]) => Promise<void>
+      /** Merges settlements under the calibration store's mutex when bound. */
+      readonly withLock?: <T>(operation: () => Promise<T>) => Promise<T>
       /** Lane W supplies MEDIA_ESTIMATE_SAFETY_FACTOR; no rate is invented here. */
       readonly safetyFactor: number
     },
@@ -214,9 +216,26 @@ export class MediaCostEstimator {
       } catch {
         // Its caller already received the failure; a later bill still saves.
       }
-      const next = [...this.points, ...additions]
-      await this.deps.write(next)
-      this.points = next
+      if (this.deps.withLock === undefined) {
+        const next = [...this.points, ...additions]
+        await this.deps.write(next)
+        this.points = next
+        return
+      }
+      // Two live sessions settle under the shared mutex: re-read inside it
+      // and merge by capture id, so the second settlement keeps the first.
+      await this.deps.withLock(async () => {
+        const fresh = z.array(pointSchema).parse(this.deps.read())
+        const known = new Set(fresh.map((point) => point.captureId))
+        const unseen = additions.filter((point) => !known.has(point.captureId))
+        if (unseen.length === 0) {
+          this.points = fresh
+          return
+        }
+        const merged = [...fresh, ...unseen]
+        await this.deps.write(merged)
+        this.points = merged
+      })
     }
     const saving = save()
     this.pendingSave = saving
