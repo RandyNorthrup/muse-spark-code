@@ -27,6 +27,13 @@ const browser = await chromium.launch({ executablePath: chrome, headless: true }
 const { server, port } = await serveRepo(root)
 const axe = await readFile(path.join(root, 'node_modules/axe-core/axe.min.js'), 'utf8')
 const results = []
+const bodyClasses = new Map()
+for (const theme of themes) {
+  const capture = JSON.parse(
+    await readFile(path.join(root, 'test/harness/themes', `${theme}.json`), 'utf8'),
+  )
+  bodyClasses.set(theme, capture.bodyClass)
+}
 try {
   for (const theme of themes) {
     for (const width of [320, 690]) {
@@ -50,8 +57,29 @@ try {
             })
             const element = globalThis.document.documentElement
             return {
+              // Class-dependent theme styles need the captured body class.
+              bodyClass: globalThis.document.body.className,
               violations: scanned.violations.map((violation) => violation.id),
               overflow: element.scrollWidth > element.clientWidth,
+              // Visual review F1: nothing in the section is cut off, and no table
+              // region needs a sideways scroll at 320 or 690 px.
+              clipped: (() => {
+                const section = globalThis.document.querySelector('section.usage-resources')
+                if (section === null) return ['no section']
+                const box = section.getBoundingClientRect()
+                const cut = [...section.querySelectorAll('*')]
+                  .filter((node) => {
+                    const rect = node.getBoundingClientRect()
+                    return (
+                      rect.width > 0 && (rect.right > box.right + 0.5 || rect.left < box.left - 0.5)
+                    )
+                  })
+                  .map((node) => node.className || node.tagName)
+                const scrollers = [...section.querySelectorAll('.usage-resource-table')]
+                  .filter((node) => node.scrollWidth > node.clientWidth)
+                  .map((node) => node.getAttribute('aria-label'))
+                return [...cut, ...scrollers]
+              })(),
               errors: globalThis.usageHarness.errors,
               text: globalThis.document.querySelector('section.usage-resources')?.textContent ?? '',
             }
@@ -63,6 +91,12 @@ try {
             shot,
             violations: scan.violations,
             overflow: scan.overflow,
+            clipped: scan.clipped,
+            bodyClass: scan.bodyClass,
+            identityProblems:
+              scan.bodyClass === bodyClasses.get(theme)
+                ? []
+                : [`body class "${scan.bodyClass}", expected "${String(bodyClasses.get(theme))}"`],
             errors: scan.errors,
             currentMinute: scan.text.includes('This minute so far'),
             earlierDays: scan.text.includes('Earlier days'),
@@ -87,6 +121,8 @@ const failures = results.filter(
     result.error !== undefined ||
     result.violations.length > 0 ||
     result.overflow ||
+    result.clipped.length > 0 ||
+    result.identityProblems.length > 0 ||
     result.errors.length > 0,
 )
 console.log(`${String(results.length)} resource scenes, ${String(failures.length)} failures`)
