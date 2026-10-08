@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import { MediaCostEstimator } from '../../../../src/core/media/mediaCost'
 import type {
   MediaModelCapabilities,
   MediaModalityCapability,
@@ -117,6 +118,27 @@ export function replayRig(
   )
   const authorize = vi.fn(() => Promise.resolve())
   const deps: ReplayMediaDeps = {
+    estimator: new MediaCostEstimator({
+      safetyFactor: 2,
+      // Synthetic calibration for fake encoders; no production rate is invented.
+      read: () =>
+        ['muse-spark-1.3', 'muse-spark-1.2', 'muse-spark-1.3-contributor'].flatMap((modelId) =>
+          [
+            { kind: 'video', fps: null },
+            { kind: 'image', detail: 'auto' },
+            { kind: 'document' },
+          ].map((variant) => ({
+            provider: 'meta',
+            modelId,
+            variant,
+            units: variant.kind === 'video' ? 10 : 1,
+            inputTokens: 2751,
+            captureId: 'fake-calibration',
+            upperOnly: false,
+          })),
+        ),
+      write: () => Promise.resolve(),
+    }),
     capabilities: mediaModel,
     codec: {
       encodeInline,

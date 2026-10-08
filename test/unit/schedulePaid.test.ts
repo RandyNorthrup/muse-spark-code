@@ -230,6 +230,10 @@ describe('schedule-scoped paid consent and reservations', () => {
     ).rejects.toThrow()
     const claim = await scope.reserve(body, 100, new AbortController().signal)
     expect(scope.cost()).toEqual({ usd: 0, certainty: 'unknown', retainedLiabilityUsd: 0.6 })
+    await expect(claim.settle(usd(1.1))).rejects.toThrow()
+    const retained = await first.latestDay()
+    expect(retained.spentUsd).toBe('0.6')
+    expect(scope.cost()).toEqual({ usd: 0, certainty: 'unknown', retainedLiabilityUsd: 0.6 })
     isOn = false
     expect(scope.allows('imageGeneration')).toBe(false)
     expect(() => claim.check(usd(0))).toThrow()

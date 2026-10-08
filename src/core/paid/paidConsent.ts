@@ -218,6 +218,9 @@ export function createSchedulePaidScope(deps: {
         return claim.check(Usd.from(0).toAmount())
       }
       const settle = async (actualCostUsd: UsdAmount, hasUnknownCost = false) => {
+        // D95.3: a hard cap never accepts spend beyond the admitted claim.
+        if (Usd.from(actualCostUsd).compare(Usd.from(claim.reservedUsd)) > 0)
+          throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
         const total = await claim.settle(actualCostUsd, hasUnknownCost)
         const own = claims.get(claim.claimId)
         if (own !== undefined && !own.settled) {

@@ -36814,6 +36814,17 @@ usagePanel, headless, runtimeAccounts, surface English, Palette and estimator
 panel. No threshold or ignore changes. Their repair and integrated full quality
 belong to the lead; exact receipts are in `docs/certification/int0170-combined.md`.
 
+**MONEY017B inherited inventory gate (2026-10-08, Kubuntu).** The required
+`paid*` sweep exposes `paidMoneyPorts`' source-wide numeric-port inventory:
+1 failed / 12 passed, with the same 21 entries on `054a9fd12` and the repaired
+tree. They span captured account projections, schedule/CLI caps, reporting,
+voice and estimator ports; none is added by P2/P3. Do not suppress its assertion
+or migrate unrelated protocols in this bounded repair. The lead owns that
+integrated inventory reconciliation. Fresh-clone owning regressions and every
+assigned static gate pass; the broad sweep remains 588 passed / 1 inherited
+failure. The unchanged nine bundle-cap failures remain as recorded above.
+Receipts: `docs/certification/int0170-combined.md`, MONEY017B.
+
 INT0180B (2026-10-07): source `9733edba2` supersedes INT0180's local reds
 below. Fresh ordinary installation, exact static job, all four coverage shards
 and merge, full 988-page accessibility, legal's 96 keyboard/zoom plus 24 WCAG

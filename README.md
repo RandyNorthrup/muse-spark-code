@@ -345,8 +345,10 @@ panel enforcement waits for M96's planner (see
   prompt waits for you to run and confirm it; unattended runs are opt-in
   per schedule with a hard spending cap, and your key is never spent
   without your consent. Media read during a scheduled run uses both its
-  schedule cap and the shared daily budget; returned cost and uncertain
-  liability appear in the run ledger.
+  schedule cap and the shared daily budget at the calibrated media upper
+  bound, including replayed file IDs. Returned cost and uncertain liability
+  appear in the run ledger; a bill above its admitted reserve is refused and
+  keeps that reserve as uncertain liability.
 - **Two backends, one per conversation.** Your Muse subscription through the Muse Code
   CLI, or a Meta Model API key (pay as you go) with the extension's own
   tools. The pasted key is never handed to the CLI.

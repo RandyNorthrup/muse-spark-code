@@ -72,6 +72,18 @@ function holdSettlement(claim: ReturnType<typeof setup>['daily']['claim']) {
 }
 
 describe('media request accounting', () => {
+  it('refuses an over-reserve bill and retains the admitted liability', async () => {
+    const t = setup()
+    const reservation = await reserveMediaRequest(t.request)
+    reservation.started()
+    await expect(reservation.settle({ input_tokens: 100_000, output_tokens: 40 })).rejects.toThrow(
+      'reservation',
+    )
+    await reservation.finish()
+    expect(t.daily.claim.settle).toHaveBeenCalledExactlyOnceWith(reservation.reservedUsd, true)
+    expect(t.write).not.toHaveBeenCalled()
+  })
+
   it('keeps a held request ahead of a concurrent admission at the remaining headroom', async () => {
     const t = setup()
     const reservation = await reserveMediaRequest(t.request)

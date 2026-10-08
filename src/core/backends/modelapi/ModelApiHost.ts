@@ -417,6 +417,7 @@ import type {
   ContextOverflowEvent,
   ContextOverflowKind,
 } from '../../providers/overflow'
+import type { MediaRequestAccounting } from '../../media/mediaCost'
 import type { MediaReplayPort } from '../../media/replayMedia'
 import type { UploadedMediaRef } from '../../../shared/media'
 import { mcpFunctionDefinition, mcpFunctionName } from './mcp/functions'
@@ -1181,6 +1182,8 @@ class PaidQuoteChangedError extends Error {
 
 /** A request's budget reservation while it runs (M82). */
 interface OpenReservation extends BudgetReservation {
+  hasMediaAccounting?: boolean
+
   /** Returned search fees share this request's original durable claim. */
   searchSpentUsd: UsdAmount
   readonly searchReservedUsd: UsdAmount
@@ -3640,7 +3643,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       return body
     }
     const estimate = estimateInput(
-      requestParts(body),
+      this.media?.budgetParts(body) ?? requestParts(body),
       body.model === this.modelId ? this.budgetBase : undefined,
     )
     const maxOutputTokens = body.max_output_tokens
@@ -3938,7 +3941,11 @@ export class ModelApiSession implements ScheduledAgentSession {
         `Session budget: a response ended without its usage; its remaining reservation of ${costUsd} USD counts as spent`,
       )
     }
-    this.recordBudgetCost(costUsd, reservation.claim, isPositiveUsd(costUsd) && !reservation.hasCap)
+    this.recordBudgetCost(
+      costUsd,
+      reservation.claim,
+      isPositiveUsd(costUsd) && (!reservation.hasCap || reservation.hasMediaAccounting === true),
+    )
     await this.budgetWrites
     // The on-disk liability is now settled or released, even if this request failed before a frame.
     if (this.deps.budgetScope === undefined) {
@@ -4661,6 +4668,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     directBudget?: DirectResponseBudget,
     isCompaction = false,
     turnId?: string,
+    mediaAccounting?: MediaRequestAccounting,
   ): ResponseAttemptGuard {
     const token = this.owner.token()
     const instructionMaterial = this.instructionMaterial()
@@ -4783,7 +4791,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       (this.client.hasPaidDailyBudget || this.active?.scheduleRun !== undefined) &&
       (paidFeature !== undefined || directBudget !== undefined)
     ) {
-      paidEstimatedInputTokens = estimateInput(requestParts(body), undefined).inputTokens
+      paidEstimatedInputTokens =
+        mediaAccounting?.inputTokens ??
+        estimateInput(this.media?.budgetParts(body) ?? requestParts(body), undefined).inputTokens
     }
     return Object.assign(guard, {
       observe: (observation: ResponseObservation) => {
@@ -4813,6 +4823,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           rateLimited: this.recordedCall.rateLimited === true || observation.rateLimited === true,
         }
       },
+      ...(mediaAccounting !== undefined && { mediaAccounting }),
       ...(paidFeature !== undefined && { paidFeature }),
       ...(paidEstimatedInputTokens !== undefined && { paidEstimatedInputTokens }),
       ...(this.sendingSearchQuote !== undefined && { searchQuote: this.sendingSearchQuote }),
@@ -5910,16 +5921,67 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.recordedCall = { ...this.recordedCall, kind: 'schedule' }
     const requestReplay = this.requestReplay()
     let final: ResponseObject | undefined
-    const admitAttempt = this.responseAttemptGuard(body, undefined, false, turnId)
-    const responseStream = (
-      this.getScheduledRun() === undefined || resolved.client !== this.deps.client
-        ? resolved.client
-        : this.client
-    ).streamResponse(body, signal, onRetry, budget, admitAttempt, confirmedRequest)
     let calls: readonly FunctionCallItem[]
     let wasFitted: boolean
     try {
       await this.persistReservation(reservation)
+      const pricing = this.sendingModel?.policy.pricing
+      const mediaAccounting =
+        run !== undefined && pricing?.kind === 'priced' && reservation?.claim !== undefined
+          ? await this.media?.reserveRequest(body, {
+              provider: resolved.policy.identity.provider,
+              modelId: body.model,
+              textInputTokens: estimateInput(
+                this.media.budgetParts(body).filter((part) => typeof part === 'string'),
+                body.model === this.modelId ? this.budgetBase : undefined,
+              ).inputTokens,
+              maxOutputTokens: body.max_output_tokens,
+              captureId: requestId,
+              log: this.deps.log,
+              prices: {
+                input: Usd.from(pricing.card.input).times(TOKENS_PER_MILLION).toAmount(),
+                output: Usd.from(pricing.card.output).times(TOKENS_PER_MILLION).toAmount(),
+                cachedInput: Usd.from(pricing.card.cachedInput ?? pricing.card.input)
+                  .times(TOKENS_PER_MILLION)
+                  .toAmount(),
+              },
+              session: {
+                reserve: (amount) => {
+                  const claim = reservation.claim
+                  if (
+                    claim === undefined ||
+                    Usd.from(amount).compare(Usd.from(claim.reservedUsd)) > 0
+                  )
+                    throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+                  return Promise.resolve({
+                    check: () => {
+                      claim.check(this.currentBudgetCap())
+                    },
+                    settle: (cost: UsdAmount, isUnknown?: boolean) => {
+                      const search =
+                        isUnknown === true && !reservation.hasTerminalSearchCount
+                          ? reservation.searchReservedUsd
+                          : reservation.searchSpentUsd
+                      return claim.settle(sumUsd(cost, search), isUnknown)
+                    },
+                  })
+                },
+              },
+            })
+          : undefined
+      if (reservation !== undefined) reservation.hasMediaAccounting = mediaAccounting !== undefined
+      const admitAttempt = this.responseAttemptGuard(
+        body,
+        undefined,
+        false,
+        turnId,
+        mediaAccounting,
+      )
+      const responseStream = (
+        this.getScheduledRun() === undefined || resolved.client !== this.deps.client
+          ? resolved.client
+          : this.client
+      ).streamResponse(body, signal, onRetry, budget, admitAttempt, confirmedRequest)
       for await (const event of responseStream) {
         if (reservation !== undefined) {
           reservation.hasStarted = true

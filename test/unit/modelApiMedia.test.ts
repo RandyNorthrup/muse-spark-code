@@ -27,7 +27,11 @@ import {
 import type { MediaModelCapabilities } from '../../src/core/media/modalityGate'
 import { buildSessionExport } from '../../src/core/export/sessionTransfer'
 import { vaultProvenance } from '../../src/core/vault/taint'
-import { Usd } from '../../src/shared/usd'
+import { estimateInput, requestParts } from '../../src/core/backends/modelapi/sessionBudget'
+import { estimateCostUsd } from '../../src/core/usage/insights'
+import { MODEL_API_PRICES_PER_MILLION, TOKENS_PER_MILLION } from '../../src/shared/constants'
+import { Usd, type UsdAmount } from '../../src/shared/usd'
+import type { ScheduleRunDeps } from '../../src/core/schedules/unattended'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
 import { ProvenanceLedger, type ContentSource } from '../../src/core/schedules/provenance'
 import { fakeRunContext, fakeSchedule } from './helpers/schedules/fixtures'
@@ -78,6 +82,7 @@ async function setup(
     transport,
     store,
     host,
+    io,
     deps,
     rig,
     ...(await startWatchedSession(host, '/ws', 'allowAll')),
@@ -90,16 +95,112 @@ async function sendMediaTurn(h: Awaited<ReturnType<typeof setup>>): Promise<void
   await settled
 }
 
+function scheduledMediaReserve(isBelowCap: boolean) {
+  const settlements: ReturnType<
+    typeof vi.fn<(amount: UsdAmount, isUnknown?: boolean) => Promise<unknown>>
+  >[] = []
+  const reserve = vi.fn<NonNullable<ScheduleRunDeps['paid']>['reserve']>(
+    (body, inputTokens, _signal, admitted) => {
+      if (!('input' in body)) throw new Error('Expected Responses request')
+      const hasMedia = JSON.stringify(body.input).includes('test-upload:')
+      const textBody = {
+        ...body,
+        input: body.input.map((item) =>
+          item.type === 'message'
+            ? {
+                ...item,
+                content: item.content.filter(
+                  (part) => part.type !== 'input_text' || !part.text.startsWith('test-upload:'),
+                ),
+              }
+            : item,
+        ),
+      }
+      const textTokens = estimateInput(requestParts(textBody), undefined).inputTokens
+      const expected = hasMedia
+        ? Usd.from(MODEL_API_PRICES_PER_MILLION.standard.input)
+            .times(textTokens + 5502)
+            .add(
+              Usd.from(MODEL_API_PRICES_PER_MILLION.standard.output).times(body.max_output_tokens),
+            )
+            .divide(TOKENS_PER_MILLION)
+            .toAmount()
+        : estimateCostUsd(
+            { inputTokens: textTokens, outputTokens: body.max_output_tokens, cachedTokens: 0 },
+            body.model,
+          )
+      const amount =
+        admitted ??
+        estimateCostUsd(
+          {
+            inputTokens: inputTokens ?? 0,
+            outputTokens: body.max_output_tokens,
+            cachedTokens: 0,
+          },
+          body.model,
+        )
+      if (!isBelowCap) expect(amount).toBe(expected)
+      if (hasMedia && isBelowCap) {
+        const cap = Usd.from(expected).subtract(Usd.from('0.000000001'))
+        if (Usd.from(amount).compare(cap) > 0) throw new Error('schedule cap')
+      }
+      const settle = vi.fn((cost: UsdAmount, isUnknown?: boolean) => {
+        expect(Usd.from(cost).compare(Usd.from(amount))).toBeLessThanOrEqual(0)
+        return Promise.resolve({ spentUsd: cost, hasUnknownHistoricalFees: isUnknown === true })
+      })
+      settlements.push(settle)
+      return Promise.resolve({
+        claimId: 'media-fire',
+        reservedUsd: amount,
+        check: () => ({ spentUsd: amount, hasUnknownHistoricalFees: false }),
+        settle,
+      })
+    },
+  )
+  return { reserve, settlements }
+}
+
+function scheduledMediaRun(
+  h: Awaited<ReturnType<typeof setup>>,
+  reserve: NonNullable<ScheduleRunDeps['paid']>['reserve'],
+) {
+  const { run } = unattendedRun({
+    workspaceRoot: '/ws',
+    io: h.deps.io,
+    context: fakeRunContext(
+      fakeSchedule({ grant: { rules: [], destinationIds: [], paidCapUsd: 1 } }),
+    ),
+    paid: {
+      modelId: 'muse-spark-1.3',
+      accountId: FAKE_MODEL_API_ACCOUNT_ID,
+      allows: () => true,
+      reserve,
+    },
+  })
+  return run
+}
+
 describe('Model API media integration through injected ports', () => {
-  it.each([false, true])(
-    'records scheduled media in its fire ledger and refuses a stopped read (Stop=%s)',
-    async (isStopped) => {
-      const h = await setup({ scheduled: true })
+  it.each([
+    { isStopped: false, belowCap: false },
+    { isStopped: true, belowCap: false },
+    { isStopped: false, belowCap: true },
+    { isStopped: false, belowCap: false, hasExcessUsage: true },
+  ])(
+    'records scheduled video with exact admission (Stop=$isStopped, below cap=$belowCap)',
+    async ({ isStopped, belowCap, hasExcessUsage }) => {
       const media = videoMedia()
+      const h = await setup({ scheduled: true, media })
       const source: Extract<ContentSource, { kind: 'file' }> = {
         kind: 'file',
         contentHash: media.sha256,
-        file: { path: '/ws/clip.mp4', dev: '1', ino: '2', size: media.info.sizeBytes, mtime: '3' },
+        file: {
+          path: `/ws/${media.name}`,
+          dev: '1',
+          ino: '2',
+          size: media.info.sizeBytes,
+          mtime: '3',
+        },
       }
       const readMedia: NonNullable<ToolIo['readMedia']> = async (
         _path,
@@ -113,57 +214,85 @@ describe('Model API media integration through injected ports', () => {
         return { info: media.info, sha256: media.sha256, source: await h.rig.source() }
       }
       Object.assign(h.deps.io, { readMedia })
-      const reserve = vi.fn(() =>
-        Promise.resolve({
-          claimId: 'media-fire',
-          reservedUsd: Usd.from('0.001').toAmount(),
-          check: () => ({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
-          settle: () =>
-            Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
-        }),
-      )
-      const { run } = unattendedRun({
-        workspaceRoot: '/ws',
-        io: h.deps.io,
-        context: fakeRunContext(
-          fakeSchedule({ grant: { rules: [], destinationIds: [], paidCapUsd: 1 } }),
-        ),
-        paid: {
-          modelId: 'muse-spark-1.3',
-          accountId: FAKE_MODEL_API_ACCOUNT_ID,
-          allows: () => true,
-          reserve,
-        },
-      })
+      const { reserve, settlements } = scheduledMediaReserve(belowCap)
+      const run = scheduledMediaRun(h, reserve)
       const proofs = vi.spyOn(ProvenanceLedger.prototype, 'decidedSource')
       try {
         h.api.script(
           {
             calls: [
-              { name: 'read_file', arguments: '{"path":"clip.mp4"}', callId: 'scheduled_read' },
+              {
+                name: 'read_file',
+                arguments: JSON.stringify({ path: media.name }),
+                callId: 'scheduled_read',
+              },
             ],
           },
-          { text: 'Scheduled clip read.' },
+          {
+            text: 'Scheduled clip read.',
+            ...(hasExcessUsage === true && { usage: { input: 1_000_000, output: 1 } }),
+          },
         )
         const done = h.turnDone()
-        await h.session.sendScheduledTurn([{ type: 'text', text: 'Read clip.mp4' }], run)
+        await h.session.sendScheduledTurn([{ type: 'text', text: `Read ${media.name}` }], run)
         await done
+        let terminal = 'completed'
+        if (isStopped) terminal = 'cancelled'
+        else if (belowCap || hasExcessUsage === true) terminal = 'failed'
         expect(h.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
-          terminal: isStopped ? 'cancelled' : 'completed',
+          terminal,
         })
         expect(reserve).toHaveBeenCalledTimes(isStopped ? 1 : 2)
+        if (hasExcessUsage === true)
+          expect(settlements[1]).toHaveBeenCalledExactlyOnceWith(reserve.mock.calls[1]?.[3], true)
         expect(
           proofs.mock.calls.some(
             ([captured]) => JSON.stringify(captured) === JSON.stringify(source),
           ),
         ).toBe(!isStopped)
-        if (isStopped) expect(h.api.responseBodies()).toHaveLength(1)
+        if (isStopped || belowCap) expect(h.api.responseBodies()).toHaveLength(1)
         else
           expect(JSON.stringify(h.api.responseBodies()[1])).toContain(
-            'test-upload:file-clip:video/mp4:',
+            `test-upload:file-clip:${media.info.mediaType}:`,
           )
       } finally {
         proofs.mockRestore()
+        await h.host.close()
+      }
+    },
+  )
+
+  it.each([false, true])(
+    'admits replayed images at their upper bound (below cap=%s)',
+    async (belowCap) => {
+      const media = {
+        ...videoMedia(),
+        info: { kind: 'image', mediaType: 'image/png', sizeBytes: 512_000 },
+      } as const
+      const h = await setup({ scheduled: true, media })
+      const { reserve } = scheduledMediaReserve(belowCap)
+      const run = scheduledMediaRun(h, reserve)
+      h.io.files.set('/ws/note.txt', 'Image context')
+      h.api.script(
+        { calls: [{ name: 'read_file', arguments: '{"path":"note.txt"}' }] },
+        { text: 'Image described.' },
+      )
+      try {
+        const done = h.turnDone()
+        await h.session.sendScheduledTurn([{ type: 'text', text: 'opaque-media' }], run)
+        await done
+        if (!belowCap) {
+          expect(JSON.stringify(h.api.responseBodies()[1])).toContain(
+            'test-upload:file-clip:image/png:',
+          )
+        }
+        expect(h.api.responseBodies()).toHaveLength(belowCap ? 0 : 2)
+        expect(reserve).toHaveBeenCalledTimes(belowCap ? 1 : 2)
+        expect(reserve.mock.calls[0]?.[3]).toBeDefined()
+        expect(h.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+          terminal: belowCap ? 'failed' : 'completed',
+        })
+      } finally {
         await h.host.close()
       }
     },

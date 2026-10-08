@@ -9,6 +9,9 @@ import {
   type StoredMediaPart,
   type UploadedMediaRef,
 } from '../../shared/media'
+import { type MediaCostEstimator, reserveMediaRequest } from './mediaCost'
+import { requestParts, type BudgetMediaPart } from '../backends/modelapi/sessionBudget'
+import type { CreateResponseBody } from '../backends/modelapi/schemas'
 import type { MediaFileInfo } from './limits'
 import type { TurnPart } from '../agent/agentBackend'
 import type { UploadSource } from '../backends/modelapi/files'
@@ -22,6 +25,8 @@ import { modalityGate, type MediaModelCapabilities, type MediaGateResult } from 
 export { storedMediaPartSchema, type StoredMediaPart } from '../../shared/media'
 
 export interface ReplayMediaDeps {
+  readonly estimator?: MediaCostEstimator
+
   readonly capabilities: (modelId: string) => MediaModelCapabilities
   readonly codec: ResponsesMediaCodec
   readonly ledger: (provider: string) => Pick<UploadLedger, 'ensure'>
@@ -62,6 +67,9 @@ function metadataPart(media: StoredMediaPart): Extract<InputContentPart, { type:
 
 /** Structural host seam: W can bind a lazy adapter without inheriting this implementation. */
 export interface MediaReplayPort {
+  readonly budgetParts: ReplayMedia['budgetParts']
+  readonly reserveRequest: ReplayMedia['reserveRequest']
+
   readonly beginRequest: ReplayMedia['beginRequest']
   readonly pending: ReplayMedia['pending']
   readonly assertPendingFits: ReplayMedia['assertPendingFits']
@@ -132,6 +140,51 @@ export class ReplayMedia {
           part.type === 'input_text'))
       ? 'upload'
       : 'inline'
+  }
+
+  /** Detached metadata follows the actual projection, including replayed file IDs. */
+  public budgetParts(body: CreateResponseBody): readonly (string | BudgetMediaPart)[] {
+    const parts: (string | BudgetMediaPart)[] = [...requestParts({ ...body, input: [] })]
+    for (const item of body.input) {
+      if (item.type !== 'message') {
+        parts.push(JSON.stringify(item))
+        continue
+      }
+      const content = item.content.filter((part) => !this.parts.has(part))
+      parts.push(JSON.stringify({ ...item, content }))
+      for (const part of item.content) {
+        const media = this.parts.get(part)
+        if (media === undefined) continue
+        const estimate = this.deps.estimator?.estimate(
+          this.model(body.model).provider,
+          body.model,
+          media,
+          true,
+        )
+        if (estimate === undefined)
+          throw new Error(fill(UI_TEXT.media.cappedRateUnknown, { model: body.model }))
+        parts.push({
+          mediaIdentity: JSON.stringify(media),
+          upperBoundInputTokens: estimate.upperBoundInputTokens,
+        })
+      }
+    }
+    return parts
+  }
+
+  public async reserveRequest(
+    body: CreateResponseBody,
+    request: Omit<Parameters<typeof reserveMediaRequest>[0], 'items' | 'estimator'>,
+  ) {
+    const items = this.managed(body.input).flatMap((part) => {
+      const media = this.parts.get(part)
+      return media === undefined ? [] : [media]
+    })
+    if (items.length === 0) return
+    const estimator = this.deps.estimator
+    if (estimator === undefined)
+      throw new Error(fill(UI_TEXT.media.cappedRateUnknown, { model: body.model }))
+    return await reserveMediaRequest({ ...request, items, estimator })
   }
 
   public pending(input: readonly InputItem[]): InputContentPart[] {

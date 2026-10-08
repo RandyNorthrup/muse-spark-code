@@ -9,8 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
-- Scheduled media requests claim against both schedule and shared daily caps,
+- Production scheduled media requests claim their calibrated upper bound
+  against both schedule and shared daily caps, including replayed file IDs,
   settle the admitted media tariff once, and retain uncertain liabilities.
+  Above-reserve bills refuse settlement; daily claim transfers secure their
+  replacement before releasing held budget.
   Media read-file references carry their checked source into the run ledger;
   stopped reads cannot publish a new proof.
 

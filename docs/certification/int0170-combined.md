@@ -189,6 +189,100 @@ directly while the original async refund is held.
 Final fresh-clone receipts and P2 production/settlement regressions follow
 when both repairs are complete.
 
+P2: `ReplayMedia.budgetParts` detaches each actually projected media part and
+adds its calibrated upper bound on every request, including replayed file IDs.
+The host's session reservation uses those parts. Scheduled requests reuse the
+durable session claim and attach `reserveMediaRequest` accounting to the
+production guard; the client admits the first daily claim directly against the
+schedule and shared-day ledgers. It does not temporarily double-reserve the
+shared day. Interactive accounting/retry policy stays unchanged. Session
+settlement includes hosted fees; capped media without verified usage retains
+uncertainty consistently with its media claim. Missing calibration refuses.
+
+D85.6 reserves at the worst case; D95.3 requires the hard schedule/shared caps.
+Media and the shared schedule paid scope therefore **refuse an above-reserve
+settlement**, retain admitted liability, and never post the excess without
+admission. README's scheduled-media paragraph and Unreleased's first fix now
+state the behavior exercised through `sendScheduledTurn` in the production host.
+The existing runtime scheduler binding limitations remain outside this repair.
+
+The tariff-aware fake paid port verifies the actual reserved amount, rather
+than returning a fixed `0.001`. Video reads then file-ID follow-ups, image
+attachments then same-fire file-ID replay, caps one nano-USD below the media
+upper bound, Stop, and a bill above reserve are exercised through the real host.
+Image fixtures use the attachment route, because `readMedia`'s contract is
+video/audio/document; the test does not broaden that production contract.
+Fixture corrections caught by typechecks/lint included exact USD returns,
+that media-kind distinction, fake IO's concrete port, an unused parameter,
+boolean naming, and an attempted write to frozen tariff state. No gate changed.
+
+Latest base replay, with final regressions and original production source from
+`054a9fd12`: `modelApiMedia` + `mediaAccounting` + `schedulePaid` **9 failed /
+53 passed (62)**, exit 1. Restored final owning suites: **62 passed**, exit 0.
+The independent numeric inventory probe on that base remains **1 failed /
+12 passed (13)**, the same 21 entries as the fresh repaired clone. This qualifies
+the earlier MONEY017 blanket statement about the required paid families.
+
+| Finding                       | Fix                                                                                      | Regression                                                                                                        |
+| ----------------------------- | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| P2 production media admission | `ModelApiHost.ts:3646`, `:4794`, `:5929`; `replayMedia.ts:146`                           | `modelApiMedia`: tariff-aware scheduled video/image follow-ups and below-cap refusal                              |
+| P2 unadmitted settlement      | `mediaCost.ts:407`, `paidConsent.ts:221`; host session accounting `ModelApiHost.ts:3944` | `mediaAccounting`: above-reserve bill; `schedulePaid`: rejected overage leaves `0.6` held; host excess-usage case |
+| P3 held headroom              | `mediaCost.ts:339`                                                                       | `mediaAccounting`: concurrent admission at remaining headroom and held-refund dispatch/second-transfer fences     |
+
+All final deliberate drills exit 1, restore exact bytes, and compare SHA-256.
+P3's ordering drill was recorded with its first validated commit above.
+
+| Disabled behavior                                  | Failed / passed | Restored source SHA-256                                            |
+| -------------------------------------------------- | --------------- | ------------------------------------------------------------------ |
+| Host attaches accounting                           | 3 / 21 (24)     | `7918fdf3e47405219881aa2397fc102865485fb790fb9e2073f218b15e2de2ce` |
+| Media refuses above-reserve settlement             | 1 / 16 (17)     | `6b8413e52b6fdc56785ac7672bd3f7041f169e985e87001e84eb99870a6e685c` |
+| Schedule scope refuses above-reserve settlement    | 1 / 20 (21)     | `76f592bf236b9086831a1ab25bb46def508028c984ff50801c36ee4466dfb59a` |
+| Daily transfer reserves first (first-commit drill) | 2 / 14 (16)     | `fb774bd36f567d9ba9defbab020103ad75ab8acc0fc2ac35382328938b14bd00` |
+
+Fresh ordinary clone under `$TMPDIR`, `npm ci` (901 packages), all verification
+with `CI=true`. Final five projects pass; initial diagnostic reds were repaired
+before the final runs. No command raises a test timeout, filters a test case,
+uses strict knip, or changes the repository hooks.
+
+| Gate                                 | Exit   | Result                                                                                                         |
+| ------------------------------------ | ------ | -------------------------------------------------------------------------------------------------------------- |
+| `npm ci`                             | 0      | Unchanged lockfile, ordinary install                                                                           |
+| Five typechecks                      | 0 each | Host, webview, unit, e2e, integration                                                                          |
+| `eslint --max-warnings=0`            | 0      | Nine changed TS files, final naming correction verified                                                        |
+| Prettier                             | 0      | Changed files; final docs also pass normal hooks                                                               |
+| Plain knip                           | 0      | No production/strict switch                                                                                    |
+| Scoped jscpd                         | 0      | Zero clones, threshold unchanged                                                                               |
+| `check:l10n`                         | 0      | Zero problems                                                                                                  |
+| `check:reference` / `check:host-api` | 0 each | Records current                                                                                                |
+| Required suite sweep                 | 1      | **28 files, 588 passed / 1 inherited failed (589)**                                                            |
+| `npm run build`                      | 1      | Exactly the nine pre-existing caps listed below; Model API **521.7 / 525 KiB**, activation **571.3 / 600 KiB** |
+
+The sweep includes every `paid*`, `media*`, `modelApiMedia*`, `sessionBudget*`,
+`acpPaid`, `schedulePaid`, plus `replayMedia` and `modelApiAttemptBudget`.
+Each invocation has at most three files and `--maxWorkers=3`. The only red is
+`paidMoneyPorts`' inherited source inventory; its exact assertion is preserved.
+All 62 owning regressions pass. The final post-naming `modelApiMedia` replay
+passes 24 tests in the fresh clone.
+
+| Batch | Files                                                  | Passed / failed |
+| ----- | ------------------------------------------------------ | --------------- |
+| 1     | acpPaid, mediaAccounting, mediaAttach                  | 53 / 0          |
+| 2     | mediaBudget, mediaClient, mediaContracts               | 50 / 0          |
+| 3     | mediaConvert, mediaCost, mediaFixtures                 | 60 / 0          |
+| 4     | mediaLimits, mediaLocalization, mediaProviders         | 33 / 0          |
+| 5     | mediaSniff, mediaSniffMalformed, modelApiAttemptBudget | 36 / 0          |
+| 6     | modelApiMedia, modelApiMediaTools, paidAuthority       | 45 / 0          |
+| 7     | paidConsent, paidDailyBudget, paidFeatures             | 104 / 0         |
+| 8     | paidHookModels, paidHost, paidMoneyPorts               | 63 / 1          |
+| 9     | replayMedia, schedulePaid, sessionBudget               | 93 / 0          |
+| 10    | sessionBudgetJournal                                   | 51 / 0          |
+
+The lead owns numeric-inventory reconciliation, the nine integrated size caps,
+and aggregate quality (PLAN §7). There is no full-quality or fully-green-sweep
+claim. Normal repository hooks are used, and staged/committed diffs are reread.
+No merge, rebase, push or live/paid call. Scratch receipts remain under the lane's
+`temp/`; the private fresh clone is removed after verification.
+
 Kubuntu, `rel017/money`, base `7a4fc2ab3`, 2026-10-08. Fake-only; no
 credentials, paid/live calls, merge, push or gate changes. The rig brief
 supersedes the common file's historical merge/full-quality instructions.
