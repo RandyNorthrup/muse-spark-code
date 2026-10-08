@@ -30,7 +30,7 @@ export interface RuntimeResourceHostOptions {
   running: ResourceRunningWork
   history?: ResourceHistoryPort
   overrides?: Partial<ResourceSettings>
-  /** R provides approved availability. Headless does not supply it. */
+  /** R provides approved availability; headless never does. Absent: no relocation route. */
   hasRelocationTarget?: () => boolean
   onError: (error: unknown) => void
 }
@@ -94,7 +94,7 @@ export async function createRuntimeResourceHost(
     },
     settings,
     events,
-    hasRelocationTarget: options.hasRelocationTarget ?? (() => false),
+    hasRelocationTarget: options.hasRelocationTarget ?? null,
     onError: options.onError,
   })
   const queue = new ResourceQueue({

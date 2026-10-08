@@ -37,6 +37,8 @@ export const EN = {
     'Machine busy: {metric} is {reading} (limit {threshold}). New background work is paused.',
   resourceOverrideNotice: 'Work resumed until {time}.',
   resourceRelocatedNotice: 'Queued work moved to {device} because this machine is busy.',
+  resourceRelocationNoRoute:
+    'Relocation is not available yet: it needs a paired device or runner route. Work stays on this machine.',
   resourceUnavailable: 'This reading is unavailable on this machine.',
   resourceTransport: 'Transport failures',
   resourceOsService: 'OS service pressure',
@@ -90,9 +92,9 @@ export const EN = {
   resourceDiskBusyMaxPercentDescription:
     'Optional disk busy limit in percent. Unset means no disk probe.',
   resourceRelocateDescription:
-    'Where queued team tasks and checks may move when this machine is busy. Existing device consent and offers still apply.',
+    'Where queued team tasks and checks may move when this machine is busy. Relocation needs a paired device or runner route and is not available yet, so work stays on this machine.',
   resourceRelocatePairedDescription:
-    'Use an already approved paired device with normal resource load.',
+    'Use an approved paired device with normal resource load once relocation is available.',
   resourceRelocateAskDescription: 'Ask before moving queued work.',
   resourceRelocateOffDescription: 'Keep work on this machine.',
   // M106: loop previews, structured answers, health and explicit feedback.

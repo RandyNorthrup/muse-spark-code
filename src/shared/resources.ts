@@ -229,6 +229,13 @@ export const resourceEventSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('override'), atMs: counter, untilMs: counter }),
 ])
 export type ResourceEvent = z.infer<typeof resourceEventSchema>
+/**
+ * Whether pressure can reach the relocate level. `noRoute`: this host binds no
+ * paired-device or runner route, so work stays here; `noTarget`: a bound route
+ * has no approved target with room now. Older producers omit the field.
+ */
+const resourceRelocationSchema = z.enum(['off', 'available', 'noTarget', 'noRoute'])
+export type ResourceRelocation = z.infer<typeof resourceRelocationSchema>
 export const resourceStatusSchema = z.strictObject({
   level: resourceLevelSchema,
   sample: z.nullable(resourceSampleSchema),
@@ -237,6 +244,7 @@ export const resourceStatusSchema = z.strictObject({
     z.strictObject({ kind: resourceKindSchema, class: resourceClassSchema, count: counter }),
   ),
   overrideUntilMs: z.nullable(counter),
+  relocation: z.optional(resourceRelocationSchema),
 })
 export type ResourceStatus = z.infer<typeof resourceStatusSchema>
 

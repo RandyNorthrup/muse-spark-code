@@ -34,9 +34,9 @@ Code” are Meta trademarks. You bring your own credentials.
   calls. Structured side calls validate answers; headless runs can require a
   bounded final-answer schema. See [Agent loop guarantees](#agent-loop-guarantees)
   for capability gates and remaining native-reader qualifications.
-- **CPU and memory thresholds.** Set machine-scoped limits to throttle new
-  background work. Eligible queued tasks and checks can relocate through an
-  existing approved device or runner route; other work stays local.
+- **CPU and memory thresholds.** Set machine-scoped limits to throttle, then
+  pause, new background work. Relocation needs a paired device or runner route
+  and is not available yet, so work stays on this machine.
 - **Disk floors.** Disk-heavy launches wait below the free-space floor and
   critical-volume writes refuse with a reason. Temporary cleanup requires
   recorded ownership and proved tree exit. See

@@ -170,6 +170,32 @@ describe('resource status surfaces', () => {
     handle.dispose()
   })
 
+  it('says relocation is not available yet only when the governor reports no route', () => {
+    const h = harness()
+    const handle = createResourceStatus(h.deps)
+    const cases = [
+      { relocation: 'noRoute', isExplained: true },
+      { relocation: 'off', isExplained: false },
+      { relocation: 'noTarget', isExplained: false },
+      { relocation: 'available', isExplained: false },
+      { relocation: undefined, isExplained: false },
+    ] as const
+    for (const row of cases) {
+      h.conversation(String(row.relocation))
+      h.publish({
+        ...status('pause'),
+        ...(row.relocation !== undefined && { relocation: row.relocation }),
+      })
+      expect(h.invalidStatus).not.toHaveBeenCalled()
+      const text = h.notice.mock.calls.at(-1)?.[0]
+      expect(text).toContain(UI_TEXT.resourceWaiting)
+      expect(text?.endsWith(` ${UI_TEXT.resourceRelocationNoRoute}`)).toBe(row.isExplained)
+      expect(text?.includes(UI_TEXT.resourceRelocationNoRoute)).toBe(row.isExplained)
+    }
+    expect(h.notice).toHaveBeenCalledTimes(cases.length)
+    handle.dispose()
+  })
+
   it('uses unknown honestly and names CPU, used memory, optional GPU and disk thresholds', () => {
     const h = harness()
     const handle = createResourceStatus(h.deps)

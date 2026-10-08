@@ -61,8 +61,8 @@ happened, not what was planned; superseded entries are kept.
   argument previews make Model API work easier to follow; read-only calls can
   run concurrently while results retain their original order.
 - **Keep your machine responsive.** Machine-scoped CPU and memory thresholds
-  throttle new background work; eligible tasks and checks can relocate through
-  an existing approved device or runner route.
+  throttle, then pause, new background work. Relocation needs a paired device
+  or runner route and is not available yet, so work stays on this machine.
   <!-- try: setting museSpark.resourceCpuMaxPercent -->
 - **Protect free disk space.** Disk floors hold back disk-heavy launches and
   refuse critical-volume writes; cleanup requires recorded ownership and proved
@@ -295,6 +295,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The `museSpark.resourceRelocate` setting no longer implies relocation works.
+  No paired-device or runner route is bound in this release, so resource status,
+  the pause notice and `resources status` say relocation is not available yet,
+  and the setting's description says so too.
 - Release CI fixtures retain both resource commands and agent outcomes, staged
   multilingual Help checks, and the harness's signed-in readiness handshake.
   Cold bundle tests own a complete build, and exec package fixtures supply

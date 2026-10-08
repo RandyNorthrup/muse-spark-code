@@ -177,6 +177,28 @@ describe('resource chip and popover', () => {
     }
   })
 
+  it('explains a governor with no relocation route in the popover, and nothing for other states', () => {
+    const h = fixture()
+    const governor = new ResourceGovernor({
+      clock: new FakeResourceClock(),
+      events: new ResourceEvents(vi.fn()),
+      settings: resourceSettingsSchema.parse({ relocate: 'ask' }),
+      sampler: new ScriptedResourceSampler([]),
+      hasRelocationTarget: null,
+      onError: vi.fn(),
+    })
+    h.publish(governor.status([]))
+    render(<ResourceSurface port={h.port} />)
+    fireEvent.click(screen.getByRole('button'))
+    const dialog = screen.getByRole('dialog', { name: UI_TEXT.resourceTitle })
+    expect(within(dialog).getByText(UI_TEXT.resourceRelocationNoRoute)).toBeInTheDocument()
+    for (const relocation of ['off', 'available', 'noTarget', undefined] as const) {
+      h.publish({ ...h.current(), relocation })
+      expect(within(dialog).queryByText(UI_TEXT.resourceRelocationNoRoute)).toBeNull()
+    }
+    governor.dispose()
+  })
+
   it('reports optional enabled metrics and null samples as unknown, queue counts and an override expiry', () => {
     const h = fixture('pause')
     h.publish({
