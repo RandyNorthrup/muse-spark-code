@@ -8,6 +8,7 @@
 
 import * as z from 'zod/mini'
 import { JUDGE_EMBED_FALLBACK_CONFIDENCE } from '../../../shared/constants'
+import { redactSecrets } from '../../redact'
 import { entropyConfidence } from '../math'
 import {
   judgeOutcomeSchema,
@@ -103,6 +104,21 @@ function wasAborted(signal: AbortSignal): boolean {
 }
 
 /**
+ * The single settlement path for every delegate wait. A Stop that lands
+ * while the full judge runs never publishes its late answer: the request is
+ * reported as not answered, and the legs already reserved stay on the
+ * ledger. No delegate await may resolve an answer without passing through
+ * here.
+ */
+async function settleFallback(
+  pending: Promise<JudgeOutcome>,
+  signal: AbortSignal,
+): Promise<JudgeOutcome> {
+  const outcome = await pending
+  return wasAborted(signal) ? refusal('cancelled') : outcome
+}
+
+/**
  * The embedding leg may run only where the vectors may travel. A blocked leg
  * is not a refusal of the request: the allowed full judge still decides.
  */
@@ -139,14 +155,18 @@ function isMatchingHead(head: EmbeddingHead, deps: EmbeddingRouteDependencies): 
  * One embed input per question: the complete state beside its instructions
  * and the binary question's criteria. The criteria define what `true` and
  * `false` mean, so two framings of the same state never share an input.
+ * Every input passes the shared secret redactor before the remote call, the
+ * same pass the other judges run on their outbound text.
  */
 function embedInputs(request: JudgeRequest): string[] {
   return Object.values(request.questions).map((question) =>
-    JSON.stringify({
-      state: request.state,
-      instructions: question.instructions,
-      criteria: question.criteria ?? null,
-    }),
+    redactSecrets(
+      JSON.stringify({
+        state: request.state,
+        instructions: question.instructions,
+        criteria: question.criteria ?? null,
+      }),
+    ),
   )
 }
 
@@ -187,6 +207,21 @@ function embeddingAnswer(
       usage: { input_tokens: source.inputTokens, output_tokens: 0 },
     },
   })
+}
+
+/**
+ * Run the full judge and keep the embedding leg's cost on an answered
+ * verdict. This wait never publishes on its own: only `settleFallback`
+ * settles a delegate's answer.
+ */
+async function runFallbackWithLeg(
+  fallback: EmbeddingFallback,
+  request: JudgeRequest,
+  source: EmbeddingSource,
+  receipt: EmbeddingReceipt,
+  signal: AbortSignal,
+): Promise<JudgeOutcome> {
+  return withEmbeddingLeg(await fallback.run(request, signal), source, receipt)
 }
 
 /**
@@ -250,11 +285,11 @@ export async function runEmbeddingJudge(
     !isEmbeddingPermitted(deps.source, options.confidential) ||
     Object.values(request.questions).some((question) => question.type !== 'noul')
   ) {
-    return await fallback.run(request, signal)
+    return await settleFallback(fallback.run(request, signal), signal)
   }
   const head = parseEmbeddingHead(deps.head)
   if (head.status !== 'valid' || !isMatchingHead(head.head, deps)) {
-    return await fallback.run(request, signal)
+    return await settleFallback(fallback.run(request, signal), signal)
   }
   let receipt: EmbeddingReceipt
   try {
@@ -272,7 +307,10 @@ export async function runEmbeddingJudge(
   const fallbackWithLeg = async (): Promise<JudgeOutcome> =>
     wasAborted(signal)
       ? refusal('cancelled')
-      : withEmbeddingLeg(await fallback.run(request, signal), deps.source, receipt)
+      : await settleFallback(
+          runFallbackWithLeg(fallback, request, deps.source, receipt, signal),
+          signal,
+        )
   let vectors: readonly (readonly number[])[]
   try {
     vectors = await deps.source.embed(embedInputs(request), signal)

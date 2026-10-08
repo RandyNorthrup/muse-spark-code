@@ -7,10 +7,12 @@ import {
   type EmbeddingRouteDependencies,
   type EmbeddingSource,
 } from '../../src/core/judge/embedding/route'
-import { JUDGE_EMBED_FALLBACK_CONFIDENCE } from '../../src/shared/constants'
+import { JUDGE_EMBED_FALLBACK_CONFIDENCE, REDACTED_MARK } from '../../src/shared/constants'
 import type { JudgeOutcome, JudgeRequest } from '../../src/core/judge/schema'
 import { embeddingHeadDigest } from '../../src/core/judge/embedding/schema'
 import {
+  abortingFallbackFixture,
+  captureEmbedInputs,
   confidentVectors,
   noulRequest,
   routeDependencies,
@@ -202,14 +204,9 @@ describe('embedding fast path', () => {
   })
 
   it('sends each binary question complete with its criteria', async () => {
-    const seen: string[][] = []
+    const { seen, embed } = captureEmbedInputs(confidentVectors)
     const { deps } = routeDependencies({
-      source: {
-        embed: (inputs: readonly string[]) => {
-          seen.push([...inputs])
-          return Promise.resolve(confidentVectors)
-        },
-      },
+      source: { embed },
     })
     const forward = { true: 'the command destroys data', false: 'the command is safe' }
     const reversed = { true: 'the command is safe', false: 'the command destroys data' }
@@ -261,6 +258,71 @@ describe('embedding fast path', () => {
       reason: 'cancelled',
     })
     expect(fallbackCalls).toHaveLength(0)
+  })
+
+  it('answers nothing when Stop aborts while the pre-embedding fallback waits', async () => {
+    for (const shape of ['opted-out', 'mismatched-head'] as const) {
+      const controller = new AbortController()
+      const { calls, fallback } = abortingFallbackFixture(controller)
+      const { deps, claims, embed } = routeDependencies({
+        ...(shape === 'mismatched-head' && {
+          head: { ...trainedHead(), digest: '0'.repeat(64) },
+        }),
+        fallback,
+      })
+      const runOptions = shape === 'opted-out' ? { ...options, optedIn: false } : options
+      expect(await runEmbeddingJudge(noulRequest, runOptions, deps, controller.signal)).toEqual({
+        outcome: 'no-answer',
+        reason: 'cancelled',
+      })
+      // The late stated answer never publishes, and the embedding leg never ran.
+      expect(calls).toHaveLength(1)
+      expect(embed).not.toHaveBeenCalled()
+      expect(claims).toHaveLength(0)
+    }
+  })
+
+  it('answers nothing when Stop aborts while the fallback leg waits', async () => {
+    const controller = new AbortController()
+    const { calls, fallback } = abortingFallbackFixture(controller)
+    const { deps, claims, embed } = routeDependencies({
+      source: { embed: () => Promise.resolve([[0.5, 0.5, 0.5]]) },
+      fallback,
+    })
+    expect(await runEmbeddingJudge(noulRequest, options, deps, controller.signal)).toEqual({
+      outcome: 'no-answer',
+      reason: 'cancelled',
+    })
+    // The late stated answer never publishes, but the legs it really spent
+    // stay reserved on the ledger.
+    expect(calls).toHaveLength(1)
+    expect(embed).toHaveBeenCalledTimes(1)
+    expect(claims).toEqual([{ inputTokens: 12, uncachedCostUsd: 0.0002 }])
+  })
+
+  it('redacts named secrets in state, instructions and criteria before embedding', async () => {
+    const { seen, embed } = captureEmbedInputs(confidentVectors)
+    const { deps } = routeDependencies({
+      source: { embed },
+    })
+    const request: JudgeRequest = {
+      state: { command: 'synthetic command', note: 'password=opaque-state' },
+      questions: {
+        risk: {
+          type: 'noul',
+          instructions: 'check api_key=opaque-instructions before answering',
+          criteria: { true: 'runs client_secret=opaque-true', false: 'the command is safe' },
+        },
+      },
+    }
+    const outcome = await runEmbeddingJudge(request, options, deps, signal())
+    expect(outcome.outcome).toBe('answered')
+    expect(seen).toHaveLength(1)
+    const inputs = seen[0] ?? []
+    for (const input of inputs) {
+      expect(input).not.toContain('opaque-')
+      expect(input).toContain(REDACTED_MARK)
+    }
   })
 
   it('falls back to the full judge when the embedding call rejects', async () => {

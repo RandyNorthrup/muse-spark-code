@@ -253,7 +253,7 @@ export function embeddingHeadDigest(
  * The stored partition record must itself describe disjoint held-out splits:
  * every split keeps its ids, labels and groups, and no task or repository
  * group, sample id or label id names two splits. A re-digested but
- * overlapping or emptied record still refuses.
+ * overlapping, emptied or blank record still refuses.
  */
 function partitionsReason(partitions: EmbeddingHead['partitions']): EmbeddingReason | undefined {
   const splits = [
@@ -271,6 +271,18 @@ function partitionsReason(partitions: EmbeddingHead['partitions']): EmbeddingRea
     )
   ) {
     return 'missing-split'
+  }
+  // The dataset rule refuses blank identifiers; a stored partition record
+  // with a blank entry describes a split dataset validation would refuse,
+  // even when re-digested.
+  if (
+    splits.some(([, partition]) =>
+      [partition.ids, partition.labels, partition.tasks, partition.repositories].some((names) =>
+        names.some((name) => name.trim().length === 0),
+      ),
+    )
+  ) {
+    return 'invalid-dataset'
   }
   const seenIds = new Set<string>()
   for (const [, partition] of splits) {

@@ -220,6 +220,26 @@ describe('embedding head fitting', () => {
     expect(parseWeightEnvelope(weightEnvelopeFor(reemptied)).status).toBe('refused')
   })
 
+  it.each([['ids'], ['labels'], ['tasks'], ['repositories']] as const)(
+    'refuses a re-digested record with a blank evaluation %s',
+    (field) => {
+      const head = trainedHead()
+      const blanked = {
+        ...head,
+        partitions: {
+          ...head.partitions,
+          evaluation: { ...head.partitions.evaluation, [field]: [' '] },
+        },
+      }
+      const redigested = { ...blanked, digest: embeddingHeadDigest(blanked) }
+      expect(parseEmbeddingHead(redigested)).toEqual({
+        status: 'refused',
+        reason: 'invalid-dataset',
+      })
+      expect(parseWeightEnvelope(weightEnvelopeFor(redigested)).status).toBe('refused')
+    },
+  )
+
   it('loads weights only from the global-storage envelope, never a package', () => {
     const head = trainedHead()
     expect(parseWeightEnvelope(weightEnvelopeFor(head)).status).toBe('valid')

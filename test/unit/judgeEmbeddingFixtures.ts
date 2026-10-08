@@ -161,6 +161,37 @@ export function fallbackFixture(museCosts: FallbackMuseCosts = {}) {
   return { calls, fallback, fallbackClaims: ledger.claims }
 }
 
+/**
+ * Capture every embed input batch beside a fixed vector answer, so redaction
+ * and framing probes share one capture shape.
+ */
+export function captureEmbedInputs(vectors: readonly (readonly number[])[]) {
+  const seen: string[][] = []
+  const embed = vi.fn((inputs: readonly string[]): Promise<readonly (readonly number[])[]> => {
+    seen.push([...inputs])
+    return Promise.resolve(vectors)
+  })
+  return { seen, embed }
+}
+
+/**
+ * A full judge that aborts the signal mid-wait, then answers anyway: the
+ * route must discard the late answer. The verdict shape stays the shared
+ * fixture's; only the Stop is new.
+ */
+export function abortingFallbackFixture(controller: AbortController) {
+  const calls: JudgeRequest[] = []
+  const { fallback } = fallbackFixture()
+  const aborting: EmbeddingFallback = {
+    run: vi.fn(async (request: JudgeRequest, signal: AbortSignal): Promise<JudgeOutcome> => {
+      calls.push(request)
+      controller.abort()
+      return await fallback.run(request, signal)
+    }),
+  }
+  return { calls, fallback: aborting }
+}
+
 /** A fake ledger: each run is a NEW reservation claim, settled at once. */
 export function admissionLedger() {
   const claims: { readonly inputTokens: number; readonly uncachedCostUsd: number }[] = []
