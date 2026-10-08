@@ -164,8 +164,30 @@ The production build still contains the phase-1 Devices implementation:
 passing it proves existing bundle gates, not shipped phase-2 wiring. The
 joined-tree full `npm run quality`, coverage/integration/a11y and installed
 four-device qualification are explicitly lane W's acceptance, not a receipt
-claimed by this lane. Fresh-clone CI verification follows after the first
-local commit.
+claimed by this lane.
+
+### Fresh-clone CI verification
+
+Verified implementation commit `d89b9c69219d8b7260b9db8f4481f0a61cc446be`
+in `C:/lanes/_verify/M100P2V-20261007-2150`, cloned directly from the committed
+worktree with `git clone --no-hardlinks --branch m100/p2-v`. Every command
+ran with `CI=true`; `npm.cmd ci` exited **0** (898 installed packages).
+Its install audit reported 12 issues (2 low, 10 high) in the unchanged lockfile;
+this lane adds or changes no dependency and makes no full security-gate claim.
+
+- Owning test command above ran **three times**, repository-default timeouts:
+  **25 passed / 25 passed / 25 passed**, each exit **0** (15 manifest,
+  10 capability); durations 2.16 s, 1.85 s and 1.83 s.
+- Every gate in the worktree table was repeated in this fresh clone with
+  the same exit code: host/webview/unit/e2e/integration typechecks **0**,
+  changed-file ESLint **0**, changed-file Prettier **0**, plain knip **0**,
+  duplication **0**, localization **0**, reference **0**, production build
+  **0**. Host API **1** with only the same `node:crypto` count 55 → 56
+  request; its assigned generated file was left unchanged.
+- Source SHA-256 matches both restored drill hashes above; the fresh clone
+  remains clean after all checks. The original worktree's implementation
+  commit used normal hooks: ESLint/Prettier and the staged gitleaks scan
+  passed, with no leaks and no bypass.
 
 ### Requests to the lead
 
