@@ -18004,11 +18004,37 @@ test that fails without the rule:
    never a single instance (test `repairLegCoversFailureClass`); G48 a
    bulk-edit leg checks each sweep hit against the effective state before
    editing and reports its false positives (test
-   `sweepHitsVerifiedBeforeBulkEdit`).
+   `sweepHitsVerifiedBeforeBulkEdit`); G53 lane completion comes only from
+   an out-of-band record that the runner alone writes (a whole-line marker
+   or an exit file), never from text the lane can print (test
+   `laneOutputCannotForgeCompletion`); G54 each review report attached to
+   its lane's ledger record when it lands, and the board checks "no report"
+   against the ledger (tests `reviewReportAttachedToLedger`,
+   `noReportCheckedAgainstLedger`); G57 lanes never run heavy gates in
+   parallel themselves, and dispatch routes every lane-started heavy gate
+   through the machine's slot (test `laneHeavyGatesTakeMachineSlot`); G58 the
+   lane runner re-reads the lane's own staged diff after every hook run, and
+   hook auto-fix is limited to formatting, otherwise the hook fails instead
+   of rewriting logic (tests `stagedDiffRereadAfterHooks`,
+   `hookAutofixFormattingOnly`), a limit the repository's own pre-commit hook
+   adopts through AGENTS.md; G59 the lane runner refuses stash commands, and
+   lint-staged backups are dropped or namespaced per worktree (tests
+   `runnerRefusesStash`, `hookBackupScopedToWorktree`).
 10. **M107 (governor, 2026-10-07):** G38 stopping a run kills its whole
     process tree, with a device-watcher sweep for orphans whose start time
     matches no live run (test `orphanSweepKillsStaleTree`); M100 and M110
-    bind the same rule through process groups or job objects per run.
+    bind the same rule through process groups or job objects per run. Also
+    G53 the device watcher reads lane completion only from the runner's own
+    record, never from lane output (test `watcherIgnoresLaneExitText`); G55
+    test temp under one harness-owned root, with cleanup that deletes only
+    there, never changes permissions and never selects by name shape alone
+    (tests `cleanupOnlyUnderHarnessRoot`, `cleanupNeverChangesPermissions`),
+    which M100 and M110 workers bind as well; G56 reclaimable space measured
+    from the volume's free space (`df` or an APFS-aware tool) before and
+    after, never from summed `du` sizes, before choosing what to delete (test
+    `reclaimMeasuredByFreeSpace`); G57 heavy gates (the browser harness, full
+    lint, the full suite) take a per-machine slot sized from measured cores
+    and memory, whoever starts them (test `heavyGateTakesMachineSlot`).
 11. **M116 (playbook, 2026-10-07):** G42 pipelined, stacked release
     integration with early draft PRs (test `releasesPipelineOnCandidate`);
     G43 a worker green labelled worker-certified unless verified from a
@@ -18016,7 +18042,10 @@ test that fails without the rule:
     `workerGreenIsNotCiEquivalent`); G44 a draft PR opened when integration
     starts (test `draftPrAtIntegrationStart`); G45 hotfixes run the full
     prep checks (test `hotfixRunsFullPrepChecks`); G46 and G47 with M96c,
-    the reviewer charter asking where else a failing check runs.
+    the reviewer charter asking where else a failing check runs; G54 the
+    integration charter: an integration brief lists each lane's review
+    report path explicitly, and "no report" is certified only after checking
+    the ledger (test `integrationBriefListsReportPaths`).
 12. **M117 (estimator, 2026-10-07):** G39 a bottleneck card for
     done-unprocessed lanes with their ages (test
     `bottleneckCardShowsUnprocessedAges`).

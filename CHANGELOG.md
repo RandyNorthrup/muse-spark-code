@@ -116,6 +116,14 @@ happened, not what was planned; superseded entries are kept.
   sweep hits checked before a bulk edit), with D100 amendments for M96c,
   M107, M116 and M117. The playbook placement chapter gains lessons 11–20
   covering the same failures, still model-agnostic.
+- Seven orchestration gotcha rows G53–G59 (completion only from a record the
+  runner writes, review reports attached to the lane ledger, temp cleanup
+  under one harness-owned root without permission changes, reclaimable space
+  measured as free space, heavy gates in per-machine slots, a staged-diff
+  re-read after hooks whose auto-fix is formatting only, no `git stash` in
+  lanes), with D100 amendments for M96c, M107 and M116. The playbook
+  placement chapter gains lessons 21–27 covering the same failures, still
+  model-agnostic.
 
 ## [0.15.0] - 2026-10-06
 
