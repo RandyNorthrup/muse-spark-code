@@ -1571,8 +1571,8 @@ ENOMEM. [libuv 1.52.1](https://github.com/libuv/libuv/blob/v1.52.1/src/unix/proc
 uses Darwin posix_spawn and returns its errno through UV__ERR. No real memory
 or system-descriptor exhaustion is attempted; these paths use injected failures.
 
-**Test table:** twelve process sites × twenty-three failure deliveries =
-**276 cells**, plus one concurrent-launch/share/retry test. Every cell asserts
+**Test table:** twelve process sites × twenty-four failure deliveries =
+**288 cells**, plus one concurrent-launch/share/retry test. Every cell asserts
 the typed result, whether preparation is retained, and that an eligible retry
 reaches bootstrap on the same factory. Definitive failures make no further
 process call. Retirement inspection failures keep the outer uncertain result
@@ -1584,12 +1584,12 @@ and still prove retry of preparation; query failures preserve ready state.
 | Capacity delivery               | Synchronous throw and error event for each of ENOMEM, EAGAIN, EMFILE and ENFILE (8)                                                                                                       |
 | Definitive delivery             | Error event for ENOENT, EACCES, ENOEXEC, ENOTDIR, ELOOP, ENAMETOOLONG, E2BIG and EINVAL (8)                                                                                               |
 | Unclassified/transient delivery | Synchronous EIO, ETXTBSY and unknown-code throws (3)                                                                                                                                      |
-| Other failure modes             | Nonzero exit, deadline, stdout overflow, stderr overflow (4)                                                                                                                              |
+| Other failure modes             | Nonzero exit, signal exit, deadline, stdout overflow, stderr overflow (5)                                                                                                                 |
 | Native cases                    | All 25 prior macOS cases retained; two added real-GUI retries after synchronous EAGAIN/ENOMEM injection: 27 macOS cases, none skipped                                                     |
 
 **Base proof:** replacing only the Darwin production file with `c94ddce3c`
-while retaining these tests yields **exit 1, 279 failed, 0 passed, 31 filtered**.
-The selected regressions are the 277 table/concurrency cases and the two added
+while retaining these tests yields **exit 1, 291 failed, 0 passed, 31 filtered**.
+The selected regressions are the 289 table/concurrency cases and the two added
 native synchronous-throw cases. The baseline lacks the single injected-spawn
 boundary: its legacy execFile calls hit the explicit forbidden-bypass guard.
 The two native synchronous cases directly reproduce cached unsupported-host
@@ -1615,6 +1615,11 @@ labels were booted out; both process APIs are now fenced before every table or
 concurrency test. The restored owning run above passes all power assertions.
 The final baseline proof uses the corrected fixture. No other job was stopped.
 
+The duplication gate initially rejected an 18-line / 123-token repeated fixture
+setup. Both tests now use one spawnBoundaryFixture; unchanged jscpd reports zero
+clones. Signal termination is included in every matrix site, proving that
+close(null) retries rather than caching an externally killed probe.
+
 Hooked local checkpoints retain both repository checks (lint-staged and
 staged gitleaks). A private temporary hook copy adds only `--no-stash` to
 lint-staged, honoring this brief's ban on stash without disabling a check.
@@ -1626,3 +1631,48 @@ No dependency, setting, command, translation, wire shape, cap or timeout changes
 “Route every macOS Devices process through one bounded spawn primitive and
 retry preparation after transient process, memory, descriptor or timeout failures.”
 The inherited host-API inventory and lazy factory wiring remain W-owned.
+
+**Final fresh-clone qualification.** Source/test commits **`f686d0a04`**
+(primitive/state machine), **`9fa927da8`** (shared fixture setup) and
+**`43b921c05`** (signal-exit matrix). Fresh `git clone --no-hardlinks` of
+`43b921c05` under the lane's `TMPDIR`, then **CI=true npm ci: exit 0**,
+902 installed packages, unchanged lockfile and 11 inherited audit findings
+(2 low, 9 high). Rig: macmini, Node **24.21.0**, libuv **1.52.1**, npm
+**11.19.0**, macOS **15.7.4 / 24G517**, UID **502**.
+
+| Final check                                                                                                             | Exit / evidence                                                                                                                                                                                                                                                                                       |
+| ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Three full owning runs: deviceWorkerHost, deviceWorkerHostNative, deviceWorkerDarwin; maxWorkers=3, repository timeouts | **0 / 0 / 0**. Each **361 passed, 0 failed, 7 Windows-native skipped**. All **27 macOS-native cases** and **289 matrix/concurrency cases** ran and passed in every JSON report. Durations **46.02 / 46.02 / 46.13 s**.                                                                                |
+| Complete deviceReceiver file                                                                                            | **0**, **49 passed, 0 failed, 0 skipped**, **11.43 s**.                                                                                                                                                                                                                                               |
+| Five typechecks: host, webview, unit, e2e, integration                                                                  | **0 / 0 / 0 / 0 / 0**, npm run typecheck.                                                                                                                                                                                                                                                             |
+| ESLint: three changed TS files, max-warnings=0                                                                          | **0**.                                                                                                                                                                                                                                                                                                |
+| Prettier: all five changed TS/Markdown files                                                                            | **0**, with final certification prose also checked after its hook.                                                                                                                                                                                                                                    |
+| Plain knip                                                                                                              | **0**, unchanged configuration.                                                                                                                                                                                                                                                                       |
+| Plain jscpd                                                                                                             | **0**, zero clones, unchanged zero threshold.                                                                                                                                                                                                                                                         |
+| check:reference                                                                                                         | **0**.                                                                                                                                                                                                                                                                                                |
+| check:l10n                                                                                                              | **0**: 14 UI tables, 14 usage tables, 197 manifest strings, 991 source files, zero problems.                                                                                                                                                                                                          |
+| check:host-api                                                                                                          | **1**: the same inherited six W-owned Node import counts; no regeneration, suppression or gate change.                                                                                                                                                                                                |
+| Production build, size/split/host globals/notices                                                                       | **0**. Devices **82.0/100 KiB**; activation **462.8/600 KiB**; Model API **456.0/475 KiB**; Devices webview **34.0/50 KiB**; chat startup **733.8/900 KiB**; original deferred JS **31.9/50 KiB**. All caps unchanged. This measures the current lazy entry; W still owns the Darwin factory binding. |
+
+The expanded final committed tests were also run against `c94ddce3c` again:
+**291 failed, 0 passed, 31 filtered, exit 1**. Both final red drills were
+repeated: bypass **1 failed / exit 1**, transient cache **3 failed / exit 1**.
+Every mutation restored the production SHA-256 above in finally before final
+verification. No raised timeout, removed assertion, native macOS skip or gate
+weakening. The early 23-delivery qualification also passed all owning files
+three times (349 each); the final receipts above replace it with all 24 deliveries.
+
+**Final lead/W requests:** regenerate only the inherited host-API inventory
+(child_process **16→18**, crypto **93→95**, fs **44→45**, fs/promises **74→77**,
+path **125→128**, timers/promises **15→17**; totals **366 VS Code APIs,
+43 importing files, 28 Node built-ins, 70 theme variables**). Carry the
+Unreleased note above into W's changelog and bind the lazy Darwin factory.
+Full aggregate quality and installed/cross-platform qualification remain W's
+required integration gate; no finding in this round's H redesign is deferred.
+
+Changed files: the Darwin driver, its owning test and injected-spawn fixture,
+PLAN's H review/gate regions, and this H/macOS certification subsection.
+All commits ran lint-staged and staged gitleaks with explicit paths; post-hook
+staged snapshots were reviewed. No push, merge, rebase, stash, credential read,
+paid/live model call or nonloopback listener. Temporary verification clones
+and hook copies are removed after final documentation validation.
