@@ -291,6 +291,54 @@ function partialSeparatePair(): { separate: FakeSide; same: FakeSide } {
   }
 }
 
+/** A two-question request (noul risk, choice pick) for per-question cascade cases. */
+function riskPickRequest(): JudgeRequest {
+  return {
+    state: 'synthetic state',
+    questions: {
+      risk: { type: 'noul', instructions: 'Can it destroy data?' },
+      pick: {
+        type: 'choice',
+        instructions: 'Pick one.',
+        criteria: { A: 'First.', B: 'Second.' },
+      },
+    },
+  }
+}
+
+/** A side whose pick answer is partial while its risk answer stays combinable. */
+function partialPickSide(cap: JudgeCapability, risk: readonly number[]): FakeSide {
+  return mutatingSide(cap, { risk, pick: [0.7, 0.3] }, 'pick', (meta) => ({
+    ...meta,
+    partial: true,
+  }))
+}
+
+/** A real but non-combinable separate answer kept and reported as it came. */
+function expectKeptSeparateAnswer(outcome: JudgeOutcome): void {
+  expect(outcome.outcome).toBe('answered')
+  if (outcome.outcome !== 'answered') {
+    return
+  }
+  expect(outcome.result.muse['risk']).toMatchObject({ source: 'separate', partial: true })
+  expect(outcome.result.model).toBe('fixture-separate')
+  expectRiskNoul(outcome.result.answers['risk'], 0.6)
+}
+
+/** One default-options cascade run over a multi-question request, answered. */
+async function answeredMulti(
+  multi: JudgeRequest,
+  separate: FakeSide,
+  same: FakeSide,
+): Promise<JudgeResult> {
+  const outcome = await cascadeJudge(multi, options, depsFor(separate, same), signal())
+  expect(outcome.outcome).toBe('answered')
+  if (outcome.outcome !== 'answered') {
+    throw new Error('expected the cascade to answer')
+  }
+  return outcome.result
+}
+
 /** One cascade run that must dispatch both sides exactly once. */
 async function runBothOnce(
   separate: FakeSide,
@@ -476,14 +524,7 @@ describe('cascadeJudge', () => {
     // non-combinable one must not be treated worse.
     const { separate } = partialSeparatePair()
     const samePartial = fakeSide(sameCap, { risk: [0.6, 0.4] }, { partial: true })
-    const outcome = await highStakesOutcome(separate, samePartial)
-    expect(outcome.outcome).toBe('answered')
-    if (outcome.outcome !== 'answered') {
-      return
-    }
-    expect(outcome.result.muse['risk']).toMatchObject({ source: 'separate', partial: true })
-    expect(outcome.result.model).toBe('fixture-separate')
-    expectRiskNoul(outcome.result.answers['risk'], 0.6)
+    expectKeptSeparateAnswer(await highStakesOutcome(separate, samePartial))
   })
 
   it('keeps the separate answer when the high-stakes follow-up is top-1', async () => {
@@ -503,13 +544,7 @@ describe('cascadeJudge', () => {
     )
     expect(separate.run).toHaveBeenCalledTimes(1)
     expect(sameTop1.side.run).toHaveBeenCalledTimes(1)
-    expect(outcome.outcome).toBe('answered')
-    if (outcome.outcome !== 'answered') {
-      return
-    }
-    expect(outcome.result.muse['risk']).toMatchObject({ source: 'separate', partial: true })
-    expect(outcome.result.model).toBe('fixture-separate')
-    expectRiskNoul(outcome.result.answers['risk'], 0.6)
+    expectKeptSeparateAnswer(outcome)
   })
 
   it('names the serving model on the envelope when the same follow-up stands alone', async () => {
@@ -649,26 +684,8 @@ describe('cascadeJudge', () => {
   })
 
   it('passes a lone combinable side through untouched when the other side cannot combine', async () => {
-    const multi: JudgeRequest = {
-      state: 'synthetic state',
-      questions: {
-        risk: { type: 'noul', instructions: 'Can it destroy data?' },
-        pick: {
-          type: 'choice',
-          instructions: 'Pick one.',
-          criteria: { A: 'First.', B: 'Second.' },
-        },
-      },
-    }
-    const partialPick = mutatingSide(
-      separateCap,
-      { risk: [0.6, 0.4], pick: [0.7, 0.3] },
-      'pick',
-      (meta) => ({
-        ...meta,
-        partial: true,
-      }),
-    )
+    const multi = riskPickRequest()
+    const partialPick = partialPickSide(separateCap, [0.6, 0.4])
     const same = fakeSide(sameCap, { risk: [0.6, 0.4], pick: [0.7, 0.3] }, { weight: 1 })
     const outcome = await cascadeJudge(multi, options, depsFor(partialPick, same), signal())
     expect(outcome.outcome).toBe('answered')
@@ -683,37 +700,15 @@ describe('cascadeJudge', () => {
     // Risk blends; pick is partial on both sides, so neither enters the
     // combiner there. The run still answers: risk as a blend, pick as the
     // separate answer already in hand — never a whole-run engine failure.
-    const multi: JudgeRequest = {
-      state: 'synthetic state',
-      questions: {
-        risk: { type: 'noul', instructions: 'Can it destroy data?' },
-        pick: {
-          type: 'choice',
-          instructions: 'Pick one.',
-          criteria: { A: 'First.', B: 'Second.' },
-        },
-      },
-    }
-    const separate = mutatingSide(
-      separateCap,
-      { risk: [0.9, 0.1], pick: [0.7, 0.3] },
-      'pick',
-      (meta) => ({ ...meta, partial: true }),
-    )
-    const same = mutatingSide(sameCap, { risk: [0.2, 0.8], pick: [0.7, 0.3] }, 'pick', (meta) => ({
-      ...meta,
-      partial: true,
-    }))
-    const outcome = await cascadeJudge(multi, options, depsFor(separate, same), signal())
+    const multi = riskPickRequest()
+    const separate = partialPickSide(separateCap, [0.9, 0.1])
+    const same = partialPickSide(sameCap, [0.2, 0.8])
+    const result = await answeredMulti(multi, separate, same)
     expect(separate.side.run).toHaveBeenCalledTimes(1)
     expect(same.side.run).toHaveBeenCalledTimes(1)
-    expect(outcome.outcome).toBe('answered')
-    if (outcome.outcome !== 'answered') {
-      return
-    }
-    expect(outcome.result.muse['risk']?.source).toBe('both')
-    expect(outcome.result.muse['pick']).toMatchObject({ source: 'separate', partial: true })
-    expect(outcome.result.model).toBe('fixture-separate')
+    expect(result.muse['risk']?.source).toBe('both')
+    expect(result.muse['pick']).toMatchObject({ source: 'separate', partial: true })
+    expect(result.model).toBe('fixture-separate')
   })
 
   it('names the separate model on a mixed envelope and keeps each question honest', async () => {
@@ -721,36 +716,17 @@ describe('cascadeJudge', () => {
     // model); pick stands on the same side alone. The envelope follows the
     // blend convention while pick's muse still names the model that
     // answered it.
-    const multi: JudgeRequest = {
-      state: 'synthetic state',
-      questions: {
-        risk: { type: 'noul', instructions: 'Can it destroy data?' },
-        pick: {
-          type: 'choice',
-          instructions: 'Pick one.',
-          criteria: { A: 'First.', B: 'Second.' },
-        },
-      },
-    }
-    const separate = mutatingSide(
-      separateCap,
-      { risk: [0.9, 0.1], pick: [0.7, 0.3] },
-      'pick',
-      (meta) => ({ ...meta, partial: true }),
-    )
+    const multi = riskPickRequest()
+    const separate = partialPickSide(separateCap, [0.9, 0.1])
     const same = fakeSide(sameCap, { risk: [0.2, 0.8], pick: [0.7, 0.3] }, { weight: 1 })
-    const outcome = await cascadeJudge(multi, options, depsFor(separate, same), signal())
-    expect(outcome.outcome).toBe('answered')
-    if (outcome.outcome !== 'answered') {
-      return
-    }
-    expect(outcome.result.muse['risk']?.source).toBe('both')
-    expect(outcome.result.muse['pick']).toMatchObject({
+    const result = await answeredMulti(multi, separate, same)
+    expect(result.muse['risk']?.source).toBe('both')
+    expect(result.muse['pick']).toMatchObject({
       source: 'same',
       model: 'fixture-same',
       partial: false,
     })
-    expect(outcome.result.model).toBe('fixture-separate')
+    expect(result.model).toBe('fixture-separate')
   })
 
   it('assembles choice and score blends with winners, legends and expected levels', async () => {
