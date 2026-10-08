@@ -29,6 +29,32 @@ const fields: (keyof DeviceCaps)[] = [
   'artifactBytes',
 ]
 
+async function expectProtectedWrite(path: string) {
+  const f = actionGrantFixture()
+  f.state.action = { ...f.state.action, paths: [path] }
+  expect(await f.grants.admit(f.request)).toMatchObject({ reason: 'scope-denied' })
+}
+async function boundReceiverFixture(f: ReturnType<typeof actionGrantFixture>) {
+  const local = receiverFixture()
+  const bound = bindDeviceReceiverActionGrants(local.policy, f.grants, () => f.request)
+  const receiver = await DeviceReceiver.open(
+    local.request.identity.receiverIncarnationId,
+    local.journal,
+    local.execution,
+    bound,
+  )
+  receiver.resumeQueue()
+  return { ...local, bound, receiver }
+}
+
+async function confirmedReceiverFixture(operation: 'connect' | 'program' | 'actuate' = 'actuate') {
+  const f = actionGrantFixture()
+  f.state.action = { ...f.state.action, operation }
+  const local = await boundReceiverFixture(f)
+  deviceStepUpSchema.parse(await f.grants.requestStepUp(f.request, 'local-confirm'))
+  return { ...local, action: f }
+}
+
 describe('receiver intersection', () => {
   it('refuses admission past the receiver intersection', async () => {
     const { grants, request, state } = actionGrantFixture()
@@ -69,11 +95,7 @@ describe('receiver intersection', () => {
   )
   it.each(['.git/config', String.raw`.git\config`, 'src/../.git/config', '.env'])(
     'refuses protected-path write %s',
-    async (path) => {
-      const f = actionGrantFixture()
-      f.state.action = { ...f.state.action, paths: [path] }
-      expect(await f.grants.admit(f.request)).toMatchObject({ reason: 'scope-denied' })
-    },
+    expectProtectedWrite,
   )
   it.each([
     'pkg/.git/hooks/pre-commit',
@@ -97,11 +119,7 @@ describe('receiver intersection', () => {
     '/repo/ordinary.txt',
     'pkg/.vscode/tasks.json',
     'pkg/AGENTS.md',
-  ])('RVM100P2A-P1 refuses protected or outside write %s', async (path) => {
-    const f = actionGrantFixture()
-    f.state.action = { ...f.state.action, paths: [path] }
-    expect(await f.grants.admit(f.request)).toMatchObject({ reason: 'scope-denied' })
-  })
+  ])('RVM100P2A-P1 refuses protected or outside write %s', expectProtectedWrite)
   it('RVM100P2A-P1 matches receiver protected runs at segment boundaries', async () => {
     const f = actionGrantFixture()
     f.state.protectedPaths = ['Private/Secrets', '.env']
@@ -230,23 +248,12 @@ describe('receiver step-up', () => {
   it.each(['connect', 'program', 'actuate'] as const)(
     'RVM100P2A-P2 confirms exactly one %s dispatch through the real binding',
     async (operation) => {
-      const f = actionGrantFixture()
-      f.state.action = { ...f.state.action, operation }
-      const { policy, journal, execution, request, lease } = receiverFixture()
-      const bound = bindDeviceReceiverActionGrants(policy, f.grants, () => f.request)
+      const { request, lease, bound, receiver } = await confirmedReceiverFixture(operation)
       lease.start.mockImplementation(async () => {
         await expect(bound.assertAllowed(request)).rejects.toMatchObject({
           refusal: { reason: 'step-up-required' },
         })
       })
-      const receiver = await DeviceReceiver.open(
-        request.identity.receiverIncarnationId,
-        journal,
-        execution,
-        bound,
-      )
-      receiver.resumeQueue()
-      deviceStepUpSchema.parse(await f.grants.requestStepUp(f.request, 'local-confirm'))
       expect(await responseBody(receiver.dispatch(request))).toMatchObject({
         kind: 'outcome',
         outcome: { state: 'running' },
@@ -269,9 +276,7 @@ describe('receiver step-up', () => {
   it.each(['identity', 'dispatch-payload'])(
     'RVM100P2A-P2 binds the in-flight attestation to its %s',
     async (change) => {
-      const f = actionGrantFixture()
-      f.state.action = { ...f.state.action, operation: 'actuate' }
-      const { policy, journal, execution, request, lease } = receiverFixture()
+      const { policy, request, lease, bound, receiver } = await confirmedReceiverFixture()
       const other = signedDispatch(
         change === 'identity'
           ? {
@@ -284,7 +289,6 @@ describe('receiver step-up', () => {
               ...(request.kind === 'lane' && { brief: 'Different fake dispatch' }),
             },
       )
-      const bound = bindDeviceReceiverActionGrants(policy, f.grants, () => f.request)
       policy.approve.mockImplementation(async () => {
         await expect(bound.assertAllowed(other)).rejects.toMatchObject({
           refusal: { reason: 'step-up-required' },
@@ -292,14 +296,6 @@ describe('receiver step-up', () => {
         return true
       })
       lease.start.mockImplementation(() => Promise.resolve())
-      const receiver = await DeviceReceiver.open(
-        request.identity.receiverIncarnationId,
-        journal,
-        execution,
-        bound,
-      )
-      receiver.resumeQueue()
-      deviceStepUpSchema.parse(await f.grants.requestStepUp(f.request, 'local-confirm'))
       expect(await responseBody(receiver.dispatch(request))).toMatchObject({
         kind: 'outcome',
         outcome: { state: 'running' },
@@ -308,18 +304,7 @@ describe('receiver step-up', () => {
     },
   )
   it('RVM100P2A-P2 spends a bound attestation when ordinary approval ends the attempt', async () => {
-    const f = actionGrantFixture()
-    f.state.action = { ...f.state.action, operation: 'actuate' }
-    const { policy, journal, execution, request, lease } = receiverFixture()
-    const bound = bindDeviceReceiverActionGrants(policy, f.grants, () => f.request)
-    const receiver = await DeviceReceiver.open(
-      request.identity.receiverIncarnationId,
-      journal,
-      execution,
-      bound,
-    )
-    receiver.resumeQueue()
-    deviceStepUpSchema.parse(await f.grants.requestStepUp(f.request, 'local-confirm'))
+    const { policy, request, lease, bound, receiver } = await confirmedReceiverFixture()
     policy.approve.mockResolvedValue(false)
     expect(await responseBody(receiver.dispatch(request))).toEqual({
       kind: 'failure',
@@ -331,18 +316,7 @@ describe('receiver step-up', () => {
     })
   })
   it('RVM100P2A-P2 refuses changed payload during the same attested dispatch', async () => {
-    const f = actionGrantFixture()
-    f.state.action = { ...f.state.action, operation: 'actuate' }
-    const { policy, journal, execution, request, lease } = receiverFixture()
-    const bound = bindDeviceReceiverActionGrants(policy, f.grants, () => f.request)
-    const receiver = await DeviceReceiver.open(
-      request.identity.receiverIncarnationId,
-      journal,
-      execution,
-      bound,
-    )
-    receiver.resumeQueue()
-    deviceStepUpSchema.parse(await f.grants.requestStepUp(f.request, 'local-confirm'))
+    const { policy, request, lease, bound, receiver, action: f } = await confirmedReceiverFixture()
     policy.approve.mockImplementation(() => {
       f.state.action = { ...f.state.action, payload: new TextEncoder().encode('other action') }
       return Promise.resolve(true)

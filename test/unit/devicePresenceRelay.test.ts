@@ -34,6 +34,17 @@ function relayFixture() {
   return { ...f, relay, message }
 }
 
+function waitingRelay(f: ReturnType<typeof relayFixture>) {
+  return devicePresenceRelaySchema.parse({
+    version: DEVICE_LIMITS.protocolVersion,
+    requestId: f.message.requestId,
+    pairId: f.request.pairId,
+    ownerId: f.request.ownerId,
+    kind: 'waiting',
+    actionDigest: f.message.actionDigest,
+  })
+}
+
 describe('device-local presence relay', () => {
   it.each(DEVICE_STEP_UP_METHODS)('shows and answers %s only on the device', async (method) => {
     const f = relayFixture()
@@ -147,27 +158,13 @@ describe('device-local presence relay', () => {
   it('RVM100P2A-P3 rejects a presence relay for another channel pair at enqueue', () => {
     const f = relayFixture()
     const source = new MultiplexedDeviceChannel(channelReady)
-    const relay = devicePresenceRelaySchema.parse({
-      version: DEVICE_LIMITS.protocolVersion,
-      requestId: f.message.requestId,
-      pairId: f.request.pairId,
-      ownerId: f.request.ownerId,
-      kind: 'waiting',
-      actionDigest: f.message.actionDigest,
-    })
+    const relay = waitingRelay(f)
     expect(() => source.enqueue({ kind: 'presenceRelay', relay })).toThrow('invalid-frame')
   })
   it('RVM100P2A-P3 enforces the channel grant cap independently of the relay refine', () => {
     const f = relayFixture()
     const source = new MultiplexedDeviceChannel({ ...channelReady, pairId: f.request.pairId })
-    const relay = devicePresenceRelaySchema.parse({
-      version: DEVICE_LIMITS.protocolVersion,
-      requestId: f.message.requestId,
-      pairId: f.request.pairId,
-      ownerId: f.request.ownerId,
-      kind: 'waiting',
-      actionDigest: f.message.actionDigest,
-    })
+    const relay = waitingRelay(f)
     const input = { kind: 'presenceRelay' as const, relay }
     const encode = TextEncoder.prototype.encode
     // Relay schema uses Buffer.byteLength; emulate oversized channel encoding only.

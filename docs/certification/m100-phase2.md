@@ -640,9 +640,8 @@ under `/tmp/m100p2a-drills-*` on this rig.
   `{ kind: 'presenceRelay', relay: devicePresenceRelaySchema }`. The
   orchestrator renders the correlated `waiting` reply with `waitingText(device)`
   and treats attested replies as status only; it never calls a local answer
-  or `attestStepUp` from peer content. Physical executor wiring must consume
-  one approval per actual action, rather than reuse it across E's repeated
-  attempt-policy checks. No physical executor is supplied by this lane.
+  or `attestStepUp` from peer content. The attempt-aware binding below now covers repeated pre-start policy
+  checks and spends the approval at launch or terminal admission. No physical executor is supplied by this lane.
 - W owns joined CHANGELOG/feature catalog/README/SECURITY updates, final lazy
   entry wiring and fully wired bundle measurement, aggregate `npm run quality`
   and installed-host qualification. No extra command, setting or dependency
@@ -719,9 +718,9 @@ inference spend **0**. No dependency, contract envelope, gate or budget change.
   `isProtectedPath` rule after separator/lexical normalization and case folding.
   Receiver-specific protected runs match whole segments anywhere in the path.
   Normalized leading `..`, POSIX absolute, UNC and Windows drive paths refuse
-  `scope-denied`. `actionGrants.test.ts:100` covers every review scenario,
+  `scope-denied`. `actionGrants.test.ts:122` covers every review scenario,
   mixed case, Windows separators, ordinary outside writes and the canonical
-  protected names; `:105` proves custom multi-segment runs, boundary-safe
+  protected names; `:123` proves custom multi-segment runs, boundary-safe
   ordinary writes and shared protection even with an empty receiver list.
 - **P2 fixed** — `actionGrants.ts:216`, `:251`, `:258` keeps the attestation
   bound to one dispatch's full identity and payload digest throughout policy
@@ -729,16 +728,16 @@ inference spend **0**. No dependency, contract envelope, gate or budget change.
   action digest, grant revision and freshness. Standalone `admit` retains its
   one-use behavior. `deviceReceiver.ts:74` binds the scoped authority and
   `finishAdmission`; `:570` spends it before `lease.start`, and `:590` spends
-  it on every terminal admission path. `actionGrants.test.ts:231` drives real
+  it on every terminal admission path. `actionGrants.test.ts:249` drives real
   `DeviceReceiver.dispatch` with real binding and fake connect/program/actuate:
-  one start, spent at start, second dispatch typed `step-up-required`. `:270`
-  refuses another in-flight id or dispatch payload, `:310` proves terminal
-  ordinary denial spends it, and `:333` refuses changed action bytes then
+  one start, spent at start, second dispatch typed `step-up-required`. `:277`
+  refuses another in-flight id or dispatch payload, `:306` proves terminal
+  ordinary denial spends it, and `:318` refuses changed action bytes then
   refuses reuse of the restored payload after the attempt ends.
 - **P3 fixed** — `src/core/devices/channel.ts:225` binds `presenceRelay` to
   the authenticated pair and applies `DEVICE_LIMITS.grantBytes`.
-  `devicePresenceRelay.test.ts:147` rejects a cross-pair relay at enqueue;
-  `:160` isolates the channel cap from the schema refine: the genuine relay
+  `devicePresenceRelay.test.ts:158` rejects a cross-pair relay at enqueue;
+  `:164` isolates the channel cap from the schema refine: the genuine relay
   still parses, while a test-only TextEncoder spy reports an envelope of
   `grantBytes + 1` bytes (below `frameBytes`) and enqueue must refuse.
   Existing control-stream request/waiting/attested delivery stays covered.
@@ -793,3 +792,20 @@ and retain its returned `finishAdmission` hook. Post-start physical actions
 need fresh per-action presence. W still owns the generated host API inventory,
 joined CHANGELOG/reference/docs and aggregate `npm run quality` qualification,
 as the phase-2 ownership table and shared lane rules require.
+
+The initial repair commit is `b17387a9ed1cb31600b95e9c89ef86dd3d55f2d9`;
+ESLint/Prettier and Gitleaks hooks passed, the post-hook staged/committed diff
+was reread, and source hashes still match the drills. Worktree five-project
+`npm run typecheck`, changed-file ESLint and Prettier exited **0**.
+
+Fresh-clone attempt at `/tmp/fixm100p2a-final-verify-20261007`, that commit,
+`CI=true npm ci`: exit **0**, 902 packages; the unchanged lockfile reports
+11 advisories (2 low, 9 high). Its first three-file test batch had **138
+passed / 1 failed**, an `ENOTEMPTY` in cleanup of the unchanged receiver test
+`RVM100E3-P2 reset starts Stop despite a stalled journal and held cancellation
+confirmation`; no assertion or timeout was changed. Its duplication gate
+correctly failed with **4 clones** in the added tests. Shared protected-write,
+confirmed-receiver and waiting-relay fixture setup removes all clones while
+keeping every case and assertion: **90 owning tests still pass**, duplication
+**0 clones**, changed-test ESLint exit **0**. Final verification uses two-file
+batches, at most three workers, without a timeout override.
