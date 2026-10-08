@@ -2278,7 +2278,11 @@ identifier, without a credential; its default is empty. Set
 it to `off` in Settings to stop future judgments. A measured ready rate below
 the floor disables `auto` on that backend; no production ready-rate or
 precision measurement is claimed here. Status and separate dispatch rows
-show what ran, with missing usage left unknown. See [Judge](docs/judge.md)
+show what ran, with missing usage left unknown. One request-only runtime
+serves the window, CLI and MCP surfaces; the experimental embedding fast
+path runs only on capable transports with its attempt ceiling published
+before dispatch, paid consent asked once, and verified-local models behind
+explicit opt-in. See [Judge](docs/judge.md)
 for the phase-1 contract and remaining certification.
 
 ## Web fetch
