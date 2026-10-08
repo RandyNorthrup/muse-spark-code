@@ -179,6 +179,9 @@ const BUDGETS = [
   { path: 'dist/judgeHook.js', budgetKiB: 100 },
   { path: 'dist/judgeLocal.js', budgetKiB: 75 },
   { path: 'dist/judgeUses.js', budgetKiB: 25 },
+  // M98P2F: the authenticated serve factory loads only on an explicit
+  // serve action. 20.1 KiB + 15%, rounded up to 25 KiB.
+  { path: 'dist/judgeServe.js', budgetKiB: 25 },
   // M98 integration: JSON Schema conversion loads only on explicit tool listing.
   { path: 'dist/validationSchema.js', budgetKiB: 50 },
   { path: 'dist/uiTextRuntime.js', budgetKiB: 25 },

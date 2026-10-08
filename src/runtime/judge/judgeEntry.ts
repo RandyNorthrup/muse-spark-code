@@ -17,6 +17,7 @@ import type * as HookEntry from './judgeHookEntry'
 import type * as LocalEntry from './judgeLocalEntry'
 import type * as UsesEntry from './judgeUsesEntry'
 import type * as SourcesEntry from './judgeSourcesEntry'
+import type * as ServeEntry from './judgeServeEntry'
 import { applyCalibration } from '../../core/judge/calibration/apply'
 import { fitCalibration } from '../../core/judge/calibration/fit'
 import { reportCalibration } from '../../core/judge/calibration/report'
@@ -28,7 +29,6 @@ import { contrastiveJudge } from '../../core/judge/contrastive'
 import { sampleJudge } from '../../core/judge/sampling'
 import type { UiText } from '../../shared/l10n/en'
 import { fill, setUiText, UI_TEXT, uiLocale } from '../../shared/l10n/text'
-import { startJudgeServer } from './serve'
 import { runJudgeCommand } from './commands'
 import { runJudgeMcp } from './mcp'
 
@@ -51,6 +51,7 @@ const childFactories: {
         readonly hook: () => typeof HookEntry
         readonly local: () => typeof LocalEntry
         readonly uses: () => typeof UsesEntry
+        readonly serve: () => typeof ServeEntry
       }
     | undefined
 } = { current: undefined }
@@ -114,7 +115,6 @@ const features = {
   parseCalibrationProfile,
   contrastiveJudge,
   sampleJudge,
-  startJudgeServer,
   runJudgeCommand,
   runJudgeMcp,
   loadLocal() {
@@ -141,6 +141,12 @@ const features = {
         uiLocale: uiLocale(),
         runAsk: runJudgeCommand,
       }),
+    )
+  },
+  loadServe() {
+    const bundle = children().serve()
+    return Promise.resolve(
+      bundle.createJudgeServeFeatures({ uiText: UI_TEXT, uiLocale: uiLocale() }),
     )
   },
 }
@@ -194,6 +200,14 @@ export function createJudgeFeatures(language: {
       isBundle: (value): value is typeof HookEntry =>
         hasFactory<typeof HookEntry>(value, 'createJudgeHookFeatures'),
       label: 'judge hook bundle',
+      unavailable,
+    }),
+    serve: lazyBundleLoader({
+      bundlePath: path.join(__dirname, 'judgeServe.js'),
+      log,
+      isBundle: (value): value is typeof ServeEntry =>
+        hasFactory<typeof ServeEntry>(value, 'createJudgeServeFeatures'),
+      label: 'judge serve bundle',
       unavailable,
     }),
   }

@@ -212,6 +212,8 @@ const JUDGE_LOCAL_ENTRY = 'src/runtime/judge/judgeLocalEntry.ts'
 const JUDGE_LOCAL_OUTFILE = 'dist/judgeLocal.js'
 const JUDGE_USES_ENTRY = 'src/runtime/judge/judgeUsesEntry.ts'
 const JUDGE_USES_OUTFILE = 'dist/judgeUses.js'
+const JUDGE_SERVE_ENTRY = 'src/runtime/judge/judgeServeEntry.ts'
+const JUDGE_SERVE_OUTFILE = 'dist/judgeServe.js'
 const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
 const ACP_ENTRY = 'src/runtime/main.ts'
@@ -551,6 +553,11 @@ const judgeHookOptions = {
   ...judgeP2Options,
   entryPoints: [JUDGE_HOOK_ENTRY],
   outfile: JUDGE_HOOK_OUTFILE,
+}
+const judgeServeOptions = {
+  ...judgeP2Options,
+  entryPoints: [JUDGE_SERVE_ENTRY],
+  outfile: JUDGE_SERVE_OUTFILE,
 }
 
 const judgeOptions = {
@@ -959,6 +966,7 @@ if (isWatch) {
     esbuild.context(judgeHookOptions),
     esbuild.context(judgeLocalOptions),
     esbuild.context(judgeUsesOptions),
+    esbuild.context(judgeServeOptions),
     esbuild.context(validationSchemaOptions),
     esbuild.context(uiTextOptions),
     ...uiTextRegionOptions.map((options) => esbuild.context(options)),
@@ -1057,6 +1065,7 @@ if (isWatch) {
     judgeHook: esbuild.build(judgeHookOptions),
     judgeLocal: esbuild.build(judgeLocalOptions),
     judgeUses: esbuild.build(judgeUsesOptions),
+    judgeServe: esbuild.build(judgeServeOptions),
     validationSchema: esbuild.build(validationSchemaOptions),
     uiText: esbuild.build(uiTextOptions),
     ...Object.fromEntries(

@@ -141,7 +141,7 @@ current language before every use. Its factory exposes:
   run's first sample establishes the prefix without an extra inference.
   Contrastive sends each binary question and its explicit inverse together
   in one admitted request. Neither technique inherits a calibrated label.
-- `startJudgeServer`, with a required `JudgeRuntime` and existing token
+- `startJudgeServer` (from the `judgeServe.js` child through the parent's `loadServe`, not from the parent factory itself), with a required `JudgeRuntime` and existing token
   parent directory. It accepts only literal `127.0.0.1`/`::1`, exact bound
   Host, no Origin, and a per-start bearer from a private owner-only file.
   Input/output validation and streamed size limits precede inference.

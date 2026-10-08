@@ -14,8 +14,6 @@ const judgeFiles = new Set([
   'src/core/judge/calibration/schema.ts',
   'src/core/judge/sampling.ts',
   'src/core/judge/contrastive.ts',
-  'src/runtime/judge/serve.ts',
-  'src/runtime/judge/tokenFile.ts',
   'src/runtime/judge/commands.ts',
   'src/runtime/judge/mcp.ts',
 ])
@@ -84,6 +82,16 @@ const children = [
   {
     name: 'judgeHook',
     sources: ['src/runtime/judge/judgeHookEntry.ts', 'src/runtime/judge/hook.ts'],
+  },
+  {
+    // M98P2F: the serve factory and its token file moved out of the parent.
+    name: 'judgeServe',
+    sources: [
+      'src/runtime/judge/judgeServeEntry.ts',
+      'src/runtime/judge/serve.ts',
+      'src/runtime/judge/tokenFile.ts',
+      'src/runtime/tokenFile.ts',
+    ],
   },
 ]
 const metaSchema = z.looseObject({
@@ -264,6 +272,7 @@ describe('phase-2 judge production delivery', () => {
     ['judgeHook', 100],
     ['judgeLocal', 75],
     ['judgeUses', 25],
+    ['judgeServe', 25],
     ['validationSchema', 50],
   ] as const)(
     'fires %s size, globals and actual package allowlist guards',

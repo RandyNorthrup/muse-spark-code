@@ -103,8 +103,6 @@ const JUDGE_ONLY = [
   'src/core/judge/calibration/schema.ts',
   'src/core/judge/sampling.ts',
   'src/core/judge/contrastive.ts',
-  'src/runtime/judge/serve.ts',
-  'src/runtime/judge/tokenFile.ts',
   'src/runtime/judge/commands.ts',
   'src/runtime/judge/mcp.ts',
 ]
@@ -178,6 +176,18 @@ const JUDGE_CHILDREN = [
     output: 'dist/judgeHook.js',
     metafile: 'dist/meta/judgeHook.json',
     files: ['src/runtime/judge/judgeHookEntry.ts', 'src/runtime/judge/hook.ts'],
+  },
+  {
+    // M98P2F: the authenticated serve factory and its token file, out of
+    // the judge parent bundle into their own explicit-action child.
+    output: 'dist/judgeServe.js',
+    metafile: 'dist/meta/judgeServe.json',
+    files: [
+      'src/runtime/judge/judgeServeEntry.ts',
+      'src/runtime/judge/serve.ts',
+      'src/runtime/judge/tokenFile.ts',
+      'src/runtime/tokenFile.ts',
+    ],
   },
 ]
 // M91 lane W: the adapters for hooks imported in another agent's format (lane

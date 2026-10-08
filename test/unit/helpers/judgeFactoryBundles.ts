@@ -47,6 +47,7 @@ export function builtJudgeFactories() {
         judgeHook: path.resolve('src/runtime/judge/judgeHookEntry.ts'),
         judgeLocal: path.resolve('src/runtime/judge/judgeLocalEntry.ts'),
         judgeUses: path.resolve('src/runtime/judge/judgeUsesEntry.ts'),
+        judgeServe: path.resolve('src/runtime/judge/judgeServeEntry.ts'),
       },
       [],
       metafile,

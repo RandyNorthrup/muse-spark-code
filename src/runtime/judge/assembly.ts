@@ -8,7 +8,7 @@ import {
 } from '../../core/judge/runtime'
 import { shouldReResolve, resolveJudgeMode2a } from '../../core/judge/resolve'
 import type { JudgeRequest } from '../../core/judge/schema'
-import type { JudgeCliDeps, JudgeCliSource } from './commands'
+import type { JudgeCliDeps } from './commands'
 
 export function createJudgeCommandDeps(
   deps: JudgeRuntimeDeps & {
@@ -36,11 +36,11 @@ export function createJudgeCommandDeps(
       // pricing or sending under the resolution's assumptions.
       const snapshot = (): JudgeRuntimeBinding | undefined => {
         const current = deps.binding()
-        if (current === undefined) return undefined
-        const isStale = shouldReResolve(binding.context, current.context)
-        const isRepriced =
-          (current.embedding?.source.locality === 'same-provider') !== isEmbeddingPaidAtResolve
-        return isStale || isRepriced ? undefined : current
+        return current !== undefined &&
+          !shouldReResolve(binding.context, current.context) &&
+          (current.embedding?.source.locality === 'same-provider') === isEmbeddingPaidAtResolve
+          ? current
+          : undefined
       }
       const ceilingOf = (
         target: JudgeRuntimeBinding,
@@ -56,12 +56,13 @@ export function createJudgeCommandDeps(
           if (cost === undefined || !Number.isFinite(cost) || cost < 0) return undefined
           total += cost
         }
-        if (target.embedding?.source.locality === 'same-provider') {
-          const tariff = target.embedding.source.uncachedCostUsd
+        const embedding = target.embedding
+        if (embedding?.source.locality === 'same-provider') {
+          const tariff = embedding.source.uncachedCostUsd
           if (!Number.isFinite(tariff) || tariff < 0) return undefined
           total += tariff
         }
-        return Number.isFinite(total) ? total : undefined
+        return total
       }
       const runtime = createJudgeRuntime({
         ...deps,
@@ -73,7 +74,7 @@ export function createJudgeCommandDeps(
             : { ...current, context: { ...current.context, engine: options.engine } }
         },
       })
-      const source: JudgeCliSource = {
+      return Promise.resolve({
         source: mode,
         model:
           mode === 'separate'
@@ -90,9 +91,12 @@ export function createJudgeCommandDeps(
           const current = snapshot()
           return current === undefined ? undefined : ceilingOf(current, request)
         },
-      }
-      const embeddingModel = binding.embedding?.source.model
-      return Promise.resolve(embeddingModel === undefined ? source : { ...source, embeddingModel })
+        // An embedding answer names this model instead of the conversation
+        // model; the CLI accepts exactly it for embedding verdicts.
+        ...(binding.embedding !== undefined && {
+          embeddingModel: binding.embedding.source.model,
+        }),
+      })
     },
     admitPaid: (source, request, reservedUsd, signal) => {
       // Re-check the cap against the dispatch-time binding: a tariff or

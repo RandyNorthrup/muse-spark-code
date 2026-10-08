@@ -62,6 +62,7 @@ const BUNDLES = [
   'judgeHook.js',
   'judgeLocal.js',
   'judgeUses.js',
+  'judgeServe.js',
   'foreignHooks.js',
   'hookRuntime.js',
   'recorder.js',

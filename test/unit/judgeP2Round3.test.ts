@@ -23,57 +23,58 @@ function features() {
 }
 
 describe('round-3 production judge factories', () => {
-  it.each(['judgeLint.js', 'judgeHook.js', 'judgeLocal.js', 'judgeUses.js'] as const)(
-    'retries %s after a missing or malformed child is repaired',
-    async (child) => {
-      for (const isMalformed of [false, true]) {
-        const folder = mkdtempSync(path.join(tmpdir(), 'muse-judge-child-'))
-        try {
-          // judgeHook.js externalizes the train's shared boundary bundle. The other children do not.
-          for (const file of [
-            'judgeP2.js',
-            'uiText.js',
-            'validation.js',
-            'modelApiBoundaries.js',
-          ]) {
-            copyFileSync(path.join(built.folder, file), path.join(folder, file))
-          }
-          if (isMalformed)
-            writeFileSync(
-              path.join(folder, child),
-              'module.exports = { createJudgeLintFeatures: true, createJudgeHookFeatures: true, createJudgeLocalFeatures: true, createJudgeUsesFeatures: true }',
-            )
-          const root = judgeFeaturesLoader({
-            bundlePath: path.join(folder, 'judgeP2.js'),
-            log: createLogger(new FakeLogOutputChannel()),
-          })()
-          const load = () => {
-            switch (child) {
-              case 'judgeLint.js': {
-                return root.loadLint()
-              }
-              case 'judgeHook.js': {
-                return root.loadHook()
-              }
-              case 'judgeLocal.js': {
-                return root.loadLocal()
-              }
-              case 'judgeUses.js': {
-                return root.loadUses()
-              }
+  it.each([
+    'judgeLint.js',
+    'judgeHook.js',
+    'judgeLocal.js',
+    'judgeUses.js',
+    'judgeServe.js',
+  ] as const)('retries %s after a missing or malformed child is repaired', async (child) => {
+    for (const isMalformed of [false, true]) {
+      const folder = mkdtempSync(path.join(tmpdir(), 'muse-judge-child-'))
+      try {
+        // judgeHook.js externalizes the train's shared boundary bundle. The other children do not.
+        for (const file of ['judgeP2.js', 'uiText.js', 'validation.js', 'modelApiBoundaries.js']) {
+          copyFileSync(path.join(built.folder, file), path.join(folder, file))
+        }
+        if (isMalformed)
+          writeFileSync(
+            path.join(folder, child),
+            'module.exports = { createJudgeLintFeatures: true, createJudgeHookFeatures: true, createJudgeLocalFeatures: true, createJudgeUsesFeatures: true, createJudgeServeFeatures: true }',
+          )
+        const root = judgeFeaturesLoader({
+          bundlePath: path.join(folder, 'judgeP2.js'),
+          log: createLogger(new FakeLogOutputChannel()),
+        })()
+        const load = () => {
+          switch (child) {
+            case 'judgeLint.js': {
+              return root.loadLint()
+            }
+            case 'judgeHook.js': {
+              return root.loadHook()
+            }
+            case 'judgeLocal.js': {
+              return root.loadLocal()
+            }
+            case 'judgeUses.js': {
+              return root.loadUses()
+            }
+            case 'judgeServe.js': {
+              return root.loadServe()
             }
           }
-          expect(() => {
-            void load()
-          }).toThrow(fill(UI_TEXT.judgeNoAnswer, { reason: 'source-unavailable' }))
-          copyFileSync(path.join(built.folder, child), path.join(folder, child))
-          await expect(load()).resolves.toBeDefined()
-        } finally {
-          await removeFolder(folder)
         }
+        expect(() => {
+          void load()
+        }).toThrow(fill(UI_TEXT.judgeNoAnswer, { reason: 'source-unavailable' }))
+        copyFileSync(path.join(built.folder, child), path.join(folder, child))
+        await expect(load()).resolves.toBeDefined()
+      } finally {
+        await removeFolder(folder)
       }
-    },
-  )
+    }
+  })
 
   it('keeps missing lint extraction visibly incomplete without inference', async () => {
     const lint = await features().loadLint()

@@ -66,6 +66,7 @@ const HOST_BUNDLES = [
   'dist/judgeHook.js',
   'dist/judgeLocal.js',
   'dist/judgeUses.js',
+  'dist/judgeServe.js',
   'dist/report.js',
   'dist/recorder.js',
   'dist/whatsNew.js',

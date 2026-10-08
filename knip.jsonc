@@ -106,6 +106,7 @@
     "src/runtime/judge/judgeHookEntry.ts",
     "src/runtime/judge/judgeLocalEntry.ts",
     "src/runtime/judge/judgeUsesEntry.ts",
+    "src/runtime/judge/judgeServeEntry.ts",
     "src/runtime/judge/judgeBundle.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
     // Standalone browser checks invoked by path; usageHost is bundled by them.

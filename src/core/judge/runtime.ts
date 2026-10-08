@@ -119,22 +119,12 @@ export function judgeRuntimeContext(binding: JudgeRuntimeBinding): JudgeModeCont
 }
 
 /**
- * One pending paid-consent decision per price identity, shared by every
- * runtime that settles grants into the same set: concurrent first uses ask
- * once, and the grant lands before any of them dispatches. Entries live
- * and die with their grants set, so a declined answer is asked again while
- * a granted one is never re-asked.
+ * One pending paid-consent decision per price identity: concurrent first
+ * uses ask once, and the grant lands before any of them dispatches. Each
+ * entry is deleted when its decision settles, so a declined answer is
+ * asked again while a granted one is never re-asked.
  */
-const pendingPaidConsent = new WeakMap<Set<string>, Map<string, Promise<boolean>>>()
-
-function pendingDecisions(grants: Set<string>): Map<string, Promise<boolean>> {
-  let pending = pendingPaidConsent.get(grants)
-  if (pending === undefined) {
-    pending = new Map<string, Promise<boolean>>()
-    pendingPaidConsent.set(grants, pending)
-  }
-  return pending
-}
+const pendingPaidConsent = new Map<string, Promise<boolean>>()
 
 /** Each side's run retains its own C/E/J admission; no shared claim or hidden retry. */
 export function createJudgeRuntime(deps: JudgeRuntimeDeps): JudgeRuntime {
@@ -245,33 +235,29 @@ export function createJudgeRuntime(deps: JudgeRuntimeDeps): JudgeRuntime {
         })
         if (source.locality === 'same-provider' && !grants.has(priceIdentity)) {
           if (!embedding.isEnabled()) return { outcome: 'no-answer', reason: 'consent-declined' }
-          const pending = pendingDecisions(grants)
-          let decision = pending.get(priceIdentity)
-          if (decision === undefined) {
-            decision = embedding.allowsPaidUse({
+          const decision =
+            pendingPaidConsent.get(priceIdentity) ??
+            embedding.allowsPaidUse({
               feature: 'judge',
               modelId: source.model,
               dailyBudgetUsd: embedding.dailyBudgetUsd(),
               embedding: { worstCaseUsd: source.uncachedCostUsd },
             })
-            pending.set(priceIdentity, decision)
-          }
+          pendingPaidConsent.set(priceIdentity, decision)
           let isAllowed: boolean
           try {
             isAllowed = await decision
           } catch (error: unknown) {
-            pending.delete(priceIdentity)
+            pendingPaidConsent.delete(priceIdentity)
             throw error
           }
-          if (!isAllowed || !isCurrent()) {
-            pending.delete(priceIdentity)
+          pendingPaidConsent.delete(priceIdentity)
+          if (!isAllowed || !isCurrent())
             return { outcome: 'no-answer', reason: 'consent-declined' }
-          }
-          // The grant lands before any waiter dispatches: the two writes
-          // below run with no wait between them, so a later use either
-          // sees the grant or joins a fresh decision, never a bare dispatch.
+          // The grant lands before any waiter dispatches: no wait sits
+          // between this write and the dispatches below, so a later use
+          // either sees the grant or joins a fresh decision.
           grants.add(priceIdentity)
-          pending.delete(priceIdentity)
         }
         const guardedSource: EmbeddingSource = {
           ...source,

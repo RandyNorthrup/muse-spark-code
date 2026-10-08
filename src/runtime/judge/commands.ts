@@ -173,29 +173,22 @@ function judgeCaller(options: JudgeCliOptions, deps: JudgeCliDeps) {
     signal.throwIfAborted()
     const parsed = judgeOutcomeSchema.safeParse(rawOutcome)
     if (!parsed.success) return noAnswer('engine-failure')
-    const isConversationModel =
-      parsed.data.outcome !== 'no-answer' &&
-      parsed.data.result.model === source.model &&
-      Object.values(parsed.data.result.muse).every(
-        (meta) => meta.source === source.source && meta.model === source.model,
-      )
     // An embedding answer names the source's declared embedding model on
     // the envelope and on every verdict, never the conversation model. A
     // genuinely foreign model matches neither identity and stays refused.
-    const isEmbeddingModel =
-      parsed.data.outcome !== 'no-answer' &&
-      source.embeddingModel !== undefined &&
-      parsed.data.result.model === source.embeddingModel &&
-      Object.values(parsed.data.result.muse).every(
-        (meta) => meta.technique === 'embedding' && meta.model === source.embeddingModel,
-      )
     const isValid =
       isAligned(request, parsed.data) &&
       Buffer.byteLength(JSON.stringify(parsed.data)) <= JUDGE_MAX_BODY_BYTES &&
       (parsed.data.outcome === 'no-answer' ||
         source.source === 'both' ||
-        isConversationModel ||
-        isEmbeddingModel)
+        (parsed.data.result.model === source.model &&
+          Object.values(parsed.data.result.muse).every(
+            (meta) => meta.source === source.source && meta.model === source.model,
+          )) ||
+        (parsed.data.result.model === source.embeddingModel &&
+          Object.values(parsed.data.result.muse).every(
+            (meta) => meta.technique === 'embedding' && meta.model === source.embeddingModel,
+          )))
     return isValid ? parsed.data : noAnswer('engine-failure')
   }
 }

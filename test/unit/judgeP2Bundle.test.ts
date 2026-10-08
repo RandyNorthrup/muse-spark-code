@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import { judgeFeaturesLoader, isJudgeBundle } from '../../src/runtime/judge/judgeBundle'
-import { requireFile } from '../../src/host/lazyBundle'
+import { lazyBundleLoader, requireFile } from '../../src/host/lazyBundle'
+import type * as JudgeServeEntry from '../../src/runtime/judge/judgeServeEntry'
 import { createLogger } from '../../src/host/logger'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, fill, setUiText, UI_TEXT } from '../../src/shared/l10n/text'
@@ -15,6 +16,7 @@ import { samplingRequest, techniqueFixture } from './judgeSamplingFixtures'
 import { answered, command, io, REQUEST, source } from './judgeCliFixtures'
 
 const built = builtForTests('src/runtime/judge/judgeEntry.ts', 'judgeP2.js')
+const serveBuilt = builtForTests('src/runtime/judge/judgeServeEntry.ts', 'judgeServe.js')
 const temporary = mkdtempSync(path.join(tmpdir(), 'muse-judge-assembly-'))
 const unavailable = () => fill(UI_TEXT.judgeNoAnswer, { reason: 'source-unavailable' })
 const limits: CalibrationLimits = {
@@ -127,26 +129,37 @@ describe('the B/D/CS/G lazy factory', () => {
   })
 
   it('installs the current caller language before a serve refusal, including after a language change', async () => {
-    const load = vi.fn(requireFile)
-    const features = judgeFeaturesLoader({
-      bundlePath: built.file,
+    // Serve loads as its own explicit-action child (dist/judgeServe.js):
+    // its factory installs the caller's table, like every child entry.
+    // (The parent's loadServe path is covered by the child-repair case in
+    // round 3; the loader installs the parent's own table by design.)
+    const loadServeForTest = lazyBundleLoader({
+      bundlePath: serveBuilt.file,
       log: createLogger(new FakeLogOutputChannel()),
-      loadBundle: load,
+      isBundle: (value): value is typeof JudgeServeEntry =>
+        typeof value === 'object' &&
+        value !== null &&
+        'createJudgeServeFeatures' in value &&
+        typeof value.createJudgeServeFeatures === 'function',
+      label: 'judge serve bundle',
+      unavailable: () => fill(UI_TEXT.judgeNoAnswer, { reason: 'source-unavailable' }),
     })
     const judge = vi.fn(() =>
       Promise.resolve({ outcome: 'no-answer', reason: 'explicit-off' } as const),
     )
     for (const label of ['First boundary: {reason}', 'Second boundary: {reason}']) {
-      setUiText({ ...EN, judgeNoAnswer: label }, 'fr')
+      const serve = loadServeForTest().createJudgeServeFeatures({
+        uiText: { ...EN, judgeNoAnswer: label },
+        uiLocale: 'fr',
+      })
       await expect(
-        features().startJudgeServer({
+        serve.startJudgeServer({
           runtime: { judge },
           tokenDirectory: temporary,
           windowsAcl: { secure: () => Promise.resolve({}) },
         }),
       ).rejects.toThrow(label.replace('{reason}', 'EJUDGE_TOKEN_ACL'))
     }
-    expect(load).toHaveBeenCalledTimes(1)
     expect(judge).not.toHaveBeenCalled()
   })
 

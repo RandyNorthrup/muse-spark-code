@@ -44,6 +44,7 @@
 !dist/judgeHook.js
 !dist/judgeLocal.js
 !dist/judgeUses.js
+!dist/judgeServe.js
 !dist/whatsNew.js
 !dist/whatsNew.json
 !dist/uiText.js
