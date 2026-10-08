@@ -117,11 +117,18 @@ export const noulRequest: JudgeRequest = {
   questions: { risk: { type: 'noul', instructions: 'Can it destroy data?' } },
 }
 
+export interface FallbackMuseCosts {
+  readonly reservedCostUsd?: number | undefined
+  readonly settledCostUsd?: number | undefined
+  readonly uncertainCostUsd?: number | undefined
+}
+
 /**
  * A fake full judge: reserves its own worst-case cost on its own ledger,
- * records its calls and answers with a stated verdict.
+ * records its calls and answers with a stated verdict, optionally carrying
+ * its own reported muse dollars for accounting probes.
  */
-export function fallbackFixture() {
+export function fallbackFixture(museCosts: FallbackMuseCosts = {}) {
   const calls: JudgeRequest[] = []
   const ledger = admissionLedger()
   const fallback: EmbeddingFallback = {
@@ -143,6 +150,7 @@ export function fallbackFixture() {
               label: 'uncalibrated',
               confidence: 0.2,
               partial: false,
+              ...museCosts,
             },
           },
           usage: { input_tokens: 40, output_tokens: 1 },
@@ -211,6 +219,7 @@ export function routeDependencies(
     readonly fitVersion?: string | undefined
     readonly head?: unknown
     readonly fallback?: EmbeddingFallback | undefined
+    readonly fallbackCosts?: FallbackMuseCosts | undefined
     readonly admission?: EmbeddingAdmission | undefined
   } = {},
 ): {
@@ -221,7 +230,7 @@ export function routeDependencies(
   embed: ReturnType<typeof vi.fn>
 } {
   const built = embeddingSource(input.source ?? {})
-  const { calls, fallback, fallbackClaims } = fallbackFixture()
+  const { calls, fallback, fallbackClaims } = fallbackFixture(input.fallbackCosts ?? {})
   const { claims, admission } = admissionLedger()
   const deps: EmbeddingRouteDependencies = {
     source: built.source,

@@ -28,6 +28,24 @@ function framed(criteria: { true: string; false: string }): JudgeRequest {
   }
 }
 
+/**
+ * A fallback answer after the embedding leg spent: 40 full-judge tokens
+ * beside 12 embedding tokens, with the summed reserved and settled dollars.
+ */
+function expectMergedFallback(
+  outcome: JudgeOutcome,
+  reservedCostUsd: number,
+  settledCostUsd: number,
+): void {
+  expect(outcome.outcome).toBe('answered')
+  if (outcome.outcome !== 'answered') throw new Error('expected fallback')
+  expect(outcome.result.usage).toMatchObject({ input_tokens: 52, output_tokens: 1 })
+  const meta = outcome.result.muse['risk']
+  expect(meta?.reservedCostUsd).toBeCloseTo(reservedCostUsd)
+  expect(meta?.settledCostUsd).toBeCloseTo(settledCostUsd)
+  expect(meta?.uncertainCostUsd).toBe(0)
+}
+
 /** The full judge answered; the embedding leg spent nothing and ran nothing. */
 async function expectQuietFallback(
   deps: EmbeddingRouteDependencies,
@@ -274,57 +292,19 @@ describe('embedding fast path', () => {
       source: { embed: () => Promise.resolve([[0.5, 0.5, 0.5]]) },
     })
     const outcome = await runEmbeddingJudge(noulRequest, options, deps, signal())
-    expect(outcome.outcome).toBe('answered')
-    if (outcome.outcome !== 'answered') throw new Error('expected fallback')
-    // Both legs spent: 40 full-judge tokens beside 12 embedding tokens.
-    expect(outcome.result.usage).toMatchObject({ input_tokens: 52, output_tokens: 1 })
-    const meta = outcome.result.muse['risk']
     // The fixture fallback carries no cost; the embedding leg reserved $0.0002.
-    expect(meta?.reservedCostUsd).toBeCloseTo(0.0002)
-    expect(meta?.settledCostUsd).toBeCloseTo(0.0002)
-    expect(meta?.uncertainCostUsd).toBe(0)
+    expectMergedFallback(outcome, 0.0002, 0.0002)
     expect(embed).toHaveBeenCalledTimes(1)
   })
 
   it('adds both legs when the fallback reports its own cost', async () => {
     const { deps } = routeDependencies({
       source: { embed: () => Promise.resolve([[0.5, 0.5, 0.5]]) },
-      fallback: {
-        run: (): Promise<JudgeOutcome> =>
-          Promise.resolve({
-            outcome: 'answered',
-            result: {
-              model: 'fixture-model',
-              answers: {
-                risk: { type: 'noul', noul: 0.7, probabilities: { true: 0.7, false: 0.3 } },
-              },
-              muse: {
-                risk: {
-                  source: 'same',
-                  model: 'fixture-model',
-                  technique: 'stated',
-                  label: 'uncalibrated',
-                  confidence: 0.2,
-                  partial: false,
-                  reservedCostUsd: 0.001,
-                  settledCostUsd: 0.001,
-                  uncertainCostUsd: 0,
-                },
-              },
-              usage: { input_tokens: 40, output_tokens: 1 },
-            },
-          }),
-      },
+      fallbackCosts: { reservedCostUsd: 0.001, settledCostUsd: 0.001, uncertainCostUsd: 0 },
     })
     const outcome = await runEmbeddingJudge(noulRequest, options, deps, signal())
-    expect(outcome.outcome).toBe('answered')
-    if (outcome.outcome !== 'answered') throw new Error('expected fallback')
-    // 40 full-judge tokens beside 12 embedding tokens; $0.001 beside $0.0002.
-    expect(outcome.result.usage).toMatchObject({ input_tokens: 52, output_tokens: 1 })
-    const meta = outcome.result.muse['risk']
-    expect(meta?.reservedCostUsd).toBeCloseTo(0.0012)
-    expect(meta?.settledCostUsd).toBeCloseTo(0.0012)
-    expect(meta?.uncertainCostUsd).toBe(0)
+    // $0.001 of fallback beside $0.0002 of embedding leg.
+    expectMergedFallback(outcome, 0.0012, 0.0012)
   })
 })
 
