@@ -25,6 +25,7 @@ beforeAll(async () => {
   const english = path.resolve('src/shared/l10n/en.ts').replaceAll('\\', '/')
   const text = path.resolve('src/shared/l10n/text.ts').replaceAll('\\', '/')
   const installer = path.resolve('src/webview/installTable.ts').replaceAll('\\', '/')
+  const vault = path.resolve('src/shared/l10n/vaultEnglish.ts').replaceAll('\\', '/')
   const probe = path.join(fixture.folder, 'probe.ts')
   writeFileSync(
     probe,
@@ -32,6 +33,7 @@ beforeAll(async () => {
 export { EN, EN_SHAPE } from '${english}';
 export { UI_TEXT, setUiText, uiLocale } from '${text}';
 export { installEmbeddedTable } from '${installer}';
+export { installVaultEnglish } from '${vault}';
 export async function loadPalette() { return await import('../../src/shared/paletteRegistry') }
 export async function loadHelp() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english')]) }
 export async function loadResources() { await import('browser-resource-english') }
@@ -71,8 +73,16 @@ describe('the production browser English and full-table contract', () => {
 
   it('loads surface English on demand, retaining every browser value and installed language', async () => {
     const { EN: canonical } = fixture.canonical
-    const { EN, UI_TEXT, setUiText, uiLocale, loadHelp, loadPalette, loadResources } =
-      fixture.browser
+    const {
+      EN,
+      UI_TEXT,
+      setUiText,
+      uiLocale,
+      loadHelp,
+      loadPalette,
+      loadResources,
+      installVaultEnglish,
+    } = fixture.browser
     expect(Object.keys(EN).toSorted(byText)).toEqual([...fixture.keys].toSorted(byText))
     expect(Object.hasOwn(EN, 'execBudgetRequired')).toBe(false)
     expect(EN.composerLabel).toBe(canonical.composerLabel)
@@ -114,6 +124,12 @@ describe('the production browser English and full-table contract', () => {
       canonical,
     ).keys
     for (const key of resourceKeys) expect(EN[key], key).toEqual(canonical[key])
+    // The vault group's English is installed by the vault surface alone; the
+    // shared surface English never carries it a second time.
+    expect(() => EN.vault).toThrow('English surface is not loaded: vault')
+    installVaultEnglish()
+    expect(EN.vault).toEqual(canonical.vault)
+    expect(UI_TEXT.vault).toEqual(german.vault)
     expect(UI_TEXT.resourceTitle).toBe(german.resourceTitle)
     for (const key of fixture.keys) expect(EN[key], key).toEqual(canonical[key])
     expect(UI_TEXT.referenceSearch).toBe(german.referenceSearch)
