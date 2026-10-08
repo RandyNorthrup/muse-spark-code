@@ -20,9 +20,11 @@ export interface DeveloperStore {
   /** Audit before enabling; revoke state even after audit failure where possible.
    * Durable revocations take precedence over an older enabled state on restore.
    * The single machine owner serializes calls, including other editor clients.
-   * One exception (DEVID017D): a full `reset` clear is never published when
-   * its audit row was not written — a failed foreign Reset leaves stored
-   * state unchanged instead of clearing it unaudited. */
+   * One exception (DEVID017E): a foreign `resetForeign` clear is never
+   * published when its audit row was not written — a failed foreign Reset
+   * leaves stored state unchanged instead of clearing it unaudited. Every
+   * other revocation, own-machine Reset included, is still published after
+   * an audit failure, and the caller still gets the persistence error. */
   commit(state: DeveloperState, audit: DeveloperAudit): Promise<void>
 }
 export interface DeveloperOptionsDeps {
@@ -140,8 +142,8 @@ export class DeveloperOptions {
    * or failure. Profiles recorded under the foreign id cannot be running
    * under this machine's authority, so they are cleared from the record
    * without stopping through this machine's resource port — and the single
-   * `reset` audit row records exactly that: a reset with no stop and no
-   * disable. Their state folders and credential slots stay on disk: PLAN
+   * `resetForeign` audit row records exactly that: a reset with no stop and
+   * no disable. Their state folders and credential slots stay on disk: PLAN
    * D88 (b) gives Reset the job of turning every option off and stopping
    * the profiles (PLAN.md:12407), never of deleting profile folders. The
    * store writes that audit row before the cleared state; when the audit
@@ -164,7 +166,7 @@ export class DeveloperOptions {
       profiles: [],
     })
     const owner = new DeveloperOptions(deps, cleared)
-    await owner.save(owner.state, 'reset', source)
+    await owner.save(owner.state, 'resetForeign', source)
     return owner.snapshot()
   }
 

@@ -51,6 +51,16 @@ const state: DeveloperState = {
   profiles: [],
 }
 const audit: DeveloperAudit = { v: 1, time: 100, action: 'unlock', source: 'palette' }
+// An enabled grant whose audit file cannot be appended to (a directory sits
+// at its path), for the audit-failure publication tests below.
+async function enabledWithoutAudit() {
+  const h = await files()
+  const enabled: DeveloperState = { ...state, isMultipleAccountsOn: true }
+  await h.store.commit(enabled, { ...audit, action: 'enable' })
+  await rm(h.auditPath)
+  await mkdir(h.auditPath)
+  return { h, enabled }
+}
 
 describe('private local Developer state and audit files', () => {
   it.each(['disable', 'expire', 'reset'] as const)(
@@ -114,16 +124,22 @@ describe('private local Developer state and audit files', () => {
     expect(await h.store.read()).toEqual(state)
   })
 
-  it('never publishes a reset clear when the audit append fails', async () => {
-    const h = await files()
-    const enabled = { ...state, isMultipleAccountsOn: true }
-    await h.store.commit(enabled, { ...audit, action: 'enable' })
-    await rm(h.auditPath)
-    await mkdir(h.auditPath)
+  it('never publishes a foreign reset clear when the audit append fails', async () => {
+    const { h, enabled } = await enabledWithoutAudit()
     const cleared = { ...state, unlockedAt: null, expiresAt: null }
-    await expect(h.store.commit(cleared, { ...audit, action: 'reset' })).rejects.toThrow()
+    await expect(h.store.commit(cleared, { ...audit, action: 'resetForeign' })).rejects.toThrow()
     // The stored grant is untouched: no unaudited clearing was published.
     expect(JSON.parse(await readFile(h.statePath, 'utf8'))).toEqual(enabled)
+  })
+
+  it('publishes an own-machine reset clear when the audit append fails', async () => {
+    const { h } = await enabledWithoutAudit()
+    const cleared = { ...state, unlockedAt: null, expiresAt: null }
+    await expect(h.store.commit(cleared, { ...audit, action: 'reset' })).rejects.toThrow()
+    // Fail-safe: the revocation was published even though its audit row was
+    // not, and the caller still got the persistence error.
+    expect(JSON.parse(await readFile(h.statePath, 'utf8'))).toEqual(cleared)
+    expect(await h.store.read()).toEqual(cleared)
   })
 
   it('bounds the local audit and retains only one previous segment', async () => {

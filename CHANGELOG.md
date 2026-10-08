@@ -72,6 +72,12 @@ happened, not what was planned; superseded entries are kept.
   what happens: this machine's developer state is cleared, nothing is
   stopped, and profile folders and credentials stay as they are.
 
+- DEVID017E (developer machine id, lead review fix): foreign Reset writes a
+  distinct `resetForeign` audit row (schema stays `v: 1`, as with `migrate`),
+  so only that clear is withheld when its audit append fails. Every other
+  revocation, own-machine Reset included, is still published after an audit
+  failure, and the caller still gets the persistence error.
+
 ## [0.17.0] - 2026-10-08
 
 ### Highlights

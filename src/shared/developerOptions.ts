@@ -75,7 +75,17 @@ export type DeveloperReply = z.infer<typeof developerReplySchema>
 export const developerAuditSchema = z.strictObject({
   v: z.literal(1),
   time: timestamp,
-  action: z.enum(['unlock', 'enable', 'disable', 'expire', 'reset', 'create', 'remove', 'migrate']),
+  action: z.enum([
+    'unlock',
+    'enable',
+    'disable',
+    'expire',
+    'reset',
+    'resetForeign',
+    'create',
+    'remove',
+    'migrate',
+  ]),
   source: z.enum(['version', 'palette', 'terminal', 'page', 'setting', 'lifecycle']),
   profile: z.optional(accountIdSchema),
 })

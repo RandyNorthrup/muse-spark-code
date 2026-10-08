@@ -368,7 +368,9 @@ describe('developer machine identity (DEVID017B)', () => {
     // only audit row is the reset itself — no disable, no per-profile row.
     expect(unbound.stop).not.toHaveBeenCalled()
     expect(unbound.remove).not.toHaveBeenCalled()
-    expect(h.audits).toEqual([expect.objectContaining({ action: 'reset', source: 'terminal' })])
+    expect(h.audits).toEqual([
+      expect.objectContaining({ action: 'resetForeign', source: 'terminal' }),
+    ])
     // The next open on this machine is a fresh state, not a refusal.
     const owner = await DeveloperOptions.open({ ...h.deps, machineId: STABLE_ID })
     expect(owner.snapshot()).toMatchObject({ isUnlocked: false, profiles: [] })
@@ -437,6 +439,48 @@ describe('developer machine identity (DEVID017B)', () => {
       await expect(
         DeveloperOptions.open({ ...h.deps, machineId: STABLE_ID, store }),
       ).rejects.toMatchObject({ code: 'differentMachine' })
+    } finally {
+      restoreOpen(passthrough)
+    }
+  })
+
+  it('still publishes an own-machine reset clear when the reset audit cannot be appended', async () => {
+    const folder = freshDir()
+    const root = path.join(folder, 'developer')
+    const store = new DeveloperLocalFiles(root)
+    const grant = unlockedGrant(STABLE_ID)
+    const at = Date.parse('2026-10-06T12:00:00Z')
+    await store.commit(
+      developerStateSchema.parse(grant),
+      developerAuditSchema.parse({ v: 1, time: at, action: 'enable', source: 'terminal' }),
+    )
+    // Only the reset row's append fails: the disable revoke inside reset
+    // still records, so the failure under test is the reset row itself.
+    const passthrough = openPassthrough()
+    let appends = 0
+    vi.mocked(open).mockImplementation(async (...args) => {
+      const flags = args[1]
+      if (typeof flags === 'number' && (flags & constants.O_APPEND) !== 0) {
+        appends += 1
+        if (appends > 1) throw eacces("EACCES: permission denied, open 'audit'")
+      }
+      return await passthrough(...args)
+    })
+    const h = developerFixture()
+    try {
+      const owner = await DeveloperOptions.open({ ...h.deps, machineId: STABLE_ID, store })
+      await expect(owner.reset('terminal')).rejects.toThrow('EACCES')
+      // Fail-safe: the revocation was published even though its audit row
+      // was not, and the caller still got the persistence error.
+      expect(JSON.parse(readFileSync(path.join(root, DEVELOPER_FILES.state), 'utf8'))).toEqual({
+        v: 1,
+        machineId: STABLE_ID,
+        unlockedAt: null,
+        expiresAt: null,
+        isMultipleAccountsOn: false,
+        profiles: [],
+      })
+      expect(owner.isMultipleAccountsOn()).toBe(false)
     } finally {
       restoreOpen(passthrough)
     }

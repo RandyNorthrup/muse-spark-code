@@ -567,3 +567,45 @@ rig): the final fixes for the three P2s and one P3.
   `/private/var` `TMPDIR` and fails identically on the base, so the
   helper is left for its owner. `accountPaidConsent` (2 tests) fails
   identically on the base as in round 3, left for its owner.
+
+Round 5 (`rel017/devid5`, lead review fix, worktree on the `macmini`
+rig): DEVID017D's audit-failure guard matched every `reset` audit row,
+so an ordinary own-machine Reset whose audit append failed left
+developer options on. Foreign Reset is now distinguishable in the
+audit.
+
+- **Fix.** Foreign Reset writes a distinct `resetForeign` audit action
+  (`DeveloperOptions.resetForeign`,
+  `src/core/developer/developerOptions.ts:169`; new enum member in
+  `src/shared/developerOptions.ts:84`). `DeveloperLocalFiles.commit`
+  (`src/runtime/developer/localFiles.ts:180`) withholds only that
+  clear when its audit row was not written; every other revocation,
+  own-machine Reset included, is still published after an audit
+  failure, and the caller still gets the persistence error. The
+  `DeveloperStore.commit` JSDoc
+  (`src/core/developer/developerOptions.ts:20`) says exactly that.
+  No schema version change: `v: 1` is untouched and old `reset` rows
+  still parse, the same precedent as the `migrate` action. `read`
+  needs no change: `resetForeign` already counts as a revoking
+  authority row, never as an enable. No user-facing string changed
+  (the audit row is machine-readable), so all 14 `l10n` tables are
+  untouched.
+- **Tests** (`test/unit/developerOptionsMachineId.test.ts`, 27/27;
+  `test/unit/developerLocalFiles.test.ts`, 14/14): own-machine Reset
+  with only the reset row's append-open failing `EACCES` through the
+  real store still publishes the cleared state (options off) and
+  reports the error; foreign Reset with audit `EACCES` leaves the
+  stored state unchanged and the next open still refuses
+  `differentMachine`. The store suite shares its enabled-grant setup
+  through one helper (no new jscpd clone).
+- **Drill.** The new own-machine test run against base `05f3719b2`
+  (clone under `$TMPDIR`, since removed) fails exactly as diagnosed:
+  the stored state keeps the unlock, expiry and profile — only the
+  disable revoke was published, the reset clear was skipped.
+- **Gates.** Five typechecks exit 0; eslint `--max-warnings=0` and
+  prettier on changed files exit 0; plain knip exit 0; jscpd reports
+  no clone across the five touched files. `runtimeServices` and
+  `runtimeAccountsBundle` pass alongside (44/44 with the machine-id
+  suite); `developerOptions`, `developerContracts` and
+  `developerSurfaces` pass (52/52 in the surface/contract run).
+  `check:l10n` not run: no string changed.
