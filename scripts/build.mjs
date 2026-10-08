@@ -86,6 +86,7 @@ import {
   sharedResourceAdmission,
   sharedStructuredSchema,
   sharedModelApiBoundaries,
+  englishZodLocales,
 } from './lib/deferredBundles.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
@@ -850,6 +851,7 @@ const acpOptions = {
     sharedStructuredSchema,
     deferredTeamView,
     sharedModelApiBoundaries,
+    englishZodLocales,
   ],
   entryPoints: [ACP_ENTRY],
   outfile: ACP_OUTFILE,

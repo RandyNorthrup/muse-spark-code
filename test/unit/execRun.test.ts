@@ -1873,10 +1873,12 @@ describe('M108 account runtime composition', () => {
   it('supplies the chosen account, pool policy and unchanged bounded transport to the injected runtime', async () => {
     const accounts = sessionAccountsRig()
     accounts.port.read = () => Promise.resolve({ ...accounts.state(), currentAccount: 'work' })
-    const create = vi.fn<ExecAccountsPort['create']>((deps, selection) => {
+    const create = vi.fn<ExecAccountsPort['create']>((deps, selection, createBackend) => {
       expect(selection).toEqual({ account: 'work', hasPoolFlag: true, isInteractive: false })
       expect(deps.exec?.isEphemeral).toBe(false)
-      return { runtime: runtimeBackends.createRuntimeBackend(deps), accounts: accounts.port }
+      // CAPS017: the engine's own factory, so the accounts bundle carries none.
+      expect(createBackend).toBe(runtimeBackends.createRuntimeBackend)
+      return { runtime: createBackend(deps), accounts: accounts.port }
     })
     const h = await harness(['--account', 'work', '--account-pool'], [{ text: 'done' }], {
       accounts: { create },

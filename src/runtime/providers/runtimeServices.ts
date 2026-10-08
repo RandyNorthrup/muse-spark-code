@@ -24,7 +24,6 @@ import { accountPolicyFor } from '../../core/providers/accountPolicy'
 import type { AccountsSessionPort } from '../../acp/accounts'
 import type { AccountsCommandDeps } from './accountsCommand'
 import type { ExecAccountsPort } from '../exec/execAccounts'
-import { createRuntimeBackend } from '../backends'
 import { fileAccountsMetadata } from './providersFileStore'
 import {
   ACCOUNT_DEFAULT_ID,
@@ -250,13 +249,13 @@ export function createRuntimeAccountServices(
     metadata,
     commands: { accounts: store, metadata },
     exec: {
-      create: (deps, selection) => {
+      create: (deps, selection, createBackend) => {
         // One run, one account: the backend's key reads through it. Pool
         // swaps at user caps need the profile-owned pool, so --account-pool
         // refuses loudly instead of running unpooled (D88.5).
         if (selection.hasPoolFlag) throw new Error(UI_TEXT.accounts.unavailable)
         return {
-          runtime: createRuntimeBackend({
+          runtime: createBackend({
             ...deps,
             secrets: secretsFor('meta', selection.account, deps.secrets),
           }),

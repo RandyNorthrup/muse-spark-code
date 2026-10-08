@@ -163,6 +163,30 @@ export const mediaAttachmentUpdateSchema = z.strictObject({
   attachmentEpoch: z.optional(count),
 })
 
+/** One provider file as the upload ledger caches it (metadata only). */
+export const uploadedAccountFileSchema = z.strictObject({
+  fileId: z.string(),
+  name: z.string(),
+  bytes: z.int().check(z.gte(0)),
+  expiresAt: z.optional(z.int().check(z.gt(0))),
+})
+/** The account's uploaded-files report the chat validates before posting it
+ * (CAPS017: here, so dist/conversation.js no longer carries the ledger). */
+export const uploadedFilesReportSchema = z.strictObject({
+  provider: z.string(),
+  isReadOnly: z.boolean(),
+  poolBytes: z.int().check(z.gt(0)),
+  usedBytes: z.int().check(z.gte(0)),
+  files: z.array(
+    z.strictObject({
+      ...uploadedAccountFileSchema.shape,
+      ours: z.boolean(),
+      sessions: z.array(z.string()),
+    }),
+  ),
+})
+export type UploadedFilesReport = z.infer<typeof uploadedFilesReportSchema>
+
 /** No implicit audio selection and no unbounded recording request. */
 export const screenRecordingOptionsSchema = z.strictObject({
   maxSeconds: z

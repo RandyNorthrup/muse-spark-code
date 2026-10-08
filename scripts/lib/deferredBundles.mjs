@@ -680,6 +680,25 @@ export function checkDeferredBundles(inputsOf) {
       if (!inputs.has(file)) problems.push(`${bundle.output} no longer carries ${file}`)
     }
   }
+  // CAPS017: account services take the engine's backend factory through their
+  // port; the backend closure stays in dist/runtimeEngine.js.
+  const runtimeAccounts = ON_FIRST_USE.find((bundle) => bundle.output === 'dist/runtimeAccounts.js')
+  for (const file of [
+    'src/runtime/backends.ts',
+    'src/core/backends/musecode/MuseCodeHost.ts',
+    'src/host/backend/toolIo.ts',
+  ]) {
+    if (inputsOf(runtimeAccounts).has(file))
+      problems.push(
+        `${runtimeAccounts.output} carries ${file}, which the engine supplies through the accounts port`,
+      )
+  }
+  // CAPS017: classic zod's unused locales stay out of the ACP engine.
+  const runtimeEngine = DEFERRED.find((bundle) => bundle.output === 'dist/runtimeEngine.js')
+  for (const file of inputsOf(runtimeEngine).keys()) {
+    if (/^node_modules\/zod\/v4\/locales\/(?!en\.js$)/.test(file))
+      problems.push(`${runtimeEngine.output} carries ${file}; only zod's English locale ships`)
+  }
   // Session export remains available to the conversation and ACP front ends;
   // the backend loads its import sanitizer only from the existing lazy runtime.
   const transfer = 'src/core/export/sessionTransfer.ts'
@@ -749,11 +768,7 @@ export function checkDeferredBundles(inputsOf) {
     }
   }
   const wire = { output: 'dist/wire.js', metafile: 'dist/meta/wire.json' }
-  for (const file of [
-    'src/shared/protocol.ts',
-    'src/shared/agentEvents.ts',
-    'src/shared/scheduleProtocol.ts',
-  ]) {
+  for (const file of WIRE_FILES) {
     if (!inputsOf(wire).has(file)) problems.push(`${wire.output} no longer carries ${file}`)
     for (const bundle of [...Object.values(BUNDLES), ...DEFERRED, ...ON_FIRST_USE]) {
       if (inputsOf(bundle).has(file))
@@ -935,17 +950,28 @@ export const deferredCohort = {
   },
 }
 
-const WIRE_SOURCES = new Set(
-  ['src/shared/protocol.ts', 'src/shared/agentEvents.ts', 'src/shared/scheduleProtocol.ts'].map(
-    (file) => path.resolve(file),
-  ),
-)
+// The schema modules dist/wire.js carries; CAPS017 added the five schemas
+// the protocol already pulled in, so lazy bundles stop duplicating them.
+const WIRE_FILES = [
+  'src/shared/protocol.ts',
+  'src/shared/agentEvents.ts',
+  'src/shared/scheduleProtocol.ts',
+  'src/shared/scheduleV2.ts',
+  'src/shared/scheduleEvents.ts',
+  'src/shared/schedule.ts',
+  'src/shared/media.ts',
+  'src/shared/questions.ts',
+]
+const WIRE_SOURCES = new Set(WIRE_FILES.map((file) => path.resolve(file)))
 /** @type {import('esbuild').Plugin} */
 export const sharedWire = {
   name: 'shared-wire',
   setup(build) {
     build.onResolve(
-      { filter: /(?:^|\/)(?:protocol|agentEvents|scheduleProtocol)(?:\.ts)?$/ },
+      {
+        filter:
+          /(?:^|\/)(?:protocol|agentEvents|scheduleProtocol|scheduleV2|scheduleEvents|schedule|media|questions)(?:\.ts)?$/,
+      },
       (args) => {
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
         return WIRE_SOURCES.has(source) ? { path: './wire.js', external: true } : undefined
@@ -965,6 +991,33 @@ export const sharedResourceAdmission = {
         ? { path: './resourceAdmission.js', external: true }
         : undefined
     })
+  },
+}
+
+// CAPS017: the ACP SDK imports classic zod as a namespace, so esbuild keeps
+// zod's `export * as locales` namespaces whole: 63 locale modules, 258 KiB
+// of dist/runtimeEngine.js. Nothing selects a zod locale (classic zod
+// installs English itself and no code calls `z.config`), so only
+// `locales.en` ships.
+const ZOD_LOCALE_NAMESPACES =
+  /[/\\]node_modules[/\\]zod[/\\]v4[/\\](?:classic[/\\]external|core[/\\]index)\.js$/
+/** @type {import('esbuild').Plugin} */
+export const englishZodLocales = {
+  name: 'english-zod-locales',
+  setup(build) {
+    build.onResolve({ filter: /^\.\.\/locales\/index\.js$/ }, (args) =>
+      ZOD_LOCALE_NAMESPACES.test(args.importer)
+        ? {
+            path: path.resolve(args.resolveDir, '../locales/index.js'),
+            namespace: 'english-zod-locales',
+          }
+        : undefined,
+    )
+    build.onLoad({ filter: /.*/, namespace: 'english-zod-locales' }, (args) => ({
+      contents: "export { default as en } from './en.js'",
+      loader: 'js',
+      resolveDir: path.dirname(args.path),
+    }))
   },
 }
 
