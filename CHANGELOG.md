@@ -42,6 +42,14 @@ happened, not what was planned; superseded entries are kept.
   production host constructs account-bound consent yet — paid approval stays
   per workspace until M108 lane P wires it — and Help now says so.
 
+- Account-bound paid consent binds grant authority to a durable revocation
+  epoch persisted per account binding: revoke() advances the epoch before
+  clearing, so leftover grants from a failed clear stay stale on every
+  instance after a restart, and a failed advance rejects with the grants
+  still working. Every grant records its approval epoch; concurrent asks on
+  another instance cannot resurrect a revoked grant. Help says paid consent
+  stays per workspace in all fourteen translated tables.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached

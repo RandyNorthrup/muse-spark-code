@@ -650,9 +650,12 @@ Production wiring (review: no production caller of `AccountPaidUseConsent`;
 VS Code, CLI/ACP, schedules, companion and MCP use workspace-scoped feature
 consent with workspace-scoped quote stores): the defer case applies. PLAN
 §6 places "paid consent per account" in M108 lane P ("after K and T",
-touching `src/core/paid/paidConsent.ts (account binding)`), and only M108
-D/X is accepted into the integrations — the pool/policy lanes that would
-wire per-account consent have not merged. So account-bound consent stays
+touching `src/core/paid/paidConsent.ts (account binding)`), and lane P is
+merged (tip `76c1231e8`, merge `d3a6bfaea`). The deferral is PLAN §9
+(FIXM108P-PROFILE-OWNER): installed composition waits on the shared
+profile/broker owner and multi-window certification, and the P-PAID-ACCOUNT
+handoff (`docs/certification/m108.md`) blocks installed account-aware paid
+dispatch on the registry, pool and journal owners. So account-bound consent stays
 unwired: the class documents it, `CHANGELOG.md [Unreleased]` records the
 hardened contract and the deferral (superseding the binding-grant entry,
 which is kept), and Help (`referenceAccounts`, shared by the feature
@@ -709,3 +712,80 @@ No `--testTimeout` on any verification run. Pre-existing, unrelated:
 identically on the untouched base `11c76b9cc` (a `machineId` regex refusal
 in a developer-options bundle path on this rig). The private fresh clone is
 removed after final verification.
+
+## Paid consent (CONSENT017C)
+
+Linux rig, `rel017/consent3`, base `8e72daf24` (CONSENT017B tip).
+Redesign, not a patch, per the owner's rule: an account's grant authority
+is bound to a durable revocation epoch
+(`src/core/paid/paidConsent.ts`, `AccountPaidUseConsentDeps` epoch ports,
+`AccountBindingGrants`, `quoteGrantEpoch`, `durableEpoch`, `revoke()`).
+
+Design: the epoch is persisted per account binding in the same store as
+the grants, never as a memory-only counter. `revoke()` advances it durably
+first inside the owner queue, then clears the binding and quote grants. A
+failed clear leaves leftovers that are stale on every instance after a
+restart; a failed advance rejects honestly with nothing cleared and the
+grants still working. Every persisted grant records its approval epoch
+(binding grants carry it; quote grants carry it in their generation), and
+a lookup reuses a grant only when its epoch equals the current durable
+epoch with tariff, model and quote generation matching as before. Saves
+re-check the epoch after their write, so a concurrent ask on another
+instance sharing the store cannot resurrect a revoked grant. The
+instance-local generation remains only for fencing in-flight asks inside
+one instance.
+
+P3 fixes: the Help caveat "Paid consent stays per workspace for now."
+(`src/shared/l10n/en.ts:432`) now exists in all 14 UI tables, translated
+with each table's own workspace wording and verified through the real
+`createReference(...).all()` for every language (throwaway probe,
+1 passed, removed afterwards). The deferral text above is corrected: lane
+P is merged (tip `76c1231e8`, merge `d3a6bfaea`); the real deferral is
+PLAN §9 (FIXM108P-PROFILE-OWNER) plus the P-PAID-ACCOUNT handoff's block
+on the registry, pool and journal owners.
+
+### Tests
+
+`test/unit/accountPaidConsent.test.ts` (24 tests: 19 kept, 5 new). New,
+through the in-memory store with simulated restarts: revoke, approve
+Always, restart reuses both grants with no new ask; binding-deletion and
+quote-deletion failures each reject, then a restart asks and Deny is
+honoured for both; a failed epoch advance rejects with the grants still
+working on both instances; a concurrent ask on one instance cannot
+resurrect another instance's revoked grant. No retained assertion was
+weakened; the rig now backs the epoch ports in the same shared store.
+
+Red drills (default timeouts, `--maxWorkers=3`, byte-exact restore
+verified by SHA-256 `dedb1f62…7bc6fba9` before and after): (A)
+instance-local epoch (composition and save check read the local
+generation) — 4 failed / 20 passed (the three restart tests plus the
+concurrent test); (B) clearing before advancing the epoch — 4 failed /
+20 passed (both failed-clear restart tests, the epoch-honesty test and
+the kept failed-deletion test). After revert: 24 passed. The new-port
+tests cannot run on `8e72daf24` (the ports do not exist there); the
+reviewer's report already demonstrates the successful-clear and both
+failed-clear scenarios failing on that base with the lane's store.
+
+### Gates (this worktree, `CI=true` where applicable)
+
+| Gate                                                 | Exit   | Receipt                                                    |
+| ---------------------------------------------------- | ------ | ---------------------------------------------------------- |
+| `accountPaidConsent`                                 | 0      | 24 passed                                                  |
+| `paidConsent`, `paidAuthority`                       | 0      | 52 passed                                                  |
+| `paidDailyBudget`, `paidHookModels`, `paidHost`      | 0      | 87 passed                                                  |
+| `paidMoneyPorts`, `paidPortBoundaries`, `acpPaid`    | 0      | 73 passed                                                  |
+| `paidFeatures`, `schedulePaid`                       | 0      | 52 passed                                                  |
+| `accountUsd`, `accountHomes`, `accountFakes`         | 0      | 64 passed                                                  |
+| `accountHost`, `accountPolicy`, `accountSecrets`     | 0      | 98 passed                                                  |
+| `accountStore`, `accountUsage`, `accountUsageText`   | 0      | 51 passed                                                  |
+| `accounts`, `accountsCommand`, `accountsPanelHost`   | 0      | 67 passed                                                  |
+| Five typechecks                                      | 0 each | host, webview, unit, e2e, integration                      |
+| eslint `--max-warnings=0`, prettier on changed files | 0      |                                                            |
+| Plain knip                                           | 0      | configuration hints only                                   |
+| Full jscpd                                           | 1      | exactly the two inherited clones, zero threshold unchanged |
+| `check:l10n`                                         | 0      | zero problems                                              |
+| `check:reference`                                    | 0      | current                                                    |
+
+No `--testTimeout` on any verification run. At most 3 test files per run
+with `--maxWorkers=3`. No fresh clone was needed: the l10n tables changed
+values only, and `check:l10n` plus `check:reference` run directly here.

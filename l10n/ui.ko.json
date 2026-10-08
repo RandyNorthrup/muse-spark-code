@@ -340,7 +340,7 @@
   "referenceAuthClear": "저장된 Model API 키를 제거합니다.",
   "referenceAuthStatus": "Model API 키가 저장되어 있는지 확인합니다.",
   "referenceAccountsTitle": "Several accounts per provider",
-  "referenceAccounts": "한 제공자의 계정을 관리합니다. 목록, 추가, 삭제, 순서 및 임계값. 자격 증명은 표준 입력에서만 받습니다.",
+  "referenceAccounts": "한 제공자의 계정을 관리합니다. 목록, 추가, 삭제, 순서 및 임계값. 자격 증명은 표준 입력에서만 받습니다. 유료 동의는 당분간 작업 영역별로 유지됩니다.",
   "referenceDeveloper": "이 컴퓨터의 개발자 옵션을 표시하거나 잠금을 해제합니다. 프로필 작업에는 연결된 리소스 관리자가 필요합니다.",
   "referenceTabLanguages": "언어를 선택해 해당 언어의 Tab 제안을 켜거나 끕니다.",
   "referenceTabMenu": "Tab 끄기; 15분간 다시 알림; 1시간 동안 다시 알림; 다시 시작할 때까지 다시 알림; Tab 언어…; 여러 줄 모드…; 계정 및 사용량. Tab이 Copilot에 양보하면 메뉴에서 현재 언어의 Copilot을 끄거나 둘 다 실행할 수 있습니다.",

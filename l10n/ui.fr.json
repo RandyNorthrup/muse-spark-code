@@ -340,7 +340,7 @@
   "referenceAuthClear": "Supprimer la clé Model API enregistrée.",
   "referenceAuthStatus": "Vérifier si une clé Model API est enregistrée.",
   "referenceAccountsTitle": "Several accounts per provider",
-  "referenceAccounts": "Gère les comptes d’un fournisseur : lister, ajouter, supprimer, ordonner et seuils. Les identifiants proviennent uniquement de l’entrée standard.",
+  "referenceAccounts": "Gère les comptes d’un fournisseur : lister, ajouter, supprimer, ordonner et seuils. Les identifiants proviennent uniquement de l’entrée standard. Le consentement payant reste par espace de travail pour l’instant.",
   "referenceDeveloper": "Affiche ou déverrouille les options développeur propres à cette machine. Les opérations sur les profils exigent un gestionnaire de ressources connecté.",
   "referenceTabLanguages": "Choisir un langage pour activer ou désactiver ses suggestions Tab.",
   "referenceTabMenu": "Désactiver Tab; Mettre en veille 15 minutes; Mettre en veille une heure; Mettre en veille jusqu’au redémarrage; Langages de Tab…; Mode multiligne…; Compte et utilisation. Quand Tab laisse la priorité à Copilot, le menu propose aussi de désactiver Copilot pour la langue actuelle ou d’exécuter les deux.",
