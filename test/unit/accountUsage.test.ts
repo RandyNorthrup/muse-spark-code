@@ -122,6 +122,46 @@ describe('M108 J account aggregation', () => {
     ).toEqual([])
   })
 
+  it('keeps sub-nano spend below nearby caps instead of rounding up through nano-USD', () => {
+    // A1: totalsFor rounded spend through nano-USD, so the meter reported
+    // these caps reached while admission did not.
+    for (const [capText, spendText] of [
+      ['0.1000000005', '0.1000000001'],
+      ['0.1000000000000000002', '0.1000000000000000001'],
+    ] as const) {
+      const cap = PortUsd.from(capText).toAmount()
+      const spend = PortUsd.from(spendText).toAmount()
+      const zero = PortUsd.from(0).toAmount()
+      const f = usageFixture()
+      f.records.splice(
+        0,
+        f.records.length,
+        usageRecord({ settledUsd: spend, reservedUsd: zero, uncertainUsd: zero }),
+      )
+      f.catalog[0]!.accounts[0] = usageAccount('default', { spendUsd: { day: cap } })
+      const meter = f.report().accounts[0]?.meters[0]
+      expect(meter).toMatchObject({ value: spendText, threshold: capText, isReached: false })
+      expect(meter?.progress).toBeLessThan(100)
+      expect(
+        evaluateAccountThresholds({
+          provider: 'meta',
+          account: { id: 'default', thresholds: { spendUsd: { day: cap } } },
+          now: USAGE_NOW,
+          journal: {
+            read: () => ({
+              settledUsd: spend,
+              reservedUsd: zero,
+              uncertainUsd: zero,
+              inputTokens: 0,
+              outputTokens: 0,
+              requests: 0,
+            }),
+          },
+        }),
+      ).toEqual([])
+    }
+  })
+
   it('includes configured idle accounts and removed event identities without inventing usage', () => {
     const f = usageFixture()
     f.records.length = 0

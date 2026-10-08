@@ -103,6 +103,30 @@ describe('M108 J account text', () => {
     expect(text).not.toContain('$0.1000')
   })
 
+  it('never reports a threshold reached for sub-nano spend below a nearby cap', () => {
+    // A1: totalsFor rounded spend up through nano-USD, so the meter text
+    // claimed these caps reached while admission did not.
+    for (const [capText, spendText] of [
+      ['0.1000000005', '0.1000000001'],
+      ['0.1000000000000000002', '0.1000000000000000001'],
+    ] as const) {
+      const f = usageFixture()
+      f.records.splice(
+        0,
+        f.records.length,
+        usageRecord({
+          settledUsd: spendText,
+          reservedUsd: '0',
+          uncertainUsd: '0',
+        }),
+      )
+      f.catalog[0]!.accounts[0] = usageAccount('default', {
+        spendUsd: { day: usdInputSchema.parse(capText) },
+      })
+      expect(accountUsageText(f.report())).not.toContain('Threshold reached')
+    }
+  })
+
   it('shows carried reservations and uncertain liability after a reset while settled spend stays in its period', () => {
     const f = usageFixture()
     f.records.splice(
