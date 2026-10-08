@@ -19866,6 +19866,7 @@ requires a UNC workspace and proven ancestry; uncertain UNC hold/exclusion
 proof fails closed. Preserve ordinary protected-folder behavior and POSIX names.
 Share the native identity walker through the existing Node boundary bundle;
 the unchanged sharing-runtime cap must accommodate the refusal at admission.
+Its Node entry stays in core, outside the browser project's shared sources.
 
 - [x] Capture native Win32 normalization and loopback SMB identity in owned temp folders.
 - [x] Run new regressions against the unchanged base, then repair the owning boundaries.

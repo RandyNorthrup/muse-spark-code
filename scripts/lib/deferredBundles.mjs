@@ -116,6 +116,7 @@ export const DEFERRED = [
     metafile: 'dist/meta/modelApiBoundaries.json',
     files: [
       'src/shared/modelApiBoundariesEntry.ts',
+      'src/core/nodeBoundariesEntry.ts',
       'src/core/pathIdentity.ts',
       'src/core/backends/modelapi/schemas.ts',
       'src/shared/teamConversation.ts',

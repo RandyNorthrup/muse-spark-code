@@ -183,3 +183,8 @@ all **91 passed**, exit 0. SHA-256:
 The initial restored run exposed an uncompressed hook-runtime fixture (90
 passed, one size failure). It now uses the production prompt-compression
 plugin already used by that shipped bundle; the size gate and cap are unchanged.
+The next fresh webview typecheck correctly refused the Node export placed in
+its shared-source include. A dedicated core entry now exports the existing
+shared boundaries and native identity for the same output bundle; knip's entry
+inventory follows that entry. Browser types, include patterns and gates stay
+unchanged. Qualification restarts after this correction.

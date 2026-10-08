@@ -200,7 +200,7 @@ beforeAll(async () => {
     build({
       ...common,
       outdir: 'dist',
-      entryPoints: { modelApiBoundaries: 'src/shared/modelApiBoundariesEntry.ts' },
+      entryPoints: { modelApiBoundaries: 'src/core/nodeBoundariesEntry.ts' },
       plugins: [sharedUiText, sharedValidation],
     }),
     build({

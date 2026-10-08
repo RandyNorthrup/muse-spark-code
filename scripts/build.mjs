@@ -316,7 +316,7 @@ const referenceOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const modelApiBoundariesOptions = {
   ...modelApiOptions,
-  entryPoints: ['src/shared/modelApiBoundariesEntry.ts'],
+  entryPoints: ['src/core/nodeBoundariesEntry.ts'],
   outfile: 'dist/modelApiBoundaries.js',
   plugins: [sharedUiText, sharedValidation, compressedModelText(isProduction)],
 }
