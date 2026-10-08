@@ -366,6 +366,87 @@ scripts/check-host-api.mjs`: 0 problems.
 - `npm run build`: `dist/devices.js` 88.9 KiB against its 100 KiB cap,
   caps otherwise unchanged.
 
+## Lane D fix round 4 (RVM100P2DC): serialized discovery state machine
+
+2026-10-08, macbook rig, worktree `/Users/user/lanes/FIXM100P2D3`,
+branch `m100/p2-d-fix3` from `e34f47715`. Scope is the review's one P2
+and two P3s: every switch input and asynchronous completion enters one
+queue; stale ON continuations cannot overwrite a blocked verdict; store
+failures remain visible with a fresh read of the persisted value; dropping
+an offer or enable flag during open settles discovery to off. Preserve all
+lane D tests and files. No UI styling, dependencies, wire changes, live
+model calls or real sockets are needed.
+
+### Acceptance and review repairs
+
+- P2 ordering: `deviceDiscoverySwitch.ts` applies every request, session
+  verdict, facts/read/start completion and persist result on one synchronous
+  event queue. Effects only enqueue results. Operation identity and phase
+  reject stale continuations; the single outstanding write settles before
+  the next write or choice. A blocked verdict invalidates the active ON and
+  all older queued ONs, immediately clears the choice, and queues the OFF
+  write. An ON completion cannot reopen the session or finish before its
+  downgrade settles; later OFF retains order and wins. Tests: "keeps a
+  blocked verdict when a second ON is still awaiting facts" (also an older
+  third ON queued), and "orders a queued downgrade behind an in-flight ON
+  write without reopening, then OFF wins" (both writes deferred; reply stays
+  pending until the downgrade finishes; no second advertisement).
+- P3 persistence: `status()` exposes the machine's choice, discovery verdict,
+  fixed failure and confirmed persisted flag. A failed write publishes
+  `storage`, attempts a fresh read and reports `persistedEnabled: undefined`
+  if the failed-closed store refuses it. Never infer that the disk is off.
+  Tests: "reports a failed live downgrade and rereads the persisted flag",
+  "reports unknown persistence when the failed downgrade cannot be reread",
+  "keeps a later OFF when a failed downgrade reread completes", and "reports
+  an ON persist failure before any socket opens and a later OFF still works".
+- P3 lifecycle: `deviceDiscovery.ts` closes the newly opened session and
+  settles this generation to off when offer/enable disappears during open
+  or the first announcement. Generation checks keep an older open from
+  stopping a newer session. Tests: "settles off when the offer drops during
+  open" through the switch; the two parameterized "settles off when %s drops
+  during open without stop" and "settles off when %s drops in the first
+  announcement" cases through discovery. Existing consent-without-offer,
+  stale-open, QR, mDNS, manual-pairing and pin tests remain intact.
+
+### Test-fire proof and red drills
+
+Detached base worktree `/tmp/fixm100p2d3-base` at `e34f47715`, final switch
+and discovery tests copied in, `CI=true`, repository-default timeout:
+**11 failed, 22 passed**. Every new regression fails on the base; all old
+cases pass. The reread-completion case hits the 5-second timeout because the
+base swallows the write failure and never attempts the read.
+
+Guard breaks run directly with `npx vitest run <file> --maxWorkers=3 -t
+<case>` and `CI=true`; each restores byte-exact source before the next:
+
+| Drill           | Removed guard                                                    | Result               |
+| --------------- | ---------------------------------------------------------------- | -------------------- |
+| stale-facts     | active operation/phase check on facts completion                 | 1 failed, 16 skipped |
+| downgrade-order | outstanding downgrade check before completing the older ON write | 1 failed, 16 skipped |
+| persist-report  | storage failure in the machine's displayed state                 | 2 failed, 15 skipped |
+| open-policy     | current-generation stop after policy disappears                  | 2 failed, 14 skipped |
+| announce-policy | current-generation stop after first announcement loses policy    | 2 failed, 14 skipped |
+
+SHA-256 before and after every drill:
+`deviceDiscoverySwitch.ts`
+`f89cbc12da6c30f8540c740f09138de00ad01b9924bafa9a2b262d794bf95c56`;
+`deviceDiscovery.ts`
+`e6a06a3ac3f0d372d6c841e9ddf6b2794db483fae8be89208619b7a1bd56742e`.
+Restored tree: switch/mDNS/discovery **48 passed**; all five compiler
+projects pass. Final fresh-clone verification follows the repair commit.
+
+### Planning status and next slice
+
+This lane completes all three round-4 findings; no contract change is
+requested. The phase-2 planning record remains the phase-2 baseline, with
+lane D's receipts here; it does not certify the other lanes or installed
+Devices. Next slice belongs to W: integrate the lane branches, consume the
+switch's `status()` for snapshots (including `storage` and unknown persisted
+state), run aggregate quality and installed-host/four-device qualification.
+Lane T retains discovery's generation/status ownership. No visual styling
+changed, so no screenshot claim is made. Model attempts **0**, spend **0**;
+all sockets are fakes.
+
 ## Lane 0 re-review (RVM100P2L0B): the byte cap counts UTF-8 bytes
 
 The re-review confirmed the six fixes and found one P2: `deviceCapabilitySchema` compared `JSON.stringify(value).length` (UTF-16 code units) with `capabilityBytes`, so an advertisement of 64 tool names padded with U+4F60 was 5,893 code units but 15,801 UTF-8 bytes and parsed. The refine now measures `new TextEncoder().encode(JSON.stringify(value)).byteLength`, as `tableArchive.ts` does.

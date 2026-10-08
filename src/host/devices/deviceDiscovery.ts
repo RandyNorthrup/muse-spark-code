@@ -161,6 +161,9 @@ export class DeviceDiscovery {
     }
     if (!isCurrent()) {
       session.close()
+      // Only this generation may settle its dropped policy. An older open
+      // must leave a newer session's verdict alone.
+      if (generation === this.generation) this.stop()
       return
     }
     this.session = session
@@ -185,7 +188,10 @@ export class DeviceDiscovery {
       }
     }
     announce()
-    if (!isCurrent() || this.session !== session) return
+    if (!isCurrent() || this.session !== session) {
+      if (generation === this.generation) this.stop()
+      return
+    }
     this.publish({ state: 'on' })
     this.timer = setInterval(announce, DEVICE_LIMITS.idleConnectionMs)
   }

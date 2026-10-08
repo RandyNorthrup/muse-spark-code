@@ -188,6 +188,51 @@ describe('optional minimal discovery policy', () => {
     expect(session.advertise).not.toHaveBeenCalled()
     expect(session.close).toHaveBeenCalledTimes(1)
   })
+  it.each(['offer', 'enable'])(
+    'settles off when %s drops during open without stop',
+    async (flag) => {
+      const { discovery, mdns, session } = fixture()
+      const opened = Promise.withResolvers<typeof session>()
+      mdns.open = vi.fn(() => opened.promise)
+      let isAllowed = true
+      const start = discovery.start(
+        {
+          isEnabled: () => flag !== 'enable' || isAllowed,
+          isPairedReceiverOffering: () => flag !== 'offer' || isAllowed,
+        },
+        '10.0.0.1',
+        4321,
+      )
+      expect(discovery.status()).toEqual({ state: 'starting' })
+      isAllowed = false
+      opened.resolve(session)
+      await start
+      expect(discovery.status()).toEqual({ state: 'off' })
+      expect(session.close).toHaveBeenCalledTimes(1)
+      expect(session.advertise).not.toHaveBeenCalled()
+    },
+  )
+  it.each(['offer', 'enable'])(
+    'settles off when %s drops in the first announcement',
+    async (flag) => {
+      const { discovery, session, policy } = fixture()
+      let isAllowed = true
+      session.advertise.mockImplementation(() => {
+        isAllowed = false
+      })
+      await discovery.start(
+        {
+          ...policy,
+          isEnabled: () => flag !== 'enable' || isAllowed,
+          isPairedReceiverOffering: () => flag !== 'offer' || isAllowed,
+        },
+        '10.0.0.1',
+        4321,
+      )
+      expect(discovery.status()).toEqual({ state: 'off' })
+      expect(session.close).toHaveBeenCalledTimes(1)
+    },
+  )
   it('ignores an old adapter callback without shutting down a new discovery generation', async () => {
     const { discovery, state, session, policy } = fixture()
     await discovery.start(policy, '10.0.0.1', 4321)

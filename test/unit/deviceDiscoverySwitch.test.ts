@@ -6,6 +6,7 @@
 import { mkdtemp, readFile, realpath, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { setImmediate } from 'node:timers/promises'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DeviceDiscovery, type DeviceMdnsPort } from '../../src/host/devices/deviceDiscovery'
 import { createDeviceMdnsPort } from '../../src/host/devices/deviceMdns'
@@ -69,7 +70,7 @@ afterEach(async () => {
 async function radio(
   id: string,
   port: DeviceMdnsPort,
-  isOffering = true,
+  isOffering: boolean | (() => boolean) = true,
   host = localHost,
   factsFn: () => Promise<typeof facts> = () => Promise.resolve(facts),
 ) {
@@ -85,7 +86,7 @@ async function radio(
     host,
     store,
     discovery,
-    isPairedReceiverOffering: () => isOffering,
+    isPairedReceiverOffering: () => (typeof isOffering === 'function' ? isOffering() : isOffering),
     localFacts: factsFn,
   })
   const { adapter } = startLaneTestHost(store, host)
@@ -287,6 +288,218 @@ describe('discovery switch', () => {
     expect(stored.discoveryEnabled).toBe(false)
     expect(calls.open).toBe(1)
     expect(calls.close).toBe(1)
+  })
+  it('keeps a blocked verdict when a second ON is still awaiting facts', async () => {
+    const socket = new FakeMdnsSocket()
+    const pending = Promise.withResolvers<typeof facts>()
+    const entered = Promise.withResolvers<undefined>()
+    let calls = 0
+    const rig = await radio(
+      'race-facts',
+      createDeviceMdnsPort(() => socket),
+      true,
+      localHost,
+      () => {
+        calls += 1
+        if (calls === 2) {
+          entered.resolve(undefined)
+          return pending.promise
+        }
+        return Promise.resolve(facts)
+      },
+    )
+    await rig.control.load()
+    await rig.act({ kind: 'setDiscovery', enabled: true })
+    try {
+      const second = rig.act({ kind: 'setDiscovery', enabled: true })
+      await entered.promise
+      const third = rig.act({ kind: 'setDiscovery', enabled: true })
+      socket.fail(new Error('blocked-during-facts-sentinel'))
+      pending.resolve(facts)
+      const secondReply = await second
+      expect(secondReply.failure).toBe('blocked-or-unreachable')
+      const thirdReply = await third
+      expect(thirdReply.failure).toBe('blocked-or-unreachable')
+      expect(rig.control.isEnabled()).toBe(false)
+      expect(rig.discovery.status().state).toBe('blocked-or-unreachable')
+      await vi.waitFor(async () => {
+        const stored = await rig.store.read()
+        expect(stored.discoveryEnabled).toBe(false)
+      })
+      expect(socket.sent).toHaveLength(1)
+    } finally {
+      pending.resolve(facts)
+      rig.discovery.stop()
+    }
+  })
+  it('orders a queued downgrade behind an in-flight ON write without reopening, then OFF wins', async () => {
+    const socket = new FakeMdnsSocket()
+    const rig = await liveRadio('race-write', socket)
+    await rig.act({ kind: 'setDiscovery', enabled: true })
+    const gate = Promise.withResolvers<undefined>()
+    const entered = Promise.withResolvers<undefined>()
+    const downgradeEntered = Promise.withResolvers<undefined>()
+    const downgradeGate = Promise.withResolvers<undefined>()
+    const update = rig.store.update.bind(rig.store)
+    const writes: boolean[] = []
+    vi.spyOn(rig.store, 'update').mockImplementation(async (change) => {
+      const state = change(await rig.store.read())
+      writes.push(state.discoveryEnabled ?? false)
+      if (writes.length === 1) {
+        entered.resolve(undefined)
+        await gate.promise
+      } else if (writes.length === 2) {
+        downgradeEntered.resolve(undefined)
+        await downgradeGate.promise
+      }
+      await update(change)
+    })
+    try {
+      let hasSettled = false
+      const second = (async () => {
+        const reply = await rig.act({ kind: 'setDiscovery', enabled: true })
+        hasSettled = true
+        return reply
+      })()
+      await entered.promise
+      socket.fail(new Error('blocked-during-write-sentinel'))
+      const off = rig.act({ kind: 'setDiscovery', enabled: false })
+      gate.resolve(undefined)
+      await downgradeEntered.promise
+      await setImmediate()
+      expect(hasSettled).toBe(false)
+      expect(rig.control.isEnabled()).toBe(false)
+      downgradeGate.resolve(undefined)
+      const secondReply = await second
+      expect(secondReply.failure).toBe('blocked-or-unreachable')
+      const offReply = await off
+      expect(offReply.failure).toBeUndefined()
+      expect(rig.control.isEnabled()).toBe(false)
+      expect(rig.discovery.status()).toEqual({ state: 'off' })
+      const stored = await rig.store.read()
+      expect(stored.discoveryEnabled).toBe(false)
+      expect(writes).toEqual([true, false, false])
+      expect(socket.sent).toHaveLength(1)
+    } finally {
+      gate.resolve(undefined)
+      downgradeGate.resolve(undefined)
+      rig.discovery.stop()
+    }
+  })
+  it('reports a failed live downgrade and rereads the persisted flag', async () => {
+    const socket = new FakeMdnsSocket()
+    const rig = await liveRadio('persist-failure', socket)
+    await rig.act({ kind: 'setDiscovery', enabled: true })
+    const pending = Promise.withResolvers<undefined>()
+    const entered = Promise.withResolvers<undefined>()
+    const read = vi.spyOn(rig.store, 'read')
+    vi.spyOn(rig.store, 'update').mockImplementation(() => {
+      entered.resolve(undefined)
+      return pending.promise
+    })
+    socket.fail(new Error('blocked-sentinel'))
+    await entered.promise
+    pending.reject(new Error('private-write-sentinel'))
+    await vi.waitFor(() => {
+      expect(rig.control.status()).toMatchObject({
+        enabled: false,
+        failure: 'storage',
+        persistedEnabled: true,
+        discovery: { state: 'blocked-or-unreachable', reason: 'blocked-or-unreachable' },
+      })
+    })
+    expect(read).toHaveBeenCalled()
+    expect(JSON.stringify(rig.control.status())).not.toContain('sentinel')
+  })
+  it('reports unknown persistence when the failed downgrade cannot be reread', async () => {
+    const socket = new FakeMdnsSocket()
+    const rig = await liveRadio('reread-failure', socket)
+    await rig.act({ kind: 'setDiscovery', enabled: true })
+    vi.spyOn(rig.store, 'update').mockRejectedValue(new Error('write-sentinel'))
+    const read = vi.spyOn(rig.store, 'read').mockRejectedValue(new Error('read-sentinel'))
+    socket.fail(new Error('socket-sentinel'))
+    await vi.waitFor(() => {
+      expect(rig.control.status()).toMatchObject({ enabled: false, failure: 'storage' })
+      expect(rig.control.status().persistedEnabled).toBeUndefined()
+    })
+    expect(read).toHaveBeenCalled()
+  })
+  it('keeps a later OFF when a failed downgrade reread completes', async () => {
+    const socket = new FakeMdnsSocket()
+    const rig = await liveRadio('reread-off', socket)
+    await rig.act({ kind: 'setDiscovery', enabled: true })
+    const saved = await rig.store.read()
+    const pending = Promise.withResolvers<typeof saved>()
+    const entered = Promise.withResolvers<undefined>()
+    const update = rig.store.update.bind(rig.store)
+    vi.spyOn(rig.store, 'update')
+      .mockRejectedValueOnce(new Error('write-sentinel'))
+      .mockImplementation(update)
+    vi.spyOn(rig.store, 'read').mockImplementationOnce(() => {
+      entered.resolve(undefined)
+      return pending.promise
+    })
+    socket.fail(new Error('socket-sentinel'))
+    try {
+      await entered.promise
+      const off = rig.act({ kind: 'setDiscovery', enabled: false })
+      pending.resolve(saved)
+      const offReply = await off
+      expect(offReply.failure).toBeUndefined()
+      expect(rig.control.status()).toMatchObject({ enabled: false, persistedEnabled: false })
+      expect(rig.control.status().failure).toBeUndefined()
+      expect(rig.discovery.status()).toEqual({ state: 'off' })
+    } finally {
+      pending.resolve(saved)
+      rig.discovery.stop()
+    }
+  })
+  it('settles off when the offer drops during open', async () => {
+    const session = { advertise: vi.fn(), close: vi.fn() }
+    const opened = Promise.withResolvers<typeof session>()
+    const entered = Promise.withResolvers<undefined>()
+    const port: DeviceMdnsPort = {
+      open: () => {
+        entered.resolve(undefined)
+        return opened.promise
+      },
+      decode: () => undefined,
+    }
+    let isOffering = true
+    const rig = await radio('offer-drop', port, () => isOffering)
+    await rig.control.load()
+    const on = rig.act({ kind: 'setDiscovery', enabled: true })
+    await entered.promise
+    isOffering = false
+    opened.resolve(session)
+    await on
+    expect(rig.discovery.status()).toEqual({ state: 'off' })
+    expect(session.close).toHaveBeenCalledTimes(1)
+    expect(session.advertise).not.toHaveBeenCalled()
+  })
+  it('reports an ON persist failure before any socket opens and a later OFF still works', async () => {
+    const { port, calls } = recordingPort()
+    const rig = await radio('on-persist-failure', port)
+    await rig.control.load()
+    const update = rig.store.update.bind(rig.store)
+    vi.spyOn(rig.store, 'update')
+      .mockRejectedValueOnce(new Error('write-sentinel'))
+      .mockImplementation(update)
+    const on = await rig.act({ kind: 'setDiscovery', enabled: true })
+    expect(on.failure).toBe('storage')
+    expect(rig.control.status()).toMatchObject({
+      enabled: false,
+      persistedEnabled: false,
+      failure: 'storage',
+    })
+    expect(calls.open).toBe(0)
+    const off = await rig.act({ kind: 'setDiscovery', enabled: false })
+    expect(off.failure).toBeUndefined()
+    expect(rig.control.status()).toMatchObject({
+      enabled: false,
+      persistedEnabled: false,
+      failure: undefined,
+    })
   })
   it('refuses the switch on an unqualified host without probing', async () => {
     const { port, calls } = recordingPort()

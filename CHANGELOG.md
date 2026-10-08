@@ -28,8 +28,11 @@ happened, not what was planned; superseded entries are kept.
   invite, mDNS is off by default and advertises only an opaque service id,
   port and protocol version, a spoofed record never replaces the saved peer
   pin, manual entry pairs with discovery fully blocked, and a denied bind
-  answers the fixed Blocked-or-unreachable setup. No new UI strings; no real
-  socket opens in tests.
+  answers the fixed Blocked-or-unreachable setup. Discovery choices, live
+  verdicts and asynchronous completions now share one state machine: an older
+  ON cannot undo a blocked verdict, a later OFF wins, failed persistence is
+  reported with a fresh read, and revoked policy settles startup to off.
+  No new UI strings; no real socket opens in tests.
 
 ### Fixed
 
