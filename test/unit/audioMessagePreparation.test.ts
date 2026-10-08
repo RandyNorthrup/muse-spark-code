@@ -17,6 +17,23 @@ import type { TurnPart } from '../../src/core/agent/agentBackend'
 
 const MP3_FIXTURE = 'test/fixtures/voice/tone-2s.mp3'
 const MARKER = 'attached-audio-stands-here'
+const VIDEO_MARKER = 'attached-video-stands-here'
+
+// A video whose soundtrack 1.3 does not hear (U4): the router's default is
+// to transcribe the sound, and the video itself still goes (D85.5).
+const videoSource: AudioSource = {
+  name: 'clip.mp4',
+  pathToken: 'confined-video',
+  info: {
+    kind: 'video',
+    mediaType: 'video/mp4',
+    sizeBytes: 4000,
+    durationSeconds: 2,
+    hasSoundtrack: true,
+    width: 320,
+    height: 240,
+  },
+}
 
 const mp3Source: AudioSource = {
   name: 'speech.mp3',
@@ -108,8 +125,11 @@ function rig(options?: { readonly voiceOn?: boolean }): Rig {
         voiceSeconds += seconds
       },
     },
-    resolveSource: (part: TurnPart) =>
-      part.type === 'text' && part.text === MARKER ? mp3Source : undefined,
+    resolveSource: (part: TurnPart) => {
+      if (part.type !== 'text') return undefined
+      if (part.text === MARKER) return mp3Source
+      return part.text === VIDEO_MARKER ? videoSource : undefined
+    },
     assertCurrent: () => undefined,
     consent: { allows: () => Promise.resolve(true) },
     reserve: () => {
@@ -151,6 +171,33 @@ describe('Model API factory audio preparation (MEDIAW finding 7)', () => {
     expect(post.body.includes('ID3')).toBe(false)
     expect(r.settled).toHaveLength(1)
     expect(r.voiceSeconds()).toBe(2)
+  })
+
+  it('keeps a video beside its soundtrack transcript, never replacing it (RVMEDIAW 5)', async () => {
+    // D85.5: "the transcript goes beside the video as text". The adapter
+    // once appended only the transcript, dropping the video's frames.
+    const r = rig()
+    // The fake converter never reads its input; any confined file stands in.
+    r.paths.set(videoSource.pathToken, path.resolve(MP3_FIXTURE))
+    const videoPart: TurnPart = { type: 'text', text: VIDEO_MARKER }
+    const prepared = await r.prepare({
+      sessionId: 'session-1',
+      turnId: 'turn-1',
+      modelId: 'muse-spark-1.3-contributor',
+      parts: [{ type: 'text', text: 'What happens here?' }, videoPart],
+      signal: new AbortController().signal,
+    })
+    expect(prepared?.parts).toHaveLength(3)
+    // The original video part survives, in place, for the replay to upload.
+    expect(prepared?.parts[1]).toBe(videoPart)
+    const transcript = prepared?.parts[2]
+    if (transcript?.type !== 'textFile') throw new Error('expected a transcript textFile part')
+    expect(transcript.text).toBe('The Blue Llama.')
+    expect(transcript.name).toContain('clip.mp4')
+    // A soundtrack is diarized; one POST carries the converted WAV.
+    expect(r.posted).toHaveLength(1)
+    expect(r.posted[0]?.body).toContain('DIARIZATION')
+    expect(r.posted[0]?.body.includes('RIFF')).toBe(true)
   })
 
   it('resolves undefined when no part is transcribable, like an absent port', async () => {

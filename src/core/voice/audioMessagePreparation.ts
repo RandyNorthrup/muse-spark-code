@@ -106,6 +106,10 @@ export function createPrepareAudioMessage(deps: AudioMessagePreparationDeps) {
         prepared.push(part)
       } else {
         hasTranscribed = true
+        // D85.5: the transcript goes beside the video, never instead of it.
+        // A video keeps its visual part (the router returns it as `media`);
+        // standalone audio, which no Meta model hears, becomes the transcript.
+        if (attachment.media !== undefined) prepared.push(part)
         prepared.push(attachment.transcript)
       }
     }

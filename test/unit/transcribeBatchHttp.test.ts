@@ -95,6 +95,8 @@ function rig(options?: {
   readonly locate?: TranscriptionConversionDeps['locateConverter']
   readonly encoderWav?: Uint8Array
   readonly respond?: () => Response
+  /** Replaces the confined byte read (the converted output's reread included). */
+  readonly read?: (absolutePath: string) => Promise<Uint8Array>
 }) {
   const stubWav = options?.encoderWav
   const posted: Posted[] = []
@@ -103,9 +105,13 @@ function rig(options?: {
   const reserved: Usd[] = []
   let voiceSeconds = 0
   let runs = 0
+  const outputs: string[] = []
   const ports = createTranscriptionPorts({
     resolveSourcePath: (source) => Promise.resolve(paths.get(source.pathToken)),
-    readAudioBytes: async (absolutePath) => new Uint8Array(await readFile(absolutePath)),
+    readAudioBytes: async (absolutePath) =>
+      options?.read === undefined
+        ? new Uint8Array(await readFile(absolutePath))
+        : await options.read(absolutePath),
     postTranscription: async (request) => {
       const chunks: Uint8Array[] = []
       const reader = request.body.getReader()
@@ -141,6 +147,7 @@ function rig(options?: {
       ...(stubWav !== undefined && {
         run: async (_command: string, _args: readonly string[], runOptions): Promise<void> => {
           runs += 1
+          outputs.push(runOptions.outputPath)
           await writeFile(runOptions.outputPath, stubWav)
         },
       }),
@@ -190,6 +197,17 @@ function rig(options?: {
     get runs() {
       return runs
     },
+    outputs,
+  }
+}
+
+/** Whether a converted output file is still on disk. */
+async function isOnDisk(file: string): Promise<boolean> {
+  try {
+    await stat(file)
+    return true
+  } catch {
+    return false
   }
 }
 
@@ -388,6 +406,51 @@ describe('U18 WAV conversion before the batch send', () => {
       await rm(root, { recursive: true, force: true })
     }
   })
+
+  it.each(['reread', 'header'] as const)(
+    'disposes the converted WAV when its %s fails at the last mile (RVMEDIAW 6)',
+    async (failure) => {
+      // The conversion is created before the reread and the contract check;
+      // both once ran outside the try/finally, leaking the private output.
+      const stereo = synthWav(2, { channels: 2 })
+      const root = await mkdtemp(path.join(tmpdir(), 'muse-batch-wav-'))
+      try {
+        const stereoPath = path.join(root, 'stereo.wav')
+        await writeFile(stereoPath, stereo)
+        const source: AudioSource = {
+          name: 'stereo.wav',
+          pathToken: 'confined-stereo',
+          info: {
+            kind: 'audio',
+            mediaType: 'audio/wav',
+            sizeBytes: stereo.length,
+            durationSeconds: 2,
+          },
+        }
+        const r = rig({
+          // A header failure renders another stereo WAV; a reread failure
+          // renders the contract but cannot read it back.
+          encoderWav: failure === 'header' ? synthWav(1, { channels: 2 }) : synthWav(1),
+          read: async (absolutePath) => {
+            if (failure === 'reread' && absolutePath !== stereoPath)
+              throw new Error('converted output unreadable')
+            return new Uint8Array(await readFile(absolutePath))
+          },
+        })
+        r.paths.set(source.pathToken, stereoPath)
+        await expect(r.prepare(source)).rejects.toThrow(
+          failure === 'reread' ? 'converted output unreadable' : UI_TEXT.media.converterUnavailable,
+        )
+        expect(r.runs).toBe(1)
+        expect(r.posted).toHaveLength(0)
+        const output = r.outputs[0]
+        if (output === undefined) throw new Error('expected one converted output')
+        expect(await isOnDisk(output)).toBe(false)
+      } finally {
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+  )
 
   it('refuses a non-contract WAV before admission and HTTP when no converter exists', async () => {
     const stereo = synthWav(2, { channels: 2 })

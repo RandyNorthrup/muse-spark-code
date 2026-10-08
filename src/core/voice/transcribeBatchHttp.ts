@@ -250,16 +250,19 @@ export function createTranscriptionPorts(
         throw new Error(UI_TEXT.media.converterUnavailable)
       let rendered: Awaited<ReturnType<AudioConversionPort['convert']>> | undefined
       let name = source.name
-      if (!isBatchContractWav(wav)) {
-        // The last mile renders the captured contract before any admission:
-        // any other WAV is converted, or refused here when no converter is
-        // on the machine. Nothing billable has happened yet.
-        rendered = await conversion.convert(source, 'extractWav', signal)
-        wav = await deps.readAudioBytes(await resolveAbsolutePath(rendered.source), signal)
-        name = rendered.source.name
-        if (!isBatchContractWav(wav)) throw new Error(UI_TEXT.media.converterUnavailable)
-      }
+      // From the conversion's creation onward every path disposes it: a
+      // failed reread, an invalid rendered header, Stop, the POST and its
+      // refusal all leave through this finally.
       try {
+        if (!isBatchContractWav(wav)) {
+          // The last mile renders the captured contract before any admission:
+          // any other WAV is converted, or refused here when no converter is
+          // on the machine. Nothing billable has happened yet.
+          rendered = await conversion.convert(source, 'extractWav', signal)
+          wav = await deps.readAudioBytes(await resolveAbsolutePath(rendered.source), signal)
+          name = rendered.source.name
+          if (!isBatchContractWav(wav)) throw new Error(UI_TEXT.media.converterUnavailable)
+        }
         admitSend()
         // The mode follows the original attachment, not the converted bytes:
         // a video soundtrack is diarized, standalone audio uses push-to-talk.
