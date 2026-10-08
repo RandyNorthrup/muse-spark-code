@@ -452,18 +452,18 @@ CLI authorization fields, not fields of the external ACP specification.
 | -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `acp/agent.ts:154`, `acp/schedules.ts:12`: `maxBudgetUsd`                  | `runtime/schedules/args.ts:44` (`usdInputSchema`); forwarded by `runtime/cliArgs.ts:384` and runtime/ACP contexts                                                                             | `paidPortBoundaries`, `acpSchedules`, `acpRuntime`, `scheduleCommand`                                                                         |
 | `runtime/cliArgs.ts:87`, `runtime/schedules/args.ts:30,39`: `maxBudgetUsd` | `runtime/schedules/args.ts:44`, exact CLI decimal input                                                                                                                                       | `paidPortBoundaries` CLI precision and malformed-input cases                                                                                  |
-| `runtime/schedules/registration.ts:53`: `maxBudgetUsd`                     | `runtime/schedules/registration.ts:73`: numeric unmarked/v1 wake records normalize on read; v2 writes are canonical                                                                           | `paidPortBoundaries` old numeric wake, `scheduleBackground`, `scheduleRegistration`                                                           |
-| `runtime/schedules/control.ts`: draft/grant `paidCapUsd`                   | `shared/scheduleV2.ts:45` validated JSON/disk money codec; CLI authorization above                                                                                                            | `scheduleSurface`, `scheduleRuntime`, `paidPortBoundaries`, `schedulePaid`                                                                    |
+| `runtime/schedules/registration.ts:53`: `maxBudgetUsd`                     | `runtime/schedules/registration.ts:73`: numeric unmarked/v1 wake records normalize on read; v2 writes are canonical                                                                           | `paidPortBoundaries` old numeric wake, `scheduleBackground`, `scheduleRegistration`, `nativeScheduleBackground`                               |
+| `runtime/schedules/control.ts:102`: draft/grant `paidCapUsd`               | `shared/scheduleV2.ts:45` validated JSON/disk money codec; CLI authorization above                                                                                                            | `scheduleSurface`, `scheduleRuntime`, `paidPortBoundaries`, `schedulePaid`                                                                    |
 | `core/estimator/recommend.ts:50,190`: `rentalCostP90Usd`                   | `core/estimator/recommend.ts:160` validated price cards; `:161` parses rates once; exact computed fraction at `:216`                                                                          | `estimatorRecommend`: decimal ties, sub-nano evidence, 0.1 + 0.2 rentals, malformed prices and overflow                                       |
-| `core/paid/paidConsent.ts:68`: `sharedDailyBudgetUsd`                      | `shared/scheduleV2.ts:45,224`; creation additionally validates the host identity before consent                                                                                               | `paidPortBoundaries` numeric v2 consent read, `schedulePaid`, `mediaClient`                                                                   |
+| `core/paid/paidConsent.ts:68`: `sharedDailyBudgetUsd`                      | `shared/scheduleV2.ts:45,224`; `core/paid/paidConsent.ts:113` additionally validates the host identity before consent                                                                         | `paidPortBoundaries` numeric v2 consent read, `schedulePaid`, `mediaClient`                                                                   |
 | `webview/schedules/ports.ts:56`: `sharedDailyBudgetUsd`                    | Same consent/host boundary; editor cap text (`webview/schedules/ScheduleEditor.tsx:378`) uses `usdInputSchema` without a float conversion                                                     | `scheduleEditor`, `scheduleSurfaceWebview`, `schedulePaid`                                                                                    |
 | `core/reporting/sources/types.ts:140,146`: total/breakdown `costUsd`       | `core/reporting/sources/session.ts:25` validated source usage (`legacyUsdSchema`), shared by session and aggregate sources                                                                    | `paidPortBoundaries` numeric usage, exact sum and malformed input; `report*`, `reporting*`                                                    |
 | Saved report USD cells                                                     | `core/reporting/render/canonical.ts:121,137` verifies the original numeric version-1 bytes/hash, then migrates to money version 2; `shared/reportSchema.ts` keeps both structural validations | `paidPortBoundaries` retained numeric fixture; `reportHistory`, `render.json`, all renderer goldens                                           |
 | `core/schedules/agentTools.ts:38,48`: authority/policy `paidCapUsd`        | `shared/scheduleV2.ts:45`; host caps and policy are checked with `nonnegativeUsdSchema` before exact intersections                                                                            | `agentSchedules`: exactly 0.1 settled + 0.2 allocation at a 0.3 cap and refusal of an additional sub-nano amount; existing malformed policies |
 | `core/schedules/agentTools.ts:92`: `settledUsd`, `uncertainUsd`            | `core/schedules/agentTools.ts:310` validated owner daily projection; exact sum includes active allocations                                                                                    | `agentSchedules`, `scheduleJournal`, `unattended*`                                                                                            |
-| `core/schedules/agentTools.ts`: `alwaysPaidCapUsd`                         | Consent result validated before remembering; same exact policy cap                                                                                                                            | `agentSchedules` malformed Always caps and atomic allocation                                                                                  |
+| `core/schedules/agentTools.ts:126`: `alwaysPaidCapUsd`                     | `core/schedules/agentTools.ts:272`: consent result validated before remembering; same exact policy cap                                                                                        | `agentSchedules` malformed Always caps and atomic allocation                                                                                  |
 | `shared/accounts.ts:113–115`: settled/reserved/uncertain totals            | `core/accounts/thresholds.ts:18` validated journal projection; `core/accounts/pool.ts:118` projects nano totals to canonical strings without a numeric round trip                             | `paidPortBoundaries` sub-nano headroom; `thresholds`, `accountFakes`, `accountUsage`, account pool suites                                     |
-| `core/voice/transcribeBatch.ts:203`: `dailyBudgetUsd`                      | Canonical caller amount checked with `nonnegativeUsdSchema` before shared money formatting                                                                                                    | `paidPortBoundaries` exact batch question, `transcribeBatch` runtime refusal                                                                  |
+| `core/voice/transcribeBatch.ts:203`: `dailyBudgetUsd`                      | `core/voice/transcribeBatch.ts:204`: canonical caller amount checked with `nonnegativeUsdSchema` before shared money formatting                                                               | `paidPortBoundaries` exact batch question, `transcribeBatch` runtime refusal                                                                  |
 
 Schedule generation and delta envelopes now mark money version 2; historical
 unmarked envelopes remain readable through their validated v2 payload schemas.
@@ -499,4 +499,42 @@ zero-cost/fixture builders, report cell mapping, report action changes and the
 existing exact formatter. No gate configuration is changed. The plan's status
 phrase is corrected to its supported `built` value.
 
-Final fresh-clone gate receipts follow in the certification completion commit.
+Native fixture receipt: its numeric host-budget mock produces **3 failed /
+42 passed (45)**. The canonical mock and both canonical/numeric corrupt-input
+probes retain all assertions: **45 passed**, exit 0. This is a fixture migration;
+no production change follows `ad8926a8e`.
+
+Fresh ordinary clone under `$TMPDIR`: ordinary `CI=true npm ci` exits **0**
+with the unchanged lockfile. Production source `ad8926a8e`; final fixture source
+`54f40ddca`. No shared/junctioned dependency tree or install-policy bypass.
+All verification commands use `CI=true`.
+
+| Gate                    | Exit   | Receipt                                                                                            |
+| ----------------------- | ------ | -------------------------------------------------------------------------------------------------- |
+| Five typechecks         | 0 each | Host, webview, unit, e2e, integration; unit repeated after the last fixture                        |
+| Scoped ESLint           | 0      | All changed TS/TSX files, `--max-warnings=0`; last native fixture checked separately               |
+| Scoped Prettier         | 0      | All changed supported files; normal hooks format final documentation                               |
+| Plain knip              | 0      | No strict/production switch                                                                        |
+| Full jscpd              | 1      | Exactly two inherited clones: ACP agent, queued-answer/model-API fixture; zero threshold unchanged |
+| `check:l10n`            | 0      | Zero problems                                                                                      |
+| `check:host-api`        | 0      | Record current, portable boundaries intact                                                         |
+| `check:reference`       | 0      | Generated reference current                                                                        |
+| `check:plan`            | 0      | Supported milestone status, zero drift                                                             |
+| Report schema freshness | 0      | `node scripts/schema-report.mjs --check`                                                           |
+| Required owning sweep   | 1      | **179 files / 3,644 passed / 4 inherited failed**, 60 invocations                                  |
+
+The complete owning sweep includes every `schedules*`, `scheduled*`,
+`unattended*`, `estimator*`, `report*`, `reporting*`, `acp*`, `paid*` and
+`sessionBudget*` suite, plus account, voice batch, USD, renderer, native schedule,
+legacy store, media and locale owners. Each invocation has at most three files,
+`--maxWorkers=3` and repository deadlines, with no raised `--testTimeout`.
+The 10,000-fire journal workload passes at its existing named deadline.
+No case is skipped or filtered; remaining failures are the same four proven
+on the base above and remain assigned to the lead in PLAN §7.
+
+Commits use `.husky/_` exactly as installed; staged and committed diffs are
+reread after every hook. `ad8926a8e`'s hook adds block bodies to two test
+callbacks and adjusts table spacing; no production logic changes. The numeric
+port and float-sum drill hashes still match final source. No merge, push,
+quality aggregate, gate/configuration weakening, live/paid call or dependency
+change. The private fresh clone is removed after final verification.
