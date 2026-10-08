@@ -35905,6 +35905,18 @@ execution beyond phase 1 is implemented or certified by this record.
   | U Devices UI phase 2                           | New `src/webview/models/sections/devices/qr/`, `grants/` view files; harness scenes; owning UI tests                                                                                                                                                                                                                                                                                                        | Linux                                                    | 0                                |
   | W Wiring, qualification, docs (last)           | Lazy `dist/devices.js` phase-2 regions, `package.json`, build/split/size/host-globals/notices/packaging gates, knip/dpdm entries; README, PRIVACY, SECURITY, CHANGELOG, host API record, `docs/certification/m100-phase2.md`; installed-host four-device qualification                                                                                                                                      | All four (Windows PC, Kubuntu VM, Mac mini, Win11 VM)    | last                             |
 
+- **Dependency record (lane D, 2026-10-08, AGENTS.md rule 9).** No new
+  dependency ships: the first cut bundled `qrcode-generator@2.0.4` (21,323
+  bytes minified) and `dns-packet@5.6.1` (30,990 bytes with its single
+  `@leichtgewicht/ip-codec` dependency) for 136.7 KiB against the 100 KiB
+  `dist/devices.js` cap, so the lane was reworked to zero new runtime
+  dependencies — identical-text QR payload in the host with pixels in lane
+  U's lazy views, and a hand-rolled minimal DNS-SD codec over `node:dgram`
+  with no Avahi/Bonjour SDK or native build. Verified but NOT installed for
+  lane U's later use: `qrcode-generator@2.0.4` (MIT, zero dependencies, no
+  peers, own types). `npm audit` at install time showed only the 12
+  pre-existing dev-tooling findings; no notices entry follows.
+
 - **Acceptance and red drills.** Each row requires a real failing test on an
   intentional guard break, byte-exact restored source SHA-256, then a passing
   run recorded in `docs/certification/m100-phase2.md`. These are planned

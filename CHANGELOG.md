@@ -125,6 +125,16 @@ happened, not what was planned; superseded entries are kept.
   fakes. Phase-2 model guidance rides the declared lazy reader; seven status
   strings ship in all 14 tables. Bind the SSH-limit rules to gotchas
   G50–G52 and add the phase-2 threat model with the D101 reconcile note.
+- Add the unshipped Devices QR invite, mDNS discovery binding and discovery
+  switch with no new dependencies: a QR invite decodes to the identical text
+  invite, mDNS is off by default and advertises only an opaque service id,
+  port and protocol version, a spoofed record never replaces the saved peer
+  pin, manual entry pairs with discovery fully blocked, and a denied bind
+  answers the fixed Blocked-or-unreachable setup. Discovery choices, live
+  verdicts and asynchronous completions now share one state machine: an older
+  ON cannot undo a blocked verdict, a later OFF wins, failed persistence is
+  reported with a fresh read, and revoked policy settles startup to off.
+  No new UI strings; no real socket opens in tests.
 
 ### Fixed
 

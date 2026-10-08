@@ -477,7 +477,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:buffer`            | 47    |
 | `node:child_process`     | 16    |
 | `node:crypto`            | 93    |
-| `node:dgram`             | 1     |
+| `node:dgram`             | 2     |
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 7     |
 | `node:events`            | 1     |

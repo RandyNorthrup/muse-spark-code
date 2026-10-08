@@ -39,6 +39,9 @@ const pendingSchema = z.strictObject({
 const stateSchema = z.strictObject({
   version: z.literal(DEVICE_LIMITS.protocolVersion),
   deviceId: id,
+  // Lane D: the persisted discovery-switch choice. Optional so state written
+  // before the switch existed still opens; an absent choice reads as off.
+  discoveryEnabled: z.optional(z.boolean()),
   pending: z.array(pendingSchema).check(z.maxLength(DEVICE_LIMITS.pairedDevices)),
   pairs: z.array(pairSchema).check(z.maxLength(DEVICE_LIMITS.pairedDevices)),
   usedInvitationIds: z.array(id).check(z.maxLength(DEVICE_LIMITS.tombstones)),
@@ -93,6 +96,7 @@ export class DeviceStore {
           JSON.stringify({
             version: DEVICE_LIMITS.protocolVersion,
             deviceId,
+            discoveryEnabled: false,
             pending: [],
             pairs: [],
             usedInvitationIds: [],
