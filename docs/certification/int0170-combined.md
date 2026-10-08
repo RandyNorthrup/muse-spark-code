@@ -225,8 +225,21 @@ No merge, push, live/paid call, changed timeout, byte cap or pixel tolerance.
   Models/accounts rings now use the established shared text-colour outline
   so One Dark Pro's low-contrast focusBorder does not hide keyboard focus;
   theme archive values themselves remain immutable.
-- Full archive generation, image review and fresh-clone gate receipts remain
-  pending below; no visual certification is claimed until they finish.
+- Final generator exits 0: 9,792 real Chrome PNGs, 446,522,789 bytes (below
+  512 MiB), from source `58a8552a154ba5a2f43a73b1e18f1fbd8b242116`.
+  All 5,298 distinct current images were inspected on 144 labelled contact
+  sheets; byte-identical frames share the same inspected image. Original-size
+  checks confirmed update wrapping, Models focus, resource clipping and
+  reporting focus. Exact hashes, dimensions and one line for every renderer
+  are in `left017b-visual-review.json` and `left017b-visual-review.md`.
+- The final Playbook capture waits for `.playbook-record`, not just its
+  outer shell: earlier loading-only frames were rejected and superseded.
+  The complete capture owner requires the host reply in all six states.
+- Findings F1 (standalone resource-history narrow clipping) and F2 (inherited
+  theme/reporting focus and border contrast) remain explicit file:line
+  owning-surface findings in the image review; no responsive/contrast pass
+  is claimed for those observations. Fresh-clone pixel replay and final scoped
+  static results are pending below.
 
 ### Earlier LEFT017 receipts
 

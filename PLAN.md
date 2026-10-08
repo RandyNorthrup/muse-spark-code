@@ -10,7 +10,7 @@ No waivers, assertion weakening, paid/live calls, merge or push. Existing
 unrelated bundle caps remain the shrinking lane's responsibility.
 
 - [x] Map all 184 renderers (111 added) across 136 real-component scenes; narrow Chrome smoke passed.
-- [ ] Refresh theme/source receipts and generate/review the complete Chrome archive.
+- [x] Refresh theme/source receipts; generate and review 9,792 Chrome frames (184 renderer review lines).
 - [x] Deferred slash-command entry registered; activation 587,451 bytes; eager-import guard drill passed.
 - [ ] Replay visual owners and scoped static gates in a fresh npm-ci CI clone.
 - [ ] Record image reviews, findings, gate exits and hooks-on commits in LEFT017.
@@ -20362,15 +20362,17 @@ as required by the rig brief; do not run full quality or merge in this lane.
 
 ### LEFT017 — Combined 0.17.0 integration leftovers (2026-10-08)
 
-**Status 2026-10-08: waiting.** Eight bounded repairs are verified; visual
-coverage remains blocked by the shared per-finding scope limit, and combined
-build certification remains red. Rig lane `rel017/left`, base `7a4fc2ab3`;
+**Status 2026-10-08: building.** LEFT017B explicitly lifts the earlier mapping
+scope limit: all 184 renderers now map to 136 real scenes. All 9,792 Chrome
+receipts and 184 image-review lines are complete; fresh-clone replay is running.
+Combined build caps remain
+owned by the shrinking lane. Earlier rig lane `rel017/left`, base `7a4fc2ab3`;
 two-hour repair window. Keep all assertions, caps, scanner rules and deadlines.
 
 - [x] Register the three M115 editor commands and lazily connect the panel bridge (stable 1.141.0 / minimum 1.99.0: 40 + 40 integration tests).
 - [x] Verify unique Help IDs and resolve all accessibility readiness failures (full axe: 1,068 + 32 pages, no undecided rules or missing results).
 - [x] Resolve SAST findings: inherited scanner clean; named report-root literal escape helper and operator controls added.
-- [ ] Visual source lookup repaired; full audit/scene expansion blocked by 111 missing render inputs (shared scope limit).
+- [ ] LEFT017B: complete current audit/scene expansion (111 added mappings), regenerate and review every image, then pass the fresh-clone visual gate.
 - [x] Share duplicate production and test helpers; four baseline clones repaired (fresh jscpd: zero clones).
 - [x] Remove unused compactNodeReference after demonstrating its obsolete test fails.
 - [x] Cover account English in the browser probe's actual entry graph.
@@ -20384,7 +20386,7 @@ its exact SAST command, overriding older shared prohibitions for these actions.
 No quality aggregate, merge, push, paid call or credential read is authorized.
 Build caps owned by the separate shrinking lane remain an explicit §7 deferral.
 
-Final source 08d9c8ce2: all five typechecks, changed-file lint/format, knip,
+Earlier LEFT017 source 08d9c8ce2: all five typechecks, changed-file lint/format, knip,
 jscpd, localization, reference, host API, plan, tokens, SAST and full axe pass.
 All changed owners pass; the additional whole visualMatrix owner retains three
 failing stale-inventory assertions (396 selected tests pass, none skipped).
