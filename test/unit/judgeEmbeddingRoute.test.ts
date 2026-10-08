@@ -467,15 +467,19 @@ async function expectTaintedState(
   const outcome = await runEmbeddingJudge(request, options, deps, signal())
   expect(outcome.outcome).toBe('answered')
   if (outcome.outcome !== 'answered') throw new Error('expected an admitted answer')
+  expect(seen).toHaveLength(1)
   for (const batch of seen) {
     for (const payload of batch) {
       expect(payload.includes(opaqueMarker), JSON.stringify(state)).toBe(
         JSON.stringify(cleanState).includes(opaqueMarker),
       )
       expect(JSON.parse(payload)).toMatchObject({ state: cleanState })
+      if (!JSON.stringify(cleanState).includes(REDACTED_MARK)) {
+        expect(payload).not.toContain(REDACTED_MARK)
+      }
     }
   }
-  if (isLowConfidence || seen.length === 0) {
+  if (isLowConfidence) {
     expect(outcome.result.muse['risk']?.technique).toBe('stated')
     expect(fallbackCalls).toHaveLength(1)
     expect(fallbackClaims).toHaveLength(1)
@@ -550,24 +554,7 @@ describe('embedding pipeline regressions', () => {
         for (const isArrayFirst of [false, true]) {
           for (const value of values) {
             const state = mixedNesting({ [name]: value }, depth - 1, isArrayFirst)
-            const original = JSON.stringify(state)
-            const { seen, embed } = captureEmbedInputs(confidentVectors)
-            const { deps, fallbackCalls } = routeDependencies({ head, source: { embed } })
-            const outcome = await runEmbeddingJudge(
-              { ...noulRequest, state },
-              options,
-              deps,
-              signal(),
-            )
-            expect(outcome).toMatchObject({
-              outcome: 'answered',
-              result: { muse: { risk: { technique: 'embedding' } } },
-            })
-            expect(seen).toHaveLength(1)
-            expect(JSON.parse(seen[0]?.[0] ?? '')).toMatchObject({ state })
-            expect(seen[0]?.[0]).not.toContain(REDACTED_MARK)
-            expect(fallbackCalls).toHaveLength(0)
-            expect(JSON.stringify(state)).toBe(original)
+            await expectTaintedState(state, state, head, false)
           }
         }
       }
