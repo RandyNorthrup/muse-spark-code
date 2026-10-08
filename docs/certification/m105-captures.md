@@ -250,6 +250,11 @@ storage metric. The 100 GiB team quota and "uploaded files don't expire" are
 the operational constraints, and both are covered by the always-set expiry
 and the cleanup in D85.2.
 
+**Decision recorded.** PLAN.md D85.6 carries the U6c decision (2026-10-08,
+lead): the not-billed branch, the absence-of-meter caveat, and the release
+re-check step. The U6c prerequisite that blocked production uploads is met;
+what remains open is below.
+
 ## Calibration seeds
 
 `docs/research/m105-captures/media-calibration-seeds.json` holds 23 points in

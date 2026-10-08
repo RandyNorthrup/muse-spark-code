@@ -11500,6 +11500,23 @@ The owner's standing rulings apply:
        storage-days, and the D78 ledger admits them.
      - If it is not billed, uploads ask nothing beyond decision 7.
      - The upload path ships with neither default until U6c is recorded.
+     - **U6c (recorded 2026-10-08, lead decision).**
+       `docs/certification/m105-captures.md` ("U6c, storage billing") read
+       the signed-in billing dashboard three days after the 2026-10-05
+       uploads: Pay-as-you-go balance $0.00 with no line items, no
+       Files-storage metric on the Usage page, no storage rate on the
+       published price list, and storage described only as a 100 GiB
+       per-team quota. The finding selects the **not-billed** branch above:
+       uploads ask nothing beyond decision 7. No `filesStorage` paid
+       feature, storage-day tally or storage tariff is added.
+     - **Caveat.** This is the absence of any storage meter or rate (the
+       dashboard shows no usage for the key at all, including round 3's
+       turns 25 minutes before the read), not a measured zero for storage.
+     - **Re-check.** The release checklist reads the dashboard again once
+       usage appears there; if Meta publishes a storage rate or the
+       dashboard gains a storage metric, this decision re-opens under the
+       billed branch. Until then the always-set expiry and the cleanup in
+       decision 2 remain the operational constraints.
 
 7. **The contributor tier warns.** On a contributor model (Meta may train on
    its inputs), attaching a video, an audio file or a screen recording shows
