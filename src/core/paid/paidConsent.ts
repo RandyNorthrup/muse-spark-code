@@ -904,10 +904,40 @@ export class AccountPaidUseConsent {
     await operation
   }
 
+  /** The binding's kept features: empty while revoked, stale or ignored. */
+  private bindingGrants(generation: number): ReadonlySet<PaidFeature> {
+    return this.isCurrent(generation) && !this.shouldIgnoreStored
+      ? this.deps.readGrants(this.key)
+      : new Set()
+  }
+
+  /** Merges one feature into the binding's kept set inside the owner queue. */
+  private async keepBindingFeature(feature: PaidFeature, generation: number): Promise<void> {
+    await this.write(async () => {
+      if (!this.isCurrent(generation)) throw new Error(UI_TEXT.accounts.invalidAccount)
+      const grants = this.shouldIgnoreStored
+        ? new Set<PaidFeature>()
+        : this.deps.readGrants(this.key)
+      await this.deps.writeGrants(this.key, new Set([...grants, feature]))
+      if (!this.isCurrent(generation)) throw new Error(UI_TEXT.accounts.invalidAccount)
+      this.shouldIgnoreStored = false
+    })
+  }
+
   private createConsent(): PaidUseConsent {
     const generation = this.generation
     const isCurrent = () =>
       !this.isRevoking && generation === this.generation && this.deps.isCurrent(this.binding)
+    // Without a host quote store there is no ceiling or generation to track,
+    // so the binding-kept feature grant is bridged into the quote lookup: a
+    // new instance reads back Always for the same workspace, provider,
+    // account and price. A host that tracks generations without a quote store
+    // keeps asking: an unversioned grant cannot prove its vintage.
+    const shouldBridgeQuotes =
+      this.deps.readQuoteGrant === undefined &&
+      this.deps.writeQuoteGrant === undefined &&
+      this.deps.prepareQuoteGeneration === undefined &&
+      this.deps.quoteGeneration === undefined
     return new PaidUseConsent({
       ...this.deps,
       isOn: (feature) => isCurrent() && this.deps.isOn(feature),
@@ -917,8 +947,7 @@ export class AccountPaidUseConsent {
       // Owner ruling: ask once before the first charge; Always remains workspace-scoped.
       windowOnceFeatures: new Set(PAID_FEATURES),
       windowOnceGeneration: () => this.generation,
-      readGrants: () =>
-        isCurrent() && !this.shouldIgnoreStored ? this.deps.readGrants(this.key) : new Set(),
+      readGrants: () => this.bindingGrants(generation),
       writeGrants: async (grants) => {
         if (!isCurrent()) throw new Error(UI_TEXT.accounts.invalidAccount)
         await this.write(async () => {
@@ -929,16 +958,16 @@ export class AccountPaidUseConsent {
         })
       },
       rememberGrant: async (feature) => {
-        await this.write(async () => {
-          if (!isCurrent()) throw new Error(UI_TEXT.accounts.invalidAccount)
-          const grants = this.shouldIgnoreStored
-            ? new Set<PaidFeature>()
-            : this.deps.readGrants(this.key)
-          await this.deps.writeGrants(this.key, new Set([...grants, feature]))
-          if (!isCurrent()) throw new Error(UI_TEXT.accounts.invalidAccount)
-          this.shouldIgnoreStored = false
-        })
+        await this.keepBindingFeature(feature, generation)
       },
+      ...(shouldBridgeQuotes && {
+        readQuoteGrant: (quote: PaidQuote): PaidGrant | undefined =>
+          this.bindingGrants(generation).has('webSearch')
+            ? { quote, generation: 'initial' }
+            : undefined,
+        writeQuoteGrant: (_grant: PaidGrant): Promise<void> =>
+          this.keepBindingFeature('webSearch', generation),
+      }),
       ask: async (request, canRemember) => await this.deps.ask(request, this.binding, canRemember),
     })
   }

@@ -51,6 +51,30 @@ function holdFirstWrite(t: ReturnType<typeof rig>) {
   return finish
 }
 
+/** Search Always persists its quote ceiling, scoped by provider, account and price. */
+function quoteBacked(
+  t: ReturnType<typeof rig>,
+  quotes: Map<string, PaidGrant>,
+  extra: Partial<AccountPaidUseConsentDeps> = {},
+) {
+  return (patch: Partial<PaidAccountBinding> = {}) => {
+    const binding = { ...BINDING, ...patch }
+    const bindingKey = JSON.stringify([binding.provider, binding.account, binding.price])
+    return new AccountPaidUseConsent(
+      {
+        ...t.deps,
+        ...extra,
+        readQuoteGrant: (quote) => quotes.get(bindingKey + paidAuthorityKey(quote)),
+        writeQuoteGrant: (grant) => {
+          quotes.set(bindingKey + paidAuthorityKey(grant.quote), grant)
+          return Promise.resolve()
+        },
+      },
+      binding,
+    )
+  }
+}
+
 describe('M108 account-bound paid use consent', () => {
   it('passes an exact sub-nano budget through consent without rounding its digits', async () => {
     const t = rig()
@@ -142,21 +166,7 @@ describe('M108 account-bound paid use consent', () => {
     vi.mocked(t.deps.ask).mockResolvedValue('always')
     // Search Always grants persist their quote ceiling, not a legacy feature bit.
     const quotes = new Map<string, PaidGrant>()
-    const create = (patch: Partial<PaidAccountBinding> = {}) => {
-      const binding = { ...BINDING, ...patch }
-      const bindingKey = JSON.stringify([binding.provider, binding.account, binding.price])
-      return new AccountPaidUseConsent(
-        {
-          ...t.deps,
-          readQuoteGrant: (quote) => quotes.get(bindingKey + paidAuthorityKey(quote)),
-          writeQuoteGrant: (grant) => {
-            quotes.set(bindingKey + paidAuthorityKey(grant.quote), grant)
-            return Promise.resolve()
-          },
-        },
-        binding,
-      )
-    }
+    const create = quoteBacked(t, quotes)
     t.grants.set('legacy', new Set(['webSearch']))
     const a = create()
     expect(await a.allows(REQUEST)).toBe(true)
@@ -172,6 +182,42 @@ describe('M108 account-bound paid use consent', () => {
     t.state.canRemember = false
     expect(await create().allows(REQUEST)).toBe(true)
     expect(t.deps.ask).toHaveBeenCalledTimes(5)
+  })
+
+  it('holds Always across instances from the binding grant alone and ignores legacy grants', async () => {
+    const t = rig()
+    vi.mocked(t.deps.ask).mockResolvedValue('always')
+    t.grants.set('legacy', new Set(['webSearch', 'voice']))
+    const a = t.create()
+    expect(await a.allows(REQUEST)).toBe(true)
+    expect(await a.allows({ feature: 'voice' })).toBe(true)
+    expect(t.deps.ask).toHaveBeenCalledTimes(2)
+    // New instances — a restart that kept only the binding store — ask nothing.
+    expect(await t.create().allows(REQUEST)).toBe(true)
+    expect(await t.create().allows({ feature: 'voice' })).toBe(true)
+    expect(t.deps.ask).toHaveBeenCalledTimes(2)
+  })
+
+  it('asks again from the binding grant alone when the price changed', async () => {
+    const t = rig()
+    vi.mocked(t.deps.ask).mockResolvedValue('always')
+    expect(await t.create().allows(REQUEST)).toBe(true)
+    expect(await t.create({ price: '$6 per 1,000 searches' }).allows(REQUEST)).toBe(true)
+    expect(t.deps.ask).toHaveBeenCalledTimes(2)
+  })
+
+  it('asks again when the quote generation changes, even with a kept quote grant', async () => {
+    const t = rig()
+    vi.mocked(t.deps.ask).mockResolvedValue('always')
+    let generation = 'stored-1'
+    const quotes = new Map<string, PaidGrant>()
+    const create = quoteBacked(t, quotes, { quoteGeneration: () => generation })
+    expect(await create().allows(REQUEST)).toBe(true)
+    expect(await create().allows(REQUEST)).toBe(true)
+    expect(t.deps.ask).toHaveBeenCalledTimes(1)
+    generation = 'stored-2'
+    expect(await create().allows(REQUEST)).toBe(true)
+    expect(t.deps.ask).toHaveBeenCalledTimes(2)
   })
 
   it('asks again for requiresAsking, Deny or a new window after Allow once', async () => {

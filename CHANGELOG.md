@@ -28,6 +28,12 @@ happened, not what was planned; superseded entries are kept.
   account consent fixtures persist quote ceilings and retain account refusal.
   Account-bound paid consent carries exact decimal budgets through its popup.
 
+- Account-bound paid consent holds "Always" across instances and restarts for
+  the same workspace, provider, account and price through the binding-kept
+  grant when no host quote store is configured; it still asks again when any
+  of them changes, when the quote generation changes, or when only a
+  differently-keyed legacy grant exists.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
