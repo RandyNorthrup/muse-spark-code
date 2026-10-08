@@ -1,4 +1,4 @@
-import { accountsNoticeSchema, modelsAccountsSliceSchema } from '../../../../shared/modelsPanel'
+import { accountsNoticeSchema, modelsAccountsSliceSchema } from '../../../../shared/accountsPanel'
 import { UI_TEXT } from '../../../../shared/constants'
 import { fill, formatDateTime, formatNumber } from '../../../../shared/l10n/text'
 import { formatUsd, parseUsd } from '../../../../shared/accountUsd'

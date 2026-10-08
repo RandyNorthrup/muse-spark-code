@@ -1,7 +1,7 @@
 // M95 loads this with models.js and injects its nodes into App's slots.
 // A single-account chat never loads the accounts UI.
 import { useId } from 'react'
-import { modelsAccountsSliceSchema } from '../../shared/modelsPanel'
+import { modelsAccountsSliceSchema } from '../../shared/accountsPanel'
 import { UI_TEXT } from '../../shared/constants'
 import type { AccountsRequest } from '../../shared/hostApi/accounts'
 

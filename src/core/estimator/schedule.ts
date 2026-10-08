@@ -45,7 +45,12 @@ export interface EstimateSchedule {
   unknownLimits: string[]
 }
 
+type EstimateTrial = Pick<EstimateSchedule, 'finishHours' | 'unknownLimits'>
+type Durations = ReadonlyMap<string, ReadonlyMap<string, EstimateDurationEvidence>>
+
 export interface EstimateScheduler {
+  /** The same validated reservations without report-only timeline work. */
+  trial(durations?: Durations): EstimateTrial
   run(
     durations?: ReadonlyMap<string, ReadonlyMap<string, EstimateDurationEvidence>>,
   ): EstimateSchedule
@@ -541,367 +546,371 @@ export function prepareEstimateSchedule(
     return true
   }
 
-  return {
-    run(durations) {
-      if (
-        durations &&
-        (durations.size !== lanes.length || lanes.some((lane) => !durations.has(lane.id)))
-      )
-        refuse('duration-coverage')
-      if (durations)
-        for (const lane of lanes) {
-          const classes = durations.get(lane.id) ?? refuse('duration-coverage')
-          for (const [classId, duration] of classes) {
-            if (!classIds.has(classId)) refuse('duration-class')
-            if (!isEstimateDurationEvidence(duration)) refuse('invalid-duration-evidence')
-            const hours = duration.hours
-            if (!Number.isFinite(hours) || hours < 0) refuse('invalid-duration')
-            if (hours !== 0 && lane.state === 'merged') refuse('merged-duration')
-            if (lane.state === 'running' && hours < lane.minimumRemainingHours)
-              refuse('minimum-duration')
-          }
-        }
-      const hours = (lane: EstimateLane, machine: Machine): number => {
-        const value = durations
-          ? durations.get(lane.id)?.get(machine.classId)?.hours
-          : base.get(lane.id)
-        if (value === undefined) refuse('invalid-duration')
-        return value
-      }
-      const maximumHours = new Map(
-        lanes.map((lane) => [
-          lane,
-          lane.state === 'merged'
-            ? 0
-            : Math.max(
-                0,
-                ...(candidates.get(lane.id) ?? []).map((machine) => hours(lane, machine)),
-              ),
-        ]),
-      )
-      const windowsByAccount = new Map(
-        accounts.map((account) => [
-          account,
-          (account.usageLimits ?? []).filter(
-            (window) =>
-              (usersByAccount.get(account) ?? []).reduce(
-                (sum, lane) => sum + laneRate(lane, window.unit) * (maximumHours.get(lane) ?? 0),
-                0,
-              ) > window.remaining,
-          ),
-        ]),
-      )
-      const searchWindows: Window[] = []
-      for (const windows of windowsByAccount.values()) searchWindows.push(...windows)
-      const runUnknownLimits = new Set(unknownLimits)
-      const assigned: Reservation[] = []
-      const assignedById = new Map<string, Reservation>()
-      const reservationsBySlot = new Map<string, Reservation[]>()
-      let reservationPoints: number[] = []
-      const finishes = new Map<string, number>()
-      const priority = new Map(dag.nodes.map((node) => [node.laneId, node.tailHours]))
-      if (durations) {
-        for (const id of dag.topologicalOrder.toReversed()) {
-          const lane = lanesById.get(id) ?? refuse('missing-lane')
-          const children = childrenById.get(id) ?? []
-          const possible = candidates.get(id) ?? []
-          const duration =
-            lane.state === 'merged'
-              ? 0
-              : Math.min(...possible.map((machine) => hours(lane, machine)))
-          priority.set(
-            id,
-            duration + Math.max(0, ...children.map((child) => priority.get(child.id) ?? 0)),
-          )
+  function schedule(durations: Durations | undefined, shouldReport: false): EstimateTrial
+  function schedule(durations: Durations | undefined, shouldReport: true): EstimateSchedule
+  function schedule(
+    durations: Durations | undefined,
+    shouldReport: boolean,
+  ): EstimateTrial | EstimateSchedule {
+    if (
+      durations &&
+      (durations.size !== lanes.length || lanes.some((lane) => !durations.has(lane.id)))
+    )
+      refuse('duration-coverage')
+    if (durations)
+      for (const lane of lanes) {
+        const classes = durations.get(lane.id) ?? refuse('duration-coverage')
+        for (const [classId, duration] of classes) {
+          if (!classIds.has(classId)) refuse('duration-class')
+          if (!isEstimateDurationEvidence(duration)) refuse('invalid-duration-evidence')
+          const hours = duration.hours
+          if (!Number.isFinite(hours) || hours < 0) refuse('invalid-duration')
+          if (hours !== 0 && lane.state === 'merged') refuse('merged-duration')
+          if (lane.state === 'running' && hours < lane.minimumRemainingHours)
+            refuse('minimum-duration')
         }
       }
-      const comparePriority = (a: EstimateLane, b: EstimateLane): number =>
-        (priority.get(b.id) ?? 0) - (priority.get(a.id) ?? 0) || compareEstimateIds(a.id, b.id)
-      const ready = lanes.filter((lane) => lane.dependencies.length === 0).toSorted(comparePriority)
-      const completed = (lane: EstimateLane, finish: number): void => {
-        finishes.set(lane.id, finish)
-        const children = childrenById.get(lane.id) ?? []
-        for (const child of children) {
-          if (child.dependencies.some((id) => !finishes.has(id))) continue
-          const index = ready.findIndex((other) => comparePriority(child, other) < 0)
-          ready.splice(index === -1 ? ready.length : index, 0, child)
-        }
-      }
-      while (finishes.size < lanes.length) {
-        const lane = ready.shift() ?? refuse('schedule-cycle')
-        const earliest = Math.max(0, ...lane.dependencies.map((id) => finishes.get(id) ?? 0))
-        if (lane.state === 'merged') {
-          completed(lane, earliest)
-          continue
-        }
-        const count = known(lane.resources.slots, `${lane.id}:slots`)
-        let best: Reservation | undefined
-        const eligibleMachines = candidates.get(lane.id) ?? []
-        for (const machine of eligibleMachines) {
-          const eligible = laneSlots(lane, machine)
-          if (eligible.length === 0) continue
-          if (
-            count >
-              (machine.capacityByKind.find((entry) => entry.kind === lane.kind)?.slots ?? 0) ||
-            count > Math.min(machine.governorSlots, machine.caps.slots) ||
-            (relaxation !== 'slots' && eligible.length < count)
-          )
-            continue
-          const duration = hours(lane, machine)
-          let start = earliest
-          const lastEnd = Math.max(earliest, ...assigned.map((entry) => entry.end))
-          let lastReset: number | undefined
-          const finalBoundary = (): number => {
-            lastReset ??= Math.max(
-              earliest,
-              ...searchWindows.map((window) => {
-                const next = resetsFor(window, asOf + lastEnd * HOUR_MS).find(
-                  (instant) => instant > asOf + lastEnd * HOUR_MS,
-                )
-                return next === undefined ? earliest : (next - asOf) / HOUR_MS
-              }),
-            )
-            return Math.max(lastEnd, lastReset)
-          }
-          function place(): Reservation | undefined {
-            for (let attempt = 0; attempt < ESTIMATE_MAX_ITEMS; attempt++) {
-              const end = start + duration
-              if (
-                !Number.isFinite(end) ||
-                !Number.isFinite(new Date(asOf + end * HOUR_MS).getTime()) ||
-                new Date(asOf + end * HOUR_MS).getUTCFullYear() > MAX_ISO_YEAR
-              )
-                schedulingRefusal('schedule-date-overflow')
-              const available =
-                relaxation === 'slots' || relaxation === 'machines'
-                  ? eligible
-                  : eligible.filter((slot) =>
-                      (reservationsBySlot.get(slot.id) ?? []).every(
-                        (entry) => !(entry.start < end && start < entry.end),
-                      ),
-                    )
-              if (relaxation !== 'slots' && available.length < count) {
-                // Jump directly to the first interval with enough actual slots.
-                // Each slot's reservations are sorted once when a lane is placed;
-                // gaps remain available, including work inserted before a wait.
-                const times = eligible
-                  .map((slot) => {
-                    let free = start
-                    const reservations = reservationsBySlot.get(slot.id) ?? []
-                    for (const entry of reservations) {
-                      if (entry.start >= free + duration) return free
-                      if (entry.start < free + duration && free < entry.end) free = entry.end
-                    }
-                    return free
-                  })
-                  .toSorted((a, b) => a - b)
-                start = times[count - 1] ?? refuse('missing-slot')
-                if (best && start + duration > best.end) return undefined
-                continue
-              }
-              const accountOrder = [...new Set(available.map((slot) => slot.accountId))].toSorted(
-                compareEstimateIds,
-              )
-              const hints: number[] = []
-              const groups = accountOrder.map((id) =>
-                available.filter((slot) => slot.accountId === id),
-              )
-              // Slots on one account are equivalent for admission. Enumerate
-              // account counts, not every physical subset, in stable ID order.
-              function* allocations(
-                index: number,
-                remaining: number,
-                selected: Slot[],
-              ): Generator<Slot[]> {
-                if (remaining === 0) {
-                  yield selected
-                  return
-                }
-                const group = groups[index]
-                if (!group) return
-                const capacity = relaxation === 'slots' ? count : group.length
-                const rest =
-                  relaxation === 'slots'
-                    ? count
-                    : groups.slice(index + 1).reduce((sum, slots) => sum + slots.length, 0)
-                for (
-                  let take = Math.min(remaining, capacity);
-                  take >= Math.max(0, remaining - rest);
-                  take--
-                ) {
-                  const slots = Array.from(
-                    { length: take },
-                    (_, offset) => group[offset % group.length] ?? refuse('missing-slot'),
-                  )
-                  yield* allocations(index + 1, remaining - take, [...selected, ...slots])
-                }
-              }
-              function exact(): { candidate: Reservation | undefined; isLimited: boolean } {
-                let attempts = 0
-                for (const slots of allocations(0, count, [])) {
-                  if (attempts++ >= ESTIMATE_MAX_ITEMS) {
-                    return { candidate: undefined, isLimited: true }
-                  }
-                  const candidate = { lane, machine, slots, start, end }
-                  if (isFeasible([...assigned, candidate], candidate, windowsByAccount))
-                    return { candidate, isLimited: false }
-                  hints.push(...quotaHints)
-                }
-                return { candidate: undefined, isLimited: false }
-              }
-              // The common single-account case has exactly one allocation.
-              // Avoid constructing a recursive generator for each trial/lane.
-              const single = groups.length === 1 ? groups[0] : undefined
-              const slots = single
-                ? Array.from(
-                    { length: count },
-                    (_, index) => single[index % single.length] ?? refuse('missing-slot'),
-                  )
-                : undefined
-              const singleCandidate = slots ? { lane, machine, slots, start, end } : undefined
-              const match = singleCandidate
-                ? {
-                    candidate: isFeasible(
-                      [...assigned, singleCandidate],
-                      singleCandidate,
-                      windowsByAccount,
-                    )
-                      ? singleCandidate
-                      : undefined,
-                    isLimited: false,
-                  }
-                : exact()
-              if (singleCandidate && !match.candidate) hints.push(...quotaHints)
-              if (match.candidate) return match.candidate
-              // Large account products fall back to deterministic greedy
-              // priorities; the selected lane explicitly reports approximation.
-              if (match.isLimited) {
-                for (const first of accountOrder) {
-                  const ordered = available.toSorted(
-                    (a, b) =>
-                      Number(b.accountId === first) - Number(a.accountId === first) ||
-                      compareEstimateIds(a.id, b.id),
-                  )
-                  const slots =
-                    relaxation === 'slots'
-                      ? Array.from(
-                          { length: count },
-                          (_, index) => ordered[index % ordered.length] ?? refuse('missing-slot'),
-                        )
-                      : ordered.slice(0, count)
-                  const candidate = { lane, machine, slots, start, end, approximate: true }
-                  if (isFeasible([...assigned, candidate], candidate, windowsByAccount))
-                    return candidate
-                  hints.push(...quotaHints)
-                }
-                if (hints.length === 0 && start >= lastEnd && start >= finalBoundary())
-                  schedulingRefusal(`account-selection-limit:${lane.id}`)
-              }
-              // After all existing reservations finish and every reported window
-              // renews, more identical empty periods cannot cure a structural
-              // capacity/rate/retention failure for a nonpreemptive lane.
-              if (hints.length === 0 && start >= lastEnd && start >= finalBoundary())
-                return undefined
-              const future = [...hints, ...reservationPoints.filter((time) => time > start)]
-              for (const window of searchWindows) {
-                const next = resetsFor(window, asOf + start * HOUR_MS).find(
-                  (instant) => instant > asOf + start * HOUR_MS,
-                )
-                if (next !== undefined) future.push((next - asOf) / HOUR_MS)
-              }
-              if (future.length === 0) return undefined
-              start = Math.min(...future)
-              if (best && start + duration > best.end) return undefined
-            }
-            return undefined
-          }
-          const candidate = place()
-          if (
-            candidate &&
-            (!best ||
-              candidate.end < best.end ||
-              (candidate.end === best.end &&
-                (usedVolumes(lane, machine).filter((volume) => volume.status === 'unknown').length -
-                  usedVolumes(lane, best.machine).filter((volume) => volume.status === 'unknown')
-                    .length || compareEstimateIds(machine.id, best.machine.id)) < 0))
-          )
-            best = candidate
-        }
-        if (!best) throw new EstimateSchedulingError(`unschedulable:${lane.id}`)
-        if (best.approximate) runUnknownLimits.add(`${lane.id}:account-selection-approximate`)
-        if (relaxation !== 'disk')
-          for (const volume of usedVolumes(lane, best.machine))
-            if (volume.status === 'unknown')
-              runUnknownLimits.add(`${lane.id}:disk:${best.machine.id}:${volume.volumeId}`)
-        assigned.push(best)
-        for (const slot of best.slots) {
-          const reservations = reservationsBySlot.get(slot.id) ?? []
-          reservations.push(best)
-          reservations.sort((a, b) => a.start - b.start)
-          reservationsBySlot.set(slot.id, reservations)
-        }
-        reservationPoints = [...new Set([...reservationPoints, best.start, best.end])].toSorted(
-          (a, b) => a - b,
-        )
-        assignedById.set(lane.id, best)
-        completed(lane, best.end)
-      }
-      // Dependency-only lower bound uses the durations actually selected, never
-      // divides a lane by machines or slots. G's topology is reused without reparsing.
-      const pathFinishes = new Map<string, number>()
-      const paths = new Map<string, string[]>()
-      for (const id of dag.topologicalOrder) {
-        const lane = lanesById.get(id) ?? refuse('missing-lane')
-        const parent = lane.dependencies.toSorted(
-          (a, b) =>
-            (pathFinishes.get(b) ?? 0) - (pathFinishes.get(a) ?? 0) || compareEstimateIds(a, b),
-        )[0]
-        const entry = assignedById.get(id)
-        const duration = entry ? entry.end - entry.start : 0
-        pathFinishes.set(id, (parent ? (pathFinishes.get(parent) ?? 0) : 0) + duration)
-        paths.set(id, [...(parent ? (paths.get(parent) ?? []) : []), ...(duration > 0 ? [id] : [])])
-      }
-      const endpoint = lanes.toSorted(
-        (a, b) =>
-          (pathFinishes.get(b.id) ?? 0) - (pathFinishes.get(a.id) ?? 0) ||
-          compareEstimateIds(a.id, b.id),
-      )[0]?.id
-      const criticalPathHours = endpoint ? (pathFinishes.get(endpoint) ?? 0) : 0
-      const latestStarts = new Map<string, number>()
-      const slack = new Map<string, number>()
-      const epsilon = Number.EPSILON * criticalPathHours * Math.max(1, lanes.length)
+    const hours = (lane: EstimateLane, machine: Machine): number => {
+      const value = durations
+        ? durations.get(lane.id)?.get(machine.classId)?.hours
+        : base.get(lane.id)
+      if (value === undefined) refuse('invalid-duration')
+      return value
+    }
+    const maximumHours = new Map(
+      lanes.map((lane) => [
+        lane,
+        lane.state === 'merged'
+          ? 0
+          : Math.max(0, ...(candidates.get(lane.id) ?? []).map((machine) => hours(lane, machine))),
+      ]),
+    )
+    const windowsByAccount = new Map(
+      accounts.map((account) => [
+        account,
+        (account.usageLimits ?? []).filter(
+          (window) =>
+            (usersByAccount.get(account) ?? []).reduce(
+              (sum, lane) => sum + laneRate(lane, window.unit) * (maximumHours.get(lane) ?? 0),
+              0,
+            ) > window.remaining,
+        ),
+      ]),
+    )
+    const searchWindows: Window[] = []
+    for (const windows of windowsByAccount.values()) searchWindows.push(...windows)
+    const runUnknownLimits = new Set(unknownLimits)
+    const assigned: Reservation[] = []
+    const assignedById = new Map<string, Reservation>()
+    const reservationsBySlot = new Map<string, Reservation[]>()
+    let reservationPoints: number[] = []
+    const finishes = new Map<string, number>()
+    const priority = new Map(dag.nodes.map((node) => [node.laneId, node.tailHours]))
+    if (durations) {
       for (const id of dag.topologicalOrder.toReversed()) {
-        const entry = assignedById.get(id)
-        const duration = entry ? entry.end - entry.start : 0
+        const lane = lanesById.get(id) ?? refuse('missing-lane')
         const children = childrenById.get(id) ?? []
-        const finish =
-          children.length === 0
-            ? criticalPathHours
-            : Math.min(...children.map((child) => latestStarts.get(child.id) ?? criticalPathHours))
-        latestStarts.set(id, finish - duration)
-        const delta = finish - (pathFinishes.get(id) ?? 0)
-        slack.set(id, Math.abs(delta) <= epsilon ? 0 : delta)
+        const possible = candidates.get(id) ?? []
+        const duration =
+          lane.state === 'merged' ? 0 : Math.min(...possible.map((machine) => hours(lane, machine)))
+        priority.set(
+          id,
+          duration + Math.max(0, ...children.map((child) => priority.get(child.id) ?? 0)),
+        )
       }
-      return {
-        finishHours: Math.max(0, ...finishes.values()),
-        criticalPath: endpoint ? (paths.get(endpoint) ?? []) : [],
-        criticalPathHours,
-        unknownLimits: [...runUnknownLimits].toSorted(compareEstimateIds),
-        schedule: assigned
-          .toSorted((a, b) => a.start - b.start || compareEstimateIds(a.lane.id, b.lane.id))
-          .map((entry) => ({
-            laneId: entry.lane.id,
-            machineId: entry.machine.id,
-            slotIds: [...new Set(entry.slots.map((slot) => slot.id))].toSorted(compareEstimateIds),
-            accountIds: [...new Set(entry.slots.map((slot) => slot.accountId))].toSorted(
+    }
+    const comparePriority = (a: EstimateLane, b: EstimateLane): number =>
+      (priority.get(b.id) ?? 0) - (priority.get(a.id) ?? 0) || compareEstimateIds(a.id, b.id)
+    const ready = lanes.filter((lane) => lane.dependencies.length === 0).toSorted(comparePriority)
+    const completed = (lane: EstimateLane, finish: number): void => {
+      finishes.set(lane.id, finish)
+      const children = childrenById.get(lane.id) ?? []
+      for (const child of children) {
+        if (child.dependencies.some((id) => !finishes.has(id))) continue
+        const index = ready.findIndex((other) => comparePriority(child, other) < 0)
+        ready.splice(index === -1 ? ready.length : index, 0, child)
+      }
+    }
+    while (finishes.size < lanes.length) {
+      const lane = ready.shift() ?? refuse('schedule-cycle')
+      const earliest = Math.max(0, ...lane.dependencies.map((id) => finishes.get(id) ?? 0))
+      if (lane.state === 'merged') {
+        completed(lane, earliest)
+        continue
+      }
+      const count = known(lane.resources.slots, `${lane.id}:slots`)
+      let best: Reservation | undefined
+      const eligibleMachines = candidates.get(lane.id) ?? []
+      for (const machine of eligibleMachines) {
+        const eligible = laneSlots(lane, machine)
+        if (eligible.length === 0) continue
+        if (
+          count > (machine.capacityByKind.find((entry) => entry.kind === lane.kind)?.slots ?? 0) ||
+          count > Math.min(machine.governorSlots, machine.caps.slots) ||
+          (relaxation !== 'slots' && eligible.length < count)
+        )
+          continue
+        const duration = hours(lane, machine)
+        let start = earliest
+        const lastEnd = Math.max(earliest, ...assigned.map((entry) => entry.end))
+        let lastReset: number | undefined
+        const finalBoundary = (): number => {
+          lastReset ??= Math.max(
+            earliest,
+            ...searchWindows.map((window) => {
+              const next = resetsFor(window, asOf + lastEnd * HOUR_MS).find(
+                (instant) => instant > asOf + lastEnd * HOUR_MS,
+              )
+              return next === undefined ? earliest : (next - asOf) / HOUR_MS
+            }),
+          )
+          return Math.max(lastEnd, lastReset)
+        }
+        function place(): Reservation | undefined {
+          for (let attempt = 0; attempt < ESTIMATE_MAX_ITEMS; attempt++) {
+            const end = start + duration
+            if (
+              !Number.isFinite(end) ||
+              !Number.isFinite(new Date(asOf + end * HOUR_MS).getTime()) ||
+              new Date(asOf + end * HOUR_MS).getUTCFullYear() > MAX_ISO_YEAR
+            )
+              schedulingRefusal('schedule-date-overflow')
+            const available =
+              relaxation === 'slots' || relaxation === 'machines'
+                ? eligible
+                : eligible.filter((slot) =>
+                    (reservationsBySlot.get(slot.id) ?? []).every(
+                      (entry) => !(entry.start < end && start < entry.end),
+                    ),
+                  )
+            if (relaxation !== 'slots' && available.length < count) {
+              // Jump directly to the first interval with enough actual slots.
+              // Each slot's reservations are sorted once when a lane is placed;
+              // gaps remain available, including work inserted before a wait.
+              const times = eligible
+                .map((slot) => {
+                  let free = start
+                  const reservations = reservationsBySlot.get(slot.id) ?? []
+                  for (const entry of reservations) {
+                    if (entry.start >= free + duration) return free
+                    if (entry.start < free + duration && free < entry.end) free = entry.end
+                  }
+                  return free
+                })
+                .toSorted((a, b) => a - b)
+              start = times[count - 1] ?? refuse('missing-slot')
+              if (best && start + duration > best.end) return undefined
+              continue
+            }
+            const accountOrder = [...new Set(available.map((slot) => slot.accountId))].toSorted(
               compareEstimateIds,
-            ),
-            start: new Date(asOf + entry.start * HOUR_MS).toISOString(),
-            end: new Date(asOf + entry.end * HOUR_MS).toISOString(),
-            slackHours: slack.get(entry.lane.id) ?? 0,
-            critical: entry.end > entry.start && slack.get(entry.lane.id) === 0,
-          })),
+            )
+            const hints: number[] = []
+            const groups = accountOrder.map((id) =>
+              available.filter((slot) => slot.accountId === id),
+            )
+            // Slots on one account are equivalent for admission. Enumerate
+            // account counts, not every physical subset, in stable ID order.
+            function* allocations(
+              index: number,
+              remaining: number,
+              selected: Slot[],
+            ): Generator<Slot[]> {
+              if (remaining === 0) {
+                yield selected
+                return
+              }
+              const group = groups[index]
+              if (!group) return
+              const capacity = relaxation === 'slots' ? count : group.length
+              const rest =
+                relaxation === 'slots'
+                  ? count
+                  : groups.slice(index + 1).reduce((sum, slots) => sum + slots.length, 0)
+              for (
+                let take = Math.min(remaining, capacity);
+                take >= Math.max(0, remaining - rest);
+                take--
+              ) {
+                const slots = Array.from(
+                  { length: take },
+                  (_, offset) => group[offset % group.length] ?? refuse('missing-slot'),
+                )
+                yield* allocations(index + 1, remaining - take, [...selected, ...slots])
+              }
+            }
+            function exact(): { candidate: Reservation | undefined; isLimited: boolean } {
+              let attempts = 0
+              for (const slots of allocations(0, count, [])) {
+                if (attempts++ >= ESTIMATE_MAX_ITEMS) {
+                  return { candidate: undefined, isLimited: true }
+                }
+                const candidate = { lane, machine, slots, start, end }
+                if (isFeasible([...assigned, candidate], candidate, windowsByAccount))
+                  return { candidate, isLimited: false }
+                hints.push(...quotaHints)
+              }
+              return { candidate: undefined, isLimited: false }
+            }
+            // The common single-account case has exactly one allocation.
+            // Avoid constructing a recursive generator for each trial/lane.
+            const single = groups.length === 1 ? groups[0] : undefined
+            const slots = single
+              ? Array.from(
+                  { length: count },
+                  (_, index) => single[index % single.length] ?? refuse('missing-slot'),
+                )
+              : undefined
+            const singleCandidate = slots ? { lane, machine, slots, start, end } : undefined
+            const match = singleCandidate
+              ? {
+                  candidate: isFeasible(
+                    [...assigned, singleCandidate],
+                    singleCandidate,
+                    windowsByAccount,
+                  )
+                    ? singleCandidate
+                    : undefined,
+                  isLimited: false,
+                }
+              : exact()
+            if (singleCandidate && !match.candidate) hints.push(...quotaHints)
+            if (match.candidate) return match.candidate
+            // Large account products fall back to deterministic greedy
+            // priorities; the selected lane explicitly reports approximation.
+            if (match.isLimited) {
+              for (const first of accountOrder) {
+                const ordered = available.toSorted(
+                  (a, b) =>
+                    Number(b.accountId === first) - Number(a.accountId === first) ||
+                    compareEstimateIds(a.id, b.id),
+                )
+                const slots =
+                  relaxation === 'slots'
+                    ? Array.from(
+                        { length: count },
+                        (_, index) => ordered[index % ordered.length] ?? refuse('missing-slot'),
+                      )
+                    : ordered.slice(0, count)
+                const candidate = { lane, machine, slots, start, end, approximate: true }
+                if (isFeasible([...assigned, candidate], candidate, windowsByAccount))
+                  return candidate
+                hints.push(...quotaHints)
+              }
+              if (hints.length === 0 && start >= lastEnd && start >= finalBoundary())
+                schedulingRefusal(`account-selection-limit:${lane.id}`)
+            }
+            // After all existing reservations finish and every reported window
+            // renews, more identical empty periods cannot cure a structural
+            // capacity/rate/retention failure for a nonpreemptive lane.
+            if (hints.length === 0 && start >= lastEnd && start >= finalBoundary()) return undefined
+            const future = [...hints, ...reservationPoints.filter((time) => time > start)]
+            for (const window of searchWindows) {
+              const next = resetsFor(window, asOf + start * HOUR_MS).find(
+                (instant) => instant > asOf + start * HOUR_MS,
+              )
+              if (next !== undefined) future.push((next - asOf) / HOUR_MS)
+            }
+            if (future.length === 0) return undefined
+            start = Math.min(...future)
+            if (best && start + duration > best.end) return undefined
+          }
+          return undefined
+        }
+        const candidate = place()
+        if (
+          candidate &&
+          (!best ||
+            candidate.end < best.end ||
+            (candidate.end === best.end &&
+              (usedVolumes(lane, machine).filter((volume) => volume.status === 'unknown').length -
+                usedVolumes(lane, best.machine).filter((volume) => volume.status === 'unknown')
+                  .length || compareEstimateIds(machine.id, best.machine.id)) < 0))
+        )
+          best = candidate
       }
-    },
+      if (!best) throw new EstimateSchedulingError(`unschedulable:${lane.id}`)
+      if (best.approximate) runUnknownLimits.add(`${lane.id}:account-selection-approximate`)
+      if (relaxation !== 'disk')
+        for (const volume of usedVolumes(lane, best.machine))
+          if (volume.status === 'unknown')
+            runUnknownLimits.add(`${lane.id}:disk:${best.machine.id}:${volume.volumeId}`)
+      assigned.push(best)
+      for (const slot of best.slots) {
+        const reservations = reservationsBySlot.get(slot.id) ?? []
+        reservations.push(best)
+        reservations.sort((a, b) => a.start - b.start)
+        reservationsBySlot.set(slot.id, reservations)
+      }
+      reservationPoints = [...new Set([...reservationPoints, best.start, best.end])].toSorted(
+        (a, b) => a - b,
+      )
+      assignedById.set(lane.id, best)
+      completed(lane, best.end)
+    }
+    const timing = {
+      finishHours: Math.max(0, ...finishes.values()),
+      unknownLimits: [...runUnknownLimits].toSorted(compareEstimateIds),
+    }
+    if (!shouldReport) return timing
+    // Dependency-only lower bound uses the durations actually selected, never
+    // divides a lane by machines or slots. G's topology is reused without reparsing.
+    const pathFinishes = new Map<string, number>()
+    const paths = new Map<string, string[]>()
+    for (const id of dag.topologicalOrder) {
+      const lane = lanesById.get(id) ?? refuse('missing-lane')
+      const parent = lane.dependencies.toSorted(
+        (a, b) =>
+          (pathFinishes.get(b) ?? 0) - (pathFinishes.get(a) ?? 0) || compareEstimateIds(a, b),
+      )[0]
+      const entry = assignedById.get(id)
+      const duration = entry ? entry.end - entry.start : 0
+      pathFinishes.set(id, (parent ? (pathFinishes.get(parent) ?? 0) : 0) + duration)
+      paths.set(id, [...(parent ? (paths.get(parent) ?? []) : []), ...(duration > 0 ? [id] : [])])
+    }
+    const endpoint = lanes.toSorted(
+      (a, b) =>
+        (pathFinishes.get(b.id) ?? 0) - (pathFinishes.get(a.id) ?? 0) ||
+        compareEstimateIds(a.id, b.id),
+    )[0]?.id
+    const criticalPathHours = endpoint ? (pathFinishes.get(endpoint) ?? 0) : 0
+    const latestStarts = new Map<string, number>()
+    const slack = new Map<string, number>()
+    const epsilon = Number.EPSILON * criticalPathHours * Math.max(1, lanes.length)
+    for (const id of dag.topologicalOrder.toReversed()) {
+      const entry = assignedById.get(id)
+      const duration = entry ? entry.end - entry.start : 0
+      const children = childrenById.get(id) ?? []
+      const finish =
+        children.length === 0
+          ? criticalPathHours
+          : Math.min(...children.map((child) => latestStarts.get(child.id) ?? criticalPathHours))
+      latestStarts.set(id, finish - duration)
+      const delta = finish - (pathFinishes.get(id) ?? 0)
+      slack.set(id, Math.abs(delta) <= epsilon ? 0 : delta)
+    }
+    return {
+      ...timing,
+      criticalPath: endpoint ? (paths.get(endpoint) ?? []) : [],
+      criticalPathHours,
+      schedule: assigned
+        .toSorted((a, b) => a.start - b.start || compareEstimateIds(a.lane.id, b.lane.id))
+        .map((entry) => ({
+          laneId: entry.lane.id,
+          machineId: entry.machine.id,
+          slotIds: [...new Set(entry.slots.map((slot) => slot.id))].toSorted(compareEstimateIds),
+          accountIds: [...new Set(entry.slots.map((slot) => slot.accountId))].toSorted(
+            compareEstimateIds,
+          ),
+          start: new Date(asOf + entry.start * HOUR_MS).toISOString(),
+          end: new Date(asOf + entry.end * HOUR_MS).toISOString(),
+          slackHours: slack.get(entry.lane.id) ?? 0,
+          critical: entry.end > entry.start && slack.get(entry.lane.id) === 0,
+        })),
+    }
+  }
+  return {
+    run: (durations) => schedule(durations, true),
+    trial: (durations) => schedule(durations, false),
   }
 }

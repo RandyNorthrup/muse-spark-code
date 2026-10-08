@@ -285,6 +285,17 @@ all existing deferred caps stay fixed. Whole-table translation shape and slots
 remain unchanged and tested against every canonical key. No VSIX/account cap
 increase is made without the prescribed universal measurement.
 
+The standalone account closure is universal browser JavaScript built with the
+same production English and keyboard plugins (no native inputs). Moving its
+captured projection off the Models/vault/team graph and excluding unreachable
+Help prose reduces the measured full closure from 80,488 to **27,338 bytes**;
+all account views, boundary validators and exact nano-USD cap/display behavior
+remain. The rig brief permits a cap update after structural shrinking:
+`ceil(27,338 * 1.05 / 25,600) * 25,600 = 51,200 bytes` (**50 KiB**).
+This replaces only the standalone account test's original 25 KiB cap. Startup,
+every other deferred budget and the 2,841,600-byte VSIX cap remain unchanged;
+genuine Mac artifacts still gate a universal VSIX measurement.
+
 **TRAIN15H (2026-10-06, win11; lead startup decision).** Compare the train's
 production startup inputs against main `61d8647c2`, recording emitted bytes
 and milestone owners. Move optional train UI behind the existing deferred
@@ -19115,6 +19126,26 @@ before completion. No push, rebase, model calls or fabricated native artifacts.
       direct paid requests retain the configured-model check. Preserve revision,
       resolved-model, key, abort and prepared-audio fences; certify the existing
       multi-request override and refusal regressions and a restored guard drill.
+      The next exact coverage sweep finds forty-lane simulations taking
+      2.28–2.65 seconds against the unchanged two-second local budget. Every
+      trial currently materializes dates, slack and critical paths that ranking
+      does not read. Reuse the same validated reservation engine for a timing-only
+      trial result; build the complete timeline only for the selected P50 trial.
+      Retain all 2,000 samples, deterministic draws, resource checks and unknown
+      limits, with full/trial equivalence tests and deliberate regression drills.
+      The standalone accounts accessibility build still pulls the complete
+      Models panel, vault, team and keybinding schemas through its account slice
+      import (78.6 / 25 KiB). Move the existing captured account projection into
+      its own shared module and import it directly from account surfaces; keep
+      the Models panel re-exports and all validation. Measure the whole unchanged
+      standalone closure and retain every accessibility page and assertion.
+      The first extraction removes 29.6 KiB but the closure still reaches
+      49.0 KiB: its test build omits the production keyboard split, and the
+      English collector includes all Help labels even when Help is unreachable.
+      Use the real keyboard plugin, derive its startup contexts from the actual
+      standalone entry, and collect generated Help labels only for a graph that
+      includes ReferencePage. Chat retains its current startup contexts; translated
+      table shape/slots and every reachable English reader remain unchanged.
 - [ ] Recover startup through first-use chunks and deduplication, retaining
       its 751,411-byte regression cap. Shrink VSIX/account closure first;
       only their caps may use measured universal bytes +5%, rounded up to

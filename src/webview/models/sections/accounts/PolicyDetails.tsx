@@ -1,4 +1,4 @@
-import type { AccountsPolicyView } from '../../../../shared/modelsPanel'
+import type { AccountsPolicyView } from '../../../../shared/accountsPanel'
 import { ACCOUNT_POLICY_RECHECK_DAYS, UI_TEXT } from '../../../../shared/constants'
 import { fill, formatDate, formatUnit } from '../../../../shared/l10n/text'
 import { ExternalLink } from '../../../components/ExternalLink'

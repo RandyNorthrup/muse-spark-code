@@ -55,13 +55,38 @@ describe('M117 resource list scheduling', () => {
   it.each(dags)('matches the $name golden nonpreemptive schedule', (fixture) => {
     const lanes = fixture.lanes.map((lane) => estimateLaneSchema.parse(lane))
     const fleet = fixture.name === 'affinity-bound' ? fakeFleet() : scheduleFleet()
-    const result = prepareEstimateSchedule(lanes, fleet).run()
+    const scheduler = prepareEstimateSchedule(lanes, fleet)
+    const result = scheduler.run()
+    expect(scheduler.trial()).toEqual({
+      finishHours: result.finishHours,
+      unknownLimits: result.unknownLimits,
+    })
     expect(result.schedule.map(({ laneId, start, end }) => ({ laneId, start, end }))).toEqual(
       fixture.golden.schedule,
     )
     expect(result.finishHours).toBe(fixture.golden.finishHoursWithTwoSlots)
     expect(result.criticalPath).toEqual(fixture.golden.criticalPath)
     expect(result.criticalPathHours).toBe(fixture.golden.criticalPathHours)
+  })
+
+  it('keeps sampled trial timing and evidence refusals identical to a full schedule', () => {
+    const scheduler = prepareEstimateSchedule([scheduleLane('A')], scheduleFleet())
+    const durations = new Map([['A', new Map([['linux-x64-builder', sampledHours(3)]])]])
+    const result = scheduler.run(durations)
+    expect(scheduler.trial(durations)).toEqual({
+      finishHours: result.finishHours,
+      unknownLimits: result.unknownLimits,
+    })
+    expect(result.finishHours).toBe(3)
+    for (const method of ['run', 'trial'] as const) {
+      expect(() => scheduler[method](new Map())).toThrow('duration-coverage')
+      durations.get('A')!.set('linux-x64-builder', sampledHours(-1))
+      expect(() => scheduler[method](durations)).toThrow('invalid-duration')
+      durations.get('A')!.set('linux-x64-builder', sampledHours(3))
+      durations.get('A')!.set('unknown-class', sampledHours(3))
+      expect(() => scheduler[method](durations)).toThrow('duration-class')
+      durations.get('A')!.delete('unknown-class')
+    }
   })
 
   it('prioritizes the longest downstream path before stable ID ties', () => {
@@ -158,7 +183,12 @@ describe('M117 resource list scheduling', () => {
     const fleet = crowdedAccountsFleet()
     const lane = scheduleLane('A')
     lane.resources.slots = amount(6)
-    const result = prepareEstimateSchedule([lane], fleet).run()
+    const scheduler = prepareEstimateSchedule([lane], fleet)
+    const result = scheduler.run()
+    expect(scheduler.trial()).toEqual({
+      finishHours: result.finishHours,
+      unknownLimits: result.unknownLimits,
+    })
     expect(result.finishHours).toBe(1)
     expect(result.schedule[0]!.accountIds).toEqual(['account-11'])
     expect(result.unknownLimits).toContain('A:account-selection-approximate')

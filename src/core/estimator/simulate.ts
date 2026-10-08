@@ -251,7 +251,7 @@ export function simulateEstimate(
     })
     const durations = estimateDurationMap(samples)
     for (const lane of lanes) if (!durations.has(lane.id)) durations.set(lane.id, new Map())
-    const result = scheduler.run(durations)
+    const result = scheduler.trial(durations)
     for (const limit of result.unknownLimits) unknownLimits.add(limit)
     trials.push({ index, hours: result.finishHours })
     samplesByTrial.push(samples)

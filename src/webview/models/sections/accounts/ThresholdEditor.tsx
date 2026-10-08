@@ -2,7 +2,7 @@ import { type SubmitEvent, useId, useState } from 'react'
 import { accountThresholdsSchema, type AccountThresholds } from '../../../../shared/accounts'
 import { UI_TEXT } from '../../../../shared/constants'
 import { parseUsd, usdNumber } from '../../../../shared/accountUsd'
-import type { ModelsAccountsSlice } from '../../../../shared/modelsPanel'
+import type { ModelsAccountsSlice } from '../../../../shared/accountsPanel'
 import { formatPercent } from '../../../../shared/l10n/text'
 
 const metrics = ['spendUsd', 'inputTokens', 'outputTokens', 'requests'] as const

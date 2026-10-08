@@ -122,7 +122,13 @@ export const lazyBrowserKeybindings = {
   setup(build) {
     let eager
     build.onStart(() => {
-      eager = browserStartupSources().contexts
+      const entries = Object.values(build.initialOptions.entryPoints ?? []).map((entry) =>
+        typeof entry === 'string' ? entry : entry.in,
+      )
+      const hasChat = entries.some(
+        (entry) => path.resolve(entry) === path.resolve('src/webview/main.tsx'),
+      )
+      eager = browserStartupSources(hasChat ? ['src/webview/main.tsx'] : entries).contexts
     })
     build.onResolve({ filter: /^browser-keyboard-matcher$/ }, () => ({
       path: 'matcher',

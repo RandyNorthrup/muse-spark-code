@@ -277,7 +277,7 @@ export function browserTextKeys(entries, english, eagerSources = new Set()) {
       for (const nested of Object.values(value)) collect(nested)
     }
   }
-  collect(reference)
+  if (seen.has(path.resolve('src/webview/components/ReferencePage.tsx'))) collect(reference)
   for (const key of keys)
     if (!Object.hasOwn(english, key)) throw new Error(`Unknown browser text: ${key}`)
   return { keys, files: [...seen], eagerKeys }

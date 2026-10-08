@@ -58,6 +58,13 @@ afterAll(async () => {
 })
 
 describe('the production browser English and full-table contract', () => {
+  it('keeps unreachable Help prose outside a standalone account graph', () => {
+    const source = path.join(fixture.folder, 'accounts-only.ts')
+    writeFileSync(source, 'const label = UI_TEXT.accounts;')
+    const { keys } = browserTextKeys([source], fixture.canonical.EN)
+    expect([...keys]).toEqual(['accounts'])
+  })
+
   it('loads surface English on demand, retaining every browser value and installed language', async () => {
     const { EN: canonical } = fixture.canonical
     const { EN, UI_TEXT, setUiText, uiLocale, loadHelp } = fixture.browser

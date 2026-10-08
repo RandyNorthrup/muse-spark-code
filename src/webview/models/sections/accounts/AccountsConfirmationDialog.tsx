@@ -2,7 +2,7 @@ import { useId, useRef, useState } from 'react'
 import {
   accountsPolicyQuestionSchema,
   type AccountsPolicyQuestion,
-} from '../../../../shared/modelsPanel'
+} from '../../../../shared/accountsPanel'
 import type { AccountsRequest } from '../../../../shared/hostApi/accounts'
 import { accountIdSchema } from '../../../../shared/accounts'
 import { UI_TEXT } from '../../../../shared/constants'

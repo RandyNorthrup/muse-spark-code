@@ -1,6 +1,9 @@
 import { useLayoutEffect, useRef, useState } from 'react'
 import type { Account } from '../../../../shared/accounts'
-import { modelsAccountsSliceSchema, type ModelsAccountsSlice } from '../../../../shared/modelsPanel'
+import {
+  modelsAccountsSliceSchema,
+  type ModelsAccountsSlice,
+} from '../../../../shared/accountsPanel'
 import { accountsReplySchema, type AccountsRequest } from '../../../../shared/hostApi/accounts'
 import { ACCOUNT_MAX_PER_PROVIDER, UI_TEXT } from '../../../../shared/constants'
 import { fill, formatNumber } from '../../../../shared/l10n/text'

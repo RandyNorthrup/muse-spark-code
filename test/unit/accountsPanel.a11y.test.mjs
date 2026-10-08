@@ -7,13 +7,16 @@ import { chromium } from 'playwright-core'
 import { serveRepo } from '../../scripts/lib/harnessServer.mjs'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { compactBrowserUiText } from '../../scripts/lib/uiTextRegions.mjs'
+import { lazyBrowserKeybindings } from '../../scripts/lib/browserKeybindings.mjs'
 import { accountsHarnessEntry } from '../harness/accounts.mjs'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const output = path.join(root, 'temp/m108-u-harness')
 const themes = ['light', 'dark', 'hc-dark', 'hc-light']
 const scenes = ['section', 'thresholds', 'dialog', 'swap']
-const ACCOUNT_UI_BUDGET_KIB = 25
+// INT0180B: universal browser closure measured at 27,338 B after structural
+// shrinking; +5%, rounded up to 25 KiB = 50 KiB (PLAN.md D6; rig brief).
+const ACCOUNT_UI_BUDGET_KIB = 50
 const state = {}
 
 beforeAll(async () => {
@@ -30,7 +33,7 @@ beforeAll(async () => {
     jsx: 'automatic',
     minify: true,
     metafile: true,
-    plugins: [compactBrowserUiText],
+    plugins: [compactBrowserUiText, lazyBrowserKeybindings],
   })
   state.meta = result.metafile
   await mkdir(path.join(root, 'temp/m108-u-shots'), { recursive: true })
@@ -53,7 +56,7 @@ afterAll(async () => {
 })
 
 describe('M108 accounts accessibility and lazy budget', () => {
-  it('loads all account UI in a dedicated chunk within 25 KiB', () => {
+  it('loads all account UI in a dedicated chunk within its measured 50 KiB budget', () => {
     const outputs = Object.entries(state.meta.outputs)
     const entry = outputs.find(
       ([, value]) => value.entryPoint?.replaceAll('\\', '/') === 'test/harness/accounts.mjs',
