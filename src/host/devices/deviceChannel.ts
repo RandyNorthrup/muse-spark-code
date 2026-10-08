@@ -687,13 +687,21 @@ export class PacedDeviceChannels {
       return Promise.reject(new Error('revoked'))
     const existing = this.jobs.get(peer.pairId)
     if (existing !== undefined) {
-      if (
-        existing.peer.peerFingerprint !== peer.peerFingerprint ||
-        existing.ready.receiverIncarnationId !== parsed.receiverIncarnationId
-      )
+      if (existing.peer.peerFingerprint !== peer.peerFingerprint)
         return Promise.reject(new DeviceChannelDialFailure('authentication'))
       if (!canRetryAuth(existing.authFailures))
         return Promise.reject(new DeviceChannelDialFailure('authentication'))
+      if (existing.ready.receiverIncarnationId !== parsed.receiverIncarnationId) {
+        // A current incarnation supplied by the authenticated owner may replace
+        // a closed channel, never a live/pending one or an attempt's identity.
+        if (
+          existing.running ||
+          (existing.channel === undefined ? !existing.settled : !existing.channel.closed)
+        )
+          return Promise.reject(new Error('unknown'))
+        existing.ready = parsed
+        existing.peer = peer
+      }
       if (
         isReceiver &&
         !existing.channel?.closed &&
@@ -702,7 +710,7 @@ export class PacedDeviceChannels {
         this.throttle(existing, 'pressure')
         return Promise.reject(new Error('capacity'))
       }
-      if (existing.channel?.closed || (isReceiver && existing.settled)) {
+      if (existing.channel?.closed || (existing.settled && existing.channel === undefined)) {
         existing.isReceiver = isReceiver
         existing.handshake = handshake
         existing.port = port
@@ -717,7 +725,7 @@ export class PacedDeviceChannels {
         existing.result = channelWait<PacedDeviceChannel>()
         this.throttle(existing, 'handshake-backoff')
         this.pump()
-      } else if (isReceiver && existing.settled) {
+      } else if (existing.settled && existing.channel === undefined) {
         existing.settled = false
         existing.result = channelWait<PacedDeviceChannel>()
         this.pump()

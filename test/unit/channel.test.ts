@@ -486,6 +486,51 @@ describe('host handshake pacing G29–G31', () => {
       for (const fixture of fixtures) fixture.socket.destroy()
     }
   })
+  it('binds a restarted receiver incarnation only after the old channel closes and retains backoff', async () => {
+    pacingClock()
+    const restarted = { ...channelReady, receiverIncarnationId: '9'.repeat(32) }
+    let ready = channelReady
+    const dial = vi.fn<DeviceChannelDialer['dial']>(() =>
+      Promise.resolve(fakeChannelSocket(ready).socket),
+    )
+    const { pool, pacing } = pacer({ dial })
+    const original = await pool.connect(channelPeer(), channelReady, channelPort())
+    await expect(pool.connect(channelPeer(), restarted, channelPort())).rejects.toThrow('unknown')
+    expect(original.closed).toBe(false)
+    expect(dial).toHaveBeenCalledOnce()
+    original.close()
+    ready = restarted
+    const next = settleChannel(pool.connect(channelPeer(), restarted, channelPort()))
+    expect(dial).toHaveBeenCalledOnce()
+    expect(pacing.authenticationRequired).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(DEVICE_LIMITS.handshakeBackoffBaseMs - 1)
+    expect(dial).toHaveBeenCalledOnce()
+    await vi.advanceTimersByTimeAsync(1)
+    const channel = await next
+    expect(await channel?.ready).toEqual(restarted)
+    expect(channel).not.toBe(original)
+    expect(dial).toHaveBeenCalledTimes(2)
+  })
+  it('retains failed inbound backoff when a new incarnation reconnects through an outbound factory', async () => {
+    pacingClock()
+    const restarted = { ...channelReady, receiverIncarnationId: '9'.repeat(32) }
+    const dial = vi.fn<DeviceChannelDialer['dial']>(() =>
+      Promise.resolve(fakeChannelSocket(restarted).socket),
+    )
+    const { pool } = pacer({ dial })
+    const incoming = vi.fn(() => Promise.reject(new DeviceChannelDialFailure('transport')))
+    await expect(pool.accept(channelPeer(), channelReady, channelPort(), incoming)).rejects.toThrow(
+      'unknown',
+    )
+    const next = settleChannel(pool.connect(channelPeer(), restarted, channelPort()))
+    await vi.advanceTimersByTimeAsync(DEVICE_LIMITS.handshakeBackoffBaseMs - 1)
+    expect(dial).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1)
+    const channel = await next
+    expect(await channel?.ready).toEqual(restarted)
+    expect(dial).toHaveBeenCalledOnce()
+    expect(incoming).toHaveBeenCalledOnce()
+  })
   it('queues a handshake burst past pendingHandshakes under backoff', async () => {
     pacingClock()
     const held = Array.from({ length: 5 }, () => Promise.withResolvers<never>())
@@ -550,6 +595,13 @@ describe('host handshake pacing G29–G31', () => {
     await expect(pool.connect(channelPeer(), channelReady, channelPort())).rejects.toMatchObject({
       reason: 'authentication',
     })
+    await expect(
+      pool.connect(
+        channelPeer(),
+        { ...channelReady, receiverIncarnationId: '9'.repeat(32) },
+        channelPort(),
+      ),
+    ).rejects.toMatchObject({ reason: 'authentication' })
     expect(pool.retryAuthentication(channelReady.pairId, false)).toBe(false)
     expect(dial).toHaveBeenCalledOnce()
     expect(pacing.authenticationRequired).toHaveBeenCalledOnce()

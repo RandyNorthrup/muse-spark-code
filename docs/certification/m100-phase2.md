@@ -95,13 +95,13 @@ inference spend **0**; real-device pairing **0**.
 | Control over status/events over logs over bulk; bulk and approval waits never starve Stop     | `src/core/devices/channel.ts:314`: `streamFor`, `enqueue`, `nextPacket`; grant requests/dispatch use events; separate running control/data drains; socket false-write waits for drain                                                                        | preempts fragmented bulk; reserves control capacity; socket backpressure prioritizes Stop; held log/grant request; real TLS held log                                                                          | priority; queue-reserve; grant-approval-stop           |
 | At most three pending handshakes per host; jittered exponential backoff capped at ten minutes | `src/host/devices/deviceChannel.ts:570`: `PacedDeviceChannels.pump/run` calls lane 0's `canOpenHandshake` and `handshakeBackoffMs`; incoming TLS starts only inside an admitted factory; abort does not free a slot until the factory settles                | queues a handshake burst past pendingHandshakes under backoff (threat-table test); mixed inbound/outbound factories; all eight backoff boundaries; late socket destroyed                                      | handshake-burst; mixed-handshake-burst; jitter-backoff |
 | Refusal is throttled/unknown, never down; no port probes; health is authenticated ready       | `src/host/devices/deviceChannel.ts:338`: typed `DeviceThrottled` facts and `unknown` failures; `openMultiplexedDeviceChannel.health` sends a parsed ready request, matches its reply and observes absolute deadlines; periodic ready calls retain the socket | authenticated-ready-only health with a TCP-probe spy; silence is unknown; periodic health; reconnect backoff; absolute incomplete-message time                                                                | no-port-probe; absolute-deadline                       |
-| One authentication failure stops and asks; second attempt needs explicit user consent         | `src/host/devices/deviceChannel.ts:774`: typed `DeviceChannelDialFailure('authentication')`, `canRetryAuth`, `authenticationRequired`, `retryAuthentication(pairId, isConfirmed)`; a repeated connect preserves the lockout                                  | stops after one failed authentication and asks; false consent does nothing; confirmed consent admits exactly the next request                                                                                 | auth-lockout                                           |
+| One authentication failure stops and asks; second attempt needs explicit user consent         | `src/host/devices/deviceChannel.ts:782`: typed `DeviceChannelDialFailure('authentication')`, `canRetryAuth`, `authenticationRequired`, `retryAuthentication(pairId, isConfirmed)`; a repeated connect preserves the lockout                                  | stops after one failed authentication and asks; false consent does nothing; confirmed consent admits exactly the next request                                                                                 | auth-lockout                                           |
 
 Framing is canonical newline-delimited JSON with strict zod parsing of both
 packet and inner lane-0 envelope. Each packet, including newline, is at most
 `channelFrameBytes` (4096 UTF-8 bytes); reassembly and fragment allocations
 observe `frameBytes` and `frameFragments`. Duplicate keys (outer and inner),
-unknown fields, malformed UTF-8, wrong versions, foreign pair/incarnation,
+unknown fields, malformed UTF-8, wrong versions, foreign packet pair/incarnation,
 sequence gaps and impossible acknowledgements refuse before application
 use. Separate 32-item control and data reserves include queued, partial,
 running and unacknowledged work. An acknowledgement releases transport
@@ -109,6 +109,14 @@ capacity only after the application handler settles; it is not an execution
 retirement or a durable result settlement. Disconnect never changes a
 journal, grant, attempt owner or spending liability. The phase-1
 `openDeviceChannel` interface and its 25 regressions remain intact.
+
+A restarted receiver's current authenticated incarnation replaces the pair
+cache only after its previous channel closes (or an inbound handshake has
+settled without a channel). It preserves handshake backoff and cannot bypass
+authentication lockout. A live/pending channel refuses a conflicting incarnation
+as unknown; historical execution identities remain unchanged. The owning
+regressions cover both closed-channel reconnect and a failed inbound connection
+followed by an outbound reconnect.
 
 ### Intentional failures and byte-exact restoration
 
@@ -121,37 +129,41 @@ every corresponding mutation:
 - `src/core/devices/channel.ts`:
   `17cad84f4aa53d9c5dfcbcb75ad1511df1228e04bfe50983aab4d60794571147`.
 - `src/host/devices/deviceChannel.ts`:
-  `a65052371f48a24f9f04bc6d938785f7c99c9c403970d266f7827814ee17498e`.
+  `67e675188f63ecfa0c958b64379be324323167305d4719a6eb3b471a4f766ccb`.
 
-| Drill                 | Deliberate break                                                      | Failing assertion                                                               |
-| --------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| priority              | Reverse outgoing stream priority                                      | expected 'bulk' to be 'control' // Object.is equality                           |
-| queue-reserve         | Remove outgoing occupancy guard                                       | expected true to be false // Object.is equality                                 |
-| packet-byte-cap       | Remove packet byte guard                                              | expected [Function] to throw an error                                           |
-| ack-sequence          | Accept an acknowledgement beyond the last fully sent sequence         | expected [Function] to throw an error                                           |
-| inner-duplicate       | Remove inner canonical-JSON check                                     | expected [Function] to throw an error                                           |
-| mixed-handshake-burst | Bypass shared handshake admission for incoming/outgoing factories     | expected "vi.fn()" to not be called at all, but actually been called 1 times    |
-| handshake-burst       | Bypass pending-handshake admission                                    | expected "vi.fn()" to be called 3 times, but got 5 times                        |
-| jitter-backoff        | Halve the shared jittered backoff delay in the host                   | expected "vi.fn()" to be called 1 times, but got 2 times                        |
-| no-port-probe         | Add a raw TCP connect to health (test spy supplies the socket)        | expected "connect" to not be called at all, but actually been called 2 times    |
-| auth-lockout          | Forget the authentication failure on the next connect without consent | expected "vi.fn()" to be called once, but got 2 times                           |
-| saved-tls-pin         | Remove the saved leaf fingerprint comparison                          | expected [Function] to throw an error                                           |
-| one-pair-channel      | Bypass the pair cache lookup                                          | expected "vi.fn()" to be called once, but got 2 times                           |
-| grant-approval-stop   | Put a waiting grant request on control                                | expected "vi.fn()" to be called 2 times, but got 1 times                        |
-| absolute-deadline     | Remove the monotonic incomplete-message deadline check                | expected false to be true // Object.is equality                                 |
-| ready-publication     | Remove the post-ready closed/deadline/active-pair check               | Missing handshake-backoff notification; a closed channel was published as ready |
+| Drill                     | Deliberate break                                                      | Failing assertion                                                               |
+| ------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| priority                  | Reverse outgoing stream priority                                      | expected 'bulk' to be 'control' // Object.is equality                           |
+| queue-reserve             | Remove outgoing occupancy guard                                       | expected true to be false // Object.is equality                                 |
+| packet-byte-cap           | Remove packet byte guard                                              | expected [Function] to throw an error                                           |
+| ack-sequence              | Accept an acknowledgement beyond the last fully sent sequence         | expected [Function] to throw an error                                           |
+| inner-duplicate           | Remove inner canonical-JSON check                                     | expected [Function] to throw an error                                           |
+| mixed-handshake-burst     | Bypass shared handshake admission for incoming/outgoing factories     | expected "vi.fn()" to not be called at all, but actually been called 1 times    |
+| handshake-burst           | Bypass pending-handshake admission                                    | expected "vi.fn()" to be called 3 times, but got 5 times                        |
+| jitter-backoff            | Halve the shared jittered backoff delay in the host                   | expected "vi.fn()" to be called 1 times, but got 2 times                        |
+| no-port-probe             | Add a raw TCP connect to health (test spy supplies the socket)        | expected "connect" to not be called at all, but actually been called 2 times    |
+| auth-lockout              | Forget the authentication failure on the next connect without consent | expected "vi.fn()" to be called once, but got 2 times                           |
+| saved-tls-pin             | Remove the saved leaf fingerprint comparison                          | expected [Function] to throw an error                                           |
+| one-pair-channel          | Bypass the pair cache lookup                                          | expected "vi.fn()" to be called once, but got 2 times                           |
+| grant-approval-stop       | Put a waiting grant request on control                                | expected "vi.fn()" to be called 2 times, but got 1 times                        |
+| absolute-deadline         | Remove the monotonic incomplete-message deadline check                | expected false to be true // Object.is equality                                 |
+| ready-publication         | Remove the post-ready closed/deadline/active-pair check               | Missing handshake-backoff notification; a closed channel was published as ready |
+| receiver-live-incarnation | Permit a conflicting incarnation to replace a live channel            | expected promise to reject, but it resolved                                     |
+| receiver-restart          | Skip the closed-channel reconnect reset                               | expected the new incarnation, received the old ready identity                   |
+| inbound-outbound-restart  | Reset a failed inbound request only for another inbound request       | expected the new ready identity, received undefined                             |
 
 The corrected inbound retry test advances the second failure's shared
 30-second backoff, rather than waiting with an incorrectly assumed
 15-second delay. Its timeout was never raised; the final test run is
-64 passed at the repository default.
+66 passed at the repository default. All 18 red drills have an assertion failure
+and exit 1; the host drills were repeated against the final host source hash.
 
 ### Local restored-tree checks
 
-- Owning core/host tests plus phase-1 `deviceChannel.test.ts`: **64 passed**.
+- Owning core/host tests plus phase-1 `deviceChannel.test.ts`: **66 passed**.
 - Focused V8 coverage on the two implementation files with the unchanged
-  repository thresholds: **95.11% statements, 93.22% branches, 94.11%
-  functions, 96.80% lines**; exit 0.
+  repository thresholds: **95.15% statements, 93.33% branches, 94.11%
+  functions, 96.83% lines**; exit 0.
 - Phase-1 transport/boundary plus phase-2 contracts: **122 passed**.
 - Host and unit typechecks, changed-file ESLint/Prettier, plain knip,
   duplication (0 clones), reference and localization: clean in this lane.
