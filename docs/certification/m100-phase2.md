@@ -2343,3 +2343,311 @@ quality/coverage/integration/a11y/security gates. No gate was weakened to hide
 the mismatch and no full-quality or audit success is claimed here. Existing
 wiring and capability-contract requests in the original lane V section remain;
 this redesign requests no additional contract change.
+
+## Lane H — Windows worker host (M100P2H, 2026-10-07)
+
+Worktree `C:/lanes/M100P2H`, branch `m100/p2-h`, base `466a7a8e4`, on the
+Win11 rig. Read the rig brief, phase-2 shared rules, PLAN's ownership and
+acceptance section, planning record and threat model before implementation.
+No models, paid calls, real-device pairing, network listener, registry write,
+OS policy change, dependency addition, push, merge or rebase. M27's
+`shellJob.ts`, `MuseSparkJob.cs` and M50's shared helper remain byte-identical.
+Full joined quality, packaging, reference/docs changes and production wiring
+remain lane W's exclusive work.
+
+### Acceptance mapping and remaining work
+
+| Brief item              | Windows implementation and evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Status                                                                                                                          |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Own context          | `deviceWorkerNative.ts` creates one on-demand Task Scheduler task with the current user's interactive token, no trigger and no service. `MuseSparkDeviceWorker.cs` refuses session 0/noninteractive stations, creates a private desktop and a named no-breakaway job. `DeviceWorkerHost.start` checks the reported context against the transport before the activation file permits any child. Fake transport/noninteractive refusals and real private-task tests pass. Context drill fails. | Windows done; Linux/systemd and macOS/launchd drivers and real platform receipts outstanding.                                   |
+| 2. Desktop heap         | Signed and unsigned `STATUS_DLL_INIT_FAILED` exits become typed `unsupported-host`/`desktop-heap` failures with recovery prose in all 15 languages. One launch only; pressure callback reports the signal to V/M107 and does not change a cap. Registry-write spy stays zero; native source check rejects registry/policy mutation APIs. Silent-retry drill fails.                                                                                                                           | Windows done; scheduler startup heap refusal is verified with a fake last-exit status.                                          |
+| 3. Recorded environment | Uses M96's canonical `workerEnvironment` with no passthrough names. The environment is recorded before launch; PATH resolution and the caller's hook-binary verifier both run before start. Actual empty-PATH and fake missing/unverified-hook cases keep launch count zero. Credential-fence and preflight drills fail.                                                                                                                                                                     | Host port done; W must bind a durable local environment record and M96's verified command/controlled boundaries.                |
+| 4. Structured result    | Native helper owns explicit NUL stdin, bounded stdout/stderr pipes, suspended creation, assignment and resume. Only the exit-code-plus-JSON stdout channel supplies a result; banners on stderr do not. PowerShell commands get per-process Bypass and `-InputFormat None`; no `Set-ExecutionPolicy`. Zod validates native queries/exits and existing device schemas validate usage/artifact results. Stderr-result and output-cap drills fail.                                              | Windows done.                                                                                                                   |
+| 5. Sleep and power      | Each active native helper holds `SetThreadExecutionState(CONTINUOUS \| SYSTEM_REQUIRED)` through observed whole-job exit; finally clears it, and OS thread teardown releases it on helper loss. Host reference count lasts through overlapping retirements; failed power reads stay unknown. Real awake/accounting/cancel tests and fake overlap/helper-loss tests pass. Drop-last-release drill fails.                                                                                      | Windows done; Linux inhibitor/macOS caffeinate and their native receipts outstanding. No battery admission policy was invented. |
+| 6. Helper self-test     | Source-digest build through existing `compileJob`; per-factory cached self-test exercises suspended launch, job assignment/resume, observed empty job, context, CPU/peak-memory query and power, and reports only `jobProbe` with `scheduler: 'untested'` (see the attempt-caps addendum). Failed/corrupt helpers refuse without fallback. The real corruption case and fake failed-self-test case pass; bypass-self-test drill fails.                                                       | Windows done; scheduler launch permission is exercised by native tests, not by the primitive self-test itself.                  |
+
+`retirement` is never resolved by cancellation, a deadline, helper/task disappearance
+or direct-parent exit. The native accounting query must observe zero active
+processes in the whole job. A real detached descendant finishes after its parent;
+removing that guard makes its marker assertion fail. Helper loss rejects as
+uncertain and retains occupancy. Whole-job cancellation uses `TerminateJobObject`,
+never taskkill/PID-only tree termination. Suspended, unassigned children are
+terminated before they can run. Kill-on-close covers helper death. The native
+process ceiling is the attempt's admitted `caps.processes` (amended below in
+"Launch contract: attempt caps"; this commit used the shared maximum); the
+retained-attempt directory ceiling uses the unchanged shared `DEVICE_LIMITS`;
+overflow stops work. The directory allocation is serialized.
+
+Every real test removes its own task and directory in finally; afterAll also
+stops/deletes only registrations whose action names that fixture's exact temporary
+directory, then asserts none remain. Three retired registrations left by the first
+failed pipe experiments were identified by their fixture paths and removed. The
+failure was .NET Framework's refusal to open NUL through `FileStream`; the fixed
+path opens the device with `CreateFileW`. No user/other-lane task was touched.
+
+### Intentional guard failures
+
+All drills run complete owning files with `--maxWorkers=3`, repository defaults,
+and no timeout override. Each exits 1 with an assertion failure; each modified
+source is restored from its original byte buffer and its SHA-256 checked.
+
+| Drill             | Deliberate break                                  | Failure                                                                 |
+| ----------------- | ------------------------------------------------- | ----------------------------------------------------------------------- |
+| context           | Disable Windows context comparison                | A transport-session/noninteractive launch resolves instead of refusing. |
+| silent-retry      | Launch again on desktop heap failure              | Launch count is 2 instead of 1.                                         |
+| hook-preflight    | Iterate zero required tools                       | Missing/unverified hook attempts start.                                 |
+| sleep-release     | Remove success-path running-count decrement       | Sleep stays inhibited after the last retirement.                        |
+| helper-self-test  | Bypass failed self-test guard                     | Unsupported helper starts.                                              |
+| output-cap        | Remove stdout byte ceiling                        | Valid JSON padded past the cap is accepted.                             |
+| credential-fence  | Record inherited environment                      | Credential/loader/agent variables enter the record.                     |
+| stderr-result     | Read stderr instead of stdout                     | Banner-bearing native run has no valid JSON result.                     |
+| parent-retirement | Observe direct parent instead of active job count | Detached descendant is killed before its completion marker.             |
+
+Final-source hashes, clean-clone receipts and commit IDs follow in the final
+verification addendum. Local owning tests: **28 passed**, including six actual
+Windows native cases. Five typecheck projects passed before final minor lifecycle
+and capacity changes; the final committed clone is checked again below. No
+`--testTimeout`, gate weakening, ignored diagnostic or lint escape hatch was added.
+
+### Requests to the lead / W / V
+
+- Bind `DeviceWorkerHost` as `DeviceReceiverExecution`, with M96's atomic occupancy
+  restoration/reservation, durable environment record, local verified command and
+  every tool/model/paid boundary. The command factory receives the local boundary;
+  no peer can supply a command or environment. There is no new public runtime command.
+- V reads `facts()` for power and sleep state; feed `pressure('desktop-heap')` to
+  M107 as a pressure observation. Per-job accounting reports CPU in 100 ns units and
+  **peak** committed memory, explicitly named `peakMemoryBytes`; current memory is
+  not claimed. The governor owns any slot-cap decision.
+- W must ship the new native C# asset, bind its trusted `sourceFile` and private
+  storage, measure the fully wired lazy Devices bundle, update its owned CHANGELOG,
+  README and feature reference, and run joined quality/installed-host checks.
+- Complete and qualify Linux transient user units with a cgroup retirement proof
+  and `systemd-inhibit`; complete and qualify macOS per-attempt launchd jobs with
+  a whole-descendant retirement proof and `caffeinate`. This Windows-only rig has
+  no real systemd/launchd runtime; fake platform port tests are not native receipts.
+- Proposed battery policy for owner decision: keep already admitted work owned,
+  and ask locally before admitting new heavy checks on battery. No policy is
+  implemented here; unknown power must stay unknown.
+- Qualify scheduler-specific self-test, private storage ACLs and native helper-death
+  recovery before enabling the production offer. These are open, not support claims.
+
+### Final committed-code verification
+
+Implementation commit **219c8164e**; native-test setup deduplication
+**9e6915957**, both with hooks enabled. The latter changes tests only; all
+production source hashes are identical in both commits and in the CI clone.
+All twelve final red drills exited **1** with test failures, then restored
+the source byte-exact. In addition to the nine drills above:
+
+| Drill         | Deliberate break                               | Failure                                                     |
+| ------------- | ---------------------------------------------- | ----------------------------------------------------------- |
+| attempt-cap   | Disable retained-directory ceiling             | Allocation reaches the helper instead of refusing capacity. |
+| unknown-power | Turn a failed reading into AC                  | Unknown-power/helper-loss facts fail.                       |
+| cancel-race   | Remove cancellation check after pending launch | A cancelled attempt activates.                              |
+
+SHA-256 values checked before and after each corresponding drill:
+
+- Host: 5034f45b402d58fc3243d9c6bf8894f4a37e01b07c201944080a2a088ba9cdab.
+- Native driver: da83342cd3c0470b70a3e257f990a0a5a0f0ccfbcd70c94c51dcb446f6e45462.
+- C# helper: 8a44391400dd3bd0c47abcbe7bf29fa7cb4712802e3832c82e4d09112629414c.
+
+Fresh local Git clone at temp/m100h-verify, Node **24.21.0**, npm **11.19.0**.
+CI=true npm ci exited **0**; no dependency or lockfile change. Install
+reported the pinned tree's 11 audit vulnerabilities (2 low, 9 high); joined
+audit/security qualification remains W's responsibility. No audit fix was run.
+
+On committed implementation **219c8164e**, with CI=true:
+
+- Complete owning files three consecutive times: **28 passed each**,
+  **12.37 / 11.59 / 11.57 seconds** total Vitest durations. Windows' actual
+  repository defaults on this base are 15 seconds per test, 30 per hook;
+  this lane never changes or overrides them. All six native cases ran on Windows.
+- All five typechecks: **exit 0** (148.8 seconds). Full lint including Windows
+  PSScriptAnalyzer: **exit 0** (388.9 seconds). Changed-file Prettier: **exit 0**.
+- Plain knip: **exit 0**. Reference: **exit 0**, 18 Devices entries.
+  Localization: **14 tables, 0 problems**, exit 0.
+- Build: **exit 0**, including sizes, splits, host globals and notices.
+  Devices **81.7/100 KiB**, activation **462.8/600 KiB**, Model API
+  **456.0/475 KiB**. Every cap unchanged. This measures the existing entry
+  plus new English text; W must measure the newly bound host factory.
+- Duplication initially **exit 1**: native-test launch setup repeated 11 lines,
+  58 tokens. Follow-up shares that setup, preserving every test, assertion and
+  deadline. No ignore or threshold change.
+- Host API **exit 1** solely for W's stale generated Node import counts.
+  **366 VS Code APIs, 43 vscode-importing files, 28 Node built-ins, 70 theme
+  variables** unchanged. Needed row updates: child_process **16→17**, crypto
+  **93→94**, fs **44→45**, fs/promises **74→76**, path **125→127**,
+  timers/promises **15→16**. W owns the file: regenerate with
+  npm run check:host-api -- --write after integration, review/commit it and
+  rerun the check. This lane did not edit that file or weaken the gate.
+
+The clean CI clone fetched the committed test-only follow-up locally and
+switched to detached **9e6915957**, without a merge, reset or rebase. Three
+more complete owning runs: **28/28 each**, default deadlines,
+**11.62 / 11.63 / 11.60 seconds**. Duplication: **0 clones**, exit 0. Unit
+typecheck: **exit 0**. The hook passed changed-test lint and formatting.
+Production source hashes and lockfile stayed unchanged from the full clone
+checks. The outstanding gate is W's host API inventory update; Linux/macOS
+drivers and qualification remain outstanding as mapped above.
+
+No push or model call. This is a Windows implementation with receipts, not a
+claim that the entire phase-2 host lane or installed-host qualification is
+complete. Full quality remains delegated to W by the shared lane brief.
+
+### Launch contract: attempt caps (M100P2H-CAPS, 2026-10-08)
+
+Branch `m100/p2-h-caps` from `f4f6f3008`, worktree `C:/Users/Randy/Coding/mx-m100hcaps`
+on the lead's Windows host. It answers the Linux continuation's lead request
+(M100P2HL, `78258096a` on `m100/p2-h-linux`) and folds in the three RVM100P2H
+review findings, which touch the same files.
+
+**Decision (lead).** `DeviceWorkerDriver.launch(command, env, attempt)`, where
+`attempt: Readonly<Pick<DeviceDispatch, 'identity' | 'caps'>>` (exported as
+`DeviceWorkerAttempt`). The host builds it at its only launch call from the
+request it already parsed with `deviceDispatchSchema`, as frozen copies, so no
+driver can edit the host's record and nothing peer-supplied beyond the
+validated identity and caps reaches a driver. No protocol field was added and
+every shared ceiling is unchanged.
+
+- Drivers enforce the admitted `caps.processes`. `admittedProcessLimit` (host
+  port) returns it, or refuses with typed `unsupported-host` (detail
+  `preflight`) when it is outside 1..`DEVICE_LIMITS.processes`. The Windows
+  driver calls it first, before any helper call or attempt directory, and
+  writes it as the job's `ActiveProcessLimit`. Previously the job used the
+  protocol maximum (128) for every attempt.
+- The other caps travel for drivers that can enforce them. None is an OS
+  process property on Windows: worker/check occupancy is the reservation's,
+  tokens and spend are M96's paid boundary, artifact bytes the result
+  validation. A future driver that is handed a cap it cannot enforce refuses
+  with `unsupported-host` rather than ignoring it (stated on the port).
+- CPU and memory are not caps and were not added: the receiver's M107 resource
+  governor owns them.
+- The Linux driver can now apply the admitted process/task ceiling to its
+  transient unit and call the same `admittedProcessLimit` refusal before
+  activation. No Linux or macOS driver is part of this change.
+
+**Review findings folded in (RVM100P2H, Grok, range `466a7a8e4..f4f6f3008`).**
+
+1. P2, pre-job failures were journaled as completed work. A start that failed
+   before a job existed (failed self-test, hook preflight, a launch refusal
+   such as the scheduler's `STATUS_DLL_INIT_FAILED` or an unenforceable cap)
+   resolved `retirement` with the reservation usage, so `DeviceReceiver`
+   journaled `retired` and released occupancy as finished work. Now the host
+   settles every no-job path (pre-job failure and cancel-before-start) as
+   `{ refused: true, usage }`. `DeviceLocalAttempt['retirement']` gains that
+   variant, and the receiver journals it with the existing terminal state
+   `refused` (occupancy zero, no artifact), then releases the reservation once
+   as not-run work. The dispatch reply is unchanged (`uncertain`, because
+   admission was journaled) and reconciliation returns the `refused` outcome.
+   This touches `deviceReceiver.ts` (lane E's) only in the retirement type and
+   the terminal-state choice in its `retire` effect.
+2. P3, the helper self-test overclaimed. `--self-test` printed `launch: true`
+   after an in-process CreateProcess/assign/resume probe that never used Task
+   Scheduler or the session/station refusal. It now prints
+   `{ jobProbe: true, query: true, power, scheduler: 'untested' }`, and
+   `selfTestSchema` accepts only that shape, so an answer claiming a scheduler
+   launch is refused. Scheduler launch remains qualified by each real launch
+   and the native tests, not by the self-test.
+3. P3, the compile ran under the helper's frame deadline. `isPrepared` passed
+   `deps.run` (10 s frame deadline) into `compileJob`. The compiler is now a
+   separate optional `compile` dependency; production omits it, so
+   `compileJob` uses its own runner and `PROCESS_TABLE_TIMEOUT_MS`. No
+   deadline was raised.
+
+Files: `src/host/devices/deviceWorkerHost.ts`, `src/host/backend/deviceWorkerNative.ts`,
+`native/windows/MuseSparkDeviceWorker.cs`, `src/host/devices/deviceReceiver.ts`,
+`test/unit/deviceWorkerHost.test.ts`, `test/unit/deviceWorkerHostNative.test.ts`
+and this record.
+
+Implementation commit **b4edab744** (hooks on: lint-staged eslint/prettier and
+staged gitleaks exited 0; the index was unchanged by the hook). Final
+SHA-256: host `22beef265def4c1a1b45fd4efcfdad396671a084ae8659f8c969a231df95337a`,
+Windows driver `64de6c31400f536e7457d2377952f596ee2d68eaef64a6bfc6d220e0d3e2453f`,
+C# helper `d7a760a5389f045795ebd1b2b7de8486c5030d0aab8190d89a2bd1fc7ad21490`,
+receiver `fbcc6bb0ce8c79187b136875bf67ca0d79fdaa5be56bbe293c532a9293a91cde`.
+
+#### Tests
+
+| Test (owning files)                                                                          | Proves                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| passes each simultaneous attempt only its own validated identity and caps                    | Two attempts started together (`processes` 1 and 128) reach the fake driver, which records every launch's third argument, each with exactly its own identity and caps, frozen.                                                                                                                                                                                                                                                                       |
+| the Windows driver bounds each simultaneous job at its own admitted cap                      | Two simultaneous real-driver launches over a fake helper write `maxProcesses` 1 and 128 into their own request files.                                                                                                                                                                                                                                                                                                                                |
+| the Windows driver refuses an admitted process cap of 0 / 129 before any helper call         | Typed `unsupported-host`/`preflight`; no helper call, no attempt directory.                                                                                                                                                                                                                                                                                                                                                                          |
+| an admitted zero-process attempt is refused before launch or activation                      | Through the host: `start` refuses, the helper sees only the transport query, retirement settles `refused`.                                                                                                                                                                                                                                                                                                                                           |
+| limits the OS job to the admitted process cap and the OS refuses a child beyond it (native)  | Before activation a compiled probe opens `Global\MuseSparkDevice-<id>` and reads JOBOBJECT_EXTENDED_LIMIT_INFORMATION: flags `0x2008` (kill-on-close, active-process) and **ActiveProcessLimit 2**, the admitted cap. After activation the script and its held child fill the job, the third `CreateProcess` is refused by Windows (libuv reports the job-quota error as `UNKNOWN`), and once the held child exits the same spawn succeeds (exit 0). |
+| the receiver journals … as refused not-run work and releases it once (four cases)            | Real `DeviceReceiver` and `AttemptJournal` over the real host: failed self-test, failed hook preflight, scheduler heap failure at launch, unenforceable cap at launch. Each journals `refused` with zero occupancy and the reservation usage, releases once, never activates; reconciliation returns `refused`.                                                                                                                                      |
+| existing host tests (hook preflight, unverified hook, failed self-test, cancel-before-start) | Now assert `{ refused: true, usage }` instead of awaiting retirement blindly.                                                                                                                                                                                                                                                                                                                                                                        |
+| a helper self-test answer of … is accepted (three cases)                                     | The old `launch: true` claim and a `scheduler` claim are refused; only `{ jobProbe, query, power, scheduler: 'untested' }` is accepted.                                                                                                                                                                                                                                                                                                              |
+| compiles and self-tests … (native)                                                           | The real compiled helper's `--self-test` prints exactly that shape.                                                                                                                                                                                                                                                                                                                                                                                  |
+| compiles with compileJob's own runner, never the frame-deadline helper runner                | Without an injected compiler the helper runner sees no compile; with one, the compile goes only there and the helper runner sees only `--self-test`.                                                                                                                                                                                                                                                                                                 |
+
+A temporary, uncommitted diagnostic on the lead's host launched one script at
+caps 2, 3 and 128: at 2 the third process was refused, and at 3 and 128 it
+ran, matching the committed native case.
+
+Regression proof against **f4f6f3008**: the new portable owning file run
+against the unchanged base sources fails **18 of 35**: every caps case, all
+four receiver cases and four retirement assertions (finding 1), the
+accepted-shape case (finding 2) and the compile-runner case (finding 3). The
+native helper-JSON assertion fails on the base by construction (it prints
+`launch: true`).
+
+#### Red drills
+
+Complete owning files, `--maxWorkers=3`, `CI=true`, repository default
+timeouts, on the Win11 rig at b4edab744. Each break exited **1** with
+assertion failures, and each source was restored from its original buffer and
+its SHA-256 checked (all byte-exact; worktree clean afterwards).
+
+| Drill                  | Deliberate break                                          | Failed tests                                                                                                                                             |
+| ---------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| caps-global            | Windows job `maxProcesses: DEVICE_LIMITS.processes` again | 2: simultaneous real-driver caps; native ActiveProcessLimit/OS refusal (probe reads 128).                                                                |
+| drop-attempt           | Host launch call without the attempt argument             | 5: simultaneous attempts, credential-free environment and PowerShell launch arguments, zero-process host refusal, native private-desktop host run.       |
+| prejob-retired         | Host pre-job catch resolves `{ usage }` again             | 8: all four receiver cases and four host retirement assertions.                                                                                          |
+| receiver-retired       | Receiver journals every retirement as `retired`           | 4: all four receiver cases.                                                                                                                              |
+| selftest-overclaim     | Schema and helper back to `launch: true`                  | 6: accepted-shape, compile-runner, heap-startup and caps real-driver cases (fake helper answers refused), zero-process host refusal, native helper JSON. |
+| compile-frame-deadline | `compileJob(…, deps.run)` again                           | 5: compile-runner, accepted-shape, heap-startup, caps real-driver and zero-process cases (the fake compiler is bypassed).                                |
+
+#### Verification
+
+Lead's Windows host (this worktree), `CI=true`, Node 24.21.0:
+
+- Five typechecks: host **0** (105 s), unit **0** (323 s), webview **0**,
+  e2e **0**, integration **0**. ESLint `--max-warnings=0` on the five changed
+  TypeScript files **0**; Prettier on them **0**. Plain knip **0** (the two
+  existing configuration hints). jscpd **0 clones**. check:l10n **0 problems**.
+  Production build **0**: Devices **81.8/100 KiB**, activation
+  **462.8/600 KiB**, Model API **456.0/475 KiB**; every cap unchanged.
+- The portable owning file passes here (35/35). **The native file could not
+  qualify on this host:** other sessions held the CPU at 99-100%, scheduled
+  task launches took 6-10 s each, and the native cases hit the 15 s Windows
+  default. The unchanged base f4f6f3008 native file timed out identically
+  here (5 of 6). These runs are recorded as failures, not passes, and no
+  timeout was raised.
+
+Win11 rig (10.10.11.183, console session active, ~5% load), worktree
+`C:/lanes/M100P2HCAPS` at **b4edab744**, Node 24.21.0, npm 11.19.0,
+`npm ci --ignore-scripts` exit 0:
+
+- Owning files three times: **42/42 each** (35 portable, 7 native, none
+  skipped), **23.2 / 20.7 / 18.2 s** Vitest durations, default timeouts.
+- Five typechecks **0** (162.5 s); ESLint **0**; Prettier **0**; knip **0**;
+  jscpd **0**; check:l10n **0**; production build **0**.
+- Receiver neighbours (deviceReceiver, deviceRecovery, attemptJournal), idle
+  rig: **114/115**, 14.3 s. deviceReceiver and deviceRecovery pass in full.
+  The one failure is attemptJournal's "flushes admission and launch files
+  before atomic replacement and directory flush" (no `directory-flush` event
+  on Windows), which fails identically on the unchanged base f4f6f3008 on the
+  lead's host; this change does not touch the journal. Two later reruns, made
+  while the rig and the lead's host were loaded (198-215 s instead of 14 s),
+  added `vi.waitFor`/socket timing failures in lane E's suites; those tests'
+  leases never produce the new `refused` variant, for which the receiver's
+  behaviour is otherwise byte-for-byte the old `retired` path. They are
+  recorded here as loaded-host failures, not passes.
+
+No push to origin, merge, rebase, stash, dependency, lockfile, string or
+gate-threshold change, and no model call. The commit was sent only to the
+Win11 rig's private gate repository for the native runs. Linux and macOS
+drivers, scheduler-specific qualification and installed-host checks remain
+open as mapped above.

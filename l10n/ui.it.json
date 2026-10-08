@@ -1,5 +1,6 @@
 {
   "devices": {
+    "desktopHeap": "Windows non ha potuto inizializzare il processo di lavoro (STATUS_DLL_INIT_FAILED). Esegua meno processi contemporaneamente, avvii il ricevitore nella sessione interattiva oppure chieda a un amministratore di aumentare l’heap del desktop e riavviare. Non sono stati effettuati nuovi tentativi né modifiche al registro.",
     "title": "Dispositivi",
     "pair": "Associa dispositivo",
     "offer": "Offri rami di lavoro",

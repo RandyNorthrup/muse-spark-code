@@ -43,11 +43,14 @@ export interface DeviceLocalAttempt {
   start(boundary: DeviceExecutionBoundary): Promise<void>
   pause(): Promise<void>
   cancel(): Promise<void>
-  /** Resolves only after requests AND all admitted tool/descendant processes settle. */
-  readonly retirement: Promise<{
-    usage: DeviceOutcome['usage']
-    artifact?: DeviceOutcome['artifact']
-  }>
+  /**
+   * Resolves only after requests AND all admitted tool/descendant processes settle. `refused`
+   * says no job/unit ever existed, so nothing ran: journaled `refused`, never `retired` work.
+   */
+  readonly retirement: Promise<
+    | { usage: DeviceOutcome['usage']; artifact?: DeviceOutcome['artifact'] }
+    | { refused: true; usage: DeviceOutcome['usage'] }
+  >
   /** Releases execution occupancy after durable retirement; retained paid liability stays local. */
   release(): Promise<void>
 }
@@ -319,12 +322,14 @@ export class DeviceReceiver implements DeviceExecutionPort {
             await this.ordered(async () => {
               if (this.live.get(effect.live.identity.attemptId) !== effect.live) return
               try {
+                const { result } = effect
                 await this.journal.advance(
                   effect.live.identity,
                   (previous) => ({
                     ...previous,
                     revision: previous.revision + 1,
-                    state: 'retired',
+                    // Work that never started is released as not-run, never as completed.
+                    state: 'refused' in result ? 'refused' : 'retired',
                     occupied: {
                       workers: 0,
                       processes: 0,
@@ -333,10 +338,9 @@ export class DeviceReceiver implements DeviceExecutionPort {
                       spendUsd: 0,
                       artifactBytes: 0,
                     },
-                    usage: effect.result.usage,
-                    ...(effect.result.artifact !== undefined && {
-                      artifact: effect.result.artifact,
-                    }),
+                    usage: result.usage,
+                    ...('artifact' in result &&
+                      result.artifact !== undefined && { artifact: result.artifact }),
                   }),
                   Date.now(),
                 )

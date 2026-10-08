@@ -1,5 +1,6 @@
 {
   "devices": {
+    "desktopHeap": "A Windows nem tudta inicializálni a munkafolyamatot (STATUS_DLL_INIT_FAILED). Futtasson kevesebb párhuzamos munkafolyamatot, indítsa a fogadót az interaktív munkamenetben, vagy kérjen rendszergazdát az asztali halom növelésére és az újraindításra. Nem történt újrapróbálkozás vagy beállításjegyzék-módosítás.",
     "title": "Eszközök",
     "pair": "Eszköz párosítása",
     "offer": "Munkafolyamatok felajánlása",

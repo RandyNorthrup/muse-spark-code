@@ -1,5 +1,6 @@
 {
   "devices": {
+    "desktopHeap": "O Windows não conseguiu inicializar o trabalhador (STATUS_DLL_INIT_FAILED). Execute menos trabalhadores simultâneos, inicie o receptor na sessão interativa ou peça a um administrador para aumentar o heap da área de trabalho e reiniciar. Não houve nova tentativa nem alteração no registro.",
     "title": "Dispositivos",
     "pair": "Parear dispositivo",
     "offer": "Oferecer ramos de trabalho",

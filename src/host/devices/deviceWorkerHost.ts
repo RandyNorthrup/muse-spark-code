@@ -1,0 +1,360 @@
+// M100 lane H: the local owner reserves; an OS job owns execution and retirement.
+import path from 'node:path'
+import { access, realpath } from 'node:fs/promises'
+import { constants as fsConstants } from 'node:fs'
+import * as z from 'zod/mini'
+import { workerEnvironment } from '../../core/team/refFence'
+import { DevicePairingError } from '../../core/devices/pairing'
+import { DEVICE_LIMITS, WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../shared/constants'
+import { deviceDispatchSchema, deviceJournalRecordSchema } from '../../shared/devices'
+import type { DeviceDispatch, DeviceJournalRecord } from '../../shared/devices'
+import { UI_TEXT } from '../../shared/l10n/text'
+import type {
+  DeviceExecutionBoundary,
+  DeviceLocalAttempt,
+  DeviceReceiverExecution,
+} from './deviceReceiver'
+
+type Retirement = Awaited<DeviceLocalAttempt['retirement']>
+type Power = 'ac' | 'battery' | 'unknown'
+const contextSchema = z.strictObject({
+  session: z.int().check(z.gte(0)),
+  station: z.string().check(z.minLength(1), z.maxLength(DEVICE_LIMITS.pathChars)),
+  desktop: z.string().check(z.minLength(1), z.maxLength(DEVICE_LIMITS.pathChars)),
+})
+const querySchema = z.strictObject({
+  context: contextSchema,
+  power: z.enum(['ac', 'battery', 'unknown']),
+  sleepInhibited: z.boolean(),
+  activeProcesses: z.int().check(z.gte(0)),
+  cpu100ns: z.number().check(z.gte(0)),
+  peakMemoryBytes: z.number().check(z.gte(0)),
+})
+export type DeviceWorkerQuery = z.infer<typeof querySchema>
+export function parseDeviceWorkerQuery(value: unknown): DeviceWorkerQuery {
+  return querySchema.parse(value)
+}
+const exitSchema = z.strictObject({
+  exitCode: z.int(),
+  stdout: z.string(),
+  failure: z.enum(['none', 'desktop-heap', 'unsupported-host', 'capacity']),
+})
+
+function reasonFor(detail: DeviceWorkerHostError['detail']): DeviceWorkerHostError['reason'] {
+  if (detail === 'result') return 'uncertain'
+  return detail === 'capacity' ? 'capacity' : 'unsupported-host'
+}
+
+export class DeviceWorkerHostError extends DevicePairingError {
+  public constructor(
+    public readonly detail:
+      'context' | 'preflight' | 'helper' | 'desktop-heap' | 'result' | 'capacity',
+  ) {
+    super(reasonFor(detail))
+    if (detail === 'desktop-heap') this.message = UI_TEXT.devices.desktopHeap
+    else if (detail === 'capacity') this.message = UI_TEXT.devices.capacityHelp
+    else this.message = UI_TEXT.devices.unsupportedHost
+  }
+}
+
+/** Local configuration only. No peer-supplied command, environment or hook tool. */
+export interface DeviceWorkerCommand {
+  readonly executable: string
+  readonly args: readonly string[]
+  readonly cwd: string
+  readonly requiredTools: readonly { name: string; verify(file: string): Promise<boolean> }[]
+}
+export interface DeviceWorkerJob {
+  /** Validated helper readiness, after containment and before the child resumes. */
+  readonly query: unknown
+  /** Only an observed empty OS job resolves this; helper death rejects as uncertain. */
+  readonly retirement: Promise<unknown>
+  activate(): Promise<void>
+  cancel(): Promise<void>
+  /** Remove only this attempt's task/unit/job after observed retirement. */
+  remove(): Promise<void>
+}
+/** Only the host's validated request: never a peer-supplied unit, task or job property. */
+export type DeviceWorkerAttempt = Readonly<Pick<DeviceDispatch, 'identity' | 'caps'>>
+/** The admitted process ceiling an OS job/unit enforces; outside 1..protocol max is refused. */
+export function admittedProcessLimit(attempt: DeviceWorkerAttempt): number {
+  const limit = attempt.caps.processes
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > DEVICE_LIMITS.processes)
+    throw new DeviceWorkerHostError('preflight')
+  return limit
+}
+export interface DeviceWorkerDriver {
+  readonly platform: NodeJS.Platform
+  /** The helper's containment probe passed; this is not a scheduler/service qualification. */
+  selfTest(): Promise<boolean>
+  query(): Promise<unknown>
+  /**
+   * Bounds the OS job/unit at `attempt.caps.processes`, refusing before activation when it cannot.
+   * Other caps travel for drivers that can enforce them; a driver given a cap it cannot enforce
+   * refuses with typed `unsupported-host`, never ignoring it. CPU and memory are not caps: the
+   * receiver's M107 resource governor owns them.
+   */
+  launch(
+    command: DeviceWorkerCommand,
+    env: Readonly<Record<string, string>>,
+    attempt: DeviceWorkerAttempt,
+  ): Promise<DeviceWorkerJob>
+}
+export interface DeviceWorkerReservation {
+  readonly usage: DeviceLocalAttempt['usage']
+  /** Local M96 safe-point pause; the worker's controlled boundaries use this owner. */
+  pause(): Promise<void>
+  release(): Promise<void>
+}
+export interface DeviceWorkerHostDeps {
+  readonly driver: DeviceWorkerDriver
+  readonly environment: NodeJS.ProcessEnv
+  /** Restore unresolved occupancy, never adopt or relaunch a previous job. */
+  retain(records: readonly DeviceJournalRecord[]): Promise<void>
+  reserve(request: DeviceDispatch): Promise<DeviceWorkerReservation>
+  /** Bind M96's local engine and every action/paid boundary before returning its command. */
+  command(request: DeviceDispatch, boundary: DeviceExecutionBoundary): Promise<DeviceWorkerCommand>
+  recordEnvironment(request: DeviceDispatch, env: Readonly<Record<string, string>>): Promise<void>
+  pressure(signal: 'desktop-heap'): void
+  readonly resolveTool?: (
+    name: string,
+    env: Readonly<Record<string, string>>,
+    platform: NodeJS.Platform,
+  ) => Promise<string>
+}
+
+async function resolveTool(
+  name: string,
+  env: Readonly<Record<string, string>>,
+  platform: NodeJS.Platform,
+): Promise<string> {
+  const paths = Object.entries(env).find(([key]) => key.toUpperCase() === 'PATH')?.[1]
+  const extensions = platform === 'win32' ? ['.exe', '.cmd', '.bat', ''] : ['']
+  const candidates = path.isAbsolute(name)
+    ? [name]
+    : (paths ?? '')
+        .split(platform === 'win32' ? ';' : ':')
+        .filter(Boolean)
+        .flatMap((folder) =>
+          extensions.map((extension) => path.join(folder, `${name}${extension}`)),
+        )
+  for (const candidate of candidates) {
+    try {
+      await access(candidate, platform === 'win32' ? fsConstants.F_OK : fsConstants.X_OK)
+      return await realpath(candidate)
+    } catch {
+      continue
+    }
+  }
+  throw new DeviceWorkerHostError('preflight')
+}
+
+function environment(input: NodeJS.ProcessEnv, platform: NodeJS.Platform): Record<string, string> {
+  const out: Record<string, string> = {}
+  const entries = Object.entries(workerEnvironment(input, platform))
+  for (const [name, value] of entries) {
+    if (value === undefined || name.includes('\0') || value.includes('\0'))
+      throw new DeviceWorkerHostError('preflight')
+    out[name] = value
+  }
+  if (Buffer.byteLength(JSON.stringify(out)) > DEVICE_LIMITS.frameBytes)
+    throw new DeviceWorkerHostError('preflight')
+  return Object.freeze(out)
+}
+
+// Node 20 hosts do not have Promise.withResolvers (the supported editor floor).
+function retirementWait() {
+  let settle: { resolve(value: Retirement): void; reject(error: unknown): void } | undefined
+  const promise = new Promise<Retirement>((resolve, reject) => {
+    settle = { resolve, reject }
+  })
+  if (settle === undefined) throw new DeviceWorkerHostError('helper')
+  return { promise, ...settle }
+}
+
+/** A small facts port for V/W; unknown readings are never promoted to AC. */
+export class DeviceWorkerHost implements DeviceReceiverExecution {
+  private running = 0
+  public constructor(private readonly deps: DeviceWorkerHostDeps) {}
+  public async facts(): Promise<{ power: Power; sleepInhibited: boolean }> {
+    try {
+      const query = querySchema.parse(await this.deps.driver.query())
+      return { power: query.power, sleepInhibited: this.running > 0 && query.sleepInhibited }
+    } catch {
+      return { power: 'unknown', sleepInhibited: false }
+    }
+  }
+  public retain(records: readonly DeviceJournalRecord[]): Promise<void> {
+    return this.deps.retain(records.map((record) => deviceJournalRecordSchema.parse(record)))
+  }
+  public async admit(input: DeviceDispatch): Promise<DeviceLocalAttempt> {
+    const request = deviceDispatchSchema.parse(input)
+    const reservation = await this.deps.reserve(request)
+    const retired = retirementWait()
+    // Admission need not attach a consumer until start; prevent unhandled rejection.
+    void retired.promise.catch(() => {
+      /* The receiver attaches its retirement consumer after admission. */
+    })
+    let job: DeviceWorkerJob | undefined
+    let isStarted = false
+    const state = { isCancelled: false }
+    let isObserved = false
+    let releasing: Promise<void> | undefined
+    let isRunning = false
+    const isCancelled = () => state.isCancelled
+    let observation: Promise<void> | undefined
+    const finish = async (raw: unknown): Promise<void> => {
+      // Driver's promise means the entire OS job is empty, even on a nonzero exit.
+      isObserved = true
+      if (isRunning) {
+        this.running -= 1
+        isRunning = false
+      }
+      try {
+        const exit = exitSchema.parse(raw)
+        if (Buffer.byteLength(exit.stdout) > DEVICE_LIMITS.frameBytes)
+          throw new DeviceWorkerHostError('result')
+        // STATUS_DLL_INIT_FAILED is a Win32 ABI value, not a configurable cap.
+        if (exit.failure === 'desktop-heap' || exit.exitCode >>> 0 === Number('0xc0000142')) {
+          this.deps.pressure('desktop-heap')
+          throw new DeviceWorkerHostError('desktop-heap')
+        }
+        if (exit.exitCode !== 0 || exit.failure !== 'none')
+          throw new DeviceWorkerHostError('result')
+        const parsed: unknown = JSON.parse(exit.stdout)
+        const payload = z
+          .strictObject({ usage: z.unknown(), artifact: z.optional(z.unknown()) })
+          .parse(parsed)
+        const record = deviceJournalRecordSchema.parse({
+          kind: 'receiver-record',
+          recordedAt: Date.now(),
+          outcome: {
+            identity: request.identity,
+            payloadDigest: request.payloadDigest,
+            revision: 1,
+            state: 'retired',
+            occupied: { ...request.caps, workers: 0, processes: 0, heavyChecks: 0 },
+            ...payload,
+          },
+        })
+        if (record.kind !== 'receiver-record') throw new DeviceWorkerHostError('result')
+        await job?.remove()
+        retired.resolve({
+          usage: record.outcome.usage,
+          ...(record.outcome.artifact !== undefined && { artifact: record.outcome.artifact }),
+        })
+      } catch (error) {
+        try {
+          await job?.remove()
+        } catch {
+          /* Keep the original failure; cleanup is still reported as uncertain. */
+        }
+        retired.reject(
+          error instanceof DeviceWorkerHostError ? error : new DeviceWorkerHostError('result'),
+        )
+      }
+    }
+    const observe = async (launched: DeviceWorkerJob): Promise<void> => {
+      try {
+        await finish(await launched.retirement)
+      } catch (error) {
+        if (isRunning) {
+          this.running -= 1
+          isRunning = false
+        }
+        // Helper loss releases its inhibitor but never proves retirement.
+        retired.reject(error)
+      }
+    }
+    return {
+      usage: reservation.usage,
+      retirement: retired.promise,
+      start: async (boundary) => {
+        if (isStarted || state.isCancelled) throw new DeviceWorkerHostError('helper')
+        isStarted = true
+        try {
+          if (!(await this.deps.driver.selfTest())) throw new DeviceWorkerHostError('helper')
+          const transport = querySchema.parse(await this.deps.driver.query())
+          const env = environment(this.deps.environment, this.deps.driver.platform)
+          const command = await this.deps.command(request, boundary)
+          const resolver = this.deps.resolveTool ?? resolveTool
+          const executable = await resolver(command.executable, env, this.deps.driver.platform)
+          const executableName = path.posix.basename(executable.replaceAll('\\', '/')).toLowerCase()
+          const isPowerShell =
+            this.deps.driver.platform === 'win32' &&
+            ['powershell.exe', 'pwsh.exe'].includes(executableName)
+          if (
+            isPowerShell &&
+            command.args.some((arg) => arg.toLowerCase().startsWith('-executionpolicy'))
+          )
+            throw new DeviceWorkerHostError('preflight')
+          const args = isPowerShell
+            ? [
+                ...WINDOWS_POWERSHELL_COMMAND_ARGS.slice(0, -1),
+                '-InputFormat',
+                'None',
+                ...command.args,
+              ]
+            : command.args
+          for (const tool of command.requiredTools) {
+            if (!(await tool.verify(await resolver(tool.name, env, this.deps.driver.platform))))
+              throw new DeviceWorkerHostError('preflight')
+          }
+          await this.deps.recordEnvironment(request, env)
+          await boundary.beforeAction()
+          if (isCancelled()) throw new DeviceWorkerHostError('helper')
+          // Each attempt's own validated identity and admitted caps; copies, so no driver edits them.
+          const attempt = Object.freeze({
+            identity: Object.freeze({ ...request.identity }),
+            caps: Object.freeze({ ...request.caps }),
+          })
+          job = await this.deps.driver.launch({ ...command, executable, args }, env, attempt)
+          if (isCancelled()) throw new DeviceWorkerHostError('helper')
+          const query = querySchema.parse(job.query)
+          if (
+            this.deps.driver.platform === 'win32' &&
+            (query.context.session === 0 ||
+              query.context.station.toLowerCase() !== 'winsta0' ||
+              (query.context.session === transport.context.session &&
+                query.context.station === transport.context.station &&
+                query.context.desktop === transport.context.desktop))
+          ) {
+            await job.cancel()
+            throw new DeviceWorkerHostError('context')
+          }
+          this.running += 1
+          isRunning = true
+          await job.activate()
+          observation ??= observe(job)
+          if (isCancelled()) await job.cancel()
+        } catch (error) {
+          if (error instanceof DeviceWorkerHostError && error.detail === 'desktop-heap')
+            this.deps.pressure('desktop-heap')
+          if (job === undefined) {
+            // No job/unit ever existed, so nothing ran: settle as refused, never as retired work.
+            isObserved = true
+            retired.resolve({ refused: true, usage: reservation.usage })
+          } else {
+            observation ??= observe(job)
+            await job.cancel()
+          }
+          throw error
+        }
+      },
+      pause: () => reservation.pause(),
+      cancel: async () => {
+        state.isCancelled = true
+        if (isObserved) return
+        if (job !== undefined) await job.cancel()
+        else if (!isStarted) {
+          isObserved = true
+          retired.resolve({ refused: true, usage: reservation.usage })
+        }
+      },
+      release: async () => {
+        if (!isObserved) throw new DeviceWorkerHostError('result')
+        await (releasing ??= reservation.release())
+      },
+    }
+  }
+}

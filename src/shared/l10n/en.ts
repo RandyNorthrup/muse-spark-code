@@ -88,6 +88,8 @@ export const EN = {
   sharePreviewExpired: 'The preview changed or expired. Preview again before sharing.',
   // M100/D80: lazy Devices setup, observations and recovery.
   devices: {
+    desktopHeap:
+      'Windows could not initialize the worker (STATUS_DLL_INIT_FAILED). Run fewer concurrent workers, run the receiver in the interactive session, or ask an administrator to raise the desktop heap and reboot. No retry or registry change was made.',
     pool: 'Pool',
     entry: 'Entry',
     usageKinds: {
