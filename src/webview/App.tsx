@@ -531,7 +531,7 @@ export function App({
   resources,
   planNoticePort,
 }: AppProps) {
-  const ResourceView = resources?.View
+  const resourceSnapshot = resources?.port.getSnapshot()
   // Callbacks read the store's current state when they run instead of
   // closing over it, so they keep their identity across renders and the
   // memoised transcript rows skip a keystroke or a delta elsewhere (M25).
@@ -3357,9 +3357,15 @@ export function App({
             </Suspense>
           )}
           <JudgeStatusLine status={state.judge} />
-          {ResourceView === undefined || resources === undefined ? null : (
+          {/* No status yet (no governed work), no chip: its deferred import waits. */}
+          {resources === undefined || resourceSnapshot === undefined ? null : (
             <Suspense fallback={null}>
-              <ResourceView port={resources.port} isInert={isModalOpen} />
+              <resources.View
+                port={resources.port}
+                isInert={isModalOpen}
+                label={UI_TEXT.resourceTitle}
+                className="resource-surface"
+              />
             </Suspense>
           )}
           {hasPlan && selectedProvider === 'copilot' ? (

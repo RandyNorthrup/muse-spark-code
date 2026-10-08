@@ -26,10 +26,8 @@ import {
   ResourceTaskRow,
   type ResourceTaskRowProps,
 } from '../../src/webview/resources/ResourceTaskRow'
-import {
-  createResourceSurfaceLoader,
-  type ResourceSurfacePort,
-} from '../../src/webview/resources/resourcePort'
+import { createResourceSurfaceLoader } from '../../src/webview/resources/resourceLoader'
+import type { ResourceSurfacePort } from '../../src/webview/resources/resourcePort'
 import { testSettings } from './helpers/fakes'
 
 function fixture(level: ResourceLevel = 'normal') {
@@ -274,14 +272,24 @@ describe('resource chip and popover', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
-  it('rejects private or malformed snapshots, hides explicit OFF and unsubscribes on unmount', () => {
+  it('shows private or malformed snapshots as unavailable, hides explicit OFF and unsubscribes on unmount', () => {
     const disconnect = vi.spyOn(MutationObserver.prototype, 'disconnect')
     const h = fixture()
     const view = render(<ResourceSurface port={h.port} />)
-    h.publish({ ...h.current(), pid: 123, path: 'canary' })
-    expect(screen.queryByRole('button')).toBeNull()
-    h.publish({ level: 'pause' })
-    expect(screen.queryByRole('button')).toBeNull()
+    const unavailable = `${UI_TEXT.resourceTitle}: ${UI_TEXT.resourceUnknown}`
+    for (const refused of [
+      { ...h.current(), pid: 123, path: 'canary' },
+      { level: 'pause' },
+      null,
+    ]) {
+      h.publish(refused)
+      fireEvent.click(screen.getByRole('button', { name: unavailable }))
+      const dialog = screen.getByRole('dialog')
+      expect(dialog).toHaveTextContent(UI_TEXT.resourceStatusRefused)
+      expect(dialog).not.toHaveTextContent('canary')
+      expect(dialog).not.toHaveTextContent(UI_TEXT.resourceCpu)
+      fireEvent.click(within(dialog).getByRole('button', { name: UI_TEXT.usageClose }))
+    }
     h.publish({
       level: 'normal',
       settings: { ...resourceSettingsSchema.parse({}), enabled: false },

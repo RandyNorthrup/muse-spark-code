@@ -18,6 +18,8 @@
   "resourceRelocatedNotice": "Práce z fronty byla přesunuta na {device}, protože tento počítač je vytížený.",
   "resourceRelocationNoRoute": "Přesouvání zatím není k dispozici: vyžaduje spárované zařízení nebo trasu k výpočetnímu stroji. Práce zůstává na tomto počítači.",
   "resourceUnavailable": "Toto měření není na tomto počítači dostupné.",
+  "resourceGovernorOff": "Limity prostředků jsou na tomto počítači vypnuté.",
+  "resourceStatusRefused": "Nejnovější stav prostředků nelze přečíst, proto se nezobrazují žádné hodnoty.",
   "resourceTransport": "Selhání přenosu",
   "resourceOsService": "Tlak na služby OS",
   "resourceCpu": "Využití procesoru",

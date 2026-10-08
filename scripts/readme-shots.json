@@ -145,6 +145,14 @@
       "width": 690,
       "height": 760,
       "note": "Local deterministic report tab and export actions"
+    },
+    {
+      "file": "media/readme/resources.png",
+      "scenario": "resources-throttle",
+      "theme": "light",
+      "width": 690,
+      "height": 760,
+      "note": "The Resources chip beside the heartbeat while throttling, opened as Show resources does: readings against their limits, waiting work, no relocation route on this build, and Resume now, Open settings and Show resources"
     }
   ],
   "excluded": [

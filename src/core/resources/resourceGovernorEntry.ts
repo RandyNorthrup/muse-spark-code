@@ -23,6 +23,11 @@ import { createMachineResourceSampler } from './sampler/system'
 import { LinuxResourceTreeReader } from './trees/linux'
 import { WindowsResourceTreeReader } from './trees/windows'
 export { createResources } from '../../runtime/resources/entry'
+// U–C1: the window's status item and pause notices load with the governor, never at activation.
+export {
+  createResourceStatus,
+  createVsCodeResourceStatusItem,
+} from '../../host/resources/resourceStatus'
 import { runTreeProgram } from './trees/run'
 import { powerShellQuoted } from '../shellQuote'
 import {

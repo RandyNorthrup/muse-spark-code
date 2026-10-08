@@ -18,6 +18,8 @@
   "resourceRelocatedNotice": "Le travail en attente a été déplacé vers {device}, car cette machine est occupée.",
   "resourceRelocationNoRoute": "Le déplacement n’est pas encore disponible : il nécessite un appareil associé ou une route vers une machine d’exécution. Le travail reste sur cette machine.",
   "resourceUnavailable": "Cette mesure est indisponible sur cette machine.",
+  "resourceGovernorOff": "Les limites de ressources sont désactivées sur cette machine.",
+  "resourceStatusRefused": "Le dernier état des ressources n’a pas pu être lu ; aucune mesure n’est donc affichée.",
   "resourceTransport": "Échecs du transport",
   "resourceOsService": "Pression sur les services système",
   "resourceCpu": "Utilisation du processeur",

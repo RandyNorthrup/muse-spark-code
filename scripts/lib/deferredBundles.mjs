@@ -329,6 +329,8 @@ export const ON_FIRST_USE = [
       'src/runtime/resources/entry.ts',
       'src/runtime/resources/host.ts',
       'src/runtime/resources/settings.ts',
+      // U–C1: the window's status item and pause notice, never at activation.
+      'src/host/resources/resourceStatus.ts',
     ],
   },
   {

@@ -18,6 +18,8 @@
   "resourceRelocatedNotice": "Eingereihte Arbeit wurde nach {device} verschoben, weil dieser Rechner ausgelastet ist.",
   "resourceRelocationNoRoute": "Verlagerung ist noch nicht verfügbar: Sie benötigt ein gekoppeltes Gerät oder eine Route zu einem Ausführungsrechner. Die Arbeit bleibt auf diesem Rechner.",
   "resourceUnavailable": "Dieser Messwert ist auf diesem Rechner nicht verfügbar.",
+  "resourceGovernorOff": "Ressourcenlimits sind auf diesem Rechner ausgeschaltet.",
+  "resourceStatusRefused": "Der aktuelle Ressourcenstatus konnte nicht gelesen werden, daher werden keine Messwerte angezeigt.",
   "resourceTransport": "Transportfehler",
   "resourceOsService": "Belastung der Betriebssystemdienste",
   "resourceCpu": "CPU-Auslastung",

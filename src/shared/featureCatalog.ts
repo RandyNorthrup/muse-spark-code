@@ -162,6 +162,9 @@ interface CommandReference {
 
 export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> = {
   openUsagePage: { description: { ui: 'paletteUsagePage' }, canRun: true },
+  // M107 U–C1/W: Show opens the chat's chip popover; Resume changes the governor, so no Run.
+  showResources: { description: { command: COMMAND_IDS.showResources }, canRun: true },
+  resumeResources: { description: { command: COMMAND_IDS.resumeResources }, canRun: false },
   legalScan: { description: { ui: 'legalScanItemDetail' }, canRun: false },
   connectChatGpt: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
   connectCopilot: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
@@ -266,7 +269,7 @@ export function featureCatalog(): readonly Feature[] {
       'resources',
       { ui: 'resourceTitle' },
       { ui: 'referenceResources' },
-      [],
+      ['showResources', 'resumeResources'],
       [
         'resourceGovernor',
         'resourceCpuMaxPercent',

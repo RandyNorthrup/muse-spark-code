@@ -1645,6 +1645,21 @@ body {
   justify-content: space-between;
 }
 
+/* Equal-weight actions on one row at every width; a long label wraps inside
+   its own button instead of stacking the buttons. */
+.resource-popover footer {
+  flex-wrap: nowrap;
+}
+
+.resource-popover footer > * {
+  flex: 1 1 0;
+  align-self: stretch;
+  min-width: 0;
+  padding-inline: 4px;
+  border-color: var(--vscode-panel-border);
+  text-wrap: balance;
+}
+
 .resource-readings > div {
   display: flex;
   flex-wrap: wrap;

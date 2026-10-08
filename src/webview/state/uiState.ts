@@ -266,6 +266,14 @@ export interface UiState {
   readonly pendingReportCommand:
     { readonly requestId: string; readonly draftRevision: number } | undefined
   readonly judge: JudgeStatus | undefined
+  /**
+   * M107 U–C1: this window governor's status as the host sent it (bounded
+   * JSON text; the deferred chip checks its schema); null when the current
+   * status was refused. Machine-wide, never saved.
+   */
+  readonly resourceStatus: string | null | undefined
+  /** The latest Show resources open the host offered, and the document it named. */
+  readonly resourceOffer: { readonly seq: number; readonly nonce: string } | undefined
   /** Newest resolutions whose tool rows have not arrived yet; never saved. */
   readonly pendingApprovalResolutions: readonly Extract<AgentEvent, { type: 'approvalResolved' }>[]
   readonly phase: 'connecting' | 'ready'
@@ -689,6 +697,8 @@ export const initialUiState: UiState = {
   usageRequests: 0,
   estimatorRequests: 0,
   helpRequests: 0,
+  resourceStatus: undefined,
+  resourceOffer: undefined,
   referenceValues: undefined,
   pendingInsert: undefined,
   judge: undefined,
@@ -3116,6 +3126,12 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'paidState': {
       return { ...state, paid: message.state }
+    }
+    case 'resourceStatus': {
+      return { ...state, resourceStatus: message.status }
+    }
+    case 'resourceOpen': {
+      return { ...state, resourceOffer: message }
     }
     case 'historyLoaded': {
       // The same session read again (a delivery gap, D26) keeps its usage.

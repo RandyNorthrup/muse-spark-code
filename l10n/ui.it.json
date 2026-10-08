@@ -18,6 +18,8 @@
   "resourceRelocatedNotice": "Il lavoro in coda è stato spostato su {device} perché questa macchina è occupata.",
   "resourceRelocationNoRoute": "Il trasferimento non è ancora disponibile: richiede un dispositivo associato o un percorso verso una macchina di esecuzione. Il lavoro resta su questa macchina.",
   "resourceUnavailable": "Questa lettura non è disponibile su questa macchina.",
+  "resourceGovernorOff": "I limiti delle risorse sono disattivati su questa macchina.",
+  "resourceStatusRefused": "Impossibile leggere lo stato più recente delle risorse, quindi non vengono mostrate misurazioni.",
   "resourceTransport": "Errori di trasporto",
   "resourceOsService": "Pressione sui servizi del sistema",
   "resourceCpu": "Utilizzo della CPU",

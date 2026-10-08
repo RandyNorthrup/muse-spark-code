@@ -31298,6 +31298,85 @@ quality/coverage and non-Linux native receipts remain the lead's release gate.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**M107 W chip — the U–C1/W window binding (2026-10-08, for 0.17).** PR #140's
+review found the chip never mounted. The window's `ResourceLaunchHost` now
+keeps one cached, schema-checked status (replaced only when its content
+changes), a disposable change subscription (readings, events, queue grants
+and withdrawals, settings), Resume now (G's fifteen-minute override; an
+explicitly disabled governor stays off) and a one-shot refresh for Show
+that starts no periodic sampling. `admission.ts` hands that port and the
+status adapter (`createResourceStatus`, now loaded with
+`dist/resourceGovernor.js` and free of any `vscode` import) to the window
+when the host first loads. Activation adds only
+`src/host/resources/resourceWindow.ts` and two contributed commands,
+`museSpark.showResources` (the chip's popover in the chat in view) and
+`museSpark.resumeResources`. The host sends `resourceStatus` as bounded JSON
+text (`RESOURCE_STATUS_MAX_CHARS`). The strict `resourceStatusSchema` runs in
+the deferred chip chunk before any field is shown. Its resource-only parser
+therefore stays out of chat startup, as W's split requires. `resourceOpen`
+opens the popover; `resourceAction` carries show/settings/resume back.
+mountChat creates the loader once and passes it to App only after the first
+status. The popover's Show opens the Usage & cost page, where J/M102's
+history mounts. Relocation still reports `noRoute`. The surface-English
+split no longer follows chat's deferred import into the chip entry, which
+carries its own English. Editor parity: ACP and terminals already have the
+equivalent; MHP and companion hosts reuse the same adapter and chip once
+M104 binds their bridges. Receipts:
+[`docs/certification/m107.md`](docs/certification/m107.md#m107-w-chip--window-binding).
+
+**FIXM107W1D host-issued document identity and one Show operation
+(2026-10-08).** RVM107W1D found five more P2s in the open handshake (round
+five), so it is redesigned, not patched. `configureWebview` names every
+document it builds (`data-document-id` on the body; `ChatSurface.documentId`),
+and Reload issues a new id at once. The chip only echoes that id. The window
+accepts a pull or ack only under the surface's current id, and an ack only
+for the seq it offered to that id, so arrival order decides nothing. Each
+Show is one operation with an AbortController: a newer Show, its target's
+removal or disposal aborts it; every await is followed by an abort check,
+and it withdraws only its own open. Show reads the governor first, so an
+off governor opens and focuses nothing, and the conversation opening is
+awaited as soon as it starts. Regressions run through the production webview
+setup, panel and sidebar adapters and the registry, and 7 fail on
+`f2708deeb`. Chat startup is unchanged. RVM107W1E found no P1 or P2. Its
+P3 was that the resources harness had silently stopped applying theme body
+classes once the page gained the id. That is fixed, and every page now
+asserts its theme class and the echoed document id. Status: repaired on
+`m107/w-chip`, with the lead's integration gates still to run. M104 bridge parity, M102 history and the lead's full
+quality and installed-editor receipts remain separate.
+
+**FIXM107W1C pull model (2026-10-08).** RVM107W1C's four P2s led the lead to
+replace pushed opens with a pull model. Each chat document's chip mints a
+nonce and pulls on mount. Show binds its target and a monotonically
+increasing seq synchronously, stops when superseded or disposed, and
+withdraws its own seq when opening a conversation fails. The host offers
+`resourceOpen {seq, nonce}` only to the document that named itself, and an
+open is spent only by that document's acknowledgement. A reload's stale
+nonce is ignored. The nonce stays out of `ready` to keep chat startup
+inside the FIXDIET1 baseline.
+
+**FIXM107W1B open-intent redesign (2026-10-08).** RVM107W1B found the open
+lost across a document reload, and a new-conversation open unbound and
+surviving disposal. Readiness now belongs to each surface document
+generation (Reload starts an unready one). Show binds its open to one target
+when it runs (the surface in view, or the new conversation's surface id),
+delivers it once to that target's first ready generation, and cancels it on
+the target's removal or the adapter's disposal. The resources harness
+classifies axe's unseen contrast per node as `scripts/a11y.mjs` does and
+measures the refusal sentence's contrast directly.
+
+**FIXM107W1 review repair and chip scenes (2026-10-08).** Codex RVM107W1
+found three P2s in the window binding; all are repaired with regressions
+proven red on `23432ce4d` and byte-exact drills. A refused status (unreadable,
+unknown-field, oversized, or over the host's bound) shows the chip as
+unavailable with a localized refusal, never an old reading or nothing.
+Show resources keeps its open for a registered surface until that surface is
+ready. The chip uses the deferred-surface helper's accessible loading row and
+boundary, so a failed chunk offers Try again while chat stays mounted.
+The resources harness gains four production-path scenes with the owner's
+UI rules (one row of equal, bordered actions; visible focus; crisp chip), and
+README shows `media/readme/resources.png` from the new `resources-throttle`
+scenario. M104 bridge parity is assigned separately.
+
 **FIXM107J review repair (2026-10-06, Kubuntu).** Repair both RVM107J P2s
 and its P3 inside J's collector, aggregate, history boundary and shared view.
 Read-time flushes retain the active minute and its per-tree CPU baselines;

@@ -40,6 +40,8 @@ import {
   REPORT_FRAME_PATH_MAX_CHARS,
   REPORT_STACK_MAX_FRAMES,
   REPORT_WEBVIEW_ERROR_KINDS,
+  RESOURCE_NONCE_MAX_CHARS,
+  RESOURCE_STATUS_MAX_CHARS,
   SUBAGENT_ACTIONS,
   WEBVIEW_ERROR_MESSAGE_MAX_CHARS,
   WEBVIEW_ERROR_SOURCES,
@@ -100,6 +102,9 @@ import { teamTreeSchema, teamUsageSchema } from './teamView'
 
 const stringSchema = z.string()
 const numberSchema = z.number()
+// M107: the random id a chat document mints at start; and Show's request number.
+const documentNonceSchema = z.string().check(z.minLength(1), z.maxLength(RESOURCE_NONCE_MAX_CHARS))
+const resourceSeqSchema = z.int().check(z.gte(1))
 const booleanSchema = z.boolean()
 import { parseWith, type ParseResult } from './parseResult'
 
@@ -590,6 +595,18 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Editor resources dropped onto the composer (`text/uri-list`).
   z.object({ type: z.literal('droppedUris'), uris: z.array(stringSchema) }),
   z.object({ type: z.literal('hostAction'), action: z.enum(HOST_ACTIONS) }),
+  // M107 U–C1: the chip's popover controls; the host runs each through its command.
+  z.strictObject({
+    type: z.literal('resourceAction'),
+    action: z.enum(['show', 'settings', 'resume']),
+  }),
+  // M107 pull model: a document asks for a pending Show, and acknowledges one.
+  z.strictObject({ type: z.literal('resourcePull'), nonce: documentNonceSchema }),
+  z.strictObject({
+    type: z.literal('resourceOpenAck'),
+    seq: resourceSeqSchema,
+    nonce: documentNonceSchema,
+  }),
   z.strictObject({ type: z.literal('openUsagePage') }),
   // Approval card: one of the request's `availableChoices`.
   z.object({
@@ -1104,6 +1121,21 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // Sent on surfaceReady and on every change.
   z.object({ type: z.literal('paidState'), state: paidStateSchema }),
   z.object({ type: z.literal('judgeState'), state: judgeStatusSchema }),
+  // M107 U–C1: the window governor's checked status as JSON text, bounded here.
+  // resourceStatusSchema checks it strictly in the deferred chip before any
+  // field is shown, so its parser never enters chat's startup bundle.
+  // null: the current status was refused (over the bound, or unreadable), so
+  // the chip says it is unavailable rather than keep an old reading.
+  z.strictObject({
+    type: z.literal('resourceStatus'),
+    status: z.nullable(z.string().check(z.minLength(1), z.maxLength(RESOURCE_STATUS_MAX_CHARS))),
+  }),
+  // Show resources' open, for the document whose nonce it names; it acks the seq.
+  z.strictObject({
+    type: z.literal('resourceOpen'),
+    seq: resourceSeqSchema,
+    nonce: documentNonceSchema,
+  }),
   // A message the host sent itself (M79: a plan's brief): the pending card,
   // as the composer's own Send would have made it. `turnAccepted` or
   // `sendFailed` follows with the same `localId`.

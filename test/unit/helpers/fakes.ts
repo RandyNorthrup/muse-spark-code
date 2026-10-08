@@ -271,6 +271,7 @@ export function fakeSurface(id: string, isSideChat = false): FakeSurface {
   return {
     id,
     isSideChat,
+    documentId: `${id}-document`,
     posted,
     post(message) {
       posted.push(message)

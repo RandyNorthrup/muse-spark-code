@@ -18,6 +18,8 @@
   "resourceRelocatedNotice": "Pracę z kolejki przeniesiono na {device}, ponieważ ten komputer jest zajęty.",
   "resourceRelocationNoRoute": "Przenoszenie nie jest jeszcze dostępne: wymaga sparowanego urządzenia lub trasy do maszyny wykonawczej. Praca pozostaje na tym komputerze.",
   "resourceUnavailable": "Ten odczyt jest niedostępny na tym komputerze.",
+  "resourceGovernorOff": "Limity zasobów są wyłączone na tym komputerze.",
+  "resourceStatusRefused": "Nie udało się odczytać najnowszego stanu zasobów, więc nie są wyświetlane żadne odczyty.",
   "resourceTransport": "Błędy transportu",
   "resourceOsService": "Obciążenie usług systemowych",
   "resourceCpu": "Użycie procesora",

@@ -1,5 +1,5 @@
 // Shared wiring for both webview surfaces (sidebar view and editor panel):
-// options, HTML with a fresh CSP nonce, the inbound message handler, and the
+// options, HTML with a fresh CSP nonce and document id (M107), the inbound message handler, and the
 // `ChatSurface` handle (chatSurface.ts) the rest of the host uses to talk back.
 
 import * as vscode from 'vscode'
@@ -82,7 +82,9 @@ export function configureWebview(
 ): ChatSurface {
   const bundleRoot = vscode.Uri.joinPath(context.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
   webview.options = { enableScripts: true, localResourceRoots: [bundleRoot] }
-  const applyHtml = () => {
+  // M107: each build names its document; the id it returns is the only current one.
+  const buildDocument = (): string => {
+    const documentId = createNonce()
     webview.html = buildWebviewHtml({
       scriptUri: webview
         .asWebviewUri(vscode.Uri.joinPath(bundleRoot, WEBVIEW_SCRIPT_FILE))
@@ -93,9 +95,11 @@ export function configureWebview(
       cspSource: webview.cspSource,
       nonce: createNonce(),
       l10n: context.l10n,
+      documentId,
     })
+    return documentId
   }
-  applyHtml()
+  let documentId = buildDocument()
 
   let restoredSessionId = options.restoredSessionId
   let isActive = true
@@ -103,6 +107,9 @@ export function configureWebview(
   const surface: ChatSurface = {
     id: options.id,
     isSideChat: options.isSideChat === true,
+    get documentId() {
+      return documentId
+    },
     post(message) {
       if (message.type === 'conversationCleared' || message.type === 'historyLoaded')
         estimatorGeneration++
@@ -114,7 +121,9 @@ export function configureWebview(
     reveal: options.reveal,
     markUnread: options.markUnread,
     setTitle: options.setTitle,
-    reload: applyHtml,
+    reload: () => {
+      documentId = buildDocument()
+    },
     takeRestoredSessionId() {
       return restoredSessionId
     },

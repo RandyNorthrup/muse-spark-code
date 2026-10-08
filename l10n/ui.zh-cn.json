@@ -18,6 +18,8 @@
   "resourceRelocatedNotice": "由于此计算机繁忙，排队的工作已移至 {device}。",
   "resourceRelocationNoRoute": "迁移尚不可用：需要配对设备或通往运行机器的路由。工作将保留在此计算机上。",
   "resourceUnavailable": "此计算机无法提供这项读数。",
+  "resourceGovernorOff": "此计算机上的资源限制已关闭。",
+  "resourceStatusRefused": "无法读取最新的资源状态，因此不显示任何读数。",
   "resourceTransport": "传输失败",
   "resourceOsService": "操作系统服务压力",
   "resourceCpu": "CPU 使用率",
