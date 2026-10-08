@@ -111,6 +111,53 @@ async function approveSearch(t: ReturnType<typeof rig>, request: PaidUseRequest)
   return consent
 }
 
+/** Approves Always for search and voice on a fresh instance; returns the instance. */
+async function approveSearchAndVoice(t: ReturnType<typeof rig>, request: PaidUseRequest) {
+  t.deps.ask.mockResolvedValue('always')
+  const consent = t.create()
+  expect(await consent.allows(request)).toBe(true)
+  expect(await consent.allows({ feature: 'voice' })).toBe(true)
+  expect(t.deps.ask).toHaveBeenCalledTimes(2)
+  return consent
+}
+
+/** A restart on the same store reuses both grants with no new ask. */
+async function expectRestartReusesBoth(
+  t: ReturnType<typeof rig>,
+  request: PaidUseRequest,
+  asks: number,
+) {
+  expect(await t.create().allows(request)).toBe(true)
+  expect(await t.create().allows({ feature: 'voice' })).toBe(true)
+  expect(t.deps.ask).toHaveBeenCalledTimes(asks)
+}
+
+/**
+ * A restart on the same store finds only stale leftovers: it asks again
+ * and Deny is honoured for both.
+ */
+async function expectRestartAsksDenied(
+  t: ReturnType<typeof rig>,
+  request: PaidUseRequest,
+  asks: number,
+) {
+  t.deps.ask.mockResolvedValue('deny')
+  expect(await t.create().allows(request)).toBe(false)
+  expect(await t.create().allows({ feature: 'voice' })).toBe(false)
+  expect(t.deps.ask).toHaveBeenCalledTimes(asks)
+}
+
+/** A failing clear rejects `revoke()` while its quote leftover stays stored. */
+async function expectFailedRevokeKeepsQuote(
+  t: ReturnType<typeof rig>,
+  failClear: () => void,
+  revoke: () => Promise<void>,
+) {
+  failClear()
+  await expect(revoke()).rejects.toThrow('disk unavailable')
+  expect(t.quotes.size).toBe(1)
+}
+
 /**
  * Approves Always for `approved`, then requires a fresh popup — honoured as
  * Deny — for `changed` on the same and on a new instance.
@@ -398,10 +445,12 @@ describe('M108 account-bound paid use consent', () => {
     for (const grants of t.grants.values()) expect(grants.features.size).toBe(0)
     expect(t.quotes.size).toBe(0)
     expect(await a.allows(request)).toBe(true)
-    t.deps.writeGrants.mockRejectedValueOnce(new Error('disk unavailable'))
-    await expect(a.revoke()).rejects.toThrow('disk unavailable')
+    await expectFailedRevokeKeepsQuote(
+      t,
+      () => t.deps.writeGrants.mockRejectedValueOnce(new Error('disk unavailable')),
+      () => a.revoke(),
+    )
     // The grant is still in the store, but the advanced epoch voids it.
-    expect(t.quotes.size).toBe(1)
     t.deps.ask.mockResolvedValue('deny')
     expect(await a.allows(request)).toBe(false)
   })
@@ -411,45 +460,32 @@ describe('M108 account-bound paid use consent', () => {
     const request = quotedSearch('0.0025', 'model-a')
     const a = t.create()
     await a.revoke()
-    t.deps.ask.mockResolvedValue('always')
-    expect(await a.allows(request)).toBe(true)
-    expect(await a.allows({ feature: 'voice' })).toBe(true)
-    expect(t.deps.ask).toHaveBeenCalledTimes(2)
+    await approveSearchAndVoice(t, request)
     expect(t.epochs.get(bindingKey())).toBe(1)
     // A restart on the same store reads the durable epoch, so both grants hold.
-    expect(await t.create().allows(request)).toBe(true)
-    expect(await t.create().allows({ feature: 'voice' })).toBe(true)
-    expect(t.deps.ask).toHaveBeenCalledTimes(2)
+    await expectRestartReusesBoth(t, request, 2)
   })
 
   it('ignores leftover binding grants after a restart when their clear failed', async () => {
     const t = rig()
     const request = quotedSearch('0.0025', 'model-a')
-    t.deps.ask.mockResolvedValue('always')
-    const a = t.create()
-    expect(await a.allows(request)).toBe(true)
-    expect(await a.allows({ feature: 'voice' })).toBe(true)
-    expect(t.deps.ask).toHaveBeenCalledTimes(2)
+    const a = await approveSearchAndVoice(t, request)
     t.deps.writeGrants.mockRejectedValueOnce(new Error('disk unavailable'))
     await expect(a.revoke()).rejects.toThrow('disk unavailable')
-    // The epoch already advanced, so a restart finds only stale leftovers:
-    // it asks, and Deny is honoured.
-    t.deps.ask.mockResolvedValue('deny')
-    expect(await t.create().allows(request)).toBe(false)
-    expect(await t.create().allows({ feature: 'voice' })).toBe(false)
-    expect(t.deps.ask).toHaveBeenCalledTimes(4)
+    // The epoch already advanced, so a restart finds only stale leftovers.
+    await expectRestartAsksDenied(t, request, 4)
   })
 
   it('ignores leftover quote grants after a restart when their clear failed', async () => {
     const t = rig()
     const request = quotedSearch('0.0025', 'model-a')
-    t.deps.ask.mockResolvedValue('always')
-    const a = t.create()
-    expect(await a.allows(request)).toBe(true)
+    const a = await approveSearch(t, request)
     expect(t.deps.ask).toHaveBeenCalledTimes(1)
-    t.storeFor(bindingKey()).revoke.mockRejectedValueOnce(new Error('disk unavailable'))
-    await expect(a.revoke()).rejects.toThrow('disk unavailable')
-    expect(t.quotes.size).toBe(1)
+    await expectFailedRevokeKeepsQuote(
+      t,
+      () => t.storeFor(bindingKey()).revoke.mockRejectedValueOnce(new Error('disk unavailable')),
+      () => a.revoke(),
+    )
     t.deps.ask.mockResolvedValue('deny')
     expect(await t.create().allows(request)).toBe(false)
     expect(t.deps.ask).toHaveBeenCalledTimes(2)
@@ -458,20 +494,14 @@ describe('M108 account-bound paid use consent', () => {
   it('reports a failed epoch advance honestly with the grants still working', async () => {
     const t = rig()
     const request = quotedSearch('0.0025', 'model-a')
-    t.deps.ask.mockResolvedValue('always')
-    const a = t.create()
-    expect(await a.allows(request)).toBe(true)
-    expect(await a.allows({ feature: 'voice' })).toBe(true)
-    expect(t.deps.ask).toHaveBeenCalledTimes(2)
+    const a = await approveSearchAndVoice(t, request)
     t.deps.writeRevocationEpoch.mockRejectedValueOnce(new Error('disk unavailable'))
     await expect(a.revoke()).rejects.toThrow('disk unavailable')
     // Nothing was cleared and the epoch never moved: both instances reuse.
     expect(t.quotes.size).toBe(1)
     expect(await a.allows(request)).toBe(true)
     expect(await a.allows({ feature: 'voice' })).toBe(true)
-    expect(await t.create().allows(request)).toBe(true)
-    expect(await t.create().allows({ feature: 'voice' })).toBe(true)
-    expect(t.deps.ask).toHaveBeenCalledTimes(2)
+    await expectRestartReusesBoth(t, request, 2)
   })
 
   it('keeps a concurrent ask on one instance from resurrecting a revoked grant', async () => {
