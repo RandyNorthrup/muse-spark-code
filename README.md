@@ -3997,11 +3997,15 @@ stopped and the next message resumes the same session.
 
 ### Paired Devices integration in development
 
-Devices is off by default and remains unshipped. The joined implementation has
-public text invitations, bilateral full fingerprint comparison, pinned mutual
-TLS and a durable receiver behind the same method port for editor integrations.
-Opening a view does not start a listener, discovery, model or remote task.
-There is no installed Devices command or setting on this base. See the
+Devices is off by default and remains unshipped. The `Muse Spark: Open Devices
+in a Tab` command opens the Devices tab; its code loads only when opened, and
+the document waits for its ready handshake before host observations replay.
+Invitations render as QR codes (with the copyable text as fallback) carrying
+the public certificate, fingerprint, address, protocol version and bounded
+validity — never a private key. Pairing, discovery, remote execution and
+per-action approvals need lane K's owner binding first: those actions refuse
+explicitly with recovery guidance instead of proceeding unchecked. Opening the
+tab starts no listener, discovery, model or remote task. See the
 [feature inventory](docs/devices-reference.md) and
 [integration certification](docs/certification/m100.md).
 

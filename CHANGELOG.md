@@ -7,6 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Open the Devices tab from the Command Palette (`Muse Spark: Open Devices
+  in a Tab`) to set up paired devices on the local network. The tab loads
+  its code only when opened; invitations render as QR codes with a copyable
+  text fallback. Pairing, discovery, remote execution and per-action
+  approvals stay off until owner binding lands: those actions refuse
+  explicitly with recovery guidance instead of proceeding unchecked.
+
 - Show the phase-2 Devices views (QR with text fallback, discovery details,
   owners and grants with revoke, step-up prompts, power and pressure, blocked
   recovery) against fakes behind the existing Devices budgets.

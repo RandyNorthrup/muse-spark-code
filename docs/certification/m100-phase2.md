@@ -5114,3 +5114,176 @@ and npm-cache writes. No join regression: 17759 passing tests include the
 whole non-device tree, and all device suites that can run here pass
 (432 darwin, 58 storage/store, 83 lane-D, 78 U views/panels, 130 V, 24
 native Linux driver cases).
+
+## Lane W — wiring, qualification, docs (M100W, 2026-10-08)
+
+Kubuntu rig, worktree `/home/randy/lanes/M100W`, branch `m100/p2-w` from
+`m100/p2-int-lead2` (`a4007f56c`). Model attempts **0**, inference spend
+**0**; no push, no rebase, no merge. Commits with hooks on (lint-staged,
+gitleaks); each staged diff re-read after the hook run.
+
+### Delivered
+
+1. **One driver selector.** Kept `selectDeviceWorkerDriver`, now async with
+   lazy `darwin`/`win32`/`linux` factories; deleted
+   `deviceWorkerDriverForPlatform`. Rationale: the Linux continuation
+   requires a lazy loader (it avoids the host/driver cycle), and the
+   sync macOS function cannot select Linux lazily. Every caller and test
+   moved onto it with every assertion kept (async-adapted), plus an
+   unsupported-platform refusal and a laziness proof per factory.
+   Commit `b95f8beb5`.
+2. **The QR encoder.** Installed `qrcode-generator@2.0.4` pinned exact into
+   `dependencies` (MIT, zero dependencies, no peers, own types; peer check
+   via `npm info` empty). `npm audit` shows 11 findings, none touching the
+   new package; `npm run security:audit` exits 0 under the existing
+   exceptions. `QrFigure` falls back to the installed encoder when none is
+   injected; the Devices surface loads it lazily beside the figure, so
+   startup carries no QR bytes (Devices QR **21.6/25 KiB**, inside the
+   pre-sized budget). The published tarball ships no licence file, so the
+   notices gate carries upstream's LICENSE verbatim from
+   `vendor/qrcode-generator/LICENSE` (copyright also named in the shipped
+   `dist/qrcode.mjs`); the manifest's MIT declaration is still checked and
+   any other licence-less package still fails. Structural finder-pattern
+   plus oversize-refusal regressions in `test/unit/deviceQrEncoder.test.ts`.
+   No other new dependency. Commit `de010e41b`.
+3. **Production wiring (extension host).** `museSpark.openDevices` opens one
+   `DevicesPanelTab` serving the `devices` surface; the first host message
+   lazily loads `dist/devices.js` through the shared port with the
+   production authorities (`openDeviceProductionDeps`: pairing store
+   opened-or-created once, attempt journal with a real owner check,
+   SecretStorage secrets on the local host, Windows storage protection).
+   ACP/headless pairing is Q-M100 (out of scope), so no ACP/runtime wiring:
+   PLAN names no other production caller. Eight regressions in
+   `test/unit/deviceProductionWiring.test.ts` fail on the join base (the
+   modules do not exist there). The tab shares its panel construction with
+   the tasks tab (`createAuxWebviewPanel`, zero-clone gate green).
+4. **Gates and records.** Build, split, size, host-globals, notices,
+   packaging, knip, dpdm, `check:l10n`, `check:reference`, regenerated
+   host API record, new `devices` reference feature with command coverage,
+   new `museSpark.openDevices` manifest strings in all 15 tables, new
+   `referenceDevices` UI string in all 14 tables (both English-pending via
+   `l10n/untranslated.json`, hooks-command precedent). The worker C# asset
+   ships (`.vscodeignore` + manifest test). One `§8` row for the single
+   test-bundle cast.
+5. **Docs.** README, PRIVACY (`docs/PRIVACY.md`), SECURITY.md, CHANGELOG
+   (real user-facing `Added` entry), `featureCatalog` availability left at
+   `unshipped` until installed-host qualification, this record.
+
+### Lane K preconditions (stated, not stubbed)
+
+Lane K (blocked on M109) binds after its owner-validity check: remote
+execution with its worker driver (supplied through the unified selector —
+kept out of `dist/devices.js` on purpose, since all three native drivers
+with M96's environment record measure 40.4 KiB over the unchanged 125 KiB
+cap), approval policy, the channel source, the listener facts
+(`setup`/`otherAction`, including the canonical listener-port decision),
+and the panel snapshot mapping. M96's engine `reserve`/`command`/
+`recordEnvironment` adapters are likewise K's. Until then every K-owned
+action refuses with typed `unsupported-host` (mapped to the Devices
+recovery UI), paid use stays off, and teardown never throws. The Devices
+surface itself — command, tab, ready handshake, off-state, QR with text
+fallback — is reachable in every editor now.
+
+### Gate receipts (this worktree)
+
+| Gate                                            | Exit | Result                                                                        |
+| ----------------------------------------------- | ---- | ----------------------------------------------------------------------------- |
+| five typechecks                                 | 0    | host, webview, unit, e2e, integration clean                                   |
+| eslint `--max-warnings=0` (full `npm run lint`) | 0    | clean                                                                         |
+| prettier                                        | 0    | clean (changed files checked)                                                 |
+| plain `npx knip`                                | 0    | same two pre-existing configuration hints                                     |
+| `npm run duplication`                           | 0    | 0 clones (after the shared panel helper)                                      |
+| `npm run cycles`                                | 0    | no cycles                                                                     |
+| `node scripts/check-l10n.mjs`                   | 0    | 14 UI + 14 usage tables, 198 manifest strings, 0 problems                     |
+| `npm run check:reference`                       | 0    | current (62 features, Devices 18 entries)                                     |
+| `node scripts/check-host-api.mjs`               | 0    | 0 problems (regenerated)                                                      |
+| `npm run build`                                 | 0    | devices.js **104.4/125 KiB**, activation 465.9/600, QR 21.6/25, no cap raised |
+| `npm run security:audit`                        | 0    | 2 advisories, 1 exception file; no QR findings                                |
+
+### Suites the lead must certify outside the sandbox
+
+The sandbox refuses: the device journal's storage (ownership check),
+Chrome launches (harness/a11y/keyboard scenes), `npm pack` (packaging
+suites), interface enumeration and the systemd user bus. The lead runs,
+on a qualified host: `deviceIntegration`, `deviceReceiver`,
+`deviceRecovery`, the Devices harness/a11y/keyboard scenes, the
+packaging suites, and the real-filesystem path of
+`openDeviceProductionDeps` (the committed test proves the binding with
+structural fakes only).
+
+### Installed-host qualification (lead-run, four machines)
+
+Machines: Windows PC, Kubuntu VM, Mac mini, Win11 VM. Prerequisites: lane
+K bound (pairing setup facts, execution, policy, source, snapshot) and the
+M96 engine adapters; simulators rule where hardware is missing (D83).
+Record for each machine: actual listener address/port, OS permission and
+firewall facts, and who authorized each step.
+
+1. **Open.** Command Palette → `Muse Spark: Open Devices in a Tab`.
+   Expected: one Devices tab beside the editor; no bundle load until its
+   first message (host log shows the lazy load once); the document posts
+   `devicesReady` and renders the off-state; opening the tab starts no
+   listener (no new listening socket) and sends no traffic.
+2. **Pair (QR, then text).** On A: Pair → invite shows QR plus copyable
+   text. Scan/import the text on B; compare fingerprints on both screens;
+   confirm both. Expected: both sides list the pair with identical
+   fingerprints; the invitation carries public certificate, fingerprint,
+   address, protocol version and bounded validity, never a private key.
+   Red drills: copy a public invite without its private key and try to
+   pair (must fail); confirm a mismatched fingerprint (must refuse).
+3. **Discover (mDNS).** Enable discovery on both; each sees the other's
+   opaque service id, port and protocol version only. Expected: discovery
+   off by default; a spoofed record never replaces the saved peer pin;
+   manual entry connects with discovery fully blocked. Drill: enable
+   discovery without consent in a golden (zero-traffic test fails).
+4. **Run a lane on the remote device (needs K).** Offer a lane from A to B;
+   B admits under its receiver grant; pause the offer; drop the transport
+   and reconnect. Expected: resume resends only unacknowledged messages
+   and never launches twice; a failed poll reads unknown-since, never
+   running; re-dispatch only after lease expiry under a new epoch from
+   the last acknowledged checkpoint; late results quarantined; results
+   content-addressed and acknowledged once. Cancel: Stop reaches the local
+   cancellation port first, without waiting for approval or persistence;
+   cancellation proves neither retirement nor release.
+5. **D83 physical-safety refusals (needs K).** Attempt a physical/maker
+   action. Expected: a fresh receiver-local approval of the exact payload
+   every time — no unattended action, ordinary approval, pairing grant or
+   Bypass substitutes; `Waiting for approval on {device}` shows while
+   pending; Stop still reaches the fail-safe channel reset with the
+   journal unavailable. Physical support stays unavailable until an actual
+   executor, exact-payload approval UI and printer/CNC/MCU simulators are
+   supplied with passing receipts; simulator receipts never qualify
+   hardware.
+6. **Sign-off row per machine.** Listener application/interface/address/
+   port, firewall exception (or refusal), storage directory ownership and
+   SecretStorage/OS-store backend, worker driver in use (Windows service
+   context / systemd user unit / launchd Aqua job), battery/AC reading
+   during the run.
+
+Checkable shell probes (run on each machine; trusted local paths only):
+
+```sh
+# Listening sockets before (expect none new) and after listen (expect the
+# recorded pair port on the recorded interface only).
+node -e "require('os').networkInterfaces()" # cross-check the setup facts
+# Storage ownership: pairing dir and journal dir owner-only, ancestors safe.
+# Windows: the storage helper answers ping; journal uses the DPAPI binding.
+```
+
+A step that needs K fails closed today (typed `unsupported-host` with
+recovery guidance, never an empty success); record each such step as
+K-blocked, not passed.
+
+### Base-failure proof for the new regressions
+
+The new test files cannot collect on `a4007f56c` (verified: none of
+`deviceProduction.ts`, `views/devicesPanelTab.ts`, `deviceProductionWiring.test.ts`,
+`deviceQrEncoder.test.ts`, `qrGeneratorEncoder.ts`, `auxWebviewPanel.ts`
+exists there). The modified suites assert contracts absent on the base:
+the migrated selector tests call the async three-factory
+`selectDeviceWorkerDriver` (base has the sync two-factory variant plus the
+deleted `deviceWorkerDriverForPlatform`); the QrFigure fallback test renders
+QR pixels with no injected encoder (base renders nothing); the wiring, html
+surface, manifest worker-file and reference/command assertions reference
+`museSpark.openDevices`, the `devices` surface and
+`MuseSparkDeviceWorker.cs`, none of which exist on the base.
