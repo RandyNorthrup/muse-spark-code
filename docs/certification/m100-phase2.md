@@ -167,9 +167,37 @@ and exit 1; the host drills were repeated against the final host source hash.
 - Phase-1 transport/boundary plus phase-2 contracts: **122 passed**.
 - Host and unit typechecks, changed-file ESLint/Prettier, plain knip,
   duplication (0 clones), reference and localization: clean in this lane.
-- Host API: 0 problems. Production build/sizes/splits/host globals/notices:
-  clean before the final inbound-factory addition; exact committed-tree
-  results follow in the fresh-clone receipt below. No cap or gate was changed.
+- Host API and production build/sizes/splits/host globals/notices were repeated
+  on the final committed code, as recorded below. No cap or gate was changed.
+
+### Final committed-code fresh-clone receipt
+
+Code commit `39524833459b89f0df470e517d4b3936959ffbad`, cloned directly from
+this worktree to `/tmp/m100p2c-final-verify.YPf3Op`. Node **24.18.0**, npm
+**12.0.1**; `CI=true npm ci` exited **0**. Both source SHA-256 values above
+match the committed worktree and the fresh clone after the commit hooks.
+
+- Three consecutive runs of
+  `CI=true npx vitest run test/unit/channel.test.ts test/unit/deviceMultiplexedChannel.test.ts test/unit/deviceChannel.test.ts --maxWorkers=3`:
+  **66 passed each**, durations **1.76 s / 2.88 s / 2.56 s**. Repository
+  default timeouts; no timeout override.
+- `npm run typecheck`: exit **0**, all five projects (host, webview, unit,
+  e2e and integration).
+- `npm run lint`: exit **0**, full JavaScript/TypeScript and CSS gates.
+  The existing PowerShell gate reports its Linux platform skip;
+  PSScriptAnalyzer remains part of W's Windows qualification.
+- Prettier on all six changed files, plain `npx knip` and
+  `npm run duplication`: exit **0**; **0 clones**. Knip's existing hints
+  about `vendor/**` and `axe-core` were not changed.
+- `npm run check:reference`: exit **0**, generated reference current,
+  **18 Devices entries**. `npm run check:l10n`: exit **0**, **14 tables**,
+  **0 problems**. `npm run check:host-api`: exit **0**, **0 problems**.
+- `npm run build`: exit **0**, sizes, split, host globals and notices clean.
+  Existing caps retained: Devices **81.6/100 KiB**, activation
+  **441.6/600 KiB**, Model API **447.3/475 KiB**, webview initial aggregate
+  **738.0/900 KiB**, ACP **823.6/850 KiB**; notices cover **83 packages**.
+  W still measures the joined bundle with the new factories wired into its
+  entry; the lane C factories are not yet called by the product entry.
 
 ### Requests to the lead / lane W (outside lane C ownership)
 
