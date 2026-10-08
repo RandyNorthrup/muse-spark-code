@@ -456,19 +456,11 @@ describe('RVM107W2G P2-2: no write can land between Delete history and its bound
   it('rolls nothing up from before the boundary when the delete never removed it', async () => {
     const folder = await temporary()
     const day = utcDay(Date.now() - 2 * 86_400_000)
-    const dayFolder = path.join(resourcesRoot(folder), day)
-    await mkdir(dayFolder, { recursive: true })
-    await writeFile(
-      path.join(dayFolder, 'w.0.jsonl'),
-      `${JSON.stringify({ v: RESOURCE_JOURNAL_VERSION, record: minute(Date.parse(`${day}T12:00:00Z`)) })}\n`,
-    )
+    await rawDay(folder, day)
     await writeResourceReset(folder, Date.now())
-    const journal = new ResourceJournal(new NodeUsageFs(folder), {
-      writerId: 'reader',
-      now: Date.now,
-      isEnabled: () => false,
-      resetAtMs: () => readResourceReset(folder),
-    })
+    // Retention runs strictly after the boundary, so a row it built would be shown.
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    const journal = readerJournal(folder)
     await journal.retain()
     const read = await journal.read()
     // Nothing of the completed day is after the boundary, so it has no row at all.
@@ -702,6 +694,20 @@ async function expireWriteLease(folder: string): Promise<void> {
     if (name.startsWith('write.lock.'))
       await utimes(path.join(resourcesRoot(folder), name), past, past)
 }
+/** Counts refused write-lock acquisitions by any NodeUsageFs from now on. */
+function countWriteLockRefusals(): { count: number } {
+  const refusals = { count: 0 }
+  const real = NodeUsageFs.prototype.acquireLock
+  vi.spyOn(NodeUsageFs.prototype, 'acquireLock').mockImplementation(async function (
+    this: NodeUsageFs,
+    ...args: Parameters<NodeUsageFs['acquireLock']>
+  ) {
+    const lock = await real.apply(this, args)
+    if (lock === undefined && args[0].endsWith('/write.lock')) refusals.count += 1
+    return lock
+  })
+  return refusals
+}
 /** Pauses the first matching call of `method` on any NodeUsageFs to `run`, then continues it. */
 function pauseFirst(
   method: 'append' | 'writeFileAtomically',
@@ -787,6 +793,23 @@ describe('RVM107W2H P2-2: a daily row from before Delete history is never return
   })
 })
 
+describe('RVM107W2H P2-2: a day with nothing after the boundary keeps no row', () => {
+  it('drops a row rolled up before the boundary when its raw day holds nothing after it', async () => {
+    const folder = await temporary()
+    const day = utcDay(Date.now() - 2 * 86_400_000)
+    await rawDay(folder, day)
+    // Rolled up before the boundary; the raw day is still within the detail window.
+    await readerJournal(folder).retain()
+    await writeResourceReset(folder, Date.now())
+    // The next pass runs strictly after the boundary, so a row it built would be shown.
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    const after = readerJournal(folder)
+    await after.retain()
+    const read = await after.read()
+    expect(read.days.find((row) => row.day === day)).toBeUndefined()
+  })
+})
+
 describe('RVM107W2H P2-3: retention never publishes across a Delete history', () => {
   it('makes Delete history wait for a retention pass that is publishing a daily row', async () => {
     const folder = await temporary()
@@ -794,16 +817,18 @@ describe('RVM107W2H P2-3: retention never publishes across a Delete history', ()
     const fs = new NodeUsageFs(folder)
     let deletion: ReturnType<typeof deleteThroughPage> | undefined
     let isDeletedDuringPublication: boolean | undefined
+    const refusals = countWriteLockRefusals()
     const realWrite = fs.writeFileAtomically.bind(fs)
     vi.spyOn(fs, 'writeFileAtomically').mockImplementation(async (relative, text, commit) => {
       if (deletion === undefined && relative.includes('/rollups/')) {
         deletion = deleteThroughPage(folder)
-        let isSettled = false
+        const settled = { isDone: false }
         void deletion.done.then(() => {
-          isSettled = true
+          settled.isDone = true
         })
-        await new Promise((resolve) => setTimeout(resolve, 400))
-        isDeletedDuringPublication = isSettled
+        // Delete history has asked for the write lock and been refused.
+        await waitUntil(() => Promise.resolve(refusals.count > 0), 3000)
+        isDeletedDuringPublication = settled.isDone || refusals.count === 0
       }
       await realWrite(relative, text, commit)
     })

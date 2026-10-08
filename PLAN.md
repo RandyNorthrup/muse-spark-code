@@ -40511,6 +40511,30 @@ resource-history harnesses apply and assert the captured theme body class.
 `usageService.js` is at 99.9/100 KiB and the resource history closure at
 49.4/50 KiB. Records in `docs/certification/m107-w-history.md`.
 
+**FIXM107W2H — RVM107W2H, the final W2 round (2026-10-08).** Five P2s and two
+P3s, fixed at the root; each P2 has regressions that fail on `818037ad0`
+(12 of 12) and red drills. (P2-1) The earlier build's `.removing-<uuid>`
+quarantine names are recognised (always stale, no original name), hidden
+and swept; `NodeUsageFs.remove` sweeps every quarantine of the name after
+the removal, so Delete history never reports completed while one remains.
+(P2-2) Daily rows record when they were built: reads drop rows built at or
+before the boundary, retention rebuilds them from boundary-filtered raw days
+or drops them, and a day with nothing after the boundary has no row. (P2-3)
+Retention runs under the journal write lock (the separate resources rollup
+lock is gone). (P2-4) Every append, live minute, daily-row write and
+retention removal commits through a fence that the file system runs at the
+last step, after the destination is open or staged; it refuses unless the
+lease's generation is current and the change is after the boundary. (P2-5)
+Put-back never replaces: files by `link` then unlink; POSIX directories
+claim the name with an exclusive `mkdir` (only an empty directory can be
+replaced); Windows renames a directory over a file, the stated residual.
+(P3) The disposal regression observes the 2 s flush timer firing while the
+append is blocked; the macOS redirected-delete outcome is stated as not
+guaranteed. Bundle: the unused `BROWSER_LAUNCH_FLAGS` and review JSON
+examples are marked pure (the repository's pattern), so bundles that never
+use them drop them; `usageService.js` 99.5/100 KiB, `extension.js` −0.8 KiB.
+Records in `docs/certification/m107-w-history.md`.
+
 **FIXM107J review repair (2026-10-06, Kubuntu).** Repair both RVM107J P2s
 and its P3 inside J's collector, aggregate, history boundary and shared view.
 Read-time flushes retain the active minute and its per-tree CPU baselines;
@@ -50250,7 +50274,7 @@ The harness-placement dispatch and PID/tick assumptions below remain unchanged.
   tree identities, and failed appends remain explicit/retryable. Follow-up:
   W/M102 performs and certifies that complete join; no reviewed P2/P3 is
   silently left as an accepted residual.
-  **Closed by M107 W-history, FIXM107W2 and FIXM107W2G (2026-10-08)** for
+  **Closed by M107 W-history, FIXM107W2, FIXM107W2G and FIXM107W2H (2026-10-08)** for
   consent at collection, the Delete history reset boundary (under one write
   lock with every recorder since FIXM107W2G), per-record idempotent append
   (collector-scoped ids), collector-scoped reads, final tree readings, bounded

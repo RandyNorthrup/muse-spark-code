@@ -228,7 +228,7 @@ rule, not a bug) and "writes nothing stamped before a completed Delete
 history", which round 2 already refused outside the lock; it owns the
 inside-the-lock check (G7).
 
-| Finding                                                   | Root fix (final head)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Regression (`resourceHistoryReview`, RVM107W2G; `resourceHistoryDisposal`)                                                                                                                                                                                     |
+| Finding                                                   | Root fix (at `818037ad0`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Regression (`resourceHistoryReview`, RVM107W2G; `resourceHistoryDisposal`)                                                                                                                                                                                     |
 | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | P2-1 a failed quarantine delete was reported as removed   | `src/runtime/usage/nodeUsageFs.ts:329` `remove()` first sweeps every quarantine of the same name (any age) in the validated parent; `:50` `erase()` deletes and proves the name absent (`usageRemoveIncomplete` otherwise); `:155` `purge()`; `:203`/`:213` listings hide quarantines and sweep stale ones (60 s) best effort; `:226` `sweep()` is strict. `src/core/usage/resourceJournal.ts:622` retention sweeps strictly before anything else; `:600` `retainReported()` reports through `onRetentionError` first and then hourly, and retries on the next append or read; `src/runtime/usage/usageServiceEntry.ts:123` logs it | fails then succeeds only once target and quarantine are gone; Delete history replies `writeFailed`, then `completed` with nothing left; refuses a removal whose delete returns but leaves the entry; reports a retention failure (twice) and sweeps the orphan |
 | P2-2 an append could land after Delete history's boundary | `resourceJournal.ts:49` one cross-process write lock (`resources/write.lock`, 200 × 50 ms, stale 30 s); `:294` `exclusive()` proves the lock held (`:305`) right before the action; the boundary is checked inside it for appends (`:552`) and live writes (`:581`); `:592` `deleteWith()`; `src/runtime/resources/history.ts:59` Delete history writes the boundary and removes the folder inside `deleteWith`; reads drop anything at or before the boundary (journal `:667`, live `:524`, rollups `:387`)                                                                                                                        | the reviewer's probe (delete during the append's retention pass); a live write in flight (delete waits, then removes it); the disposed-window append past the 2 s wait; writes after a completed delete; lock no longer held; read and rollup filters          |
@@ -239,8 +239,9 @@ inside-the-lock check (G7).
 The 2 s disposal flush: its timer only stops _waiting_. The append it leaves
 running still needs the write lock and checks the boundary inside it, so it
 either lands before the delete (which then removes it) or after it (and
-refuses). The test blocks that append past the 2 s wait, deletes, releases,
-and finds no line on disk.
+refuses). RVM107W2H P3 corrects this record: the test at `818037ad0` released
+the append after 300 ms, so it never reached the 2 s wait. The FIXM107W2H
+version waits until the flush's own timer fires with the append still blocked.
 
 ### Residuals, exactly
 
@@ -256,8 +257,10 @@ and finds no line on disk.
   (`usagePathChanged`), never deletes it, and puts it back only when it is
   reachable from the validated parent (test: put-back, macOS branch); and (b)
   between the last proof and `rm`, redirect the delete to an entry with that
-  same quarantine name under the swapped-in directory; the call then reports
-  `usageRemoveIncomplete` (test: sweep probe, macOS branch).
+  same quarantine name under the swapped-in directory. RVM107W2H P3 corrects
+  the outcome: the call is not guaranteed to notice. It reports
+  `usageRemoveIncomplete` when the directory is swapped back before its final
+  check (the sweep probe's macOS branch) and can succeed when it is not.
 - **Every platform:** the recursive delete inside a proven quarantine is Node's
   path-based `fs.rm`, so a same-user process writing into that quarantine while
   it is deleted could swap a subdirectory for a link.
@@ -391,3 +394,162 @@ trimming the round's own code (shared helpers for the parent proof, the
 delete check and the diagnostics). The resource history closure is at 49.4 of
 50 KiB (the labelled cards). No cap changed; both are the next additions'
 limit on this path.
+
+## FIXM107W2H: RVM107W2H, the final W2 round
+
+2026-10-08, on `m107/w-history` after `818037ad0`. The Codex review
+RVM107W2H of `85683ac94..818037ad0` found no P1, five P2s and two P3s.
+Commits: `b5443ff6e` (fixes and regressions) and the commit that carries
+this section (deterministic waits, one more guard test, the redundant
+pre-action lease check removed, records). No model calls (**0 attempts**), no credential,
+dependency, push, rebase or merge.
+
+The regressions are the `RVM107W2H` describes in
+`test/unit/resourceHistoryReview.test.ts`, the updated boundary-day rollup
+test there, and the strengthened `test/unit/resourceHistoryDisposal.test.ts`.
+Copied with the updated `test/unit/helpers/resources/fsSpies.ts` into a
+detached `818037ad0` worktree and run on Kubuntu slot 2: **13 of 13 failed**,
+each on its own assertion. The disposal test passes there by design: P3 was
+about the test, not the code. It now takes 2.8 s there, past the 2 s wait.
+
+| Finding                                                                          | Root fix (final head)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Regression (`resourceHistoryReview`, RVM107W2H, unless named)                                                                                                                                                                              |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| P2-1 an earlier build's `.removing-<uuid>` survived a "completed" Delete history | `src/runtime/usage/nodeUsageFs.ts:27`/`:33` both formats are quarantine names; the earlier one has no time (always stale) and no original name (it may be any entry of its folder); `:401` `remove()` sweeps every quarantine of the name _after_ the removal (strict: a failure throws), so success means none is left                                                                                                                                                                                                                                                                                                                                     | the earlier quarantine of the usage folder is gone after Delete history; Delete history replies `writeFailed`, not `completed`, while it cannot be removed, then `completed`; listings hide and sweep the earlier format                   |
+| P2-2 daily rows ignored the reset boundary                                       | `src/core/usage/resourceJournal.ts:71` rows record `builtAtMs`; `:715` reads drop rows built at or before the boundary; `:478` retention rebuilds such a row from boundary-filtered raw data, `:480`/`:483` give a day with nothing after the boundary no row, `:488` drops rows whose raw day is gone                                                                                                                                                                                                                                                                                                                                                      | a row rolled up before the boundary is hidden at once (no retention), then gone from the month file; a pre-boundary row whose raw day holds nothing after the boundary is dropped; the RVM107W2G boundary-day test now expects no row      |
+| P2-3 retention could republish after Delete history                              | `resourceJournal.ts:651` retention runs inside `exclusive` (the write lock); the separate `resources/rollup.lock` is gone                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Delete history started while retention publishes a daily row is refused the write lock while retention holds it, completes after it, and nothing is left                                                                                   |
+| P2-4 an expired lease let a paused write resume after deletion                   | `resourceJournal.ts:298` `fence(lock, atMs)`: lease generation, epoch and token current (`isHeld`) and `atMs` after the boundary; passed to appends (`:580`), live writes (`:605`) and retention's writes and removals (`:452`, `:498`–`:512`, with `reset + 1`). The pre-action `isHeld` check in `exclusive` is removed: `acquireLock` returns only a lease it just proved held, and every write proves it again at commit. `nodeUsageFs.ts:300` runs it on the open append handle before the write, `:331` on the flushed stage before its rename, `:380` on the proven quarantine before the delete; `src/core/usage/journalStore.ts:66`–`:69` the port | a paused append whose lease expired while a Delete history took over; a paused live write whose expired lease another writer took (lease part alone); a paused append after a boundary is written under a held lease (boundary part alone) |
+| P2-5 put-back checked absence, then renamed (replacing)                          | `nodeUsageFs.ts:61` `restore()`: a file by `link` (EEXIST if taken, on every platform) then unlink; a directory on POSIX claims the name with an exclusive `mkdir` first (a rename can replace only an empty directory); Windows never renames over a directory and cannot claim one (residual below); `:390` used for every put-back                                                                                                                                                                                                                                                                                                                       | a removal whose fence refuses is put back; a file that takes the name just before the put-back keeps it (ours stays quarantined); a directory that takes the name keeps it on POSIX; on Windows the file-over-directory residual           |
+| P3-6 the disposal regression never passed the 2 s wait                           | `resourceHistoryDisposal.test.ts` observes the flush's own `RESOURCE_HISTORY_FLUSH_TIMEOUT_MS` timer firing while the append is still blocked, checks that Delete history is then refused the write lock (counted, not timed), and passes the fence through the spy                                                                                                                                                                                                                                                                                                                                                                                         | the same test (3.0 s on Kubuntu)                                                                                                                                                                                                           |
+| P3-7 the macOS redirected-delete outcome was stated as certain                   | SECURITY and the RVM107W2G residuals above now say the call is not guaranteed to notice                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | —                                                                                                                                                                                                                                          |
+
+Measured before choosing the put-back primitives (Node 24, a probe on each
+platform): POSIX renames replace a file, or only an _empty_ directory, and
+refuse a non-empty one; Windows renames replace a file, refuse any directory
+target, and rename a directory over an existing **file**; `link` refuses an
+existing name everywhere.
+
+### Residuals after FIXM107W2H, exactly
+
+- **Put-back, POSIX directories:** a same-user process that deletes the
+  exclusive claim and creates its own _empty_ directory in that instant has
+  that empty directory replaced; content is never replaced (a non-empty
+  directory refuses the rename).
+- **Put-back, Windows directories:** Windows cannot claim a name for a
+  directory, and its rename replaces a file: a file created at the
+  directory's name in the instant before the put-back is replaced (the test's
+  Windows branch shows it).
+- **Fence:** the check and the final call are two steps. A holder paused
+  between them lands only in the tree it opened or staged in. If Delete
+  history removed that tree meanwhile, the write goes with it: an open append
+  writes to the removed file (POSIX), and a staged write's stage is gone, so
+  its rename fails. On Windows an open append handle makes that Delete history
+  fail instead, and it is retried. Reads drop anything at or before the
+  boundary either way.
+- The RVM107W2G macOS and every-platform residuals above still apply, with
+  P3-7's wording.
+
+### Bundle
+
+`usageService.js` was 275 bytes over its cap after the fixes. No cap changed.
+`BROWSER_LAUNCH_FLAGS` (its template substitutions) and the review prompt's
+two `JSON.stringify` examples could not be proven side-effect free, so every
+bundle importing `constants.ts` kept them unused (490 + 179 bytes in this one,
+found by listing top-level declarations never referenced again). They are now
+`/* @__PURE__ */`, the pattern `constants.ts` already uses. Bundles that use
+them keep them; the others drop them.
+
+### Red drills (W2H)
+
+Byte-exact mutation, owning test on Kubuntu slot 2, restore checked
+byte-identical by hash (`b5443ff6e` sources; H6, H7, H17 and G8 again after
+their owning tests changed).
+
+| Drill | Guard (mutation)                                                     | Owning test (failed while mutated)                                      |
+| ----- | -------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| H1    | earlier `.removing-<uuid>` names recognised (old pattern)            | the earlier quarantine of the usage folder is gone                      |
+| H2    | same-name quarantines swept after the removal (removed)              | the same                                                                |
+| H3    | a nameless quarantine counts as this name (`target === name`)        | the same                                                                |
+| H4    | reads drop rows built at or before the boundary (filter removed)     | a row rolled up before the boundary is hidden                           |
+| H5    | retention drops such rows (condition removed)                        | the same, on the month file                                             |
+| H6    | no row for a day with nothing after the boundary (always set)        | a pre-boundary row whose raw day holds nothing after it                 |
+| H7    | retention under the write lock (an always-held fake lease)           | Delete history waits for a retention pass publishing a row              |
+| H8    | fence: current lease generation (`isHeld` part removed)              | a paused live write whose lease another writer took                     |
+| H9    | fence: write after the boundary (boundary part removed)              | a paused append after a boundary written under a held lease             |
+| H10   | appends commit through their fence (not passed)                      | the same                                                                |
+| H11   | live writes commit through their fence (not passed)                  | a paused live write whose lease another writer took                     |
+| H12   | the file system runs the append fence (call removed)                 | a paused append after a boundary written under a held lease             |
+| H13   | the file system runs the atomic-write fence (call removed)           | a paused live write whose lease another writer took                     |
+| H14   | the file system runs the removal fence (call removed)                | a removal whose fence refuses is put back                               |
+| H15   | a file is put back by `link` (plain `rename` instead)                | a file that takes the name just before the put-back keeps it            |
+| H16   | a POSIX directory put-back claims the name (claim removed)           | a directory that takes the name keeps it                                |
+| H17   | the disposal append holds the write lock (an always-held fake lease) | `resourceHistoryDisposal` (Delete history refused the lock: 0 refusals) |
+
+**17 of 17 failed while mutated; all restored identical.** H6 and H17 first
+stayed green. H6's earlier owning test wrote the boundary before any row
+existed, where a separate check (no month write without a row) already holds;
+the new test starts from a pre-boundary row. H17's "Delete history waits"
+check was a 300 ms sleep, shorter than a Kubuntu Delete history; it now
+counts the deleter's refused write-lock attempts, and so does the retention
+test.
+
+The RVM107W2G drills were run again on the new code: G2–G8, G11–G14 and G17
+on Kubuntu, G16 on the Windows host, all red. G6 and G7 now fail with
+`resourceHistoryLockLost` instead of their old assertion: with the boundary
+check removed at admission, the commit fence refuses the same write. G1, G9
+and G15 no longer match because the code moved; H2/H3, H17 and H15/H16 own
+those guards now. G10's check is gone (above).
+
+### Runs (W2H)
+
+Repository default timeouts, at most three files per run; the disposal test
+sets 15 s itself because it waits out the production 2 s timer.
+
+- **Kubuntu slot 2, final source:** review + disposal + journal **47/47**;
+  wiring + usage service + journal store **41/41**; usage integration +
+  rollup + text **76/76**; export + panel + CLI **32/32**; exec/runtime/ACP
+  resources **34/34**; browser launch + review + review bundle **43/43**;
+  `ResourcesSection` + `UsageAppResources` + review UI **31/31**; bundle size
+  - deferred bundles + companion chunks **145/145**; browser UI text +
+    history bundle + webview bundles **17/17**: **466 passed**.
+- **Win11 rig, natively:** review + disposal + journal **46/46**; wiring +
+  usage service + browser launch **31/31**; usage integration +
+  `UsageAppResources` + review **34/34**.
+- **Mac mini:** review + disposal + journal **46/46** (the macOS residual
+  branches run only there).
+- One native Windows lesson: under the loaded host a Delete history took over
+  a second, so a "before the boundary" stamp computed as `now - 1000` after
+  it started was really after it; such stamps are now taken before the delete.
+
+### Gates and sizes (W2H)
+
+Host, on the final source: `npm run typecheck` (five projects) **0**; ESLint
+`--max-warnings=0` on every changed source and test **0**; stylelint **0**;
+Prettier `--check` on every changed text file **0**; knip **0**; `cycles`
+**0**; `check:l10n` **0**; `check:reference` **0**; `check:host-api` **0**
+(no new importer; `link` comes from the already-recorded `node:fs/promises`);
+`npm run build` **0** (size, split, host-globals, notices). jscpd first exited
+**1**: one clone, the older boundary-day test repeating the new `rawDay` and
+`readerJournal` helpers; it uses them now, **0 clones**, and ESLint, Prettier
+and the unit typecheck were rerun: **0**. Sizes are from the production build
+of the final source.
+
+| Artifact / closure               | 818037ad0 KiB | Final KiB | Cap KiB |
+| -------------------------------- | ------------: | --------: | ------: |
+| `dist/usageService.js`           |          99.9 |      99.4 |     100 |
+| `dist/resourceGovernor.js`       |         122.5 |     122.0 |     125 |
+| `dist/usagePanel.js`             |          72.4 |      71.6 |      75 |
+| `dist/usageCompanion.js`         |          43.8 |      43.0 |      50 |
+| `dist/webview/usage.js` + static |         377.5 |     376.7 |     500 |
+| `dist/webview/usage.css`         |          10.0 |      10.0 |      25 |
+| Usage body (lazy)                |          36.2 |      36.2 |      50 |
+| Resource history closure         |          49.4 |      49.4 |      50 |
+| Surface English (deferred table) |          24.8 |      24.8 |      25 |
+| Webview startup + static chunks  |         732.7 |     731.9 |     900 |
+| `dist/extension.js`              |         509.7 |     508.9 |     600 |
+
+`usageService.js` is 101,795 bytes of 102,400 (605 free; 102,299 at
+`818037ad0`). The fixes cost about 400 bytes; the pure annotations recovered
+about 900 here and 0.5–0.8 KiB in every other bundle that imports
+`constants.ts`. `dist/browserCheck.js`, which uses the flags, keeps them
+(52.4 KiB). The resource history closure is unchanged at 49.4/50 KiB. No cap
+changed.

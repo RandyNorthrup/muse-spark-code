@@ -74,13 +74,25 @@ describe('RVM107W2G P2-2: no write can land between Delete history and its bound
       )
       expect(isFlushWaitOver).toBe(true)
       expect(isAppendDone).toBe(false)
+      // From here, every write-lock refusal is Delete history waiting for the append's lock.
+      let refusals = 0
+      const realAcquire = NodeUsageFs.prototype.acquireLock
+      vi.spyOn(NodeUsageFs.prototype, 'acquireLock').mockImplementation(async function (
+        this: NodeUsageFs,
+        ...args: Parameters<NodeUsageFs['acquireLock']>
+      ) {
+        const lock = await realAcquire.apply(this, args)
+        if (lock === undefined && args[0].endsWith('/write.lock')) refusals += 1
+        return lock
+      })
       const deletion = deleteThroughPage(folder)
       let isDeleted = false
       void deletion.done.then(() => {
         isDeleted = true
       })
-      await new Promise((resolve) => realSetTimeout(resolve, 300))
-      // Delete history waits for the append's lock.
+      await waitUntil(() => Promise.resolve(refusals > 0 || isDeleted), 3000)
+      // Delete history is refused the lock the append still holds.
+      expect(refusals).toBeGreaterThan(0)
       expect(isDeleted).toBe(false)
       release(undefined)
       await deletion.done

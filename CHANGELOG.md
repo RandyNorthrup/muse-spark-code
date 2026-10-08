@@ -30,8 +30,11 @@ happened, not what was planned; superseded entries are kept.
   is reported and retried, never shown as done while anything is left, and
   leftovers are cleaned up; a retention failure is logged. Readings collected
   while usage history is off, or before **Delete history**, are never written
-  later: recording and **Delete history** now share one lock. A retried event
-  after an uncertain write is counted once. Closing a window writes its open
+  later: recording, daily-row upkeep and **Delete history** share one lock, each
+  write checks it still holds that lock and is after the delete as it lands, and
+  daily rows from before a delete are never shown. Putting an entry back after
+  a refused removal no longer replaces what took its name, apart from the narrow
+  cases in SECURITY. A retried event after an uncertain write is counted once. Closing a window writes its open
   minute. The 32 MiB read limit counts the bytes actually read.
 - Narrow usage pages show resource history as labelled cards (one column at
   320 px, two at 690 px); chart legends and trailing values are no longer cut

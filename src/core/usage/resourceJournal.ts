@@ -304,8 +304,8 @@ export class ResourceJournal implements ResourceRecordSink {
 
   /**
    * Runs `action` holding the journal write lock, waiting a bounded time for
-   * another process's change. The lock is proved held before `action`; each
-   * write inside it commits through `fence`.
+   * another process's change. `acquireLock` returns only a lease it just proved
+   * held; each write inside `action` proves it again at its commit (`fence`).
    */
   private async exclusive<T>(action: (lock: UsageLock) => Promise<T>): Promise<T> {
     const sleep =
@@ -318,7 +318,6 @@ export class ResourceJournal implements ResourceRecordSink {
       const lock = await this.fs.acquireLock(WRITE_LOCK_FILE, RESOURCE_JOURNAL_WRITE_LOCK_STALE_MS)
       if (lock !== undefined) {
         try {
-          if (!(await lock.isHeld())) throw new Error('resourceHistoryLockLost')
           return await action(lock)
         } finally {
           await lock.release()
