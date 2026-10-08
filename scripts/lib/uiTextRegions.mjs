@@ -231,14 +231,23 @@ function browserTableContract(value) {
       )
 }
 
-/** Collect every literal text reader in the shipped static and dynamic source graph. */
-export function browserTextKeys(entries, english, eagerSources = new Set()) {
+/**
+ * Collect every literal text reader in the shipped static and dynamic source graph.
+ * `boundaries` are roots that install their own deferred English when loaded
+ * (the independent resource entries); a graph that reaches one stops there.
+ */
+export function browserTextKeys(
+  entries,
+  english,
+  eagerSources = new Set(),
+  boundaries = new Set(),
+) {
   const seen = new Set()
   const keys = new Set()
   const eagerKeys = new Set()
   const visit = (file) => {
     file = path.resolve(file)
-    if (seen.has(file) || file === path.resolve(TABLE)) return
+    if (seen.has(file) || file === path.resolve(TABLE) || boundaries.has(file)) return
     seen.add(file)
     const tree = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true)
     const resolve = (specifier) => {
@@ -334,11 +343,15 @@ export const compactBrowserUiText = {
       })
       const eagerSources = browserStartupSources(roots).files
       const { keys, files, eagerKeys } = browserTextKeys(entries, EN, eagerSources)
+      // The usage page lazily mounts the resource history root, which imports
+      // browser-resource-english itself; its readers stay out of surface English.
       const surfaceKeys = browserTextKeys(
         entries.filter(
           (entry) => !Object.values(RESOURCE_WEBVIEW_ENTRIES).includes(entry.replaceAll('\\', '/')),
         ),
         EN,
+        new Set(),
+        new Set(Object.values(RESOURCE_WEBVIEW_ENTRIES).map((entry) => path.resolve(entry))),
       ).keys
       const resourceKeys = browserTextKeys(Object.values(RESOURCE_WEBVIEW_ENTRIES), EN).keys
       const deferredKeys = [...keys].filter((key) => !eagerKeys.has(key))
