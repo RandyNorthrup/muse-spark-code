@@ -8,6 +8,7 @@ import {
   type ResourceStatus,
 } from '../../shared/resources'
 import { type ResourceEvents } from './events'
+import { ResourcePausedError } from './paused'
 
 /** T/C1 bind the registry here. null is unknown, so throttle cannot admit. */
 export interface ResourceRunningWork {
@@ -49,7 +50,6 @@ interface Entry {
   resolve: (permit: ResourcePermit) => void
   reject: (error: unknown) => void
   cleanup: (() => void) | undefined
-  paused: boolean
 }
 
 function aborted(): Error {
@@ -109,7 +109,6 @@ export class ResourceQueue {
         resolve,
         reject,
         cleanup: undefined,
-        paused: false,
       }
       this.waiting.set(id, pending)
       if (signal?.aborted === true) {
@@ -186,6 +185,15 @@ export class ResourceQueue {
         const { parent } = entry.request
         if (parent !== undefined && !this.held.has(parent))
           throw new Error('Resource parent permit is not active')
+        if (limit === 0 && entry.request.class === 'background') {
+          this.options.events.publish({
+            type: 'paused',
+            atMs: this.options.clock.now(),
+            kind: entry.request.kind,
+          })
+          this.reject(entry, new ResourcePausedError())
+          continue
+        }
         if (entry.request.diskHeavy === true && this.options.diskBlocked?.() === true) continue
         if (limit === null || (entry.request.class === 'foreground' && limit > 0)) {
           this.grant(entry)
@@ -204,17 +212,6 @@ export class ResourceQueue {
         if (count !== null && Math.max(count, reservations) < limit) this.grant(entry)
         else if (parent?.class === 'background' && parent.kind === entry.request.kind)
           this.reject(entry, new Error('Resource child cannot wait on its parent slot'))
-        else {
-          if (limit === 0 && !entry.paused) {
-            entry.paused = true
-            this.options.events.publish({
-              type: 'paused',
-              atMs: this.options.clock.now(),
-              kind: entry.request.kind,
-            })
-          }
-          if (limit !== 0) entry.paused = false
-        }
       } catch (error) {
         this.reject(entry, error)
       }

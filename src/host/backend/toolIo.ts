@@ -959,10 +959,11 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         const missing = deps.platform === 'win32' ? 'Windows PowerShell' : BASH
         return unstartedShell(`${missing} was not found on the absolute entries of PATH`)
       }
-      let resource = await admitResource(resourceKind ?? 'toolShell', signal)
+      let resource: ResourceLease | undefined
       let assembly: string | undefined
       try {
         assembly = deps.platform === 'win32' ? await deps.shellJobAssembly?.() : undefined
+        resource = await admitResource(resourceKind ?? 'toolShell', signal)
         deps.assertWorkspaceCurrent?.()
       } catch (error: unknown) {
         resource?.complete(true)

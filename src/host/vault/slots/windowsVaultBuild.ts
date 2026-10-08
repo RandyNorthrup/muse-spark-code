@@ -6,6 +6,7 @@ import path from 'node:path'
 import { UI_TEXT } from '../../../shared/constants'
 import { compileJob, jobFileName, type JobBuild } from '../../backend/jobBuild'
 import type { RunProgram } from '../../processTree'
+import { isResourcePaused } from '../../../core/resources/paused'
 import {
   windowsVaultGuardScript,
   type WindowsVaultExecutable,
@@ -89,7 +90,8 @@ export async function windowsVaultExecutable(deps: {
       let directory: string
       try {
         directory = await prepare(deps.storageDir)
-      } catch {
+      } catch (error: unknown) {
+        if (isResourcePaused(error)) throw error
         // An unsafe cache parent is left untouched; use the current user's protected temp tree.
         directory = await prepare(tmpdir())
         deps.report?.()
@@ -117,7 +119,8 @@ export async function windowsVaultExecutable(deps: {
     }
     cache.set(cacheKey, helper)
     return helper
-  } catch {
-    throw new Error(UI_TEXT.vault.noAccess)
+  } catch (error: unknown) {
+    if (isResourcePaused(error)) throw error
+    throw new Error(UI_TEXT.vault.noAccess, { cause: error })
   }
 }

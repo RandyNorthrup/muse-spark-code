@@ -37,10 +37,11 @@ vi.mock('../../src/core/resources/admission', async (original) => {
   return {
     ...actual,
     spawnResourceProcess: (
+      profile: 'contained',
       file: string,
       args: readonly string[],
       options: ChildProcess.SpawnOptions,
-    ) => fixtureResourceProcess(file, args, options, ['pipe', 'pipe', 'pipe']),
+    ) => fixtureResourceProcess(profile, file, args, options, ['pipe', 'pipe', 'pipe']),
   }
 })
 

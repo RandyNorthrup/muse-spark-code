@@ -185,7 +185,7 @@ describe('SPAWN017 production governance', () => {
       const h = governedLease()
       const script = await processScript('shared-helper', false)
       const { spawnResourceProcess } = await import('../../src/core/resources/process')
-      const payload = await spawnResourceProcess(process.execPath, [script.file], {
+      const payload = await spawnResourceProcess('contained', process.execPath, [script.file], {
         env: { SystemRoot: process.env['SystemRoot'] },
       })
       let failure = ''
@@ -199,7 +199,7 @@ describe('SPAWN017 production governance', () => {
         } catch {
           throw new Error(`Fixture launch exit ${String(payload.child.exitCode)}: ${failure}`)
         }
-        expect(admission.admitResource).toHaveBeenCalledWith('other', undefined)
+        expect(admission.admitResource).toHaveBeenCalledWith('other', undefined, undefined)
         const pids = z.array(z.number()).parse(JSON.parse(await readFile(script.marker, 'utf8')))
         expect(await payload.pid()).toBe(pids[0])
         await payload.stop()

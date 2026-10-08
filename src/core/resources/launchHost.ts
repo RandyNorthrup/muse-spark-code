@@ -176,6 +176,10 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
 
   private async sampleTree(work: Work): Promise<void> {
     if (work.process === undefined || !this.work.has(work)) return
+    if (work.process.profile !== undefined && work.process.profile !== 'contained') {
+      work.known = true
+      return
+    }
     try {
       work.binding ??= (await this.options.bindTree(work.process)) ?? undefined
       if (!this.work.has(work)) return
@@ -280,6 +284,24 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
         signal?.removeEventListener('abort', cancel)
       }
     }
+  }
+
+  /** Shutdown kills owned work: releasing the permit alone would leave the tree running. */
+  private async stopOnDispose(work: Work): Promise<void> {
+    const launched = work.process
+    if (launched === undefined) {
+      this.retire(work)
+      return
+    }
+    if (launched.stop === undefined) {
+      await this.sampleTree(work)
+      const result = work.ticket === undefined ? undefined : await work.registry?.kill(work.ticket)
+      if (result?.status !== 'done' && (await work.binding?.gone()) !== true)
+        throw new Error('Resource shutdown tree stop refused')
+    } else await launched.stop()
+    // Other profiles have no registry binding: their own stop ended what they own.
+    const isRootOnly = launched.profile !== undefined && launched.profile !== 'contained'
+    this.retire(work, isRootOnly || (await work.binding?.gone()) === true)
   }
 
   refreshTrees(): Promise<void> {
@@ -479,6 +501,6 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     for (const cancel of this.cleanupTimers) cancel()
     this.queue.dispose()
     this.options.governor.dispose()
-    for (const work of this.work) this.retire(work, false)
+    for (const work of this.work) void this.stopOnDispose(work).catch(this.options.onError)
   }
 }

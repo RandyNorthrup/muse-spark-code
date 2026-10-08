@@ -21,13 +21,19 @@ describe('SPAWN017 new spawn sites wait for resource admission', () => {
   it('keeps runtime login and browser starts at the governed boundary', async () => {
     const source = await readFile(path.resolve('src/runtime/main.ts'), 'utf8')
     expect(source).not.toContain("from 'node:child_process'")
-    expect(source).toContain('await spawnResourceProcess(file, args, { env })')
-    expect(source).toContain('await execResourceFile(executable, args, { env: process.env })')
+    expect(source).toContain("await spawnResourceProcess('interactive', file, args, { env })")
+    expect(source).toContain('await handoffResourceFile(executable, args, { env: process.env })')
   })
 
   it('describes unavailable recorder and vault builders honestly in Help', () => {
     expect(EN.referenceScreenRecording).toContain('unavailable in this build')
     expect(EN.referenceVaultPanel).toContain('broker is not installed')
+  })
+  it('routes clipboard and browser sharing through the handoff profile', async () => {
+    const source = await readFile(path.resolve('src/runtime/sharing/sharingEntry.ts'), 'utf8')
+    expect(source).not.toContain("from 'node:child_process'")
+    expect(source).toContain('await handoffResourceFile(file, args, {')
+    expect(source).toContain('if (isResourcePaused(error))')
   })
   const sites: readonly [string, () => Promise<unknown>][] = [
     [

@@ -5,7 +5,8 @@ import { legalScanLoader } from '../host/ide/legalScanBundle'
 // the log reads goes to stderr, except the sign-in commands' own output.
 // Exercised through the built `dist/acp.js` by the stdio e2e test.
 
-import { spawnResourceProcess, execResourceFile } from '../core/resources/admission'
+import { spawnResourceProcess, handoffResourceFile } from '../core/resources/admission'
+import { isResourcePaused } from '../core/resources/paused'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { open, writeFile, realpath, lstat } from 'node:fs/promises'
@@ -635,24 +636,11 @@ async function openUsageBrowser(input: string): Promise<void> {
   // The fixed OS opener receives only a checked loopback URL and no credential
   // environment; argument arrays never pass through a shell (D82, rule 8).
   try {
-    if (process.platform === 'linux') {
-      const { child: handler } = await spawnResourceProcess(executable, args, { env: process.env })
-      handler.stdin.end()
-      handler.stdout.resume()
-      handler.stderr.resume()
-      await new Promise<void>((resolve, reject) => {
-        handler.once('error', reject)
-        const ready = () => {
-          handler.unref()
-          resolve()
-        }
-        if (handler.pid === undefined) handler.once('spawn', ready)
-        else ready()
-      })
-    } else await execResourceFile(executable, args, { env: process.env })
-  } catch {
-    // Opener stderr can repeat the private fragment; it never reaches a log.
-    throw new Error(UI_TEXT.actionFailed)
+    await handoffResourceFile(executable, args, { env: process.env })
+  } catch (error: unknown) {
+    if (isResourcePaused(error)) throw error
+    // Opener output goes to the null device; only fixed words are reported.
+    throw new Error(UI_TEXT.actionFailed, { cause: error })
   }
 }
 
@@ -1338,14 +1326,7 @@ async function main(): Promise<number> {
         environment: () => museCode.childEnvironment(),
         spawnInTerminal: async (file, args, env) => {
           // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- `muse login` as `muse serve` is started: the CLI resolved from its install layout, PATH or an absolute --muse-binary (D1a, D4), its launcher's fixed prefix and MUSE_LOGIN_ARGS, as an argument array with no shell (PLAN.md §8)
-          const { child } = await spawnResourceProcess(file, args, { env })
-          process.stdin.pipe(child.stdin)
-          child.stdout.pipe(process.stdout, { end: false })
-          child.stderr.pipe(process.stderr, { end: false })
-          child.once('close', () => {
-            process.stdin.unpipe(child.stdin)
-            process.stdin.pause()
-          })
+          const { child } = await spawnResourceProcess('interactive', file, args, { env })
           return child
         },
         printError: (line) => {

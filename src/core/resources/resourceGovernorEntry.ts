@@ -25,7 +25,7 @@ import { WindowsResourceTreeReader } from './trees/windows'
 import type { ResourceAdmission, ResourceLaunchRequest } from './queue'
 export { createResources, runtimeResourceJobs } from '../../runtime/resources/entry'
 export { spawnResourceProcess } from './process'
-export { execResourceFile } from './commands'
+export { execResourceFile, handoffResourceFile } from './commands'
 import { runTreeProgram } from './trees/run'
 import { powerShellQuoted } from '../shellQuote'
 import {

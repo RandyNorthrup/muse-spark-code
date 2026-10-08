@@ -116,7 +116,7 @@ async function processStart(pid: number, probeBudgetMs: number): Promise<string 
       `try { [Diagnostics.Process]::GetProcessById(${String(pid)}).StartTime.ToFileTimeUtc() } catch [ArgumentException] { }`,
     ]
   }
-  const { stdout } = await execFileAsync(file, args, {
+  const { stdout } = await execFileAsync('contained', file, args, {
     env,
     windowsHide: true,
     timeout: Math.min(REPORT_WRITER_LOCK_PROBE_MS, probeBudgetMs),

@@ -124,8 +124,8 @@ export async function beginScheduleWake(
     trustedPath: trustedBackgroundPath,
     write: (file: string, text: string) => nodeBackgroundFiles().write(file, text),
     launch: async (file: string, args: readonly string[], options: SpawnOptions) => {
-      const { stdio: _stdio, ...processOptions } = options
-      const { child } = await spawnResourceProcess(file, args, processOptions)
+      const { stdio: _stdio, detached: _detached, shell: _shell, ...processOptions } = options
+      const { child } = await spawnResourceProcess('contained', file, args, processOptions)
       child.stdin.end()
       child.stdout.destroy()
       child.stderr.destroy()
@@ -298,7 +298,7 @@ export function backgroundProcessRunner(
 ): (file: string, args: readonly string[]) => Promise<BackgroundProcessResult> {
   return async (file, args) => {
     try {
-      const result = await execResourceFile(systemProgram(file, env), [...args], {
+      const result = await execResourceFile('contained', systemProgram(file, env), [...args], {
         encoding: 'utf8',
         env: withoutCredentials(env),
         windowsHide: true,

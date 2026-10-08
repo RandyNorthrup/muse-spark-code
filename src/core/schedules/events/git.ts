@@ -58,6 +58,7 @@ export function localGitRefs(
       }
       try {
         const common = await exec(
+          'contained',
           'git',
           [
             '--no-optional-locks',
@@ -78,7 +79,7 @@ export function localGitRefs(
           'refs/heads',
           'refs/tags',
         ]
-        const result = await exec('git', refArgs, options)
+        const result = await exec('contained', 'git', refArgs, options)
         const refs: Ref[] = []
         const revisions: { readonly file: string; readonly revision: bigint }[] = []
         for (const line of result.stdout.split('\n')) {
@@ -106,7 +107,7 @@ export function localGitRefs(
         }
         // A concurrent ref write/pack must not combine an old object with a
         // new revision. Refuse the unstable read; the next poll retries it.
-        const verified = await exec('git', refArgs, options)
+        const verified = await exec('contained', 'git', refArgs, options)
         if (verified.stdout !== result.stdout) throw new Error('gitRefsChanged')
         for (const revision of revisions) {
           const metadata = await stat(revision.file, { bigint: true })

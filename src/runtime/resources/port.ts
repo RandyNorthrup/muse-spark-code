@@ -29,7 +29,7 @@ export interface ResourceHistoryPort {
 }
 export interface RuntimeResources {
   command(action: ResourceCommandAction, isJson: boolean): Promise<string>
-  status(): Promise<ResourceStatus>
+  status(signal?: AbortSignal): Promise<ResourceStatus>
   history(): Promise<readonly ResourceRecord[]>
   resume(): Promise<ResourceStatus>
   admit(

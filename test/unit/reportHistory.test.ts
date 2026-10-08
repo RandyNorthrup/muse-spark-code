@@ -45,7 +45,17 @@ vi.mock('../../src/core/resources/admission', async (original) => {
   const { promisify } = await import('node:util')
   return {
     ...(await original<typeof ResourceAdmission>()),
-    execResourceFile: vi.fn(promisify(execFile)),
+    execResourceFile: vi.fn(
+      (
+        _profile,
+        ...args: Parameters<typeof ResourceAdmission.execResourceFile> extends [
+          unknown,
+          ...infer Rest,
+        ]
+          ? Rest
+          : never
+      ) => promisify(execFile)(...args),
+    ),
   }
 })
 
@@ -74,7 +84,7 @@ beforeAll(async () => {
           builder.onLoad({ filter: /resources[\\/]admission\.ts$/ }, () => ({
             loader: 'js',
             contents:
-              "import { execFile } from 'node:child_process'; import { promisify } from 'node:util'; export const execResourceFile=promisify(execFile);",
+              "import { execFile } from 'node:child_process'; import { promisify } from 'node:util'; export const execResourceFile=(_profile,...args)=>promisify(execFile)(...args);",
           }))
         },
       },

@@ -38,9 +38,13 @@ export class UnixVaultPeerVerifier implements VaultPeerVerifier {
     private readonly descriptors: VaultSocketDescriptorPort,
   ) {}
   async verify(socket: Socket): Promise<VaultProcessIdentity> {
-    const { child, stop } = await spawnResourceProcess(this.executable, [], { env: {} }, [
-      z.number().check(z.int(), z.positive()).parse(this.descriptors.descriptor(socket)),
-    ])
+    const { child, stop } = await spawnResourceProcess(
+      'contained',
+      this.executable,
+      [],
+      { env: {} },
+      [z.number().check(z.int(), z.positive()).parse(this.descriptors.descriptor(socket))],
+    )
     child.stdin.end()
     child.stderr.resume()
     const result = await new Promise<z.infer<typeof nativePeerSchema>>((resolve, reject) => {

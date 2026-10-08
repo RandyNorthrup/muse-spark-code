@@ -10,7 +10,7 @@ export function macVaultTransport(helper: string, signal?: AbortSignal): MacVaul
   return {
     exchange: async (header, key) => {
       if (signal?.aborted) throw new Error(UI_TEXT.vault.noAccess)
-      const { child, stop } = await spawnResourceProcess(helper, [], {
+      const { child, stop } = await spawnResourceProcess('contained', helper, [], {
         env: {},
         ...(signal !== undefined && { signal }),
       })

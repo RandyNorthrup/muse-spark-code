@@ -123,7 +123,7 @@ async function probeVersion(
   args: readonly string[],
   options: VersionProbeOptions,
 ): Promise<string> {
-  const { child, stop: stopTree } = await spawnResourceProcess(command, args, {
+  const { child, stop: stopTree } = await spawnResourceProcess('contained', command, args, {
     env: options.env,
     ...(options.signal !== undefined && { signal: options.signal }),
   })
@@ -263,7 +263,7 @@ async function runConverter(
     child,
     stop: stopTree,
     pid: payloadPid,
-  } = await spawnResourceProcess(command, args, {
+  } = await spawnResourceProcess('contained', command, args, {
     cwd: options.cwd,
     env: options.env,
     ...(options.signal !== undefined && { signal: options.signal }),

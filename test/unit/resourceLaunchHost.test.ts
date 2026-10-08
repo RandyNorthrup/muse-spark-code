@@ -86,6 +86,15 @@ function setup() {
 }
 
 describe('C1 process admission and registration', () => {
+  it('kills active work on dispose instead of merely releasing admission', async () => {
+    const h = setup()
+    const lease = await h.host.admit('toolShell')
+    const stop = vi.fn(() => Promise.resolve())
+    lease.register({ pid: 700, profile: 'contained', group: true, stop })
+    h.host.dispose()
+    await Promise.resolve()
+    expect(stop).toHaveBeenCalledOnce()
+  })
   it('keeps an SDK root exit unknown while exact identity registration is still pending', async () => {
     const h = setup()
     await h.throttle()

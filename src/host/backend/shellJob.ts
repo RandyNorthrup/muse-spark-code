@@ -32,6 +32,7 @@ import {
 } from '../processTree'
 import { compileJob, type JobBuild, jobFileName, nativeJobPath, removeStaleJobs } from './jobBuild'
 import type { JobHelper } from './jobSource'
+import { isResourcePaused } from '../../core/resources/paused'
 
 // The C# (C# 5, which Windows PowerShell 5.1's `Add-Type` compiles) is the
 // shipped native/windows/MuseSparkJob.cs with the shared Win32 half
@@ -101,6 +102,7 @@ async function prepare(deps: ShellJobDeps): Promise<string | undefined> {
     }
     return assembly
   } catch (error: unknown) {
+    if (isResourcePaused(error)) throw error
     deps.log(
       `Windows job objects are unavailable (${String(error)}); a stopped command is ended with taskkill and a sweep for its orphans`,
     )
@@ -114,15 +116,16 @@ export function shellJobAssembly(deps: ShellJobDeps): () => Promise<string | und
   const attempt = async (): Promise<string | undefined> => {
     // Share an in-flight attempt and keep success, but not a transient
     // failure, whether it resolved empty or threw (a throwing logger, say):
-    // a caller always gets an assembly or undefined, never a rejection.
+    // A policy pause propagates; only an unavailable helper permits fallback.
     try {
       const assembly = await prepare(deps)
       if (assembly === undefined) {
         ready = undefined
       }
       return assembly
-    } catch {
+    } catch (error: unknown) {
       ready = undefined
+      if (isResourcePaused(error)) throw error
       return undefined
     }
   }

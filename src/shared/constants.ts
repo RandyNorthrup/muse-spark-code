@@ -3848,6 +3848,8 @@ export const SHELL_JOB_NAME_PREFIX = String.raw`Local\MuseSparkShell-`
 export const TREE_EXIT_WAIT_MS = 10_000
 export const ORPHAN_SWEEP_ROUNDS = 5
 export const PROCESS_TABLE_TIMEOUT_MS = 20_000
+/** OS hand-off adapters (opener, clipboard) must return promptly; only their root is owned. Windows PowerShell's cold start for Set-Clipboard sets the bound. */
+export const RESOURCE_HANDOFF_TIMEOUT_MS = 10_000
 export const OUTPUT_REF_PREFIX = 'tool_patch-'
 // The stored output the transcript can page (`item/readOutput` parity).
 export const MODEL_API_OUTPUT_MEDIA_TYPE = 'application/json'

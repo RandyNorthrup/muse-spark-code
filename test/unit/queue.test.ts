@@ -6,6 +6,7 @@ import {
   type ResourceLaunchRequest,
   type ResourcePermit,
 } from '../../src/core/resources/queue'
+import { ResourcePausedError } from '../../src/core/resources/paused'
 import { RESOURCE_GIB_BYTES } from '../../src/shared/constants'
 import {
   resourceEventSchema,
@@ -119,8 +120,10 @@ describe('resource launch queue', () => {
     expect(f.queue.counts()).toEqual([])
   })
 
-  it('starts no new background work at pause and starts FIFO per kind under scheduler priorities', async () => {
-    const f = setup('pause')
+  it('starts FIFO per kind under scheduler priorities', async () => {
+    const f = setup('throttle')
+    f.counts.set('check', 1)
+    f.counts.set('worker', 1)
     const start: string[] = []
     const low = f.background('check', 2)
     const first = f.background('check', 0)
@@ -140,13 +143,14 @@ describe('resource launch queue', () => {
     })
     f.clock.advance(120_000)
     expect(start).toEqual([])
-    expect(f.running.backgroundCount).not.toHaveBeenCalled()
+    expect(f.running.backgroundCount).toHaveBeenCalled()
     expect(f.queue.counts()).toEqual([
       { kind: 'check', class: 'background', count: 3 },
       { kind: 'worker', class: 'background', count: 1 },
     ])
     expect(first.runNow()).toBe(false)
-    f.change('throttle')
+    f.counts.clear()
+    f.queue.wake()
     await Promise.resolve()
     expect(start).toEqual(['first', 'worker'])
     const firstPermit = await first.ready
@@ -202,12 +206,10 @@ describe('resource launch queue', () => {
     const first = f.foreground()
     const second = f.foreground()
     const background = f.background('toolShell')
+    const refused = expect(background.ready).rejects.toBeInstanceOf(ResourcePausedError)
     const admitted = vi.fn()
     void first.ready.then(admitted)
-    expect(f.queue.counts()).toEqual([
-      { kind: 'toolShell', class: 'foreground', count: 2 },
-      { kind: 'toolShell', class: 'background', count: 1 },
-    ])
+    expect(f.queue.counts()).toEqual([{ kind: 'toolShell', class: 'foreground', count: 2 }])
     f.clock.advance(19_999)
     await Promise.resolve()
     expect(admitted).not.toHaveBeenCalled()
@@ -220,12 +222,12 @@ describe('resource launch queue', () => {
     expect(admitted).toHaveBeenCalledTimes(1)
     const firstPermit = await first.ready
     expect(admitted).toHaveBeenCalledTimes(1)
-    expect(f.queue.counts()).toEqual([{ kind: 'toolShell', class: 'background', count: 1 }])
+    expect(f.queue.counts()).toEqual([])
     firstPermit.release()
     secondPermit.release()
-    expect(f.queue.counts()).toHaveLength(1)
+    expect(f.queue.counts()).toHaveLength(0)
     f.change('normal')
-    await release(background.ready)
+    await refused
   })
 
   it('recovery ends a foreground wait immediately and cancels its timer', async () => {
@@ -297,6 +299,10 @@ describe('resource launch queue', () => {
         const permit = await queued.ready
         controller.abort()
         permit.release()
+      } else if (level === 'pause') {
+        await expect(queued.ready).rejects.toBeInstanceOf(ResourcePausedError)
+        controller.abort()
+        expect(f.queue.counts()).toEqual([])
       } else {
         const rejection = expect(queued.ready).rejects.toMatchObject({ name: 'AbortError' })
         controller.abort()
@@ -335,7 +341,7 @@ describe('resource launch queue', () => {
     f.change('normal')
     const running = await f.background().ready
     expect(() => Object.defineProperty(running, 'kind', { value: 'worker' })).toThrow()
-    f.change('pause')
+    f.change('throttle')
     const pending = f.background()
     const disposed = expect(pending.ready).rejects.toMatchObject({ name: 'AbortError' })
     f.queue.dispose()
@@ -396,7 +402,8 @@ describe('resource launch queue', () => {
   )
 
   it('reports deferral/pause and private-free queue counts once, without retaining caller mutations', async () => {
-    const f = setup('pause')
+    const f = setup('throttle')
+    f.counts.set('check', 1)
     const request: ResourceLaunchRequest = Object.assign(
       { kind: 'check', class: 'background', priority: 0 } satisfies ResourceLaunchRequest,
       {
@@ -408,6 +415,7 @@ describe('resource launch queue', () => {
       },
     )
     const admission = f.queue.request(request)
+    const refused = expect(admission.ready).rejects.toBeInstanceOf(ResourcePausedError)
     request.kind = 'worker'
     f.queue.wake()
     f.queue.wake()
@@ -415,6 +423,8 @@ describe('resource launch queue', () => {
     expect(snapshot).toEqual([{ kind: 'check', class: 'background', count: 1 }])
     snapshot[0]!.count = 100
     expect(f.queue.counts()[0]!.count).toBe(1)
+    f.change('pause')
+    expect(f.queue.counts()).toEqual([])
     expect(f.seen.filter((event) => event.type === 'paused')).toHaveLength(1)
     expect(f.seen.filter((event) => event.type === 'deferred')).toEqual([
       { type: 'deferred', atMs: 0, kind: 'check', class: 'background' },
@@ -422,7 +432,7 @@ describe('resource launch queue', () => {
     for (const event of f.seen) expect(resourceEventSchema.safeParse(event).success).toBe(true)
     expect(JSON.stringify(f.seen)).not.toMatch(/pid|command|path|session|environment/)
     f.change('throttle')
-    await release(admission.ready)
+    await refused
   })
 
   it('cleans up timer/signal subscriptions on admission and cancellation and unsubscribes on disposal', async () => {
@@ -476,7 +486,7 @@ describe('resource launch queue', () => {
       { type: 'paused', atMs: 0, kind: 'check' },
     ])
     await workerRejection
-    const checkRejection = expect(queuedCheck.ready).rejects.toMatchObject({ name: 'AbortError' })
+    const checkRejection = expect(queuedCheck.ready).rejects.toBeInstanceOf(ResourcePausedError)
     queuedCheck.cancel()
     await checkRejection
     check.release()
@@ -524,9 +534,10 @@ describe('governor and queue integration', () => {
     await read(0, 0)
     const admission = queue.request({ kind: 'check', class: 'background', priority: 0 })
     expect(resourceStatusSchema.safeParse(governor.status(queue.counts())).success).toBe(true)
-    expect(governor.status(queue.counts()).queued[0]!.count).toBe(1)
+    expect(governor.status(queue.counts()).queued).toEqual([])
+    await expect(admission.ready).rejects.toBeInstanceOf(ResourcePausedError)
     governor.resumeNow()
-    const permit = await admission.ready
+    const permit = await queue.request({ kind: 'check', class: 'background', priority: 0 }).ready
     expect(queue.counts()).toEqual([])
     permit.release()
     governor.updateSettings(resourceSettingsSchema.parse({ enabled: false }))
@@ -536,10 +547,11 @@ describe('governor and queue integration', () => {
     governor.updateSettings(resourceSettingsSchema.parse({}))
     await read(10_000, 0)
     const next = queue.request({ kind: 'check', class: 'background', priority: 0 })
+    await expect(next.ready).rejects.toBeInstanceOf(ResourcePausedError)
     await read(15_000, 8 * RESOURCE_GIB_BYTES)
     await read(75_000, 8 * RESOURCE_GIB_BYTES)
     expect(governor.level()).toBe('throttle')
-    await release(next.ready)
+    await release(queue.request({ kind: 'check', class: 'background', priority: 0 }).ready)
     queue.dispose()
     governor.dispose()
   })

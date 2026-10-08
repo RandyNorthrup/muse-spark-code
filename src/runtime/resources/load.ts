@@ -84,10 +84,34 @@ export function lazyRuntimeResources(
     onError: () => {
       options.log.warn(UI_TEXT.resourceUnavailable)
     },
+    // The caller's deadline is armed before loading and sampling, so a slow
+    // bundle, settings read or sampler cannot outlast it (SPAWN017C item 3).
     admission: async (request, signal) => {
-      const host = await load()
-      await host.status()
-      return await host.admit(request, undefined, signal)
+      let abort: (() => void) | undefined
+      try {
+        return await Promise.race([
+          new Promise<never>((_resolve, reject) => {
+            abort = () => {
+              reject(
+                signal?.reason instanceof Error
+                  ? signal.reason
+                  : new DOMException('Resource admission cancelled', 'AbortError'),
+              )
+            }
+            signal?.addEventListener('abort', abort, { once: true })
+            if (signal?.aborted === true) abort()
+          }),
+          (async () => {
+            signal?.throwIfAborted()
+            const host = await load()
+            await host.status(signal)
+            signal?.throwIfAborted()
+            return await host.admit(request, undefined, signal)
+          })(),
+        ])
+      } finally {
+        if (abort !== undefined) signal?.removeEventListener('abort', abort)
+      }
     },
     windowsJob: async () =>
       await module().runtimeResourceJobs(options.machineDir, path.dirname(options.distDir)),

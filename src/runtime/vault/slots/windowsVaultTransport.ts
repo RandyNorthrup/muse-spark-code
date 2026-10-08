@@ -83,6 +83,7 @@ export function windowsVaultTransport(
       let launched: Awaited<ReturnType<typeof spawnResourceProcess>>
       try {
         launched = await spawnResourceProcess(
+          'contained',
           helper.powershell,
           [
             '-NoLogo',
@@ -96,7 +97,6 @@ export function windowsVaultTransport(
           {
             cwd: path.dirname(helper.powershell),
             env: {},
-            shell: false,
             windowsHide: true,
           },
         )

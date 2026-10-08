@@ -6,13 +6,7 @@ import { environmentValue } from '../backends/musecode/launch'
 import { CLI_OUTPUT_MAX_BYTES, PROCESS_TABLE_TIMEOUT_MS } from '../../shared/constants'
 import { spawnResourceProcess } from './process'
 
-/** execFile-compatible bounded results, using the ordinary governed command runner. */
-export async function execResourceFile(
-  command: string,
-  args: readonly string[],
-  options: ExecFileOptionsWithStringEncoding,
-): Promise<{ stdout: string; stderr: string }> {
-  const env = options.env ?? process.env
+function resolveCommand(command: string, env: NodeJS.ProcessEnv): string {
   const file = path.isAbsolute(command)
     ? command
     : resolveExecutable(command, {
@@ -21,18 +15,61 @@ export async function execResourceFile(
         fileExists: existsSync,
       })
   if (file === undefined || !existsSync(file)) throw new Error('Governed command unavailable')
-  const { child, stop } = await spawnResourceProcess(file, args, {
+  return file
+}
+
+/**
+ * Hand a URL, file or text to a fixed OS adapter (opener, clipboard). Waits for
+ * the adapter's own exit inside RESOURCE_HANDOFF_TIMEOUT_MS; never waits for, or
+ * stops, what the OS started for the user.
+ */
+export async function handoffResourceFile(
+  command: string,
+  args: readonly string[],
+  options: { readonly env: NodeJS.ProcessEnv; readonly input?: string; signal?: AbortSignal },
+): Promise<void> {
+  const file = resolveCommand(command, options.env)
+  const { child } = await spawnResourceProcess('handoff', file, args, {
+    env: options.env,
+    ...(options.signal !== undefined && { signal: options.signal }),
+  })
+  await new Promise<void>((resolve, reject) => {
+    const failed = () => {
+      reject(new Error('Governed handoff failed'))
+    }
+    child.once('error', failed)
+    child.once('exit', (code) => {
+      if (code === 0) resolve()
+      else failed()
+    })
+    child.stdin.on('error', failed)
+    child.stdin.end(options.input ?? '')
+  })
+}
+
+/** execFile-compatible bounded results, using the ordinary governed command runner. */
+export async function execResourceFile(
+  profile: 'contained',
+  command: string,
+  args: readonly string[],
+  options: ExecFileOptionsWithStringEncoding,
+): Promise<{ stdout: string; stderr: string }> {
+  const env = options.env ?? process.env
+  const file = resolveCommand(command, env)
+  const deadline = AbortSignal.timeout(options.timeout ?? PROCESS_TABLE_TIMEOUT_MS)
+  const signal =
+    options.signal === undefined ? deadline : AbortSignal.any([options.signal, deadline])
+  const { child, stop } = await spawnResourceProcess(profile, file, args, {
     env,
     ...(options.cwd !== undefined && { cwd: options.cwd }),
-    ...(options.signal !== undefined && { signal: options.signal }),
+    signal,
   })
   child.stdin.end()
   return await new Promise((resolve, reject) => {
     const out: Buffer[] = []
     const err: Buffer[] = []
     const max = options.maxBuffer ?? CLI_OUTPUT_MAX_BYTES
-    let outBytes = 0
-    let errBytes = 0
+    let bytesRead = 0
     let isFailed = false
     let stopping: Promise<void> | undefined
     const abort = () => {
@@ -42,25 +79,24 @@ export async function execResourceFile(
         reject(new Error('Governed command tree stop failed'))
       })
     }
-    const timer = setTimeout(abort, options.timeout ?? PROCESS_TABLE_TIMEOUT_MS)
-    options.signal?.addEventListener('abort', abort, { once: true })
-    if (options.signal?.aborted) abort()
+    // One named deadline covers admission and the run (the launch also stops on it).
+    signal.addEventListener('abort', abort, { once: true })
+    if (signal.aborted) abort()
     child.stdout.on('data', (bytes: Buffer) => {
-      outBytes += bytes.length
-      if (outBytes > max) abort()
+      bytesRead += bytes.length
+      if (bytesRead > max) abort()
       else out.push(bytes)
     })
     child.stderr.on('data', (bytes: Buffer) => {
-      errBytes += bytes.length
-      if (errBytes > max) abort()
+      bytesRead += bytes.length
+      if (bytesRead > max) abort()
       else err.push(bytes)
     })
     child.once('error', () => {
       abort()
     })
     child.once('close', (code) => {
-      clearTimeout(timer)
-      options.signal?.removeEventListener('abort', abort)
+      signal.removeEventListener('abort', abort)
       void (async () => {
         await stopping
         const result = {

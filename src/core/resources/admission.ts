@@ -1,9 +1,18 @@
 import type { ResourceClass, ResourceKind } from '../../shared/resources'
-import type { ResourceLease } from './launch'
+import type {
+  ResourceLease,
+  ResourceLaunchProfile,
+  ResourceProcessOptions,
+  ResourceInteractiveProcess,
+  ResourceHandoffProcess,
+  ResourcePipedProcess,
+} from './launch'
 import type { ResourceLaunchHost } from './launchHost'
 import type { ResourceHostSettings } from './resourceGovernorEntry'
-import type { spawnResourceProcess as ResourceProcessLauncher } from './process'
-import type { execResourceFile as ResourceCommandRunner } from './commands'
+import type {
+  execResourceFile as ResourceCommandRunner,
+  handoffResourceFile as ResourceHandoffRunner,
+} from './commands'
 
 const state: {
   options?: ResourceHostSettings
@@ -13,10 +22,45 @@ const state: {
 
 /** Portable process launch lives in the existing first-use governor bundle. */
 export async function spawnResourceProcess(
-  ...args: Parameters<typeof ResourceProcessLauncher>
-): Promise<Awaited<ReturnType<typeof ResourceProcessLauncher>>> {
+  profile: 'interactive',
+  file: string,
+  args: readonly string[],
+  options: ResourceProcessOptions,
+): Promise<ResourceInteractiveProcess>
+export async function spawnResourceProcess(
+  profile: 'handoff',
+  file: string,
+  args: readonly string[],
+  options: ResourceProcessOptions,
+): Promise<ResourceHandoffProcess>
+export async function spawnResourceProcess(
+  profile: 'contained' | 'bootstrap',
+  file: string,
+  args: readonly string[],
+  options: ResourceProcessOptions,
+  extraDescriptors?: readonly number[],
+): Promise<ResourcePipedProcess>
+export async function spawnResourceProcess(
+  profile: ResourceLaunchProfile,
+  file: string,
+  args: readonly string[],
+  options: ResourceProcessOptions,
+  extraDescriptors: readonly number[] = [],
+): Promise<ResourceInteractiveProcess | ResourceHandoffProcess | ResourcePipedProcess> {
   const bundle = await import('./resourceGovernorEntry.js')
-  return await bundle.spawnResourceProcess(...args)
+  if (profile === 'interactive')
+    return await bundle.spawnResourceProcess(profile, file, args, options)
+  return profile === 'handoff'
+    ? await bundle.spawnResourceProcess(profile, file, args, options)
+    : await bundle.spawnResourceProcess(profile, file, args, options, extraDescriptors)
+}
+
+/** Bounded OS hand-off (opener, clipboard) through the same lazy boundary. */
+export async function handoffResourceFile(
+  ...args: Parameters<typeof ResourceHandoffRunner>
+): Promise<void> {
+  const bundle = await import('./resourceGovernorEntry.js')
+  await bundle.handoffResourceFile(...args)
 }
 
 /** Bounded helper commands share the same lazy process boundary. */

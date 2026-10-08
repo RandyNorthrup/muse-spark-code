@@ -6,6 +6,32 @@ import type {
   ResourceTreeReader,
 } from '../../shared/resources'
 import type { ResourceTreeActionReader } from './trees/actions'
+import type { ChildProcess, SpawnOptionsWithoutStdio } from 'node:child_process'
+
+/**
+ * Every governed launch names its lifetime (PLAN SPAWN017C):
+ * contained owns its whole tree; handoff owns only a bounded OS adapter;
+ * interactive inherits the terminal; bootstrap builds containment itself.
+ */
+export type ResourceLaunchProfile = 'contained' | 'handoff' | 'interactive' | 'bootstrap'
+/** Callers cannot choose session, shell or terminal wiring; the profile does. */
+export type ResourceProcessOptions = Omit<SpawnOptionsWithoutStdio, 'detached' | 'stdio' | 'shell'>
+export interface ResourceInteractiveProcess {
+  child: ChildProcess
+  stop: () => Promise<void>
+  pid: () => Promise<number | undefined>
+}
+/** Hand-off output goes to the null device: nothing is buffered, and nothing the OS starts holds our pipes. */
+export interface ResourceHandoffProcess extends ResourceInteractiveProcess {
+  child: ChildProcess & { stdin: NonNullable<ChildProcess['stdin']> }
+}
+export interface ResourcePipedProcess extends ResourceInteractiveProcess {
+  child: ChildProcess & {
+    stdin: NonNullable<ChildProcess['stdin']>
+    stdout: NonNullable<ChildProcess['stdout']>
+    stderr: NonNullable<ChildProcess['stderr']>
+  }
+}
 
 export interface ResourceJob {
   /** A shell job's holder must finish normally after the complete job became empty. */
@@ -14,6 +40,9 @@ export interface ResourceJob {
   readonly assemblyPath: string
 }
 export interface ResourceProcessLaunch {
+  /** Other specialized launchers own contained trees; portable profiles name their lifetime. */
+  readonly profile?: ResourceLaunchProfile
+  readonly stop?: () => Promise<void>
   readonly pid?: number | undefined
   readonly job?: ResourceJob | undefined
   /** True only when the launcher created a dedicated POSIX process group. */

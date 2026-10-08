@@ -3,6 +3,7 @@ import { PassThrough } from 'node:stream'
 
 /** Slot protocol tests retain their native/fake peer; launch containment has its own suite. */
 export function fixtureResourceProcess(
+  _profile: 'contained' | 'handoff' | 'bootstrap',
   file: string,
   args: readonly string[],
   options: SpawnOptions,

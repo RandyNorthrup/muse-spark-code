@@ -285,7 +285,8 @@ export function githubReportSource(options: ReportGitHubOptions): ReportSourcePo
   }
 }
 
-const exec = execResourceFile
+const exec = (file: string, args: readonly string[], options: ExecFileOptionsWithStringEncoding) =>
+  execResourceFile('contained', file, args, options)
 const commandResultSchema = z.object({ stdout: z.string(), stderr: z.string() })
 export interface ReportGhOptions {
   readonly environment: NodeJS.ProcessEnv
