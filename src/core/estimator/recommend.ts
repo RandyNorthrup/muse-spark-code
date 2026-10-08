@@ -13,6 +13,7 @@ import {
 import machineClasses from '../../shared/machineClasses.json'
 import {
   ESTIMATE_MAX_ITEMS,
+  ESTIMATE_MAX_RENTAL_COST_USD,
   ESTIMATE_MARGINAL_FLOOR_HOURS,
   MILLISECONDS_PER_SECOND,
   MINUTES_PER_HOUR,
@@ -217,7 +218,7 @@ export function recommendEstimate(
           exactCost.numerator,
           exactCost.denominator.toString().length - 1 + USD_LIABILITY_DECIMALS,
         ).toAmount()
-        if (Usd.from(rentalCostP90Usd).compare(Usd.from(Number.MAX_VALUE)) > 0)
+        if (Usd.from(rentalCostP90Usd).compare(Usd.from(ESTIMATE_MAX_RENTAL_COST_USD)) > 0)
           refuse('cost-overflow')
       }
     } else if (forecast.reason.length === 0) refuse('missing-infeasibility-reason')

@@ -7,7 +7,10 @@ import {
   type EstimateRecommendationPort,
 } from '../../src/core/estimator/recommend'
 import { simulateEstimate } from '../../src/core/estimator/simulate'
-import { ESTIMATE_MARGINAL_FLOOR_HOURS } from '../../src/shared/constants'
+import {
+  ESTIMATE_MARGINAL_FLOOR_HOURS,
+  ESTIMATE_MAX_RENTAL_COST_USD,
+} from '../../src/shared/constants'
 import machineClassData from '../../src/shared/machineClasses.json'
 import { machineClassesSchema } from '../../src/shared/estimate'
 const machineClasses = machineClassesSchema.parse(machineClassData)
@@ -604,6 +607,35 @@ describe('M117 setup recommendations', () => {
         },
       }),
     ).toThrow('calibration-unavailable')
+  })
+  it('admits the largest honestly displayable rental and refuses one dollar more', () => {
+    const { inputs, pool, prices } = recommendationFixture(1)
+    const base = simulateEstimate(inputs, fixedDurationPort)
+    const asOf = Date.parse(inputs.request.asOf)
+    const hourMs = 60 * 60 * 1000
+    const oneHour: EstimateRecommendationPort = {
+      forecast: () => ({
+        status: 'feasible',
+        simulation: {
+          ...base,
+          p50Hours: 0.5,
+          p90Hours: 1,
+          p50: new Date(asOf + 0.5 * hourMs).toISOString(),
+          p90: new Date(asOf + hourMs).toISOString(),
+        },
+      }),
+    }
+    const bound = Number(ESTIMATE_MAX_RENTAL_COST_USD)
+    const priced = (rate: number) => [
+      { machineId: prices[0]!.machineId, price: catalogPrice(rate) },
+    ]
+    const admitted = recommendEstimate(inputs, pool, oneHour, priced(bound))
+    expect(
+      admitted.evaluations.some((entry) => entry.rentalCostP90Usd === ESTIMATE_MAX_RENTAL_COST_USD),
+    ).toBe(true)
+    expect(() => recommendEstimate(inputs, pool, oneHour, priced(bound + 1))).toThrow(
+      'cost-overflow',
+    )
   })
   it('parses inputs and candidate fleets before invoking an infeasible evaluator', () => {
     const { inputs, pool } = recommendationFixture(0)
