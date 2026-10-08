@@ -24,7 +24,8 @@ happened, not what was planned; superseded entries are kept.
   entry-named module and knip entry, with a guard against root-list drift.
   Remove the worker admission/environment/ref-fence cycle by sharing the
   unchanged credential-free environment policy from the worker environment
-  module.
+  module. The guard now shares integration-test discovery with the build,
+  so changes to its directory or filter also change the required cycle roots.
 
 - The Action's apply tests no longer race a detached Git maintenance repack
   in their fake origin: the fixture turns off receive auto-gc and plain-git

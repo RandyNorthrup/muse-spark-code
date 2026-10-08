@@ -19855,6 +19855,25 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FIXCYCLES2 — Share the build's integration-test roots (2026-10-08, Kubuntu)
+
+**Status: complete locally.** Shared discovery replaces the guard's copied
+integration glob. The replacement-list test passes in three complete runs at
+default deadlines; restoring the old glob fails it and restores byte-exact.
+Scoped gates and all five typechecks, duplication, localization, host API and
+production build pass; receipts are in `docs/certification/fixcycles.md`.
+
+Resolve RVFIXCYC's P3 by moving integration-test discovery into a small module
+used by both `scripts/build.mjs` and the cycle-root guard. The guard must use
+that list directly, so directory or filter changes cannot leave a copied glob
+behind. Prove with an injected replacement list and a deliberate restored
+hard-coded-glob drill; normalize Windows separators before comparing roots.
+Run cycles, unit typecheck, changed-file lint/format, plain knip and the complete
+guard suite three times at repository timeouts. Record receipts in
+`docs/certification/fixcycles.md`, then commit with normal hooks and explicit
+paths. The lane brief/common rules reserve aggregate quality and integration
+for the lead; no merge, rebase, push or paid/live call.
+
 ### FIXCYCLES — Complete dependency-cycle gate coverage (2026-10-08, Kubuntu)
 
 **Status: complete locally.** All prescribed fresh-clone gates pass; the
@@ -44675,6 +44694,13 @@ is relaxed. No live or paid calls, push, rebase or merge.
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
+
+**FIXCYCLES2 scoped rig verification (2026-10-08).** Follow the lane's scoped
+cycles/unit-typecheck/lint/format/knip gates and three complete guard runs at
+repository deadlines, with the common rules' additional static/build checks.
+Aggregate `npm run quality`, coverage and hosted qualification remain with the
+lead. Preserve every threshold and record the hard-coded-glob failure drill
+and byte-exact restoration in `docs/certification/fixcycles.md`.
 
 **FIXCYCLES scoped rig verification (2026-10-08).** The lane brief requires
 fresh-clone individual gates and owning test batches of at most three files.

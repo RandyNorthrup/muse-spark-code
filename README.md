@@ -4909,6 +4909,10 @@ unchanged and malformed JSON refuses publication. The 3000 KiB universal VSIX bu
 The legal scanner's pinned data is embedded in its lazy bundle, with separate
 notice/provenance files in both packages.
 
+The dev build and `cyclesRoots.test.ts` share integration-test discovery from
+`scripts/lib/integrationTests.mjs`; changes to its directory or filter also
+change which integration entries the cycle guard requires.
+
 **Tests.** Unit tests (`test/unit/**`) run under vitest with `vscode` aliased
 to `test/unit/mocks/vscode.ts` and webview components under jsdom; the fakes
 in `test/unit/helpers/` implement the full VS Code interfaces. The e2e tests

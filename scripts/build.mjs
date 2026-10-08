@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { buildLinuxHelper } from './build-linux-helper.mjs'
 import { resourceBrowserValidation, webviewEntryMetafile } from './lib/webviewBundles.mjs'
+import { listIntegrationTests } from './lib/integrationTests.mjs'
 // Bundles the extension host entry, the Model API backend, the review, the search worker,
 // web fetch's page converter worker (M69: parse5 and the HTML converter,
 // loaded on a worker thread started for each page, never at activation), the
@@ -53,15 +54,7 @@ import { resourceBrowserValidation, webviewEntryMetafile } from './lib/webviewBu
 // backend is built once for both.
 
 import { execFileSync } from 'node:child_process'
-import {
-  cpSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs'
+import { cpSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import {
   UI_TEXT_REGIONS,
@@ -218,7 +211,6 @@ const ACP_QUESTIONS_ENTRY = 'src/acp/questionDeferralEntry.ts'
 const ACP_QUESTIONS_OUTFILE = 'dist/acpQuestions.js'
 const RUNTIME_QUESTIONS_ENTRY = 'src/runtime/questions/questionRegistryEntry.ts'
 const RUNTIME_QUESTIONS_OUTFILE = 'dist/runtimeQuestions.js'
-const INTEGRATION_TEST_DIR = 'test/integration'
 const INTEGRATION_TEST_OUTDIR = 'dist/test/integration'
 // M95 (PLAN.md D74): exact catalogue values, with no provider runtime logic.
 // The data module uses the same verified solid archive loader as lazy bundles.
@@ -947,13 +939,6 @@ function writeWebviewMetafiles(metafile) {
       ),
     )
   }
-}
-
-function listIntegrationTests() {
-  return readdirSync(INTEGRATION_TEST_DIR, { recursive: true })
-    .map(String)
-    .filter((name) => name.endsWith('.test.ts'))
-    .map((name) => path.join(INTEGRATION_TEST_DIR, name))
 }
 
 /** @type {import('esbuild').BuildOptions} */

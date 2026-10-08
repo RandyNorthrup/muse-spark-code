@@ -219,3 +219,63 @@ the requested local checks; no merge, rebase or push was performed.
 Commit policy: configured lint-staged and gitleaks hooks, followed by
 post-hook staged/committed-diff review and comparison to the verified source
 bytes (AGENTS rule 15).
+
+## FIXCYCLES2 — RVFIXCYC P3 repair
+
+2026-10-08, Kubuntu; branch `fix/cycle-gate-coverage2`, base `558a7abb7`.
+Node 24.18.0, npm 12.0.1. Checks run directly in this worktree, sequentially;
+no live or paid calls, zero model attempts. Receipts are in
+`/var/tmp/l-FIXCYCLES2/receipts/`.
+
+Move the build's `INTEGRATION_TEST_DIR` and unchanged `listIntegrationTests`
+implementation into `scripts/lib/integrationTests.mjs`. The dev build imports
+that function and the root guard calls the same function, without importing
+the side-effecting build or maintaining another directory/filter/glob. Its
+`.d.mts` declaration keeps the unit-test import typed without an escape hatch.
+
+The new regression injects the shared function's returned list with
+`test\integration-next\additional.spec.ts`. The guard must require the
+normalized `test/integration-next/additional.spec.ts` root, report it missing
+from today's cycle list, and drop the former integration entries. This proves
+both changed directory/filter coverage and Windows separator normalization.
+The spy is restored in `finally`.
+
+Red drill: replace only the shared discovery call in the guard with the old
+`expand(['test/integration/**/*.test.ts'])`. The complete five-test suite
+exits 1: the new regression receives `[]` instead of the missing replacement
+root; the four original checks still pass. Restore the guard byte-exact.
+Before/restored SHA-256:
+`42d92f40606d1578180107dd0047fbb5bd4dfbdf7d641fd2cf367bee2c44130f`.
+Repeat the drill after the lint correction to certify the final source bytes.
+
+The first lint run rejects the escaped Windows-path fixture under
+`unicorn/prefer-string-raw`; use `String.raw` under the existing rule and rerun
+lint successfully. No rule, timeout, ignore, cap or assertion changes.
+On the final source, `npx vitest run test/unit/cyclesRoots.test.ts --maxWorkers=3`
+passes all five tests in three separate runs at repository default timeouts:
+15 passes, no failures or skips, exits 0 / 0 / 0.
+
+| FIXCYCLES2 check                                                      | Final exit |
+| --------------------------------------------------------------------- | ---------: |
+| `npm run cycles` (2,182 modules, no cycles)                           |          0 |
+| `npm run typecheck:unit`                                              |          0 |
+| `npm run typecheck:host`                                              |          0 |
+| `npm run typecheck:webview`                                           |          0 |
+| `npm run typecheck:e2e`                                               |          0 |
+| `npm run typecheck:integration`                                       |          0 |
+| `npx eslint --max-warnings=0` on all changed code/declarations        |          0 |
+| `npx prettier --check` on all changed files                           |          0 |
+| Plain `npx knip`                                                      |          0 |
+| `npx jscpd` (zero clones)                                             |          0 |
+| `npm run check:l10n` (zero problems)                                  |          0 |
+| `npm run check:host-api` (zero problems)                              |          0 |
+| `npm run build` including size, split, host-global and notices checks |          0 |
+| Complete `cyclesRoots.test.ts`, three runs, default timeouts          |  0 / 0 / 0 |
+
+Production sizes remain extension 509.5/600 KiB, Model API 488.7/525 KiB,
+checkpoint store 78.5/225 KiB and deferred webview JavaScript 32.1/50 KiB.
+
+Aggregate quality, full coverage and hosted qualification remain with the
+lead under the lane/shared rules. No merge, rebase, push, dependency install,
+new user-facing feature or wire shape. Existing hooks run unchanged, followed
+by staged/committed-diff review and comparison to the verified source bytes.
