@@ -162,3 +162,29 @@ journal coverage time) was not addressed in this pass.
 | duplication     | 1    | 4 new clones: `src/acp/agent.ts` 2052–2059, `src/shared/l10n/text.ts` 156–162, two test fixtures (paidDailyBudget, modelApiElicitation) |
 | lint (full)     | n/r  | not run in full; the pre-commit hook linted every changed file of steps 1–2 at zero warnings                                            |
 | check:visual    | n/r  | not run (full reviewed matrix needs the hosted replay)                                                                                  |
+
+## Money and schedule ledger (MONEY017)
+
+Kubuntu, `rel017/money`, base `7a4fc2ab3`, 2026-10-08. Fake-only; no
+credentials, paid/live calls, merge, push or gate changes. The rig brief
+supersedes the common file's historical merge/full-quality instructions.
+
+- Initial default-timeout run of paidDailyBudget, accountPaidConsent and
+  schedulePaid: 69 tests, 17 failed / 52 passed. All three schedule failures
+  were numeric expectations (`0`, `0.3`) against exact strings, with no
+  reservation-logic failure. They retain every refusal and allow assertion.
+- Daily-budget tests keep exact headroom, token price, refunds, account-swap
+  liabilities and Judge totals. An entered `1.0000000001` stays exact rather
+  than rounding to nanos. Captured numeric usage projections stay numeric.
+  The account fixture records one simulated request even when key retrieval
+  repeats before token dispatch; its threshold still refuses at exactly one.
+- Account popup assertions supply an explicit frozen search quote; Always
+  tests persist quote ceilings scoped by provider/account/accepted tariff,
+  instead of expecting legacy feature bits to authorize quoted search.
+- The test-only malformed branded NaN injection stays, with its inline reason
+  and PLAN §8 row: both constructors reject it, so constructing it in the test
+  would bypass the production defenses the two assertions exercise.
+
+Money-port fixes were seen red in the initial run and restored green at the
+repository's default timeouts. Scheduled-media regressions and fresh-clone
+static gate receipts follow below when complete.

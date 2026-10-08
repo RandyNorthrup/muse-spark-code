@@ -10,6 +10,8 @@ import type { PaidUseRequest } from '../../src/shared/paid'
 import { parseUsd } from '../../src/shared/accountUsd'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { Usd } from '../../src/shared/usd'
+import { paidAuthorityKey, type PaidGrant } from '../../src/core/paid/paidAuthority'
+import { quotedSearch } from './helpers/paidQuote'
 
 const REQUEST: PaidUseRequest = { feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() }
 const BINDING: PaidAccountBinding = {
@@ -108,14 +110,15 @@ describe('M108 account-bound paid use consent', () => {
 
   it('asks once before the first charge per account, with the account, tariff and shared budget', async () => {
     const t = rig()
+    const request = quotedSearch('0.0025', 'muse-spark-1.3')
     const a = t.create(),
       b = t.create({ account: 'b' })
-    expect(await a.allows(REQUEST)).toBe(true)
-    expect(await a.allows(REQUEST)).toBe(true)
+    expect(await a.allows(request)).toBe(true)
+    expect(await a.allows(request)).toBe(true)
     expect(t.deps.ask).toHaveBeenCalledTimes(1)
-    expect(await b.allows(REQUEST)).toBe(true)
+    expect(await b.allows(request)).toBe(true)
     expect(t.deps.ask).toHaveBeenCalledTimes(2)
-    expect(t.deps.ask).toHaveBeenLastCalledWith(REQUEST, { ...BINDING, account: 'b' }, true)
+    expect(t.deps.ask).toHaveBeenLastCalledWith(request, { ...BINDING, account: 'b' }, true)
     const detail = paidAccountQuestion(BINDING)
     expect(detail).toContain('meta · a')
     expect(detail).toContain('$5 per 1,000 searches')
@@ -125,19 +128,37 @@ describe('M108 account-bound paid use consent', () => {
   it('binds Always to workspace, provider, account and price; never reuses legacy feature grants', async () => {
     const t = rig()
     vi.mocked(t.deps.ask).mockResolvedValue('always')
-    const a = t.create()
+    // Search Always grants persist their quote ceiling, not a legacy feature bit.
+    const quotes = new Map<string, PaidGrant>()
+    const create = (patch: Partial<PaidAccountBinding> = {}) => {
+      const binding = { ...BINDING, ...patch }
+      const bindingKey = JSON.stringify([binding.provider, binding.account, binding.price])
+      return new AccountPaidUseConsent(
+        {
+          ...t.deps,
+          readQuoteGrant: (quote) => quotes.get(bindingKey + paidAuthorityKey(quote)),
+          writeQuoteGrant: (grant) => {
+            quotes.set(bindingKey + paidAuthorityKey(grant.quote), grant)
+            return Promise.resolve()
+          },
+        },
+        binding,
+      )
+    }
+    t.grants.set('legacy', new Set(['webSearch']))
+    const a = create()
     expect(await a.allows(REQUEST)).toBe(true)
-    expect(await t.create().allows(REQUEST)).toBe(true)
+    expect(await create().allows(REQUEST)).toBe(true)
     expect(t.deps.ask).toHaveBeenCalledTimes(1)
     for (const patch of [
       { provider: 'openai' },
       { account: 'b' },
       { price: '$6 per 1,000 searches' },
     ])
-      expect(await t.create(patch).allows(REQUEST)).toBe(true)
+      expect(await create(patch).allows(REQUEST)).toBe(true)
     expect(t.deps.ask).toHaveBeenCalledTimes(4)
     t.state.canRemember = false
-    expect(await t.create().allows(REQUEST)).toBe(true)
+    expect(await create().allows(REQUEST)).toBe(true)
     expect(t.deps.ask).toHaveBeenCalledTimes(5)
   })
 

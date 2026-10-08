@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- The 0.17.0 integration's daily-budget and durable schedule tests now assert
+  exact decimal money, including entered limits below nano precision, while
+  account consent fixtures persist quote ceilings and retain account refusal.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
