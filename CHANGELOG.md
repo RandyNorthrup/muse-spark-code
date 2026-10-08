@@ -75,6 +75,14 @@ happened, not what was planned; superseded entries are kept.
   aggregate media budget plus 16 MiB) instead of the SDK's new 32 MiB
   default, so a valid prompt with several near-limit images still reaches the
   per-image and media-budget checks.
+- Bring every 0.17.0 bundle back under its unchanged cap by moving code, not
+  raising limits: lazy Node bundles share the wire schemas, the accounts
+  bundle takes the engine's backend through its port (348 to 48 KB), the ACP
+  engine drops zod's unused locales (915 to 639 KB), report bundles share
+  the secret scrubber, and optional browser closures shed vault English,
+  Help's slash facts and engine-only estimate schemas. Exact dollar display
+  moves out of the language helpers. The VSIX cap is provisionally 3700 KiB
+  until the hosted universal package is measured (PLAN.md D6).
 
 ### Fixed
 

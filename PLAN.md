@@ -445,6 +445,26 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**CAPS017 (2026-10-08, Windows host + kubuntu).** The combined 0.17.0
+candidate's nine over-cap bundles fit their unchanged caps after structural
+shrinks: the wire boundary shares five schemas it already carried, the
+accounts port takes the engine's backend factory, the ACP engine ships only
+zod's English locale, report bundles share the scrubber, the upload report
+schema and account words move to leaves, the vault English, slash reference
+and engine-only estimate schemas leave their browser closures, and exact USD
+display leaves `l10n/text.ts` for `l10n/exactUsd.ts`. No bundle cap rises.
+Two pins move with recorded evidence (`docs/certification/int0170-combined.md`):
+the M115 Model API review pin was stale, taken on int/0170 before 0.16.0's
+Model API merged (0.16.0 alone 500,400 B; int/0170's head 483,463 B), so it
+is corrected to the combined measurement, 527,400 B, inside the 525 KiB cap;
+re-measure after the money lanes merge. The VSIX cap is **provisional**:
+3,272,933 B measured on kubuntu with the real x64 Linux helper, an empty
+arm64 helper (no arm64 OpenSSL to cross-compile) and no macOS artifacts;
+`25 × ceil(3,196.2 KiB × 1.15 / 25)` = **3700 KiB** (lead decision). The
+hosted universal VSIX on the release PR sets the final cap. Growth over
+0.16.0 is new 0.17.0 content (reporting, schedules, estimator, vault, media,
+translations, webview), named with sizes in the certification.
+
 **INT0180B (2026-10-07, linuxlt).** Optional account/developer English gets
 its own generated first-use region, loaded and installed before lazy factories
 resolve, with the existing accessible failure/retry handling. Measured 3,559 bytes; +15%, rounded up to 25 KiB, gives its 25 KiB cap. Original surface

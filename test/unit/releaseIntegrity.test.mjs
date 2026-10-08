@@ -123,7 +123,8 @@ describe('GitHub Release reruns', () => {
 
 describe('compressed universal VSIX budget', () => {
   it('accepts exactly the measured budget', () => {
-    expect(MAX_VSIX_BYTES).toBe(3_072_000)
+    // CAPS017: provisional until the hosted universal VSIX measurement.
+    expect(MAX_VSIX_BYTES).toBe(3_788_800)
     writeFileSync(fixture.artifact, new Uint8Array(MAX_VSIX_BYTES))
     expect(checkVsixSize(fixture.artifact)).toBe(MAX_VSIX_BYTES)
   })

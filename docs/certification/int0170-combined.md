@@ -162,3 +162,174 @@ journal coverage time) was not addressed in this pass.
 | duplication     | 1    | 4 new clones: `src/acp/agent.ts` 2052–2059, `src/shared/l10n/text.ts` 156–162, two test fixtures (paidDailyBudget, modelApiElicitation) |
 | lint (full)     | n/r  | not run in full; the pre-commit hook linted every changed file of steps 1–2 at zero warnings                                            |
 | check:visual    | n/r  | not run (full reviewed matrix needs the hosted replay)                                                                                  |
+
+## Bundle diet (CAPS017)
+
+Branch `rel017/caps` from `release/0.17.0` `7a4fc2ab3`, 2026-10-08, Windows
+host builds plus Kubuntu for test batches and packages. Hooks ran on every
+commit and nothing was pushed. The webview items were done by a helper
+branch, `rel017/caps-web`, and were reviewed and cherry-picked. No bundle
+cap was raised. Baselines for 0.16.0 (`4da4ef666`), int/0170 (`41dffa50b`),
+int/0180b (`516ace8d5`) and the candidate were built on Kubuntu with
+identical options, for attribution.
+
+### Before and after (Windows `npm run build`, bytes)
+
+| Bundle / closure             | Candidate | After   | Cap     | What moved                                                                                   |
+| ---------------------------- | --------- | ------- | ------- | -------------------------------------------------------------------------------------------- |
+| `dist/runtimeQuestions.js`   | 26,130    | 23,532  | 25,600  | `shared/questions.ts` comes from `dist/wire.js`                                              |
+| `dist/conversation.js`       | 261,085   | 249,688 | 256,000 | upload report schema to `shared/media.ts`; ledger, Model API client and subagent tools leave |
+| `dist/runtimeEngine.js`      | 915,371   | 638,576 | 896,000 | `englishZodLocales`: 63 unused zod locales (258 KiB); wire schemas shared                    |
+| `dist/usagePanel.js`         | 85,339    | 73,648  | 76,800  | `scheduleV2`/`scheduleEvents`/`schedule` come from `dist/wire.js`                            |
+| `dist/headless.js`           | 103,142   | 101,083 | 102,400 | account words to the `src/acp/accountText.ts` leaf; panel schemas leave                      |
+| `dist/runtimeAccounts.js`    | 347,676   | 47,511  | 307,200 | `ExecAccountsPort.create` takes the engine's `createRuntimeBackend`; backend closure leaves  |
+| webview surface English      | 27,592    | 24,540  | 25,600  | `vault` English leaves the shared region (`vaultEnglish.ts` installs it)                     |
+| webview Palette              | 26,366    | 22,658  | 25,600  | `/` list via `paletteRegistry`; `SLASH_REFERENCE` to `shared/reference/slashReference.ts`    |
+| webview estimator panel      | 25,627    | 25,315  | 25,600  | machine-class and provider schemas in `shared/estimate.ts` as pure builders                  |
+| `dist/modelApi.js`           | 531,648   | 527,377 | 537,600 | `bareName` through `codeIntelEntry`; wire schemas shared                                     |
+| `dist/wire.js`               | 65,514    | 70,883  | 76,800  | now exports the five schemas the protocol already carried                                    |
+| `dist/extension.js`          | 585,037   | 569,835 | 614,400 | wire schemas shared                                                                          |
+| `dist/reporting*.js` (four)  | 320,130   | 296,041 | each ok | `sharedRedaction`: the scrubber comes from `dist/vaultBoundaries.js`                         |
+| chat startup (main + static) | 766,223   | 766,296 | 921,600 | +73 B for the exact-USD shared chunk (below); the FIXDIET1 ratchet failed before             |
+
+`npm run build` exits 0 (every cap, split check, host globals, notices).
+Before, the split check also reported `src/shared/slashCommands.ts` as an
+unlisted deferred surface. It reports nothing now.
+
+### Model API review pin (M115 RVM115U5)
+
+The pin was stale; this lane did not push the bundle past it. The RVM115U5
+test fails on int/0170's own head (483,463 > 474,100 B, Kubuntu run of the
+test), and 0.16.0 alone builds `dist/modelApi.js` at 500,400 B with no M115
+code. Compared with 0.16.0, the combined tree adds:
+
+- `ModelApiHost.ts` +22,347 B (int/0170 about 15.4 KB, int/0180b about 6.9 KB)
+- `schedules/sessionOwner.ts` 4,308 B
+- `context/recordingReader.ts` 3,252 B
+- `shared/accounts.ts` 1,931 B
+
+`sessionOwner.ts` and `recordingReader.ts` are core to every session: the
+hosts' schedule owner and the provenance reader. Moving all four would still
+leave 0.16.0's 500,400 B. The pin is corrected to the measured combined value,
+**527,400 B**, which is inside D6's 525 KiB cap. The lead decided this is a
+stale-pin correction, not a relaxed budget. Re-measure after the money lanes
+merge.
+
+### VSIX (provisional cap)
+
+`npm run package` cannot finish on Windows because the Linux and macOS
+helpers are missing. The packages below were built and measured on Kubuntu
+with `scripts/package-vsix.mjs`.
+
+| Package               | x64 helper | arm64 helper | macOS | Bytes     |
+| --------------------- | ---------- | ------------ | ----- | --------- |
+| 0.16.0 `4da4ef666`    | empty      | empty        | none  | 2,819,351 |
+| candidate `7a4fc2ab3` | empty      | empty        | none  | 3,274,456 |
+| CAPS017 `fa94713cd`   | real       | empty        | none  | 3,272,933 |
+
+The real arm64 helper could not be built: Kubuntu has the aarch64 compiler
+but no arm64 OpenSSL. The cap is therefore **provisional**:
+`25 × ceil(3,196.2 KiB × 1.15 / 25)` = **3700 KiB (3,788,800 B)**, set in
+`scripts/check-vsix-size.mjs` (lead decision, PLAN.md D6). The hosted CI
+universal VSIX on the release PR sets the final cap. For scale, 0.16.0's
+universal package measured 2,911,436 B with every helper. The 0.17.0
+universal package adds the arm64 helper and the macOS artifacts to the
+figure above.
+
+Growth over 0.16.0 (compressed ZIP entry bytes, +444,896 B in total):
+
+| Contributor                       | KB     | Detail                                                                  |
+| --------------------------------- | ------ | ----------------------------------------------------------------------- |
+| Node bundle archive               | +157.1 | measured; the per-feature rows below compress each bundle alone         |
+| reporting (M113, four bundles)    | ~90.5  | 296,027 B raw after the scrubber share                                  |
+| schedules (M115)                  | ~44.7  | `schedules.js`, 156,234 B raw                                           |
+| estimator (M117)                  | ~27.5  | `estimator.js` and `estimateContracts.js`                               |
+| vault (M109)                      | ~17.2  | `vault.js` and `vaultBoundaries.js`                                     |
+| media (M105)                      | ~15.9  | `media.js` and `screenRecord.js`                                        |
+| l10n tables                       | +105.1 | new 0.17.0 strings in 14 locales                                        |
+| webview                           | +82.1  | new 0.17.0 UI: reports, schedules, estimator, accounts, playbook, vault |
+| native                            | +34.3  | the real x64 helper (14.2 KB) and new 0.17.0 native resources           |
+| manifest strings and package.json | +23.4  | new commands and settings in 15 languages                               |
+| uiText regions, What's New, wire  | +26.4  | new English, the 0.17.0 notes and the shared schemas                    |
+| changelog, readme and docs        | +8.3   |                                                                         |
+
+Against the candidate, CAPS017 saves 13.3 KB (archive) and 3.6 KB (webview)
+compressed, and costs 1.5 KB in `wire.js`. Two cheap levers were tried. The
+report scrubber share went in. The `shared/constants.ts` residue (667 KB
+raw across 69 Node bundles) was measured but not removed: esbuild keeps the
+arithmetic constant declarations of any module with a value import or
+re-export, which minimal modules confirmed, and `constants.ts` has three
+(the `usd` import, the `UI_TEXT` re-export and `browserCheckConstants`).
+Removing them changes hundreds of importers across every lane, so that is
+the lead's call. Not tried: a shared report core for `reportSchema.ts` and
+`sessionTransfer.ts`, about 4 KB raw each in four bundles.
+
+### Exact USD display (RED017 handoff)
+
+After f3a6c1e5b, `src/shared/l10n/text.ts` imported `Usd` again, so every
+graph that installs the language carried `usd.ts`. `formatUsd`,
+`formatUsdIntl` and `formatUsdAtPrecision` move unchanged to
+`src/shared/l10n/exactUsd.ts`. `formatExactUsd` was the same function, so it
+is folded into `formatUsd`, and `numberFormat` is exported for the moved code.
+
+- 37 importers change only their import line; no call changes.
+- The move removes the `text.ts`/`exactUsd.ts` jscpd clone.
+- Chat startup still carries `usd.ts`, as before, through
+  `core/usage/insights.ts`, `shared/paid.ts` and `shared/tokenRatePrice.ts`
+  (money lane).
+- The new shared chunk costs chat startup 73 B.
+
+### Guards and red drills
+
+| Guard                                                       | Break                                                    | Result                                 |
+| ----------------------------------------------------------- | -------------------------------------------------------- | -------------------------------------- |
+| split: backend closure stays out of `runtimeAccounts.js`    | candidate's `runtimeAccounts.json` in `dist/meta-acp`    | exit 1, three "accounts port" problems |
+| split: wire schemas in no other bundle                      | candidate's `usagePanel.json` and `runtimeAccounts.json` | exit 1, seven duplicate-wire problems  |
+| split: only zod's English locale in the engine              | first plugin version did not match `core/index.js`       | exit 1, 63 locale problems             |
+| deferredBundles CAPS017 tests (wire, port, locales)         | the same metafiles and plugin                            | fail, then pass on restore             |
+| webview surface English, palette, AppPaletteLazy, estimator | `rel017/caps-web` drills, each restored                  | fail or hang, then pass                |
+
+### Tests and gates
+
+Kubuntu ran a batch of 23 test files: the bundle tests, the suites of the
+moved paths, and the built-agent e2e suites (acpStdio, accounts, questions,
+schedulesStdio, reports, estimator). 1205 passed and 2 failed. Both failures
+are in `webviewBundle.test.mjs` and also fail at `7a4fc2ab3`: `usd.ts` in
+chat startup, and the FIXDIET1 startup ratchet (751,411 B).
+
+`execStdio.e2e`'s schema/launcher test fails the same way on the candidate
+(the `l10n` archive's `keys`), and its E5 timing case failed once under
+load.
+
+Full `test/unit` on Kubuntu after the exact-USD move: 24,236 passed and 64
+failed in 33 files. The same 33 files on the candidate fail 63 tests in 31
+files, all shared with this branch apart from two:
+
+- `browserEnglish.test.mjs` (2 tests): it read every English value after
+  `loadDeferredEnglish`. It now installs vault English the way the vault
+  surface does, after asserting that it throws first, and then compares
+  every value.
+- `vault/peer.test.ts` (1 test): `nobody` cannot execute the client inside
+  the rig slot's 0700 temp folder. This is the environment; it passes with
+  an ordinary temp folder.
+
+Fewer failures than the candidate:
+
+- `webviewBundle.test.mjs`: 4 failures there, 2 here.
+- `accountUsageBundle.test.mjs` (RED017) now passes.
+- `warmDeferredSurfaces` lost its palette mismatch; the remaining
+  `ElicitationCard` entry also fails at the candidate.
+
+The other failures in the shared files belong to other lanes: money
+(paidDailyBudget, accountPaidConsent, schedulePaid, paidMoneyPorts,
+mediaClient), visual and a11y (visual*, m114*), museCodeSdk142,
+modelApiLoopGuarantees, playbookOutcomes and the packaging fixtures.
+
+Windows gates, all exit 0:
+
+- five typechecks
+- eslint `--max-warnings=0` and prettier on changed files
+- plain knip and cycles
+- check:l10n, check:reference and check:host-api
+
+jscpd still reports the other three clones listed above (left lane).
