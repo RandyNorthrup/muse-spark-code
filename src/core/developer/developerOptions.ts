@@ -24,8 +24,10 @@ export interface DeveloperStore {
 }
 export interface DeveloperOptionsDeps {
   readonly machineId: string
-  /** Ids this machine was known by before DEVID017 (its raw hostname). A
-   * stored grant under one is adopted once and re-bound to machineId. */
+  /** Ids this machine was known by before DEVID017B (its raw hostname, its
+   * hostname digest, or that digest for the short or `.local` hostname
+   * forms). A stored grant under one is adopted once and re-bound to
+   * machineId, compared case-insensitively. */
   readonly previousMachineIds?: readonly string[]
   readonly now: () => number
   readonly newProfileId: () => string
@@ -40,10 +42,18 @@ export interface DeveloperOptionsDeps {
 }
 
 export class DeveloperOptionsError extends Error {
-  public constructor(public readonly code: 'locked' | 'unavailable' | 'invalidRequest') {
+  public constructor(
+    public readonly code: 'locked' | 'unavailable' | 'invalidRequest' | 'differentMachine',
+  ) {
     super(UI_TEXT.developer[code])
     this.name = 'DeveloperOptionsError'
   }
+}
+
+function isPreviousMachine(stored: string, previous: readonly string[] | undefined): boolean {
+  // Hostnames compare case-insensitively; digests are already lowercase.
+  const normalized = stored.toLowerCase()
+  return (previous ?? []).some((id) => id.toLowerCase() === normalized)
 }
 
 /** One parent-owned service across windows, editor bridges and terminal clients.
@@ -64,23 +74,37 @@ export class DeveloperOptions {
       stored !== undefined &&
       (parsed === undefined ||
         !parsed.success ||
-        (parsed.data.unlockedAt !== null && parsed.data.unlockedAt > deps.now()) ||
-        (parsed.data.machineId !== deps.machineId &&
-          !(deps.previousMachineIds ?? []).includes(parsed.data.machineId)))
+        (parsed.data.unlockedAt !== null && parsed.data.unlockedAt > deps.now()))
     ) {
       throw new DeveloperOptionsError('unavailable')
     }
-    // A grant stored under this machine's legacy id keeps working: it is
-    // re-bound to the opaque id here and persisted on the next save, with no
-    // grant change and so no audit entry (DEVID017).
+    if (
+      parsed?.success === true &&
+      parsed.data.machineId !== deps.machineId &&
+      !isPreviousMachine(parsed.data.machineId, deps.previousMachineIds)
+    ) {
+      // Set up under a different machine identity: the profiles stay on
+      // disk until the user resets (DEVID017B).
+      throw new DeveloperOptionsError('differentMachine')
+    }
+    // A grant stored under this machine's legacy id (its raw hostname or
+    // hostname digest) keeps working: it is re-bound to the stored id here
+    // and persisted at once — with no grant change and so no authority
+    // audit entry, only the `migrate` identity row — so the identifying raw
+    // hostname leaves stored state on this open, not on some later save.
+    const isMigrated = parsed?.success === true && parsed.data.machineId !== deps.machineId
     let restored = empty
     if (parsed?.success === true) {
-      restored =
-        parsed.data.machineId === deps.machineId
-          ? parsed.data
-          : { ...parsed.data, machineId: deps.machineId }
+      restored = isMigrated ? { ...parsed.data, machineId: deps.machineId } : parsed.data
     }
     const owner = new DeveloperOptions(deps, restored)
+    if (isMigrated) {
+      try {
+        await owner.save(owner.state, 'migrate', 'lifecycle')
+      } catch {
+        throw new DeveloperOptionsError('unavailable')
+      }
+    }
     await owner.refresh()
     if (owner.isMultipleAccountsOn()) {
       const current = owner.fence()
@@ -96,6 +120,38 @@ export class DeveloperOptions {
       }
     }
     return owner
+  }
+
+  /** Reset state bound to another machine's identity (DEVID017B). `open`
+   * refuses such state, so the terminal `developer reset` recovers through
+   * here without an owner. Like `reset`, revocation starts before the
+   * destructive confirmation is answered; denying re-refuses with the honest
+   * identity message and loses nothing (the unlock and profiles stay). */
+  public static async resetForeign(
+    deps: DeveloperOptionsDeps,
+    source: DeveloperAudit['source'],
+  ): Promise<DeveloperSnapshot> {
+    const stored = await deps.store.read()
+    const parsed = stored === undefined ? undefined : developerStateSchema.safeParse(stored)
+    if (parsed?.success !== true) throw new DeveloperOptionsError('differentMachine')
+    const owner = new DeveloperOptions(deps, parsed.data)
+    try {
+      await owner.stopAll()
+    } finally {
+      await owner.save(
+        { ...owner.state, machineId: deps.machineId, isMultipleAccountsOn: false },
+        'disable',
+        'lifecycle',
+      )
+    }
+    if (!(await deps.confirm('reset'))) throw new DeveloperOptionsError('differentMachine')
+    for (const profile of owner.state.profiles) await deps.resources.remove(profile)
+    await owner.save(
+      { ...owner.state, unlockedAt: null, expiresAt: null, profiles: [] },
+      'reset',
+      source,
+    )
+    return owner.snapshot()
   }
 
   private state: DeveloperState

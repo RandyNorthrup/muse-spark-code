@@ -5338,6 +5338,7 @@
     "resetWarning": "Zresetować opcje programisty? Profile lokalne zostaną zatrzymane, a ich miejsca na dane uwierzytelniające i foldery stanu usunięte.",
     "locked": "Opcje programisty są zablokowane.",
     "unavailable": "Opcje programisty są niedostępne.",
+    "differentMachine": "Opcje programisty skonfigurowano dla innej tożsamości komputera. Zresetuj je, aby zacząć od nowa na tym komputerze.",
     "invalidRequest": "Sprawdź żądanie opcji programisty.",
     "expires": "Tryb programisty wygasa {time}.",
     "reset": "Zresetuj opcje programisty",

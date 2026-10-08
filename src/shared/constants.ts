@@ -7669,9 +7669,16 @@ export const DEVELOPER_COMMAND_ID = 'museSpark.developerOptions'
 // developer first option, without the developer badge or expiry.
 export const DEVELOPER_SETTING_ID = 'museSpark.accounts.severalOnThisDevice'
 export const DEVELOPER_FILES = { state: 'developer.json', audit: 'developer-audit.jsonl' } as const
-// DEVID017: domain separation for the developer machine identity
-// (core/developer/machineId.ts). The stored id hashes the hostname, so a
-// dotted hostname stays schema-valid and no hostname lands in stored state.
+// DEVID017B: the stable machine identity (core/developer/machineId.ts). A
+// random id created once per machine and kept in the machine-scoped data
+// folder every host on this machine shares. It is never derived from the
+// hostname, so renames and `host` vs `host.local` change nothing.
+export const DEVELOPER_MACHINE_ID_FILE = 'machine-id'
+export const DEVELOPER_MACHINE_ID_BYTES = 32
+export const DEVELOPER_MACHINE_ID_READ_ATTEMPTS = 10
+export const DEVELOPER_MACHINE_ID_READ_DELAY_MS = 10
+// DEVID017: domain separation for the legacy hostname derivation, kept only
+// to recognise stored state from before DEVID017B (core/developer/machineId.ts).
 export const DEVELOPER_MACHINE_ID_DOMAIN = 'muse-spark-developer-machine/v1'
 // M109 lane 0: vault format, limits and budgets (D89).
 export const VAULT_FORMAT_VERSION = 1

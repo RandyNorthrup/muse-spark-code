@@ -5338,6 +5338,7 @@
     "resetWarning": "Obnovit možnosti pro vývojáře? Místní profily se zastaví a jejich úložiště přihlašovacích údajů a složky stavu se odstraní.",
     "locked": "Možnosti pro vývojáře jsou zamčené.",
     "unavailable": "Možnosti pro vývojáře nejsou dostupné.",
+    "differentMachine": "Možnosti pro vývojáře byly nastaveny pod jinou identitou počítače. Obnovením je na tomto počítači začnete používat znovu.",
     "invalidRequest": "Zkontrolujte požadavek na možnosti pro vývojáře.",
     "expires": "Vývojářský režim vyprší {time}.",
     "reset": "Obnovit možnosti pro vývojáře",

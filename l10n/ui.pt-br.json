@@ -5188,6 +5188,7 @@
     "resetWarning": "Redefinir as opções do desenvolvedor? Os perfis locais serão interrompidos e seus espaços de credenciais e pastas de estado serão excluídos.",
     "locked": "As opções do desenvolvedor estão bloqueadas.",
     "unavailable": "As opções do desenvolvedor estão indisponíveis.",
+    "differentMachine": "As opções do desenvolvedor foram configuradas com outra identidade de máquina. Redefina-as para começar de novo nesta máquina.",
     "invalidRequest": "Verifique a solicitação de opções do desenvolvedor.",
     "expires": "O modo de desenvolvedor expira {time}.",
     "reset": "Redefinir opções do desenvolvedor",

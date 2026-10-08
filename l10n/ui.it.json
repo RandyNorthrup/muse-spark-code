@@ -5188,6 +5188,7 @@
     "resetWarning": "Reimpostare le opzioni sviluppatore? I profili locali saranno arrestati e i relativi spazi per le credenziali e cartelle di stato saranno eliminati.",
     "locked": "Le opzioni sviluppatore sono bloccate.",
     "unavailable": "Le opzioni sviluppatore non sono disponibili.",
+    "differentMachine": "Le opzioni sviluppatore sono state configurate con un'identità macchina diversa. Reimpostale per ricominciare su questa macchina.",
     "invalidRequest": "Controlla la richiesta delle opzioni sviluppatore.",
     "expires": "La modalità sviluppatore scade {time}.",
     "reset": "Reimposta opzioni sviluppatore",

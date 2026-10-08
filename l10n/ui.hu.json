@@ -5038,6 +5038,7 @@
     "resetWarning": "Visszaállítja a fejlesztői beállításokat? A helyi profilok leállnak, hitelesítőadat-helyeik és állapotmappáik törlődnek.",
     "locked": "A fejlesztői beállítások zárolva vannak.",
     "unavailable": "A fejlesztői beállítások nem érhetők el.",
+    "differentMachine": "A fejlesztői beállításokat egy másik gépazonosítóval állították be. Állítsa vissza őket, hogy ezen a gépen újra kezdhesse.",
     "invalidRequest": "Ellenőrizze a fejlesztői beállítások kérését.",
     "expires": "A fejlesztői mód ekkor jár le: {time}.",
     "reset": "Fejlesztői beállítások visszaállítása",

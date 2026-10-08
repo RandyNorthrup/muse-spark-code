@@ -68,14 +68,14 @@ export const developerReplySchema = z.union([
   developerSnapshotSchema,
   z.strictObject({
     type: z.literal('developer/error'),
-    code: z.enum(['locked', 'unavailable', 'invalidRequest']),
+    code: z.enum(['locked', 'unavailable', 'invalidRequest', 'differentMachine']),
   }),
 ])
 export type DeveloperReply = z.infer<typeof developerReplySchema>
 export const developerAuditSchema = z.strictObject({
   v: z.literal(1),
   time: timestamp,
-  action: z.enum(['unlock', 'enable', 'disable', 'expire', 'reset', 'create', 'remove']),
+  action: z.enum(['unlock', 'enable', 'disable', 'expire', 'reset', 'create', 'remove', 'migrate']),
   source: z.enum(['version', 'palette', 'terminal', 'page', 'setting', 'lifecycle']),
   profile: z.optional(accountIdSchema),
 })

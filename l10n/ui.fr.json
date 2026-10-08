@@ -5188,6 +5188,7 @@
     "resetWarning": "Réinitialiser les options de développement ? Les profils locaux seront arrêtés et leurs emplacements d’identifiants et dossiers d’état seront supprimés.",
     "locked": "Les options de développement sont verrouillées.",
     "unavailable": "Les options de développement sont indisponibles.",
+    "differentMachine": "Les options de développement ont été configurées sous une autre identité de machine. Réinitialisez-les pour repartir sur cette machine.",
     "invalidRequest": "Vérifiez la demande d’options de développement.",
     "expires": "Le mode développeur expire {time}.",
     "reset": "Réinitialiser les options de développement",

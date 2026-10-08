@@ -129,7 +129,11 @@ export class DeveloperLocalFiles implements DeveloperStore, ProfileFolders {
         .trim()
         .split('\n')
         .map((row) => developerAuditSchema.parse(JSON.parse(row)))
-      const authority = rows.findLast((row) => row.action !== 'create' && row.action !== 'remove')
+      // `migrate` re-binds the machine identity without granting authority,
+      // so it never decides the restored switch (DEVID017B).
+      const authority = rows.findLast(
+        (row) => row.action !== 'create' && row.action !== 'remove' && row.action !== 'migrate',
+      )
       if (authority !== undefined)
         return { ...state, isMultipleAccountsOn: authority.action === 'enable' }
     }

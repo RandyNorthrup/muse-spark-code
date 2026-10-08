@@ -6071,6 +6071,8 @@ export const EN = {
       'Reset Developer options? Local profiles will stop and their credential slots and state folders will be deleted.',
     locked: 'Developer options are locked.',
     unavailable: 'Developer options are unavailable.',
+    differentMachine:
+      'Developer options were set up under a different machine identity. Reset them to start over on this machine.',
     invalidRequest: 'Check the Developer options request.',
     expires: 'Developer mode expires {time}.',
     reset: 'Reset Developer options',

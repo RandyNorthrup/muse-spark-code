@@ -5038,6 +5038,7 @@
     "resetWarning": "Entwickleroptionen zurücksetzen? Lokale Profile werden beendet und ihre Zugangsdatenplätze und Zustandsordner gelöscht.",
     "locked": "Die Entwickleroptionen sind gesperrt.",
     "unavailable": "Die Entwickleroptionen sind nicht verfügbar.",
+    "differentMachine": "Die Entwickleroptionen wurden unter einer anderen Rechneridentität eingerichtet. Setzen Sie sie zurück, um auf diesem Rechner neu zu beginnen.",
     "invalidRequest": "Prüfen Sie die Anfrage für Entwickleroptionen.",
     "expires": "Der Entwicklermodus läuft {time} ab.",
     "reset": "Entwickleroptionen zurücksetzen",

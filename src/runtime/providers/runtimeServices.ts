@@ -18,7 +18,8 @@ import {
 import type { SecretStore } from '../../host/auth/credentialStore'
 import { keyringSecretStore, type KeyringEntryFactory } from '../keyStore'
 import { DeveloperOptions } from '../../core/developer/developerOptions'
-import { developerMachineId } from '../../core/developer/machineId'
+import type { DeveloperSnapshot } from '../../shared/developerOptions'
+import { developerMachineIdAliases, loadDeveloperMachineId } from '../../core/developer/machineId'
 import { DeveloperLocalFiles } from '../developer/localFiles'
 import { developerConfirmation, developerStatusText } from '../../core/developer/surfaces'
 import { accountPolicyFor } from '../../core/providers/accountPolicy'
@@ -62,6 +63,13 @@ export interface RuntimeAccountServices {
     readLine(prompt: string): Promise<string>
     print(line: string): void
   }): Promise<DeveloperOptions>
+  /** The terminal `developer reset` recovery when stored state belongs to
+   * another machine identity: `open` refuses it, so reset runs here without
+   * an owner (DEVID017B). */
+  developerReset(deps: {
+    readLine(prompt: string): Promise<string>
+    print(line: string): void
+  }): Promise<DeveloperSnapshot>
   dispose(): void
 }
 
@@ -204,6 +212,10 @@ class PublishingAccountStore extends AccountStore {
   }
 }
 
+function developerUnavailableProfile(): Promise<void> {
+  return Promise.reject(new Error(UI_TEXT.developer.unavailable))
+}
+
 export function createRuntimeAccountServices(
   input: RuntimeAccountServicesInput,
 ): RuntimeAccountServices {
@@ -245,6 +257,64 @@ export function createRuntimeAccountServices(
     store: (key, value) => fallback.store(key, value),
     delete: (key) => fallback.delete(key),
   })
+  const developerCheckAccount = async (provider: string, account: string): Promise<void> => {
+    const entry = await metadata.read(provider)
+    let rows: Account[]
+    try {
+      rows = entry === undefined ? [] : await store.list(provider)
+    } catch {
+      rows = []
+    }
+    if (entry === undefined || rows.every((row) => row.id !== account))
+      throw new Error(UI_TEXT.developer.invalidRequest)
+    const policy = accountPolicyFor(entry.policyProvider, entry.product)
+    if (entry.product === 'muse-code' || policy?.pooling === 'notOffered')
+      throw new Error(UI_TEXT.developer.unavailable)
+  }
+  const developerBase = (deps: {
+    readLine(prompt: string): Promise<string>
+    print(line: string): void
+  }): {
+    now: () => number
+    files: DeveloperLocalFiles
+    checkAccount: (provider: string, account: string) => Promise<void>
+    confirm: (question: 'unlock' | 'multiple' | 'reset') => Promise<boolean>
+    changed: (snapshot: DeveloperSnapshot) => void
+  } => {
+    const now = input.now ?? Date.now
+    const files = new DeveloperLocalFiles(`${input.dataDir}/developer`)
+    return {
+      now,
+      files,
+      checkAccount: developerCheckAccount,
+      confirm: async (question) => {
+        const asked = developerConfirmation(question)
+        deps.print(`${asked.title}: ${asked.message}`)
+        const raw = await deps.readLine(`${asked.accept} / ${asked.cancel}: `)
+        return raw.trim() === asked.accept
+      },
+      changed: (snapshot) => {
+        deps.print(developerStatusText(snapshot))
+      },
+    }
+  }
+  const developerArgs = (base: ReturnType<typeof developerBase>, machineId: string) => ({
+    machineId,
+    now: base.now,
+    newProfileId: () => `p${randomBytes(DEVELOPER_PROFILE_ID_BYTES).toString('hex')}`,
+    store: base.files,
+    resources: {
+      // Profile processes, credential slots and pool registration need
+      // M109's broker binding. Nothing starts here; the failure names
+      // the missing binding instead of running half a profile.
+      start: developerUnavailableProfile,
+      stop: developerUnavailableProfile,
+      remove: developerUnavailableProfile,
+    },
+    checkAccount: base.checkAccount,
+    confirm: base.confirm,
+    changed: base.changed,
+  })
   return {
     store,
     metadata,
@@ -270,54 +340,27 @@ export function createRuntimeAccountServices(
       readLine(prompt: string): Promise<string>
       print(line: string): void
     }): Promise<DeveloperOptions> {
-      const now = input.now ?? Date.now
-      const files = new DeveloperLocalFiles(`${input.dataDir}/developer`)
-      const checkAccount = async (provider: string, account: string): Promise<void> => {
-        const entry = await metadata.read(provider)
-        let rows: Account[]
-        try {
-          rows = entry === undefined ? [] : await store.list(provider)
-        } catch {
-          rows = []
-        }
-        if (entry === undefined || rows.every((row) => row.id !== account))
-          throw new Error(UI_TEXT.developer.invalidRequest)
-        const policy = accountPolicyFor(entry.policyProvider, entry.product)
-        if (entry.product === 'muse-code' || policy?.pooling === 'notOffered')
-          throw new Error(UI_TEXT.developer.unavailable)
-      }
-      const unavailableProfile = (): Promise<void> =>
-        Promise.reject(new Error(UI_TEXT.developer.unavailable))
+      const base = developerBase(deps)
+      // One stable identity for every host (DEVID017B): the extension host
+      // loads the same stored id from the same machine folder, so either
+      // host honours the other's unlock. Grants stored under this machine's
+      // legacy hostname or hostname digest are adopted once and persisted
+      // at once, never written back raw.
       const host = hostname()
       return await DeveloperOptions.open({
-        // One opaque identity for every host (DEVID017): the extension host
-        // derives the same id from the same hostname, so either host honours
-        // the other's unlock. Grants stored under the pre-DEVID017 raw
-        // hostname are adopted once, never written back raw.
-        machineId: developerMachineId(host),
-        previousMachineIds: [host],
-        now,
-        newProfileId: () => `p${randomBytes(DEVELOPER_PROFILE_ID_BYTES).toString('hex')}`,
-        store: files,
-        resources: {
-          // Profile processes, credential slots and pool registration need
-          // M109's broker binding. Nothing starts here; the failure names
-          // the missing binding instead of running half a profile.
-          start: unavailableProfile,
-          stop: unavailableProfile,
-          remove: unavailableProfile,
-        },
-        checkAccount,
-        confirm: async (question) => {
-          const asked = developerConfirmation(question)
-          deps.print(`${asked.title}: ${asked.message}`)
-          const raw = await deps.readLine(`${asked.accept} / ${asked.cancel}: `)
-          return raw.trim() === asked.accept
-        },
-        changed: (snapshot) => {
-          deps.print(developerStatusText(snapshot))
-        },
+        ...developerArgs(base, await loadDeveloperMachineId(input.dataDir)),
+        previousMachineIds: developerMachineIdAliases(host),
       })
+    },
+    async developerReset(deps: {
+      readLine(prompt: string): Promise<string>
+      print(line: string): void
+    }): Promise<DeveloperSnapshot> {
+      const base = developerBase(deps)
+      return await DeveloperOptions.resetForeign(
+        developerArgs(base, await loadDeveloperMachineId(input.dataDir)),
+        'terminal',
+      )
     },
     dispose(): void {
       credentials.dispose()

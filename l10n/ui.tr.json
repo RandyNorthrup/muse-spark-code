@@ -5038,6 +5038,7 @@
     "resetWarning": "Geliştirici seçenekleri sıfırlansın mı? Yerel profiller durdurulur, kimlik bilgisi alanları ve durum klasörleri silinir.",
     "locked": "Geliştirici seçenekleri kilitli.",
     "unavailable": "Geliştirici seçenekleri kullanılamıyor.",
+    "differentMachine": "Geliştirici seçenekleri farklı bir makine kimliğiyle ayarlandı. Bu makinede yeniden başlamak için sıfırlayın.",
     "invalidRequest": "Geliştirici seçenekleri isteğini kontrol edin.",
     "expires": "Geliştirici modunun süresi {time} tarihinde dolar.",
     "reset": "Geliştirici seçeneklerini sıfırla",

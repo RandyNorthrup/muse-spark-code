@@ -5188,6 +5188,7 @@
     "resetWarning": "¿Restablecer las opciones de desarrollador? Los perfiles locales se detendrán y se eliminarán sus espacios de credenciales y carpetas de estado.",
     "locked": "Las opciones de desarrollador están bloqueadas.",
     "unavailable": "Las opciones de desarrollador no están disponibles.",
+    "differentMachine": "Las opciones de desarrollador se configuraron con otra identidad de máquina. Restablézcalas para empezar de nuevo en esta máquina.",
     "invalidRequest": "Revise la solicitud de opciones de desarrollador.",
     "expires": "El modo de desarrollador caduca {time}.",
     "reset": "Restablecer opciones de desarrollador",
