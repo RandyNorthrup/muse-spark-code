@@ -109,6 +109,7 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
     'hooks',
     'git',
     'tasks',
+    'devices',
     'exports',
     'review',
     'plans',

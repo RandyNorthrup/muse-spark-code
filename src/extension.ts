@@ -213,8 +213,7 @@ import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvi
 import { openChatPanel, restoreChatPanel } from './host/views/chatPanel'
 import { TasksPanel } from './host/views/tasksPanel'
 import { deviceMethods } from './host/devices/deviceBundle'
-import { DevicesPanelTab } from './host/devices/devicePanelTab'
-import { openDeviceProductionDeps, unboundDeviceLanePorts } from './host/devices/deviceProduction'
+import { DevicesPanelTab } from './host/views/devicesPanelTab'
 import { DEVICES_BUNDLE_FILE, DEVICES_STORAGE_DIR } from './shared/constants'
 import { SurfaceRegistry } from './host/views/surfaceRegistry'
 import type { ChatSurface } from './host/views/chatSurface'
@@ -3816,7 +3815,7 @@ async function activateWindow(
     dependencies: async (bundle, scope) => {
       const tab = devicesTab
       if (tab === undefined) throw new Error('devices-tab-unavailable')
-      const deps = await openDeviceProductionDeps(
+      const deps = await bundle.openDeviceProductionDeps(
         bundle,
         {
           storageDirectory: path.join(context.globalStorageUri.fsPath, DEVICES_STORAGE_DIR),
@@ -3830,7 +3829,7 @@ async function activateWindow(
           secrets: context.secrets,
           log,
         },
-        unboundDeviceLanePorts(log),
+        bundle.unboundDeviceLanePorts(log),
       )
       scope.own(deps.dispose)
       return {

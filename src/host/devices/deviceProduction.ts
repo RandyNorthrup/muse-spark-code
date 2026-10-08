@@ -1,8 +1,11 @@
 // M100 phase 2 (lane W): production binding for the lazy Devices bundle.
-// The extension host owns storage, identity and the worker driver; lane K
-// (owner binding, M109 vault) owns execution, policy approval, the channel
-// source and the listener facts. Every K-owned port below refuses with an
-// explicit typed error until K binds it — nothing returns an empty success.
+// The extension host owns storage and identity; lane K (owner binding, M109
+// vault) owns execution with its worker driver, policy approval, the channel
+// source and the listener facts. The driver stays out of this bundle on
+// purpose: all three native drivers with M96's environment record exceed the
+// unchanged `dist/devices.js` cap, so K supplies the unified selector's
+// choice with its execution binding. Every K-owned port below refuses with
+// an explicit typed error until K binds it — nothing returns an empty success.
 import { randomBytes } from 'node:crypto'
 import { stat } from 'node:fs/promises'
 import path from 'node:path'
@@ -11,10 +14,6 @@ import { DevicePairingError } from '../../core/devices/pairing'
 import type { AttemptJournalOwner } from '../../core/devices/attemptJournal'
 import type { SecretStore } from '../auth/credentialStore'
 import type { Logger } from '../logger'
-import { deviceWorkerDarwin } from '../backend/deviceWorkerDarwin'
-import { deviceWorkerLinux } from '../backend/deviceWorkerLinux'
-import { deviceWorkerNative } from '../backend/deviceWorkerNative'
-import { selectDeviceWorkerDriver, type DeviceWorkerDriver } from './deviceWorkerHost'
 import type { DeviceChannelPort } from './deviceChannel'
 import type { DeviceServiceDeps } from './deviceEntry'
 import type { DevicePairingDeps } from './devicePairing'
@@ -107,7 +106,9 @@ export function unboundDeviceLanePorts(log: Logger): DeviceLanePorts {
       assertAllowed: () => refusedHost(),
       approve: () => refusedHost(),
       assertPaidBinding: () => refusedHost(),
-      paidGate: { isOn: () => false },
+      paidGate: {
+        isOn: (_feature) => false,
+      },
       paidConsent: { allows: () => Promise.resolve(false) },
     },
     source: {
@@ -141,8 +142,6 @@ export interface DeviceProductionDeps extends Omit<
   DeviceServiceDeps,
   'snapshot' | 'publish' | 'report'
 > {
-  /** The unified selector's production choice, for facts and K's host binding. */
-  readonly driver: DeviceWorkerDriver
   /** Ends the Windows storage helper owned by this preparation. */
   readonly dispose: () => void
 }
@@ -164,9 +163,9 @@ async function assertJournalOwner(directory: string, platform: NodeJS.Platform):
 /**
  * Binds every production authority W owns: the pairing store (opened or
  * created once), the attempt journal with a real owner check, SecretStorage
- * secrets on the local host, Windows storage protection, and the unified
- * worker-driver selection. Construction grants no listener or execution;
- * the tab supplies snapshot/publish/report and K supplies its ports.
+ * secrets on the local host and Windows storage protection. Construction
+ * grants no listener or execution; the tab supplies snapshot/publish/report
+ * and K supplies its ports with the worker driver.
  */
 export async function openDeviceProductionDeps(
   bundle: DeviceProductionBundle,
@@ -218,27 +217,6 @@ export async function openDeviceProductionDeps(
       journal = await bundle.AttemptJournal.open(journalDirectory, owner, protection, platform)
     }
     const secrets = new bundle.DeviceSecrets(context.secrets, localHost)
-    const driver = await selectDeviceWorkerDriver(platform, {
-      darwin: () =>
-        deviceWorkerDarwin({
-          storageDir: context.storageDirectory,
-          environment: process.env,
-          ...(typeof process.getuid === 'function' && { uid: process.getuid() }),
-        }),
-      win32: () =>
-        deviceWorkerNative({
-          storageDir: context.storageDirectory,
-          systemRoot: context.systemRoot ?? '',
-          sourceFile: path.join(
-            context.extensionPath,
-            'native',
-            'windows',
-            'MuseSparkDeviceWorker.cs',
-          ),
-          environment: process.env,
-        }),
-      linux: () => deviceWorkerLinux({ environment: process.env }),
-    })
     return {
       store,
       secrets,
@@ -251,7 +229,6 @@ export async function openDeviceProductionDeps(
       execution: ports.execution,
       policy: ports.policy,
       source: ports.source,
-      driver,
       dispose(): void {
         for (const dispose of owned.splice(0)) dispose()
       },

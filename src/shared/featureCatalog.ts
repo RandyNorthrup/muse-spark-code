@@ -662,6 +662,14 @@ export function featureCatalog(): readonly Feature[] {
       'tasks',
     ),
     feature(
+      'devices',
+      { command: COMMAND_IDS.openDevices },
+      { ui: 'referenceDevices' },
+      ['openDevices'],
+      [],
+      'paired-devices-integration-in-development',
+    ),
+    feature(
       'exports',
       { ui: 'exportJsonItem' },
       { tip: 'exportJson' },

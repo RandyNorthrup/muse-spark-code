@@ -51,6 +51,8 @@ describe('shared lazy Devices method port', () => {
       DeviceSecrets: expect.any(Function),
       AttemptJournal: expect.any(Function),
       DeviceDiscovery: expect.any(Function),
+      openDeviceProductionDeps: expect.any(Function),
+      unboundDeviceLanePorts: expect.any(Function),
     })
   })
   it('missing lazy assets refuse before preparing credentials or authorities and can be retried', async () => {

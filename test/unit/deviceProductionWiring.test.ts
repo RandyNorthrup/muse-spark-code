@@ -16,7 +16,7 @@ import type { SecretStore } from '../../src/host/auth/credentialStore'
 import type { DeviceExecutionHost } from '../../src/host/devices/deviceSecrets'
 import { DEVICES_PANEL_VIEW_TYPE } from '../../src/shared/constants'
 import type { DeviceHostMessage } from '../../src/shared/devicesPanel'
-import { DevicesPanelTab } from '../../src/host/devices/devicePanelTab'
+import { DevicesPanelTab } from '../../src/host/views/devicesPanelTab'
 import {
   openDeviceProductionDeps,
   unboundDeviceLanePorts,
@@ -201,7 +201,7 @@ describe('M100/W unbound lane ports', () => {
     await expect(
       ports.policy.assertPaidBinding(dispatch, { feature: 'webSearch' }),
     ).rejects.toMatchObject({ reason: 'unsupported-host' })
-    expect(ports.policy.paidGate.isOn()).toBe(false)
+    expect(ports.policy.paidGate.isOn('voice')).toBe(false)
     await expect(ports.policy.paidConsent.allows({ feature: 'webSearch' })).resolves.toBe(false)
     expect(() => {
       ports.source.connected(channel)
@@ -220,7 +220,7 @@ describe('M100/W production dependencies', () => {
     FakeDeviceSecrets.reset()
   })
 
-  it('binds the store layout, secrets, journal ownership and the Linux driver', async () => {
+  it('binds the store layout, secrets and journal ownership', async () => {
     const directory = await lane()
     const log = new FakeLogOutputChannel()
     const secrets = memorySecrets()
@@ -256,7 +256,6 @@ describe('M100/W production dependencies', () => {
           },
         },
       ])
-      expect(deps.driver.platform).toBe('linux')
       expect(deps.receiverIncarnationId).toMatch(/^[a-f0-9]{32}$/)
       expect(deps.setup).toBe(ports.setup)
       expect(deps.otherAction).toBe(ports.otherAction)
@@ -293,43 +292,36 @@ describe('M100/W production dependencies', () => {
     expect(fakeJournalState.created).toHaveLength(0)
   })
 
-  it('selects the production driver per platform without spawning', async () => {
+  it('starts Windows storage protection with the helper directory and releases it', async () => {
     const directory = await lane()
-    for (const platform of ['darwin', 'win32'] as const) {
-      resetFakeStores()
-      resetFakeJournal()
-      const helperCalls: { directory: string; systemRoot: string; extensionPath: string }[] = []
-      const deps = await openDeviceProductionDeps(
-        fakeBundle({
-          helperCalls,
-          helper: () => Promise.resolve({ protection: undefined, dispose: releaseFakeHelper }),
-        }),
-        {
-          storageDirectory: directory,
-          helperDirectory: path.join(directory, 'helper'),
-          systemRoot: String.raw`C:\Windows`,
-          extensionPath: '/ext',
-          secrets: memorySecrets(),
-          log: new FakeLogOutputChannel(),
-          platform,
-        },
-        unboundDeviceLanePorts(new FakeLogOutputChannel()),
-      )
-      try {
-        expect(deps.driver.platform).toBe(platform)
-        if (platform === 'win32') {
-          expect(helperCalls).toEqual([
-            {
-              directory: path.join(directory, 'helper'),
-              systemRoot: String.raw`C:\Windows`,
-              extensionPath: '/ext',
-            },
-          ])
-        }
-      } finally {
-        deps.dispose()
-      }
-    }
+    const helperCalls: { directory: string; systemRoot: string; extensionPath: string }[] = []
+    const disposed = { count: 0 }
+    const deps = await openDeviceProductionDeps(
+      fakeBundle({
+        helperCalls,
+        helper: () => Promise.resolve({ protection: undefined, dispose: releaseFakeHelper }),
+        disposed,
+      }),
+      {
+        storageDirectory: directory,
+        helperDirectory: path.join(directory, 'helper'),
+        systemRoot: String.raw`C:\Windows`,
+        extensionPath: '/ext',
+        secrets: memorySecrets(),
+        log: new FakeLogOutputChannel(),
+        platform: 'win32',
+      },
+      unboundDeviceLanePorts(new FakeLogOutputChannel()),
+    )
+    expect(helperCalls).toEqual([
+      {
+        directory: path.join(directory, 'helper'),
+        systemRoot: String.raw`C:\Windows`,
+        extensionPath: '/ext',
+      },
+    ])
+    deps.dispose()
+    expect(disposed.count).toBe(1)
   })
 
   it('refuses Windows storage without a system root before any helper starts', async () => {

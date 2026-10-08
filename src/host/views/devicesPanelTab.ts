@@ -3,18 +3,12 @@
 // message does (through the shared lazy port). Unparsable webview traffic
 // is logged and ignored; service refusals already carry their typed setup
 // failure for the recovery UI.
-import * as vscode from 'vscode'
-import {
-  DEVICES_PANEL_VIEW_TYPE,
-  UI_TEXT,
-  WEBVIEW_DIST_SEGMENTS,
-  WEBVIEW_SCRIPT_FILE,
-  WEBVIEW_STYLE_FILE,
-} from '../../shared/constants'
+import type * as vscode from 'vscode'
+import { DEVICES_PANEL_VIEW_TYPE, UI_TEXT } from '../../shared/constants'
 import type { DeviceHostMessage } from '../../shared/devicesPanel'
-import { buildWebviewHtml, createNonce } from '../html'
 import { logRejection } from '../logger'
-import type { WebviewHostContext } from '../views/webviewSetup'
+import { createAuxWebviewPanel } from './auxWebviewPanel'
+import type { WebviewHostContext } from './webviewSetup'
 
 /** The lazily loaded device service behind this tab; construction loads nothing. */
 export interface DevicesPanelService {
@@ -41,32 +35,14 @@ export class DevicesPanelTab implements vscode.Disposable {
       this.panel.reveal(undefined, false)
       return
     }
-    const bundleRoot = vscode.Uri.joinPath(this.context.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
-    const panel = vscode.window.createWebviewPanel(
+    const panel = createAuxWebviewPanel(
+      this.context,
       DEVICES_PANEL_VIEW_TYPE,
       UI_TEXT.devices.title,
-      vscode.ViewColumn.Beside,
-      {},
+      'devices',
     )
     this.panel = panel
     this.isReady = false
-    panel.webview.options = {
-      enableScripts: true,
-      enableCommandUris: false,
-      localResourceRoots: [bundleRoot],
-    }
-    panel.webview.html = buildWebviewHtml({
-      scriptUri: panel.webview
-        .asWebviewUri(vscode.Uri.joinPath(bundleRoot, WEBVIEW_SCRIPT_FILE))
-        .toString(),
-      styleUri: panel.webview
-        .asWebviewUri(vscode.Uri.joinPath(bundleRoot, WEBVIEW_STYLE_FILE))
-        .toString(),
-      cspSource: panel.webview.cspSource,
-      nonce: createNonce(),
-      l10n: this.context.l10n,
-      surface: 'devices',
-    })
     const subscription = panel.webview.onDidReceiveMessage((raw: unknown) => {
       // Readiness only: the document announces itself with `devicesReady`
       // (replayed observations follow through the same reply). The service

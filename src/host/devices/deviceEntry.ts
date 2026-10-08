@@ -25,6 +25,14 @@ import { handleDeviceRequest } from './deviceMessageHandler'
 
 // Storage is provisioned/opened by the qualified editor after loading this bundle.
 export { DeviceStore } from './deviceStore'
+export {
+  openDeviceProductionDeps,
+  unboundDeviceLanePorts,
+  type DeviceLanePorts,
+  type DeviceProductionBundle,
+  type DeviceProductionContext,
+  type DeviceProductionDeps,
+} from './deviceProduction'
 export { startWindowsStorageProtection } from './windowsStorageProtection'
 export type { DeviceStorageProtection } from '../../core/devices/storageProtection'
 export { DeviceSecrets } from './deviceSecrets'

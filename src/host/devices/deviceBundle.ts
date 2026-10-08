@@ -3,7 +3,12 @@ import { UI_TEXT } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
-import type { DeviceServiceDeps, createDeviceService } from './deviceEntry'
+import type {
+  DeviceServiceDeps,
+  createDeviceService,
+  openDeviceProductionDeps,
+  unboundDeviceLanePorts,
+} from './deviceEntry'
 import type * as DeviceEntry from './deviceEntry'
 
 interface DeviceBundle {
@@ -13,6 +18,8 @@ interface DeviceBundle {
   readonly AttemptJournal: typeof DeviceEntry.AttemptJournal
   readonly DeviceDiscovery: typeof DeviceEntry.DeviceDiscovery
   readonly startWindowsStorageProtection: typeof DeviceEntry.startWindowsStorageProtection
+  readonly openDeviceProductionDeps: typeof openDeviceProductionDeps
+  readonly unboundDeviceLanePorts: typeof unboundDeviceLanePorts
 }
 function isDeviceBundle(value: unknown): value is DeviceBundle {
   return (
@@ -29,7 +36,11 @@ function isDeviceBundle(value: unknown): value is DeviceBundle {
     'AttemptJournal' in value &&
     typeof value.AttemptJournal === 'function' &&
     'DeviceDiscovery' in value &&
-    typeof value.DeviceDiscovery === 'function'
+    typeof value.DeviceDiscovery === 'function' &&
+    'openDeviceProductionDeps' in value &&
+    typeof value.openDeviceProductionDeps === 'function' &&
+    'unboundDeviceLanePorts' in value &&
+    typeof value.unboundDeviceLanePorts === 'function'
   )
 }
 

@@ -5,14 +5,11 @@ import {
   TASKS_MOVE_TO_WINDOW_COMMAND,
   TASKS_PANEL_VIEW_TYPE,
   UI_TEXT,
-  WEBVIEW_DIST_SEGMENTS,
-  WEBVIEW_SCRIPT_FILE,
-  WEBVIEW_STYLE_FILE,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { type TasksHostMessage, tasksWebviewMessageSchema } from '../../shared/tasksProtocol'
-import { buildWebviewHtml, createNonce } from '../html'
 import { logRejection } from '../logger'
+import { createAuxWebviewPanel } from './auxWebviewPanel'
 import type { TasksTabPort, TasksTabView } from './tasksTabPort'
 import type { WebviewHostContext } from './webviewSetup'
 
@@ -66,33 +63,15 @@ export class TasksPanel implements TasksTabPort, vscode.Disposable {
       this.send()
       return
     }
-    const bundleRoot = vscode.Uri.joinPath(this.context.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
-    const panel = vscode.window.createWebviewPanel(
+    const panel = createAuxWebviewPanel(
+      this.context,
       TASKS_PANEL_VIEW_TYPE,
       fill(UI_TEXT.tasksTabTitle, { conversation: view.conversation }),
-      vscode.ViewColumn.Beside,
-      {},
+      'tasks',
     )
     this.panel = panel
     this.isReady = false
     this.canMoveToWindow = false
-    panel.webview.options = {
-      enableScripts: true,
-      enableCommandUris: false,
-      localResourceRoots: [bundleRoot],
-    }
-    panel.webview.html = buildWebviewHtml({
-      scriptUri: panel.webview
-        .asWebviewUri(vscode.Uri.joinPath(bundleRoot, WEBVIEW_SCRIPT_FILE))
-        .toString(),
-      styleUri: panel.webview
-        .asWebviewUri(vscode.Uri.joinPath(bundleRoot, WEBVIEW_STYLE_FILE))
-        .toString(),
-      cspSource: panel.webview.cspSource,
-      nonce: createNonce(),
-      l10n: this.context.l10n,
-      surface: 'tasks',
-    })
     const subscription = panel.webview.onDidReceiveMessage((raw: unknown) => {
       const parsed = tasksWebviewMessageSchema.safeParse(raw)
       if (!parsed.success) {

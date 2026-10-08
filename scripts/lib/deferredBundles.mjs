@@ -246,6 +246,7 @@ export const ON_FIRST_USE = [
       'src/core/devices/devicePanel.ts',
       'src/core/devices/deviceAddress.ts',
       'src/core/devices/deviceFraming.ts',
+      'src/host/devices/deviceProduction.ts',
     ],
     parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
   },
