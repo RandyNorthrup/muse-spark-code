@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
 import { DevicesApp } from '../../src/webview/models/sections/agents/DevicesApp'
 import QrFigure from '../../src/webview/models/sections/devices/qr/QrFigure'
-import type { DeviceWebviewRequest } from '../../src/shared/devicesPanel'
+import type { DeviceWebviewMessage } from '../../src/shared/devicesPanel'
 import { uiInvitation, uiMessage } from './helpers/deviceUiFakes'
 
 const encode = () => ({
@@ -12,7 +12,8 @@ const encode = () => ({
   modules: Array.from({ length: 21 }, () => Array.from({ length: 21 }, () => true)),
 })
 
-function reply(request: DeviceWebviewRequest) {
+function reply(request: DeviceWebviewMessage) {
+  if (request.type === 'devicesReady') return
   window.dispatchEvent(
     new MessageEvent('message', {
       data: {

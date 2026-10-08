@@ -4,7 +4,11 @@ import { DevicePanel } from '../../core/devices/devicePanel'
 import { DevicePairingError } from '../../core/devices/pairing'
 import type { AttemptJournal } from '../../core/devices/attemptJournal'
 import { DEVICE_LIMITS, DEVICE_MODEL_TEXT } from '../../shared/constants'
-import type { DeviceHostMessage, DevicesPanelState } from '../../shared/devicesPanel'
+import {
+  deviceWebviewMessageSchema,
+  type DeviceHostMessage,
+  type DevicesPanelState,
+} from '../../shared/devicesPanel'
 import type { DeviceFrame, DEVICE_FAILURES } from '../../shared/devices'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
@@ -73,11 +77,14 @@ export async function createDeviceService(deps: DeviceServiceDeps, table: UiText
       return pairing.handle(request)
     },
     snapshot: deps.snapshot,
+    publish(message) {
+      if (!isDisposed()) deps.publish(message)
+    },
   })
   async function observe(): Promise<void> {
     if (isDisposed()) return
     const message = await panel.observe()
-    if (!isDisposed()) deps.publish(message)
+    if (!isDisposed()) panel.publishObservation(message)
   }
   let observation: Promise<void> | undefined
   let shouldObserve = false
@@ -160,7 +167,14 @@ export async function createDeviceService(deps: DeviceServiceDeps, table: UiText
     pairing,
     receiver,
     observe,
-    request: (input: unknown, signal?: AbortSignal) => handleDeviceRequest(input, panel, signal),
+    async request(input: unknown, signal?: AbortSignal): Promise<DeviceHostMessage> {
+      const parsed = deviceWebviewMessageSchema.safeParse(input)
+      if (!parsed.success || isDisposed() || signal?.aborted === true)
+        throw new Error('invalid-device-message')
+      return parsed.data.type === 'devicesReady'
+        ? await panel.ready()
+        : await handleDeviceRequest(parsed.data, panel, signal)
+    },
     // Model guidance is consumed only by a qualified local lane adapter.
     // Phase-2 contracts ride the same lazy reader; later lanes bind them.
     taskContext: () =>

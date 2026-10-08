@@ -117,6 +117,12 @@ export const deviceWebviewRequestSchema = z.strictObject({
   action,
 })
 export type DeviceWebviewRequest = z.infer<typeof deviceWebviewRequestSchema>
+// The document readiness handshake carries no action, discovery or authority.
+export const deviceWebviewMessageSchema = z.discriminatedUnion('type', [
+  z.strictObject({ type: z.literal('devicesReady') }),
+  deviceWebviewRequestSchema,
+])
+export type DeviceWebviewMessage = z.infer<typeof deviceWebviewMessageSchema>
 export const deviceHostMessageSchema = z.strictObject({
   type: z.literal('deviceState'),
   // P/I increments this local document's counter for every complete snapshot,

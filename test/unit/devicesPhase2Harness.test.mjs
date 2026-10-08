@@ -53,6 +53,25 @@ deviceReply({ viewId: '1'.repeat(32), requestId: '2'.repeat(32), action: { kind:
   },
 )
 
+it('owners reply has no alert before revoke and a revoke-specific refusal afterwards', () => {
+  const sent = []
+  runInNewContext(
+    `${fixtures}
+    deviceReply({ viewId: '1'.repeat(32), requestId: '2'.repeat(32), action: { kind: 'pauseOffers' } });
+    deviceReply({ viewId: '1'.repeat(32), requestId: '3'.repeat(32), action: { kind: 'revokeGrant', ownerId: 'a'.repeat(32) } });`,
+    {
+      scenarioName: 'devices-owners',
+      send: (message) => {
+        sent.push(message)
+      },
+    },
+  )
+  expect(sent[0].setup.owners).toHaveLength(1)
+  expect(sent[0].setup.grantRefusal).toBeUndefined()
+  expect(sent[1].setup.grantRefusal.reason).toBe('grant-revoked')
+  expect(parseDeviceHostMessage(sent[1]).ok).toBe(true)
+})
+
 it.each(['devices-owners', 'devices-prompts-narrow'])(
   '%s starts with a peer-bound action',
   (name) => {
@@ -121,6 +140,9 @@ describe('RVM100P2U real Chrome harness readiness', () => {
     try {
       await page.goto(`${rig.origin}/test/harness/index.html?scenario=${scenario}&theme=dark`)
       await page.locator('[data-devices-ready]').waitFor({ timeout: READY_TIMEOUT_MS })
+      expect(await page.evaluate(() => globalThis.harnessOutbox[0])).toEqual({
+        type: 'devicesReady',
+      })
       expect(await page.locator('.device-card').count()).toBe(1)
       expect(
         await page.evaluate(() => globalThis.document.documentElement.scrollWidth),

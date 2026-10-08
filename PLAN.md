@@ -35818,6 +35818,23 @@ paid/live call or physical-device qualification is introduced.
 
 ### M100 phase 2 — bound owners, discovery, hardened hosts, per-action control (D80, planned)
 
+**FIXM100P2U2 review round 2 (2026-10-08, linuxlt), verification pending.**
+Repair RVM100P2UB's P2 missing Devices readiness and P3 premature owners
+readiness. The brief explicitly includes the host handshake: add a strict
+`devicesReady` document message beside the existing action schema, subscribe
+before posting it, and gate/replay cached host observations in the existing
+editor-neutral DevicePanel/service path. No listener or pairing authorization
+comes from readiness. Remove the harness handshake bypass and pre-revoke
+refusal. Add mount/host/fixture regressions, prove P2 failures on `efebef284`,
+and drill both findings with exact hash restoration. Then commit with hooks,
+verify a fresh `npm ci` clone under `CI=true`: owning tests three times,
+five typechecks, changed-file lint/format, plain knip, duplication, l10n,
+reference, host API, production budgets, six-scene Chrome/a11y and keyboard.
+Implementation and seven exact-restoration drills pass; 208 owning tests
+pass locally. Fresh-clone qualification remains pending. Aggregate qualification
+remains lane W's joined-tree obligation; no push, merge, live model call or
+real pairing. Receipts go in lane U's record.
+
 **FIXM100P2U review repair (2026-10-07, linuxlt).** Repair all eight
 RVM100P2U findings within lane U and the brief's approved build inventory
 regions. Plan: add regressions and run them on `025b3accc`; register a

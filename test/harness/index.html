@@ -571,13 +571,6 @@
         else if (scenarioName === 'devices-owners')
           setup = {
             owners: [{ ownerId: 'a'.repeat(32), grants: [deviceOwnerGrant] }],
-            grantRefusal: {
-              version: 1,
-              pairId: devicePair,
-              ownerId: 'a'.repeat(32),
-              reason: 'grant-expired',
-              retryable: false,
-            },
           }
         else if (scenarioName === 'devices-prompts-narrow')
           setup = { stepUp: { grantId: 'c'.repeat(32) } }
@@ -1475,7 +1468,7 @@
               break
             }
           }
-          if (['ready', 'modelsPanel/ready', 'tasksReady'].includes(message.type)) {
+          if (['ready', 'modelsPanel/ready', 'tasksReady', 'devicesReady'].includes(message.type)) {
             hasWebviewReady = true
             playScenario()
           }
@@ -6350,14 +6343,14 @@
       const playScenario = () => {
         if (
           !hasPageLoaded ||
-          (!hasWebviewReady && !scenario?.startsWith('devices-')) ||
+          !hasWebviewReady ||
           hasPlayedScenario ||
           scenario === null ||
           !(scenario in steps)
         )
           return
         hasPlayedScenario = true
-        // Devices has no chat-ready request; its mounted document is the handshake.
+        // Each document posts its own ready handshake after subscribing.
         const surface = scenario.startsWith('devices-')
           ? '.devices-view'
           : harnessBundle === 'models'

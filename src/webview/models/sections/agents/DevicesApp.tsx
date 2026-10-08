@@ -1,5 +1,5 @@
 // An explicit Devices document has its own validated message channel, without
-// the chat store, chat ready request, credential read or model probe.
+// the chat store, credential read or model probe.
 import {
   Component,
   lazy,
@@ -18,7 +18,7 @@ import {
   type DeviceHostMessage,
   type DeviceViewSource,
   type DevicesPanelPort,
-  type DeviceWebviewRequest,
+  type DeviceWebviewMessage,
 } from '../../../../shared/devicesPanel'
 import type { QrEncoder } from '../devices/qr/encoder'
 import type { MessageSource } from '../../../hostBridge'
@@ -28,7 +28,7 @@ interface DevicesAppProps {
   readonly qrEncoder?: QrEncoder
   readonly loadQr?: QrLoader
   readonly messages: MessageSource
-  readonly postMessage: (message: DeviceWebviewRequest) => void
+  readonly postMessage: (message: DeviceWebviewMessage) => void
 }
 
 interface QrProps {
@@ -193,6 +193,7 @@ function DevicesDocument({
       }
     }
     messages.addEventListener('message', receive)
+    postMessage({ type: 'devicesReady' })
     return () => {
       messages.removeEventListener('message', receive)
       for (const waiting of bridge.pending.values())
@@ -200,7 +201,7 @@ function DevicesDocument({
       bridge.pending.clear()
       bridge.views.clear()
     }
-  }, [bridge, messages])
+  }, [bridge, messages, postMessage])
   return (
     <main>
       <DevicesView

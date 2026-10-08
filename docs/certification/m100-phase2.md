@@ -621,8 +621,9 @@ entries.
    were invalidated by RVM100P2U; the repair runs on unrestricted `linuxlt`.
    Real Chrome now proves all six scenes ready at 320 px, with correlated setup
    replies and peer-bound owner/prompt actions. The additional startup repair
-   waits for the mounted Devices document because Devices deliberately sends
-   no chat-ready handshake. Four-theme a11y/keyboard and pseudo-locale receipts
+   used a mounted-document bypass, invalidated by RVM100P2UB. FIXM100P2U2
+   replaces it with the strict Devices ready handshake. Four-theme
+   a11y/keyboard and pseudo-locale receipts
    are tracked in the review-repair record below.
 
 ### Red drills (each: break, owning tests fail, restore byte-exact)
@@ -654,7 +655,7 @@ No model attempts, inference spend, real pairing or non-loopback listeners.
 | Finding | Root repair and regression                                                                                                                                                                                                                                                        |
 | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1 P2    | `scripts/lib/webviewBundles.mjs:140`: QR inventory derives into the split gate, separate 25 KiB cap; `webviewBundles.test.mjs:42` proves complete closure and unchanged 50 KiB legacy/Devices caps with Windows paths.                                                            |
-| 2 P2    | `test/harness/index.html:567`: initial states omit setup, replies alone supply correlated facts; `devicesPhase2Harness.test.mjs:34` tests all six actual fixture declarations and Chrome readiness. Devices startup waits for its mounted document rather than chat-ready.        |
+| 2 P2    | `test/harness/index.html:567`: initial states omit setup, replies alone supply correlated facts; `devicesPhase2Harness.test.mjs:34` tests all six actual fixture declarations and Chrome readiness. The mounted-document startup bypass is superseded by FIXM100P2U2 below.       |
 | 3 P2    | `test/harness/index.html:6298` owner/step-up scenes click peer-bound Pause; `devicesPhase2Harness.test.mjs:57` asserts selectors and real owner/prompt readiness.                                                                                                                 |
 | 4 P2    | `DeviceCard.tsx:49` receives the observation independently of action facts and matches its pair; combined `devicesPhase2Views.test.tsx:540` tests matching and foreign throttles, status and unknown time.                                                                        |
 | 5 P2    | `DevicesView.tsx:277` mounts `OwnerGrants` for a bound refusal alone; `devicesPhase2Views.test.tsx:566` tests revoke then refusal-only `grant-expired` and `owner-mismatch`, with no stale revoke button.                                                                         |
@@ -782,3 +783,54 @@ qrcode-generator@2.0.4` on 2026-10-07 (`dependencies {}`,
 - Lane W retains real-host wiring, the actual encoder install/measurement and
   installed-host/four-device qualification. The repair's fresh-clone browser,
   a11y and keyboard receipts replace the original sandbox-blocked requests.
+
+### FIXM100P2U2 — review round 2 repair (2026-10-08, linuxlt)
+
+Branch `m100/p2-u-fix2`, base `efebef2842f2e0b208e5b86782350fbead961210`.
+Read both RVM100P2U and RVM100P2UB reports and M100P2-common. This brief
+explicitly includes the host handshake; changes to the existing editor-neutral
+DevicePanel and service are limited to readiness/cache/replay, with no listener,
+pairing, grant or execution authorization. No dependencies or caps changed.
+
+1. **P2 fixed:** Devices subscribes then posts strict `{ type: 'devicesReady' }`.
+   `devicesReady.test.tsx` verifies one mount handshake and synchronous host
+   delivery; the shared schema refuses chat/task/extra-field handshakes.
+   DevicePanel holds observations until ready, captures an initial snapshot
+   when necessary, and replays the latest complete cached observation on
+   reload. Service validates readiness and denies it after disposal. Owning
+   tests: `devicePanel.test.ts`, `deviceIntegration.test.ts`,
+   `devicesPanel.test.ts`. Harness requires the real handshake for every
+   surface again; all six real Chrome scene checks assert it is the first
+   outgoing message before checking readiness and 320 px width.
+2. **P3 fixed:** owners' Pause reply contains owners only; grant refusal first
+   appears in the correlated revoke reply. `devicesPhase2Harness.test.mjs`
+   executes the actual fixture and proves no pre-revoke refusal and typed
+   `grant-revoked` afterwards. Suppressing the actual rendered refusal now
+   makes the Chrome owners scene miss its readiness marker.
+
+**Base run before product changes:** on `efebef284`, the new two mount tests
+plus the strengthened actual harness suite: **9 failed / 9 passed (18)**,
+exit **1** at repository defaults. P2: two mount failures and six Chrome
+handshake failures. P3: one pre-revoke fixture failure. The base harness still
+had its bypass, so the six browser failures specifically saw `deviceRequest`
+instead of `devicesReady`; they did not depend on an artificial timeout.
+
+**Red drills:** intentional guard breaks; each exits 1, restores exact bytes
+and verifies the SHA-256 below. Selected drills leave unrelated cases skipped;
+final owning runs execute every case without selection or timeout overrides.
+
+| Drill           | Failure receipt                    | Restored source SHA-256                                            |
+| --------------- | ---------------------------------- | ------------------------------------------------------------------ |
+| P2-mount        | 2 failed (2), exit 1               | `ac6f67a48fc63d47ca35c5b7e8a9898c9b9906513c8a2d0143e5dc987a90f5b5` |
+| P2-host         | 1 failed ; 9 skipped (10), exit 1  | `f33b1aad93f1c51c46cd0a36696470a444698f40af374597d50579638d18f799` |
+| P3-fixture      | 1 failed ; 15 skipped (16), exit 1 | `a9520a6ae26381d4c924faef148c7c8973cc7be7f09f1955eeaa2494ac2a312f` |
+| P3-render       | 1 failed ; 15 skipped (16), exit 1 | `7d06b97407b5f73e4f33a78e44c9c2f63c082c405f33bac3565281bd5d304495` |
+| P2-host-service | 2 failed ; 20 skipped (22), exit 1 | `f33b1aad93f1c51c46cd0a36696470a444698f40af374597d50579638d18f799` |
+| P2-replay       | 3 failed ; 19 skipped (22), exit 1 | `f33b1aad93f1c51c46cd0a36696470a444698f40af374597d50579638d18f799` |
+| P2-schema       | 2 failed ; 26 skipped (28), exit 1 | `30c2606da72b0ac98e0c316ffe85c86bca39bd44cf2a99f8b08ccbd7f4def794` |
+
+**Verification status:** all eleven owning files pass locally after restoration:
+**125 + 32 + 28 + 23 = 208 passed**, four batches of at most three files/workers,
+repository deadlines. Changed-file ESLint exits **0**. Fresh-clone committed-code
+receipts pending; aggregate quality
+and installed four-device qualification remain lane W's joined-tree work.

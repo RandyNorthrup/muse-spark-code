@@ -18,6 +18,10 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Wait for the Devices document's ready handshake before host observations and
+  harness scenes, replaying cached state on reload. Verify owner revocation
+  with a refusal that appears only after revoke.
+
 - Keep the Devices keyboard gate aligned with the shared localized panel-load
   failure heading and retry control while retaining missing-asset refusal checks.
 
