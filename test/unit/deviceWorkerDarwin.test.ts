@@ -268,6 +268,37 @@ const attemptNames = async (directory: string) => {
     throw error
   }
 }
+async function cacheStressDirectories(directory: string) {
+  // These two count-stress fixtures never substitute identities. Cache their
+  // directory samples, retaining real mkdir/readdir/remove and boundary files.
+  // The separate identity/substitution tests continue sampling the real disk.
+  const inspect = vi.mocked(lstat).getMockImplementation()
+  if (inspect === undefined) throw new Error('identity inspector missing')
+  const samples = new Map<string, ReturnType<typeof inspect>>()
+  vi.mocked(lstat).mockImplementation(async (...args) => {
+    const file = String(args[0])
+    const name = path.basename(file)
+    if (name !== 'device-workers-darwin' && !name.startsWith('attempt-'))
+      return await inspect(...args)
+    const key = `${file}:${String(args[1]?.bigint)}`
+    let sample = samples.get(key)
+    if (sample === undefined) {
+      sample = inspect(...args)
+      samples.set(key, sample)
+    }
+    return await sample
+  })
+  const actual = await vi.importActual<typeof FsPromises>('node:fs/promises')
+  const root = path.join(directory, 'device-workers-darwin').replaceAll('\\', '/')
+  let creation: ReturnType<typeof actual.mkdir> | undefined
+  vi.mocked(mkdir).mockImplementation(async (...args) => {
+    if (String(args[0]).replaceAll('\\', '/') === root) {
+      creation ??= actual.mkdir(...args)
+      return await creation
+    }
+    return await actual.mkdir(...args)
+  })
+}
 const reclamationFixture = async (site: 'retirement-print' | 'count') => {
   const failure = darwinSpawnFailures[0]
   if (failure === undefined) throw new Error('failure fixture missing')
@@ -280,6 +311,7 @@ const restoreFixture = async (fixture: Awaited<ReturnType<typeof reclamationFixt
   vi.mocked(spawn).mockRestore()
   vi.mocked(execFile).mockRestore()
   vi.mocked(lstat).mockRestore()
+  vi.mocked(mkdir).mockRestore()
   await fixture.clean()
 }
 async function recoverFixture(fixture: Awaited<ReturnType<typeof reclamationFixture>>) {
@@ -321,6 +353,155 @@ function lifecycleSpawnSite(site: (typeof lifecycleSites)[number]) {
 }
 
 describe('M100/H attempt lifecycle', () => {
+  it.each(
+    ['probe', 'ordinary'].flatMap((kind) =>
+      ['context', 'schema', 'ready-read-timeout'].map((failure) => ({ kind, failure })),
+    ),
+  )(
+    '$kind / $failure signals the waiting helper before failed bootout',
+    async ({ kind, failure }) => {
+      const injected = darwinSpawnFailures[0]
+      if (injected === undefined) throw new Error('failure fixture missing')
+      const fixture = await spawnBoundaryFixture('bootstrap', injected)
+      const actual = await vi.importActual<typeof FsPromises>('node:fs/promises')
+      try {
+        fixture.disableFailure()
+        if (kind === 'ordinary') expect(await fixture.driver.selfTest()).toBe(true)
+        fixture.holdBootout(true)
+        const inspect = vi.mocked(lstat).getMockImplementation()
+        if (inspect === undefined) throw new Error('identity inspector missing')
+        vi.mocked(lstat).mockImplementation(async (...args) => {
+          if (String(args[0]).replaceAll('\\', '/').endsWith('/ready.json')) {
+            if (failure === 'ready-read-timeout')
+              throw Object.assign(new Error('ready read timed out'), { code: 'ETIMEDOUT' })
+            const contents = await actual.readFile(args[0], 'utf8')
+            await actual.writeFile(
+              args[0],
+              failure === 'schema'
+                ? '{}'
+                : contents.replace('"station":"gui"', '"station":"invalid"'),
+            )
+          }
+          return await inspect(...args)
+        })
+        await expect(fixture.start()).rejects.toMatchObject({
+          detail: { context: 'context', schema: 'helper', 'ready-read-timeout': 'capacity' }[
+            failure
+          ],
+        })
+        const names = await attemptNames(fixture.directory)
+        expect(names).toHaveLength(1)
+        const name = names[0]
+        if (name === undefined) throw new Error('waiting attempt missing')
+        expect(
+          await readFile(
+            path.join(fixture.directory, 'device-workers-darwin', name, 'stop'),
+            'utf8',
+          ),
+        ).toBe('')
+        expect(fixture.bootoutStops.length).toBeGreaterThan(0)
+        expect(fixture.bootoutStops.every((entry) => entry.hasStop)).toBe(true)
+        await fixture.pollHelpers()
+        expect(Array.from(fixture.jobs, ([, job]) => job)).toEqual([
+          expect.objectContaining({ exited: true, awake: false }),
+        ])
+        await expect(fixture.driver.query()).rejects.toMatchObject({
+          reason: 'uncertain',
+          message: UI_TEXT.devices.unresolvedHelp,
+          cause: {
+            errors: [
+              {
+                stopWritten: true,
+                reached: { kind: 'bootstrapping' },
+                error: { isRetryable: true },
+              },
+            ],
+          },
+        })
+        fixture.holdBootout(false)
+        vi.mocked(lstat).mockRestore()
+        await fakeDarwinDirectories()
+        await fixture.driver.selfTest()
+        expect(await attemptNames(fixture.directory)).toEqual([])
+        expect(fixture.jobs.size).toBe(0)
+      } finally {
+        await restoreFixture(fixture)
+      }
+    },
+  )
+  it.each(['definitive', 'retryable'])(
+    '%s oldest reclaim failure does not block newer empty attempts and reports every failure',
+    async (kind) => {
+      const fixture = await reclamationFixture('retirement-print')
+      try {
+        fixture.disableFailure()
+        expect(await fixture.driver.selfTest()).toBe(true)
+        fixture.repeatFailure()
+        fixture.holdBootout(true)
+        for (const _ of ['A', 'B', 'C']) {
+          const job = await fixture.start()
+          await expect(job.retirement).rejects.toMatchObject({ reason: 'uncertain' })
+        }
+        const services = Array.from(fixture.jobs, ([service]) => service)
+        const oldest = services[0]
+        if (oldest === undefined) throw new Error('oldest attempt missing')
+        expect(services).toHaveLength(3)
+        fixture.holdBootout(false)
+        fixture.disableFailure()
+        fixture.bootoutFailures.set(oldest, kind === 'definitive' ? 1 : 'ENOMEM')
+        // selfTest's preparation-entry sweep is one complete pending-only sweep.
+        expect(await fixture.driver.selfTest()).toBe(true)
+        expect(await attemptNames(fixture.directory)).toEqual([
+          `attempt-${oldest.split('/').at(-1) ?? ''}`,
+        ])
+        expect(Array.from(fixture.jobs, ([service]) => service)).toEqual([oldest])
+        await expect(fixture.driver.query()).rejects.toMatchObject({
+          reason: 'uncertain',
+          message: UI_TEXT.devices.unresolvedHelp,
+          cause: {
+            errors: [
+              { service: oldest, stopWritten: true, error: { isRetryable: kind === 'retryable' } },
+            ],
+          },
+        })
+        // Two retained failures must both appear, regardless of insertion order.
+        fixture.repeatFailure()
+        fixture.holdBootout(true)
+        const another = await fixture.start()
+        await expect(another.retirement).rejects.toMatchObject({ reason: 'uncertain' })
+        const newer = Array.from(fixture.jobs, ([service]) => service).find(
+          (service) => service !== oldest,
+        )
+        if (newer === undefined) throw new Error('newer attempt missing')
+        fixture.holdBootout(false)
+        fixture.disableFailure()
+        fixture.bootoutFailures.set(newer, 1)
+        await expect(fixture.driver.query()).rejects.toMatchObject({
+          reason: 'uncertain',
+          cause: {
+            errors: [
+              { service: oldest, error: { isRetryable: kind === 'retryable' } },
+              { service: newer, error: { isRetryable: false } },
+            ],
+          },
+        })
+        expect(await attemptNames(fixture.directory)).toHaveLength(2)
+        const root = path.join(fixture.directory, 'device-workers-darwin')
+        const retained = Array.from({ length: DEVICE_LIMITS.unresolvedAttempts - 2 }, (_, index) =>
+          path.join(root, `attempt-retained-${String(index)}`),
+        )
+        await Promise.all(retained.map((directory) => mkdir(directory)))
+        await expect(fixture.start()).rejects.toMatchObject({ reason: 'capacity' })
+        expect(await attemptNames(fixture.directory)).toHaveLength(DEVICE_LIMITS.unresolvedAttempts)
+        await Promise.all(retained.map((directory) => rm(directory, { recursive: true })))
+        fixture.bootoutFailures.clear()
+        expect(await fixture.driver.query()).toMatchObject({ activeProcesses: 0 })
+        expect(await attemptNames(fixture.directory)).toEqual([])
+      } finally {
+        await restoreFixture(fixture)
+      }
+    },
+  )
   it('recovers bootstrap ENOMEM before readiness, then queries the same factory', async () => {
     const failure = darwinSpawnFailures[0]
     if (failure === undefined) throw new Error('failure fixture missing')
@@ -351,10 +532,7 @@ describe('M100/H attempt lifecycle', () => {
       await expect(fixture.start()).rejects.toMatchObject({ reason: 'capacity' })
       expect(await attemptNames(fixture.directory)).toHaveLength(1)
       const calls = fixture.calls.length
-      expect(await fixture.driver.query()).toMatchObject({
-        sleepInhibited: false,
-        activeProcesses: 0,
-      })
+      await expect(fixture.driver.query()).rejects.toMatchObject({ reason: 'uncertain' })
       expect(fixture.calls.slice(calls)).not.toContain('ready-print')
       expect(fixture.calls.slice(calls)).not.toContain('retirement-print')
       fixture.holdBootout(false)
@@ -557,6 +735,7 @@ describe('M100/H spawn boundary', () => {
   })
   it('sweeps 128 dead pending probes before a recovered preparation and launch', async () => {
     const fixture = await reclamationFixture('count')
+    await cacheStressDirectories(fixture.directory)
     try {
       for (let index = 0; index < DEVICE_LIMITS.unresolvedAttempts; index += 1)
         await expect(fixture.start()).rejects.toMatchObject({ reason: 'uncertain' })
@@ -569,6 +748,7 @@ describe('M100/H spawn boundary', () => {
   })
   it('sweeps gone ordinary attempts before allocation refuses capacity', async () => {
     const fixture = await reclamationFixture('count')
+    await cacheStressDirectories(fixture.directory)
     try {
       fixture.disableFailure()
       expect(await fixture.driver.selfTest()).toBe(true)
@@ -996,6 +1176,54 @@ int main(int argc, char **argv) {
       for (const label of state.labels) expect(registrations).not.toContain(label)
     } finally {
       await rm(state.directory, { recursive: true, force: true })
+    }
+  })
+  it('releases the native waiting assertion after ready schema failure despite failed bootout', async () => {
+    let isBootoutBroken = false
+    let readyDirectory: string | undefined
+    const driver = freshDriver(async (file, args, env) => {
+      if (isBootoutBroken && args[0] === 'bootout') throw new Error('forced bootout failure')
+      return await run(file, args, env)
+    })
+    expect(await driver.selfTest()).toBe(true)
+    const actual = await vi.importActual<typeof FsPromises>('node:fs/promises')
+    vi.mocked(lstat).mockImplementation(async (...args) => {
+      const file = String(args[0])
+      if (file.replaceAll('\\', '/').endsWith('/ready.json')) {
+        readyDirectory = path.dirname(file)
+        expect(await assertions()).toContain('Muse Spark device worker')
+        await actual.writeFile(file, '{}')
+      }
+      return await actual.lstat(...args)
+    })
+    try {
+      isBootoutBroken = true
+      await expect(launch('', driver)).rejects.toMatchObject({ detail: 'helper' })
+      if (readyDirectory === undefined) throw new Error('native readiness not observed')
+      expect(await readFile(path.join(readyDirectory, 'stop'), 'utf8')).toBe('')
+      // The helper polls stop every POSIX_TREE_EXIT_POLL_MS, subject to OS scheduling.
+      await expect
+        .poll(
+          async () =>
+            parseDeviceWorkerQuery(
+              JSON.parse(await readFile(path.join(readyDirectory ?? '', 'query.json'), 'utf8')),
+            ).sleepInhibited,
+          { interval: POSIX_TREE_EXIT_POLL_MS },
+        )
+        .toBe(false)
+      expect(await assertions()).not.toContain('Muse Spark device worker')
+      expect(await attempts()).toHaveLength(1)
+      await expect(driver.query()).rejects.toMatchObject({
+        reason: 'uncertain',
+        cause: { errors: [{ stopWritten: true }] },
+      })
+      isBootoutBroken = false
+      expect(await driver.query()).toMatchObject({ sleepInhibited: false, activeProcesses: 0 })
+      expect(await attempts()).toEqual([])
+    } finally {
+      vi.mocked(lstat).mockRestore()
+      isBootoutBroken = false
+      await driver.query()
     }
   })
   it('proves natively that NumberOfProcesses cannot supply two per-job slots for this UID', async () => {

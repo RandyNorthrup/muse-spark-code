@@ -1939,3 +1939,76 @@ Changed files: `src/host/backend/deviceWorkerDarwin.ts`,
 PLAN's H scope/gate regions, and this H/macOS certification subsection.
 Both private verification clones are removed after validation. No push, merge,
 rebase, manual stash, credential read, paid/live model call or nonloopback listener.
+
+#### M100P2HM9 — stop signaling and independent macOS reclamation (2026-10-08)
+
+Branch `m100/p2-h-darwin9`, base **`ed3c06cbb`**, review **RVM100P2HMG**.
+The brief keeps HM8's state machine and closes both lifecycle findings in its
+reclaim/sweep rules. No native helper, contract, cap, poll interval or gate changes.
+
+| Reclaim-table row                                             | Updated rule                                                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Allocated, bootstrap never attempted                          | Remove the owned directory directly; no stop signal or process observation is needed.                                                                                                                                                                                                                                    |
+| Bootstrapping, with or without an observed PID                | Write the idempotent stop file and record `stopWritten`, then bootout. Conservatively signal even an unobserved bootstrap because unreadable published readiness can conceal a live helper. On successful/absent bootout, retain HM8's proof of every observed PID/group/coalition before removal.                       |
+| Running, retiring, or pending reclaim retaining that progress | Use the same stop signal, bootout, empty-membership proof and immediately repeated owned-directory/store check. Cancellation uses that recorded signal too; a reclaimed record remains terminal.                                                                                                                         |
+| Stop, bootout, membership or removal failure                  | Preserve `pendingReclaim`, its furthest evidence, observed result and error. Every sweep visits every pending attempt; retryable and definitive failures remain pending, and neither blocks later attempts. Return every unreclaimed service, progress, recorded stop write and error.                                   |
+| Pending-attempt capacity and health                           | Retain its directory against `DEVICE_LIMITS.unresolvedAttempts`, including definitive failures. Query throws typed `uncertain`, with existing localized `devices.unresolvedHelp` and an AggregateError containing every retained failure. Successful reclamation removes that evidence and restores normal observations. |
+
+Capacity follows **PLAN D80 item 7**: unknown/unresolved old records keep their
+occupancy and liabilities, and only locally observed retirement settles them.
+The **M96 uncertain-attempt** rule also retains process slots and quarantines the
+working copy. A failed program command cannot prove retirement. Query's typed
+uncertainty reaches the host's existing unknown-facts fallback and the existing
+uncertain-failure presentation; it never advertises a reclaimed slot. W still owns
+the production factory binding and installed-host status wiring.
+
+The lifecycle table adds **probe/ordinary × context mismatch/schema failure/
+ready-read timeout = 6 cells**, each after readiness publication with bootout held
+failing. They assert the stop file precedes every bootout, independently poll the
+fixture helper to its exited/assertion-released state, inspect `stopWritten` in
+the retained error report, then recover and reclaim the directory. Two additional
+cells put definitive exit 1 or retryable ENOMEM on oldest A: one preparation-entry
+sweep removes empty B and C, retains/reports A, reports two failures together,
+and refuses allocation at the unchanged 128-directory ceiling. No retained slot
+is treated as free.
+
+The new native macOS case deliberately invalidates a real helper's published
+ready schema while its actual IOPM assertion is held and forces bootout to fail.
+It observes stop, polls the helper's own released query at the unchanged 20 ms
+helper interval, checks `pmset -g assertions` no longer names its assertion,
+retains uncertainty while bootout is unavailable, then recovers and reclaims.
+The capture is this lane's native temporary workspace on macmini, UID 502;
+zero model attempts, credential reads or paid calls.
+
+A full first local run exposed two 5 s stress-test timeouts and 24 active-print
+mapping failures. Query now sweeps pending records only before sampling running
+records, preserving the original active-print classifications. Stop is written
+once successfully per attempt, and preparation no longer repeats its entry sweep.
+The two 128-attempt fake stress fixtures cache immutable directory samples and
+root creation; actual allocation/readdir/removal, request/readiness files, process
+boundaries and all 128 occupancy/assertion checks remain. Separate identity and
+substitution cases keep real filesystem observations, as do all native cases.
+No timeout, skip, assertion, threshold or ignore was relaxed.
+
+Restored local complete H owning suite: **exit 0, 502 passed, 0 failed,
+7 Windows-only skipped**, **73.22 s**. All **31 macOS-native cases** ran.
+Host and unit typechecks, changed-file ESLint, plain knip and plain jscpd pass;
+jscpd reports zero clones. Final committed-source fresh-clone receipts follow.
+
+| Base / red drill                                                | Exit and counts                                                                                                                 |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| All nine new regressions with production bytes from `ed3c06cbb` | **1: 9 failed, 0 passed, 454 filtered**, **3.85 s**. Every regression fires on the required base.                               |
+| Remove the stop write from reclaim                              | **1: 7 failed, 0 passed, 456 filtered**, **3.84 s**. All six lifecycle cells and the actual native assertion case fail.         |
+| Return from the sweep after its first pending failure           | **1: 2 failed, 0 passed, 461 filtered**, **1.55 s**. Both definitive/retryable oldest-failure cases retain B and C incorrectly. |
+
+Each mutation restores the exact production bytes in finally and verifies
+SHA-256 **`9446c710de978490e940b882977f363c3395c7d33536c83074babaf6b38b29b5`**.
+Every test run uses repository deadlines and `--maxWorkers=3`; no raised timeout.
+The nine restored focused regressions also pass after all mutations.
+
+**Lead/W requests:** carry the Unreleased CHANGELOG note that macOS reclamation
+signals waiting helpers before bootout, sweeps all attempts despite individual
+failures, and surfaces retained reclamation uncertainty. Full `npm run quality`,
+the inherited host API inventory, lazy production factory binding and installed
+cross-platform qualification remain W's integration duties under PLAN §7.
+No reviewed H finding is deferred or shared-file ownership widened.

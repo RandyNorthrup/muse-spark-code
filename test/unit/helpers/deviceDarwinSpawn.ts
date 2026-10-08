@@ -108,7 +108,12 @@ export async function darwinSpawnFixture(site: DarwinSpawnSite, failure: DarwinS
   const directory = await mkdtemp(path.join(tmpdir(), 'm100-darwin-spawn-'))
   const owner = await lstat(directory)
   const calls: DarwinSpawnSite[] = []
-  const jobs = new Map<string, { directory: string; label: string; ready: boolean }>()
+  const jobs = new Map<
+    string,
+    { directory: string; label: string; ready: boolean; awake: boolean; exited: boolean }
+  >()
+  const bootoutFailures = new Map<string, 'ENOMEM' | 1>()
+  const bootoutStops: { service: string; hasStop: boolean }[] = []
   let phase: 'preparing' | 'ready' = 'preparing'
   let isArmed = site !== 'query' && site !== 'active-print'
   let isInjected = false
@@ -171,7 +176,12 @@ export async function darwinSpawnFixture(site: DarwinSpawnSite, failure: DarwinS
       const config = configSchema.parse(
         JSON.parse(await readFile(path.join(path.dirname(plist), 'request.json'), 'utf8')),
       )
-      jobs.set(`${args[1] ?? ''}/${config.label}`, { ...config, ready: isImmediateProbe })
+      jobs.set(`${args[1] ?? ''}/${config.label}`, {
+        ...config,
+        ready: isImmediateProbe,
+        awake: !isImmediateProbe,
+        exited: isImmediateProbe,
+      })
       if (isImmediateProbe) {
         // Reclamation stress tests need ready/exited jobs, not 328 real poll
         // sleeps. Native cases and the site table retain the full handshake.
@@ -197,6 +207,19 @@ export async function darwinSpawnFixture(site: DarwinSpawnSite, failure: DarwinS
       })
     }
     if (current === 'bootout') {
+      let hasStop = false
+      try {
+        await access(path.join(job.directory, 'stop'))
+        hasStop = true
+      } catch {
+        /* The assertion below checks ordering on failed bootout. */
+      }
+      bootoutStops.push({ service: args[1] ?? '', hasStop })
+      const failure = bootoutFailures.get(args[1] ?? '')
+      if (failure === 1)
+        throw Object.assign(new Error('definitive bootout failure'), { exitCode: 1 })
+      if (failure === 'ENOMEM')
+        throw Object.assign(new Error('bootout pressure'), { code: failure })
       if (isBootoutHeld) throw Object.assign(new Error('bootout pressure'), { code: 'ENOMEM' })
       jobs.delete(args[1] ?? '')
       return ''
@@ -305,6 +328,26 @@ export async function darwinSpawnFixture(site: DarwinSpawnSite, failure: DarwinS
     calls,
     jobs,
     injected,
+    bootoutFailures,
+    bootoutStops,
+    pollHelpers: async () => {
+      // Poll independent of launchctl success, just as the native go/stop loop does.
+      for (const job of jobs.values()) {
+        if (!job.ready || job.exited) continue
+        try {
+          await access(path.join(job.directory, 'stop'))
+        } catch {
+          continue
+        }
+        job.awake = false
+        job.exited = true
+        await writeFile(path.join(job.directory, 'query.json'), JSON.stringify(query(job.label)))
+        await writeFile(
+          path.join(job.directory, 'result.json'),
+          '{"exitCode":1,"stdout":"","failure":"none"}',
+        )
+      }
+    },
     ready: () => {
       phase = 'ready'
       isArmed = true

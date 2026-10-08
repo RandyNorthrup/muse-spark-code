@@ -5,6 +5,7 @@ import { lstat, mkdir, open, readdir, rename, rm, stat, writeFile } from 'node:f
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
+import { UI_TEXT } from '../../shared/l10n/text'
 import { workerEnvironment } from '../../core/team/refFence'
 import {
   handleIdentity,
@@ -420,6 +421,7 @@ interface DarwinAttempt {
   identity?: FileIdentity
   state: AttemptState
   reclamation?: Promise<void>
+  stopWritten?: boolean
 }
 
 export interface DeviceWorkerDarwinDeps {
@@ -582,6 +584,13 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
       return !row.split(/\s+/).includes(String(pid))
     })
   }
+  const signalStop = async (attempt: DarwinAttempt): Promise<void> => {
+    const reached = progress(attempt)
+    if (reached === undefined || attempt.stopWritten === true || reached.kind === 'allocated')
+      return
+    await writeFile(path.join(attempt.directory, 'stop'), '', { mode: Number('0o600') })
+    attempt.stopWritten = true
+  }
   const reclaim = (service: string, attempt: DarwinAttempt): Promise<void> => {
     if (attempt.reclamation !== undefined) return attempt.reclamation
     const reached = progress(attempt)
@@ -591,6 +600,9 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
     const operation = (async () => {
       try {
         const hasDirectory = await hasOwnedDirectory(attempt)
+        // A bootstrap may have published unreadable readiness before PID observation.
+        // Always signal it before bootout, including when no host job was returned.
+        if (hasDirectory) await signalStop(attempt)
         if (reached.kind !== 'allocated') await call(['bootout', service])
         if (!(await isMembershipEmpty(reached))) throw new DeviceWorkerHostError('result')
         // Recheck immediately before removal; never follow a substituted directory.
@@ -622,13 +634,16 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
       // primary launch/retirement failure remains the caller's outcome.
     }
   }
-  const hasInspectionFailure = (attempt: DarwinAttempt): boolean =>
-    attempt.state.kind === 'pendingReclaim' && attempt.state.error instanceof DarwinProgramError
-  const sweep = async (shouldInspectRunning = true): Promise<void> => {
+  const sweep = async (shouldInspectRunning = true) => {
+    const failures: {
+      service: string
+      reached: AttemptProgress
+      stopWritten: boolean
+      error: unknown
+    }[] = []
     for (const [service, attempt] of jobs) {
       if (attempt.state.kind === 'pendingReclaim') {
         await pendingReclaim(service, attempt)
-        if (hasInspectionFailure(attempt)) return
       } else if (shouldInspectRunning && attempt.state.kind === 'running') {
         try {
           if ((await call(['print', service])) === undefined) await pendingReclaim(service, attempt)
@@ -637,7 +652,15 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
           if (reached !== undefined) transition(attempt, { kind: 'pendingReclaim', reached, error })
         }
       }
+      if (attempt.state.kind === 'pendingReclaim')
+        failures.push({
+          service,
+          reached: attempt.state.reached,
+          stopWritten: attempt.stopWritten === true,
+          error: attempt.state.error,
+        })
     }
+    return failures
   }
   const allocate = async (directory: string): Promise<FileIdentity> => {
     const previous = allocating
@@ -777,8 +800,8 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
         await writeFile(file('go'), '', { flag: 'wx', mode: Number('0o600') })
       },
       cancel: async () => {
-        if (attempt.state.kind === 'running' || attempt.state.kind === 'pendingReclaim')
-          await writeFile(file('stop'), '', { mode: Number('0o600') })
+        if (attempt.state.kind === 'reclaimed') return
+        if (await hasOwnedDirectory(attempt)) await signalStop(attempt)
       },
       reclaim: () =>
         observedResult(attempt) === undefined
@@ -794,7 +817,6 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
   const prepareWorker = async (): Promise<PreparationOutcome> => {
     try {
       if (uid === undefined) return { kind: 'notGui' }
-      await sweep()
       const domainInfo = await invoke('/bin/launchctl', ['print', domain], env, true)
       if (!/^\s*session = Aqua\s*$/m.test(domainInfo)) return { kind: 'notGui' }
       await prepareRoot()
@@ -887,6 +909,13 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
       return await rawLaunch(command, environment, admittedProcessLimit(attempt))
     },
     query: async () => {
+      const failures = await sweep(false)
+      if (failures.length > 0) {
+        const failure = new DeviceWorkerHostError('result')
+        failure.message = UI_TEXT.devices.unresolvedHelp
+        failure.cause = new AggregateError(failures, UI_TEXT.devices.unresolvedHelp)
+        throw failure
+      }
       if (!(await isPrepared()))
         throw preparation.kind === 'broken'
           ? preparation.error
