@@ -567,14 +567,14 @@ remain lane W's exclusive work.
 
 ### Acceptance mapping and remaining work
 
-| Brief item              | Windows implementation and evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Status                                                                                                                           |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| 1. Own context          | `deviceWorkerNative.ts` creates one on-demand Task Scheduler task with the current user's interactive token, no trigger and no service. `MuseSparkDeviceWorker.cs` refuses session 0/noninteractive stations, creates a private desktop and a named no-breakaway job. `DeviceWorkerHost.start` checks the reported context against the transport before the activation file permits any child. Fake transport/noninteractive refusals and real private-task tests pass. Context drill fails. | Windows done; Linux/systemd and macOS/launchd drivers and real platform receipts outstanding.                                    |
-| 2. Desktop heap         | Signed and unsigned `STATUS_DLL_INIT_FAILED` exits become typed `unsupported-host`/`desktop-heap` failures with recovery prose in all 15 languages. One launch only; pressure callback reports the signal to V/M107 and does not change a cap. Registry-write spy stays zero; native source check rejects registry/policy mutation APIs. Silent-retry drill fails.                                                                                                                           | Done for a worker exit; task/helper startup failure diagnosis needs the scheduler's last exit status wired before qualification. |
-| 3. Recorded environment | Uses M96's canonical `workerEnvironment` with no passthrough names. The environment is recorded before launch; PATH resolution and the caller's hook-binary verifier both run before start. Actual empty-PATH and fake missing/unverified-hook cases keep launch count zero. Credential-fence and preflight drills fail.                                                                                                                                                                     | Host port done; W must bind a durable local environment record and M96's verified command/controlled boundaries.                 |
-| 4. Structured result    | Native helper owns explicit NUL stdin, bounded stdout/stderr pipes, suspended creation, assignment and resume. Only the exit-code-plus-JSON stdout channel supplies a result; banners on stderr do not. PowerShell commands get per-process Bypass and `-InputFormat None`; no `Set-ExecutionPolicy`. Zod validates native queries/exits and existing device schemas validate usage/artifact results. Stderr-result and output-cap drills fail.                                              | Windows done.                                                                                                                    |
-| 5. Sleep and power      | Each active native helper holds `SetThreadExecutionState(CONTINUOUS \| SYSTEM_REQUIRED)` through observed whole-job exit; finally clears it, and OS thread teardown releases it on helper loss. Host reference count lasts through overlapping retirements; failed power reads stay unknown. Real awake/accounting/cancel tests and fake overlap/helper-loss tests pass. Drop-last-release drill fails.                                                                                      | Windows done; Linux inhibitor/macOS caffeinate and their native receipts outstanding. No battery admission policy was invented.  |
-| 6. Helper self-test     | Source-digest build through existing `compileJob`; per-factory cached self-test exercises suspended launch, job assignment/resume, observed empty job, context, CPU/peak-memory query and power. Failed/corrupt helpers refuse without fallback. The real corruption case and fake failed-self-test case pass; bypass-self-test drill fails.                                                                                                                                                 | Windows done; scheduler launch permission is exercised by native tests, not by the primitive self-test itself.                   |
+| Brief item              | Windows implementation and evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                          | Status                                                                                                                          |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Own context          | `deviceWorkerNative.ts` creates one on-demand Task Scheduler task with the current user's interactive token, no trigger and no service. `MuseSparkDeviceWorker.cs` refuses session 0/noninteractive stations, creates a private desktop and a named no-breakaway job. `DeviceWorkerHost.start` checks the reported context against the transport before the activation file permits any child. Fake transport/noninteractive refusals and real private-task tests pass. Context drill fails. | Windows done; Linux/systemd and macOS/launchd drivers and real platform receipts outstanding.                                   |
+| 2. Desktop heap         | Signed and unsigned `STATUS_DLL_INIT_FAILED` exits become typed `unsupported-host`/`desktop-heap` failures with recovery prose in all 15 languages. One launch only; pressure callback reports the signal to V/M107 and does not change a cap. Registry-write spy stays zero; native source check rejects registry/policy mutation APIs. Silent-retry drill fails.                                                                                                                           | Windows done; scheduler startup heap refusal is verified with a fake last-exit status.                                          |
+| 3. Recorded environment | Uses M96's canonical `workerEnvironment` with no passthrough names. The environment is recorded before launch; PATH resolution and the caller's hook-binary verifier both run before start. Actual empty-PATH and fake missing/unverified-hook cases keep launch count zero. Credential-fence and preflight drills fail.                                                                                                                                                                     | Host port done; W must bind a durable local environment record and M96's verified command/controlled boundaries.                |
+| 4. Structured result    | Native helper owns explicit NUL stdin, bounded stdout/stderr pipes, suspended creation, assignment and resume. Only the exit-code-plus-JSON stdout channel supplies a result; banners on stderr do not. PowerShell commands get per-process Bypass and `-InputFormat None`; no `Set-ExecutionPolicy`. Zod validates native queries/exits and existing device schemas validate usage/artifact results. Stderr-result and output-cap drills fail.                                              | Windows done.                                                                                                                   |
+| 5. Sleep and power      | Each active native helper holds `SetThreadExecutionState(CONTINUOUS \| SYSTEM_REQUIRED)` through observed whole-job exit; finally clears it, and OS thread teardown releases it on helper loss. Host reference count lasts through overlapping retirements; failed power reads stay unknown. Real awake/accounting/cancel tests and fake overlap/helper-loss tests pass. Drop-last-release drill fails.                                                                                      | Windows done; Linux inhibitor/macOS caffeinate and their native receipts outstanding. No battery admission policy was invented. |
+| 6. Helper self-test     | Source-digest build through existing `compileJob`; per-factory cached self-test exercises suspended launch, job assignment/resume, observed empty job, context, CPU/peak-memory query and power. Failed/corrupt helpers refuse without fallback. The real corruption case and fake failed-self-test case pass; bypass-self-test drill fails.                                                                                                                                                 | Windows done; scheduler launch permission is exercised by native tests, not by the primitive self-test itself.                  |
 
 `retirement` is never resolved by cancellation, a deadline, helper/task disappearance
 or direct-parent exit. The native accounting query must observe zero active
@@ -612,7 +612,7 @@ source is restored from its original byte buffer and its SHA-256 checked.
 | parent-retirement | Observe direct parent instead of active job count | Detached descendant is killed before its completion marker.             |
 
 Final-source hashes, clean-clone receipts and commit IDs follow in the final
-verification addendum. Local owning tests: **27 passed**, including six actual
+verification addendum. Local owning tests: **28 passed**, including six actual
 Windows native cases. Five typecheck projects passed before final minor lifecycle
 and capacity changes; the final committed clone is checked again below. No
 `--testTimeout`, gate weakening, ignored diagnostic or lint escape hatch was added.
@@ -637,7 +637,68 @@ and capacity changes; the final committed clone is checked again below. No
 - Proposed battery policy for owner decision: keep already admitted work owned,
   and ask locally before admitting new heavy checks on battery. No policy is
   implemented here; unknown power must stay unknown.
-- Add a typed Task Scheduler startup/last-exit result so a helper that never reaches
-  readiness can surface desktop heap pressure instead of only unsupported-host.
-  Qualify scheduler-specific self-test, private storage ACLs and native helper-death
+- Qualify scheduler-specific self-test, private storage ACLs and native helper-death
   recovery before enabling the production offer. These are open, not support claims.
+
+### Final committed-code verification
+
+Implementation commit **219c8164e**; native-test setup deduplication
+**9e6915957**, both with hooks enabled. The latter changes tests only; all
+production source hashes are identical in both commits and in the CI clone.
+All twelve final red drills exited **1** with test failures, then restored
+the source byte-exact. In addition to the nine drills above:
+
+| Drill         | Deliberate break                               | Failure                                                     |
+| ------------- | ---------------------------------------------- | ----------------------------------------------------------- |
+| attempt-cap   | Disable retained-directory ceiling             | Allocation reaches the helper instead of refusing capacity. |
+| unknown-power | Turn a failed reading into AC                  | Unknown-power/helper-loss facts fail.                       |
+| cancel-race   | Remove cancellation check after pending launch | A cancelled attempt activates.                              |
+
+SHA-256 values checked before and after each corresponding drill:
+
+- Host: 5034f45b402d58fc3243d9c6bf8894f4a37e01b07c201944080a2a088ba9cdab.
+- Native driver: da83342cd3c0470b70a3e257f990a0a5a0f0ccfbcd70c94c51dcb446f6e45462.
+- C# helper: 8a44391400dd3bd0c47abcbe7bf29fa7cb4712802e3832c82e4d09112629414c.
+
+Fresh local Git clone at temp/m100h-verify, Node **24.21.0**, npm **11.19.0**.
+CI=true npm ci exited **0**; no dependency or lockfile change. Install
+reported the pinned tree's 11 audit vulnerabilities (2 low, 9 high); joined
+audit/security qualification remains W's responsibility. No audit fix was run.
+
+On committed implementation **219c8164e**, with CI=true:
+
+- Complete owning files three consecutive times: **28 passed each**,
+  **12.37 / 11.59 / 11.57 seconds** total Vitest durations. Windows' actual
+  repository defaults on this base are 15 seconds per test, 30 per hook;
+  this lane never changes or overrides them. All six native cases ran on Windows.
+- All five typechecks: **exit 0** (148.8 seconds). Full lint including Windows
+  PSScriptAnalyzer: **exit 0** (388.9 seconds). Changed-file Prettier: **exit 0**.
+- Plain knip: **exit 0**. Reference: **exit 0**, 18 Devices entries.
+  Localization: **14 tables, 0 problems**, exit 0.
+- Build: **exit 0**, including sizes, splits, host globals and notices.
+  Devices **81.7/100 KiB**, activation **462.8/600 KiB**, Model API
+  **456.0/475 KiB**. Every cap unchanged. This measures the existing entry
+  plus new English text; W must measure the newly bound host factory.
+- Duplication initially **exit 1**: native-test launch setup repeated 11 lines,
+  58 tokens. Follow-up shares that setup, preserving every test, assertion and
+  deadline. No ignore or threshold change.
+- Host API **exit 1** solely for W's stale generated Node import counts.
+  **366 VS Code APIs, 43 vscode-importing files, 28 Node built-ins, 70 theme
+  variables** unchanged. Needed row updates: child_process **16→17**, crypto
+  **93→94**, fs **44→45**, fs/promises **74→76**, path **125→127**,
+  timers/promises **15→16**. W owns the file: regenerate with
+  npm run check:host-api -- --write after integration, review/commit it and
+  rerun the check. This lane did not edit that file or weaken the gate.
+
+The clean CI clone fetched the committed test-only follow-up locally and
+switched to detached **9e6915957**, without a merge, reset or rebase. Three
+more complete owning runs: **28/28 each**, default deadlines,
+**11.62 / 11.63 / 11.60 seconds**. Duplication: **0 clones**, exit 0. Unit
+typecheck: **exit 0**. The hook passed changed-test lint and formatting.
+Production source hashes and lockfile stayed unchanged from the full clone
+checks. The outstanding gate is W's host API inventory update; Linux/macOS
+drivers and qualification remain outstanding as mapped above.
+
+No push or model call. This is a Windows implementation with receipts, not a
+claim that the entire phase-2 host lane or installed-host qualification is
+complete. Full quality remains delegated to W by the shared lane brief.
