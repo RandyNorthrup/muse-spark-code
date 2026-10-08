@@ -419,7 +419,7 @@ import type {
 } from '../../providers/overflow'
 import type { MediaRequestAccounting } from '../../media/mediaCost'
 import type { MediaReplayPort } from '../../media/replayMedia'
-import type { UploadedMediaRef } from '../../../shared/media'
+import type { StoredMediaPart, UploadedMediaRef } from '../../../shared/media'
 import { mcpFunctionDefinition, mcpFunctionName } from './mcp/functions'
 import {
   ALLOW_ELICITATION_SEAM,
@@ -7318,6 +7318,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (sent === undefined) {
         continue
       }
+      // A vetted inline visual registers for reservation at the calibrated
+      // envelope while its bytes stay inline; the vet at tool time already
+      // refused the unmeasurable, so this re-estimate cannot go unbilled.
+      if (file.priced !== undefined) this.media?.priceInlineVisual(sent, file.priced, this.modelId)
       const lead: InputContentPart = { type: 'input_text', text: file.lead }
       pending.push({
         notDelivered: file.notDelivered,
@@ -8484,6 +8488,13 @@ export class ModelApiSession implements ScheduledAgentSession {
               this.modelId,
               toolSignal ?? signal,
             ),
+          // Production pricing for inline visuals (image/PDF reads): the
+          // bytes stay inline, but the calibrated envelope governs the
+          // reservation and an unmeasurable document refuses under a cap.
+          priceVisual: (visual: StoredMediaPart) => {
+            media.vetVisual(visual, this.modelId)
+            return Promise.resolve()
+          },
         },
       }),
     }

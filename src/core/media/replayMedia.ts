@@ -9,7 +9,7 @@ import {
   type StoredMediaPart,
   type UploadedMediaRef,
 } from '../../shared/media'
-import { type MediaCostEstimator, reserveMediaRequest } from './mediaCost'
+import { type MediaCostEstimator, type MediaCostItem, reserveMediaRequest } from './mediaCost'
 import { requestParts, type BudgetMediaPart } from '../backends/modelapi/sessionBudget'
 import type { CreateResponseBody } from '../backends/modelapi/schemas'
 import type { MediaFileInfo } from './limits'
@@ -78,6 +78,8 @@ export interface MediaReplayPort {
   readonly content: ReplayMedia['content']
   readonly restore: ReplayMedia['restore']
   readonly prepare: ReplayMedia['prepare']
+  readonly vetVisual: ReplayMedia['vetVisual']
+  readonly priceInlineVisual: ReplayMedia['priceInlineVisual']
   readonly project: ReplayMedia['project']
   readonly retain: ReplayMedia['retain']
   readonly delivered: ReplayMedia['delivered']
@@ -95,6 +97,9 @@ export class ReplayMedia {
   private readonly restored = new WeakSet<InputContentPart>()
   private readonly inline = new WeakMap<InputContentPart, InputContentPart>()
   private readonly replacements = new Set<string>()
+  /** Inline-priced visuals: registered for reservation but never observed. */
+  private readonly inlinePriced = new WeakSet<InputContentPart>()
+
   public constructor(
     private readonly sessionId: string,
     private readonly deps: ReplayMediaDeps,
@@ -172,13 +177,41 @@ export class ReplayMedia {
     return parts
   }
 
+  /** A scheduled or interactive image/PDF read stays inline on the wire but
+   * is priced through the calibrated estimator: the image envelope governs
+   * the reservation, and a document with no page rate refuses under a cap
+   * with the existing honest reason. The bytes are never uploaded here. */
+  public vetVisual(media: StoredMediaPart, modelId: string): void {
+    const parsed = storedMediaPartSchema.parse(media)
+    if (parsed.info.kind !== 'image' && parsed.info.kind !== 'document') return
+    // A replay without an estimator keeps the established byte-counted path.
+    if (this.deps.estimator === undefined) return
+    const model = this.model(modelId)
+    // Throws the honest reason when the visual is unmeasurable under a cap.
+    this.deps.estimator.estimate(model.provider, modelId, parsed, true)
+  }
+
+  /** Registers a vetted inline visual for reservation (never for upload). */
+  public priceInlineVisual(part: InputContentPart, media: StoredMediaPart, modelId: string): void {
+    const parsed = storedMediaPartSchema.parse(media)
+    if (parsed.info.kind !== 'image' && parsed.info.kind !== 'document') return
+    if (this.deps.estimator === undefined) return
+    const model = this.model(modelId)
+    // Re-estimates the vetted visual; a changed calibration that
+    // unmeasures it fails the send loudly rather than sending unbilled.
+    this.deps.estimator.estimate(model.provider, modelId, parsed, true)
+    this.parts.set(part, parsed)
+    this.inlinePriced.add(part)
+  }
+
   public async reserveRequest(
     body: CreateResponseBody,
     request: Omit<Parameters<typeof reserveMediaRequest>[0], 'items' | 'estimator'>,
   ) {
-    const items = this.managed(body.input).flatMap((part) => {
+    const items: MediaCostItem[] = this.managed(body.input).flatMap((part) => {
       const media = this.parts.get(part)
-      return media === undefined ? [] : [media]
+      if (media === undefined) return []
+      return [this.inlinePriced.has(part) ? { ...media, inlinePriced: true } : media]
     })
     if (items.length === 0) return
     const estimator = this.deps.estimator

@@ -46,6 +46,9 @@ export interface MediaCostItem {
   /** null/absent means provider default, kept distinct from explicit fps. */
   readonly fps?: number | undefined
   readonly detail?: 'auto' | 'low' | 'high' | 'original' | undefined
+  /** Inline-priced visuals (image/PDF reads): the bound reserves, but the
+   * provider-counted inline bytes never become a calibration observation. */
+  readonly inlinePriced?: boolean
 }
 
 function measurement(item: MediaCostItem):
@@ -351,10 +354,13 @@ export async function reserveMediaRequest(request: {
         for (const result of results) if (result.status === 'rejected') throw result.reason
         if (bill.usage !== undefined) {
           try {
+            // Inline-priced visuals settle their bound but teach nothing.
+            const observed = request.items.filter((item) => item.inlinePriced !== true)
+            if (observed.length === 0) return
             await request.estimator.observe(
               request.provider,
               request.modelId,
-              request.items,
+              observed,
               bill.usage,
               request.captureId,
             )

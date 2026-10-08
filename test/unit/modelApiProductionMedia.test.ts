@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
@@ -209,16 +209,24 @@ function tariffReserve(bound: number, isBelowCap: boolean) {
   const reserve = vi.fn<NonNullable<ScheduleRunDeps['paid']>['reserve']>(
     (body, inputTokens, _signal, admitted) => {
       if (!('input' in body)) throw new Error('Expected Responses request')
+      // Mirrors budgetParts: managed parts (file ids and priced inline
+      // visuals) leave the text estimate; their bound is added instead.
       const stripped = {
         ...body,
         input: body.input.map((item) =>
           item.type === 'message'
-            ? { ...item, content: item.content.filter((part) => !isTestFile(part)) }
+            ? {
+                ...item,
+                content: item.content.filter(
+                  (part) => !isTestFile(part) && !JSON.stringify(part).includes('data:image/'),
+                ),
+              }
             : item,
         ),
       }
       const textTokens = estimateInput(requestParts(stripped), undefined).inputTokens
-      const hasMedia = JSON.stringify(body.input).includes('file-test-')
+      const serialized = JSON.stringify(body.input)
+      const hasMedia = serialized.includes('file-test-') || serialized.includes('data:image/')
       const expected = Usd.from(prices.input)
         .times(textTokens + (hasMedia ? bound : 0))
         .add(Usd.from(prices.output).times(body.max_output_tokens))
@@ -467,8 +475,9 @@ describe('production media through the real factory (MONEY017D)', () => {
   })
 
   it('keeps a scheduled image read inline: no upload, no file id', async () => {
-    // D85.2: small images stay inline on the established path. The seed
-    // bound governs the file-id replay (below), never this dispatch.
+    // D85.2: small images stay inline on the wire. The transport never
+    // changes, but the calibrated image envelope governs the reservation:
+    // pricing cannot be bypassed by staying inline.
     const api = fakeModelApi()
     const files = fakeFilesApi(api.fetch)
     const log = new FakeLogOutputChannel()
@@ -478,6 +487,87 @@ describe('production media through the real factory (MONEY017D)', () => {
     )
     const io = memoryToolIo({}, '/ws')
     io.binaries.set('/ws/tile.png', new Uint8Array(png))
+    const ledgerDir = scratchDir()
+    const host = await createModelApiHost({
+      uiText: EN,
+      uiLocale: 'en',
+      client: { ...fakeModelApiClientSettings(log), fetch: files.fetch },
+      host: {
+        ...fakeModelApiHostDeps({
+          client: fakeModelApiClient({ ...api, fetch: files.fetch }, log),
+          log,
+          io,
+          workspaceRoot: '/ws',
+        }),
+        store: memorySessionStore(),
+        isPaidFeatureOn: () => true,
+        confirmContributorModel: () => Promise.resolve(true),
+        uploadLedgerDir: ledgerDir,
+      },
+      hookSettingsPath: undefined,
+      createMcpServers: undefined,
+    })
+    try {
+      const session = await host.startSession({
+        workspaceRoot: '/ws',
+        modelId: MODEL,
+        approvalMode: 'allowAll',
+      })
+      if (!('sendScheduledTurn' in session)) throw new Error('Expected a Model API session')
+      const h = { session, ...watchSessionTurns(session) }
+      const { reserve } = tariffReserve(IMAGE_BOUND, false)
+      const run = scheduledRun(
+        { host, api, files, io, ledgerDir, close: () => host.close() },
+        reserve,
+      )
+      api.script(
+        {
+          calls: [
+            {
+              name: 'read_file',
+              arguments: JSON.stringify({ path: 'tile.png' }),
+              callId: 'scheduled-read',
+            },
+          ],
+        },
+        { text: 'The tile is transparent.', usage: { input: 4200, output: 64 } },
+      )
+      const done = h.turnDone()
+      await h.session.sendScheduledTurn([{ type: 'text', text: 'Read tile.png' }], run)
+      await done
+      expect(h.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+        terminal: 'completed',
+      })
+      expect(files.uploads).toHaveLength(0)
+      const dispatched = api.responseBodies()
+      expect(dispatched).toHaveLength(2)
+      expect(JSON.stringify(dispatched[1])).toContain('"type":"input_image"')
+      expect(JSON.stringify(dispatched[1])).toContain('data:image/png;base64,')
+      expect(JSON.stringify(dispatched[1])).not.toContain('file-test-')
+      // The inline send settles its bound but teaches nothing: the provider
+      // counted inline bytes, so no observation is recorded at all.
+      expect(
+        existsSync(
+          path.join(
+            productionMediaDirectory(ledgerDir, FAKE_MODEL_API_ACCOUNT_ID),
+            'calibration.json',
+          ),
+        ),
+      ).toBe(false)
+    } finally {
+      await host.close()
+    }
+  })
+
+  it('refuses a scheduled PDF read with no page rate under a cap', async () => {
+    // A document with no page rate cannot be priced: the inline read
+    // refuses at tool time with the estimator's honest reason, and no PDF
+    // bytes are ever dispatched.
+    const api = fakeModelApi()
+    const files = fakeFilesApi(api.fetch)
+    const log = new FakeLogOutputChannel()
+    const io = memoryToolIo({}, '/ws')
+    io.binaries.set('/ws/report.pdf', new TextEncoder().encode('%PDF-1.4\nno pages counted\n'))
     const ledgerDir = scratchDir()
     const host = await createModelApiHost({
       uiText: EN,
@@ -516,15 +606,15 @@ describe('production media through the real factory (MONEY017D)', () => {
           calls: [
             {
               name: 'read_file',
-              arguments: JSON.stringify({ path: 'tile.png' }),
+              arguments: JSON.stringify({ path: 'report.pdf' }),
               callId: 'scheduled-read',
             },
           ],
         },
-        { text: 'The tile is transparent.', usage: { input: 4200, output: 64 } },
+        { text: 'The report was refused.', usage: { input: 4200, output: 64 } },
       )
       const done = h.turnDone()
-      await h.session.sendScheduledTurn([{ type: 'text', text: 'Read tile.png' }], run)
+      await h.session.sendScheduledTurn([{ type: 'text', text: 'Read report.pdf' }], run)
       await done
       expect(h.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
         terminal: 'completed',
@@ -532,9 +622,9 @@ describe('production media through the real factory (MONEY017D)', () => {
       expect(files.uploads).toHaveLength(0)
       const dispatched = api.responseBodies()
       expect(dispatched).toHaveLength(2)
-      expect(JSON.stringify(dispatched[1])).toContain('"type":"input_image"')
-      expect(JSON.stringify(dispatched[1])).toContain('data:image/png;base64,')
-      expect(JSON.stringify(dispatched[1])).not.toContain('file-test-')
+      expect(JSON.stringify(dispatched[1])).not.toContain('data:application/pdf')
+      // The model sees the refusal as the tool result, not the bytes.
+      expect(JSON.stringify(dispatched[1])).toContain('needs a calibrated media rate')
     } finally {
       await host.close()
     }
