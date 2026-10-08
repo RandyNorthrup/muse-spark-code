@@ -34,6 +34,14 @@ happened, not what was planned; superseded entries are kept.
   of them changes, when the quote generation changes, or when only a
   differently-keyed legacy grant exists.
 
+- Account-bound paid consent no longer fabricates quote approval from the
+  binding's feature grant: it requires an account-scoped quote store and
+  generation, persists the approved quote and generation per account, asks
+  again for a higher tariff or a different model on the same or a new
+  instance, and revoke() clears that account's quote grants too. No
+  production host constructs account-bound consent yet — paid approval stays
+  per workspace until M108 lane P wires it — and Help now says so.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached

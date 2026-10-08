@@ -852,6 +852,17 @@ export interface AccountPaidUseConsentDeps extends Omit<
   ) => Promise<PaidUseAnswer>
   /** Registry checks account membership/credential generation and the accepted tariff. */
   readonly isCurrent: (binding: PaidAccountBinding) => boolean
+  /**
+   * The account's approved search quotes. Required: an unversioned grant
+   * cannot prove its vintage (0.18 rule), so no account consent exists
+   * without a store and a generation. The host scopes all three to this
+   * account binding; grants for another account must never be visible here.
+   */
+  readonly readQuoteGrant: (quote: PaidQuote) => PaidGrant | undefined
+  readonly writeQuoteGrant: (grant: PaidGrant) => Promise<void>
+  readonly quoteGeneration: () => string
+  /** Clears this account's quote grants. `revoke()` runs it in the owner queue. */
+  readonly revokeQuoteGrants: () => Promise<void>
 }
 
 export function paidAccountQuestion(binding: PaidAccountBinding): string {
@@ -863,7 +874,11 @@ export function paidAccountQuestion(binding: PaidAccountBinding): string {
   })
 }
 
-/** One instance per account/tariff. Legacy single-account consent stays unchanged. */
+/**
+ * One instance per account/tariff. Legacy single-account consent stays
+ * unchanged. No production host constructs this yet: per-account wiring is
+ * M108 lane P's, so hosts keep their workspace-scoped consent until then.
+ */
 export class AccountPaidUseConsent {
   private readonly binding: PaidAccountBinding
   private readonly key: string
@@ -924,20 +939,27 @@ export class AccountPaidUseConsent {
     })
   }
 
+  /**
+   * Persists an approved search quote inside the owner queue. A save from a
+   * revoked generation throws instead of resurrecting the grant after
+   * `revoke()` cleared it.
+   */
+  private async keepQuoteGrant(grant: PaidGrant, generation: number): Promise<void> {
+    await this.write(async () => {
+      if (!this.isCurrent(generation)) throw new Error(UI_TEXT.accounts.invalidAccount)
+      await this.deps.writeQuoteGrant(grant)
+      if (!this.isCurrent(generation)) throw new Error(UI_TEXT.accounts.invalidAccount)
+    })
+  }
+
   private createConsent(): PaidUseConsent {
     const generation = this.generation
     const isCurrent = () =>
       !this.isRevoking && generation === this.generation && this.deps.isCurrent(this.binding)
-    // Without a host quote store there is no ceiling or generation to track,
-    // so the binding-kept feature grant is bridged into the quote lookup: a
-    // new instance reads back Always for the same workspace, provider,
-    // account and price. A host that tracks generations without a quote store
-    // keeps asking: an unversioned grant cannot prove its vintage.
-    const shouldBridgeQuotes =
-      this.deps.readQuoteGrant === undefined &&
-      this.deps.writeQuoteGrant === undefined &&
-      this.deps.prepareQuoteGeneration === undefined &&
-      this.deps.quoteGeneration === undefined
+    // The persisted quote generation carries this account's revocation
+    // generation beside the host's: a revoke asks again even when its store
+    // clear failed, and a host generation change asks again as before.
+    const composedGeneration = () => JSON.stringify([generation, this.deps.quoteGeneration()])
     return new PaidUseConsent({
       ...this.deps,
       isOn: (feature) => isCurrent() && this.deps.isOn(feature),
@@ -960,14 +982,18 @@ export class AccountPaidUseConsent {
       rememberGrant: async (feature) => {
         await this.keepBindingFeature(feature, generation)
       },
-      ...(shouldBridgeQuotes && {
-        readQuoteGrant: (quote: PaidQuote): PaidGrant | undefined =>
-          this.bindingGrants(generation).has('webSearch')
-            ? { quote, generation: 'initial' }
-            : undefined,
-        writeQuoteGrant: (_grant: PaidGrant): Promise<void> =>
-          this.keepBindingFeature('webSearch', generation),
+      // A host without a preparation step keeps the synchronous capture, so
+      // concurrent first questions still share one popup.
+      ...(this.deps.prepareQuoteGeneration !== undefined && {
+        prepareQuoteGeneration: async () => {
+          await this.deps.prepareQuoteGeneration?.()
+          return composedGeneration()
+        },
       }),
+      quoteGeneration: composedGeneration,
+      writeQuoteGrant: async (grant) => {
+        await this.keepQuoteGrant(grant, generation)
+      },
       ask: async (request, canRemember) => await this.deps.ask(request, this.binding, canRemember),
     })
   }
@@ -984,7 +1010,11 @@ export class AccountPaidUseConsent {
     return decision !== undefined && decision !== false && this.isCurrent(generation)
   }
 
-  /** Invalidates pending questions now and removes the account/tariff's workspace grant. */
+  /**
+   * Invalidates pending questions now and removes the account/tariff's
+   * workspace grant and its quote grants, in the owner queue. A failed
+   * clear still leaves the advanced generation asking again.
+   */
   public async revoke(): Promise<void> {
     this.generation++
     this.revocations++
@@ -993,6 +1023,7 @@ export class AccountPaidUseConsent {
     try {
       await this.write(async () => {
         await this.deps.writeGrants(this.key, new Set())
+        await this.deps.revokeQuoteGrants()
       })
     } finally {
       this.revocations--
