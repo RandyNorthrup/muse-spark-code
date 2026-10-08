@@ -71,7 +71,7 @@ export const RESOURCE_OPTIONAL_MIN_PERCENT = 1
 export const RESOURCE_ID_MAX_LENGTH = 256
 // U–C1: the window status message's JSON text; its strict schema runs in the deferred chip.
 export const RESOURCE_STATUS_MAX_CHARS = 8192
-// M107: a chat document's own random id (the pull model's sender), and its bound.
+// M107: the bound on a chat document's id, which the host issues in its HTML.
 export const RESOURCE_NONCE_MAX_CHARS = 64
 export const RESOURCE_LAUNCH_POLL_MS = 100
 export const RESOURCE_MUSE_SHUTDOWN_MS = 30_000
@@ -1066,6 +1066,9 @@ export const WEBVIEW_DIST_SEGMENTS = ['dist', 'webview'] as const
 export const WEBVIEW_SCRIPT_FILE = 'main.js'
 export const WEBVIEW_STYLE_FILE = 'main.css'
 export const WEBVIEW_ROOT_ELEMENT_ID = 'root'
+// M107: the `<body>` attribute naming the document the host built (webviewSetup.ts).
+// A reload builds a new document with a new id; the webview only echoes it.
+export const WEBVIEW_DOCUMENT_ATTRIBUTE = 'data-document-id'
 
 // What's New after an update (M99, PLAN.md D79). Its page is an editor
 // webview (every VS Code fork has webviews; not all have Markdown preview):

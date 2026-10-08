@@ -1,5 +1,5 @@
 // Shared wiring for both webview surfaces (sidebar view and editor panel):
-// options, HTML with a fresh CSP nonce, the inbound message handler, and the
+// options, HTML with a fresh CSP nonce and document id (M107), the inbound message handler, and the
 // `ChatSurface` handle (chatSurface.ts) the rest of the host uses to talk back.
 
 import * as vscode from 'vscode'
@@ -29,8 +29,6 @@ export interface WebviewHostContext {
   readonly onInputFocusChanged: (surface: ChatSurface, isFocused: boolean) => void
   /** The webview mounted and received `init`; push the conversation state. */
   readonly onSurfaceReady: (surface: ChatSurface, attachmentEpoch?: number) => void
-  /** The surface's document was replaced (Reload): until its next `ready` it hears nothing. */
-  readonly onDocumentReplaced?: (surface: ChatSurface) => void
   readonly onConversationMessage: (surface: ChatSurface, message: ConversationMessage) => void
 }
 
@@ -83,7 +81,9 @@ export function configureWebview(
 ): ChatSurface {
   const bundleRoot = vscode.Uri.joinPath(context.extensionUri, ...WEBVIEW_DIST_SEGMENTS)
   webview.options = { enableScripts: true, localResourceRoots: [bundleRoot] }
-  const applyHtml = () => {
+  // M107: each build names its document; the id it returns is the only current one.
+  const buildDocument = (): string => {
+    const documentId = createNonce()
     webview.html = buildWebviewHtml({
       scriptUri: webview
         .asWebviewUri(vscode.Uri.joinPath(bundleRoot, WEBVIEW_SCRIPT_FILE))
@@ -94,14 +94,19 @@ export function configureWebview(
       cspSource: webview.cspSource,
       nonce: createNonce(),
       l10n: context.l10n,
+      documentId,
     })
+    return documentId
   }
-  applyHtml()
+  let documentId = buildDocument()
 
   let restoredSessionId = options.restoredSessionId
   const surface: ChatSurface = {
     id: options.id,
     isSideChat: options.isSideChat === true,
+    get documentId() {
+      return documentId
+    },
     post(message) {
       if (isRestoreEnding(message)) {
         restoredSessionId = undefined
@@ -112,8 +117,7 @@ export function configureWebview(
     markUnread: options.markUnread,
     setTitle: options.setTitle,
     reload: () => {
-      applyHtml()
-      context.onDocumentReplaced?.(surface)
+      documentId = buildDocument()
     },
     takeRestoredSessionId() {
       return restoredSessionId

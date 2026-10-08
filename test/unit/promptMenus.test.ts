@@ -185,6 +185,7 @@ describe('prompt menus and commands', () => {
 function surface(id: string): ChatSurface {
   return {
     id,
+    documentId: `${id}-document`,
     post: vi.fn(),
     reveal: vi.fn(),
     markUnread: vi.fn(),

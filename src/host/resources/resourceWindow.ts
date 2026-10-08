@@ -20,19 +20,29 @@ type ResourceAction = Extract<WebviewToHostMessage, { type: 'resourceAction' }>[
 
 interface ResourceSurface {
   readonly id: string
+  /** The id the host wrote into this surface's current document (webviewSetup.ts). */
+  readonly documentId: string
   post(message: HostToWebviewMessage): void
   reveal(): void
 }
 
+/** Show's open: for one surface id, numbered; `offeredTo` is the document it was offered to. */
+interface PendingOpen {
+  readonly surfaceId: string
+  readonly seq: number
+  offeredTo: string | undefined
+}
+
 /**
- * The chat documents one surface has had. Each webview document mints its
- * own nonce; a reload marks the current one stale, so later messages from it
- * (queued before the reload) are ignored.
+ * One Show resources run. A newer Show, its target's removal and the window's
+ * disposal abort it; after every await it stops if aborted, before any reveal,
+ * open or offer.
  */
-interface SurfaceDocuments {
-  readonly surface: ResourceSurface
-  readonly stale: Set<string>
-  current: string | undefined
+interface ShowOperation {
+  readonly seq: number
+  readonly controller: AbortController
+  /** The surface in view when Show ran; else the new conversation's surface id, once opened. */
+  target: ResourceSurface | string | undefined
 }
 
 /** The slice of VS Code's namespace the window uses; the real one is injected. */
@@ -76,12 +86,10 @@ export interface ResourceWindowDeps<Alignment> {
 export interface ResourceWindow {
   /** A document is ready: send it the latest status (its chip then pulls). */
   surfaceReady(surface: Pick<ResourceSurface, 'post'>): void
-  /** A document asks for a pending open (its chip mounted). */
+  /** A document asks for a pending open (its chip mounted), naming itself. */
   pull(surface: ResourceSurface, nonce: string): void
   /** A document opened the popover for `seq`. */
   acknowledge(surface: ResourceSurface, seq: number, nonce: string): void
-  /** A surface's document was replaced (reload): its current nonce is stale. */
-  surfaceReset(surface: ResourceSurface): void
   /** The chip's popover controls (webview `resourceAction`). */
   action(action: ResourceAction): Promise<void>
   /** `museSpark.showResources`: the chip's popover in the chat in view. */
@@ -97,34 +105,33 @@ export function createResourceWindow<Alignment>(
   const { vscode } = deps
   // null: the latest status was refused (over the message bound).
   let latest: string | null | undefined
-  // Pull model. Show records one pending open for one surface id, numbered.
-  // A document that names itself (its chip's pull) is offered it; only that
-  // document's acknowledgement spends it. VS Code may drop posts to a document
-  // that is not listening yet, so an unacknowledged open stays pending.
-  const documents = new Map<string, SurfaceDocuments>()
+  // Host-issued document identity. A surface's `documentId` is the one current
+  // document of that webview; a pull or ack naming any other id is ignored,
+  // never promoted, so the order messages arrive in decides nothing.
+  // `listening`: per surface id, the document whose chip pulled (it may since
+  // have been replaced, which `offer` checks).
+  const listening = new Map<
+    string,
+    { readonly surface: ResourceSurface; readonly documentId: string }
+  >()
   let sequence = 0
-  let pending: { readonly surfaceId: string; readonly seq: number } | undefined
-  const isCurrentDocument = (surface: ResourceSurface, nonce: string): boolean => {
-    let known = documents.get(surface.id)
-    if (known?.surface !== surface) {
-      known = { surface, stale: new Set(), current: undefined }
-      documents.set(surface.id, known)
-    }
-    if (known.stale.has(nonce)) return false
-    known.current = nonce
-    return true
-  }
-  const offer = (surfaceId: string) => {
-    const known = documents.get(surfaceId)
-    if (isDisposed || pending?.surfaceId !== surfaceId || known?.current === undefined) return
-    known.surface.post({ type: 'resourceOpen', seq: pending.seq, nonce: known.current })
-  }
-  const withdraw = (surfaceId: string, seq: number) => {
-    if (pending?.surfaceId === surfaceId && pending.seq === seq) pending = undefined
-  }
+  let pending: PendingOpen | undefined
+  let operation: ShowOperation | undefined
   let attached: { readonly window: ResourceWindowHost; dispose(): void } | undefined
   let isDisposed = false
 
+  /** Offer the pending open to its surface's current document, if that document pulled. */
+  const offer = (surfaceId: string) => {
+    const document = listening.get(surfaceId)
+    if (
+      document === undefined ||
+      pending?.surfaceId !== surfaceId ||
+      document.surface.documentId !== document.documentId
+    )
+      return
+    pending.offeredTo = document.documentId
+    document.surface.post({ type: 'resourceOpen', seq: pending.seq, nonce: document.documentId })
+  }
   const publish = (status: ResourceStatus) => {
     const encoded = JSON.stringify(status)
     // Over the bound, the chip says the status is unavailable instead of
@@ -203,36 +210,51 @@ export function createResourceWindow<Alignment>(
   }
   const show = async () => {
     if (isDisposed) return
-    // Bound now, before any await: the chat in view, or the new conversation's
-    // surface. A later Show supersedes this one and its continuation stops.
+    // The latest Show wins: the one before stops, and its open is withdrawn.
+    operation?.controller.abort()
+    pending = undefined
     sequence += 1
-    const seq = sequence
+    // Bound now, before any await: the chat in view, or none (a new conversation).
     const active = deps.surfaces.active
-    const conversation = active === undefined ? deps.openConversation() : undefined
-    const surfaceId = active?.id ?? conversation?.surfaceId
-    if (surfaceId === undefined) return
-    pending = { surfaceId, seq }
-    const isCurrent = () => !isDisposed && sequence === seq
+    const current: ShowOperation = {
+      seq: sequence,
+      controller: new AbortController(),
+      target: active,
+    }
+    operation = current
+    // A call, not a narrowed property: an abort can land during any await.
+    const isAborted = () => current.controller.signal.aborted
     try {
+      // The governor's state first: when it is off, nothing opens or takes focus.
       const window = await loaded()
-      if (!isCurrent()) return
+      if (isAborted()) return
       const status = await window.port.refreshStatus()
-      if (!isCurrent()) return
+      if (isAborted()) return
       publish(status)
       if (!status.settings.enabled) {
-        withdraw(surfaceId, seq)
         await governorOff()
         return
       }
-      if (active === undefined) await conversation?.opened
-      else {
+      if (active !== undefined) {
         active.reveal()
-        offer(surfaceId)
+        pending = { surfaceId: active.id, seq: current.seq, offeredTo: undefined }
+        offer(active.id)
+        return
       }
+      // Awaited as soon as it starts: a rejection always reaches this Show.
+      const conversation = deps.openConversation()
+      current.target = conversation.surfaceId
+      pending = { surfaceId: conversation.surfaceId, seq: current.seq, offeredTo: undefined }
+      await conversation.opened
+      if (isAborted()) return
+      // A surface that already existed (the sidebar) pulled before this Show.
+      offer(conversation.surfaceId)
     } catch (error: unknown) {
-      // A failed open leaves nothing behind for a later, unrelated ready.
-      withdraw(surfaceId, seq)
+      // Its own open only: a newer Show's stays.
+      if (pending?.seq === current.seq) pending = undefined
       throw error
+    } finally {
+      if (operation === current) operation = undefined
     }
   }
   const resume = async () => {
@@ -249,10 +271,12 @@ export function createResourceWindow<Alignment>(
       )
   }
   const stopWatching = deps.onLoad(attach)
-  // A disposed target cancels its open; it is never redirected to another surface.
+  // A removed target cancels its open and stops its Show; it is never redirected.
   const removal = deps.surfaces.onRemoved((surface) => {
-    if (documents.get(surface.id)?.surface === surface) documents.delete(surface.id)
+    if (listening.get(surface.id)?.surface === surface) listening.delete(surface.id)
     if (pending?.surfaceId === surface.id) pending = undefined
+    const target = operation?.target
+    if (target === surface || target === surface.id) operation?.controller.abort()
   })
   const configuration = vscode.workspace.onDidChangeConfiguration((event) => {
     if (event.affectsConfiguration(SETTINGS_SECTION)) attached?.window.port.settingsChanged()
@@ -263,16 +287,15 @@ export function createResourceWindow<Alignment>(
         surface.post({ type: 'resourceStatus', status: latest })
     },
     pull: (surface, nonce) => {
-      if (!isDisposed && isCurrentDocument(surface, nonce)) offer(surface.id)
+      if (isDisposed || nonce !== surface.documentId) return
+      listening.set(surface.id, { surface, documentId: nonce })
+      offer(surface.id)
     },
     acknowledge: (surface, seq, nonce) => {
-      if (!isDisposed && isCurrentDocument(surface, nonce)) withdraw(surface.id, seq)
-    },
-    surfaceReset: (surface) => {
-      const known = documents.get(surface.id)
-      if (isDisposed || known?.surface !== surface || known.current === undefined) return
-      known.stale.add(known.current)
-      known.current = undefined
+      // Only the current document's ack, for the seq offered to that document.
+      if (isDisposed || nonce !== surface.documentId) return
+      if (pending?.surfaceId === surface.id && pending.seq === seq && pending.offeredTo === nonce)
+        pending = undefined
     },
     action: async (action) => {
       switch (action) {
@@ -296,8 +319,10 @@ export function createResourceWindow<Alignment>(
     resume,
     dispose: () => {
       isDisposed = true
+      operation?.controller.abort()
+      operation = undefined
       pending = undefined
-      documents.clear()
+      listening.clear()
       removal.dispose()
       stopWatching()
       configuration.dispose()

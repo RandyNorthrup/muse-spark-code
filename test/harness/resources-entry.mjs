@@ -169,7 +169,7 @@ if (surface === 'companion') {
     windowScene === undefined
       ? createResourceSurfaceLoader(port, load)
       : windowResourceLoader(store, postMessage)
-  // Show resources: the host's open for this document's own nonce (pull model).
+  // Show resources: the host's open for the id the chip's pull echoed (the body's).
   globalThis.window.resourceHarness.open = () => {
     deliver({ type: 'resourceOpen', seq: 1, nonce: pulledNonce })
   }

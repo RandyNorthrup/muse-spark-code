@@ -500,7 +500,7 @@
         postMessage: (message) => {
           outbox.push(message)
           document.title = `harness: ${message.type}`
-          // M107 pull model: the document's own nonce, for Show resources' open.
+          // M107 pull model: the body's host-issued id, as the chip's pull echoes it.
           if (message.type === 'resourcePull') window.harnessDocumentNonce = message.nonce
           switch (message.type) {
             case 'usage/ready':
@@ -1285,7 +1285,8 @@
       })
     </script>
   </head>
-  <body>
+  <!-- M107: the document id the host's HTML writes (webviewSetup.ts); the chip echoes it. -->
+  <body data-document-id="harness-document">
     <div id="root"></div>
     <script>
       const surfaceScenario = new URLSearchParams(location.search).get('scenario') ?? ''

@@ -3572,9 +3572,6 @@ async function activateWindow(
         isFocused,
       )
     },
-    onDocumentReplaced: (surface) => {
-      resourceWindow.surfaceReset(surface)
-    },
     onSurfaceReady: (surface, attachmentEpoch) => {
       readyPromptSurfaces.add(surface)
       resourceWindow.surfaceReady(surface)

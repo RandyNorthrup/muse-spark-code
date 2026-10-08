@@ -6,7 +6,12 @@ import { act, fireEvent, screen, waitFor } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { RESOURCE_STATUS_MAX_CHARS, UI_TEXT } from '../../src/shared/constants'
 import { resourceStatusSchema } from '../../src/shared/resources'
-import { mountChatEntry, resourceChipName, resourceStatusText } from './helpers/resourceChat'
+import {
+  MOUNTED_DOCUMENT_ID,
+  mountChatEntry,
+  resourceChipName,
+  resourceStatusText,
+} from './helpers/resourceChat'
 
 const mounted = vi.hoisted(() => ({ chunkLoads: 0 }))
 vi.mock('../../src/webview/resources/ResourceSurface', async (importOriginal) => {
@@ -62,7 +67,8 @@ it('posts each popover control to the host through the production port', async (
 })
 
 it('pulls on mount, opens only for an offer naming this document, and acknowledges it once', async () => {
-  // RVM107W1C pull model through the production mountChat path.
+  // RVM107W1C pull model through the production mountChat path; RVM107W1D:
+  // the chip echoes the id the host wrote into its document, never its own.
   const { deliver, postMessage } = await mountChat()
   // An offer to another document (a replaced one) before the chunk loads.
   deliver({ type: 'resourceOpen', seq: 1, nonce: 'another-document' })
@@ -75,6 +81,7 @@ it('pulls on mount, opens only for an offer naming this document, and acknowledg
   })
   const { nonce } = pull
   expect(nonce).toMatch(/^[\w-]{16,64}$/)
+  expect(nonce).toBe(MOUNTED_DOCUMENT_ID)
   expect(screen.queryByRole('dialog')).toBeNull()
   const acks = () =>
     postMessage.mock.calls.filter(([message]) => message.type === 'resourceOpenAck')

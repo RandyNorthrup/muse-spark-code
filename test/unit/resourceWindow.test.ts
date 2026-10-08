@@ -30,6 +30,12 @@ import type { ResourceWindowHost } from '../../src/core/resources/admission'
 import { createResourceWindow } from '../../src/host/resources/resourceWindow'
 import type * as GovernorEntry from '../../src/core/resources/resourceGovernorEntry'
 import { FakeResourceClock, ScriptedResourceSampler } from './helpers/resources/fakes'
+import {
+  fakeAdmission,
+  fakeResourceVscode,
+  fakeStatus,
+  fakeWindowHost,
+} from './helpers/resourceWindowFakes'
 
 const governorEntry = vi.hoisted(() => ({ load: 0 }))
 vi.mock('../../src/core/resources/resourceGovernorEntry', async (importOriginal) => {
@@ -213,45 +219,12 @@ describe('U–C1 lazy admission port', () => {
   })
 })
 
-function fakeStatus(level: ResourceStatus['level'], isEnabled = true): ResourceStatus {
-  return resourceStatusSchema.parse({
-    level,
-    settings: { enabled: isEnabled },
-    sample: null,
-    queued: [],
-    overrideUntilMs: level === 'normal' && isEnabled ? 1000 : null,
-    relocation: 'noRoute',
-  })
-}
-
-function windowHarness(initial: ResourceStatus = fakeStatus('pause')) {
-  let status = initial
-  const listeners = new Set<() => void>()
-  const statusItem = { update: vi.fn(), show: vi.fn(), hide: vi.fn(), dispose: vi.fn() }
-  const createStatus = vi.fn<ResourceWindowHost['createStatus']>(() => ({
-    dispose: statusItem.dispose,
-  }))
-  const port = {
-    status: vi.fn(() => status),
-    subscribe: vi.fn((changed: () => void) => {
-      listeners.add(changed)
-      return () => {
-        listeners.delete(changed)
-      }
-    }),
-    resume: vi.fn(() => {
-      status = fakeStatus('normal', status.settings.enabled)
-      return status
-    }),
-    refreshStatus: vi.fn(() => Promise.resolve(status)),
-    settingsChanged: vi.fn(),
-  }
-  const window: ResourceWindowHost = {
-    port,
-    createStatus,
-    createVsCodeItem: vi.fn(() => statusItem),
-  }
-  const surface = fakeSurface('panel:in-view')
+/** The adapter over fake host, VS Code and surfaces; the chat in view's document is `documentId`. */
+function windowHarness(initial: ResourceStatus = fakeStatus('pause'), documentId = 'n1') {
+  const host = fakeWindowHost(initial)
+  const { vscode, configure } = fakeResourceVscode()
+  const admission = fakeAdmission(host.window)
+  const surface = fakeSurface('panel:in-view', documentId)
   const removed = new Set<(surface: ReturnType<typeof fakeSurface>) => void>()
   const surfaces = {
     active: surface as ReturnType<typeof fakeSurface> | undefined,
@@ -265,33 +238,6 @@ function windowHarness(initial: ResourceStatus = fakeStatus('pause')) {
       }
     },
   }
-  let configuration:
-    ((event: { affectsConfiguration(section: string): boolean }) => void) | undefined
-  const vscode = {
-    window: {
-      createStatusBarItem: vi.fn(),
-      showInformationMessage: vi.fn((_message: string, ..._items: string[]) =>
-        Promise.resolve<string | undefined>(undefined),
-      ),
-      showWarningMessage: vi.fn((_message: string, ..._items: string[]) =>
-        Promise.resolve<string | undefined>(undefined),
-      ),
-    },
-    commands: { executeCommand: vi.fn(() => Promise.resolve()) },
-    workspace: {
-      onDidChangeConfiguration: vi.fn(
-        (listener: (event: { affectsConfiguration(section: string): boolean }) => void) => {
-          configuration = listener
-          return { dispose: vi.fn() }
-        },
-      ),
-    },
-    StatusBarAlignment: { Left: 1 },
-    ThemeColor: class {
-      public constructor(public readonly id: string) {}
-    },
-  }
-  let attach: ((loaded: ResourceWindowHost) => void) | undefined
   const openConversation = vi.fn(() => ({
     surfaceId: 'panel:new',
     opened: Promise.resolve(),
@@ -299,16 +245,8 @@ function windowHarness(initial: ResourceStatus = fakeStatus('pause')) {
   const warn = vi.fn()
   const resources = createResourceWindow({
     vscode,
-    onLoad: (attacher) => {
-      attach = attacher
-      return () => {
-        attach = undefined
-      }
-    },
-    load: () => {
-      attach?.(window)
-      return Promise.resolve(window)
-    },
+    onLoad: admission.onLoad,
+    load: admission.load,
     surfaces,
     openConversation,
     conversationId: () => 'conversation',
@@ -316,24 +254,19 @@ function windowHarness(initial: ResourceStatus = fakeStatus('pause')) {
   })
   return {
     resources,
-    window,
-    port,
+    window: host.window,
+    port: host.port,
     surface,
     surfaces,
     vscode,
     openConversation,
     warn,
-    statusItem,
-    createStatus,
-    load: () => attach?.(window),
-    change: (next: ResourceStatus) => {
-      status = next
-      for (const listener of listeners) listener()
-    },
-    configure: (section: string) => {
-      configuration?.({ affectsConfiguration: (name) => section.startsWith(name) })
-    },
-    listeners,
+    statusItem: host.statusItem,
+    createStatus: host.createStatus,
+    load: admission.attach,
+    change: host.change,
+    configure,
+    listeners: host.listeners,
     removed,
     remove: (gone: ReturnType<typeof fakeSurface>) => {
       for (const listener of removed) listener(gone)
@@ -341,16 +274,27 @@ function windowHarness(initial: ResourceStatus = fakeStatus('pause')) {
   }
 }
 
-function fakeSurface(id: string) {
-  return { id, post: vi.fn<(message: HostToWebviewMessage) => void>(), reveal: vi.fn() }
+/** A chat surface whose current document the host named `documentId` (webviewSetup.ts). */
+function fakeSurface(id: string, documentId = 'n1') {
+  return {
+    id,
+    documentId,
+    post: vi.fn<(message: HostToWebviewMessage) => void>(),
+    reveal: vi.fn(),
+  }
+}
+
+/** Reload: the host builds a new document, named `next`; the old name is retired at once. */
+function reload(surface: ReturnType<typeof fakeSurface>, next: string) {
+  surface.documentId = next
 }
 
 /** Chats A (in view, pulled as `a`) and B (`b`); a Show for A waits in its reading. */
 async function twoChatsWithWaitingShow() {
-  const h = windowHarness()
+  const h = windowHarness(fakeStatus('pause'), 'a')
   const reading = Promise.withResolvers<ResourceStatus>()
   h.port.refreshStatus.mockImplementationOnce(() => reading.promise)
-  const other = fakeSurface('panel:other')
+  const other = fakeSurface('panel:other', 'b')
   for (const [surface, nonce] of [
     [h.surface, 'a'],
     [other, 'b'],
@@ -413,7 +357,8 @@ describe('U–C1 VS Code window adapter', () => {
     )
   })
 
-  // RVM107W1C pull model: a document names itself (ready/pull) and acks.
+  // Pull model with host-issued document ids (RVM107W1D): a document pulls
+  // and acks under the id the host wrote into its HTML.
 
   it('offers the open to the ready document in view and spends it only on its ack', async () => {
     const h = windowHarness()
@@ -431,10 +376,10 @@ describe('U–C1 VS Code window adapter', () => {
 
   it('ignores a queued pull from a replaced document; the new document gets the open', async () => {
     // RVM107W1C P2-1: the document's own nonce, never an inferred generation.
-    const h = windowHarness()
+    const h = windowHarness(fakeStatus('pause'), 'old')
     h.resources.surfaceReady(h.surface)
     h.resources.pull(h.surface, 'old')
-    h.resources.surfaceReset(h.surface)
+    reload(h.surface, 'new')
     await h.resources.show()
     h.resources.surfaceReady(h.surface)
     h.resources.pull(h.surface, 'old')
@@ -454,13 +399,13 @@ describe('U–C1 VS Code window adapter', () => {
     h.resources.pull(h.surface, 'n1')
     await h.resources.show()
     expect(opens(h.surface)).toEqual(['1@n1'])
-    h.resources.surfaceReset(h.surface)
+    reload(h.surface, 'n2')
     h.resources.acknowledge(h.surface, 1, 'n1')
     h.resources.surfaceReady(h.surface)
     h.resources.pull(h.surface, 'n2')
     expect(opens(h.surface)).toEqual(['1@n1', '1@n2'])
     h.resources.acknowledge(h.surface, 1, 'n2')
-    h.resources.surfaceReset(h.surface)
+    reload(h.surface, 'n3')
     h.resources.surfaceReady(h.surface)
     h.resources.pull(h.surface, 'n3')
     expect(opens(h.surface)).toEqual(['1@n1', '1@n2'])
@@ -548,11 +493,11 @@ describe('U–C1 VS Code window adapter', () => {
     h.surfaces.active = undefined
     await h.resources.show()
     expect(h.openConversation).toHaveBeenCalledTimes(1)
-    const other = fakeSurface('panel:other')
+    const other = fakeSurface('panel:other', 'x')
     h.resources.surfaceReady(other)
     h.resources.pull(other, 'x')
     expect(sent(other)).toEqual(['resourceStatus'])
-    const target = fakeSurface('panel:new')
+    const target = fakeSurface('panel:new', 'y')
     h.resources.surfaceReady(target)
     h.resources.pull(target, 'y')
     expect(opens(target)).toEqual(['1@y'])
@@ -562,7 +507,7 @@ describe('U–C1 VS Code window adapter', () => {
     const h = windowHarness()
     await h.resources.show()
     h.remove(h.surface)
-    const replacement = fakeSurface(h.surface.id)
+    const replacement = fakeSurface(h.surface.id, 'n2')
     h.resources.surfaceReady(replacement)
     h.resources.pull(replacement, 'n2')
     expect(opens(replacement)).toEqual([])

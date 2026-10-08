@@ -16,9 +16,12 @@ import {
 } from '../../shared/resources'
 import type { ResourceSurfaceProps } from './resourcePort'
 
-// M107 pull model: this document's own id, minted when its chip chunk first
-// runs. The host offers an open to one nonce; only that document opens it.
-const documentNonce = globalThis.crypto.randomUUID()
+// M107: the id the host wrote into this document's HTML (WEBVIEW_DOCUMENT_ATTRIBUTE,
+// `data-document-id`; read through `dataset` so chat startup carries no name for
+// it). The chip only echoes it: its pull and ack name the document the host
+// built, and an offer naming any other document is not for this one. No id
+// (another host): no pull.
+const readDocumentId = () => document.body.dataset['documentId']
 const noSubscription = () => {
   // A host without opens never changes them.
 }
@@ -39,6 +42,7 @@ export function ResourceSurface({ port, isInert = false }: ResourceSurfaceProps)
   const anchor = useRef<HTMLDivElement>(null)
   const closeButton = useRef<HTMLButtonElement>(null)
   const id = useId()
+  const [documentId] = useState(readDocumentId)
   // StatusLine owns the heartbeat. The App's surface follows its current mount
   // without changing another lane's transcript/StatusLine interfaces.
   useEffect(() => {
@@ -56,7 +60,7 @@ export function ResourceSurface({ port, isInert = false }: ResourceSurfaceProps)
     }
   }, [])
   // M107 pull model: on mount, ask the host for a pending Show resources; open
-  // for an offer naming this document only, once, and acknowledge it.
+  // for an offer naming this document's host-issued id only, once, and acknowledge it.
   const opens = port.opens
   // Only a window host offers opens; other hosts keep a single subscription.
   const subscribeOffers = useCallback(
@@ -65,18 +69,18 @@ export function ResourceSurface({ port, isInert = false }: ResourceSurfaceProps)
   )
   const offered = useSyncExternalStore(subscribeOffers, () => {
     const offer = opens?.offered()
-    return offer?.nonce === documentNonce ? offer.seq : 0
+    return documentId !== undefined && offer?.nonce === documentId ? offer.seq : 0
   })
   const seenOffer = useRef(0)
   useEffect(() => {
-    opens?.send({ type: 'resourcePull', nonce: documentNonce })
-  }, [opens])
+    if (documentId !== undefined) opens?.send({ type: 'resourcePull', nonce: documentId })
+  }, [documentId, opens])
   useEffect(() => {
-    if (offered === 0 || offered === seenOffer.current) return
+    if (documentId === undefined || offered === 0 || offered === seenOffer.current) return
     seenOffer.current = offered
     setIsOpen(true)
-    opens?.send({ type: 'resourceOpenAck', seq: offered, nonce: documentNonce })
-  }, [offered, opens])
+    opens?.send({ type: 'resourceOpenAck', seq: offered, nonce: documentId })
+  }, [documentId, offered, opens])
   useEffect(() => {
     if (isOpen && !isInert) closeButton.current?.focus()
   }, [isOpen, isInert, target])
