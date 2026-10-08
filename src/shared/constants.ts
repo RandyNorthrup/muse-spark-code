@@ -69,6 +69,8 @@ export const RESOURCE_MEMORY_MIN_FREE_GIB = 0.5
 export const RESOURCE_MEMORY_MAX_FREE_GIB = 64
 export const RESOURCE_OPTIONAL_MIN_PERCENT = 1
 export const RESOURCE_ID_MAX_LENGTH = 256
+// U–C1: the window status message's JSON text; its strict schema runs in the deferred chip.
+export const RESOURCE_STATUS_MAX_CHARS = 8192
 export const RESOURCE_LAUNCH_POLL_MS = 100
 export const RESOURCE_MUSE_SHUTDOWN_MS = 30_000
 export const RESOURCE_MUSE_CLOSE_GRACE_MS = 10_000
@@ -189,6 +191,9 @@ export const COMMAND_IDS = {
   // M99 (PLAN.md D79): the release notes of this version and the ones before it.
   showWhatsNew: 'museSpark.showWhatsNew',
   openUsagePage: 'museSpark.openUsagePage',
+  // M107 U–C1/W: the window governor's chip and its fifteen-minute override.
+  showResources: 'museSpark.showResources',
+  resumeResources: 'museSpark.resumeResources',
   openHelp: 'museSpark.openHelp',
   savePrompt: 'museSpark.savePrompt',
   useSavedPrompt: 'museSpark.useSavedPrompt',

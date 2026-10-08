@@ -12,6 +12,7 @@ import type {
   ResourceClock,
   ResourceKind,
   ResourceSettings,
+  ResourceStatus,
   ResourceTicket,
 } from '../../shared/resources'
 import type { ResourceGovernor } from './governor'
@@ -75,6 +76,10 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
   private readonly cleanupTimers = new Set<() => void>()
   private readonly unsubscribe: () => void
   private readonly unsubscribeSample: () => void
+  // U–C1: one checked snapshot, replaced only when its content changes.
+  private readonly statusListeners = new Set<() => void>()
+  private snapshot: { readonly status: ResourceStatus; readonly key: string } | undefined
+  private isSnapshotStale = true
 
   constructor(private readonly options: ResourceLaunchHostOptions) {
     this.queue = new ResourceQueue({
@@ -93,6 +98,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     })
     this.unsubscribeSample = options.governor.onSample(() => {
       this.queue.wake()
+      this.changed()
     })
     this.unsubscribe = options.events.subscribe((event) => {
       if (event.type === 'levelChanged' && event.to !== 'normal') {
@@ -101,7 +107,39 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
           .then((result) => options.onCleanup?.(result))
           .catch(options.onError)
       }
+      this.changed()
     })
+  }
+
+  /** Queue counts move without an event (grants, releases), so callers mark them too. */
+  private changed(): void {
+    this.isSnapshotStale = true
+    if (this.disposed || this.statusListeners.size === 0) return
+    const previous = this.snapshot
+    try {
+      if (this.status() === previous?.status) return
+    } catch {
+      this.options.onError()
+      return
+    }
+    for (const listener of this.statusListeners) {
+      try {
+        listener()
+      } catch {
+        this.options.onError()
+      }
+    }
+  }
+
+  private applySettings(): ResourceSettings {
+    const settings = this.options.settings()
+    const signature = JSON.stringify(settings)
+    if (signature !== this.settings) {
+      this.options.governor.updateSettings(settings)
+      this.settings = signature
+      this.changed()
+    }
+    return settings
   }
 
   private finishTemp(work: Work): void {
@@ -145,6 +183,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     if (!this.work.delete(work)) return
     if (work.ticket !== undefined) work.registry?.unregister(work.ticket)
     work.permit.release()
+    this.changed()
     if (isTreeGone) this.finishTemp(work)
     if ([...this.work].some((entry) => entry.process !== undefined)) {
       return
@@ -272,6 +311,54 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     }
   }
 
+  /**
+   * The governor's checked status, cached: the same object until a reading,
+   * event, queue or settings change alters its content (React's external-store
+   * contract for the chip; the status item reads the same object).
+   */
+  status(): ResourceStatus {
+    if (this.snapshot !== undefined && !this.isSnapshotStale) return this.snapshot.status
+    const status = this.options.governor.status(this.queue.counts())
+    const key = JSON.stringify(status)
+    this.isSnapshotStale = false
+    if (this.snapshot?.key !== key) this.snapshot = { status, key }
+    return this.snapshot.status
+  }
+
+  /** Disposable change notification; read `status()` inside the callback. */
+  subscribe(changed: () => void): () => void {
+    if (this.disposed) throw new Error('Resource launch host disposed')
+    this.statusListeners.add(changed)
+    return () => {
+      this.statusListeners.delete(changed)
+    }
+  }
+
+  /** The window's settings changed: apply them now, not at the next governed launch. */
+  settingsChanged(): void {
+    if (!this.disposed) this.applySettings()
+  }
+
+  /**
+   * Resume now: the governor's own fifteen-minute override for this window.
+   * An explicitly disabled governor stays off, and nothing is approved or paid.
+   */
+  resume(): ResourceStatus {
+    if (this.disposed) throw new Error('Resource launch host disposed')
+    if (this.applySettings().enabled) this.options.governor.resumeNow()
+    this.queue.wake()
+    this.changed()
+    return this.status()
+  }
+
+  /** An explicit Show takes one reading; only a governed launch starts periodic sampling. */
+  async refreshStatus(): Promise<ResourceStatus> {
+    if (this.disposed) throw new Error('Resource launch host disposed')
+    if (this.applySettings().enabled) await this.options.governor.refresh()
+    this.changed()
+    return this.status()
+  }
+
   refreshTrees(): Promise<void> {
     this.pending ??= this.sampleAll()
     return this.pending
@@ -285,12 +372,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     checkpointDestination?: string,
   ): Promise<ResourceLease> {
     if (this.disposed) throw new Error('Resource launch host disposed')
-    const settings = this.options.settings()
-    const signature = JSON.stringify(settings)
-    if (signature !== this.settings) {
-      this.options.governor.updateSettings(settings)
-      this.settings = signature
-    }
+    this.applySettings()
     this.options.governor.start()
     const isCheckpoint = workClass === 'checkpoint'
     if (isCheckpoint) {
@@ -301,10 +383,22 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     const selectedClass = isCheckpoint
       ? 'foreground'
       : (workClass ?? this.context.getStore() ?? 'foreground')
-    const permit = await this.queue.request(
-      { kind, class: selectedClass, priority: 0, diskHeavy: isDiskHeavy, checkpoint: isCheckpoint },
-      signal,
-    ).ready
+    let permit: ResourcePermit
+    try {
+      permit = await this.queue.request(
+        {
+          kind,
+          class: selectedClass,
+          priority: 0,
+          diskHeavy: isDiskHeavy,
+          checkpoint: isCheckpoint,
+        },
+        signal,
+      ).ready
+    } finally {
+      // Granted or withdrawn, the waiting count shown by the chip changed.
+      this.changed()
+    }
     const work: Work = {
       kind,
       class: selectedClass,
@@ -451,6 +545,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
 
   dispose(): void {
     this.disposed = true
+    this.statusListeners.clear()
     this.cancelTreeSample?.()
     this.unsubscribe()
     this.unsubscribeSample()

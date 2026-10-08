@@ -39,6 +39,7 @@ import {
   REPORT_FRAME_PATH_MAX_CHARS,
   REPORT_STACK_MAX_FRAMES,
   REPORT_WEBVIEW_ERROR_KINDS,
+  RESOURCE_STATUS_MAX_CHARS,
   SUBAGENT_ACTIONS,
   WEBVIEW_ERROR_MESSAGE_MAX_CHARS,
   WEBVIEW_ERROR_SOURCES,
@@ -554,6 +555,11 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // Editor resources dropped onto the composer (`text/uri-list`).
   z.object({ type: z.literal('droppedUris'), uris: z.array(stringSchema) }),
   z.object({ type: z.literal('hostAction'), action: z.enum(HOST_ACTIONS) }),
+  // M107 U–C1: the chip's popover controls; the host runs each through its command.
+  z.strictObject({
+    type: z.literal('resourceAction'),
+    action: z.enum(['show', 'settings', 'resume']),
+  }),
   z.strictObject({ type: z.literal('openUsagePage') }),
   // Approval card: one of the request's `availableChoices`.
   z.object({
@@ -1067,6 +1073,15 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   // Sent on surfaceReady and on every change.
   z.object({ type: z.literal('paidState'), state: paidStateSchema }),
   z.object({ type: z.literal('judgeState'), state: judgeStatusSchema }),
+  // M107 U–C1: the window governor's checked status as JSON text, bounded here.
+  // resourceStatusSchema checks it strictly in the deferred chip before any
+  // field is shown, so its parser never enters chat's startup bundle.
+  z.strictObject({
+    type: z.literal('resourceStatus'),
+    status: z.string().check(z.minLength(1), z.maxLength(RESOURCE_STATUS_MAX_CHARS)),
+  }),
+  // Show resources: open the chip's popover in this surface.
+  z.strictObject({ type: z.literal('resourceOpen') }),
   // A message the host sent itself (M79: a plan's brief): the pending card,
   // as the composer's own Send would have made it. `turnAccepted` or
   // `sendFailed` follows with the same `localId`.

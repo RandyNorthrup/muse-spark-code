@@ -2351,6 +2351,7 @@
   "resourceRelocatedNotice": "このマシンが高負荷のため、待機中の処理を {device} に移動しました。",
   "resourceRelocationNoRoute": "移動はまだ利用できません。ペアリングされたデバイスまたはランナーへの経路が必要です。処理はこのマシンで続けます。",
   "resourceUnavailable": "このマシンではこの測定値を取得できません。",
+  "resourceGovernorOff": "このマシンではリソース制限がオフです。",
   "resourceCpu": "CPU 使用率",
   "resourceMemory": "使用中のメモリ",
   "resourceAvailableMemory": "利用可能なメモリ",

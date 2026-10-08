@@ -2853,7 +2853,11 @@ export function App({
           <JudgeStatusLine status={state.judge} />
           {ResourceView === undefined || resources === undefined ? null : (
             <Suspense fallback={null}>
-              <ResourceView port={resources.port} isInert={isModalOpen} />
+              <ResourceView
+                port={resources.port}
+                isInert={isModalOpen}
+                openRequest={state.resourceRequests}
+              />
             </Suspense>
           )}
           {hasPlan && selectedProvider === 'copilot' ? (

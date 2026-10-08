@@ -199,6 +199,8 @@
   "config.legalExplanation": "Választható Model API-magyarázat: USD. Minden használat engedélyt kér, és a közös napi keretet terheli.",
   "config.paidDailyBudgetUsd": "A fizetős extrák közös napi kerete: USD.",
   "command.openUsagePage.title": "Használat és költség megnyitása",
+  "command.showResources.title": "Erőforrások megjelenítése",
+  "command.resumeResources.title": "Munka folytatása most",
   "setting.usageHistory.description": "A modellhasználat helyi rögzítése ezen a számítógépen. Kikapcsoláskor nem készülnek új bejegyzések; az aktuális korlátok és keretek láthatók maradnak.",
   "setting.usageHistoryDays.description": "A napi használati összesítések megőrzési ideje napokban (30–1825). Az egyes hívások részletei 30 napig maradnak meg.",
   "command.connectChatGpt": "Folytatás ChatGPT-vel",

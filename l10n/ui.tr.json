@@ -2445,6 +2445,7 @@
   "resourceRelocatedNotice": "Bu makine meşgul olduğu için kuyruktaki iş {device} cihazına taşındı.",
   "resourceRelocationNoRoute": "Taşıma henüz kullanılamıyor: eşleştirilmiş bir cihaz veya bir çalıştırma makinesine giden bir yol gerekir. İş bu makinede kalır.",
   "resourceUnavailable": "Bu ölçüm bu makinede kullanılamıyor.",
+  "resourceGovernorOff": "Bu makinede kaynak sınırları kapalı.",
   "resourceCpu": "CPU kullanımı",
   "resourceMemory": "Kullanılan bellek",
   "resourceAvailableMemory": "Kullanılabilir bellek",

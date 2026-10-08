@@ -2633,6 +2633,7 @@
   "resourceRelocatedNotice": "Pracę z kolejki przeniesiono na {device}, ponieważ ten komputer jest zajęty.",
   "resourceRelocationNoRoute": "Przenoszenie nie jest jeszcze dostępne: wymaga sparowanego urządzenia lub trasy do maszyny wykonawczej. Praca pozostaje na tym komputerze.",
   "resourceUnavailable": "Ten odczyt jest niedostępny na tym komputerze.",
+  "resourceGovernorOff": "Limity zasobów są wyłączone na tym komputerze.",
   "resourceCpu": "Użycie procesora",
   "resourceMemory": "Pamięć w użyciu",
   "resourceAvailableMemory": "Dostępna pamięć",

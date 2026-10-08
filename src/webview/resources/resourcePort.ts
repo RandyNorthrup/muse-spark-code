@@ -13,6 +13,8 @@ export interface ResourceSurfacePort {
 export interface ResourceSurfaceProps {
   readonly port: ResourceSurfacePort
   readonly isInert?: boolean
+  /** Each increase opens the popover (the window's Show resources command). */
+  readonly openRequest?: number
 }
 
 /** A separately delivered lazy surface, sharing the panel's React and language state. */

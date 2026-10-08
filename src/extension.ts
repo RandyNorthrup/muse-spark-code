@@ -267,7 +267,12 @@ import { extensionHooksBundle, type ExtensionHooksModule } from './host/extensio
 import type { ExtensionHookRunner } from './host/extensionHooksEntry'
 import { showPickOne } from './host/quickPick'
 import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
-import { configureResources } from './core/resources/admission'
+import {
+  configureResources,
+  loadResourceWindow,
+  onResourceWindow,
+} from './core/resources/admission'
+import { createResourceWindow } from './host/resources/resourceWindow'
 import {
   createCheckpointPort,
   finishCheckpointTurn,
@@ -3522,6 +3527,35 @@ async function activateWindow(
     return controller
   }
 
+  // M107 U–C1/W: the window governor's chip, status item, pause notice and
+  // commands. Only this adapter is in activation; the governor and its status
+  // adapter load with dist/resourceGovernor.js at the first governed spawn.
+  const resourceWindow = createResourceWindow({
+    vscode,
+    onLoad: onResourceWindow,
+    load: loadResourceWindow,
+    surfaces: registry,
+    openConversation: () => openConversation(),
+    conversationId: () => {
+      const surface = registry.active
+      return surface === undefined
+        ? undefined
+        : (controllers.get(surface.id)?.shareSessionId() ?? surface.id)
+    },
+    warn: (message) => {
+      log.warn(message)
+    },
+  })
+  context.subscriptions.push(
+    {
+      dispose: () => {
+        resourceWindow.dispose()
+      },
+    },
+    registerLoggedCommand(log, COMMAND_IDS.showResources, () => resourceWindow.show()),
+    registerLoggedCommand(log, COMMAND_IDS.resumeResources, () => resourceWindow.resume()),
+  )
+
   const hostContext: WebviewHostContext = {
     extensionUri: context.extensionUri,
     l10n,
@@ -3540,6 +3574,7 @@ async function activateWindow(
     },
     onSurfaceReady: (surface, attachmentEpoch) => {
       readyPromptSurfaces.add(surface)
+      resourceWindow.surfaceReady(surface)
       promptHost?.ready(surface)
       const controller = controllerFor(surface)
       controller.surfaceReady(attachmentEpoch)
@@ -3599,6 +3634,10 @@ async function activateWindow(
           logRejection(log, 'help reference')(error)
           surface.post({ type: 'referenceValues', model: '', values: {}, nls: {}, error: true })
         })
+        return
+      }
+      if (message.type === 'resourceAction') {
+        void resourceWindow.action(message.action).catch(logRejection(log, 'resource action'))
         return
       }
       if (message.type === 'sharingAction') {

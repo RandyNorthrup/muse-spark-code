@@ -2445,6 +2445,7 @@
   "resourceRelocatedNotice": "A várakozó munka átkerült ide: {device}, mert ez a gép foglalt.",
   "resourceRelocationNoRoute": "Az áthelyezés még nem érhető el: párosított eszközt vagy futtató géphez vezető útvonalat igényel. A munka ezen a gépen marad.",
   "resourceUnavailable": "Ez a mérési adat ezen a gépen nem érhető el.",
+  "resourceGovernorOff": "Az erőforrás-korlátok ki vannak kapcsolva ezen a gépen.",
   "resourceCpu": "CPU-használat",
   "resourceMemory": "Használt memória",
   "resourceAvailableMemory": "Elérhető memória",

@@ -16,6 +16,8 @@ import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { type ErrorReporter, reportWebviewErrorMessage, webviewErrorReport } from './errorReport'
 import { vsCodeHostBridge } from './hostBridge'
 import { installEmbeddedTable } from './installTable'
+import type { ResourceSurfaceLoader } from './resources/resourcePort'
+import { windowResourceLoader } from './resources/windowPort'
 import { installSurfaceRetry, retrySurface } from './surfaceRetry'
 import { restoredUiState } from './state/snapshot'
 import { createUiStore, listenToHost, persistStore, type UiStore } from './state/store'
@@ -62,6 +64,27 @@ function CrashReportDialog({
         store.dispatch({ type: 'reportClosed' })
       }}
     />
+  )
+}
+
+/** No governed work, no chip: its deferred import waits for the first status. */
+function ChatApp({
+  store,
+  postMessage,
+  resources,
+}: {
+  readonly store: UiStore
+  readonly postMessage: (message: WebviewToHostMessage) => void
+  readonly resources: ResourceSurfaceLoader
+}) {
+  const hasStatus = useSyncExternalStore(
+    store.subscribe,
+    () => store.getState().resourceStatus !== undefined,
+  )
+  return hasStatus ? (
+    <App store={store} postMessage={postMessage} resources={resources} />
+  ) : (
+    <App store={store} postMessage={postMessage} />
   )
 }
 
@@ -145,6 +168,8 @@ function mountChat(element: Element): void {
   const postMessage = (message: WebviewToHostMessage) => {
     host.post(message)
   }
+  // M107 U–C1: the window governor's chip, mounted once the host sends a status.
+  const resources = windowResourceLoader(store, postMessage)
 
   createRoot(element).render(
     <>
@@ -161,7 +186,7 @@ function mountChat(element: Element): void {
         }}
         onReload={retrySurface}
       >
-        <App store={store} postMessage={postMessage} />
+        <ChatApp store={store} postMessage={postMessage} resources={resources} />
       </ErrorBoundary>
     </>,
   )

@@ -199,6 +199,8 @@
   "config.legalExplanation": "İsteğe bağlı Model API açıklaması: USD. Her kullanım onay ister ve ortak günlük bütçeyi kullanır.",
   "config.paidDailyBudgetUsd": "Ücretli ek özelliklerin ortak günlük bütçesi: USD.",
   "command.openUsagePage.title": "Kullanım ve maliyeti aç",
+  "command.showResources.title": "Kaynakları göster",
+  "command.resumeResources.title": "İşi şimdi sürdür",
   "setting.usageHistory.description": "Model kullanımını bu bilgisayarda yerel olarak kaydedin. Kapatıldığında yeni kayıtlar durur; güncel sınırlar ve bütçeler görünür kalır.",
   "setting.usageHistoryDays.description": "Günlük kullanım özetlerinin saklanacağı gün sayısı (30–1825). Çağrı ayrıntıları 30 gün saklanır.",
   "command.connectChatGpt": "ChatGPT ile devam et",

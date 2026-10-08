@@ -232,13 +232,13 @@ function browserTableContract(value) {
 }
 
 /** Collect every literal text reader in the shipped static and dynamic source graph. */
-export function browserTextKeys(entries, english, eagerSources = new Set()) {
+export function browserTextKeys(entries, english, eagerSources = new Set(), excluded = new Set()) {
   const seen = new Set()
   const keys = new Set()
   const eagerKeys = new Set()
   const visit = (file) => {
     file = path.resolve(file)
-    if (seen.has(file) || file === path.resolve(TABLE)) return
+    if (seen.has(file) || file === path.resolve(TABLE) || excluded.has(file)) return
     seen.add(file)
     const tree = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true)
     const resolve = (specifier) => {
@@ -334,11 +334,13 @@ export const compactBrowserUiText = {
       })
       const eagerSources = browserStartupSources(roots).files
       const { keys, files, eagerKeys } = browserTextKeys(entries, EN, eagerSources)
+      const resourceEntries = Object.values(RESOURCE_WEBVIEW_ENTRIES)
       const surfaceKeys = browserTextKeys(
-        entries.filter(
-          (entry) => !Object.values(RESOURCE_WEBVIEW_ENTRIES).includes(entry.replaceAll('\\', '/')),
-        ),
+        entries.filter((entry) => !resourceEntries.includes(entry.replaceAll('\\', '/'))),
         EN,
+        new Set(),
+        // M107 U–C1: chat's deferred import of the chip still loads the chip's own English.
+        new Set(resourceEntries.map((entry) => path.resolve(entry))),
       ).keys
       const resourceKeys = browserTextKeys(Object.values(RESOURCE_WEBVIEW_ENTRIES), EN).keys
       const deferredKeys = [...keys].filter((key) => !eagerKeys.has(key))

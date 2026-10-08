@@ -40,6 +40,7 @@ export const EN = {
   resourceRelocationNoRoute:
     'Relocation is not available yet: it needs a paired device or runner route. Work stays on this machine.',
   resourceUnavailable: 'This reading is unavailable on this machine.',
+  resourceGovernorOff: 'Resource limits are off on this machine.',
   resourceTransport: 'Transport failures',
   resourceOsService: 'OS service pressure',
   resourceCpu: 'CPU use',

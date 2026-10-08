@@ -5,7 +5,7 @@
       "name": { "ui": "resourceTitle" },
       "summary": { "ui": "referenceResources" },
       "description": { "ui": "referenceResources" },
-      "commands": [],
+      "commands": ["museSpark.showResources", "museSpark.resumeResources"],
       "settings": [
         "museSpark.resourceGovernor",
         "museSpark.resourceCpuMaxPercent",
@@ -2321,6 +2321,26 @@
       "description": "Track cost, tokens and limits across editors.",
       "text": { "ui": "paletteUsagePage" },
       "canRun": true
+    },
+    {
+      "id": "museSpark.showResources",
+      "name": "Show Resources",
+      "nameKey": "command.showResources.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Show Resources",
+      "text": { "command": "museSpark.showResources" },
+      "canRun": true
+    },
+    {
+      "id": "museSpark.resumeResources",
+      "name": "Resume Work Now",
+      "nameKey": "command.resumeResources.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Resume Work Now",
+      "text": { "command": "museSpark.resumeResources" },
+      "canRun": false
     },
     {
       "id": "museSpark.legalScan",

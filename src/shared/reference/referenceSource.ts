@@ -168,6 +168,7 @@ export const REFERENCE_ACTION_FEATURES = {
   requestLegalExplanation: 'legal-explanation',
   exportLegalReport: 'legal',
   sharingAction: 'prompt-library',
+  resourceAction: 'resources',
   openSettings: 'support',
   openKeybindings: 'support',
   openLog: 'support',

@@ -262,6 +262,13 @@ export interface CheckpointView {
 
 export interface UiState {
   readonly judge: JudgeStatus | undefined
+  /**
+   * M107 U–C1: this window governor's status as the host sent it (bounded
+   * JSON text; the deferred chip checks its schema). Machine-wide, never saved.
+   */
+  readonly resourceStatus: string | undefined
+  /** Show resources asked this surface to open the chip's popover. */
+  readonly resourceRequests: number
   /** Newest resolutions whose tool rows have not arrived yet; never saved. */
   readonly pendingApprovalResolutions: readonly Extract<AgentEvent, { type: 'approvalResolved' }>[]
   readonly phase: 'connecting' | 'ready'
@@ -669,6 +676,8 @@ export const initialUiState: UiState = {
   focusRequests: 0,
   usageRequests: 0,
   helpRequests: 0,
+  resourceStatus: undefined,
+  resourceRequests: 0,
   referenceValues: undefined,
   pendingInsert: undefined,
   judge: undefined,
@@ -3075,6 +3084,12 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'paidState': {
       return { ...state, paid: message.state }
+    }
+    case 'resourceStatus': {
+      return { ...state, resourceStatus: message.status }
+    }
+    case 'resourceOpen': {
+      return { ...state, resourceRequests: state.resourceRequests + 1 }
     }
     case 'historyLoaded': {
       // The same session read again (a delivery gap, D26) keeps its usage.

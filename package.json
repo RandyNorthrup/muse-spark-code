@@ -335,6 +335,17 @@
         "icon": "$(graph)"
       },
       {
+        "command": "museSpark.showResources",
+        "title": "%command.showResources.title%",
+        "category": "%command.category%",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "museSpark.resumeResources",
+        "title": "%command.resumeResources.title%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.legalScan",
         "title": "%command.legalScan.title%",
         "category": "%command.category%"

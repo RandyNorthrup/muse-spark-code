@@ -12,7 +12,7 @@ Resource, service and transport pressure reduce admission. Each job has observed
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: `museSpark.resourceGovernor`, `museSpark.resourceCpuMaxPercent`, `museSpark.resourceMemoryMaxPercent`, `museSpark.resourceMemoryMinFreeGiB`, `museSpark.resourceGpuMaxPercent`, `museSpark.resourceDiskBusyMaxPercent`, `museSpark.resourceDiskMinFreeGiB`, `museSpark.resourceRelocate`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#keeping-your-machine-responsive)
+Commands: `museSpark.showResources`, `museSpark.resumeResources`. Settings: `museSpark.resourceGovernor`, `museSpark.resourceCpuMaxPercent`, `museSpark.resourceMemoryMaxPercent`, `museSpark.resourceMemoryMinFreeGiB`, `museSpark.resourceGpuMaxPercent`, `museSpark.resourceDiskBusyMaxPercent`, `museSpark.resourceDiskMinFreeGiB`, `museSpark.resourceRelocate`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#keeping-your-machine-responsive)
 
 ### Agent receipt
 
@@ -1764,6 +1764,14 @@ Available when: `workspaceFolderCount > 0`.
 ### Muse Spark: Open Usage & Cost
 
 `museSpark.openUsagePage` — Track cost, tokens and limits across editors.
+
+### Muse Spark: Show Resources
+
+`museSpark.showResources` — Show Resources
+
+### Muse Spark: Resume Work Now
+
+`museSpark.resumeResources` — Resume Work Now
 
 ### Muse Spark: Legal scan
 

@@ -17,7 +17,7 @@ import {
 import type { ResourceSurfaceProps } from './resourcePort'
 
 /** Shared by the panel and companion. An absent or invalid status renders no readings. */
-export function ResourceSurface({ port, isInert = false }: ResourceSurfaceProps) {
+export function ResourceSurface({ port, isInert = false, openRequest = 0 }: ResourceSurfaceProps) {
   const subscribe = useCallback((changed: () => void) => port.subscribe(changed), [port])
   const read = useCallback(() => port.getSnapshot(), [port])
   const snapshot = useSyncExternalStore(subscribe, read)
@@ -44,6 +44,13 @@ export function ResourceSurface({ port, isInert = false }: ResourceSurfaceProps)
       observer.disconnect()
     }
   }, [])
+  // A request made before this deferred chunk loaded still opens it once.
+  const seenRequest = useRef(0)
+  useEffect(() => {
+    if (openRequest === seenRequest.current) return
+    seenRequest.current = openRequest
+    setIsOpen(true)
+  }, [openRequest])
   useEffect(() => {
     if (isOpen && !isInert) closeButton.current?.focus()
   }, [isOpen, isInert, target])

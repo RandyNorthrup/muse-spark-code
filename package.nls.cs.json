@@ -199,6 +199,8 @@
   "config.legalExplanation": "Volitelné vysvětlení Model API: USD. Každé použití žádá souhlas a sdílí denní rozpočet.",
   "config.paidDailyBudgetUsd": "Společný denní rozpočet placených doplňků: USD.",
   "command.openUsagePage.title": "Otevřít využití a náklady",
+  "command.showResources.title": "Zobrazit prostředky",
+  "command.resumeResources.title": "Obnovit práci hned",
   "setting.usageHistory.description": "Zaznamenávat využití modelů místně na tomto počítači. Vypnutí zastaví nové záznamy; aktuální limity a rozpočty zůstanou viditelné.",
   "setting.usageHistoryDays.description": "Počet dní uchování denních souhrnů využití (30–1825). Podrobnosti jednotlivých volání se uchovávají 30 dní.",
   "command.connectChatGpt": "Pokračovat s ChatGPT",

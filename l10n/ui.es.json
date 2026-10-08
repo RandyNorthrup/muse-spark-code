@@ -2539,6 +2539,7 @@
   "resourceRelocatedNotice": "El trabajo en cola se movió a {device} porque este equipo está ocupado.",
   "resourceRelocationNoRoute": "El traslado aún no está disponible: necesita un dispositivo vinculado o una ruta a una máquina de ejecución. El trabajo se queda en este equipo.",
   "resourceUnavailable": "Esta lectura no está disponible en este equipo.",
+  "resourceGovernorOff": "Los límites de recursos están desactivados en este equipo.",
   "resourceCpu": "Uso de CPU",
   "resourceMemory": "Memoria en uso",
   "resourceAvailableMemory": "Memoria disponible",

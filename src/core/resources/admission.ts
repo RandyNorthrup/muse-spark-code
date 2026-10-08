@@ -1,13 +1,30 @@
 import type { ResourceClass, ResourceKind } from '../../shared/resources'
 import type { ResourceLease } from './launch'
 import type { ResourceLaunchHost } from './launchHost'
-import type { ResourceHostSettings } from './resourceGovernorEntry'
+import type * as Governor from './resourceGovernorEntry'
+
+type ResourceHostSettings = Governor.ResourceHostSettings
+
+/**
+ * U–C1: what a window reads from its loaded governor host, plus the status
+ * adapter delivered in the same lazy bundle (never at activation).
+ */
+export interface ResourceWindowHost {
+  readonly port: Pick<
+    ResourceLaunchHost,
+    'status' | 'subscribe' | 'resume' | 'refreshStatus' | 'settingsChanged'
+  >
+  readonly createStatus: typeof Governor.createResourceStatus
+  readonly createVsCodeItem: typeof Governor.createVsCodeResourceStatusItem
+}
 
 const state: {
   options?: ResourceHostSettings
   pending?: Promise<ResourceLaunchHost>
+  window?: ResourceWindowHost | undefined
+  readonly attachers: Set<(window: ResourceWindowHost) => void>
   isDisposed: boolean
-} = { isDisposed: false }
+} = { isDisposed: false, attachers: new Set() }
 
 /** Shared, tiny Node bundle: installing settings performs no probe or governor import. */
 export function configureResources(settings: ResourceHostSettings): () => void {
@@ -15,6 +32,8 @@ export function configureResources(settings: ResourceHostSettings): () => void {
   state.isDisposed = false
   return () => {
     state.isDisposed = true
+    state.window = undefined
+    state.attachers.clear()
     void disposeHost(settings.onError)
   }
 }
@@ -30,7 +49,23 @@ async function disposeHost(onError: () => void): Promise<void> {
 
 async function createHost(configured: ResourceHostSettings): Promise<ResourceLaunchHost> {
   const bundle = await import('./resourceGovernorEntry.js')
-  return bundle.resourceGovernorHost(configured)
+  const host = bundle.resourceGovernorHost(configured)
+  if (!state.isDisposed) {
+    const window: ResourceWindowHost = {
+      port: host,
+      createStatus: bundle.createResourceStatus,
+      createVsCodeItem: bundle.createVsCodeResourceStatusItem,
+    }
+    state.window = window
+    for (const attach of state.attachers) {
+      try {
+        attach(window)
+      } catch {
+        configured.onError()
+      }
+    }
+  }
+  return host
 }
 
 async function load(): Promise<ResourceLaunchHost | undefined> {
@@ -38,6 +73,25 @@ async function load(): Promise<ResourceLaunchHost | undefined> {
   if (state.options === undefined) return undefined
   state.pending ??= createHost(state.options)
   return await state.pending
+}
+
+/**
+ * U–C1: `attach` runs once the window's governor host loads, at the first
+ * governed spawn or an explicit Show/Resume, or at once if it already has.
+ * Registering imports nothing.
+ */
+export function onResourceWindow(attach: (window: ResourceWindowHost) => void): () => void {
+  if (state.window === undefined) state.attachers.add(attach)
+  else attach(state.window)
+  return () => {
+    state.attachers.delete(attach)
+  }
+}
+
+/** An explicit Show resources or Resume now loads the host on first use. */
+export async function loadResourceWindow(): Promise<ResourceWindowHost | undefined> {
+  await load()
+  return state.window
 }
 
 /** H installs this same port in the runtime; an unconfigured embedding keeps its existing policy. */
