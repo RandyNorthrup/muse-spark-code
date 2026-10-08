@@ -19051,12 +19051,13 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 ### INT0180B — Complete the 0.18.0 integration (2026-10-07, linuxlt)
 
 Base `5abee29bd`, branch `int/0180b`. The assigned rig brief supersedes the
-legacy common-rule stop limit and permits exactly three ordered `--no-ff`
+legacy common-rule stop limit and initially permits three ordered `--no-ff`
 merges: `main-0150` (`c22be5d0d`), `m105/e3-fix` (`b95323eee`), then
 `m117/w-fix3` (`c487fe828`). Preserve both sides, union translated keys,
 regenerate inventories, keep version 0.15.0 and new notes under Unreleased.
-Do not take the still-reviewed M108 D/X delta. No push, rebase, model calls or
-fabricated native artifacts.
+The lead's 17:35 update accepts M108 D/X and additionally requires
+`m108/w-fix4` (`313c1df87`), then `main-latest` (`18dc73651`), each `--no-ff`,
+before completion. No push, rebase, model calls or fabricated native artifacts.
 
 - [x] Merge `main-0150`; retain all package inputs and isolated builds. Owning
       package/ACP suites pass 59 tests on Node 22 at repository deadlines.
@@ -19069,6 +19070,11 @@ fabricated native artifacts.
       Intl without admission arithmetic; estimator envelopes share the lazy
       estimate-contract bundle; optional account English gets a measured
       first-use region. Existing startup and deferred caps remain unchanged.
+- [ ] Merge accepted `m108/w-fix4`, preserving the durable limit-block redesign;
+      resolve by meaning and rerun the owning tests of conflicted files.
+- [ ] Merge `main-latest` (PR #139 harness readiness and bounded scheduling),
+      retain both harness behaviors and rerun owning tests for conflicts.
+      Restart the fresh-clone workflow on the resulting committed source.
 - [ ] Repair every remaining test, vault-default and SAST failure by cause;
       add failing-before/passing-after regressions and byte-exact guard drills.
       The boolean vault parent hides its children in VS Code: move its public
