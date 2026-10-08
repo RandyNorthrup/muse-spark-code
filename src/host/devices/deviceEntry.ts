@@ -24,6 +24,9 @@ export { DeviceStore } from './deviceStore'
 export { DeviceSecrets } from './deviceSecrets'
 export { AttemptJournal } from '../../core/devices/attemptJournal'
 export { DeviceDiscovery } from './deviceDiscovery'
+export { createDeviceMdnsPort, decodeDeviceMdnsPacket } from './deviceMdns'
+export { DeviceDiscoverySwitch } from './deviceDiscoverySwitch'
+export { encodeQrInviteText, decodeScannedInviteText, qrInviteModules } from './qrInvite'
 
 type Failure = (typeof DEVICE_FAILURES)[number]
 export interface DeviceServiceDeps extends Omit<DevicePairingDeps, 'disconnectPair'> {
