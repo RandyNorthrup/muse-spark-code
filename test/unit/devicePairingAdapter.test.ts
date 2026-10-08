@@ -1,6 +1,5 @@
-import { mkdtemp, readFile, writeFile, open, rename, realpath } from 'node:fs/promises'
+import { readFile, writeFile, open, rename } from 'node:fs/promises'
 import path from 'node:path'
-import { tmpdir } from 'node:os'
 import type * as FileSystem from 'node:fs/promises'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DevicePairing } from '../../src/host/devices/devicePairing'
@@ -14,6 +13,9 @@ import {
   deviceCheck,
   deviceTestNow,
   deviceTestExpiry,
+  deviceStorage,
+  fakeDeviceStorage,
+  privateDeviceRoot,
   removeDeviceFixture,
 } from './helpers/deviceFixtures'
 
@@ -27,15 +29,19 @@ const localHost: DeviceExecutionHost = {
   execution: 'local',
   secretLocation: 'execution-host',
 }
-const fixture = { parent: '' }
+const fixture: { parent: string; storage: DeviceStorageProtection | undefined } = {
+  parent: '',
+  storage: undefined,
+}
 const stores: DeviceStore[] = []
 beforeEach(async () => {
-  fixture.parent = await realpath(await mkdtemp(path.join(tmpdir(), 'm100-p-adapter-')))
+  fixture.storage = await deviceStorage()
+  fixture.parent = await privateDeviceRoot('m100-p-adapter-')
 })
 afterEach(async () => {
   await removeDeviceFixture(stores, fixture.parent)
 })
-async function harness(id: string, host = localHost, protection?: DeviceStorageProtection) {
+async function harness(id: string, host = localHost, protection = fixture.storage) {
   const directory = path.join(fixture.parent, id)
   const store = await DeviceStore.create(directory, id.repeat(32), protection)
   stores.push(store)
@@ -397,18 +403,8 @@ describe('explicit local pairing adapter and SecretStorage', () => {
     expect(a.values.size).toBe(0)
   })
   it('refuses publication after failed directory durability and preserves explicit recovery state', async () => {
-    const syncDirectory = vi.fn(async (directory: string) => {
-      const handle = await open(directory, 'r')
-      try {
-        await handle.sync()
-      } finally {
-        await handle.close()
-      }
-    })
-    const protection = {
-      assertPrivate: (_file: string, _isDirectory: boolean) => Promise.resolve(),
-      syncDirectory,
-    }
+    const { protection } = fakeDeviceStorage(fixture.storage)
+    const syncDirectory = vi.spyOn(protection, 'syncDirectory')
     const a = await harness('a', localHost, protection)
     syncDirectory.mockRejectedValueOnce(new Error('private-durability-sentinel'))
     const result = await a.act({ kind: 'pair' })
@@ -510,14 +506,17 @@ it('refuses a failed file flush before metadata replacement and removes only the
     expect(a.values.size).toBe(0)
     expect(await readFile(path.join(a.directory, 'pairs.json'), 'utf8')).toBe(original)
     await a.store.close()
-    await expect(DeviceStore.open(a.directory)).rejects.toThrow('storage')
+    await expect(DeviceStore.open(a.directory, fixture.storage)).rejects.toThrow('storage')
   } finally {
     vi.mocked(open).mockImplementation(actual.open)
   }
 })
 it('refuses a failed atomic replacement without publishing setup or deleting unrelated keys', async () => {
   const a = await harness('a')
-  vi.mocked(rename).mockRejectedValueOnce(new Error('rename-sentinel'))
+  // The replacement this OS's storage performs: POSIX rename, or the Windows binding's.
+  if (fixture.storage === undefined)
+    vi.mocked(rename).mockRejectedValueOnce(new Error('rename-sentinel'))
+  else vi.spyOn(fixture.storage, 'replace').mockRejectedValueOnce(new Error('rename-sentinel'))
   expect(await a.act({ kind: 'pair' })).toMatchObject({ failure: 'storage' })
   expect(a.values.size).toBe(0)
   await expect(a.store.read()).rejects.toThrow('storage')
@@ -810,7 +809,7 @@ it('does not reactivate another receiver incarnation’s durable offers after re
   const old = deviceGrant(paired.pairId)
   await a.adapter.grant(old)
   await a.store.close()
-  const reopened = await DeviceStore.open(a.directory)
+  const reopened = await DeviceStore.open(a.directory, fixture.storage)
   stores.push(reopened)
   const next = new DevicePairing({
     store: reopened,
@@ -897,23 +896,16 @@ it('serializes an in-progress native identity read with replacement so ordinary 
   const release = Promise.withResolvers<boolean>()
   let shouldHold = false
   let metadataReads = 0
-  const protection = {
-    async assertPrivate(file: string, _isDirectory: boolean) {
-      if (file.endsWith('pairs.json')) metadataReads += 1
-      if (!shouldHold || !file.endsWith('pairs.json')) return
-      shouldHold = false
-      entered.resolve(true)
-      await release.promise
-    },
-    async syncDirectory(directory: string) {
-      const handle = await open(directory, 'r')
-      try {
-        await handle.sync()
-      } finally {
-        await handle.close()
-      }
-    },
-  }
+  const { protection } = fakeDeviceStorage(fixture.storage)
+  const checkPrivate = protection.assertPrivate.bind(protection)
+  vi.spyOn(protection, 'assertPrivate').mockImplementation(async (file, isDirectory) => {
+    await checkPrivate(file, isDirectory)
+    if (file.endsWith('pairs.json')) metadataReads += 1
+    if (!shouldHold || !file.endsWith('pairs.json')) return
+    shouldHold = false
+    entered.resolve(true)
+    await release.promise
+  })
   const a = await harness('a', localHost, protection)
   metadataReads = 0
   shouldHold = true

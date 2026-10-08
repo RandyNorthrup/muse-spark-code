@@ -21,6 +21,8 @@ import { handleDeviceRequest } from './deviceMessageHandler'
 
 // Storage is provisioned/opened by the qualified editor after loading this bundle.
 export { DeviceStore } from './deviceStore'
+export { startWindowsStorageProtection } from './windowsStorageProtection'
+export type { DeviceStorageProtection } from '../../core/devices/storageProtection'
 export { DeviceSecrets } from './deviceSecrets'
 export { AttemptJournal } from '../../core/devices/attemptJournal'
 export { DeviceDiscovery } from './deviceDiscovery'

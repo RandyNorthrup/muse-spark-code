@@ -1,4 +1,4 @@
-import { mkdtemp, realpath, rm } from 'node:fs/promises'
+import { mkdtemp, realpath, rename, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { vi, beforeEach, afterEach } from 'vitest'
@@ -38,6 +38,8 @@ export const executionProtection: AttemptJournalProtection | undefined =
     ? {
         assertPrivate: () => Promise.resolve(),
         assertSafeAncestor: () => Promise.resolve(),
+        secureFresh: () => Promise.resolve(),
+        replace: (stage, target) => rename(stage, target),
         syncDirectory: () => Promise.resolve(),
       }
     : undefined

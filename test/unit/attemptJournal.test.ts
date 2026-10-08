@@ -22,6 +22,7 @@ import {
   executionUsage,
   signedDispatch,
 } from './helpers/deviceExecutionFixtures'
+import { fakeDeviceStorage } from './helpers/deviceFixtures'
 
 vi.mock('node:fs/promises', async (original) => {
   const fs = await original<typeof FileSystem>()
@@ -324,22 +325,24 @@ describe('durable attempt ownership', () => {
     await expect(AttemptJournal.open(directory, owner, executionProtection)).rejects.toThrow(
       'storage',
     )
+    const unsafeAncestor = fakeDeviceStorage(executionProtection)
+    unsafeAncestor.refuse('assertSafeAncestor')
+    await expect(AttemptJournal.open(directory, owner, unsafeAncestor.protection)).rejects.toThrow(
+      'storage',
+    )
+    // The injected platform runs Windows' rules on every OS.
+    await expect(AttemptJournal.open(directory, owner, undefined, 'win32')).rejects.toThrow(
+      'storage',
+    )
+    const unsafeAcl = fakeDeviceStorage(executionProtection)
+    unsafeAcl.refuse('assertPrivate')
     await expect(
-      AttemptJournal.open(directory, owner, {
-        assertPrivate: () => Promise.resolve(),
-        assertSafeAncestor: () => Promise.reject(new Error('unsafe ancestor')),
-        syncDirectory: () => Promise.resolve(),
-      }),
+      AttemptJournal.open(directory, owner, unsafeAcl.protection, 'win32'),
     ).rejects.toThrow('storage')
-    vi.stubGlobal('process', { ...process, platform: 'win32' })
-    await expect(AttemptJournal.open(directory, owner)).rejects.toThrow('storage')
+    const bound = fakeDeviceStorage(executionProtection)
     await expect(
-      AttemptJournal.open(directory, owner, {
-        assertPrivate: () => Promise.reject(new Error('ACL')),
-        assertSafeAncestor: () => Promise.resolve(),
-        syncDirectory: () => Promise.resolve(),
-      }),
-    ).rejects.toThrow('storage')
+      AttemptJournal.open(directory, owner, bound.protection, 'win32'),
+    ).resolves.toBeDefined()
   })
   it('refuses symlink/hardlink/ancestor and native file substitution before using terminal data', async () => {
     const { directory, journal, request, owner, parent } = fixture()
@@ -360,13 +363,11 @@ describe('durable attempt ownership', () => {
   it('refuses broad directory/file permissions and unsafe ancestors', async () => {
     const { directory, owner, parent } = fixture()
     if (process.platform === 'win32') {
-      await expect(
-        AttemptJournal.open(directory, owner, {
-          assertPrivate: () => Promise.reject(new Error('unsafe ACL')),
-          assertSafeAncestor: () => Promise.resolve(),
-          syncDirectory: () => Promise.resolve(),
-        }),
-      ).rejects.toThrow('storage')
+      const unsafeAcl = fakeDeviceStorage(executionProtection)
+      unsafeAcl.refuse('assertPrivate')
+      await expect(AttemptJournal.open(directory, owner, unsafeAcl.protection)).rejects.toThrow(
+        'storage',
+      )
       return
     }
     await chmod(path.join(directory, 'attempts.json'), 0o644)
@@ -406,6 +407,12 @@ describe('durable attempt ownership', () => {
       const fs = await vi.importActual<typeof FileSystem>('node:fs/promises')
       await fs.rename(...args)
     })
+    // Windows flushes the folder through its binding instead of a folder handle.
+    if (executionProtection !== undefined)
+      vi.spyOn(executionProtection, 'syncDirectory').mockImplementation(() => {
+        events.push('directory-flush')
+        return Promise.resolve()
+      })
     await journal.admit(request, executionUsage, Date.now())
     expect(events).toEqual(['file-flush', 'replace', 'directory-flush'])
   })

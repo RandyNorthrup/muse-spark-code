@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
-import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createElement } from 'react'
@@ -33,7 +32,7 @@ import type {
   DeviceExecutionBoundary,
   DeviceLocalAttempt,
 } from '../../src/host/devices/deviceReceiver'
-import { deviceGrant, deviceLane } from './helpers/deviceFixtures'
+import { deviceGrant, deviceLane, deviceStorage, privateDeviceRoot } from './helpers/deviceFixtures'
 import { deferred, executionUsage, signedDispatch } from './helpers/deviceExecutionFixtures'
 import { transportHandler, transportPort } from './helpers/deviceTransportFixtures'
 
@@ -50,14 +49,17 @@ afterEach(async () => {
 })
 
 async function host(id: string) {
-  const parent = await realpath(await mkdtemp(path.join(tmpdir(), 'm100-i-')))
-  const store = await DeviceStore.create(path.join(parent, 'pairing'), id.repeat(32))
+  const storage = await deviceStorage()
+  const parent = await privateDeviceRoot('m100-i-')
+  const store = await DeviceStore.create(path.join(parent, 'pairing'), id.repeat(32), storage)
   const resource: (typeof resources)[number] = { parent, store }
   resources.push(resource)
   const journalDirectory = path.join(parent, 'attempts')
-  const journal = await AttemptJournal.create(journalDirectory, {
-    assertOwner: () => Promise.resolve(),
-  })
+  const journal = await AttemptJournal.create(
+    journalDirectory,
+    { assertOwner: () => Promise.resolve() },
+    storage,
+  )
   const location = {
     ui: 'desktop',
     remoteName: undefined,

@@ -12,6 +12,7 @@ interface DeviceBundle {
   readonly DeviceSecrets: typeof DeviceEntry.DeviceSecrets
   readonly AttemptJournal: typeof DeviceEntry.AttemptJournal
   readonly DeviceDiscovery: typeof DeviceEntry.DeviceDiscovery
+  readonly startWindowsStorageProtection: typeof DeviceEntry.startWindowsStorageProtection
 }
 function isDeviceBundle(value: unknown): value is DeviceBundle {
   return (
@@ -19,6 +20,8 @@ function isDeviceBundle(value: unknown): value is DeviceBundle {
     value !== null &&
     'createDeviceService' in value &&
     typeof value.createDeviceService === 'function' &&
+    'startWindowsStorageProtection' in value &&
+    typeof value.startWindowsStorageProtection === 'function' &&
     'DeviceStore' in value &&
     typeof value.DeviceStore === 'function' &&
     'DeviceSecrets' in value &&
@@ -28,6 +31,26 @@ function isDeviceBundle(value: unknown): value is DeviceBundle {
     'DeviceDiscovery' in value &&
     typeof value.DeviceDiscovery === 'function'
   )
+}
+
+/**
+ * The storage binding a `dependencies` callback hands to both
+ * `bundle.DeviceStore` and `bundle.AttemptJournal`. Windows requires the
+ * native binding (its helper is compiled into `helperDirectory`); other
+ * platforms use POSIX owner/mode checks and directory fsync.
+ */
+export async function deviceStorageProtection(
+  bundle: Pick<DeviceBundle, 'startWindowsStorageProtection'>,
+  options: { readonly helperDirectory: string; readonly systemRoot: string | undefined },
+  platform: NodeJS.Platform = process.platform,
+): Promise<DeviceEntry.DeviceStorageProtection | undefined> {
+  if (platform !== 'win32') return undefined
+  if (options.systemRoot === undefined) throw new Error('storage')
+  const binding = await bundle.startWindowsStorageProtection({
+    directory: options.helperDirectory,
+    systemRoot: options.systemRoot,
+  })
+  return binding.protection
 }
 
 /** VS Code, companion editors and runtime callers use the same explicit method port. */
