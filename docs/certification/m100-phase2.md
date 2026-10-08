@@ -861,3 +861,163 @@ gate-threshold change, and no model call. The commit was sent only to the
 Win11 rig's private gate repository for the native runs. Linux and macOS
 drivers, scheduler-specific qualification and installed-host checks remain
 open as mapped above.
+
+### macOS continuation — M100P2HM (macmini, 2026-10-07)
+
+Branch `m100/p2-h-darwin`, Windows head/base `f4f6f3008`. Read the rig
+continuation, shared phase-2 rules, original H brief, PLAN ownership/acceptance,
+planning record, threat model and Windows host/driver before implementation.
+This subsection qualifies macOS only. Windows' six native cases are skipped
+on this rig and are not counted as passes. No model, paid call, pairing,
+listener, dependency, registry/policy change, merge, rebase, manual stash or push.
+Shared README, CHANGELOG, feature reference, packaging and host-API record
+remain W's owned files, as specified in the phase-2 ownership table.
+
+| Brief item              | Darwin implementation and evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1. Own context          | `deviceWorkerDarwin.ts` bootstraps a unique, per-attempt plist into `gui/<uid>`, limited to Aqua, with `AbandonProcessGroup=false`. The launchd helper verifies parent PID 1, its own process group and a resource coalition containing only itself before readiness. Activation is a separate local gate. Missing manager/non-Aqua refusals run through the injected port; real GUI jobs run on this rig. `selectDeviceWorkerDriver` is the host's single lazy-factory selection point, exercised by native setup and portable tests, without changing the driver port.                                     |
+| 2. Host pressure        | Process-creation `EAGAIN`/`ENOMEM`, native launch pressure, bounded-output pressure and retained-attempt exhaustion become typed `capacity` failures with existing `devices.capacityHelp`; unsupported launches use the existing `unsupportedHost` prose. Host result handling preserves these typed failures, with no retry or cap change. A cold factory at the retained-attempt cap refuses before bootstrap. Existing Windows desktop-heap behavior is preserved.                                                                                                                                        |
+| 3. Recorded environment | The unchanged host path records canonical M96 `workerEnvironment` before launch, after executable/PATH and hook verification. Darwin sanitizes again before persisting the local request and passes that exact environment through native `posix_spawn`, with explicit file actions. Missing/unverified hook tests and the actual stdin/JSON run with hostile loader and unapproved variables pass. Plists/requests are private; helper writes use umask 0077. The root is owner-only 0700, rejects symlinks and ownership/mode mismatches. Reads are bounded and use canonical BigInt file identity checks. |
+| 4. Structured results   | `/dev/null` stdin, independent capped nonblocking stdout/stderr pipes, and a capped exit-code-plus-JSON envelope. Stderr cannot supply a result. Query/readiness/count/result boundaries are parsed with zod; the host validates JSON usage/artifacts with the existing schemas. Real stdout/stderr floods stop the unit; escaped JSON cannot enlarge the stored result past the frame cap.                                                                                                                                                                                                                  |
+| 5. Sleep and power      | A real `IOPMAssertion` prevents user-idle system sleep while the helper observes all descendants. Native `pmset -g assertions` proves acquisition/release, including overlapping attempts and helper death. `IOPowerSources` reports AC, battery or unknown; injected battery/unknown readings remain those values and do not cancel admitted work. The approved admission question for new heavy checks on battery/unknown stays W's responsibility.                                                                                                                                                        |
+| 6. Factory self-test    | A source-digest, compile-once Objective-C helper in private storage; each factory caches one real GUI bootstrap, readiness/context/assertion, native query, child execution, zero-coalition/group proof and removal. No compiler, GUI domain, usable ABI or assertion means refusal. A corrupted cached executable refuses a new factory with no bootstrap/fallback. No new public runtime command or driver-interface change.                                                                                                                                                                               |
+
+Launchd's process-group cleanup alone cannot prove that a detached descendant
+retired: [Apple's launchd manual](https://github.com/apple-oss-distributions/launchd/blob/main/man/launchd.plist.5)
+defines cleanup of the original group. This driver additionally uses the
+kernel resource coalition inherited by descendants, including setsid and
+double-fork children. The private, version-sensitive ABI is explicitly
+qualified by the factory and native suite, rather than assumed available:
+[coalition identifiers](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/sys/proc_info_private.h),
+[resource-usage wrapper](https://github.com/apple-oss-distributions/xnu/blob/main/libsyscall/wrappers/coalition.c),
+and [kernel count implementation](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/sys_coalition.c).
+
+The helper waits until the only remaining coalition task is itself. The driver
+then independently requires zero kernel coalition tasks, no launchctl PID and
+no remaining member of the helper's process group before resolving retirement.
+Cancellation requests coalition-member termination; it never resolves the
+promise. There is no retirement deadline. Helper/manager loss rejects as
+uncertain and forbids `remove`, retaining evidence and receiver occupancy.
+Readiness failures stop the never-activated helper and retain local evidence.
+Already admitted work stays owned on battery; an unreadable power source never
+becomes AC. CPU accounting includes the helper and departed children; memory
+is the peak sampled sum of resident bytes, not a claimed instantaneous or
+kernel lifetime peak. No slot-cap policy is invented.
+
+Native setup shares its expensive compile/self-test in `beforeAll`; every test
+uses repository deadlines without `--testTimeout`. Normal jobs cancel, await
+observed retirement and remove in `finally`. The helper-loss test explicitly
+recovers its exact, deliberately uncertain unit and detached PID; production
+does not mark either observed. `afterAll` tracks every fixture label, removes
+only its own registrations and asserts none are left. The Mac mini was on
+AC (`pmset -g batt`); battery/unknown cases are injected facts, not hardware
+receipts. Final drill and clean-clone receipts follow below.
+
+Lead/W requests: bind the supplied lazy native factories and existing
+`DeviceWorkerHost` port to the receiver/M96 owner; carry durable environment
+recording and battery/unknown heavy-check prompts into that binding. Measure
+the fully bound lazy Devices bundle and ship/qualify the compiler/helper path
+without raising caps. If Command Line Tools or the private coalition ABI is
+unavailable, keep the offer refused. Regenerate W's host-API inventory and
+update W's README/CHANGELOG/catalog/packaging regions on joining. Linux's
+systemd/cgroup implementation and installed-host/full-quality qualification
+remain outside this macOS continuation.
+
+#### Darwin guard-fire receipts
+
+Each drill ran its complete owning test file with `CI=true`, `--maxWorkers=3`
+and repository defaults. Every run exited **1** with the intended failed
+assertion; no timeout override was used. Each source was restored from its
+original byte buffer and its SHA-256 verified immediately after the run.
+
+| Drill                | Deliberate break                                                                     | Observed failure                                                                                    |
+| -------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
+| manager-uncertainty  | Classify failed retirement observations as helper startup refusal                    | Actual helper/manager loss has the wrong failure reason.                                            |
+| retained-cap         | Remove the retained-attempt ceiling                                                  | Cold capacity case reaches the forbidden bootstrap.                                                 |
+| gui-refusal          | Remove the Aqua-domain check                                                         | Non-GUI self-test reaches the compiler instead of refusing immediately.                             |
+| typed-pressure       | Drop the host's capacity-result mapping                                              | Pressure is reported as uncertain, losing its recovery prose.                                       |
+| hook-preflight       | Verify zero required tools                                                           | Missing/unverified hook attempts launch.                                                            |
+| recorded-environment | Record the inherited environment                                                     | Canonical fence assertions fail with synthetic fixture values.                                      |
+| stderr-result        | Drain stderr into stdout                                                             | The actual banner-bearing worker loses its valid JSON result.                                       |
+| native-inhibitor     | Create the assertion at level OFF                                                    | `pmset` finds no active worker assertion for a running tree/overlap.                                |
+| power-release-facts  | Claim inhibition after all native units retire                                       | Idle/retired and overlap facts remain true.                                                         |
+| parent-retirement    | Drop the helper's descendant count and the driver's independent zero-coalition guard | Retirement beats the detached double-fork marker; the live-tree assertion disappears early.         |
+| self-test            | Return true without the factory's self-test                                          | Missing/non-Aqua/corrupted helpers are falsely certified.                                           |
+| structured-cap       | Omit the encoded-result ceiling                                                      | A flooded JSON envelope exceeds the bounded reader; the job cannot be reported/removed as observed. |
+| last-retirement      | Omit the host's success-path count decrement                                         | Overlapping attempts still report inhibition after the last retirement.                             |
+
+Final production source hashes, identical before and after their drills:
+
+- Darwin: `bf9b30835834a8fc45861344576331491fbb4e2ed0b54c0b2ccbd0748cc5d4e9`.
+- Host: `2d7aa2aaa669a5200cc45f9d65ce5e291348e7dd45e3cec73796b6952d5a9336`.
+
+Local restored-tree owning suite: **39 passed**, including **12 actual macOS
+cases**, **3 injected Darwin port cases**, and **24 portable host cases**;
+Windows' **6 native cases skipped**, not passed. Final committed-code,
+fresh-clone gate receipts are recorded in the following addendum.
+
+#### Darwin committed-code fresh-clone verification
+
+Implementation **715b4a7b1**, test-setup sharing **b8df233dc**, portable
+POSIX-storage fixture **01dd8eb18**, all committed locally with hooks enabled.
+After every hook, the empty remaining index and committed diff were reviewed;
+production hashes stayed identical to the guard-fire record. The Windows
+driver/helper remain byte-identical to `f4f6f3008`.
+
+Fresh local Git clone `/tmp/m100hm-verify`, Node **24.21.0**, npm **11.19.0**,
+macOS **15.7.4 / 24G517**, real Aqua domain **gui/502**. `CI=true npm ci`
+in that clone exited **0**, installing the unchanged lockfile. An initial
+shell command attempted installation from `/tmp` and exited 1 for its absent
+lockfile; the working directory was corrected before qualification. The
+pinned dependency tree reported its existing 11 audit vulnerabilities (2 low,
+9 high); no dependency, audit fix or lockfile change was made. Joined security
+and full quality remain W's responsibility under the shared brief.
+
+On `715b4a7b1`, with `CI=true` and repository defaults:
+
+- Three complete owning runs: **39 passed + 6 Windows-native skipped** each,
+  Vitest durations **8.32 / 7.80 / 7.82 seconds**. All twelve macOS cases ran;
+  no raised test or hook deadline.
+- Five typechecks: **all exit 0** (host, webview, unit, e2e, integration;
+  **82.0 seconds** combined wall time).
+- Changed-file ESLint and Prettier, plain knip, reference, localization,
+  cycle checks: **all exit 0**. Localization: **14 UI + 14 usage tables,
+  0 problems**. Reference: **18 Devices entries**, current.
+- Production build: **exit 0**, including size/split/global/notice checks;
+  activation **462.8/600 KiB**, existing Devices **81.7/100 KiB**, Model API
+  **456.0/475 KiB**, Devices webview **33.9/50 KiB**. Caps unchanged.
+  These are the existing entry bundles; W still must measure the fully
+  bound worker factories and ship/qualify the helper/compiler path.
+- Duplication: initially **exit 1**, two repeated native test setup/recovery
+  blocks. `b8df233dc` shares them without removing any assertion or changing
+  a deadline; subsequent plain jscpd reports **0 clones, exit 0**.
+- Host API: **exit 1**, solely W's stale generated Node import counts.
+  **366 VS Code APIs, 43 vscode-importing files, 28 Node built-ins, 70 theme
+  variables** remain unchanged. W must regenerate its owned
+  `docs/ide-compatibility/host-api.md`: child_process **16→18**, crypto
+  **93→95**, fs **44→45**, fs/promises **74→77**, path **125→128**,
+  timers/promises **15→17**, then review/commit and rerun the check.
+
+The clean clone fetched the two test-only follow-ups locally and switched
+to their detached commits, without merging/rebasing. `01dd8eb18` models
+POSIX mode bits only in the fake capacity case so it also runs on Windows;
+the native cases retain real filesystem calls through the passthrough spy.
+This changes no production guard or native assertion. On final code
+`01dd8eb18`, three more complete owning runs with `CI=true`, default deadlines:
+**39 passed + 6 skipped each**, **8.23 / 8.26 / 8.58 seconds**.
+Unit typecheck, changed-file lint/Prettier, plain knip and jscpd all **exit 0**;
+jscpd reports **0 clones**. All thirteen unique drills in the table fired;
+the seven Darwin retirement/manager/capacity/GUI/inhibitor/release/self-test
+drills were repeated after the test follow-ups, **exit 1** each, with the
+same byte-exact production hashes. The host-API inventory is the sole
+outstanding requested lane gate and is explicitly assigned to W.
+
+All six Darwin acceptance items are implemented, tested and drilled. Native
+receipts prove real launchd ownership, detached double-fork retirement,
+bounded channels, CPU/memory sampling, actual assertion hold/release, clean
+manager refusal, uncertainty on helper/manager loss, and exact registration
+cleanup. They do not certify Windows/Linux, physical battery behavior,
+installed-editor packaging or the fully bound production offer. No push or
+model call; W's bindings, battery/unknown admission prompt, shared docs,
+generated host inventory, bundle measurement and joined qualification remain
+the lead requests above.

@@ -7,6 +7,7 @@ import {
   DeviceWorkerHost,
   DeviceWorkerHostError,
   type DeviceWorkerAttempt,
+  selectDeviceWorkerDriver,
   type DeviceWorkerHostDeps,
   type DeviceWorkerJob,
 } from '../../src/host/devices/deviceWorkerHost'
@@ -166,6 +167,29 @@ async function inStorage(body: (directory: string) => Promise<void>): Promise<vo
 const helperRequestSchema = z.object({ cwd: z.string(), maxProcesses: z.number() })
 
 describe('M100/H worker host', () => {
+  it('selects exactly one lazy native factory and refuses other platforms', () => {
+    const darwin = fixture('darwin').deps.driver
+    const win32 = fixture('win32').deps.driver
+    const factories = { darwin: vi.fn(() => darwin), win32: vi.fn(() => win32) }
+    expect(selectDeviceWorkerDriver('darwin', factories)).toBe(darwin)
+    expect(factories.win32).not.toHaveBeenCalled()
+    expect(selectDeviceWorkerDriver('win32', factories)).toBe(win32)
+    expect(() => selectDeviceWorkerDriver('linux', factories)).toThrow(DeviceWorkerHostError)
+    expect(factories.darwin).toHaveBeenCalledOnce()
+    expect(factories.win32).toHaveBeenCalledOnce()
+  })
+  it('returns typed host pressure with recovery prose after a bounded job exit', async () => {
+    const f = fixture('darwin')
+    const attempt = await f.host.admit(request)
+    await attempt.start(boundary)
+    f.retired.resolve({ exitCode: 1, stdout: '', failure: 'capacity' })
+    await expect(attempt.retirement).rejects.toMatchObject({
+      reason: 'capacity',
+      message: UI_TEXT.devices.capacityHelp,
+    })
+    expect(f.deps.driver.launch).toHaveBeenCalledOnce()
+    await attempt.release()
+  })
   it.each(['win32', 'linux', 'darwin'] as const)(
     'reserves without starting on %s and starts exactly once',
     async (platform) => {
