@@ -411,7 +411,12 @@ ownership violation` (`base/files/scoped_file_linux.cc`; also
   the invoker's own command line kill the invoker (exit 137, use a
   self-excluding pattern), and this shell runs inside `bwrap` with
   `--unshare-net`, `--unshare-pid`, seccomp and no capabilities.
-  Receipts are still unregenerated; nothing below was relaxed.
+  Follow-up: the repo has no prescribed browser installer (the gate
+  uses system Chrome via `findChrome`), so the pinned Playwright
+  1.63.0 headless shell (153.0.8010.12, v1243) was downloaded
+  lane-locally and probed: it traps identically without the shim and
+  hangs with it, then was removed. Receipts are still unregenerated;
+  nothing below was relaxed.
 
 ### Earlier LEFT017 receipts
 
