@@ -594,22 +594,26 @@ function settleCascade(
     const results = [separate, same].flatMap((attempt) =>
       attempt.status === 'answered' ? [attempt.result] : [],
     )
-    const base = results[0]
-    if (base === undefined) return refusal('engine-failure')
+    if (results.length === 0) return refusal('engine-failure')
     const inputTokens = results.reduce((sum, result) => sum + result.usage.input_tokens, 0)
     const outputTokens = results.reduce((sum, result) => sum + result.usage.output_tokens, 0)
     if (!Number.isSafeInteger(inputTokens) || !Number.isSafeInteger(outputTokens)) {
       return refusal('engine-failure')
     }
     const isSameOnly = Object.values(muse).every((meta) => meta.source === 'same')
+    // The published envelope names only fields with a defined settlement
+    // rule: the serving model, the settled answers and muse, the summed
+    // token counts, and the cascade facts. Loose keys on either side's body
+    // (a reported cost, a goal status, extra usage keys) have no combination
+    // rule, so none is copied: no spread from a side that did not serve
+    // the verdict.
     const combined = judgeOutcomeSchema.safeParse({
       outcome: 'answered',
       result: {
-        ...base,
         model: isSameOnly ? deps.same.capability.model : deps.separate.capability.model,
         answers,
         muse,
-        usage: { ...base.usage, input_tokens: inputTokens, output_tokens: outputTokens },
+        usage: { input_tokens: inputTokens, output_tokens: outputTokens },
         cascade: {
           separate: describeAttempt(separate, deps.separate),
           same: describeAttempt(same, deps.same),

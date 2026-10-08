@@ -11,6 +11,9 @@ happened, not what was planned; superseded entries are kept.
   settlement path. Refuse foreign or unnamed per-question muses, keep honest
   sibling verdicts, record skipped or failed follow-ups, and name the serving
   model consistently. Preserve high-stakes dispatch and calibrated blending.
+  The published envelope carries only settled fields (serving model, answers,
+  muse, summed token counts, cascade facts); a side's other top-level or
+  usage keys are never copied onto it.
 
 - Integrate the repaired SystemOne and BYO judge libraries and the Judge panel
   on the 0.15.0 head. Share token protection, server startup and fixtures;

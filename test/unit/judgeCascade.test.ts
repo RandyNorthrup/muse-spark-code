@@ -270,6 +270,46 @@ function mutatingSide(
   }
 }
 
+/** A side whose body carries loose top-level and usage keys with no settlement rule. */
+function looseSide(
+  cap: JudgeCapability,
+  distributions: Readonly<Record<string, readonly number[]>>,
+  settings: { partial?: boolean } = {},
+): FakeSide {
+  const run = vi.fn((asked: JudgeRequest): Promise<JudgeTechniqueReceipt> => {
+    const clean = answered(asked, cap, distributions, { partial: settings.partial })
+    const result: JudgeResult = {
+      ...clean,
+      goal: 'usage_limited',
+      usage: { ...clean.usage, cached_tokens: 12, cost: 0.5 },
+    }
+    return Promise.resolve({
+      outcome: { outcome: 'answered', result },
+      reservedCostUsd: 0.004,
+      settledCostUsd: 0.003,
+      uncertainCostUsd: 0.001,
+    })
+  })
+  const base = fakeSide(
+    cap,
+    distributions,
+    settings.partial === undefined ? {} : { partial: settings.partial },
+  )
+  return { ...base, run, side: { ...base.side, run } }
+}
+
+/** The published envelope names only settled fields, never a side's loose keys. */
+function expectNoLooseKeys(result: JudgeResult): void {
+  expect(result).not.toHaveProperty('goal')
+  expect(Object.keys(result).toSorted((a, b) => a.localeCompare(b))).toEqual([
+    'answers',
+    'cascade',
+    'model',
+    'muse',
+    'usage',
+  ])
+}
+
 const signal = () => new AbortController().signal
 
 /** A noul `risk` answer reading `yes` (close-to: the binary complement carries a 1-ulp round-trip). */
@@ -807,6 +847,62 @@ describe('cascadeJudge', () => {
     })
     expect(outcome.result.model).toBe('fixture-same')
     expect(outcome.result.usage).toEqual({ input_tokens: 80, output_tokens: 2 })
+  })
+
+  it('drops the answering side loose keys on a same-only settlement (RVM98P2AD P3)', async () => {
+    // Separate failed, so the same body is the publisher's base: its goal
+    // status and extra usage keys must not reach the published envelope.
+    const separate = fakeSide(
+      separateCap,
+      { risk: [0.9, 0.1] },
+      { answer: { outcome: 'no-answer', reason: 'timeout' } },
+    )
+    const same = looseSide(sameCap, { risk: [0.7, 0.3] })
+    const outcome = await cascadeJudge(request, options, depsFor(separate, same), signal())
+    expect(outcome.outcome).toBe('answered')
+    if (outcome.outcome !== 'answered') {
+      return
+    }
+    expect(outcome.result.muse['risk']?.source).toBe('same')
+    expect(outcome.result.usage).toEqual({ input_tokens: 40, output_tokens: 1 })
+    expectNoLooseKeys(outcome.result)
+  })
+
+  it('drops the separate loose keys when the high-stakes follow-up serves the verdict (RVM98P2AD P3)', async () => {
+    // Partial separate, combinable same: the verdict is the same
+    // model's, but the publisher's base is the separate body.
+    const separate = looseSide(separateCap, { risk: [0.6, 0.4] }, { partial: true })
+    const same = fakeSide(sameCap, { risk: [0.7, 0.3] })
+    const outcome = await cascadeJudge(
+      request,
+      { ...options, highStakes: true },
+      depsFor(separate, same),
+      signal(),
+    )
+    expect(separate.run).toHaveBeenCalledTimes(1)
+    expect(same.run).toHaveBeenCalledTimes(1)
+    expect(outcome.outcome).toBe('answered')
+    if (outcome.outcome !== 'answered') {
+      return
+    }
+    expect(outcome.result.muse['risk']?.source).toBe('same')
+    expect(outcome.result.model).toBe('fixture-same')
+    expect(outcome.result.usage).toEqual({ input_tokens: 80, output_tokens: 2 })
+    expectNoLooseKeys(outcome.result)
+  })
+
+  it('drops the separate loose keys on a blend settlement (RVM98P2AD P3)', async () => {
+    const separate = looseSide(separateCap, { risk: [0.9, 0.1] })
+    const same = fakeSide(sameCap, { risk: [0.2, 0.8] }, { weight: 1 })
+    const outcome = await runBothOnce(separate, same)
+    expect(outcome.outcome).toBe('answered')
+    if (outcome.outcome !== 'answered') {
+      return
+    }
+    expect(outcome.result.muse['risk']?.source).toBe('both')
+    expectRiskNoul(outcome.result.answers['risk'], 0.725)
+    expect(outcome.result.usage).toEqual({ input_tokens: 80, output_tokens: 2 })
+    expectNoLooseKeys(outcome.result)
   })
 
   it('keeps a binary bias correction instead of renormalizing it away', async () => {
