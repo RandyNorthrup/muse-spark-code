@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
 import { serveRepo } from '../../scripts/lib/harnessServer.mjs'
 import { parseDeviceHostMessage } from '../../src/shared/devicesPanel'
+import { EN } from '../../src/shared/l10n/en'
 
 const SCENES = [
   'devices-qr',
@@ -111,7 +112,7 @@ beforeAll(async () => {
     stdin: {
       contents: `import React from 'react'; import { createRoot } from 'react-dom/client';
       import QrFigure from './src/webview/models/sections/devices/qr/QrFigure';
-      const holder = document.createElement('div');
+      const holder = document.createElement('div'); holder.dataset.qrProbe = 'true';
       holder.style.width = '100%'; document.querySelector('.device-public-text').append(holder);
       createRoot(holder).render(React.createElement(QrFigure, { text: 'public', encode: () => ({
         size: 177, modules: Array.from({ length: 177 }, () => Array.from({ length: 177 }, () => true))
@@ -158,7 +159,8 @@ describe('RVM100P2U real Chrome harness readiness', () => {
       await page.goto(`${rig.origin}/test/harness/index.html?scenario=devices-qr&theme=hc-dark`)
       await page.locator('[data-devices-ready]').waitFor({ timeout: READY_TIMEOUT_MS })
       await page.addScriptTag({ content: rig.qrScript })
-      const svg = page.locator('svg[role="img"]')
+      // The production encoder already draws the invitation's own QR; measure the probe's.
+      const svg = page.locator('[data-qr-probe] svg[role="img"]')
       await svg.waitFor({ timeout: READY_TIMEOUT_MS })
       const box = await svg.boundingBox()
       const container = await page.locator('.device-public-text').boundingBox()
@@ -169,6 +171,157 @@ describe('RVM100P2U real Chrome harness readiness', () => {
       expect(
         await page.evaluate(() => globalThis.document.documentElement.scrollWidth),
       ).toBeLessThanOrEqual(320)
+    } finally {
+      await page.close()
+    }
+  })
+})
+
+// RVM100W 7 and 11: the production main entry in real Chrome, on a bare
+// Devices document whose host stub answers nothing by itself. The approved
+// encoder's own chunk is held or refused at the network.
+const DEVICES_PAGE = `<!doctype html><html><head><meta charset="utf-8"><script>
+window.devicesOutbox = []
+window.acquireVsCodeApi = () => ({
+  postMessage: (message) => { window.devicesOutbox.push(message) },
+  getState: () => undefined,
+  setState: () => undefined,
+})
+</script></head><body data-surface="devices"><div id="root"></div>
+<script type="module" src="/dist/webview/main.js"></script></body></html>`
+// A string only the encoder module carries, so the chunk is found by content.
+const ENCODER_MARKER = 'qr-matrix-invalid'
+const harnessInvitation = () => {
+  const found = {}
+  runInNewContext(`${fixtures}\nfound.invitation = deviceInvitation`, {
+    found,
+    scenarioName: 'devices-qr',
+    // The fixtures only define values here; nothing is sent.
+    send: vi.fn(),
+  })
+  return found.invitation
+}
+
+async function openDevicesDocument(page, onEncoder) {
+  await page.route(`${rig.origin}/w2-devices.html`, (route) =>
+    route.fulfill({ contentType: 'text/html', body: DEVICES_PAGE }),
+  )
+  await page.route(`${rig.origin}/dist/webview/**/*.js`, async (route) => {
+    const response = await route.fetch()
+    const body = await response.text()
+    if (body.includes(ENCODER_MARKER) && !route.request().url().endsWith('/main.js'))
+      await onEncoder(route, response, body)
+    else await route.fulfill({ response, body })
+  })
+  await page.goto(`${rig.origin}/w2-devices.html`)
+  await page.waitForFunction(() =>
+    globalThis.devicesOutbox.some((message) => message.type === 'devicesReady'),
+  )
+  await page.evaluate(() => {
+    globalThis.postMessage({ type: 'deviceState', revision: 1, state: { enabled: false } }, '*')
+  })
+}
+async function startPair(page) {
+  await page.locator('.device-pairing > button').first().click()
+  await page.waitForFunction(() =>
+    globalThis.devicesOutbox.some((message) => message.type === 'deviceRequest'),
+  )
+  return await page.evaluate(() =>
+    globalThis.devicesOutbox.find((message) => message.type === 'deviceRequest'),
+  )
+}
+async function replyToPair(page, request) {
+  await page.evaluate(
+    ({ request, invitation }) => {
+      globalThis.postMessage(
+        {
+          type: 'deviceState',
+          revision: 2,
+          state: { enabled: false },
+          setup: { viewId: request.viewId, requestId: request.requestId, invitation },
+        },
+        '*',
+      )
+    },
+    { request, invitation: harnessInvitation() },
+  )
+}
+const readyCount = (page) =>
+  page.evaluate(
+    () => globalThis.devicesOutbox.filter((message) => message.type === 'devicesReady').length,
+  )
+
+describe('RVM100W Devices bridge and QR encoder in real Chrome', () => {
+  it('keeps an in-flight Pair while the encoder chunk resolves', async () => {
+    const page = await rig.browser.newPage({ viewport: { width: 320, height: 760 } })
+    try {
+      const gate = Promise.withResolvers()
+      const loaded = Promise.withResolvers()
+      await openDevicesDocument(page, async (route, response, body) => {
+        await gate.promise
+        await route.fulfill({ response, body })
+        loaded.resolve()
+      })
+      const request = await startPair(page)
+      expect(request.action).toEqual({ kind: 'pair' })
+      gate.resolve()
+      await loaded.promise
+      // Let the module evaluate and React commit the render that adds the encoder.
+      await page.waitForTimeout(READY_TIMEOUT_MS / 4)
+      expect(await readyCount(page)).toBe(1)
+      expect(await page.locator('[role="alert"]').count()).toBe(0)
+      await replyToPair(page, request)
+      await page.locator('.device-public-text textarea').waitFor({ timeout: READY_TIMEOUT_MS })
+      await page
+        .locator('.device-public-text svg[role="img"]')
+        .waitFor({ timeout: READY_TIMEOUT_MS })
+      expect(await page.locator('[role="alert"]').count()).toBe(0)
+      expect(await readyCount(page)).toBe(1)
+    } finally {
+      await page.close()
+    }
+  })
+
+  it('says so with Retry when the encoder chunk fails, and Retry draws the QR', async () => {
+    const page = await rig.browser.newPage({ viewport: { width: 320, height: 760 } })
+    try {
+      let refusals = 0
+      await openDevicesDocument(page, async (route, response, body) => {
+        if (refusals === 0) {
+          refusals += 1
+          await route.abort('failed')
+          return
+        }
+        await route.fulfill({ response, body })
+      })
+      const request = await startPair(page)
+      await replyToPair(page, request)
+      await page.locator('.device-public-text textarea').waitFor({ timeout: READY_TIMEOUT_MS })
+      const failure = page.locator('.device-public-text [role="alert"]')
+      await failure.waitFor({ timeout: READY_TIMEOUT_MS })
+      expect(await failure.textContent()).toContain(EN.surfaceLoadFailed)
+      // The text invitation stays complete and selectable beside the failure.
+      expect(await page.locator('.device-public-text textarea').inputValue()).toContain(
+        harnessInvitation().invitationId,
+      )
+      expect(refusals).toBe(1)
+      // A failed module fetch stays failed for the document: Retry reloads it.
+      await Promise.all([
+        page.waitForEvent('load'),
+        failure.getByRole('button', { name: EN.surfaceLoadRetry }).click(),
+      ])
+      await page.waitForFunction(() =>
+        globalThis.devicesOutbox.some((message) => message.type === 'devicesReady'),
+      )
+      await page.evaluate(() => {
+        globalThis.postMessage({ type: 'deviceState', revision: 1, state: { enabled: false } }, '*')
+      })
+      await replyToPair(page, await startPair(page))
+      await page
+        .locator('.device-public-text svg[role="img"]')
+        .waitFor({ timeout: READY_TIMEOUT_MS })
+      expect(await page.locator('.device-public-text [role="alert"]').count()).toBe(0)
+      expect(await readyCount(page)).toBe(1)
     } finally {
       await page.close()
     }

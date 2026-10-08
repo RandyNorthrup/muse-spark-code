@@ -26,6 +26,8 @@ import { DevicesView } from './DevicesView'
 
 interface DevicesAppProps {
   readonly qrEncoder?: QrEncoder
+  /** Present while the encoder's own chunk failed to load: the QR spot offers this retry. */
+  readonly retryQrEncoder?: () => void
   readonly loadQr?: QrLoader
   readonly messages: MessageSource
   readonly postMessage: (message: DeviceWebviewMessage) => void
@@ -38,6 +40,19 @@ interface QrProps {
 type QrLoader = () => Promise<{ default: ComponentType<QrProps> }>
 const loadQrFigure: QrLoader = () => import('../devices/qr/QrFigure')
 
+// A QR chunk that failed to load says so where the QR belongs, with Retry;
+// the selectable text invitation beside it stays complete on its own.
+function QrLoadFailure({ retry }: { readonly retry: () => void }) {
+  return (
+    <div role="alert">
+      <p>{UI_TEXT.surfaceLoadFailed}</p>
+      <button type="button" onClick={retry}>
+        {UI_TEXT.surfaceLoadRetry}
+      </button>
+    </div>
+  )
+}
+
 // Each invitation reply owns a fresh lazy intent. Text remains usable during
 // loading/failure; Retry creates a new import rather than caching a null result.
 class QrBoundary extends Component<QrProps & { readonly load: QrLoader }> {
@@ -48,17 +63,11 @@ class QrBoundary extends Component<QrProps & { readonly load: QrLoader }> {
   public override render() {
     const Figure = this.state.Figure
     return this.state.failed ? (
-      <div role="alert">
-        <p>{UI_TEXT.surfaceLoadFailed}</p>
-        <button
-          type="button"
-          onClick={() => {
-            this.setState({ failed: false, Figure: lazy(this.props.load) })
-          }}
-        >
-          {UI_TEXT.surfaceLoadRetry}
-        </button>
-      </div>
+      <QrLoadFailure
+        retry={() => {
+          this.setState({ failed: false, Figure: lazy(this.props.load) })
+        }}
+      />
     ) : (
       <Suspense fallback={<p role="status">{UI_TEXT.loadingOutput}</p>}>
         <Figure text={this.props.text} encode={this.props.encode} />
@@ -104,6 +113,7 @@ function DevicesDocument({
   messages,
   postMessage,
   qrEncoder,
+  retryQrEncoder,
   loadQr = loadQrFigure,
 }: DevicesAppProps) {
   const [message, setMessage] = useState<DeviceHostMessage>({
@@ -202,6 +212,13 @@ function DevicesDocument({
       bridge.views.clear()
     }
   }, [bridge, messages, postMessage])
+  // Text-only without an encoder; the QR spot reports a failed encoder load.
+  let renderQr: ((text: string) => ReactNode) | undefined
+  if (qrEncoder !== undefined)
+    renderQr = (text) => (
+      <QrBoundary key={message.setup?.requestId} text={text} encode={qrEncoder} load={loadQr} />
+    )
+  else if (retryQrEncoder !== undefined) renderQr = () => <QrLoadFailure retry={retryQrEncoder} />
   return (
     <main>
       <DevicesView
@@ -209,18 +226,7 @@ function DevicesDocument({
         port={bridge.port}
         onState={accept}
         explicitSetup
-        renderQr={
-          qrEncoder === undefined
-            ? undefined
-            : (text) => (
-                <QrBoundary
-                  key={message.setup?.requestId}
-                  text={text}
-                  encode={qrEncoder}
-                  load={loadQr}
-                />
-              )
-        }
+        renderQr={renderQr}
       />
     </main>
   )

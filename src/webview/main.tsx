@@ -16,6 +16,7 @@ import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { type ErrorReporter, reportWebviewErrorMessage, webviewErrorReport } from './errorReport'
 import { vsCodeHostBridge } from './hostBridge'
 import type { QrEncoder } from './models/sections/devices/qr/encoder'
+import type { DeviceWebviewMessage } from '../shared/devicesPanel'
 import { installEmbeddedTable } from './installTable'
 import { installSurfaceRetry, retrySurface } from './surfaceRetry'
 import { restoredUiState } from './state/snapshot'
@@ -114,29 +115,43 @@ function mountDevices(element: Element): void {
       <p role="status">{UI_TEXT.loadingOutput}</p>
     </main>
   )
-  const render = (qrEncoder: QrEncoder | undefined) => {
+  // One callback for the document's lifetime: the Devices bridge, and every
+  // request waiting on it, belongs to this callback, so a render that only
+  // adds the QR encoder (or its load failure) never cancels an action.
+  const postMessage = (message: DeviceWebviewMessage) => {
+    api.postMessage(message)
+  }
+  const render = (qr: QrEncoderLoad) => {
     root.render(
       <Suspense fallback={loading}>
         <DevicesApp
           messages={window}
-          {...(qrEncoder === undefined ? {} : { qrEncoder })}
-          postMessage={(message) => {
-            api.postMessage(message)
-          }}
+          {...(qr === 'failed' ? { retryQrEncoder: reloadDocument } : {})}
+          {...(qr !== 'loading' && qr !== 'failed' ? { qrEncoder: qr } : {})}
+          postMessage={postMessage}
         />
       </Suspense>,
     )
   }
   // The approved encoder stays in the lazy QR closure: a static import here
-  // would charge it to startup. Without it the text invitation still works.
-  render(undefined)
+  // would charge it to startup. Without it the text invitation still works;
+  // a chunk that fails to load says so at the QR, with Retry. The browser
+  // keeps a failed module fetch for the document's lifetime, so Retry
+  // reloads the document, as the Devices chunk's own failure does.
+  render('loading')
   void import('./models/sections/devices/qr/qrGeneratorEncoder')
     .then(({ qrGeneratorEncoder }) => {
       render(qrGeneratorEncoder)
     })
     .catch(() => {
-      // The text invitation rendered above stays usable without QR pixels.
+      render('failed')
     })
+}
+
+type QrEncoderLoad = 'loading' | 'failed' | QrEncoder
+
+function reloadDocument(): void {
+  window.location.reload()
 }
 
 function mountTasks(element: Element): void {
