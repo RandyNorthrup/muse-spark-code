@@ -136,7 +136,7 @@ export function compressedEnglish(file, isProduction, compressionQuality) {
 }
 
 /** Encode browser values with the same lossless native codec in every build. */
-function inlineBrowserTable(table, compressionLevel, readers) {
+function inlineBrowserTable(table, compressionLevel, compressionMemoryLevel, readers) {
   const alphabet = Array.from({ length: 94 }, (_, index) => String.fromCodePoint(index + 33))
     .filter((character) => !['"', "'", '\\'].includes(character))
     .join('')
@@ -162,7 +162,7 @@ function inlineBrowserTable(table, compressionLevel, readers) {
   const lanes = readers === undefined ? undefined : keys.map((key) => lanesByKey.get(key)).join('')
   const compressed = deflateSync(JSON.stringify([names, keys.map((key) => table[key]), lanes]), {
     level: compressionLevel,
-    memLevel: 9,
+    memLevel: compressionMemoryLevel,
   })
   let packed = ''
   let queued = 0
@@ -205,11 +205,16 @@ export const compactBrowserEnglish = {
   setup(build) {
     build.onLoad({ filter: /[/\\]l10n[/\\]en\.ts$/ }, async (args) => {
       if (path.resolve(args.path) !== path.resolve(TABLE)) return
-      const { EN, L10N_BROWSER_COMPRESSION_LEVEL } = await loadL10n(process.cwd())
+      const { EN, L10N_BROWSER_COMPRESSION_LEVEL, L10N_BROWSER_COMPRESSION_MEMORY_LEVEL } =
+        await loadL10n(process.cwd())
       // DIET1: the complete fallback stays inline. Native DEFLATE decoding
       // completes before dependent ESM modules run (Chrome 128 and later).
       return {
-        contents: inlineBrowserTable(EN, L10N_BROWSER_COMPRESSION_LEVEL),
+        contents: inlineBrowserTable(
+          EN,
+          L10N_BROWSER_COMPRESSION_LEVEL,
+          L10N_BROWSER_COMPRESSION_MEMORY_LEVEL,
+        ),
         loader: 'js',
         watchFiles: [args.path, 'src/shared/constants.ts'],
       }
@@ -315,7 +320,8 @@ export const compactBrowserUiText = {
   setup(build) {
     let data
     build.onStart(async () => {
-      const { EN, L10N_BROWSER_COMPRESSION_LEVEL } = await loadL10n(process.cwd())
+      const { EN, L10N_BROWSER_COMPRESSION_LEVEL, L10N_BROWSER_COMPRESSION_MEMORY_LEVEL } =
+        await loadL10n(process.cwd())
       const entries = Object.values(build.initialOptions.entryPoints)
       const roots = entries.filter((entry) => {
         const normal = entry.replaceAll('\\', '/')
@@ -359,6 +365,7 @@ export const compactBrowserUiText = {
         resourceKeys,
         contract,
         level: L10N_BROWSER_COMPRESSION_LEVEL,
+        memoryLevel: L10N_BROWSER_COMPRESSION_MEMORY_LEVEL,
       }
     })
     build.onResolve({ filter: /^browser-table-contract$/ }, () => ({
@@ -395,7 +402,7 @@ export const compactBrowserUiText = {
     }))
     build.onLoad({ filter: /.*/, namespace: 'browser-surface-english' }, () => ({
       contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
-${inlineBrowserTable(Object.fromEntries(data.surfaceKeys.toSorted((left, right) => (left < right ? -1 : Number(left > right))).map((key) => [key, data.EN[key]])), data.level)}
+${inlineBrowserTable(Object.fromEntries(data.surfaceKeys.toSorted((left, right) => (left < right ? -1 : Number(left > right))).map((key) => [key, data.EN[key]])), data.level, data.memoryLevel)}
 installSurfaceEnglish(EN);`,
       loader: 'js',
     }))
@@ -413,6 +420,7 @@ ${inlineBrowserTable(
       .map((key) => [key, data.EN[key]]),
   ),
   data.level,
+  data.memoryLevel,
 )}
 installSurfaceEnglish(EN);`,
       loader: 'js',
@@ -468,7 +476,7 @@ installSurfaceEnglish(EN);`,
     build.onLoad({ filter: /[/\\]l10n[/\\]en\.ts$/ }, (args) => {
       if (path.resolve(args.path) !== path.resolve(TABLE)) return
       return {
-        contents: inlineBrowserTable(data.contract, data.level, data.lanes),
+        contents: inlineBrowserTable(data.contract, data.level, data.memoryLevel, data.lanes),
         loader: 'js',
         watchFiles: [args.path, ...data.files, 'src/shared/reference/reference.generated.json'],
       }

@@ -330,6 +330,10 @@ happened, not what was planned; superseded entries are kept.
 - Check every staged ACP help language in bounded parallel batches, keeping
   cold package certification within its existing deadline.
 
+- Start browser harness scenarios after the webview's ready handshake, keeping
+  cold bundle loading outside their DOM deadline and exposing bounded browser
+  diagnostics before a team test times out.
+
 - Accept Windows short temp-path spellings for team hints while refusing linked
   folders; avoid broad PowerShell module discovery in team native helpers and
   await unconfirmed helper closure before cleaning up its files.
@@ -480,7 +484,7 @@ happened, not what was planned; superseded entries are kept.
   gives the rule that prevents it and the milestone that will enforce that
   rule in the app's own orchestrator (D100).
 
-- Keep paid-usage formatting and agent presentation labels out of chat startup, preserving the existing startup review baseline.
+- Keep paid-usage formatting and agent presentation labels out of chat startup, preserving the existing startup review baseline; pack their complete English fallback losslessly within its existing budget.
 
 ## [0.15.0] - 2026-10-06
 

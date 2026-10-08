@@ -404,6 +404,7 @@
       // a table it refused is reported so, and the page would otherwise be
       // checked in English as if it were translated.
       const webviewErrors = []
+      let hasWebviewReady = false
       const scenarioName = new URLSearchParams(location.search).get('scenario')
       // M95b: deterministic notice state, before the app reads its store.
       if (scenarioName?.startsWith('plan-') || scenarioName?.startsWith('copilot-plan')) {
@@ -1274,7 +1275,10 @@
               break
             }
           }
-          if (['ready', 'modelsPanel/ready', 'tasksReady'].includes(message.type)) playScenario()
+          if (['ready', 'modelsPanel/ready', 'tasksReady'].includes(message.type)) {
+            hasWebviewReady = true
+            playScenario()
+          }
         },
       })
     </script>
@@ -6127,12 +6131,19 @@
       }
       // A scenario starts after the fake signed-in host has drawn its composer
       // or tasks surface. A transient initial sign-in gate is not readiness. Start its bounded DOM
-      // wait after the module graph loads, so loading does not spend that budget.
+      // wait after loading and the webview ready handshake, so loading does not spend that budget.
       // A fixed delay raced the first render
       // on a loaded machine (M40: `agents` and `dictation` found no composer).
       let hasPlayedScenario = false
       const playScenario = () => {
-        if (hasPlayedScenario || scenario === null || !(scenario in steps)) return
+        if (
+          !hasPageLoaded ||
+          !hasWebviewReady ||
+          hasPlayedScenario ||
+          scenario === null ||
+          !(scenario in steps)
+        )
+          return
         hasPlayedScenario = true
         const surface =
           harnessBundle === 'models' ? '.models-panel section' : '.composer textarea, .todo-surface'

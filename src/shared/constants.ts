@@ -6373,6 +6373,7 @@ export const WORKER_MODEL_TEXT = {
 export { UI_TEXT } from './l10n/text'
 // Build-only inline browser fallback compression.
 export const L10N_BROWSER_COMPRESSION_LEVEL = 9
+export const L10N_BROWSER_COMPRESSION_MEMORY_LEVEL = 7
 export const L10N_TABLE_ARCHIVE_FILE = 'ui.tables.json.br'
 export const USAGE_TABLE_ARCHIVE_FILE = 'usage.tables.json.br'
 // The provider presets' public account pages; custom/local origins are unknown.
