@@ -12,6 +12,10 @@ happened, not what was planned; superseded entries are kept.
 - Windows resource stops avoid cold PowerShell module discovery. Native job
   helpers use verified long paths even when TEMP has an 8.3 spelling; Windows
   launch qualification reuses its compiled helper and loads JSON support explicitly.
+- The Muse Code feedback dialog is removed until it can work. Nothing opened it,
+  and Muse Code feedback still refuses before dispatch without a captured receipt
+  reader. Help no longer lists **Send feedback to Muse Code**, and its ten
+  dialog-only strings are gone from every language table.
 
 ### Pending
 

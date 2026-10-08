@@ -572,29 +572,6 @@
       "editors": ["vscode"]
     },
     {
-      "id": "native-feedback",
-      "name": { "ui": "feedbackTitle" },
-      "summary": {
-        "conditions": [
-          { "when": "feedbackCapture&feedbackCapability", "text": { "ui": "feedbackPrivacy" } }
-        ]
-      },
-      "description": {
-        "conditions": [
-          { "when": "feedbackCapture&feedbackCapability", "text": { "ui": "feedbackPrivacy" } }
-        ]
-      },
-      "commands": [],
-      "settings": [],
-      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
-      "backends": ["museCode"],
-      "paid": false,
-      "surfaces": ["vscode:museCode"],
-      "details": [],
-      "facts": {},
-      "editors": ["vscode"]
-    },
-    {
       "id": "native-deletion",
       "name": { "ui": "memoryDeleteAction" },
       "summary": { "ui": "historyLabel" },

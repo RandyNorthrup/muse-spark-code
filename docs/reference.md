@@ -408,14 +408,6 @@ Surfaces: vscode:modelApi. Paid: no extra feature charge; model usage still appl
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
 
-### Send feedback to Muse Code
-
-feedbackCapture&feedbackCapability: Muse Code uploads your classification and note. Files and the session record are included only when selected.
-
-Surfaces: vscode:museCode. Paid: no extra feature charge; model usage still applies.
-
-Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
-
 ### Delete
 
 History

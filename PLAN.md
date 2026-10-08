@@ -53343,3 +53343,14 @@ no changed thresholds. Current-stage notices and both SBOMs are regenerated.
 `docs/certification/rel0160-final.md` and its JSON account for conflicts, drills,
 gate phases and the excluded colliding-build batch (orchestration G63). Full
 three-platform qualification remains hosted CI; no push or publication.
+
+**FIX0160RVA webview review findings (2026-10-07).** PR #140's review found
+three unreachable webview surfaces. The feedback dialog is removed (with its
+test, ten dialog-only strings in every table and Help's entry). It cannot work
+until S1's captured receipt reader and the MSP `feedback` grant exist;
+`docs/research/m106-s-integration.md` S3 records how it is restored. The App's
+resource chip and the usage page's Resources section stay unmounted rather than
+receiving dead props. They wait on M107 U–C1/W and J/M102 host sources: a
+window status channel and commands for the chip, and a durable record journal
+plus a `usage/state` resources field for history. README already names these
+mounts as pending handoffs.
