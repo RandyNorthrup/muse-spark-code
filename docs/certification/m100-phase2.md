@@ -433,7 +433,35 @@ SHA-256 before and after every drill:
 `deviceDiscovery.ts`
 `e6a06a3ac3f0d372d6c841e9ddf6b2794db483fae8be89208619b7a1bd56742e`.
 Restored tree: switch/mDNS/discovery **48 passed**; all five compiler
-projects pass. Final fresh-clone verification follows the repair commit.
+projects pass.
+
+### Verification (fresh clone, CI=true, repository-default timeouts)
+
+Repair commit `e10fd2003897f4f8ee9bfbc84257543aeb15a6fc`, cloned directly
+from this worktree to `/tmp/fixm100p2d3-verify`; `CI=true npm ci` exits 0.
+The clone remains clean after the checks; no generated or budget file changed.
+
+- `npx vitest run test/unit/deviceQrInvite.test.ts
+test/unit/deviceMdns.test.ts test/unit/deviceDiscoverySwitch.test.ts
+--maxWorkers=3`: **37 passed**, three runs.
+- `npx vitest run test/unit/deviceDiscovery.test.ts --maxWorkers=3`:
+  **16 passed**, three runs. All four owning files total **53 passed per
+  repetition**; no raised timeout. Worktree neighbors `deviceStore`,
+  `devicePairingAdapter`, `deviceDiscoverySwitch`: **83 passed**.
+- `npm run typecheck`: host, webview, unit, e2e and integration all exit 0.
+- `npm run lint:js`: full tree, `--max-warnings=0`, exit 0.
+- `npx prettier --check` on all six changed files: exit 0.
+- Plain `npx knip`: exit 0, the same two existing configuration hints.
+  `npm run duplication`: exit 0, **0 clones**.
+- `npm run check:reference`: current (53 features, Devices 18 entries).
+  `node scripts/check-l10n.mjs`: 14 tables, **0 problems**.
+  `node scripts/check-host-api.mjs`: **0 problems**.
+- `npm run build`: exit 0, `dist/devices.js` **91.6/100 KiB**, extension
+  **441.6/600 KiB**, Model API **447.3/475 KiB**, ACP **823.6/850 KiB**.
+  All original caps, split/global guards and notices pass unchanged.
+- Repair commit hooks: ESLint/Prettier and staged gitleaks exit 0. Re-read
+  the committed diff and empty index after the hook; both production hashes
+  still match the drill restoration above.
 
 ### Planning status and next slice
 
