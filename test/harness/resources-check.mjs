@@ -63,21 +63,70 @@ function uiRules(needsRing) {
   const ring = focused === null ? null : globalThis.getComputedStyle(focused)
   if (needsRing && (ring === null || ring.outlineStyle === 'none' || ring.outlineWidth === '0px'))
     problems.push('no visible focus ring')
+  // axe cannot see the refusal sentence over the fixed popover, so measure it:
+  // its own colour against the popover's (composited over the page if translucent).
+  const refusal = globalThis.document.querySelector('.resource-popover p[role="alert"]')
+  let refusalContrast = null
+  if (refusal !== null) {
+    const rgba = (value) => {
+      const parts = value.match(/[\d.]+/g)?.map(Number) ?? []
+      return { r: parts[0], g: parts[1], b: parts[2], a: parts[3] ?? 1 }
+    }
+    const over = (top, bottom) => ({
+      r: top.r * top.a + bottom.r * (1 - top.a),
+      g: top.g * top.a + bottom.g * (1 - top.a),
+      b: top.b * top.a + bottom.b * (1 - top.a),
+      a: 1,
+    })
+    const page = rgba(globalThis.getComputedStyle(globalThis.document.body).backgroundColor)
+    const back = over(
+      rgba(globalThis.getComputedStyle(refusal.closest('.resource-popover')).backgroundColor),
+      page.a === 1 ? page : over(page, { r: 255, g: 255, b: 255, a: 1 }),
+    )
+    const fore = over(rgba(globalThis.getComputedStyle(refusal).color), back)
+    const luminance = ({ r, g, b }) =>
+      [r, g, b]
+        .map((channel) => channel / 255)
+        .map((value) => (value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4))
+        .reduce((sum, value, index) => sum + [0.2126, 0.7152, 0.0722][index] * value, 0)
+    const [light, dark] = [luminance(fore), luminance(back)].toSorted((left, right) => right - left)
+    refusalContrast = Math.round(((light + 0.05) / (dark + 0.05)) * 100) / 100
+    if (refusalContrast < 4.5)
+      problems.push(`refusal text contrast ${String(refusalContrast)} below 4.5:1`)
+  }
   const chip = globalThis.document.querySelector('.resource-chip')
   const chipStyle = chip === null ? null : globalThis.getComputedStyle(chip)
   if (chipStyle === null || chipStyle.filter !== 'none' || chipStyle.boxShadow !== 'none')
     problems.push('chip is not crisp')
-  return { problems, actionTops: boxes.map((box) => Math.round(box.top)) }
+  return { problems, refusalContrast, actionTops: boxes.map((box) => Math.round(box.top)) }
 }
 
+// scripts/a11y.mjs's policy, per node: a contrast node is unseen only when
+// axe gave reasons and every one is that it could not see the text. Anything
+// else it could not decide stays undecided and fails the page.
 const UNSEEN_REASONS = new Set(['elmPartiallyObscured', 'elmPartiallyObscuring', 'bgOverlap'])
-const isUnseenContrast = (rule) =>
-  rule.id === 'color-contrast' &&
-  rule.nodes.every((node) =>
-    [...node.any, ...node.all, ...node.none].every((check) =>
-      UNSEEN_REASONS.has(check.data?.messageKey),
-    ),
+const reasonsOf = (node) =>
+  [...node.any, ...node.all, ...node.none].flatMap((check) =>
+    check.data?.messageKey === undefined ? [] : [check.data.messageKey],
   )
+function sortIncomplete(findings) {
+  const undecided = []
+  let unseen = 0
+  for (const finding of findings) {
+    const nodes = finding.nodes.filter((node) => {
+      const reasons = reasonsOf(node)
+      const isUnseen =
+        finding.id === 'color-contrast' &&
+        reasons.length > 0 &&
+        reasons.every((reason) => UNSEEN_REASONS.has(reason))
+      if (isUnseen) unseen += 1
+      return !isUnseen
+    })
+    if (nodes.length > 0) undecided.push({ ...finding, nodes })
+  }
+  return { undecided, unseen }
+}
+
 const chrome = findChrome()
 if (chrome === undefined) throw new Error('Chrome is required for the resource surfaces acceptance')
 const browser = await chromium.launch({ executablePath: chrome, headless: true })
@@ -191,8 +240,9 @@ try {
           }
           // As scripts/a11y.mjs: contrast axe could not see (text over a fixed
           // overlay, under a user-opened dialog) is reported, not decided.
-          result.unseen = result.incomplete.filter((rule) => isUnseenContrast(rule)).length
-          result.incomplete = result.incomplete.filter((rule) => !isUnseenContrast(rule))
+          const sorted = sortIncomplete(result.incomplete)
+          result.unseen = sorted.unseen
+          result.incomplete = sorted.undecided
           results.push(result)
           await page.screenshot({
             path: path.join(output, `${theme}-${String(width)}-${scene}.png`),
@@ -230,7 +280,7 @@ try {
               throw new Error('Resource control failed to reach host port')
           }
           console.log(
-            `${theme} ${String(width)} ${scene}: ${String(errors.length)} errors, ${String(axe.violations.length)} violations, ${String(result.incomplete.length)} incomplete, ${String(result.unseen)} unseen, overflow=${String(overflow)}, ui=${ui === null ? 'n/a' : JSON.stringify(ui.problems)}`,
+            `${theme} ${String(width)} ${scene}: ${String(errors.length)} errors, ${String(axe.violations.length)} violations, ${String(result.incomplete.length)} incomplete, ${String(result.unseen)} unseen nodes, refusal=${String(ui?.refusalContrast ?? 'n/a')}, overflow=${String(overflow)}, ui=${ui === null ? 'n/a' : JSON.stringify(ui.problems)}`,
           )
         } finally {
           await page.close()

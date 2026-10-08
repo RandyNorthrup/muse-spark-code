@@ -40462,6 +40462,16 @@ equivalent; MHP and companion hosts reuse the same adapter and chip once
 M104 binds their bridges. Receipts:
 [`docs/certification/m107.md`](docs/certification/m107.md#m107-w-chip--window-binding).
 
+**FIXM107W1B open-intent redesign (2026-10-08).** RVM107W1B found the open
+lost across a document reload, and a new-conversation open unbound and
+surviving disposal. Readiness now belongs to each surface document
+generation (Reload starts an unready one). Show binds its open to one target
+when it runs (the surface in view, or the new conversation's surface id),
+delivers it once to that target's first ready generation, and cancels it on
+the target's removal or the adapter's disposal. The resources harness
+classifies axe's unseen contrast per node as `scripts/a11y.mjs` does and
+measures the refusal sentence's contrast directly.
+
 **FIXM107W1 review repair and chip scenes (2026-10-08).** Codex RVM107W1
 found three P2s in the window binding; all are repaired with regressions
 proven red on `23432ce4d` and byte-exact drills. A refused status (unreadable,
