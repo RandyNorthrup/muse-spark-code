@@ -459,3 +459,163 @@ values match the drill restores and committed worktree. This final addition
 changes certification text only; it does not change the tested implementation.
 Integration requests remain the lane W requests above. There is no contract
 change request and no full-quality, installed-host or live-model claim.
+
+### Lane V round 3 redesign — refuse nonportable manifest spellings (2026-10-08)
+
+Brief `C:/lanes/_ctx/FIXM100P2V3.rig.md`, shared rules
+`C:/lanes/_ctx/codex/M100P2-common.md`; reviews RVM100P2V, VB and VC read
+in that order. Branch `m100/p2-v-fix3` from `851a23341`; implementation
+`7a1ae34606f5e88c1dd32bbb5f163b48f3b92a2c`. This section supersedes the
+earlier rounds' implementation descriptions; their receipts remain historical.
+
+The owner's round-three decision changes the approach: a manifest is a
+portable spelling contract, not an emulation of Win32 file identity. Each
+review exposed another mismatch between string normalization and an OS open,
+and the extraction had extended that approximation into unrelated guards.
+This redesign implements the existing PLAN lane V input-validation scope;
+it adds no protocol, feature, dependency, setting, command or UI string.
+
+#### Grammar and dispatch order
+
+`src/core/devices/inputManifest.ts` validates the original path at both build
+and wire admission. It never rewrites the builder's path or reader's lookup.
+
+| Rule                                                                       | Implementation / test                                                                                                                                                                       |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Relative, `/` separators only; no backslash, colon, drive or device prefix | ASCII segment whitelist plus nonempty segments; reviewed-spelling table and generated forbidden characters                                                                                  |
+| Every segment uses ASCII letters, digits, space, `._-+@`                   | Negative character class; generated accepted segments exercise every allowed character and 256 deterministic combinations                                                                   |
+| No empty, `.` or `..` segment; no segment ending in dot or space           | Explicit segment checks, including intermediate segments; generated forbidden segment and trailing-run cases                                                                                |
+| No Windows reserved name, regardless of case or extension                  | CON, PRN, AUX, NUL, COM0–9, LPT0–9, CONIN$, CONOUT$ and COM/LPT superscript ¹²³ variants; generated names in first and last positions, upper/lowercase, bare, `.txt`, ` .txt` and `:` forms |
+| At most 512 characters in the whole path                                   | Existing `DEVICE_LIMITS.pathChars`; the boundary is accepted and boundary + 1 refused                                                                                                       |
+| One item per case-folded valid path                                        | `item.path.toLowerCase()` uniqueness; original twelve collision rows retained, with case-only pairs equated and invalid spellings refused individually                                      |
+| Protected names compared only after manifest validation                    | Valid `.GiT/config`, `.CLAUDE/settings.json`, `.GitHub/workflows/build.yml` and `AGENTS.MD` retain protection through the restored helper; trailing aliases fail grammar first              |
+
+Dollar signs, superscript digits, all other Unicode and NTFS short-name `~`
+spellings are also excluded by the character whitelist. Reserved ASCII names
+with spaces before their extension are explicitly refused. No platform-specific
+path emulation remains in this module. The 78 reviewed-spelling cases and
+generated forbidden cases assert `invalid-frame` at build/schema/dispatch and
+empty base-object and file-read lists. The grammar table runs on every platform;
+only the native filesystem proof is Windows-specific. This rig ran Windows 11.
+
+Dispatch digest/attempt/base/tree binding, missing input, changed content/size
+and missing base-object refusals remain covered. The capability module is
+unchanged from `851a23341`, retaining offer future-skew admission and measured
+governor signals. Original lane V acceptance/drill records above still apply.
+
+#### Shared restoration
+
+The following command exits **0** with no diff:
+
+```text
+git diff --exit-code 81f070674 HEAD -- src/core/paths.ts src/core/workspacePath.ts src/core/git/heldTree.ts src/core/protectedPaths.ts test/unit/fsAtomic.test.ts test/unit/worktreeConversations.test.ts
+```
+
+Those four production helpers and two modified shared suites are exactly the
+base Git blobs. Permissions, held-tree and checkpoint suites were never changed
+by this correction. The previously added `workspacePath.test.ts` remains
+unchanged: its eight tests isolate the base Windows refusal and canonical
+POSIX separator behavior and pass with the restored source. That new suite is
+the only retained shared-test addition relative to `81f070674`.
+
+Deleted `src/core/pathIdentity.ts`, its approximation-specific suite, and
+`test/unit/helpers/windowsFileIdentity.ps1`; no external reader needs them.
+The manifest's native proof now opens both `plans/q3.md` and `Plans/Q3.MD`
+through Node's real filesystem handles, checks nonzero inode and matching
+BigInt device/inode identity, and closes both handles in `finally`. It passed
+on this Windows rig. Obsolete normalization/alias-acceptance assertions were
+replaced with strict-refusal assertions; shared tests were restored as directed.
+No assertion was disabled and no timeout, threshold, ignore or rule was weakened.
+Pre-existing shared-helper device-path gaps belong to the lead's separate audit.
+
+#### Exact-base regressions and red drills
+
+Isolated local clone `C:/lanes/_verify/FIXM100P2V3-base-proof-20261008`,
+`CI=true`, repository-default deadlines, `--maxWorkers=3`, no timeout override.
+The clone uses a junction to the worktree's installed dependencies; this is a
+base regression receipt, not the fresh `npm ci` verification below. Production
+files at each base were untouched; only regression tests were overlaid.
+
+| Base / selected regression                                                                                                                                                                 | Result                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| `d8960e6bf`; current manifest/capability suites, `refuses Windows identity collisions\|refuses the review future-dated`                                                                    | Exit 1; all 13 selected regressions fail (12 manifest collision rows, 1 future offer)                 |
+| `32c55827f`; unchanged permissions regression plus the `851a23341` atomic-write/worktree intermediate-name assertions, `different intermediate\|distinct.*directory\|backslashes separate` | Exit 1; all 5 selected regressions fail (1 POSIX separator, 2 atomic-write binding, 2 worktree trust) |
+
+The overlaid tests were restored afterward; the base-proof clone is clean.
+Each drill saves the final committed source bytes, changes one guard, runs
+the manifest suite, restores in `finally`, then checks byte-exact SHA-256
+equality. The first four use selector `refuses reviewed spelling\|refuses
+generated members\|refuses Windows identity collisions`; the grammar drill
+selects the first two groups and the allowed-set drill selects `accepts
+generated portable segments`. Unselected tests are pending under the
+selector, not disabled.
+
+| Drill           | Intentional break                                                                             | Exit / failures |
+| --------------- | --------------------------------------------------------------------------------------------- | --------------- |
+| V3-backslash    | Remove backslashes only from the character check, admitting their original spelling           | 1 / 9           |
+| V3-trailing-dot | Remove the trailing-dot/space segment refusal                                                 | 1 / 23          |
+| V3-reserved     | Remove the reserved-device-name refusal                                                       | 1 / 9           |
+| V3-case         | Replace case-folded uniqueness with raw spelling                                              | 1 / 2           |
+| V3-grammar      | Remove path grammar refinement; all 78 table rows plus the forbidden-class property test fail | 1 / 79          |
+| V3-allowed-set  | Exclude `@` from the allowed character set; the generated acceptance property fails           | 1 / 1           |
+
+All six restored SHA-256 values:
+`f830f1a9c7a63827607456708069b6d7b01d2070f3607ab32d6561b5efde52f3`.
+Logs: `C:/lanes/_ctx/FIXM100P2V3-drill-final-*.log` and
+`FIXM100P2V3-base-round1.log` / `FIXM100P2V3-base-round2.log`.
+
+#### Fresh-clone CI gates
+
+Fresh clone with `git clone --no-hardlinks` at implementation
+`7a1ae34606f5e88c1dd32bbb5f163b48f3b92a2c`:
+`C:/lanes/_verify/FIXM100P2V3-ci-20261008`. Each shell sets `CI=true`.
+`npm.cmd ci` exits **0**, with 898 packages installed; the unchanged install
+audit still reports 12 issues (2 low, 10 high). No dependency was changed.
+
+Every group ran with `npx.cmd vitest run <files> --maxWorkers=3`, at most
+three files per invocation, repository-default deadlines and no `--testTimeout`.
+Existing real-Git checkpoint tests retain their named `REAL_GIT_TIMEOUT_MS`
+deadline and documented reason; no test was given a new timeout.
+
+| Suites                                                                 | Round 1                                        | Round 2                                        | Round 3                                        | Exits     |
+| ---------------------------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------- | ---------------------------------------------- | --------- |
+| `deviceInputManifest`, `deviceCapability`, `workspacePath`             | 131 passed; 3.37 s                             | 131 passed; 2.97 s                             | 131 passed; 2.94 s                             | 0 / 0 / 0 |
+| `permissions`, `heldTree`, `fsAtomic`                                  | 146 passed, 1 existing platform skip; 3.31 s   | 146 passed, 1 existing platform skip; 3.11 s   | 146 passed, 1 existing platform skip; 3.03 s   | 0 / 0 / 0 |
+| `worktreeConversations`, `checkpointLocation`, `checkpointStoreBundle` | 28 passed; 17.59 s                             | 28 passed; 16.66 s                             | 28 passed; 16.54 s                             | 0 / 0 / 0 |
+| `checkpointStore`, `checkpointStoreGuards`, `checkpointStorageGuards`  | 37 passed, 3 existing platform skips; 170.05 s | 37 passed, 3 existing platform skips; 165.05 s | 37 passed, 3 existing platform skips; 178.24 s | 0 / 0 / 0 |
+| `checkpointStoreWindows`                                               | 33 passed; 122.63 s                            | 33 passed; 127.08 s                            | 33 passed; 156.02 s                            | 0 / 0 / 0 |
+
+Total **375 passed per round, 1,125 passing executions across 13 suites**.
+The four pre-existing Windows skips each round are POSIX permission/execute-bit
+semantics and a colon filename Windows cannot create. No new test is skipped;
+the native Windows case proof runs and passes each round. After the final
+drills, the restored worktree's manifest/capability/workspace-path group also
+passes **131/131**, exit **0**, default deadlines (3.25 s).
+
+| Gate                                    | Exit / receipt                                                                                                                                                                |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm.cmd run typecheck`                 | 0; host, webview, unit, e2e and integration projects                                                                                                                          |
+| Changed-file ESLint, `--max-warnings=0` | 0; all eight surviving changed TypeScript files                                                                                                                               |
+| Changed-file Prettier                   | 0; all eight TypeScript files; certification separately checked after formatting                                                                                              |
+| Plain `npx.cmd knip`                    | 0; the same two pre-existing configuration hints                                                                                                                              |
+| `npm.cmd run duplication`               | 0; jscpd, zero clones                                                                                                                                                         |
+| `npm.cmd run check:l10n`                | 0; 14 tables, 169 manifest strings, 656 source files, zero problems                                                                                                           |
+| `npm.cmd run check:reference`           | 0; 53 features, 46 commands, 60 settings, 26 slash entries, 122 CLI entries, 18 Devices entries; current                                                                      |
+| `npm.cmd run check:host-api`            | 1; only the inherited generated `node:crypto` reader count, 55 → 56; restoring the helpers removed the prior `node:path` count difference                                     |
+| `npm.cmd run build`                     | 0; size, split, host-global and notices checks all pass with unchanged caps; extension 441.6/600 KiB, Devices 80.6/100 KiB, webview startup 738.0/900 KiB, ACP 823.6/850 KiB  |
+| `npm.cmd run quality`                   | 1 at `check:host-api`; global formatting, JS/CSS/PowerShell lint (zero analyzer findings), all five typechecks, badges, localization and reference passed before that refusal |
+
+Normal implementation-commit hooks passed: changed-file ESLint/Prettier and
+staged gitleaks, no leaks. The staged diff was re-read after the hook run
+(empty after commit), then the committed source/test diff was read in full.
+The source hash matches every final drill restore. No manual stash, merge,
+rebase, push, live model call or real-device pairing occurred.
+
+Lane W owns `docs/ide-compatibility/host-api.md`, README, CHANGELOG and the
+joined-tree full gate in the PLAN ownership table and shared brief. Request:
+regenerate the host API record at integration, carry the strict grammar and
+shared restoration into the Unreleased changelog, then run the joined-tree
+quality/coverage/integration/a11y/security gates. No gate was weakened to hide
+the mismatch and no full-quality or audit success is claimed here. Existing
+wiring and capability-contract requests in the original lane V section remain;
+this redesign requests no additional contract change.
