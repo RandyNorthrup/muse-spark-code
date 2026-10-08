@@ -3899,7 +3899,7 @@
   "referenceNewTab": "Neue Muse Spark-Unterhaltung in einem Editor-Tab öffnen.",
   "referenceFocus": "Tastaturfokus zwischen Chat-Eingabe und Editor wechseln.",
   "referenceTasks": "Aufgabenliste dieser Unterhaltung in einem eigenen Editor-Tab öffnen.",
-  "referenceDevices": "Open the Devices tab to link this editor with your other devices.",
+  "referenceDevices": "Den Tab „Geräte“ öffnen, um diesen Editor mit Ihren anderen Geräten zu verbinden.",
   "referenceDiagnostics": "Lokale Backend- und Erweiterungsdiagnose anzeigen.",
   "referenceReport": "Bereinigten Problembericht vor dem Speichern oder Senden prüfen.",
   "referenceTerminal": "Muse Code CLI im Terminal des Editors öffnen.",

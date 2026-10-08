@@ -148,7 +148,11 @@ export class DeviceReceiver implements DeviceExecutionPort {
     if (receiver.cancelled.size >= DEVICE_LIMITS.tombstones)
       receiver.transition({ kind: 'failed', reason: 'capacity' })
     const records = await journal.records()
-    await execution.retain(records)
+    // Retention restores recorded occupancy, write sets and liabilities. An
+    // empty journal has none, so it never asks the execution owner: a host
+    // whose execution is not bound yet (lane K) still opens, pairs and
+    // refuses each execution use on its own.
+    if (records.length > 0) await execution.retain(records)
     for (const row of records) {
       if (
         row.kind !== 'receiver-record' ||

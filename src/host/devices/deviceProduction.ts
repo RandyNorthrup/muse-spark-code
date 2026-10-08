@@ -7,7 +7,7 @@
 // choice with its execution binding. Every K-owned port below refuses with
 // an explicit typed error until K binds it — nothing returns an empty success.
 import { randomBytes } from 'node:crypto'
-import { stat } from 'node:fs/promises'
+import { mkdir, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { DEVICE_LIMITS } from '../../shared/constants'
 import { DevicePairingError } from '../../core/devices/pairing'
@@ -18,7 +18,7 @@ import type { DeviceChannelPort } from './deviceChannel'
 import type { DeviceServiceDeps } from './deviceEntry'
 import type { DevicePairingDeps } from './devicePairing'
 import type { DeviceReceiverExecution, DeviceReceiverPolicy } from './deviceReceiver'
-import type { DeviceExecutionHost } from './deviceSecrets'
+import { assertLocalDeviceHost, type DeviceExecutionHost } from './deviceSecrets'
 import type { DeviceStorageProtection } from '../../core/devices/storageProtection'
 import type { DeviceStore } from './deviceStore'
 import type { DeviceSecrets } from './deviceSecrets'
@@ -124,7 +124,7 @@ export function unboundDeviceLanePorts(log: Logger): DeviceLanePorts {
 }
 
 export interface DeviceProductionContext {
-  /** The qualified editor's machine-scoped Devices directory. */
+  /** The qualified editor's machine-scoped Devices directory; provisioned on first use. */
   readonly storageDirectory: string
   /** The shipped-helper directory the Windows storage binding compiles in. */
   readonly helperDirectory: string
@@ -132,57 +132,95 @@ export interface DeviceProductionContext {
   /** The extension folder that ships `native/windows/`. */
   readonly extensionPath: string
   readonly secrets: SecretStore
+  /**
+   * The editor's own qualification of this extension host (D80): UI kind,
+   * remote name, where the extension runs and where its SecretStorage lives.
+   * Never assumed: a remote, web or headless host refuses before any storage.
+   */
+  readonly host: DeviceExecutionHost
   readonly log: Logger
   readonly platform?: NodeJS.Platform
   readonly now?: () => number
   readonly randomId?: () => string
+  /** This process's user id for the POSIX journal owner check; Node's own by default. */
+  readonly userId?: () => number | undefined
 }
 
 export interface DeviceProductionDeps extends Omit<
   DeviceServiceDeps,
   'snapshot' | 'publish' | 'report'
 > {
-  /** Ends the Windows storage helper owned by this preparation. */
-  readonly dispose: () => void
+  /**
+   * Closes the pairing store (releasing its `.pairing.lock`), then ends the
+   * Windows storage helper owned by this preparation. Each runs once.
+   */
+  readonly dispose: () => Promise<void>
 }
 
-const localHost: DeviceExecutionHost = {
-  ui: 'desktop',
-  remoteName: undefined,
-  execution: 'local',
-  secretLocation: 'execution-host',
+function processUserId(): number | undefined {
+  return typeof process.getuid === 'function' ? process.getuid() : undefined
 }
 
-async function assertJournalOwner(directory: string, platform: NodeJS.Platform): Promise<void> {
+async function assertJournalOwner(
+  directory: string,
+  platform: NodeJS.Platform,
+  userId: () => number | undefined,
+): Promise<void> {
   if (platform === 'win32') return
-  if (typeof process.getuid !== 'function') throw new DevicePairingError('storage')
+  const uid = userId()
+  if (uid === undefined) throw new DevicePairingError('storage')
   const ownership = await stat(directory)
-  if (ownership.uid !== process.getuid()) throw new DevicePairingError('storage')
+  if (ownership.uid !== uid) throw new DevicePairingError('storage')
 }
 
 /**
- * Binds every production authority W owns: the pairing store (opened or
- * created once), the attempt journal with a real owner check, SecretStorage
- * secrets on the local host and Windows storage protection. Construction
- * grants no listener or execution; the tab supplies snapshot/publish/report
- * and K supplies its ports with the worker driver.
+ * Creates the private Devices folder, with any missing parent, owner-only
+ * (`0700` where POSIX modes apply). Reports whether this call created it, so
+ * Windows claims only a folder this process made; an existing folder is
+ * checked by the store and journal, never repaired.
+ */
+async function didCreateDevicesDirectory(directory: string): Promise<boolean> {
+  try {
+    return (await mkdir(directory, { recursive: true, mode: Number('0o700') })) !== undefined
+  } catch {
+    throw new DevicePairingError('storage')
+  }
+}
+
+/**
+ * Binds every production authority W owns: the private Devices folder, the
+ * pairing store (opened or created once), the attempt journal with a real
+ * owner check, SecretStorage secrets on the qualified host and Windows
+ * storage protection. Construction grants no listener or execution; the tab
+ * supplies snapshot/publish/report and K supplies its ports with the worker
+ * driver. Whatever it opened is closed again if any later step fails.
  */
 export async function openDeviceProductionDeps(
   bundle: DeviceProductionBundle,
   context: DeviceProductionContext,
   ports: DeviceLanePorts,
 ): Promise<DeviceProductionDeps> {
+  // D80: Remote SSH/Tunnels, WSL, containers, web and headless hosts wait for
+  // their own host/key-location qualification. Refuse before any storage.
+  assertLocalDeviceHost(context.host)
   const platform = context.platform ?? process.platform
   const now = context.now ?? Date.now
+  const userId = context.userId ?? processUserId
   const randomId =
     context.randomId ?? (() => randomBytes(DEVICE_LIMITS.idChars / 2).toString('hex'))
-  const owned: (() => void)[] = []
-  const scope = {
-    own(dispose: () => void): void {
-      owned.push(dispose)
-    },
+  // Released last-in first-out: the store's close still needs the helper.
+  const owned: (() => Promise<void> | void)[] = []
+  const release = async (): Promise<void> => {
+    for (const dispose of owned.splice(0).toReversed()) {
+      try {
+        await dispose()
+      } catch {
+        context.log.error('Devices storage cleanup failed')
+      }
+    }
   }
   try {
+    const isFresh = await didCreateDevicesDirectory(context.storageDirectory)
     // Windows storage protection rides this preparation's scope; other
     // platforms use POSIX owner/mode checks and directory fsync. A missing
     // system root refuses explicitly before any helper starts.
@@ -194,21 +232,26 @@ export async function openDeviceProductionDeps(
         systemRoot: context.systemRoot,
         extensionPath: context.extensionPath,
       })
-      scope.own(binding.dispose)
+      owned.push(binding.dispose)
       protection = binding.protection
+      // Windows has no mode bits: the folder this call created gets its
+      // protected owner-only ACL before the journal requires one.
+      if (isFresh) await protection.secureFresh(context.storageDirectory, true)
     }
     const pairingDirectory = path.join(context.storageDirectory, 'pairing')
-    let store
+    let store: DeviceStore
     try {
       store = await bundle.DeviceStore.open(pairingDirectory, protection, platform)
     } catch {
       // First provisioning claims the directory; an existing (including
-      // damaged) store refuses the create below instead of resetting.
+      // damaged or still locked) store refuses the create below instead of
+      // resetting.
       store = await bundle.DeviceStore.create(pairingDirectory, randomId(), protection, platform)
     }
+    owned.push(() => store.close())
     const journalDirectory = path.join(context.storageDirectory, 'attempts')
     const owner: AttemptJournalOwner = {
-      assertOwner: () => assertJournalOwner(context.storageDirectory, platform),
+      assertOwner: () => assertJournalOwner(context.storageDirectory, platform, userId),
     }
     let journal
     try {
@@ -216,11 +259,11 @@ export async function openDeviceProductionDeps(
     } catch {
       journal = await bundle.AttemptJournal.open(journalDirectory, owner, protection, platform)
     }
-    const secrets = new bundle.DeviceSecrets(context.secrets, localHost)
+    const secrets = new bundle.DeviceSecrets(context.secrets, context.host)
     return {
       store,
       secrets,
-      host: localHost,
+      host: context.host,
       now,
       receiverIncarnationId: randomId(),
       setup: ports.setup,
@@ -229,12 +272,10 @@ export async function openDeviceProductionDeps(
       execution: ports.execution,
       policy: ports.policy,
       source: ports.source,
-      dispose(): void {
-        for (const dispose of owned.splice(0)) dispose()
-      },
+      dispose: release,
     }
   } catch (error) {
-    for (const dispose of owned.splice(0)) dispose()
+    await release()
     throw error
   }
 }

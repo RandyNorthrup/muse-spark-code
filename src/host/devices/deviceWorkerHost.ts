@@ -107,6 +107,8 @@ export interface DeviceWorkerDriver {
  * command/reservation wiring. Every factory is lazy so selecting a platform
  * never loads another platform's driver (and never spawns); selecting an
  * unsupported OS refuses with typed `unsupported-host` before any spawn.
+ * A factory whose driver names another platform refuses the same way: one
+ * OS's containment never stands in for another's.
  */
 export async function selectDeviceWorkerDriver(
   platform: NodeJS.Platform,
@@ -116,10 +118,26 @@ export async function selectDeviceWorkerDriver(
     linux(): DeviceWorkerDriver | Promise<DeviceWorkerDriver>
   },
 ): Promise<DeviceWorkerDriver> {
-  if (platform === 'darwin') return await factories.darwin()
-  if (platform === 'win32') return await factories.win32()
-  if (platform === 'linux') return await factories.linux()
-  throw new DeviceWorkerHostError('helper')
+  let driver: DeviceWorkerDriver
+  switch (platform) {
+    case 'darwin': {
+      driver = await factories.darwin()
+      break
+    }
+    case 'win32': {
+      driver = await factories.win32()
+      break
+    }
+    case 'linux': {
+      driver = await factories.linux()
+      break
+    }
+    default: {
+      throw new DeviceWorkerHostError('helper')
+    }
+  }
+  if (driver.platform !== platform) throw new DeviceWorkerHostError('helper')
+  return driver
 }
 export interface DeviceWorkerReservation {
   readonly usage: DeviceLocalAttempt['usage']

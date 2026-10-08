@@ -212,8 +212,7 @@ import { permissionSettingsOf, readSettings, toSettingsSnapshot } from './host/s
 import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvider'
 import { openChatPanel, restoreChatPanel } from './host/views/chatPanel'
 import { TasksPanel } from './host/views/tasksPanel'
-import { deviceMethods } from './host/devices/deviceBundle'
-import { DevicesPanelTab } from './host/views/devicesPanelTab'
+import { deviceExecutionHost, devicesWindow } from './host/views/devicesPanelTab'
 import { DEVICES_BUNDLE_FILE, DEVICES_STORAGE_DIR } from './shared/constants'
 import { SurfaceRegistry } from './host/views/surfaceRegistry'
 import type { ChatSurface } from './host/views/chatSurface'
@@ -3804,47 +3803,30 @@ async function activateWindow(
   void paid.gate.review().catch(logRejection(log, 'paid feature review'))
   // M100 phase 2 (lane W): the production Devices tab and its lazy service.
   // Opening the tab loads no bundle; the first Devices host message loads
-  // dist/devices.js with the production authorities below. Lane K binds
-  // execution, approval policy, the channel source and the listener facts
-  // after its owner-validity check; until then those actions refuse
-  // explicitly instead of succeeding without an owner check.
-  let devicesTab: DevicesPanelTab | undefined
-  const deviceService = deviceMethods({
+  // dist/devices.js with the production authorities. The window's
+  // subscriptions own both, so deactivation closes the tab and revokes or
+  // ends the service with its store and storage helper. The host facts are
+  // the editor's own (D80): a remote, web or headless host refuses.
+  const devices = devicesWindow({
+    hostContext,
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', DEVICES_BUNDLE_FILE).fsPath,
     log,
-    dependencies: async (bundle, scope) => {
-      const tab = devicesTab
-      if (tab === undefined) throw new Error('devices-tab-unavailable')
-      const deps = await bundle.openDeviceProductionDeps(
-        bundle,
-        {
-          storageDirectory: path.join(context.globalStorageUri.fsPath, DEVICES_STORAGE_DIR),
-          helperDirectory: path.join(
-            context.globalStorageUri.fsPath,
-            DEVICES_STORAGE_DIR,
-            'helper',
-          ),
-          systemRoot: process.env['SystemRoot'],
-          extensionPath: context.extensionPath,
-          secrets: context.secrets,
-          log,
-        },
-        bundle.unboundDeviceLanePorts(log),
-      )
-      scope.own(deps.dispose)
-      return {
-        ...deps,
-        snapshot: () => Promise.resolve({ enabled: false as const }),
-        publish: (message) => {
-          tab.publish(message)
-        },
-        report: (reason) => {
-          log.error(`Devices report: ${reason}`)
-        },
-      }
+    production: {
+      storageDirectory: path.join(context.globalStorageUri.fsPath, DEVICES_STORAGE_DIR),
+      helperDirectory: path.join(context.globalStorageUri.fsPath, DEVICES_STORAGE_DIR, 'helper'),
+      systemRoot: process.env['SystemRoot'],
+      extensionPath: context.extensionPath,
+      secrets: context.secrets,
+      host: deviceExecutionHost({
+        uiKind: vscode.env.uiKind === vscode.UIKind.Web ? 'web' : 'desktop',
+        remoteName: vscode.env.remoteName,
+        extensionKind:
+          context.extension.extensionKind === vscode.ExtensionKind.UI ? 'ui' : 'workspace',
+      }),
     },
   })
   context.subscriptions.push(
+    devices,
     { dispose: paid.gate.onDidChange(broadcastPaidState) },
     { dispose: paid.consent.onDidChange(broadcastPaidState) },
     { dispose: paid.usage.onDidChange(broadcastPaidState) },
@@ -4035,6 +4017,9 @@ async function activateWindow(
         return Promise.resolve()
       },
     }),
+    registerLoggedCommand(log, COMMAND_IDS.openInNewTab, () => {
+      openChatPanel(hostContext, registry)
+    }),
     registerLoggedCommand(log, 'museSpark.openUsagePage', openUsagePage),
     registerLoggedCommand(
       log,
@@ -4044,14 +4029,7 @@ async function activateWindow(
       }),
     ),
     registerLoggedCommand(log, COMMAND_IDS.openDevices, () => {
-      devicesTab ??= new DevicesPanelTab(
-        hostContext,
-        () => deviceService.service(),
-        () => {
-          devicesTab = undefined
-        },
-      )
-      devicesTab.open()
+      devices.open()
     }),
     registerLoggedCommand(log, COMMAND_IDS.newConversation, async () => {
       const surface = registry.active

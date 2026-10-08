@@ -4185,7 +4185,7 @@
   "referenceNewTab": "Otwórz nową rozmowę Muse Spark w karcie edytora.",
   "referenceFocus": "Przenieś fokus między polem czatu a edytorem.",
   "referenceTasks": "Otwórz zadania tej rozmowy w osobnej karcie edytora.",
-  "referenceDevices": "Open the Devices tab to link this editor with your other devices.",
+  "referenceDevices": "Otwórz kartę Urządzenia, aby połączyć ten edytor z innymi urządzeniami.",
   "referenceDiagnostics": "Pokaż lokalną diagnostykę backendu i rozszerzenia.",
   "referenceReport": "Wyświetl oczyszczony raport przed zapisaniem lub wysłaniem.",
   "referenceTerminal": "Otwórz CLI Muse Code w terminalu edytora.",

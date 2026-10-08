@@ -88,8 +88,7 @@
       "teamTemplates.solo",
       "teamCapabilityWarning",
       "devices.cpuPressure",
-      "devices.diskPressure",
-      "referenceDevices"
+      "devices.diskPressure"
     ],
     "tr": [
       "groupModel",
@@ -103,8 +102,7 @@
       "teamTemplates.solo",
       "teamCapabilityWarning",
       "devices.cpuPressure",
-      "devices.diskPressure",
-      "referenceDevices"
+      "devices.diskPressure"
     ],
     "pl": [
       "groupModel",
@@ -127,8 +125,7 @@
       "usageLimit",
       "teamTemplates.solo",
       "teamCapabilityWarning",
-      "devices.cpuPressure",
-      "referenceDevices"
+      "devices.cpuPressure"
     ],
     "de": [
       "groupSkills",
@@ -174,8 +171,7 @@
       "teamOrchestrator",
       "teamUsageTitle",
       "devices.grantRepository",
-      "devices.cpuPressure",
-      "referenceDevices"
+      "devices.cpuPressure"
     ],
     "es": [
       "hooksItem",
@@ -193,8 +189,7 @@
       "teamSetupSteps.pools",
       "teamCapabilityWarning",
       "teamUsageTokens",
-      "devices.cpuPressure",
-      "referenceDevices"
+      "devices.cpuPressure"
     ],
     "pt-br": [
       "agentTokens",
@@ -210,8 +205,7 @@
       "teamSetupSteps.pools",
       "teamCapabilityWarning",
       "teamUsageTokens",
-      "devices.cpuPressure",
-      "referenceDevices"
+      "devices.cpuPressure"
     ],
     "fr": [
       "modesTitle",
@@ -240,8 +234,7 @@
       "teamSetupSteps.pools",
       "teamTemplateSolo",
       "teamIntensityLevels.minimal",
-      "devices.grantQuota",
-      "referenceDevices"
+      "devices.grantQuota"
     ],
     "it": [
       "usageAccount",
@@ -262,12 +255,11 @@
       "teamUsageTitle",
       "devices.grantRepository",
       "devices.grantQuota",
-      "devices.cpuPressure",
-      "referenceDevices"
+      "devices.cpuPressure"
     ],
-    "zh-cn": ["toolLabels.shell", "devices.cpuPressure", "referenceDevices"],
-    "zh-tw": ["toolLabels.shell", "devices.cpuPressure", "referenceDevices"],
-    "ja": ["devices.cpuPressure", "referenceDevices"],
+    "zh-cn": ["toolLabels.shell", "devices.cpuPressure"],
+    "zh-tw": ["toolLabels.shell", "devices.cpuPressure"],
+    "ja": ["devices.cpuPressure"],
     "hu": [
       "toolLabels.shell",
       "imageBuyPrompt",
@@ -276,28 +268,19 @@
       "usageLimit",
       "teamIntensityLevels.max",
       "teamCapabilityWarning",
-      "devices.cpuPressure",
-      "referenceDevices"
+      "devices.cpuPressure"
     ],
-    "ko": ["gitChangeCounts", "teamCapabilityWarning", "devices.cpuPressure", "referenceDevices"],
-    "ru": ["gitChangeCounts", "teamCapabilityWarning", "devices.cpuPressure", "referenceDevices"]
+    "ko": ["gitChangeCounts", "teamCapabilityWarning", "devices.cpuPressure"],
+    "ru": ["gitChangeCounts", "teamCapabilityWarning", "devices.cpuPressure"]
   },
   "manifest": {
     "*": ["viewsContainers.museSpark.title", "command.category", "config.title"],
-    "cs": ["views.chatView.name", "command.openDevices.title"],
-    "de": ["views.chatView.name", "command.hooks.title", "command.openDevices.title"],
-    "es": ["views.chatView.name", "command.hooks.title", "command.openDevices.title"],
-    "pt-br": ["views.chatView.name", "command.openDevices.title"],
-    "fr": ["command.hooks.title", "command.openDevices.title"],
-    "it": ["views.chatView.name", "command.openDevices.title"],
-    "zh-cn": ["command.openDevices.title"],
-    "zh-tw": ["command.openDevices.title"],
-    "ja": ["command.openDevices.title"],
-    "ko": ["command.openDevices.title"],
-    "ru": ["command.openDevices.title"],
-    "tr": ["command.openDevices.title"],
-    "pl": ["command.openDevices.title"],
-    "hu": ["command.openDevices.title"]
+    "cs": ["views.chatView.name"],
+    "de": ["views.chatView.name", "command.hooks.title"],
+    "es": ["views.chatView.name", "command.hooks.title"],
+    "pt-br": ["views.chatView.name"],
+    "fr": ["command.hooks.title"],
+    "it": ["views.chatView.name"]
   },
   "usage": {
     "*": ["chartBucket"],

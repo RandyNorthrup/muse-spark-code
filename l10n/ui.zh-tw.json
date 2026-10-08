@@ -3756,7 +3756,7 @@
   "referenceNewTab": "在編輯器分頁中開啟新的 Muse Spark 對話。",
   "referenceFocus": "在聊天輸入框和編輯器之間切換鍵盤焦點。",
   "referenceTasks": "在獨立的編輯器分頁中開啟此對話的工作清單。",
-  "referenceDevices": "Open the Devices tab to link this editor with your other devices.",
+  "referenceDevices": "開啟「裝置」分頁，將此編輯器與您的其他裝置連結。",
   "referenceDiagnostics": "顯示本機後端和擴充功能的診斷資訊。",
   "referenceReport": "儲存或傳送前預覽已清理的問題報告。",
   "referenceTerminal": "在編輯器終端機中開啟 Muse Code CLI。",

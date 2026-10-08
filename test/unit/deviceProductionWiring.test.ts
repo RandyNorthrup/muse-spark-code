@@ -3,7 +3,8 @@
 // store layout, SecretStorage secrets, journal ownership and the unified
 // driver selection; the tab serves the Devices surface lazily. Each case
 // fails on the join base, where none of these modules exist.
-import { mkdtemp, rm } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { mkdtemp, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -13,14 +14,22 @@ import { deviceCheck, deviceGrant } from './helpers/deviceFixtures'
 import type { DeviceStorageProtection } from '../../src/core/devices/storageProtection'
 import type { AttemptJournalOwner } from '../../src/core/devices/attemptJournal'
 import type { SecretStore } from '../../src/host/auth/credentialStore'
-import type { DeviceExecutionHost } from '../../src/host/devices/deviceSecrets'
+import {
+  assertLocalDeviceHost,
+  type DeviceExecutionHost,
+} from '../../src/host/devices/deviceSecrets'
 import { DEVICES_PANEL_VIEW_TYPE } from '../../src/shared/constants'
-import type { DeviceHostMessage } from '../../src/shared/devicesPanel'
-import { DevicesPanelTab } from '../../src/host/views/devicesPanelTab'
+import { parseDeviceHostMessage, type DeviceHostMessage } from '../../src/shared/devicesPanel'
+import {
+  DevicesPanelTab,
+  deviceExecutionHost,
+  devicesWindow,
+} from '../../src/host/views/devicesPanelTab'
 import {
   openDeviceProductionDeps,
   unboundDeviceLanePorts,
   type DeviceProductionBundle,
+  type DeviceProductionContext,
 } from '../../src/host/devices/deviceProduction'
 import {
   FakeLogOutputChannel,
@@ -34,7 +43,10 @@ vi.mock('vscode', async () => await import('./mocks/vscode'))
 
 interface FakeStoreHandle {
   readonly kind: 'store'
+  close(): Promise<void>
 }
+// Every release this file observes, in order: store closes and helper ends.
+const releases: string[] = []
 const fakeStoreState = {
   opened: [] as string[],
   created: [] as { directory: string; deviceId: string }[],
@@ -46,18 +58,28 @@ function resetFakeStores(): void {
   fakeStoreState.created = []
   fakeStoreState.refuseOpen = true
   fakeStoreState.refuseCreate = false
+  releases.length = 0
+}
+function fakeStoreHandle(): FakeStoreHandle {
+  return {
+    kind: 'store',
+    close: () => {
+      releases.push('store')
+      return Promise.resolve()
+    },
+  }
 }
 const FakeDeviceStore = {
   open(directory: string): Promise<FakeStoreHandle> {
     fakeStoreState.opened.push(directory)
     return fakeStoreState.refuseOpen
       ? Promise.reject(new DevicePairingError('storage'))
-      : Promise.resolve({ kind: 'store' })
+      : Promise.resolve(fakeStoreHandle())
   },
   create(directory: string, deviceId: string): Promise<FakeStoreHandle> {
     if (fakeStoreState.refuseCreate) return Promise.reject(new Error('must not provision twice'))
     fakeStoreState.created.push({ directory, deviceId })
-    return Promise.resolve({ kind: 'store' })
+    return Promise.resolve(fakeStoreHandle())
   },
 }
 
@@ -68,15 +90,18 @@ const fakeJournalState = {
   created: [] as { directory: string; owner: AttemptJournalOwner }[],
   opened: [] as { directory: string; owner: AttemptJournalOwner }[],
   refuseCreate: false,
+  refuseOpen: false,
 }
 function resetFakeJournal(): void {
   fakeJournalState.created = []
   fakeJournalState.opened = []
   fakeJournalState.refuseCreate = false
+  fakeJournalState.refuseOpen = false
 }
 const FakeAttemptJournal = {
   async open(directory: string, owner: AttemptJournalOwner): Promise<FakeJournalHandle> {
     fakeJournalState.opened.push({ directory, owner })
+    if (fakeJournalState.refuseOpen) throw new DevicePairingError('storage')
     await owner.assertOwner()
     return { kind: 'journal' }
   },
@@ -132,6 +157,7 @@ function fakeBundle(options?: {
         protection: binding.protection,
         dispose: () => {
           disposed.count += 1
+          releases.push('helper')
           binding.dispose()
         },
       }
@@ -147,6 +173,21 @@ async function lane(): Promise<string> {
   const directory = await mkdtemp(path.join(tmpdir(), 'm100-w-'))
   lanes.push({ directory })
   return directory
+}
+const localHost: DeviceExecutionHost = deviceExecutionHost({
+  uiKind: 'desktop',
+  remoteName: undefined,
+  extensionKind: 'workspace',
+})
+// The owner probe the journal check compares with: the folder's real owner
+// as this OS's stat reports it, so the check runs on every platform.
+async function ownerOf(directory: string): Promise<number> {
+  const info = await stat(directory)
+  return info.uid
+}
+async function modeOf(directory: string): Promise<number> {
+  const info = await stat(directory)
+  return info.mode & 0o777
 }
 afterAll(async () => {
   for (const { directory } of lanes.splice(0)) await rm(directory, { recursive: true, force: true })
@@ -220,22 +261,30 @@ describe('M100/W production dependencies', () => {
     FakeDeviceSecrets.reset()
   })
 
+  function context(directory: string, overrides: Partial<DeviceProductionContext> = {}) {
+    return {
+      storageDirectory: directory,
+      helperDirectory: path.join(directory, 'helper'),
+      systemRoot: undefined,
+      extensionPath: '/ext',
+      secrets: memorySecrets(),
+      host: localHost,
+      log: new FakeLogOutputChannel(),
+      platform: 'linux' as const,
+      ...overrides,
+    }
+  }
+  const windows = { systemRoot: String.raw`C:\Windows`, platform: 'win32' as const }
+
   it('binds the store layout, secrets and journal ownership', async () => {
     const directory = await lane()
     const log = new FakeLogOutputChannel()
     const secrets = memorySecrets()
     const ports = unboundDeviceLanePorts(log)
+    const uid = await ownerOf(directory)
     const deps = await openDeviceProductionDeps(
       fakeBundle(),
-      {
-        storageDirectory: directory,
-        helperDirectory: path.join(directory, 'helper'),
-        systemRoot: undefined,
-        extensionPath: '/ext',
-        secrets,
-        log,
-        platform: 'linux',
-      },
+      context(directory, { secrets, log, userId: () => uid }),
       ports,
     )
     try {
@@ -256,15 +305,42 @@ describe('M100/W production dependencies', () => {
           },
         },
       ])
+      expect(deps.host).toBe(localHost)
       expect(deps.receiverIncarnationId).toMatch(/^[a-f0-9]{32}$/)
       expect(deps.setup).toBe(ports.setup)
       expect(deps.otherAction).toBe(ports.otherAction)
       expect(deps.execution).toBe(ports.execution)
       expect(deps.policy).toBe(ports.policy)
       expect(deps.source).toBe(ports.source)
+      // The journal's owner check compares the folder's owner with this process.
+      await expect(fakeJournalState.created[0]?.owner.assertOwner()).resolves.toBeUndefined()
     } finally {
-      deps.dispose()
+      await deps.dispose()
     }
+  })
+
+  it('refuses a journal folder another user owns, and closes the store it opened', async () => {
+    const directory = await lane()
+    const uid = await ownerOf(directory)
+    await expect(
+      openDeviceProductionDeps(
+        fakeBundle(),
+        context(directory, { userId: () => uid + 1 }),
+        unbound(),
+      ),
+    ).rejects.toMatchObject({ reason: 'storage' })
+    // Both the first provisioning and the reopen ran the owner check and refused.
+    expect(fakeJournalState.created).toHaveLength(1)
+    expect(fakeJournalState.opened).toHaveLength(1)
+    expect(releases).toEqual(['store'])
+    await expect(
+      openDeviceProductionDeps(
+        fakeBundle(),
+        context(directory, { userId: () => undefined }),
+        unbound(),
+      ),
+    ).rejects.toMatchObject({ reason: 'storage' })
+    expect(releases).toEqual(['store', 'store'])
   })
 
   it('reopens an existing store and journal instead of provisioning again', async () => {
@@ -272,24 +348,18 @@ describe('M100/W production dependencies', () => {
     fakeStoreState.refuseOpen = false
     fakeStoreState.refuseCreate = true
     fakeJournalState.refuseCreate = true
+    const uid = await ownerOf(directory)
     const deps = await openDeviceProductionDeps(
       fakeBundle(),
-      {
-        storageDirectory: directory,
-        helperDirectory: path.join(directory, 'helper'),
-        systemRoot: undefined,
-        extensionPath: '/ext',
-        secrets: memorySecrets(),
-        log: new FakeLogOutputChannel(),
-        platform: 'linux',
-      },
-      unboundDeviceLanePorts(new FakeLogOutputChannel()),
+      context(directory, { userId: () => uid }),
+      unbound(),
     )
-    deps.dispose()
+    await deps.dispose()
     expect(fakeStoreState.opened).toHaveLength(1)
     expect(fakeStoreState.created).toHaveLength(0)
     expect(fakeJournalState.opened).toHaveLength(1)
     expect(fakeJournalState.created).toHaveLength(0)
+    expect(releases).toEqual(['store'])
   })
 
   it('starts Windows storage protection with the helper directory and releases it', async () => {
@@ -302,16 +372,8 @@ describe('M100/W production dependencies', () => {
         helper: () => Promise.resolve({ protection: undefined, dispose: releaseFakeHelper }),
         disposed,
       }),
-      {
-        storageDirectory: directory,
-        helperDirectory: path.join(directory, 'helper'),
-        systemRoot: String.raw`C:\Windows`,
-        extensionPath: '/ext',
-        secrets: memorySecrets(),
-        log: new FakeLogOutputChannel(),
-        platform: 'win32',
-      },
-      unboundDeviceLanePorts(new FakeLogOutputChannel()),
+      context(directory, windows),
+      unbound(),
     )
     expect(helperCalls).toEqual([
       {
@@ -320,8 +382,31 @@ describe('M100/W production dependencies', () => {
         extensionPath: '/ext',
       },
     ])
-    deps.dispose()
+    await deps.dispose()
     expect(disposed.count).toBe(1)
+    // The store closes first: its lock release still syncs through the helper.
+    expect(releases).toEqual(['store', 'helper'])
+    await deps.dispose()
+    expect(releases).toEqual(['store', 'helper'])
+  })
+
+  it('closes the opened store, then ends the helper, when the journal fails', async () => {
+    const directory = await lane()
+    fakeJournalState.refuseCreate = true
+    fakeJournalState.refuseOpen = true
+    const disposed = { count: 0 }
+    await expect(
+      openDeviceProductionDeps(
+        fakeBundle({
+          helper: () => Promise.resolve({ protection: undefined, dispose: releaseFakeHelper }),
+          disposed,
+        }),
+        context(directory, { ...windows, userId: () => undefined }),
+        unbound(),
+      ),
+    ).rejects.toMatchObject({ reason: 'storage' })
+    expect(disposed.count).toBe(1)
+    expect(releases).toEqual(['store', 'helper'])
   })
 
   it('refuses Windows storage without a system root before any helper starts', async () => {
@@ -330,21 +415,105 @@ describe('M100/W production dependencies', () => {
     await expect(
       openDeviceProductionDeps(
         fakeBundle({ helperCalls }),
-        {
-          storageDirectory: directory,
-          helperDirectory: path.join(directory, 'helper'),
-          systemRoot: undefined,
-          extensionPath: '/ext',
-          secrets: memorySecrets(),
-          log: new FakeLogOutputChannel(),
-          platform: 'win32',
-        },
-        unboundDeviceLanePorts(new FakeLogOutputChannel()),
+        context(directory, { platform: 'win32' }),
+        unbound(),
       ),
     ).rejects.toMatchObject({ reason: 'storage' })
     expect(helperCalls).toHaveLength(0)
   })
+
+  it.each([
+    ['Remote SSH', 'ssh-remote'],
+    ['WSL', 'wsl'],
+    ['a dev container', 'dev-container'],
+    ['a tunnel', 'tunnel'],
+  ])('refuses %s hosts before touching storage (D80)', async (_name, remoteName) => {
+    const parent = await lane()
+    const directory = path.join(parent, 'devices')
+    const helperCalls: { directory: string; systemRoot: string; extensionPath: string }[] = []
+    const host = deviceExecutionHost({ uiKind: 'desktop', remoteName, extensionKind: 'workspace' })
+    expect(host).toEqual({
+      ui: 'desktop',
+      remoteName,
+      execution: 'remote',
+      secretLocation: 'client',
+    })
+    await expect(
+      openDeviceProductionDeps(
+        fakeBundle({ helperCalls }),
+        context(directory, { ...windows, host }),
+        unbound(),
+      ),
+    ).rejects.toMatchObject({ reason: 'unsupported-host' })
+    expect(existsSync(directory)).toBe(false)
+    expect(helperCalls).toHaveLength(0)
+    expect(fakeStoreState.opened).toHaveLength(0)
+    expect(FakeDeviceSecrets.built).toHaveLength(0)
+  })
+
+  it('qualifies only a local desktop extension host', () => {
+    expect(() => {
+      assertLocalDeviceHost(localHost)
+    }).not.toThrow()
+    for (const facts of [
+      { uiKind: 'web', remoteName: undefined, extensionKind: 'workspace' },
+      { uiKind: 'desktop', remoteName: 'ssh-remote', extensionKind: 'ui' },
+      { uiKind: 'web', remoteName: 'codespaces', extensionKind: 'workspace' },
+    ] as const) {
+      expect(() => {
+        assertLocalDeviceHost(deviceExecutionHost(facts))
+      }).toThrow(DevicePairingError)
+    }
+  })
+
+  it('provisions a missing private Devices folder before the store and journal', async () => {
+    const parent = await lane()
+    const directory = path.join(parent, 'globalStorage', 'devices')
+    const uid = await ownerOf(parent)
+    const deps = await openDeviceProductionDeps(
+      fakeBundle(),
+      context(directory, { userId: () => uid }),
+      unbound(),
+    )
+    await deps.dispose()
+    expect(existsSync(directory)).toBe(true)
+    if (process.platform !== 'win32') {
+      expect(await modeOf(directory)).toBe(0o700)
+      expect(await modeOf(path.dirname(directory))).toBe(0o700)
+    }
+    expect(fakeStoreState.created[0]?.directory).toBe(path.join(directory, 'pairing'))
+  })
+
+  it('claims only a Windows Devices folder this call created', async () => {
+    const parent = await lane()
+    const directory = path.join(parent, 'devices')
+    const claimed: string[] = []
+    // Only the claim is observed; the fake store and journal use no binding.
+    const protection: DeviceStorageProtection = {
+      assertPrivate: () => Promise.resolve(),
+      assertSafeAncestor: () => Promise.resolve(),
+      secureFresh: (file) => {
+        claimed.push(file)
+        return Promise.resolve()
+      },
+      replace: () => Promise.resolve(),
+      syncDirectory: () => Promise.resolve(),
+    }
+    const bundle = fakeBundle({
+      helper: () => Promise.resolve({ protection, dispose: releaseFakeHelper }),
+    })
+    const first = await openDeviceProductionDeps(bundle, context(directory, windows), unbound())
+    await first.dispose()
+    expect(claimed).toEqual([directory])
+    const second = await openDeviceProductionDeps(bundle, context(directory, windows), unbound())
+    await second.dispose()
+    expect(claimed).toEqual([directory])
+  })
 })
+
+function unbound() {
+  return unboundDeviceLanePorts(new FakeLogOutputChannel())
+}
 
 describe('M100/W Devices panel tab', () => {
   beforeEach(() => {
@@ -437,5 +606,198 @@ describe('M100/W Devices panel tab', () => {
     panel.dispose()
     expect(disposed).toHaveBeenCalledOnce()
     tab.dispose()
+  })
+})
+
+function openRefusing(error: Error) {
+  const service = vi.fn(() => Promise.reject(error))
+  const context = fakeHostContext()
+  const tab = new DevicesPanelTab(context, service)
+  tab.open()
+  const panel = fakeWindow.createWebviewPanel.mock.results.at(-1)?.value
+  if (!(panel instanceof FakeWebviewPanel)) throw new TypeError('expected fake panel')
+  return { tab, panel, service, context }
+}
+
+describe('M100/W Devices tab when the service cannot open', () => {
+  beforeEach(() => {
+    fakeWindow.createWebviewPanel.mockReset()
+    fakeWindow.createWebviewPanel.mockImplementation(
+      (type, title) => new FakeWebviewPanel(type, title),
+    )
+  })
+  const viewId = 'a'.repeat(32)
+  const pair = (requestId: string, revision: number) => ({
+    type: 'deviceRequest',
+    viewId,
+    requestId,
+    revision,
+    action: { kind: 'pair' },
+  })
+
+  it('answers the request with its typed refusal, correlated, then keeps answering locally', async () => {
+    const { panel, service } = openRefusing(new DevicePairingError('unsupported-host'))
+    panel.webview.messages.fire({ type: 'devicesReady' })
+    await vi.waitFor(() => {
+      expect(service).toHaveBeenCalledOnce()
+    })
+    // No observation exists, so ready leaves the document's own off state.
+    expect(panel.webview.postMessage).not.toHaveBeenCalled()
+    panel.webview.messages.fire(pair('b'.repeat(32), 0))
+    await vi.waitFor(() => {
+      expect(panel.webview.postMessage).toHaveBeenCalledOnce()
+    })
+    const refusal: unknown = vi.mocked(panel.webview.postMessage).mock.calls[0]?.[0]
+    expect(refusal).toEqual({
+      type: 'deviceState',
+      revision: 1,
+      state: { enabled: false },
+      setup: { viewId, requestId: 'b'.repeat(32), failure: 'unsupported-host' },
+    })
+    expect(parseDeviceHostMessage(refusal).ok).toBe(true)
+    // The document's revisions are now this tab's: the next request is answered here.
+    panel.webview.messages.fire(pair('c'.repeat(32), 1))
+    await vi.waitFor(() => {
+      expect(panel.webview.postMessage).toHaveBeenCalledTimes(2)
+    })
+    expect(vi.mocked(panel.webview.postMessage).mock.calls[1]?.[0]).toMatchObject({
+      revision: 2,
+      setup: { requestId: 'c'.repeat(32), failure: 'unsupported-host' },
+    })
+    expect(service).toHaveBeenCalledTimes(2)
+  })
+
+  it('answers unusable storage as storage and logs an untyped failure without a reply', async () => {
+    const storage = openRefusing(new DevicePairingError('storage'))
+    storage.panel.webview.messages.fire({ type: 'devicesReady' })
+    storage.panel.webview.messages.fire(pair('d'.repeat(32), 0))
+    await vi.waitFor(() => {
+      expect(storage.panel.webview.postMessage).toHaveBeenCalledOnce()
+    })
+    expect(vi.mocked(storage.panel.webview.postMessage).mock.calls[0]?.[0]).toMatchObject({
+      setup: { failure: 'storage' },
+    })
+    const untyped = openRefusing(new Error('bundle-unavailable-sentinel'))
+    untyped.panel.webview.messages.fire({ type: 'devicesReady' })
+    untyped.panel.webview.messages.fire(pair('e'.repeat(32), 0))
+    await vi.waitFor(() => {
+      expect(untyped.context.log.error).toHaveBeenCalledTimes(2)
+    })
+    expect(untyped.panel.webview.postMessage).not.toHaveBeenCalled()
+  })
+})
+
+function production(directory: string) {
+  return {
+    storageDirectory: directory,
+    helperDirectory: path.join(directory, 'helper'),
+    systemRoot: undefined,
+    extensionPath: '/ext',
+    secrets: memorySecrets(),
+    host: localHost,
+  }
+}
+
+describe('M100/W window-owned Devices service', () => {
+  beforeEach(() => {
+    fakeWindow.createWebviewPanel.mockReset()
+    fakeWindow.createWebviewPanel.mockImplementation(
+      (type, title) => new FakeWebviewPanel(type, title),
+    )
+  })
+
+  function windowBundle(prepare: () => Promise<unknown>) {
+    const ended = { deps: 0, service: 0 }
+    const service = {
+      request: vi.fn(() => Promise.resolve(readyState)),
+      dispose: vi.fn(() => {
+        ended.service += 1
+      }),
+    }
+    const bundle = {
+      createDeviceService: vi.fn(() => Promise.resolve(service)),
+      DeviceStore: vi.fn(),
+      DeviceSecrets: vi.fn(),
+      AttemptJournal: vi.fn(),
+      DeviceDiscovery: vi.fn(),
+      startWindowsStorageProtection: vi.fn(),
+      unboundDeviceLanePorts: vi.fn(() => ({})),
+      openDeviceProductionDeps: vi.fn(async () => {
+        await prepare()
+        return {
+          dispose: () => {
+            ended.deps += 1
+            return Promise.resolve()
+          },
+        }
+      }),
+    }
+    return { bundle, service, ended }
+  }
+  const readyState: DeviceHostMessage = {
+    type: 'deviceState',
+    revision: 1,
+    state: { enabled: false },
+  }
+
+  it('revokes a preparation still in flight when the window ends', async () => {
+    const held: { release?: () => void } = {}
+    const started = Promise.withResolvers<undefined>()
+    const { bundle, ended } = windowBundle(
+      () =>
+        new Promise<void>((resolve) => {
+          held.release = resolve
+          started.resolve(undefined)
+        }),
+    )
+    const devices = devicesWindow({
+      hostContext: fakeHostContext(),
+      bundlePath: 'devices.js',
+      log: new FakeLogOutputChannel(),
+      production: production(await lane()),
+      loadBundle: () => bundle,
+    })
+    devices.open()
+    const panel = fakeWindow.createWebviewPanel.mock.results.at(-1)?.value
+    if (!(panel instanceof FakeWebviewPanel)) throw new TypeError('expected fake panel')
+    const closed = vi.fn()
+    panel.onDidDispose(closed)
+    panel.webview.messages.fire({ type: 'devicesReady' })
+    await started.promise
+    devices.dispose()
+    expect(closed).toHaveBeenCalledOnce()
+    held.release?.()
+    await vi.waitFor(() => {
+      expect(ended.deps).toBe(1)
+    })
+    expect(bundle.createDeviceService).not.toHaveBeenCalled()
+  })
+
+  it('ends a bound service with its storage when the window ends', async () => {
+    const { bundle, service, ended } = windowBundle(() => Promise.resolve())
+    const devices = devicesWindow({
+      hostContext: fakeHostContext(),
+      bundlePath: 'devices.js',
+      log: new FakeLogOutputChannel(),
+      production: production(await lane()),
+      loadBundle: () => bundle,
+    })
+    devices.open()
+    const panel = fakeWindow.createWebviewPanel.mock.results.at(-1)?.value
+    if (!(panel instanceof FakeWebviewPanel)) throw new TypeError('expected fake panel')
+    const closed = vi.fn()
+    panel.onDidDispose(closed)
+    panel.webview.messages.fire({ type: 'devicesReady' })
+    await vi.waitFor(() => {
+      expect(service.request).toHaveBeenCalledOnce()
+    })
+    expect(bundle.openDeviceProductionDeps).toHaveBeenCalledWith(
+      bundle,
+      expect.objectContaining({ host: localHost }),
+      {},
+    )
+    devices.dispose()
+    expect(ended).toEqual({ deps: 1, service: 1 })
+    expect(closed).toHaveBeenCalledOnce()
   })
 })

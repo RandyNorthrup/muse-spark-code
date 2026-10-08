@@ -276,6 +276,10 @@ function heldBundle(factory: () => Promise<{ dispose: () => void }>) {
     AttemptJournal: vi.fn(),
     DeviceDiscovery: vi.fn(),
     startWindowsStorageProtection,
+    // The production builder's exports complete the bundle's shape; these
+    // seam cases prepare through their own dependencies callback.
+    openDeviceProductionDeps: vi.fn(),
+    unboundDeviceLanePorts: vi.fn(),
   }
   return { bundle, bindings }
 }
@@ -320,6 +324,8 @@ describe('the Devices bundle storage seam', () => {
       AttemptJournal: vi.fn(),
       DeviceDiscovery: vi.fn(),
       startWindowsStorageProtection,
+      openDeviceProductionDeps: vi.fn(),
+      unboundDeviceLanePorts: vi.fn(),
     }
     const options = {
       helperDirectory: path.resolve('helpers'),

@@ -3756,7 +3756,7 @@
   "referenceNewTab": "エディターのタブで新しい Muse Spark の会話を開きます。",
   "referenceFocus": "チャット入力とエディターの間でフォーカスを移動します。",
   "referenceTasks": "この会話のタスク一覧を別のエディタータブで開きます。",
-  "referenceDevices": "Open the Devices tab to link this editor with your other devices.",
+  "referenceDevices": "［デバイス］タブを開き、このエディターをほかのデバイスとリンクします。",
   "referenceDiagnostics": "ローカルのバックエンドと拡張機能の診断を表示します。",
   "referenceReport": "保存または送信する前に、機密情報を除去した問題レポートを確認します。",
   "referenceTerminal": "エディターのターミナルで Muse Code CLI を開きます。",

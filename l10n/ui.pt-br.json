@@ -4042,7 +4042,7 @@
   "referenceNewTab": "Abrir uma nova conversa do Muse Spark em uma aba do editor.",
   "referenceFocus": "Mover o foco entre a entrada do chat e o editor.",
   "referenceTasks": "Abrir as tarefas desta conversa em outra aba do editor.",
-  "referenceDevices": "Open the Devices tab to link this editor with your other devices.",
+  "referenceDevices": "Abrir a aba Dispositivos para vincular este editor aos seus outros dispositivos.",
   "referenceDiagnostics": "Exibir o diagnóstico local do backend e da extensão.",
   "referenceReport": "Revisar um relatório sanitizado antes de salvá-lo ou enviá-lo.",
   "referenceTerminal": "Abrir a CLI do Muse Code no terminal do editor.",

@@ -6,6 +6,7 @@ import { deviceWorkerLinux } from '../../src/host/backend/deviceWorkerLinux'
 import {
   selectDeviceWorkerDriver,
   DeviceWorkerHost,
+  DeviceWorkerHostError,
   type DeviceWorkerJob,
 } from '../../src/host/devices/deviceWorkerHost'
 import { workerEnvironment } from '../../src/core/team/refFence'
@@ -489,6 +490,32 @@ describe('M100/H Linux platform port (fake manager/cgroup/inhibitor)', () => {
       }),
     ).rejects.toMatchObject({ reason: 'unsupported-host' })
     expect(load).toHaveBeenCalledOnce()
+  })
+  it('refuses a factory whose driver names another platform (RVM100W 14)', async () => {
+    const native = { ...fixture().driver, platform: 'win32' as const }
+    const linuxDriver = deviceWorkerLinux({ environment: {} })
+    const wrong = wrongPlatformFactory
+    // The deleted selector's guard: one OS's driver never stands in for another's.
+    const darwinMismatch = selectDeviceWorkerDriver('darwin', {
+      darwin: () => native,
+      win32: wrong,
+      linux: wrong,
+    })
+    await expect(darwinMismatch).rejects.toBeInstanceOf(DeviceWorkerHostError)
+    await expect(darwinMismatch).rejects.toMatchObject({
+      reason: 'unsupported-host',
+      detail: 'helper',
+    })
+    await expect(
+      selectDeviceWorkerDriver('win32', { darwin: wrong, win32: () => linuxDriver, linux: wrong }),
+    ).rejects.toMatchObject({ reason: 'unsupported-host', detail: 'helper' })
+    await expect(
+      selectDeviceWorkerDriver('linux', {
+        darwin: wrong,
+        win32: wrong,
+        linux: () => Promise.resolve(native),
+      }),
+    ).rejects.toMatchObject({ reason: 'unsupported-host', detail: 'helper' })
   })
 })
 
