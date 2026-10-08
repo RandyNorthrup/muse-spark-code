@@ -514,3 +514,56 @@ rig): the publish and the foreign reset are redesigned, not patched.
   `accountsPanel.a11y` cannot run here: its harness needs loopback
   listening, which this rig's sandbox blocks (`listen EPERM 127.0.0.1`);
   reported, not worked around.
+
+Round 4 (`rel017/devid4`, review RVDEVID017C, worktree on the `macmini`
+rig): the final fixes for the three P2s and one P3.
+
+- **Read-first publish.** `loadDeveloperMachineId`
+  (`src/core/developer/machineId.ts:64`) reads the published id before
+  staging anything and returns it without creating a temp file; it
+  publishes only when the final name is absent or unreadable. Storage
+  that refuses new files (permissions or quota) still loads an existing
+  valid id. Staging failures now remove their temp file on every path
+  (same file): a failed write, fsync or close no longer leaves another
+  claim file behind.
+- **Audit-before-clear foreign reset.** `DeveloperLocalFiles.commit`
+  (`src/runtime/developer/localFiles.ts:173`) still publishes an
+  ordinary revocation when its audit append fails, but never a full
+  `reset` clear: the reset audit row is written before the cleared
+  state, and when the audit write fails the stored state is left
+  unchanged and the failure is reported
+  (`src/core/developer/developerOptions.ts:150`). The store contract
+  (`DeveloperStore`, same file `:17`) records the carve-out.
+- **Honest foreign confirmation.** Foreign reset asks its own
+  `resetForeign` question (`developerOptions.ts:157`,
+  `src/core/developer/surfaces.ts:100`,
+  `src/runtime/providers/runtimeServices.ts:281`), answered by the new
+  `UI_TEXT.developer.foreignResetWarning`
+  (`src/shared/l10n/en.ts:6072`, in all 14 tables): it clears this
+  machine's developer state, stops nothing, and profile folders and
+  credentials stay as they are (PLAN D88 (b)).
+- **Tests** (`test/unit/developerOptionsMachineId.test.ts`, 25/25;
+  `test/unit/developerLocalFiles.test.ts`, 13/13;
+  `test/unit/developerSurfaces.test.ts`, 24/24): a published id loads
+  with `EACCES` on new-file creation and no staging call; a failed
+  staged fsync leaves no litter; foreign reset asks `resetForeign`
+  with the honest text; audit append-open `EACCES` through the real
+  store leaves the foreign grant stored, reports the failure, and the
+  next open still refuses `differentMachine`; the store never publishes
+  a reset clear without its audit row while the disable fallback still
+  does. Repo default timeouts.
+- **Drills.** The six new/changed tests run against base `ce9f3dd7b`
+  (worktree under `$TMPDIR`, since removed) fail exactly the new six:
+  the read-first load, the staging cleanup, the honest confirmation,
+  the stored-foreign-state audit failure, the store-level reset guard
+  and the extended localization test; the other 56 pass on the base.
+- **Gates.** Five typechecks exit 0; eslint `--max-warnings=0` and
+  prettier on changed files exit 0; `check:l10n` exit 0 (new string in
+  all 14 tables); plain knip exit 0; jscpd exit 1 before and after with
+  only the same three pre-existing clones in untouched files.
+  `developerLocalFiles.test.ts` needs a symlink-free `TMPDIR` on this
+  macOS rig (`os.tmpdir()` spells `/var`, which the storage root
+  refuses by design): it passes 13/13 with the resolved
+  `/private/var` `TMPDIR` and fails identically on the base, so the
+  helper is left for its owner. `accountPaidConsent` (2 tests) fails
+  identically on the base as in round 3, left for its owner.

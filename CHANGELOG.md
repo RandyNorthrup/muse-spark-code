@@ -63,6 +63,15 @@ happened, not what was planned; superseded entries are kept.
   without stopping through this machine's resource port; profile folders
   stay on disk. Cancel leaves everything unchanged.
 
+- DEVID017D (developer machine id, review round 4): a published id loads
+  before any staging, so storage that refuses new files still returns the
+  existing identity, and failed staging removes its temp file. A failed
+  foreign reset never clears without recording it: the reset audit row
+  comes first, and when it cannot be written the stored state is left
+  unchanged. Foreign reset asks its own confirmation, which says exactly
+  what happens: this machine's developer state is cleared, nothing is
+  stopped, and profile folders and credentials stay as they are.
+
 ## [0.17.0] - 2026-10-08
 
 ### Highlights
