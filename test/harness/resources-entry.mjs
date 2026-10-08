@@ -173,5 +173,7 @@ if (surface === 'companion') {
   globalThis.window.resourceHarness.open = () => {
     deliver({ type: 'resourceOpen', seq: 1, nonce: pulledNonce })
   }
+  // The id the chip's pull echoed, for the checker to compare with the body's.
+  globalThis.window.resourceHarness.echoed = () => pulledNonce
   root.render(createElement(App, { store, resources, postMessage }))
 }

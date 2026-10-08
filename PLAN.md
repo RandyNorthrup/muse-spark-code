@@ -40475,8 +40475,11 @@ and it withdraws only its own open. Show reads the governor first, so an
 off governor opens and focuses nothing, and the conversation opening is
 awaited as soon as it starts. Regressions run through the production webview
 setup, panel and sidebar adapters and the registry, and 7 fail on
-`f2708deeb`. Chat startup is unchanged. Status: repaired on `m107/w-chip`,
-awaiting re-review. M104 bridge parity, M102 history and the lead's full
+`f2708deeb`. Chat startup is unchanged. RVM107W1E found no P1 or P2. Its
+P3 was that the resources harness had silently stopped applying theme body
+classes once the page gained the id. That is fixed, and every page now
+asserts its theme class and the echoed document id. Status: repaired on
+`m107/w-chip`, with the lead's integration gates still to run. M104 bridge parity, M102 history and the lead's full
 quality and installed-editor receipts remain separate.
 
 **FIXM107W1C pull model (2026-10-08).** RVM107W1C's four P2s led the lead to

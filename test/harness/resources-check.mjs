@@ -26,6 +26,14 @@ const requested = process.argv.slice(2)
 if (requested.some((scene) => !scenes.includes(scene))) throw new Error('Unknown resource scene')
 const selected = requested.length === 0 ? scenes : requested
 const html = await readFile(path.join(root, 'test/harness/resources.html'), 'utf8')
+// The page's own <body> (it carries the host-style document id): the theme
+// class joins its attributes. The exact string '<body>' stopped matching once
+// the id was added (RVM107W1E P3), so every page now asserts both below.
+const BODY_TAG = /<body(\s[^>]*)?>/
+const bodies = html.matchAll(new RegExp(BODY_TAG.source, 'g')).toArray()
+const documentId = /\sdata-document-id="([^"]+)"/.exec(bodies[0]?.[0] ?? '')?.[1]
+if (documentId === undefined || bodies.length !== 1)
+  throw new Error('resources.html must have one <body> carrying data-document-id')
 const output = path.join(root, 'temp/m107-u/harness')
 await mkdir(output, { recursive: true })
 const built = await build({
@@ -164,7 +172,10 @@ try {
                   .map(([key, value]) => `${key}: ${value};`)
                   .join('\n')} }</style>`,
             )
-            .replace('<body>', () => `<body class="${captured.bodyClass}">`)
+            .replace(
+              BODY_TAG,
+              (_tag, attributes = '') => `<body${attributes} class="${captured.bodyClass}">`,
+            )
           await page.route('**/resources.html*', async (route) => {
             await route.fulfill({ contentType: 'text/html', body: themed })
           })
@@ -203,6 +214,24 @@ try {
             // A pointer click opens without a ring (focus-visible); Show's keyboard-free open shows it.
             if (scene !== 'traffic') ui = await page.evaluate(uiRules, scene.startsWith('window-'))
           }
+          // Every page: the captured theme's body classes applied, the host-style
+          // document id kept, and (window scenes) the chip's pull echoing that id.
+          const identity = await page.evaluate(() => ({
+            bodyClass: globalThis.document.body.className,
+            documentId: globalThis.document.body.dataset['documentId'],
+            echoed: globalThis.window.resourceHarness.echoed?.(),
+          }))
+          const identityProblems = []
+          if (identity.bodyClass !== captured.bodyClass)
+            identityProblems.push(
+              `body class "${identity.bodyClass}", expected "${captured.bodyClass}"`,
+            )
+          if (identity.documentId !== documentId)
+            identityProblems.push(
+              `document id ${String(identity.documentId)}, expected ${documentId}`,
+            )
+          if (scene.startsWith('window-') && identity.echoed !== documentId)
+            identityProblems.push(`chip echoed ${String(identity.echoed)}, expected ${documentId}`)
           await page.addScriptTag({ path: path.join(root, 'node_modules/axe-core/axe.min.js') })
           const axe = await page.evaluate(
             async () =>
@@ -233,6 +262,8 @@ try {
             width,
             scene,
             errors,
+            identity,
+            identityProblems,
             overflow,
             ui,
             violations: axe.violations,
@@ -280,7 +311,7 @@ try {
               throw new Error('Resource control failed to reach host port')
           }
           console.log(
-            `${theme} ${String(width)} ${scene}: ${String(errors.length)} errors, ${String(axe.violations.length)} violations, ${String(result.incomplete.length)} incomplete, ${String(result.unseen)} unseen nodes, refusal=${String(ui?.refusalContrast ?? 'n/a')}, overflow=${String(overflow)}, ui=${ui === null ? 'n/a' : JSON.stringify(ui.problems)}`,
+            `${theme} ${String(width)} ${scene}: ${String(errors.length)} errors, ${String(axe.violations.length)} violations, ${String(result.incomplete.length)} incomplete, ${String(result.unseen)} unseen nodes, refusal=${String(ui?.refusalContrast ?? 'n/a')}, overflow=${String(overflow)}, ui=${ui === null ? 'n/a' : JSON.stringify(ui.problems)}, class="${identity.bodyClass}", echoed=${String(identity.echoed ?? 'n/a')}, identity=${JSON.stringify(identityProblems)}`,
           )
         } finally {
           await page.close()
@@ -297,6 +328,7 @@ if (
   results.some(
     (result) =>
       result.errors.length > 0 ||
+      result.identityProblems.length > 0 ||
       result.overflow ||
       (result.ui !== null && result.ui.problems.length > 0) ||
       result.violations.length > 0 ||
