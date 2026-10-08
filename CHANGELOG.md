@@ -13,6 +13,8 @@ happened, not what was planned; superseded entries are kept.
   multilingual Help checks, and the harness's signed-in readiness handshake.
   Cold bundle tests own a complete build, and exec package fixtures supply
   the required native helpers without relaxing production packaging guards.
+- Action-check builds the real Darwin and both Linux native helpers before
+  producing its fake-only ACP candidate.
 
 ### Pending
 

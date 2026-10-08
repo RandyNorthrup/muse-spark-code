@@ -334,3 +334,46 @@ describe('the apply manifest (G17)', () => {
     })
   })
 })
+
+it('builds and downloads every real native helper before packaging the fake-only Action candidate', () => {
+  const workflow = readFileSync(path.join(REPO_ROOT, '.github/workflows/action-check.yml'), 'utf8')
+  const helper = workflow.split('\n  native-helpers:\n', 2)[1]?.split('\n  package:\n', 1)[0]
+  if (helper === undefined) throw new Error('Missing native helper job')
+  const matrix = helper.split('        include:\n', 2)[1]?.split('    steps:\n', 1)[0]
+  if (matrix === undefined) throw new Error('Missing native helper matrix')
+  const entries = record(parseYaml(`include:\n${matrix}`))['include']
+  if (!Array.isArray(entries)) throw new Error('Missing native helper entries')
+  expect(entries.map((entry) => strings(entry))).toEqual([
+    {
+      platform: 'darwin',
+      os: 'macos-latest',
+      artifact: 'muse-dictate-darwin',
+      path: 'native/darwin/muse-dictate',
+    },
+    {
+      platform: 'linux-x64',
+      os: 'ubuntu-24.04',
+      artifact: 'muse-created-linux-x64',
+      path: 'native/linux/x64/muse-created',
+    },
+    {
+      platform: 'linux-arm64',
+      os: 'ubuntu-24.04-arm',
+      artifact: 'muse-created-linux-arm64',
+      path: 'native/linux/arm64/muse-created',
+    },
+  ])
+  expect(helper).toContain('bash native/darwin/build.sh')
+  expect(helper).toContain('buildLinuxHelper()')
+  expect(helper).toContain('if-no-files-found: error')
+  const packageJob = workflow.split('\n  package:\n', 2)[1]?.split('\n  w:\n', 1)[0]
+  if (packageJob === undefined) throw new Error('Missing candidate package job')
+  expect(packageJob).toContain('needs: native-helpers')
+  const beforePack = packageJob.split('      - run: npm run package:acp', 1)[0]
+  for (const entry of entries) {
+    const spec = strings(entry)
+    expect(beforePack).toContain(`name: ${spec['artifact'] ?? ''}`)
+    expect(beforePack).toContain(`path: ${path.posix.dirname(spec['path'] ?? '')}`)
+  }
+  expect(packageJob).toContain('node scripts/package-acp-test.mjs')
+})

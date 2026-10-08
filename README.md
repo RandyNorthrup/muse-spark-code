@@ -5214,6 +5214,9 @@ users need no compiler or OpenSSL installation. A local build compiles its
 current architecture; packaging also needs the other architecture's build
 artifact. Linux runtime compatibility still depends on the builder's libc
 baseline. Transport failures and OS pressure stalls also reduce admission.
+The fake-only Action-check job builds and downloads those same Linux helpers
+and the universal Darwin helper before producing its private test candidate;
+the real ACP packager keeps all native-file requirements.
 Per-job tree limits stop an offending job at more than 128 observed processes
 or 64 observed births in 15 seconds; unrelated jobs keep their own leases.
 
