@@ -538,3 +538,76 @@ callbacks and adjusts table spacing; no production logic changes. The numeric
 port and float-sum drill hashes still match final source. No merge, push,
 quality aggregate, gate/configuration weakening, live/paid call or dependency
 change. The private fresh clone is removed after final verification.
+
+## Money ports review repairs (PORTS017B)
+
+Mac rig, `rel017/ports2` on this worktree, base `f411b64a4`, 2026-10-08.
+Fake-only: no paid/live calls, credentials, dependencies, gate changes, merge
+or push. Four commits, one per review item; each has a regression that fails
+on the base (drill receipts below) and no raised `--testTimeout`.
+
+| Review item                         | Fix (file:line)                                                                                                                                                                                                                                          | Regression test                                                                                                                                                                                            |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2 `collect.usage` number-vs-string | `test/unit/collect.usage.test.ts:11`: canonical `'0.25'` plus a `typeof` string check                                                                                                                                                                    | The updated assertion; sweep finds no other numeric USD cell (`reportContracts` already asserts numbers are rejected)                                                                                      |
+| P3 trigger float coercion           | `src/shared/accounts.ts:64`: spend `value`/`threshold` carry `UsdAmount` (numeric persisted forms normalize once via `legacyUsdSchema`); spend caps in `accountThresholdsSchema` likewise; counts stay numeric                                           | `test/unit/thresholds.test.ts:86`: projected `'0.1000000000000000001'` reaches a `0.1` cap with the exact string value; `test/unit/accounts.test.ts:86`: numeric persisted caps/triggers normalize on read |
+| P3 producer                         | `src/core/accounts/thresholds.ts:171`: exact `toAmount()` projection, no `Number()`                                                                                                                                                                      | Same trigger regression; `paidMoneyPorts` now also guards this file                                                                                                                                        |
+| P3 cap notice text                  | `src/core/usage/accountUsageText.ts:113`, `AccountNotices.tsx:64`, `src/acp/accounts.ts:146`: unchanged `formatUsd(parseUsd(...))` rendering, now fed canonical strings; verified by the existing `$0.3000`/`$1.00` notice assertions                    | `test/unit/accountUsageText.test.ts`, `test/unit/accountsPanel.test.tsx`, `test/unit/acpAccounts.test.ts`                                                                                                  |
+| P3 estimator float bound            | `src/shared/constants.ts:6991` `ESTIMATE_MAX_RENTAL_COST_USD = '9007199254740991'`: above `Number.MAX_SAFE_INTEGER` no integer-cent accounting stays exact, matching `accountUsd`'s `MAX_USD`; `src/core/estimator/recommend.ts:224` compares against it | `test/unit/estimatorRecommend.test.ts:610`: the bound is admitted with its exact evidence; one dollar more refuses `cost-overflow`                                                                         |
+| Suspicious systemd path             | `src/runtime/schedules/effectiveDefinition.ts:55`: empty/blank manager listings refuse as `invalidResponse`, not `Unsafe schedule launcher path: ` with an empty path                                                                                    | `test/unit/nativeScheduleBackground.test.ts:308`: each environment shape refuses honestly (empty listing, relative root, failed query); new exact-path drop-in test runs on any posix host                 |
+
+Suspicious-path finding: production never derives a launcher path from
+`XDG_RUNTIME_DIR` (it only inherits the variable to the systemd children,
+which interpret it themselves), so it cannot compute a bad join from the
+unset/empty/relative/non-login shapes: an unreachable manager refuses as
+`unavailable`, a malformed listing as `invalidResponse`, and only a path that
+fails trust verification is named `unsafe`. The laptop's
+`/home/randy/nd`-style refusal is the test's assumption that every reported
+search root verifies cleanly: the native test now derives its expectation
+through production's own `verifySystemdSearchDirectories` (same refusal on a
+clean machine, the earlier root's honest refusal elsewhere), skips
+non-absolute runtime directories, and the hermetic drop-in test pins the
+exact writable-directory refusal deterministically. No Linux host was
+reachable from this rig (no Docker daemon, no SSH), so the native case ran
+only through the platform gate here; it needs one Linux run.
+
+Red drills on a pristine `f411b64a4` worktree: exact-spend trigger drill
+fails with `value: 0.1` (1 failed); bound-plus-one drill is admitted without
+a throw (1 failed); empty-listing drill gives `Unsafe schedule launcher
+path: ` instead of `invalidResponse` (1 failed); numeric collect fixture
+fails all 3 usage tests. Drill files removed afterwards.
+
+Fresh ordinary clone under `$TMPDIR` (`CI=true npm ci` exit 0, unchanged
+lockfile). Gate batches below use repository timeouts, `--maxWorkers=3`, at
+most three files per run.
+
+| Gate batch       | Files                                                                      | Result              |
+| ---------------- | -------------------------------------------------------------------------- | ------------------- |
+| A                | paidMoneyPorts, paidPortBoundaries, estimatorRecommend                     | 73 passed           |
+| B                | thresholds, accounts, collect.usage                                        | 54 passed           |
+| C                | accountUsage, acpAccounts, nativeScheduleBackground                        | 87 passed           |
+| D                | pool, accountsPanel, reportContracts                                       | 85 passed, 1 failed |
+| E                | scheduleRegistration, scheduleBackground, collect.session                  | 19 passed           |
+| F                | accountUsageText, accountStore, reportFixtures                             | 43 passed           |
+| G                | accountsPanelHost, AccountsSection, accountsCommand                        | 48 passed           |
+| H                | policyGate, remoteAccountPool, m95PlanUi                                   | 94 passed           |
+| Five typechecks  | host, webview, unit, e2e, integration                                      | exit 0 each         |
+| Scoped ESLint    | all 24 changed TS/TSX files, `--max-warnings=0`                            | exit 0              |
+| Scoped Prettier  | all changed supported files                                                | exit 0              |
+| Plain knip       | no strict/production switch                                                | exit 0              |
+| Full jscpd       | the same two inherited clones (ACP agent, queued-answer/model-API fixture) | exit 1, unchanged   |
+| `check:l10n`     | zero problems                                                              | exit 0              |
+| `check:host-api` | record current                                                             | exit 0              |
+
+Batch D's single failure is `pool.test.ts` 'refuses money precision loss
+and negative settlements': it fails byte-identically on untouched
+`f411b64a4` (same assertion, same counts), so it is inherited, not a
+regression from this lane; left for the lead. No case is skipped or
+filtered. Base counts for this lane's scope: the P2 assertion failed on base
+(review receipt); the three new regressions above fail on base as drilled.
+
+Commits (`rel017/ports2`, hooks `.husky/_` as installed, diffs reread after
+each hook; prettier reformatted one producer line and one test file, no
+logic change): `62e5728b8` P2, `1d3eb9c83` trigger port, `be33324e6`
+estimator bound, `285e59935` schedule path. No merge, push, stash,
+hook substitution, or dependency change. Fresh clones removed after final
+verification.
