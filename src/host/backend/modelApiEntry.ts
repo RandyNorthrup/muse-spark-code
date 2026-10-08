@@ -40,7 +40,6 @@ import {
 import { sparkHooksFiles } from '../../core/backends/modelapi/hookNames'
 
 import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
-import { createProductionMediaReplay, workspaceMediaSource } from '../../core/media/productionMedia'
 import type { StoredMediaPart } from '../../core/media/replayMedia'
 
 import type { UiText } from '../../shared/l10n/en'
@@ -142,13 +141,29 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
   const filesClient = requestFile === undefined ? undefined : { requestFile }
   const mediaDirectory = hostDeps.uploadLedgerDir
   const mediaAccountId = mediaDirectory === undefined ? undefined : await hostDeps.getAccountId()
+  // Production media loads behind the existing lazy boundary, never with
+  // the entry: the Model API bundle stays under its cap without it.
+  const productionMedia =
+    mediaDirectory !== undefined && filesClient !== undefined && mediaAccountId !== undefined
+      ? await import('../../core/media/productionMedia.js')
+      : undefined
+  // The transcription adapters ride the same lazy boundary: they bind only
+  // when the caller supplies the lane-V seams (attach-port tokens, the
+  // host-owned transcription POST, converter presence and the paid consent
+  // and reserve), so the product carries no dormant port.
+  const seams = deps.audioPreparation
+  const audioModule =
+    seams === undefined ? undefined : await import('../../core/voice/audioMessagePreparation.js')
+  const transcriptionModule =
+    seams === undefined ? undefined : await import('../../core/voice/transcribeBatchHttp.js')
   const host = new ModelApiHost({
     ...hostDeps,
-    ...(mediaDirectory !== undefined &&
+    ...(productionMedia !== undefined &&
       filesClient !== undefined &&
-      mediaAccountId !== undefined && {
+      mediaAccountId !== undefined &&
+      mediaDirectory !== undefined && {
         createMediaReplay: (sessionId: string) =>
-          createProductionMediaReplay({
+          productionMedia.createProductionMediaReplay({
             sessionId,
             client: filesClient,
             accountId: mediaAccountId,
@@ -162,7 +177,7 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
               const resolved: StoredMediaPart | undefined = undefined
               return resolved
             },
-            source: workspaceMediaSource({
+            source: productionMedia.workspaceMediaSource({
               workspaceRoot: hostDeps.workspaceRoot,
               platform: hostDeps.platform,
               io: hostDeps.io,
@@ -177,6 +192,42 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
               return Promise.resolve()
             },
           }),
+      }),
+    ...(audioModule !== undefined &&
+      transcriptionModule !== undefined &&
+      seams !== undefined && {
+        prepareAudioMessage: audioModule.createPrepareAudioMessage({
+          contextFor: (modelId) =>
+            transcriptionModule.createModelApiAudioContext({
+              modelId,
+              canExtractWav: seams.canExtractWav,
+              isVoiceOn: hostDeps.isPaidFeatureOn('voice'),
+            }),
+          ...transcriptionModule.createTranscriptionPorts({
+            postTranscription: seams.postTranscription,
+            readAudioBytes: seams.readAudioBytes,
+            resolveSourcePath: seams.resolveSourcePath,
+            ...(seams.conversionOptions !== undefined && {
+              conversionOptions: seams.conversionOptions,
+            }),
+            ...(seams.locateConverter !== undefined && { locateConverter: seams.locateConverter }),
+          }),
+          gate: { isOn: (feature) => hostDeps.isPaidFeatureOn(feature) },
+          usage: seams.usage ?? {
+            addVoiceBatch: (seconds: number) => {
+              hostDeps.notePaidUse('voice', seconds)
+            },
+          },
+          resolveSource: seams.resolveSource,
+          assertCurrent:
+            seams.assertCurrent ??
+            (() => {
+              // The host re-checks its model revision around the prepare
+              // call; without lane V there is no owner context to assert.
+            }),
+          consent: seams.consent,
+          reserve: seams.reserve,
+        }),
       }),
     modelFacts: hostDeps.modelFacts ?? metaModelFacts,
     sideCallFormats: hostDeps.sideCallFormats ?? metaSideCallFormats,
