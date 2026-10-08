@@ -380,7 +380,7 @@ no read/write access.
 #### Exact-base regression and red drills
 
 Fresh clone `C:/lanes/_verify/FIXM100P2V2-base-20261008`, exact base above,
-`CI=true`, `npm.cmd ci` **0**. Only the five changed regression test files,
+`CI=true`, `npm.cmd ci` **0**. Only the four updated regression test files,
 the new workspace-path suite and native helper were overlaid; base production
 code was untouched. Default deadlines, `--maxWorkers=3`, at most three files:
 
@@ -411,3 +411,51 @@ for the changed helper exit **0**. Fresh-clone final receipts follow separately.
 Lane W still owns its host API record regeneration, Unreleased changelog and
 joined-tree full `npm run quality`. Carry these shared protection/identity
 corrections into that integrated gate; this lane claims only its actual checks.
+
+#### Second-review fresh-clone final verification
+
+Implementation `a5e2830bc46f13ac8e622f09983ecb13d3e8e4f9`, normal hooks
+enabled: changed-file ESLint/Prettier and staged gitleaks **0**, no leaks.
+The staged diff was re-read after the hook (empty after commit), then the
+committed implementation/test diff was re-read. All three restored source
+hashes above still match. No manually invoked stash, merge or push.
+
+Fresh clone with `--no-hardlinks` at that exact commit:
+`C:/lanes/_verify/FIXM100P2V2-ci-20261008`. Every verification shell sets
+`CI=true`; `npm.cmd ci` **0**, 898 installed packages. No dependency changed;
+the unchanged install audit reports the same 12 issues (2 low, 10 high).
+This is not a full security/audit gate receipt.
+
+Each group ran with `npx.cmd vitest run <three files> --maxWorkers=3`,
+repository-default deadlines and no timeout override:
+
+| Owning suites                                             | Round 1                                     | Round 2                                     | Round 3                                     | Exits     |
+| --------------------------------------------------------- | ------------------------------------------- | ------------------------------------------- | ------------------------------------------- | --------- |
+| `deviceInputManifest`, `deviceCapability`, `pathIdentity` | 59 passed; 4.61 s                           | 59 passed; 3.84 s                           | 59 passed; 3.85 s                           | 0 / 0 / 0 |
+| `permissions`, `heldTree`, `workspacePath`                | 129 passed; 2.87 s                          | 129 passed; 2.60 s                          | 129 passed; 2.61 s                          | 0 / 0 / 0 |
+| `modelApiTools`, `fsAtomic`, `worktreeConversations`      | 86 passed, 1 existing platform skip; 4.54 s | 86 passed, 1 existing platform skip; 3.74 s | 86 passed, 1 existing platform skip; 3.74 s | 0 / 0 / 0 |
+
+Total **274 passed per round, 822 passing executions**, with the same existing
+POSIX-only atomic-write mode test skipped once each round on Windows. Both
+native Windows identity tests ran and passed every round; no new test skipped.
+The new `workspacePath.test.ts` isolates the prior writable-name policy and
+canonical separator contract already exercised by the tools/permissions suites.
+
+| Fresh-clone gate                                               | Exit / receipt                                                                                                                                           |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm.cmd run typecheck`                                        | 0; host, webview, unit, e2e and integration projects                                                                                                     |
+| Changed-file ESLint, `--max-warnings=0`                        | 0; all eight changed TypeScript files                                                                                                                    |
+| Changed-file Prettier                                          | 0; TypeScript and certification                                                                                                                          |
+| Changed PowerShell helper, PSScriptAnalyzer 1.25.0 / PSGallery | 0; zero findings                                                                                                                                         |
+| Plain `npx.cmd knip`                                           | 0; same two pre-existing configuration hints                                                                                                             |
+| `npm.cmd run duplication`                                      | 0; jscpd, zero clones                                                                                                                                    |
+| `npm.cmd run check:l10n`                                       | 0; 14 tables, 169 manifest strings, 657 source files, zero problems                                                                                      |
+| `npm.cmd run check:reference`                                  | 0; 53 features, 18 Devices entries; current                                                                                                              |
+| `npm.cmd run check:host-api`                                   | 1; same inherited generated reader counts: `node:crypto` 55 → 56 and `node:path` 89 → 90; lane W owns regeneration                                       |
+| `npm.cmd run build`                                            | 0; unchanged size, split, host-global and notices gates; extension 442.0/600 KiB, Devices 80.6/100 KiB, webview startup 738.0/900 KiB, ACP 824.0/850 KiB |
+
+The fresh clone remains clean after every check. Production source SHA-256
+values match the drill restores and committed worktree. This final addition
+changes certification text only; it does not change the tested implementation.
+Integration requests remain the lane W requests above. There is no contract
+change request and no full-quality, installed-host or live-model claim.
