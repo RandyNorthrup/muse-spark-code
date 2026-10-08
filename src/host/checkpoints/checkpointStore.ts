@@ -78,7 +78,6 @@ import {
   CHECKPOINT_WRITES_DIR,
   GIT_MODE_EXECUTABLE,
   GIT_MODE_FILE,
-  MODEL_TEXT,
   UI_TEXT,
 } from '../../shared/constants'
 import { isMissingPath } from '../canonicalPath'
@@ -131,6 +130,9 @@ import { WriteJournal } from './writeJournal'
 import { innermostFolders, type WriteLanes } from './writeRecorder'
 
 export { turnKey } from '../../core/checkpoints/turnKey'
+
+/** Why a tool may not write a path (`storagePathProblem`); the host words it. */
+export type StoragePathProblem = 'spelling' | 'storage' | 'uncertain'
 
 /**
  * Why a restore or a Redo did nothing: no unit to restore from (any more); a
@@ -1969,20 +1971,24 @@ export class CheckpointStore {
     return this.storagePathProblem(absolutePath) !== undefined
   }
 
-  /** Distinguish a refused spelling, proven storage and uncertain native identity. */
-  public storagePathProblem(absolutePath: string): string | undefined {
+  /**
+   * Why tools may not write a path: a refused Windows spelling, proven
+   * storage, or a native identity that cannot prove it is outside storage.
+   */
+  public storagePathProblem(absolutePath: string): StoragePathProblem | undefined {
     // Workspace confinement owns UNC admission; a share alone is not storage.
-    if (windowsPathProblem(absolutePath, process.platform, absolutePath) !== undefined)
-      return UI_TEXT.windowsPathRefused
-    if (isInShadowRepository(absolutePath)) return MODEL_TEXT.checkpointStorageWrite
-    const relations = [
+    if (windowsPathProblem(absolutePath, process.platform, absolutePath) !== undefined) {
+      return 'spelling'
+    }
+    if (isInShadowRepository(absolutePath)) return 'storage'
+    const relations = new Set([
       pathIdentityRelation(absolutePath, this.deps.storageDir),
       ...(this.deps.storageRoot === undefined
         ? []
         : [pathIdentityRelation(absolutePath, this.deps.storageRoot)]),
-    ]
-    if (relations.includes('inside')) return MODEL_TEXT.checkpointStorageWrite
-    return relations.includes('unknown') ? UI_TEXT.checkpointStorageUncertain : undefined
+    ])
+    if (relations.has('inside')) return 'storage'
+    return relations.has('unknown') ? 'uncertain' : undefined
   }
 
   /** Reverses the model's own writes from the turn on, where each file still holds what they left. */

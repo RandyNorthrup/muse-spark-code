@@ -245,10 +245,11 @@ describe('SECWINPATH native storage and hold ancestry', () => {
     vi.stubGlobal('process', { ...process, platform: 'win32' })
     // A share is not storage by its spelling: workspace confinement owns UNC
     // admission, and the native suites judge shares by identity.
-    for (const spelling of SUBJECTS.filter((subject) => !isUncPath(subject))) {
+    const local = SUBJECTS.filter((subject) => !isUncPath(subject))
+    for (const spelling of local) {
       expect(h.store.isStoragePath(spelling), spelling).toBe(true)
       // Its own sentence, not the storage one: these paths never touch storage.
-      expect(h.store.storagePathProblem(spelling), spelling).toBe(UI_TEXT.windowsPathRefused)
+      expect(h.store.storagePathProblem(spelling), spelling).toBe('spelling')
       const message = UI_TEXT.windowsPathRefused
       await expect(guarded.writeFile(spelling, 'x')).rejects.toThrow(message)
       await expect(

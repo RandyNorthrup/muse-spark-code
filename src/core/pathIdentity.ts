@@ -1,6 +1,12 @@
 import path from 'node:path'
 import { realpathSync } from 'node:fs'
-import { fileIdentityKey, sameFile, statIdentitySync, type FileIdentity } from './fs/fileIdentity'
+import {
+  fileIdentityKey,
+  isSameVolume,
+  sameFile,
+  statIdentitySync,
+  type FileIdentity,
+} from './fs/fileIdentity'
 import { isWithinFolder } from './paths'
 
 type IdentityRelation = 'inside' | 'outside' | 'unknown'
@@ -72,7 +78,7 @@ export function pathIdentityRelation(
   const isTextuallyInside = isWithinFolder(candidate, folder, platform)
   if (platform !== process.platform) return isTextuallyInside ? 'inside' : 'unknown'
   const p = platform === 'win32' ? path.win32 : path.posix
-  const sameName = (left: string, right: string | undefined) =>
+  const isSameName = (left: string, right: string | undefined) =>
     platform === 'win32' ? left.toLowerCase() === right?.toLowerCase() : left === right
   try {
     const reserved: string[] = []
@@ -108,7 +114,7 @@ export function pathIdentityRelation(
       }
       if (target === undefined) {
         // The target (its nearest existing ancestor) decides the volume.
-        if (identity.dev !== folderIdentity.dev) return 'outside'
+        if (!isSameVolume(identity, folderIdentity)) return 'outside'
         if (fileIdentityKey(folderIdentity) === undefined) return 'unknown'
         // Resolve it once; its canonical parents no longer traverse the
         // link's lexical location. Bind the resolved name to the same object.
@@ -119,12 +125,12 @@ export function pathIdentityRelation(
       }
       const parent = p.dirname(current)
       const isTop = parent === current
-      if (identity.dev === folderIdentity.dev) {
+      if (isSameVolume(identity, folderIdentity)) {
         if (fileIdentityKey(identity) === undefined) {
           // A root without a file index (FAT/exFAT) is never the folder itself.
           if (!isTop) return 'unknown'
         } else if (sameFile(identity, folderIdentity)) {
-          return reserved.every((part, index) => sameName(part, suffix[index]))
+          return reserved.every((part, index) => isSameName(part, suffix[index]))
             ? 'inside'
             : 'outside'
         }
@@ -136,7 +142,7 @@ export function pathIdentityRelation(
       suffix.unshift(p.basename(current))
       current = parent
     }
-    if (top.dev !== folderIdentity.dev) return 'outside'
+    if (!isSameVolume(top, folderIdentity)) return 'outside'
     // The walk is complete at the volume's own root (`realpath` resolves
     // `subst` letters), or at a share root that lies above the folder.
     const isVolumeRoot = platform === 'win32' ? /^[a-z]:\\$/iu.test(current) : current === '/'

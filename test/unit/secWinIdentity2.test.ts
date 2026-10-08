@@ -57,49 +57,52 @@ function write(subject: string): { kind: string; path: string; access: string } 
 }
 
 describe('SECWINPATH2 spellings on any drive letter', () => {
-  it.each(LETTERS)('accepts the CLI’s own \\\\?\\%s:\\ and keeps every segment rule', (letter) => {
-    const ws = String.raw`${letter}:\w`
-    const verbatim = String.raw`${VERBATIM}${ws}`
-    expect(normalWindowsPath(String.raw`${verbatim}\notes.txt`)).toBe(String.raw`${ws}\notes.txt`)
-    expect(windowsPathProblem(String.raw`${verbatim}\notes.txt`, 'win32')).toBeUndefined()
-    expect(resolveWorkspacePath(ws, String.raw`${verbatim}\notes.txt`, 'win32')).toMatchObject({
-      ok: true,
-      absolute: String.raw`${ws}\notes.txt`,
-      relative: 'notes.txt',
-    })
-    const segmentRules = [
-      [String.raw`${verbatim}\.git.\config`, MODEL_TEXT.windowsTrailingName],
-      [String.raw`${verbatim}\AGENTS.md `, MODEL_TEXT.windowsTrailingName],
-      [String.raw`${verbatim}\AGENTS.md::$DATA`, MODEL_TEXT.windowsAlternateStream],
-      [String.raw`${verbatim}\src\CON`, MODEL_TEXT.windowsReservedDevice],
-      [String.raw`${verbatim}\src\lpt¹..`, MODEL_TEXT.windowsReservedDevice],
-    ] as const
-    for (const [given, reason] of segmentRules) {
-      expect(windowsPathProblem(given, 'win32'), given).toBe(reason)
-    }
-    // Device and global namespaces keep their prefix and stay refused.
-    for (const given of [
-      `\\\\.\\${ws}\\x`,
-      `\\??\\${ws}\\x`,
-      `\\\\?\\UNC\\localhost\\${letter}$\\w\\x`,
-      String.raw`\\?\GLOBALROOT\Device\HarddiskVolume3\w\x`,
-      String.raw`\\?\Volume{0b1c2d3e-0000-0000-0000-100000000000}\w\x`,
-      String.raw`${VERBATIM}${letter}:/w/x`,
-      `//?/${letter}:/w/x`,
-    ]) {
-      expect(windowsPathProblem(given, 'win32'), given).toBe(MODEL_TEXT.windowsDeviceNamespace)
-    }
-    expect(windowsPathProblem(`\\\\localhost\\${letter}$\\w\\x`, 'win32')).toBe(
-      MODEL_TEXT.windowsUncOutsideWorkspace,
-    )
-  })
+  it.each(LETTERS)(
+    String.raw`accepts the CLI’s own \\?\%s:\ and keeps every segment rule`,
+    (letter) => {
+      const ws = String.raw`${letter}:\w`
+      const verbatim = `${VERBATIM}${ws}`
+      expect(normalWindowsPath(String.raw`${verbatim}\notes.txt`)).toBe(String.raw`${ws}\notes.txt`)
+      expect(windowsPathProblem(String.raw`${verbatim}\notes.txt`, 'win32')).toBeUndefined()
+      expect(resolveWorkspacePath(ws, String.raw`${verbatim}\notes.txt`, 'win32')).toMatchObject({
+        ok: true,
+        absolute: String.raw`${ws}\notes.txt`,
+        relative: 'notes.txt',
+      })
+      const segmentRules = [
+        [String.raw`${verbatim}\.git.\config`, MODEL_TEXT.windowsTrailingName],
+        [String.raw`${verbatim}\AGENTS.md `, MODEL_TEXT.windowsTrailingName],
+        [String.raw`${verbatim}\AGENTS.md::$DATA`, MODEL_TEXT.windowsAlternateStream],
+        [String.raw`${verbatim}\src\CON`, MODEL_TEXT.windowsReservedDevice],
+        [String.raw`${verbatim}\src\lpt¹..`, MODEL_TEXT.windowsReservedDevice],
+      ] as const
+      for (const [given, reason] of segmentRules) {
+        expect(windowsPathProblem(given, 'win32'), given).toBe(reason)
+      }
+      // Device and global namespaces keep their prefix and stay refused.
+      for (const given of [
+        `\\\\.\\${ws}\\x`,
+        `\\??\\${ws}\\x`,
+        `\\\\?\\UNC\\localhost\\${letter}$\\w\\x`,
+        String.raw`\\?\GLOBALROOT\Device\HarddiskVolume3\w\x`,
+        String.raw`\\?\Volume{0b1c2d3e-0000-0000-0000-100000000000}\w\x`,
+        `${VERBATIM}${letter}:/w/x`,
+        `//?/${letter}:/w/x`,
+      ]) {
+        expect(windowsPathProblem(given, 'win32'), given).toBe(MODEL_TEXT.windowsDeviceNamespace)
+      }
+      expect(windowsPathProblem(`\\\\localhost\\${letter}$\\w\\x`, 'win32')).toBe(
+        MODEL_TEXT.windowsUncOutsideWorkspace,
+      )
+    },
+  )
 
   it.each(LETTERS)('refuses drive-relative %s: spellings everywhere', (letter) => {
     vi.stubGlobal('process', { ...process, platform: 'win32' })
     for (const given of [
-      `${letter}:.claude\\settings.json`,
+      String.raw`${letter}:.claude\settings.json`,
       `${letter}:AGENTS.md`,
-      `${letter}:.git\\config`,
+      String.raw`${letter}:.git\config`,
       `${letter}:notes.txt`,
       `${letter}:`,
     ]) {
@@ -142,18 +145,22 @@ describe('SECWINPATH2 spellings on any drive letter', () => {
       hasGit: () => true,
     })
     for (const spelling of spellings) {
-      expect(h.store.storagePathProblem(spelling), spelling).toBe(UI_TEXT.windowsPathRefused)
+      expect(h.store.storagePathProblem(spelling), spelling).toBe('spelling')
       expect(() => {
         withoutStore.refuseStorageWrite(spelling)
       }).toThrow(UI_TEXT.windowsPathRefused)
     }
     vi.unstubAllGlobals()
     const inside = path.join(h.storage, 'm86', 'x', 'journal.jsonl')
-    expect(h.store.storagePathProblem(inside)).toBe(MODEL_TEXT.checkpointStorageWrite)
-    const nativeStat = fileIdentity.statIdentitySync
-    vi.spyOn(fileIdentity, 'statIdentitySync').mockImplementation((given) => {
-      if (given === h.root) throw Object.assign(new Error('refused'), { code: 'EACCES' })
-      return nativeStat(given)
+    expect(h.store.storagePathProblem(inside)).toBe('storage')
+    expect(() => {
+      checkpointPort(h).refuseStorageWrite(inside)
+    }).toThrow(MODEL_TEXT.checkpointStorageWrite)
+    const unreadable = Object.assign(new Error('no access'), { code: 'EACCES' })
+    const sample = fileIdentity.statIdentitySync
+    vi.spyOn(fileIdentity, 'statIdentitySync').mockImplementation((file) => {
+      if (file !== h.root) return sample(file)
+      throw unreadable
     })
     expect(() => {
       checkpointPort(h).refuseStorageWrite(path.join(h.root, 'new.txt'))
@@ -183,7 +190,7 @@ interface Native {
 const native: Native = { base: '', ws: '', storage: '', held: '', letters: [], links: [] }
 
 function skipWith(reason: string, skip: (note?: string) => void): void {
-  console.info(`SECWINPATH2: ${reason}; skipping`)
+  console.warn(`SECWINPATH2: ${reason}; skipping`)
   skip(reason)
 }
 
@@ -197,7 +204,7 @@ function shortName(folder: string, name: string): string | undefined {
   for (const line of listing.split(/\r?\n/u)) {
     const tokens = line.trim().split(/\s+/u)
     const alias = tokens.at(-2)
-    if (tokens.at(-1) === name && alias !== undefined && /~\d/u.test(alias)) return alias
+    if (alias !== undefined && tokens.at(-1) === name && /~\d/u.test(alias)) return alias
   }
   return undefined
 }
@@ -215,9 +222,9 @@ function shortSpelling(root: string, relative: string): string | undefined {
   return short
 }
 
-function subst(letter: string, target: string): boolean {
+function didSubst(letter: string, target: string): boolean {
   try {
-    execFileSync('subst', [`${letter}:`, target], { windowsHide: true })
+    execFileSync('cmd.exe', ['/d', '/c', 'subst', `${letter}:`, target], { windowsHide: true })
     return true
   } catch {
     return false
@@ -256,50 +263,55 @@ describe.runIf(isWindows)('SECWINPATH2 native identity on Windows', () => {
     // Two free letters (a late one first), mapped onto the scratch folder.
     for (const letter of 'ZYXWVUTSRQPONMLKJIHGF') {
       if (native.letters.length === 2) break
-      if (!existsSync(`${letter}:\\`) && subst(letter, native.base)) native.letters.push(letter)
+      if (!existsSync(`${letter}:\\`) && didSubst(letter, native.base)) native.letters.push(letter)
     }
   })
   afterAll(() => {
     for (const link of native.links.toReversed()) rmdirSync(link)
-    for (const letter of native.letters) execFileSync('subst', [`${letter}:`, '/d'])
+    for (const letter of native.letters) {
+      execFileSync('cmd.exe', ['/d', '/c', 'subst', `${letter}:`, '/d'], { windowsHide: true })
+    }
     rmSync(native.base, { recursive: true, force: true })
   })
 
-  it('protects real 8.3 names of .claude, .git and .github\\workflows on every letter', (ctx) => {
-    const aliases = PROTECTED.map((relative) => shortSpelling(native.ws, relative))
-    if (aliases.includes(undefined)) {
-      skipWith('8.3 names are off on this volume', (note) => ctx.skip(note))
-      return
-    }
-    vi.stubGlobal('process', { ...process, platform: 'win32' })
-    const ordinary = shortSpelling(native.ws, String.raw`ordinaryfolder\notes.txt`)
-    expect(ordinary).toMatch(/~\d/u)
-    const roots = [native.ws, ...native.letters.map((letter) => String.raw`${letter}:\ws`)]
-    for (const root of roots) {
-      for (const alias of aliases) {
-        const spelled = path.join(root, path.relative(native.ws, alias ?? ''))
-        expect(isProtectedFileAccess(write(spelled)), spelled).toBe(true)
-        expect(isProtectedFileAccess(write(String.raw`${VERBATIM}${spelled}`)), spelled).toBe(true)
+  it(
+    String.raw`protects real 8.3 names of .claude, .git and .github\workflows on every letter`,
+    (ctx) => {
+      const aliases = PROTECTED.map((relative) => shortSpelling(native.ws, relative))
+      if (aliases.includes(undefined)) {
+        skipWith('8.3 names are off on this volume', (note) => ctx.skip(note))
+        return
       }
-      const twin = path.join(root, path.relative(native.ws, ordinary ?? ''))
-      expect(isProtectedFileAccess(write(twin)), twin).toBe(false)
-      expect(isProtectedFileAccess(write(String.raw`${VERBATIM}${twin}`)), twin).toBe(false)
-    }
-    const claude = path.dirname(aliases[0] ?? '')
-    expect(isProtectedFileAccess(write(path.join(claude, 'new.json')))).toBe(true)
-    expect(isProtectedFileAccess(write(path.join(path.dirname(ordinary ?? ''), 'new.txt')))).toBe(
-      false,
-    )
-    // An 8.3-shaped name nothing resolves (yet) is protected, as is a relative one.
-    expect(isProtectedFileAccess(write(path.join(native.ws, 'NOSUCH~1', 'x.txt')))).toBe(true)
-    expect(isProtectedFileAccess(write(String.raw`CLAUDE~1\settings.json`))).toBe(true)
-    // Through the real mapper: no Edit automatically, no standing rule.
-    const mapped = mapNotification({
-      method: 'approval/requested',
-      params: capturedWriteRequested('session', String.raw`${VERBATIM}${aliases[1] ?? ''}`, false),
-    })
-    expect(mapped).toMatchObject({ event: { isProtectedWrite: true } })
-  })
+      vi.stubGlobal('process', { ...process, platform: 'win32' })
+      const ordinary = shortSpelling(native.ws, String.raw`ordinaryfolder\notes.txt`)
+      expect(ordinary).toMatch(/~\d/u)
+      const roots = [native.ws, ...native.letters.map((letter) => String.raw`${letter}:\ws`)]
+      for (const root of roots) {
+        for (const alias of aliases) {
+          const spelled = path.join(root, path.relative(native.ws, alias ?? ''))
+          expect(isProtectedFileAccess(write(spelled)), spelled).toBe(true)
+          expect(isProtectedFileAccess(write(`${VERBATIM}${spelled}`)), spelled).toBe(true)
+        }
+        const twin = path.join(root, path.relative(native.ws, ordinary ?? ''))
+        expect(isProtectedFileAccess(write(twin)), twin).toBe(false)
+        expect(isProtectedFileAccess(write(`${VERBATIM}${twin}`)), twin).toBe(false)
+      }
+      const claude = path.dirname(aliases[0] ?? '')
+      expect(isProtectedFileAccess(write(path.join(claude, 'new.json')))).toBe(true)
+      expect(isProtectedFileAccess(write(path.join(path.dirname(ordinary ?? ''), 'new.txt')))).toBe(
+        false,
+      )
+      // An 8.3-shaped name nothing resolves (yet) is protected, as is a relative one.
+      expect(isProtectedFileAccess(write(path.join(native.ws, 'NOSUCH~1', 'x.txt')))).toBe(true)
+      expect(isProtectedFileAccess(write(String.raw`CLAUDE~1\settings.json`))).toBe(true)
+      // Through the real mapper: no Edit automatically, no standing rule.
+      const mapped = mapNotification({
+        method: 'approval/requested',
+        params: capturedWriteRequested('session', `${VERBATIM}${aliases[1] ?? ''}`, false),
+      })
+      expect(mapped).toMatchObject({ event: { isProtectedWrite: true } })
+    },
+  )
 
   it('treats a share or WSL workspace by identity: not held, writes allowed, storage refused', async (ctx) => {
     const h = await harness({ git: 'none' })
@@ -315,7 +327,9 @@ describe.runIf(isWindows)('SECWINPATH2 native identity on Windows', () => {
         statSync(viaUsers)
         spellings.push(viaUsers)
       } catch (error: unknown) {
-        console.info(`SECWINPATH2: \\\\localhost\\Users unavailable (${String(error)}); skipping`)
+        console.warn(
+          String.raw`SECWINPATH2: \\localhost\Users unavailable (${String(error)}); skipping`,
+        )
       }
     }
     if (spellings.length === 0) {
@@ -345,10 +359,9 @@ describe.runIf(isWindows)('SECWINPATH2 native identity on Windows', () => {
     }
     // The real storage, reached through the share, is still storage.
     const storageShare = adminShare(path.join(h.storage, 'm86', 'x', 'journal.jsonl'))
-    if (storageShare !== undefined) {
-      expect(h.store.storagePathProblem(storageShare)).toBe(MODEL_TEXT.checkpointStorageWrite)
-      expect(holdFor([adminShare(path.join(held, 'pr1')) ?? ''], [held], [], 'win32')).toBeDefined()
-    }
+    if (storageShare === undefined) return
+    expect(h.store.storagePathProblem(storageShare)).toBe('storage')
+    expect(holdFor([adminShare(path.join(held, 'pr1')) ?? ''], [held], [], 'win32')).toBeDefined()
   })
 
   it('treats WSL (device 0) and another volume as outside storage', async (ctx) => {
@@ -371,7 +384,7 @@ describe.runIf(isWindows)('SECWINPATH2 native identity on Windows', () => {
     let wsl: string | undefined
     try {
       // Never start Docker Desktop's own distributions.
-      const distro = execFileSync('wsl.exe', ['--list', '--quiet'], {
+      const distro = execFileSync('cmd.exe', ['/d', '/c', 'wsl.exe', '--list', '--quiet'], {
         encoding: 'utf16le',
         timeout: 10_000,
         windowsHide: true,
@@ -382,10 +395,10 @@ describe.runIf(isWindows)('SECWINPATH2 native identity on Windows', () => {
       if (distro !== undefined) wsl = `\\\\wsl.localhost\\${distro}\\tmp`
       if (wsl !== undefined) statSync(wsl)
     } catch (error: unknown) {
-      console.info(`SECWINPATH2: WSL unavailable (${String(error)}); skipping its probe`)
+      console.warn(`SECWINPATH2: WSL unavailable (${String(error)}); skipping its probe`)
       wsl = undefined
     }
-    if (others.length === 0 && wsl === undefined) {
+    if (wsl === undefined && others.length === 0) {
       skipWith('no other volume or WSL distribution is reachable', (note) => ctx.skip(note))
       return
     }
@@ -394,11 +407,10 @@ describe.runIf(isWindows)('SECWINPATH2 native identity on Windows', () => {
       expect(pathIdentityRelation(candidate, h.storage), candidate).toBe('outside')
       expect(h.store.storagePathProblem(candidate), candidate).toBeUndefined()
     }
-    if (wsl !== undefined) {
-      expect(statSync(wsl, { bigint: true }).dev).toBe(0n)
-      expect(holdFor([wsl], [held], [], 'win32')).toBeUndefined()
-      expect(resolveWorkspacePath(wsl, 'new.txt', 'win32').ok).toBe(true)
-    }
+    if (wsl === undefined) return
+    expect(statSync(wsl, { bigint: true }).dev).toBe(0n)
+    expect(holdFor([wsl], [held], [], 'win32')).toBeUndefined()
+    expect(resolveWorkspacePath(wsl, 'new.txt', 'win32').ok).toBe(true)
   })
 
   it('keeps storage on a non-C: letter refused through both spellings', (ctx) => {
@@ -446,7 +458,7 @@ describe.runIf(isWindows)('SECWINPATH2 native identity on Windows', () => {
       checkpointPort({ store }),
     ).writeFile(target, 'x')
     expect(writes).toHaveBeenCalledOnce()
-    expect(isProtectedFileAccess(write(String.raw`${VERBATIM}${target}`))).toBe(false)
+    expect(isProtectedFileAccess(write(`${VERBATIM}${target}`))).toBe(false)
     expect(isProtectedFileAccess(write(path.join(ws, '.git', 'config')))).toBe(true)
   })
 
@@ -469,7 +481,7 @@ describe.runIf(isWindows)('SECWINPATH2 native identity on Windows', () => {
       native.links.push(path.join(profile, 'Docs-link'))
       spellings.push(path.join(profile, 'Docs-link', 'proj'))
     } catch (error: unknown) {
-      console.info(`SECWINPATH2: directory symbolic links refused here (${String(error)})`)
+      console.warn(`SECWINPATH2: directory symbolic links refused here (${String(error)})`)
     }
     // A link inside the workspace to its .git is the protected folder too.
     junction(path.join(realDocs, 'proj', 'gitlink'), path.join(realDocs, 'proj', '.git'))
@@ -503,7 +515,7 @@ describe.runIf(isWindows)('SECWINPATH2 native identity on Windows', () => {
         expect(store.storagePathProblem(path.join(ws, 'new.txt')), ws).toBeUndefined()
         for (const inside of [linkedStorage, realStorage]) {
           const journal = path.join(inside, 'm86', 'x', 'journal.jsonl')
-          expect(store.storagePathProblem(journal), journal).toBe(MODEL_TEXT.checkpointStorageWrite)
+          expect(store.storagePathProblem(journal), journal).toBe('storage')
         }
       }
     }

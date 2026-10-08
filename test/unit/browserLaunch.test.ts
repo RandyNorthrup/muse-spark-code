@@ -216,7 +216,11 @@ describe('the browser’s environment (M81 A1)', () => {
   })
 
   it('finds Windows on any drive and never guesses C: (SECWINPATH2)', () => {
-    const folders = { profile: String.raw`E:\s\p`, temp: String.raw`E:\s\t`, home: String.raw`E:\s\h` }
+    const folders = {
+      profile: String.raw`E:\s\p`,
+      temp: String.raw`E:\s\t`,
+      home: String.raw`E:\s\h`,
+    }
     expect(browserEnvironment('win32', { windir: String.raw`E:\Win` }, folders)).toMatchObject({
       windir: String.raw`E:\Win`,
       PATH: String.raw`E:\Win\System32;E:\Win`,

@@ -7,7 +7,7 @@ const DEVICE_STEM = String.raw`(?:con|prn|aux|nul|conin\$|conout\$|com[1-9¹²³
 // A reserved device: the bare name, or the name followed only by dots or
 // spaces (a colon or stream is refused as a stream). `con.d`, `aux.js` and
 // `nul.txt` are ordinary names on Windows 11, judged by their identity.
-const WINDOWS_DEVICE = new RegExp(String.raw`^${DEVICE_STEM}[. ]*$`, 'iu')
+const WINDOWS_DEVICE = new RegExp(`^${DEVICE_STEM}[. ]*$`, 'iu')
 // Pull-request trees stay conservative (any extension, a space before it, COM0):
 // older Windows and Git for Windows still refuse those names.
 const WINDOWS_DEVICE_LIKE =

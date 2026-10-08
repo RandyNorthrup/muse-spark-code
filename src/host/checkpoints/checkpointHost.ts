@@ -25,6 +25,7 @@ import type { Owner } from '../../core/checkpoints/toolWrites'
 import {
   CHECKPOINT_ACTIVITY_PREFIX,
   type CheckpointAvailability,
+  MODEL_TEXT,
   UI_TEXT,
 } from '../../shared/constants'
 import type { Logger } from '../logger'
@@ -37,7 +38,23 @@ import type {
   RedoRequest,
   RestoreOutcome,
   RestoreRequest,
+  StoragePathProblem,
 } from './checkpointStore'
+
+/** The sentence a refused tool write reports, by why it was refused. */
+function storageRefusal(problem: StoragePathProblem): string {
+  switch (problem) {
+    case 'spelling': {
+      return UI_TEXT.windowsPathRefused
+    }
+    case 'storage': {
+      return MODEL_TEXT.checkpointStorageWrite
+    }
+    case 'uncertain': {
+      return UI_TEXT.checkpointStorageUncertain
+    }
+  }
+}
 
 export interface CheckpointPort {
   /** Native uncertainty persists independently of the recording setting. */
@@ -236,13 +253,13 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
       await gitStore()?.maintain()
     },
     refuseStorageWrite: (absolutePath) => {
+      // With no store, only a refused spelling (UNC admission is confinement's).
+      const isRefusedSpelling =
+        windowsPathProblem(absolutePath, process.platform, absolutePath) !== undefined
       const problem =
-        deps.store === undefined
-          ? windowsPathProblem(absolutePath, process.platform, absolutePath) === undefined
-            ? undefined
-            : UI_TEXT.windowsPathRefused
-          : deps.store.storagePathProblem(absolutePath)
-      if (problem !== undefined) throw new Error(problem)
+        deps.store?.storagePathProblem(absolutePath) ??
+        (isRefusedSpelling ? ('spelling' as const) : undefined)
+      if (problem !== undefined) throw new Error(storageRefusal(problem))
     },
   }
 }

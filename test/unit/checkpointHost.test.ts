@@ -55,7 +55,7 @@ function fakeStore() {
     instance: 'this-window',
     isNativeUnsafe: false,
     storagePathProblem: (absolutePath) =>
-      absolutePath.startsWith('/storage/') ? MODEL_TEXT.checkpointStorageWrite : undefined,
+      absolutePath.startsWith('/storage/') ? 'storage' : undefined,
     markNativeBackend: () => done('native'),
     markUnprovenProcess: () => done('unproved'),
     startUnit: (owner) => {
