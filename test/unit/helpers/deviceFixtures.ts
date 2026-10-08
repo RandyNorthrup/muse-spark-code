@@ -182,6 +182,8 @@ export async function ownedDeviceStorage(): Promise<OwnedBinding> {
   const helper = supervisedStorageHelper(() =>
     startStorageHelper(process.execPath, ['-e', STORAGE_HELPER_STAND_IN], process.env),
   )
+  // Started and answering, as the native binding is once it returns.
+  await helper.request('ping', [])
   return {
     protection: windowsStorageProtection(helper.request),
     current: helper.current,

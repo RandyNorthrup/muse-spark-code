@@ -71,10 +71,6 @@ export async function deviceStorageProtection(
   return binding.protection
 }
 
-function end(disposers: (() => void)[]): void {
-  for (const dispose of disposers.splice(0)) dispose()
-}
-
 /** VS Code, companion editors and runtime callers use the same explicit method port. */
 export function deviceMethods(options: {
   readonly bundlePath: string
@@ -95,16 +91,25 @@ export function deviceMethods(options: {
   let current: Awaited<ReturnType<typeof createDeviceService>> | undefined
   const lifetime = { isDisposed: false }
   const isDisposed = () => lifetime.isDisposed
-  // Resources the current service's preparation started (a storage helper).
-  const owned: (() => void)[] = []
+  // Every resource any preparation has registered (a storage helper), from
+  // the moment it is registered, so disposal reaches in-flight ones too.
+  // Each registration is released at most once.
+  const owned = new Set<() => void>()
+  const release = (registration: () => void) => {
+    if (owned.delete(registration)) registration()
+  }
   async function service() {
     if (isDisposed()) throw new Error('revoked')
     pending ??= (async () => {
       const attempt: (() => void)[] = []
       const scope: DeviceDependencyScope = {
         own(dispose) {
-          attempt.push(dispose)
-          if (isDisposed()) end(attempt)
+          const registration = () => {
+            dispose()
+          }
+          owned.add(registration)
+          attempt.push(registration)
+          if (isDisposed()) release(registration)
         },
       }
       try {
@@ -117,11 +122,11 @@ export function deviceMethods(options: {
           throw new Error('revoked')
         }
         current = instance
-        owned.push(...attempt)
         return instance
       } catch (error) {
         // A failed or revoked preparation ends what it started; a retry starts afresh.
-        end(attempt)
+        for (const registration of attempt) release(registration)
+        if (isDisposed()) throw new Error('revoked', { cause: error })
         throw error
       }
     })()
@@ -137,7 +142,7 @@ export function deviceMethods(options: {
     dispose(): void {
       lifetime.isDisposed = true
       current?.dispose()
-      end(owned)
+      for (const registration of owned) release(registration)
     },
   }
 }

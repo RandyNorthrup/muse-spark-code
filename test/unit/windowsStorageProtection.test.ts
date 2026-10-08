@@ -13,6 +13,7 @@ import {
 import { deviceMethods, deviceStorageProtection } from '../../src/host/devices/deviceBundle'
 import type { DeviceServiceDeps } from '../../src/host/devices/deviceEntry'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { deferred } from './helpers/deviceExecutionFixtures'
 import { ownedDeviceStorage, STORAGE_HELPER_STAND_IN } from './helpers/deviceFixtures'
 
 // Readings in the helper's wire format, recorded on a Windows 11 host.
@@ -256,6 +257,35 @@ describe('a helper that stops answering', () => {
   })
 })
 
+// A bundle whose binding is this OS's own helper (native on Windows), with
+// its disposer counted, and a factory the test may hold.
+function heldBundle(factory: () => Promise<{ dispose: () => void }>) {
+  const bindings: (Awaited<ReturnType<typeof ownedDeviceStorage>> & {
+    disposals: ReturnType<typeof vi.fn>
+  })[] = []
+  const startWindowsStorageProtection = vi.fn(async () => {
+    const binding = await ownedDeviceStorage()
+    const disposals = vi.fn(binding.dispose)
+    bindings.push({ ...binding, disposals })
+    return { ...binding, dispose: disposals }
+  })
+  const bundle = {
+    createDeviceService: vi.fn(factory),
+    DeviceStore: vi.fn(),
+    DeviceSecrets: vi.fn(),
+    AttemptJournal: vi.fn(),
+    DeviceDiscovery: vi.fn(),
+    startWindowsStorageProtection,
+  }
+  return { bundle, bindings }
+}
+async function expectEnded(binding: { current: () => StorageHelper | undefined }) {
+  const helper = binding.current()
+  expect(helper).toBeDefined()
+  await helper?.exited
+  await expect(helper?.request('ping', [])).rejects.toThrow('storage-protection')
+}
+
 describe('the Devices bundle storage seam', () => {
   it('ends the helper process of an owned binding when it is disposed', async () => {
     const binding = await ownedDeviceStorage()
@@ -318,6 +348,84 @@ describe('the Devices bundle storage seam', () => {
     expect(service.dispose).toHaveBeenCalledOnce()
     await helpers[2]?.exited
     expect(helpers.every((helper) => helper.hasFailed())).toBe(true)
+  })
+  describe('disposal while a preparation is still pending', () => {
+    const options = {
+      helperDirectory: path.resolve('helpers'),
+      systemRoot: String.raw`C:\Windows`,
+      extensionPath: process.cwd(),
+    }
+    it('ends the helper of a held-dependencies preparation at once; the release settles as revoked', async () => {
+      const service = { dispose: vi.fn() }
+      const { bundle, bindings } = heldBundle(() => Promise.resolve(service))
+      const registered = deferred<undefined>()
+      const held = deferred<DeviceServiceDeps>()
+      const methods = deviceMethods({
+        bundlePath: 'devices.js',
+        log: new FakeLogOutputChannel(),
+        loadBundle: () => bundle,
+        async dependencies(loaded, scope) {
+          await deviceStorageProtection(loaded, options, scope, 'win32')
+          registered.resolve(undefined)
+          return await held.promise
+        },
+      })
+      const serving = methods.service()
+      await registered.promise
+      methods.dispose()
+      await expectEnded(bindings[0]!)
+      held.resolve({} as DeviceServiceDeps)
+      await expect(serving).rejects.toThrow('revoked')
+      expect(bindings[0]?.disposals).toHaveBeenCalledOnce()
+      expect(bundle.createDeviceService).not.toHaveBeenCalled()
+    })
+    it('ends the helper of a held-factory preparation at once; the release settles as revoked', async () => {
+      const service = { dispose: vi.fn() }
+      const held = deferred<typeof service>()
+      const factoryEntered = deferred<undefined>()
+      const { bundle, bindings } = heldBundle(() => {
+        factoryEntered.resolve(undefined)
+        return held.promise
+      })
+      const methods = deviceMethods({
+        bundlePath: 'devices.js',
+        log: new FakeLogOutputChannel(),
+        loadBundle: () => bundle,
+        async dependencies(loaded, scope) {
+          await deviceStorageProtection(loaded, options, scope, 'win32')
+          return {} as DeviceServiceDeps
+        },
+      })
+      const serving = methods.service()
+      await factoryEntered.promise
+      methods.dispose()
+      await expectEnded(bindings[0]!)
+      held.resolve(service)
+      await expect(serving).rejects.toThrow('revoked')
+      expect(service.dispose).toHaveBeenCalledOnce()
+      expect(bindings[0]?.disposals).toHaveBeenCalledOnce()
+    })
+    it('disposes a resource registered after revocation immediately, once', async () => {
+      const late = vi.fn()
+      const gate = deferred<undefined>()
+      const methods = deviceMethods({
+        bundlePath: 'devices.js',
+        log: new FakeLogOutputChannel(),
+        loadBundle: () => heldBundle(() => Promise.resolve({ dispose: vi.fn() })).bundle,
+        async dependencies(_loaded, scope) {
+          await gate.promise
+          scope.own(late)
+          expect(late).toHaveBeenCalledOnce()
+          return {} as DeviceServiceDeps
+        },
+      })
+      const serving = methods.service()
+      methods.dispose()
+      gate.resolve(undefined)
+      await expect(serving).rejects.toThrow('revoked')
+      methods.dispose()
+      expect(late).toHaveBeenCalledOnce()
+    })
   })
   it('binds Windows only, never without a system root, and hands its disposer to the scope', async () => {
     const protection = windowsStorageProtection(() => Promise.resolve(''))
