@@ -1,6 +1,11 @@
 // M100 phase 2, lane V: dispatch input manifests are verified before the
 // worker starts. Fakes only; no listener beyond loopback, no model calls.
 import { describe, expect, it } from 'vitest'
+import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { execFileSync } from 'node:child_process'
+import os from 'node:os'
+import path from 'node:path'
+import { isProtectedPath } from '../../src/core/protectedPaths'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
 import {
   buildInputManifest,
@@ -294,6 +299,91 @@ describe('dispatch input manifests (lane V)', () => {
       }),
     ).toThrow('invalid-frame')
   })
+  it.each([
+    ['plans/q3.md', 'Plans/q3.md'],
+    ['plans/q3.md', 'plans/q3.md.'],
+    ['plans/q3.md', 'plans/q3.md '],
+    ['aux', 'AUX'],
+    ['.git/config', '.git./config'],
+    ['plans/q3.md', 'pLaNs/Q3.MD'],
+    ['plans/q3.md', 'plans. /q3.md. '],
+    ['plans/q3.md', String.raw`PLANS\Q3.MD. `],
+    ['aux.txt', 'AuX.TXT. '],
+    ['nul', 'NUL. '],
+    ['COM1.txt', 'com1.TXT'],
+    ['lpt9.log', 'LPT9.LOG '],
+  ])('refuses Windows identity collisions everywhere: %j / %j', async (first, second) => {
+    const { dispatch, manifest } = laneDispatch()
+    const candidate = {
+      ...manifest,
+      items: [first, second].map((inputPath) => ({
+        path: inputPath,
+        digest: PLAN_DIGEST,
+        bytes: 120,
+      })),
+    }
+    expect(() => buildInputManifest(candidate)).toThrow('invalid-frame')
+    const wire = {
+      ...candidate,
+      items: candidate.items.map((item) => ({ ...item, path: normalizeManifestPath(item.path) })),
+    }
+    expect(deviceInputManifestSchema.safeParse(wire).success).toBe(false)
+    const copy = fullCopy()
+    await expect(verifyDispatchInputs(dispatch, wire, copy.reader)).rejects.toThrow('invalid-frame')
+    expect(copy.checkedBases).toEqual([])
+    expect(copy.readPaths).toEqual([])
+  })
+  it.each([
+    '.git./config',
+    String.raw`repo\.GiT. \hooks\pre-commit`,
+    '.github. /workflows. /build.yml',
+    'AGENTS.md. ',
+  ])('recognizes protected names with Windows aliases everywhere: %j', (inputPath) => {
+    expect(isProtectedPath(inputPath)).toBe(true)
+  })
+  it.runIf(process.platform === 'win32')(
+    'opens Windows aliases as the same native file',
+    async () => {
+      const root = await mkdtemp(path.join(os.tmpdir(), 'm100-input-identity-'))
+      try {
+        for (const directory of ['plans', '.git']) {
+          await mkdir(path.join(root, directory))
+          await writeFile(
+            path.join(root, directory, directory === 'plans' ? 'q3.md' : 'config'),
+            'plan',
+          )
+        }
+        const pairs = [
+          ['plans/q3.md', 'Plans/q3.md'],
+          ['plans/q3.md', 'plans/q3.md.'],
+          ['plans/q3.md', 'plans/q3.md '],
+          ['.git/config', '.git./config'],
+          ['plans/q3.md', String.raw`PLANS\Q3.MD`],
+        ]
+        const identities = execFileSync(
+          'powershell.exe',
+          [
+            '-NoProfile',
+            '-NonInteractive',
+            '-ExecutionPolicy',
+            'Bypass',
+            '-File',
+            path.resolve('test/unit/helpers/windowsFileIdentity.ps1'),
+            ...pairs.flatMap((pair) => pair.map((name) => path.join(root, name))),
+          ],
+          { encoding: 'utf8', windowsHide: true },
+        )
+          .trim()
+          .split(/\r?\n/u)
+        expect(identities).toHaveLength(pairs.length * 2)
+        for (const index of pairs.keys()) {
+          expect(identities[index * 2 + 1]).toBe(identities[index * 2])
+        }
+      } finally {
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+  )
   it('verifies a manifest built from Windows separators end to end', async () => {
     const { dispatch } = laneDispatch()
     const manifest = buildInputManifest({

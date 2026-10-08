@@ -207,3 +207,69 @@ this lane adds or changes no dependency and makes no full security-gate claim.
   or broaden a shared wire shape.
 - Optional contract consolidation: export the canonical `relativePath` and
   `gitObject` schemas so the compact manifest mirrors can reuse them.
+
+### Review RVM100P2V round 1 (FIXM100P2V, 2026-10-07)
+
+Branch `m100/p2-v-fix`, base `d8960e6bfa38c6af37c79a03724f407bd6967dbc`,
+Windows 11 rig. Both review findings are fixed. The brief explicitly extends
+this correction to the shared path helpers; other lanes' regions and generated
+records remain their owners' work. No live model call, real-device pairing,
+new dependency, wire shape, user-facing string or widened gate is involved.
+
+| Finding                                         | Fix and regression evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2: manifest uniqueness misses Windows aliases  | `src/core/devices/inputManifest.ts:73` compares `windowsPathIdentity` for every item at schema admission, so build and worker verification refuse collisions with `invalid-frame` on **every platform**, before any base-object or input read. `test/unit/deviceInputManifest.test.ts:315` covers all five review pairs, mixed case, trailing dots/spaces on multiple segments, Windows separators and AUX/NUL/COM/LPT names; each pair asserts build, wire-schema and worker refusal with no reads.                                                                                                                                                                                                                                                                                      |
+| P2: trailing protected-name aliases             | The one shared implementation is `src/core/pathIdentity.ts:6` (trailing-name trimming) and `:11` (Windows normalization, separator and case identity). Workspace confinement, held-tree writable names and Windows folding, `isSamePath`/folder membership, and shared protected-name checks all use it. `src/core/protectedPaths.ts:33` treats `.git.`, mixed-case/backslash variants, aliased workflow directories and `AGENTS.md. ` as protected everywhere. It preserves every segment of unresolved approval paths. `test/unit/deviceInputManifest.test.ts:341` and `test/unit/pathIdentity.test.ts` cover protection, path comparisons and confinement; existing `heldTree.test.ts` and the workspace-path cases in `modelApiTools.test.ts` cover their unchanged rejection policy. |
+| P3: offer admission skips future-skew admission | `src/core/devices/capability.ts:53` accepts unknown boundary values and an explicit receiver clock, calls `admitCapability` once (schema, UTF-8 cap, clock/future skew), then parses and binds the offer. `test/unit/deviceCapability.test.ts:143` reproduces exactly `now=1700000000000`, `observedAt=1700000030001`, skew=30000; it refuses the future value and accepts the exact boundary. The next test proves malformed/oversized/multibyte advertisements and invalid clocks refuse before offer binding.                                                                                                                                                                                                                                                                          |
+
+**Path policy decision:** manifest uniqueness deliberately uses the Windows
+identity on Linux, macOS and Windows alike; it cannot change with the receiver's
+OS. Stored wire spellings and digest serialization remain unchanged. A segment
+that becomes a protected name after Windows drops trailing dots/spaces is
+protected on every platform. This does not make reserved device names ordinary
+files: the existing Windows workspace/held-tree refusal stays in force.
+
+**Native Windows evidence:** the default-timeout test at
+`deviceInputManifest.test.ts:345` creates an isolated temporary copy and opens
+both spellings of the case, trailing-dot, trailing-space, `.git.` and separator
+pairs using ordinary `CreateFileW`; `GetFinalPathNameByHandleW` reports the
+identical file for each pair. `test/unit/helpers/windowsFileIdentity.ps1` runs
+one hidden, noninteractive PowerShell process with process-only execution
+policy. Handles and temporary files are cleaned up. Node/libuv's extended-path
+opens retain trailing dots on this rig, so that API cannot prove the ordinary
+Win32 rule; this test exercises Win32 directly. Reserved devices are tested
+with pure comparisons and refusals, never opened.
+
+#### Base failure proof
+
+Fresh clone `C:/lanes/_verify/FIXM100P2V-base-20261008` at the exact base above;
+only the two updated regression test files and the native test helper were
+overlaid. `CI=true`, `npm.cmd ci` **0**, then
+`npx.cmd vitest run test/unit/deviceInputManifest.test.ts
+test/unit/deviceCapability.test.ts --maxWorkers=3`, repository-default
+timeouts, **1**: **18 failed, 26 passed** (manifest **16 failed/16 passed**;
+capability **2 failed/10 passed**). All 25 original tests and the native
+Win32 proof passed; the new assertions exposed the two review defects.
+
+#### Correction red drills
+
+Each drill used the direct Vitest CLI with `--maxWorkers=3`, the owning file
+and the named selector, repository-default timeouts. A selector leaves
+unselected tests pending; no assertion was weakened or disabled. Each mutation
+was restored from its saved bytes in `finally`, then the SHA-256 was checked.
+
+| Drill           | Intentional break / owning selector                                                                                    | Exit / failures | Restored SHA-256                                                   |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------ |
+| V-fix-identity  | `inputManifest.ts`: replace canonical uniqueness with raw path characters; `refuses Windows identity collisions`       | 1 / 12          | `1baee6a4f2f330bfbf22f1cc02aa3e4352b95373f3b589139f33d71e97575e4e` |
+| V-fix-protected | `protectedPaths.ts`: case fold only, without Windows name identity; `recognizes protected names`                       | 1 / 4           | `8e92b85758d6da2e1933e28d03425b5918cd545ffedbd4d02ec843ca2e94233c` |
+| V-fix-offer     | `capability.ts`: parse capability schema instead of calling admission; `review future-dated\|admits schema, UTF-8 cap` | 1 / 2           | `84d8d2a0f0e39c3b36c7b50d5da5c8c19f77be3ed56490be115761521b6107ec` |
+
+Restored worktree run: manifest/capability/held-tree **99 passed**, exit **0**.
+Shared identity/workspace-tools/held-tree run **104 passed**, exit **0**.
+All five typecheck projects **0**. Fresh-clone final gate receipts follow in
+the certification commit after the implementation commit is verified.
+
+Integration requests remain with lane W: call `admitOfferCapability` with the
+receiver's current clock (a separate admission call is no longer needed),
+regenerate its host API record, and carry these unshipped behavior corrections
+into its assigned Unreleased changelog and joined-tree full quality gate.

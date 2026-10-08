@@ -118,27 +118,73 @@ describe('capability advertisement (lane V)', () => {
     const offer = deviceGrant('1'.repeat(32)).offer
     const capability = buildCapability(measured(), NOW)
     expect(() => {
-      admitOfferCapability(offer, capability)
+      admitOfferCapability(offer, capability, NOW)
     }).not.toThrow()
     const otherDevice = buildCapability({ ...measured(), deviceId: '2'.repeat(32) }, NOW)
     expect(() => {
-      admitOfferCapability(offer, otherDevice)
+      admitOfferCapability(offer, otherDevice, NOW)
     }).toThrow('grant')
     const otherIncarnation = buildCapability(
       { ...measured(), receiverIncarnationId: '2'.repeat(32) },
       NOW,
     )
     expect(() => {
-      admitOfferCapability(offer, otherIncarnation)
+      admitOfferCapability(offer, otherIncarnation, NOW)
     }).toThrow('grant')
     const otherPlatform = buildCapability({ ...measured(), platform: 'darwin' }, NOW)
     expect(() => {
-      admitOfferCapability(offer, otherPlatform)
+      admitOfferCapability(offer, otherPlatform, NOW)
     }).toThrow('incompatible')
     const fullSlots = buildCapability({ ...measured(), slotCap: 1 }, NOW)
     expect(() => {
-      admitOfferCapability(offer, fullSlots)
+      admitOfferCapability(offer, fullSlots, NOW)
     }).toThrow('capacity')
+  })
+  it('refuses the review future-dated capability before binding an offer', () => {
+    const offer = deviceGrant('1'.repeat(32)).offer
+    const future = buildCapability(measured(), NOW + DEVICE_LIMITS.clockSkewMs + 1)
+    expect(future.observedAt).toBe(1_700_000_030_001)
+    expect(() => admitCapability(future, NOW)).toThrow('invalid-frame')
+    expect(() => {
+      admitOfferCapability(offer, future, NOW)
+    }).toThrow('invalid-frame')
+    expect(() => {
+      admitOfferCapability(offer, buildCapability(measured(), NOW + DEVICE_LIMITS.clockSkewMs), NOW)
+    }).not.toThrow()
+  })
+  it('admits schema, UTF-8 cap and clock before considering offer binding', () => {
+    const offer = deviceGrant('1'.repeat(32)).offer
+    const capability = buildCapability(measured(), NOW)
+    for (const candidate of [
+      { ...capability, version: 2 },
+      { ...capability, extra: true },
+      { ...oversized(), observedAt: NOW },
+      {
+        ...capability,
+        tools: Array.from({ length: DEVICE_LIMITS.capabilityTools }, (_, index) =>
+          `${String(index)}-`.padEnd(DEVICE_LIMITS.labelChars, '\u{4F60}'),
+        ),
+      },
+    ]) {
+      expect(() => {
+        admitOfferCapability(offer, candidate, NOW)
+      }).toThrow('invalid-frame')
+    }
+    for (const now of [-1, NaN, Infinity, 0.5]) {
+      expect(() => {
+        admitOfferCapability(offer, capability, now)
+      }).toThrow('invalid-frame')
+    }
+    expect(() => {
+      admitOfferCapability({ ...offer, extra: true }, capability, NOW)
+    }).toThrow('invalid-frame')
+    const futureOtherDevice = buildCapability(
+      { ...measured(), deviceId: '2'.repeat(32) },
+      NOW + DEVICE_LIMITS.clockSkewMs + 1,
+    )
+    expect(() => {
+      admitOfferCapability(offer, futureOtherDevice, NOW)
+    }).toThrow('invalid-frame')
   })
   it('shapes pressure and transport signals for the governor', () => {
     const capability = buildCapability(measured(), NOW)

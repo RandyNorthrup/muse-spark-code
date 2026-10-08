@@ -25,6 +25,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, formatBytes } from '../../shared/l10n/text'
+import { windowsName, windowsPathIdentity } from '../pathIdentity'
 
 export type HeldEntryKind = 'file' | 'executable' | 'link' | 'submodule'
 
@@ -65,20 +66,19 @@ const BACKSLASH = '\\'
 const HFS_IGNORED = /[\u{200C}-\u{200F}\u{202A}-\u{202E}\u{206A}-\u{206F}\u{FEFF}]/gu
 // `.git`, or its NTFS short name, with the dots and spaces Windows drops
 // (git's is_ntfs_dotgit), in any letter case.
-const DOT_GIT = /^(?:\.git|git~1)[. ]*$/iu
+const DOT_GIT = /^(?:\.git|git~1)$/iu
 // What Windows refuses in a name, beside the control characters.
 const WINDOWS_FORBIDDEN = /[<>:"|?*]/u
 const FIRST_PRINTABLE = 0x20
 // A device name in any folder, whatever its extension (the superscript digits too).
 const WINDOWS_DEVICE = /^(?:con|prn|aux|nul|conin\$|conout\$|com[\d¹²³]|lpt[\d¹²³]) *(?:\..*)?$/iu
-// Windows drops a trailing dot or space, so the name on disk would be another.
-const WINDOWS_TRAILING = /[. ]$/u
 // Platforms whose usual file systems tell names apart neither by letter
 // case nor (macOS) by Unicode composition.
 const NAME_FOLDING_PLATFORMS: ReadonlySet<NodeJS.Platform> = new Set(['win32', 'darwin'])
 
 /** A path as the platform's file system compares it, so two that fold alike are one file. */
 export function foldName(name: string, platform: NodeJS.Platform): string {
+  if (platform === 'win32') return windowsPathIdentity(name.normalize('NFC'))
   return NAME_FOLDING_PLATFORMS.has(platform) ? name.normalize('NFC').toLowerCase() : name
 }
 
@@ -99,13 +99,13 @@ function isWritableName(name: string, platform: NodeJS.Platform): boolean {
     name === '..' ||
     name.includes(BACKSLASH) ||
     name.includes(UNDECODABLE) ||
-    DOT_GIT.test(name.replaceAll(HFS_IGNORED, ''))
+    DOT_GIT.test(windowsName(name.replaceAll(HFS_IGNORED, '')))
   const isRefusedOnWindows =
     platform === 'win32' &&
     (WINDOWS_FORBIDDEN.test(name) ||
       hasControlCharacter(name) ||
       WINDOWS_DEVICE.test(name) ||
-      WINDOWS_TRAILING.test(name))
+      windowsName(name) !== name)
   return !isRefusedEverywhere && !isRefusedOnWindows
 }
 

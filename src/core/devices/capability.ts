@@ -10,7 +10,6 @@ import {
   deviceCapabilitySchema,
   deviceOfferSchema,
   type DeviceCapability,
-  type DeviceOffer,
 } from '../../shared/devices'
 import { DevicePairingError } from './pairing'
 
@@ -51,20 +50,17 @@ export function admitCapability(candidate: unknown, now: number): DeviceCapabili
 // Offer capability region (new files only): an offer is admitted only
 // against the incarnation and platform the device currently advertises,
 // with workers inside the advertised slot cap.
-export function admitOfferCapability(offer: DeviceOffer, capability: DeviceCapability): void {
+export function admitOfferCapability(offer: unknown, capability: unknown, now: number): void {
+  const admitted = admitCapability(capability, now)
   const parsedOffer = deviceOfferSchema.safeParse(offer)
-  const parsedCapability = deviceCapabilitySchema.safeParse(capability)
-  if (!parsedOffer.success || !parsedCapability.success)
-    throw new DevicePairingError('invalid-frame')
+  if (!parsedOffer.success) throw new DevicePairingError('invalid-frame')
   if (
-    parsedOffer.data.deviceId !== parsedCapability.data.deviceId ||
-    parsedOffer.data.receiverIncarnationId !== parsedCapability.data.receiverIncarnationId
+    parsedOffer.data.deviceId !== admitted.deviceId ||
+    parsedOffer.data.receiverIncarnationId !== admitted.receiverIncarnationId
   )
     throw new DevicePairingError('grant')
-  if (parsedOffer.data.platform !== parsedCapability.data.platform)
-    throw new DevicePairingError('incompatible')
-  if (parsedOffer.data.caps.workers > parsedCapability.data.slotCap)
-    throw new DevicePairingError('capacity')
+  if (parsedOffer.data.platform !== admitted.platform) throw new DevicePairingError('incompatible')
+  if (parsedOffer.data.caps.workers > admitted.slotCap) throw new DevicePairingError('capacity')
 }
 
 /** The previous pressure sample the governor compares against, if any. */

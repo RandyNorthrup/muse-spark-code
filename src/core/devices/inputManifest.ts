@@ -18,6 +18,7 @@ import {
   type DeviceDispatch,
 } from '../../shared/devices'
 import { DevicePairingError } from './pairing'
+import { windowsPathIdentity } from '../pathIdentity'
 
 /** Wire paths use `/`; normalize before any compare, on every platform. */
 export function normalizeManifestPath(path: string): string {
@@ -68,7 +69,9 @@ export const deviceInputManifestSchema = z
     z.refine(
       (value) =>
         value.baseCommit.length === value.tree.length &&
-        new Set(value.items.map((item) => item.path)).size === value.items.length,
+        // A manifest must have one identity on every receiver platform.
+        new Set(value.items.map((item) => windowsPathIdentity(item.path))).size ===
+          value.items.length,
     ),
   )
 export type DeviceInputManifest = z.infer<typeof deviceInputManifestSchema>

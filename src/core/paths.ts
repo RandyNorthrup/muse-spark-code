@@ -3,10 +3,11 @@
 // POSIX compares the normalised paths exactly. Pure.
 
 import path from 'node:path'
+import { windowsPathIdentity } from './pathIdentity'
 
 export function isSamePath(left: string, right: string, platform: NodeJS.Platform): boolean {
   return platform === 'win32'
-    ? path.win32.normalize(left).toLowerCase() === path.win32.normalize(right).toLowerCase()
+    ? windowsPathIdentity(left) === windowsPathIdentity(right)
     : path.posix.normalize(left) === path.posix.normalize(right)
 }
 
@@ -17,7 +18,7 @@ export function isWithinFolder(
   platform: NodeJS.Platform,
 ): boolean {
   const p = platform === 'win32' ? path.win32 : path.posix
-  const fold = (value: string) => (platform === 'win32' ? value.toLowerCase() : value)
+  const fold = (value: string) => (platform === 'win32' ? windowsPathIdentity(value) : value)
   const relative = p.relative(fold(p.resolve(folder)), fold(p.resolve(candidate)))
   // `..` as a whole segment: a folder named `..cache` inside is still inside.
   const isAbove = relative === '..' || relative.startsWith(`..${p.sep}`)
