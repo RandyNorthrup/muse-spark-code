@@ -196,6 +196,35 @@ function currentQuoteSave(t: ReturnType<typeof rig>) {
   return t.deps.saveQuoteGrantIf.getMockImplementation()!
 }
 
+/**
+ * Opens one popup on a fresh instance, revokes from a second instance while
+ * the answer is held, then resolves Always: the late answer is refused.
+ */
+async function heldAnswerRevoked(t: ReturnType<typeof rig>, request: PaidUseRequest) {
+  const a = t.create(),
+    b = t.create()
+  const answer = Promise.withResolvers<PaidUseAnswer>()
+  t.deps.ask.mockReturnValueOnce(answer.promise)
+  const asking = a.allows(request)
+  await vi.waitFor(() => {
+    expect(t.deps.ask).toHaveBeenCalledTimes(1)
+  })
+  await b.revoke()
+  answer.resolve('always')
+  expect(await asking).toBe(false)
+}
+
+/**
+ * A refused race stored no approval: only the revoker's empty clear record
+ * may exist, and a restart asks with Deny honoured.
+ */
+async function expectRaceStoredNothing(t: ReturnType<typeof rig>) {
+  for (const stored of t.grants.values()) expect(stored.features.size).toBe(0)
+  t.deps.ask.mockResolvedValue('deny')
+  expect(await t.create().allows({ feature: 'voice' })).toBe(false)
+  expect(t.deps.ask).toHaveBeenCalledTimes(2)
+}
+
 describe('M108 account-bound paid use consent', () => {
   it('passes an exact sub-nano budget through consent without rounding its digits', async () => {
     const t = rig()
@@ -521,19 +550,9 @@ describe('M108 account-bound paid use consent', () => {
     const t = rig()
     const request = quotedSearch('0.0025', 'model-a')
     t.deps.ask.mockResolvedValue('always')
-    const a = t.create(),
-      b = t.create()
     // A opens its question before B revokes; B's epoch advance lands first.
-    const answer = Promise.withResolvers<PaidUseAnswer>()
-    t.deps.ask.mockReturnValueOnce(answer.promise)
-    const asking = a.allows(request)
-    await vi.waitFor(() => {
-      expect(t.deps.ask).toHaveBeenCalledTimes(1)
-    })
-    await b.revoke()
-    answer.resolve('always')
+    await heldAnswerRevoked(t, request)
     // The late Always is refused, and nothing durable is resurrected.
-    expect(await asking).toBe(false)
     expect(t.quotes.size).toBe(0)
     t.deps.ask.mockResolvedValue('deny')
     expect(await t.create().allows(request)).toBe(false)
@@ -596,25 +615,10 @@ describe('M108 account-bound paid use consent', () => {
 
   it('refuses a non-search answer opened before another instance revokes, storing nothing', async () => {
     const t = rig()
-    const a = t.create(),
-      b = t.create()
-    // A opens its voice popup at epoch 0; hold the answer.
-    const answer = Promise.withResolvers<PaidUseAnswer>()
-    t.deps.ask.mockReturnValueOnce(answer.promise)
-    const asking = a.allows({ feature: 'voice' })
-    await vi.waitFor(() => {
-      expect(t.deps.ask).toHaveBeenCalledTimes(1)
-    })
-    // B revokes and clears meanwhile; A's late Always belongs to epoch 0.
-    await b.revoke()
-    answer.resolve('always')
-    expect(await asking).toBe(false)
-    // Only B's empty clear record may exist: A's answer stored no approval.
-    for (const stored of t.grants.values()) expect(stored.features.size).toBe(0)
+    // A opens its voice popup at epoch 0; B revokes before the answer lands.
+    await heldAnswerRevoked(t, { feature: 'voice' })
     expect(t.quotes.size).toBe(0)
-    t.deps.ask.mockResolvedValue('deny')
-    expect(await t.create().allows({ feature: 'voice' })).toBe(false)
-    expect(t.deps.ask).toHaveBeenCalledTimes(2)
+    await expectRaceStoredNothing(t)
   })
 
   it('refuses a non-search save held while another instance revokes, storing nothing', async () => {
@@ -637,11 +641,7 @@ describe('M108 account-bound paid use consent', () => {
     finish.resolve(undefined)
     // The conditional save fails, and the downgraded Allow-once is refused.
     expect(await asking).toBe(false)
-    // Only B's empty clear record may exist: A's write stored no approval.
-    for (const stored of t.grants.values()) expect(stored.features.size).toBe(0)
-    t.deps.ask.mockResolvedValue('deny')
-    expect(await t.create().allows({ feature: 'voice' })).toBe(false)
-    expect(t.deps.ask).toHaveBeenCalledTimes(2)
+    await expectRaceStoredNothing(t)
   })
 
   it('orders concurrent revokes strictly forward past a delayed writer', async () => {
