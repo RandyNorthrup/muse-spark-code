@@ -9,6 +9,7 @@ import { powerShellQuoted } from '../../src/core/shellQuote'
 import { DEVICE_LIMITS, SHELL_JOB_FOLDER } from '../../src/shared/constants'
 import {
   DeviceWorkerHost,
+  type DeviceWorkerDriver,
   type DeviceWorkerHostDeps,
 } from '../../src/host/devices/deviceWorkerHost'
 import { deviceCheck, deviceGrant } from './helpers/deviceFixtures'
@@ -30,6 +31,17 @@ function driver() {
     sourceFile: path.resolve('native/windows/MuseSparkDeviceWorker.cs'),
     environment: process.env,
   })
+}
+function launchScript(native: DeviceWorkerDriver, script: string) {
+  return native.launch(
+    {
+      executable: process.execPath,
+      args: ['-e', script],
+      cwd: scratch.directory,
+      requiredTools: [],
+    },
+    { SystemRoot: process.env['SystemRoot'] ?? '' },
+  )
 }
 describe.skipIf(process.platform !== 'win32')('M100/H real Windows scheduled worker', () => {
   beforeAll(async () => {
@@ -112,15 +124,7 @@ describe.skipIf(process.platform !== 'win32')('M100/H real Windows scheduled wor
     const marker = path.join(scratch.directory, 'descendant-finished')
     const descendant = `setTimeout(()=>require('node:fs').writeFileSync(${JSON.stringify(marker)},'finished'),100)`
     const script = `require('node:child_process').spawn(process.execPath,['-e',${JSON.stringify(descendant)}],{stdio:'ignore',detached:true}).unref();process.stdout.write('structured-parent-result');`
-    const job = await native.launch(
-      {
-        executable: process.execPath,
-        args: ['-e', script],
-        cwd: scratch.directory,
-        requiredTools: [],
-      },
-      { SystemRoot: process.env['SystemRoot'] ?? '' },
-    )
+    const job = await launchScript(native, script)
     try {
       await job.activate()
       expect(await job.retirement).toMatchObject({
@@ -138,15 +142,7 @@ describe.skipIf(process.platform !== 'win32')('M100/H real Windows scheduled wor
     const native = driver()
     const marker = path.join(scratch.directory, 'running-tree')
     const script = `require('node:child_process').spawn(process.execPath,['-e','setInterval(()=>{},100)'],{stdio:'ignore',detached:true}).unref();require('node:fs').writeFileSync(${JSON.stringify(marker)},'ready');setInterval(()=>{},100)`
-    const job = await native.launch(
-      {
-        executable: process.execPath,
-        args: ['-e', script],
-        cwd: scratch.directory,
-        requiredTools: [],
-      },
-      { SystemRoot: process.env['SystemRoot'] ?? '' },
-    )
+    const job = await launchScript(native, script)
     try {
       await job.activate()
       await expect
@@ -174,14 +170,9 @@ describe.skipIf(process.platform !== 'win32')('M100/H real Windows scheduled wor
   })
   it('bounds the structured channel and ends a flooding job', async () => {
     const native = driver()
-    const job = await native.launch(
-      {
-        executable: process.execPath,
-        args: ['-e', `process.stdout.write('x'.repeat(${String(DEVICE_LIMITS.frameBytes + 1)}))`],
-        cwd: scratch.directory,
-        requiredTools: [],
-      },
-      { SystemRoot: process.env['SystemRoot'] ?? '' },
+    const job = await launchScript(
+      native,
+      `process.stdout.write('x'.repeat(${String(DEVICE_LIMITS.frameBytes + 1)}))`,
     )
     try {
       await job.activate()
