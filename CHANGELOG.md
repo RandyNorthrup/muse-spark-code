@@ -12,6 +12,8 @@ happened, not what was planned; superseded entries are kept.
 - Restore the Schedule Prompt, Schedules and Schedule Timeline editor commands, including panels opened on demand.
 - Reuse successful time-zone validation during repeated schedule journal reads, preserving storage checks and workload deadlines.
 - Resolve visual replay fixtures from the running gate when historical render sources predate them, and guard Help document IDs against duplication.
+- Prepare browser-English probe scratch space in fresh clones and include the merged Linux helper job in the visual CI test fixture.
+- Give plan-usage request counts localized singular/plural text so contrast checks can measure their visible content.
 - Name and exercise report-root literal regex escaping across all operators and Windows separators.
 
 - Share ACP preparation cancellation and exact USD display helpers; align merged paid-ledger tests with the exact decimal contract.

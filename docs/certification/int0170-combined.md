@@ -210,7 +210,8 @@ receipt. The restored shared batch passes 168 tests.
 
 - Item 1: extension.ts passes createSchedulesBridge to each controller and
   registers all three command IDs before use. The command port retains
-  requests until the exact panel's ready handshake; disabled schedules refuse
+  cold requests until a panel's ready handshake and keys existing-panel
+  requests by their surface; disabled schedules refuse
   before opening and pending requests recheck the setting. Seven whole-owner
   cases pass, including cold/warm views and failed opening. The message factory
   does not open a credential store or backend; actual scheduled editor delivery
@@ -243,3 +244,29 @@ receipt. The restored shared batch passes 168 tests.
   `0e41182484b5499d38ea672b1cac08c4556066a0fdcb756e63a5806ada6ee55e`.
   The inherited precise suppression remains documented in PLAN §8; no new
   scanner ignore or rule change. Restored redaction/zone/hook batch: 48 passed.
+
+Fresh-clone replay follow-up: npm ci and all five typechecks pass. The probe
+exposes a pre-existing missing ignored temp parent in a clean tree; create it
+before its entry files, preserving their relative imports. The visual gate's
+required-job shell fixture omits the merged LINUX_HELPER success result; add
+that result, retaining every fast/full and visual outcome assertion. Both
+complete owners failed naturally before these corrections. Plan heading
+format drift is corrected without changing the parser. Final replay follows.
+
+The first exact accessibility replay scans 1,068 pages and 32 production
+report pages: no violations or missing readiness results; four plan-usage
+request counts have undecided contrast because they are single-digit text.
+Render counts through the existing localized request forms, preserving totals,
+reported/estimated/unknown distinctions and the responsive facts grid. Whole
+UI/probe/visual owners pass 42 tests; removing plural display or account imports
+makes the whole respective owner fail, restored SHA-exact. Production replay
+of both plan-usage widths across four themes passes 8/8, with zero violations,
+undecided rules or missing results. Full-matrix final replay follows.
+
+The first real VS Code integration replay passes all 40 tests on stable
+1.141.0 and all 40 on minimum 1.99.0, including the unchanged loop over every
+contributed command ID. Model traffic is fake-only. Activation is 587,451 of
+614,400 bytes. Fresh journal/store coverage passes 45 tests in 132.08 s; the
+10,000-fire store still reports 10,000 fires, a bounded audit and fenced old
+identities. Final-row journal: 53 operations / 24,662 bytes; total storage
+2,404,304 bytes. No deadlines or validation assertions changed.

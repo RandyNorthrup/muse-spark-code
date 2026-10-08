@@ -20347,7 +20347,7 @@ as required by the rig brief; do not run full quality or merge in this lane.
 
 ### LEFT017 — Combined 0.17.0 integration leftovers (2026-10-08)
 
-**Status: in progress.** Rig lane `rel017/left`, base `7a4fc2ab3`; two-hour
+**Status 2026-10-08: building.** Rig lane `rel017/left`, base `7a4fc2ab3`; two-hour
 repair window. Keep all assertions, caps, scanner rules and deadlines.
 
 - [x] Register the three M115 editor commands and lazily connect the panel bridge (actual host replay follows).
@@ -20357,7 +20357,7 @@ repair window. Keep all assertions, caps, scanner rules and deadlines.
 - [x] Share duplicate production and test helpers; four baseline clones repaired (final gate follows).
 - [x] Remove unused compactNodeReference after demonstrating its obsolete test fails.
 - [x] Cover account English in the browser probe's actual entry graph.
-- [ ] Profile and repair the 10,000-fire journal without changing its 240 s limit.
+- [x] Profile and repair the 10,000-fire journal without changing its 240 s limit (fresh coverage: 45 tests, 132.08 s whole run).
 - [x] Add G76 and bound lint-staged argument batches for Windows command shims.
 - [ ] Replay affected tests and required gates in a fresh npm-ci clone; record
       exact outcomes in docs/certification/int0170-combined.md.
@@ -20366,6 +20366,19 @@ The lane brief authorizes hook batching and scanner network access required by
 its exact SAST command, overriding older shared prohibitions for these actions.
 No quality aggregate, merge, push, paid call or credential read is authorized.
 Build caps owned by the separate shrinking lane remain an explicit §7 deferral.
+
+Fresh-clone follow-up: create the browser English probe's ignored parent
+directory before its temporary entry graph. Restore the visual CI fixture's
+successful LINUX_HELPER result for the merged required job, retaining every
+success/failure/cancelled/skipped visual assertion. The lane uses the existing
+dated milestone status grammar. The fixture source edit
+also requires real README screenshot replay before refreshing its input digest.
+
+Accessibility follow-up: the fresh full matrix has all 1,068 pages ready, no
+violations and four undecided contrast checks on the plan-usage request count.
+Render its request counts with the existing localized singular/plural request
+template, retaining exact totals, unknown-token distinctions and responsive
+fact layout. Re-run its whole UI owner and all four themes before full replay.
 
 ### INT0170B — Complete 0.17.0 integration certification (2026-10-07)
 

@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { build } from 'esbuild'
@@ -20,6 +20,7 @@ const fixture = { folder: '', canonical: undefined, browser: undefined, keys: un
 const byText = (left, right) => left.localeCompare(right)
 
 beforeAll(async () => {
+  mkdirSync(path.resolve('temp'), { recursive: true })
   fixture.folder = mkdtempSync(path.resolve('temp/train15h-english-'))
   writeFileSync(path.join(fixture.folder, 'package.json'), '{"type":"module"}')
   const english = path.resolve('src/shared/l10n/en.ts').replaceAll('\\', '/')

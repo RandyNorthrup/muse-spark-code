@@ -420,6 +420,7 @@ describe('M114 bounded pixelmatch visual gate', () => {
         'ACCESSIBILITY',
         'INTEGRATION',
         'HELPER',
+        'LINUX_HELPER',
         'PACKAGES',
         'SECRETS',
         'SAST',
