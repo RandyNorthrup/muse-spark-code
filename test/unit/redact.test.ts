@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   countSecretMatches,
+  isSecretFieldName,
   MAY_HOLD_SECRET,
   redactableSlices,
   redactDiagnosticEvent,
@@ -367,6 +368,64 @@ describe('redactSecrets', () => {
       'self._auth = None; the token count; Basic plan',
     ].join('\n')
     expect(redactSecrets(text)).toBe(text)
+  })
+
+  it.each([
+    'inputTokens',
+    'max_output_tokens',
+    'max_tokens',
+    'completion_tokens',
+    'outputTokens',
+    'input_tokens',
+    'output_tokens',
+    'total_tokens',
+    'prompt_tokens',
+    'tokenCount',
+    'maxTokens',
+    'auth',
+    'npm_config_cache',
+  ])('keeps ordinary field %s under the shared name rules (RVM98P2IF)', (key) => {
+    expect(isSecretFieldName(key)).toBe(false)
+    const assignment = `${key}=1200`
+    const json = JSON.stringify({ [key]: 4096 })
+    expect(redactSecrets(assignment)).toBe(assignment)
+    expect(redactSecrets(json)).toBe(json)
+  })
+
+  it.each([
+    'AccountKey',
+    'SharedAccessKey',
+    'aws_secret_access_key',
+    'aws_session_token',
+    'api-key',
+    'x-api-key',
+    'apiKey',
+    'api_key',
+    'GITHUB_TOKEN',
+    'META_API_KEY',
+    'MODEL_API_KEY',
+    'access_token',
+    'refresh_token',
+    'id_token',
+    'client_secret',
+    'password',
+    'token',
+    'secret',
+    'passwd',
+    'private_key',
+    '_auth',
+    '_authToken',
+    'CUSTOM_SECRET',
+    'CUSTOM_ACCESS_KEY',
+    'CUSTOM_CREDENTIALS',
+    'user_id',
+    'creator_user_id',
+    'workspace_id',
+    'openai-organization',
+  ])('recognizes secret/privacy field %s using the shared text rules (RVM98P2IF)', (key) => {
+    expect(isSecretFieldName(key)).toBe(true)
+    const namedValue = `${key}=opaque-field ${JSON.stringify(key)}:"opaque-field"`
+    expect(redactSecrets(namedValue)).not.toBe(namedValue)
   })
 
   it('does not treat a lone LLM prefix as a key', () => {

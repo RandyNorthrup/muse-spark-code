@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Use the shared redactor's field-name rules in the experimental embedding
+  judge, preserving ordinary token counts, limits and non-secret `auth`
+  objects while still replacing values under real secret names.
+
 - Replace the experimental embedding judge's per-shape secret checks with one
   path-taint walk: any recognized secret key redacts its entire value,
   including nested objects, arrays, numbers and booleans. Retain inline

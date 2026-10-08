@@ -8,7 +8,7 @@
 
 import * as z from 'zod/mini'
 import { JUDGE_EMBED_FALLBACK_CONFIDENCE, REDACTED_MARK } from '../../../shared/constants'
-import { redactSecrets } from '../../redact'
+import { isSecretFieldName, redactSecrets } from '../../redact'
 import { entropyConfidence } from '../math'
 import {
   judgeOutcomeSchema,
@@ -285,21 +285,6 @@ function embedInputs(value: PlainData): EmbedInputs {
   return { status: 'ready', value: inputs }
 }
 
-/** Use the shared recognizer, with a fixed value independent of the data's type. */
-function isSecretName(key: string): boolean {
-  const compact = key.replaceAll(/[-_]/g, '')
-  const names = [
-    key,
-    compact,
-    compact.toUpperCase().replaceAll(/(ACCESS|PRIVATE)KEY/g, '$1_KEY'),
-    `_${compact.toLowerCase()}`,
-  ]
-  return names.some((name) => {
-    const probe = `${name}=1 ${JSON.stringify(name)}:"1"`
-    return redactSecrets(probe) !== probe
-  })
-}
-
 /** Replace a changed inline string whole, including quoted or multiline tails. */
 function redactString(value: string): string {
   const inspection = value
@@ -313,7 +298,7 @@ function redactString(value: string): string {
 
 /** A secret name anywhere on the path taints the entire value, of any type. */
 function redactStructured(value: PlainData, path: readonly string[] = []): PlainData {
-  if (path.some((key) => isSecretName(key))) return REDACTED_MARK
+  if (path.some((key) => isSecretFieldName(key))) return REDACTED_MARK
   if (typeof value === 'string') return redactString(value)
   if (Array.isArray(value)) {
     return value.map((item, index) => redactStructured(item, [...path, String(index)]))

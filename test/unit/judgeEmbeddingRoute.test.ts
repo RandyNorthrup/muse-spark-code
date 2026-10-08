@@ -432,6 +432,23 @@ const secretNames = [
 
 const opaqueMarker = 'opaque-nested-account'
 
+// Counts/limits and ordinary names the shared redactor leaves unchanged.
+const ordinaryNames = [
+  'inputTokens',
+  'max_output_tokens',
+  'max_tokens',
+  'completion_tokens',
+  'outputTokens',
+  'input_tokens',
+  'output_tokens',
+  'total_tokens',
+  'prompt_tokens',
+  'tokenCount',
+  'maxTokens',
+  'auth',
+  'npm_config_cache',
+]
+
 /** Verify dispatch redaction and the independently admitted full-judge leg. */
 async function expectTaintedState(
   state: NestedData,
@@ -452,7 +469,9 @@ async function expectTaintedState(
   if (outcome.outcome !== 'answered') throw new Error('expected an admitted answer')
   for (const batch of seen) {
     for (const payload of batch) {
-      expect(payload).not.toContain(opaqueMarker)
+      expect(payload.includes(opaqueMarker), JSON.stringify(state)).toBe(
+        JSON.stringify(cleanState).includes(opaqueMarker),
+      )
       expect(JSON.parse(payload)).toMatchObject({ state: cleanState })
     }
   }
@@ -470,6 +489,91 @@ async function expectTaintedState(
 }
 
 describe('embedding pipeline regressions', () => {
+  it('preserves every ordinary field in the review state (RVM98P2IF)', async () => {
+    const state = {
+      inputTokens: 1200,
+      max_output_tokens: 4096,
+      max_tokens: 128,
+      completion_tokens: 16,
+      auth: { scheme: 'none', user: 'ada' },
+      command: 'list files',
+    }
+    const { seen, embed } = captureEmbedInputs(confidentVectors)
+    const { deps, fallbackCalls } = routeDependencies({ source: { embed } })
+    const outcome = await runEmbeddingJudge({ ...noulRequest, state }, options, deps, signal())
+    expect(outcome).toMatchObject({
+      outcome: 'answered',
+      result: { muse: { risk: { technique: 'embedding' } } },
+    })
+    expect(seen).toHaveLength(1)
+    expect(JSON.parse(seen[0]?.[0] ?? '')).toMatchObject({ state })
+    expect(fallbackCalls).toHaveLength(0)
+    const mixedState = {
+      ...state,
+      AccountKey: { key: opaqueMarker },
+      GITHUB_TOKEN: [opaqueMarker],
+      password: false,
+    }
+    await runEmbeddingJudge({ ...noulRequest, state: mixedState }, options, deps, signal())
+    expect(seen).toHaveLength(2)
+    expect(JSON.parse(seen[1]?.[0] ?? '')).toMatchObject({
+      state: {
+        ...state,
+        AccountKey: REDACTED_MARK,
+        GITHUB_TOKEN: REDACTED_MARK,
+        password: REDACTED_MARK,
+      },
+    })
+    expect(seen[1]?.[0]).not.toContain(opaqueMarker)
+  })
+
+  it.each(ordinaryNames)(
+    'preserves ordinary %s values at mixed depths 1–4 (RVM98P2IF)',
+    async (name) => {
+      const head = trainedHead()
+      const values: NestedData[] = [
+        1200,
+        4096,
+        128,
+        16,
+        opaqueMarker,
+        false,
+        null,
+        {
+          scheme: 'none',
+          user: 'ada',
+          key: opaqueMarker,
+        },
+        [opaqueMarker],
+      ]
+      for (const depth of [1, 2, 3, 4]) {
+        for (const isArrayFirst of [false, true]) {
+          for (const value of values) {
+            const state = mixedNesting({ [name]: value }, depth - 1, isArrayFirst)
+            const original = JSON.stringify(state)
+            const { seen, embed } = captureEmbedInputs(confidentVectors)
+            const { deps, fallbackCalls } = routeDependencies({ head, source: { embed } })
+            const outcome = await runEmbeddingJudge(
+              { ...noulRequest, state },
+              options,
+              deps,
+              signal(),
+            )
+            expect(outcome).toMatchObject({
+              outcome: 'answered',
+              result: { muse: { risk: { technique: 'embedding' } } },
+            })
+            expect(seen).toHaveLength(1)
+            expect(JSON.parse(seen[0]?.[0] ?? '')).toMatchObject({ state })
+            expect(seen[0]?.[0]).not.toContain(REDACTED_MARK)
+            expect(fallbackCalls).toHaveLength(0)
+            expect(JSON.stringify(state)).toBe(original)
+          }
+        }
+      }
+    },
+  )
+
   it('redacts the complete AccountKey object from the review (RVM98P2IE 1)', async () => {
     await expectTaintedState(
       { AccountKey: { key: opaqueMarker }, safe: 'public context' },
@@ -480,7 +584,7 @@ describe('embedding pipeline regressions', () => {
   })
 
   it.each(secretNames)(
-    'taints every JSON type and descendant under %s at mixed depths 1–4 (RVM98P2IE)',
+    'honors shared recognition of %s variants for every JSON type at mixed depths 1–4 (RVM98P2IE)',
     async (recognizedName) => {
       const head = trainedHead()
       const values: NestedData[] = [
@@ -501,16 +605,29 @@ describe('embedding pipeline regressions', () => {
         recognizedName.replaceAll(/[-_]/g, '').replaceAll(/(?<=[A-Za-z0-9])(?=[A-Za-z0-9])/g, '_-'),
       ])
       for (const name of names) {
+        // The shared text rules define whether a generated spelling is secret.
+        // Separator/case conversion alone is no longer permission to erase it.
+        const probe = `${name}=1 ${JSON.stringify(name)}:"1"`
+        const isSecret = redactor.redactSecrets(probe) !== probe
+        if (name === recognizedName) expect(isSecret).toBe(true)
         for (const depth of [1, 2, 3, 4]) {
           for (const isArrayFirst of [false, true]) {
             for (const value of values) {
+              // zod's passive record admission omits this own key before the walk.
+              const admittedValue =
+                value !== null && typeof value === 'object' && Object.hasOwn(value, '__proto__')
+                  ? {}
+                  : value
               const state = mixedNesting(
                 { [name]: value, safe: 'public context' },
                 depth - 1,
                 isArrayFirst,
               )
               const cleanState = mixedNesting(
-                { [name]: REDACTED_MARK, safe: 'public context' },
+                {
+                  [name]: isSecret ? REDACTED_MARK : admittedValue,
+                  safe: 'public context',
+                },
                 depth - 1,
                 isArrayFirst,
               )
@@ -574,10 +691,7 @@ describe('embedding pipeline regressions', () => {
     })
     // Isolate the last guard: simulate an earlier recognizer missing this field.
     // The same boolean input now redacts in the walker without this fault.
-    const sharedRedact = redactor.redactSecrets
-    const earlierMiss = vi
-      .spyOn(redactor, 'redactSecrets')
-      .mockImplementation((text) => (text.startsWith('{"state":') ? sharedRedact(text) : text))
+    const earlierMiss = vi.spyOn(redactor, 'isSecretFieldName').mockReturnValue(false)
     try {
       const outcome = await runEmbeddingJudge(
         { ...noulRequest, state: { password: true } },

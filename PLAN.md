@@ -42443,6 +42443,21 @@ No dependency, host contract, paid guard or bundle cap changes.
 
 ##### 2i — Embedding fast path after family measurement
 
+- **FIXM98P2I6 shared-name repair (2026-10-08, before implementation).**
+  Remove the walker's invented uppercase, compact and underscore probes.
+  Export `isSecretFieldName` from the shared redactor, using its existing
+  rule table on the original field spelling; the walker calls only that.
+  Preserve ordinary token counts, limits and non-secret `auth` objects.
+  Retain every existing regression and generated name/depth/type scenario;
+  variant expectations follow the shared redactor's actual recognition,
+  rather than assuming normalization creates a secret name. Add the exact
+  RVM98P2IF scenario and a negative property half at mixed depths 1–4.
+  Prove the new negative cases on `45109a6f6`, then reintroduce an invented
+  probe and restore exact bytes. Certify all three owning files three times,
+  five typechecks, changed-file lint/format, plain knip, duplication,
+  localization and capped build in a fresh `CI=true npm ci` clone. Aggregate
+  quality stays lead-owned under the shared rules; no live/paid call,
+  dependency, escape hatch, merge or push.
 - **FIXM98P2I5 path-taint redesign (2026-10-07, before implementation).**
   Apply one recursive walker once to the passive plain-data request already
   admitted by `plainDataSchema`. Recognize names through the shared redactor
@@ -47773,6 +47788,13 @@ A can integrate against the callable source factory and generation contract;
 I can use those contracts for its representation work but still needs named
 embedding captures and independent calibration labels. Receipt:
 `docs/certification/m98.md`.
+
+**FIXM98P2I6 bounded verification (2026-10-08).** The explicit rig/shared
+brief prohibits aggregate `npm run quality` in this lane and delegates it
+to the lead. Run the three owning suites and named static/build gates in
+a fresh clone instead; no gate, timeout, threshold or configuration changes.
+L98P2-EMBED's live family measurement and installed-editor certification
+remain lead-owned. Receipt: `docs/certification/m98.md`, lane I FIXM98P2I6.
 
 ## 8. Escape hatches register
 
