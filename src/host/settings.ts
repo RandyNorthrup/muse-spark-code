@@ -187,17 +187,15 @@ export interface ExtensionSettings extends SettingsSnapshot {
  * which satisfies it structurally. Keeping the dependency this narrow makes
  * the reader trivially fakeable in unit tests.
  */
+interface StoredSettingValues {
+  readonly globalValue?: unknown
+  readonly workspaceValue?: unknown
+  readonly workspaceFolderValue?: unknown
+}
+
 export interface SettingsSource {
   get(section: string): unknown
-  inspect?(
-    section: string,
-  ):
-    | {
-        readonly globalValue?: unknown
-        readonly workspaceValue?: unknown
-        readonly workspaceFolderValue?: unknown
-      }
-    | undefined
+  inspect?(section: string): StoredSettingValues | undefined
 }
 
 const environmentVariableSchema = z.object({ name: z.string(), value: z.string() })
