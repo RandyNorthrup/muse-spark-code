@@ -674,6 +674,7 @@
   "browserCheckScopeChanged": "Les hôtes que la vérification dans le navigateur peut atteindre ont changé pendant sa préparation : rien n’a été ouvert. Redemandez la vérification avec les nouveaux hôtes.",
   "browserCheckNotOffered": "La vérification dans le navigateur n’est plus disponible ici (la confiance de l’espace de travail, le mode d’autorisation, le paramètre réseau ou celui du navigateur de vérification a changé) : rien n’a été ouvert.",
   "browserCheckLaunch": "Le navigateur de la vérification dans le navigateur n’a pas pu démarrer.",
+  "browserCheckSystemDirectoryUnavailable": "Le répertoire système de Windows est indisponible ; définissez SystemRoot sur son chemin réel.",
   "browserCheckUnrecognized": "La vérification dans le navigateur s’est arrêtée : le navigateur ne correspondait pas exactement à la version et à la configuration attendues.",
   "browserCheckProfile": "La vérification dans le navigateur s’est arrêtée : elle n’a pas pu préparer un nouveau profil de navigateur privé.",
   "browserCheckRouteUnconfirmed": "La vérification dans le navigateur s’est arrêtée : elle n’a pas pu confirmer que le trafic de la page passe uniquement par son propre proxy.",

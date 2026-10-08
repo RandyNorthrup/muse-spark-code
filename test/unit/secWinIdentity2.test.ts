@@ -8,6 +8,7 @@
 // mapping and folder it made.
 
 import { execFileSync } from 'node:child_process'
+import { StorageRefusalError } from '../../src/core/checkpoints/storageRefusal'
 import {
   existsSync,
   mkdirSync,
@@ -35,8 +36,11 @@ import {
   withCheckpointStorageGuard,
 } from '../../src/host/checkpoints/checkpointHost'
 import { MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
+import { thrownToolOutcome } from '../../src/core/backends/modelapi/ModelApiHost'
 import { checkpointPort, harness, removeCheckpointFolders } from './helpers/checkpointHarness'
 import { noopToolIo } from './helpers/fakeToolIo'
+import { FakeLogOutputChannel } from './helpers/fakes'
+import { installGerman, restoreEnglish } from './helpers/germanTable'
 import { capturedWriteRequested } from './helpers/protectedWriteCapture'
 import { adminShare } from './helpers/secWinShare'
 
@@ -51,9 +55,30 @@ afterEach(() => {
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
+afterEach(restoreEnglish)
 
 function write(subject: string): { kind: string; path: string; access: string } {
   return { kind: 'fileAccess', path: subject, access: 'write' }
+}
+
+/** What `work` throws, failing the test when it settles. */
+async function caught(work: () => unknown): Promise<unknown> {
+  try {
+    await work()
+  } catch (error: unknown) {
+    return error
+  }
+  throw new Error('expected a refusal')
+}
+
+/** Makes the harness root's identity unreadable, so its new paths read uncertain. */
+function breakRootIdentity(h: { readonly root: string }): void {
+  const unreadable = Object.assign(new Error('no access'), { code: 'EACCES' })
+  const sample = fileIdentity.statIdentitySync
+  vi.spyOn(fileIdentity, 'statIdentitySync').mockImplementation((file) => {
+    if (file !== h.root) return sample(file)
+    throw unreadable
+  })
 }
 
 describe('SECWINPATH2 spellings on any drive letter', () => {
@@ -156,12 +181,7 @@ describe('SECWINPATH2 spellings on any drive letter', () => {
     expect(() => {
       checkpointPort(h).refuseStorageWrite(inside)
     }).toThrow(MODEL_TEXT.checkpointStorageWrite)
-    const unreadable = Object.assign(new Error('no access'), { code: 'EACCES' })
-    const sample = fileIdentity.statIdentitySync
-    vi.spyOn(fileIdentity, 'statIdentitySync').mockImplementation((file) => {
-      if (file !== h.root) return sample(file)
-      throw unreadable
-    })
+    breakRootIdentity(h)
     expect(() => {
       checkpointPort(h).refuseStorageWrite(path.join(h.root, 'new.txt'))
     }).toThrow(UI_TEXT.checkpointStorageUncertain)
@@ -520,6 +540,96 @@ describe.runIf(isWindows)('SECWINPATH2 native identity on Windows', () => {
       }
     }
     expect(spellings.length).toBeGreaterThanOrEqual(letter === undefined ? 2 : 3)
+  })
+})
+
+// P3-1 (RVSECWIN2): a refused spelling or an uncertain storage identity must
+// tell the model in fixed English and the user in the display language, the
+// way every other tool refusal does; storage itself stays a plain error.
+describe('SECWINPATH2 checkpoint refusals keep the model English', () => {
+  it('tells the model in English and the user in German, and writes nothing', async () => {
+    expect(await installGerman(new FakeLogOutputChannel())).toBe('de')
+    // The installed table is the real German one, not English again.
+    expect(UI_TEXT.windowsPathRefused).toBe(
+      'Dieser Pfad verwendet eine Windows-Schreibweise, die die Erweiterung nicht akzeptiert; verwenden Sie den normalen Pfad.',
+    )
+    const h = await harness({ git: 'none' })
+    mkdirSync(h.storage, { recursive: true })
+    vi.stubGlobal('process', { ...process, platform: 'win32' })
+    const withoutStore = createCheckpointPort({
+      store: undefined,
+      isNamespaceKnown: () => true,
+      isWorkspaceTrusted: () => true,
+      isEnabled: () => false,
+      hasGit: () => true,
+    })
+    const spellingWrites = vi.fn<ToolIo['writeFile']>(() => Promise.resolve())
+    const spellingGuarded = withCheckpointStorageGuard(
+      { ...noopToolIo, writeFile: spellingWrites },
+      withoutStore,
+    )
+    const spelling = String.raw`C:\ws\a.txt::$DATA`
+    await expect(spellingGuarded.writeFile(spelling, 'x')).rejects.toBeInstanceOf(
+      StorageRefusalError,
+    )
+    // Storage itself stays a plain English error, as before.
+    const inside = path.join(h.storage, 'm86', 'x', 'journal.jsonl')
+    const storageError = await caught(() => {
+      checkpointPort(h).refuseStorageWrite(inside)
+    })
+    expect(storageError).toBeInstanceOf(Error)
+    expect(storageError).not.toBeInstanceOf(StorageRefusalError)
+    if (!(storageError instanceof Error)) {
+      throw new Error('expected an error')
+    }
+    expect(storageError.message).toBe(MODEL_TEXT.checkpointStorageWrite)
+    expect(thrownToolOutcome(storageError)).toEqual({
+      output: `Error: ${MODEL_TEXT.checkpointStorageWrite}`,
+      visibleOutput: MODEL_TEXT.checkpointStorageWrite,
+      failureReason: MODEL_TEXT.checkpointStorageWrite,
+    })
+    // An identity the store cannot prove reads uncertain, in both words too.
+    breakRootIdentity(h)
+    const uncertainWrites = vi.fn<ToolIo['writeFile']>(() => Promise.resolve())
+    const uncertainGuarded = withCheckpointStorageGuard(
+      { ...noopToolIo, writeFile: uncertainWrites },
+      checkpointPort(h),
+    )
+    const uncertainError = await caught(() =>
+      uncertainGuarded.writeFile(path.join(h.root, 'new.txt'), 'x'),
+    )
+    for (const [error, model, user] of [
+      [
+        await caught(() => spellingGuarded.writeFile(spelling, 'x')),
+        MODEL_TEXT.checkpointWindowsPathRefused,
+        UI_TEXT.windowsPathRefused,
+      ],
+      [uncertainError, MODEL_TEXT.checkpointStorageUncertain, UI_TEXT.checkpointStorageUncertain],
+    ] as const) {
+      expect(error).toBeInstanceOf(StorageRefusalError)
+      if (!(error instanceof StorageRefusalError)) {
+        throw new Error('expected a storage refusal')
+      }
+      expect(error.message).toBe(model)
+      expect(error.modelReason).toBe(model)
+      expect(error.visibleReason).toBe(user)
+      expect(thrownToolOutcome(error)).toEqual({
+        output: `Error: ${model}`,
+        visibleOutput: user,
+        failureReason: user,
+      })
+    }
+    expect(UI_TEXT.checkpointStorageUncertain).toBe(
+      'Die Erweiterung kann nicht überprüfen, ob dieser Pfad außerhalb des Prüfpunktspeichers liegt; Werkzeuge können ihn nicht bearbeiten.',
+    )
+    expect(spellingWrites).not.toHaveBeenCalled()
+    expect(uncertainWrites).not.toHaveBeenCalled()
+    // Any other throw still reads the same on both sides.
+    expect(thrownToolOutcome(new Error('boom'))).toEqual({
+      output: 'Error: boom',
+      visibleOutput: 'boom',
+      failureReason: 'boom',
+    })
   })
 })
 

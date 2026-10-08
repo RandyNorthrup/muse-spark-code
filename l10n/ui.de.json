@@ -657,6 +657,7 @@
   "browserCheckScopeChanged": "Die Hosts, die die Browserprüfung erreichen darf, haben sich während der Vorbereitung geändert, daher wurde nichts geöffnet. Fordern Sie die Prüfung mit den neuen Hosts erneut an.",
   "browserCheckNotOffered": "Die Browserprüfung ist hier nicht mehr verfügbar (Vertrauen des Arbeitsbereichs, Berechtigungsmodus, Netzwerkeinstellung oder Runtime-Einstellung haben sich geändert), daher wurde nichts geöffnet.",
   "browserCheckLaunch": "Der Browser der Browserprüfung konnte nicht gestartet werden.",
+  "browserCheckSystemDirectoryUnavailable": "Das Windows-Systemverzeichnis ist nicht verfügbar; setzen Sie SystemRoot auf seinen tatsächlichen Pfad.",
   "browserCheckUnrecognized": "Die Browserprüfung wurde gestoppt: Der Browser entsprach nicht genau der erwarteten Version und Einrichtung.",
   "browserCheckProfile": "Die Browserprüfung wurde gestoppt: Sie konnte kein neues, privates Browserprofil einrichten.",
   "browserCheckRouteUnconfirmed": "Die Browserprüfung wurde gestoppt: Sie konnte nicht bestätigen, dass der Verkehr der Seite nur über ihren eigenen Proxy läuft.",

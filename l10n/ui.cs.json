@@ -691,6 +691,7 @@
   "browserCheckScopeChanged": "Hostitelé, na které smí kontrola v prohlížeči přistupovat, se během přípravy změnili, proto se nic neotevřelo. Požádejte o kontrolu znovu s novými hostiteli.",
   "browserCheckNotOffered": "Kontrola v prohlížeči tu už není k dispozici (změnila se důvěryhodnost pracovního prostoru, režim oprávnění, nastavení sítě nebo nastavení prohlížeče pro kontrolu), proto se nic neotevřelo.",
   "browserCheckLaunch": "Prohlížeč pro kontrolu v prohlížeči se nepodařilo spustit.",
+  "browserCheckSystemDirectoryUnavailable": "Systémový adresář Windows není dostupný; nastavte SystemRoot na jeho skutečnou cestu.",
   "browserCheckUnrecognized": "Kontrola v prohlížeči se zastavila: prohlížeč neodpovídal přesné verzi a nastavení, které očekává.",
   "browserCheckProfile": "Kontrola v prohlížeči se zastavila: nepodařilo se připravit nový soukromý profil prohlížeče.",
   "browserCheckRouteUnconfirmed": "Kontrola v prohlížeči se zastavila: nepodařilo se ověřit, že veškerý provoz stránky jde jen přes její vlastní proxy.",

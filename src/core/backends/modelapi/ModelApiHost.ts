@@ -1,3 +1,4 @@
+import { StorageRefusalError } from '../../checkpoints/storageRefusal'
 import type { GitDraftOutputPort } from '../../git/gitText'
 import type * as CodeIntelEntry from './codeIntelEntry'
 import {
@@ -1561,6 +1562,23 @@ function pressureFor(used: number, window: number): string {
 
 function toolFailure(reason: string, visibleReason = reason): ToolOutcome {
   return { output: `Error: ${reason}`, visibleOutput: visibleReason, failureReason: visibleReason }
+}
+
+/**
+ * A tool that threw (a disk error, a directory for a file, an MCP server's
+ * error or deadline): a checkpoint-storage refusal carries the row's own
+ * words in the display language, while the model keeps its fixed English
+ * reason; anything else reads the same on both sides.
+ */
+export function thrownToolOutcome(error: unknown): ToolOutcome {
+  if (error instanceof StorageRefusalError) {
+    return {
+      output: `Error: ${error.modelReason}`,
+      visibleOutput: error.visibleReason,
+      failureReason: error.visibleReason,
+    }
+  }
+  return toolFailure(describe(error))
 }
 
 /** A web fetch that did not happen: the model's reason, the row's in the user's language. */
@@ -11274,7 +11292,7 @@ export class ModelApiSession implements AgentSession {
       // A tool that threw (a disk error, a directory for a file, an MCP
       // server's error or deadline) is a failed call the model is told
       // about, not the end of the turn.
-      result = { outcome: toolFailure(describe(error)), isRejected: false }
+      result = { outcome: thrownToolOutcome(error), isRejected: false }
     }
     if (signal.aborted || result.isRejected || result.outcome.failureReason !== undefined)
       prepared.provisionalSeen.clear()

@@ -640,6 +640,7 @@
   "browserCheckScopeChanged": "準備中にブラウザー チェックがアクセスできるホストが変わったため、何も開いていません。新しいホストでもう一度チェックを依頼してください。",
   "browserCheckNotOffered": "ここではブラウザー チェックを利用できなくなりました (ワークスペースの信頼、アクセス許可モード、ネットワーク設定、またはランタイム設定が変わりました)。何も開いていません。",
   "browserCheckLaunch": "ブラウザー チェック用のブラウザーを起動できませんでした。",
+  "browserCheckSystemDirectoryUnavailable": "Windows のシステムディレクトリを利用できません。SystemRoot に実際のパスを設定してください。",
   "browserCheckUnrecognized": "ブラウザー チェックを停止しました: ブラウザーが想定どおりのバージョンと構成ではありませんでした。",
   "browserCheckProfile": "ブラウザー チェックを停止しました: 新しいプライベートなブラウザー プロファイルを用意できませんでした。",
   "browserCheckRouteUnconfirmed": "ブラウザー チェックを停止しました: ページの通信が専用のプロキシだけを通ることを確認できませんでした。",

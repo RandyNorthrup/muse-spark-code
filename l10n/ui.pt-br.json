@@ -674,6 +674,7 @@
   "browserCheckScopeChanged": "Os hosts que a verificação no navegador pode alcançar mudaram durante a preparação, então nada foi aberto. Peça a verificação de novo com os novos hosts.",
   "browserCheckNotOffered": "A verificação no navegador não está mais disponível aqui (mudou a confiança do workspace, o modo de permissão, a configuração de rede ou a do ambiente do navegador), então nada foi aberto.",
   "browserCheckLaunch": "Não foi possível iniciar o navegador da verificação no navegador.",
+  "browserCheckSystemDirectoryUnavailable": "O diretório de sistema do Windows está indisponível; defina SystemRoot com seu caminho real.",
   "browserCheckUnrecognized": "A verificação no navegador parou: o navegador não correspondia exatamente à versão e à configuração esperadas.",
   "browserCheckProfile": "A verificação no navegador parou: não foi possível preparar um perfil de navegador novo e privado.",
   "browserCheckRouteUnconfirmed": "A verificação no navegador parou: não foi possível confirmar que o tráfego da página passa apenas pelo próprio proxy.",

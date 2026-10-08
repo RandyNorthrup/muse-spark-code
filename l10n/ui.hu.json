@@ -657,6 +657,7 @@
   "browserCheckScopeChanged": "A böngészős ellenőrzés által elérhető gazdagépek az előkészítés közben megváltoztak, ezért semmi sem nyílt meg. Kérje újra az ellenőrzést az új gazdagépekkel.",
   "browserCheckNotOffered": "A böngészős ellenőrzés itt már nem érhető el (megváltozott a munkaterület megbízhatósága, az engedélyezési mód, a hálózati beállítás vagy a futtatókörnyezet beállítása), ezért semmi sem nyílt meg.",
   "browserCheckLaunch": "A böngészős ellenőrzés böngészőjét nem sikerült elindítani.",
+  "browserCheckSystemDirectoryUnavailable": "A Windows rendszerkönyvtára nem érhető el; állítsa a SystemRoot értékét a tényleges útvonalára.",
   "browserCheckUnrecognized": "A böngészős ellenőrzés leállt: a böngésző nem pontosan a várt verzió és beállítás volt.",
   "browserCheckProfile": "A böngészős ellenőrzés leállt: nem tudott új, privát böngészőprofilt létrehozni.",
   "browserCheckRouteUnconfirmed": "A böngészős ellenőrzés leállt: nem tudta megerősíteni, hogy az oldal forgalma csak a saját proxyján halad át.",

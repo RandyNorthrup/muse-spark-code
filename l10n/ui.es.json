@@ -674,6 +674,7 @@
   "browserCheckScopeChanged": "Los hosts a los que puede llegar la comprobación en el navegador cambiaron mientras se preparaba, así que no se abrió nada. Pídala de nuevo para comprobar con los hosts nuevos.",
   "browserCheckNotOffered": "La comprobación en el navegador ya no está disponible aquí (cambió la confianza del área de trabajo, el modo de permisos, la configuración de red o la del entorno del navegador), así que no se abrió nada.",
   "browserCheckLaunch": "No se pudo iniciar el navegador de la comprobación en el navegador.",
+  "browserCheckSystemDirectoryUnavailable": "El directorio del sistema Windows no está disponible; establece SystemRoot en su ruta real.",
   "browserCheckUnrecognized": "La comprobación en el navegador se detuvo: el navegador no coincidía exactamente con la versión y la configuración que espera.",
   "browserCheckProfile": "La comprobación en el navegador se detuvo: no pudo preparar un perfil de navegador nuevo y privado.",
   "browserCheckRouteUnconfirmed": "La comprobación en el navegador se detuvo: no pudo confirmar que el tráfico de la página pasa solo por su propio proxy.",

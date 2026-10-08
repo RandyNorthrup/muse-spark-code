@@ -691,6 +691,7 @@
   "browserCheckScopeChanged": "Hosty, do których może docierać kontrola w przeglądarce, zmieniły się w trakcie przygotowania, więc nic nie otwarto. Poproś ponownie o kontrolę z nowymi hostami.",
   "browserCheckNotOffered": "Kontrola w przeglądarce nie jest tu już dostępna (zmieniło się zaufanie do obszaru roboczego, tryb uprawnień, ustawienie sieci lub ustawienie środowiska przeglądarki), więc nic nie otwarto.",
   "browserCheckLaunch": "Nie udało się uruchomić przeglądarki do kontroli w przeglądarce.",
+  "browserCheckSystemDirectoryUnavailable": "Katalog systemowy Windows jest niedostępny; ustaw SystemRoot na jego rzeczywistą ścieżkę.",
   "browserCheckUnrecognized": "Kontrola w przeglądarce została zatrzymana: przeglądarka nie odpowiadała dokładnie oczekiwanej wersji i konfiguracji.",
   "browserCheckProfile": "Kontrola w przeglądarce została zatrzymana: nie udało się przygotować nowego, prywatnego profilu przeglądarki.",
   "browserCheckRouteUnconfirmed": "Kontrola w przeglądarce została zatrzymana: nie udało się potwierdzić, że ruch strony przechodzi tylko przez jej własny serwer proxy.",

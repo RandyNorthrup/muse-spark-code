@@ -640,6 +640,7 @@
   "browserCheckScopeChanged": "準備期間瀏覽器檢查可存取的主機有所變更，因此未開啟任何內容。請使用新的主機重新要求檢查。",
   "browserCheckNotOffered": "此處已無法使用瀏覽器檢查（工作區信任、權限模式、網路設定或執行階段設定已變更），因此未開啟任何內容。",
   "browserCheckLaunch": "無法啟動瀏覽器檢查所用的瀏覽器。",
+  "browserCheckSystemDirectoryUnavailable": "Windows 系統目錄無法使用；請將 SystemRoot 設定為其實際路徑。",
   "browserCheckUnrecognized": "瀏覽器檢查已停止：瀏覽器與預期的確切版本和設定不符。",
   "browserCheckProfile": "瀏覽器檢查已停止：無法準備新的私人瀏覽器設定檔。",
   "browserCheckRouteUnconfirmed": "瀏覽器檢查已停止：無法確認頁面的流量只經過它自己的 Proxy。",

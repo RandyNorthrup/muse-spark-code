@@ -640,6 +640,7 @@
   "browserCheckScopeChanged": "준비하는 동안 브라우저 검사가 접근할 수 있는 호스트가 바뀌어 아무것도 열지 않았습니다. 새 호스트로 검사를 다시 요청하세요.",
   "browserCheckNotOffered": "여기서는 더 이상 브라우저 검사를 사용할 수 없습니다(작업 영역 신뢰, 권한 모드, 네트워크 설정 또는 런타임 설정이 바뀜). 아무것도 열지 않았습니다.",
   "browserCheckLaunch": "브라우저 검사용 브라우저를 시작하지 못했습니다.",
+  "browserCheckSystemDirectoryUnavailable": "Windows 시스템 디렉터리를 사용할 수 없습니다. SystemRoot를 실제 경로로 설정하세요.",
   "browserCheckUnrecognized": "브라우저 검사를 중지했습니다: 브라우저가 예상한 정확한 버전과 구성이 아니었습니다.",
   "browserCheckProfile": "브라우저 검사를 중지했습니다: 새 비공개 브라우저 프로필을 준비하지 못했습니다.",
   "browserCheckRouteUnconfirmed": "브라우저 검사를 중지했습니다: 페이지의 트래픽이 자체 프록시만 거친다는 것을 확인하지 못했습니다.",

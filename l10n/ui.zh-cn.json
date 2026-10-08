@@ -640,6 +640,7 @@
   "browserCheckScopeChanged": "准备期间浏览器检查可访问的主机发生了变化，因此未打开任何内容。请使用新的主机重新请求检查。",
   "browserCheckNotOffered": "此处已无法使用浏览器检查（工作区信任、权限模式、网络设置或运行时设置已更改），因此未打开任何内容。",
   "browserCheckLaunch": "无法启动浏览器检查所用的浏览器。",
+  "browserCheckSystemDirectoryUnavailable": "Windows 系统目录不可用；请将 SystemRoot 设置为其实际路径。",
   "browserCheckUnrecognized": "浏览器检查已停止：浏览器与预期的确切版本和配置不符。",
   "browserCheckProfile": "浏览器检查已停止：无法准备新的私有浏览器配置文件。",
   "browserCheckRouteUnconfirmed": "浏览器检查已停止：无法确认页面的流量只经过它自己的代理。",

@@ -159,3 +159,45 @@ Final head `3775c0661` (the lint commit ran the installed hooks: eslint
 
 Host, final head: secWinIdentity2, checkpointHost, museCodeProtectedWrites
 91 passed.
+
+## SECWINPATH3 — RVSECWIN2's two P3 fixes (macmini rig)
+
+2026-10-08, branch `fix/win-path-aliases3` from `0e2ee6c7c`, worktree
+`/Users/randy/lanes/SECWINPATH3`. Inputs: RVSECWIN2's two P3 findings only
+(no P1/P2). Model attempts: **0**. No paid or live calls, no push, no merge.
+No `as`, `any`, `eslint-disable` or `@ts-expect-error` added, so no PLAN.md
+§8 row. Tests run directly in the worktree with repository timeouts
+(`npx vitest run <files> --maxWorkers=3`, at most 3 files per run); native
+Windows behaviour stays covered by the reviewer's VM probes plus the
+win32-stubbed paths below.
+
+| Finding                                                                                                                                                                                                  | Fix                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Regression (fails on `0e2ee6c7c`)                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P3-1: `windowsPathRefused` / `checkpointStorageUncertain` reached the model in the installed UI language (`checkpointHost.ts:48`, `:54` → `executeCall` `:11277` / `toolFailure` `:1563` single message) | `src/core/checkpoints/storageRefusal.ts` (new): `StorageRefusalError` carries `modelReason` (fixed English) + `visibleReason` (display language), the refused-web-fetch shape. `src/shared/constants.ts`: `MODEL_TEXT.checkpointWindowsPathRefused`, `MODEL_TEXT.checkpointStorageUncertain` (English mirrors of the UI sentences; no new UI key). `checkpointHost.ts`: spelling/uncertain throw the refusal (read at throw time, so the installed language); storage still throws plain `Error(MODEL_TEXT.checkpointStorageWrite)`. `ModelApiHost.ts`: `executeCall`'s catch maps the refusal through the new exported `thrownToolOutcome` (`Error: <model>` / visible+failureReason `<user>`); every other throw is unchanged | `secWinIdentity2.test.ts` "tells the model in English and the user in German, and writes nothing": real German table via `installGerman`, hardcoded German sentences (non-tautological), model `Error:` English for both kinds, storage still plain English both sides, writer spies never called, plain-`Error` fallback pinned                                                                                                                      |
+| P3-2: missing `SystemRoot`/`windir` collapsed to generic `browserFailed` (`browserLaunch.ts:185` → `browserRun.ts:790`), no browser started                                                              | `browserLaunch.ts`: new exported `SystemRootMissingError` (message unchanged). `browserRun.ts`: `ConfinementFailure` gains `systemDirectoryUnavailable`; `launch()` maps only that class (other throws rethrown; the generic `browserFailed` fallback stays). No spawn happens; folder/proxy/fixture cleanup is untouched. `constants.ts` `MODEL_TEXT.browserCheckSystemDirectoryUnavailable` (English) + `en.ts` `browserCheckSystemDirectoryUnavailable` + all 14 `l10n/ui.*.json` (each a copy of that table's vetted `windowsSystemRootMissing` sentence). `browserTool.ts` `FIXED_REFUSALS` entry, so model and row split per reader                                                                                       | `browserRun.test.ts`: win32 + `env: {}` through `runBrowserCheck` → `{ kind: 'systemDirectoryUnavailable' }`, zero spawns, folder removed, proxy+fixture closed, and through `browserCheckOutcome` → English model / hardcoded German row. `browserTool.test.ts`: new kind joins the exhaustive fixed-text list; new all-14 test loads every shipped table through `loadUiTable` and pins model-English + row-`windowsSystemRootMissing` per language |
+
+Red drills (in-place revert → fail → restore → green): P3-1 with the base
+single-message throw (test fails on `toBeInstanceOf(StorageRefusalError)`);
+P3-2a with the mapping removed (result is `browserFailed`); P3-2b with the
+`FIXED_REFUSALS` entry removed (both wording tests fail). Gate-fire notes:
+the new tests fail without their source fix and pass with it; eslint fired 6
+times on the first pass (unsafe-`any` JSON table reads → real `loadUiTable`;
+`caught` scoping; void-expression arrow) and jscpd fired once (the
+EACCES-mock block duplicated → `breakRootIdentity` helper shared with the
+existing test).
+
+| Gate (this rig, worktree)                                         | Exit                                          |
+| ----------------------------------------------------------------- | --------------------------------------------- |
+| checkpointHost + browserLaunch + browserTool                      | 0: 64 passed                                  |
+| browserRun + secWinPathAliases + secWinIdentity2                  | 0: 81 passed, 6 skipped (Windows-only native) |
+| modelApiTools + secWinWorkerPaths + secWinNativeIdentity          | 0: 87 passed                                  |
+| secWinIdentity2 + checkpointStorageGuards (after helper refactor) | 0: 18 passed, 6 skipped                       |
+| browserRun (final)                                                | 0: 46 passed                                  |
+| modelApiHost (executeCall safety net)                             | 0: 669 passed                                 |
+| typecheck host, webview, unit, e2e, integration                   | 0, 0, 0, 0, 0                                 |
+| eslint `--max-warnings=0`, changed TS files                       | 0                                             |
+| prettier `--check`, changed files (incl. 14 JSON)                 | 0                                             |
+| knip (plain)                                                      | 0                                             |
+| jscpd                                                             | 0 (0 clones)                                  |
+| `check:l10n`                                                      | 0 (14 UI + 14 usage tables)                   |
+| `npm run build` (size + bundle-split + host-globals + notices)    | 0                                             |

@@ -1637,6 +1637,8 @@ export const EN = {
     'The browser check is no longer available here (workspace trust, the permission mode, the network setting or the runtime setting changed), so nothing was opened.',
   // Its confinement: nothing from the page is shown after any of these.
   browserCheckLaunch: 'The browser check’s browser could not be started.',
+  browserCheckSystemDirectoryUnavailable:
+    'The Windows system directory is unavailable; set SystemRoot to its actual path.',
   browserCheckUnrecognized:
     'The browser check stopped: the browser did not match the exact version and setup it expects.',
   browserCheckProfile:

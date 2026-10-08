@@ -17,6 +17,7 @@ import type {
   TurnCheckpoint,
   TurnEnd,
 } from '../../core/backends/modelapi/tools'
+import { StorageRefusalError } from '../../core/checkpoints/storageRefusal'
 import { refusedShellEntry, ShellEntryError } from '../../core/shellResult'
 import { windowsPathProblem } from '../../core/windowsPathSpelling'
 import { randomUUID } from 'node:crypto'
@@ -38,22 +39,20 @@ import type {
   RedoRequest,
   RestoreOutcome,
   RestoreRequest,
-  StoragePathProblem,
 } from './checkpointStore'
 
-/** The sentence a refused tool write reports, by why it was refused. */
-function storageRefusal(problem: StoragePathProblem): string {
-  switch (problem) {
-    case 'spelling': {
-      return UI_TEXT.windowsPathRefused
-    }
-    case 'storage': {
-      return MODEL_TEXT.checkpointStorageWrite
-    }
-    case 'uncertain': {
-      return UI_TEXT.checkpointStorageUncertain
-    }
-  }
+/**
+ * A refused spelling or an unverifiable storage identity, in each reader's
+ * words: the model keeps its fixed English reason, the row keeps the display
+ * language. Storage itself stays a plain English error, as before.
+ */
+function localizedRefusal(problem: 'spelling' | 'uncertain'): StorageRefusalError {
+  return problem === 'spelling'
+    ? new StorageRefusalError(MODEL_TEXT.checkpointWindowsPathRefused, UI_TEXT.windowsPathRefused)
+    : new StorageRefusalError(
+        MODEL_TEXT.checkpointStorageUncertain,
+        UI_TEXT.checkpointStorageUncertain,
+      )
 }
 
 export interface CheckpointPort {
@@ -259,7 +258,8 @@ export function createCheckpointPort(deps: CheckpointHostDeps): CheckpointPort {
       const problem =
         deps.store?.storagePathProblem(absolutePath) ??
         (isRefusedSpelling ? ('spelling' as const) : undefined)
-      if (problem !== undefined) throw new Error(storageRefusal(problem))
+      if (problem === 'storage') throw new Error(MODEL_TEXT.checkpointStorageWrite)
+      if (problem !== undefined) throw localizedRefusal(problem)
     },
   }
 }
