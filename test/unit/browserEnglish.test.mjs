@@ -17,7 +17,8 @@ beforeAll(async () => {
     `export { EN } from '${path.resolve('src/shared/l10n/en.ts').replaceAll('\\', '/')}';
 export { UI_TEXT, setUiText } from '${path.resolve('src/shared/l10n/text.ts').replaceAll('\\', '/')}';
 export { loadDeferredEnglish } from '${path.resolve('src/shared/l10n/deferredEnglish.ts').replaceAll('\\', '/')}';
-export { installEmbeddedTable } from '${path.resolve('src/webview/installTable.ts').replaceAll('\\', '/')}';`,
+export { installEmbeddedTable } from '${path.resolve('src/webview/installTable.ts').replaceAll('\\', '/')}';
+export { installVaultEnglish } from '${path.resolve('src/shared/l10n/vaultEnglish.ts').replaceAll('\\', '/')}';`,
   )
   const result = await build({
     entryPoints: {
@@ -73,6 +74,9 @@ it('keeps account, developer and help values out of startup and loads them exact
   expect(built.bundle.installEmbeddedTable(embedded(german))).toBeUndefined()
   await Promise.all([built.bundle.loadDeferredEnglish(), built.bundle.loadDeferredEnglish()])
   expect(built.bundle.UI_TEXT).toEqual(german)
+  // The vault group's English loads with the vault surface alone (CAPS017).
+  expect(() => built.bundle.EN.vault).toThrow('English surface is not loaded: vault')
+  built.bundle.installVaultEnglish()
   for (const [key, value] of Object.entries(built.bundle.EN)) expect(value).toEqual(EN[key])
   built.bundle.setUiText(built.bundle.EN, 'en')
   for (const [key, value] of Object.entries(built.bundle.EN))
@@ -80,6 +84,7 @@ it('keeps account, developer and help values out of startup and loads them exact
 })
 it('validates deferred slots, keys and plurals before installing a translated table', async () => {
   await built.bundle.loadDeferredEnglish()
+  built.bundle.installVaultEnglish()
   const german = JSON.parse(readFileSync('l10n/ui.de.json', 'utf8'))
   for (const mutate of [
     (table) => {

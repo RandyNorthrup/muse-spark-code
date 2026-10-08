@@ -1,7 +1,6 @@
 /** Move cold transforms outside Testing Library's default findBy deadline. */
 export async function warmDeferredSurfaces(): Promise<void> {
   await Promise.all([
-    import('../../../src/shared/palette'),
     import('../../../src/shared/paletteRegistry'),
     import('../../../src/webview/components/DiffTally'),
     import('../../../src/webview/components/MentionMenu'),
