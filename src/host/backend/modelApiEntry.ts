@@ -40,6 +40,8 @@ import {
 import { sparkHooksFiles } from '../../core/backends/modelapi/hookNames'
 
 import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
+import { createProductionMediaReplay, workspaceMediaSource } from '../../core/media/productionMedia'
+import type { StoredMediaPart } from '../../core/media/replayMedia'
 
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
@@ -126,8 +128,53 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
       ? undefined
       : await import('../../core/backends/modelapi/modelApiMcpEntry.js')
   mcp?.setUiText(deps.uiText, deps.uiLocale)
+  // Production media (MONEY017D, D85.2/D85.6): the session replay through
+  // the real upload storage and calibration. Every production host lands
+  // here (VS Code, the CLI/ACP runtime), so one wiring covers them all. The
+  // port stays absent while no storage directory is supplied (eval, tests),
+  // keeping the established refusal.
+  // The Files upload rides the Meta client; a subscription-wrapped provider
+  // client without it keeps the established refusal.
+  const filesClient =
+    'requestFile' in client && typeof client.requestFile === 'function' ? client : undefined
+  const mediaDirectory = hostDeps.uploadLedgerDir
+  const mediaAccountId = mediaDirectory === undefined ? undefined : await hostDeps.getAccountId()
   const host = new ModelApiHost({
     ...hostDeps,
+    ...(mediaDirectory !== undefined &&
+      filesClient !== undefined &&
+      mediaAccountId !== undefined && {
+        createMediaReplay: (sessionId: string) =>
+          createProductionMediaReplay({
+            sessionId,
+            client: filesClient,
+            accountId: mediaAccountId,
+            currentAccountId: hostDeps.getAccountId,
+            directory: mediaDirectory,
+            log: hostDeps.log,
+            // Interactive media tokens arrive with the attach port's bind
+            // (E1); scheduled reads adopt through read_file instead, so no
+            // TurnPart resolves here yet.
+            attachment: () => {
+              const resolved: StoredMediaPart | undefined = undefined
+              return resolved
+            },
+            source: workspaceMediaSource({
+              workspaceRoot: hostDeps.workspaceRoot,
+              platform: hostDeps.platform,
+              io: hostDeps.io,
+            }),
+            authorize: (_media, model, gate, signal) => {
+              signal.throwIfAborted()
+              if (!gate.ok) throw new Error(gate.reason)
+              // A scheduled upload follows its approved read; the read's own
+              // approval is the authorization. Interactive contributor
+              // consent binds at the attach port (D85.7), before any upload.
+              if (model.provider !== 'meta') throw new Error('Media upload provider mismatch')
+              return Promise.resolve()
+            },
+          }),
+      }),
     modelFacts: hostDeps.modelFacts ?? metaModelFacts,
     sideCallFormats: hostDeps.sideCallFormats ?? metaSideCallFormats,
     modelCapabilities: hostDeps.modelCapabilities ?? metaHostedCapabilities,

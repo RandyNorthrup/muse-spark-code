@@ -264,7 +264,7 @@ function toolOutputText(
 
 function imagesOf(parts: readonly InputContentPart[]): readonly string[] {
   return parts.flatMap((part) =>
-    part.type === 'input_image' ? [imagePayload(part.image_url)] : [],
+    part.type === 'input_image' && 'image_url' in part ? [imagePayload(part.image_url)] : [],
   )
 }
 

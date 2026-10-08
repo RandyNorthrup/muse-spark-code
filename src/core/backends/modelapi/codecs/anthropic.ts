@@ -523,10 +523,15 @@ export function encodeAnthropicRequest(
               return isBlankWireText(part.text) ? [] : [{ text: cleanWireText(part.text) }]
             }
             case 'input_image': {
-              return [{ imageUrl: part.image_url }]
+              // Another provider's held file is meaningless here; the replay
+              // names it through the omitted line on a model switch instead.
+              return 'image_url' in part ? [{ imageUrl: part.image_url }] : []
             }
             case 'input_file': {
-              return [{ document: documentBlock(part.file_data) }]
+              return 'file_data' in part ? [{ document: documentBlock(part.file_data) }] : []
+            }
+            case 'input_video': {
+              return []
             }
           }
         })

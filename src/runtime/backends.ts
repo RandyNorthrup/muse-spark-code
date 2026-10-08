@@ -59,6 +59,7 @@ import {
   FILE_REFUSAL_MODEL_TEXT,
   MENTION_INDEX_LIMIT,
   MODEL_API_BUNDLE_FILE,
+  MODEL_API_UPLOADS_DIR,
   PAGE_WORKER_FILE,
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
@@ -446,6 +447,13 @@ function modelApiManager(
     confirmContributorModel: () => Promise.resolve(options.allowsContributorModels),
     isWorkspaceTrusted,
     store: deps.exec === undefined ? store : headlessStore,
+    // Production media ledger and calibration (MONEY017D, D85.2/D85.6); the
+    // CLI/ACP runtime shares createModelApiHost with VS Code, so this one
+    // directory wires the same real path. Ephemeral runs keep no storage.
+    uploadLedgerDir:
+      deps.exec?.isEphemeral === true
+        ? undefined
+        : path.join(agentDataFolder(deps), MODEL_API_UPLOADS_DIR),
     describeEnvironment: () =>
       describeEnvironment({
         runGit: deps.runGit,

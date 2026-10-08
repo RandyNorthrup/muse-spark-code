@@ -1270,7 +1270,26 @@ export const MAX_ATTACHMENTS_PER_MESSAGE = 20
 
 // M105 / D85: portable media contracts. These are our bounds and defaults,
 // not evidence that a model supports a modality or that storage is free.
+//
+// The calibration envelope (D85.6, `docs/certification/m105-captures.md`):
+// every production seed bills a 3000x2000 image at most, video at fps 2 at
+// most, and 600 seconds at most. Larger images stay refused under a cap:
+// size changes image usage (a 64x64 swatch bills ~11 tokens against 4,086
+// for 3000x2000) and no larger image was captured, so no bound is claimed
+// for them. Higher fps values were not tried either; the estimator matches
+// only seeded fps variants, so they refuse the same way without a constant.
+export const MEDIA_CALIBRATION_IMAGE_MAX_WIDTH = 3000
+export const MEDIA_CALIBRATION_IMAGE_MAX_HEIGHT = 2000
+export const MEDIA_CALIBRATION_VIDEO_MAX_SECONDS = 600
+// The estimator's upper bound multiplies the largest calibrated rate by
+// this (D85.6 reservation). Set by the money lane from the U17b spread:
+// the 1.2 120-second default bill (19,771) is 1.86x its fps:1 bill
+// (10,651), so 2x keeps a reservation above every captured bill with
+// headroom for unobserved variance. Re-tune only from new captures.
+export const MEDIA_ESTIMATE_SAFETY_FACTOR = 2
 export const MEDIA_FILE_ID_MIN_BYTES = 1024 * 1024
+/** Meta's per-team Files pool (D85.2): usage is shown against this, never billed (U6c). */
+export const MEDIA_PROVIDER_POOL_BYTES = 100 * 1024 * 1024 * 1024
 export const MEDIA_SNIFF_MAX_BYTES = 1024 * 1024
 export const MEDIA_CONVERTER_PROBE_TIMEOUT_MS = 2000
 export const MEDIA_CONVERTER_PROBE_MAX_BYTES = 16 * 1024
@@ -4134,6 +4153,8 @@ export const SCHEDULE_DEFAULT_POLICY = {
   pinned: false,
 } as const
 export const MODEL_API_SCHEDULES_DIR = 'modelapi-schedules'
+/** Account upload ledger and local calibration observations (MONEY017D, D85.2/D85.6). */
+export const MODEL_API_UPLOADS_DIR = 'modelapi-uploads'
 export const CRON_FIELD_COUNT = 5
 export const CRON_FIELD_SEGMENT_LIMIT = 3
 export const CRON_MAX_MINUTE = 59

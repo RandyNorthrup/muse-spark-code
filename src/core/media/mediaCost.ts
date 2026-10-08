@@ -2,6 +2,9 @@
 // input_tokens media counts. The caller injects evidence, tariffs and stores.
 import * as z from 'zod/mini'
 import {
+  MEDIA_CALIBRATION_IMAGE_MAX_HEIGHT,
+  MEDIA_CALIBRATION_IMAGE_MAX_WIDTH,
+  MEDIA_CALIBRATION_VIDEO_MAX_SECONDS,
   MEDIA_CONTRIBUTOR_CHOICES,
   MEDIA_ID_MAX_CHARS,
   MODEL_API_MEDIA_PER_REQUEST,
@@ -24,7 +27,7 @@ const variantSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('image'), detail: z.enum(['auto', 'low', 'high', 'original']) }),
 ])
 
-const pointSchema = z.strictObject({
+export const calibrationPointSchema = z.strictObject({
   provider: id,
   modelId: id,
   variant: variantSchema,
@@ -35,7 +38,8 @@ const pointSchema = z.strictObject({
   // bill supplies an upper observation for each item, never a typical rate.
   upperOnly: z.boolean(),
 })
-type CalibrationPoint = z.infer<typeof pointSchema>
+export type CalibrationPoint = z.infer<typeof calibrationPointSchema>
+const pointSchema = calibrationPointSchema
 
 export interface MediaCostItem {
   readonly info: MediaInfo
@@ -100,6 +104,24 @@ export class MediaCostEstimator {
     const measured = measurement(item)
     if (measured === undefined) throw new Error('Text belongs to the text estimator')
     const variant = variantSchema.parse(measured.variant)
+    // The calibration envelope (D85.6): size changes image usage and no
+    // image above 3000x2000 was captured, so a larger image has no rate to
+    // match even though its detail variant does. Video past 600 seconds
+    // extrapolates a rate curve evidenced only to there. Both stay refused
+    // under a cap rather than bounded on a guess. Higher fps values refuse
+    // through the variant match below: only seeded fps values match.
+    const isOversizeImage =
+      variant.kind === 'image' &&
+      item.info.kind === 'image' &&
+      ((item.info.width !== undefined && item.info.width > MEDIA_CALIBRATION_IMAGE_MAX_WIDTH) ||
+        (item.info.height !== undefined && item.info.height > MEDIA_CALIBRATION_IMAGE_MAX_HEIGHT))
+    const isOverlongVideo =
+      variant.kind === 'video' &&
+      measured.units !== null &&
+      measured.units > MEDIA_CALIBRATION_VIDEO_MAX_SECONDS
+    const isUnmeasured = isOversizeImage || isOverlongVideo
+    if (!isCapped && isUnmeasured) return
+    if (isUnmeasured) throw new Error(fill(UI_TEXT.media.cappedRateUnknown, { model: modelId }))
     const matches = this.points.filter((point) => hasSameRate(point, provider, modelId, variant))
     const calibrated = matches.filter((point) => !point.upperOnly)
     if (measured.units === null || calibrated.length === 0) {

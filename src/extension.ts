@@ -53,6 +53,7 @@ import {
   MUSE_CODE_REVIEWER_DIR,
   EXTENSION_HOOKS_BUNDLE_FILE,
   MODEL_API_SCHEDULES_DIR,
+  MODEL_API_UPLOADS_DIR,
   CHECKPOINTS_DIR,
   TURN_CHECKPOINTS_SETTING,
   MODEL_API_SESSIONS_DIR,
@@ -2609,6 +2610,8 @@ async function activateWindow(
             now: () => Date.now(),
             log,
           }),
+    // Production media ledger and calibration (MONEY017D, D85.2/D85.6).
+    uploadLedgerDir: path.join(storageRoot, MODEL_API_UPLOADS_DIR),
     describeEnvironment: () => {
       const check = backend.workspaceActionGuard(nativeStarts.signal, workspaceRoot)
       return describeEnvironment({

@@ -57,10 +57,15 @@ function leftOut(part: InputContentPart, reason: OmissionReason) {
   }
   let text: string
   if (reason === 'budget') {
-    text =
-      part.type === 'input_file'
-        ? fill(MODEL_API_MODEL_TEXT.pdfLeftOut, { name: part.filename })
-        : MODEL_API_MODEL_TEXT.imageLeftOut
+    // A provider-held reference names no bytes: the current request's own
+    // projected parts are protected from elision, so this is defensive.
+    if (part.type === 'input_file' && 'filename' in part) {
+      text = fill(MODEL_API_MODEL_TEXT.pdfLeftOut, { name: part.filename })
+    } else if (part.type === 'input_image') {
+      text = MODEL_API_MODEL_TEXT.imageLeftOut
+    } else {
+      text = fill(MODEL_API_MODEL_TEXT.mediaLeftOut, { reason: reasons.limit })
+    }
   } else {
     text = fill(MODEL_API_MODEL_TEXT.mediaLeftOut, { reason: reasons[reason] })
   }
@@ -81,10 +86,11 @@ export class MediaBudget {
     if (known !== undefined) return known
     switch (part.type) {
       case 'input_image': {
-        return part.image_url.length
+        // A provider-held reference carries only its id on the wire.
+        return 'image_url' in part ? part.image_url.length : 0
       }
       case 'input_file': {
-        return part.file_data.length
+        return 'file_data' in part ? part.file_data.length : 0
       }
       default: {
         return 0
@@ -101,6 +107,9 @@ export class MediaBudget {
     if (part.type !== 'input_file') {
       return 0
     }
+    // A provider-held file still fills a media slot; its page weight arrives
+    // with the replay's note. Unnoted, one slot errs toward leaving it out.
+    if (!('file_data' in part)) return 1
     const weight = pdfWeight(part)
     this.weights.set(part, weight)
     return weight
@@ -184,9 +193,12 @@ export class MediaBudget {
         const isImage = part.type === 'input_image'
         const policy = isImage ? record.modalities.image : record.modalities.pdf
         if (policy.state !== 'yes') return 'support'
+        // A provider-held reference has no bytes to check: with no readable
+        // payload the limit refusal below stands, as it does for undecodable
+        // data URLs.
         let dataUrl = ''
-        if (part.type === 'input_image') dataUrl = part.image_url
-        else if (part.type === 'input_file') dataUrl = part.file_data
+        if (part.type === 'input_image' && 'image_url' in part) dataUrl = part.image_url
+        else if (part.type === 'input_file' && 'file_data' in part) dataUrl = part.file_data
         const comma = dataUrl.indexOf(DATA_URL_SEPARATOR)
         const bytes = comma === -1 ? undefined : Buffer.from(dataUrl.slice(comma + 1), 'base64')
         if (

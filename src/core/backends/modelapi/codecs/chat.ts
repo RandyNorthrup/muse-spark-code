@@ -318,21 +318,38 @@ function contentOfParts(
   // where the model takes no images, so the turn keeps its shape.
   const blocks: (ChatTextPart | ChatImagePart)[] = []
   for (const part of parts) {
-    if (part.type === 'input_image') {
-      blocks.push(
-        vision
-          ? { type: 'image_url', image_url: { url: part.image_url, detail: part.detail } }
-          : { type: 'text', text: CODEC_IMAGE_WITHOUT_VISION },
-      )
-    } else if (part.type === 'input_text' || part.type === 'output_text') {
-      if (!isBlankWireText(part.text)) {
-        blocks.push({ type: 'text', text: cleanWireText(part.text) })
-      }
-    } else {
+    const block = chatBlockFor(part, vision)
+    if (block !== undefined) blocks.push(block)
+  }
+  return blocks
+}
+
+/** One request part as a Chat block; provider-held files keep the placeholder. */
+function chatBlockFor(
+  part: InputContentPart,
+  hasVision: boolean,
+): ChatTextPart | ChatImagePart | undefined {
+  switch (part.type) {
+    case 'input_image': {
+      // Another provider's held file has no URL to send; like an image where
+      // the model takes none, the turn keeps its shape with the placeholder.
+      return hasVision && 'image_url' in part
+        ? { type: 'image_url', image_url: { url: part.image_url, detail: part.detail } }
+        : { type: 'text', text: CODEC_IMAGE_WITHOUT_VISION }
+    }
+    case 'input_video': {
+      return { type: 'text', text: CODEC_IMAGE_WITHOUT_VISION }
+    }
+    case 'input_text':
+    case 'output_text': {
+      return isBlankWireText(part.text)
+        ? undefined
+        : { type: 'text', text: cleanWireText(part.text) }
+    }
+    default: {
       throw new Error(UI_TEXT.execUnknownModel)
     }
   }
-  return blocks
 }
 
 /** Chat tool messages carry text; image results follow in a user message. */

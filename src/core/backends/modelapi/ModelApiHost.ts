@@ -769,6 +769,13 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   readonly mediaBudgetMaxEncodedChars?: number
   /** W installs the portable lazy media implementation; absent preserves existing request bytes. */
   readonly createMediaReplay?: (sessionId: string) => MediaReplayPort
+  /**
+   * Where the production replay keeps its upload ledger and local
+   * calibration observations (MONEY017D, D85.2/D85.6). The bundle builds
+   * `createMediaReplay` from this; absent keeps the established refusal.
+   * VS Code supplies its global storage, the runtime its agent data folder.
+   */
+  readonly uploadLedgerDir?: string | undefined
   /** Extension-owned, workspace-local schedules; absent without workspace storage. */
   readonly scheduleStore?: ScheduleStore | undefined
   /** SHA-256 digest of the current SecretStorage key, never its plaintext. */
@@ -7264,9 +7271,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       },
     )
     // The budget learns each PDF's pages from its attachment, not its bytes (M54).
+    // A provider-held reference carries no new bytes; the replay noted it.
     for (const [index, part] of parts.entries()) {
       const sent = content[index]
-      if (part.type === 'file' && sent?.type === 'input_file') {
+      if (part.type === 'file' && sent?.type === 'input_file' && 'file_data' in sent) {
         this.budget.note(sent, part.pageCount)
       }
     }
@@ -16130,7 +16138,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     return entry.item.content.flatMap((part) => {
       if (this.media?.isUploaded(part) === true) return []
-      const parsed = part.type === 'input_image' ? DATA_URL.exec(part.image_url) : null
+      // A provider-held reference has no bytes to put back in the composer.
+      const parsed =
+        part.type === 'input_image' && 'image_url' in part ? DATA_URL.exec(part.image_url) : null
       const [, mediaType, base64Data] = parsed ?? []
       return mediaType === undefined || base64Data === undefined ? [] : [{ mediaType, base64Data }]
     })

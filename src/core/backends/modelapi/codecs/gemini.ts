@@ -385,12 +385,12 @@ interface GeminiContent {
 
 const DATA_URL_PATTERN = /^data:([^;,]+)?(;base64)?,(.*)$/s
 
-/** The data URL of an `input_image` or `input_file` part. */
+/** The data URL of an inline `input_image` or `input_file` part. */
 function inlineDataUrl(part: InputContentPart): string {
-  if (part.type === 'input_image') {
+  if (part.type === 'input_image' && 'image_url' in part) {
     return part.image_url
   }
-  return part.type === 'input_file' ? part.file_data : ''
+  return part.type === 'input_file' && 'file_data' in part ? part.file_data : ''
 }
 
 /** An `input_image` or `input_file` data URL as Gemini's `inlineData`. */
@@ -414,7 +414,15 @@ function toInlineData(part: InputContentPart): unknown {
 function toNativeParts(content: readonly InputContentPart[], build: ContentsBuild): unknown[] {
   const parts: unknown[] = []
   for (const part of content) {
-    if (part.type === 'input_image' || part.type === 'input_file') {
+    // Another provider's held file (or a video) has no bytes to send; like
+    // an image where the model takes none, the turn keeps the placeholder.
+    if (
+      part.type === 'input_video' ||
+      (part.type === 'input_image' && !('image_url' in part)) ||
+      (part.type === 'input_file' && !('file_data' in part))
+    ) {
+      parts.push({ text: CODEC_IMAGE_WITHOUT_VISION })
+    } else if (part.type === 'input_image' || part.type === 'input_file') {
       parts.push(build.vision === false ? { text: CODEC_IMAGE_WITHOUT_VISION } : toInlineData(part))
     } else if (
       !isBlankWireText(part.text) ||

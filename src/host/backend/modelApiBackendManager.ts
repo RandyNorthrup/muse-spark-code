@@ -101,6 +101,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   /** Sessions between windows (PLAN.md D14); undefined without workspace storage. */
   readonly store: SessionStore | undefined
   readonly scheduleStore?: ScheduleStore | undefined
+  /** Account upload ledger and calibration observations (MONEY017D, D85.2/D85.6). */
+  readonly uploadLedgerDir?: string | undefined
   /** The git facts for the prompt's environment section (D15). */
   readonly describeEnvironment: () => Promise<EnvironmentFacts>
   /** The same facts for a best-of-N worktree (M77): an attempt's own branch. */
@@ -353,6 +355,9 @@ export class ModelApiBackendManager {
         confirmContributorModel: this.deps.confirmContributorModel,
         store: variant.store,
         scheduleStore: variant.scheduleStore,
+        ...(this.deps.uploadLedgerDir !== undefined && {
+          uploadLedgerDir: this.deps.uploadLedgerDir,
+        }),
         getAccountId: async () => {
           if (this.deps.getAccountId !== undefined) return await this.deps.getAccountId()
           const key = await this.deps.getApiKey()

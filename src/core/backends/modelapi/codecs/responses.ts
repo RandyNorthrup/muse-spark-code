@@ -183,12 +183,19 @@ function replayContentPart(
       return text === undefined ? undefined : { ...part, text: text.text }
     }
     case 'input_image': {
+      // A provider-held image replays by its id while the upload lives.
+      if (!('image_url' in part)) return part
       return quirks.vision === false
         ? { type: 'input_text', text: CODEC_IMAGE_WITHOUT_VISION }
         : part
     }
     case 'input_file': {
-      return { ...part, filename: cleanWireText(part.filename) }
+      // A provider-held file replays by its id; only inline names are cleaned.
+      return 'filename' in part ? { ...part, filename: cleanWireText(part.filename) } : part
+    }
+    case 'input_video': {
+      // Captured (round 1/2/3): a held video replays by `file_id`, with fps.
+      return part
     }
   }
 }
