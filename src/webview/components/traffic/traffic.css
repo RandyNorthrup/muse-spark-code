@@ -33,7 +33,7 @@
   padding: 4px 8px;
   color: var(--ms-secondary-text);
   background: var(--ms-secondary-surface);
-  border-color: var(--ms-control-border);
+  border-color: var(--ms-boundary);
   cursor: pointer;
 }
 

@@ -166,6 +166,26 @@
           "usage": "ui"
         },
         {
+          "foreground": "colour.boundary",
+          "background": "colour.surface",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.boundary",
+          "background": "colour.raised",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.boundary",
+          "background": "colour.overlay",
+          "usage": "ui"
+        },
+        {
+          "foreground": "colour.boundary",
+          "background": "colour.hover",
+          "usage": "ui"
+        },
+        {
           "foreground": "colour.on-accent",
           "background": "colour.accent",
           "usage": "text"
@@ -626,6 +646,21 @@
         }
       },
       "$description": "Semantic host theme role: border."
+    },
+    "boundary": {
+      "$type": "color",
+      "$value": {
+        "colorSpace": "srgb",
+        "components": [0.521569, 0.545098, 0.596078],
+        "alpha": 1
+      },
+      "$extensions": {
+        "org.muse-spark-code": {
+          "css": "--ms-boundary",
+          "cssValue": "color-mix(in srgb, var(--vscode-foreground, var(--ms-text)) 70%, var(--vscode-editor-background, var(--ms-surface)))"
+        }
+      },
+      "$description": "Assured 3:1 boundary (R1): the theme's own foreground mixed into its background, never a host border that may fall below the UI-contrast floor."
     },
     "text": {
       "$type": "color",

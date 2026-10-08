@@ -2,6 +2,8 @@
 // The team's transcript cards (M96 lane U2): the delegation plan, the
 // switch row, the four-choice waiting card, the merge card, the report row,
 // and the worker label on a worker's own cards.
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EN } from '../../src/shared/l10n/en'
@@ -196,6 +198,20 @@ describe('TeamReportRow', () => {
     render(<TeamReportRow entry={reportEntry} />)
     expect(screen.getByText('Report')).toBeDefined()
     expect(screen.getByText(/engineering · Add the retry — Added retry/)).toBeDefined()
+  })
+})
+
+describe('F4 merge path layout', () => {
+  it('gives the merge path lists their own full-width row so paths wrap, never one character per line', () => {
+    const css = readFileSync(path.resolve(__dirname, '../../src/webview/styles.css'), 'utf8')
+    // The merge card wraps its single-row activity layout ...
+    expect(css).toMatch(/\.activity-team-merge\s*\{[^}]*flex-wrap:\s*wrap[^}]*\}/s)
+    // ... and the path lists, notes and actions each take the full row with
+    // room to shrink, so overflow-wrap keeps breaking at path width.
+    expect(css).toMatch(
+      /\.activity-team-merge\s*>\s*\.team-merge-details,[\s\S]*?\{[^}]*flex:\s*1\s+1\s+100%[^}]*min-width:\s*0[^}]*\}/s,
+    )
+    expect(css).toMatch(/\.team-merge-details\s*\{[^}]*overflow-wrap:\s*anywhere[^}]*\}/s)
   })
 })
 

@@ -20419,6 +20419,49 @@ Render its request counts with the existing localized singular/plural request
 template, retaining exact totals, unknown-token distinctions and responsive
 fact layout. Re-run its whole UI owner and all four themes before full replay.
 
+### VIS017 — Border contrast floor (R1) and merge-path wrap (F4, 2026-10-08, macbook)
+
+**Status 2026-10-08: built.** Worktree `~/lanes/VIS017`, branch `rel017/vis`
+from `rel017/left4` (`49d979299`). No receipt regeneration; the lead
+regenerates once on the merged 0.17 tree.
+
+**M114 record — R1 chooses option (a).** CSS cannot measure contrast at
+runtime, so the conditional "host border when it meets 3:1, mixed fallback
+otherwise" is not expressible in a token rule. The lane adds an additive
+`colour.boundary` role (`--ms-boundary`) instead of redefining `--ms-border`:
+`color-mix(in srgb, var(--vscode-foreground, var(--ms-text)) 70%,
+var(--vscode-editor-background, var(--ms-surface)))`. Redefining `--ms-border`
+itself would drop `colour.border` from `consumers.json` hostRoles (the theme
+bridge rejects snapshots naming unknown roles, M104's contract) and would
+emit a `color-mix` formula into `report-themes.json`, which the reporting
+literal-only gate refuses. 45% fails the light secondary surface (1.9:1);
+65% is the first passing share (worst 3.15:1) and 70% ships for margin
+(worst 3.62:1, light secondary). No palette colour invented: the mix reads
+only theme and token variables, and the token's palette value reuses the
+dark border. The token payload cap moves 4 KiB to 4.25 KiB for the one new
+rule (~90 minified bytes); chat startup budget is reported from the
+production build, not waived. `test/unit/borderContrast.test.mjs` resolves
+the shipped declaration against all six `test/harness/themes/` receipts and
+asserts 3:1 on sidebar, raised, input and secondary surfaces (30% drill:
+all six themes fail, e.g. dark sidebar 2.305:1). R1 surfaces moved to the
+new role: `.models-button`, `.account-picker`, `.traffic-view button`.
+Placeholders and host-rendered inputs keep host colours. Of the nine
+below-AA host comparisons (`docs/certification/m114-0.md:178`), one is now
+covered: One Dark Pro panel border on sidebar (boundary resolves 5.60:1
+there). The other eight are focus, placeholder or host-rendered input
+borders — different tokens, out of lane scope.
+
+**F4.** The merge card's path lists were extra flex items in the single-row
+`.activity`, shrinking to a few characters at 320 px. `.activity-team-merge`
+now wraps; the status line flexes with `min-width: 0` and the path lists,
+notes and actions each take their own full-width row, keeping
+`overflow-wrap: anywhere` (the wrap convention used elsewhere). No middle
+truncation: full paths stay visible, so no tooltip text is added.
+`test/unit/TeamCards.test.tsx` pins the row rules. The 320 px scene check is
+blocked in this sandbox: Chrome itself runs, but the harness server gets
+`listen EPERM 127.0.0.1`, so no scenario page can be served or shot here;
+the lead re-renders on the merged tree.
+
 ### INT0170B — Complete 0.17.0 integration certification (2026-10-07)
 
 Latest committed-clone replay at `33c369046` passes the entire static job and every accessibility page. Two additional timing failures remain: integrated usage exceeds its ordinary 5 s test deadline, and the 10,000-milestone reader reaches 325 ms against 200 ms under coverage. A restored whole-file usage diagnostic reproduces the timeout and measures recorded-turn/journal/state preparation at 1,524 ms before the authenticated page flow. Move only that real fixture preparation into its default-deadline beforeAll, retaining every assertion inside the existing test and all three cases. For the reader's second performance repair, remove object-entry tuple allocation and redundant unchanged-value writes while still scrubbing every key and nested value; retain the 200 ms benchmark and stop that path if the second repair fails. Prove preserved privacy/recording assertions fail under intentional changes and restore exact bytes before the final committed-clone replay.

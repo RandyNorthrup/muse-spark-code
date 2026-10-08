@@ -235,11 +235,15 @@ describe('D94 one token source', () => {
       /\.reporting-page :focus-visible\s*\{[^}]*var\(--ms-focus-width\)[^}]*var\(--ms-text\)[^}]*var\(--ms-focus-offset\)[^}]*\}/s,
     )
     expect(reporting).not.toMatch(/:focus-visible\s*\{[^}]*var\(--vscode-focusBorder\)/s)
+    // R1 moves these two boundaries to the assured role; F2's point stands:
+    // they still draw from the M114 token contract, never a host colour.
     const models = readFileSync('src/webview/models/models.css', 'utf8')
-    expect(models).toMatch(/\.models-button\s*\{[^}]*border: 1px solid var\(--ms-border\)[^}]*\}/s)
+    expect(models).toMatch(
+      /\.models-button\s*\{[^}]*border: 1px solid var\(--ms-boundary\)[^}]*\}/s,
+    )
     const accounts = readFileSync('src/webview/models/sections/accounts/accounts.css', 'utf8')
     expect(accounts).toMatch(
-      /\.account-picker\s*\{[^}]*border: 1px solid var\(--ms-border\)[^}]*\}/s,
+      /\.account-picker\s*\{[^}]*border: 1px solid var\(--ms-boundary\)[^}]*\}/s,
     )
   })
 
@@ -252,7 +256,9 @@ describe('D94 one token source', () => {
     const button = /\.traffic-view button\s*\{([^}]*)\}/s.exec(traffic)?.[1] ?? ''
     expect(button).toMatch(/color: var\(--ms-secondary-text\)/)
     expect(button).toMatch(/background: var\(--ms-secondary-surface\)/)
-    expect(button).toMatch(/border-color: var\(--ms-control-border\)/)
+    // R1 moves the traffic button boundary to the assured role (it used to
+    // read the host-first control border, which falls below 3:1 in One Dark Pro).
+    expect(button).toMatch(/border-color: var\(--ms-boundary\)/)
     expect(traffic).toMatch(
       /\.traffic-view :focus-visible\s*\{[^}]*var\(--ms-focus-width\)[^}]*var\(--ms-text\)[^}]*var\(--ms-focus-offset\)[^}]*\}/s,
     )
@@ -266,6 +272,8 @@ describe('D94 one token source', () => {
     const outputs = await renderTokens(source())
     const generated = outputs['src/webview/tokens.css']
     const css = await transform(generated, { loader: 'css', minify: true })
-    expect(Buffer.byteLength(css.code)).toBeLessThanOrEqual(4 * 1024)
+    // R1 adds the assured boundary rule (~90 minified bytes); the token
+    // payload cap moves from 4 KiB to 4.25 KiB, justified in PLAN.md (M114).
+    expect(Buffer.byteLength(css.code)).toBeLessThanOrEqual(4.25 * 1024)
   })
 })

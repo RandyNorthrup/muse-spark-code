@@ -4222,6 +4222,26 @@ li:focus-within > .row-actions .row-actions-button,
   color: var(--vscode-descriptionForeground);
 }
 
+/* The merge card's path lists take their own full-width row: as extra flex
+   items in the single-row .activity they shrink to a few characters
+   and paths wrap per character at 320 px (F4). */
+.activity-team-merge {
+  flex-wrap: wrap;
+}
+
+.activity-team-merge > .activity-status {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.activity-team-merge > .team-merge-details,
+.activity-team-merge > .team-card-note,
+.activity-team-merge > .team-card-actions {
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
 /* A worker's own card label: the panel's chrome, never worker text. */
 .team-worker-label {
   font-size: 0.85em;
