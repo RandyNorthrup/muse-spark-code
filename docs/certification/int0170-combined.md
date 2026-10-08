@@ -174,3 +174,13 @@ use repository deadlines, hooks remain enabled, no merge or push.
   test fails with `Missing generated reference boundary` (exit 1); the
   concurrent browser-English owner passes all five tests. Removed plugin,
   declaration and obsolete owner. Plain knip result follows.
+
+- Item 7: browser-English probe imports the real account/developer surfaces
+  dynamically and includes the probe in its source inventory. The new
+  account-reader assertion fails before the fix on
+  `sessionBudgetStoreUnavailable`; restored whole owner passes 5/5 tests.
+  Accounts remain deferred (the original cold getter assertion is retained).
+- Item 3: exact `npm run security:sast` already exits 0 on the inherited
+  tree: 533 rules, 3,027 tracked targets, zero findings. No new ignore or
+  exception. Fresh-clone replay follows.
+- Item 6: plain knip exits 0 (two existing configuration hints).

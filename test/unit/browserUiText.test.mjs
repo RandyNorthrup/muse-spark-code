@@ -35,10 +35,12 @@ export { installEmbeddedTable } from '${installer}';
 export async function loadPalette() { return await import('../../src/shared/paletteRegistry') }
 export async function loadHelp() { await Promise.all([import('browser-surface-english'), import('browser-reference-english'), import('browser-account-english')]) }
 export async function loadResources() { await import('browser-resource-english') }
+export async function loadAccounts() { await import('../../src/webview/models/sections/accounts/accountsEntry') }
+export async function loadDeveloper() { await import('../../src/webview/developer/DeveloperOptionsPage') }
 `,
   )
   fixture.canonical = await loadL10n(process.cwd())
-  fixture.keys = browserTextKeys(Object.values(entries), fixture.canonical.EN).keys
+  fixture.keys = browserTextKeys([...Object.values(entries), probe], fixture.canonical.EN).keys
   await build({
     entryPoints: { ...entries, probe },
     outdir: path.join(fixture.folder, 'dist'),
@@ -70,6 +72,14 @@ describe('the production browser English and full-table contract', () => {
   })
 
   it('loads surface English on demand, retaining every browser value and installed language', async () => {
+    const accountKeys = browserTextKeys(
+      [
+        'src/webview/models/sections/accounts/accountsEntry.ts',
+        'src/webview/developer/DeveloperOptionsPage.tsx',
+      ],
+      fixture.canonical.EN,
+    ).keys
+    for (const key of accountKeys) expect(fixture.keys.has(key), key).toBe(true)
     const { EN: canonical } = fixture.canonical
     const { EN, UI_TEXT, setUiText, uiLocale, loadHelp, loadPalette, loadResources } =
       fixture.browser

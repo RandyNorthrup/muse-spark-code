@@ -20352,11 +20352,11 @@ repair window. Keep all assertions, caps, scanner rules and deadlines.
 
 - [ ] Register the three M115 editor commands and lazily connect the panel bridge.
 - [ ] Verify unique Help IDs and resolve all accessibility readiness failures.
-- [ ] Resolve SAST research, report-root and companion-template findings.
+- [x] Resolve SAST research, report-root and companion-template findings (already repaired in base; exact script exits 0).
 - [ ] Repair visual source reconstruction; refresh real audit and scene coverage.
 - [ ] Share duplicate production and test helpers; zero jscpd clones.
 - [x] Remove unused compactNodeReference after demonstrating its obsolete test fails.
-- [ ] Cover account English in the browser probe's actual entry graph.
+- [x] Cover account English in the browser probe's actual entry graph.
 - [ ] Profile and repair the 10,000-fire journal without changing its 240 s limit.
 - [ ] Add G76 and bound lint-staged argument batches for Windows command shims.
 - [ ] Replay affected tests and required gates in a fresh npm-ci clone; record
