@@ -20347,25 +20347,35 @@ as required by the rig brief; do not run full quality or merge in this lane.
 
 ### LEFT017 — Combined 0.17.0 integration leftovers (2026-10-08)
 
-**Status 2026-10-08: building.** Rig lane `rel017/left`, base `7a4fc2ab3`; two-hour
-repair window. Keep all assertions, caps, scanner rules and deadlines.
+**Status 2026-10-08: waiting.** Eight bounded repairs are verified; visual
+coverage remains blocked by the shared per-finding scope limit, and combined
+build certification remains red. Rig lane `rel017/left`, base `7a4fc2ab3`;
+two-hour repair window. Keep all assertions, caps, scanner rules and deadlines.
 
-- [x] Register the three M115 editor commands and lazily connect the panel bridge (actual host replay follows).
-- [ ] Verify unique Help IDs and resolve all accessibility readiness failures.
+- [x] Register the three M115 editor commands and lazily connect the panel bridge (stable 1.141.0 / minimum 1.99.0: 40 + 40 integration tests).
+- [x] Verify unique Help IDs and resolve all accessibility readiness failures (full axe: 1,068 + 32 pages, no undecided rules or missing results).
 - [x] Resolve SAST findings: inherited scanner clean; named report-root literal escape helper and operator controls added.
 - [ ] Visual source lookup repaired; full audit/scene expansion blocked by 111 missing render inputs (shared scope limit).
-- [x] Share duplicate production and test helpers; four baseline clones repaired (final gate follows).
+- [x] Share duplicate production and test helpers; four baseline clones repaired (fresh jscpd: zero clones).
 - [x] Remove unused compactNodeReference after demonstrating its obsolete test fails.
 - [x] Cover account English in the browser probe's actual entry graph.
-- [x] Profile and repair the 10,000-fire journal without changing its 240 s limit (fresh coverage: 45 tests, 132.08 s whole run).
+- [x] Profile and repair the 10,000-fire journal without changing its 240 s limit (final fresh coverage: 45 tests, 133.64 s whole run).
 - [x] Add G76 and bound lint-staged argument batches for Windows command shims.
-- [ ] Replay affected tests and required gates in a fresh npm-ci clone; record
+- [x] Replay affected tests and required gates in a fresh npm-ci clone; record
       exact outcomes in docs/certification/int0170-combined.md.
 
 The lane brief authorizes hook batching and scanner network access required by
 its exact SAST command, overriding older shared prohibitions for these actions.
 No quality aggregate, merge, push, paid call or credential read is authorized.
 Build caps owned by the separate shrinking lane remain an explicit §7 deferral.
+
+Final source 08d9c8ce2: all five typechecks, changed-file lint/format, knip,
+jscpd, localization, reference, host API, plan, tokens, SAST and full axe pass.
+All changed owners pass; the additional whole visualMatrix owner retains three
+failing stale-inventory assertions (396 selected tests pass, none skipped).
+Build retains nine old size failures; the extra split replay identifies an
+unlisted deferred slashCommands source. Neither caps nor allowlists change.
+Final receipt-only edits preserve every tested production and test input.
 
 Fresh-clone follow-up: create the browser English probe's ignored parent
 directory before its temporary entry graph. Restore the visual CI fixture's
@@ -36815,10 +36825,13 @@ inputs lack scene/selector mappings. There is no audit-refresh generator in
 the tracked repository; the capture helpers require an already reviewed map.
 Actual new scene coverage, six-theme captures and review exceed the shared
 approximately 300-new-lines-per-finding rule. The historical fixture lookup
-is repaired independently, without changing any recorded image or pretending
-uncaptured sources were reviewed. The unchanged build caps remain owned by
-the shrinking lane. Exact gate failures will be recorded in
-`docs/certification/int0170-combined.md`; neither deferral is a waived gate.
+is repaired independently, preserving the full M114 manifest and golden PNGs.
+The curated README captures are separately reviewed and recorded. Final source
+receipts also expose 48 stale hashes, 159 unrecorded source files and eight
+missing registered variables in each third-party theme. The unchanged build
+caps and unlisted deferred slashCommands split entry remain owned by the
+shrinking/inventory lane. Exact gate failures are recorded in
+`docs/certification/int0170-combined.md`; no deferred gate is waived.
 
 INT0180B (2026-10-07): source `9733edba2` supersedes INT0180's local reds
 below. Fresh ordinary installation, exact static job, all four coverage shards
