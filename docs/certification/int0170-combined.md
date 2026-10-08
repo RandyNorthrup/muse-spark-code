@@ -383,3 +383,69 @@ Lane `rel017/devid`, worktree on the `macmini` rig (`Macmini.ivettnet`).
   `accountPaidConsent` (2 tests) fails identically on the base: another
   lane's quote shape, left for its owner. The rig's sandbox blocks loopback
   listening, so no loopback-dependent suite was attempted beyond the above.
+
+Round 2 (`rel017/devid2`, review RVDEVID017, worktree on the `macmini`
+rig): the hostname digest is replaced by a stored random id.
+
+- **Design.** The machine id is 32 random bytes as hex, created once per
+  machine in `<dataDir>/machine-id` (`developerMachineIdFile`,
+  `src/core/developer/machineId.ts:24`), the runtime's machine storage
+  folder every host on this machine shares; the extension host resolves the
+  same folder through `agentDataFolder`. It is never derived from the
+  hostname: renames and `host` vs `host.local` change nothing, and the id
+  fits the untouched state schema (`v: 1`). Creation is atomic
+  (`loadDeveloperMachineId`, same file): an exclusive `wx` create lets the
+  first of racing processes win while losers read the winner's file; an
+  unreadable or invalid file refuses honestly with `unavailable`, never a
+  hostname fallback. Constants `DEVELOPER_MACHINE_ID_FILE/BYTES` and the
+  read retry live in `src/shared/constants.ts`.
+- **Migration.** Stored state may hold the raw hostname (pre-DEVID017) or
+  the hostname digest (DEVID017 state). `DeveloperOptions.open`
+  (`src/core/developer/developerOptions.ts:84`) adopts either when it
+  matches, case-insensitively, the current raw hostname, its digest, or
+  that digest for the short or `.local` forms
+  (`developerMachineIdAliases`, `src/core/developer/machineId.ts:88`), then persists
+  the re-bound grant at once with a `migrate` audit row (a new audit
+  action in `src/shared/developerOptions.ts`, not an authority grant:
+  `DeveloperLocalFiles.read` skips it when restoring the switch). The raw
+  hostname therefore leaves stored state on that open. Anything else is
+  refused with the honest `differentMachine` reply
+  (`src/shared/developerOptions.ts:71`,
+  `UI_TEXT.developer.differentMachine` in all 14 tables): the terminal
+  names the identity instead of reporting `unavailable`
+  (`src/runtime/providers/accountsEntry.ts:54`), and `developer reset`
+  recovers through `DeveloperOptions.resetForeign`
+  (`src/core/developer/developerOptions.ts:130`, terminal source
+  `terminal` via `developerReset` in
+  `src/runtime/providers/runtimeServices.ts:69`), which stops and removes
+  profiles only after confirmation; profiles stay on disk until then.
+  Wording correction: what is refused is another **hostname**, not
+  necessarily another physical machine (a copied grant under the same
+  hostname is still accepted).
+- **Tests** (`test/unit/developerOptionsMachineId.test.ts`, 14/14): rename
+  keeps unlock and profiles; `host` vs `host.local` both ways;
+  case-insensitive raw adoption; raw-hostname migration with the hostname
+  gone from the store right after open (plus the `migrate` audit row);
+  digest migration; concurrent first use creates one id; an id file that is
+  a directory refuses `unavailable` from the loader and from
+  `services.developer`; mismatch reports `differentMachine` with profiles
+  intact; foreign reset after confirmation clears state (denial keeps it);
+  the runtime persists the stored id; terminal status names the identity
+  and reset recovers. `developerOptions.test.ts` now expects
+  `differentMachine` for a stranger. Repo default timeouts.
+- **Drills.** Deriving the id from the hostname again turns the stored-id
+  test red; skipping the immediate persist turns the raw-gone test red;
+  both restored to green. A two-case drill spec against base `402251833`
+  (worktree under `$TMPDIR`, since removed) fails both ways: a rename
+  throws `unavailable`, and the raw hostname is still in the store after
+  open.
+- **Gates.** Five typechecks exit 0; eslint `--max-warnings=0` and prettier
+  on changed files exit 0; `check:l10n` exit 0 (new message in all 14
+  tables); `check:host-api` regenerated (`node:fs/promises` 106 to 107,
+  `node:path` 188 to 189, `node:timers/promises` 21 to 22 importers) and
+  exit 0; plain knip exit 0; `check:reference` exit 0. jscpd exit 1 before
+  and after: the same three pre-existing clones (the lane's two new ones
+  were extracted into a shared runtime-args builder and a test helper).
+  `developerLocalFiles` (11 tests) fails identically on the base: the
+  macOS `/var`-symlink directory guard, byte-identical files, left for its
+  owner.

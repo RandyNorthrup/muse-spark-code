@@ -47,6 +47,13 @@ happened, not what was planned; superseded entries are kept.
 - Provider-specific retry-table binding remains pending for non-Meta transports;
   the shared retry classifier does not certify endpoint quota refusal.
 
+- DEVID017B (developer machine id, review round 2): the machine id is a
+  random value created once in the machine-scoped data folder instead of a
+  hostname digest, so renames and `host` vs `host.local` keep the unlock and
+  profiles. Legacy raw-hostname and digest grants migrate on open and the
+  raw hostname leaves stored state at once; a different machine identity is
+  refused with an honest message and `developer reset` recovers.
+
 ## [0.17.0] - 2026-10-08
 
 ### Highlights
