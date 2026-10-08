@@ -76,7 +76,7 @@ export interface DeviceWorkerJob {
 }
 /** Only the host's validated request: never a peer-supplied unit, task or job property. */
 export type DeviceWorkerAttempt = Readonly<Pick<DeviceDispatch, 'identity' | 'caps'>>
-/** The admitted process ceiling an OS job/unit enforces; outside 1..protocol max is refused. */
+/** Admitted process ceiling: kernel admission or supervised termination; invalid limits refuse. */
 export function admittedProcessLimit(attempt: DeviceWorkerAttempt): number {
   const limit = attempt.caps.processes
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > DEVICE_LIMITS.processes)
@@ -89,7 +89,9 @@ export interface DeviceWorkerDriver {
   selfTest(): Promise<boolean>
   query(): Promise<unknown>
   /**
-   * Bounds the OS job/unit at `attempt.caps.processes`, refusing before activation when it cannot.
+   * Enforces `attempt.caps.processes`: kernel admission on Windows/Linux, supervised whole-
+   * coalition termination on macOS (20 ms samples; transient overflow can run between samples).
+   * An unavailable enforcement mechanism refuses before activation.
    * Other caps travel for drivers that can enforce them; a driver given a cap it cannot enforce
    * refuses with typed `unsupported-host`, never ignoring it. CPU and memory are not caps: the
    * receiver's M107 resource governor owns them.

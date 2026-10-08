@@ -5,7 +5,11 @@ import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import { deviceWorkerDarwin } from '../../src/host/backend/deviceWorkerDarwin'
-import { DEVICE_LIMITS } from '../../src/shared/constants'
+import {
+  DEVICE_LIMITS,
+  POSIX_TREE_EXIT_POLL_MS,
+  MILLISECONDS_PER_SECOND,
+} from '../../src/shared/constants'
 import { workerEnvironment } from '../../src/core/team/refFence'
 import {
   DeviceWorkerHost,
@@ -17,6 +21,7 @@ import {
 } from '../../src/host/devices/deviceWorkerHost'
 import type { RunProgram } from '../../src/host/processTree'
 import { deviceCheck, deviceGrant } from './helpers/deviceFixtures'
+import { darwinEscapeTree, survivors } from './helpers/deviceDarwinEscape'
 
 vi.mock('node:fs/promises', { spy: true })
 
@@ -60,6 +65,9 @@ function uid() {
 function native() {
   if (state.native === undefined) throw new Error('native fixture not prepared')
   return state.native
+}
+function escapeTree(processes: number) {
+  return darwinEscapeTree(run, native(), state.directory, attemptWith(processes))
 }
 function freshDriver(invoke: RunProgram = run) {
   return deviceWorkerDarwin({ storageDir: state.directory, environment: process.env, run: invoke })
@@ -276,6 +284,15 @@ int main(void) {
 `,
     )
     await run('/usr/bin/clang', [source, '-o', path.join(state.directory, 'uid-limit-probe')], {})
+    await run(
+      '/usr/bin/clang',
+      [
+        path.resolve('test/fixtures/device-workers/darwin-escape.c'),
+        '-o',
+        path.join(state.directory, 'escape-tree'),
+      ],
+      {},
+    )
   })
   afterAll(async () => {
     try {
@@ -307,52 +324,77 @@ int main(void) {
     expect(answer).toMatchObject({ cap: 2, firstChildRefused: true })
     expect(answer.uidProcesses).toBeGreaterThan(2)
   })
-  it('refuses a third process at cap 2 and permits retry after the held child exits', async () => {
-    const script = `
-const { spawn } = require('node:child_process');
-const { once } = require('node:events');
-function trySpawn() {
-  return new Promise(resolve => {
-    const child = spawn('/usr/bin/true', [], { stdio: 'ignore' });
-    child.once('error', error => resolve(error.code));
-    child.once('exit', code => resolve(code));
-  });
-}
-(async () => {
-  const held = spawn(process.execPath, ['-e', 'setInterval(()=>{},100);process.send("ready")'],
-    { stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
-  await once(held, 'message');
-  const third = await trySpawn();
-  const exit = once(held, 'exit'); held.kill(); await exit;
-  const retry = await trySpawn();
-  process.stdout.write(JSON.stringify({ third, retry }));
-})();
-`
-    const job = await native().launch(
-      {
-        executable: process.execPath,
-        args: ['-e', script],
-        cwd: state.directory,
-        requiredTools: [],
-      },
-      {},
-      attemptWith(2),
-    )
+  it('terminates cap 2 overflow including a setsid/double-fork escapee with capacity and no survivors', async () => {
+    const fixture = await escapeTree(2)
     try {
-      await job.activate()
-      const result = z
-        .strictObject({ exitCode: z.int(), stdout: z.string(), failure: z.string() })
-        .parse(await job.retirement)
-      expect(result).toMatchObject({ exitCode: 0, failure: 'none' })
-      expect(JSON.parse(result.stdout)).toEqual({ third: 'EAGAIN', retry: 0 })
+      const tree = await fixture.create()
+      expect(tree.escapeParent).toBe(1)
+      expect(tree.escapeGroup).not.toBe(tree.rootGroup)
+      expect(tree.escapeCoalition).toBe(tree.coalition)
+      expect(tree.spawnReassignmentDenied).toBe(true)
+      await fixture.resume()
+      await expect.poll(() => survivors(tree)).toEqual([])
+      expect(await fixture.job.retirement).toMatchObject({ failure: 'capacity' })
+      expect(await native().query()).toMatchObject({ activeProcesses: 0, sleepInhibited: false })
     } finally {
-      await clean(job)
+      await fixture.clean()
     }
   })
-  it('settles an unenforceable native cap as refused not-run work and releases once', async () => {
+  it('runs three processes at cap 3 to completion and counts the escapee', async () => {
+    const fixture = await escapeTree(3)
+    try {
+      const tree = await fixture.create()
+      await fixture.resume()
+      await expect.poll(() => native().query()).toMatchObject({ activeProcesses: 3 })
+      expect(survivors(tree)).toHaveLength(3)
+      expect(tree.escapeCoalition).toBe(tree.coalition)
+      await writeFile(fixture.release, '')
+      expect(await fixture.job.retirement).toEqual({
+        exitCode: 0,
+        stdout: 'finished',
+        failure: 'none',
+      })
+      expect(survivors(tree)).toEqual([])
+    } finally {
+      await fixture.clean()
+    }
+  })
+  it('does not report retirement while the reparented escapee lives after root exit', async () => {
+    const fixture = await escapeTree(3)
+    let isRetired = false
+    void fixture.job.retirement.then(() => {
+      isRetired = true
+    })
+    try {
+      const tree = await fixture.create()
+      await fixture.resume()
+      process.kill(tree.held, 'SIGKILL')
+      await writeFile(fixture.rootExit, '')
+      await expect.poll(() => survivors(tree)).toEqual([tree.escape])
+      await expect
+        .poll(() => native().query())
+        .toMatchObject({ activeProcesses: 1, sleepInhibited: true })
+      expect(isRetired).toBe(false)
+      await expect(fixture.job.remove()).rejects.toMatchObject({ reason: 'uncertain' })
+      await fixture.job.cancel()
+      expect(await fixture.job.retirement).toEqual({
+        exitCode: 0,
+        stdout: 'finished',
+        failure: 'none',
+      })
+      expect(survivors(tree)).toEqual([])
+      expect(isRetired).toBe(true)
+    } finally {
+      await fixture.clean()
+    }
+  })
+  it('settles a native unsupported manager as refused not-run work and releases once', async () => {
     const release = vi.fn(() => Promise.resolve())
+    const driver = freshDriver((file, args, env) =>
+      args[0] === 'print' ? Promise.reject(new Error('manager unavailable')) : run(file, args, env),
+    )
     const host = new DeviceWorkerHost({
-      driver: native(),
+      driver,
       environment: process.env,
       retain: () => Promise.resolve(),
       reserve: () => Promise.resolve({ usage, pause: () => Promise.resolve(), release }),
@@ -384,20 +426,35 @@ function trySpawn() {
     })
   })
   it.each([1, 2, DEVICE_LIMITS.processes])(
-    'refuses unenforceable per-job cap %s without activating a worker',
+    'activates admitted per-job cap %s with the exact limit in the native request',
     async (processes) => {
-      const invoke = vi.fn<RunProgram>(run)
-      const driver = freshDriver(invoke)
-      expect(await driver.selfTest()).toBe(true)
-      const calls = invoke.mock.calls.length
-      await expect(
-        driver.launch(
-          { executable: process.execPath, args: [], cwd: state.directory, requiredTools: [] },
-          {},
-          attemptWith(processes),
-        ),
-      ).rejects.toMatchObject({ reason: 'unsupported-host', detail: 'helper' })
-      expect(invoke.mock.calls).toHaveLength(calls)
+      const job = await native().launch(
+        { executable: '/usr/bin/true', args: [], cwd: state.directory, requiredTools: [] },
+        {},
+        attemptWith(processes),
+      )
+      try {
+        const context = parseDeviceWorkerQuery(job.query).context
+        const config: unknown = JSON.parse(
+          await readFile(
+            path.join(
+              state.directory,
+              'device-workers-darwin',
+              `attempt-${context.desktop}`,
+              'request.json',
+            ),
+            'utf8',
+          ),
+        )
+        expect(config).toMatchObject({
+          maxProcesses: processes,
+          pollUs: POSIX_TREE_EXIT_POLL_MS * MILLISECONDS_PER_SECOND,
+        })
+        await job.activate()
+        expect(await job.retirement).toEqual({ exitCode: 0, stdout: '', failure: 'none' })
+      } finally {
+        await clean(job)
+      }
       expect(await attempts()).toEqual([])
     },
   )

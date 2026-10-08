@@ -1139,3 +1139,90 @@ mechanism and the cap-2 native proof remain the blocker. No native assertion
 was removed or weakened, no timeout override or gate relaxation was used,
 and no push or model call occurred. The verification follow-up changes this
 certification region only; production/test hashes remain those of de27ba82a.
+
+#### M100P2HM3 — supervised macOS caps (2026-10-08)
+
+The lead's new brief supersedes HM2's kernel fork-admission requirement for
+macOS: enforce the admitted limit through supervised whole-coalition
+termination, retaining the existing refusal for limits outside 1..128.
+Windows job objects and Linux cgroup `TasksMax` enforce their limits in the
+kernel at fork; macOS checks every `POSIX_TREE_EXIT_POLL_MS` (20 ms), kills
+observed overflow, and reports typed `capacity` only after whole-membership
+exit. The UID-wide `RLIMIT_NPROC` remains the outer kernel bound; it is not
+changed or claimed as a per-attempt limit. A short-lived excess process can
+run between samples. Scheduling and scan cost also affect reaction time.
+
+Before implementation, an independent C launchd probe in
+`/tmp/M100P2HM3-coalition-proof` ran unprivileged as UID 502 on macOS
+15.7.4 / 24G517. A child called `setsid`, forked again and exited; the
+grandchild reparented to PID 1, left the root's process group, retained
+resource coalition 1440279, and was found by `proc_listpids(PROC_UID_ONLY)`
+plus `proc_pidinfo(PROC_PIDCOALITIONINFO)`. SIGKILL followed by observed
+ESRCH proved no survivor. All assertions passed and launchctl reported
+exit 0; the exact probe registration was removed. One hundred UID membership
+scans averaged **0.037930 ms** each (about **0.19%** of a 20 ms interval,
+excluding file I/O and accounting).
+
+Implementation plan within H's owned driver/tests: use that resource
+coalition for enumeration, killing, kernel counts and independent final
+retirement observation; activate valid admitted limits; native cap 2 kills
+a three-process tree including an escapee; cap 3 completes a three-process
+tree; a living escapee blocks retirement. Deliberately replace coalition
+membership with process-group membership and drop termination, observe the
+respective tests fail, then restore exact source hashes. Fresh-clone owning
+tests run three times at repository deadlines; unchanged compiler/lint/
+format/dead-code/duplication/localization/reference/host-API/build checks
+follow. Shared product documentation and full quality remain W's obligation.
+
+**Implemented and locally verified.** `deviceWorkerDarwin.ts` enumerates
+the current UID's processes using byte-counted `proc_listpids`, checks the
+resource coalition with `proc_pidinfo` and rechecks before SIGKILL. A
+truncated snapshot, unreadable living UID process or failed signal retains
+uncertainty. Kernel coalition counts include departed/reparented children;
+the helper waits for itself alone, and the host independently checks zero
+coalition tasks after helper exit before resolving retirement. Valid caps
+are passed unchanged to the native request. Invalid caps still refuse before
+any native call or attempt directory. The loop subtracts scan/accounting/I/O
+time from the 20 ms interval; missed periods run again immediately, without
+claiming a hard scheduler deadline.
+
+The committed fake-only native C fixture makes an ordinary held child and
+a setsid/double-fork grandchild. Its receipt proves the grandchild has PPID 1,
+a different process group and the same resource coalition. Its explicit
+coalition spawn attribute is rejected with EPERM, corroborating Apple's
+[fork inheritance](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_fork.c)
+and [privileged coalition-spawn check](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_exec.c).
+Cap 2 terminates all three processes with `capacity`; cap 3 samples exactly
+three and completes successfully. The retirement case kills the ordinary
+child and exits the root, leaving only the reparented escapee: active count
+is one, the assertion stays held, `remove` refuses, and retirement stays
+pending until coalition cancellation kills it. The supervisor is suspended
+only while constructing the deterministic overflow fixture, then resumed;
+this avoids a short fork intermediate preventing the escapee's proof receipt.
+Fixture cleanup independently terminates exact fixture PIDs even during drills.
+The superseded HM2 fork-EAGAIN assertion is replaced by the lead's explicit
+supervised-termination contract, not silently weakened or skipped.
+
+A second native launchd benchmark exercised the production `counts`, UID
+`members`, memory accounting, power query and atomic query-file write unchanged
+for 100 samples with three coalition tasks (helper plus two children): mean
+**1.221855 ms**, median **1.210392 ms**, maximum **2.027655 ms**, **6.11%** of
+the 20 ms interval as wall time, not claimed CPU utilization. Both children
+were killed/reaped and the benchmark registration removed. The earlier
+0.037930 ms measure isolates membership enumeration only.
+
+| Drill              | Deliberate break                                                 | Observed result at default deadlines                                                                                                                               |
+| ------------------ | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| process-group-only | Select signal targets by process group instead of coalition      | Cap-2 escapee remains alive; no-survivors assertion fails. Exit 1: 62 passed, 1 failed, 7 Windows skipped.                                                         |
+| drop-kill          | Replace SIGKILL with signal 0                                    | All three cap-2 processes remain alive; no-survivors assertion fails. Exit 1: 56 passed, 7 failed, 7 Windows skipped; existing cancellation/flood tests also fail. |
+| early-retirement   | Remove helper's alone check and independent zero-coalition guard | Sole-escapee retirement, original double-fork marker and assertion-lifetime tests fail. Exit 1: 60 passed, 3 failed, 7 Windows skipped.                            |
+
+Every drill ran the complete three owning files with `CI=true` and
+`--maxWorkers=3`; source was restored byte-exact in `finally`, SHA-256
+**a00b481ed113b87ac16b42d923e5d89f804f3d59309817db2f5c78d8577e8ba1**.
+Drop-kill also fired existing repository 5 s deadlines; no deadline was
+raised. The restored owning suite passes **63 tests**, with **7 Windows-native
+skips**, including all **21 macOS-native cases** and **5 injected Darwin cases**.
+All five typechecks, changed TS ESLint/Prettier, plain knip, zero-clone jscpd
+and capped production build pass locally. Final committed-code fresh-clone
+receipts follow.

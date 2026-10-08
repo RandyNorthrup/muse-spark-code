@@ -1,4 +1,4 @@
-// M100/H: an on-demand GUI launchd job, with a kernel coalition retirement proof.
+// M100/H: a GUI launchd job with supervised caps and kernel coalition retirement.
 import { execFile } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import { lstat, mkdir, open, readdir, rename, rm, stat, writeFile } from 'node:fs/promises'
@@ -75,20 +75,26 @@ static BOOL save(NSString *file, id value) {
 }
 static BOOL present(NSString *file) { return access(file.fileSystemRepresentation, F_OK) == 0; }
 static BOOL members(uint64_t id, BOOL stop, uint64_t *memory) {
-  int bytes = proc_listallpids(NULL, 0);
+  int bytes = proc_listpids(PROC_UID_ONLY, getuid(), NULL, 0);
   if (bytes <= 0) return NO;
-  // The API returns a count when no buffer is passed; retry a full buffer.
-  int capacity = bytes + 1;
-  pid_t *pids = calloc(capacity, sizeof(pid_t)); if (!pids) return NO;
-  int size = proc_listallpids(pids, capacity * sizeof(pid_t));
-  if (size < 0 || size >= capacity) { free(pids); return NO; }
+  // proc_listpids returns bytes. A full/truncated snapshot cannot prove membership.
+  int capacity = bytes + sizeof(pid_t);
+  pid_t *pids = calloc(1, capacity); if (!pids) return NO;
+  int size = proc_listpids(PROC_UID_ONLY, getuid(), pids, capacity);
+  if (size <= 0 || size >= capacity || size % sizeof(pid_t)) { free(pids); return NO; }
   *memory = 0;
-  for (int i = 0; i < size; i++) {
-    if (pids[i] <= 0 || pids[i] == getpid() || coalition(pids[i]) != id) continue;
+  for (int i = 0; i < size / sizeof(pid_t); i++) {
+    if (pids[i] <= 0 || pids[i] == getpid()) continue;
+    errno = 0;
+    uint64_t member = coalition(pids[i]);
+    if (!member && errno != ESRCH) { free(pids); return NO; }
+    if (member != id) continue;
     struct rusage_info_v2 usage = {0};
     if (proc_pid_rusage(pids[i], RUSAGE_INFO_V2, (rusage_info_t *)&usage) == 0) *memory += usage.ri_resident_size;
     // Recheck coalition membership immediately before signalling a member.
-    if (stop && coalition(pids[i]) == id) kill(pids[i], SIGKILL);
+    if (stop && coalition(pids[i]) == id && kill(pids[i], SIGKILL) && errno != ESRCH) {
+      free(pids); return NO;
+    }
   }
   free(pids); return YES;
 }
@@ -175,11 +181,16 @@ int main(int argc, const char **argv) { @autoreleasepool {
   BOOL overflow = NO, exited = child < 0;
   int status = 0; uint64_t peak = 0;
   NSString *failure = launchError ? (launchError == EAGAIN || launchError == ENOMEM ? @"capacity" : @"unsupported-host") : @"none";
+  mach_timebase_info_data_t sampleScale;
+  if (mach_timebase_info(&sampleScale) != KERN_SUCCESS) return 1;
   for (;;) { @autoreleasepool {
+    uint64_t sampleStart = mach_absolute_time();
     drain(&output[0],stdoutData,[config[@"outputBytes"] unsignedIntegerValue],&overflow);
     drain(&errors[0],stderrData,[config[@"outputBytes"] unsignedIntegerValue],&overflow);
     if (!exited && waitpid(child,&status,WNOHANG) == child) exited = YES;
     if (!counts(id,&active,&cpu) || active < 1) return 1; // Unknown is never retirement.
+    // Supervised admission: overflow may execute until this 20 ms membership sample.
+    // The helper is outside the admitted worker-process count, on every platform.
     if (overflow || active - 1 > [config[@"maxProcesses"] unsignedLongLongValue]) failure = @"capacity";
     BOOL stop = present(file(@"stop")) || ![failure isEqualToString:@"none"];
     uint64_t memory;
@@ -188,7 +199,10 @@ int main(int argc, const char **argv) { @autoreleasepool {
     if (!save(file(@"query.json"), query(label,active-1,cpu,peak,awake))) return 1;
     // Kernel counts include every descendant, even setsid/double-fork escapees.
     if (exited && active == 1 && output[0] < 0 && errors[0] < 0) break;
-    usleep([config[@"pollUs"] unsignedIntValue]);
+    // Charge scan/accounting/I/O time to the interval instead of adding it to 20 ms.
+    uint64_t elapsedUs = (mach_absolute_time() - sampleStart) * sampleScale.numer / sampleScale.denom / ${MILLISECONDS_PER_SECOND};
+    unsigned int intervalUs = [config[@"pollUs"] unsignedIntValue];
+    if (elapsedUs < intervalUs) usleep(intervalUs - (unsigned int)elapsedUs);
   } }
   IOPMAssertionRelease(assertion); awake = NO;
   NSString *stdoutText = [[NSString alloc] initWithData:stdoutData encoding:NSUTF8StringEncoding];
@@ -506,14 +520,10 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
   return {
     platform: 'darwin',
     selfTest: () => (preparing ??= isPrepared()),
-    launch: async (_command, _environment, attempt) => {
+    launch: async (command, environment, attempt) => {
       admittedProcessLimit(attempt)
       if (!(await (preparing ??= isPrepared()))) throw new DeviceWorkerHostError('helper')
-      // launchd's NumberOfProcesses is UID-wide. Coalition polling observes
-      // descendants only after creation, so it cannot enforce spawn admission.
-      // Keep real attempts refused until a per-job admission mechanism exists;
-      // the private rawLaunch above is only the fixed /usr/bin/true self-test.
-      throw new DeviceWorkerHostError('helper')
+      return await rawLaunch(command, environment, admittedProcessLimit(attempt))
     },
     query: async () => {
       if (!(await (preparing ??= isPrepared()))) throw new DeviceWorkerHostError('helper')
