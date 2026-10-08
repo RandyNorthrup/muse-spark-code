@@ -483,29 +483,34 @@ describe('embedding pipeline regressions', () => {
     }
   })
 
-  it('refuses getters in every payload field without invoking them (RVM98P2ID 2)', async () => {
-    for (const field of ['state', 'instructions', 'true', 'false', 'criteria']) {
-      const getter = vi.fn(() => 'public')
-      const { deps, embed } = routeDependencies({
-        source: { embed: () => Promise.resolve(confidentVectors) },
-      })
-      const question = { type: 'noul', instructions: 'Public question', criteria: {} }
-      const state = Object.defineProperty({}, 'box', { get: getter, enumerable: true })
-      const request = { state, questions: { risk: question } }
-      if (field !== 'state') {
-        Reflect.set(request, 'state', { safe: 'public' })
-        Object.defineProperty(
-          field === 'true' || field === 'false' ? question.criteria : question,
-          field,
-          { get: getter, enumerable: true },
-        )
+  it('refuses own and inherited getters in every payload field without invoking them (RVM98P2ID 2)', async () => {
+    for (const kind of ['own', 'inherited']) {
+      for (const field of ['state', 'instructions', 'true', 'false', 'criteria']) {
+        const getter = vi.fn(() => 'public')
+        const { deps, embed } = routeDependencies({
+          source: { embed: () => Promise.resolve(confidentVectors) },
+        })
+        const question = { type: 'noul', instructions: 'Public question', criteria: {} }
+        const state = {}
+        const request = { state, questions: { risk: question } }
+        let owner: object = question
+        if (field === 'state') owner = state
+        else if (field === 'true' || field === 'false') owner = question.criteria
+        const key = field === 'state' ? 'box' : field
+        if (field !== 'state') Reflect.set(request, 'state', { safe: 'public' })
+        const descriptor = { get: getter, enumerable: true }
+        if (kind === 'own') Object.defineProperty(owner, key, descriptor)
+        else {
+          Reflect.deleteProperty(owner, key)
+          Object.setPrototypeOf(owner, Object.defineProperty({}, key, descriptor))
+        }
+        const outcome = await runEmbeddingJudge(request, options, deps, signal())
+        expect(getter).not.toHaveBeenCalled()
+        expect(embed).not.toHaveBeenCalled()
+        expect(
+          outcome.outcome === 'answered' ? outcome.result.muse['risk']?.technique : outcome.reason,
+        ).toBe(outcome.outcome === 'answered' ? 'stated' : 'engine-failure')
       }
-      const outcome = await runEmbeddingJudge(request, options, deps, signal())
-      expect(getter).not.toHaveBeenCalled()
-      expect(embed).not.toHaveBeenCalled()
-      expect(
-        outcome.outcome === 'answered' ? outcome.result.muse['risk']?.technique : outcome.reason,
-      ).toBe(outcome.outcome === 'answered' ? 'stated' : 'engine-failure')
     }
   })
 

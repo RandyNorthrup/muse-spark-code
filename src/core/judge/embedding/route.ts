@@ -177,9 +177,12 @@ type EmbedInputs =
 
 /** Inspect descriptors before a zod parser reads any property. */
 function hasDataProperties(value: unknown): boolean {
+  if (value === null || typeof value !== 'object') return false
+  const prototype: unknown = Object.getPrototypeOf(value)
   return (
-    value !== null &&
-    typeof value === 'object' &&
+    (prototype === null ||
+      prototype === Object.prototype ||
+      (Array.isArray(value) && prototype === Array.prototype)) &&
     Object.values(Object.getOwnPropertyDescriptors(value)).every(
       (descriptor) => 'value' in descriptor,
     )
@@ -187,22 +190,19 @@ function hasDataProperties(value: unknown): boolean {
 }
 
 function isPlainDataContainer(value: unknown): boolean {
-  if (value === null || typeof value !== 'object') return true
-  const prototype: unknown = Object.getPrototypeOf(value)
   return (
-    (prototype === null ||
-      prototype === Object.prototype ||
-      (Array.isArray(value) && prototype === Array.prototype)) &&
-    hasDataProperties(value) &&
-    Reflect.ownKeys(value).every((key) => typeof key === 'string') &&
-    !Object.hasOwn(value, 'toJSON') &&
-    Object.entries(Object.getOwnPropertyDescriptors(value)).every(
-      ([key, descriptor]) =>
-        (Array.isArray(value) && key === 'length') ||
-        (descriptor.enumerable &&
-          (!Array.isArray(value) ||
-            (/^(?:0|[1-9][0-9]*)$/.test(key) && Number(key) < value.length))),
-    )
+    value === null ||
+    typeof value !== 'object' ||
+    (hasDataProperties(value) &&
+      Reflect.ownKeys(value).every((key) => typeof key === 'string') &&
+      !Object.hasOwn(value, 'toJSON') &&
+      Object.entries(Object.getOwnPropertyDescriptors(value)).every(
+        ([key, descriptor]) =>
+          (Array.isArray(value) && key === 'length') ||
+          (descriptor.enumerable &&
+            (!Array.isArray(value) ||
+              (/^(?:0|[1-9][0-9]*)$/.test(key) && Number(key) < value.length))),
+      ))
   )
 }
 
