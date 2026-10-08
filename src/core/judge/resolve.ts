@@ -206,13 +206,21 @@ type SeparateGate =
   { readonly blocked: true; readonly reason: JudgeModeReason2a } | { readonly blocked: false }
 
 function separateGate(separate: JudgeSeparateReadiness | undefined): SeparateGate {
-  if (separate?.available !== true) {
+  // Readiness arrives over a trust boundary, so each field is read as
+  // `unknown` and compared against literal `true`: a truthy malformed
+  // value ("false") must fail closed. Comparing the typed `boolean`
+  // fields directly would assert the very assumption malformed input
+  // violates (and the type-aware lint forbids it as unnecessary).
+  const available: unknown = separate?.available
+  if (available !== true) {
     return { blocked: true, reason: 'source-unavailable' }
   }
-  if (!separate.verified) {
+  const verified: unknown = separate?.verified
+  if (verified !== true) {
     return { blocked: true, reason: 'source-untested' }
   }
-  return separate.profilesReady ? { blocked: false } : { blocked: true, reason: 'profile-missing' }
+  const profilesReady: unknown = separate?.profilesReady
+  return profilesReady === true ? { blocked: false } : { blocked: true, reason: 'profile-missing' }
 }
 
 /**
