@@ -32,7 +32,6 @@ import { NodeUsageFs } from './nodeUsageFs'
 import { loadUsageTable } from '../../shared/l10n/usageTable'
 import { readUsageTableFile } from './usageTableFile'
 import { readUsageHistorySettings } from './usageSettingsFile'
-import { writeResourceReset } from './resourceResetFile'
 import { resourceHistoryReader } from '../resources/history'
 import { CHECKPOINT_STORAGE_MODE } from '../../shared/constants'
 import {
@@ -117,7 +116,13 @@ export function createUsageAccess(deps: UsageAccessDeps): UsageAccess {
     },
   })
   // M107 J: the same machine journal the governors record; read-only here.
-  const resources = resourceHistoryReader(deps.dataFolder, () => settings().days)
+  const resources = resourceHistoryReader(
+    deps.dataFolder,
+    () => settings().days,
+    () => {
+      deps.log.warn('Resource history retention failed; expired history is still stored')
+    },
+  )
   let retainedDay: string | undefined
   const providers = new Set<string>()
   const readJournal = async (): Promise<StoredJournal> => {
@@ -172,11 +177,9 @@ export function createUsageAccess(deps: UsageAccessDeps): UsageAccess {
           snapshots.set(adapted, journal)
           return adapted
         },
-        // The reset boundary comes first: no running collector can write pre-delete data.
-        deleteHistory: async () => {
-          await writeResourceReset(deps.dataFolder, Date.now())
-          await store.reset()
-        },
+        // Under the resource journal's write lock: boundary first, then the folder,
+        // so no running collector can write pre-delete data (RVM107W2G P2-2).
+        deleteHistory: () => resources.deleteHistory(() => store.reset()),
       },
       readResources: () => resources.read(),
       countResources: () => resources.count(),

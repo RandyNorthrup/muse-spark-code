@@ -11,7 +11,7 @@ import type { ResourceHistory } from '../../shared/resourceHistory'
 import type { ResourceEvent, ResourceStatus } from '../../shared/resources'
 import { NodeUsageFs } from '../usage/nodeUsageFs'
 import { readUsageHistorySettings } from '../usage/usageSettingsFile'
-import { readResourceReset } from '../usage/resourceResetFile'
+import { readResourceReset, writeResourceReset } from '../usage/resourceResetFile'
 import type { ResourceHistoryPort } from './port'
 
 export interface ResourceHistoryBinding {
@@ -26,34 +26,43 @@ export interface ResourceHistoryBinding {
 export interface ResourceHistoryReader extends ResourceHistoryPort {
   /** Every stored entry, for Delete history's confirmation count. */
   count(): Promise<number>
+  /**
+   * Delete history: holding the journal write lock, write the reset boundary and
+   * run `removeUsage` (the usage journal's reset), so no write lands in between.
+   */
+  deleteHistory(removeUsage: () => Promise<void>): Promise<void>
 }
 
-function journal(
-  dataFolder: string,
-  isEnabled: () => boolean,
-  historyDays?: () => number,
-  onDropped?: () => void,
-) {
+interface JournalOptions {
+  readonly historyDays?: (() => number) | undefined
+  readonly onDropped?: () => void
+  readonly onRetentionError?: (() => void) | undefined
+}
+
+function journal(dataFolder: string, isEnabled: () => boolean, options: JournalOptions = {}) {
   return new ResourceJournal(new NodeUsageFs(dataFolder), {
     writerId: randomUUID(),
     now: Date.now,
     isEnabled,
     // An unreadable usage-history choice throws, so retention removes nothing.
-    historyDays: historyDays ?? (() => readUsageHistorySettings(dataFolder).days),
+    historyDays: options.historyDays ?? (() => readUsageHistorySettings(dataFolder).days),
     resetAtMs: () => readResourceReset(dataFolder),
-    ...(onDropped !== undefined && { onDropped }),
+    ...(options.onDropped !== undefined && { onDropped: options.onDropped }),
+    ...(options.onRetentionError !== undefined && { onRetentionError: options.onRetentionError }),
   })
 }
 
-function port(store: ResourceJournal): ResourceHistoryReader {
+function port(store: ResourceJournal, dataFolder: string): ResourceHistoryReader {
   return {
     count: () => store.count(),
+    deleteHistory: (removeUsage) =>
+      store.deleteWith(async () => {
+        await writeResourceReset(dataFolder, Date.now())
+        await removeUsage()
+      }),
     async read(): Promise<ResourceHistory> {
-      try {
-        await store.retain()
-      } catch {
-        // Removal of expired days retries on the next read or append.
-      }
+      // A retention failure is reported and retried; it never hides history.
+      await store.retainReported()
       const read = await store.read()
       const history = aggregateResources(read.records, read.sources)
       return read.days.length === 0 ? history : { ...history, days: [...read.days] }
@@ -65,8 +74,12 @@ function port(store: ResourceJournal): ResourceHistoryReader {
 export function resourceHistoryReader(
   dataFolder: string,
   historyDays?: () => number,
+  onRetentionError?: () => void,
 ): ResourceHistoryReader {
-  return port(journal(dataFolder, () => false, historyDays))
+  return port(
+    journal(dataFolder, () => false, { historyDays, onRetentionError }),
+    dataFolder,
+  )
 }
 
 export interface ResourceHistoryRecorder {
@@ -102,7 +115,11 @@ export function resourceHistoryRecorder(
       return false
     }
   }
-  const store = journal(binding.dataFolder, isConsented, binding.historyDays, report)
+  const store = journal(binding.dataFolder, isConsented, {
+    historyDays: binding.historyDays,
+    onDropped: report,
+    onRetentionError: onError,
+  })
   let records = new ResourceRecords(store, work)
   let boundary = readResourceReset(binding.dataFolder)
   let liveAt = -Infinity
@@ -148,7 +165,7 @@ export function resourceHistoryRecorder(
     }
   }
   return {
-    history: port(store),
+    history: port(store, binding.dataFolder),
     sample(status) {
       if (isSampling || !isAdmitted()) return
       isSampling = true

@@ -21,6 +21,9 @@ import {
   RESOURCE_JOURNAL_RETAIN_MS,
   RESOURCE_JOURNAL_ROLLUP_DELAY_MS,
   RESOURCE_JOURNAL_VERSION,
+  RESOURCE_JOURNAL_WRITE_LOCK_ATTEMPTS,
+  RESOURCE_JOURNAL_WRITE_LOCK_STALE_MS,
+  RESOURCE_JOURNAL_WRITE_LOCK_WAIT_MS,
   USAGE_FOLDER,
   USAGE_HISTORY_DAYS_DEFAULT,
   USAGE_LINE_FEED_BYTE,
@@ -41,6 +44,9 @@ export const RESOURCE_JOURNAL_ROOT = `${USAGE_FOLDER}/${USAGE_VERSION_FOLDER}/${
 const LIVE_ROOT = `${RESOURCE_JOURNAL_ROOT}/live`
 const ROLLUPS_ROOT = `${RESOURCE_JOURNAL_ROOT}/rollups`
 const LOCK_FILE = `${RESOURCE_JOURNAL_ROOT}/rollup.lock`
+// RVM107W2G P2-2: Delete history and every append/live write hold this lock, so
+// a write checks the reset boundary with no delete able to land in between.
+const WRITE_LOCK_FILE = `${RESOURCE_JOURNAL_ROOT}/write.lock`
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const FILE_PATTERN = /^([\w-]+)\.(\d+)\.jsonl$/
 const LIVE_PATTERN = /^([\w-]+)\.json$/
@@ -105,8 +111,12 @@ export interface ResourceJournalOptions {
   readonly onDropped?: () => void
   /** D82's usage-history days for daily rows; an unreadable choice throws and retains nothing. */
   readonly historyDays?: () => number
-  /** The last Delete history: nothing stamped at or before it is ever written. */
+  /** The last Delete history: nothing stamped at or before it is ever written or read. */
   readonly resetAtMs?: () => number
+  /** Retention failed (expired history is still stored); reported once an hour while it fails. */
+  readonly onRetentionError?: () => void
+  /** Waits between write-lock attempts; tests may inject it. */
+  readonly sleep?: (ms: number) => Promise<void>
 }
 
 function utcDay(atMs: number): string {
@@ -159,6 +169,25 @@ function isRepeat(ids: Set<string>, writer: string, id: string | undefined): boo
   if (ids.has(key)) return true
   ids.add(key)
   return false
+}
+
+/** Inside the seven readable days and not ahead of the clock (bounded skew). */
+function isInWindow(atMs: number, now: number): boolean {
+  return atMs > now - RESOURCE_HISTORY_RETENTION_MS && atMs <= now + RESOURCE_JOURNAL_FUTURE_SKEW_MS
+}
+
+/** Calls a diagnostic, which never fails the recorder. */
+function notify(diagnostic: (() => void) | undefined): void {
+  try {
+    diagnostic?.()
+  } catch {
+    // Ignored: reporting is best effort.
+  }
+}
+
+/** Within an hour after `atMs` (a clock moved back never counts as recent). */
+function isWithinRetainInterval(atMs: number | undefined, now: number): boolean {
+  return atMs !== undefined && now >= atMs && now - atMs < RESOURCE_JOURNAL_RETAIN_MS
 }
 
 function countLines(bytes: Uint8Array): number {
@@ -237,6 +266,7 @@ export class ResourceJournal implements ResourceRecordSink {
   private hasDropped = false
   private sequence = 0
   private retry: { readonly text: string; readonly id: string } | undefined
+  private retentionReportedAt: number | undefined
 
   public constructor(
     private readonly fs: UsageFs,
@@ -248,11 +278,39 @@ export class ResourceJournal implements ResourceRecordSink {
   private drop(): void {
     if (this.hasDropped) return
     this.hasDropped = true
-    try {
-      this.options.onDropped?.()
-    } catch {
-      /* A diagnostic never fails the recorder. */
+    notify(this.options.onDropped)
+  }
+
+  /** The last Delete history; an unreadable boundary is Infinity (writes and reads refuse). */
+  private resetBoundary(): number {
+    return this.options.resetAtMs?.() ?? -1
+  }
+
+  /**
+   * Runs `action` holding the journal write lock, waiting a bounded time for
+   * another process's append or delete. The lock is proved held right before
+   * `action`, whose checks run with no await ahead of its write.
+   */
+  private async exclusive<T>(action: () => Promise<T>): Promise<T> {
+    const sleep =
+      this.options.sleep ??
+      ((ms: number) =>
+        new Promise<void>((resolve) => {
+          setTimeout(resolve, ms)
+        }))
+    for (let attempt = 0; attempt < RESOURCE_JOURNAL_WRITE_LOCK_ATTEMPTS; attempt++) {
+      const lock = await this.fs.acquireLock(WRITE_LOCK_FILE, RESOURCE_JOURNAL_WRITE_LOCK_STALE_MS)
+      if (lock !== undefined) {
+        try {
+          if (!(await lock.isHeld())) throw new Error('resourceHistoryLockLost')
+          return await action()
+        } finally {
+          await lock.release()
+        }
+      }
+      await sleep(RESOURCE_JOURNAL_WRITE_LOCK_WAIT_MS)
     }
+    throw new Error('resourceHistoryBusy')
   }
 
   /** `budget`: bytes this read may still use; checked before and after reading. */
@@ -326,7 +384,7 @@ export class ResourceJournal implements ResourceRecordSink {
       if (read === undefined) continue
       bytes += read.size
       for (const [index, record] of read.records.entries()) {
-        if (isRepeat(ids, writer, read.ids[index])) continue
+        if (isRepeat(ids, writer, read.ids[index]) || record.atMs <= this.resetBoundary()) continue
         records.push(record)
         sources.push(writer)
       }
@@ -461,10 +519,10 @@ export class ResourceJournal implements ResourceRecordSink {
       const result = liveSchema.safeParse(value)
       if (!result.success) throw new ResourceJournalError('resourceHistoryCorrupt')
       const record = result.data.record
-      // Out of range, or the journal already holds the segment's final snapshot.
+      // Deleted, out of range, or the journal already holds the segment's final snapshot.
       if (
-        record.atMs <= now - RESOURCE_HISTORY_RETENTION_MS ||
-        record.atMs > now + RESOURCE_JOURNAL_FUTURE_SKEW_MS ||
+        record.atMs <= this.resetBoundary() ||
+        !isInWindow(record.atMs, now) ||
         journal.has(JSON.stringify([writer, record.atMs]))
       )
         continue
@@ -478,50 +536,77 @@ export class ResourceJournal implements ResourceRecordSink {
   public async append(input: ResourceRecord): Promise<void> {
     if (!this.options.isEnabled()) return
     const record = resourceHistoryRecordSchema.parse(input)
-    // Recorded before the last Delete history: it must never reappear.
-    if (record.atMs <= (this.options.resetAtMs?.() ?? -1)) return
     const now = this.options.now()
     // Outside the readable window: it could never be shown, so it is never stored.
-    if (record.atMs <= now - RESOURCE_HISTORY_RETENTION_MS) return
-    if (record.atMs > now + RESOURCE_JOURNAL_FUTURE_SKEW_MS) return
+    if (!isInWindow(record.atMs, now)) return
     const text = JSON.stringify(record)
     const id = this.retry?.text === text ? this.retry.id : String((this.sequence += 1))
     const line = `${JSON.stringify({ v: RESOURCE_JOURNAL_VERSION, id, record })}\n`
     const size = encoder.encode(line).byteLength
     if (size >= USAGE_RECORD_MAX_BYTES) throw new Error('resourceRecordTooLarge')
-    try {
-      await this.retain()
-    } catch {
-      // Retention retries at the next append; it never holds back a record.
-    }
-    const file = `${RESOURCE_JOURNAL_ROOT}/${utcDay(record.atMs)}/${this.options.writerId}.${String(this.generation)}.jsonl`
-    const written = this.written.get(file) ?? 0
-    if (written + size > RESOURCE_JOURNAL_FILE_MAX_BYTES) {
-      this.drop()
-      return
-    }
-    try {
-      await this.fs.append(file, line, true)
-    } catch (error) {
-      // A failed write may have left a partial or even a complete line; never
-      // append after it, and retry under the same id so a read keeps one copy.
-      this.generation += 1
-      this.retry = { text, id }
-      throw error
-    }
-    this.retry = undefined
-    this.written.set(file, written + size)
+    // Retention never holds back a record; its failure is reported, then retried.
+    await this.retainReported()
+    await this.exclusive(async () => {
+      // Recorded at or before the last Delete history: it must never reappear.
+      // Checked inside the lock a delete also holds, so none can land in between.
+      if (record.atMs <= this.resetBoundary()) return
+      const file = `${RESOURCE_JOURNAL_ROOT}/${utcDay(record.atMs)}/${this.options.writerId}.${String(this.generation)}.jsonl`
+      const written = this.written.get(file) ?? 0
+      if (written + size > RESOURCE_JOURNAL_FILE_MAX_BYTES) {
+        this.drop()
+        return
+      }
+      try {
+        await this.fs.append(file, line, true)
+      } catch (error) {
+        // A failed write may have left a partial or even a complete line; never
+        // append after it, and retry under the same id so a read keeps one copy.
+        this.generation += 1
+        this.retry = { text, id }
+        throw error
+      }
+      this.retry = undefined
+      this.written.set(file, written + size)
+    })
   }
 
   /** Publishes the open minute so far (atomically replaced); it is never appended. */
   public async writeLive(input: ResourceRecord): Promise<void> {
     if (!this.options.isEnabled()) return
     const { record } = liveSchema.parse({ v: RESOURCE_JOURNAL_VERSION, record: input })
-    if (record.atMs <= (this.options.resetAtMs?.() ?? -1)) return
     const text = JSON.stringify({ v: RESOURCE_JOURNAL_VERSION, record })
     if (encoder.encode(text).byteLength >= USAGE_RECORD_MAX_BYTES)
       throw new Error('resourceRecordTooLarge')
-    await this.fs.writeFileAtomically(`${LIVE_ROOT}/${this.options.writerId}.json`, text)
+    await this.exclusive(async () => {
+      if (record.atMs <= this.resetBoundary()) return
+      await this.fs.writeFileAtomically(`${LIVE_ROOT}/${this.options.writerId}.json`, text)
+    })
+  }
+
+  /**
+   * Delete history (RVM107W2G P2-2): `action` (write the reset boundary, then
+   * remove the usage folder) runs holding the write lock, so an append or live
+   * write in flight either finishes first and is deleted, or runs after and
+   * refuses on the new boundary.
+   */
+  public async deleteWith(action: () => Promise<void>): Promise<void> {
+    await this.exclusive(action)
+    this.cache.clear()
+    this.written.clear()
+    this.retainedAt = undefined
+  }
+
+  /** Retention whose failure is reported (first, then hourly) and retried, never hidden. */
+  public async retainReported(): Promise<void> {
+    try {
+      await this.retain()
+      this.retentionReportedAt = undefined
+    } catch {
+      const now = this.options.now()
+      if (isWithinRetainInterval(this.retentionReportedAt, now)) return
+      this.retentionReportedAt = now
+      notify(this.options.onRetentionError)
+    }
   }
 
   /**
@@ -532,12 +617,9 @@ export class ResourceJournal implements ResourceRecordSink {
    */
   public async retain(): Promise<void> {
     const now = this.options.now()
-    if (
-      this.retainedAt !== undefined &&
-      now >= this.retainedAt &&
-      now - this.retainedAt < RESOURCE_JOURNAL_RETAIN_MS
-    )
-      return
+    if (isWithinRetainInterval(this.retainedAt, now)) return
+    // Stale quarantines of failed removals (RVM107W2G P2-1) go first; a failure throws.
+    await this.fs.sweep?.(RESOURCE_JOURNAL_ROOT)
     // Nothing stored yet: a reader never creates the journal folder or its lock.
     const stored = await this.fs.list(RESOURCE_JOURNAL_ROOT)
     if (stored.length === 0) return
@@ -555,6 +637,8 @@ export class ResourceJournal implements ResourceRecordSink {
   /** Every collector's retained records, oldest day first and in each collector's append order. */
   public async read(): Promise<ResourceJournalRead> {
     const now = this.options.now()
+    const reset = this.resetBoundary()
+    if (!Number.isFinite(reset)) throw new ResourceJournalError('resourceHistoryCorrupt')
     const first = utcDay(now - RESOURCE_HISTORY_RETENTION_MS)
     const last = utcDay(now + RESOURCE_JOURNAL_FUTURE_SKEW_MS)
     const records: ResourceRecord[] = []
@@ -576,10 +660,14 @@ export class ResourceJournal implements ResourceRecordSink {
         if (total > RESOURCE_JOURNAL_READ_MAX_BYTES)
           throw new ResourceJournalError('resourceHistoryTooLarge')
         for (const [index, record] of read.records.entries()) {
-          if (isRepeat(ids, writer, read.ids[index])) continue
-          // Seven recorded days; a record from a clock running ahead is out of range.
-          if (record.atMs <= now - RESOURCE_HISTORY_RETENTION_MS) continue
-          if (record.atMs > now + RESOURCE_JOURNAL_FUTURE_SKEW_MS) continue
+          // A retried copy, anything at or before the last Delete history, or
+          // outside the seven recorded days (or ahead of the clock) is not shown.
+          if (
+            isRepeat(ids, writer, read.ids[index]) ||
+            record.atMs <= reset ||
+            !isInWindow(record.atMs, now)
+          )
+            continue
           records.push(record)
           sources.push(writer)
           if (record.minute !== null) segments.add(JSON.stringify([writer, record.atMs]))

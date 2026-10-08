@@ -58,6 +58,8 @@ export interface UsageFs {
   append(file: string, line: string, isDurable?: boolean): Promise<void>
   writeFileAtomically(file: string, text: string): Promise<void>
   remove(file: string): Promise<void>
+  /** Strictly removes stale quarantined removals in `folder`; a failure throws. */
+  sweep?(folder: string): Promise<void>
   acquireLock(file: string, staleMs: number): Promise<UsageLock | undefined>
 }
 export const USAGE_JOURNAL_ROOT = `${USAGE_FOLDER}/${USAGE_VERSION_FOLDER}`

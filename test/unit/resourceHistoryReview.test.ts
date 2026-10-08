@@ -116,8 +116,9 @@ describe('RVM107W2 P1: removal is confined to the validated directory', () => {
       await actual.rm(...args)
     })
     const fs = new NodeUsageFs(data)
+    // Windows pins the entry's ancestors (RVM107W2G P2-3), so the swap itself is refused.
     await expect(fs.remove(`${RESOURCE_JOURNAL_ROOT}/2026-01-01`)).rejects.toThrow(
-      'usagePathChanged',
+      process.platform === 'win32' ? 'EPERM' : 'usagePathChanged',
     )
     expect(await readFile(path.join(other, '2026-01-01', 'proof'), 'utf8')).toBe('keep')
   })

@@ -222,7 +222,18 @@ describe('M107 J/M102 durable resource journal', () => {
       append: vi.fn(() => Promise.resolve()),
       writeFileAtomically: () => Promise.resolve(),
       remove: () => Promise.resolve(),
-      acquireLock: () => Promise.resolve(undefined),
+      // The write lock is always free here; retention's rollup lock is never granted.
+      acquireLock: (relative) =>
+        Promise.resolve(
+          relative.endsWith('/write.lock')
+            ? {
+                token: 't',
+                generation: 1,
+                isHeld: () => Promise.resolve(true),
+                release: () => Promise.resolve(),
+              }
+            : undefined,
+        ),
     }
     const onDropped = vi.fn()
     const store = new ResourceJournal(fake, {

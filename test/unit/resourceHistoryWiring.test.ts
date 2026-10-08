@@ -110,8 +110,18 @@ describe('M107 J/M102 production history binding', () => {
       expect(read.minutes).toHaveLength(1)
     })
     const root = path.join(folder, ...RESOURCE_JOURNAL_ROOT.split('/'))
-    const [day] = await readdir(root)
-    const dayPath = path.join(root, day ?? '')
+    // The live minute can be read before the disposal flush writes the day file,
+    // and the root also holds the write lock's files: wait for the UTC day folder.
+    let dayPath = ''
+    await vi.waitFor(
+      async () => {
+        const names = await readdir(root)
+        const day = names.find((name) => DAY_NAME.test(name))
+        expect(day).toBeDefined()
+        dayPath = path.join(root, day ?? '')
+      },
+      { timeout: 3000 },
+    )
     const [file] = await readdir(dayPath)
     await appendFile(path.join(dayPath, file ?? ''), 'garbage\n')
     await expect(cli.history()).rejects.toThrow()

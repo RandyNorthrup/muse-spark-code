@@ -83,6 +83,12 @@ export const RESOURCE_HISTORY_MAX_DAYS = 1825
 export const RESOURCE_JOURNAL_LIVE_MS = 15_000
 // Delete history's reset boundary, beside (not inside) the usage folder.
 export const RESOURCE_JOURNAL_RESET_FILE = 'resource-history-reset.json'
+// The journal write lock (RVM107W2G P2-2): appends and live writes hold it for
+// milliseconds, Delete history for its folder removal. A contender retries for
+// at most ATTEMPTS × WAIT (10 s); a lock older than STALE is reclaimed.
+export const RESOURCE_JOURNAL_WRITE_LOCK_STALE_MS = 30_000
+export const RESOURCE_JOURNAL_WRITE_LOCK_WAIT_MS = 50
+export const RESOURCE_JOURNAL_WRITE_LOCK_ATTEMPTS = 200
 // A closing window or agent waits at most this long for its open minute's write.
 export const RESOURCE_HISTORY_FLUSH_TIMEOUT_MS = 2000
 export const RESOURCE_CPU_DEFAULT_PERCENT = 85
@@ -4028,6 +4034,11 @@ export const USAGE_HISTORY_DAYS_DEFAULT = 365
 export const USAGE_HISTORY_DAYS_MIN = 30
 export const USAGE_HISTORY_DAYS_MAX = 1825
 export const USAGE_RECORD_MAX_BYTES = 4096
+// Usage-folder removal (RVM107W2G): a quarantined `.removing-*` entry older than
+// this is swept by any list, sweep or remove; younger ones may be in flight in
+// another process. A delete retries transient EBUSY/EPERM this many times.
+export const USAGE_TRASH_SWEEP_MS = 60_000
+export const USAGE_REMOVE_RETRIES = 3
 export const USAGE_LINE_FEED_BYTE = 0x0a
 export const USAGE_LABEL_MAX_CHARS = 256
 export const USAGE_ID_MAX_CHARS = 128
