@@ -773,7 +773,7 @@
       "other": "在{days}天內原本會執行{count}次"
     }
   },
-  "scheduledMediaUnavailable": "排程執行的回合暫時無法讀取影片或音訊：經過驗證的上傳儲存空間和媒體計費尚無法使用。",
+  "scheduledMediaSupport": "排程回合支援文字與圖像輸入；此版本不支援影片與音訊輸入。",
   "media": {
     "recordingScreenPermissionRequired": "尚未授予螢幕錄製權限。",
     "recordingMicrophonePermissionDenied": "麥克風權限遭到拒絕。",
@@ -853,7 +853,7 @@
     "recordingNoRecent": "找不到最近的螢幕錄製。",
     "recorderUnavailable": "此主機上沒有可用的螢幕錄製工具。",
     "attachHeadless": "無頭執行已拒絕：請改用 --attach 傳遞檔案。",
-    "uploadStorageUnknown": "尚未驗證儲存空間計費。在記錄驗證結果之前，上傳無法使用。",
+    "uploadStorageUnknown": "此版本暫不支援影片與音訊上傳：正式環境的上傳與轉錄綁定尚未就緒。",
     "attachmentUnknownType": "不支援的附件類型：{type}",
     "recordingStart": "開始錄製",
     "recordingStop": "停止錄製",

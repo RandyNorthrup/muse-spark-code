@@ -2928,7 +2928,8 @@ integration owners; editor font settings continue to decide inside editors.
   audio; paste/drop sends approved host URI tokens without reading their bytes
   in the browser. A bytes-only audio/video paste is refused. Production video
   and audio delivery remains unavailable until the selected-model capability,
-  Files storage billing and ownership, consent and exact-budget bindings land.
+  the production upload and transcription bindings, consent and
+  exact-budget bindings land.
   `mediaAudioAction` selects the intended audio route; it does not enable an
   unbound transcription adapter. Muse Spark 1.3 ignores a video's soundtrack;
   1.2 hears it, according to the recorded captures. Standalone Meta audio is

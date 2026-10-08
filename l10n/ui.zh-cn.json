@@ -773,7 +773,7 @@
       "other": "在{days}天内本应执行{count}次"
     }
   },
-  "scheduledMediaUnavailable": "计划运行的轮次暂时无法读取视频或音频：经过验证的上传存储和媒体计费尚不可用。",
+  "scheduledMediaSupport": "计划回合支持文本和图像输入；此版本不支持视频和音频输入。",
   "media": {
     "recordingScreenPermissionRequired": "尚未授予屏幕录制权限。",
     "recordingMicrophonePermissionDenied": "麦克风权限被拒绝。",
@@ -853,7 +853,7 @@
     "recordingNoRecent": "未找到最近的屏幕录制。",
     "recorderUnavailable": "此主机上没有可用的屏幕录制工具。",
     "attachHeadless": "无头运行已拒绝：请改用 --attach 传递文件。",
-    "uploadStorageUnknown": "尚未验证存储计费。在记录验证结果之前，上传不可用。",
+    "uploadStorageUnknown": "此版本暂不支持视频和音频上传：生产环境上传与转录绑定尚未就绪。",
     "attachmentUnknownType": "不支持的附件类型：{type}",
     "recordingStart": "开始录制",
     "recordingStop": "停止录制",

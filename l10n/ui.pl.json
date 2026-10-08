@@ -782,7 +782,7 @@
       "many": "Uruchomiłby się {count} razy w ciągu {days} dni"
     }
   },
-  "scheduledMediaUnavailable": "Zaplanowane tury nie mogą jeszcze odczytywać wideo ani audio: zweryfikowany magazyn przesłanych plików i rozliczanie mediów są niedostępne.",
+  "scheduledMediaSupport": "Zaplanowane tury obsługują tekst i obrazy na wejściu; wideo i audio na wejściu nie są obsługiwane w tej wersji.",
   "media": {
     "recordingScreenPermissionRequired": "Nie udzielono uprawnienia do nagrywania ekranu.",
     "recordingMicrophonePermissionDenied": "Odmówiono uprawnienia do mikrofonu.",
@@ -865,7 +865,7 @@
     "recordingNoRecent": "Nie znaleziono niedawnego nagrania ekranu.",
     "recorderUnavailable": "Na tym hoście nie jest dostępny żaden rejestrator ekranu.",
     "attachHeadless": "Odrzucono w trybie headless: zamiast tego przekaż plik za pomocą --attach.",
-    "uploadStorageUnknown": "Nie zweryfikowano opłat za przechowywanie. Przesyłanie jest niedostępne do czasu ich zapisania.",
+    "uploadStorageUnknown": "Przesyłanie wideo i audio jest niedostępne w tej wersji: wciąż brakuje produkcyjnych powiązań przesyłania i transkrypcji.",
     "attachmentUnknownType": "Nieobsługiwany typ załącznika: {type}",
     "recordingStart": "Rozpocznij nagrywanie",
     "recordingStop": "Zatrzymaj nagrywanie",

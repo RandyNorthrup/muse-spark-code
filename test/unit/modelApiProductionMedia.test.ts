@@ -130,7 +130,7 @@ describe('the production Model API factory while verified upload bindings are un
         await h.session.sendScheduledTurn([{ type: 'text', text: `Read ${name}` }], run)
         await done
         const followup = JSON.stringify(api.responseBodies()[1])
-        expect(followup).toContain(UI_TEXT.scheduledMediaUnavailable)
+        expect(followup).toContain(UI_TEXT.scheduledMediaSupport)
         expect(followup).not.toContain('file-clip')
         expect(h.session.snapshot().replay.every((entry) => entry.media === undefined)).toBe(true)
         expect(api.responseBodies()).toHaveLength(2)

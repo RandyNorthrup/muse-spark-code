@@ -19,9 +19,9 @@ happened, not what was planned; superseded entries are kept.
   settles the admitted media tariff once, and retains uncertain liabilities.
   Above-reserve bills refuse settlement; daily claim transfers secure their
   replacement before releasing held budget.
-  Production video/audio uploads remain unavailable pending verified storage
-  billing and captured codec/calibration bindings (PLAN D85.6, M105). Scheduled
-  reads now explain that limitation explicitly in every editor.
+  Production video/audio uploads remain unavailable in this version pending
+  the production upload and transcription bindings (PLAN D85.6, M105).
+  Scheduled reads now explain that limitation explicitly in every editor.
   Media read-file references through a bound adapter carry their checked source
   into the run ledger;
   stopped reads cannot publish a new proof.

@@ -8,14 +8,13 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
-const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const DIR = path.join(ROOT, 'docs', 'research', 'm105-captures')
+const CAPTURES = fileURLToPath(new URL('../../docs/research/m105-captures/', import.meta.url))
 
 function captureFiles(): { name: string; text: string }[] {
-  return readdirSync(DIR)
+  return readdirSync(CAPTURES)
     .filter((name) => !name.startsWith('.'))
     .toSorted((a, b) => a.localeCompare(b))
-    .map((name) => ({ name, text: readFileSync(path.join(DIR, name), 'utf8') }))
+    .map((name) => ({ name, text: readFileSync(path.join(CAPTURES, name), 'utf8') }))
 }
 
 /**
@@ -79,7 +78,7 @@ describe('m105 capture scrub', () => {
   })
 
   it('replaced each of the 16 leaky round-1 item ids with a bare placeholder', () => {
-    const round1 = readFileSync(path.join(DIR, 'round1-2026-10-05.jsonl'), 'utf8')
+    const round1 = readFileSync(path.join(CAPTURES, 'round1-2026-10-05.jsonl'), 'utf8')
     for (let n = 8; n <= 23; n += 1) {
       const label = `<msg-id-${String(n)}>`
       const occurrences = round1.split(`"id":"${label}"`).length - 1

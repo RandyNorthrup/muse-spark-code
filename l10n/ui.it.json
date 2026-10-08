@@ -779,7 +779,7 @@
       "many": "Si sarebbe eseguito {count} volte in {days} giorni"
     }
   },
-  "scheduledMediaUnavailable": "I turni pianificati non possono ancora leggere video o audio: l’archiviazione verificata dei caricamenti e la fatturazione dei contenuti multimediali non sono disponibili.",
+  "scheduledMediaSupport": "I turni pianificati supportano input di testo e immagini; gli input video e audio non sono supportati in questa versione.",
   "media": {
     "recordingScreenPermissionRequired": "L’autorizzazione alla registrazione dello schermo non è stata concessa.",
     "recordingMicrophonePermissionDenied": "L’autorizzazione del microfono è stata negata.",
@@ -861,7 +861,7 @@
     "recordingNoRecent": "Nessuna registrazione dello schermo recente trovata.",
     "recorderUnavailable": "Su questo host non è disponibile alcun registratore dello schermo.",
     "attachHeadless": "Rifiutato per le esecuzioni headless: passa il file con --attach.",
-    "uploadStorageUnknown": "I costi di archiviazione non sono stati verificati. I caricamenti non sono disponibili finché non vengono registrati.",
+    "uploadStorageUnknown": "I caricamenti di video e audio non sono disponibili in questa versione: mancano ancora i collegamenti di produzione per caricamento e trascrizione.",
     "attachmentUnknownType": "Tipo di allegato non supportato: {type}",
     "recordingStart": "Avvia registrazione",
     "recordingStop": "Ferma registrazione",

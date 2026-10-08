@@ -944,8 +944,11 @@ export const EN = {
     }),
   },
   // M105 / D85: read UI_TEXT.media at use time. Lane W isolates this region.
-  scheduledMediaUnavailable:
-    'Scheduled turns cannot read video or audio yet: verified upload storage and media billing are unavailable.',
+  // Version-scoped capability words: the reference catalogue lint rejects
+  // conditional-state notices (scripts/lib/reference.mjs), so this names what
+  // scheduled turns support instead of what billing verified.
+  scheduledMediaSupport:
+    'Scheduled turns support text and image inputs; video and audio inputs are unsupported in this version.',
   media: {
     recordingScreenPermissionRequired: 'Screen Recording permission has not been granted.',
     recordingMicrophonePermissionDenied: 'Microphone permission was denied.',
@@ -1033,8 +1036,10 @@ export const EN = {
     recordingNoRecent: 'No recent screen recording was found.',
     recorderUnavailable: 'No screen recorder is available on this host.',
     attachHeadless: 'Refused for headless runs: pass the file with --attach instead.',
+    // D85.6 records the not-billed decision, so this names what is still
+    // missing instead: the production upload and transcription bindings.
     uploadStorageUnknown:
-      'Storage billing has not been verified. Uploads are unavailable until it is recorded.',
+      'Video and audio uploads are not available in this version: the production upload and transcription bindings are still missing.',
     attachmentUnknownType: 'Unsupported attachment type: {type}',
     recordingStart: 'Start recording',
     recordingStop: 'Stop recording',

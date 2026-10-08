@@ -776,7 +776,7 @@
       "other": "{days} nap alatt {count} alkalommal futott volna"
     }
   },
-  "scheduledMediaUnavailable": "Az ütemezett körök még nem tudnak videót vagy hangot olvasni: az ellenőrzött feltöltési tárhely és médiaelszámolás nem érhető el.",
+  "scheduledMediaSupport": "Az ütemezett körök szöveges és képes bemeneteket támogatnak; a videó- és hangbemenetek ebben a verzióban nem támogatottak.",
   "media": {
     "recordingScreenPermissionRequired": "A képernyőfelvétel engedélye nincs megadva.",
     "recordingMicrophonePermissionDenied": "A mikrofon engedélyét megtagadták.",
@@ -857,7 +857,7 @@
     "recordingNoRecent": "Nem található friss képernyőfelvétel.",
     "recorderUnavailable": "Ezen a hoszton nem érhető el képernyőrögzítő.",
     "attachHeadless": "Headless futtatásoknál elutasítva: adja át a fájlt a --attach kapcsolóval.",
-    "uploadStorageUnknown": "A tárhely számlázását még nem ellenőrizték. Addig nem lehet feltölteni, amíg ezt nem rögzítik.",
+    "uploadStorageUnknown": "A videó- és hangfeltöltés ebben a verzióban nem érhető el: a feltöltés és az átírás éles kötései még hiányoznak.",
     "attachmentUnknownType": "Nem támogatott melléklettípus: {type}",
     "recordingStart": "Felvétel indítása",
     "recordingStop": "Felvétel leállítása",
