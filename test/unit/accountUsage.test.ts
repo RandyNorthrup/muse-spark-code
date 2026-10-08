@@ -88,14 +88,13 @@ describe('M108 J account aggregation', () => {
 
   it('matches admission exactly on a sub-nano spend cap instead of flooring it', () => {
     const cap = PortUsd.from('0.1000000000000000001').toAmount()
+    const tenth = PortUsd.from('0.1').toAmount()
+    const zero = PortUsd.from(0).toAmount()
     const f = usageFixture()
-    f.records.length = 0
-    f.records.push(
-      usageRecord({
-        settledUsd: PortUsd.from('0.1').toAmount(),
-        reservedUsd: PortUsd.from(0).toAmount(),
-        uncertainUsd: PortUsd.from(0).toAmount(),
-      }),
+    f.records.splice(
+      0,
+      f.records.length,
+      usageRecord({ settledUsd: tenth, reservedUsd: zero, uncertainUsd: zero }),
     )
     f.catalog[0]!.accounts[0] = usageAccount('default', { spendUsd: { day: cap } })
     expect(f.report().accounts[0]?.meters[0]).toMatchObject({

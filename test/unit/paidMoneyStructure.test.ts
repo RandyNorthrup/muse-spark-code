@@ -194,40 +194,46 @@ function isQuote(char: string): boolean {
   return QUOTE_CHARS.has(char)
 }
 
+// Shared quote tracking for the single-line scanners below: feed every
+// character in order; `quoted` reports whether it sits inside a string (the
+// quote characters themselves count as quoted) and advances the tracker.
+function makeQuoteTracker(): { quoted(char: string): boolean } {
+  let quote: string | null = null
+  let isEscaped = false
+  return {
+    quoted(char: string): boolean {
+      if (quote !== null) {
+        if (isEscaped) isEscaped = false
+        else if (char === '\\') isEscaped = true
+        else if (char === quote) quote = null
+        return true
+      }
+      if (isQuote(char)) {
+        quote = char
+        return true
+      }
+      return false
+    },
+  }
+}
+
 // Cut a `//` comment; strings may contain slashes, and backslashes escape.
 // Source lines are ASCII, so UTF-16 indexing is exact here.
 function stripLineComment(line: string): string {
-  let quote: string | null = null
-  let isEscaped = false
+  const tracker = makeQuoteTracker()
   for (let index = 0; index < line.length; index++) {
     const char = line[index] ?? ''
-    if (quote !== null) {
-      if (isEscaped) isEscaped = false
-      else if (char === '\\') isEscaped = true
-      else if (char === quote) quote = null
-    } else if (isQuote(char)) {
-      quote = char
-    } else if (char === '/' && line[index + 1] === '/') {
-      return line.slice(0, index)
-    }
+    if (tracker.quoted(char)) continue
+    if (char === '/' && line[index + 1] === '/') return line.slice(0, index)
   }
   return line
 }
 
 function stripStrings(value: string): string {
   let out = ''
-  let quote: string | null = null
-  let isEscaped = false
+  const tracker = makeQuoteTracker()
   for (const char of value) {
-    if (quote !== null) {
-      if (isEscaped) isEscaped = false
-      else if (char === '\\') isEscaped = true
-      else if (char === quote) quote = null
-    } else if (isQuote(char)) {
-      quote = char
-    } else {
-      out += char
-    }
+    if (!tracker.quoted(char)) out += char
   }
   return out
 }
@@ -249,19 +255,12 @@ function findCloser(text: string, open: number): number {
   const closer = closerFor(opener)
   if (closer === '') return -1
   let depth = 0
-  let quote: string | null = null
-  let isEscaped = false
+  const tracker = makeQuoteTracker()
   for (let index = open; index < text.length; index++) {
     const char = text[index] ?? ''
-    if (quote !== null) {
-      if (isEscaped) isEscaped = false
-      else if (char === '\\') isEscaped = true
-      else if (char === quote) quote = null
-    } else if (isQuote(char)) {
-      quote = char
-    } else if (char === opener) {
-      depth += 1
-    } else if (char === closer) {
+    if (tracker.quoted(char)) continue
+    if (char === opener) depth += 1
+    else if (char === closer) {
       depth -= 1
       if (depth === 0) return index
     }
@@ -329,30 +328,17 @@ function localNumerics(lines: readonly string[]): Set<string> {
 function splitTopLevel(text: string): string[] {
   const parts: string[] = []
   let depth = 0
-  let quote: string | null = null
-  let isEscaped = false
+  const tracker = makeQuoteTracker()
   let current = ''
   for (const char of text) {
-    if (quote !== null) {
-      current += char
-      if (isEscaped) isEscaped = false
-      else if (char === '\\') isEscaped = true
-      else if (char === quote) quote = null
-      continue
-    }
-    if (isQuote(char)) {
-      quote = char
-      current += char
-      continue
-    }
+    const isQuoted = tracker.quoted(char)
+    current += char
+    if (isQuoted) continue
     if (OPENERS.includes(char)) depth += 1
     if (CLOSERS.includes(char)) depth -= 1
-    if (char === ',' && depth === 0) {
-      parts.push(current)
-      current = ''
-      continue
-    }
-    current += char
+    if (char !== ',' || depth !== 0) continue
+    parts.push(current.slice(0, -1))
+    current = ''
   }
   parts.push(current)
   return parts
@@ -431,23 +417,14 @@ function isNumericValue(value: string, numerics: ReadonlySet<string>): boolean {
 // scanned without recursion.
 function innerGroups(text: string): string[] {
   const groups: string[] = []
-  let quote: string | null = null
-  let isEscaped = false
+  const tracker = makeQuoteTracker()
   for (let index = 0; index < text.length; index++) {
     const char = text[index] ?? ''
-    if (quote !== null) {
-      if (isEscaped) isEscaped = false
-      else if (char === '\\') isEscaped = true
-      else if (char === quote) quote = null
-    } else if (isQuote(char)) {
-      quote = char
-    } else if (OPENERS.includes(char)) {
-      const end = findCloser(text, index)
-      if (end > index) {
-        groups.push(text.slice(index + 1, end))
-        index = end
-      }
-    }
+    if (tracker.quoted(char) || !OPENERS.includes(char)) continue
+    const end = findCloser(text, index)
+    if (end <= index) continue
+    groups.push(text.slice(index + 1, end))
+    index = end
   }
   return groups
 }
