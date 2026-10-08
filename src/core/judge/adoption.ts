@@ -4,6 +4,7 @@ import * as z from 'zod/mini'
 import { JUDGE_MIN_READY_RATE } from '../../shared/constants'
 import { reportCalibration } from './calibration/report'
 import {
+  judgeEvidenceRowIdentity,
   parseCalibrationDataset,
   parseCalibrationProfile,
   type CalibrationLimits,
@@ -24,10 +25,7 @@ const recordSchema = z.strictObject({
   rows: z
     .array(
       z.strictObject({
-        id: z.string().check(z.minLength(1)),
-        labelId: z.string().check(z.minLength(1)),
-        taskGroup: z.string().check(z.minLength(1)),
-        repositoryGroup: z.string().check(z.minLength(1)),
+        ...judgeEvidenceRowIdentity,
         labelSource: z.enum(['m75', 'm75-routing']),
         label: z.boolean(),
         same: arm,

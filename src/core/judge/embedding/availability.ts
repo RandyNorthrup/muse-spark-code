@@ -7,6 +7,7 @@ import type { JudgeDailyLedger } from '../admission'
 import type { JudgeCascadeOptions, JudgeCascadeSide } from '../cascade'
 import { JUDGE_ISOTONIC_MIN_LABELS } from '../../../shared/constants'
 import { judgeProfileIdentitySchema } from '../schema'
+import { judgeEvidenceRowIdentity } from '../calibration/schema'
 import { parseWeightEnvelope } from './schema'
 import type { EmbeddingSource } from './route'
 
@@ -19,10 +20,7 @@ const manifestSchema = z.strictObject({
   evidence: z.literal('independent'),
   rows: z.array(
     z.strictObject({
-      id: z.string().check(z.minLength(1)),
-      labelId: z.string().check(z.minLength(1)),
-      taskGroup: z.string().check(z.minLength(1)),
-      repositoryGroup: z.string().check(z.minLength(1)),
+      ...judgeEvidenceRowIdentity,
       split: z.enum(['fit', 'tuning', 'evaluation']),
       labelSource: z.enum(['m75', 'm75-routing', 'independent-hand']),
       label: z.boolean(),
@@ -166,17 +164,15 @@ export function embeddingAvailability(
       groups.set(group, row.split)
     }
     const partition = head.partitions[row.split]
+    let expectedLabelSource = 'm75'
+    if (full.options.family === 'skill.fit') expectedLabelSource = 'm75-routing'
+    else if (row.labelSource === 'independent-hand') expectedLabelSource = 'independent-hand'
     if (
       !partition.ids.includes(row.id) ||
       !partition.labels.includes(row.labelId) ||
       !partition.tasks.includes(row.taskGroup) ||
       !partition.repositories.includes(row.repositoryGroup) ||
-      row.labelSource !==
-        (full.options.family === 'skill.fit'
-          ? 'm75-routing'
-          : row.labelSource === 'independent-hand'
-            ? 'independent-hand'
-            : 'm75') ||
+      row.labelSource !== expectedLabelSource ||
       (mode === 'both' && row.fallbackAttempts !== 2)
     )
       return refuse('source-untested')
