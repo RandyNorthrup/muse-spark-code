@@ -233,6 +233,10 @@ async function main() {
     Array.from({ length: workers }, () => mkdtemp(path.join(tmpdir(), 'muse-a11y-'))),
   )
   const results = []
+  // A complete streamed reply renders hundreds of deltas. Competing axe pages
+  // starve its unchanged readiness deadline; run every such page after the pool.
+  const ordinaryPages = pages.filter((page) => page.scenario !== 'long')
+  const streamedPages = pages.filter((page) => page.scenario === 'long')
   let next = 0
   try {
     // Each worker has a browser on a Chrome profile of its own; each of its
@@ -243,8 +247,8 @@ async function main() {
         try {
           await Promise.all(
             Array.from({ length: pagesPerWorker }, async () => {
-              while (next < pages.length) {
-                const page = pages[next]
+              while (next < ordinaryPages.length) {
+                const page = ordinaryPages[next]
                 next += 1
                 results.push({ ...page, ...(await scan(chrome, context, port, page, lang)) })
               }
@@ -255,6 +259,16 @@ async function main() {
         }
       }),
     )
+    if (streamedPages.length > 0) {
+      const context = await launchWorker(chrome, profiles[0])
+      try {
+        for (const page of streamedPages) {
+          results.push({ ...page, ...(await scan(chrome, context, port, page, lang)) })
+        }
+      } finally {
+        await context.close()
+      }
+    }
   } finally {
     server.close()
     await Promise.all(

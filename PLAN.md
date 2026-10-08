@@ -19173,6 +19173,17 @@ before completion. No push, rebase, model calls or fabricated native artifacts.
       Prove cold loading, failure and cancellation without eager startup bytes.
       The legal keyboard gate separately reports escaped focus; trace the actual
       matrix case and repair its cause before repeating the whole gate.
+      Fresh `1a5bc2fa9`: exact static job passes in 552.75 seconds; startup is
+      739,475 / 751,411 bytes. Cold slash pages now pass and legal completes
+      all 96 keyboard/zoom checks plus 24 English/pseudo WCAG pages. Honest
+      named-scene readiness exposes four long-reply pages exceeding ten seconds;
+      measure the complete delta replay alone, then remove its scheduling or
+      rendering bottleneck while retaining all deltas, pages and deadlines.
+      The unchanged four-theme long-only diagnostic passes. The full pool runs
+      twelve concurrent axe/scenario pages; that competing work starves the
+      complete streamed replay. Keep ordinary concurrency, then scan all four
+      long-reply pages serially after the pool closes. Verify exactly-once page
+      coverage and absence of overlap; keep every delta and ten-second deadline.
 - [ ] Commit fixes, clone committed source fresh, `npm ci`, `CI=true`, and
       run every exact Linux build.yml job serially at repository deadlines.
       Genuine macOS helper preparation remains covered by hosted CI.
