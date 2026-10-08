@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { copyFileSync, existsSync, readFileSync, statSync } from 'node:fs'
-import { execFileSync } from 'node:child_process'
+import { copyFileSync, existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { execFile, execFileSync } from 'node:child_process'
 
 vi.mock('node:fs', () => ({
   copyFileSync: vi.fn(),
@@ -13,7 +13,7 @@ vi.mock('node:fs', () => ({
   statSync: vi.fn(),
   writeFileSync: vi.fn(),
 }))
-vi.mock('node:child_process', () => ({ execFileSync: vi.fn() }))
+vi.mock('node:child_process', () => ({ execFile: vi.fn(), execFileSync: vi.fn() }))
 vi.mock('../../scripts/check-badges.mjs', () => ({ renderPackageReadme: (text) => text }))
 // Archive contents are exercised by the actual tarball suites; these rows own copy/refusal order.
 vi.mock('../../scripts/lib/packageArchive.mjs', () => ({ packRuntimeArchive: vi.fn() }))
@@ -24,6 +24,9 @@ beforeEach(() => {
   vi.spyOn(console, 'log').mockImplementation(vi.fn())
   existsSync.mockReturnValue(true)
   statSync.mockReturnValue({ isFile: () => true })
+  readdirSync.mockImplementation((folder) =>
+    folder === '.' ? ['package.nls.json', 'package.nls.fr.json'] : [],
+  )
   readFileSync.mockImplementation((file) => {
     if (file === 'package.json')
       return JSON.stringify({
@@ -40,6 +43,7 @@ beforeEach(() => {
     return file.endsWith('.schema.json') ? '{}' : 'fixture landing page'
   })
   execFileSync.mockReturnValue('fixture.tgz')
+  execFile.mockImplementation((_file, _args, _options, callback) => callback(null, '', ''))
 })
 afterEach(() => vi.restoreAllMocks())
 
@@ -66,6 +70,16 @@ it('M107 copies both resource bundles and all three exec schemas into the ACP pa
     process.execPath,
     ['test/packaging/moduleExports.test.mjs', 'acp', expect.stringContaining('fixture.tgz')],
   ])
+  expect(execFile.mock.calls.map((call) => call[2].env.LC_ALL)).toEqual(['en', 'fr'])
+})
+
+it('refuses a failed staged Help language before npm pack', async () => {
+  execFile.mockImplementation((_file, _args, _options, callback) =>
+    callback(new Error('Help failed'), '', ''),
+  )
+  await expect(import('../../scripts/package-acp.mjs')).rejects.toThrow('Help failed')
+  expect(execFile.mock.calls).toHaveLength(2)
+  expect(execFileSync.mock.calls.some(([file]) => file === 'npm')).toBe(false)
 })
 
 it.each(['resourceGovernor.js', 'resourceAdmission.js'])(

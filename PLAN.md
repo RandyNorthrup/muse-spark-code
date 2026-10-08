@@ -19691,6 +19691,21 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### FIX0160X — Repair release CI composition (2026-10-07, macmini)
+
+Preserve M106/M107, pinned questions and agent outcomes while repairing the
+five owning CI suites and universal/fake-only packaging. Update stale ACP
+command and Help-process fixtures; exercise the harness's ready handshake;
+build complete bundle inventories in an owned tree. Supply native helpers in
+cold exec fixtures and the Action's package job without relaxing real package
+requirements. Diagnose Linux architecture delivery before changing its guard.
+Run complete owning files at repository deadlines, five typechecks, lint,
+formatting, plain knip, duplication, reference/localization/host API, production
+build and both packagers. No merge, push, paid/live calls or Windows-lane edits.
+Record causes, deliberate failures and restored checks in
+`docs/certification/fix0160x.md`. Shared lane rules reserve aggregate quality
+and hosted multi-OS qualification for the lead (see §7).
+
 ### REL0160 — Prepare the 0.16.0 release (2026-10-06)
 
 **Status: M106/M107 joined; promotion waits on `sync/main-0160` and failed size qualifications.**
@@ -44407,6 +44422,13 @@ is relaxed. No live or paid calls, push, rebase or merge.
       bytes; record results in `docs/certification/ci0150-a.md` and commit with hooks.
 
 ## 7. Gates
+
+**FIX0160X scoped release repair (2026-10-07).** The shared lane brief
+prohibits aggregate quality and reserves it for the lead. This lane runs
+every named owning file at repository deadlines and all prescribed individual
+compiler/static/build/package checks. No threshold, deadline, assertion or
+package refusal is waived. Hosted cross-platform qualification remains with
+the joined release; receipts are in `docs/certification/fix0160x.md`.
 
 **MACSLOW bounded certification (2026-10-07, macmini).** The lane's shared
 rules prohibit aggregate quality and delegate it to the lead. Run complete

@@ -158,8 +158,9 @@ describe('harness composer readiness', () => {
     const played = vi.fn()
     let probe
     try {
-      runInNewContext(source, {
+      const context = {
         window: dom.window,
+        hasWebviewReady: false,
         harnessBundle: 'main',
         scenario: 'question',
         steps: { question: played },
@@ -169,8 +170,13 @@ describe('harness composer readiness', () => {
           }
           probe()
         },
-      })
+      }
+      runInNewContext(source, context)
       dom.window.dispatchEvent(new dom.window.Event('DOMContentLoaded'))
+      expect(played).not.toHaveBeenCalled()
+      expect(probe).toBeUndefined()
+      context.hasWebviewReady = true
+      runInNewContext('playScenario()', context)
       expect(played).not.toHaveBeenCalled()
       dom.window.document.body.insertAdjacentHTML(
         'beforeend',
@@ -178,6 +184,8 @@ describe('harness composer readiness', () => {
       )
       expect(probe).toBeDefined()
       probe?.()
+      expect(played).toHaveBeenCalledOnce()
+      runInNewContext('playScenario()', context)
       expect(played).toHaveBeenCalledOnce()
     } finally {
       dom.window.close()

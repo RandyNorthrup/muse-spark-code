@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- Release CI fixtures retain both resource commands and agent outcomes, staged
+  multilingual Help checks, and the harness's signed-in readiness handshake.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached

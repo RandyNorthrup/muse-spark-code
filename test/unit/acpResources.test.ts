@@ -183,6 +183,7 @@ describe('M107 H ACP resources', () => {
           { name: 'compact' },
           { name: 'resources' },
           { name: 'usage' },
+          { name: 'agents' },
         ],
       })
     })
@@ -191,7 +192,7 @@ describe('M107 H ACP resources', () => {
   it('reserves resource command names while retaining the other skill commands', async () => {
     const s = await scene()
     await s.run(async (client, sessionId, session) => {
-      session.skills = ['help', 'resources', 'usage', 'custom'].map((selector) => ({
+      session.skills = ['help', 'resources', 'usage', 'agents', 'custom'].map((selector) => ({
         selector,
         displayName: selector,
         description: `skill-${selector}`,
@@ -208,6 +209,7 @@ describe('M107 H ACP resources', () => {
         'compact',
         'resources',
         'usage',
+        'agents',
         'custom',
       ])
       expect(
