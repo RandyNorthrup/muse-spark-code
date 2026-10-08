@@ -44675,6 +44675,14 @@ is relaxed. No live or paid calls, push, rebase or merge.
 
 ## 7. Gates
 
+SECWINPATH (2026-10-08): the owner's shared lane rules prohibit aggregate
+`npm run quality` on the shared rig and delegate it to the lead. This lane
+qualifies its committed fresh clone with every owning suite three times,
+repository deadlines, five typechecks, changed-file lint/format, plain knip,
+duplication, cycles, localization/reference/host API and capped production
+build instead. No gate or threshold is changed; aggregate qualification is
+a lead handoff, not a claim that it ran here. See its certification record.
+
 **FIX0160W2 scoped Windows qualification (2026-10-07).** The named lane
 brief and shared common rules prohibit aggregate quality and delegate it to
 the lead. This lane runs complete owned suites with short TEMP/TMP and

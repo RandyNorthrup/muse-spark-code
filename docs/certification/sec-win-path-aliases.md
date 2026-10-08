@@ -58,11 +58,28 @@ is in the default-timeout `beforeAll`, with no deadline override.
 | Junction/loopback window into a held folder         | Native ancestry retains the hold; loopback workspace/storage overlap is refused             |
 
 Administrative shares were already available: neither an elevated helper nor
-a test share was needed. Different SMB volume IDs and unreadable identity are
+a test share was needed. Different SMB volume/file IDs and unreadable identity are
 tested with explicit injected failures; they retain protection, not a guessed
 DOS mapping. Actual SMB returned matching identities on both loopback hosts.
 
 ## Base failure proof and unchanged controls
+
+| Audit finding                                                           | Status and production location                                                                                                    | Regression                                                                                                                                    |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| P2 raw MSP DOS aliases bypass automatic/persistent protection           | Fixed: `src/core/protectedPaths.ts:63`, reused by the existing mapper and both answer gates                                       | `secWinPathAliases.test.ts`: twelve captured requested/updated subjects, false flags, automatic answers and standing choices                  |
+| P2 checkpoint guard compares storage spelling                           | Fixed: `src/host/checkpoints/checkpointStore.ts:1969`, `checkpointHost.ts:241`, shared native ancestry                            | `secWinPathAliases.test.ts`: all three writer adapters, junction journals with missing leaves, unreadable exclusion                           |
+| P2 candidate loopback UNC can release a held worktree / overlap storage | Fixed and measured: `src/core/worktreeConversations.ts:154`, `src/host/checkpoints/shadowGit.ts:156`                              | `secWinPathAliases.test.ts`: both loopback hosts, junction holds, separation, unknown SMB volume; native oracle confirms identities           |
+| P3 incomplete reserved-device refusal                                   | Fixed: `src/core/windowsPathSpelling.ts:5`, `workspacePath.ts:118`, `team/workers/workerFence.ts:238/:279`, `git/heldTree.ts:104` | `secWinWorkerPaths.test.ts`: eight previously admitted names through worker and both ACP handlers; workspace table; unchanged held-tree suite |
+
+The spelling table in `secWinPathAliases.test.ts` includes every audit refusal
+input: both extended/device separator forms and bare device roots, NT prefix,
+both loopback UNC hosts, default/named streams and device colons, ordinary and
+superscript devices, `.git` trailing-dot/space final/intermediate segments,
+and trailing characters in absolute and relative parent components. The mapper
+table also covers `.claude.`, `AGENTS.md.`/space/default stream, prefixed and
+UNC journal paths, `checkpoints.` and `shadow.git.`. `PROGRA~1/x`,
+`GIT~1/config`, `.GIT\\config` and `.Git/hooks` retain textual admission;
+canonical confinement/protected-folder rules still judge their actual target.
 
 The first regression file ran directly against unchanged `67099ce1b`: **16
 failed, 1 passed**, exit 1. The complete regression files were copied into an
@@ -112,3 +129,28 @@ The earlier four-drill preparation ran before the final UNC-junction test and
 central model-text move, with 28 tests: stream 3 failed, trailing 7 failed,
 storage spelling 2 failed, superscript 7 failed. Final receipts above supersede
 those preparation hashes. All five typecheck projects passed before commit.
+
+### UNC identity namespace follow-up
+
+Review of `006ea4ec3` found that an SMB volume serial alone cannot establish
+that its file indexes use the DOS namespace. UNC exclusion now also requires
+an exact matching native volume-root identity. Injected changes to either
+`dev` or `ino` retain the hold. The nearest existing ancestor is resolved once
+and bound by an immediate native identity comparison before its canonical
+parents are walked. Replacement or disappearance during that resolution
+refuses exclusion. No cache or timeout change is introduced.
+
+The first fresh replay passed its first six complete groups (616 tests and
+six existing platform skips), then was deliberately interrupted for this
+follow-up; it is not counted as final qualification. Final regressions on the
+unchanged release base: **31 failed, 3 passed**, exit 1. Repaired: **34 passed**,
+exit 0. The three positive controls remain POSIX spelling and native behavior.
+
+Seven final drills run both complete regression files (32 tests), each exit 1:
+stream **3 failed**, trailing **7**, storage spelling **4**, superscript **7**,
+lexical junction ancestry **1**, missing SMB root comparison **2**, and missing
+canonical identity binding **2**. All source bytes are restored by SHA-256:
+spelling `9A2CDC5A72E14B06B746C682BDC879074D792A69A9C5BD121AB6FE32ADFA0FCE`,
+storage `F11B4B6E05BAC30C93E2046F6C3D82B03B1C3F018CFCE422F1AEB05363A70E26`,
+identity `3967D59DB674F3DF5AA22D606882A4C97FD834883D82A92DFC5AA17CBF1C918A`.
+These are the bytes at drill time, before the final lint/format hook.

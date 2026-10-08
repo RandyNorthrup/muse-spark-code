@@ -158,18 +158,21 @@ describe('SECWINPATH native storage and hold ancestry', () => {
     expect(resolveWorkspacePath(uncRoot, 'escape/new.txt', 'win32').ok).toBe(false)
   })
 
-  it('holds a UNC window when SMB volume identity cannot prove exclusion', async () => {
-    if (process.platform !== 'win32') return
-    const h = await harness({ git: 'none' })
-    await mkdir(h.storage, { recursive: true })
-    const unc = `\\\\localhost\\${h.root.charAt(0)}$${h.root.slice(2)}`
-    const nativeStat = fileIdentity.statIdentitySync
-    vi.spyOn(fileIdentity, 'statIdentitySync').mockImplementation((given) => {
-      const native = nativeStat(given)
-      return given.startsWith('\\\\') ? { ...native, dev: native.dev + 1n } : native
-    })
-    expect(holdFor([unc], [h.storage], [], 'win32')).toBeDefined()
-  })
+  it.each(['dev', 'ino'] as const)(
+    'holds a UNC window when SMB %s identity cannot prove exclusion',
+    async (field) => {
+      if (process.platform !== 'win32') return
+      const h = await harness({ git: 'none' })
+      await mkdir(h.storage, { recursive: true })
+      const unc = `\\\\localhost\\${h.root.charAt(0)}$${h.root.slice(2)}`
+      const nativeStat = fileIdentity.statIdentitySync
+      vi.spyOn(fileIdentity, 'statIdentitySync').mockImplementation((given) => {
+        const native = nativeStat(given)
+        return given.startsWith('\\\\') ? { ...native, [field]: native[field] + 1n } : native
+      })
+      expect(holdFor([unc], [h.storage], [], 'win32')).toBeDefined()
+    },
+  )
 
   it('refuses an unreadable native exclusion proof', async () => {
     const h = await harness({ git: 'none' })
@@ -182,6 +185,27 @@ describe('SECWINPATH native storage and hold ancestry', () => {
     expect(h.store.isStoragePath(path.join(h.root, 'new.txt'))).toBe(true)
     expect(holdFor([h.root], [h.storage], [], process.platform)).toBeDefined()
   })
+
+  it.each(['replaced', 'missing'])(
+    'refuses a %s native ancestor while its name is resolved',
+    async (change) => {
+      const h = await harness({ git: 'none' })
+      await mkdir(h.storage, { recursive: true })
+      const nativeStat = fileIdentity.statIdentitySync
+      let hasSampled = false
+      vi.spyOn(fileIdentity, 'statIdentitySync').mockImplementation((given) => {
+        const native = nativeStat(given)
+        if (given !== h.root) return native
+        if (hasSampled) {
+          if (change === 'missing') throw Object.assign(new Error('removed'), { code: 'ENOENT' })
+          return { ...native, ino: native.ino + 1n }
+        }
+        hasSampled = true
+        return native
+      })
+      expect(h.store.isStoragePath(path.join(h.root, 'new.txt'))).toBe(true)
+    },
+  )
 
   it('refuses every flagged storage spelling through all three real writer adapters', async () => {
     const h = await harness({ git: 'none' })
