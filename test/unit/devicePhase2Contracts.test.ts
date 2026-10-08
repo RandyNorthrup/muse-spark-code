@@ -53,6 +53,7 @@ const STREAMS: DeviceStream[] = ['control', 'status', 'events', 'logs', 'bulk']
 const noJitter = () => 0
 const halfJitter = () => 0.5
 const fullJitter = () => 1
+const utf8Bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).byteLength
 const ready: DeviceReady = {
   version: 1,
   pairId: ID,
@@ -286,7 +287,20 @@ describe('M100 phase-2 capability contracts (lane V reads)', () => {
     ).toBe(false)
   })
   it('serializes the advertisement within the capability byte cap', () => {
-    expect(JSON.stringify(capability).length).toBeLessThanOrEqual(DEVICE_LIMITS.capabilityBytes)
+    expect(utf8Bytes(capability)).toBeLessThanOrEqual(DEVICE_LIMITS.capabilityBytes)
+  })
+  it('counts the byte cap in UTF-8 bytes, not string length', () => {
+    // Each name is labelChars code units but about three times as many UTF-8
+    // bytes, so string length stays under the cap while the wire size exceeds it.
+    const wide: DeviceCapability = {
+      ...capability,
+      tools: Array.from({ length: DEVICE_LIMITS.capabilityTools }, (_, index) =>
+        `t${String(index)}-`.padEnd(DEVICE_LIMITS.labelChars, '你'),
+      ),
+    }
+    expect(JSON.stringify(wide).length).toBeLessThanOrEqual(DEVICE_LIMITS.capabilityBytes)
+    expect(utf8Bytes(wide)).toBeGreaterThan(DEVICE_LIMITS.capabilityBytes)
+    expect(deviceCapabilitySchema.safeParse(wide).success).toBe(false)
   })
   it('refuses a field-valid advertisement that serializes past the byte cap', () => {
     const full: DeviceCapability = {
