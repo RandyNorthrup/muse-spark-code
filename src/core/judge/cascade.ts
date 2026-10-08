@@ -17,6 +17,7 @@
 // itself attempts each side once per request. Pure core, no `vscode`
 // import; fakes and fixtures only.
 
+import * as z from 'zod/mini'
 import { JUDGE_CASCADE_CONFIDENCE } from '../../shared/constants'
 import { applyCalibration } from './calibration/apply'
 import type { CalibrationIdentity, CalibrationLimits } from './calibration/schema'
@@ -24,6 +25,9 @@ import { entropyConfidence } from './math'
 import { techniqueProbabilities, type JudgeTechniqueReceipt } from './sampling'
 import {
   judgeCapabilitySchema,
+  judgeMuseSchema,
+  judgeResultSchema,
+  jevAnswerSchema,
   judgeOutcomeSchema,
   judgeRequestSchema,
   type JudgeCapability,
@@ -72,9 +76,17 @@ export interface JudgeCascadeDependencies {
 type NoAnswer = Extract<JudgeOutcome, { outcome: 'no-answer' }>
 type NoAnswerReason = NoAnswer['reason']
 
-function refusal(reason: NoAnswerReason): JudgeOutcome {
-  return { outcome: 'no-answer', reason }
-}
+// Reuse the captured envelope; parse verdicts/muses independently so an
+// unnamed question cannot discard an honest sibling at settlement.
+const cascadeAnsweredSchema = z.strictObject({
+  outcome: z.literal('answered'),
+  result: z.looseObject({
+    ...judgeResultSchema.shape,
+    answers: z.record(z.string(), z.unknown()),
+    muse: z.record(z.string(), z.unknown()),
+  }),
+})
+type CascadeSideResult = z.infer<typeof cascadeAnsweredSchema>['result']
 
 /**
  * Whether the same-model follow-up runs: always for a high-stakes family,
@@ -264,7 +276,7 @@ function calibrateSide(
 }
 
 function eligibleAnswer(
-  outcome: Extract<JudgeOutcome, { outcome: 'answered' }>['result'],
+  outcome: CascadeSideResult,
   side: JudgeCascadeSide,
   id: string,
   question: JudgeQuestion,
@@ -273,19 +285,12 @@ function eligibleAnswer(
   criteriaVersion: string,
 ): EligibleAnswer | undefined {
   try {
-    const meta = outcome.muse[id]
-    const answer = outcome.answers[id]
-    if (
-      answer === undefined ||
-      meta?.source !== side.capability.source ||
-      meta.model !== side.capability.model ||
-      meta.partial ||
-      meta.technique === 'top1'
-    ) {
-      // Partial and top-1 results cannot enter the calibrated combiner;
-      // anything from another source or model is not this side's answer.
+    const named = namedAnswer(outcome, side, id, question)
+    if (named === undefined || named.meta.partial || named.meta.technique === 'top1') {
+      // Partial and top-1 results cannot enter the calibrated combiner.
       return undefined
     }
+    const { answer, meta } = named
     const distribution = techniqueProbabilities(question, answer)
     if (distribution === undefined) {
       return undefined
@@ -308,26 +313,15 @@ function eligibleAnswer(
   }
 }
 
-function isSideOutcome(
-  outcome: JudgeOutcome,
-  side: JudgeCascadeSide,
-  ids: readonly string[],
-): outcome is Extract<JudgeOutcome, { outcome: 'answered' }> {
-  if (outcome.outcome !== 'answered' || outcome.result.model !== side.capability.model) {
-    return false
-  }
-  const answered = Object.keys(outcome.result.answers)
-  return answered.length === ids.length && ids.every((id) => answered.includes(id))
-}
-
-/**
- * One side dispatch: a thrown ledger or transport failure is no output from
- * that side (the cascade falls back), never a thrown cascade. Aborts stay
- * visible through the caller's own signal checks.
- */
+/** Dispatch records facts only; settlement alone publishes an outcome. */
 type SideAttempt =
-  | { readonly dispatched: true; readonly receipt: JudgeTechniqueReceipt }
-  | { readonly dispatched: false }
+  | {
+      readonly status: 'answered'
+      readonly receipt: JudgeTechniqueReceipt
+      readonly result: CascadeSideResult
+    }
+  | { readonly status: 'failed'; readonly reason: NoAnswerReason; readonly malformed?: true }
+  | { readonly status: 'not-run'; readonly reason: 'not-needed' | 'source-unavailable' }
 
 async function attemptSide(
   side: JudgeCascadeSide,
@@ -335,10 +329,117 @@ async function attemptSide(
   signal: AbortSignal,
 ): Promise<SideAttempt> {
   try {
-    return { dispatched: true, receipt: await side.run(request, signal) }
+    const receipt = await side.run(request, signal)
+    const refused = judgeOutcomeSchema.safeParse(receipt.outcome)
+    if (refused.success && refused.data.outcome === 'no-answer') {
+      return { status: 'failed', reason: refused.data.reason }
+    }
+    const parsed = cascadeAnsweredSchema.safeParse(receipt.outcome)
+    if (!parsed.success) return { status: 'failed', reason: 'engine-failure', malformed: true }
+    const result = parsed.data.result
+    const ids = Object.keys(request.questions)
+    const answered = Object.keys(result.answers)
+    return result.model !== side.capability.model ||
+      answered.length !== ids.length ||
+      ids.some((id) => !answered.includes(id))
+      ? { status: 'failed', reason: 'engine-failure', malformed: true }
+      : { status: 'answered', receipt, result }
   } catch {
-    return { dispatched: false }
+    return { status: 'failed', reason: 'engine-failure' }
   }
+}
+
+interface CascadeAttempts {
+  request?: JudgeRequest
+  separate: SideAttempt
+  same: SideAttempt
+  reason?: NoAnswerReason
+}
+
+async function collectCascadeAttempts(
+  request: JudgeRequest,
+  options: JudgeCascadeOptions,
+  deps: JudgeCascadeDependencies,
+  signal: AbortSignal,
+): Promise<CascadeAttempts> {
+  const isAborted = (): boolean => signal.aborted
+  const attempts: CascadeAttempts = {
+    separate: { status: 'not-run', reason: 'source-unavailable' },
+    same: { status: 'not-run', reason: 'source-unavailable' },
+  }
+  if (isAborted()) return { ...attempts, reason: 'cancelled' }
+  const parsed = judgeRequestSchema.safeParse(request)
+  if (
+    !parsed.success ||
+    options.family.length === 0 ||
+    options.promptVersion.length === 0 ||
+    options.criteriaVersion.length === 0
+  ) {
+    return { ...attempts, reason: 'engine-failure' }
+  }
+  const body = parsed.data
+  attempts.request = body
+  const isSeparateReady =
+    deps.separate.capability.source === 'separate' && isSideReady(deps.separate, body.model)
+  const isSameReady = deps.same.capability.source === 'same' && isSideReady(deps.same, body.model)
+  if (!isSeparateReady && !isSameReady) {
+    return { ...attempts, reason: 'capability-unavailable' }
+  }
+  if (isSeparateReady) {
+    attempts.separate = await attemptSide(deps.separate, body, signal)
+  }
+  if (isAborted()) return attempts
+  if (attempts.separate.status === 'failed' && attempts.separate.malformed === true) {
+    return { ...attempts, reason: 'engine-failure' }
+  }
+  if (attempts.separate.status === 'answered') {
+    const confidences: number[] = []
+    for (const [id, question] of Object.entries(body.questions)) {
+      const answer = eligibleAnswer(
+        attempts.separate.result,
+        deps.separate,
+        id,
+        question,
+        options.family,
+        options.promptVersion,
+        options.criteriaVersion,
+      )
+      if (answer !== undefined) confidences.push(entropyConfidence(answer.distribution))
+    }
+    const isNeedsFollowUp =
+      options.highStakes ||
+      (confidences.length > 0 && shouldCascadeFollowUp(confidences, options.highStakes))
+    if (!isNeedsFollowUp) {
+      attempts.same = { status: 'not-run', reason: 'not-needed' }
+      return attempts
+    }
+  }
+  if (isSameReady) {
+    attempts.same = await attemptSide(deps.same, body, signal)
+  } else if (attempts.separate.status !== 'answered') {
+    attempts.reason = 'source-unavailable'
+  }
+  return attempts
+}
+
+/** A verdict belongs to this question and the side/model that actually served it. */
+function namedAnswer(
+  result: CascadeSideResult | undefined,
+  side: JudgeCascadeSide,
+  id: string,
+  question: JudgeQuestion,
+): { readonly answer: JevAnswer; readonly meta: JudgeMuse } | undefined {
+  if (result === undefined) return undefined
+  const parsedAnswer = jevAnswerSchema.safeParse(result.answers[id])
+  const parsedMeta = judgeMuseSchema.safeParse(result.muse[id])
+  if (!parsedAnswer.success || !parsedMeta.success) return undefined
+  const answer = parsedAnswer.data
+  const meta = parsedMeta.data
+  return meta.source !== side.capability.source ||
+    meta.model !== side.capability.model ||
+    techniqueProbabilities(question, answer) === undefined
+    ? undefined
+    : { answer, meta }
 }
 
 /**
@@ -362,186 +463,76 @@ function blendProbabilities(
 }
 
 /**
- * Run the cascade: the separate source first, then the same-model
- * follow-up where the gate asks for it, combined per question with fitted
- * weights. A side that fails, arrives late (aborted) or answers nothing
- * combinable leaves the other side's answer standing with its own honest
- * source; only a question neither side can answer refuses the run. The
- * same model stays the conversation's model throughout: the cascade reads
- * its answers, never reselects it.
+ * The only publisher. Every path checks named verdicts, keeps honest answers,
+ * records follow-up facts and names the serving model; no receipt passes through.
  */
-export async function cascadeJudge(
-  request: JudgeRequest,
+function settleCascade(
+  attempts: CascadeAttempts,
   options: JudgeCascadeOptions,
   deps: JudgeCascadeDependencies,
   signal: AbortSignal,
-): Promise<JudgeOutcome> {
-  // Read through a closure: an AbortSignal flips from the outside,
-  // so a single read must never narrow the later ones (as sampling does).
-  const isAborted = (): boolean => signal.aborted
+): JudgeOutcome {
+  const refusal = (reason: NoAnswerReason): JudgeOutcome => ({ outcome: 'no-answer', reason })
   try {
-    if (isAborted()) {
-      return refusal('cancelled')
+    if (signal.aborted) return refusal('cancelled')
+    if (attempts.reason !== undefined) return refusal(attempts.reason)
+    const body = attempts.request
+    if (body === undefined) return refusal('engine-failure')
+    const { separate, same } = attempts
+    const answers: Record<string, JevAnswer> = {}
+    const muse: Record<string, JudgeMuse> = {}
+    const refusedQuestions: string[] = []
+    const describeAttempt = (attempt: SideAttempt, side: JudgeCascadeSide) => {
+      if (attempt.status !== 'answered') return { status: attempt.status, reason: attempt.reason }
+      const isNamed = Object.entries(body.questions).some(
+        ([id, question]) => namedAnswer(attempt.result, side, id, question) !== undefined,
+      )
+      return isNamed ? { status: 'answered' } : { status: 'failed', reason: 'engine-failure' }
     }
-    const parsed = judgeRequestSchema.safeParse(request)
-    if (
-      !parsed.success ||
-      options.family.length === 0 ||
-      options.promptVersion.length === 0 ||
-      options.criteriaVersion.length === 0
-    ) {
-      return refusal('engine-failure')
-    }
-    const body = parsed.data
-    const ids = Object.keys(body.questions)
-    const isSeparateReady = isSideReady(deps.separate, body.model)
-    const isSameReady = isSideReady(deps.same, body.model)
-    if (!isSeparateReady && !isSameReady) {
-      return refusal('capability-unavailable')
-    }
-    const sameFallback = async (): Promise<JudgeOutcome> => {
-      if (!isSameReady) {
-        return refusal('source-unavailable')
-      }
-      let receipt: JudgeTechniqueReceipt | undefined
-      try {
-        receipt = await deps.same.run(body, signal)
-      } catch {
-        return refusal(isAborted() ? 'cancelled' : 'engine-failure')
-      }
-      if (isAborted()) {
-        return refusal('cancelled')
-      }
-      if (receipt.outcome.outcome !== 'answered') {
-        return receipt.outcome
-      }
-      return isSideOutcome(receipt.outcome, deps.same, ids)
-        ? receipt.outcome
-        : refusal('engine-failure')
-    }
-    if (!isSeparateReady) {
-      return await sameFallback()
-    }
-    const separateAttempt = await attemptSide(deps.separate, body, signal)
-    if (isAborted()) {
-      return refusal('cancelled')
-    }
-    if (
-      !separateAttempt.dispatched ||
-      !isSideOutcome(separateAttempt.receipt.outcome, deps.separate, ids)
-    ) {
-      // Failed or late separate output: phase-1 behaviour.
-      if (separateAttempt.dispatched && separateAttempt.receipt.outcome.outcome === 'answered') {
-        return refusal('engine-failure')
-      }
-      // The separate side failed: the fallback's verdict stands, exactly
-      // as the same source alone would report it (phase-1 behaviour).
-      return await sameFallback()
-    }
-    const separate = separateAttempt.receipt
-    const separateResult = separateAttempt.receipt.outcome.result
-    const eligible = new Map<string, EligibleAnswer>()
-    for (const id of ids) {
-      const question = body.questions[id]
-      if (question === undefined) {
-        return refusal('engine-failure')
-      }
-      const answer = eligibleAnswer(
-        separateResult,
+    for (const [id, question] of Object.entries(body.questions)) {
+      const separateNamed = namedAnswer(
+        separate.status === 'answered' ? separate.result : undefined,
         deps.separate,
         id,
         question,
-        options.family,
-        options.promptVersion,
-        options.criteriaVersion,
       )
-      if (answer !== undefined) {
-        eligible.set(id, answer)
-      }
-    }
-    const confidences = Array.from(eligible.values(), (answer) =>
-      entropyConfidence(answer.distribution),
-    )
-    // PLAN 2a: every high-stakes question invokes same. A separate answer
-    // that cannot enter the combiner (partial, top-1, uncalibrated) must
-    // not suppress that follow-up, so the high-stakes gate runs before
-    // the eligibility short-circuit (an empty confidence list would throw
-    // in the gate, and means no follow-up only outside high stakes).
-    const isNeedsFollowUp =
-      options.highStakes ||
-      (confidences.length > 0 && shouldCascadeFollowUp(confidences, options.highStakes))
-    if (!isNeedsFollowUp) {
-      // The separate source answered, but nothing can enter the combiner:
-      // report it as it came rather than manufacturing a blend.
-      return separateAttempt.receipt.outcome
-    }
-    if (!isSameReady) {
-      // No eligible same side (a model binding or capability mismatch):
-      // report the separate answer rather than dispatching a doomed call.
-      return separateAttempt.receipt.outcome
-    }
-    const sameAttempt = await attemptSide(deps.same, body, signal)
-    if (isAborted()) {
-      return refusal('cancelled')
-    }
-    if (!sameAttempt.dispatched || !isSideOutcome(sameAttempt.receipt.outcome, deps.same, ids)) {
-      // A failed same follow-up leaves the separate answer standing.
-      return separateAttempt.receipt.outcome
-    }
-    const same = sameAttempt.receipt
-    const sameResult = sameAttempt.receipt.outcome.result
-    const answers: Record<string, JevAnswer> = {}
-    const muse: Record<string, JudgeMuse> = {}
-    const inputTokens = separateResult.usage.input_tokens + sameResult.usage.input_tokens
-    const outputTokens = separateResult.usage.output_tokens + sameResult.usage.output_tokens
-    if (!Number.isSafeInteger(inputTokens) || !Number.isSafeInteger(outputTokens)) {
-      return refusal('engine-failure')
-    }
-    for (const id of ids) {
-      const question = body.questions[id]
-      if (question === undefined) {
-        return refusal('engine-failure')
-      }
-      const separateAnswer = eligible.get(id)
-      const sameAnswer = eligibleAnswer(
-        sameResult,
+      const sameNamed = namedAnswer(
+        same.status === 'answered' ? same.result : undefined,
         deps.same,
         id,
         question,
-        options.family,
-        options.promptVersion,
-        options.criteriaVersion,
       )
-      if (separateAnswer === undefined && sameAnswer === undefined) {
-        // Neither side can combine here, but the separate answer already
-        // in hand is still real: report it as it came (partial or top-1
-        // as the side marked it), never as an engine failure. Only when it
-        // really is this separate side's answer; anything else is a broken
-        // side, not a combinable miss.
-        const standingAnswer = separateResult.answers[id]
-        const standingMeta = separateResult.muse[id]
-        if (
-          standingAnswer === undefined ||
-          standingMeta?.source !== deps.separate.capability.source ||
-          standingMeta.model !== deps.separate.capability.model
-        ) {
-          return refusal('engine-failure')
+      const eligible = (attempt: SideAttempt, side: JudgeCascadeSide) =>
+        attempt.status === 'answered'
+          ? eligibleAnswer(
+              attempt.result,
+              side,
+              id,
+              question,
+              options.family,
+              options.promptVersion,
+              options.criteriaVersion,
+            )
+          : undefined
+      const separateAnswer = eligible(separate, deps.separate)
+      const sameAnswer = eligible(same, deps.same)
+      if (separateAnswer === undefined || sameAnswer === undefined) {
+        // Both real bodies: combinable wins; otherwise only the original
+        // separate verdict stands. A foreign fallback is refused per question.
+        let standing = separateNamed ?? sameNamed
+        if (separate.status === 'answered' && same.status === 'answered') {
+          standing = sameAnswer === undefined ? separateNamed : sameNamed
         }
-        answers[id] = standingAnswer
-        muse[id] = standingMeta
+        if (standing === undefined) {
+          refusedQuestions.push(id)
+          continue
+        }
+        answers[id] = standing.answer
+        muse[id] = standing.meta
         continue
       }
-      if (separateAnswer === undefined || sameAnswer === undefined) {
-        // One side alone: pass its answer through untouched, honestly sourced.
-        const standing = separateAnswer === undefined ? sameResult : separateResult
-        const standingAnswer = standing.answers[id]
-        const standingMeta = standing.muse[id]
-        if (standingAnswer === undefined || standingMeta === undefined) {
-          return refusal('engine-failure')
-        }
-        answers[id] = standingAnswer
-        muse[id] = standingMeta
-        continue
+      if (separate.status !== 'answered' || same.status !== 'answered') {
+        return refusal('engine-failure')
       }
       const blend = combineCascadeDistributions([
         { distribution: separateAnswer.calibrated, weight: separateAnswer.weight },
@@ -549,9 +540,9 @@ export async function cascadeJudge(
       ])
       const probabilities = blendProbabilities(question, blend.distribution)
       const costs = {
-        reservedCostUsd: separate.reservedCostUsd + same.reservedCostUsd,
-        settledCostUsd: separate.settledCostUsd + same.settledCostUsd,
-        uncertainCostUsd: separate.uncertainCostUsd + same.uncertainCostUsd,
+        reservedCostUsd: separate.receipt.reservedCostUsd + same.receipt.reservedCostUsd,
+        settledCostUsd: separate.receipt.settledCostUsd + same.receipt.settledCostUsd,
+        uncertainCostUsd: separate.receipt.uncertainCostUsd + same.receipt.uncertainCostUsd,
       }
       if (question.type === 'noul') {
         answers[id] = {
@@ -594,22 +585,60 @@ export async function cascadeJudge(
         ...costs,
       }
     }
-    // The serving model: every reported muse names the model that answered
-    // it (a blend follows the separate convention), so the envelope names
-    // the separate model unless every question stands on the same side
-    // alone — never the separate model for a same-model answer.
-    const isSameOnly = ids.every((id) => muse[id]?.model === deps.same.capability.model)
+    if (Object.keys(answers).length === 0) {
+      if (separate.status === 'answered' || same.status === 'answered') {
+        return refusal('engine-failure')
+      }
+      return refusal(same.status === 'failed' ? same.reason : 'source-unavailable')
+    }
+    const results = [separate, same].flatMap((attempt) =>
+      attempt.status === 'answered' ? [attempt.result] : [],
+    )
+    const base = results[0]
+    if (base === undefined) return refusal('engine-failure')
+    const inputTokens = results.reduce((sum, result) => sum + result.usage.input_tokens, 0)
+    const outputTokens = results.reduce((sum, result) => sum + result.usage.output_tokens, 0)
+    if (!Number.isSafeInteger(inputTokens) || !Number.isSafeInteger(outputTokens)) {
+      return refusal('engine-failure')
+    }
+    const isSameOnly = Object.values(muse).every((meta) => meta.source === 'same')
     const combined = judgeOutcomeSchema.safeParse({
       outcome: 'answered',
       result: {
+        ...base,
         model: isSameOnly ? deps.same.capability.model : deps.separate.capability.model,
         answers,
         muse,
-        usage: { input_tokens: inputTokens, output_tokens: outputTokens },
+        usage: { ...base.usage, input_tokens: inputTokens, output_tokens: outputTokens },
+        cascade: {
+          separate: describeAttempt(separate, deps.separate),
+          same: describeAttempt(same, deps.same),
+          refusedQuestions,
+        },
       },
     })
     return combined.success ? combined.data : refusal('engine-failure')
   } catch {
-    return refusal(isAborted() ? 'cancelled' : 'engine-failure')
+    return refusal(signal.aborted ? 'cancelled' : 'engine-failure')
   }
+}
+
+/** Separate first, optional same-model follow-up, then exactly one settlement. */
+export async function cascadeJudge(
+  request: JudgeRequest,
+  options: JudgeCascadeOptions,
+  deps: JudgeCascadeDependencies,
+  signal: AbortSignal,
+): Promise<JudgeOutcome> {
+  let attempts: CascadeAttempts
+  try {
+    attempts = await collectCascadeAttempts(request, options, deps, signal)
+  } catch {
+    attempts = {
+      separate: { status: 'not-run', reason: 'source-unavailable' },
+      same: { status: 'not-run', reason: 'source-unavailable' },
+      reason: signal.aborted ? 'cancelled' : 'engine-failure',
+    }
+  }
+  return settleCascade(attempts, options, deps, signal)
 }

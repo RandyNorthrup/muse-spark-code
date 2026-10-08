@@ -42172,6 +42172,16 @@ ledger, scheduler, provider registry, hook format or golden baseline.
 
 ##### 2a — Cascade, `both`, and `auto` → `both`
 
+- **FIXM98P2A3 redesign (2026-10-07, RVM98P2AC).** Collect attempts first;
+  one settlement function alone publishes every answered or refused outcome.
+  Validate each reported question's source/model and actual verdict on every
+  path, retain honest sibling answers when another question is foreign, and
+  name the serving model on the envelope. Record skipped, failed and answered
+  follow-ups in the existing result's loose additions, without widening the
+  public contract. Preserve entropy/calibration, high-stakes dispatch, honest
+  uncombinable fallback, cancellation and phase-1 refusal behaviour. Fakes only;
+  prove the latest regression on `4185bf522`, then verify a fresh CI clone.
+  Lane-A certification: `docs/certification/m98.md`.
 - **Scope.** Separate first; same-model follow-up below entropy
   `JUDGE_CASCADE_CONFIDENCE` or always for a high-stakes family. Combine
   using B's fitted profile weights; disagreement can only add caution.

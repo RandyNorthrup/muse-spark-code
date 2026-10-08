@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- **M98 phase 2 cascade settlement.** Every cascade outcome uses one
+  settlement path. Refuse foreign or unnamed per-question muses, keep honest
+  sibling verdicts, record skipped or failed follow-ups, and name the serving
+  model consistently. Preserve high-stakes dispatch and calibrated blending.
+
 - Integrate the repaired SystemOne and BYO judge libraries and the Judge panel
   on the 0.15.0 head. Share token protection, server startup and fixtures;
   expose explicit source assembly with generation fences and bounded wording;

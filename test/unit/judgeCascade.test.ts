@@ -455,6 +455,225 @@ describe('combineCascadeDistributions', () => {
 })
 
 describe('cascadeJudge', () => {
+  it('refuses side capabilities that do not name their actual lane before dispatch', async () => {
+    const separate = fakeSide(separateCap, { risk: [0.6, 0.4] })
+    const same = fakeSide(sameCap, { risk: [0.6, 0.4] })
+    const deps = depsFor(separate, same)
+    for (const side of ['separate', 'same'] as const) {
+      deps[side] = {
+        ...deps[side],
+        capability: { ...deps[side].capability, source: side === 'same' ? 'separate' : 'same' },
+      }
+    }
+    await expect(cascadeJudge(request, options, deps, signal())).resolves.toEqual({
+      outcome: 'no-answer',
+      reason: 'capability-unavailable',
+    })
+    expect(separate.run).not.toHaveBeenCalled()
+    expect(same.run).not.toHaveBeenCalled()
+  })
+
+  it.each(['envelope', 'verdict'] as const)(
+    'refuses a malformed separate %s without a fallback dispatch',
+    async (part) => {
+      const result = answered(request, separateCap, { risk: [0.99, 0.01] })
+      if (part === 'envelope') result.model = sameCap.model
+      else result.answers['risk'] = choiceAnswer(['A', 'B'], [0.99, 0.01], 0.9)
+      const separate = fakeSide(separateCap, {}, { answer: { outcome: 'answered', result } })
+      const same = fakeSide(sameCap, { risk: [0.6, 0.4] })
+      await expect(
+        cascadeJudge(request, options, depsFor(separate, same), signal()),
+      ).resolves.toEqual({
+        outcome: 'no-answer',
+        reason: 'engine-failure',
+      })
+      expect(same.run).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each([
+    'both answered',
+    'separate only',
+    'same only',
+    'high-stakes ran',
+    'high-stakes unavailable',
+    'high-stakes failed',
+    'uncombinable',
+    'per-question fallback',
+    'both failed',
+  ])('settles %s with checked provenance and honest attempt facts', async (kind) => {
+    const isFailedSeparate = kind === 'same only' || kind === 'both failed'
+    const isFailedSame = kind === 'high-stakes failed' || kind === 'both failed'
+    const isSkippedSame = kind === 'separate only' || kind === 'high-stakes unavailable'
+    const isHighStakes = kind.startsWith('high-stakes') || kind === 'uncombinable'
+    const multi = kind === 'per-question fallback' ? riskPickRequest() : request
+    const separate =
+      kind === 'per-question fallback'
+        ? partialPickSide(separateCap, [0.9, 0.1])
+        : fakeSide(
+            separateCap,
+            { risk: kind === 'separate only' ? [0.99, 0.01] : [0.6, 0.4] },
+            {
+              partial: kind === 'uncombinable',
+              ...(isFailedSeparate && { answer: { outcome: 'no-answer', reason: 'timeout' } }),
+            },
+          )
+    const same =
+      kind === 'per-question fallback'
+        ? partialPickSide(sameCap, [0.2, 0.8])
+        : fakeSide(
+            sameCap,
+            { risk: [0.2, 0.8] },
+            {
+              partial: kind === 'uncombinable',
+              ...(isFailedSame && { answer: { outcome: 'no-answer', reason: 'timeout' } }),
+            },
+          )
+    const asked =
+      kind === 'high-stakes unavailable' ? { ...multi, model: separateCap.model } : multi
+    const outcome = await cascadeJudge(
+      asked,
+      { ...options, highStakes: isHighStakes },
+      depsFor(separate, same),
+      signal(),
+    )
+    expect(separate.side.run).toHaveBeenCalledTimes(1)
+    expect(same.side.run).toHaveBeenCalledTimes(isSkippedSame ? 0 : 1)
+    if (kind === 'both failed') {
+      expect(outcome).toEqual({ outcome: 'no-answer', reason: 'timeout' })
+      return
+    }
+    expect(outcome.outcome).toBe('answered')
+    if (outcome.outcome !== 'answered') throw new Error('expected settled answer')
+    expect(outcome.result.cascade).toEqual({
+      separate: isFailedSeparate ? { status: 'failed', reason: 'timeout' } : { status: 'answered' },
+      same: isSkippedSame
+        ? {
+            status: 'not-run',
+            reason: kind === 'separate only' ? 'not-needed' : 'source-unavailable',
+          }
+        : isFailedSame
+          ? { status: 'failed', reason: 'timeout' }
+          : { status: 'answered' },
+      refusedQuestions: [],
+    })
+    expect(outcome.result.model).toBe(isFailedSeparate ? sameCap.model : separateCap.model)
+    expect(Object.keys(outcome.result.answers)).toEqual(Object.keys(multi.questions))
+    for (const meta of Object.values(outcome.result.muse)) {
+      expect(meta.model).toBe(meta.source === 'same' ? sameCap.model : separateCap.model)
+    }
+  })
+
+  it.each(['separate', 'same'] as const)(
+    'settles cancellation during %s without keeping late output',
+    async (side) => {
+      const controller = new AbortController()
+      const separate = fakeSide(separateCap, { risk: [0.6, 0.4] })
+      const same = fakeSide(sameCap, { risk: [0.6, 0.4] })
+      const base = side === 'separate' ? separate : same
+      const cancelling = {
+        ...base.side,
+        run: async (asked: JudgeRequest, activeSignal: AbortSignal) => {
+          const receipt = await base.side.run(asked, activeSignal)
+          controller.abort()
+          return receipt
+        },
+      }
+      const deps = { ...depsFor(separate, same), [side]: cancelling }
+      await expect(cascadeJudge(request, options, deps, controller.signal)).resolves.toEqual({
+        outcome: 'no-answer',
+        reason: 'cancelled',
+      })
+      expect(same.run).toHaveBeenCalledTimes(side === 'same' ? 1 : 0)
+    },
+  )
+
+  it.each(['source', 'model', 'muse'] as const)(
+    'keeps an honest sibling when separate %s is unnamed',
+    async (field) => {
+      const multi = riskPickRequest()
+      const result = answered(multi, separateCap, { risk: [0.99, 0.01], pick: [0.7, 0.3] })
+      const meta = result.muse['pick']
+      if (meta === undefined) throw new Error('missing fixture muse')
+      if (field === 'muse') Reflect.deleteProperty(result.muse, 'pick')
+      else Reflect.deleteProperty(meta, field)
+      const separate = fakeSide(separateCap, {}, { answer: { outcome: 'answered', result } })
+      const same = fakeSide(sameCap, {})
+      const settled = await answeredMulti(multi, separate, same)
+      expect(same.run).not.toHaveBeenCalled()
+      expect(Object.keys(settled.answers)).toEqual(['risk'])
+      expect(settled.muse['risk']).toMatchObject({ source: 'separate', model: separateCap.model })
+      expect(settled.cascade).toMatchObject({ refusedQuestions: ['pick'] })
+    },
+  )
+
+  it.each(['rest', 'timeout', 'throw', 'unavailable'] as const)(
+    'refuses a foreign separate muse when follow-up is %s (RVM98P2AC)',
+    async (followUp) => {
+      const separate = mutatingSide(separateCap, { risk: [0.99, 0.01] }, 'risk', (meta) => ({
+        ...meta,
+        source: 'same',
+        model: sameCap.model,
+      }))
+      const same = fakeSide(
+        sameCap,
+        { risk: [0.6, 0.4] },
+        {
+          answer: { outcome: 'no-answer', reason: 'timeout' },
+          throws: followUp === 'throw',
+        },
+      )
+      const asked = followUp === 'unavailable' ? { ...request, model: separateCap.model } : request
+      const outcome = await cascadeJudge(
+        asked,
+        { ...options, highStakes: followUp !== 'rest' },
+        depsFor(separate, same),
+        signal(),
+      )
+      expect(outcome).toEqual({ outcome: 'no-answer', reason: 'engine-failure' })
+      expect(same.run).toHaveBeenCalledTimes(
+        followUp === 'rest' || followUp === 'unavailable' ? 0 : 1,
+      )
+    },
+  )
+
+  it('retains a sibling blend while refusing a foreign uncombinable question (RVM98P2AC)', async () => {
+    const multi = riskPickRequest()
+    const separate = mutatingSide(
+      separateCap,
+      { risk: [0.9, 0.1], pick: [0.7, 0.3] },
+      'pick',
+      (meta) => ({
+        ...meta,
+        source: 'same',
+        partial: true,
+      }),
+    )
+    const same = partialPickSide(sameCap, [0.2, 0.8])
+    const result = await answeredMulti(multi, separate, same)
+    expect(result.muse['risk']?.source).toBe('both')
+    expect(result.answers['pick']).toBeUndefined()
+    expect(result.muse['pick']).toBeUndefined()
+  })
+
+  it.each(['source', 'model'] as const)(
+    'refuses an unnamed %s on the same-only fallback',
+    async (field) => {
+      const separate = fakeSide(separateCap, {}, { throws: true })
+      const result = answered(request, sameCap, { risk: [0.7, 0.3] })
+      const meta = result.muse['risk']
+      if (meta === undefined) throw new Error('missing fixture muse')
+      Reflect.deleteProperty(meta, field)
+      const same = fakeSide(sameCap, {}, { answer: { outcome: 'answered', result } })
+      await expect(
+        cascadeJudge(request, options, depsFor(separate, same), signal()),
+      ).resolves.toEqual({
+        outcome: 'no-answer',
+        reason: 'engine-failure',
+      })
+    },
+  )
+
   it('returns a confident separate answer untouched and never dispatches the same model', async () => {
     const separate = fakeSide(separateCap, { risk: [0.99, 0.01] })
     const same = fakeSide(
