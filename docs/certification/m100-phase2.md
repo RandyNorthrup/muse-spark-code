@@ -75,3 +75,113 @@ The re-review confirmed the six fixes and found one P2: `deviceCapabilitySchema`
 - Test: "counts the byte cap in UTF-8 bytes, not string length" (string length under the cap, UTF-8 bytes over it, parse refused); the existing fixture check now measures UTF-8 bytes.
 - Drill: with the previous schema the new test fails (1 failed, 35 passed); with the fix 36 passed. `devicePhase2Contracts` and `devices` together: 130 passed.
 - ESLint (`--max-warnings=0`), Prettier and `tsc -p tsconfig.json` clean on the host, 2026-10-07.
+
+## Lane V — verified inputs and capability advertisement
+
+2026-10-07, win11 rig, `C:/lanes/M100P2V`, branch `m100/p2-v`, base
+`81f070674`. Codex completed the inherited, uncommitted implementation
+after the Muse shell failure; no ACL, permission or sandbox setting changed.
+Model attempts **0**, inference spend **0**; all tests use injected fakes,
+with no listener or real second device. Exclusive files only: new
+`src/core/devices/inputManifest.ts`, `src/core/devices/capability.ts`, their
+two owning test files, and this lane's certification section. Shared schemas,
+caps, strings and gate settings are unchanged. README, CHANGELOG, feature
+reference and shipped wiring remain lane W's assigned regions.
+
+### Acceptance mapping
+
+| Requirement                                                               | Implementation and owning tests                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Result / red drills                                                                                                                                                         |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Content-addressed inputs plus base objects, verified before start (G1/G2) | `inputManifest.ts:58` strict versioned manifest, bounded items/paths/bytes, matched 40/64-hex Git objects; `:88` Windows path normalization; `:108` fixed-order digest; `:145` dispatch/manifest parse and attempt/base/tree/digest binding, both base-object checks, every file's digest and byte size. `deviceInputManifest.test.ts`: complete copy, missing plan, missing commit/tree, mismatched content/size, each dispatch binding, invalid shapes, caps, duplicate normalized paths, Windows end to end. | Done in lane V's verifier; caller must await it before admission/start (lane W). V1–V9.                                                                                     |
+| Measured capability advertisement under lane 0's schema and cap           | `capability.ts:23` stamps measured fields and parses; `:38` wire parse and future-clock bound; `:54` offer binds device/incarnation/platform/workers. `deviceCapability.test.ts`: measured build/admit, field-invalid and oversize refusal, multibyte UTF-8 cap, skew edge, all offer refusals.                                                                                                                                                                                                                 | Done for the fields in the accepted contract; no truncation. V10–V16. Hardware inventory beyond presence flags needs the contract clarification below.                      |
+| Live pressure and transport failure signals for M107 (G12)                | `capability.ts:93` passes aggregate CPU/memory/disk pressure, power and measured slot cap; reports reset delta plus elapsed milliseconds (rate division belongs to M107). Missing/nonadvancing samples or counter restarts return nulls; invalid previous measurements refuse. Owning tests: shapes pressure and transport signals; counter restarts/reversed time; invalid clocks/samples.                                                                                                                     | Done for accepted aggregate fields, V17–V19. Separate OS-service pressure is blocked on lane 0's absent field; actual sampling and governor consumption belong to H/W/M107. |
+
+Completion review fixed unchecked input byte sizes, duplicate normalized
+paths, missing offer device-id binding, invalid sampling clocks and negative
+transport deltas after counter restarts. Assertions were added or strengthened;
+none was weakened or skipped. The attempt-binding test uses a correctly
+rehashed manifest for a different attempt, so it independently proves the
+identity guard. The duplication finding in the oversize fixture was removed
+within the owning tests.
+
+### Test-fire proofs
+
+Each mutation ran only its owning test file, using the repository default
+timeout and `--maxWorkers=3` (no `--testTimeout`). Every row exited **1**
+with the listed assertion-failure count, then restored the source from its
+original in-memory bytes and checked the SHA-256 before/after.
+
+`M` = `src/core/devices/inputManifest.ts`, owning file
+`test/unit/deviceInputManifest.test.ts`; `C` = `src/core/devices/capability.ts`,
+owning file `test/unit/deviceCapability.test.ts`.
+
+| Drill | File / intentional break                   | Owning test selector                                        | Failures |
+| ----- | ------------------------------------------ | ----------------------------------------------------------- | -------- |
+| V1    | M: disable missing/digest/size refusal     | refuses a plan file; refuses mismatched content             | 2        |
+| V2    | M: disable both base-object checks         | refuses a base commit                                       | 1        |
+| V3    | M: remove digest binding                   | refuses a manifest the dispatch                             | 1        |
+| V4    | M: remove attempt identity binding         | refuses a manifest the dispatch                             | 1        |
+| V5    | M: remove base binding                     | refuses a manifest the dispatch                             | 1        |
+| V6    | M: remove tree binding                     | refuses a manifest the dispatch                             | 1        |
+| V7    | M: ignore declared byte size               | refuses a worker input with                                 | 1        |
+| V8    | M: allow duplicate paths                   | refuses duplicate paths                                     | 1        |
+| V9    | M: disable relative-path validation        | refuses unsafe paths                                        | 1        |
+| V10   | C: build without schema parsing            | refuses a measurement that serializes; applies the byte cap | 2        |
+| V11   | C: admit wire input without schema parsing | refuses future-dated; applies the byte cap                  | 2        |
+| V12   | C: remove future-skew check                | refuses future-dated                                        | 1        |
+| V13   | C: remove offer device binding             | binds offers                                                | 1        |
+| V14   | C: remove incarnation binding              | binds offers                                                | 1        |
+| V15   | C: remove platform binding                 | binds offers                                                | 1        |
+| V16   | C: remove measured slot cap                | binds offers                                                | 1        |
+| V17   | C: emit zero CPU pressure                  | shapes pressure and transport                               | 1        |
+| V18   | C: emit zero transport delta               | shapes pressure and transport                               | 1        |
+| V19   | C: remove counter-restart guard            | does not invent a transport rate                            | 1        |
+
+Byte-exact restored SHA-256 (the same hash on every drill of that file):
+
+- M: `a8d7dc21e9bde74619feea1188ab0528b076aa4c4b3b8f80c38adb805d1d2ca5`.
+- C: `b11f7f076e93ad1ef1ace8de9484be650211283bab46063318986d9dffb19a85`.
+
+Restored owning run: `npx.cmd vitest run test/unit/deviceInputManifest.test.ts
+test/unit/deviceCapability.test.ts --maxWorkers=3`, **25 passed** (15 manifest,
+10 capability), exit **0**, repository-default timeouts.
+
+### Worktree verification
+
+| Gate                                                          | Exit / receipt                                                                                 |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Five typecheck projects (`npm.cmd run typecheck`)             | 0; host, webview, unit, e2e, integration                                                       |
+| Changed TypeScript ESLint (`npx.cmd eslint --max-warnings=0`) | 0                                                                                              |
+| Changed-file Prettier                                         | 0                                                                                              |
+| Plain `npx.cmd knip`                                          | 0; two pre-existing configuration hints                                                        |
+| `npm.cmd run duplication` (jscpd)                             | 0; zero clones                                                                                 |
+| `node scripts/check-l10n.mjs`                                 | 0; 14 tables, zero problems                                                                    |
+| `npm.cmd run check:reference`                                 | 0; 53 features, Devices 18 entries, current                                                    |
+| `npm.cmd run check:host-api`                                  | 1; generated Node reader count: `node:crypto` 55 → 56; regeneration is lane W's exclusive file |
+| `npm.cmd run build`                                           | 0; unchanged caps, split/host-globals/notices clean; `dist/devices.js` 80.6/100 KiB            |
+
+The production build still contains the phase-1 Devices implementation:
+passing it proves existing bundle gates, not shipped phase-2 wiring. The
+joined-tree full `npm run quality`, coverage/integration/a11y and installed
+four-device qualification are explicitly lane W's acceptance, not a receipt
+claimed by this lane. Fresh-clone CI verification follows after the first
+local commit.
+
+### Requests to the lead
+
+- Lane W: await `verifyDispatchInputs` with a worker-local reader before
+  admission/start; transport the manifest/base objects first; wire capability
+  build/admit, offer admission and signals into the lazy Devices bundle and
+  M107. Sample baselines must belong to the same device/incarnation.
+- Lane W: regenerate the assigned host API record with
+  `npm.cmd run check:host-api -- --write`; the exact current diff is the
+  `node:crypto` reader count 55 → 56. Carry this change into the joined-tree
+  README/CHANGELOG/reference and full gate.
+- Contract question (lane 0): `deviceCapabilitySchema` has hardware-presence
+  booleans and aggregate CPU/memory/disk pressure, but no hardware inventory
+  or separate OS-service pressure. Clarify whether those satisfy the PLAN
+  bullet; otherwise add the versioned fields in the shared contract before
+  lane H measures and lane V/W admits/consumes them. This lane did not guess
+  or broaden a shared wire shape.
+- Optional contract consolidation: export the canonical `relativePath` and
+  `gitObject` schemas so the compact manifest mirrors can reuse them.
