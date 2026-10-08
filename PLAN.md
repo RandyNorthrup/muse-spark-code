@@ -35818,6 +35818,19 @@ paid/live call or physical-device qualification is introduced.
 
 ### M100 phase 2 — bound owners, discovery, hardened hosts, per-action control (D80, planned)
 
+**M100P2HM5 review closure (2026-10-08, before implementation).** Share the
+Darwin runner's spawn-error mapping with the bounded Aqua probe: `EAGAIN`
+and `ENOMEM` reject as transient `capacity`, so preparation retries instead
+of caching an unsupported GUI session. Inject process pressure before the
+first launch, then prove the same factory reaches real launchctl and succeeds.
+Audit the driver's remaining spawn sites, prove the regression on `407025f16`
+and a deliberate guard break, and qualify the committed source in a fresh clone
+under the existing H scoped gate. Shared W-owned product docs and inventories
+remain integration requests; no deadline, assertion or cap changes.
+The audit also covers the primitive native self-test's own `posix_spawn`:
+return a validated optional capacity failure instead of caching pressure as a
+failed capability probe, and prove retry with a subprocess-only UID limit.
+
 **M100P2HM4 review closure (2026-10-08, before implementation).** Settle an
 observed whole-membership capacity exit as a typed local retirement with usage
 and existing localized recovery prose. The receiver durably records `retired`

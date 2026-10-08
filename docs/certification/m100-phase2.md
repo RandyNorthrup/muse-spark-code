@@ -1404,3 +1404,67 @@ staged/committed diffs were reread after each hook run. The final documentation
 commit does likewise. No push, merge, rebase, manual stash, credential read,
 paid/model call, nonloopback listener or gate weakening. Both verification
 clones are removed after final documentation validation.
+
+#### M100P2HM5 — macOS review round 2 (2026-10-08)
+
+Branch `m100/p2-h-darwin5`, base **`407025f16`**, review
+`RVM100P2HMC`. The bounded Aqua probe and ordinary command runner now use
+one `spawnFailure` mapping: `EAGAIN` and `ENOMEM` reject as typed capacity;
+other errors remain helper failures. Preparation clears the rejected promise,
+so the same factory probes launchctl again after pressure passes. Two native
+regressions inject each spawn error, prove no runner/attempt was started on
+the first launch, then activate and retire a real GUI job on the second launch.
+
+The audit covers every spawn site in this driver:
+
+| Site                           | Capacity handling / observation                                                                                                                                                                                                                      |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bounded `spawn` Aqua reader    | Shared `spawnFailure` handles the error event before close; the existing byte cap/deadline and child termination remain.                                                                                                                             |
+| `execFile` runner              | The existing mapping moves into the same helper, covering clang, native helper and launchctl/ps calls. Post-launch observation failures still become uncertainty rather than proof of exit.                                                          |
+| Native worker `posix_spawn`    | Existing typed capacity result is retained; native errno classification is shared with its primitive self-test.                                                                                                                                      |
+| Native self-test `posix_spawn` | Audit found the same transient-negative-cache problem. It now emits optional `failure: capacity` with `jobProbe: false`, parsed by the strict self-test schema and rethrown as capacity before negative caching. Normal self-test JSON is unchanged. |
+
+The additional native regression runs the actual helper through the existing
+UID-limit fixture with `RLIMIT_NPROC=2`, applied only to that subprocess before
+`execv`. It observes the capacity JSON and proves the same factory's next launch
+succeeds. No launchd, per-user, machine, sysctl or registry limit is changed.
+Capture workspace: this lane's native test folder under `TMPDIR` on macmini;
+zero model attempts. The returned local-helper shape is
+`{ jobProbe: false, query: true, power, scheduler: 'untested', failure: 'capacity' }`.
+No Muse Code or Model API wire shape is changed.
+
+**Base proof.** Restore only the Darwin production file from `407025f16`, keep
+all final tests, and run the complete three owning files with `CI=true`,
+`--maxWorkers=3`, repository default deadlines. **Exit 1: 67 passed, 3 failed,
+7 Windows-native skipped**, **13.76 s**. Both injected probe cases and the
+native self-test pressure case receive `unsupported-host` instead of capacity.
+An earlier probe-only baseline also gave **67 passed, 2 failed, 7 skipped**.
+Two initial exploratory attempts exited **143** without a test summary because
+an unspawned child double's native kill method signalled the process group;
+the double's kill is now explicitly stubbed. No production guard or deadline
+was changed to resolve that test-double defect.
+
+| Red drill                | Deliberate break                                                 | Result                                                                                                               |
+| ------------------------ | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Probe error mapping      | Replace `finish(undefined, spawnFailure(error))` with `finish()` | **Exit 1: 68 passed, 2 failed, 7 Windows skips**, **13.54 s**; both pressure codes lose their typed capacity result. |
+| Native self-test mapping | Replace the validated capacity throw with a cached false result  | **Exit 1: 69 passed, 1 failed, 7 Windows skips**, **15.41 s**; native pressure is cached as unsupported.             |
+
+Every mutation restores the exact production bytes in `finally` and checks
+SHA-256 **`b07dd61bf9e91c68aa2b401f42f1224cbde9b57b5e376292b53a8c816c3330dc`**.
+The restored complete local owning run passed **70 tests**, with **7 existing
+Windows-native skips**, **16.15 s**. All **25 macOS native cases** ran; none
+was skipped. Unit typecheck and changed-test ESLint pass after fixing the
+simple-condition ordering and awaited return required by the existing rules.
+Committed-source fresh-clone qualification follows in this subsection.
+
+The first local duplication check exited **1**, identifying two repeated
+activation/retirement/cleanup blocks (15 lines). A test-only `complete` helper
+now owns those assertions and guaranteed cleanup for both new regressions and
+the existing exact-cap case. Every assertion is retained. Plain jscpd then
+exited **0**, zero clones, with its original threshold/configuration.
+
+**W requests, outside H ownership.** Add an Unreleased CHANGELOG note for
+retrying Darwin preparation after probe/native self-test spawn pressure. The
+inherited stale host-API inventory and full `npm run quality` remain W's
+integration gate under PLAN section 7; no shared inventory, product doc,
+translation, dependency, command, setting or gate is changed by this lane.

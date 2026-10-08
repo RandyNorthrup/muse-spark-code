@@ -74,6 +74,7 @@ static BOOL save(NSString *file, id value) {
   return data && [data writeToFile:file options:NSDataWritingAtomic error:nil];
 }
 static BOOL present(NSString *file) { return access(file.fileSystemRepresentation, F_OK) == 0; }
+static BOOL capacity(int error) { return error == EAGAIN || error == ENOMEM; }
 static BOOL members(uint64_t id, BOOL stop, uint64_t *memory) {
   int bytes = proc_listpids(PROC_UID_ONLY, getuid(), NULL, 0);
   if (bytes <= 0) return NO;
@@ -116,7 +117,13 @@ int main(int argc, const char **argv) { @autoreleasepool {
     if (!counts(coalition(getpid()), &active, &cpu)) return 1;
     char *args[] = {"/usr/bin/true", NULL}; char *env[] = {NULL};
     pid_t child; int status;
-    if (posix_spawn(&child, args[0], NULL, NULL, args, env) || waitpid(child, &status, 0) != child ||
+    int launchError = posix_spawn(&child, args[0], NULL, NULL, args, env);
+    if (capacity(launchError)) {
+      NSData *data = [NSJSONSerialization dataWithJSONObject:
+        @{@"jobProbe":@NO,@"query":@YES,@"power":power(),@"scheduler":@"untested",@"failure":@"capacity"} options:0 error:nil];
+      return write(STDOUT_FILENO, data.bytes, data.length) == data.length ? 0 : 1;
+    }
+    if (launchError || waitpid(child, &status, 0) != child ||
         !WIFEXITED(status) || WEXITSTATUS(status) != 0) return 1;
     NSData *data = [NSJSONSerialization dataWithJSONObject:
       @{@"jobProbe":@YES,@"query":@YES,@"power":power(),@"scheduler":@"untested"} options:0 error:nil];
@@ -180,7 +187,7 @@ int main(int argc, const char **argv) { @autoreleasepool {
   NSMutableData *stdoutData = NSMutableData.data, *stderrData = NSMutableData.data;
   BOOL overflow = NO, exited = child < 0;
   int status = 0; uint64_t peak = 0;
-  NSString *failure = launchError ? (launchError == EAGAIN || launchError == ENOMEM ? @"capacity" : @"unsupported-host") : @"none";
+  NSString *failure = launchError ? (capacity(launchError) ? @"capacity" : @"unsupported-host") : @"none";
   mach_timebase_info_data_t sampleScale;
   if (mach_timebase_info(&sampleScale) != KERN_SUCCESS) return 1;
   for (;;) { @autoreleasepool {
@@ -222,6 +229,7 @@ const selfTestSchema = z.strictObject({
   query: z.boolean(),
   power: z.enum(['ac', 'battery', 'unknown']),
   scheduler: z.literal('untested'),
+  failure: z.optional(z.literal('capacity')),
 })
 const readySchema = z.strictObject({
   pid: z.int().check(z.gt(1)),
@@ -235,6 +243,15 @@ const resultSchema = z.strictObject({
   failure: z.enum(['none', 'capacity', 'unsupported-host']),
 })
 
+function spawnFailure(error: unknown): DeviceWorkerHostError {
+  const isCapacity =
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error.code === 'EAGAIN' || error.code === 'ENOMEM')
+  return new DeviceWorkerHostError(isCapacity ? 'capacity' : 'helper')
+}
+
 // A GUI domain's service listing grows without bound; the session line is near
 // its start. Stop the child once that complete line is read, keeping a byte cap
 // and deadline for malformed/missing answers. Never buffer the service list.
@@ -243,12 +260,12 @@ const session: RunProgram = (file, args, env) =>
     const child = spawn(file, [...args], { env, stdio: ['ignore', 'pipe', 'ignore'] })
     let output = ''
     let isSettled = false
-    const finish = (answer?: string) => {
+    const finish = (answer?: string, error?: DeviceWorkerHostError) => {
       if (isSettled) return
       isSettled = true
       clearTimeout(deadline)
       child.kill()
-      if (answer === undefined) reject(new DeviceWorkerHostError('helper'))
+      if (answer === undefined) reject(error ?? new DeviceWorkerHostError('helper'))
       else resolve(answer)
     }
     const deadline = setTimeout(() => {
@@ -263,8 +280,8 @@ const session: RunProgram = (file, args, env) =>
       if (line !== null) finish(`session = ${line[1] ?? ''}`)
       else if (Buffer.byteLength(output) >= DEVICE_LIMITS.frameBytes) finish()
     })
-    child.once('error', () => {
-      finish()
+    child.once('error', (error) => {
+      finish(undefined, spawnFailure(error))
     })
     child.once('close', () => {
       finish()
@@ -283,12 +300,7 @@ const run: RunProgram = (file, args, env) =>
       },
       (error, stdout) => {
         if (error === null) resolve(stdout)
-        else
-          reject(
-            new DeviceWorkerHostError(
-              error.code === 'EAGAIN' || error.code === 'ENOMEM' ? 'capacity' : 'helper',
-            ),
-          )
+        else reject(spawnFailure(error))
       },
     )
     child.stdin?.end()
@@ -533,6 +545,7 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
         }
       }
       const probe = selfTestSchema.parse(JSON.parse(await invoke(target, ['--self-test'], env)))
+      if (probe.failure === 'capacity') throw new DeviceWorkerHostError('capacity')
       if (!probe.jobProbe || !probe.query) return false
       parseDeviceWorkerQuery(JSON.parse(await invoke(target, ['--query'], env)))
       const job = await rawLaunch(

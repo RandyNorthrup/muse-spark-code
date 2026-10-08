@@ -12,6 +12,7 @@ import {
 } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { PassThrough } from 'node:stream'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
 import { deviceWorkerDarwin } from '../../src/host/backend/deviceWorkerDarwin'
@@ -139,6 +140,15 @@ async function clean(job: DeviceWorkerJob) {
   await job.cancel()
   await job.retirement
   await job.remove()
+}
+async function complete(job: DeviceWorkerJob, verify?: () => Promise<void>) {
+  try {
+    await verify?.()
+    await job.activate()
+    expect(await job.retirement).toEqual({ exitCode: 0, stdout: '', failure: 'none' })
+  } finally {
+    await clean(job)
+  }
 }
 async function recover(job: DeviceWorkerJob) {
   const context = parseDeviceWorkerQuery(job.query).context
@@ -328,13 +338,17 @@ describe.skipIf(process.platform !== 'darwin')('M100/H actual launchd GUI job', 
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-int main(void) {
+int main(int argc, char **argv) {
   int bytes = proc_listpids(PROC_UID_ONLY, getuid(), NULL, 0);
   if (bytes <= 0) return 1;
   pid_t *pids = calloc(1, bytes); if (!pids) return 1;
   int actual = proc_listpids(PROC_UID_ONLY, getuid(), pids, bytes);
   free(pids); if (actual <= 0) return 1;
   struct rlimit limit = {2, 2}; if (setrlimit(RLIMIT_NPROC, &limit)) return 1;
+  if (argc == 2) {
+    char *probe[] = {argv[1], "--self-test", NULL};
+    execv(probe[0], probe); return 1;
+  }
   char *args[] = {"/usr/bin/true", NULL}, *env[] = {NULL}; pid_t child;
   int error = posix_spawn(&child, args[0], NULL, NULL, args, env);
   if (!error) { int status; if (waitpid(child, &status, 0) != child) return 1; }
@@ -560,6 +574,33 @@ int main(void) {
       scheduler: 'untested',
     })
   })
+  it('reports native self-test spawn capacity and retries preparation after UID pressure', async () => {
+    let shouldLimit = true
+    const invoke = vi.fn<RunProgram>(async (file, args, env) => {
+      if (shouldLimit && args[0] === '--self-test') {
+        shouldLimit = false
+        const output = await run(path.join(state.directory, 'uid-limit-probe'), [file], env)
+        const answer: unknown = JSON.parse(output)
+        expect(answer).toEqual({
+          jobProbe: false,
+          query: true,
+          power: expect.stringMatching(/^(?:ac|battery|unknown)$/),
+          scheduler: 'untested',
+          failure: 'capacity',
+        })
+        return output
+      }
+      return await run(file, args, env)
+    })
+    const driver = freshDriver(invoke)
+    await expect(launch('process.exit(0)', driver)).rejects.toMatchObject({
+      reason: 'capacity',
+      detail: 'capacity',
+    })
+    expect(invoke.mock.calls.some(([, args]) => args[0] === 'bootstrap')).toBe(false)
+    await complete(await launch('process.exit(0)', driver))
+    expect(await attempts()).toEqual([])
+  })
   it.each([1, 2, DEVICE_LIMITS.processes])(
     'activates admitted per-job cap %s with the exact limit in the native request',
     async (processes) => {
@@ -568,7 +609,7 @@ int main(void) {
         {},
         attemptWith(processes),
       )
-      try {
+      await complete(job, async () => {
         const context = parseDeviceWorkerQuery(job.query).context
         const config: unknown = JSON.parse(
           await readFile(
@@ -585,11 +626,7 @@ int main(void) {
           maxProcesses: processes,
           pollUs: POSIX_TREE_EXIT_POLL_MS * MILLISECONDS_PER_SECOND,
         })
-        await job.activate()
-        expect(await job.retirement).toEqual({ exitCode: 0, stdout: '', failure: 'none' })
-      } finally {
-        await clean(job)
-      }
+      })
       expect(await attempts()).toEqual([])
     },
   )
@@ -607,6 +644,45 @@ int main(void) {
     const info = await lstat(path.join(state.directory, 'device-workers-darwin'))
     expect(info.mode & 0o777).toBe(0o700)
   })
+  it.each(['EAGAIN', 'ENOMEM'])(
+    'retries the Aqua probe after transient spawn %s and launches a real GUI job',
+    async (code) => {
+      vi.mocked(spawn).mockClear()
+      vi.mocked(execFile).mockClear()
+      vi.mocked(spawn).mockImplementationOnce(() => {
+        const child = new ChildProcess()
+        child.stdout = new PassThrough()
+        // An unspawned native handle must never signal the test process group.
+        vi.spyOn(child, 'kill').mockReturnValue(false)
+        queueMicrotask(() => {
+          child.emit('error', Object.assign(new Error('injected process pressure'), { code }))
+        })
+        return child
+      })
+      const driver = deviceWorkerDarwin({ storageDir: state.directory, environment: process.env })
+      try {
+        await expect(launch('process.exit(0)', driver)).rejects.toMatchObject({
+          reason: 'capacity',
+          detail: 'capacity',
+        })
+        expect(spawn).toHaveBeenCalledExactlyOnceWith(
+          '/bin/launchctl',
+          ['print', `gui/${String(uid())}`],
+          expect.anything(),
+        )
+        expect(execFile).not.toHaveBeenCalled()
+        expect(await attempts()).toEqual([])
+        await complete(await launch('process.exit(0)', driver))
+        expect(spawn).toHaveBeenCalledTimes(2)
+        expect(vi.mocked(execFile).mock.calls.some(([, args]) => args?.[0] === 'bootstrap')).toBe(
+          true,
+        )
+        expect(await attempts()).toEqual([])
+      } finally {
+        vi.mocked(spawn).mockRestore()
+      }
+    },
+  )
   it('closes stdin and validates JSON stdout despite stderr banners and a hostile inherited variable', async () => {
     const recorded = vi.fn()
     const reservation = { release: () => Promise.resolve(), pause: () => Promise.resolve(), usage }
