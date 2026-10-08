@@ -265,17 +265,19 @@ function prepareRequest(value: unknown): { request: JudgeRequest; inputs: EmbedI
     }
   }
   const request = judgeRequestSchema.parse(plain)
-  return { request, inputs: embedInputs(request) }
+  return { request, inputs: embedInputs(plain) }
 }
 
-/** Scrub strings before escaping; a remaining serialized match refuses. */
-function embedInputs(request: JudgeRequest): EmbedInputs {
+/** Walk the admitted data once; a remaining serialized match refuses. */
+function embedInputs(value: PlainData): EmbedInputs {
+  const scrubbed = judgeRequestSchema.safeParse(redactStructured(value))
+  if (!scrubbed.success) return { status: 'refused', reason: 'invalid-input' }
   const inputs: string[] = []
-  for (const question of Object.values(request.questions)) {
+  for (const question of Object.values(scrubbed.data.questions)) {
     const payload = JSON.stringify({
-      state: redactStructured(plainDataSchema.parse(request.state)),
-      instructions: redactStructured(question.instructions, 'instructions'),
-      criteria: redactStructured(plainDataSchema.parse(question.criteria ?? null)),
+      state: scrubbed.data.state,
+      instructions: question.instructions,
+      criteria: question.criteria ?? null,
     })
     if (redactSecrets(payload) !== payload) return { status: 'refused', reason: 'redaction-failed' }
     inputs.push(payload)
@@ -283,32 +285,44 @@ function embedInputs(request: JudgeRequest): EmbedInputs {
   return { status: 'ready', value: inputs }
 }
 
-function redactStructured(value: PlainData, fieldName?: string): PlainData {
-  if (typeof value === 'string') {
-    // Replace changed strings whole: a partial quoted/multiline match must
-    // never leave a tail. Name-plus-value rules inspect the actual value.
-    const inspection = value
-      .replaceAll(/\\(["'])/g, (_match, quote: string) => quote)
-      .replaceAll(/[\r\n]/g, ' ')
-    const candidates = [value, inspection]
-    if (fieldName !== undefined) {
-      candidates.push(
-        `${fieldName}=${inspection.replaceAll(/["']/g, '').trim()}`,
-        `${JSON.stringify(fieldName)}:${JSON.stringify(value)}`,
-      )
-    }
-    return candidates.some((text) => redactSecrets(text) !== text) || value.includes(REDACTED_MARK)
-      ? REDACTED_MARK
-      : value
+/** Use the shared recognizer, with a fixed value independent of the data's type. */
+function isSecretName(key: string): boolean {
+  const compact = key.replaceAll(/[-_]/g, '')
+  const names = [
+    key,
+    compact,
+    compact.toUpperCase().replaceAll(/(ACCESS|PRIVATE)KEY/g, '$1_KEY'),
+    `_${compact.toLowerCase()}`,
+  ]
+  return names.some((name) => {
+    const probe = `${name}=1 ${JSON.stringify(name)}:"1"`
+    return redactSecrets(probe) !== probe
+  })
+}
+
+/** Replace a changed inline string whole, including quoted or multiline tails. */
+function redactString(value: string): string {
+  const inspection = value
+    .replaceAll(/\\(["'])/g, (_match, quote: string) => quote)
+    .replaceAll(/[\r\n]/g, ' ')
+  return [value, inspection].some((text) => redactSecrets(text) !== text) ||
+    value.includes(REDACTED_MARK)
+    ? REDACTED_MARK
+    : value
+}
+
+/** A secret name anywhere on the path taints the entire value, of any type. */
+function redactStructured(value: PlainData, path: readonly string[] = []): PlainData {
+  if (path.some((key) => isSecretName(key))) return REDACTED_MARK
+  if (typeof value === 'string') return redactString(value)
+  if (Array.isArray(value)) {
+    return value.map((item, index) => redactStructured(item, [...path, String(index)]))
   }
-  if (Array.isArray(value)) return value.map((item) => redactStructured(item, fieldName))
   if (value === null || typeof value !== 'object') return value
   const clean: Record<string, PlainData> = {}
   for (const [key, item] of Object.entries(value)) {
-    const cleanKey = redactStructured(key)
-    if (typeof cleanKey !== 'string') throw new TypeError('embedding-state-key')
-    Object.defineProperty(clean, cleanKey, {
-      value: redactStructured(item, key),
+    Object.defineProperty(clean, redactString(key), {
+      value: redactStructured(item, [...path, key]),
       enumerable: true,
     })
   }

@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Replace the experimental embedding judge's per-shape secret checks with one
+  path-taint walk: any recognized secret key redacts its entire value,
+  including nested objects, arrays, numbers and booleans. Retain inline
+  redaction and refusal of a recognizable final serialized payload.
+
 - Close the experimental embedding judge's input boundary: refuse executable
   or non-JSON data before serialization, redact actual named string values,
   and retain the final payload refusal before embedding dispatch. Refuse

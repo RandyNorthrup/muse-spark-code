@@ -42443,6 +42443,24 @@ No dependency, host contract, paid guard or bundle cap changes.
 
 ##### 2i — Embedding fast path after family measurement
 
+- **FIXM98P2I5 path-taint redesign (2026-10-07, before implementation).**
+  Apply one recursive walker once to the passive plain-data request already
+  admitted by `plainDataSchema`. Recognize names through the shared redactor
+  with fixed non-empty probes, normalizing case and separators. Any recognized
+  key on the root-to-value path replaces the entire value with `[redacted]`,
+  including primitive, array and object values; untainted strings retain the
+  shared inline-secret inspection. Remove actual-value/array-parent special
+  cases and repeated per-question walks. Keep the final serialized refusal
+  and every existing regression; isolate that guard from the earlier walker
+  in its boolean regression now that booleans are correctly scrubbed.
+  Add a table-driven property over recognized names, separator/case variants,
+  depths 1–4, mixed containers, direct/descendant leaves and every JSON type.
+  Prove base failures on `f4578c793` and leaf-only/final-refusal red drills,
+  restoring exact hashes. Certify three default-timeout owning-suite runs,
+  five typechecks, changed-file lint/format, plain knip, duplication,
+  localization, host API, reference and capped production build in a fresh
+  `CI=true npm ci` clone. Aggregate quality remains lead-owned by the shared
+  lane rules; no live/paid call, dependency, escape hatch, push or merge.
 - **FIXM98P2I4 privacy repair (2026-10-08, before implementation).**
   Validate embedding inputs as passive plain JSON with recursive zod checks
   before serialization: finite numbers, strings, booleans, null, arrays and

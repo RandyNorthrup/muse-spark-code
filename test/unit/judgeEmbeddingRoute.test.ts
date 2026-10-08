@@ -2,6 +2,7 @@
 // Fakes and synthetic fixtures only; no live, paid or local model calls.
 
 import { describe, expect, it, vi } from 'vitest'
+import * as redactor from '../../src/core/redact'
 import {
   runEmbeddingJudge,
   type EmbeddingRouteDependencies,
@@ -9,7 +10,7 @@ import {
 } from '../../src/core/judge/embedding/route'
 import { JUDGE_EMBED_FALLBACK_CONFIDENCE, REDACTED_MARK } from '../../src/shared/constants'
 import type { JudgeOutcome, JudgeRequest } from '../../src/core/judge/schema'
-import { embeddingHeadDigest } from '../../src/core/judge/embedding/schema'
+import { embeddingHeadDigest, type EmbeddingHead } from '../../src/core/judge/embedding/schema'
 import {
   abortingFallbackFixture,
   captureEmbedInputs,
@@ -383,7 +384,144 @@ describe('embedding fast path', () => {
   })
 })
 
+type NestedData = string | number | boolean | null | NestedData[] | { [key: string]: NestedData }
+
+/** Alternate object/array ancestors without duplicating expected-payload builders. */
+function mixedNesting(value: NestedData, depth: number, isArrayFirst: boolean): NestedData {
+  let nested = value
+  for (let index = 0; index < depth; index += 1) {
+    nested = (index % 2 === 0) === isArrayFirst ? [nested] : { box: nested }
+  }
+  return nested
+}
+
+// Every named credential family in SECRET_RULES, including its generic environment
+// names. Provider account-id rules are privacy rules, not credential families.
+const secretNames = [
+  'AccountKey',
+  'SharedAccessKey',
+  'aws_secret_access_key',
+  'aws_session_token',
+  'api-key',
+  'x-api-key',
+  'apiKey',
+  'api_key',
+  'GITHUB_TOKEN',
+  'META_API_KEY',
+  'MODEL_API_KEY',
+  'access_token',
+  'refresh_token',
+  'id_token',
+  'client_secret',
+  'password',
+  'token',
+  'secret',
+  'passwd',
+  'private_key',
+  '_auth',
+  '_authToken',
+  'CUSTOM_SECRET',
+  'CUSTOM_PASSWORD',
+  'CUSTOM_PASSWD',
+  'CUSTOM_APIKEY',
+  'CUSTOM_ACCESS_KEY',
+  'CUSTOM_PRIVATE_KEY',
+  'CUSTOM_CREDENTIAL',
+  'CUSTOM_CREDENTIALS',
+]
+
+const opaqueMarker = 'opaque-nested-account'
+
+/** Verify dispatch redaction and the independently admitted full-judge leg. */
+async function expectTaintedState(
+  state: NestedData,
+  cleanState: NestedData,
+  head: EmbeddingHead,
+  isLowConfidence: boolean,
+): Promise<void> {
+  const request = { ...noulRequest, state }
+  const original = JSON.stringify(request)
+  const vectors = isLowConfidence ? [[0.5, 0.5, 0.5]] : confidentVectors
+  const { seen, embed } = captureEmbedInputs(vectors)
+  const { deps, fallbackCalls, fallbackClaims, claims } = routeDependencies({
+    head,
+    source: { embed },
+  })
+  const outcome = await runEmbeddingJudge(request, options, deps, signal())
+  expect(outcome.outcome).toBe('answered')
+  if (outcome.outcome !== 'answered') throw new Error('expected an admitted answer')
+  for (const batch of seen) {
+    for (const payload of batch) {
+      expect(payload).not.toContain(opaqueMarker)
+      expect(JSON.parse(payload)).toMatchObject({ state: cleanState })
+    }
+  }
+  if (isLowConfidence || seen.length === 0) {
+    expect(outcome.result.muse['risk']?.technique).toBe('stated')
+    expect(fallbackCalls).toHaveLength(1)
+    expect(fallbackClaims).toHaveLength(1)
+  } else {
+    expect(outcome.result.muse['risk']?.technique).toBe('embedding')
+    expect(seen).toHaveLength(1)
+    expect(fallbackCalls).toHaveLength(0)
+  }
+  expect(claims).toHaveLength(1)
+  expect(JSON.stringify(request)).toBe(original)
+}
+
 describe('embedding pipeline regressions', () => {
+  it('redacts the complete AccountKey object from the review (RVM98P2IE 1)', async () => {
+    await expectTaintedState(
+      { AccountKey: { key: opaqueMarker }, safe: 'public context' },
+      { AccountKey: REDACTED_MARK, safe: 'public context' },
+      trainedHead(),
+      false,
+    )
+  })
+
+  it.each(secretNames)(
+    'taints every JSON type and descendant under %s at mixed depths 1–4 (RVM98P2IE)',
+    async (recognizedName) => {
+      const head = trainedHead()
+      const values: NestedData[] = [
+        opaqueMarker,
+        7,
+        true,
+        false,
+        null,
+        [opaqueMarker],
+        { key: opaqueMarker },
+        { v: [{ arbitrary: opaqueMarker }] },
+        Object.fromEntries([['__proto__', { constructor: opaqueMarker }]]),
+      ]
+      const names = new Set([
+        recognizedName,
+        recognizedName.toLowerCase(),
+        recognizedName.toUpperCase().replaceAll('_', '-'),
+        recognizedName.replaceAll(/[-_]/g, '').replaceAll(/(?<=[A-Za-z0-9])(?=[A-Za-z0-9])/g, '_-'),
+      ])
+      for (const name of names) {
+        for (const depth of [1, 2, 3, 4]) {
+          for (const isArrayFirst of [false, true]) {
+            for (const value of values) {
+              const state = mixedNesting(
+                { [name]: value, safe: 'public context' },
+                depth - 1,
+                isArrayFirst,
+              )
+              const cleanState = mixedNesting(
+                { [name]: REDACTED_MARK, safe: 'public context' },
+                depth - 1,
+                isArrayFirst,
+              )
+              await expectTaintedState(state, cleanState, head, isArrayFirst)
+            }
+          }
+        }
+      }
+    },
+  )
+
   it.each(['AccountKey', 'aws_secret_access_key', 'api-key', 'GITHUB_TOKEN'])(
     'redacts the real non-empty %s value in every payload field (RVM98P2ID 1)',
     async (name) => {
@@ -434,13 +572,23 @@ describe('embedding pipeline regressions', () => {
     const { deps, embed, fallbackCalls } = routeDependencies({
       source: { embed: () => Promise.resolve(confidentVectors) },
     })
-    const outcome = await runEmbeddingJudge(
-      { ...noulRequest, state: { password: true } },
-      options,
-      deps,
-      signal(),
-    )
-    expectRefusedEmbedding(outcome, embed, fallbackCalls)
+    // Isolate the last guard: simulate an earlier recognizer missing this field.
+    // The same boolean input now redacts in the walker without this fault.
+    const sharedRedact = redactor.redactSecrets
+    const earlierMiss = vi
+      .spyOn(redactor, 'redactSecrets')
+      .mockImplementation((text) => (text.startsWith('{"state":') ? sharedRedact(text) : text))
+    try {
+      const outcome = await runEmbeddingJudge(
+        { ...noulRequest, state: { password: true } },
+        options,
+        deps,
+        signal(),
+      )
+      expectRefusedEmbedding(outcome, embed, fallbackCalls)
+    } finally {
+      earlierMiss.mockRestore()
+    }
   })
 
   it.each([
