@@ -85,11 +85,12 @@ export function replayRig(
     let encodedChars = 0
     switch (inline.type) {
       case 'input_image': {
-        encodedChars = inline.image_url.length
+        // An uploaded ref replays its file id, never inline bytes.
+        encodedChars = 'image_url' in inline ? inline.image_url.length : 0
         break
       }
       case 'input_file': {
-        encodedChars = inline.file_data.length
+        encodedChars = 'file_data' in inline ? inline.file_data.length : 0
         break
       }
       default: {

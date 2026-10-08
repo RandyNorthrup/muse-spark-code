@@ -19,7 +19,8 @@ import {
 } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { Usd, type UsdAmount } from '../../src/shared/usd'
-import type { ScheduleRunDeps } from '../../src/core/schedules/unattended'
+import type { ScheduleRunDeps, ScheduledAgentSession } from '../../src/core/schedules/unattended'
+import type { AgentSession } from '../../src/core/agent/agentBackend'
 import type { ToolIo } from '../../src/core/backends/modelapi/tools'
 import { estimateInput, requestParts } from '../../src/core/backends/modelapi/sessionBudget'
 import {
@@ -172,19 +173,23 @@ async function hostWithMedia(options: {
       pageCount: 3,
     }
   }
+  // Images and PDFs ride readBytes through the visual path; io.readMedia
+  // only ever serves video and audio. Anything else here is a test bug.
   const readMedia: NonNullable<ToolIo['readMedia']> = () =>
-    Promise.resolve({
-      info,
-      sha256,
-      source: {
-        name: options.name,
-        mime: options.mediaType,
-        bytes: bytes.length,
-        open: async function* () {
-          yield await chunk
-        },
-      },
-    })
+    info.kind === 'image' || info.kind === 'document'
+      ? Promise.resolve({ kind: 'other' as const, reason: `unexpected readMedia for ${info.kind}` })
+      : Promise.resolve({
+          info,
+          sha256,
+          source: {
+            name: options.name,
+            mime: options.mediaType,
+            bytes: bytes.length,
+            open: async function* () {
+              yield await chunk
+            },
+          },
+        })
   const rig = await productionHost({ ledgerDir: options.ledgerDir, readMedia })
   return { ...rig, sha256 }
 }
@@ -207,7 +212,7 @@ function tariffReserve(bound: number, isBelowCap: boolean) {
   >[] = []
   const prices = MODEL_API_PRICES_PER_MILLION.contributor
   const reserve = vi.fn<NonNullable<ScheduleRunDeps['paid']>['reserve']>(
-    (body, inputTokens, _signal, admitted) => {
+    (body, _inputTokens, _signal, admitted) => {
       if (!('input' in body)) throw new Error('Expected Responses request')
       // Mirrors budgetParts: managed parts (file ids and priced inline
       // visuals) leave the text estimate; their bound is added instead.
@@ -276,13 +281,17 @@ function productionReplay() {
   return { replay, files, ledgerDir }
 }
 
+function isScheduledSession(session: AgentSession): session is ScheduledAgentSession {
+  return 'sendScheduledTurn' in session
+}
+
 async function startContributorSession(rig: ProductionRig) {
   const session = await rig.host.startSession({
     workspaceRoot: '/ws',
     modelId: MODEL,
     approvalMode: 'allowAll',
   })
-  if (!('sendScheduledTurn' in session)) throw new Error('Expected a Model API session')
+  if (!isScheduledSession(session)) throw new Error('Expected a Model API session')
   return { session, ...watchSessionTurns(session) }
 }
 
@@ -392,9 +401,11 @@ describe('production media through the real factory (MONEY017D)', () => {
       name: 'clip.mp4',
       mediaType: 'video/mp4',
     })
+    const { readMedia } = rig.io
+    if (readMedia === undefined) throw new Error('expected the media read rail')
     const wrapped = await productionHost({
       ledgerDir: rig.ledgerDir,
-      readMedia: rig.io.readMedia,
+      readMedia,
       createProviderClient: (meta) => Promise.resolve(withRuntimeAccounting(meta, daily)),
     })
     try {
@@ -513,7 +524,7 @@ describe('production media through the real factory (MONEY017D)', () => {
         modelId: MODEL,
         approvalMode: 'allowAll',
       })
-      if (!('sendScheduledTurn' in session)) throw new Error('Expected a Model API session')
+      if (!isScheduledSession(session)) throw new Error('Expected a Model API session')
       const h = { session, ...watchSessionTurns(session) }
       const { reserve } = tariffReserve(IMAGE_BOUND, false)
       const run = scheduledRun(
@@ -594,7 +605,7 @@ describe('production media through the real factory (MONEY017D)', () => {
         modelId: MODEL,
         approvalMode: 'allowAll',
       })
-      if (!('sendScheduledTurn' in session)) throw new Error('Expected a Model API session')
+      if (!isScheduledSession(session)) throw new Error('Expected a Model API session')
       const h = { session, ...watchSessionTurns(session) }
       const { reserve } = tariffReserve(0, false)
       const run = scheduledRun(
@@ -696,8 +707,18 @@ describe('production media through the real factory (MONEY017D)', () => {
       const body = {
         model: MODEL,
         input: [{ type: 'message' as const, role: 'user' as const, content: [adopted] }],
+        // The reserve reads only the model and the input; the rest is the
+        // request contract, with the streaming the product reserves.
+        instructions: '',
+        tools: [],
+        tool_choice: 'auto' as const,
+        reasoning: { effort: 'none' },
+        stream: true as const,
+        store: false as const,
+        include: [],
         max_output_tokens: 64,
-        stream: false as const,
+        prompt_cache_key: 'media-test',
+        prompt_cache_retention: 'in_memory' as const,
       }
       if (isBelowCap) {
         await expect(
@@ -807,8 +828,18 @@ describe('production media through the real factory (MONEY017D)', () => {
         {
           model: MODEL,
           input: [{ type: 'message' as const, role: 'user' as const, content: [adopted] }],
+          // The reserve reads only the model and the input; the rest is the
+          // request contract, with the streaming the product reserves.
+          instructions: '',
+          tools: [],
+          tool_choice: 'auto' as const,
+          reasoning: { effort: 'none' },
+          stream: true as const,
+          store: false as const,
+          include: [],
           max_output_tokens: 64,
-          stream: false as const,
+          prompt_cache_key: 'media-test',
+          prompt_cache_retention: 'in_memory' as const,
         },
         {
           provider: 'meta',
@@ -830,9 +861,10 @@ describe('production media through the real factory (MONEY017D)', () => {
     // bundle entry, and scheduled media must flow.
     const api = fakeModelApi()
     const files = fakeFilesApi(api.fetch)
-    // The manager builds its own client from the fake API: route its fetch
-    // through the Files server so uploads land here too.
-    api.fetch = files.fetch
+    // The manager builds its own client from the fake API: hand it the fetch
+    // routed through the Files server so uploads land here too. The script
+    // and recorded bodies stay on the shared fake.
+    const routed = { ...api, fetch: files.fetch }
     const log = new FakeLogOutputChannel()
     const io = memoryToolIo({}, '/ws')
     const { bytes, chunk, sha256 } = fixtureBytes(32_768)
@@ -862,7 +894,7 @@ describe('production media through the real factory (MONEY017D)', () => {
     const ledgerDir = scratchDir()
     const seen: (string | undefined)[] = []
     const manager = new ModelApiBackendManager(
-      fakeManagerDeps(api, log, {
+      fakeManagerDeps(routed, log, {
         workspaceRoot: '/ws',
         bundlePath: 'manager-media-bundle',
         loadBundle: () => ({
@@ -885,7 +917,7 @@ describe('production media through the real factory (MONEY017D)', () => {
         modelId: MODEL,
         approvalMode: 'allowAll',
       })
-      if (!('sendScheduledTurn' in session)) throw new Error('Expected a Model API session')
+      if (!isScheduledSession(session)) throw new Error('Expected a Model API session')
       const h = { session, ...watchSessionTurns(session) }
       const rig = { host, api, files, io, ledgerDir, close: () => host.close() }
       const { reserve } = tariffReserve(VIDEO_10S_BOUND, false)
@@ -945,7 +977,7 @@ describe('production media through the real factory (MONEY017D)', () => {
         modelId: 'muse-spark-1.3',
         approvalMode: 'allowAll',
       })
-      if (!('sendScheduledTurn' in session)) throw new Error('Expected a Model API session')
+      if (!isScheduledSession(session)) throw new Error('Expected a Model API session')
       const h = { session, ...watchSessionTurns(session) }
       const reserve = vi.fn<NonNullable<ScheduleRunDeps['paid']>['reserve']>(
         (_body, _tokens, _signal, admitted) => {
@@ -1028,10 +1060,12 @@ describe('production media through the real factory (MONEY017D)', () => {
       await rig.close()
       // A host whose key changed reads the same directory: the ledger's
       // account binding refuses before any further upload HTTP runs.
+      const { readMedia } = rig.io
+      if (readMedia === undefined) throw new Error('expected the media read rail')
       const again = await productionHost({
         ledgerDir,
         getAccountId: () => Promise.resolve('0'.repeat(64)),
-        readMedia: rig.io.readMedia,
+        readMedia,
       })
       try {
         const h2 = await startContributorSession(again)

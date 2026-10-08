@@ -67,10 +67,16 @@ describe('production media calibration (M105 captures)', () => {
     'reproduces its own bill exactly (%s %s %ss)',
     (modelId, variant: { kind: string; fps: number | null }, seconds: number, bill: number) => {
       const { cost } = estimator()
-      const estimate = cost.estimate('meta', modelId, {
-        info: { ...video10s.info, durationSeconds: seconds },
-        ...(variant.kind === 'video' && variant.fps !== null && { fps: variant.fps }),
-      })
+      // Uncapped: these seeded points reproduce their own bills either way.
+      const estimate = cost.estimate(
+        'meta',
+        modelId,
+        {
+          info: { ...video10s.info, durationSeconds: seconds },
+          ...(variant.kind === 'video' && variant.fps !== null && { fps: variant.fps }),
+        },
+        false,
+      )
       expect(estimate?.estimatedInputTokens).toBe(bill)
       expect(estimate!.upperBoundInputTokens).toBeGreaterThanOrEqual(bill)
     },
@@ -81,10 +87,15 @@ describe('production media calibration (M105 captures)', () => {
     (detail) => {
       const { cost } = estimator()
       for (const modelId of ['muse-spark-1.3-contributor', 'muse-spark-1.2-contributor']) {
-        const estimate = cost.estimate('meta', modelId, {
-          info: { kind: 'image', mediaType: 'image/png', sizeBytes: 52_940 },
-          detail,
-        })
+        const estimate = cost.estimate(
+          'meta',
+          modelId,
+          {
+            info: { kind: 'image', mediaType: 'image/png', sizeBytes: 52_940 },
+            detail,
+          },
+          false,
+        )
         expect(estimate?.estimatedInputTokens).toBe(4086)
       }
     },
@@ -92,9 +103,14 @@ describe('production media calibration (M105 captures)', () => {
 
   it('keeps the 1.2 120-second default reserve above its bill (largest rate)', () => {
     const { cost } = estimator()
-    const estimate = cost.estimate('meta', 'muse-spark-1.2-contributor', {
-      info: { ...video10s.info, durationSeconds: 120 },
-    })
+    const estimate = cost.estimate(
+      'meta',
+      'muse-spark-1.2-contributor',
+      {
+        info: { ...video10s.info, durationSeconds: 120 },
+      },
+      false,
+    )
     // Largest 1.2 default rate (275.1/s at 10 s) times the safety factor.
     expect(estimate?.estimatedInputTokens).toBe(19_771)
     expect(estimate!.upperBoundInputTokens).toBeGreaterThanOrEqual(19_771)
@@ -103,10 +119,15 @@ describe('production media calibration (M105 captures)', () => {
   it('keeps mixed round-2 bills under the summed per-item bounds', () => {
     const { cost } = estimator()
     const image = (detail: 'auto' | 'low' | 'high' | 'original') =>
-      cost.estimate('meta', 'muse-spark-1.3-contributor', {
-        info: { kind: 'image', mediaType: 'image/png', sizeBytes: 100 },
-        detail,
-      })!.upperBoundInputTokens
+      cost.estimate(
+        'meta',
+        'muse-spark-1.3-contributor',
+        {
+          info: { kind: 'image', mediaType: 'image/png', sizeBytes: 100 },
+          detail,
+        },
+        false,
+      )!.upperBoundInputTokens
     // R02's 51 images billed 4,636; R08's 50 items billed 4,625 each.
     expect(image('auto')).toBe(4086 * MEDIA_ESTIMATE_SAFETY_FACTOR)
     expect(51 * image('low')).toBeGreaterThanOrEqual(4636)

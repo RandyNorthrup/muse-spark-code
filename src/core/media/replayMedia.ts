@@ -6,13 +6,13 @@ import { MEDIA_FILE_ID_MIN_BYTES, UI_TEXT } from '../../shared/constants'
 import { fill, formatBytes, formatUnit } from '../../shared/l10n/text'
 import {
   storedMediaPartSchema,
+  type MediaInfo,
   type StoredMediaPart,
   type UploadedMediaRef,
 } from '../../shared/media'
 import { type MediaCostEstimator, type MediaCostItem, reserveMediaRequest } from './mediaCost'
 import { requestParts, type BudgetMediaPart } from '../backends/modelapi/sessionBudget'
 import type { CreateResponseBody } from '../backends/modelapi/schemas'
-import type { MediaFileInfo } from './limits'
 import type { TurnPart } from '../agent/agentBackend'
 import type { UploadSource } from '../backends/modelapi/files'
 import type { InputContentPart, InputItem } from '../backends/modelapi/schemas'
@@ -265,10 +265,12 @@ export class ReplayMedia {
    * ledger dedups by digest. The returned reference is what adopt() later
    * replays as a file-id without re-uploading.
    */
+  // The ledger takes any captured media kind: the runtime schema admits
+  // images and documents too, and the modality gate decides per model.
   public async upload(
     file: {
       readonly name: string
-      readonly info: MediaFileInfo
+      readonly info: MediaInfo
       readonly sha256: string
       readonly source: UploadSource
     },

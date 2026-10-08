@@ -29,11 +29,17 @@ const MP3_FIXTURE = 'test/fixtures/voice/tone-2s.mp3'
 const execFileAsync = promisify(execFile)
 
 function documentedInstalls(): readonly string[] {
-  return process.platform === 'darwin'
-    ? MEDIA_CONVERTER_INSTALL_PATHS.darwin
-    : process.platform === 'win32'
-      ? MEDIA_CONVERTER_INSTALL_PATHS.win32
-      : MEDIA_CONVERTER_INSTALL_PATHS.linux
+  switch (process.platform) {
+    case 'darwin': {
+      return MEDIA_CONVERTER_INSTALL_PATHS.darwin
+    }
+    case 'win32': {
+      return MEDIA_CONVERTER_INSTALL_PATHS.win32
+    }
+    default: {
+      return MEDIA_CONVERTER_INSTALL_PATHS.linux
+    }
+  }
 }
 
 /** The product's own discovery rule: documented installs that are real files. */
@@ -286,7 +292,9 @@ describe('U18 WAV conversion before the batch send', () => {
   it('refuses container bytes at the last mile before any HTTP', async () => {
     const lying: AudioSource = {
       ...mp3Source,
-      info: { ...mp3Source.info, mediaType: 'audio/wav' },
+      // Built explicitly: spreading the audio/video union then overriding
+      // the MIME would leave an impossible video member behind.
+      info: { kind: 'audio', mediaType: 'audio/wav', sizeBytes: 1000, durationSeconds: 2 },
     }
     const r = rig()
     r.paths.set(lying.pathToken, path.resolve(MP3_FIXTURE))
