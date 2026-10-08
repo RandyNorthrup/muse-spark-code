@@ -8,7 +8,6 @@ import {
   rm,
   writeFile,
   lstat,
-  realpath,
   rename,
   symlink,
 } from 'node:fs/promises'
@@ -33,16 +32,22 @@ import {
   type DeviceWorkerAttempt,
 } from '../../src/host/devices/deviceWorkerHost'
 import type { RunProgram } from '../../src/host/processTree'
-import { deviceCheck, deviceGrant } from './helpers/deviceFixtures'
+import {
+  deviceCheck,
+  deviceGrant,
+  endDeviceStorage,
+  privateDeviceRoot,
+} from './helpers/deviceFixtures'
 import { darwinEscapeTree, survivors } from './helpers/deviceDarwinEscape'
 import { AttemptJournal } from '../../src/core/devices/attemptJournal'
 import { executionProtection, signedDispatch } from './helpers/deviceExecutionFixtures'
 import { UI_TEXT } from '../../src/shared/l10n/text'
+import { deviceJournalRecordSchema } from '../../src/shared/devices'
 import { deviceFailureText } from '../../src/webview/models/sections/agents/devicePresentation'
 import type { DeviceWorkerCommand } from '../../src/host/devices/deviceWorkerHost'
 import type * as FsPromises from 'node:fs/promises'
 import type * as ChildProcessModule from 'node:child_process'
-import { openWorkerReceiver } from './helpers/deviceWorkerReceiver'
+import { launchedJob, openWorkerReceiver } from './helpers/deviceWorkerReceiver'
 import {
   darwinSpawnFixture,
   darwinSpawnSites,
@@ -51,6 +56,7 @@ import {
 
 vi.mock('node:fs/promises', { spy: true })
 vi.mock('node:child_process', { spy: true })
+afterAll(endDeviceStorage)
 
 const run: RunProgram = (file, args, env) =>
   new Promise((resolve, reject) => {
@@ -167,10 +173,17 @@ function launch(
         value === undefined ? [] : [[name, value]],
       ),
     )
-  return driver.launch(
-    { executable: process.execPath, args: ['-e', script], cwd: state.directory, requiredTools: [] },
-    env,
-    attemptWith(),
+  return launchedJob(
+    driver.launch(
+      {
+        executable: process.execPath,
+        args: ['-e', script],
+        cwd: state.directory,
+        requiredTools: [],
+      },
+      env,
+      attemptWith(),
+    ),
   )
 }
 async function ready(marker: string) {
@@ -249,10 +262,12 @@ async function spawnBoundaryFixture(...args: Parameters<typeof darwinSpawnFixtur
     spawn: fixture.spawn,
   })
   const start = () =>
-    driver.launch(
-      { executable: '/usr/bin/true', args: [], cwd: fixture.directory, requiredTools: [] },
-      {},
-      attemptWith(),
+    launchedJob(
+      driver.launch(
+        { executable: '/usr/bin/true', args: [], cwd: fixture.directory, requiredTools: [] },
+        {},
+        attemptWith(),
+      ),
     )
   return { ...fixture, driver, start }
 }
@@ -539,6 +554,81 @@ describe('M100/H attempt lifecycle', () => {
       await recoverFixture(fixture)
     } finally {
       await restoreFixture(fixture)
+    }
+  })
+  it('keeps a pending pre-ready launch uncertain through the real host and receiver until a sweep reclaims it', async () => {
+    const failure = darwinSpawnFailures[0]
+    if (failure === undefined) throw new Error('failure fixture missing')
+    // The journal's protected root and binding start before the spawn boundary is fenced.
+    const parent = await privateDeviceRoot('m100-darwin-receiver-')
+    const journal = await AttemptJournal.create(
+      path.join(parent, 'durable'),
+      { assertOwner: () => Promise.resolve() },
+      executionProtection,
+    )
+    const fixture = await spawnBoundaryFixture('ready-print', failure)
+    try {
+      fixture.disableFailure()
+      expect(await fixture.driver.selfTest()).toBe(true)
+      const release = vi.fn(() => Promise.resolve())
+      const host = new DeviceWorkerHost({
+        driver: fixture.driver,
+        environment: {},
+        retain: () => Promise.resolve(),
+        reserve: () => Promise.resolve({ usage, pause: () => Promise.resolve(), release }),
+        command: () =>
+          Promise.resolve({
+            executable: '/usr/bin/true',
+            args: [],
+            cwd: fixture.directory,
+            requiredTools: [],
+          }),
+        recordEnvironment: () => Promise.resolve(),
+        pressure: () => undefined,
+        resolveTool: (name) => Promise.resolve(name),
+      })
+      const grant = deviceGrant('a'.repeat(32))
+      const sent = signedDispatch(deviceCheck(grant))
+      const receiver = await openWorkerReceiver(journal, host, grant)
+      // Readiness observation fails and bootout cannot prove the helper gone.
+      fixture.ready()
+      fixture.holdBootout(true)
+      const reply = await receiver.dispatch(sent)
+      expect(reply.body).toEqual({ kind: 'failure', reason: 'uncertain' })
+      await expect
+        .poll(async () => deviceJournalRecordSchema.parse(await journal.lookup(sent.identity)))
+        .toMatchObject({ outcome: { state: 'uncertain', occupied: sent.caps, usage } })
+      const [held] = await receiver.reconcile([sent.identity])
+      expect(held?.body).toMatchObject({
+        kind: 'reconciled',
+        outcomes: [{ state: 'uncertain', occupied: sent.caps }],
+      })
+      expect(await attemptNames(fixture.directory)).toHaveLength(1)
+      // A sweep that still cannot bootout proves nothing and releases nothing.
+      await expect(fixture.driver.query()).rejects.toMatchObject({ reason: 'uncertain' })
+      expect(release).not.toHaveBeenCalled()
+      expect(receiver.blockedReason).toBe('uncertain')
+      // The driver's existing sweep reclaims it; only that proof settles and releases the slot.
+      fixture.holdBootout(false)
+      expect(await fixture.driver.query()).toMatchObject({ activeProcesses: 0 })
+      await vi.waitFor(() => {
+        expect(release).toHaveBeenCalledOnce()
+      })
+      expect(deviceJournalRecordSchema.parse(await journal.lookup(sent.identity))).toMatchObject({
+        outcome: {
+          state: 'refused',
+          occupied: { workers: 0, processes: 0, heavyChecks: 0 },
+          usage,
+        },
+      })
+      expect(await attemptNames(fixture.directory)).toEqual([])
+      expect(receiver.blockedReason).toBeUndefined()
+    } finally {
+      try {
+        await restoreFixture(fixture)
+      } finally {
+        await rm(parent, { recursive: true, force: true })
+      }
     }
   })
   it('maps an absent running service print 113 and bootout 3 to absence', async () => {
@@ -995,13 +1085,16 @@ describe('M100/H Darwin unsupported manager port', () => {
         spawn: fromRun(invoke),
       })
       try {
-        await expect(
-          driver.launch(
+        expect(
+          await driver.launch(
             { executable: process.execPath, args: [], cwd: directory, requiredTools: [] },
             {},
             attemptWith(processes),
           ),
-        ).rejects.toMatchObject({ reason: 'unsupported-host', detail: 'preflight' })
+        ).toMatchObject({
+          kind: 'refused',
+          error: { reason: 'unsupported-host', detail: 'preflight' },
+        })
         expect(invoke).not.toHaveBeenCalled()
         expect(await readdir(directory)).toEqual([])
       } finally {
@@ -1053,12 +1146,15 @@ describe('M100/H Darwin unsupported manager port', () => {
         spawn: fromRun(invoke),
       })
       const start = () =>
-        driver.launch(
-          { executable: process.execPath, args: [], cwd: directory, requiredTools: [] },
-          {},
-          attemptWith(),
+        launchedJob(
+          driver.launch(
+            { executable: process.execPath, args: [], cwd: directory, requiredTools: [] },
+            {},
+            attemptWith(),
+          ),
         )
-      await expect(start()).rejects.toMatchObject({ reason: 'capacity' })
+      // The ceiling refuses before any bootstrap; the allocated record is reclaimed at once.
+      await expect(start()).rejects.toMatchObject({ launch: 'refused', reason: 'capacity' })
       expect(invoke.mock.calls.every(([, args]) => args[0] !== 'bootstrap')).toBe(true)
       const names = await readdir(root)
       for (const name of names)
@@ -1079,13 +1175,13 @@ describe('M100/H Darwin unsupported manager port', () => {
       spawn: fromRun(invoke),
     })
     expect(await driver.selfTest()).toBe(false)
-    await expect(
-      driver.launch(
+    expect(
+      await driver.launch(
         { executable: process.execPath, args: [], cwd: tmpdir(), requiredTools: [] },
         {},
         attemptWith(),
       ),
-    ).rejects.toMatchObject({ reason: 'unsupported-host', detail: 'helper' })
+    ).toMatchObject({ kind: 'refused', error: { reason: 'unsupported-host', detail: 'helper' } })
     expect(invoke).toHaveBeenCalledExactlyOnceWith(
       '/bin/launchctl',
       ['print', 'gui/502'],
@@ -1256,8 +1352,10 @@ int main(int argc, char **argv) {
   it('journals a supervised macOS capacity kill through the real receiver and host', async () => {
     const grant = deviceGrant('a'.repeat(32))
     const sent = signedDispatch(deviceCheck(grant))
+    // The journal's own protected root, as every receiver fixture uses.
+    const parent = await privateDeviceRoot('m100-darwin-capacity-')
     const journal = await AttemptJournal.create(
-      path.join(await realpath(state.directory), 'capacity-journal'),
+      path.join(parent, 'durable'),
       { assertOwner: () => Promise.resolve() },
       executionProtection,
     )
@@ -1268,8 +1366,9 @@ int main(int argc, char **argv) {
       driver: {
         ...native(),
         launch: async (...args) => {
-          job = await native().launch(...args)
-          return job
+          const launched = await native().launch(...args)
+          if (launched.kind === 'launched') job = launched.job
+          return launched
         },
       },
       environment: process.env,
@@ -1324,7 +1423,11 @@ int main(int argc, char **argv) {
       expect(await attempts()).toEqual([])
       expect(release).toHaveBeenCalledOnce()
     } finally {
-      await fixture.clean()
+      try {
+        await fixture.clean()
+      } finally {
+        await rm(parent, { recursive: true, force: true })
+      }
     }
   })
   it('runs three processes at cap 3 to completion and counts the escapee', async () => {
@@ -1442,10 +1545,12 @@ int main(int argc, char **argv) {
   it.each([1, 2, DEVICE_LIMITS.processes])(
     'activates admitted per-job cap %s with the exact limit in the native request',
     async (processes) => {
-      const job = await native().launch(
-        { executable: '/usr/bin/true', args: [], cwd: state.directory, requiredTools: [] },
-        {},
-        attemptWith(processes),
+      const job = await launchedJob(
+        native().launch(
+          { executable: '/usr/bin/true', args: [], cwd: state.directory, requiredTools: [] },
+          {},
+          attemptWith(processes),
+        ),
       )
       await complete(job, async () => {
         const context = parseDeviceWorkerQuery(job.query).context
@@ -1745,15 +1850,17 @@ int main(int argc, char **argv) {
     )
     const driver = freshDriver(invoke)
     await expect(
-      driver.launch(
-        {
-          executable: process.execPath,
-          args: ['-e', 'process.exit(0)'],
-          cwd: state.directory,
-          requiredTools: [],
-        },
-        {},
-        attemptWith(),
+      launchedJob(
+        driver.launch(
+          {
+            executable: process.execPath,
+            args: ['-e', 'process.exit(0)'],
+            cwd: state.directory,
+            requiredTools: [],
+          },
+          {},
+          attemptWith(),
+        ),
       ),
     ).rejects.toMatchObject({ reason: 'unsupported-host' })
     expect(invoke).toHaveBeenCalledOnce()
@@ -1784,13 +1891,13 @@ int main(int argc, char **argv) {
     const invoke = vi.fn<RunProgram>(run)
     const driver = freshDriver(invoke)
     expect(await driver.selfTest()).toBe(false)
-    await expect(
-      driver.launch(
+    expect(
+      await driver.launch(
         { executable: process.execPath, args: [], cwd: state.directory, requiredTools: [] },
         {},
         attemptWith(),
       ),
-    ).rejects.toMatchObject({ reason: 'unsupported-host' })
+    ).toMatchObject({ kind: 'refused', error: { reason: 'unsupported-host' } })
     expect(invoke.mock.calls.some(([, args]) => args[0] === 'bootstrap')).toBe(false)
     expect(await attempts()).toEqual([])
   })

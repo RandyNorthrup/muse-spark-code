@@ -16,6 +16,7 @@ import {
   type DeviceWorkerHostDeps,
 } from '../../src/host/devices/deviceWorkerHost'
 import { deviceCheck, deviceGrant } from './helpers/deviceFixtures'
+import { launchedJob } from './helpers/deviceWorkerReceiver'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { createInterface } from 'node:readline'
@@ -46,15 +47,17 @@ function driver() {
   })
 }
 function launchScript(native: DeviceWorkerDriver, script: string, attempt = admitted(2)) {
-  return native.launch(
-    {
-      executable: process.execPath,
-      args: ['-e', script],
-      cwd: scratch.directory,
-      requiredTools: [],
-    },
-    { SystemRoot: process.env['SystemRoot'] ?? '' },
-    attempt,
+  return launchedJob(
+    native.launch(
+      {
+        executable: process.execPath,
+        args: ['-e', script],
+        cwd: scratch.directory,
+        requiredTools: [],
+      },
+      { SystemRoot: process.env['SystemRoot'] ?? '' },
+      attempt,
+    ),
   )
 }
 async function isPresent(file: string): Promise<boolean> {
@@ -293,13 +296,14 @@ describe.skipIf(process.platform !== 'win32')('M100/H real Windows scheduled wor
     await writeFile(path.join(folder, executable), 'corrupted helper')
     const native = driver()
     expect(await native.selfTest()).toBe(false)
-    await expect(
-      native.launch(
+    // A refused helper is known before any helper call; its directory is removed.
+    expect(
+      await native.launch(
         { executable: process.execPath, args: [], cwd: scratch.directory, requiredTools: [] },
         {},
         admitted(2),
       ),
-    ).rejects.toMatchObject({ reason: 'unsupported-host' })
+    ).toMatchObject({ kind: 'refused', error: { reason: 'unsupported-host' } })
   })
 })
 
@@ -335,10 +339,12 @@ function linuxLaunch(
   script: string,
   processes: number = DEVICE_LIMITS.processes,
 ) {
-  return native.launch(
-    { executable: '/bin/sh', args: ['-c', script], cwd: linux.directory, requiredTools: [] },
-    linuxEnvironment(),
-    admitted(processes),
+  return launchedJob(
+    native.launch(
+      { executable: '/bin/sh', args: ['-c', script], cwd: linux.directory, requiredTools: [] },
+      linuxEnvironment(),
+      admitted(processes),
+    ),
   )
 }
 async function disposeLinux(job: Awaited<ReturnType<typeof linuxLaunch>>): Promise<void> {
@@ -366,7 +372,9 @@ describe.skipIf(process.platform !== 'linux' || process.env['XDG_RUNTIME_DIR'] =
 const {workerEnvironment}=require('./environment.cjs');
 (async()=>{
  const driver=deviceWorkerLinux({environment:process.env});
- const job=await driver.launch({executable:'/bin/sh',args:['-c',process.argv[2]],cwd:process.cwd(),requiredTools:[]},workerEnvironment(process.env,'linux'),${JSON.stringify(admitted(DEVICE_LIMITS.processes))});
+ const launched=await driver.launch({executable:'/bin/sh',args:['-c',process.argv[2]],cwd:process.cwd(),requiredTools:[]},workerEnvironment(process.env,'linux'),${JSON.stringify(admitted(DEVICE_LIMITS.processes))});
+ if(launched.kind!=='launched')throw launched.error;
+ const job=launched.job;
  await job.activate();process.stdout.write(JSON.stringify(job.query)+'\n');
  setInterval(()=>{},100);
 })().catch(()=>{process.stderr.write('parent launch failed');process.exit(1)});`
@@ -623,6 +631,7 @@ const {workerEnvironment}=require('./environment.cjs');
       const native = deviceWorkerLinux({ environment: {} })
       expect(await native.selfTest()).toBe(false)
       await expect(linuxLaunch(native, 'printf forbidden')).rejects.toMatchObject({
+        launch: 'refused',
         reason: 'unsupported-host',
       })
     })
@@ -678,15 +687,20 @@ const {workerEnvironment}=require('./environment.cjs');
     )
     it('bounds real stdout and stops the entire flooding unit', async () => {
       const native = linuxDriver()
-      const job = await native.launch(
-        {
-          executable: process.execPath,
-          args: ['-e', `process.stdout.write('x'.repeat(${String(DEVICE_LIMITS.frameBytes + 1)}))`],
-          cwd: linux.directory,
-          requiredTools: [],
-        },
-        linuxEnvironment(),
-        admitted(DEVICE_LIMITS.processes),
+      const job = await launchedJob(
+        native.launch(
+          {
+            executable: process.execPath,
+            args: [
+              '-e',
+              `process.stdout.write('x'.repeat(${String(DEVICE_LIMITS.frameBytes + 1)}))`,
+            ],
+            cwd: linux.directory,
+            requiredTools: [],
+          },
+          linuxEnvironment(),
+          admitted(DEVICE_LIMITS.processes),
+        ),
       )
       try {
         await job.activate()
@@ -699,15 +713,17 @@ const {workerEnvironment}=require('./environment.cjs');
       const native = linuxDriver()
       const marker = path.join(linux.directory, 'threaded-ready')
       const script = `require('node:fs').writeFileSync(${JSON.stringify(marker)},'ready');setInterval(()=>{},100)`
-      const job = await native.launch(
-        {
-          executable: process.execPath,
-          args: ['-e', script],
-          cwd: linux.directory,
-          requiredTools: [],
-        },
-        linuxEnvironment(),
-        admitted(DEVICE_LIMITS.processes),
+      const job = await launchedJob(
+        native.launch(
+          {
+            executable: process.execPath,
+            args: ['-e', script],
+            cwd: linux.directory,
+            requiredTools: [],
+          },
+          linuxEnvironment(),
+          admitted(DEVICE_LIMITS.processes),
+        ),
       )
       try {
         await job.activate()
