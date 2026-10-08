@@ -296,3 +296,13 @@ runtime integration failure, not a qualified regression-free runtime delivery.
 The explicit time box ended with these unresolved bindings and bootstrap paths;
 no further scope was implemented. Changed-file format verification is recorded
 with the hook and fresh-clone check below.
+
+Final delivery receipts: all five fresh-clone typechecks exited 0 after the
+last fixture refinements. Fresh-clone changed-file Prettier initially exited 1
+for this certification document; the normal hook formatted it, and the restored
+fresh-clone check exited 0 for all 33 changed files. ESLint and jscpd exited 0
+on all 29 changed TypeScript files. Normal pre-commit lint/format and gitleaks
+exited 0; no source/test byte changed in the hook (compared with the tested
+fresh-clone snapshot). Staged and committed differences were re-read.
+Implementation commit: `006738760842e15ce90457ea4416ac0280f5dfa2`.
+The private verification clone and scratch receipts are removed at delivery.
