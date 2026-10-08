@@ -130,7 +130,7 @@ export function createWindowJudge(
     const engine = deps.engine()
     const isBound = JSON.stringify(current) === panel.identity
     const price = status.billing === 'modelApi' ? judgePriceOf(status.modelId) : undefined
-    const selected = phase2?.binding(panel.action)
+    const selected = selectedBinding(panel.action)
     const canUseMode =
       status.mode !== 'off' &&
       (engine === 'auto' || engine === status.mode) &&
@@ -174,6 +174,13 @@ export function createWindowJudge(
     }
   }
   let sourceKey: string | undefined
+  // A binding whose context turn is not the action's turn is refused,
+  // never substituted: a stale turn's snapshot must not become this
+  // action's verdict.
+  const selectedBinding = (action: JudgeEntryParts) => {
+    const selected = phase2?.binding(action)
+    return selected !== undefined && selected.context.turn !== action.turnId ? undefined : selected
+  }
   let hasNotice = false
   const onError = () => {
     deps.log.warn('Judge batch failed; approval unchanged')
@@ -222,15 +229,17 @@ export function createWindowJudge(
               initial.contextLimit !== undefined &&
               deps.modelApi(action) !== undefined
         const context = () => ({
-          ...phase2?.binding(action)?.context,
+          ...selectedBinding(action)?.context,
           engine: deps.engine(),
           modelId: initial.modelId,
           providerId:
-            phase2?.binding(action)?.context.providerId ?? initial.providerId ?? initial.backend,
-          endpoint: phase2?.binding(action)?.context.endpoint ?? initial.endpoint,
-          profileId: phase2?.binding(action)?.context.profileId ?? initial.profileId,
-          ownerId: phase2?.binding(action)?.context.ownerId ?? initial.ownerId,
-          turn: phase2?.binding(action)?.context.turn ?? action.turnId,
+            selectedBinding(action)?.context.providerId ?? initial.providerId ?? initial.backend,
+          endpoint: selectedBinding(action)?.context.endpoint ?? initial.endpoint,
+          profileId: selectedBinding(action)?.context.profileId ?? initial.profileId,
+          ownerId: selectedBinding(action)?.context.ownerId ?? initial.ownerId,
+          // The action's own turn, never the binding's: a mismatched
+          // binding is refused above instead of becoming this snapshot.
+          turn: action.turnId,
           confidential: initial.confidential,
           readyRate: deps.readyRate?.(initial.backend),
           paidConsent:
@@ -239,9 +248,9 @@ export function createWindowJudge(
               : consent,
           sourceAvailable:
             isCurrent() &&
-            (phase2?.binding(action) === undefined
+            (selectedBinding(action) === undefined
               ? isPhase1SourceAvailable()
-              : phase2.binding(action)?.context.sourceAvailable === true),
+              : selectedBinding(action)?.context.sourceAvailable === true),
         })
         const binding = (signal: AbortSignal): JudgeAdmissionBinding => {
           const current = deps.context(action)
@@ -268,7 +277,7 @@ export function createWindowJudge(
         const use = createJudgeUse({
           backend: initial.backend,
           billing: () =>
-            phase2?.binding(action)?.billing ??
+            selectedBinding(action)?.billing ??
             (initial.backend === 'museCode' ? 'subscription' : 'modelApi'),
           context,
           allowsPaidJudge: async (model) => {
@@ -297,11 +306,11 @@ export function createWindowJudge(
             deps.notice(text)
           },
           createRunner: (entries, _action, lifetime) => {
-            if (phase2?.binding(action) !== undefined) {
+            if (selectedBinding(action) !== undefined) {
               const embeddingId = randomUUID()
               const embeddingRows = new JudgeUsageRows({
                 billing:
-                  phase2.binding(action)?.embedding?.source.locality === 'same-provider'
+                  selectedBinding(action)?.embedding?.source.locality === 'same-provider'
                     ? 'modelApi'
                     : 'subscription',
                 usage: deps.paid.usage,
@@ -313,13 +322,13 @@ export function createWindowJudge(
                 judge: (job) => {
                   void phase2
                     .createRuntime({
-                      binding: () => phase2.binding(action),
+                      binding: () => selectedBinding(action),
                       paidGrants,
                       embeddingStatus: (status) => {
                         if (panel?.action !== action) return
                         // A configured transport with no recorded head names
                         // its missing labels in plain words (L98P2-EMBED).
-                        const note = phase2.binding(action)?.embeddingNote
+                        const note = selectedBinding(action)?.embeddingNote
                         const next = {
                           ...panel.status,
                           embeddingReason: status.available ? undefined : (note ?? status.reason),

@@ -12,6 +12,7 @@ import { parseCalibrationProfile } from './calibration/schema'
 import {
   judgeOutcomeSchema,
   judgeRequestSchema,
+  type JudgeCapability,
   type JudgeOutcome,
   type JudgeRequest,
 } from './schema'
@@ -54,6 +55,18 @@ export interface JudgeRuntimeDeps {
     ((status: ReturnType<typeof embeddingAvailability>) => void) | undefined
 }
 
+/**
+ * The technique the current source can actually serve, under the same
+ * mapping the production binding uses to look the side's profile up
+ * (`phase2SideTechnique` in `core/judge/binding.ts`): the lookup and this
+ * validation must agree, or recorded evidence qualifies a path that never
+ * runs.
+ */
+function servableTechnique(capability: JudgeCapability): string {
+  if (capability.systemone) return 'systemone'
+  return capability.stated ? 'stated' : 'logprob'
+}
+
 function isMatchingProfile(
   side: JudgeCascadeSide | undefined,
   options: JudgeCascadeOptions,
@@ -61,6 +74,9 @@ function isMatchingProfile(
   if (side === undefined) return false
   const profile = parseCalibrationProfile(side.profile, side.limits)
   if (profile?.evidence !== 'independent' || profile.evaluation === undefined) return false
+  // Logprob evidence does not qualify a stated-confidence path: the
+  // profile's technique must be the one the current source can serve.
+  if (profile.identity.technique !== servableTechnique(side.capability)) return false
   const expected = { ...options, ...side.capability, fitVersion: side.fitVersion }
   return Object.entries(profile.identity).every(
     ([key, value]) => Reflect.get(expected, key) === value || key === 'technique',
@@ -100,6 +116,24 @@ export function judgeRuntimeContext(binding: JudgeRuntimeBinding): JudgeModeCont
             },
     },
   }
+}
+
+/**
+ * One pending paid-consent decision per price identity, shared by every
+ * runtime that settles grants into the same set: concurrent first uses ask
+ * once, and the grant lands before any of them dispatches. Entries live
+ * and die with their grants set, so a declined answer is asked again while
+ * a granted one is never re-asked.
+ */
+const pendingPaidConsent = new WeakMap<Set<string>, Map<string, Promise<boolean>>>()
+
+function pendingDecisions(grants: Set<string>): Map<string, Promise<boolean>> {
+  let pending = pendingPaidConsent.get(grants)
+  if (pending === undefined) {
+    pending = new Map<string, Promise<boolean>>()
+    pendingPaidConsent.set(grants, pending)
+  }
+  return pending
 }
 
 /** Each side's run retains its own C/E/J admission; no shared claim or hidden retry. */
@@ -210,18 +244,34 @@ export function createJudgeRuntime(deps: JudgeRuntimeDeps): JudgeRuntime {
           epoch: embedding.consentEpoch(),
         })
         if (source.locality === 'same-provider' && !grants.has(priceIdentity)) {
-          if (
-            !embedding.isEnabled() ||
-            !(await embedding.allowsPaidUse({
+          if (!embedding.isEnabled()) return { outcome: 'no-answer', reason: 'consent-declined' }
+          const pending = pendingDecisions(grants)
+          let decision = pending.get(priceIdentity)
+          if (decision === undefined) {
+            decision = embedding.allowsPaidUse({
               feature: 'judge',
               modelId: source.model,
               dailyBudgetUsd: embedding.dailyBudgetUsd(),
               embedding: { worstCaseUsd: source.uncachedCostUsd },
-            })) ||
-            !isCurrent()
-          )
+            })
+            pending.set(priceIdentity, decision)
+          }
+          let isAllowed: boolean
+          try {
+            isAllowed = await decision
+          } catch (error: unknown) {
+            pending.delete(priceIdentity)
+            throw error
+          }
+          if (!isAllowed || !isCurrent()) {
+            pending.delete(priceIdentity)
             return { outcome: 'no-answer', reason: 'consent-declined' }
+          }
+          // The grant lands before any waiter dispatches: the two writes
+          // below run with no wait between them, so a later use either
+          // sees the grant or joins a fresh decision, never a bare dispatch.
           grants.add(priceIdentity)
+          pending.delete(priceIdentity)
         }
         const guardedSource: EmbeddingSource = {
           ...source,

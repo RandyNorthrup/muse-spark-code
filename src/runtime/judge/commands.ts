@@ -26,6 +26,12 @@ export interface JudgeCliSource {
   readonly runtime: JudgeRuntime
   readonly billing: 'free' | 'paid'
   readonly worstCaseUsd: (request: JudgeRequest) => number | undefined
+  /**
+   * The binding's declared embedding model, when an embedding transport is
+   * configured. An embedding answer honestly names that model instead of
+   * the conversation model; anything else stays a foreign-model refusal.
+   */
+  readonly embeddingModel?: string | undefined
 }
 
 export interface JudgeCliIo {
@@ -167,15 +173,29 @@ function judgeCaller(options: JudgeCliOptions, deps: JudgeCliDeps) {
     signal.throwIfAborted()
     const parsed = judgeOutcomeSchema.safeParse(rawOutcome)
     if (!parsed.success) return noAnswer('engine-failure')
+    const isConversationModel =
+      parsed.data.outcome !== 'no-answer' &&
+      parsed.data.result.model === source.model &&
+      Object.values(parsed.data.result.muse).every(
+        (meta) => meta.source === source.source && meta.model === source.model,
+      )
+    // An embedding answer names the source's declared embedding model on
+    // the envelope and on every verdict, never the conversation model. A
+    // genuinely foreign model matches neither identity and stays refused.
+    const isEmbeddingModel =
+      parsed.data.outcome !== 'no-answer' &&
+      source.embeddingModel !== undefined &&
+      parsed.data.result.model === source.embeddingModel &&
+      Object.values(parsed.data.result.muse).every(
+        (meta) => meta.technique === 'embedding' && meta.model === source.embeddingModel,
+      )
     const isValid =
       isAligned(request, parsed.data) &&
       Buffer.byteLength(JSON.stringify(parsed.data)) <= JUDGE_MAX_BODY_BYTES &&
       (parsed.data.outcome === 'no-answer' ||
         source.source === 'both' ||
-        (parsed.data.result.model === source.model &&
-          Object.values(parsed.data.result.muse).every(
-            (meta) => meta.source === source.source && meta.model === source.model,
-          )))
+        isConversationModel ||
+        isEmbeddingModel)
     return isValid ? parsed.data : noAnswer('engine-failure')
   }
 }
