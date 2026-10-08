@@ -132,6 +132,29 @@ function freshDriver(invoke: RunProgram = run) {
     spawn: fromRun(invoke),
   })
 }
+async function nativePressureDriver(site: 'bootstrap' | '--count', shouldKeepFailing = false) {
+  const actual = await vi.importActual<typeof ChildProcessModule>('node:child_process')
+  let isArmed = true
+  const driver = deviceWorkerDarwin({
+    storageDir: state.directory,
+    environment: process.env,
+    spawn: (file, args, options) => {
+      if (isArmed && args[0] === site) {
+        isArmed = shouldKeepFailing
+        throw Object.assign(new Error('injected native process pressure'), { code: 'ENOMEM' })
+      }
+      if (args[0] === 'bootstrap' && args[2] !== undefined)
+        state.labels.add(path.basename(path.dirname(args[2])).slice('attempt-'.length))
+      return actual.spawn(file, [...args], options)
+    },
+  })
+  return {
+    driver,
+    recover: () => {
+      isArmed = false
+    },
+  }
+}
 function launch(
   script: string,
   driver: DeviceWorkerDriver = native(),
@@ -235,8 +258,15 @@ async function spawnBoundaryFixture(...args: Parameters<typeof darwinSpawnFixtur
 }
 
 const attemptNames = async (directory: string) => {
-  const names = await readdir(path.join(directory, 'device-workers-darwin'))
-  return names.filter((name) => name.startsWith('attempt-'))
+  try {
+    const names = await readdir(path.join(directory, 'device-workers-darwin'))
+    return names.filter((name) => name.startsWith('attempt-'))
+  } catch (error) {
+    // Failures before store creation leave no attempt directory either.
+    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT')
+      return []
+    throw error
+  }
 }
 const reclamationFixture = async (site: 'retirement-print' | 'count') => {
   const failure = darwinSpawnFailures[0]
@@ -261,6 +291,251 @@ async function recoverFixture(fixture: Awaited<ReturnType<typeof reclamationFixt
   expect(await attemptNames(fixture.directory)).toEqual([])
   expect(await fixture.driver.query()).toMatchObject({ activeProcesses: 0 })
 }
+
+const lifecycleSites = [
+  'allocation',
+  'allocation-observe',
+  'request-write',
+  'bootstrap',
+  'ready-print',
+  'ready-write',
+  'retirement-print',
+  'bootout',
+  'remove',
+] as const
+const lifecycleFailures = darwinSpawnFailures.filter((failure) =>
+  ['throw ENOMEM', 'error ENOENT', 'nonzero exit', 'timeout', 'signal exit'].includes(failure.name),
+)
+function lifecycleSpawnSite(site: (typeof lifecycleSites)[number]) {
+  switch (site) {
+    case 'allocation':
+    case 'allocation-observe':
+    case 'request-write':
+    case 'remove': {
+      return 'bootstrap'
+    }
+    default: {
+      return site
+    }
+  }
+}
+
+describe('M100/H attempt lifecycle', () => {
+  it('recovers bootstrap ENOMEM before readiness, then queries the same factory', async () => {
+    const failure = darwinSpawnFailures[0]
+    if (failure === undefined) throw new Error('failure fixture missing')
+    const fixture = await spawnBoundaryFixture('bootstrap', failure)
+    try {
+      await expect(fixture.start()).rejects.toMatchObject({ reason: 'capacity' })
+      const afterFailure = await attemptNames(fixture.directory)
+      fixture.disableFailure()
+      expect(await fixture.driver.selfTest()).toBe(true)
+      expect(await fixture.driver.query()).toMatchObject({ activeProcesses: 0 })
+      expect(afterFailure).toEqual([])
+      expect(await attemptNames(fixture.directory)).toEqual([])
+      await complete(await fixture.start())
+      expect(await attemptNames(fixture.directory)).toEqual([])
+    } finally {
+      await restoreFixture(fixture)
+    }
+  })
+  it('query visits no pre-ready pending attempt while bootout is unavailable', async () => {
+    const failure = darwinSpawnFailures[0]
+    if (failure === undefined) throw new Error('failure fixture missing')
+    const fixture = await spawnBoundaryFixture('ready-print', failure)
+    try {
+      fixture.disableFailure()
+      expect(await fixture.driver.selfTest()).toBe(true)
+      fixture.ready()
+      fixture.holdBootout(true)
+      await expect(fixture.start()).rejects.toMatchObject({ reason: 'capacity' })
+      expect(await attemptNames(fixture.directory)).toHaveLength(1)
+      const calls = fixture.calls.length
+      expect(await fixture.driver.query()).toMatchObject({
+        sleepInhibited: false,
+        activeProcesses: 0,
+      })
+      expect(fixture.calls.slice(calls)).not.toContain('ready-print')
+      expect(fixture.calls.slice(calls)).not.toContain('retirement-print')
+      fixture.holdBootout(false)
+      await recoverFixture(fixture)
+    } finally {
+      await restoreFixture(fixture)
+    }
+  })
+  it('maps an absent running service print 113 and bootout 3 to absence', async () => {
+    const failure = darwinSpawnFailures[0]
+    if (failure === undefined) throw new Error('failure fixture missing')
+    const fixture = await spawnBoundaryFixture('count', failure)
+    try {
+      fixture.disableFailure()
+      const job = await fixture.start()
+      await job.activate()
+      await job.retirement
+      fixture.jobs.clear()
+      await job.remove()
+      const lost = await fixture.start()
+      fixture.jobs.clear()
+      expect(await fixture.driver.query()).toMatchObject({ activeProcesses: 0 })
+      await expect(lost.retirement).rejects.toMatchObject({ reason: 'uncertain' })
+      await complete(await fixture.start())
+      expect(await attemptNames(fixture.directory)).toEqual([])
+    } finally {
+      await restoreFixture(fixture)
+    }
+  })
+  it.each(['probe', 'ordinary'])(
+    'reclaims the %s helper when its readiness write fails after a printed PID',
+    async (kind) => {
+      const failure = darwinSpawnFailures[0]
+      if (failure === undefined) throw new Error('failure fixture missing')
+      const fixture = await spawnBoundaryFixture('bootstrap', failure)
+      try {
+        fixture.disableFailure()
+        if (kind === 'ordinary') expect(await fixture.driver.selfTest()).toBe(true)
+        fixture.failReadyWrites(true)
+        await expect(fixture.start()).rejects.toMatchObject({ detail: 'helper' })
+        expect(await attemptNames(fixture.directory)).toEqual([])
+        expect(fixture.calls).toContain('ps')
+        fixture.failReadyWrites(false)
+        expect(await fixture.driver.selfTest()).toBe(kind === 'ordinary')
+        if (kind === 'ordinary') {
+          expect(await fixture.driver.query()).toMatchObject({ activeProcesses: 0 })
+          await complete(await fixture.start())
+        } else {
+          await expect(fixture.driver.query()).rejects.toMatchObject({ detail: 'helper' })
+          await expect(fixture.start()).rejects.toMatchObject({ detail: 'helper' })
+        }
+        expect(await attemptNames(fixture.directory)).toEqual([])
+      } finally {
+        await restoreFixture(fixture)
+      }
+    },
+  )
+  it.each(['pid', 'group'])(
+    'retains the observed pre-ready %s until its membership is empty',
+    async (kind) => {
+      const failure = darwinSpawnFailures[0]
+      if (failure === undefined) throw new Error('failure fixture missing')
+      const fixture = await spawnBoundaryFixture('ready-write', failure)
+      try {
+        fixture.membership(0, kind === 'pid' ? '2 1\n' : '1 2\n')
+        await expect(fixture.start()).rejects.toMatchObject({ reason: 'capacity' })
+        expect(await attemptNames(fixture.directory)).toHaveLength(1)
+        expect(fixture.calls).toContain('ps')
+        expect(fixture.calls).not.toContain('count')
+        fixture.membership(0)
+        await recoverFixture(fixture)
+      } finally {
+        await restoreFixture(fixture)
+      }
+    },
+  )
+  it.each(
+    ['probe', 'ordinary'].flatMap((kind) =>
+      lifecycleSites.flatMap((site) =>
+        lifecycleFailures.map((failure) => ({ kind, site, failure })),
+      ),
+    ),
+  )(
+    '$kind / $site / $failure.name leaves no attempt after sweep and preserves preparation outcome',
+    async ({ kind, site, failure }) => {
+      const spawnSite = lifecycleSpawnSite(site)
+      const isFilesystem = spawnSite === 'bootstrap' && site !== 'bootstrap'
+      const fixture = await spawnBoundaryFixture(spawnSite, failure)
+      const actual = await vi.importActual<typeof FsPromises>('node:fs/promises')
+      let isArmed = kind === 'probe' && isFilesystem
+      let didFail = false
+      const inject = (file: unknown, suffix: string) => {
+        if (!isArmed || typeof file !== 'string' || !file.replaceAll('\\', '/').includes(suffix))
+          return
+        didFail = true
+        isArmed = false
+        let code = failure.retryable ? 'ENOMEM' : 'ENOENT'
+        if (failure.delivery === 'timeout') code = 'ETIMEDOUT'
+        else if (failure.delivery === 'signal') code = 'ABORT_ERR'
+        throw Object.assign(new Error('injected filesystem failure'), { code })
+      }
+      if (isFilesystem) {
+        fixture.disableFailure()
+        const inspect = vi.mocked(lstat).getMockImplementation()
+        if (inspect === undefined) throw new Error('identity inspector missing')
+        vi.mocked(lstat).mockImplementation(async (...args) => {
+          if (site === 'allocation-observe') inject(args[0], '/attempt-')
+          return await inspect(...args)
+        })
+        vi.mocked(mkdir).mockImplementation(async (...args) => {
+          if (site === 'allocation') inject(args[0], '/attempt-')
+          return await actual.mkdir(...args)
+        })
+        vi.mocked(writeFile).mockImplementation(async (...args) => {
+          if (site === 'request-write') inject(args[0], '/request.json')
+          await actual.writeFile(...args)
+        })
+        vi.mocked(rm).mockImplementation(async (...args) => {
+          if (site === 'remove') inject(args[0], '/attempt-')
+          await actual.rm(...args)
+        })
+      }
+      try {
+        if (kind === 'ordinary') {
+          fixture.disableFailure()
+          expect(await fixture.driver.selfTest()).toBe(true)
+          fixture.ready()
+          if (isFilesystem) fixture.disableFailure()
+          isArmed = isFilesystem
+        }
+        if (!isFilesystem && failure.delivery === 'timeout')
+          vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+        const operation = (async () => {
+          try {
+            const job = await fixture.start()
+            if (kind === 'ordinary' && site === 'retirement-print') await job.retirement
+            else if (kind === 'ordinary' && (site === 'bootout' || site === 'remove'))
+              await complete(job)
+            return { value: job }
+          } catch (error) {
+            return { error }
+          }
+        })()
+        if (!isFilesystem && failure.delivery === 'timeout') {
+          await fixture.injected
+          await vi.advanceTimersByTimeAsync(DEVICE_LIMITS.frameDeadlineMs)
+        }
+        const outcome = await operation
+        vi.useRealTimers()
+        if (isFilesystem) expect(didFail).toBe(true)
+        let detail = failure.detail
+        if (isFilesystem && failure.delivery !== 'signal')
+          detail = failure.retryable ? 'capacity' : 'helper'
+        expect(outcome).toMatchObject({
+          error:
+            site === 'retirement-print' ? { reason: 'uncertain', cause: { detail } } : { detail },
+        })
+        fixture.disableFailure()
+        const isRetryable = kind === 'ordinary' || failure.retryable || site === 'retirement-print'
+        if (isRetryable) {
+          expect(await fixture.driver.selfTest()).toBe(true)
+          expect(await fixture.driver.query()).toMatchObject({ activeProcesses: 0 })
+          await complete(await fixture.start())
+        } else {
+          expect(await fixture.driver.selfTest()).toBe(false)
+          await expect(fixture.driver.query()).rejects.toMatchObject({ detail })
+          await expect(fixture.start()).rejects.toMatchObject({ detail })
+        }
+        expect(await attemptNames(fixture.directory)).toEqual([])
+        expect(fixture.jobs.size).toBe(0)
+      } finally {
+        vi.useRealTimers()
+        vi.mocked(mkdir).mockRestore()
+        vi.mocked(writeFile).mockRestore()
+        vi.mocked(rm).mockRestore()
+        await restoreFixture(fixture)
+      }
+    },
+  )
+})
+
 describe('M100/H spawn boundary', () => {
   const cases = darwinSpawnSites.flatMap((site) =>
     darwinSpawnFailures.map((failure) => ({ site, failure, name: `${site}: ${failure.name}` })),
@@ -316,7 +591,7 @@ describe('M100/H spawn boundary', () => {
     async (kind) => {
       const fixture = await reclamationFixture('retirement-print')
       try {
-        fixture.membership(kind === 'coalition' ? 1 : 0, kind === 'group' ? '2\n' : '')
+        fixture.membership(kind === 'coalition' ? 1 : 0, kind === 'group' ? '1 2\n' : '')
         await expect(fixture.start()).rejects.toMatchObject({ reason: 'uncertain' })
         expect(await attemptNames(fixture.directory)).toHaveLength(1)
         expect(fixture.jobs.size).toBe(0)
@@ -473,6 +748,10 @@ describe('M100/H spawn boundary', () => {
           await job.retirement
           await job.remove()
         }
+        expect(await attemptNames(fixture.directory)).toEqual([])
+        expect(fixture.jobs.size).toBe(0)
+        if (isCached) await expect(driver.query()).rejects.toMatchObject(expected)
+        else expect(await driver.query()).toMatchObject({ activeProcesses: 0 })
       } finally {
         vi.useRealTimers()
         vi.mocked(spawn).mockRestore()
@@ -1023,27 +1302,22 @@ int main(int argc, char **argv) {
       }
     },
   )
+  it('recovers a native bootstrap ENOMEM before readiness and queries the same factory', async () => {
+    const { driver } = await nativePressureDriver('bootstrap')
+    await expect(launch('process.exit(0)', driver)).rejects.toMatchObject({ reason: 'capacity' })
+    expect(await attempts()).toEqual([])
+    expect(await driver.selfTest()).toBe(true)
+    expect(await driver.query()).toMatchObject({ activeProcesses: 0 })
+    await complete(await launch('process.exit(0)', driver))
+    expect(await attempts()).toEqual([])
+  })
   it.each(['once', 'until recovery'])(
     'reclaims a real probe after count pressure %s, including a reaped coalition',
     async (delivery) => {
-      const actual = await vi.importActual<typeof ChildProcessModule>('node:child_process')
-      let isArmed = true
-      const driver = deviceWorkerDarwin({
-        storageDir: state.directory,
-        environment: process.env,
-        spawn: (file, args, options) => {
-          if (isArmed && args[0] === '--count') {
-            isArmed = delivery !== 'once'
-            throw Object.assign(new Error('injected count pressure'), { code: 'ENOMEM' })
-          }
-          if (args[0] === 'bootstrap' && args[2] !== undefined)
-            state.labels.add(path.basename(path.dirname(args[2])).slice('attempt-'.length))
-          return actual.spawn(file, [...args], options)
-        },
-      })
+      const { driver, recover } = await nativePressureDriver('--count', delivery !== 'once')
       await expect(launch('process.exit(0)', driver)).rejects.toMatchObject({ reason: 'uncertain' })
       expect(await attempts()).toHaveLength(delivery === 'once' ? 0 : 1)
-      isArmed = false
+      recover()
       await complete(await launch('process.exit(0)', driver))
       expect(await attempts()).toEqual([])
       expect(await driver.query()).toMatchObject({ activeProcesses: 0 })

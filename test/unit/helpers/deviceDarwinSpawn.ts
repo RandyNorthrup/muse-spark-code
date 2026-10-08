@@ -14,6 +14,7 @@ export const darwinSpawnSites = [
   'initial-query',
   'bootstrap',
   'ready-print',
+  'ready-write',
   'retirement-print',
   'count',
   'ps',
@@ -115,6 +116,9 @@ export async function darwinSpawnFixture(site: DarwinSpawnSite, failure: DarwinS
   let active = 0
   let groups = ''
   let isImmediateProbe = false
+  let isBootoutHeld = false
+  let isReadyWriteBroken = false
+  const printedPids = new Set<string>()
   const { promise: injected, resolve: notify } = Promise.withResolvers<undefined>()
   const query = (label = 'transport', isAwake = false) => ({
     context: { session: owner.uid, station: 'gui', desktop: label },
@@ -142,7 +146,8 @@ export async function darwinSpawnFixture(site: DarwinSpawnSite, failure: DarwinS
       jobs.get(args[1] ?? '')?.ready === true
     )
       return 'active-print'
-    return jobs.get(args[1] ?? '')?.ready === true ? 'retirement-print' : 'ready-print'
+    if (jobs.get(args[1] ?? '')?.ready === true) return 'retirement-print'
+    return site === 'ready-write' && printedPids.has(args[1] ?? '') ? 'ready-write' : 'ready-print'
   }
   const output = async (current: DarwinSpawnSite, args: readonly string[]) => {
     if (current === 'aqua') return 'session = Aqua\n'
@@ -192,10 +197,20 @@ export async function darwinSpawnFixture(site: DarwinSpawnSite, failure: DarwinS
       })
     }
     if (current === 'bootout') {
+      if (isBootoutHeld) throw Object.assign(new Error('bootout pressure'), { code: 'ENOMEM' })
       jobs.delete(args[1] ?? '')
       return ''
     }
-    if (current === 'ready-print') {
+    if (current === 'ready-print' && isReadyWriteBroken) {
+      if (printedPids.has(args[1] ?? '')) return 'state = exited\n'
+      printedPids.add(args[1] ?? '')
+      return 'pid = 2\n'
+    }
+    if (current === 'ready-print' && site === 'ready-write' && isArmed) {
+      printedPids.add(args[1] ?? '')
+      return 'pid = 2\n'
+    }
+    if (current === 'ready-print' || current === 'ready-write') {
       await writeFile(
         path.join(job.directory, 'ready.json'),
         JSON.stringify({ pid: 2, coalition: 1, query: query(job.label, true) }),
@@ -300,6 +315,12 @@ export async function darwinSpawnFixture(site: DarwinSpawnSite, failure: DarwinS
     repeatFailure: () => {
       isArmed = true
       isRepeatedFailure = true
+    },
+    failReadyWrites: (shouldFail: boolean) => {
+      isReadyWriteBroken = shouldFail
+    },
+    holdBootout: (shouldHold: boolean) => {
+      isBootoutHeld = shouldHold
     },
     membership: (count: number, processGroups = '') => {
       active = count

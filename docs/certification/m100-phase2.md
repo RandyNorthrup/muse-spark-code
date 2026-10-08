@@ -1801,3 +1801,82 @@ All three local commits run ESLint/Prettier and staged gitleaks; post-hook
 staged/committed diffs are reread. No push, merge, rebase, manual stash, credential
 read, paid/live model call or nonloopback listener. Both private verification
 clones and the private no-stash hook copy are removed after final validation.
+
+#### M100P2HM8 — one macOS attempt lifecycle (2026-10-08)
+
+Branch `m100/p2-h-darwin8`, base **`78e72664f`**; briefs and reviews
+`M100P2HM8.rig.md`, `M100P2-common.md`, `RVM100P2HME` and `RVM100P2HMF`.
+The repeated failures shared one cause: progress lived partly in booleans and
+partly in readiness-file existence. Cleanup could not distinguish a never-ready
+attempt from a running job whose observation had been lost. Query then visited
+the leftover and classified an absent service as an unsupported desktop host.
+
+Every attempt is now registered in its driver-owned record before allocation.
+Its single lifecycle is **allocated → bootstrapping → running → retiring →
+reclaimed**, with **pendingReclaim** retaining the furthest progress, observed
+PID/coalition, observed result when present, and the failed inspection. All state
+updates use `transition`; reclaimed records cannot be resurrected by a late
+observer. The same state and reclaim operation serve preparation probes and
+ordinary jobs; concurrent reclamations share one promise in that record. No
+reclamation reads `ready.json` to infer progress. Initial directory identity is
+pinned before bootstrap, and allocation-observation failures also enter recorded
+cleanup. Running query samples fall back to the record's validated ready query,
+not a readiness-file inference. Only running records supply query samples.
+
+| Furthest progress                                        | Reclamation requirement                                                                                                                                                                                                |
+| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Allocated, bootstrap never attempted                     | Nothing ran: remove the owned directory directly, or record reclamation if allocation never created it.                                                                                                                |
+| Bootstrap attempted, never ready; no observed PID        | Bootout succeeds or reports absence; no worker was activated and no PID was observed. Remove the owned attempt.                                                                                                        |
+| Bootstrap attempted, never ready; observed PID/coalition | Bootout, then prove the observed PID and its process group absent; add empty-coalition proof when a coalition was observed. Remove only after proof.                                                                   |
+| Running or retiring                                      | Bootout, observed empty coalition and absent PID/process group, then recheck directory/store identity before removal. A retirement result additionally requires validated result JSON; cleanup never manufactures one. |
+| Inspection, bootout or removal unavailable               | Record pendingReclaim with the same furthest evidence and error. Sweep at preparation/cached-state entry, launch and capacity refusal; recovery releases the directory and map entry.                                  |
+
+Launchctl absence is a typed `ProgramResult` at the sole process boundary:
+**print 113 / bootout 3**, never a helper error. Credential-free recapture on
+this rig, UID **502**, fixed all-zero nonexistent service label: print **113**,
+bootout **3**. This repeats HM7's documented native capture; no Muse/Meta wire
+shape, credential, model attempt or paid call is involved. Aqua absence remains
+an honest non-GUI outcome. Other failures retain their existing classification.
+The native helper, coalition ABI, cap, interval and inhibitor are unchanged.
+
+The lifecycle table runs **9 points × 5 deliveries × 2 kinds = 90 cells**:
+allocation, allocation identity observation, request write, bootstrap, pre-ready
+print, readiness observation after a printed PID, retirement observation,
+bootout and remove; synchronous ENOMEM, definitive ENOENT, nonzero exit,
+signal and timeout; probe and ordinary job. Filesystem deliveries use the
+corresponding rejected errno (ENOMEM/ENOENT/ETIMEDOUT/ABORT_ERR). Every cell
+checks the preparation outcome, later query and launch, empty attempt directory
+store and empty fake-manager map. The existing spawn table now has **13 sites ×
+24 deliveries = 312 cells**, including bootstrap throw/error/exit and the new
+pre-ready observation site. Every cell additionally checks complete cleanup and
+later query; all earlier assertions remain. Real helper readiness-write exit,
+pre-ready live PID/group, pending-reader isolation and exact absent-service
+mapping have separate regressions. The reviewer's ENOMEM → recover → query
+sequence runs before its saved empty-store assertion, so its base failure reaches
+the poisoned query. A new actual GUI bootstrap-pressure regression accompanies
+all **29** retained native cases.
+
+Local complete restored owning checkpoint: **exit 0**, **493 passed**, **0 failed**,
+**7 Windows-only skipped**; all **30 macOS-native cases passed**. The separate
+lifecycle selection is **97 passed** at repository deadlines. The existing
+**200 consecutive failures**, **128 pending recovery**, ordinary capacity,
+live-membership and identity-substitution proofs remain intact. No timeout,
+assertion, cap, ignore or gate was weakened.
+
+| Base / guard-fire proof                                                                 | Receipt                                                                                                                                                                                                                     |
+| --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Final lifecycle and native bootstrap regressions with production bytes from `78e72664f` | **Exit 1: 88 failed, 10 passed, 356 filtered**, **8.85 s**. All 7 focused lifecycle regressions and the native regression fail; 80/90 table cells fail. The 10 passing cells preserve behavior already correct on the base. |
+| Expanded base proof, including every spawn-table cleanup/query assertion                | **Exit 1: 171 failed, 239 passed, 44 filtered**. Lifecycle table **80 failed / 10 passed**; spawn table **83 failed / 229 passed**; focused lifecycle/native regressions **8 failed**.                                      |
+| Infer pre-ready reclamation from `ready.json` again                                     | **Exit 1: 1 failed, 453 filtered**, **0.867 s**; bootstrap-pressure recovery leaves the original attempt.                                                                                                                   |
+| Let query visit a non-running record                                                    | **Exit 1: 1 failed, 453 filtered**, **0.890 s**; pending pre-ready query reads an ineligible attempt.                                                                                                                       |
+| Map print 113 back to helper                                                            | **Exit 1: 1 failed, 453 filtered**, **0.967 s**; absent running-service query rejects instead of reporting absence.                                                                                                         |
+
+Every mutation was restored in finally, byte-exact SHA-256:
+`45d17e19439080d7ae8bd9f3e39a2728db41873d861532cccab880064f0875cf`.
+Local host/unit compiler projects, changed-source ESLint and plain jscpd pass;
+jscpd reports zero clones after sharing native pressure-fixture construction.
+Full quality and installed cross-platform qualification remain W's required
+integration gates under PLAN §7. W also owns the inherited host API inventory
+and product changelog: carry an Unreleased note that macOS attempts now share
+one lifecycle, reclaim pre-ready failures and keep pending attempts out of query.
+No new command, setting, string, dependency or shared contract is introduced.

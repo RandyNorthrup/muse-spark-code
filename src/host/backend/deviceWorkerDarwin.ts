@@ -33,6 +33,7 @@ import {
 const spawnErrnos: Readonly<Record<string, 'capacity' | 'helper' | undefined>> = {
   EAGAIN: 'capacity',
   ENOMEM: 'capacity',
+  ETIMEDOUT: 'capacity',
   EMFILE: 'capacity',
   ENFILE: 'capacity',
   ENOENT: 'helper',
@@ -262,8 +263,9 @@ const selfTestSchema = z.strictObject({
   scheduler: z.literal('untested'),
   failure: z.optional(z.literal('capacity')),
 })
+const pidSchema = z.int().check(z.gt(1))
 const readySchema = z.strictObject({
-  pid: z.int().check(z.gt(1)),
+  pid: pidSchema,
   coalition: z.int().check(z.gt(0)),
   query: z.unknown(),
 })
@@ -289,13 +291,12 @@ class DarwinProgramError extends DeviceWorkerHostError {
 // Native launchctl statuses captured on this rig; ABI values, not tunables.
 const LAUNCHCTL_ABSENT_BOOTOUT = 3
 const LAUNCHCTL_ABSENT_PRINT = 113
-function isAbsent(error: unknown, code: number): boolean {
-  return error instanceof DarwinProgramError && error.kind === 'exit' && error.exitCode === code
-}
 
 type SpawnChild = (file: string, args: readonly string[], options: SpawnOptions) => ChildProcess
 type ProgramResult =
-  { kind: 'success'; stdout: string } | { kind: 'failure'; error: DeviceWorkerHostError }
+  | { kind: 'success'; stdout: string }
+  | { kind: 'absent' }
+  | { kind: 'failure'; error: DeviceWorkerHostError }
 
 function spawnFailure(error: unknown): DarwinProgramError {
   const code =
@@ -303,6 +304,15 @@ function spawnFailure(error: unknown): DarwinProgramError {
   const detail = typeof code === 'string' ? spawnErrnos[code] : undefined
   // Unknown/I/O failures cannot establish that this host lacks GUI support.
   return new DarwinProgramError('spawn', detail ?? 'helper', detail !== 'helper')
+}
+
+function attemptFailure(error: unknown): DeviceWorkerHostError {
+  if (error instanceof DeviceWorkerHostError) return error
+  // Filesystem errno carries retry evidence; a generic validation/preflight
+  // exception does not establish transient OS pressure.
+  return typeof error === 'object' && error !== null && 'code' in error
+    ? spawnFailure(error)
+    : new DeviceWorkerHostError('helper')
 }
 
 /** The driver's only process-start boundary, including the early Aqua reader. */
@@ -337,6 +347,14 @@ function program(
       finish({ kind: 'failure', error: spawnFailure(error) }, true)
     })
     child.once('close', (code: number | null) => {
+      if (
+        file === '/bin/launchctl' &&
+        ((code === LAUNCHCTL_ABSENT_PRINT && args[0] === 'print') ||
+          (code === LAUNCHCTL_ABSENT_BOOTOUT && args[0] === 'bootout'))
+      ) {
+        finish({ kind: 'absent' }, false)
+        return
+      }
       finish(
         code === 0 && !isSessionOnly && child.stdout !== null && child.stderr !== null
           ? { kind: 'success', stdout: Buffer.concat(chunks).toString('utf8') }
@@ -384,12 +402,22 @@ type PreparationState =
   | { kind: 'ready' | 'notGui' }
   | { kind: 'broken'; error: DeviceWorkerHostError }
 
+type ReadyMembership = z.infer<typeof readySchema>
+type AttemptProgress =
+  | { kind: 'allocated' }
+  | { kind: 'bootstrapping'; pid?: number; coalition?: number }
+  | { kind: 'running'; ready: ReadyMembership }
+type NativeResult = z.infer<typeof resultSchema>
+type AttemptState =
+  | AttemptProgress
+  | { kind: 'retiring'; reached: AttemptProgress; result?: NativeResult }
+  | { kind: 'pendingReclaim'; reached: AttemptProgress; result?: NativeResult; error: unknown }
+  | { kind: 'reclaimed' }
 interface DarwinAttempt {
   readonly directory: string
-  readonly identity: FileIdentity
-  readonly isProbe: boolean
-  pending: boolean
-  ready?: z.infer<typeof readySchema>
+  identity?: FileIdentity
+  state: AttemptState
+  reclamation?: Promise<void>
 }
 
 export interface DeviceWorkerDarwinDeps {
@@ -451,7 +479,7 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
   ): Promise<string> => {
     const result = await program(deps.spawn ?? spawn, file, args, environment, isSessionOnly)
     if (result.kind === 'failure') throw result.error
-    return result.stdout
+    return result.kind === 'absent' ? '' : result.stdout
   }
   const env = workerEnvironment(deps.environment, 'darwin')
   const uid = deps.uid ?? (typeof process.getuid === 'function' ? process.getuid() : undefined)
@@ -465,7 +493,24 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
   let rootIdentity: FileIdentity | undefined
   let preparation: PreparationState = { kind: 'unknown' }
   let allocating = Promise.resolve()
-  const call = (args: string[]) => invoke('/bin/launchctl', args, env)
+  const call = async (args: string[]) => {
+    const result = await program(deps.spawn ?? spawn, '/bin/launchctl', args, env, false)
+    if (result.kind === 'failure') throw result.error
+    return result.kind === 'absent' ? undefined : result.stdout
+  }
+  const transition = (attempt: DarwinAttempt, state: AttemptState): void => {
+    // A late observer cannot resurrect a reclaimed attempt.
+    if (attempt.state.kind !== 'reclaimed') attempt.state = state
+  }
+  const progress = (attempt: DarwinAttempt): AttemptProgress | undefined => {
+    const state = attempt.state
+    if (state.kind === 'reclaimed') return undefined
+    return state.kind === 'pendingReclaim' || state.kind === 'retiring' ? state.reached : state
+  }
+  const observedResult = (attempt: DarwinAttempt): NativeResult | undefined => {
+    const state = attempt.state
+    return state.kind === 'retiring' || state.kind === 'pendingReclaim' ? state.result : undefined
+  }
   const prepareRoot = async (): Promise<void> => {
     await mkdir(root, { recursive: true, mode: Number('0o700') })
     const info = await lstat(root)
@@ -481,72 +526,114 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
       throw new DeviceWorkerHostError('preflight')
     rootIdentity ??= identityOf(identity)
   }
-  const ownedDirectory = async (attempt: DarwinAttempt): Promise<void> => {
+  const hasOwnedDirectory = async (attempt: DarwinAttempt): Promise<boolean> => {
     await prepareRoot()
     const name = path.basename(attempt.directory)
-    const info = await lstatIdentity(attempt.directory)
+    let info
+    try {
+      info = await lstatIdentity(attempt.directory)
+    } catch (error) {
+      // Failed allocation may not have created its directory. This is known
+      // allocated progress, not a state inferred from a missing readiness file.
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === 'ENOENT' &&
+        progress(attempt)?.kind === 'allocated'
+      )
+        return false
+      throw error
+    }
     if (
       !/^attempt-com\.musespark\.device\.[a-f0-9]{32}$/.test(name) ||
       path.dirname(attempt.directory) !== root ||
       !info.isDirectory() ||
       info.isSymbolicLink() ||
-      !sameFile(info, attempt.identity)
+      (attempt.identity !== undefined && !sameFile(info, attempt.identity))
     )
       throw new DeviceWorkerHostError('preflight')
+    // The factory minted and registered this allocated name before mkdir. The
+    // first successful identity observation completes allocation; no process
+    // can bootstrap until it is pinned. Later observations must match it.
+    attempt.identity ??= identityOf(info)
+    return true
   }
-  const bootout = async (service: string): Promise<void> => {
-    try {
-      await call(['bootout', service])
-    } catch (error) {
-      if (!isAbsent(error, LAUNCHCTL_ABSENT_BOOTOUT)) throw error
+  const isMembershipEmpty = async (reached: AttemptProgress): Promise<boolean> => {
+    if (reached.kind === 'allocated') return true
+    const pid = reached.kind === 'bootstrapping' ? reached.pid : reached.ready.pid
+    if (pid === undefined) return true
+    const coalition = reached.kind === 'bootstrapping' ? reached.coalition : reached.ready.coalition
+    if (coalition !== undefined) {
+      const counts = countSchema.parse(
+        JSON.parse(await invoke(target, ['--count', String(coalition)], env)),
+      )
+      if (counts.active !== 0) return false
     }
+    // Before readiness only launchctl's observed PID is available. Prove both
+    // that PID and its process group absent; after readiness add coalition proof.
+    const rows = await invoke('/bin/ps', ['-axo', 'pid=,pgid='], env)
+    return rows.split(/\r?\n/).every((line) => {
+      const row = line.trim()
+      if (row === '') return true
+      if (!/^\d+\s+\d+$/.test(row)) throw new DeviceWorkerHostError('result')
+      return !row.split(/\s+/).includes(String(pid))
+    })
   }
-  const isMembershipEmpty = async (attempt: DarwinAttempt): Promise<boolean> => {
-    attempt.ready ??= readySchema.parse(
-      await readBounded(path.join(attempt.directory, 'ready.json')),
-    )
-    const counts = countSchema.parse(
-      JSON.parse(await invoke(target, ['--count', String(attempt.ready.coalition)], env)),
-    )
-    const groups = await invoke('/bin/ps', ['-axo', 'pgid='], env)
-    return (
-      counts.active === 0 &&
-      groups.split(/\r?\n/).every((line) => line.trim() !== String(attempt.ready?.pid))
-    )
-  }
-  const reclaim = async (service: string, attempt: DarwinAttempt): Promise<void> => {
-    await ownedDirectory(attempt)
-    await bootout(service)
-    if (!(await isMembershipEmpty(attempt))) throw new DeviceWorkerHostError('result')
-    // Recheck immediately before removal; never follow a substituted directory.
-    await ownedDirectory(attempt)
-    await rm(attempt.directory, { recursive: true, force: true })
-    jobs.delete(service)
+  const reclaim = (service: string, attempt: DarwinAttempt): Promise<void> => {
+    if (attempt.reclamation !== undefined) return attempt.reclamation
+    const reached = progress(attempt)
+    if (reached === undefined) return Promise.resolve()
+    const result = observedResult(attempt)
+    transition(attempt, { kind: 'retiring', reached, ...(result !== undefined && { result }) })
+    const operation = (async () => {
+      try {
+        const hasDirectory = await hasOwnedDirectory(attempt)
+        if (reached.kind !== 'allocated') await call(['bootout', service])
+        if (!(await isMembershipEmpty(reached))) throw new DeviceWorkerHostError('result')
+        // Recheck immediately before removal; never follow a substituted directory.
+        if (hasDirectory && (await hasOwnedDirectory(attempt)))
+          await rm(attempt.directory, { recursive: true, force: true })
+        transition(attempt, { kind: 'reclaimed' })
+        jobs.delete(service)
+      } catch (error) {
+        const failure = attemptFailure(error)
+        transition(attempt, {
+          kind: 'pendingReclaim',
+          reached,
+          ...(result !== undefined && { result }),
+          error: failure,
+        })
+        throw failure
+      } finally {
+        delete attempt.reclamation
+      }
+    })()
+    attempt.reclamation = operation
+    return operation
   }
   const pendingReclaim = async (service: string, attempt: DarwinAttempt): Promise<void> => {
-    attempt.pending = true
     try {
       await reclaim(service, attempt)
     } catch {
-      // Failed inspection retains evidence for the next preparation/capacity sweep.
+      // reclaim records the failed observation and its furthest progress. The
+      // primary launch/retirement failure remains the caller's outcome.
     }
   }
-  const sweep = async (): Promise<void> => {
+  const hasInspectionFailure = (attempt: DarwinAttempt): boolean =>
+    attempt.state.kind === 'pendingReclaim' && attempt.state.error instanceof DarwinProgramError
+  const sweep = async (shouldInspectRunning = true): Promise<void> => {
     for (const [service, attempt] of jobs) {
-      if (attempt.pending && attempt.isProbe) {
+      if (attempt.state.kind === 'pendingReclaim') {
+        await pendingReclaim(service, attempt)
+        if (hasInspectionFailure(attempt)) return
+      } else if (shouldInspectRunning && attempt.state.kind === 'running') {
         try {
-          await reclaim(service, attempt)
+          if ((await call(['print', service])) === undefined) await pendingReclaim(service, attempt)
         } catch (error) {
-          // Process pressure affects the sweep too; do not amplify it with one
-          // failed inspection per retained probe. Retry on the next entry.
-          if (error instanceof DarwinProgramError) return
+          const reached = progress(attempt)
+          if (reached !== undefined) transition(attempt, { kind: 'pendingReclaim', reached, error })
         }
-        continue
-      }
-      try {
-        await call(['print', service])
-      } catch (error) {
-        if (isAbsent(error, LAUNCHCTL_ABSENT_PRINT)) await pendingReclaim(service, attempt)
       }
     }
   }
@@ -583,48 +670,51 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
     command: DeviceWorkerCommand,
     environment: NodeJS.ProcessEnv,
     maxProcesses: number,
-    isProbe = false,
   ): Promise<DeviceWorkerJob & { reclaim(): Promise<void> }> => {
     const label = `com.musespark.device.${randomUUID().replaceAll('-', '')}`
     const directory = path.join(root, `attempt-${label}`)
-    const identity = await allocate(directory)
-    const attempt: DarwinAttempt = { directory, identity, isProbe, pending: false }
+    const attempt: DarwinAttempt = { directory, state: { kind: 'allocated' } }
     const service = `${domain}/${label}`
     jobs.set(service, attempt)
     const file = (name: string) => path.join(directory, name)
-    const config = {
-      directory,
-      label,
-      executable: command.executable,
-      args: command.args,
-      cwd: command.cwd,
-      environment: workerEnvironment(environment, 'darwin'),
-      outputBytes: DEVICE_LIMITS.frameBytes,
-      maxProcesses,
-      pollUs: POSIX_TREE_EXIT_POLL_MS * MILLISECONDS_PER_SECOND,
-    }
-    const encoded = JSON.stringify(config)
-    if (Buffer.byteLength(encoded) > DEVICE_LIMITS.frameBytes)
-      throw new DeviceWorkerHostError('preflight')
-    await writeFile(file('request.json'), encoded, { flag: 'wx', mode: Number('0o600') })
-    const variables = Object.entries(env)
-      .map(([name, value]) => `<key>${xml(name)}</key><string>${xml(value ?? '')}</string>`)
-      .join('')
-    const plist = `<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>Label</key><string>${label}</string><key>ProgramArguments</key><array><string>${xml(target)}</string><string>--run</string><string>${xml(file('request.json'))}</string></array><key>EnvironmentVariables</key><dict>${variables}</dict><key>RunAtLoad</key><true/><key>AbandonProcessGroup</key><false/><key>LimitLoadToSessionType</key><string>Aqua</string></dict></plist>`
-    await writeFile(file('job.plist'), plist, { flag: 'wx', mode: Number('0o600') })
-    let ready: z.infer<typeof readySchema>
-    let query: ReturnType<typeof parseDeviceWorkerQuery>
     try {
+      attempt.identity = await allocate(directory)
+      const config = {
+        directory,
+        label,
+        executable: command.executable,
+        args: command.args,
+        cwd: command.cwd,
+        environment: workerEnvironment(environment, 'darwin'),
+        outputBytes: DEVICE_LIMITS.frameBytes,
+        maxProcesses,
+        pollUs: POSIX_TREE_EXIT_POLL_MS * MILLISECONDS_PER_SECOND,
+      }
+      const encoded = JSON.stringify(config)
+      if (Buffer.byteLength(encoded) > DEVICE_LIMITS.frameBytes)
+        throw new DeviceWorkerHostError('preflight')
+      await writeFile(file('request.json'), encoded, { flag: 'wx', mode: Number('0o600') })
+      const variables = Object.entries(env)
+        .map(([name, value]) => `<key>${xml(name)}</key><string>${xml(value ?? '')}</string>`)
+        .join('')
+      const plist = `<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>Label</key><string>${label}</string><key>ProgramArguments</key><array><string>${xml(target)}</string><string>--run</string><string>${xml(file('request.json'))}</string></array><key>EnvironmentVariables</key><dict>${variables}</dict><key>RunAtLoad</key><true/><key>AbandonProcessGroup</key><false/><key>LimitLoadToSessionType</key><string>Aqua</string></dict></plist>`
+      await writeFile(file('job.plist'), plist, { flag: 'wx', mode: Number('0o600') })
+      transition(attempt, { kind: 'bootstrapping' })
       await call(['bootstrap', domain, file('job.plist')])
       const deadline = Date.now() + DEVICE_LIMITS.frameDeadlineMs
       while (!(await isPresent(file('ready.json')))) {
         const printed = await call(['print', service])
+        if (printed === undefined) throw new DeviceWorkerHostError('result')
+        const pid = /^\s*pid = (\d+)\s*$/m.exec(printed)?.[1]
+        if (pid !== undefined)
+          transition(attempt, { kind: 'bootstrapping', pid: pidSchema.parse(Number(pid)) })
         if (/state = (?:exited|not running)/.test(printed) || Date.now() >= deadline)
           throw new DeviceWorkerHostError('helper')
         await delay(POSIX_TREE_EXIT_POLL_MS)
       }
-      ready = readySchema.parse(await readBounded(file('ready.json')))
-      query = parseDeviceWorkerQuery(ready.query)
+      const ready = readySchema.parse(await readBounded(file('ready.json')))
+      transition(attempt, { kind: 'bootstrapping', pid: ready.pid, coalition: ready.coalition })
+      const query = parseDeviceWorkerQuery(ready.query)
       if (
         query.context.station !== 'gui' ||
         query.context.session !== uid ||
@@ -632,40 +722,29 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
         !query.sleepInhibited
       )
         throw new DeviceWorkerHostError('context')
+      transition(attempt, { kind: 'running', ready })
     } catch (error) {
-      // Activation has never been issued: stop the helper, retaining evidence on
-      // any manager failure. No readiness deadline ever resolves retirement.
-      await writeFile(file('stop'), '', { mode: Number('0o600') })
-      try {
-        await bootout(service)
-      } catch {
-        /* Keep this attempt for local recovery. */
-      }
-      attempt.pending = true
-      if (isProbe) await pendingReclaim(service, attempt)
-      throw error instanceof DeviceWorkerHostError ? error : new DeviceWorkerHostError('helper')
+      // All failures, including request/plist writes, use the same lifecycle.
+      // No activation was issued. Reclamation itself records pending evidence.
+      await pendingReclaim(service, attempt)
+      throw attemptFailure(error)
     }
-    attempt.ready = ready
-    let isObserved = false
-    let isRemoved = false
+    const running = attempt.state
+    if (running.kind !== 'running') throw new DeviceWorkerHostError('result')
+    const ready = running.ready
+    const query = parseDeviceWorkerQuery(ready.query)
     const retirement = (async (): Promise<unknown> => {
       try {
         for (;;) {
           const printed = await call(['print', service])
-          const hasPid = /^\s*pid = \d+\s*$/m.test(printed)
+          const hasPid = printed !== undefined && /^\s*pid = \d+\s*$/m.test(printed)
           if (!hasPid) {
             // Neither a disappeared helper nor a cancellation supplies a result.
             if (!(await isPresent(file('result.json')))) throw new DeviceWorkerHostError('result')
-            const counts: unknown = JSON.parse(
-              await invoke(target, ['--count', String(ready.coalition)], env),
-            )
-            const group = await invoke('/bin/ps', ['-axo', 'pgid='], env)
-            if (
-              countSchema.parse(counts).active === 0 &&
-              group.split(/\r?\n/).every((line) => line.trim() !== String(ready.pid))
-            ) {
+            transition(attempt, { kind: 'retiring', reached: { kind: 'running', ready } })
+            if (await isMembershipEmpty({ kind: 'running', ready })) {
               const result = resultSchema.parse(await readBounded(file('result.json')))
-              isObserved = true
+              transition(attempt, { kind: 'retiring', reached: { kind: 'running', ready }, result })
               return result
             }
           }
@@ -674,6 +753,12 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
       } catch (error) {
         // Once launched, every failed observation is uncertainty, including a
         // manager/inspection helper's typed startup failure. None proves exit.
+        if (attempt.state.kind !== 'reclaimed')
+          transition(attempt, {
+            kind: 'pendingReclaim',
+            reached: { kind: 'running', ready },
+            error,
+          })
         const failure = new DeviceWorkerHostError('result')
         failure.cause = error
         throw failure
@@ -685,17 +770,22 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
     return {
       query,
       retirement,
-      activate: () => writeFile(file('go'), '', { flag: 'wx', mode: Number('0o600') }),
-      cancel: async () => {
-        if (!isRemoved && !isObserved) await writeFile(file('stop'), '', { mode: Number('0o600') })
+      activate: async () => {
+        if (attempt.state.kind !== 'running') throw new DeviceWorkerHostError('result')
+        await writeFile(file('go'), '', { flag: 'wx', mode: Number('0o600') })
       },
-      reclaim: () => pendingReclaim(service, attempt),
+      cancel: async () => {
+        if (attempt.state.kind === 'running' || attempt.state.kind === 'pendingReclaim')
+          await writeFile(file('stop'), '', { mode: Number('0o600') })
+      },
+      reclaim: () =>
+        observedResult(attempt) === undefined
+          ? pendingReclaim(service, attempt)
+          : reclaim(service, attempt),
       remove: async () => {
-        if (!isObserved) throw new DeviceWorkerHostError('result')
-        if (isRemoved) return
-        attempt.pending = true
+        if (attempt.state.kind === 'reclaimed') return
+        if (observedResult(attempt) === undefined) throw new DeviceWorkerHostError('result')
         await reclaim(service, attempt)
-        isRemoved = true
       },
     }
   }
@@ -739,13 +829,10 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
         { executable: '/usr/bin/true', args: [], cwd: root, requiredTools: [] },
         env,
         1,
-        true,
       )
-      let hasRetired = false
       try {
         await job.activate()
         const result = resultSchema.parse(await job.retirement)
-        hasRetired = true
         if (result.failure === 'capacity') throw new DeviceWorkerHostError('capacity')
         if (result.exitCode !== 0 || result.failure !== 'none')
           throw new DeviceWorkerHostError('helper')
@@ -754,13 +841,14 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
         try {
           await job.cancel()
         } finally {
-          if (hasRetired) await job.remove()
-          else await job.reclaim()
+          await job.reclaim()
         }
       }
     } catch (error) {
-      const failure =
-        error instanceof DeviceWorkerHostError ? error : new DeviceWorkerHostError('helper')
+      // Retry cleanup once before publishing a cached outcome. A one-shot
+      // cleanup failure must not leave a definitive failure half alive.
+      await sweep(false)
+      const failure = attemptFailure(error)
       const isRetryable =
         failure instanceof DarwinProgramError
           ? failure.isRetryable
@@ -769,6 +857,8 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
     }
   }
   const isPrepared = async (): Promise<boolean> => {
+    // Even definitive preparation outcomes may have pending cleanup evidence.
+    if (preparation.kind !== 'preparing') await sweep(false)
     if (preparation.kind === 'unknown') {
       // Set preparing before any caller can start a second preparation.
       const result = (async () => {
@@ -791,6 +881,7 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
         throw preparation.kind === 'broken'
           ? preparation.error
           : new DeviceWorkerHostError('helper')
+      await sweep()
       return await rawLaunch(command, environment, admittedProcessLimit(attempt))
     },
     query: async () => {
@@ -800,16 +891,14 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
           : new DeviceWorkerHostError('helper')
       const query = parseDeviceWorkerQuery(JSON.parse(await invoke(target, ['--query'], env)))
       for (const [service, job] of jobs) {
+        const running = job.state
+        if (running.kind !== 'running') continue
         const printed = await call(['print', service])
-        if (!/^\s*pid = \d+\s*$/m.test(printed)) continue
-        const value = await readBounded(
-          path.join(
-            job.directory,
-            (await isPresent(path.join(job.directory, 'query.json'))) ? 'query.json' : 'ready.json',
-          ),
+        if (printed === undefined || !/^\s*pid = \d+\s*$/m.test(printed)) continue
+        const queryFile = path.join(job.directory, 'query.json')
+        const sample = parseDeviceWorkerQuery(
+          (await isPresent(queryFile)) ? await readBounded(queryFile) : running.ready.query,
         )
-        const ready = readySchema.safeParse(value)
-        const sample = parseDeviceWorkerQuery(ready.success ? ready.data.query : value)
         query.sleepInhibited ||= sample.sleepInhibited
         query.activeProcesses += sample.activeProcesses
         query.cpu100ns += sample.cpu100ns

@@ -35818,6 +35818,21 @@ paid/live call or physical-device qualification is introduced.
 
 ### M100 phase 2 — bound owners, discovery, hardened hosts, per-action control (D80, planned)
 
+**M100P2HM8 lifecycle redesign (2026-10-08, before implementation).**
+Replace readiness-file/pending booleans with one driver-owned attempt record:
+allocated → bootstrapping → running → retiring → reclaimed, with pendingReclaim
+retaining the furthest progress and observed membership. Every probe and ordinary
+attempt uses the same transitions. Never-bootstrap attempts remove directly;
+pre-ready attempts boot out and prove any observed PID/coalition empty; running
+attempts retain whole-membership proof. Unavailable observations retain explicit
+pending evidence for the sweep; query visits running records only. Centralize
+launchctl print 113 / bootout 3 as absence. Cover allocation, bootstrap deliveries,
+pre-ready print/write, retirement, bootout and removal in a delivery matrix,
+prove regressions on `78e72664f`, preserve 200/128 stress cases, drill all three
+guards, then fresh-clone H three times, receiver, five compilers/static/build
+at unchanged repository deadlines. Hooks remain installed; product changelog,
+inventory and aggregate quality remain W's integration obligations (§7).
+
 **M100P2HM7 probe reclamation (2026-10-08, before implementation).**
 Always boot out the preparation probe, treating launchd's absent-job status as
 idempotent success, and reclaim only after observed empty coalition membership.
@@ -41526,10 +41541,10 @@ is relaxed. No live or paid calls, push, rebase or merge.
 
 ## 7. Gates
 
-**M100P2HM4/HM5/HM6/HM7 scoped review gate (2026-10-08, macmini).** Hooked commits are
+**M100P2HM4/HM5/HM6/HM7/HM8 scoped review gate (2026-10-08, macmini).** Hooked commits are
 local checkpoints; the owner's 60-minute H brief requires fresh-clone scoped
-tests and static/build gates; HM5's 30-minute and HM6's 60-minute follow-ups
-and HM7's 45-minute follow-up use the same scope.
+tests and static/build gates. HM5's 30-minute, HM6's 60-minute, HM7's 45-minute
+and HM8's 75-minute lifecycle follow-ups use the same scope.
 Full `npm run quality` and integrated platform
 qualification remain W's required gate before integration. No threshold,
 timeout, assertion or ignore changes. The inherited stale host API inventory
