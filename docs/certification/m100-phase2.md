@@ -159,9 +159,41 @@ Prettier on all eight changed files exits 0. Phase-1 regression suites
 **122 tests**, repository default timeouts.
 `check:host-api` exits **1** solely because the new result channel imports
 `node:crypto`: the generated built-in count is 56 versus the recorded 55.
-That generated record belongs to lane W, so it is not changed here. The
-required fresh-clone verification will be recorded after the implementation commit.
+That generated record belongs to lane W, so it is not changed here. Fresh-clone results are recorded below.
 No gate threshold, rule, ignore or assertion was weakened.
+
+### Fresh-clone CI verification (implementation `ac644c3ea`)
+
+Fresh `git clone --no-hardlinks C:/lanes/M100P2R
+C:/lanes/M100P2R-ci-9f5837`, committed HEAD
+`ac644c3eabe72ad32c44cb614290a0d782efe598`, followed by `npm.cmd ci`.
+Every verification process ran with `CI=true`. No test timeout override was
+used in any exploratory, drill or final run. No dependencies or source files
+were copied from the working tree; the clone remained clean after checks.
+
+| Check                                                | Exit    | Receipt                                                                                                           |
+| ---------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------- |
+| `npm.cmd ci`                                         | 0       | 898 packages installed from the unchanged lockfile                                                                |
+| Owning tests, three consecutive default-timeout runs | 0, 0, 0 | 47 passed each: deviceEpochs 13, deviceReconnect 14, deviceResultChannel 20; at most 3 files and `--maxWorkers=3` |
+| `typecheck:host`                                     | 0       | Repository host project                                                                                           |
+| `typecheck:webview`                                  | 0       | Repository browser project                                                                                        |
+| `typecheck:unit`                                     | 0       | All unit test types                                                                                               |
+| `typecheck:e2e`                                      | 0       | All e2e test types                                                                                                |
+| `typecheck:integration`                              | 0       | Integration test types                                                                                            |
+| ESLint `--max-warnings=0`                            | 0       | All 7 changed TypeScript files                                                                                    |
+| Prettier `--check`                                   | 0       | All 8 changed files                                                                                               |
+| Plain `npx.cmd knip`                                 | 0       | Only the two pre-existing configuration hints                                                                     |
+| `npm.cmd run duplication`                            | 0       | jscpd: 0 clones; threshold unchanged                                                                              |
+| `node scripts/check-l10n.mjs` via `check:l10n`       | 0       | 14 tables, 169 manifest strings, 657 source files, 0 problems                                                     |
+| `check:reference`                                    | 0       | 53 features; 18 Devices reference entries; generated data current                                                 |
+| `check:host-api`                                     | 1       | Sole diff: node:crypto import count 55 to 56; generated file owned by lane W                                      |
+| `npm.cmd run build`                                  | 0       | Production build, all size/split/global/notices gates passed with original caps                                   |
+
+`npm ci`'s automatic audit reports 12 vulnerabilities in this inherited lockfile
+(2 low, 10 high); this lane changes no dependencies. The full joined-tree audit
+and other `npm run quality` gates remain lane W's required qualification.
+The implementation commit ran the normal ESLint/Prettier and gitleaks hooks
+successfully (no leaks found). This receipt update changes documentation only.
 
 ### Wiring contract for the lead (lane W)
 
