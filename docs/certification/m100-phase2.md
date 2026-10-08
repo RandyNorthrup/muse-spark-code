@@ -1511,3 +1511,239 @@ receipt changes documentation only; its formatting and hooked commit are
 checked separately. Both trees were clean after code verification, before
 this receipt update. Next: lead integration and W's inherited inventory
 refresh plus aggregate/installed-host qualification.
+
+## Lane R: reconnect, leases, result channel (verified on win11)
+
+2026-10-07, branch `m100/p2-r`, worktree `C:/lanes/M100P2R`, base
+`81f070674`. Codex completed the prior shell-blocked implementation;
+the three earlier static reviews are superseded by these runner receipts.
+Only lane R's new core files, owning tests/helper and this section change.
+Phase-1 `attemptJournal.ts` and `deviceReceiver.ts` remain byte-exact.
+No new strings, dependencies, commands, settings or constants. Model attempts
+**0**, inference spend **0**; fakes only, no listener, device pairing or ACL change.
+
+### Acceptance: each item done in the portable core
+
+| Acceptance                                          | Implementation                                                                                                                                                          | Owning test                                                                                                                                | Guard break                         |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------- |
+| Pair-key identity and reconnect resume              | `reconnect.ts:40`, full saved identity checked, isolated copies, bounded leases; conflicting restored state refuses                                                     | `deviceReconnect`: scopes leases, restart adoption, reused attempt identity, returned-object isolation                                     | R1                                  |
+| Resend only unacknowledged messages                 | `reconnect.ts:131`, schemas plus lane 0's `isAckForEnvelope`                                                                                                            | `deviceReconnect`: resends only unacknowledged envelopes                                                                                   | R2                                  |
+| Lost admission reply never starts twice             | real phase-1 `DeviceReceiver.dispatch` and `AttemptJournal.lookup`, unchanged                                                                                           | `deviceReconnect`: drops the admission reply; admission and launch counters each 1                                                         | R3                                  |
+| Failed poll reads unknown since time, never running | `epochs.ts:86`, earliest failure retained; `unknownSinceText` reads runtime `UI_TEXT` and `formatTime`                                                                  | `deviceEpochs`: marks a failed poll, earliest unknown time; `deviceReconnect`: failed-poll text                                            | R4                                  |
+| Explicit lease expiry before a new epoch            | `epochs.ts:119`, expired status and elapsed deadline both required, epoch increment checked                                                                             | `deviceEpochs`: advance every timeout, early expiry/reopen refusal, future expiry marker                                                   | R5                                  |
+| Re-dispatch from the last acknowledged checkpoint   | `reconnect.ts:116`, accepted/duplicate acks no later than the expired epoch win; absent accepted progress keeps the expired lease's opening checkpoint                  | `deviceReconnect`: no-result outage, expiry quarantine, future ack ignored; accepted progress still wins                                   | R6, P2-R                            |
+| Late results quarantine                             | `resultChannel.ts:92`, reconciled lease is the authority, including before any new-epoch result arrives and at expiry                                                   | `deviceResultChannel`: old epoch before a new result, expired/future/missing lease                                                         | R7                                  |
+| Content-addressed results acknowledged once         | `resultChannel.ts:92`, serialized durable receipt per epoch; repeat payload checked in full; persistent quarantine timestamps and older accepted receipts               | `deviceResultChannel`: accepts once, simultaneous resends, conflicting payload, time and restart, older accepted receipt                   | R8; six pre-fix regression failures |
+| Corrupt durable state refuses, never empty success  | zod parses every load, binds receipt identity/epoch/digest/settlement; storage failure latches closed                                                                   | `deviceResultChannel`: corrupt/failing store and uncertain save; real receiver test refuses corrupt `attempts.json` before admission/start | R9, R11                             |
+| Epoch-bound acknowledgements and shared caps        | `resultChannel.ts:179`, full-identity wait key, `isAckForEnvelope`, `canQueueResultAck`; duplicate waits remain valid at capacity; publish queue and leases bounded too | `deviceResultChannel`: old ack never settles next epoch, wait cap, blocked-storage publish cap; `deviceReconnect`: lease cap               | R10, R12, R13                       |
+
+### Defects found by running the inherited work
+
+The inherited 32 tests passed at default timeouts. Six added regression tests
+then failed on the inherited implementation (6 failed, 32 passed): premature
+reopen of a future expiry marker, replaced attempt identity, mutable returned
+lease state, two simultaneous accepted replies, quarantine timestamp drift
+across restart, and duplicate wait refusal at capacity. All now pass. The
+initial duplication gate found four copied fixtures; shared lane-R fixtures
+remove them without ignores or threshold changes. Initial lint/format defects
+were fixed, including private method order, boolean names and stale imports.
+All three inherited test casts have been removed: unknown boundary inputs are
+parsed directly, so no new escape-hatch row in PLAN section 8 is needed.
+
+### Red drills: actual assertion failures, then byte-exact restoration
+
+Every targeted run used `npx.cmd vitest run <owning file> --maxWorkers=3 -t
+<test pattern>` with the repository default timeout. Each returned exit **1**
+with an owning assertion failure, and the final owning run returned **0**
+(**47 passed**: epoch 13, reconnect 14, result channel 20). R3 and R11 inject
+an in-memory journal lookup bypass in the owning test; phase-1 source stays
+untouched. R3 observes two admissions after the dropped reply; R11 observes
+one forbidden admission from corrupt storage. The restored tests assert one
+admission/one launch and zero admissions/zero launches respectively.
+
+| Drill | Deliberate break                                  | Observed failure                                      | Restored file SHA-256                                              |
+| ----- | ------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------ |
+| R1    | Bypass pair scoping                               | Required refusal did not occur (exit 1)               | `48da32de9d7ec8b9d0026cfbbb250cc99f223f64ed80220861dab61996ab7de9` |
+| R2    | Treat all envelopes as unacknowledged             | Acknowledged envelope not settled (exit 1)            | `48da32de9d7ec8b9d0026cfbbb250cc99f223f64ed80220861dab61996ab7de9` |
+| R3    | Hide the saved admission during resend, in memory | Admission spy called 2 times, expected 1 (exit 1)     | `4925b55be3df80468ae1e245c18f971584716a6e34548096c1bc5eb4603e7d23` |
+| R4    | Return unchanged lease on failed poll             | current instead of unknown (exit 1)                   | `e4c32bf62e30d193a71b12541a6e5cad0a414d4bbe610ea3ebc398397df795d9` |
+| R5    | Remove reopen expiry guard                        | Far-future clock alone permits reopen (exit 1)        | `e4c32bf62e30d193a71b12541a6e5cad0a414d4bbe610ea3ebc398397df795d9` |
+| R6    | Allow quarantined ack to advance checkpoint       | Quarantined digest selected (exit 1)                  | `48da32de9d7ec8b9d0026cfbbb250cc99f223f64ed80220861dab61996ab7de9` |
+| R7    | Ignore the authoritative lease epoch              | accepted instead of quarantined (exit 1)              | `8f8df21416e499b42805ef1398c800288b972357298de38ac6585c05812c4115` |
+| R8    | Accept an already recorded result again           | accepted instead of duplicate (exit 1)                | `8f8df21416e499b42805ef1398c800288b972357298de38ac6585c05812c4115` |
+| R9    | Ignore the loaded durable record                  | Publish resolves instead of refusing storage (exit 1) | `8f8df21416e499b42805ef1398c800288b972357298de38ac6585c05812c4115` |
+| R10   | Match identity without epoch/digest               | Old ack settles the new wait (exit 1)                 | `8f8df21416e499b42805ef1398c800288b972357298de38ac6585c05812c4115` |
+| R11   | Hide corruption from lookup, in memory            | Forbidden admission spy called once (exit 1)          | `4925b55be3df80468ae1e245c18f971584716a6e34548096c1bc5eb4603e7d23` |
+| R12   | Remove the pending-wait cap                       | Extra wait does not throw (exit 1)                    | `8f8df21416e499b42805ef1398c800288b972357298de38ac6585c05812c4115` |
+| R13   | Remove the fresh-lease cap                        | Excess lease does not refuse (exit 1)                 | `48da32de9d7ec8b9d0026cfbbb250cc99f223f64ed80220861dab61996ab7de9` |
+
+The before and after SHA-256 matched in every drill. For R1/R2/R6/R13 the
+restored file is `reconnect.ts`; R4/R5 `epochs.ts`; R7/R8/R9/R10/R12
+`resultChannel.ts`; R3/R11 `deviceReconnect.test.ts`. The same hashes are
+checked after all drills. The temporary logs/JSON are outside the worktree
+under the rig's `m100p2r-verify-*` temporary directory.
+
+### Verification
+
+Direct worktree verification: the final owning run is 47 passed at default
+timeouts; lint exits 0; duplication exits 0 with 0 clones; plain knip exits 0
+(two existing configuration hints). Reference and l10n exit 0 (14 tables, 0 problems); the production build exits
+0 with every cap unchanged (`dist/devices.js` 80.6 KiB / 100 KiB, activation
+441.6 KiB / 600 KiB). All five typecheck projects exit 0 (host, webview, unit, e2e, integration).
+Prettier on all eight changed files exits 0. Phase-1 regression suites
+`deviceReceiver`, `deviceRecovery` and `devicePhase2Contracts` also pass:
+**122 tests**, repository default timeouts.
+`check:host-api` exits **1** solely because the new result channel imports
+`node:crypto`: the generated built-in count is 56 versus the recorded 55.
+That generated record belongs to lane W, so it is not changed here. Fresh-clone results are recorded below.
+No gate threshold, rule, ignore or assertion was weakened.
+
+### Fresh-clone CI verification (implementation `ac644c3ea`)
+
+Fresh `git clone --no-hardlinks C:/lanes/M100P2R
+C:/lanes/M100P2R-ci-9f5837`, committed HEAD
+`ac644c3eabe72ad32c44cb614290a0d782efe598`, followed by `npm.cmd ci`.
+Every verification process ran with `CI=true`. No test timeout override was
+used in any exploratory, drill or final run. No dependencies or source files
+were copied from the working tree; the clone remained clean after checks.
+
+| Check                                                | Exit    | Receipt                                                                                                           |
+| ---------------------------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------- |
+| `npm.cmd ci`                                         | 0       | 898 packages installed from the unchanged lockfile                                                                |
+| Owning tests, three consecutive default-timeout runs | 0, 0, 0 | 47 passed each: deviceEpochs 13, deviceReconnect 14, deviceResultChannel 20; at most 3 files and `--maxWorkers=3` |
+| `typecheck:host`                                     | 0       | Repository host project                                                                                           |
+| `typecheck:webview`                                  | 0       | Repository browser project                                                                                        |
+| `typecheck:unit`                                     | 0       | All unit test types                                                                                               |
+| `typecheck:e2e`                                      | 0       | All e2e test types                                                                                                |
+| `typecheck:integration`                              | 0       | Integration test types                                                                                            |
+| ESLint `--max-warnings=0`                            | 0       | All 7 changed TypeScript files                                                                                    |
+| Prettier `--check`                                   | 0       | All 8 changed files                                                                                               |
+| Plain `npx.cmd knip`                                 | 0       | Only the two pre-existing configuration hints                                                                     |
+| `npm.cmd run duplication`                            | 0       | jscpd: 0 clones; threshold unchanged                                                                              |
+| `node scripts/check-l10n.mjs` via `check:l10n`       | 0       | 14 tables, 169 manifest strings, 657 source files, 0 problems                                                     |
+| `check:reference`                                    | 0       | 53 features; 18 Devices reference entries; generated data current                                                 |
+| `check:host-api`                                     | 1       | Sole diff: node:crypto import count 55 to 56; generated file owned by lane W                                      |
+| `npm.cmd run build`                                  | 0       | Production build, all size/split/global/notices gates passed with original caps                                   |
+
+`npm ci`'s automatic audit reports 12 vulnerabilities in this inherited lockfile
+(2 low, 10 high); this lane changes no dependencies. The full joined-tree audit
+and other `npm run quality` gates remain lane W's required qualification.
+The implementation commit ran the normal ESLint/Prettier and gitleaks hooks
+successfully (no leaks found). This receipt update changes documentation only.
+
+### Wiring contract for the lead (lane W)
+
+Lane 0's envelopes, `DeviceResultPort`, caps and ack matcher are unchanged.
+Instantiate one `ResultChannel(store, leaseOf, clock)` per pair with the
+reconciled receiver lease lookup; an incoming result is never its own epoch
+authority. Persist lease mutations before redispatch and restore through
+`DeviceReconnectSession.track`; a conflicting restore refuses. `reopenAttempt`
+takes envelopes/acks and derives accepted progress or retains the expired
+lease's opening checkpoint. The result store must atomically persist the full bounded
+receipt record before resolving a save, reject unavailable or corrupt
+initialized storage, and return undefined only for a genuinely new attempt.
+The portable lane adds no installed listener, physical executor or storage
+adapter: lane W owns wiring and installed-host qualification. README,
+CHANGELOG, feature catalog and the complete joined-tree `npm run quality`
+remain with lane W as assigned by PLAN, not a claim of this lane's certification.
+
+Lead request: regenerate `docs/ide-compatibility/host-api.md` in lane W
+with `npm run check:host-api -- --write` (the expected change on this base is
+`node:crypto` imports 55 to 56). No shared-contract change is requested.
+
+### Review round 1 fixes (FIXM100P2R)
+
+2026-10-07, win11 rig, branch `m100/p2-r-fix`, base `44fffb8c8`;
+review `C:/lanes/_ctx/codex/RVM100P2R.report.md` read in full.
+Only `reconnect.ts`, its owning test and this lane R section change.
+Model attempts **0**, spend **0**; all tests use fakes and no listener.
+
+The recorded R6 refusal changes because G6 requires recovery after a whole
+lease without accepted progress: the lease's opening checkpoint remains valid.
+
+- **P2 fixed:** `reopenAttempt` uses `current.checkpoint` when no accepted or
+  duplicate acknowledgement supplies a checkpoint through the expired epoch.
+  An accepted checkpoint still wins; future and quarantined acknowledgements
+  never advance it. The replacement contract test checks future-epoch acks,
+  and two outage regressions check an absent result and a result quarantined
+  exactly at expiry. Both reopen at epoch 2, keep the original identity and
+  checkpoint, refuse a second reopen while leased, quarantine old-epoch late
+  results (including resends), and accept the recovered epoch's result.
+- **P3 fixed:** `useExecutionFixture('check')` is scoped to the receiver's
+  `reconnect never launches twice` block. A separate pure reconnect regression
+  makes `AttemptJournal.create` reject with `storage`, reaches its assertions,
+  and verifies journal creation was never called. The two receiver tests still
+  exercise real durable storage; no assertion or storage guard is relaxed.
+
+With the final regression tests added and both fixes withheld on base
+`44fffb8c8`, the three owning suites returned **exit 1: 4 failed, 46 passed**
+(50 tests). P2 accounts for three `DeviceEpochError: uncertain` failures;
+P3 accounts for one `DeviceJournalError: storage` failure in fixture setup.
+After both fixes and drills, the identical command returned **exit 0: 50 passed**
+(deviceEpochs 13, deviceReconnect 17, deviceResultChannel 20).
+Every run used repository default timeouts and `--maxWorkers=3`, at most three files.
+
+| Drill | Deliberate break                                                            | Observed red result                                                                     | Restored SHA-256                                                                               |
+| ----- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| P2-R  | Replace the opening-checkpoint fallback with the former `uncertain` refusal | 3 failed, 14 unselected; exit 1 (`opening checkpoint` filter)                           | `ec04e198e8cd517d8d54881782e2f28ad84471ee2a13ffd8816da19cd82bdd67` (`reconnect.ts`)            |
+| P3-R  | Move the receiver fixture back to module scope                              | Storage-refusal regression fails before its assertions: 1 failed, 16 unselected; exit 1 | `f5c16e6eab65012b5a8491426ac66402469aa6c792350240be7a3c8f2a9fd220` (`deviceReconnect.test.ts`) |
+
+Both restores matched the pre-drill file bytes and SHA-256. Logs are outside
+the worktree in `C:/lanes/FIXM100P2R-verify-20261007/P2-drill.log` and
+`P3-drill.log`. Fresh-clone verification is recorded with the follow-up receipt.
+
+### FIXM100P2R fresh-clone CI receipt
+
+2026-10-07–08, win11 rig.
+
+Committed implementation `66a3c39dd38ad9d95625cc67fc352e53fdfba4b2` was
+cloned with `git clone --no-hardlinks C:/lanes/FIXM100P2R
+C:/lanes/FIXM100P2R-ci-20261007`, then installed with `npm.cmd ci`.
+No source or dependencies were copied from the working tree.
+All checks below ran with `CI=true`; all test runs used the repository's
+default timeout, at most three files, and `--maxWorkers=3`.
+
+`TMPDIR`, `TEMP` and `TMP` all selected the new private temporary root
+`C:/lanes/FIXM100P2R-verify-20261007/private-temp`. On Windows, its NTFS ACL
+has inheritance disabled and grants only the current user FullControl,
+the platform equivalent of a private 0700 temp root. The inherited Windows
+execution fixture still injects its existing journal-protection port;
+these receipts do not qualify POSIX permissions or production Windows storage.
+P3's injected storage refusal is portable and does not depend on that port.
+
+| Check                                                       | Exit    | Receipt                                                                                                                                                                |
+| ----------------------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm.cmd ci`                                                | 0       | 898 packages installed from unchanged lockfile                                                                                                                         |
+| Owning suites, three consecutive runs                       | 0, 0, 0 | 50 passed each: epochs 13, reconnect 17, result channel 20                                                                                                             |
+| `deviceReceiver`, `deviceRecovery`, `devicePhase2Contracts` | 0       | 122 passed, default timeouts                                                                                                                                           |
+| `typecheck:host`                                            | 0       | Host/core/shared project                                                                                                                                               |
+| `typecheck:webview`                                         | 0       | Browser project                                                                                                                                                        |
+| `typecheck:unit`                                            | 0       | All unit test types                                                                                                                                                    |
+| `typecheck:e2e`                                             | 0       | All e2e test types                                                                                                                                                     |
+| `typecheck:integration`                                     | 0       | Integration test types                                                                                                                                                 |
+| ESLint `--max-warnings=0`                                   | 0       | Both changed TypeScript files                                                                                                                                          |
+| Prettier `--check`                                          | 0       | All three changed files                                                                                                                                                |
+| Plain `npx.cmd knip`                                        | 0       | Two existing configuration hints only                                                                                                                                  |
+| `npm.cmd run duplication`                                   | 0       | jscpd: zero clones; no threshold or ignore changes                                                                                                                     |
+| `check:l10n`                                                | 0       | 14 tables, 169 manifest strings, 657 source files; zero problems                                                                                                       |
+| `check:reference`                                           | 0       | 53 features, 18 Devices entries; generated files current                                                                                                               |
+| `check:host-api`                                            | 1       | Sole inherited diff: `node:crypto` count 55 to 56; owned by lane W                                                                                                     |
+| Production `npm.cmd run build`                              | 0       | All caps/split/globals/notices passed; Devices 80.6/100 KiB, activation 441.6/600 KiB, deferred webview 32.1/50 KiB                                                    |
+| Full `npm.cmd run quality`                                  | 1       | Passed whole-repository formatting, JavaScript/CSS/PowerShell lint, all five typechecks, badges, l10n and reference; stopped solely at the inherited host-API mismatch |
+
+The clone stayed clean after these checks. Per-check output and exit-code
+JSON receipts are outside the worktree in
+`C:/lanes/FIXM100P2R-verify-20261007/`.
+`npm ci` reports the inherited lockfile's 12 vulnerabilities (2 low, 10 high);
+this fix changes no dependency. The implementation's normal ESLint, Prettier
+and gitleaks hooks all exited 0, with no secret leaks. The committed diff was
+re-read after the hooks; no additional hook changes or staged files remained.
+
+Full quality stopped before its later gates; the owning/phase-1 tests, knip,
+duplication and production build were run separately above and passed.
+The generated host-API record, README/CHANGELOG and complete joined-tree
+qualification remain lane W's assigned files/work. Request unchanged:
+regenerate `docs/ide-compatibility/host-api.md` there with
+`npm run check:host-api -- --write`, then run full quality on the joined tree.
+No source outside lane R, gate, assertion, timeout, cap or shared contract
+was changed to obtain these results.
