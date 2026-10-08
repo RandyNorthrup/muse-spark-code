@@ -393,6 +393,61 @@ covers all five focus comparisons wherever our CSS draws focus with it.
   fallback stays at 3:1 or more where the host's panel border is weak), not a
   per-surface colour, so no colour was invented here.
 
+- **Receipts regenerated** in real headless Chrome 153.0.8010.52 on Linux
+  (`randy-lt`), with the repository's own generator
+  (`npm run check:visual -- --update`) in a clean clone after `npm ci`.
+  Final receipt: source `0d354eac0`, review
+  `LEFT017D-integrated-review-2026-10-08`, 9,792 captures, 5,363 distinct
+  images, 446,821,642 bytes, kept outside git at
+  `/var/tmp/l-LEFT017D/left017d-final`; manifest SHA-256 `9cf87fcf…`
+  (`5e3bec107`). Against the LEFT017B receipt, 2,375 frames (1,379 distinct
+  images) changed. Visible changes are confined to the F2 surfaces (Models,
+  accounts, reporting), traffic and Runners buttons, quote menu, palette,
+  share view and usage dialog; the other 63 changed scenes differ by
+  rasterization noise of at most 5 pixels above a 10% channel delta. Every
+  changed image was viewed on 42 labelled LEFT017D sheets, and
+  `left017b-visual-review.json` binds each frame to the sheet that showed its
+  exact bytes (142 LEFT017B sheets for unchanged frames). The 44 renderer
+  lines whose scenes changed visibly are updated in
+  `left017b-visual-review.md`, which also records the pre-existing narrow
+  team-cards finding F4.
+- **Capture races found by the fresh-clone replay and fixed in the driver.**
+  The interim receipt at `4a29c2d40` (`f9c2809eb`) replayed with exit 1 at
+  `share-narrow/default/light/320` (320 changed pixels, allowance 12). Code
+  highlighting falls back to identical plain markup, the usage dialog's
+  account facts fall back to nothing, and the palette filter's autofocus
+  scrolled the document to 76 or 83 px depending on font timing (`0d354eac0`
+  waits for the settled render and replays the focus scroll). The replay of
+  `5e3bec107` then exited 1 at `plan-usage/default/hc-light/690`
+  (1,389 pixels): the service-status row's "Reading usage…" Suspense fallback
+  (`8f276975b` waits until no such status remains). Probes: three runs of
+  palette, share-narrow and usage, then two runs of all eight usage, paid and
+  plan scenes (576 frames each), have zero frames over the allowance run to
+  run, and zero against the reviewed `0d354eac0` archive, so the reviewed
+  receipts stay current for `8f276975b`. No threshold, tolerance or assertion
+  changed.
+
+Fresh-clone gates on `8f276975b` (Linux rig, clean clone, `npm ci`,
+`CI=true`, repository deadlines, one heavy process at a time):
+
+| Gate             | Exit | Evidence                                                                                                      |
+| ---------------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| `check:visual`   | 0    | 9,792 captures passed against the reviewed archive; 27 changed pixels in total, at most 3 per image (cap 12). |
+| split            | 0    | `check-bundle-split.mjs`; deferred surfaces unchanged.                                                        |
+| visual tests (a) | 0    | `visualCapture`, `visualMatrix`, `themeInventory`: 23 tests.                                                  |
+| visual tests (b) | 0    | `visualGate`, `visualSource`, `visualStability`: 14 tests.                                                    |
+| visual tests (c) | 0    | `slashCommandsBundle`, `tokens`: 16 tests.                                                                    |
+| typecheck        | 0    | All five projects.                                                                                            |
+| eslint           | 0    | Changed TS/MJS files, `--max-warnings=0`.                                                                     |
+| stylelint        | 0    | Changed CSS files.                                                                                            |
+| prettier         | 0    | Every file changed since `a038b5c2d`.                                                                         |
+| `check:tokens`   | 0    | 0 problems.                                                                                                   |
+| knip             | 0    | Plain knip; two inherited configuration hints.                                                                |
+| jscpd            | 0    | 0 clones.                                                                                                     |
+
+The full build is not claimed here; its inherited size caps belong to the
+shrinking lane.
+
 ### Earlier LEFT017 receipts
 
 Lane `rel017/left`, base `7a4fc2ab3`, Linux rig, 2026-10-08. All tests
