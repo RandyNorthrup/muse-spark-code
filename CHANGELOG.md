@@ -7,16 +7,6 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
-### Fixed
-
-- Windows resource stops avoid cold PowerShell module discovery. Native job
-  helpers use verified long paths even when TEMP has an 8.3 spelling; Windows
-  launch qualification reuses its compiled helper and loads JSON support explicitly.
-- The Muse Code feedback dialog is removed until it can work. Nothing opened it,
-  and Muse Code feedback still refuses before dispatch without a captured receipt
-  reader. Help no longer lists **Send feedback to Muse Code**, and its ten
-  dialog-only strings are gone from every language table.
-
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
@@ -299,6 +289,22 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Windows resource stops avoid cold PowerShell module discovery. Native job
+  helpers use verified long paths even when TEMP has an 8.3 spelling; Windows
+  launch qualification reuses its compiled helper and loads JSON support explicitly.
+- The Muse Code feedback dialog is removed until it can work. Nothing opened it,
+  and Muse Code feedback still refuses before dispatch without a captured receipt
+  reader. Help no longer lists **Send feedback to Muse Code**, and its ten
+  dialog-only strings are gone from every language table.
+- A paid search answered **Always** goes ahead once when the profile store
+  cannot hand out an approval order (read-only or corrupt), instead of being
+  denied; the grant is not kept, the next search asks again, and the same
+  "could not be kept" warning is logged as for a failed save.
+- The Model API service-status body is read under the provider body cap, so
+  an oversized status page is cancelled at the cap instead of buffered whole.
+- `npm run quality` runs the legal accessibility suite again, and the
+  dependency-cycle check covers the 22 entry points a merge had dropped
+  (57 roots, no cycles); a manifest test pins both accessibility suites.
 - The `museSpark.resourceRelocate` setting no longer implies relocation works.
   No paired-device or runner route is bound in this release, so resource status,
   the pause notice and `resources status` say relocation is not available yet,
