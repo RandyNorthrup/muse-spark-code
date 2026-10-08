@@ -42082,6 +42082,8 @@ inventory, expose generation-owned source assembly through the lazy factory,
 and project actual judge status into Account & usage. Verify a fresh committed
 clone with CI=true, all five compilers, unchanged static/build/package gates,
 and the complete four-shard unit inventory at repository deadlines.
+Keep Judge presentation and its localized labels with the lazy Models and
+usage surfaces; chat's wire-schema import must preserve the startup baseline.
 No live, paid or local inference is authorized. Native M95 logprob and
 structured-output wrappers remain blocked where no committed capture exists;
 never turn the normalized test seam into a guessed vendor codec. Models-panel

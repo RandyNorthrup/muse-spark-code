@@ -4,12 +4,8 @@
 // shows its notice and no question.
 
 import { UI_TEXT } from '../../../../shared/constants'
-import {
-  judgePanelRows,
-  judgePanelStatusText,
-  unavailableJudgePanel,
-  type JudgePanelSnapshot,
-} from '../../../../shared/judgePanel'
+import { unavailableJudgePanel, type JudgePanelSnapshot } from '../../../../shared/judgePanel'
+import { judgePanelRows, judgePanelStatusText } from '../../../../shared/judgePanelText'
 import type { SectionProps } from '../../sections'
 
 export function JudgeSection({ panelState, post }: SectionProps) {

@@ -9,11 +9,8 @@ import { fill, formatNumber, plural } from '../../shared/l10n/text'
 import { paidCostUsd, paidFeatureName, paidTotalUsd, type PaidState } from '../../shared/paid'
 import { formatUsd } from '../../core/usage/insights'
 import { paidUseText } from '../agentFormat'
-import {
-  judgePanelRows,
-  judgePanelStatusText,
-  type JudgePanelSnapshot,
-} from '../../shared/judgePanel'
+import { judgePanelRows, judgePanelStatusText } from '../../shared/judgePanelText'
+import type { JudgePanelSnapshot } from '../../shared/judgePanelSchema'
 
 /**
  * The paid features this backend uses (D30 rule 5; on Muse Code, the key's

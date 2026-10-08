@@ -15,6 +15,8 @@ happened, not what was planned; superseded entries are kept.
   Refresh private package fixtures and share identical real VSIX inventories
   while retaining the delivery checks' existing deadlines.
   Include the source child in the support report's shipped-frame inventory.
+  Keep Judge projection and presentation outside chat's initial wire graph
+  to preserve the existing startup review baseline.
 
 
 - Keep every long-reply accessibility delta while yielding through a task port,

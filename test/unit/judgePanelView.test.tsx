@@ -14,12 +14,8 @@ import { UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { fill, setUiText } from '../../src/shared/l10n/text'
 import { paidFeaturePrice } from '../../src/shared/paid'
-import {
-  judgePanelMoney,
-  judgePanelStatusText,
-  projectJudgePanel,
-  type JudgePanelSnapshot,
-} from '../../src/shared/judgePanel'
+import { projectJudgePanel, type JudgePanelSnapshot } from '../../src/shared/judgePanel'
+import { judgePanelMoney, judgePanelStatusText } from '../../src/shared/judgePanelText'
 import dark from '../harness/themes/dark.json'
 import light from '../harness/themes/light.json'
 import hcDark from '../harness/themes/hc-dark.json'

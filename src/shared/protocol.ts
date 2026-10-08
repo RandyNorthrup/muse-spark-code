@@ -53,7 +53,7 @@ import {
   pullRequestFormSchema,
 } from './git'
 import { judgeStatusSchema } from './judge'
-import { judgePanelSnapshotSchema } from './judgePanel'
+import { judgePanelSnapshotSchema } from './judgePanelSchema'
 import { paidStateSchema } from './paid'
 import { patchHunkSchema } from './patchDocument'
 import { reviewRequestSchema } from './reviewCommand'

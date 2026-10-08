@@ -26,7 +26,7 @@
 // import from `vscode`, Node, or the DOM.
 
 import * as z from 'zod/mini'
-import { judgePanelSnapshotSchema } from './judgePanel'
+import { judgePanelSnapshotSchema } from './judgePanelSchema'
 
 /** The panel's sections; M96 registers `roles` and `agents` beside these. */
 export const modelsPanelSectionSchema = z.enum(['providers', 'models', 'judge'])

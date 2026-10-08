@@ -18,14 +18,16 @@ import {
   JUDGE_PANEL_REASONS,
   JUDGE_PANEL_SOURCES,
   JUDGE_PANEL_TECHNIQUES,
-  judgePanelMoney,
-  judgePanelRows,
-  judgePanelStatusText,
   projectJudgePanel,
   unavailableJudgePanel,
   type JudgePanelFacts,
   type JudgePanelTechnique,
 } from '../../src/shared/judgePanel'
+import {
+  judgePanelMoney,
+  judgePanelRows,
+  judgePanelStatusText,
+} from '../../src/shared/judgePanelText'
 import { formatUsd } from '../../src/shared/l10n/text'
 import { parseHostToWebviewMessage } from '../../src/shared/protocol'
 import {
@@ -518,6 +520,8 @@ describe('judge panel projection', () => {
   it('stays out of the core and the editor API', () => {
     for (const path of [
       'src/shared/judgePanel.ts',
+      'src/shared/judgePanelSchema.ts',
+      'src/shared/judgePanelText.ts',
       'src/webview/models/sections/judge/JudgeSection.tsx',
     ]) {
       const text = sourceText(path).replaceAll('\\', '/')
