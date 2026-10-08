@@ -7,7 +7,12 @@ import path from 'node:path'
 import { workspaceKey } from '../../runtime/dataFolder'
 import { runtimeSchedulesBinding } from '../../runtime/schedules/binding'
 import type { Logger } from '../logger'
-import { MILLISECONDS_PER_HOUR, type SCHEDULE_DELIVERIES, UI_TEXT } from '../../shared/constants'
+import {
+  COMMAND_IDS,
+  MILLISECONDS_PER_HOUR,
+  type SCHEDULE_DELIVERIES,
+  UI_TEXT,
+} from '../../shared/constants'
 import type { ScheduleDraft, ScheduleTarget } from '../../shared/scheduleV2'
 import type { ScheduleTargetChoice } from '../../webview/schedules/ports'
 
@@ -74,6 +79,51 @@ export function createSchedulesBridge(deps: SchedulesBridgeDeps) {
       if (!deps.isEnabled()) throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
       const binding = await load()
       return await binding.message(input, cwd)
+    },
+  }
+}
+
+/** Activation registers commands now; the panel and engine still load on use. */
+export function registerScheduleCommands<Surface extends object>(ports: {
+  readonly register: (id: string, action: () => Promise<void>) => { dispose(): void }
+  readonly active: () => Surface | undefined
+  readonly isReady: (surface: Surface) => boolean
+  readonly isEnabled: () => boolean
+  readonly openConversation: () => Promise<void>
+  readonly open: (surface: Surface, view: 'list' | 'timeline' | 'editor') => Promise<void>
+}) {
+  type View = 'list' | 'timeline' | 'editor'
+  let coldView: View | undefined
+  const pending = new WeakMap<Surface, View>()
+  const commands = (
+    [
+      [COMMAND_IDS.schedulePrompt, 'editor'],
+      [COMMAND_IDS.showSchedules, 'list'],
+      [COMMAND_IDS.showScheduleTimeline, 'timeline'],
+    ] as const
+  ).map(([id, view]) =>
+    ports.register(id, async () => {
+      if (!ports.isEnabled()) throw new Error(UI_TEXT.scheduleV2.runtime.unavailable)
+      const surface = ports.active()
+      if (surface === undefined) {
+        coldView = view
+        try {
+          await ports.openConversation()
+        } catch (error: unknown) {
+          coldView = undefined
+          throw error
+        }
+      } else if (ports.isReady(surface)) await ports.open(surface, view)
+      else pending.set(surface, view)
+    }),
+  )
+  return {
+    commands,
+    async ready(surface: Surface): Promise<void> {
+      const view = pending.get(surface) ?? coldView
+      pending.delete(surface)
+      coldView = undefined
+      if (view !== undefined && ports.isEnabled()) await ports.open(surface, view)
     },
   }
 }
