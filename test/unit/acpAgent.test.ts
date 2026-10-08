@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { fill } from '../../src/shared/l10n/text'
 import * as acp from '@agentclientprotocol/sdk'
 import { MspError } from '@muse-code/sdk'
@@ -24,6 +25,7 @@ import { approvalModeFor } from '../../src/shared/permissionModes'
 import { FAKE_MODELS, FakeAgentHost, type FakeAgentSession } from './helpers/fakeAgent'
 import { memoryPaidGrants } from './helpers/paidGrants'
 import { commandApproval, until } from './helpers/acpWaits'
+import { childPatchOutput } from './helpers/fakeMsp'
 import { acpMspHost, acpResumeEnvelope, answerMsp } from './helpers/acpMsp'
 import { chatGptAuthenticationMethods } from '../../src/runtime/chatGptProviderCommands'
 import { createRuntimeChatGptHost } from '../../src/runtime/chatGptHost'
@@ -493,6 +495,192 @@ describe('the ACP agent (M63)', () => {
     })
     expect(ready.rechecks).toEqual([])
   })
+  it('lists active agents locally while a model turn is running', async () => {
+    const h = harness()
+    vi.spyOn(h.host, 'readSession').mockResolvedValue({
+      mode: 'inline',
+      items: [{ itemId: 'a', kind: 'subagent', subagentId: 'child', status: 'inProgress' }],
+      todos: [],
+      name: undefined,
+    })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      const running = prompt(client, sessionId)
+      const session = h.host.sessions[0]!
+      await until(() => session.sendTurn.mock.calls.length === 1)
+      await prompt(client, sessionId, '/agents')
+      expect(session.sendTurn).toHaveBeenCalledTimes(1)
+      session.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+      await running
+    })
+  })
+  it.each(['/agents', '/agents receipt child'])(
+    'cancels the running model turn while local inspection waits: %s',
+    async (command) => {
+      const h = harness()
+      const history = { mode: 'inline', items: [], todos: [], name: undefined } as const
+      const held = Promise.withResolvers<typeof history>()
+      const read = vi.spyOn(h.host, 'readSession').mockReturnValue(held.promise)
+      await h.run(async (client) => {
+        const { sessionId, session, response: runningPrompt } = await running(h, client)
+        const inspecting = prompt(client, sessionId, command)
+        await until(() => read.mock.calls.length === 1)
+        await client.notify('session/cancel', { sessionId })
+        try {
+          await until(() => session.cancel.mock.calls.length === 1)
+        } finally {
+          held.resolve(history)
+          session.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+        }
+        expect(await runningPrompt).toEqual({ stopReason: 'cancelled' })
+        expect(await inspecting).toEqual({ stopReason: 'cancelled' })
+        expect(session.cancel).toHaveBeenCalledTimes(1)
+      })
+    },
+  )
+
+  it('keeps newer inspection preparation when a cancelled history read settles late', async () => {
+    const h = harness()
+    const history = { mode: 'inline', items: [], todos: [], name: undefined } as const
+    const old = Promise.withResolvers<typeof history>()
+    const newer = Promise.withResolvers<typeof history>()
+    const read = vi
+      .spyOn(h.host, 'readSession')
+      .mockReturnValueOnce(old.promise)
+      .mockReturnValueOnce(newer.promise)
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      const first = prompt(client, sessionId, '/agents')
+      await until(() => read.mock.calls.length === 1)
+      await client.notify('session/cancel', { sessionId })
+      await until(() =>
+        h.log.info.mock.calls.some(([line]) => String(line).includes('cancelled before its turn')),
+      )
+      const second = prompt(client, sessionId, '/agents')
+      await until(() => read.mock.calls.length === 2)
+      old.resolve(history)
+      expect(await first).toEqual({ stopReason: 'cancelled' })
+      let isSettled = false
+      const regular = (async () => {
+        try {
+          await prompt(client, sessionId)
+          return 'started'
+        } catch (error: unknown) {
+          return error instanceof Error ? error.message : String(error)
+        } finally {
+          isSettled = true
+        }
+      })()
+      try {
+        await until(() => isSettled || h.host.sessions[0]?.sendTurn.mock.calls.length === 1)
+        h.host.sessions[0]?.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
+        expect(await regular).toContain(UI_TEXT.acpPromptBusy)
+      } finally {
+        newer.resolve(history)
+      }
+      expect(await second).toEqual({ stopReason: 'end_turn' })
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    })
+  })
+
+  it('reads ACP child patch evidence through the child session without resuming it', async () => {
+    await withMspSession(async (client, wire) => {
+      wire.server.handle('session/read', (params) => {
+        const value = acpResumeEnvelope()
+        return {
+          ...value,
+          session: { ...value.session, sessionId: params['sessionId'] },
+          history: {
+            ...value.history,
+            items: [
+              params['sessionId'] === 'old-1'
+                ? {
+                    itemId: 'a',
+                    kind: 'subagent',
+                    subagentId: 'child',
+                    childSessionId: 'child-1',
+                    status: 'completed',
+                  }
+                : {
+                    itemId: 'edit',
+                    kind: 'toolCall',
+                    status: 'completed',
+                    patchRef: { id: 'patch', byteLen: 100 },
+                  },
+            ],
+          },
+        }
+      })
+      wire.server.handle('item/readOutput', childPatchOutput)
+      await prompt(client, 'old-1', '/agents receipt child')
+      expect(wire.server.requestsFor('item/readOutput')[0]?.params?.['sessionId']).toBe('child-1')
+      expect(wire.server.requestsFor('session/resume')).toHaveLength(1)
+      expect(wire.server.requestsFor('turn/start')).toHaveLength(0)
+    })
+  })
+
+  it.each(['continue', 'retry'])(
+    'does not recover through local %s after the editor denies',
+    async (action) => {
+      const h = harness({ answer: () => ({ outcome: { outcome: 'selected', optionId: 'deny' } }) })
+      vi.spyOn(h.host, 'readSession').mockResolvedValue({
+        mode: 'inline',
+        items: [{ itemId: 'a', kind: 'subagent', subagentId: 'child', status: 'failed' }],
+        todos: [],
+        name: undefined,
+      })
+      await h.run(async (client) => {
+        const { sessionId } = await start(client)
+        await prompt(client, sessionId, `/agents ${action} child`)
+      })
+      expect(h.host.sessions[0]?.controlSubagent).not.toHaveBeenCalled()
+      expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+      expect(h.permissions).toHaveLength(1)
+    },
+  )
+  it('lists agent evidence and receipts locally, and asks before recovery in Bypass', async () => {
+    const h = harness({
+      canBypass: true,
+      initialMode: 'bypassPermissions',
+      answer: () => ({ outcome: { outcome: 'selected', optionId: 'recover' } }),
+    })
+    const item: ItemSnapshot = {
+      itemId: 'a',
+      kind: 'subagent',
+      subagentId: 'child',
+      status: 'completed',
+      objective: 'Keep objective',
+      agentEvidence: { stopReason: 'budget', unfinished: ['Run checks'] },
+      result: { summary: 'Final message' },
+    }
+    vi.spyOn(h.host, 'readSession').mockResolvedValue({
+      mode: 'inline',
+      items: [item],
+      name: undefined,
+      todos: [],
+    })
+    await h.run(async (client) => {
+      const { sessionId } = await start(client)
+      await prompt(client, sessionId, '/agents')
+      await prompt(client, sessionId, '/agents receipt child')
+      await prompt(client, sessionId, '/agents continue child')
+      await prompt(client, sessionId, '/agents retry child')
+    })
+    expect(h.host.sessions[0]?.sendTurn).not.toHaveBeenCalled()
+    expect(h.permissions).toHaveLength(2)
+    expect(h.host.sessions[0]?.controlSubagent).toHaveBeenCalledWith('child', 'continue')
+    expect(h.host.sessions[0]?.controlSubagent).toHaveBeenCalledWith('child', 'retry')
+    const messages = h.updates
+      .flatMap((update) =>
+        update.sessionUpdate === 'agent_message_chunk' && update.content.type === 'text'
+          ? [update.content.text]
+          : [],
+      )
+      .join('\n')
+    expect(messages).toContain('Inactive · Incomplete')
+    expect(messages).toContain('Final message')
+  })
+
   it('initializes with its capabilities, and a terminal sign-in only for a client that runs one', async () => {
     const h = harness()
     const [plain, terminal] = await h.run(async (client) => [
@@ -746,7 +934,7 @@ describe('the ACP agent (M63)', () => {
       content: {
         type: 'text',
         text: expect.stringContaining(
-          `${UI_TEXT.groupSlashCommands}: /help, /compact, /questions, /answer`,
+          `${UI_TEXT.groupSlashCommands}: /help, /compact, /agents, /questions, /answer`,
         ),
       },
     })
@@ -808,16 +996,11 @@ describe('the ACP agent (M63)', () => {
       session?.emit({ type: 'turnCompleted', turnId: 'turn-1', terminal: 'completed' })
       await response
     })
-    expect(h.updates[0]).toEqual({
-      sessionUpdate: 'available_commands_update',
-      availableCommands: [
-        { name: 'help', description: UI_TEXT.referenceIntro, input: null },
-        { name: 'compact', description: UI_TEXT.compactDetail, input: null },
+    expect(h.updates[0]).toEqual(
+      expectedQuestionCommandsUpdate([
         { name: 'review', description: 'Review', input: { hint: '<path>' } },
-        { name: 'answer', description: UI_TEXT.acpAnswerHelp, input: { hint: '<n> <text>' } },
-        { name: 'questions', description: UI_TEXT.acpQuestionsHelp, input: null },
-      ],
-    })
+      ]),
+    )
     expect(h.host.sessions[0]?.sendTurn).toHaveBeenCalledWith(
       [{ type: 'skill', selector: 'review', arguments: 'src/app.ts' }],
       '/review src/app.ts',
@@ -1835,7 +2018,7 @@ function choose(optionId: string): PermissionAnswer {
   return () => ({ outcome: { outcome: 'selected', optionId } })
 }
 
-const WEB_SEARCH = { feature: 'webSearch' } as const
+const WEB_SEARCH = { feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() } as const
 const IMAGE = {
   feature: 'imageGeneration',
   kind: 'generate',
@@ -1857,7 +2040,7 @@ async function answersInOneSession(
     const { sessionId } = await start(client)
     const answers: boolean[] = []
     for (const request of requests) {
-      answers.push(await h.paid.allows(CWD, sessionId, request, false))
+      answers.push(Boolean(await h.paid.allows(CWD, sessionId, request, false)))
     }
     return answers
   })
@@ -1875,11 +2058,11 @@ describe('paid features in the agent (M63c, M58)', () => {
         await until(() => h.permissions.length === 1)
         await finishRunningPrompt(client, active, terminal)
         answer.resolve({ outcome: { outcome: 'selected', optionId: 'paid-allow-always' } })
-        expect(await paid).toBe(false)
+        expect(Boolean(await paid)).toBe(false)
         expect(h.paid.isRemembered(CWD, 'webSearch')).toBe(false)
         expect(h.grants.byFolder.size).toBe(0)
         // A fresh use still asks and can be allowed; only the stale answer was refused.
-        expect(await h.paid.allows(CWD, sessionId, WEB_SEARCH, false)).toBe(true)
+        expect(Boolean(await h.paid.allows(CWD, sessionId, WEB_SEARCH, false))).toBe(true)
         expect(h.permissions).toHaveLength(2)
       })
     },
@@ -1892,7 +2075,7 @@ describe('paid features in the agent (M63c, M58)', () => {
       const session = h.host.sessions[0]!
       let isAllowed = true
       session.listSkills.mockImplementation(async () => {
-        isAllowed = await h.paid.allows(CWD, sessionId, WEB_SEARCH, false)
+        isAllowed = Boolean(await h.paid.allows(CWD, sessionId, WEB_SEARCH, false))
         return []
       })
       const response = prompt(client, sessionId)
@@ -1915,7 +2098,7 @@ describe('paid features in the agent (M63c, M58)', () => {
   it('denies a paid use answered after its session closed (Grok on 78a74430)', async () => {
     const answer = Promise.withResolvers<acp.RequestPermissionResponse>()
     const h = harness({ kind: 'modelApi', paid: ['webSearch'], answer: () => answer.promise })
-    const isAllowed = await h.run(async (client) => {
+    const decision = await h.run(async (client) => {
       const { sessionId } = await start(client)
       const asked = h.paid.allows(CWD, sessionId, WEB_SEARCH, false)
       await until(() => h.permissions.length === 1)
@@ -1923,7 +2106,7 @@ describe('paid features in the agent (M63c, M58)', () => {
       answer.resolve({ outcome: { outcome: 'selected', optionId: 'paid-allow-once' } })
       return await asked
     })
-    expect(isAllowed).toBe(false)
+    expect(Boolean(decision)).toBe(false)
     // Nothing more reaches the editor for a session it closed (Grok on ca263c53).
     expect(h.updates.filter((update) => update.sessionUpdate === 'tool_call_update')).toEqual([])
   })
@@ -1954,7 +2137,7 @@ describe('paid features in the agent (M63c, M58)', () => {
           await entered.promise
           await finishRunningPrompt(client, active, terminal)
           released.resolve(undefined)
-          expect(await allowed).toBe(false)
+          expect(await allowed).toBeUndefined()
         })
         expect(h.permissions).toEqual([])
         expect(h.updates.filter((update) => update.sessionUpdate === 'tool_call')).toEqual([])
@@ -2018,7 +2201,7 @@ describe('paid features in the agent (M63c, M58)', () => {
       'allow_always',
       'reject_once',
     ])
-    expect(h.grants.byFolder.get(CWD)).toEqual(new Set(['webSearch', 'imageGeneration']))
+    expect(h.grants.read(CWD)).toEqual(new Set(['webSearch', 'imageGeneration']))
     expect(h.paid.isRemembered(CWD, 'webSearch')).toBe(true)
   })
 
@@ -2048,7 +2231,7 @@ describe('paid features in the agent (M63c, M58)', () => {
       },
     })
     expect(await answersInOneSession(h, [WEB_SEARCH])).toEqual([false])
-    expect(await h.paid.allows(CWD, 'not-a-session', WEB_SEARCH, false)).toBe(false)
+    expect(await h.paid.allows(CWD, 'not-a-session', WEB_SEARCH, false)).toBeFalsy()
     expect(h.permissions).toHaveLength(1)
     expect(h.log.warn).toHaveBeenCalledWith(
       expect.stringContaining('the paid-use question failed, denying'),

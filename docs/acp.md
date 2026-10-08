@@ -322,8 +322,8 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 | `--allow-contributor-models`           | List contributor-tier models, whose content Meta may train on; they are hidden otherwise                                          |
 | `--web-search`                         | Offer paid web search (Model API backend only); each prompt asks in the editor first, naming the price                            |
 | `--image-generation`                   | Offer paid image generation (Model API backend only); each image asks in the editor first, naming the price                       |
-| `--no-auto-compaction`                 | Disable automatic compaction in the shared Model API core (also accepted by exec); production is awaiting evaluation and inactive |
 | `--verbose`                            | Log every detail to stderr (the editor's agent log)                                                                               |
+| `--no-auto-compaction`                 | Disable automatic compaction in the shared Model API core (also accepted by exec); production is awaiting evaluation and inactive |
 
 ## What the editor sees
 
@@ -565,12 +565,15 @@ known patterns and the exact key literal, not every unknown secret.
 
 Read [the complete CLI/CI guide](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/ci.md)
 for all options, limits, conditional billing theorem, Action lifecycle and
-workflow templates. Schemas ship as `schemas/exec-result-v1.schema.json`
-and `schemas/exec-event-v1.schema.json`; canonical
-[result](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/schemas/exec-result-v1.schema.json),
-[event](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/schemas/exec-event-v1.schema.json)
+workflow templates. Schemas ship as `schemas/exec-result-v2.schema.json`
+and `schemas/exec-event-v2.schema.json`; canonical
+[result](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/schemas/exec-result-v2.schema.json),
+[event](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/schemas/exec-event-v2.schema.json)
 and [receipts](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/certification/m80.md)
-use absolute links because npm does not resolve relative links. Registry Action
+use absolute links because npm does not resolve relative links. Version 2 is the
+canonical contract: USD amounts are exact decimal strings. The historical v1
+numeric-money schemas and reader are legacy compatibility only; current output
+and Action validation require v2. Registry Action
 support still requires post-release LR, beyond unsigned candidate acceptance.
 
 ACP advertises `/compact` alongside skills. An exact text-only `/compact`
@@ -722,3 +725,75 @@ publishing, hosted links, team destinations and email remain phase 2/3.
 ## Help and reference
 
 Send `/help` in an ACP session for its local command list and the [generated reference](reference.md). Run `muse-spark-code-acp help --all` in a terminal for the complete reference. Help starts no backend and makes no model request.
+
+## Resource status and resume
+
+M107's candidate package carries the same lazy governor as the extension.
+It ships the universal Darwin helper and both Linux helper architectures;
+Windows helpers compile from the included sources on first use.
+It uses portable machine settings, never a workspace setting or credential.
+The runtime data folder's `resources.json` is a JSON object whose keys are the
+full `museSpark.resource…` setting names in the [README table](../README.md#keeping-your-machine-responsive).
+A missing file uses defaults. Malformed, oversized or inaccessible settings
+fail explicitly. Native editors can inject `ResourceMachineStore` for their
+own machine store; they must not substitute project configuration.
+
+```sh
+muse-spark-code-acp resources status --json
+muse-spark-code-acp resources resume --json
+```
+
+Text output omits `--json`. Status samples this new command process; it cannot
+observe a separately running editor session's queue. Resume writes
+`resource-resume.json` with a fifteen-minute deadline. Running runtime hosts
+apply it on refresh without extending that deadline; explicit OFF stays off.
+Neither command signs in or makes a model call.
+
+The shared session adapter registers `/resources`, `/resources resume` and
+`/usage resources`, delivers notices for affected work and validates deferred
+tool `_meta`. It needs the injected runtime resource port. `resources history`
+and `usage resources` return an explicit unavailable error while no retained
+journal is bound. Zed, Xcode, Neovim, Emacs, Sublime and native editor plugins
+have equivalent routes; see the [resource matrix](ide-compatibility/resources.md).
+These component receipts do not certify installed-editor resource behavior.
+
+Stop and permission/paid prompts remain responsive at pause. Unknown readings
+are neither a fabricated zero nor evidence of recovery. No resource action
+changes model capabilities, paid consent or the shared budget. Runtime spawn,
+native control, journal and relocation bindings remain named in
+[M107's integration record](certification/m107.md).
+
+## Structured headless answers
+
+`exec --output-schema <file>` reads a bounded JSON Schema file through an open
+file descriptor, verifies its identity and confines its real path to the
+workspace. `--output-schema-outside` explicitly permits an external path.
+The strict subset supports bounded local `$defs`/`$ref` references. It rejects
+external references, reference-only cycles and unsupported constraints such as
+regular expressions. Objects are closed and require every declared property;
+arrays declare their item type. Recursive object definitions are permitted.
+Both schemas and answers have byte, depth, node and validation work limits. Its closed schema and digest are fixed before session dispatch;
+a changed model, active session or repeated configuration is refused.
+
+The captured `muse-spark-1.3-contributor` record selects provider strict JSON
+Schema. An unknown model uses the explicitly announced local validator with
+the schema appended outside the reusable prefix. The runtime does not invent
+a forced-tool codec. This is a local wiring receipt, not release qualification
+for providers whose transports/capability records are absent from this base.
+
+Successful version-2 results add `output.value` and `output.validation`
+(`provider` or `local`), paired with `ledger.outputSchemaSha256`. Event and result
+readers validate the same canonical contract; schema mismatch or validation
+budget exhaustion exits 10, retaining incurred spend and the schema digest.
+No repair call runs for the final answer. Partial invalid JSON is withheld,
+secret scanning still precedes output, and calls without these flags retain
+the ordinary request and result bytes. The schema body is not stored in the
+ledger. The attached schema does not change headless paid-feature opt-ins,
+consent exclusions or the conditional budget theorem above.
+
+The portable core shares strict declarations, safe parallel reads, bounded
+retry/idle waits, fresh repeat witnesses and output continuation with the
+extension. Provider-specific evidence is injected at the backend factory;
+unknown capabilities stay off. Native Muse Code effort, deletion and feedback
+remain unavailable until their captured feature ports are supplied. These
+limits apply equally to every ACP editor and to headless execution.

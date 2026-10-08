@@ -1,3 +1,4 @@
+import { Usd } from '../../shared/usd'
 import { setUiText } from '../../shared/l10n/text'
 import { loadUsageTable, setUsageText } from '../../shared/l10n/usageTable'
 import { readUsageTableFile } from '../../runtime/usage/usageTableFile'
@@ -6,12 +7,16 @@ import { UsagePanel, type UsagePanelDeps } from './usagePanel'
 import { homedir, hostname } from 'node:os'
 import path from 'node:path'
 import { agentDataFolder } from '../../runtime/dataFolder'
-import { lazyUsageAdapter } from '../../runtime/usage/usageAdapter'
-import { SETTINGS_SECTION, USAGE_FOLDER, USAGE_HISTORY_DAYS_DEFAULT } from '../../shared/constants'
+import { lazyUsageAdapter, type UsageAccessDeps } from '../../runtime/usage/usageAdapter'
+import {
+  SETTINGS_SECTION,
+  USAGE_FOLDER,
+  USAGE_HISTORY_DAYS_DEFAULT,
+  TAB_DAILY_BUDGET_DEFAULT_USD,
+} from '../../shared/constants'
 import { createPaidDailyBudget } from '../paid/paidDailyBudget'
-import type { UsageAccessDeps } from '../../runtime/usage/usageAdapter'
+
 import { createTabLedger } from '../tab/tabLedger'
-import { TAB_DAILY_BUDGET_DEFAULT_USD } from '../../shared/constants'
 
 export interface UsagePanelHostDeps extends Omit<
   UsagePanelDeps,
@@ -91,10 +96,12 @@ export async function createUsagePanel(deps: UsagePanelHostDeps): Promise<UsageP
                   id: 'tab-daily',
                   kind: 'tabDaily' as const,
                   capUsd,
-                  spentUsd: total.totalUsd,
-                  stopped: total.totalUsd >= capUsd,
+                  spentUsd: Number(total.totalUsd),
+                  stopped: Usd.from(total.totalUsd).compare(Usd.from(capUsd)) >= 0,
                   resetsAt: resets.getTime(),
-                  ...(total.uncertainUsd !== undefined && { uncertainUsd: total.uncertainUsd }),
+                  ...(total.uncertainUsd !== undefined && {
+                    uncertainUsd: Number(total.uncertainUsd),
+                  }),
                 },
               },
             ]

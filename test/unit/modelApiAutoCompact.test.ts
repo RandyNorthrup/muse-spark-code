@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { Buffer } from 'node:buffer'
 import { describe, expect, it, vi } from 'vitest'
 import * as z from 'zod/mini'
@@ -470,7 +471,7 @@ describe('automatic compaction in the shared Model API loop', () => {
     })
     const t = await setup({
       store,
-      sessionBudgetUsd: () => 1,
+      sessionBudgetUsd: () => Usd.from(1).toAmount(),
       admitAutoCompaction: () => {
         isCompacting = true
         return Promise.resolve({ guard: () => undefined, settle: () => undefined })

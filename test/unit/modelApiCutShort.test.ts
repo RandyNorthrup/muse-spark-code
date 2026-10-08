@@ -153,7 +153,10 @@ describe('cut-short codec replies never execute tools', () => {
       const log = new FakeLogOutputChannel()
       const client = fakeModelApiClient(api, log)
       const io = memoryToolIo({}, '/ws')
-      const host = new ModelApiHost(fakeModelApiHostDeps({ client, workspaceRoot: '/ws', io, log }))
+      const host = new ModelApiHost({
+        ...fakeModelApiHostDeps({ client, workspaceRoot: '/ws', io, log }),
+        outputContinuation: () => true,
+      })
       const session = await host.startSession({
         workspaceRoot: '/ws',
         modelId: 'muse-spark-1.3',
@@ -167,6 +170,7 @@ describe('cut-short codec replies never execute tools', () => {
       await session.sendTurn([{ type: 'text', text: 'write it' }])
       await watched.turnDone()
       expect(io.files.size).toBe(0)
+      expect(client.streamResponse).toHaveBeenCalledTimes(1)
       expect(watched.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
         terminal: 'failed',
         reason: UI_TEXT.incompleteToolCallsNotRun,

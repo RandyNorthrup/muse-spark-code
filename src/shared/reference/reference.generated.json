@@ -1,6 +1,45 @@
 {
   "features": [
     {
+      "id": "resources",
+      "name": { "ui": "resourceTitle" },
+      "summary": { "ui": "referenceResources" },
+      "description": { "ui": "referenceResources" },
+      "commands": [],
+      "settings": [
+        "museSpark.resourceGovernor",
+        "museSpark.resourceCpuMaxPercent",
+        "museSpark.resourceMemoryMaxPercent",
+        "museSpark.resourceMemoryMinFreeGiB",
+        "museSpark.resourceGpuMaxPercent",
+        "museSpark.resourceDiskBusyMaxPercent",
+        "museSpark.resourceDiskMinFreeGiB",
+        "museSpark.resourceRelocate"
+      ],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#keeping-your-machine-responsive",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
+      "id": "agent-outcomes",
+      "name": { "ui": "agentReceipt" },
+      "summary": { "ui": "referenceAgentOutcomes" },
+      "description": { "ui": "referenceAgentOutcomes" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-outcomes",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
       "id": "providers",
       "name": { "ui": "modelsPanelTitle" },
       "summary": { "ui": "startWithOwnModelDetail" },
@@ -89,10 +128,14 @@
         "paidSettings": ["museSpark.modelApiTeamWorkers"],
         "configuredDefaults": { "museSpark.modelApiTeamWorkers": true },
         "defaultState": { "type": "boolean", "value": true },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -138,10 +181,14 @@
         "paidSettings": ["museSpark.legalExplanation"],
         "configuredDefaults": { "museSpark.legalExplanation": true },
         "defaultState": { "type": "boolean", "value": true },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -233,10 +280,14 @@
         "paidSettings": ["museSpark.modelApiBestOfN"],
         "configuredDefaults": { "museSpark.modelApiBestOfN": true },
         "defaultState": { "type": "boolean", "value": true },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -371,6 +422,171 @@
       "editors": ["vscode"]
     },
     {
+      "id": "strict-tools",
+      "name": { "setting": "modelApiStrictTools" },
+      "summary": {
+        "conditions": [
+          { "when": "conversationStart&tools.strict", "text": { "setting": "modelApiStrictTools" } }
+        ]
+      },
+      "description": {
+        "conditions": [
+          { "when": "conversationStart&tools.strict", "text": { "setting": "modelApiStrictTools" } }
+        ]
+      },
+      "commands": [],
+      "settings": ["museSpark.modelApiStrictTools"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
+      "id": "parallel-reads",
+      "name": { "setting": "modelApiParallelReads" },
+      "summary": {
+        "conditions": [
+          { "when": "conversationStart", "text": { "setting": "modelApiParallelReads" } }
+        ]
+      },
+      "description": {
+        "conditions": [
+          { "when": "conversationStart", "text": { "setting": "modelApiParallelReads" } }
+        ]
+      },
+      "commands": [],
+      "settings": ["museSpark.modelApiParallelReads"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
+      "id": "auto-compaction",
+      "name": { "setting": "modelApiAutoCompaction" },
+      "summary": {
+        "conditions": [
+          {
+            "when": "conversationStart&modelPricing",
+            "text": { "setting": "modelApiAutoCompaction" }
+          }
+        ]
+      },
+      "description": {
+        "conditions": [
+          {
+            "when": "conversationStart&modelPricing",
+            "text": { "setting": "modelApiAutoCompaction" }
+          }
+        ]
+      },
+      "commands": [],
+      "settings": ["museSpark.modelApiAutoCompaction"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
+      "id": "argument-preview",
+      "name": { "ui": "toolArgumentPreviewLabel" },
+      "summary": { "ui": "toolArgumentPreviewPending" },
+      "description": { "ui": "toolArgumentPreviewPending" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode"]
+    },
+    {
+      "id": "cut-short-tools",
+      "name": { "ui": "incompleteToolCallsNotRun" },
+      "summary": { "ui": "incompleteToolCallsNotRun" },
+      "description": { "ui": "incompleteToolCallsNotRun" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
+      "id": "structured-side-calls",
+      "name": { "ui": "structuredOutputRepair" },
+      "summary": { "ui": "structuredOutputFallback" },
+      "description": { "ui": "structuredOutputFallback" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [{ "ui": "structuredOutputRepair" }, { "ui": "structuredOutputFallback" }],
+      "facts": {},
+      "editors": ["vscode", "acp"]
+    },
+    {
+      "id": "output-schema",
+      "name": { "cli": "output-schema" },
+      "summary": { "cli": "output-schema" },
+      "description": { "cli": "output-schema" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#headless-runs",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["acp:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["acp"]
+    },
+    {
+      "id": "service-status",
+      "name": { "ui": "modelApiStatusLabel" },
+      "summary": { "ui": "modelApiStatusOpen" },
+      "description": { "ui": "modelApiStatusOpen" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode"]
+    },
+    {
+      "id": "native-deletion",
+      "name": { "ui": "memoryDeleteAction" },
+      "summary": { "ui": "historyLabel" },
+      "description": { "ui": "historyLabel" },
+      "commands": [],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees",
+      "backends": ["museCode"],
+      "paid": false,
+      "surfaces": ["vscode:museCode"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode"]
+    },
+    {
       "id": "effort",
       "name": { "ui": "effortItem" },
       "summary": { "tip": "effort" },
@@ -465,8 +681,8 @@
     {
       "id": "questions",
       "name": { "ui": "questionSubmit" },
-      "summary": { "ui": "referenceQuestions" },
-      "description": { "ui": "referenceQuestions" },
+      "summary": { "ui": "referenceQuestionsDeferral" },
+      "description": { "ui": "referenceQuestionsDeferral" },
       "commands": ["museSpark.nextOpenQuestion", "museSpark.previousOpenQuestion"],
       "settings": ["museSpark.questions.deferAfterSeconds"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#questions",
@@ -889,7 +1105,7 @@
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi"],
-      "details": [],
+      "details": [{ "ui": "structuredOutputRepair" }, { "ui": "structuredOutputFallback" }],
       "facts": {},
       "editors": ["vscode"]
     },
@@ -1112,10 +1328,14 @@
         "paidSettings": ["museSpark.modelApiVoice"],
         "configuredDefaults": { "museSpark.modelApiVoice": true },
         "defaultState": { "type": "boolean", "value": true },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1136,7 +1356,7 @@
       "summary": { "tip": "paid:webSearch" },
       "description": { "tip": "paid:webSearch" },
       "commands": [],
-      "settings": ["museSpark.modelApiWebSearch"],
+      "settings": ["museSpark.modelApiWebSearch", "museSpark.webSearchMaxPerRequest"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#paid-features",
       "backends": ["modelApi"],
       "paid": true,
@@ -1147,17 +1367,21 @@
         "paidSettings": ["museSpark.modelApiWebSearch"],
         "configuredDefaults": { "museSpark.modelApiWebSearch": true },
         "defaultState": { "type": "boolean", "value": true },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
           "vscode:modelApi": {
             "defaultState": { "type": "boolean", "value": true },
             "key": "SecretStorage",
-            "consent": "use",
+            "consent": "window",
             "ledger": "paidDailyBudgetUsd"
           },
           "acp:modelApi": {
@@ -1187,10 +1411,14 @@
         "paidSettings": ["museSpark.modelApiImageGeneration"],
         "configuredDefaults": { "museSpark.modelApiImageGeneration": true },
         "defaultState": { "type": "boolean", "value": true },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1240,10 +1468,14 @@
         "paidSettings": ["museSpark.modelApiScheduledPrompts"],
         "configuredDefaults": { "museSpark.modelApiScheduledPrompts": true },
         "defaultState": { "type": "boolean", "value": true },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1274,10 +1506,14 @@
         "paidSettings": ["museSpark.modelApiSubagents"],
         "configuredDefaults": { "museSpark.modelApiSubagents": true },
         "defaultState": { "type": "boolean", "value": true },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1308,10 +1544,14 @@
         "paidSettings": ["museSpark.modelApiAutoReviewer"],
         "configuredDefaults": { "museSpark.modelApiAutoReviewer": true },
         "defaultState": { "type": "boolean", "value": true },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1342,10 +1582,14 @@
         "paidSettings": ["museSpark.modelApiHookModels"],
         "configuredDefaults": { "museSpark.modelApiHookModels": true },
         "defaultState": { "type": "boolean", "value": true },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1421,17 +1665,21 @@
         "ledger": "tabDailyBudgetUsd",
         "budgetUsd": 1,
         "rates": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "paidFeature": "tab",
         "paidSettings": ["museSpark.modelApiTab"],
         "configuredDefaults": { "museSpark.modelApiTab": true },
         "defaultState": { "type": "boolean", "value": true },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1463,7 +1711,7 @@
       "backends": ["modelApi"],
       "paid": true,
       "surfaces": ["vscode:modelApi"],
-      "details": [],
+      "details": [{ "ui": "structuredOutputRepair" }, { "ui": "structuredOutputFallback" }],
       "facts": {
         "paidFeature": "judge",
         "paidSettings": ["museSpark.judge.engine"],
@@ -1483,10 +1731,14 @@
             ]
           }
         },
-        "pricesUsd": { "webSearchPerThousand": 2.5, "imageGeneration": 0.01, "voicePerHour": 0.18 },
+        "pricesUsd": {
+          "webSearchPerThousand": "2.5",
+          "imageGeneration": "0.01",
+          "voicePerHour": "0.18"
+        },
         "tokenRatesPerMillion": {
-          "standard": { "input": 1.25, "cachedInput": 0.15, "output": 4.25 },
-          "contributor": { "input": 0.1, "cachedInput": 0.002, "output": 0.2 }
+          "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1661,6 +1913,16 @@
       "canRun": true
     },
     {
+      "id": "museSpark.reportProblem",
+      "name": "Report a Problem",
+      "nameKey": "command.reportProblem.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Preview a scrubbed problem report before saving or sending it.",
+      "text": { "ui": "referenceReport" },
+      "canRun": true
+    },
+    {
       "id": "museSpark.newConversation",
       "name": "New Conversation",
       "nameKey": "command.newConversation.title",
@@ -1795,6 +2057,37 @@
       "canRun": false
     },
     {
+      "id": "museSpark.runSetupHooks",
+      "name": "Run Setup Hooks",
+      "nameKey": "command.runSetupHooks.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Run Setup hooks for init from spark-hooks.json in a trusted workspace.",
+      "text": { "ui": "referenceSetup" },
+      "canRun": false
+    },
+    {
+      "id": "museSpark.runHook",
+      "name": "Run Hook…",
+      "nameKey": "command.runHook.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Run one of your Manual hooks from spark-hooks.json now.",
+      "text": { "tip": "hookRun" },
+      "canRun": false
+    },
+    {
+      "id": "museSpark.retryPluginHooks",
+      "name": "Retry Plugin Hooks",
+      "nameKey": "command.retryPluginHooks.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Retry preparation of the Windows job for plugin hooks.",
+      "text": { "ui": "referenceRetry" },
+      "enablement": "isWindows",
+      "canRun": false
+    },
+    {
       "id": "museSpark.memory",
       "name": "Memory",
       "nameKey": "command.memory.title",
@@ -1879,77 +2172,6 @@
       "canRun": false
     },
     {
-      "id": "museSpark.startWithOwnModel",
-      "name": "Start with Your Own Model",
-      "nameKey": "command.startWithOwnModel.title",
-      "category": "Muse Spark",
-      "categoryKey": "command.category",
-      "description": "Add a model provider with an API key and pick a model.",
-      "text": { "ui": "startWithOwnModelDetail" },
-      "canRun": false
-    },
-    {
-      "id": "museSpark.modelsAndAgents",
-      "name": "Models & Agents",
-      "nameKey": "command.modelsAndAgents.title",
-      "category": "Muse Spark",
-      "categoryKey": "command.category",
-      "description": "Models & Agents",
-      "text": { "ui": "modelsPanelTitle" },
-      "canRun": true
-    },
-    {
-      "id": "museSpark.addModelProvider",
-      "name": "Add Model Provider…",
-      "nameKey": "command.addModelProvider.title",
-      "category": "Muse Spark",
-      "categoryKey": "command.category",
-      "description": "Add a model provider with an API key and pick a model.",
-      "text": { "ui": "startWithOwnModelDetail" },
-      "canRun": false
-    },
-    {
-      "id": "museSpark.reportProblem",
-      "name": "Report a Problem",
-      "nameKey": "command.reportProblem.title",
-      "category": "Muse Spark",
-      "categoryKey": "command.category",
-      "description": "Preview a scrubbed problem report before saving or sending it.",
-      "text": { "ui": "referenceReport" },
-      "canRun": true
-    },
-    {
-      "id": "museSpark.runSetupHooks",
-      "name": "Run Setup Hooks",
-      "nameKey": "command.runSetupHooks.title",
-      "category": "Muse Spark",
-      "categoryKey": "command.category",
-      "description": "Run Setup hooks for init from spark-hooks.json in a trusted workspace.",
-      "text": { "ui": "referenceSetup" },
-      "canRun": false
-    },
-    {
-      "id": "museSpark.runHook",
-      "name": "Run Hook…",
-      "nameKey": "command.runHook.title",
-      "category": "Muse Spark",
-      "categoryKey": "command.category",
-      "description": "Run one of your Manual hooks from spark-hooks.json now.",
-      "text": { "tip": "hookRun" },
-      "canRun": false
-    },
-    {
-      "id": "museSpark.retryPluginHooks",
-      "name": "Retry Plugin Hooks",
-      "nameKey": "command.retryPluginHooks.title",
-      "category": "Muse Spark",
-      "categoryKey": "command.category",
-      "description": "Retry preparation of the Windows job for plugin hooks.",
-      "text": { "ui": "referenceRetry" },
-      "enablement": "isWindows",
-      "canRun": false
-    },
-    {
       "id": "museSpark.downloadBrowserCheckRuntime",
       "name": "Download Browser Check Runtime",
       "nameKey": "command.downloadBrowserCheckRuntime.title",
@@ -1967,16 +2189,6 @@
       "categoryKey": "command.category",
       "description": "Open this version’s release highlights and full notes.",
       "text": { "tip": "whatsNew" },
-      "canRun": true
-    },
-    {
-      "id": "museSpark.openUsagePage",
-      "name": "Open Usage & Cost",
-      "nameKey": "command.openUsagePage.title",
-      "category": "Muse Spark",
-      "categoryKey": "command.category",
-      "description": "Track cost, tokens and limits across editors.",
-      "text": { "ui": "paletteUsagePage" },
       "canRun": true
     },
     {
@@ -2041,6 +2253,76 @@
       "canRun": false
     },
     {
+      "id": "museSpark.openHelp",
+      "name": "Open Help & Reference",
+      "nameKey": "command.openHelp.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Commands, settings and features, with descriptions and documentation.",
+      "text": { "ui": "referenceIntro" },
+      "canRun": true
+    },
+    {
+      "id": "museSpark.nextOpenQuestion",
+      "name": "Next open question",
+      "nameKey": "command.nextOpenQuestion.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Next open question",
+      "text": { "ui": "questionNextOpen" },
+      "canRun": false
+    },
+    {
+      "id": "museSpark.previousOpenQuestion",
+      "name": "Previous open question",
+      "nameKey": "command.previousOpenQuestion.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Previous open question",
+      "text": { "ui": "questionPreviousOpen" },
+      "canRun": false
+    },
+    {
+      "id": "museSpark.startWithOwnModel",
+      "name": "Start with Your Own Model",
+      "nameKey": "command.startWithOwnModel.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Start with Your Own Model",
+      "text": { "command": "museSpark.startWithOwnModel" },
+      "canRun": false
+    },
+    {
+      "id": "museSpark.modelsAndAgents",
+      "name": "Models & Agents",
+      "nameKey": "command.modelsAndAgents.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Models & Agents",
+      "text": { "command": "museSpark.modelsAndAgents" },
+      "canRun": true
+    },
+    {
+      "id": "museSpark.addModelProvider",
+      "name": "Add Model Provider…",
+      "nameKey": "command.addModelProvider.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Add Model Provider…",
+      "text": { "command": "museSpark.addModelProvider" },
+      "canRun": false
+    },
+    {
+      "id": "museSpark.openUsagePage",
+      "name": "Open Usage & Cost",
+      "nameKey": "command.openUsagePage.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Track cost, tokens and limits across editors.",
+      "text": { "ui": "paletteUsagePage" },
+      "canRun": true
+    },
+    {
       "id": "museSpark.legalScan",
       "name": "Legal scan",
       "nameKey": "command.legalScan.title",
@@ -2069,36 +2351,6 @@
       "categoryKey": "command.category",
       "description": "Add a model provider with an API key and pick a model.",
       "text": { "ui": "startWithOwnModelDetail" },
-      "canRun": false
-    },
-    {
-      "id": "museSpark.openHelp",
-      "name": "Open Help & Reference",
-      "nameKey": "command.openHelp.title",
-      "category": "Muse Spark",
-      "categoryKey": "command.category",
-      "description": "Commands, settings and features, with descriptions and documentation.",
-      "text": { "ui": "referenceIntro" },
-      "canRun": true
-    },
-    {
-      "id": "museSpark.nextOpenQuestion",
-      "name": "Next open question",
-      "nameKey": "command.nextOpenQuestion.title",
-      "category": "Muse Spark",
-      "categoryKey": "command.category",
-      "description": "Next open question",
-      "text": { "ui": "questionNextOpen" },
-      "canRun": false
-    },
-    {
-      "id": "museSpark.previousOpenQuestion",
-      "name": "Previous open question",
-      "nameKey": "command.previousOpenQuestion.title",
-      "category": "Muse Spark",
-      "categoryKey": "command.category",
-      "description": "Previous open question",
-      "text": { "ui": "questionPreviousOpen" },
       "canRun": false
     },
     {
@@ -2584,17 +2836,6 @@
       "schema": { "type": "boolean", "default": true }
     },
     {
-      "id": "museSpark.modelApiTeamWorkers",
-      "name": "museSpark.modelApiTeamWorkers",
-      "description": "Paid, on by default; the first charge asks once. On the Model API backend, team tasks run on models billed to your Model API key, and on the Muse Code backend while a key is stored. Enabling this asks you to accept token prices. The first delegate call that starts key tasks asks for approval, naming each model's prices and each task's ceiling, in every permission mode including Bypass, unless you allow team workers always in this workspace. Subscription and local tasks are never billed.",
-      "descriptionKey": "config.modelApiTeamWorkers.description",
-      "type": "boolean",
-      "default": true,
-      "scope": "machine",
-      "refinements": [],
-      "schema": { "type": "boolean", "default": true }
-    },
-    {
       "id": "museSpark.modelApiHooks",
       "name": "museSpark.modelApiHooks",
       "description": "On by default; inert without a hooks file. Runs your configured commands outside the agent sandbox, only in trusted workspaces. Review them in Muse Spark: Hooks. Provider credentials are withheld.",
@@ -2604,6 +2845,39 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.modelApiShellKeepsDirectory",
+      "name": "museSpark.modelApiShellKeepsDirectory",
+      "description": "Keep the Model API backend shell's working directory between calls. On by default: a cd in one shell command carries into the next call of the same conversation, and a directory outside the workspace resets to the workspace root. Check commands and then_run still run at the workspace root.",
+      "descriptionKey": "config.modelApiShellKeepsDirectory.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.modelApiHookModels",
+      "name": "museSpark.modelApiHookModels",
+      "description": "Paid, on by default. On the Model API backend, prompt and agent hooks each ask the model before they answer. Each run asks once with its price, in every permission mode including Bypass, unless you allow model hooks always in this workspace. A hook's answer can only refuse, narrow or add context. Never billed to the subscription.",
+      "descriptionKey": "config.modelApiHookModels.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.hookHttpAllowedHosts",
+      "name": "museSpark.hookHttpAllowedHosts",
+      "description": "Hosts an http hook may call: exact names, or *.example.com for subdomains only. Empty by default, so no http hook runs. HTTPS only, no redirects, and only while the window's network setting allows the network. A repository cannot set this.",
+      "descriptionKey": "config.hookHttpAllowedHosts.description",
+      "type": "array",
+      "default": [],
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "array", "default": [], "items": { "type": "string", "maxLength": 256 } }
     },
     {
       "id": "museSpark.diagnosticsAfterEdits",
@@ -2775,6 +3049,22 @@
       "schema": { "type": "boolean", "default": true }
     },
     {
+      "text": {
+        "conditions": [
+          { "when": "releaseHighlights", "text": { "setting": "showWhatsNewOnUpdate" } }
+        ]
+      },
+      "id": "museSpark.showWhatsNewOnUpdate",
+      "name": "museSpark.showWhatsNewOnUpdate",
+      "description": "On by default: after the extension updates, What's New opens in an editor tab when the release has highlights; after a fixes-only patch, a quiet notification offers it instead. Off shows nothing on updates; Muse Spark: What's New still opens it.",
+      "descriptionKey": "config.showWhatsNewOnUpdate.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
       "id": "museSpark.modelApiCommandRules",
       "name": "museSpark.modelApiCommandRules",
       "description": "Model API backend: your command rules for the shell tool. Each rule has the words a command starts with (`pattern`), a `decision` (`allow`, `ask` or `forbid`), optionally the `shell` it is for and a `justification`, and the command lines it must match (`match`) and must not match (`notMatch`), which are checked whenever the rules are read. A forbid or ask rule matches its words anywhere in a command line; an allow rule runs only one plain command that begins with its words, so a chain, a pipeline, an evaluator, or a line with a substitution, a redirection, a background `&` or a newline still asks. Forbid refuses in every mode, Bypass included. User and machine settings only. An allow rule permits only one plain command. Chains, pipelines and evaluators require a user decision.",
@@ -2927,55 +3217,6 @@
       "schema": { "type": "boolean", "default": true }
     },
     {
-      "id": "museSpark.modelApiShellKeepsDirectory",
-      "name": "museSpark.modelApiShellKeepsDirectory",
-      "description": "Keep the Model API backend shell's working directory between calls. On by default: a cd in one shell command carries into the next call of the same conversation, and a directory outside the workspace resets to the workspace root. Check commands and then_run still run at the workspace root.",
-      "descriptionKey": "config.modelApiShellKeepsDirectory.description",
-      "type": "boolean",
-      "default": true,
-      "scope": "machine",
-      "refinements": [],
-      "schema": { "type": "boolean", "default": true }
-    },
-    {
-      "id": "museSpark.modelApiHookModels",
-      "name": "museSpark.modelApiHookModels",
-      "description": "Paid, on by default. On the Model API backend, prompt and agent hooks each ask the model before they answer. Each run asks once with its price, in every permission mode including Bypass, unless you allow model hooks always in this workspace. A hook's answer can only refuse, narrow or add context. Never billed to the subscription.",
-      "descriptionKey": "config.modelApiHookModels.description",
-      "type": "boolean",
-      "default": true,
-      "scope": "machine",
-      "refinements": [],
-      "schema": { "type": "boolean", "default": true }
-    },
-    {
-      "id": "museSpark.hookHttpAllowedHosts",
-      "name": "museSpark.hookHttpAllowedHosts",
-      "description": "Hosts an http hook may call: exact names, or *.example.com for subdomains only. Empty by default, so no http hook runs. HTTPS only, no redirects, and only while the window's network setting allows the network. A repository cannot set this.",
-      "descriptionKey": "config.hookHttpAllowedHosts.description",
-      "type": "array",
-      "default": [],
-      "scope": "machine",
-      "refinements": [],
-      "schema": { "type": "array", "default": [], "items": { "type": "string", "maxLength": 256 } }
-    },
-    {
-      "text": {
-        "conditions": [
-          { "when": "releaseHighlights", "text": { "setting": "showWhatsNewOnUpdate" } }
-        ]
-      },
-      "id": "museSpark.showWhatsNewOnUpdate",
-      "name": "museSpark.showWhatsNewOnUpdate",
-      "description": "On by default: after the extension updates, What's New opens in an editor tab when the release has highlights; after a fixes-only patch, a quiet notification offers it instead. Off shows nothing on updates; Muse Spark: What's New still opens it.",
-      "descriptionKey": "config.showWhatsNewOnUpdate.description",
-      "type": "boolean",
-      "default": true,
-      "scope": "machine",
-      "refinements": [],
-      "schema": { "type": "boolean", "default": true }
-    },
-    {
       "text": {
         "conditions": [
           { "when": "browserNetworkAdmission", "text": { "setting": "browserCheckExtraHosts" } }
@@ -3048,28 +3289,6 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "string", "enum": ["system", "museVoice"], "default": "system" }
-    },
-    {
-      "id": "museSpark.usageHistory",
-      "name": "museSpark.usageHistory",
-      "description": "Record model usage locally on this machine. Turning this off stops new records; live limits and budgets remain visible.",
-      "descriptionKey": "setting.usageHistory.description",
-      "type": "boolean",
-      "default": true,
-      "scope": "machine",
-      "refinements": [],
-      "schema": { "type": "boolean", "default": true }
-    },
-    {
-      "id": "museSpark.usageHistoryDays",
-      "name": "museSpark.usageHistoryDays",
-      "description": "Days to keep daily usage summaries (30–1825). Per-call detail is kept for 30 days.",
-      "descriptionKey": "setting.usageHistoryDays.description",
-      "type": "integer",
-      "default": 365,
-      "scope": "machine",
-      "refinements": [],
-      "schema": { "type": "integer", "default": 365, "minimum": 30, "maximum": 1825 }
     },
     {
       "id": "museSpark.modelApiTab",
@@ -3285,6 +3504,157 @@
       }
     },
     {
+      "id": "museSpark.resourceGovernor",
+      "name": "museSpark.resourceGovernor",
+      "description": "Keep this machine responsive by slowing or deferring work started by the harness. On by default.",
+      "descriptionKey": "config.resourceGovernor.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "resourceThreshold", "text": { "setting": "resourceCpuMaxPercent" } }
+        ]
+      },
+      "id": "museSpark.resourceCpuMaxPercent",
+      "name": "museSpark.resourceCpuMaxPercent",
+      "description": "Throttle when machine CPU use stays above this percentage for 30 seconds.",
+      "descriptionKey": "config.resourceCpuMaxPercent.description",
+      "type": "number",
+      "default": 85,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "number", "default": 85, "minimum": 30, "maximum": 100 }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "resourceThreshold", "text": { "setting": "resourceMemoryMaxPercent" } }
+        ]
+      },
+      "id": "museSpark.resourceMemoryMaxPercent",
+      "name": "museSpark.resourceMemoryMaxPercent",
+      "description": "Throttle when memory in use stays above this percentage for two samples.",
+      "descriptionKey": "config.resourceMemoryMaxPercent.description",
+      "type": "number",
+      "default": 90,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "number", "default": 90, "minimum": 40, "maximum": 98 }
+    },
+    {
+      "id": "museSpark.resourceMemoryMinFreeGiB",
+      "name": "museSpark.resourceMemoryMinFreeGiB",
+      "description": "Minimum available memory in GiB, capped at 15% of this machine’s RAM.",
+      "descriptionKey": "config.resourceMemoryMinFreeGiB.description",
+      "type": "number",
+      "default": 2,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "number", "default": 2, "minimum": 0.5, "maximum": 64 }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "resourceThreshold", "text": { "setting": "resourceGpuMaxPercent" } }
+        ]
+      },
+      "id": "museSpark.resourceGpuMaxPercent",
+      "name": "museSpark.resourceGpuMaxPercent",
+      "description": "Optional GPU use limit in percent. Unset means no GPU probe.",
+      "descriptionKey": "config.resourceGpuMaxPercent.description",
+      "type": ["number", "null"],
+      "default": null,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": ["number", "null"], "default": null, "minimum": 1, "maximum": 100 }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "resourceThreshold", "text": { "setting": "resourceDiskBusyMaxPercent" } }
+        ]
+      },
+      "id": "museSpark.resourceDiskBusyMaxPercent",
+      "name": "museSpark.resourceDiskBusyMaxPercent",
+      "description": "Optional disk busy limit in percent. Unset means no disk probe.",
+      "descriptionKey": "config.resourceDiskBusyMaxPercent.description",
+      "type": ["number", "null"],
+      "default": null,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": ["number", "null"], "default": null, "minimum": 1, "maximum": 100 }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "resourceDiskThreshold", "text": { "setting": "resourceDiskMinFreeGiB" } }
+        ]
+      },
+      "id": "museSpark.resourceDiskMinFreeGiB",
+      "name": "museSpark.resourceDiskMinFreeGiB",
+      "description": "Free disk space floor in GiB. The default is 10 GiB or 10% of the volume, whichever is smaller, with a minimum of 2 GiB.",
+      "descriptionKey": "config.resourceDiskMinFreeGiB.description",
+      "type": ["number", "null"],
+      "default": null,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": ["number", "null"], "default": null, "minimum": 2 }
+    },
+    {
+      "text": {
+        "conditions": [{ "when": "resourceRelocation", "text": { "setting": "resourceRelocate" } }]
+      },
+      "id": "museSpark.resourceRelocate",
+      "name": "museSpark.resourceRelocate",
+      "description": "Where queued team tasks and checks may move when this machine is busy. Relocation needs a paired device or runner route and is not available yet, so work stays on this machine.",
+      "descriptionKey": "config.resourceRelocate.description",
+      "type": "string",
+      "default": "paired",
+      "enum": ["paired", "ask", "off"],
+      "enumDescriptions": [
+        "Use an approved paired device with normal resource load once relocation is available.",
+        "Ask before moving queued work.",
+        "Keep work on this machine."
+      ],
+      "enumDescriptionKeys": [
+        "config.resourceRelocate.enumDescriptions.paired",
+        "config.resourceRelocate.enumDescriptions.ask",
+        "config.resourceRelocate.enumDescriptions.off"
+      ],
+      "enumTexts": {
+        "0": {
+          "conditions": [
+            {
+              "when": "resourceRelocation",
+              "text": {
+                "fallbackKey": "config.resourceRelocate.enumDescriptions.paired",
+                "fallback": "Use an approved paired device with normal resource load once relocation is available."
+              }
+            }
+          ]
+        }
+      },
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "string", "default": "paired", "enum": ["paired", "ask", "off"] }
+    },
+    {
+      "id": "museSpark.questions.deferAfterSeconds",
+      "name": "museSpark.questions.deferAfterSeconds",
+      "description": "Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.",
+      "descriptionKey": "config.questions.deferAfterSeconds.description",
+      "type": "integer",
+      "default": 60,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "integer", "default": 60, "minimum": 0, "maximum": 3600 }
+    },
+    {
       "id": "museSpark.suggestedProvider",
       "name": "museSpark.suggestedProvider",
       "description": "A workspace may suggest one model-provider preset by id; the panel offers to open Models & Agents with that preset chosen. Empty suggests nothing. A workspace cannot set an address or a credential.",
@@ -3299,7 +3669,7 @@
       "text": {
         "conditions": [
           {
-            "when": "autoCompactionEvaluation&modelCapability",
+            "when": "conversationStart&modelPricing",
             "text": { "setting": "modelApiAutoCompaction" }
           }
         ]
@@ -3313,6 +3683,90 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "conversationStart&tools.strict", "text": { "setting": "modelApiStrictTools" } }
+        ]
+      },
+      "id": "museSpark.modelApiStrictTools",
+      "name": "museSpark.modelApiStrictTools",
+      "description": "Use strict tool schemas where the selected model supports them. Disable to keep the previous tool declarations.",
+      "descriptionKey": "config.modelApiStrictTools.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "text": {
+        "conditions": [
+          { "when": "conversationStart", "text": { "setting": "modelApiParallelReads" } }
+        ]
+      },
+      "id": "museSpark.modelApiParallelReads",
+      "name": "museSpark.modelApiParallelReads",
+      "description": "Run safe read-only tool calls concurrently, up to four at a time. Other tool calls run in order.",
+      "descriptionKey": "config.modelApiParallelReads.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "text": {
+        "conditions": [
+          {
+            "when": "conversationStart&hosted.webSearch",
+            "text": { "setting": "webSearchMaxPerRequest" }
+          }
+        ]
+      },
+      "id": "museSpark.webSearchMaxPerRequest",
+      "name": "museSpark.webSearchMaxPerRequest",
+      "description": "Maximum hosted web searches per response (1–20; default 5). The price and shared daily budget are shown before the first charge.",
+      "descriptionKey": "config.webSearchMaxPerRequest.description",
+      "type": "number",
+      "default": 5,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "number", "default": 5, "minimum": 1, "maximum": 20 }
+    },
+    {
+      "id": "museSpark.modelApiTeamWorkers",
+      "name": "museSpark.modelApiTeamWorkers",
+      "description": "Paid, on by default; the first charge asks once. On the Model API backend, team tasks run on models billed to your Model API key, and on the Muse Code backend while a key is stored. Enabling this asks you to accept token prices. The first delegate call that starts key tasks asks for approval, naming each model's prices and each task's ceiling, in every permission mode including Bypass, unless you allow team workers always in this workspace. Subscription and local tasks are never billed.",
+      "descriptionKey": "config.modelApiTeamWorkers.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.usageHistory",
+      "name": "museSpark.usageHistory",
+      "description": "Record model usage locally on this machine. Turning this off stops new records; live limits and budgets remain visible.",
+      "descriptionKey": "setting.usageHistory.description",
+      "type": "boolean",
+      "default": true,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.usageHistoryDays",
+      "name": "museSpark.usageHistoryDays",
+      "description": "Days to keep daily usage summaries (30–1825). Per-call detail is kept for 30 days.",
+      "descriptionKey": "setting.usageHistoryDays.description",
+      "type": "integer",
+      "default": 365,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "integer", "default": 365, "minimum": 30, "maximum": 1825 }
     },
     {
       "id": "museSpark.legalHeaderPolicy",
@@ -3358,17 +3812,6 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "boolean", "default": true }
-    },
-    {
-      "id": "museSpark.questions.deferAfterSeconds",
-      "name": "museSpark.questions.deferAfterSeconds",
-      "description": "Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.",
-      "descriptionKey": "config.questions.deferAfterSeconds.description",
-      "type": "integer",
-      "default": 60,
-      "scope": "machine",
-      "refinements": [],
-      "schema": { "type": "integer", "default": 60, "minimum": 0, "maximum": 3600 }
     },
     {
       "id": "museSpark.syncPromptsAndBookmarks",
@@ -3822,6 +4265,12 @@
     },
     {
       "route": "acp",
+      "name": "/agents [receipt|continue|retry] [ID]",
+      "description": "Agents show activity and evidence-backed outcomes. Select an ended agent for its bounded receipt and attempt history. Continue keeps its session and changes after confirmation; Retry requires an isolated checkpoint. Missing evidence is shown as unverified. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
+      "text": { "ui": "referenceAgentOutcomes" }
+    },
+    {
+      "route": "acp",
       "name": "/prompt save|list|use|share",
       "description": "Review variables and insert",
       "text": { "ui": "promptRun" }
@@ -3831,6 +4280,12 @@
       "name": "/share chat [--mode full|conversation] [--format md|html|json]",
       "description": "Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.",
       "text": { "ui": "shareReviewPrivacy" }
+    },
+    {
+      "route": "resources",
+      "name": "resources [status|history|resume] [--json]; usage resources [--json]",
+      "description": "Keep this machine responsive by slowing or deferring work started by the harness. On by default.",
+      "text": { "ui": "resourceGovernorDescription" }
     },
     {
       "route": "version",
@@ -4105,23 +4560,6 @@
     },
     {
       "route": "serve",
-      "name": "serve: --no-auto-compaction",
-      "description": "autoCompactionEvaluation: --no-auto-compaction: Automatic compaction is awaiting evaluation and is inactive.",
-      "text": {
-        "conditions": [
-          { "when": "autoCompactionEvaluation", "text": { "cli": "no-auto-compaction" } }
-        ]
-      },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "purpose": "disableAutoCompaction",
-        "effective": "evaluationPending",
-        "default": false
-      }
-    },
-    {
-      "route": "serve",
       "name": "serve: --provider <value>",
       "description": "--provider: Provider",
       "text": { "cli": "provider" },
@@ -4137,6 +4575,23 @@
         "repeatable": false,
         "enum": ["museCode", "modelApi"],
         "default": "museCode"
+      }
+    },
+    {
+      "route": "serve",
+      "name": "serve: --no-auto-compaction",
+      "description": "autoCompactionEvaluation: Disable automatic compaction",
+      "text": {
+        "conditions": [
+          { "when": "autoCompactionEvaluation", "text": { "cli": "no-auto-compaction" } }
+        ]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "purpose": "disableAutoCompaction",
+        "effective": "evaluationPending",
+        "default": false
       }
     },
     {
@@ -4310,23 +4765,6 @@
     },
     {
       "route": "login",
-      "name": "login: --no-auto-compaction",
-      "description": "autoCompactionEvaluation: --no-auto-compaction: Automatic compaction is awaiting evaluation and is inactive.",
-      "text": {
-        "conditions": [
-          { "when": "autoCompactionEvaluation", "text": { "cli": "no-auto-compaction" } }
-        ]
-      },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "purpose": "acceptedUnused",
-        "effective": "evaluationPending",
-        "default": false
-      }
-    },
-    {
-      "route": "login",
       "name": "login: --provider <value>",
       "description": "--provider: Provider",
       "text": { "cli": "provider" },
@@ -4343,6 +4781,23 @@
         "enum": ["museCode", "modelApi"],
         "default": "museCode",
         "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "login",
+      "name": "login: --no-auto-compaction",
+      "description": "autoCompactionEvaluation: Disable automatic compaction",
+      "text": {
+        "conditions": [
+          { "when": "autoCompactionEvaluation", "text": { "cli": "no-auto-compaction" } }
+        ]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "purpose": "acceptedUnused",
+        "effective": "evaluationPending",
+        "default": false
       }
     },
     {
@@ -4553,23 +5008,6 @@
     },
     {
       "route": "setup",
-      "name": "setup: --no-auto-compaction",
-      "description": "autoCompactionEvaluation: --no-auto-compaction: Automatic compaction is awaiting evaluation and is inactive.",
-      "text": {
-        "conditions": [
-          { "when": "autoCompactionEvaluation", "text": { "cli": "no-auto-compaction" } }
-        ]
-      },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "purpose": "acceptedUnused",
-        "effective": "evaluationPending",
-        "default": false
-      }
-    },
-    {
-      "route": "setup",
       "name": "setup: --provider <value>",
       "description": "--provider: Provider",
       "text": { "cli": "provider" },
@@ -4586,6 +5024,23 @@
         "enum": ["museCode", "modelApi"],
         "default": "museCode",
         "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "setup",
+      "name": "setup: --no-auto-compaction",
+      "description": "autoCompactionEvaluation: Disable automatic compaction",
+      "text": {
+        "conditions": [
+          { "when": "autoCompactionEvaluation", "text": { "cli": "no-auto-compaction" } }
+        ]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "purpose": "acceptedUnused",
+        "effective": "evaluationPending",
+        "default": false
       }
     },
     {
@@ -4785,23 +5240,6 @@
     },
     {
       "route": "authSet",
-      "name": "authSet: --no-auto-compaction",
-      "description": "autoCompactionEvaluation: --no-auto-compaction: Automatic compaction is awaiting evaluation and is inactive.",
-      "text": {
-        "conditions": [
-          { "when": "autoCompactionEvaluation", "text": { "cli": "no-auto-compaction" } }
-        ]
-      },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "purpose": "acceptedUnused",
-        "effective": "evaluationPending",
-        "default": false
-      }
-    },
-    {
-      "route": "authSet",
       "name": "authSet: --provider <value>",
       "description": "--provider: Provider",
       "text": { "cli": "provider" },
@@ -4818,6 +5256,23 @@
         "enum": ["museCode", "modelApi"],
         "default": "museCode",
         "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authSet",
+      "name": "authSet: --no-auto-compaction",
+      "description": "autoCompactionEvaluation: Disable automatic compaction",
+      "text": {
+        "conditions": [
+          { "when": "autoCompactionEvaluation", "text": { "cli": "no-auto-compaction" } }
+        ]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "purpose": "acceptedUnused",
+        "effective": "evaluationPending",
+        "default": false
       }
     },
     {
@@ -5028,23 +5483,6 @@
     },
     {
       "route": "authStatus",
-      "name": "authStatus: --no-auto-compaction",
-      "description": "autoCompactionEvaluation: --no-auto-compaction: Automatic compaction is awaiting evaluation and is inactive.",
-      "text": {
-        "conditions": [
-          { "when": "autoCompactionEvaluation", "text": { "cli": "no-auto-compaction" } }
-        ]
-      },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "purpose": "acceptedUnused",
-        "effective": "evaluationPending",
-        "default": false
-      }
-    },
-    {
-      "route": "authStatus",
       "name": "authStatus: --provider <value>",
       "description": "--provider: Provider",
       "text": { "cli": "provider" },
@@ -5061,6 +5499,23 @@
         "enum": ["museCode", "modelApi"],
         "default": "museCode",
         "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authStatus",
+      "name": "authStatus: --no-auto-compaction",
+      "description": "autoCompactionEvaluation: Disable automatic compaction",
+      "text": {
+        "conditions": [
+          { "when": "autoCompactionEvaluation", "text": { "cli": "no-auto-compaction" } }
+        ]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "purpose": "acceptedUnused",
+        "effective": "evaluationPending",
+        "default": false
       }
     },
     {
@@ -5271,23 +5726,6 @@
     },
     {
       "route": "authClear",
-      "name": "authClear: --no-auto-compaction",
-      "description": "autoCompactionEvaluation: --no-auto-compaction: Automatic compaction is awaiting evaluation and is inactive.",
-      "text": {
-        "conditions": [
-          { "when": "autoCompactionEvaluation", "text": { "cli": "no-auto-compaction" } }
-        ]
-      },
-      "contract": {
-        "type": "boolean",
-        "repeatable": false,
-        "purpose": "acceptedUnused",
-        "effective": "evaluationPending",
-        "default": false
-      }
-    },
-    {
-      "route": "authClear",
       "name": "authClear: --provider <value>",
       "description": "--provider: Provider",
       "text": { "cli": "provider" },
@@ -5304,6 +5742,23 @@
         "enum": ["museCode", "modelApi"],
         "default": "museCode",
         "purpose": "acceptedUnused"
+      }
+    },
+    {
+      "route": "authClear",
+      "name": "authClear: --no-auto-compaction",
+      "description": "autoCompactionEvaluation: Disable automatic compaction",
+      "text": {
+        "conditions": [
+          { "when": "autoCompactionEvaluation", "text": { "cli": "no-auto-compaction" } }
+        ]
+      },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "purpose": "acceptedUnused",
+        "effective": "evaluationPending",
+        "default": false
       }
     },
     {
@@ -5441,8 +5896,21 @@
     },
     {
       "route": "exec",
+      "name": "exec: --backend <value>",
+      "description": "--backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key",
+      "text": { "cli": "backend" },
+      "contract": {
+        "type": "string",
+        "repeatable": false,
+        "enum": ["museCode", "modelApi"],
+        "default": "museCode",
+        "purpose": "backend"
+      }
+    },
+    {
+      "route": "exec",
       "name": "exec: --no-auto-compaction",
-      "description": "autoCompactionEvaluation: --no-auto-compaction: Automatic compaction is awaiting evaluation and is inactive.",
+      "description": "autoCompactionEvaluation: Disable automatic compaction",
       "text": {
         "conditions": [
           { "when": "autoCompactionEvaluation", "text": { "cli": "no-auto-compaction" } }
@@ -5454,19 +5922,6 @@
         "purpose": "no-auto-compaction",
         "effective": "evaluationPending",
         "default": false
-      }
-    },
-    {
-      "route": "exec",
-      "name": "exec: --backend <value>",
-      "description": "--backend museCode|modelApi      Who pays: Muse Code (the default) or the Model API key",
-      "text": { "cli": "backend" },
-      "contract": {
-        "type": "string",
-        "repeatable": false,
-        "enum": ["museCode", "modelApi"],
-        "default": "museCode",
-        "purpose": "backend"
       }
     },
     {
@@ -5486,6 +5941,25 @@
         "repeatable": false,
         "maximumBytes": 262144,
         "purpose": "prompt"
+      }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --output-schema <value>",
+      "description": "Validate the final answer against a bounded JSON schema file (Model API only).",
+      "text": { "cli": "output-schema" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "output-schema" }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --output-schema-outside",
+      "description": "Allow the output schema file to resolve outside the workspace.",
+      "text": { "cli": "output-schema-outside" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "output-schema-outside"
       }
     },
     {
@@ -5722,6 +6196,27 @@
     },
     {
       "route": "exec",
+      "name": "exec: --resource-governor <value>",
+      "description": "--resource-governor on|off: Keep this machine responsive by throttling or deferring harness work. On by default.",
+      "text": { "cli": "resource-governor" },
+      "contract": { "type": "string", "repeatable": false, "purpose": "resource-governor" }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --cpu-max <value>",
+      "description": "resourceThreshold: --cpu-max <percent>: Throttle when CPU stays above this percentage for 30 seconds.",
+      "text": { "conditions": [{ "when": "resourceThreshold", "text": { "cli": "cpu-max" } }] },
+      "contract": { "type": "string", "repeatable": false, "purpose": "cpu-max" }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --memory-max <value>",
+      "description": "resourceThreshold: --memory-max <percent>: Throttle when used memory stays above this percentage for two samples.",
+      "text": { "conditions": [{ "when": "resourceThreshold", "text": { "cli": "memory-max" } }] },
+      "contract": { "type": "string", "repeatable": false, "purpose": "memory-max" }
+    },
+    {
+      "route": "exec",
       "name": "exec: --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "cli": "help" },
@@ -5772,6 +6267,20 @@
     {
       "route": "report",
       "name": "report: --help / -h",
+      "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
+      "text": { "cli": "help" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "resources",
+      "name": "resources: --json",
+      "description": "--json: Versioned JSON",
+      "text": { "cli": "json" },
+      "contract": { "type": "boolean", "repeatable": false, "output": "json", "default": false }
+    },
+    {
+      "route": "resources",
+      "name": "resources: --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "cli": "help" },
       "contract": { "type": "boolean", "repeatable": false, "default": false }

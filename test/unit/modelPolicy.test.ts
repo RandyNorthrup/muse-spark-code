@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import {
   effortForPolicy,
@@ -70,33 +71,52 @@ describe('resolved model policy', () => {
 
   it('reserves cold cache writes at public price-card rates and settles the reported cost', async () => {
     const model = await registry({ kind: 'priced', card }).resolve(ref)
-    expect(model.price.reserve({ inputTokens: 100, outputTokens: 1 })).toBeCloseTo(0.203)
-    expect(model.price.settle({ inputTokens: 100, outputTokens: 1 }, { cost: 0.7 })).toBe(0.7)
+    expect(Number(model.price.reserve({ inputTokens: 100, outputTokens: 1 }))).toBeCloseTo(0.203)
+    expect(model.price.settle({ inputTokens: 100, outputTokens: 1 }, { cost: 0.7 })).toBe(
+      Usd.from(0.7).toAmount(),
+    )
     const reserved = reserveRequest({
-      capUsd: 0.213,
-      spentUsd: 0,
+      capUsd: Usd.from(0.213).toAmount(),
+      spentUsd: Usd.from(0).toAmount(),
       estimatedInputTokens: 100,
       modelId: ref,
       maxOutputTokens: 100,
       price: model.price,
     })
     expect(reserved.maxOutputTokens).toBe(4)
-    expect(reserved.costUsd).toBeLessThanOrEqual(0.213)
+    expect(Number(reserved.costUsd)).toBeLessThanOrEqual(0.213)
+  })
+
+  it('admits an exact decimal provider quote at the budget boundary', async () => {
+    const model = await registry({
+      kind: 'priced',
+      card: { input: 0.1, output: 0.2, source: 'user' },
+    }).resolve(ref)
+    const reserved = reserveRequest({
+      capUsd: Usd.from('0.3').toAmount(),
+      spentUsd: Usd.from(0).toAmount(),
+      estimatedInputTokens: 1,
+      modelId: ref,
+      maxOutputTokens: 1,
+      price: model.price,
+    })
+    expect(reserved.maxOutputTokens).toBe(1)
+    expect(reserved.costUsd).toBe(Usd.from('0.3').toAmount())
   })
 
   it('keeps local free, unpriced unknown and plan paid by the plan', async () => {
     for (const kind of ['local', 'unpriced', 'plan'] as const) {
       const model = await registry({ kind }).resolve(ref)
       const cost = model.price.settle({ inputTokens: 100, outputTokens: 1 })
-      expect(cost).toBe(kind === 'unpriced' ? undefined : 0)
+      expect(cost).toBe(kind === 'unpriced' ? undefined : Usd.from(0).toAmount())
       expect(model.price.reserve({ inputTokens: 100, outputTokens: 1 })).toBe(
-        kind === 'unpriced' ? undefined : 0,
+        kind === 'unpriced' ? undefined : Usd.from(0).toAmount(),
       )
       if (kind === 'unpriced') {
         expect(() =>
           reserveRequest({
-            capUsd: 1,
-            spentUsd: 0,
+            capUsd: Usd.from(1).toAmount(),
+            spentUsd: Usd.from(0).toAmount(),
             estimatedInputTokens: 100,
             modelId: ref,
             price: model.price,
@@ -105,8 +125,8 @@ describe('resolved model policy', () => {
       } else {
         expect(
           reserveRequest({
-            capUsd: 1,
-            spentUsd: 0,
+            capUsd: Usd.from(1).toAmount(),
+            spentUsd: Usd.from(0).toAmount(),
             estimatedInputTokens: 100,
             modelId: ref,
             maxOutputTokens: 100,
@@ -161,13 +181,13 @@ describe('resolved model policy', () => {
       card: { ...card, request: 0.5, image: 0.6 },
     }).resolve(ref)
     const usage = { inputTokens: 100, outputTokens: 3, images: 2 }
-    expect(priced.price.reserve(usage)).toBeCloseTo(1.909)
-    expect(priced.price.settle(usage)).toBeCloseTo(1.809)
-    expect(priced.price.settle(usage, { cost: 0.25 })).toBe(0.25)
+    expect(Number(priced.price.reserve(usage))).toBeCloseTo(1.909)
+    expect(Number(priced.price.settle(usage))).toBeCloseTo(1.809)
+    expect(priced.price.settle(usage, { cost: 0.25 })).toBe(Usd.from(0.25).toAmount())
     expect(() =>
       reserveRequest({
-        capUsd: 1,
-        spentUsd: 0,
+        capUsd: Usd.from(1).toAmount(),
+        spentUsd: Usd.from(0).toAmount(),
         estimatedInputTokens: 100,
         modelId: ref,
         price: priced.price,
@@ -202,6 +222,6 @@ describe('resolved model policy', () => {
         { inputTokens: 20, outputTokens: 0, cacheWriteTokens: 20, cacheWriteTokens1h: 10 },
         { cost: 0.06 },
       ),
-    ).toBe(0.06)
+    ).toBe(Usd.from(0.06).toAmount())
   })
 })

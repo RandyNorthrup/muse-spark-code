@@ -1,236 +1,12 @@
+import { notify } from './core/events/notify'
 import {
-  createUsageRecording,
-  isUsageWriterBundle,
-  type UsageRecording,
-} from './core/usage/recording'
-import { MuseCodeHost } from './core/backends/musecode/MuseCodeHost'
-import { agentDataFolder } from './runtime/dataFolder'
-import { requireFile } from './host/lazyBundle'
-import { isJudgeEngineOn } from './core/judge/engine'
-import { promptBundleLoader } from './host/prompts/promptBundle'
-import type { createPromptHost } from './host/prompts/promptEntry'
-import { judgeWindowPort } from './host/judge/judgeBundle'
-import { storeErrorCode } from './host/backend/storeErrors'
-import { LEGAL_EXPLANATION_BUNDLE_FILE } from './shared/constants'
-import { createLegalFixApplier, legalFixFileEdits } from './host/legalFixApplier'
-import { legalScanResultSchema, type LegalScanRunner } from './shared/legal'
-import { isReferenceRequest, referenceLoader } from './host/referenceLoader'
-import { REFERENCE_BUNDLE_FILE } from './shared/constants'
-// Extension host entry point. Kept to registration and adapter wiring; the
-// behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
-
-import { execFile, type ExecFileException } from 'node:child_process'
-import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
-import { homedir, hostname, userInfo } from 'node:os'
-import { usagePanelLoader, isUsageBudgetBundle } from './host/usage/usagePanelBundle'
-import type { UsagePanel } from './host/usage/usagePanel'
-import {
+  PAID_APPROVAL_ORDER_DIRECTORY,
+  LEGAL_EXPLANATION_BUNDLE_FILE,
+  REFERENCE_BUNDLE_FILE,
   PROVIDER_SECRET_PREFIX,
   PROVIDERS_CONFIG_DIR_NAME,
   PROVIDERS_FILE_NAME,
-} from './shared/constants'
-import path from 'node:path'
-import * as vscode from 'vscode'
-import * as z from 'zod/mini'
-import type { AgentHost, BackendKind } from './core/agent/agentBackend'
-import { environmentValue, terminalEnvironment } from './core/backends/musecode/launch'
-import { confineWorkspacePath, resolveWorkspacePath } from './core/workspacePath'
-import { isProtectedPath } from './core/protectedPaths'
-import type { EditedFile } from './core/verify/diagnosticsReport'
-import { readBackendChoice } from './core/backendSelection'
-import { personalAgentsRoot } from './core/context/customAgents'
-import {
-  bundledSkillSourcesRoot,
-  bundledSkillsPackageRoot,
-  firstPartySkillsRoot,
-  personalSkillsRoot,
-} from './core/context/skills'
-import { memoryDataRoot } from './core/memory/memoryLocation'
-import { isSamePath } from './core/paths'
-import { terminalArgument } from './core/shellQuote'
-import { renderSupportReport } from './core/support/report'
-import { type CliInvocation, isSandboxNetworkApplied } from './core/backends/musecode/sandbox'
-import { DIAGNOSTIC_SEVERITIES, type DiagnosticEntry, diagnosticsTool } from './core/diagnostics'
-import type { EditorContext } from './core/editorContext'
-import type { MentionSource } from './core/mention'
-import { MentionIndex } from './core/mentionIndex'
-import {
-  type FolderLookup,
-  hostSideUri,
-  resolveAgainstRoot,
-  rootRelativePath,
-} from './core/workspaceRoot'
-import { keychainItemPresence } from './core/backends/musecode/credentialFile'
-import { AccountHosts, connectAccountSession } from './host/auth/accountHost'
-import { AuthService } from './host/auth/authService'
-import { CliAccount, isCliSignedIn } from './host/auth/cliAccount'
-import { runDeviceSignIn } from './host/auth/deviceSignIn'
-import { isValidModelApiKey } from './host/auth/credentialStore'
-import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
-import { createFileScheduleStore } from './host/backend/fileScheduleStore'
-import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
-import { chooseAuthorizedHost } from './host/backend/selectedHost'
-import { type ProcessResult, SandboxSetup } from './host/backend/sandboxSetup'
-import { fileContextIo } from './host/backend/contextIo'
-import { describeEnvironment } from './host/backend/environment'
-import { createFileSessionStore } from './host/backend/fileSessionStore'
-import type { QuestionStore } from './shared/questions'
-import { modelApiMcpPoolDeps } from './host/backend/mcpServers'
-import { type JobHelper, jobSourceReader } from './host/backend/jobSource'
-import { mcpJobExecutable } from './host/backend/mcpJobExecutable'
-import { createCheckpointedMemory } from './host/backend/checkpointedMemory'
-import { systemPath } from './host/backend/memoryIo'
-import {
-  museSettingsPath,
-  readDelegationMode,
-  readWorkflowTriggerMode,
-} from './host/backend/museSettings'
-import { type ShellJobDeps, shellJobAssembly } from './host/backend/shellJob'
-import {
-  createToolIo,
-  readPickedFile,
-  toolImagePreviewIo,
-  hookEnvironment,
-  terminalPlatform,
-  withTerminalOverrides,
-} from './host/backend/toolIo'
-import { pluginContainment } from './host/backend/pluginContainment'
-import { EditorContextTracker } from './host/editor/editorContextTracker'
-import { createRevertIo } from './host/editor/revertIo'
-import { createVerifyEditor } from './host/editor/verifyEditor'
-import { verifyGuidance } from './core/verify/checkCommands'
-import { IdeMcpServer } from './host/ide/ideMcpServer'
-import { createRulesFile } from './host/commands/createRulesFile'
-import { insertMentionReference } from './host/commands/insertMention'
-import { openMuseTerminal, type TerminalLaunchOptions } from './host/commands/openInTerminal'
-import { toggleInputFocus } from './host/commands/focusInput'
-import { toggleFocusView } from './host/commands/toggleFocusView'
-import type {
-  ConversationController,
-  ConversationReports,
-  FileAccess,
-  PickedFile,
-  SessionMemory,
-} from './host/conversation/conversationController'
-import { conversationLoader } from './host/conversation/conversationBundle'
-import { restartConversationBackends } from './host/conversation/conversationBackends'
-import { BackgroundNotifier } from './host/conversation/turnNotifications'
-import type { ReportDataSource } from './host/conversation/reportProblemHandler'
-import { canonicalPath } from './host/canonicalPath'
-import { loadToolImage } from './core/toolImages'
-import { modelApiClientLoader } from './host/backend/modelApiBundle'
-import { ideImageTools } from './host/ide/imageTools'
-import { ideWebFetchTools, isIdeWebFetchOffered, oneQuestionPerUrl } from './host/ide/webFetchTool'
-import { isWebFetchAllowed } from './host/web/webFetchConfirm'
-import { pageConverter } from './host/web/pageConverter'
-import { lazyPageUrlCheck, lazyWebFetcher, webFetchLoader } from './host/web/webFetchBundle'
-import { BrowserChecks } from './host/browser/browserChecks'
-import { isBrowserCheckAllowed } from './host/browser/browserCheckConfirm'
-import { downloadBrowserRuntime } from './host/browser/runtimeCommand'
-import { runtimeConsent } from './host/browser/runtimeConsent'
-import { ideBrowserCheckTools } from './host/ide/browserCheckTool'
-import { type BrowserCheckHost, browserScopeKey } from './core/browser/browserTool'
-import { ideCodeIntelTools } from './host/ide/codeIntelTools'
-import { codeIntelLoader } from './host/ide/codeIntelBundle'
-import { ideLegalScanTools, isIdeLegalScanOffered } from './host/ide/legalScanTool'
-import { LEGAL_REGISTRY_NOTICE_KEY } from './shared/constants'
-import { fill as fillLegalNotice } from './shared/l10n/text'
-import { legalScanLoader, legalExplanationLoader } from './host/ide/legalScanBundle'
-import { vscodeLanguageServices } from './host/codeIntel/languageServices'
-import { usablePaidFeatures } from './shared/paid'
-import { agentImportLoader } from './host/agentImportBundle'
-import {
-  TAB_BUNDLE_FILE,
-  TAB_LEDGER_DIR,
-  TAB_SNOOZE_STATE_KEY,
-  type TabFilesExclude,
-  createTabActivation,
-  tabTextChangeEvent,
-  deferredRefresh,
-} from './host/tab/tabBundle'
-import { createCliFeatures } from './host/cliFeatures'
-import {
-  bundledSkillsLoader,
-  createBundledSkillsOffer,
-  runBundledSkillsInstall,
-  runBundledSkillsRemove,
-  type BundledSkillsCommandDeps,
-} from './host/skills/bundledSkills'
-import { hasClaimedVersion, createWhatsNew } from './host/whatsNew/whatsNew'
-import { createSessionTransferFiles } from './host/conversation/transferDialogs'
-import { createWorktreeFeatures } from './host/worktreeFeatures'
-import { heldWorktreesRoot, holdFor } from './core/worktreeConversations'
-import {
-  conversationGitFactory,
-  conversationGitLoader,
-  gitFeaturesLoader,
-  openPullRequestInConversation,
-} from './host/git/conversationGitBundle'
-import { WindowHold, WorktreeRegistry } from './host/git/worktreeRegistry'
-import { lazyReview } from './host/review/reviewBundle'
-import { PendingPrompts, type BoardSession } from './core/sessionBoard'
-import { BestOfNCoordinator } from './core/bestOfN/bestOfNCoordinator'
-import { createMemoryFeatures } from './host/memoryFeatures'
-import { createPlanFiles, createPlanIo } from './host/planFeatures'
-import { planMarkdownLoader } from './host/planMarkdownBundle'
-import { extensionHooksBundle, type ExtensionHooksModule } from './host/extensionHooksBundle'
-import type { ExtensionHookRunner } from './host/extensionHooksEntry'
-import { showPickOne } from './host/quickPick'
-import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
-import {
-  createCheckpointPort,
-  finishCheckpointTurn,
-  prepareCheckpointTurn,
-  withCheckpointStorageGuard,
-  withCheckpointEdit,
-  withCheckpointEditAt,
-} from './host/checkpoints/checkpointHost'
-import { checkpointStoreLoader } from './host/checkpoints/checkpointStoreBundle'
-import { type CheckpointLocation, checkpointLocation } from './host/checkpoints/checkpointLocation'
-import { isProcessAlive } from './host/checkpoints/windowPresence'
-import { ReportRecorder } from './host/support/reportRecorder'
-import type * as RecorderBundle from './host/support/recorderEntry'
-import { vscodeReportEditorIo } from './host/support/reportEditorIo'
-import {
-  changedSettingNames,
-  extensionReportFacts,
-  manifestSettingNames,
-  reportScrubContext,
-} from './host/support/reportFacts'
-import { createLogger, errorDetail, type Logger, logRejection } from './host/logger'
-import {
-  liveFetch,
-  managedConfiguration,
-  readNetworkFacts,
-  readProxySettings,
-} from './host/networkPosture'
-import { OutputDocumentStore } from './host/outputDocuments'
-import { loggedPopups } from './host/popups'
-import { pickMentionFile } from './host/mention/mentionQuickPick'
-import { createWorkspaceFileLister, findRootFiles } from './host/mention/workspaceFiles'
-import { permissionSettingsOf, readSettings, toSettingsSnapshot } from './host/settings'
-import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvider'
-import { openChatPanel, restoreChatPanel } from './host/views/chatPanel'
-import { TasksPanel } from './host/views/tasksPanel'
-import { SurfaceRegistry } from './host/views/surfaceRegistry'
-import type { ChatSurface } from './host/views/chatSurface'
-import type { WebviewHostContext } from './host/views/webviewSetup'
-import { loadUiTable, readUiTableFile } from './host/l10n'
-import type { InsightsReader } from './runtime/usage/traceLogs'
-import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
-import { voiceLoader } from './host/voice/voiceBundle'
-import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
-import { createPaidFeatures } from './host/paid/paidHost'
-import {
-  modelsPanelLoader,
-  providerCredentials,
-  recoverProviderRemovals,
-} from './host/models/modelsPanelBundle'
-import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
-import type { createPaidDailyBudget } from './host/paid/paidDailyBudget'
-import { isActivationPaidSettingOn } from './host/paid/paidActivation'
-import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
-import {
+  LEGAL_REGISTRY_NOTICE_KEY,
   BACKEND_SETTING,
   BYPASS_SETTING,
   CLI_PROCESS_SETTINGS,
@@ -241,7 +17,6 @@ import {
   HAS_APPROVAL_UI,
   CHAT_PANEL_VIEW_TYPE,
   CHAT_VIEW_ID,
-  CLI_OUTPUT_MAX_BYTES,
   COMMAND_IDS,
   CONTEXT_KEYS,
   DEFAULT_MODEL_ID,
@@ -250,6 +25,7 @@ import {
   FIND_FILES_GLOB,
   MODEL_API_BASE_URL,
   MODEL_API_BUNDLE_FILE,
+  MODEL_API_STATUS_READ_TIMEOUT_MS,
   REVIEW_BUNDLE_FILE,
   PLAN_MARKDOWN_BUNDLE_FILE,
   AGENT_IMPORT_BUNDLE_FILE,
@@ -314,7 +90,239 @@ import {
   WORKSPACE_STATE_KEYS,
   TAB_CONTEXT_FILES,
 } from './shared/constants'
-import { fill, plural, uiLocale } from './shared/l10n/text'
+import { PaidAuthority } from './core/paid/paidAuthority'
+import { Usd } from './shared/usd'
+import {
+  createUsageRecording,
+  isUsageWriterBundle,
+  type UsageRecording,
+} from './core/usage/recording'
+import { MuseCodeHost } from './core/backends/musecode/MuseCodeHost'
+import { agentDataFolder } from './runtime/dataFolder'
+import { requireFile } from './host/lazyBundle'
+import { isJudgeEngineOn } from './core/judge/engine'
+import { promptBundleLoader } from './host/prompts/promptBundle'
+import type { createPromptHost } from './host/prompts/promptEntry'
+import { judgeWindowPort } from './host/judge/judgeBundle'
+import { storeErrorCode } from './host/backend/storeErrors'
+
+import { createLegalFixApplier, legalFixFileEdits } from './host/legalFixApplier'
+import { legalScanResultSchema, type LegalScanRunner } from './shared/legal'
+import { isReferenceRequest, referenceLoader } from './host/referenceLoader'
+
+// Extension host entry point. Kept to registration and adapter wiring; the
+// behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
+
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
+import { homedir, hostname, userInfo } from 'node:os'
+import { usagePanelLoader, isUsageBudgetBundle } from './host/usage/usagePanelBundle'
+import type { UsagePanel } from './host/usage/usagePanel'
+
+import path from 'node:path'
+import * as vscode from 'vscode'
+import * as z from 'zod/mini'
+import type { AgentHost, BackendKind } from './core/agent/agentBackend'
+import { environmentValue, terminalEnvironment } from './core/backends/musecode/launch'
+import { confineWorkspacePath, resolveWorkspacePath } from './core/workspacePath'
+import { isProtectedPath } from './core/protectedPaths'
+import type { EditedFile } from './core/verify/diagnosticsReport'
+import { readBackendChoice } from './core/backendSelection'
+import { personalAgentsRoot } from './core/context/customAgents'
+import {
+  bundledSkillSourcesRoot,
+  bundledSkillsPackageRoot,
+  firstPartySkillsRoot,
+  personalSkillsRoot,
+} from './core/context/skills'
+import { memoryDataRoot } from './core/memory/memoryLocation'
+import { isSamePath } from './core/paths'
+import { terminalArgument } from './core/shellQuote'
+import { renderSupportReport } from './core/support/report'
+import { isSandboxNetworkApplied } from './core/backends/musecode/sandbox'
+import { DIAGNOSTIC_SEVERITIES, type DiagnosticEntry, diagnosticsTool } from './core/diagnostics'
+import type { EditorContext } from './core/editorContext'
+import type { MentionSource } from './core/mention'
+import { MentionIndex } from './core/mentionIndex'
+import {
+  type FolderLookup,
+  hostSideUri,
+  resolveAgainstRoot,
+  rootRelativePath,
+} from './core/workspaceRoot'
+import { keychainItemPresence } from './core/backends/musecode/credentialFile'
+import { AccountHosts, connectAccountSession } from './host/auth/accountHost'
+import { AuthService } from './host/auth/authService'
+import { CliAccount, isCliSignedIn } from './host/auth/cliAccount'
+import { runDeviceSignIn } from './host/auth/deviceSignIn'
+import { isValidModelApiKey } from './host/auth/credentialStore'
+import { ModelApiBackendManager } from './host/backend/modelApiBackendManager'
+import { createFileScheduleStore } from './host/backend/fileScheduleStore'
+import { MuseCodeBackendManager } from './host/backend/museCodeBackendManager'
+import { chooseAuthorizedHost } from './host/backend/selectedHost'
+import { SandboxSetup } from './host/backend/sandboxSetup'
+import { fileContextIo } from './host/backend/contextIo'
+import { describeEnvironment } from './host/backend/environment'
+import { createFileSessionStore } from './host/backend/fileSessionStore'
+import type { QuestionStore } from './shared/questions'
+import { modelApiMcpPoolDeps } from './host/backend/mcpServers'
+import { type JobHelper, jobSourceReader } from './host/backend/jobSource'
+import { mcpJobExecutable } from './host/backend/mcpJobExecutable'
+import { createCheckpointedMemory } from './host/backend/checkpointedMemory'
+import { systemPath } from './host/backend/memoryIo'
+import {
+  museSettingsPath,
+  readDelegationMode,
+  readWorkflowTriggerMode,
+} from './host/backend/museSettings'
+import { type ShellJobDeps, shellJobAssembly } from './host/backend/shellJob'
+import {
+  createToolIo,
+  runResourceCommand as runProcess,
+  readPickedFile,
+  toolImagePreviewIo,
+  hookEnvironment,
+  terminalPlatform,
+  withTerminalOverrides,
+} from './host/backend/toolIo'
+import { pluginContainment } from './host/backend/pluginContainment'
+import { EditorContextTracker } from './host/editor/editorContextTracker'
+import { createRevertIo } from './host/editor/revertIo'
+import { createVerifyEditor } from './host/editor/verifyEditor'
+import { verifyGuidance } from './core/verify/checkCommands'
+import { IdeMcpServer } from './host/ide/ideMcpServer'
+import { createRulesFile } from './host/commands/createRulesFile'
+import { insertMentionReference } from './host/commands/insertMention'
+import { openMuseTerminal, type TerminalLaunchOptions } from './host/commands/openInTerminal'
+import { toggleInputFocus } from './host/commands/focusInput'
+import { toggleFocusView } from './host/commands/toggleFocusView'
+import type {
+  ConversationController,
+  ConversationReports,
+  FileAccess,
+  PickedFile,
+  SessionMemory,
+} from './host/conversation/conversationController'
+import { conversationLoader } from './host/conversation/conversationBundle'
+import { restartConversationBackends } from './host/conversation/conversationBackends'
+import { BackgroundNotifier } from './host/conversation/turnNotifications'
+import type { ReportDataSource } from './host/conversation/reportProblemHandler'
+import { canonicalPath } from './host/canonicalPath'
+import { loadToolImage } from './core/toolImages'
+import { modelApiClientLoader } from './host/backend/modelApiBundle'
+import { ideImageTools } from './host/ide/imageTools'
+import { ideWebFetchTools, isIdeWebFetchOffered, oneQuestionPerUrl } from './host/ide/webFetchTool'
+import { isWebFetchAllowed } from './host/web/webFetchConfirm'
+import { pageConverter } from './host/web/pageConverter'
+import { lazyPageUrlCheck, lazyWebFetcher, webFetchLoader } from './host/web/webFetchBundle'
+import { BrowserChecks } from './host/browser/browserChecks'
+import { isBrowserCheckAllowed } from './host/browser/browserCheckConfirm'
+import { downloadBrowserRuntime } from './host/browser/runtimeCommand'
+import { runtimeConsent } from './host/browser/runtimeConsent'
+import { ideBrowserCheckTools } from './host/ide/browserCheckTool'
+import { type BrowserCheckHost, browserScopeKey } from './core/browser/browserTool'
+import { ideCodeIntelTools } from './host/ide/codeIntelTools'
+import { codeIntelLoader } from './host/ide/codeIntelBundle'
+import { ideLegalScanTools, isIdeLegalScanOffered } from './host/ide/legalScanTool'
+
+import { fill as fillLegalNotice, fill, plural, uiLocale } from './shared/l10n/text'
+import { legalScanLoader, legalExplanationLoader } from './host/ide/legalScanBundle'
+import { vscodeLanguageServices } from './host/codeIntel/languageServices'
+import { usablePaidFeatures } from './shared/paid'
+import { agentImportLoader } from './host/agentImportBundle'
+import {
+  TAB_BUNDLE_FILE,
+  TAB_LEDGER_DIR,
+  TAB_SNOOZE_STATE_KEY,
+  type TabFilesExclude,
+  createTabActivation,
+  tabTextChangeEvent,
+  deferredRefresh,
+} from './host/tab/tabBundle'
+import { createCliFeatures } from './host/cliFeatures'
+import {
+  bundledSkillsLoader,
+  createBundledSkillsOffer,
+  runBundledSkillsInstall,
+  runBundledSkillsRemove,
+  type BundledSkillsCommandDeps,
+} from './host/skills/bundledSkills'
+import { hasClaimedVersion, createWhatsNew } from './host/whatsNew/whatsNew'
+import { createSessionTransferFiles } from './host/conversation/transferDialogs'
+import { createWorktreeFeatures } from './host/worktreeFeatures'
+import { heldWorktreesRoot, holdFor } from './core/worktreeConversations'
+import {
+  conversationGitFactory,
+  conversationGitLoader,
+  gitFeaturesLoader,
+  openPullRequestInConversation,
+} from './host/git/conversationGitBundle'
+import { WindowHold, WorktreeRegistry } from './host/git/worktreeRegistry'
+import { lazyReview } from './host/review/reviewBundle'
+import { PendingPrompts, type BoardSession } from './core/sessionBoard'
+import { BestOfNCoordinator } from './core/bestOfN/bestOfNCoordinator'
+import { createMemoryFeatures } from './host/memoryFeatures'
+import { createPlanFiles, createPlanIo } from './host/planFeatures'
+import { planMarkdownLoader } from './host/planMarkdownBundle'
+import { extensionHooksBundle, type ExtensionHooksModule } from './host/extensionHooksBundle'
+import type { ExtensionHookRunner } from './host/extensionHooksEntry'
+import { showPickOne } from './host/quickPick'
+import { processGitLocator, processGitProcess, processGitRunner } from './host/git'
+import { configureResources } from './core/resources/admission'
+import {
+  createCheckpointPort,
+  finishCheckpointTurn,
+  prepareCheckpointTurn,
+  withCheckpointStorageGuard,
+  withCheckpointEdit,
+  withCheckpointEditAt,
+} from './host/checkpoints/checkpointHost'
+import { checkpointStoreLoader } from './host/checkpoints/checkpointStoreBundle'
+import { type CheckpointLocation, checkpointLocation } from './host/checkpoints/checkpointLocation'
+import { isProcessAlive } from './host/checkpoints/windowPresence'
+import { ReportRecorder } from './host/support/reportRecorder'
+import type * as RecorderBundle from './host/support/recorderEntry'
+import { vscodeReportEditorIo } from './host/support/reportEditorIo'
+import {
+  changedSettingNames,
+  extensionReportFacts,
+  manifestSettingNames,
+  reportScrubContext,
+} from './host/support/reportFacts'
+import { createLogger, errorDetail, type Logger, logRejection } from './host/logger'
+import {
+  liveFetch,
+  managedConfiguration,
+  readNetworkFacts,
+  readProxySettings,
+} from './host/networkPosture'
+import { OutputDocumentStore } from './host/outputDocuments'
+import { loggedPopups } from './host/popups'
+import { pickMentionFile } from './host/mention/mentionQuickPick'
+import { createWorkspaceFileLister, findRootFiles } from './host/mention/workspaceFiles'
+import { permissionSettingsOf, readSettings, toSettingsSnapshot } from './host/settings'
+import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvider'
+import { openChatPanel, restoreChatPanel } from './host/views/chatPanel'
+import { TasksPanel } from './host/views/tasksPanel'
+import { SurfaceRegistry } from './host/views/surfaceRegistry'
+import type { ChatSurface } from './host/views/chatSurface'
+import type { WebviewHostContext } from './host/views/webviewSetup'
+import { loadUiTable, readUiTableFile } from './host/l10n'
+import type { InsightsReader } from './runtime/usage/traceLogs'
+import { createDictationSetup, createMuseVoiceSetup } from './host/voice/dictationHost'
+import { voiceLoader } from './host/voice/voiceBundle'
+import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
+import { createPaidFeatures } from './host/paid/paidHost'
+import { isActivationPaidSettingOn } from './host/paid/paidActivation'
+import {
+  modelsPanelLoader,
+  providerCredentials,
+  recoverProviderRemovals,
+} from './host/models/modelsPanelBundle'
+import type { ModelsPanelFeatures } from './host/models/modelsPanelEntry'
+import type { createPaidDailyBudget } from './host/paid/paidDailyBudget'
+
+import { imageUseRequest } from './core/backends/modelapi/imageGeneration'
+
 import { BACKEND_KINDS, type HostAction } from './shared/protocol'
 import type { AccountFacts } from './shared/usage'
 
@@ -517,40 +525,6 @@ function findWorkspaceFiles(): Promise<readonly string[]> {
 const runGit = processGitRunner()
 const automaticBestOfNGit = processGitRunner({ isAutomatic: true })
 
-// A failed spawn or a timeout kill has no exit code; report it as negative so
-// the caller can tell "the CLI said no" from "the CLI never ran".
-const NO_EXIT_CODE = -1
-
-function exitCodeOf(error: ExecFileException | null): number {
-  if (error === null) {
-    return 0
-  }
-  return typeof error.code === 'number' ? error.code : NO_EXIT_CODE
-}
-
-/**
- * Runs a short CLI command to completion without a shell; never rejects.
- * `env` replaces the inherited environment (`muse serve`'s, so the CLI reads
- * the same config root, M30).
- */
-function runProcess(
-  invocation: CliInvocation,
-  timeoutMs: number,
-  cwd?: string,
-  env?: NodeJS.ProcessEnv,
-): Promise<ProcessResult> {
-  return new Promise((resolve) => {
-    execFile(
-      invocation.command,
-      [...invocation.args],
-      { timeout: timeoutMs, windowsHide: true, maxBuffer: CLI_OUTPUT_MAX_BYTES, cwd, env },
-      (error, stdout, stderr) => {
-        resolve({ exitCode: exitCodeOf(error), stdout, stderr })
-      },
-    )
-  })
-}
-
 /**
  * A tested Windows job helper, compiled once from the shared C# (`jobSource.ts`):
  * the shell tool's job assembly (M27) or the direct MCP stdio launcher (M50).
@@ -691,6 +665,34 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const activationStartedAt = performance.now()
   const channel = vscode.window.createOutputChannel(PRODUCT_NAME, { log: true })
   const log = createLogger(channel)
+  const resourceJobSource = jobSourceReader(context.extensionPath)
+  const resourceAssembly = windowsJobHelper(
+    shellJobAssembly,
+    context.globalStorageUri.fsPath,
+    resourceJobSource,
+    log,
+  )
+  const resourceMcpJob = windowsJobHelper(
+    mcpJobExecutable,
+    context.globalStorageUri.fsPath,
+    resourceJobSource,
+    log,
+  )
+  context.subscriptions.push({
+    dispose: configureResources({
+      inspect: (key) => vscode.workspace.getConfiguration('museSpark').inspect(key),
+      onError: () => {
+        log.warn('Resource tree or sampler reading is unavailable')
+      },
+      windowsJob: async () => {
+        const assemblyPath = await resourceAssembly?.()
+        const executablePath = await resourceMcpJob?.()
+        return assemblyPath === undefined || executablePath === undefined
+          ? undefined
+          : { assemblyPath, executablePath }
+      },
+    }),
+  })
   const usageRecording = createUsageRecording({
     client: vscode.env.appName,
     now: Date.now,
@@ -1062,6 +1064,7 @@ async function activateWindow(
     vscode.workspace
       .getConfiguration(SETTINGS_SECTION)
       .inspect<boolean>(PAID_FEATURE_SETTINGS[feature])?.globalValue === undefined
+  const paidAuthority = new PaidAuthority()
   let paidDaily: ReturnType<typeof createPaidDailyBudget> | undefined
   const loadDailyPaid = () => {
     if (paidDaily !== undefined) return paidDaily
@@ -1071,6 +1074,7 @@ async function activateWindow(
     if (!isUsageBudgetBundle(bundle)) throw new Error(UI_TEXT.actionFailed)
     paidDaily = bundle.createUsageBudget({
       l10n,
+      authority: paidAuthority,
       directory: path.join(context.globalStorageUri.fsPath, PAID_DAILY_BUDGET.directory),
       now: Date.now,
       capUsd: () => currentSettings().paidDailyBudgetUsd,
@@ -1085,6 +1089,7 @@ async function activateWindow(
   const dailyPaid: ReturnType<typeof createPaidDailyBudget> = {
     capUsd: () => loadDailyPaid().capUsd(),
     reserve: (...args) => loadDailyPaid().reserve(...args),
+    reserveExact: (costUsd) => loadDailyPaid().reserveExact(costUsd),
     readToday: () => loadDailyPaid().readToday(),
     judgeLedger: {
       remainingUsd: () => loadDailyPaid().judgeLedger.remainingUsd(),
@@ -1095,6 +1100,8 @@ async function activateWindow(
   }
   const paid = createPaidFeatures({
     usageRecording,
+    authority: paidAuthority,
+    orderDirectory: path.join(context.globalStorageUri.fsPath, PAID_APPROVAL_ORDER_DIRECTORY),
     globalState: context.globalState,
     workspaceState: context.workspaceState,
     isSettingOn: (feature) => isActivationPaidSettingOn(feature, currentSettings()),
@@ -1443,6 +1450,7 @@ async function activateWindow(
     voice,
   )
   const backend = new MuseCodeBackendManager({
+    shellJobAssembly: () => windowsJobAssembly?.() ?? Promise.resolve(undefined),
     beforeWorkspaceHostStart: async () => {
       await checkpoints.markNativeBackend()
     },
@@ -1630,6 +1638,8 @@ async function activateWindow(
                 timeoutMs,
                 workspaceRoot,
                 backend.childEnvironment(),
+                nativeStarts.signal,
+                backend.workspaceActionGuard(nativeStarts.signal),
               ),
             nativeStarts.signal,
           )
@@ -1690,7 +1700,15 @@ async function activateWindow(
     resolveLaunch: () => backend.resolveLaunch(),
     run: async (invocation, timeoutMs) =>
       await backend.startWorkspaceCommand(
-        async () => await runProcess(invocation, timeoutMs),
+        async () =>
+          await runProcess(
+            invocation,
+            timeoutMs,
+            undefined,
+            undefined,
+            nativeStarts.signal,
+            backend.workspaceActionGuard(nativeStarts.signal),
+          ),
         nativeStarts.signal,
       ),
     showWarning: async (message, ...choices) =>
@@ -1878,6 +1896,7 @@ async function activateWindow(
   // Amp and OpenCode plugin children (M91b): on Windows, M50's kill-on-close
   // job launcher, prepared afresh after a failure.
   const pluginJobs = pluginContainment({
+    shellJobAssembly: windowsJobAssembly,
     platform: process.platform,
     newJobExecutable: () => windowsJobHelper(mcpJobExecutable, storageRoot, readJobSource, log),
     now: () => Date.now(),
@@ -1940,10 +1959,12 @@ async function activateWindow(
   })
   // Images for Muse Code (M44, PLAN.md D37): made here with the stored key,
   // never by `muse serve`, each one confirmed with its price.
+  const requestPacingOwner = {}
   const keyClient = modelApiClientLoader({
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', MODEL_API_BUNDLE_FILE).fsPath,
     log,
     client: {
+      pacingOwner: requestPacingOwner,
       fetch: liveFetch,
       baseUrl: MODEL_API_BASE_URL,
       apiKey: () => credentials.getApiKey(),
@@ -2121,7 +2142,7 @@ async function activateWindow(
             ? undefined
             : { workspaceRoot, platform: process.platform, io: checkpointedIo },
         client: keyClient,
-        confirm: async (plan) => await paid.consent.allows(imageUseRequest(plan)),
+        confirm: async (plan) => (await paid.consent.allows(imageUseRequest(plan))) === true,
         onBilled: () => {
           paid.usage.add('imageGeneration', 1)
         },
@@ -2415,6 +2436,16 @@ async function activateWindow(
           }),
         })
   const modelApi = new ModelApiBackendManager({
+    onServiceFailure: () => {
+      notify(
+        Array.from(controllers.values(), (controller) => () => {
+          controller.modelApiServiceFailed()
+        }),
+        undefined,
+        log,
+        'modelApi.serviceFailure',
+      )
+    },
     judge,
     createProviderClient: async (meta) =>
       subscriptions === undefined &&
@@ -2547,14 +2578,34 @@ async function activateWindow(
         now: Date.now,
       }),
     isPaidFeatureOn: (feature) => paid.gate.isOn(feature),
-    notePaidUse: (feature, units) => {
-      paid.usage.add(feature, units)
+    notePaidUse: (feature, units, searchPriceUsd) => {
+      paid.usage.add(feature, units, searchPriceUsd)
     },
     promptCacheRetention: () => currentSettings().modelApiPromptCacheRetention,
     // The session budget cap and the per-reply usage line (M82), read per
     // request and per reply so a changed setting applies at once.
     sessionBudgetUsd: () => currentSettings().modelApiSessionBudgetUsd,
-    reservePaidRequest: dailyPaid.reserve,
+    paidAuthority: paid.consent.authority,
+    reservePaidRequest: async (body, feature, estimatedInputTokens, signal, reservationUsd) => {
+      if (reservationUsd === undefined) {
+        return await dailyPaid.reserve(body, feature, estimatedInputTokens, signal)
+      }
+      signal?.throwIfAborted()
+      const claim = await dailyPaid.reserveExact(reservationUsd)
+      try {
+        signal?.throwIfAborted()
+        return {
+          ...claim,
+          check: () => {
+            signal?.throwIfAborted()
+            claim.check()
+          },
+        }
+      } catch (error: unknown) {
+        await claim.settle(Usd.from(0).toAmount())
+        throw error
+      }
+    },
     showReplyUsage: () => currentSettings().modelApiReplyUsage,
     // Muse Code's MCP servers, run by this window for the Model API backend
     // (M50, PLAN.md D42): started in a trusted workspace only, stopped with
@@ -2569,6 +2620,7 @@ async function activateWindow(
           clientVersion: version,
           platform: process.platform,
           jobExecutablePath: await windowsMcpJob?.(),
+          shellJobAssembly: windowsJobAssembly,
           env: () => process.env,
           fetch: globalThis.fetch.bind(globalThis),
           log,
@@ -2581,7 +2633,11 @@ async function activateWindow(
     codeIntel: languageServices,
     isRepoMapInPrompt: () => currentSettings().modelApiRepoMap,
     isObservationPackingOn: () => currentSettings().modelApiObservationPacking,
+    pacingOwner: requestPacingOwner,
     isAutoCompactionOn: () => currentSettings().modelApiAutoCompaction,
+    strictTools: () => currentSettings().modelApiStrictTools,
+    parallelReads: () => currentSettings().modelApiParallelReads,
+    webSearchMaxPerRequest: () => currentSettings().webSearchMaxPerRequest,
     isShellKeepsDirectoryOn: () => currentSettings().modelApiShellKeepsDirectory,
     allowsPaidUse: async (request, requiresAsking) =>
       await paid.consent.allows(request, requiresAsking),
@@ -2671,14 +2727,26 @@ async function activateWindow(
     log,
   })
   // The report dialog's facts, journal and scrub context (M93, PLAN.md D72):
-  // local reads only. The CLI's sign-in comes from its credential file's
+  // Local facts plus an optional unauthenticated public status read. The CLI's
+  // sign-in comes from its credential file's
   // structure (no `account/read`), the key's presence from the secret store.
   const reportSource: ReportDataSource = {
     readFacts: async () => {
       const settings = currentSettings()
       const resolution = backend.resolveLaunch()
       const configuration = vscode.workspace.getConfiguration()
+      let serviceStatus
+      if (settings.backend === 'modelApi') {
+        try {
+          serviceStatus = await keyClient().readServiceStatus(
+            AbortSignal.timeout(MODEL_API_STATUS_READ_TIMEOUT_MS),
+          )
+        } catch {
+          // An optional public status read cannot prevent the local report.
+        }
+      }
       return extensionReportFacts({
+        ...(serviceStatus !== undefined && { serviceStatus }),
         extensionVersion: version,
         vscodeVersion: vscode.version,
         nodeVersion: process.versions.node,
@@ -2905,6 +2973,10 @@ async function activateWindow(
       }
       case 'openPullRequestInConversation': {
         await openPullRequestInConversation(gitFeatures, gitPopups.showError)
+        break
+      }
+      case 'openModelApiStatus': {
+        await vscode.env.openExternal(vscode.Uri.parse(`${MODEL_API_BASE_URL}/status`))
         break
       }
       case 'restartMuseCode': {
@@ -3226,6 +3298,8 @@ async function activateWindow(
           newAttachmentId: () => crypto.randomUUID(),
           sessions,
           // The usage modal's Account section and insights (M14).
+          readServiceStatus: () =>
+            keyClient().readServiceStatus(AbortSignal.timeout(MODEL_API_STATUS_READ_TIMEOUT_MS)),
           accountFacts: async (kind) => {
             const resolution = backend.resolveLaunch()
             const isCliSession = await hasCliSession()
@@ -3431,8 +3505,8 @@ async function activateWindow(
           runGit,
           runBestOfNGit,
           isPaidFeatureOn: (feature) => paid.gate.isOn(feature),
-          notePaidUse: (feature, units) => {
-            paid.usage.add(feature, units)
+          notePaidUse: (feature, units, searchPriceUsd) => {
+            paid.usage.add(feature, units, searchPriceUsd)
           },
           buildAttemptHost: (worktreeRoot, admitRequest, noteUsage, budgetScope) =>
             modelApi.buildAttemptHost(worktreeRoot, admitRequest, noteUsage, budgetScope),
@@ -4051,6 +4125,9 @@ async function activateWindow(
                   { command: resolution.launch.command, args: MUSE_INIT_ARGS },
                   MUSE_INIT_TIMEOUT_MS,
                   workspaceRoot,
+                  backend.childEnvironment(),
+                  nativeStarts.signal,
+                  check,
                 )
               }, nativeStarts.signal)
             : undefined
@@ -4112,6 +4189,8 @@ async function activateWindow(
                 MUSE_CONFIG_STATUS_TIMEOUT_MS,
                 workspaceRoot,
                 backend.childEnvironment(),
+                nativeStarts.signal,
+                backend.workspaceActionGuard(nativeStarts.signal),
               )
           : undefined,
       )
@@ -4122,6 +4201,10 @@ async function activateWindow(
           ? await runProcess(
               { command: MACOS_SECURITY_TOOL, args: MACOS_KEYCHAIN_LOOKUP_ARGS },
               MACOS_KEYCHAIN_LOOKUP_TIMEOUT_MS,
+              undefined,
+              undefined,
+              nativeStarts.signal,
+              backend.workspaceActionGuard(nativeStarts.signal),
             )
           : undefined
       log.info(

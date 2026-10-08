@@ -1,4 +1,6 @@
+import type { modelApiStatusSchema } from '../../shared/serviceStatus'
 import type { JudgeStatus } from '../../shared/judge'
+import { workflowChildSchema } from '../../shared/workflowChild'
 // Webview UI state: a pure reducer over host messages and local edits. No DOM
 // access here; the components apply focus and caret changes. Timestamps come
 // in with the action (`at`) so reasoning durations stay deterministic in tests.
@@ -129,6 +131,7 @@ export type {
 
 /** What the Account & usage dialog shows (M8, M14): the host's last `usageReport`. */
 export interface UsageReport {
+  readonly serviceStatus?: ReturnType<typeof modelApiStatusSchema.parse> | undefined
   readonly backend: BackendKind
   readonly subscription: SubscriptionUsage | undefined
   readonly account: AccountFacts | undefined
@@ -939,15 +942,6 @@ function reportedImages(item: ItemSnapshot): readonly string[] | undefined {
 // One `children` element of a workflow item (MSP `WorkflowChild`, M47): its
 // identity and status are required; every other field is read on its own,
 // so one of another shape costs that field, never the agent or the run.
-const reportedChildSchema = z.object({
-  childId: z.string(),
-  attempt: z.number(),
-  status: z.string(),
-  label: z.optional(z.unknown()),
-  terminal: z.optional(z.unknown()),
-  durationMs: z.optional(z.unknown()),
-  usage: z.optional(z.unknown()),
-})
 
 function stringOf(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined
@@ -956,7 +950,7 @@ function stringOf(value: unknown): string | undefined {
 /** The agents a workflow item reports; undefined when it carries no list. */
 function reportedChildren(item: ItemSnapshot): readonly WorkflowChild[] | undefined {
   return item.children?.flatMap((raw) => {
-    const parsed = reportedChildSchema.safeParse(raw)
+    const parsed = workflowChildSchema.safeParse(raw)
     if (!parsed.success) {
       return []
     }
@@ -964,6 +958,7 @@ function reportedChildren(item: ItemSnapshot): readonly WorkflowChild[] | undefi
     return [
       {
         childId: child.childId,
+        agentEvidence: item.agentWorkflowEvidence?.[`${item.itemId}/${child.childId}`],
         attempt: child.attempt,
         status: child.status,
         label: stringOf(child.label),
@@ -1130,10 +1125,14 @@ function withBanner(state: UiState, name: string, reason: string): UiState {
 
 function toolEntry(item: ItemSnapshot): TranscriptEntry {
   return {
+    exitCode: item.exitCode,
+    durationMs: item.durationMs,
+    changedFiles: item.changedFiles,
     kind: 'tool',
     id: item.itemId,
     tool: item.tool ?? item.kind,
     args: item.args ?? '',
+    argumentPreview: item.argumentPreview,
     status: item.status,
     output: item.visibleOutput ?? '',
     failureReason: item.failureReason,
@@ -1176,6 +1175,7 @@ function userShellEntry(item: ItemSnapshot): UserShellEntry {
 
 function subagentEntry(item: ItemSnapshot, seq: number): SubagentEntry {
   return {
+    agentEvidence: item.agentEvidence,
     kind: 'subagent',
     id: item.itemId,
     seq,
@@ -1291,8 +1291,12 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
     case 'tool': {
       return {
         ...entry,
+        exitCode: item.exitCode ?? entry.exitCode,
+        durationMs: item.durationMs ?? entry.durationMs,
+        changedFiles: item.changedFiles ?? entry.changedFiles,
         tool: item.tool ?? entry.tool,
         args: item.args ?? entry.args,
+        argumentPreview: item.argumentPreview,
         status: item.status,
         output: item.visibleOutput ?? entry.output,
         failureReason: item.failureReason ?? entry.failureReason,
@@ -1329,6 +1333,7 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
       const fresh = subagentEntry(item, entry.seq)
       return {
         ...entry,
+        agentEvidence: fresh.agentEvidence ?? entry.agentEvidence,
         paid: fresh.paid ?? entry.paid,
         role: fresh.role ?? entry.role,
         objective: fresh.objective ?? entry.objective,
@@ -1397,13 +1402,15 @@ function settleEntry(entry: TranscriptEntry, at: number): TranscriptEntry {
         !isCutOff &&
         entry.approval === undefined &&
         entry.question === undefined &&
-        entry.elicitation === undefined
+        entry.elicitation === undefined &&
+        entry.argumentPreview === undefined
       ) {
         return entry
       }
       return {
         ...entry,
         status: isCutOff ? TOOL_STATUS_INTERRUPTED : entry.status,
+        argumentPreview: undefined,
         approval: undefined,
         question:
           entry.question?.state !== undefined && entry.question.state !== 'waiting'
@@ -1455,8 +1462,16 @@ function unlockQuestions(entries: readonly TranscriptEntry[]): readonly Transcri
     : entries
 }
 
-function settleAll(entries: readonly TranscriptEntry[], at: number): readonly TranscriptEntry[] {
-  const settled = entries.map((entry) => settleEntry(entry, at))
+function settleAll(
+  entries: readonly TranscriptEntry[],
+  at: number,
+  isPreviewOnly = false,
+): readonly TranscriptEntry[] {
+  const settled = entries.map((entry) =>
+    isPreviewOnly && (entry.kind !== 'tool' || entry.argumentPreview === undefined)
+      ? entry
+      : settleEntry(entry, at),
+  )
   return settled.every((entry, index) => entry === entries[index]) ? entries : settled
 }
 
@@ -1931,6 +1946,7 @@ function applyAgentEvent(
         : state
     }
     case 'itemStarted':
+    case 'toolArgumentPreview':
     case 'itemUpdated':
     case 'itemCompleted': {
       const next = applyItem(state, event.item, at)
@@ -2560,7 +2576,7 @@ function reconcile(
   at: number,
 ): UiState {
   const restore = state.pendingRestore
-  const live: UiState = {
+  let live: UiState = {
     ...state,
     attachmentEpoch: Math.max(state.attachmentEpoch, message.attachmentEpoch ?? 0),
     pendingRestore: undefined,
@@ -2579,9 +2595,11 @@ function reconcile(
   if (restore.isTranscriptOmitted) {
     return withNotice(live, 'info', UI_TEXT.snapshotTooLong)
   }
-  return message.activeTurnId === undefined
-    ? { ...live, transcript: settleAll(live.transcript, at) }
-    : live
+  for (const childId of Object.keys(live.childTranscripts)) {
+    live = mapChildEntries(live, childId, (entries) => settleAll(entries, at, true))
+  }
+  const transcript = settleAll(live.transcript, at, message.activeTurnId !== undefined)
+  return transcript === live.transcript ? live : { ...live, transcript }
 }
 
 /** Transcript order for loaded rows, then missing-history cards in arrival order. */
@@ -2972,6 +2990,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         usageReport: {
           backend: message.backend,
           subscription: message.subscription,
+          ...(message.serviceStatus !== undefined && { serviceStatus: message.serviceStatus }),
           account: message.account,
           insights: message.insights,
           team: message.team,

@@ -138,6 +138,12 @@ export function cliCommands() {
     ).map(([route, name, key]) => ({ route, name, description: UI_TEXT[key], text: { ui: key } })),
     {
       route: 'acp',
+      name: '/agents [receipt|continue|retry] [ID]',
+      description: UI_TEXT.referenceAgentOutcomes,
+      text: { ui: 'referenceAgentOutcomes' },
+    },
+    {
+      route: 'acp',
       name: '/prompt save|list|use|share',
       description: UI_TEXT.promptRun,
       text: { ui: 'promptRun' },
@@ -147,6 +153,12 @@ export function cliCommands() {
       name: '/share chat [--mode full|conversation] [--format md|html|json]',
       description: UI_TEXT.shareReviewPrivacy,
       text: { ui: 'shareReviewPrivacy' },
+    },
+    {
+      route: 'resources',
+      name: 'resources [status|history|resume] [--json]; usage resources [--json]',
+      description: UI_TEXT.resourceGovernorDescription,
+      text: { ui: 'resourceGovernorDescription' },
     },
     {
       route: 'version',

@@ -1035,6 +1035,9 @@ const RestoreNotice = memo(function RestoreNotice({
 /** A button's label for each way on a notice offers. */
 function noticeActionLabel(action: NoticeAction): string {
   switch (action) {
+    case 'openModelApiStatus': {
+      return UI_TEXT.modelApiStatusOpen
+    }
     case 'restartMuseCode': {
       return UI_TEXT.restartNow
     }

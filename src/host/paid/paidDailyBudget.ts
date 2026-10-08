@@ -1,3 +1,7 @@
+import { reportingAmount } from '../../core/usage/reportingAmount'
+import { randomUUID } from 'node:crypto'
+import { PaidAuthority } from '../../core/paid/paidAuthority'
+import { Usd, legacyUsdSchema, usdInputSchema, type UsdAmount } from '../../shared/usd'
 // D78: daily interactive extras share M82's durable claims across windows.
 import { mkdirSync, readFileSync, renameSync, statSync } from 'node:fs'
 import path from 'node:path'
@@ -16,19 +20,25 @@ import { writeFileAtomically } from '../fsAtomic'
 import type { UsageBudgetRead } from '../../core/usage/usageService'
 
 const limitSchema = z.object({
-  limitUsd: z
-    .number()
-    .check(z.minimum(PAID_DAILY_BUDGET.minimumUsd), z.maximum(PAID_DAILY_BUDGET.maximumUsd)),
+  limitUsd: legacyUsdSchema.check(
+    z.refine(
+      (amount) =>
+        Usd.from(amount).compare(Usd.from(PAID_DAILY_BUDGET.minimumUsd)) >= 0 &&
+        Usd.from(amount).compare(Usd.from(PAID_DAILY_BUDGET.maximumUsd)) <= 0,
+    ),
+  ),
   stopped: z.boolean(),
 })
 
 export function createPaidDailyBudget(deps: {
+  readonly authority?: PaidAuthority
   readonly directory: string
   readonly now: () => number
-  readonly capUsd: () => number
+  readonly capUsd: () => UsdAmount
   readonly sleep: (ms: number) => Promise<void>
   readonly isModelApi: () => boolean
 }) {
+  const authority = deps.authority ?? new PaidAuthority()
   const day = () => {
     const today = new Date(deps.now())
     return [today.getFullYear(), today.getMonth() + 1, today.getDate()].join('-')
@@ -36,7 +46,8 @@ export function createPaidDailyBudget(deps: {
   const journal = createSessionBudgetJournal({
     directory: deps.directory,
     sleep: deps.sleep,
-    initialBudget: () => Promise.resolve({ spentUsd: 0, hasUnknownHistoricalFees: false }),
+    initialBudget: () =>
+      Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
   })
   const limitPath = (scope: string) =>
     path.join(deps.directory, scope, PAID_DAILY_BUDGET.overrideFile)
@@ -64,7 +75,7 @@ export function createPaidDailyBudget(deps: {
     return limit.limitUsd
   }
   const capUsd = () => readLimit(day())
-  const raise = async (scope: string, neededUsd: number, signal: AbortSignal): Promise<void> => {
+  const raise = async (scope: string, neededUsd: UsdAmount, signal: AbortSignal): Promise<void> => {
     const assertActive = () => {
       signal.throwIfAborted()
       if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
@@ -99,17 +110,25 @@ export function createPaidDailyBudget(deps: {
     )
     assertActive()
     if (answer?.title !== raiseTitle) stop()
+    const doubledLimit = Usd.from(readLimit(scope)).times(2)
+    let suggestedLimit = neededUsd
+    if (Usd.from(neededUsd).compare(doubledLimit) <= 0)
+      suggestedLimit =
+        doubledLimit.compare(Usd.from(PAID_DAILY_BUDGET.maximumUsd)) > 0
+          ? Usd.from(PAID_DAILY_BUDGET.maximumUsd).toAmount()
+          : doubledLimit.toAmount()
     const entered = await unlessAborted(
       Promise.resolve(
         vscode.window.showInputBox({
           title: raiseTitle,
           prompt: UI_TEXT.paidDailyRaisePrompt,
-          value: String(
-            Math.min(PAID_DAILY_BUDGET.maximumUsd, Math.max(readLimit(scope) * 2, neededUsd)),
-          ),
+          value: suggestedLimit,
           validateInput: (value) => {
-            const parsed = limitSchema.safeParse({ limitUsd: Number(value), stopped: false })
-            if (!parsed.success || parsed.data.limitUsd < neededUsd)
+            const parsed = limitSchema.safeParse({
+              limitUsd: usdInputSchema.safeParse(value).data,
+              stopped: false,
+            })
+            if (!parsed.success || Usd.from(parsed.data.limitUsd).compare(Usd.from(neededUsd)) < 0)
               return UI_TEXT.paidDailyRaisePrompt
             return
           },
@@ -118,8 +137,15 @@ export function createPaidDailyBudget(deps: {
       signal,
     )
     assertActive()
-    const parsed = limitSchema.safeParse({ limitUsd: Number(entered), stopped: false })
-    if (entered === undefined || !parsed.success || parsed.data.limitUsd < neededUsd) {
+    const parsed = limitSchema.safeParse({
+      limitUsd: usdInputSchema.safeParse(entered).data,
+      stopped: false,
+    })
+    if (
+      entered === undefined ||
+      !parsed.success ||
+      Usd.from(parsed.data.limitUsd).compare(Usd.from(neededUsd)) < 0
+    ) {
       stop()
     }
     await writeFileAtomically(limitPath(scope), JSON.stringify(parsed.data), {
@@ -135,6 +161,64 @@ export function createPaidDailyBudget(deps: {
     })
     assertActive()
   }
+  const ownClaim = (
+    scope: string,
+    claimId: string,
+    claim: Awaited<ReturnType<typeof journal.reserve>>,
+  ) => {
+    const pending = new Map<string, Promise<unknown>>()
+    return {
+      ...claim,
+      check: (capUsd: UsdAmount) => {
+        const total = claim.check(capUsd)
+        authority.dispatch({ type: 'day', day: scope, capUsd, spentUsd: total.spentUsd })
+        return total
+      },
+      settle: async (amount: UsdAmount, hasUnknownCost = false, isFinal = true) => {
+        const key = JSON.stringify([amount, hasUnknownCost, isFinal])
+        const effects = authority.dispatch({
+          type: 'moneySettle',
+          claimId,
+          amount,
+          hasUnknownCost,
+          isFinal,
+        })
+        for (const effect of effects) {
+          if (effect.type !== 'persistMoney') continue
+          const writing = claim.settle(effect.amount, effect.hasUnknownCost, effect.isFinal)
+          pending.set(key, writing)
+          try {
+            const total = await writing
+            authority.dispatch({ type: 'moneySaved', effect })
+            if (scope === day())
+              authority.dispatch({
+                type: 'day',
+                day: scope,
+                capUsd: authority.day(scope)?.capUsd ?? deps.capUsd(),
+                spentUsd: total.spentUsd,
+              })
+            return total
+          } catch (error: unknown) {
+            authority.dispatch({ type: 'moneyFailed', effect })
+            throw error
+          } finally {
+            pending.delete(key)
+          }
+        }
+        const writing = pending.get(key)
+        if (writing === undefined) throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+        return await writing
+      },
+    }
+  }
+  const reserveClaim = async (scope: string, amount: UsdAmount) => {
+    const claimId = randomUUID()
+    const effects = authority.dispatch({ type: 'moneyReserve', claimId, reservedUsd: amount })
+    const effect = effects.find((candidate) => candidate.type === 'persistReserve')
+    if (effect?.type !== 'persistReserve') throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+    const claim = await journal.reserve(scope, PAID_DAILY_BUDGET.accountId, effect.amount)
+    return ownClaim(scope, effect.claimId, claim)
+  }
   const reserve: NonNullable<ModelApiClientDeps['reservePaidRequest']> = async (
     body,
     feature,
@@ -149,10 +233,10 @@ export function createPaidDailyBudget(deps: {
     )
       throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
     const scope = day()
-    let claim: Awaited<ReturnType<typeof journal.reserve>>
+    let claim: ReturnType<typeof ownClaim>
     try {
       readLimit(scope)
-      let costUsd: number = PAID_PRICES_USD.imageGeneration
+      let costUsd = Usd.from(PAID_PRICES_USD.imageGeneration).toAmount()
       if ('input' in body) {
         if (modelApiPaidTier(body.model) === undefined)
           throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
@@ -166,7 +250,7 @@ export function createPaidDailyBudget(deps: {
           body.model,
         )
       }
-      claim = await journal.reserve(scope, PAID_DAILY_BUDGET.accountId, costUsd)
+      claim = await reserveClaim(scope, costUsd)
     } catch (error: unknown) {
       signal.throwIfAborted()
       if (error instanceof Error && error.message === UI_TEXT.paidDailyStopped) throw error
@@ -176,7 +260,7 @@ export function createPaidDailyBudget(deps: {
       signal.throwIfAborted()
       const total = await journal.read(scope, PAID_DAILY_BUDGET.accountId)
       signal.throwIfAborted()
-      if (total.spentUsd > readLimit(scope))
+      if (Usd.from(total.spentUsd).compare(Usd.from(readLimit(scope))) > 0)
         await unlessAborted(raise(scope, total.spentUsd, signal), signal)
       signal.throwIfAborted()
       return {
@@ -192,7 +276,7 @@ export function createPaidDailyBudget(deps: {
         },
       }
     } catch (error: unknown) {
-      await claim.settle(0)
+      await claim.settle(Usd.from(0).toAmount())
       throw error
     }
   }
@@ -202,11 +286,11 @@ export function createPaidDailyBudget(deps: {
     let isStopped = false
     let cap: number
     try {
-      cap = readLimit(scope)
+      cap = Number(readLimit(scope))
     } catch (error: unknown) {
       if (!(error instanceof Error) || error.message !== UI_TEXT.paidDailyStopped) throw error
       isStopped = true
-      cap = readLimit(scope, true)
+      cap = Number(readLimit(scope, true))
     }
     const reset = new Date(deps.now())
     reset.setHours(0, 0, 0, 0)
@@ -216,11 +300,13 @@ export function createPaidDailyBudget(deps: {
         budget: {
           id: scope,
           kind: 'paidDaily',
-          spentUsd: total?.spentUsd ?? 0,
-          ...(total?.uncertainUsd !== undefined && { uncertainUsd: total.uncertainUsd }),
+          spentUsd: Number(total?.spentUsd ?? 0),
+          ...(total?.uncertainUsd !== undefined && {
+            uncertainUsd: reportingAmount(total.uncertainUsd),
+          }),
           capUsd: cap,
           stopped: isStopped,
-          raisedToday: cap > deps.capUsd(),
+          raisedToday: Usd.from(cap).compare(Usd.from(deps.capUsd())) > 0,
           resetsAt: reset.getTime(),
         },
       },
@@ -232,31 +318,42 @@ export function createPaidDailyBudget(deps: {
     const total = await journal.read(scope, PAID_DAILY_BUDGET.accountId)
     if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
     if (total.hasUnknownHistoricalFees) throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
+    authority.dispatch({
+      type: 'day',
+      day: scope,
+      capUsd: readLimit(scope),
+      spentUsd: total.spentUsd,
+    })
     return { day: scope, capUsd: readLimit(scope), spentUsd: total.spentUsd }
+  }
+  const reserveExact = async (costUsd: UsdAmount) => {
+    const scope = day()
+    readLimit(scope)
+    const claim = await reserveClaim(scope, costUsd)
+    const check = () => {
+      if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
+      claim.check(readLimit(scope))
+    }
+    try {
+      check()
+    } catch (error: unknown) {
+      await claim.settle(Usd.from(0).toAmount())
+      throw error
+    }
+    return { ...claim, check }
   }
   const judgeLedger: JudgeDailyLedger = {
     remainingUsd: async () => {
       const current = await latestDay()
-      return Math.max(0, current.capUsd - current.spentUsd)
+      const remaining = Usd.from(current.capUsd).subtract(Usd.from(current.spentUsd))
+      return remaining.compare(Usd.from(0)) < 0 ? Usd.from(0).toAmount() : remaining.toAmount()
     },
     reserve: async (costUsd) => {
-      const scope = day()
-      readLimit(scope)
-      const claim = await journal.reserve(scope, PAID_DAILY_BUDGET.accountId, costUsd)
-      const check = () => {
-        if (scope !== day()) throw new Error(UI_TEXT.paidDailyStopped)
-        claim.check(readLimit(scope))
-      }
-      try {
-        check()
-      } catch (error: unknown) {
-        await claim.settle(0)
-        throw error
-      }
+      const claim = await reserveExact(Usd.from(costUsd).toAmount())
       return {
         claimId: claim.claimId,
         reservedUsd: claim.reservedUsd,
-        check,
+        check: claim.check,
         settle: async (actualCostUsd) => {
           await claim.settle(actualCostUsd)
         },
@@ -264,6 +361,7 @@ export function createPaidDailyBudget(deps: {
     },
   }
   return {
+    reserveExact,
     capUsd,
     readToday,
     reserve,

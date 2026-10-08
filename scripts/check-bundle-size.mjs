@@ -6,6 +6,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import {
   webviewDeferredBudgetGroups,
+  webviewPacingOutputs,
   webviewStartupOutputs,
   webviewPanelOutputs,
 } from './lib/webviewBundles.mjs'
@@ -25,6 +26,15 @@ const BUDGETS = [
   { path: 'dist/runtimeQuestions.js', budgetKiB: 25 },
   { path: 'dist/questionNotes.js', budgetKiB: 25 },
   { path: 'dist/extension.js', budgetKiB: 600 },
+  // M107: 89.5 / 1.8 KiB measured; +15%, rounded up to 25 KiB.
+  { path: 'dist/resourceGovernor.js', budgetKiB: 125 },
+  { path: 'dist/resourceAdmission.js', budgetKiB: 25 },
+  // Resource controls/history closures (including their deferred parser and CSS) have 50 KiB caps below.
+  { path: 'dist/webview/resourceSurface.js', budgetKiB: 25 },
+  { path: 'dist/webview/resourceHistory.js', budgetKiB: 25 },
+  { path: 'dist/webview/resourceHistory.css', budgetKiB: 25 },
+  // Versioned exec event schema: 37.5 KiB +15%, rounded to 25 KiB.
+  { path: 'docs/schemas/exec-event-v2.schema.json', budgetKiB: 50 },
   // ACTDIET: first chat surface; 216.0 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/conversation.js', budgetKiB: 250 },
   // M94: provider, engine and ledger on first Tab use (PLAN.md D6).
@@ -33,10 +43,14 @@ const BUDGETS = [
   { path: 'dist/prompts.js', budgetKiB: 200 },
   // M118: local CLI/ACP stores, renderer and destinations: 152.1 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/sharingRuntime.js', budgetKiB: 175 },
-  // The Model API backend, loaded when it first starts (M57). Revisited on
-  // purpose after M77, M78 and M82 (2026-10-02): 402.8 KiB measured, plus 15%,
-  // rounded up to 25 KiB (PLAN.md D6).
-  { path: 'dist/modelApi.js', budgetKiB: 475 },
+  // REL0160B combined Model API: 479.2 KiB measured +5%, rounded to 25 KiB;
+  // authorized rebuild brief and measurement recorded in PLAN.md (2026-10-07).
+  { path: 'dist/modelApi.js', budgetKiB: 525 },
+  { path: 'dist/exec.js', budgetKiB: 950 },
+  { path: 'dist/modelApiCodeIntel.js', budgetKiB: 100 },
+  { path: 'dist/mcpPool.js', budgetKiB: 75 },
+  { path: 'dist/structuredSchema.js', budgetKiB: 50 },
+  // M95 integration: measured 93.0, 50.1 and 404.7 KiB respectively.
   // TRAIN15E new lazy entries: 28.3, 49.0 and 26.0 KiB measured; +15%,
   // rounded up to 25 KiB. Existing Model API cap stays fixed.
   { path: 'dist/modelApiHooks.js', budgetKiB: 50 },
@@ -46,9 +60,9 @@ const BUDGETS = [
   { path: 'dist/providerPolicy.js', budgetKiB: 25 },
   // Standalone ACP engine: 754.8 KiB +15%, rounded up to 25 KiB.
   { path: 'dist/runtimeEngine.js', budgetKiB: 875 },
-  // TRAIN15C: shared captured validators and pure team call admission:
-  // 16,991 bytes +15%, rounded up to 25 KiB (D6).
-  { path: 'dist/modelApiBoundaries.js', budgetKiB: 25 },
+  // REL0160B captured validators, team admission and exact USD: 26.0 KiB
+  // measured +5%, rounded to 25 KiB (authorized brief, PLAN.md, 2026-10-07).
+  { path: 'dist/modelApiBoundaries.js', budgetKiB: 50 },
   // TRAIN15E joined M95: providers 128.4, subscriptions 29.3, configured
   // providers 24.9 and Models panel 90.3 KiB measured.
   // New bundles use measured + 15%, rounded up to 25 KiB (D6/D74).
@@ -106,8 +120,9 @@ const BUDGETS = [
   // access, the flow and smol-toml), loaded on the first import: 100.0 KiB
   // when split out. Measured size plus 15%, rounded up to 25 KiB (PLAN.md D6).
   // M91 lane I's readers for every agent's hooks: 108.1 KiB with main's shared
-  // dist/validation.js (2026-10-05), within the unchanged budget.
-  { path: 'dist/agentImport.js', budgetKiB: 125 },
+  // dist/validation.js (2026-10-05). REL0160B union: 126.9 KiB +5%,
+  // rounded to 25 KiB (authorized brief, PLAN.md, 2026-10-07).
+  { path: 'dist/agentImport.js', budgetKiB: 150 },
   // M81: the browser check's pipe, run and processes, required on the first
   // check: 37.8 KiB when split out (zod/mini 14.8 of it). Measured size
   // plus 15%, rounded up to 25 KiB (PLAN.md D6). 44.5 KiB after the RV81
@@ -293,6 +308,15 @@ for (const { name, budgetKiB, outputs } of webviewDeferredBudgetGroups(
     `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} dist/webview ${name}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
   )
 }
+
+// M106R: optional pacing/status UI, measured +15%, rounded up to 25 KiB (PLAN D6).
+const WEBVIEW_PACING_BUDGET_KIB = 25
+const pacing = new Set(webviewPacingOutputs(webview))
+const pacingKiB = [...pacing].reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
+if (pacingKiB > WEBVIEW_PACING_BUDGET_KIB) hasFailure = true
+console.log(
+  `${pacingKiB <= WEBVIEW_PACING_BUDGET_KIB ? 'ok  ' : 'OVER'} dist/webview pacing JS: ${pacingKiB.toFixed(1)} KiB (budget ${WEBVIEW_PACING_BUDGET_KIB} KiB)`,
+)
 
 if (hasFailure) {
   console.error('bundle size budget exceeded or a bundle is missing; see PLAN.md section 2 (D6)')

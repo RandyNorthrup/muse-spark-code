@@ -1,3 +1,5 @@
+import { reportingAmount } from '../../src/core/usage/reportingAmount'
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it } from 'vitest'
 import {
   aggregateUsage,
@@ -419,9 +421,27 @@ describe('usage aggregation', () => {
     })
   })
   it('projects only after thirty minutes of spend and never after reset', () => {
-    expect(usageBurnProjection(2, now - USAGE_BURN_MIN_MS, now, now + USAGE_BURN_MIN_MS)).toBe(4)
-    expect(usageBurnProjection(2, now - USAGE_BURN_MIN_MS + 1, now, now + 1)).toBeUndefined()
-    expect(usageBurnProjection(2, undefined, now, now + 1)).toBeUndefined()
-    expect(usageBurnProjection(2, now - USAGE_BURN_MIN_MS, now, now)).toBeUndefined()
+    expect(
+      usageBurnProjection(
+        Usd.from(2).toAmount(),
+        now - USAGE_BURN_MIN_MS,
+        now,
+        now + USAGE_BURN_MIN_MS,
+      ),
+    ).toBe(4)
+    expect(
+      usageBurnProjection(Usd.from(2).toAmount(), now - USAGE_BURN_MIN_MS + 1, now, now + 1),
+    ).toBeUndefined()
+    expect(usageBurnProjection(Usd.from(2).toAmount(), undefined, now, now + 1)).toBeUndefined()
+    expect(
+      usageBurnProjection(Usd.from(2).toAmount(), now - USAGE_BURN_MIN_MS, now, now),
+    ).toBeUndefined()
   })
+})
+
+it('projects exact amounts only to finite reporting values', () => {
+  expect(reportingAmount(Usd.from('0.3').toAmount())).toBe(0.3)
+  expect(() => reportingAmount(Usd.from('1e309').toAmount())).toThrow(
+    'Nonfinite USD reporting projection',
+  )
 })

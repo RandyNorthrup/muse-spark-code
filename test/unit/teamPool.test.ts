@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // Lane A pools and selection (M96, PLAN.md D75): the five switching tests
 // the owner named come first. Fake agents report scripted usage, 429s and
 // usage-limit errors.
@@ -448,7 +449,12 @@ describe('teamPool: Default and headroom', () => {
       pool,
       {
         ...selectionSnapshot(base),
-        teamBudget: { spendUsedUsd: 50, spendCapUsd: 50, tokensUsed: 0, tokensCap: 25_000_000 },
+        teamBudget: {
+          spendUsedUsd: Usd.from(50).toAmount(),
+          spendCapUsd: Usd.from(50).toAmount(),
+          tokensUsed: 0,
+          tokensCap: 25_000_000,
+        },
       },
       TEAM_TASKS_PER_TURN_DEFAULT,
     )
@@ -460,8 +466,18 @@ describe('teamPool: Default and headroom', () => {
   it('requires room for the first request in both daily budget measures', () => {
     const { pool } = twoEntryPool()
     for (const teamBudget of [
-      { spendUsedUsd: 49.995, spendCapUsd: 50, tokensUsed: 0, tokensCap: 25_000_000 },
-      { spendUsedUsd: 0, spendCapUsd: 50, tokensUsed: 24_999_500, tokensCap: 25_000_000 },
+      {
+        spendUsedUsd: Usd.from(49.995).toAmount(),
+        spendCapUsd: Usd.from(50).toAmount(),
+        tokensUsed: 0,
+        tokensCap: 25_000_000,
+      },
+      {
+        spendUsedUsd: Usd.from(0).toAmount(),
+        spendCapUsd: Usd.from(50).toAmount(),
+        tokensUsed: 24_999_500,
+        tokensCap: 25_000_000,
+      },
     ]) {
       const pick = selectTeamEntry(
         pool,

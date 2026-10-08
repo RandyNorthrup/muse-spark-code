@@ -1,3 +1,14 @@
+import { tokenRatePrice } from './tokenRatePrice'
+export { autoReviewPrice } from './reviewPriceText'
+import * as z from 'zod/mini'
+import {
+  Usd,
+  type UsdAmount,
+  multiplyUsd,
+  isPositiveUsd,
+  nonnegativeUsdSchema,
+  sumUsd,
+} from './usd'
 // The paid Model API features (M33–M35, PLAN.md D30) as the host, the wire
 // protocol and the webview share them: which are on, what this window has
 // used, and what that is estimated to cost at Meta's published prices.
@@ -15,7 +26,8 @@ import {
   MODEL_API_PRICES_PER_MILLION,
   MODEL_API_PRICED_MODELS,
   MODEL_API_PRICE_DECIMALS,
-  PROVIDER_PRICE_MAX_DECIMALS,
+  SEARCHES_PER_PRICE_UNIT,
+  SECONDS_PER_HOUR,
   PAID_FEATURES,
   PAID_FEATURE_SETTINGS,
   type JudgeEngine,
@@ -23,11 +35,59 @@ import {
   PAID_PRICES_USD,
   type PaidFeature,
   SUBAGENT_TASK_MAX_REQUESTS,
-  TOKENS_PER_MILLION,
   UI_TEXT,
 } from './constants'
 import { fill, formatNumber, formatUsd } from './l10n/text'
 import type { BackendKind } from './protocol'
+
+/** Consent and dispatch share this immutable, exact, feature-specific authorization. */
+export const paidQuoteSchema = /* @__PURE__ */ (() =>
+  z.object({
+    id: z.string().check(z.minLength(1)),
+    feature: z.literal('webSearch'),
+    conversationId: z.optional(z.string()),
+    maxCalls: z.optional(z.int().check(z.positive())),
+    provider: z.string().check(z.minLength(1)),
+    model: z.string().check(z.minLength(1)),
+    modelRevision: z.int().check(z.nonnegative()),
+    tariffUsd: nonnegativeUsdSchema,
+    unit: z.literal('search'),
+    capturedAt: z.number(),
+  }))()
+export type PaidQuote = Readonly<z.infer<typeof paidQuoteSchema>>
+export function freezePaidQuote(quote: PaidQuote): PaidQuote {
+  return Object.freeze(paidQuoteSchema.parse(quote))
+}
+export function isSamePaidQuote(left: PaidQuote, right: PaidQuote): boolean {
+  return (
+    left.id === right.id &&
+    left.provider === right.provider &&
+    left.model === right.model &&
+    left.modelRevision === right.modelRevision &&
+    left.tariffUsd === right.tariffUsd
+  )
+}
+export interface SearchSettlement {
+  readonly quote: PaidQuote
+  readonly returnedCalls: number
+  readonly costUsd: UsdAmount
+  readonly isTerminal: boolean
+}
+export function searchSettlement(
+  quote: PaidQuote,
+  returnedCalls: number,
+  isTerminal: boolean,
+): SearchSettlement {
+  if (!Number.isSafeInteger(returnedCalls) || returnedCalls < 0)
+    throw new Error('Invalid search count')
+  return Object.freeze({
+    quote,
+    returnedCalls,
+    costUsd: multiplyUsd(quote.tariffUsd, returnedCalls),
+    isTerminal,
+  })
+}
+export type PaidUseDecision = boolean | PaidQuote | undefined
 
 export interface SubagentTaskConfirmation {
   readonly role: string
@@ -43,7 +103,7 @@ export interface SubagentUsage {
   readonly cacheWriteTokens?: number | undefined
   readonly cacheWriteTokens1h?: number | undefined
   /** A resolved provider receipt; legacy Meta observers keep their existing fields. */
-  readonly costUsd?: number | undefined
+  readonly costUsd?: UsdAmount | undefined
 }
 
 /** One key-billed team task the popup names (M96 lane A, PLAN.md D75). */
@@ -60,7 +120,7 @@ export interface TeamWorkerConfirmation {
 
 /** Runtime paid-use identity: popup grants, tally fields and reference claims. */
 export const PAID_USE_REGISTRY = {
-  webSearch: { featureId: 'search', tally: 'webSearches', once: 'use' },
+  webSearch: { featureId: 'search', tally: 'webSearches', once: 'window' },
   imageGeneration: { featureId: 'images', tally: 'images', once: 'use' },
   voice: { featureId: 'voice', tally: 'voiceSeconds', once: 'use' },
   subagents: {
@@ -145,13 +205,18 @@ export function subagentTaskPrice(modelId: string, attemptLimit: number): string
 
 /**
  * One paid use the user is asked about (M58, PLAN.md D48): what the popup
- * names before anything is billed. Web search asks once per prompt, since
- * Meta runs the searches inside the response and the model decides whether
- * to search at all.
+ * names before anything is billed. Interactive web search Once covers the window
+ * under the same model and price binding; each response still carries its own
+ * validated quote and bounded search reservation.
  */
 export type PaidUseRequest =
-  | { readonly feature: 'judge'; readonly modelId: string; readonly dailyBudgetUsd: number }
-  | { readonly feature: 'webSearch' }
+  | { readonly feature: 'judge'; readonly modelId: string; readonly dailyBudgetUsd: UsdAmount }
+  | {
+      readonly feature: 'webSearch'
+      readonly priceUsd: UsdAmount
+      readonly quote?: PaidQuote
+      readonly isCurrent?: () => boolean
+    }
   | { readonly feature: 'voice' }
   | { readonly feature: 'legalExplanation'; readonly modelId: string }
   | {
@@ -185,7 +250,7 @@ export type PaidUseRequest =
       /** The key tasks one `delegate` call starts: each model's prices and each task's ceiling. */
       readonly tasks: readonly TeamWorkerConfirmation[]
       /** The shared daily team budget the popup names; undefined while lanes 0/X land the setting. */
-      readonly dailyBudgetUsd: number | undefined
+      readonly dailyBudgetUsd: UsdAmount | undefined
       /** Required by the unpriced-provider admission path before it dispatches. */
       readonly dailyBudgetTokens?: number
     }
@@ -194,7 +259,7 @@ export type PaidUseRequest =
       // (its per-token rates are quoted) and today's budget cap the popup.
       readonly feature: 'tab'
       readonly modelId: string
-      readonly budgetUsd: number
+      readonly budgetUsd: UsdAmount
     }
   | {
       /** M91 prompt/agent hook handlers (D70): one paid model call per hook run. */
@@ -204,7 +269,7 @@ export type PaidUseRequest =
       /** The handler kind, as written in the file. */
       readonly kind: 'prompt' | 'agent'
       readonly modelId: string
-      readonly dailyBudgetUsd?: number | undefined
+      readonly dailyBudgetUsd?: UsdAmount | undefined
     }
 
 /**
@@ -234,7 +299,7 @@ export function listedPaidFeatures(
   return PAID_FEATURES.filter(
     (feature) =>
       usable.includes(feature) ||
-      paidCostUsd(feature, tally) > 0 ||
+      isPositiveUsd(paidCostUsd(feature, tally)) ||
       (feature === 'scheduledPrompts' && tally.scheduledRuns > 0) ||
       (feature === 'subagents' && (tally.subagentRequests ?? 0) > 0) ||
       (feature === 'autoReviewer' && (tally.autoReviews ?? 0) > 0) ||
@@ -246,9 +311,6 @@ export function listedPaidFeatures(
       (feature === 'judge' && (tally.judgeCalls ?? 0) > 0),
   )
 }
-
-// Built per call, never at module load: the display language's table is
-// installed after this module loads (PLAN.md D33).
 
 /** The feature's short name, as the badge and the dialog show it. */
 export function paidFeatureName(feature: PaidFeature): string {
@@ -269,15 +331,6 @@ export function paidFeatureName(feature: PaidFeature): string {
   return names[feature]
 }
 
-function tokenRatePrice(tier: keyof typeof MODEL_API_PRICES_PER_MILLION): string {
-  const rates = MODEL_API_PRICES_PER_MILLION[tier]
-  return fill(UI_TEXT.paidScheduledPrice, {
-    input: formatUsd(rates.input, MODEL_API_PRICE_DECIMALS),
-    cached: formatUsd(rates.cachedInput, MODEL_API_PRICE_DECIMALS),
-    output: formatUsd(rates.output, MODEL_API_PRICE_DECIMALS),
-  })
-}
-
 /** Exact scheduled-run tariff; unknown models cannot authorize a paid request. */
 export function scheduledRunPrice(modelId: string): string {
   const tier = modelApiPaidTier(modelId)
@@ -285,13 +338,6 @@ export function scheduledRunPrice(modelId: string): string {
     throw new Error(UI_TEXT.subagentTariffUnknown)
   }
   return tokenRatePrice(tier)
-}
-
-/** One Auto review's tariff on the conversation's model (M78); undefined without a verified price. */
-export function autoReviewPrice(modelId: string, pricing?: ModelPricing): string | undefined {
-  if (pricing !== undefined) return providerPriceText(pricing)
-  const tier = modelApiPaidTier(modelId)
-  return tier === undefined ? undefined : tokenRatePrice(tier)
 }
 
 /** Every priced model's token rates, one tier a line: a feature billed by tokens. */
@@ -338,11 +384,19 @@ export function hookModelPrice(modelId: string): string {
 }
 
 /** The feature's price, as its setting, confirmation, badge and dialog state it. */
-export function paidFeaturePrice(feature: PaidFeature): string {
+export function paidFeaturePrice(feature: PaidFeature, searchPriceUsd?: UsdAmount): string {
   switch (feature) {
     case 'webSearch': {
+      const price =
+        searchPriceUsd ??
+        Usd.from(PAID_PRICES_USD.webSearchPerThousand).divide(SEARCHES_PER_PRICE_UNIT).toAmount()
+      if (
+        !nonnegativeUsdSchema.safeParse(price).success ||
+        Usd.from(price).compare(Usd.from(0)) < 0
+      )
+        throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
       return fill(UI_TEXT.paidWebSearchPrice, {
-        price: formatUsd(PAID_PRICES_USD.webSearchPerThousand, 2),
+        price: formatUsd(multiplyUsd(price, SEARCHES_PER_PRICE_UNIT), 2),
       })
     }
     case 'imageGeneration': {
@@ -396,48 +450,87 @@ export function paidFeaturePrice(feature: PaidFeature): string {
   }
 }
 
-import { modelApiPaidTier, paidCostUsd, type PaidTally } from './paidBoundary'
+import { modelApiPaidTier, type PaidTally } from './paidBoundary'
 export {
   paidTallySchema,
   EMPTY_PAID_TALLY,
   modelApiPaidTier,
   paidStateSchema,
-  paidCostUsd,
-  paidTotalUsd,
 } from './paidBoundary'
 export type { PaidTally, PaidState } from './paidBoundary'
-/** Resolved provider rates, including cache-write premiums and long-context tiers. */
-function providerPriceText(pricing: ModelPricing): string | undefined {
-  if (pricing.kind === 'unpriced') return undefined
-  if (pricing.kind === 'local') return UI_TEXT.modelLocal
-  if (pricing.kind === 'plan') return UI_TEXT.modelPlan
-  const card = pricing.card
-  const basic = fill(UI_TEXT.paidProviderPrice, {
-    input: providerPriceRate(card.input),
-    cached: providerPriceRate(card.cachedInput ?? card.input),
-    write: providerPriceRate(card.cacheWrite ?? card.input),
-    write1h: providerPriceRate(card.cacheWrite1h ?? card.cacheWrite ?? card.input),
-    output: providerPriceRate(card.output),
-    request: providerPriceAmount(card.request ?? 0),
-    image: providerPriceAmount(card.image ?? 0),
-  })
-  const tier = card.longContextTier
-  return tier === undefined
-    ? basic
-    : [
-        basic,
-        fill(UI_TEXT.paidProviderPriceTier, {
-          threshold: formatNumber(tier.fromTokens),
-          input: providerPriceRate(tier.input),
-          output: providerPriceRate(tier.output),
-        }),
-      ].join('\n')
+/** The estimated cost of one feature's use in the tally, in dollars. */
+export function paidCostUsd(feature: PaidFeature, tally: PaidTally): UsdAmount {
+  switch (feature) {
+    case 'webSearch': {
+      if (tally.webSearchCharges === undefined) {
+        return Usd.from(PAID_PRICES_USD.webSearchPerThousand)
+          .times(tally.webSearches)
+          .divide(SEARCHES_PER_PRICE_UNIT)
+          .toAmount()
+      }
+      let cost = Usd.from(0)
+      for (const charge of tally.webSearchCharges) {
+        cost = cost.add(Usd.from(charge.priceUsd).times(charge.units))
+      }
+      return cost.toAmount()
+    }
+    case 'imageGeneration': {
+      return multiplyUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount(), tally.images)
+    }
+    case 'voice': {
+      return Usd.from(PAID_PRICES_USD.voicePerHour)
+        .times(tally.voiceSeconds)
+        .divideIntegerCeiling(SECONDS_PER_HOUR)
+        .toAmount()
+    }
+    case 'scheduledPrompts': {
+      // Scheduled runs use ordinary Model API tokens. UsageDialog prices those
+      // tokens already; adding them to the extra-features total doubles them.
+      return Usd.from(0).toAmount()
+    }
+    case 'subagents': {
+      return Usd.from(tally.subagentCostUsd ?? 0).toAmount()
+    }
+    case 'autoReviewer': {
+      // Billed apart from the conversation, so counted here alone.
+      return Usd.from(tally.autoReviewCostUsd ?? 0).toAmount()
+    }
+    case 'legalExplanation': {
+      return Usd.from(tally.legalExplanationCostUsd ?? 0).toAmount()
+    }
+    case 'teamWorkers': {
+      return Usd.from(tally.teamWorkerCostUsd ?? 0).toAmount()
+    }
+    case 'bestOfN': {
+      // Separate worktree hosts do not contribute to the parent's token
+      // estimate. Count only reported costs here, not unknown HTTP tries.
+      return Usd.from(tally.bestOfNCostUsd ?? 0).toAmount()
+    }
+    case 'tab': {
+      // Tab requests are billed apart from every conversation, so they are
+      // counted here alone. Count only reported costs, not unknown tries.
+      return Usd.from(tally.tabCostUsd ?? 0).toAmount()
+    }
+    case 'hookModels': {
+      // A hook's own model call is billed apart from the conversation, like
+      // a review's. Count only reported costs, not unanswered runs.
+      return Usd.from(tally.hookModelCostUsd ?? 0).toAmount()
+    }
+    case 'judge': {
+      // Billed apart from the conversation, so counted here alone.
+      return Usd.from(tally.judgeCostUsd ?? 0).toAmount()
+    }
+  }
 }
 
-function providerPriceAmount(value: number): string {
-  return formatUsd(value, MODEL_API_PRICE_DECIMALS, PROVIDER_PRICE_MAX_DECIMALS)
-}
-
-function providerPriceRate(value: number): string {
-  return providerPriceAmount(value * TOKENS_PER_MILLION)
+/** The whole tally's estimated cost. */
+export function paidTotalUsd(tally: PaidTally): UsdAmount {
+  // Child token cost is already part of the conversation's token estimate.
+  let total = Usd.from(0).toAmount()
+  for (const feature of PAID_FEATURES) {
+    if (feature !== 'subagents' && feature !== 'teamWorkers') {
+      total = sumUsd(total, paidCostUsd(feature, tally))
+    }
+  }
+  return total
 }

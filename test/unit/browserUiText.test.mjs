@@ -13,6 +13,8 @@ const entries = {
   usage: 'src/webview/usage/usage.tsx',
   referencePage: 'src/webview/components/ReferencePage.tsx',
   whatsNew: 'src/webview/whatsNew/main.ts',
+  resourceSurface: 'src/webview/resources/ResourceSurface.tsx',
+  resourceHistory: 'src/webview/usage/ResourcesSection.tsx',
 }
 const fixture = { folder: '', canonical: undefined, browser: undefined, keys: undefined }
 const byText = (left, right) => left.localeCompare(right)
@@ -31,6 +33,7 @@ export { EN, EN_SHAPE } from '${english}';
 export { UI_TEXT, setUiText, uiLocale } from '${text}';
 export { installEmbeddedTable } from '${installer}';
 export async function loadHelp() { await import('browser-surface-english') }
+export async function loadResources() { await import('browser-resource-english') }
 `,
   )
   fixture.canonical = await loadL10n(process.cwd())
@@ -60,7 +63,7 @@ afterAll(async () => {
 describe('the production browser English and full-table contract', () => {
   it('loads surface English on demand, retaining every browser value and installed language', async () => {
     const { EN: canonical } = fixture.canonical
-    const { EN, UI_TEXT, setUiText, uiLocale, loadHelp } = fixture.browser
+    const { EN, UI_TEXT, setUiText, uiLocale, loadHelp, loadResources } = fixture.browser
     expect(Object.keys(EN).toSorted(byText)).toEqual([...fixture.keys].toSorted(byText))
     expect(Object.hasOwn(EN, 'execBudgetRequired')).toBe(false)
     expect(EN.composerLabel).toBe(canonical.composerLabel)
@@ -68,6 +71,15 @@ describe('the production browser English and full-table contract', () => {
     const german = JSON.parse(readFileSync('l10n/ui.de.json', 'utf8'))
     setUiText(german, 'de')
     await loadHelp()
+    expect(EN.referenceSearch).toEqual(canonical.referenceSearch)
+    expect(() => EN.resourceShow).toThrow('English surface is not loaded')
+    await loadResources()
+    const resourceKeys = browserTextKeys(
+      [entries.resourceSurface, entries.resourceHistory],
+      canonical,
+    ).keys
+    for (const key of resourceKeys) expect(EN[key], key).toEqual(canonical[key])
+    expect(UI_TEXT.resourceTitle).toBe(german.resourceTitle)
     for (const key of fixture.keys) expect(EN[key], key).toEqual(canonical[key])
     expect(UI_TEXT.referenceSearch).toBe(german.referenceSearch)
     expect(uiLocale()).toBe('de')

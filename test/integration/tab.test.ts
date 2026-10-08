@@ -15,6 +15,7 @@ import { createServer, type Server } from 'node:http'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
+import { Usd } from '../../src/shared/usd'
 import type { StreamEvent } from '../../src/core/backends/modelapi/schemas'
 import {
   createTabActivation,
@@ -90,7 +91,11 @@ suite('tab completions', () => {
       bundlePath: path.resolve(__dirname, '..', '..', 'tab.js'),
       log,
       isTabSettingOn: () => true,
-      tabSettings: () => ({ ...SETTING_DEFAULTS, tabTrigger: 'automatic' }),
+      tabSettings: () => ({
+        ...SETTING_DEFAULTS,
+        tabDailyBudgetUsd: Usd.from(SETTING_DEFAULTS.tabDailyBudgetUsd).toAmount(),
+        tabTrigger: 'automatic',
+      }),
       isPaidOn: () => true,
       isKeyStored: () => true,
       isTrusted: () => vscode.workspace.isTrusted,

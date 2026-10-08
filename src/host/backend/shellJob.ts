@@ -30,7 +30,7 @@ import {
   type ShellJob,
   windowsPowerShell,
 } from '../processTree'
-import { compileJob, type JobBuild, jobFileName, removeStaleJobs } from './jobBuild'
+import { compileJob, type JobBuild, jobFileName, nativeJobPath, removeStaleJobs } from './jobBuild'
 import type { JobHelper } from './jobSource'
 
 // The C# (C# 5, which Windows PowerShell 5.1's `Add-Type` compiles) is the
@@ -77,11 +77,12 @@ async function prepare(deps: ShellJobDeps): Promise<string | undefined> {
   const run = deps.run ?? runProgram
   try {
     const csharp = await deps.readJobSource('shellJob')
-    const assembly = path.join(deps.storageDir, SHELL_JOB_FOLDER, shellJobAssemblyName(csharp))
+    let assembly = path.join(deps.storageDir, SHELL_JOB_FOLDER, shellJobAssemblyName(csharp))
     if (!(await isPresent(assembly))) {
       await compileJob(ASSEMBLY, assembly, csharp, deps.systemRoot, deps.run)
       await removeStaleJobs(ASSEMBLY, assembly, deps.log)
     }
+    assembly = await nativeJobPath(assembly)
     // Loading the type and joining a job, as a command does, proves both
     // work and the system lets a process start a job of its own here. A
     // failing .NET call ends only its own statement in PowerShell, so the
@@ -138,12 +139,14 @@ export function newShellJob(assemblyPath: string): ShellJob {
  * assembly gone, a policy) is swallowed: the command runs as it would
  * without one, and its kill finds no job and falls back.
  *
+ * Governed launches stop before running a payload if membership cannot be proved.
+ *
  * It names no cmdlet (`loadJobAssembly`): a hook runs in a narrow
  * environment without `PSModuleAnalysisCachePath`, and on GitHub's Windows
  * runner the module analysis an `Add-Type` here set off took 20 s or more
  * and, on a fresh runner, ran past the hook test's 60 s budget before the
  * hook began.
  */
-export function joinStatement(job: ShellJob): string {
-  return `try { ${loadJobAssembly(job.assemblyPath)}; [${SHELL_JOB_TYPE_NAME}]::Join(${powerShellQuoted(job.name)}) } catch { }; `
+export function joinStatement(job: ShellJob, isGoverned = false): string {
+  return `try { ${loadJobAssembly(job.assemblyPath)}; [${SHELL_JOB_TYPE_NAME}]::Join(${powerShellQuoted(job.name)}) } catch {${isGoverned ? ' exit 1' : ''} }; `
 }

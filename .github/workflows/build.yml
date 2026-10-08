@@ -243,7 +243,18 @@ jobs:
     name: ${{ matrix.check }}
     if: always()
     needs:
-      [checks, unit, coverage, accessibility, integration, native-build, packages, secrets, sast]
+      [
+        checks,
+        unit,
+        coverage,
+        accessibility,
+        integration,
+        native-build,
+        linux-native-build,
+        packages,
+        secrets,
+        sast,
+      ]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     strategy:
@@ -266,6 +277,7 @@ jobs:
           ACCESSIBILITY: ${{ needs.accessibility.result }}
           INTEGRATION: ${{ needs.integration.result }}
           HELPER: ${{ needs.native-build.result }}
+          LINUX_HELPER: ${{ needs.linux-native-build.result }}
           PACKAGES: ${{ needs.packages.result }}
           SECRETS: ${{ needs.secrets.result }}
           SAST: ${{ needs.sast.result }}
@@ -279,6 +291,7 @@ jobs:
             test "$ACCESSIBILITY" = success
             test "$INTEGRATION" = success
             test "$HELPER" = success
+            test "$LINUX_HELPER" = success
             test "$PACKAGES" = success
           fi
 
@@ -307,10 +320,37 @@ jobs:
           if-no-files-found: error
 
   # The .vsix with both helpers: what release.yml publishes.
+  linux-native-build:
+    name: compile created-path helper (linux ${{ matrix.arch }})
+    if: ${{ !inputs.fast }}
+    strategy:
+      matrix:
+        include:
+          - arch: x64
+            os: ubuntu-24.04
+          - arch: arm64
+            os: ubuntu-24.04-arm
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - run: sudo apt-get update && sudo apt-get install -y libssl-dev
+      - run: node --input-type=module -e "import { buildLinuxHelper } from './scripts/build-linux-helper.mjs'; buildLinuxHelper()"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: muse-created-linux-${{ matrix.arch }}
+          path: native/linux/${{ matrix.arch }}/muse-created
+          if-no-files-found: error
+
   packages:
     name: universal release artifacts
     if: ${{ !inputs.fast }}
-    needs: [checks, native-build]
+    needs: [checks, native-build, linux-native-build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -325,6 +365,15 @@ jobs:
         with:
           name: muse-dictate-darwin
           path: native/darwin
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: muse-created-linux-x64
+          path: native/linux/x64
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: muse-created-linux-arm64
+          path: native/linux/arm64
+      - run: chmod +x native/linux/x64/muse-created native/linux/arm64/muse-created
       - run: chmod +x native/darwin/muse-dictate
       - run: npm ci
       - run: npm run package
@@ -343,6 +392,7 @@ jobs:
         run: |
           listing="$(unzip -Z1 ./*.vsix)"
           for entry in extension/LICENSE.txt extension/THIRD_PARTY_NOTICES.txt extension/package.nls.json \
+            extension/native/linux/x64/muse-created extension/native/linux/arm64/muse-created \
             extension/native/windows/dictate.ps1 extension/native/windows/capture.ps1 \
             extension/native/windows/MuseSparkJob.cs extension/native/windows/MuseSparkMcpJob.cs \
             extension/native/windows/MuseSparkMcpLauncher.cs extension/native/darwin/muse-dictate \
@@ -383,13 +433,18 @@ jobs:
             package/dist/acp.js package/dist/sharingRuntime.js package/dist/modelApi.js package/dist/uiText.js package/dist/validation.js package/dist/wire.js package/dist/reviewer.js \
             package/dist/providers.js package/dist/subscriptions.js package/dist/configuredProviders.js package/dist/providerCatalog.js \
             package/dist/foreignHooks.js package/dist/hookRuntime.js package/dist/extensionHooks.js \
-            package/dist/recorder.js \
-            package/dist/runtime.bundles.json.br \
+            package/dist/recorder.js package/dist/resourceGovernor.js package/dist/resourceAdmission.js \
+            package/dist/exec.js package/dist/mcpPool.js package/dist/modelApiCodeIntel.js package/dist/structuredSchema.js \
             package/dist/searchWorker.js package/dist/pageWorker.js \
-            package/dist/legalScan.js package/dist/legal-data/NOTICE.md package/dist/legal-data/provenance.json \
+            package/native/darwin/muse-dictate \
+            package/native/linux/x64/muse-created package/native/linux/arm64/muse-created \
             package/native/windows/MuseSparkJob.cs package/native/windows/MuseSparkMcpJob.cs \
             package/THIRD_PARTY_NOTICES.txt package/LICENSE package/README.md \
-            package/schemas/exec-result-v1.schema.json package/schemas/exec-event-v1.schema.json package/schemas/share-v1.schema.json; do
+            package/schemas/exec-result-v1.schema.json package/schemas/exec-event-v1.schema.json \
+            package/schemas/exec-result-v2.schema.json package/schemas/exec-event-v2.schema.json \
+            package/dist/runtime.bundles.json.br package/dist/legalScan.js \
+            package/dist/legal-data/NOTICE.md package/dist/legal-data/provenance.json \
+            package/schemas/share-v1.schema.json; do
             if ! grep -Fxq -- "$entry" <<< "$listing"; then
               echo "::error::$entry is missing from the agent's package" >&2
               exit 1

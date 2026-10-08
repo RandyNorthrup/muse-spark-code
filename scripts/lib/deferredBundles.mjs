@@ -20,6 +20,16 @@ export const SUBSCRIPTION_ONLY = [
 export const CONFIGURED_TRANSPORT_ONLY = ['authSource.ts', 'providerClient.ts']
 export const SHARED_TRANSPORT_ONLY = ['transport.ts', 'sse.ts', 'ndjson.ts']
 const MODEL_API_DIR = 'src/core/backends/modelapi'
+export const MODEL_API_OPTIONAL_ONLY = [
+  'codeIntelEntry.ts',
+  'codeIntelCalls.ts',
+  'mcpPoolEntry.ts',
+  'mcp/connection.ts',
+  'mcp/http.ts',
+  'mcp/pool.ts',
+  'mcp/servers.ts',
+  'mcp/stdio.ts',
+]
 export const DEFERRED_ONLY = ['reviewerEntry.ts', 'hookModelEntry.ts']
 
 export const FOREIGN_HOOKS_ONLY = [
@@ -36,7 +46,7 @@ export const FOREIGN_HOOKS_ONLY = [
   'hookFormats/contracts/vscode.ts',
   'hookFormats/contracts/windsurf.ts',
 ]
-export const HOOK_RUNTIME_ONLY = ['hookRuntimeEntry.ts']
+export const HOOK_RUNTIME_ONLY = ['hookRuntimeEntry.ts', 'hookHandlers.ts']
 
 export const PLUGIN_HOOKS_ONLY = [
   'pluginHooksEntry.ts',
@@ -45,6 +55,30 @@ export const PLUGIN_HOOKS_ONLY = [
   'pluginFormats.ts',
 ]
 export const DEFERRED = [
+  {
+    output: 'dist/mcpPool.js',
+    metafile: 'dist/meta/mcpPool.json',
+    files: ['src/core/backends/modelapi/mcpPoolEntry.ts', 'src/core/backends/modelapi/mcp/pool.ts'],
+  },
+  {
+    output: 'dist/exec.js',
+    metafile: 'dist/meta-acp/exec.json',
+    files: ['src/runtime/exec/execEntry.ts'],
+  },
+  {
+    output: 'dist/modelApiCodeIntel.js',
+    metafile: 'dist/meta/modelApiCodeIntel.json',
+    files: [
+      'src/core/backends/modelapi/codeIntelEntry.ts',
+      'src/core/backends/modelapi/codeIntelCalls.ts',
+    ],
+  },
+  {
+    output: 'dist/structuredSchema.js',
+    metafile: 'dist/meta/structuredSchema.json',
+    files: ['src/shared/structuredSchemaEntry.ts'],
+  },
+
   {
     output: 'dist/runtimeEngine.js',
     metafile: 'dist/meta/runtimeEngine.json',
@@ -63,10 +97,7 @@ export const DEFERRED = [
   {
     output: 'dist/modelApiHooks.js',
     metafile: 'dist/meta/modelApiHooks.json',
-    files: [
-      'src/core/backends/modelapi/modelApiHooksEntry.ts',
-      'src/core/backends/modelapi/hookHandlers.ts',
-    ],
+    files: ['src/core/backends/modelapi/modelApiHooksEntry.ts'],
   },
   {
     output: 'dist/modelApiMcp.js',
@@ -88,6 +119,7 @@ export const DEFERRED = [
       'src/core/backends/modelapi/schemas.ts',
       'src/shared/teamConversation.ts',
       'src/shared/paidBoundary.ts',
+      'src/shared/usd.ts',
       'src/shared/legal.ts',
       'src/core/backends/modelapi/legalScanTool.ts',
     ],
@@ -195,6 +227,25 @@ export const DEFERRED = [
 // Split out of activation on 2026-10-03 (D6): each loads on its first use.
 // The Model API backend keeps its own copy of code intelligence.
 export const ON_FIRST_USE = [
+  {
+    output: 'dist/resourceGovernor.js',
+    metafile: 'dist/meta/resourceGovernor.json',
+    use: 'the first governed spawn',
+    files: [
+      'src/core/resources/resourceGovernorEntry.ts',
+      'src/core/resources/launchHost.ts',
+      'src/core/resources/governor.ts',
+      'src/core/resources/queue.ts',
+      'src/core/resources/events.ts',
+      'src/core/resources/disk.ts',
+      'src/core/resources/createdRegistry.ts',
+      'src/core/resources/sampler/system.ts',
+      'src/core/resources/trees/registry.ts',
+      'src/runtime/resources/entry.ts',
+      'src/runtime/resources/host.ts',
+      'src/runtime/resources/settings.ts',
+    ],
+  },
   {
     output: 'dist/legalScan.js',
     metafile: 'dist/meta/legalScan.json',
@@ -431,7 +482,7 @@ export function checkDeferredBundles(inputsOf) {
     const inputs = inputsOf(bundle)
     const parents =
       bundle.parents ??
-      (DEFERRED.includes(bundle)
+      (DEFERRED.includes(bundle) || bundle.output === 'dist/resourceGovernor.js'
         ? [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]
         : [BUNDLES.activation])
     for (const file of bundle.files) {
@@ -445,6 +496,14 @@ export function checkDeferredBundles(inputsOf) {
       if (!inputs.has(file)) problems.push(`${bundle.output} no longer carries ${file}`)
     }
   }
+  // Session export remains available to the conversation and ACP front ends;
+  // the backend loads its import sanitizer only from the existing lazy runtime.
+  const transfer = 'src/core/export/sessionTransfer.ts'
+  if (inputsOf(BUNDLES.modelApi).has(transfer))
+    problems.push(`${BUNDLES.modelApi.output} carries ${transfer}, which loads only on import`)
+  const importRuntime = DEFERRED.find((bundle) => bundle.output === 'dist/foreignHooks.js')
+  if (!inputsOf(importRuntime).has(transfer))
+    problems.push(`${importRuntime.output} no longer carries ${transfer}`)
   // The plugin host loads only on the first plugin hook: the adapters' bundle
   // requires it rather than carry it (M91b).
   {
@@ -541,6 +600,28 @@ export function checkDeferredBundles(inputsOf) {
   return problems
 }
 
+/** Resource policy is shared through one lazy governor and one admission shim. */
+export function checkResourceBundles(inputsOf, bundles) {
+  const problems = []
+  for (const bundle of bundles) {
+    const output = bundle.output.replaceAll('\\', '/')
+    for (const raw of inputsOf(bundle).keys()) {
+      const file = raw.replaceAll('\\', '/')
+      if (!file.startsWith('src/core/resources/')) continue
+      if (file === 'src/core/resources/admission.ts') {
+        if (output !== 'dist/resourceAdmission.js')
+          problems.push(`${output} duplicates resource admission`)
+      } else if (
+        output !== 'dist/resourceGovernor.js' &&
+        !['src/core/resources/launch.ts', 'src/core/resources/trees/processTable.ts'].includes(file)
+      ) {
+        problems.push(`${output} carries resource policy ${file} outside the lazy governor`)
+      }
+    }
+  }
+  return problems
+}
+
 /** @type {import('esbuild').Plugin} */
 export const sharedUiText = {
   name: 'shared-ui-text',
@@ -572,6 +653,7 @@ export const sharedValidation = {
 // Keep dynamic imports dynamic: these entries run only on their first action.
 /** @type {import('esbuild').Plugin} */
 const DEFERRED_OUTFILES = new Map([
+  [path.resolve('src/core/resources/resourceGovernorEntry.ts'), 'dist/resourceGovernor.js'],
   [path.resolve('src/runtime/runtimeEngineEntry.ts'), 'dist/runtimeEngine.js'],
   [path.resolve('src/host/backend/providerPolicyEntry.ts'), 'dist/providerPolicy.js'],
   [path.resolve('src/runtime/runtimeAccountingEntry.ts'), 'dist/runtimeAccounting.js'],
@@ -584,6 +666,9 @@ const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/host/backend/configuredProvidersEntry.ts'), 'dist/configuredProviders.js'],
   [path.resolve('src/runtime/chatGptProviderCommands.ts'), 'dist/subscriptions.js'],
   [path.resolve('src/core/questions/deferralEntry.ts'), 'dist/questionNotes.js'],
+  [path.resolve('src/core/backends/modelapi/mcpPoolEntry.ts'), 'dist/mcpPool.js'],
+  [path.resolve('src/runtime/exec/execEntry.ts'), 'dist/exec.js'],
+  [path.resolve('src/core/backends/modelapi/codeIntelEntry.ts'), 'dist/modelApiCodeIntel.js'],
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
@@ -618,12 +703,12 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|webFetchEntry|reportEntry|recorderEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (
           args.kind !== 'dynamic-import' &&
-          !/(?:providerPolicyEntry|providersEntry|subscriptionsEntry)$/.test(args.path)
+          !/(?:providerPolicyEntry|providersEntry|subscriptionsEntry|runExec)$/.test(args.path)
         )
           return
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
@@ -650,6 +735,31 @@ export const sharedWire = {
   },
 }
 
+// One process-wide admission configuration, shared by every lazy Node bundle.
+export const sharedResourceAdmission = {
+  name: 'shared-resource-admission',
+  setup(build) {
+    build.onResolve({ filter: /(?:^|\/)admission(?:\.[jt]s)?$/ }, (args) => {
+      if (args.kind === 'entry-point') return
+      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+      return source === path.resolve('src/core/resources/admission.ts')
+        ? { path: './resourceAdmission.js', external: true }
+        : undefined
+    })
+  },
+}
+
+/** Keep schema conversion out of each feature's request code. */
+export const sharedStructuredSchema = {
+  name: 'shared-structured-schema',
+  setup(build) {
+    build.onResolve({ filter: /^zod\/v4\/core$/ }, () => ({
+      path: './structuredSchema.js',
+      external: true,
+    }))
+  },
+}
+
 // Share captured Model API validators and pure team admission across Node
 // consumers; browser validators retain their original inline implementation.
 /** @type {import('esbuild').Plugin} */
@@ -657,13 +767,17 @@ export const sharedModelApiBoundaries = {
   name: 'shared-model-api-boundaries',
   setup(build) {
     build.onResolve(
-      { filter: /\/(?:schemas|teamConversation|paidBoundary|legal|legalScanTool)(?:\.[jt]s)?$/ },
+      {
+        filter: /\/(?:schemas|teamConversation|paidBoundary|usd|legal|legalScanTool)(?:\.[jt]s)?$/,
+      },
       (args) => {
         const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
         return [
           'src/core/backends/modelapi/schemas.ts',
           'src/shared/teamConversation.ts',
           'src/shared/paidBoundary.ts',
+          'src/shared/usd.ts',
+          'src/shared/usd.ts',
           'src/shared/legal.ts',
           'src/core/backends/modelapi/legalScanTool.ts',
         ].some((file) => source === path.resolve(file))

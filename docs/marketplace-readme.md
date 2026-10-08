@@ -22,10 +22,28 @@ Code” are Meta trademarks. You bring your own credentials.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0150) · [Get started](#get-started) ·
+**Contents:** [What's new](#whats-new-in-0160) · [Get started](#get-started) ·
 [Work in the panel](#work-in-the-panel)
 
-## What's new in 0.15.0
+## What's new in 0.16.0
+
+- **Loop guarantees.** Strict tool contracts, bounded hosted search and streamed
+  argument previews help you follow Model API tool calls. Independent reads can
+  run concurrently while their results keep call order. The loop bounds
+  continuations, refuses cut-short tool execution and stops repeated unchanged
+  calls. Structured side calls validate answers; headless runs can require a
+  bounded final-answer schema. See [Agent loop guarantees](#agent-loop-guarantees)
+  for capability gates and remaining native-reader qualifications.
+- **CPU and memory thresholds.** Set machine-scoped limits to throttle, then
+  pause, new background work. Relocation needs a paired device or runner route
+  and is not available yet, so work stays on this machine.
+- **Disk floors.** Disk-heavy launches wait below the free-space floor and
+  critical-volume writes refuse with a reason. Temporary cleanup requires
+  recorded ownership and proved tree exit. See
+  [Keeping your machine responsive](#keeping-your-machine-responsive) for the
+  settings, available routes and remaining integration qualifications.
+
+### Earlier in 0.15.0
 
 - **Bring your own models.** Add OpenAI, Anthropic and Gemini keys or local
   models in **Models & Agents**. ChatGPT sign-in is a Subscription Sharing
@@ -74,7 +92,7 @@ Code” are Meta trademarks. You bring your own credentials.
   (`museSpark.questions.deferAfterSeconds`), Muse carries on with work that
   does not need the answer.
 - **Answer later.** An unanswered question becomes an **Open question** you can
-  answer any time from its card or the open-question chip; **Dismiss** closes it
+  answer any time using **Answer** on its transcript marker or the open-question chip; **Dismiss** closes it
   without an answer. A late answer reaches Muse once, as your own message, and
   approves nothing.
 - **Find open questions.** The view badge, tab title and History show how many
@@ -179,7 +197,7 @@ to the CLI. Linux users can use the Model API if the CLI is unavailable.
   </tr>
   <tr>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/approval.png" alt="An approval card docked above the message box: Muse wants to Set-Content, step 1 of 2, a feedback box, and Allow once, Always allow in this workspace and Reject, one line each at one height; above it the diff tally, 2 files changed +3 −1 with Review; in the conversation the earlier steps fold into Read a file and edited 2 files, and the PowerShell row says it waits for your approval"><br><sub>An approval card, docked above the message box, with the CLI's own choices</sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/open-question.png" alt="An Open question in the attention dock: Colour, Blue, Green, Other, Submit and Explain instead; its folded transcript row and the 1 open question chip with Previous and Next controls remain visible"><br><sub>Answer an open question from the dock; its transcript row and navigation chip keep it easy to find</sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/question.png" alt="A compact Open question marker with Answer in the transcript and one question card pinned above the composer, with Colour and Toppings tabs, choices, Other, Submit and Explain instead"><br><sub>One question card, pinned above the message box; Answer on its transcript marker brings it into focus</sub></td>
   </tr>
   <tr>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/quote.png" alt="A reply right-clicked in its highlighted passage: three blue pills, Copy, Ask about this and Comment on this, fanned out from the pointer"><br><sub>Highlight, right-click: <b>Copy</b>, <b>Ask about this</b> or <b>Comment on this</b></sub></td>
@@ -194,6 +212,7 @@ to the CLI. Linux users can use the Model API if the CLI is unavailable.
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/voice.png" alt="The composer listening: the red microphone and the Listening placeholder over a new conversation with its keyboard tips"><br><sub>Voice dictation: tap or hold, <code>Ctrl+D</code></sub></td>
   </tr>
   <tr>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/open-question.png" alt="An Open question in the attention dock: Colour, Blue, Green, Other, Submit and Explain instead; its folded transcript row and the 1 open question chip with Previous and Next controls remain visible"><br><sub>Answer an open question from the dock; its transcript row and navigation chip keep it easy to find</sub></td>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/help.png" alt="Help and Reference searched for Next open question, showing question-handling details, the deferral setting, and links to Next and Previous open question"><br><sub>Type <code>/help</code>: search the reference for features, commands, settings and shortcuts</sub></td>
   </tr>
 </table>

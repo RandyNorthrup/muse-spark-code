@@ -8,7 +8,9 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import vm from 'node:vm'
 import { build } from 'esbuild'
+import { compressedModelText } from '../../scripts/lib/compressedModelText.mjs'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+
 import * as z from 'zod/mini'
 import { EN } from '../../src/shared/l10n/en'
 import { L10N_COMPRESSION_QUALITY } from '../../src/shared/constants'
@@ -19,13 +21,19 @@ import {
 } from '../../scripts/lib/uiTextRegions.mjs'
 import {
   checkDeferredBundles,
+  checkResourceBundles,
   deferredCohort,
   sharedUiText,
   sharedValidation,
   sharedWire,
+  sharedResourceAdmission,
+  sharedStructuredSchema,
   sharedModelApiBoundaries,
 } from '../../scripts/lib/deferredBundles.mjs'
 import type * as validation from '../../src/shared/validationEntry'
+import type * as resourceGovernor from '../../src/core/resources/resourceGovernorEntry'
+import type * as runtimeResources from '../../src/runtime/resources/entry'
+import { resourceSettingsSchema } from '../../src/shared/resources'
 import { deferredTeamView } from '../../scripts/lib/deferredTeamView.mjs'
 import { removeFolder } from './helpers/temporaryFolders'
 import { legalReportEnvelopeSchema } from '../../src/runtime/legal/runLegal'
@@ -78,6 +86,10 @@ beforeAll(async () => {
   } as const
   const builds = await Promise.all([
     ...Object.entries({
+      resourceGovernor: 'src/core/resources/resourceGovernorEntry.ts',
+      resourceAdmission: 'src/core/resources/admission.ts',
+      mcpPool: 'src/core/backends/modelapi/mcpPoolEntry.ts',
+      modelApiCodeIntel: 'src/core/backends/modelapi/codeIntelEntry.ts',
       questionNotes: 'src/core/questions/deferralEntry.ts',
       reference: 'src/shared/reference/referenceEntry.ts',
       runtimeEngine: 'src/runtime/runtimeEngineEntry.ts',
@@ -127,8 +139,12 @@ beforeAll(async () => {
           sharedValidation,
           deferredCohort,
           sharedWire,
+          sharedResourceAdmission,
+          sharedStructuredSchema,
           deferredTeamView,
           sharedModelApiBoundaries,
+          // Match the shipped prompt archive before checking real production caps.
+          ...(name === 'modelApi' ? [compressedModelText(true)] : []),
         ],
         external: ['vscode', '@napi-rs/keyring'],
       }),
@@ -138,6 +154,7 @@ beforeAll(async () => {
       outdir: 'dist',
       target: 'node22',
       entryPoints: {
+        exec: 'src/runtime/exec/execEntry.ts',
         acp: 'src/runtime/main.ts',
         acpQuestions: 'src/acp/questionDeferralEntry.ts',
         runtimeQuestions: 'src/runtime/questions/questionRegistryEntry.ts',
@@ -147,6 +164,8 @@ beforeAll(async () => {
         sharedValidation,
         deferredCohort,
         sharedWire,
+        sharedResourceAdmission,
+        sharedStructuredSchema,
         deferredTeamView,
         sharedModelApiBoundaries,
       ],
@@ -171,6 +190,8 @@ beforeAll(async () => {
         sharedValidation,
         deferredCohort,
         sharedWire,
+        sharedResourceAdmission,
+        sharedStructuredSchema,
         sharedModelApiBoundaries,
       ],
       external: ['vscode', '@napi-rs/keyring'],
@@ -180,6 +201,11 @@ beforeAll(async () => {
       outdir: 'dist',
       entryPoints: { modelApiBoundaries: 'src/shared/modelApiBoundariesEntry.ts' },
       plugins: [sharedUiText, sharedValidation],
+    }),
+    build({
+      ...common,
+      outdir: 'dist',
+      entryPoints: { structuredSchema: 'src/shared/structuredSchemaEntry.ts' },
     }),
     build({
       ...common,
@@ -210,7 +236,7 @@ beforeAll(async () => {
         outputs: { [`dist/${name}.js`]: details },
       })
       fixtures.set(
-        `dist/${['acp', 'headless', 'acpQuestions', 'runtimeQuestions'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
+        `dist/${['acp', 'exec', 'headless', 'acpQuestions', 'runtimeQuestions'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
         {
           bytes: Buffer.from(JSON.stringify(meta)),
           meta,
@@ -219,7 +245,6 @@ beforeAll(async () => {
     }
   }
   parsers.push(parserSchema.parse(loadSupportBundle('validation')))
-  expect(checkDeferredBundles(bundleInputs)).toEqual([])
 })
 
 beforeAll(async () => {
@@ -372,12 +397,78 @@ function outputInputs(meta: z.infer<typeof metafileSchema>, output: string) {
 function inputs(name: string): string[] {
   return Object.keys(
     fixture(
-      `dist/${['acp', 'acpQuestions', 'runtimeQuestions'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
+      `dist/${['acp', 'exec', 'acpQuestions', 'runtimeQuestions'].includes(name) ? 'meta-acp' : 'meta'}/${name}.json`,
     ).meta.inputs,
   ).map((file) => file.split(path.sep).join('/'))
 }
 
 describe('deferred cohort bundles', () => {
+  it('keeps governor execution in its lazy bundle and shares the admission shim', () => {
+    for (const name of ['extension', 'modelApi', 'acp', 'browserCheck']) {
+      expect(inputs(name)).not.toContain('src/core/resources/governor.ts')
+      expect(inputs(name)).not.toContain('src/core/resources/admission.ts')
+      expect(bundleText(name)).toContain('./resourceAdmission.js')
+    }
+    expect(inputs('resourceGovernor')).toContain('src/core/resources/governor.ts')
+    expect(bundleText('resourceAdmission')).toContain('./resourceGovernor.js')
+    expect(inputs('resourceAdmission')).not.toContain('src/core/resources/governor.ts')
+    const original = bundleInputs({
+      output: 'dist/modelApi.js',
+      metafile: 'dist/meta/modelApi.json',
+    })
+    const changed = new Map(original)
+    changed.set('src/core/resources/governor.ts', 1)
+    expect(
+      checkDeferredBundles((bundle) =>
+        bundle.output === 'dist/modelApi.js' ? changed : bundleInputs(bundle),
+      ),
+    ).toContain(
+      'dist/modelApi.js carries src/core/resources/governor.ts, which loads only on the first governed spawn',
+    )
+    expect(checkDeferredBundles(bundleInputs)).toEqual([])
+  })
+  it('M107 keeps every policy module and admission state out of other shipped cohorts, including Windows paths', () => {
+    const bundles = Array.from(fixtures.keys(), (metafile) => ({
+      metafile,
+      output: `dist/${path.basename(metafile, '.json')}.js`,
+    }))
+    expect(checkResourceBundles(bundleInputs, bundles)).toEqual([])
+    for (const file of [
+      'src/core/resources/sampler/system.ts',
+      'src/core/resources/actuators/controller.ts',
+      'src/core/resources/relocate.ts',
+      'src/core/resources/createdRegistry.ts',
+    ]) {
+      expect(
+        checkResourceBundles(
+          () => new Map([[file.replaceAll('/', '\\'), 1]]),
+          [{ output: path.win32.join('dist', 'voice.js'), metafile: 'unused' }],
+        ),
+      ).toEqual([`dist/voice.js carries resource policy ${file} outside the lazy governor`])
+    }
+    expect(
+      checkResourceBundles(
+        () => new Map([['src/core/resources/admission.ts', 1]]),
+        [{ output: 'dist/pluginHooks.js', metafile: 'unused' }],
+      ),
+    ).toEqual(['dist/pluginHooks.js duplicates resource admission'])
+  })
+  it.each(['src/core/resources/disk.ts', 'src/core/resources/createdRegistry.ts'])(
+    'M107 requires %s in the governor artifact',
+    (file) => {
+      const bundle = {
+        output: 'dist/resourceGovernor.js',
+        metafile: 'dist/meta/resourceGovernor.json',
+      }
+      const changed = new Map(bundleInputs(bundle))
+      changed.delete(file)
+      expect(
+        checkDeferredBundles((entry) =>
+          entry.output === bundle.output ? changed : bundleInputs(entry),
+        ),
+      ).toContain(`${bundle.output} no longer carries ${file}`)
+    },
+  )
   it('keeps M112 registry and deferral helpers lazy and rejects inline copies', () => {
     for (const [source, destination] of [
       ['src/runtime/questions/acpRegistry.ts', 'runtimeQuestions'],
@@ -398,6 +489,12 @@ describe('deferred cohort bundles', () => {
       )
     }
   })
+  it('loads the portable session sanitizer only from the lazy hook runtime (FIXM106T budget)', () => {
+    expect(inputs('modelApi')).not.toContain('src/core/export/sessionTransfer.ts')
+    expect(inputs('foreignHooks')).toContain('src/core/export/sessionTransfer.ts')
+    expect(bundleText('modelApi')).toContain('./hookRuntime.js')
+  })
+
   it('decodes the complete production English fallback without changing any value', () => {
     expect(bundleText('uiText')).toContain('brotliDecompressSync')
     expect(loadSupportBundle('uiText')).toHaveProperty('EN', EN)
@@ -648,7 +745,7 @@ describe('deferred cohort bundles', () => {
     }
     expect(createHash('sha256').update(readFileSync(file)).digest('hex')).toBe(hash)
     const green = runLegalGate('check-bundle-size')
-    expect(green.status, green.stderr).toBe(0)
+    expect(green.status, `${green.stdout}\n${green.stderr}`).toBe(0)
   })
 
   it('fires the legal scanner host-global guard and restores the artifact byte-exact', () => {
@@ -665,7 +762,7 @@ describe('deferred cohort bundles', () => {
     }
     expect(createHash('sha256').update(readFileSync(file)).digest('hex')).toBe(hash)
     const green = runLegalGate('check-host-globals')
-    expect(green.status, green.stderr).toBe(0)
+    expect(green.status, `${green.stdout}\n${green.stderr}`).toBe(0)
   })
 
   it('keeps board and best-of-N execution out of activation', () => {
@@ -804,37 +901,10 @@ describe('deferred cohort bundles', () => {
     }
   })
 
-  it('rejects a missing deferred input and restores its metafile byte-exact', () => {
-    const file = 'dist/meta/reviewer.json'
-    const meta = structuredClone(fixture(file).meta)
-    const original = JSON.stringify(meta)
-    const hash = createHash('sha256').update(original).digest('hex')
-    const output = meta.outputs['dist/reviewer.js']
-    if (output === undefined) throw new Error('Missing reviewer output')
-    const source = 'src/core/backends/modelapi/reviewerEntry.ts'
-    const input = output.inputs[source]
-    if (input === undefined) throw new Error('Missing reviewer input')
-    const originalInputs = structuredClone(output.inputs)
-    const check = () => {
-      const changed = outputInputs(meta, 'dist/reviewer.js')
-      return checkDeferredBundles((bundle) =>
-        bundle.metafile === file ? changed : bundleInputs(bundle),
-      )
-    }
-    expect(check()).toEqual([])
-    try {
-      Reflect.deleteProperty(output.inputs, source)
-      expect(check()).toEqual([`dist/reviewer.js no longer carries ${source}`])
-    } finally {
-      output.inputs = originalInputs
-    }
-    expectUnchangedMeta(meta, hash, check)
-  })
-
   it.each([
     ['providerPolicy', 'src/host/backend/providerPolicyEntry.ts', 'missing'],
     ['providerPolicy', 'src/core/backends/modelapi/codecs/chat.ts', 'in dist/providers.js'],
-    ['modelApiHooks', 'src/core/backends/modelapi/hookHandlers.ts', 'missing'],
+    ['hookRuntime', 'src/core/backends/modelapi/hookHandlers.ts', 'missing'],
     ['modelApiMcp', 'src/core/backends/modelapi/mcp/pool.ts', 'missing'],
     ['runtimeAccounting', 'src/runtime/runtimeAccountingEntry.ts', 'missing'],
     ['modelApi', 'src/core/backends/modelapi/hookHandlers.ts', 'on its first action'],
@@ -851,6 +921,16 @@ describe('deferred cohort bundles', () => {
       'src/acp/questionDeferralEntry.ts',
       'on the first ACP question, elicitation or question command',
     ],
+    ['reviewer', 'src/core/backends/modelapi/reviewerEntry.ts', 'missing'],
+    ['modelApiCodeIntel', 'src/core/backends/modelapi/codeIntelCalls.ts', 'missing'],
+    ['mcpPool', 'src/core/backends/modelapi/mcp/pool.ts', 'missing'],
+    ['headless', 'src/runtime/exec/runExec.ts', 'missing'],
+    ['structuredSchema', 'src/shared/structuredSchemaEntry.ts', 'missing'],
+    ['modelApi', 'src/core/backends/modelapi/codeIntelCalls.ts', 'on its first action'],
+    ['modelApi', 'src/core/backends/modelapi/mcp/pool.ts', 'on its first action'],
+    ['acp', 'src/runtime/exec/runExec.ts', 'on its first action'],
+
+    ['foreignHooks', 'src/core/export/sessionTransfer.ts', 'missing'],
     ['extension', 'src/host/bestOfN/bestOfNManager.ts', 'on its first action'],
     ['extension', 'src/host/conversation/conversationController.ts', 'on the first chat surface'],
     ['acp', 'src/host/support/recorderEntry.ts', 'from the recorder bundle'],
@@ -863,6 +943,7 @@ describe('deferred cohort bundles', () => {
     ['modelApi', 'src/core/backends/modelapi/hookFormats/engine.ts', 'on its first action'],
     // M91: the hook and MCP-form runtime, required on first use.
     ['modelApi', 'src/core/backends/modelapi/hookRuntimeEntry.ts', 'on its first action'],
+    ['modelApi', 'src/core/export/sessionTransfer.ts', 'on import'],
     // Split out of activation on 2026-10-03 (PLAN.md D6).
     ['extension', 'src/core/codeIntel/codeIntelQuery.ts', 'on the first code intelligence call'],
     ['extension', 'src/core/voice/museVoice.ts', 'on the first recording'],
@@ -914,22 +995,68 @@ describe('deferred cohort bundles', () => {
       }
       expect(check()).toEqual([])
       const originalInputs = structuredClone(output.inputs)
-      if (use === 'missing') expect(output.inputs).toHaveProperty(source)
+      const isMissing = use === 'missing'
+      if (isMissing) expect(output.inputs).toHaveProperty(source)
       else expect(output.inputs).not.toHaveProperty(source)
       try {
-        if (use === 'missing') Reflect.deleteProperty(output.inputs, source)
+        if (isMissing) Reflect.deleteProperty(output.inputs, source)
         else output.inputs[source] = { bytesInOutput: 1 }
-        expect(check()).toContain(
-          use === 'missing'
-            ? `dist/${name}.js no longer carries ${source}`
-            : `dist/${name}.js carries ${source}, which loads only ${use}`,
+        const problem = isMissing
+          ? `dist/${name}.js no longer carries ${source}`
+          : `dist/${name}.js carries ${source}, which loads only ${use}`
+        if (
+          name === 'reviewer' ||
+          name === 'foreignHooks' ||
+          ['modelApiCodeIntel', 'mcpPool', 'exec', 'structuredSchema'].includes(name)
         )
+          expect(check()).toEqual([problem])
+        else expect(check()).toContain(problem)
       } finally {
         output.inputs = originalInputs
       }
       expectUnchangedMeta(meta, hash, check)
     },
   )
+})
+
+it('loads both governor factories with shared validation without probing at construction', async () => {
+  const module = z
+    .object({
+      resourceGovernorHost: z.custom<typeof resourceGovernor.resourceGovernorHost>(
+        (value) => typeof value === 'function',
+      ),
+      createResources: z.custom<typeof runtimeResources.createResources>(
+        (value) => typeof value === 'function',
+      ),
+    })
+    .parse(loadSupportBundle('resourceGovernor'))
+  const host = module.resourceGovernorHost({
+    inspect: () => undefined,
+    onError: () => {
+      throw new Error('Unexpected resource probe')
+    },
+  })
+  expect(host.tickets()).toEqual([])
+  host.dispose()
+  const runtime = await module.createResources(
+    {
+      machineDir: fixtureRoot,
+      sleep: () => Promise.resolve(),
+      onError: () => {
+        throw new Error('Unexpected runtime resource probe')
+      },
+      machine: {
+        readSettings: () => Promise.resolve(resourceSettingsSchema.parse({ enabled: false })),
+        readResumeUntil: () => Promise.resolve(null),
+        writeResumeUntil: () => Promise.resolve(),
+      },
+    },
+    EN,
+    'en',
+  )
+  const status = await runtime.status()
+  expect(status.settings.enabled).toBe(false)
+  runtime.dispose()
 })
 
 it('refuses a raster codec leaked into the lazy Model API parent', () => {

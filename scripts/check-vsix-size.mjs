@@ -1,11 +1,10 @@
-// TRAIN15G, 2026-10-06: measured universal VSIX 2,688,776 bytes +5%, rounded
-// up to 25 KiB = 2,841,600 bytes. Lead-approved for the 0.15.0 train only
-// (PLAN.md D6); existing individual bundle caps are unchanged.
+// REL0160B: measured universal VSIX 2,911,436 bytes +5%, rounded up
+// to 25 KiB = 3,072,000 bytes. Authorized rebuild budget (PLAN.md D6).
 import { statSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-export const MAX_VSIX_BYTES = 2775 * 1024
+export const MAX_VSIX_BYTES = 3000 * 1024
 
 export function checkVsixSize(file) {
   const size = statSync(file).size

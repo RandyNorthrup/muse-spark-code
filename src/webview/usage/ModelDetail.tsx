@@ -1,3 +1,4 @@
+import { Usd } from '../../shared/usd'
 import { USAGE_TEXT } from '../../shared/l10n/usageTable'
 import { fill, formatUnit } from '../../shared/l10n/text'
 import type { UsagePageState } from '../../shared/usagePage'
@@ -19,7 +20,7 @@ export function ModelDetail({
   if (detail === undefined) return null
   const price = detail.price
   const priceText = (value: number | undefined) =>
-    value === undefined ? USAGE_TEXT.unknown : formatTestCost(value)
+    value === undefined ? USAGE_TEXT.unknown : formatTestCost(Usd.from(value).toAmount())
   const source =
     price === undefined
       ? USAGE_TEXT.unknown

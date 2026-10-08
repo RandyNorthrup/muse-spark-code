@@ -1,6 +1,16 @@
 import type { RecordedCall, UsageRecording } from '../usage/recording'
 import type { UsageRecord } from '../../shared/usageJournal'
-import { PAID_USE_REGISTRY } from '../../shared/paid'
+import {
+  PAID_USE_REGISTRY,
+  type SearchSettlement,
+  EMPTY_PAID_TALLY,
+  modelApiPaidTier,
+  type PaidState,
+  type PaidTally,
+  type SubagentUsage,
+} from '../../shared/paid'
+
+import { Usd, sumUsd, type UsdAmount } from '../../shared/usd'
 // The paid Model API features (M33–M35, PLAN.md D30), "opt in and loud":
 // which are on, and what this window has used of them.
 //
@@ -17,20 +27,23 @@ import { PAID_USE_REGISTRY } from '../../shared/paid'
 // the window focus.
 
 import {
+  PAID_FEATURES,
+  PAID_PRICES_USD,
+  SEARCHES_PER_PRICE_UNIT,
   MODEL_API_IMAGE_MODEL,
   MUSE_VOICE_MODEL,
-  PAID_FEATURES,
   type PaidFeature,
 } from '../../shared/constants'
-import {
-  EMPTY_PAID_TALLY,
-  modelApiPaidTier,
-  type PaidState,
-  type PaidTally,
-  type SubagentUsage,
-} from '../../shared/paid'
+
 import type { CoreLogger } from '../logging'
 import { estimateCostUsd } from '../usage/insights'
+
+/** A verified per-call search tariff; other providers must inject their own price. */
+export function webSearchPriceUsd(modelId: string): UsdAmount | undefined {
+  return modelApiPaidTier(modelId) === undefined
+    ? undefined
+    : Usd.from(PAID_PRICES_USD.webSearchPerThousand).divide(SEARCHES_PER_PRICE_UNIT).toAmount()
+}
 
 export interface PaidFeatureGateDeps {
   /** Whether the feature's `museSpark.*` setting is on. */
@@ -285,13 +298,11 @@ export class PaidUsage {
     modelId: string,
     usage: SubagentUsage,
   ): void {
-    if (modelApiPaidTier(modelId) === undefined) {
+    if (usage.costUsd === undefined && modelApiPaidTier(modelId) === undefined) {
       throw new Error('Cannot estimate ' + kind + ' use for an unpriced model')
     }
-    if (
-      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
-      usage.cachedTokens > usage.inputTokens
-    ) {
+    const { costUsd } = usage
+    if (!isValidTaskUsage(usage)) {
       throw new Error(kind + ' usage must be valid nonnegative token counts')
     }
     const unknownKey = `${kind}UnknownRequests` as const
@@ -303,7 +314,10 @@ export class PaidUsage {
       ...this.tally,
       [unknownKey]: unknown - 1,
       [tokenKey]: (this.tally[tokenKey] ?? 0) + usage.inputTokens + usage.outputTokens,
-      [costKey]: (this.tally[costKey] ?? 0) + estimateCostUsd(usage, modelId),
+      [costKey]: sumUsd(
+        Usd.from(this.tally[costKey] ?? 0).toAmount(),
+        costUsd ?? estimateCostUsd(usage, modelId),
+      ),
     }
     for (const listener of this.listeners) listener()
   }
@@ -327,7 +341,10 @@ export class PaidUsage {
           restored.subagentUnknownRequests =
             (restored.subagentUnknownRequests ?? 0) + (isUnknown ? 1 : 0)
           restored.subagentTokens = (restored.subagentTokens ?? 0) + tokens
-          restored.subagentCostUsd = (restored.subagentCostUsd ?? 0) + (usd ?? 0)
+          restored.subagentCostUsd = sumUsd(
+            Usd.from(restored.subagentCostUsd ?? 0).toAmount(),
+            Usd.from(usd ?? 0).toAmount(),
+          )
 
           continue
         }
@@ -336,7 +353,10 @@ export class PaidUsage {
           restored.autoReviewUnknownRequests =
             (restored.autoReviewUnknownRequests ?? 0) + (isUnknown ? 1 : 0)
           restored.autoReviewTokens = (restored.autoReviewTokens ?? 0) + tokens
-          restored.autoReviewCostUsd = (restored.autoReviewCostUsd ?? 0) + (usd ?? 0)
+          restored.autoReviewCostUsd = sumUsd(
+            Usd.from(restored.autoReviewCostUsd ?? 0).toAmount(),
+            Usd.from(usd ?? 0).toAmount(),
+          )
 
           continue
         }
@@ -346,7 +366,10 @@ export class PaidUsage {
           restored.bestOfNUnknownRequests =
             (restored.bestOfNUnknownRequests ?? 0) + (isUnknown ? 1 : 0)
           restored.bestOfNTokens = (restored.bestOfNTokens ?? 0) + tokens
-          restored.bestOfNCostUsd = (restored.bestOfNCostUsd ?? 0) + (usd ?? 0)
+          restored.bestOfNCostUsd = sumUsd(
+            Usd.from(restored.bestOfNCostUsd ?? 0).toAmount(),
+            Usd.from(usd ?? 0).toAmount(),
+          )
 
           continue
         }
@@ -365,18 +388,27 @@ export class PaidUsage {
       subagentUnknownRequests:
         (restored.subagentUnknownRequests ?? 0) + (live.subagentUnknownRequests ?? 0),
       subagentTokens: (restored.subagentTokens ?? 0) + (live.subagentTokens ?? 0),
-      subagentCostUsd: (restored.subagentCostUsd ?? 0) + (live.subagentCostUsd ?? 0),
+      subagentCostUsd: sumUsd(
+        Usd.from(restored.subagentCostUsd ?? 0).toAmount(),
+        Usd.from(live.subagentCostUsd ?? 0).toAmount(),
+      ),
       autoReviews: (restored.autoReviews ?? 0) + (live.autoReviews ?? 0),
       autoReviewUnknownRequests:
         (restored.autoReviewUnknownRequests ?? 0) + (live.autoReviewUnknownRequests ?? 0),
       autoReviewTokens: (restored.autoReviewTokens ?? 0) + (live.autoReviewTokens ?? 0),
-      autoReviewCostUsd: (restored.autoReviewCostUsd ?? 0) + (live.autoReviewCostUsd ?? 0),
+      autoReviewCostUsd: sumUsd(
+        Usd.from(restored.autoReviewCostUsd ?? 0).toAmount(),
+        Usd.from(live.autoReviewCostUsd ?? 0).toAmount(),
+      ),
       bestOfNAttempts: (restored.bestOfNAttempts ?? 0) + (live.bestOfNAttempts ?? 0),
       bestOfNRequests: (restored.bestOfNRequests ?? 0) + (live.bestOfNRequests ?? 0),
       bestOfNUnknownRequests:
         (restored.bestOfNUnknownRequests ?? 0) + (live.bestOfNUnknownRequests ?? 0),
       bestOfNTokens: (restored.bestOfNTokens ?? 0) + (live.bestOfNTokens ?? 0),
-      bestOfNCostUsd: (restored.bestOfNCostUsd ?? 0) + (live.bestOfNCostUsd ?? 0),
+      bestOfNCostUsd: sumUsd(
+        Usd.from(restored.bestOfNCostUsd ?? 0).toAmount(),
+        Usd.from(live.bestOfNCostUsd ?? 0).toAmount(),
+      ),
     }
     for (const listener of this.listeners) listener()
   }
@@ -393,17 +425,42 @@ export class PaidUsage {
   }
 
   /** Counts `units` uses: searches, images, or whole seconds of audio. */
-  public add(feature: PaidFeature, units: number): void {
+  public add(
+    feature: PaidFeature,
+    units: number,
+    searchPriceUsd?: UsdAmount | SearchSettlement,
+  ): void {
+    if (typeof searchPriceUsd === 'object') searchPriceUsd = searchPriceUsd.quote.tariffUsd
     if (units <= 0) {
       return
     }
     recordPaidUse(this.recording, feature, units)
 
     const { tally } = this
-    const entry = PAID_USE_REGISTRY[feature]
-    this.tally = { ...tally, [entry.tally]: (tally[entry.tally] ?? 0) + units }
-    if ('unknown' in entry) {
-      this.tally = { ...this.tally, [entry.unknown]: (tally[entry.unknown] ?? 0) + units }
+    if (feature === 'webSearch') {
+      if (searchPriceUsd === undefined || Usd.from(searchPriceUsd).compare(Usd.from(0)) < 0) {
+        throw new Error('Search use needs a verified tariff')
+      }
+      searchPriceUsd = Usd.from(searchPriceUsd).toAmount()
+      const charges = tally.webSearchCharges ?? []
+      const hasTariff = charges.some((charge) => charge.priceUsd === searchPriceUsd)
+      this.tally = {
+        ...tally,
+        webSearches: tally.webSearches + units,
+        webSearchCharges: hasTariff
+          ? charges.map((charge) =>
+              charge.priceUsd === searchPriceUsd
+                ? { ...charge, units: charge.units + units }
+                : charge,
+            )
+          : [...charges, { units, priceUsd: Usd.from(searchPriceUsd).toAmount() }],
+      }
+    } else {
+      const entry = PAID_USE_REGISTRY[feature]
+      this.tally = { ...tally, [entry.tally]: (tally[entry.tally] ?? 0) + units }
+      if ('unknown' in entry) {
+        this.tally = { ...this.tally, [entry.unknown]: (tally[entry.unknown] ?? 0) + units }
+      }
     }
     this.log.info(`Paid use: ${feature} +${String(units)}`)
     for (const listener of this.listeners) {
@@ -420,7 +477,7 @@ export class PaidUsage {
       ...this.tally,
       judgeUnknownRequests: unknown - 1,
       judgeTokens: (this.tally.judgeTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      judgeCostUsd: (this.tally.judgeCostUsd ?? 0) + cost,
+      judgeCostUsd: sumUsd(this.tally.judgeCostUsd ?? Usd.from(0).toAmount(), cost),
     }
     for (const listener of this.listeners) listener()
   }
@@ -435,7 +492,7 @@ export class PaidUsage {
       ...tally,
       autoReviewUnknownRequests: unknown - 1,
       autoReviewTokens: (tally.autoReviewTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      autoReviewCostUsd: (tally.autoReviewCostUsd ?? 0) + cost,
+      autoReviewCostUsd: sumUsd(tally.autoReviewCostUsd ?? Usd.from(0).toAmount(), cost),
     }
     for (const listener of this.listeners) {
       listener()
@@ -451,17 +508,21 @@ export class PaidUsage {
       legalExplanationUnknownRequests: unknown - 1,
       legalExplanationTokens:
         (this.tally.legalExplanationTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      legalExplanationCostUsd: (this.tally.legalExplanationCostUsd ?? 0) + cost,
+      legalExplanationCostUsd: sumUsd(
+        Usd.from(this.tally.legalExplanationCostUsd ?? 0).toAmount(),
+        cost,
+      ),
     }
     for (const listener of this.listeners) listener()
   }
 
   /** One admitted child attempt reported billable usage; never replayed from storage. */
   public addSubagentUsage(modelId: string, usage: SubagentUsage): void {
-    if (modelApiPaidTier(modelId) === undefined) {
+    if (usage.costUsd === undefined && modelApiPaidTier(modelId) === undefined) {
       throw new Error('Cannot estimate subagent use for an unpriced model')
     }
-    if (Object.values(usage).some((value) => !Number.isFinite(value) || value < 0)) {
+    const { costUsd } = usage
+    if (!isValidTaskUsage(usage, false)) {
       throw new Error('Subagent usage must be finite and nonnegative')
     }
     const { tally } = this
@@ -472,7 +533,10 @@ export class PaidUsage {
       ...tally,
       subagentUnknownRequests: (tally.subagentUnknownRequests ?? 0) - 1,
       subagentTokens: (tally.subagentTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      subagentCostUsd: (tally.subagentCostUsd ?? 0) + estimateCostUsd(usage, modelId),
+      subagentCostUsd: sumUsd(
+        tally.subagentCostUsd ?? Usd.from(0).toAmount(),
+        costUsd ?? estimateCostUsd(usage, modelId),
+      ),
     }
     for (const listener of this.listeners) {
       listener()
@@ -500,13 +564,11 @@ export class PaidUsage {
 
   /** One hook run's reported billable usage; never replayed from storage. */
   public addHookModelUsage(modelId: string, usage: SubagentUsage): void {
-    if (modelApiPaidTier(modelId) === undefined) {
+    if (usage.costUsd === undefined && modelApiPaidTier(modelId) === undefined) {
       throw new Error('Cannot estimate hook model use for an unpriced model')
     }
-    if (
-      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
-      usage.cachedTokens > usage.inputTokens
-    ) {
+    const { costUsd } = usage
+    if (!isValidTaskUsage(usage)) {
       throw new Error('Hook model usage must be valid nonnegative token counts')
     }
     const unknown = this.tally.hookModelUnknownRequests ?? 0
@@ -515,7 +577,10 @@ export class PaidUsage {
       ...this.tally,
       hookModelUnknownRequests: unknown - 1,
       hookModelTokens: (this.tally.hookModelTokens ?? 0) + usage.inputTokens + usage.outputTokens,
-      hookModelCostUsd: (this.tally.hookModelCostUsd ?? 0) + estimateCostUsd(usage, modelId),
+      hookModelCostUsd: sumUsd(
+        this.tally.hookModelCostUsd ?? Usd.from(0).toAmount(),
+        costUsd ?? estimateCostUsd(usage, modelId),
+      ),
     }
     for (const listener of this.listeners) listener()
   }
@@ -536,13 +601,11 @@ export class PaidUsage {
    * never reports keeps its unknown count, never a zero cost.
    */
   public addTabUsage(modelId: string, usage: SubagentUsage): void {
-    if (modelApiPaidTier(modelId) === undefined) {
+    if (usage.costUsd === undefined && modelApiPaidTier(modelId) === undefined) {
       throw new Error('Cannot estimate Tab use for an unpriced model')
     }
-    if (
-      Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
-      usage.cachedTokens > usage.inputTokens
-    ) {
+    const { costUsd } = usage
+    if (!isValidTaskUsage(usage)) {
       throw new Error('Tab usage must be valid nonnegative token counts')
     }
     const unknown = this.tally.tabUnknownRequests ?? 0
@@ -552,29 +615,63 @@ export class PaidUsage {
       tabUnknownRequests: unknown - 1,
       tabTokens: (this.tally.tabTokens ?? 0) + usage.inputTokens + usage.outputTokens,
       tabCachedTokens: (this.tally.tabCachedTokens ?? 0) + usage.cachedTokens,
-      tabCostUsd: (this.tally.tabCostUsd ?? 0) + estimateCostUsd(usage, modelId),
+      tabCostUsd: sumUsd(
+        this.tally.tabCostUsd ?? Usd.from(0).toAmount(),
+        costUsd ?? estimateCostUsd(usage, modelId),
+      ),
     }
     for (const listener of this.listeners) listener()
   }
 
   /** One owned host's per-response delta, never a cumulative/replayed frame. */
   public addBestOfNUsage(modelId: string, usage: SubagentUsage): void {
-    this.addTaskUsage('bestOfN', modelId, usage)
+    if (usage.costUsd === undefined && modelApiPaidTier(modelId) === undefined) {
+      throw new Error('Cannot estimate best-of-N use for an unpriced model')
+    }
+    const { costUsd } = usage
+    if (!isValidTaskUsage(usage)) {
+      throw new Error('Best-of-N usage must be valid nonnegative token counts')
+    }
+    const unknown = this.tally.bestOfNUnknownRequests ?? 0
+    if (unknown === 0) return
+    this.tally = {
+      ...this.tally,
+      bestOfNUnknownRequests: unknown - 1,
+      bestOfNTokens: (this.tally.bestOfNTokens ?? 0) + usage.inputTokens + usage.outputTokens,
+      bestOfNCostUsd: sumUsd(
+        this.tally.bestOfNCostUsd ?? Usd.from(0).toAmount(),
+        costUsd ?? estimateCostUsd(usage, modelId),
+      ),
+    }
+    for (const listener of this.listeners) listener()
   }
 }
 
+/** Validate counts separately from the exact provider receipt. */
+function isValidTaskUsage(usage: SubagentUsage, shouldRequireIntegers = true): boolean {
+  const { costUsd, ...tokens } = usage
+  return (
+    Object.values(tokens).every(
+      (value) =>
+        value === undefined ||
+        ((shouldRequireIntegers ? Number.isSafeInteger(value) : Number.isFinite(value)) &&
+          value >= 0),
+    ) &&
+    usage.cachedTokens <= usage.inputTokens &&
+    (costUsd === undefined || Usd.from(costUsd).compare(Usd.from(0)) >= 0)
+  )
+}
+
 /** One Auto review's tokens (M78): its cost, at the model's published rates. */
-function reviewerCost(modelId: string, usage: SubagentUsage): number {
-  if (modelApiPaidTier(modelId) === undefined) {
+function reviewerCost(modelId: string, usage: SubagentUsage): UsdAmount {
+  if (usage.costUsd === undefined && modelApiPaidTier(modelId) === undefined) {
     throw new Error('Cannot estimate an Auto review on an unpriced model')
   }
-  if (
-    Object.values(usage).some((value) => !Number.isSafeInteger(value) || value < 0) ||
-    usage.cachedTokens > usage.inputTokens
-  ) {
+  const { costUsd } = usage
+  if (!isValidTaskUsage(usage)) {
     throw new Error('Auto review usage must be valid nonnegative token counts')
   }
-  return estimateCostUsd(usage, modelId)
+  return costUsd ?? estimateCostUsd(usage, modelId)
 }
 
 /** The message the panels render the badge, the microphone and the tally from. */

@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
 // A model's price card (M95, PLAN.md D74). Prices drive budgets and are
 // never guessed. Sources, in order: the provider's own models list where it
 // prices (OpenRouter, xAI, Together, Groq, Hugging Face's router), the
@@ -8,7 +9,8 @@
 // Reservations take the worst case; settlement takes the provider's actual
 // cost where it reports one (OpenRouter's `cost`, xAI's `cost_in_usd_ticks`
 // in 1e-10 USD). DeepSeek's off-peak half price is ignored (the peak price
-// bounds it). Pure; amounts are plain USD numbers.
+// bounds it). Price-card inputs preserve the captured numeric shape; admission and
+// settlement use canonical decimal USD amounts.
 
 /** Where a price card's numbers came from, in D74's source order. */
 export type PriceSource = 'list' | 'catalogue' | 'user'
@@ -194,7 +196,7 @@ function longContextRates(
  * estimated cache hits. Known write premiums are reserved in addition;
  * output and a per-request flat price are reserved too.
  */
-export function reserveRequestUsd(card: PriceCard, usage: PricedUsage): number {
+export function reserveRequestAmount(card: PriceCard, usage: PricedUsage): UsdAmount {
   const { tier, isLongContext, inputRate, outputRate } = longContextRates(card, usage)
   // Cold writes are bounded at the dearest applicable write price: the
   // card's own write rates, plus the tier's where the estimate reaches it.
@@ -207,12 +209,16 @@ export function reserveRequestUsd(card: PriceCard, usage: PricedUsage): number {
     )
   }
   const writeRate = Math.max(inputRate, ...writeCandidates)
-  return (
-    usage.inputTokens * inputRate +
-    (usage.cacheWriteTokens ?? 0) * Math.max(0, writeRate - inputRate) +
-    usage.outputTokens * outputRate +
-    (card.request ?? 0)
-  )
+  return Usd.from(inputRate)
+    .times(usage.inputTokens)
+    .add(
+      Usd.from(writeRate)
+        .subtract(Usd.from(inputRate))
+        .times(usage.cacheWriteTokens ?? 0),
+    )
+    .add(Usd.from(outputRate).times(usage.outputTokens))
+    .add(Usd.from(card.request ?? 0))
+    .toAmount()
 }
 
 /**
@@ -236,18 +242,18 @@ export function reserveWorstCaseUsd(
  * rates over the usage. Invalid usage leaves the cost unknown (the session
  * budget then closes) rather than guessing zero.
  */
-export function settleUsageUsd(
+export function settleUsageAmount(
   card: PriceCard,
   usage: PricedUsage,
   reported?: { readonly cost?: number | undefined; readonly costInUsdTicks?: number | undefined },
-): number | undefined {
+): UsdAmount | undefined {
   if (reported?.cost !== undefined && Number.isFinite(reported.cost) && reported.cost >= 0) {
-    return reported.cost
+    return Usd.from(reported.cost).toAmount()
   }
   if (reported?.costInUsdTicks !== undefined) {
     const converted = ticksToUsdPerToken(reported.costInUsdTicks)
     if (converted !== undefined) {
-      return converted
+      return Usd.from(reported.costInUsdTicks).divide(XAI_TICKS_PER_USD).toAmount()
     }
   }
   if (!isValidPriceCard(card) || !isValidUsage(usage)) {
@@ -272,12 +278,27 @@ export function settleUsageUsd(
   const read = usage.cachedTokens ?? 0
   const { standard: written5m, oneHour: written1h } = splitCacheWrites(usage)
   const fresh = usage.inputTokens - read - written5m - written1h
-  return (
-    fresh * inputRate +
-    read * readRate +
-    written5m * writeRate +
-    written1h * write1hRate +
-    usage.outputTokens * outputRate +
-    (card.request ?? 0)
-  )
+  return Usd.from(inputRate)
+    .times(fresh)
+    .add(Usd.from(readRate).times(read))
+    .add(Usd.from(writeRate).times(written5m))
+    .add(Usd.from(write1hRate).times(written1h))
+    .add(Usd.from(outputRate).times(usage.outputTokens))
+    .add(Usd.from(card.request ?? 0))
+    .toAmount()
+}
+
+/** Numeric projections for the existing usage reports. Admission uses exact amounts. */
+export function reserveRequestUsd(card: PriceCard, usage: PricedUsage): number {
+  return Number(reserveRequestAmount(card, usage))
+}
+
+/** Numeric projection for captured usage report schemas. */
+export function settleUsageUsd(
+  card: PriceCard,
+  usage: PricedUsage,
+  reported?: { readonly cost?: number | undefined; readonly costInUsdTicks?: number | undefined },
+): number | undefined {
+  const amount = settleUsageAmount(card, usage, reported)
+  return amount === undefined ? undefined : Number(amount)
 }

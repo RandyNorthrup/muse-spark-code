@@ -10,6 +10,7 @@ import { brotliCompressSync, deflateSync, constants as zlibConstants } from 'nod
 import ts from 'typescript'
 import { loadL10n } from './l10nSource.mjs'
 import { browserStartupSources } from './browserKeybindings.mjs'
+import { RESOURCE_WEBVIEW_ENTRIES } from './webviewBundles.mjs'
 
 const TABLE = 'src/shared/l10n/en.ts'
 export const UI_TEXT_REGIONS = [
@@ -135,38 +136,67 @@ export function compressedEnglish(file, isProduction, compressionQuality) {
 }
 
 /** Encode browser values with the same lossless native codec in every build. */
-function inlineBrowserTable(table, compressionLevel, readers) {
-  const alphabet =
-    '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz!#$%&()*+,-./:;<=>?@[]^'
-  const compressed = deflateSync(
-    JSON.stringify([Object.keys(table).join('|'), Object.values(table), readers]),
-    { level: compressionLevel },
-  )
+function inlineBrowserTable(table, compressionLevel, compressionMemoryLevel, readers) {
+  const alphabet = Array.from({ length: 94 }, (_, index) => String.fromCodePoint(index + 33))
+    .filter((character) => !['"', "'", '\\'].includes(character))
+    .join('')
+  const originalKeys = Object.keys(table)
+  const lanesByKey = new Map(originalKeys.map((key, index) => [key, readers?.[index]]))
+  const keys =
+    readers === undefined
+      ? originalKeys
+      : originalKeys.toSorted(
+          (left, right) =>
+            lanesByKey.get(left).localeCompare(lanesByKey.get(right)) || left.localeCompare(right),
+        )
+  let previous = ''
+  const names = keys
+    .map((key) => {
+      let shared = 0
+      // Keep the prefix byte in ASCII, below the key delimiter.
+      while (shared < 26 && shared < key.length && key[shared] === previous[shared]) shared++
+      previous = key
+      return String.fromCodePoint(97 + shared) + key.slice(shared)
+    })
+    .join('|')
+  const lanes = readers === undefined ? undefined : keys.map((key) => lanesByKey.get(key)).join('')
+  const compressed = deflateSync(JSON.stringify([names, keys.map((key) => table[key]), lanes]), {
+    level: compressionLevel,
+    memLevel: compressionMemoryLevel,
+  })
   let packed = ''
-  for (let offset = 0; offset < compressed.length; offset += 4) {
-    let word = 0
-    for (let byte = 0; byte < 4; byte++) word = word * 256 + (compressed[offset + byte] ?? 0)
-    let digits = ''
-    for (let digit = 0; digit < 5; digit++) {
-      digits = alphabet[word % 85] + digits
-      word = Math.floor(word / 85)
-    }
-    packed += digits
+  let queued = 0
+  let bits = 0
+  for (const byte of compressed) {
+    queued |= byte << bits
+    bits += 8
+    if (bits <= 13) continue
+    let word = queued & 8191
+    const used = word > 88 ? 13 : 14
+    if (used === 14) word = queued & 16_383
+    queued >>= used
+    bits -= used
+    packed += alphabet[word % 91] + alphabet[Math.floor(word / 91)]
+  }
+  if (bits > 0) {
+    packed += alphabet[queued % 91] + alphabet[Math.floor(queued / 91)]
   }
   return `const alphabet=${JSON.stringify(alphabet)},packed=${JSON.stringify(packed)};
 const bytes=new Uint8Array(${compressed.length});
-for(let offset=0;offset<packed.length;offset+=5){let word=0;for(let digit=0;digit<5;digit++)word=word*85+alphabet.indexOf(packed[offset+digit]);for(let byte=3;byte>=0;byte--){bytes[offset/5*4+byte]=word%256;word=Math.floor(word/256)}}
+let queued=0,bits=0,pending=-1,offset=0;
+for(const character of packed){const digit=alphabet.indexOf(character);if(pending<0){pending=digit}else{const word=pending+digit*91;queued|=word<<bits;bits+=(word&8191)>88?13:14;while(bits>7){bytes[offset++]=queued;queued>>=8;bits-=8}pending=-1}}
 const [names,values,readers]=await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate'))).json();
-const keys=names.split('|');
+let previous='';
+const keys=names.split('|').map(name=>previous=previous.slice(0,name.charCodeAt(0)-97)+name.slice(1));
 ${
   readers === undefined
     ? 'export const EN=Object.fromEntries(keys.map((key,index)=>[key,values[index]]));'
-    : `export const EN_SHAPE=Object.fromEntries(keys.map((key,index)=>[key,values[index]]));
-export const EN=Object.fromEntries(keys.flatMap((key,index)=>readers[index]==='1'?[[key,EN_SHAPE[key]]]:[]));
+    : `export const EN_SHAPE={},EN={};
 const lazyValues={};
 export function installSurfaceEnglish(table){Object.assign(lazyValues,table)}
-keys.forEach((key,index)=>{if(readers[index]==='2')Object.defineProperty(EN,key,{enumerable:true,configurable:true,get(){if(!Object.hasOwn(lazyValues,key))throw new Error('English surface is not loaded: '+key);return lazyValues[key]}})});`
-}`
+keys.forEach((key,index)=>{EN_SHAPE[key]=values[index];if(readers[index]==='1')EN[key]=values[index];else if(readers[index]==='2')Object.defineProperty(EN,key,{enumerable:true,configurable:true,get(){if(!Object.hasOwn(lazyValues,key))throw new Error('English surface is not loaded: '+key);return lazyValues[key]}})});`
+}
+`
 }
 
 /** The standalone browser fallback retains the entire canonical table. */
@@ -175,11 +205,16 @@ export const compactBrowserEnglish = {
   setup(build) {
     build.onLoad({ filter: /[/\\]l10n[/\\]en\.ts$/ }, async (args) => {
       if (path.resolve(args.path) !== path.resolve(TABLE)) return
-      const { EN, L10N_BROWSER_COMPRESSION_LEVEL } = await loadL10n(process.cwd())
+      const { EN, L10N_BROWSER_COMPRESSION_LEVEL, L10N_BROWSER_COMPRESSION_MEMORY_LEVEL } =
+        await loadL10n(process.cwd())
       // DIET1: the complete fallback stays inline. Native DEFLATE decoding
       // completes before dependent ESM modules run (Chrome 128 and later).
       return {
-        contents: inlineBrowserTable(EN, L10N_BROWSER_COMPRESSION_LEVEL),
+        contents: inlineBrowserTable(
+          EN,
+          L10N_BROWSER_COMPRESSION_LEVEL,
+          L10N_BROWSER_COMPRESSION_MEMORY_LEVEL,
+        ),
         loader: 'js',
         watchFiles: [args.path, 'src/shared/constants.ts'],
       }
@@ -273,7 +308,7 @@ export function browserTextKeys(entries, english, eagerSources = new Set()) {
       for (const nested of Object.values(value)) collect(nested)
     }
   }
-  collect(reference)
+  if (seen.has(path.resolve('src/webview/components/ReferencePage.tsx'))) collect(reference)
   for (const key of keys)
     if (!Object.hasOwn(english, key)) throw new Error(`Unknown browser text: ${key}`)
   return { keys, files: [...seen], eagerKeys }
@@ -285,14 +320,27 @@ export const compactBrowserUiText = {
   setup(build) {
     let data
     build.onStart(async () => {
-      const { EN, L10N_BROWSER_COMPRESSION_LEVEL } = await loadL10n(process.cwd())
+      const { EN, L10N_BROWSER_COMPRESSION_LEVEL, L10N_BROWSER_COMPRESSION_MEMORY_LEVEL } =
+        await loadL10n(process.cwd())
       const entries = Object.values(build.initialOptions.entryPoints)
       const roots = entries.filter((entry) => {
         const normal = entry.replaceAll('\\', '/')
-        return !normal.endsWith('/ReferencePage.tsx') && !normal.includes('/temp/')
+        return (
+          !normal.endsWith('/ReferencePage.tsx') &&
+          !normal.endsWith('/ResourceSurface.tsx') &&
+          !normal.endsWith('/ResourcesSection.tsx') &&
+          !normal.includes('/temp/')
+        )
       })
       const eagerSources = browserStartupSources(roots).files
       const { keys, files, eagerKeys } = browserTextKeys(entries, EN, eagerSources)
+      const surfaceKeys = browserTextKeys(
+        entries.filter(
+          (entry) => !Object.values(RESOURCE_WEBVIEW_ENTRIES).includes(entry.replaceAll('\\', '/')),
+        ),
+        EN,
+      ).keys
+      const resourceKeys = browserTextKeys(Object.values(RESOURCE_WEBVIEW_ENTRIES), EN).keys
       const deferredKeys = [...keys].filter((key) => !eagerKeys.has(key))
       const readers = new Set([...keys].filter((key) => !deferredKeys.includes(key)))
       const contract = Object.fromEntries(
@@ -313,15 +361,22 @@ export const compactBrowserUiText = {
         files,
         lanes,
         deferredKeys,
+        surfaceKeys: deferredKeys.filter((key) => surfaceKeys.has(key)),
+        resourceKeys,
         contract,
         level: L10N_BROWSER_COMPRESSION_LEVEL,
+        memoryLevel: L10N_BROWSER_COMPRESSION_MEMORY_LEVEL,
       }
     })
     build.onResolve({ filter: /^browser-table-contract$/ }, () => ({
       path: 'browser-table-contract',
       namespace: 'browser-table-contract',
     }))
-    for (const namespace of ['browser-table-contract', 'browser-surface-english']) {
+    for (const namespace of [
+      'browser-table-contract',
+      'browser-surface-english',
+      'browser-resource-english',
+    ]) {
       build.onResolve({ filter: /.*/, namespace }, (args) => {
         if (args.path === path.resolve(TABLE).replaceAll('\\', '/'))
           return { path: path.resolve(TABLE), namespace: 'file' }
@@ -347,9 +402,35 @@ export const compactBrowserUiText = {
     }))
     build.onLoad({ filter: /.*/, namespace: 'browser-surface-english' }, () => ({
       contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
-${inlineBrowserTable(Object.fromEntries(data.deferredKeys.map((key) => [key, data.EN[key]])), data.level)}
+${inlineBrowserTable(Object.fromEntries(data.surfaceKeys.toSorted((left, right) => (left < right ? -1 : Number(left > right))).map((key) => [key, data.EN[key]])), data.level, data.memoryLevel)}
 installSurfaceEnglish(EN);`,
       loader: 'js',
+    }))
+    build.onResolve({ filter: /^browser-resource-english$/ }, () => ({
+      path: 'browser-resource-english',
+      namespace: 'browser-resource-english',
+    }))
+    build.onLoad({ filter: /.*/, namespace: 'browser-resource-english' }, () => ({
+      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
+${inlineBrowserTable(
+  Object.fromEntries(
+    [...data.resourceKeys]
+      .filter((key) => data.deferredKeys.includes(key))
+      .toSorted((left, right) => (left < right ? -1 : Number(left > right)))
+      .map((key) => [key, data.EN[key]]),
+  ),
+  data.level,
+  data.memoryLevel,
+)}
+installSurfaceEnglish(EN);`,
+      loader: 'js',
+    }))
+    // Independent resource roots install deferred English before their first render.
+    build.onLoad({ filter: /[/\\](?:ResourceSurface|ResourcesSection)\.tsx$/ }, (args) => ({
+      contents: "import 'browser-resource-english';\n" + readFileSync(args.path, 'utf8'),
+      loader: 'tsx',
+      resolveDir: path.dirname(args.path),
+      watchFiles: [args.path],
     }))
     build.onLoad({ filter: /[/\\]webview[/\\].*\.tsx$/ }, (args) => {
       const source = readFileSync(args.path, 'utf8')
@@ -395,7 +476,7 @@ installSurfaceEnglish(EN);`,
     build.onLoad({ filter: /[/\\]l10n[/\\]en\.ts$/ }, (args) => {
       if (path.resolve(args.path) !== path.resolve(TABLE)) return
       return {
-        contents: inlineBrowserTable(data.contract, data.level, data.lanes),
+        contents: inlineBrowserTable(data.contract, data.level, data.memoryLevel, data.lanes),
         loader: 'js',
         watchFiles: [args.path, ...data.files, 'src/shared/reference/reference.generated.json'],
       }

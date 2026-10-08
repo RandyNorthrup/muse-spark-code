@@ -1,3 +1,4 @@
+import type { UsdAmount } from '../../shared/usd'
 // Paid team pricing and grant scopes load with the team runtime (M96, D6).
 import {
   MODEL_API_PRICES_PER_MILLION,
@@ -74,7 +75,7 @@ export async function canUseTeam(
 /** What a `delegate` call's popup quotes for its key tasks (M96, acceptance 23). */
 export function teamWorkerPrice(
   tasks: readonly TeamWorkerConfirmation[],
-  dailyBudgetUsd: number | undefined,
+  dailyBudgetUsd: UsdAmount | undefined,
   dailyBudgetTokens?: number,
 ): string {
   const lines = tasks.map((task) => {

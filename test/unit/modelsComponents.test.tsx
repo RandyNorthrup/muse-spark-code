@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // @vitest-environment jsdom
 // The panel's shared components: every state the plan names (empty,
 // scanning, scan failed, form errors, test results, the table filtered,
@@ -74,9 +75,17 @@ describe('CostNotice', () => {
   it('states the cost and asks before the paid check', () => {
     const onAccept = vi.fn()
     const onDecline = vi.fn()
-    render(<CostNotice costUsd={0.000002} onAccept={onAccept} onDecline={onDecline} />)
+    render(
+      <CostNotice
+        costUsd={Usd.from(0.000002).toAmount()}
+        onAccept={onAccept}
+        onDecline={onDecline}
+      />,
+    )
     expect(
-      screen.getByText(fill(UI_TEXT.providerTestPaid, { cost: formatTestCost(0.000002) })),
+      screen.getByText(
+        fill(UI_TEXT.providerTestPaid, { cost: formatTestCost(Usd.from(0.000002).toAmount()) }),
+      ),
     ).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.suggestionAccept }))
     expect(onAccept).toHaveBeenCalledTimes(1)
@@ -85,8 +94,10 @@ describe('CostNotice', () => {
   })
 
   it('keeps a fraction of a cent readable', () => {
-    expect(formatTestCost(0.000002)).not.toBe(formatTestCost(0))
-    expect(formatTestCost(0.05)).toContain('0.05')
+    expect(formatTestCost(Usd.from(0.000002).toAmount())).not.toBe(
+      formatTestCost(Usd.from(0).toAmount()),
+    )
+    expect(formatTestCost(Usd.from(0.05).toAmount())).toContain('0.05')
   })
 })
 

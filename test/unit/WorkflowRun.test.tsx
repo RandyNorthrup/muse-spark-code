@@ -177,9 +177,10 @@ describe('a workflow run’s card (M47)', () => {
     fireEvent.click(toggle)
     const row = toggle.closest('li')
     expect(row).toHaveAttribute('data-entry-id', WORKFLOW_TOOL_ITEM.itemId)
-    await waitFor(() => {
-      expect(row).toHaveTextContent('export default async function workflow(host)')
-    })
+    expect(
+      await screen.findByText(/export default async function workflow\(host\)/),
+    ).toBeInTheDocument()
+    expect(row).toHaveTextContent('export default async function workflow(host)')
     expect(row).toHaveTextContent(
       'Launched: it runs in the background and reports back to this conversation.',
     )
@@ -196,6 +197,7 @@ describe('a workflow run’s card (M47)', () => {
       }),
     ])
     fireEvent.click(screen.getByRole('button', { name: /Workflow/ }))
+    expect(await screen.findByText(/workflows are disabled for this run/)).toBeInTheDocument()
     const row = document.querySelector('[data-entry-id="resume"]')
     await waitFor(() => {
       expect(row).toHaveTextContent('workflows are disabled for this run')

@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
 // Team intensity (M96 lane F, PLAN.md D75): one control from Minimal to
 // Max that sets the whole team's concurrency, effort and budgets. A manual
 // edit to a role overrides the level for that role only (marked custom);
@@ -37,7 +38,7 @@ export interface TeamIntensitySpec {
   /** Effort steps from the role's base; negative lowers, positive raises. */
   readonly effortSteps: number
   readonly tokensPerTask: number
-  readonly dailyBudgetUsd: number
+  readonly dailyBudgetUsd: UsdAmount
   readonly dailyBudgetTokens: number
 }
 
@@ -47,7 +48,7 @@ function intensitySpec(level: TeamIntensityLevel): TeamIntensitySpec {
     runningPerRole: value.runningPerRole,
     effortSteps: value.effortShift,
     tokensPerTask: value.tokensPerTask,
-    dailyBudgetUsd: value.dailyUsd,
+    dailyBudgetUsd: Usd.from(value.dailyUsd).toAmount(),
     dailyBudgetTokens: value.dailyTokens,
   }
 }

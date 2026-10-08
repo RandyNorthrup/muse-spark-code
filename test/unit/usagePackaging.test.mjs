@@ -48,6 +48,12 @@ function fixture() {
     'acpQuestions',
     'runtimeQuestions',
     'questionNotes',
+    'mcpPool',
+    'exec',
+    'modelApiCodeIntel',
+    'structuredSchema',
+    'resourceAdmission',
+    'resourceGovernor',
     'runtimeEngine',
     'providerPolicy',
     'modelApiBoundaries',
@@ -84,8 +90,17 @@ function fixture() {
   put('dist/providerCatalog.js', 'module.exports={providers:{}};')
   put('dist/legal-data/licenses.json', '{}')
   put('native/runner/runner-helper.sh', '# fixture')
+  put('native/darwin/muse-dictate', 'test-owned inert helper')
+  for (const arch of ['x64', 'arm64'])
+    put(`native/linux/${arch}/muse-created`, 'test-owned inert helper')
   put('docs/npm-readme.md', '# Test package')
-  for (const schema of ['exec-result-v1', 'exec-event-v1', 'share-v1'])
+  for (const schema of [
+    'exec-result-v1',
+    'exec-event-v1',
+    'exec-result-v2',
+    'exec-event-v2',
+    'share-v1',
+  ])
     put(`docs/schemas/${schema}.schema.json`, '{}')
   put(
     'scripts/third-party-notices.mjs',

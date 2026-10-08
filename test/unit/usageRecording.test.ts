@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { readFileSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import { usageRecordSchema } from '../../src/shared/usageJournal'
@@ -422,7 +423,7 @@ describe('recording taps', () => {
       'compaction',
       'count',
     ])
-    expect(run.tap.note.mock.calls.at(-1)?.[1].providerCostUsd).toBe(0)
+    expect(run.tap.note.mock.calls.at(-1)?.[1].providerCostUsd).toBe(Usd.from(0).toAmount())
     await run.host.close()
     const side = await hostRun(true, true)
     side.api.script({ text: 'side answer' })
@@ -472,7 +473,7 @@ describe('recording taps', () => {
       expect(run.tap.note).toHaveBeenCalledOnce()
       const context = run.tap.note.mock.calls[0]?.[1]
       expect(context?.uncertain).toBe(true)
-      expect(context?.retainedLiabilityUsd).toBeGreaterThan(0)
+      expect(Usd.from(context?.retainedLiabilityUsd ?? 0).compare(Usd.from(0))).toBe(1)
       await run.host.close()
     },
   )
@@ -635,7 +636,10 @@ describe('recording taps', () => {
     run.api.script({ text: 'summary' })
     await run.session.compact()
     expect(run.tap.note.mock.calls.filter(([, call]) => call.kind === 'count')).toEqual([
-      [undefined, expect.objectContaining({ outcome: 'failed', providerCostUsd: 0 })],
+      [
+        undefined,
+        expect.objectContaining({ outcome: 'failed', providerCostUsd: Usd.from(0).toAmount() }),
+      ],
     ])
     await run.host.close()
   })

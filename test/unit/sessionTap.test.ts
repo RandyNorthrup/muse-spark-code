@@ -59,6 +59,12 @@ describe('M80 authoritative message release', () => {
     h.tap.subscribe(h.session.sessionId, () => undefined)
     expect(order).toEqual(['ACP', 'tap'])
     expect(await h.wrapped.listModels()).not.toHaveLength(0)
+    const request = { itemId: 'edit', outputRef: 'patch', offsetBytes: 0, lengthBytes: 1 }
+    h.host.readSessionOutput.mockRejectedValueOnce(new Error('child output unavailable'))
+    await expect(h.wrapped.readSessionOutput('child-1', request)).rejects.toThrow(
+      'child output unavailable',
+    )
+    expect(h.host.readSessionOutput).toHaveBeenCalledWith('child-1', request)
   })
   it.each([false, true])(
     'D15/L12 settlement before itemCompleted=%s emits whole final item only',

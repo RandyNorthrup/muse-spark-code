@@ -156,7 +156,13 @@ async function askColour() {
   await act(async () => {
     await import('../../src/webview/components/QuestionUi')
   })
-  fireEvent.click(within(screen.getByRole('main')).getByRole('radio', { name: 'Red' }))
+  const card = document.querySelector('[data-question-slot="dock"]')
+  if (!(card instanceof HTMLElement)) throw new Error('Missing pinned question card')
+  fireEvent.click(within(card).getByRole('radio', { name: 'Red' }))
+}
+
+function questionButton(name: 'Submit' | 'Cancel') {
+  return within(screen.getByRole('region', { name: 'Open question' })).getByRole('button', { name })
 }
 
 function renderReady(status: 'signedIn' | 'signedOut' = 'signedIn') {
@@ -954,10 +960,10 @@ function decisionsPosted(postMessage: ReturnType<typeof renderReady>) {
 }
 
 describe('App approval card: one decision per stage (D26)', () => {
-  it('keeps every button disabled after a click until the host settles the decision', () => {
+  it('keeps every button disabled after a click until the host settles the decision', async () => {
     const postMessage = renderReady()
     deliver({ type: 'agentEvent', event: twoStepApproval('approvalRequested', 0) })
-    const allow = screen.getByRole('button', { name: 'Allow once' })
+    const allow = await screen.findByRole('button', { name: 'Allow once' })
     // Two clicks in one frame, before the locked card renders.
     act(() => {
       allow.click()
@@ -991,10 +997,10 @@ describe('App approval card: one decision per stage (D26)', () => {
     ])
   })
 
-  it('docks the waiting card above the composer and leaves the decision in its row', () => {
+  it('docks the waiting card above the composer and leaves the decision in its row', async () => {
     renderReady()
     deliver({ type: 'agentEvent', event: twoStepApproval('approvalRequested', 0) })
-    const dock = screen.getByRole('region', { name: UI_TEXT.approvalDockLabel })
+    const dock = await screen.findByRole('region', { name: UI_TEXT.approvalDockLabel })
     // Outside the scrolled transcript, before the composer in Tab order.
     expect(screen.getByRole('main')).not.toContainElement(dock)
     expect(dock.compareDocumentPosition(textarea()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -1015,10 +1021,10 @@ describe('App approval card: one decision per stage (D26)', () => {
     expect(screen.queryByText(UI_TEXT.approvalDockedNote)).toBeNull()
   })
 
-  it('re-arms only when the host reopens the stage, and says a step that moved on on the card', () => {
+  it('re-arms only when the host reopens the stage, and says a step that moved on on the card', async () => {
     const postMessage = renderReady()
     deliver({ type: 'agentEvent', event: twoStepApproval('approvalRequested', 0) })
-    fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Allow once' }))
     deliver({ type: 'approvalReopened', approvalId: 'a1' })
     expect(screen.getByRole('button', { name: 'Allow once' })).toBeEnabled()
     fireEvent.click(screen.getByRole('button', { name: 'Allow once' }))
@@ -1063,7 +1069,7 @@ describe('App transcript (M4)', () => {
         isProtectedWrite: false,
       },
     })
-    fireEvent.change(screen.getByPlaceholderText(/what to do instead/), {
+    fireEvent.change(await screen.findByPlaceholderText(/what to do instead/), {
       target: { value: 'no' },
     })
     fireEvent.click(screen.getByText('Reject'))
@@ -1098,11 +1104,22 @@ describe('App transcript (M4)', () => {
     expect(screen.getByText('Allow once')).toBeDisabled()
     stageUpdate(1)
     expect(screen.getByText('Allow once')).toBeEnabled()
+    fireEvent.click(screen.getByText('Allow once'))
+    deliver({
+      type: 'agentEvent',
+      event: {
+        type: 'approvalResolved',
+        approvalId: 'a1',
+        itemId: 'c1',
+        decision: 'approved',
+        resolvedBy: 'user',
+      },
+    })
     await askColour()
 
     await act(async () => {
       await import('../../src/webview/components/QuestionUi')
-      fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
+      fireEvent.click(questionButton('Submit'))
     })
     expect(postMessage).toHaveBeenLastCalledWith({
       type: 'answerQuestion',
@@ -2483,9 +2500,9 @@ describe('App webview and UI state (M25)', () => {
 
     await act(async () => {
       await import('../../src/webview/components/QuestionUi')
-      fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
-      fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
-      fireEvent.click(within(screen.getByRole('main')).getByText('Cancel'))
+      fireEvent.click(questionButton('Submit'))
+      fireEvent.click(questionButton('Submit'))
+      fireEvent.click(questionButton('Cancel'))
     })
     const answers = () =>
       postMessage.mock.calls.filter(
@@ -2496,7 +2513,7 @@ describe('App webview and UI state (M25)', () => {
     deliver({ type: 'notice', level: 'error', text: 'The answer was not accepted: gone' })
     await act(async () => {
       await import('../../src/webview/components/QuestionUi')
-      fireEvent.click(within(screen.getByRole('main')).getByText('Submit'))
+      fireEvent.click(questionButton('Submit'))
     })
     expect(answers()).toHaveLength(2)
   })
@@ -3513,9 +3530,8 @@ describe('App BYO picker and setup (M95)', () => {
       provider: 'OpenRouter',
       model: 'openrouter/deepseek/deepseek-v3',
     })
-    await waitFor(() => {
-      expect(screen.getByRole('status')).toHaveTextContent('OpenRouter')
-    })
+    await screen.findByRole('button', { name: 'Manage providers' })
+    expect(screen.getByRole('status')).toHaveTextContent('OpenRouter')
     expect(screen.getByRole('status')).toHaveTextContent('openrouter/deepseek/deepseek-v3')
     fireEvent.click(screen.getByRole('button', { name: 'Manage providers' }))
     expect(postMessage).toHaveBeenLastCalledWith({ type: 'hostAction', action: 'manageModels' })

@@ -1,20 +1,78 @@
-// ACP /usage and the terminal render the very same page state. Technical
-// provider/model labels are escaped; numbers use the installed display locale.
-import { MILLISECONDS_PER_SECOND } from '../../shared/constants'
+import { UI_TEXT, MILLISECONDS_PER_SECOND } from '../../shared/constants'
 import {
-  fill,
-  formatDate,
-  formatDateTime,
+  formatBytes,
   formatNumber,
   formatPercent,
   formatUnit,
+  fill,
+  formatDate,
+  formatDateTime,
   formatUsd,
   plural,
 } from '../../shared/l10n/text'
+import {
+  resourceHistoryBucket,
+  resourceHistoryDateTime,
+  resourceHistoryEventDetail,
+  resourceHistoryEventName,
+  resourceHistoryLevel,
+} from '../../shared/resourceHistory'
+import type { ResourceRecord } from '../../shared/resources'
+import {
+  aggregateResources,
+  usagePeriodDelta,
+  usageRange,
+  usageSumUsd,
+  usageWindowStatus,
+} from './aggregate'
+
+/** J's resource branch for /usage resources and usage resources; no runtime-only imports. */
+export function usageResourcesText(records: readonly ResourceRecord[]): string {
+  const history = aggregateResources(records)
+  const lines = [UI_TEXT.resourceTitle, UI_TEXT.resourceHistoryObserved]
+  if (history.minutes.length === 0 && history.events.length === 0)
+    return [...lines, UI_TEXT.resourceHistoryEmpty].join('\n')
+  lines.push(UI_TEXT.resourceHistoryDetailNotice)
+  const percent = (value: number | null) =>
+    value === null ? UI_TEXT.resourceUnknown : formatPercent(value)
+  for (const record of history.minutes) {
+    const minute = record.minute
+    if (minute === null) continue
+    lines.push(
+      [
+        resourceHistoryDateTime(record.atMs),
+        resourceHistoryLevel(minute.level),
+        `${UI_TEXT.resourceCpu}: ${percent(minute.cpuPercent)} / ${formatPercent(minute.thresholds.cpuMaxPercent)}`,
+        `${UI_TEXT.resourceMemory}: ${percent(minute.memoryUsedPercent)} / ${formatPercent(minute.thresholds.memoryMaxPercent)}`,
+        `${UI_TEXT.resourceAvailableMemory}: ${resourceHistoryBucket(minute.availableMemory)}`,
+        `${UI_TEXT.resourceGpu}: ${percent(minute.gpuPercent)}`,
+        `${UI_TEXT.resourceDisk}: ${percent(minute.diskBusyPercent)}`,
+      ].join(' · '),
+    )
+  }
+  lines.push(UI_TEXT.resourceHistoryEvents)
+  for (const event of history.events)
+    lines.push(
+      `${resourceHistoryDateTime(event.atMs)}: ${resourceHistoryEventName(event.type)}: ${resourceHistoryEventDetail(event)}`,
+    )
+  for (const row of history.counts)
+    lines.push(
+      `${resourceHistoryEventName(row.type)}${row.kind === null ? '' : ` (${row.kind})`}: ${formatNumber(row.count)}`,
+    )
+  lines.push(UI_TEXT.resourceHarness)
+  for (const row of history.work)
+    lines.push(
+      `${row.kind}: ${UI_TEXT.resourceCpuTime}: ${formatUnit(row.cpuSeconds, 'second')}, ${UI_TEXT.resourcePeakMemory}: ${formatBytes(row.peakMemoryBytes)}`,
+    )
+  return lines.join('\n')
+}
+
+// ACP /usage and the terminal render the very same page state. Technical
+// provider/model labels are escaped; numbers use the installed display locale.
+
 import { USAGE_TEXT } from '../../shared/l10n/usageTable'
 import type { UsageCertainty, UsageLimitSnapshot } from '../../shared/usageJournal'
 import type { UsagePageState, UsageTotals } from '../../shared/usagePage'
-import { usagePeriodDelta, usageRange, usageSumUsd, usageWindowStatus } from './aggregate'
 
 export type UsageTextFormat = 'markdown' | 'plain'
 function certaintyLabel(certainty: UsageCertainty): string {

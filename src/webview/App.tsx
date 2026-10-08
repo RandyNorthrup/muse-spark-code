@@ -39,9 +39,9 @@ import {
   reviewRequestSchema,
 } from '../shared/reviewCommand'
 import { isLegalPrompt, parseLegalPrompt } from '../shared/legalCommand'
-import type { LegalScanRequestMessage } from '../shared/legal'
+import type { LegalScanRequestMessage, LegalFinding } from '../shared/legal'
 import { editorContextLabel } from '../shared/editorContext'
-import type { LegalFinding } from '../shared/legal'
+
 import { effortAt, effortIndex, effortLabel, effortLevelsFor } from '../shared/effort'
 import { parseGoalPrompt, requiresObjective } from '../shared/goalCommand'
 import { parseHandoffPrompt } from '../shared/handoff'
@@ -56,16 +56,17 @@ import { paidFeatureName, paidFeaturePrice, usablePaidFeatures } from '../shared
 import { buildPalette, type PaletteAction } from '../shared/palette'
 import { type SlashCommand, slashCommandsOf } from '../shared/slashCommands'
 import type { GitAction, GitDraftKind } from '../shared/git'
-import type {
-  ChatReference,
-  LineRange,
-  NoticeAction,
-  ReportEventRef,
-  ReviewFile,
-  SignInMethod,
-  WebviewToHostMessage,
+import {
+  type ChatReference,
+  type LineRange,
+  type NoticeAction,
+  type ReportEventRef,
+  type ReviewFile,
+  type SignInMethod,
+  type WebviewToHostMessage,
+  parseHostToWebviewMessage,
 } from '../shared/protocol'
-import { parseHostToWebviewMessage } from '../shared/protocol'
+
 import type { GitFormEdit } from './state/gitState'
 import type { ApprovalDecisionInput } from './components/ApprovalCard'
 import { AttentionDock } from './components/AttentionDock'
@@ -113,8 +114,9 @@ import {
 } from './state/uiState'
 import { isChildRunning } from './workflowDetails'
 import type { QuoteIntent } from './components/QuoteMenu'
-import { Modal } from './components/Modal'
 import { deferred } from './components/DeferredSurface'
+import { Modal } from './components/Modal'
+import type { ResourceSurfaceLoader } from './resources/resourcePort'
 
 const LegalReport = deferred(async () => {
   const module = await import('./components/LegalReport')
@@ -158,10 +160,6 @@ const PlanUi = deferred(async () => {
   const module = await import('./components/PlanUi')
   return { default: module.PlanUi }
 })
-const SetupBanner = deferred(async () => {
-  const module = await import('./components/SetupBanner')
-  return { default: module.SetupBanner }
-})
 const BestOfNDialog = deferred(async () => {
   const module = await import('./components/BestOfNDialog')
   return { default: module.BestOfNDialog }
@@ -187,6 +185,10 @@ const ReferencePage = deferred(async () => {
   }
 }, true)
 
+const SetupBanner = deferred(async () => {
+  const { SetupBanner } = await import('./components/SetupBanner')
+  return { default: SetupBanner }
+})
 const HandoffDialog = deferred(async () => {
   const { HandoffDialog } = await import('./components/HandoffDialog')
   return { default: HandoffDialog }
@@ -229,6 +231,8 @@ export interface AppProps {
   readonly newLocalId?: () => string
   /** Injected so tests get deterministic timestamps. */
   readonly now?: () => number
+  /** U/W: bind the separate resources delivery entry after the first governed spawn. */
+  readonly resources?: ResourceSurfaceLoader
 }
 
 type RewindConversationRequest = Extract<WebviewToHostMessage, { type: 'rewindConversation' }>
@@ -448,8 +452,10 @@ export function App({
   store: externalStore,
   newLocalId = defaultLocalId,
   now = defaultNow,
+  resources,
   planNoticePort,
 }: AppProps) {
+  const ResourceView = resources?.View
   // Callbacks read the store's current state when they run instead of
   // closing over it, so they keep their identity across renders and the
   // memoised transcript rows skip a keystroke or a delta elsewhere (M25).
@@ -2478,6 +2484,7 @@ export function App({
         onSelectAgent={setSelectedAgentId}
         onReadChild={onReadChild}
         onControl={onControlAgent}
+        onOpenFile={onOpenFile}
         onMessage={onMessageAgent}
         onStopTask={onStopTask}
         onStopAllTasks={onStopAllTasks}
@@ -2844,6 +2851,11 @@ export function App({
             </Suspense>
           )}
           <JudgeStatusLine status={state.judge} />
+          {ResourceView === undefined || resources === undefined ? null : (
+            <Suspense fallback={null}>
+              <ResourceView port={resources.port} isInert={isModalOpen} />
+            </Suspense>
+          )}
           {hasPlan && selectedProvider === 'copilot' ? (
             <Suspense fallback={null}>
               <PlanUi surface="note" onOpenExternal={onOpenExternal} />

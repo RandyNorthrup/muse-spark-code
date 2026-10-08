@@ -12,6 +12,7 @@ import { buildSessionExport } from '../../src/core/export/sessionTransfer'
 import { MAY_HOLD_SECRET, redactableSlices, redactSecrets } from '../../src/core/redact'
 import { isCredentialVariable } from '../../src/core/credentialEnvironment'
 import { hookEnvironment } from '../../src/host/backend/toolIo'
+
 import { createLogger } from '../../src/host/logger'
 import { withoutCredentials } from '../../src/runtime/credentialVariables'
 import {
@@ -256,6 +257,10 @@ describe('credential variables', () => {
     'GEMINI_API_KEY',
   ])('strips %s by the _API_KEY suffix rule', (name) => {
     expect(isCredentialVariable(name)).toBe(true)
+  })
+
+  it('removes CI_TOKEN under the shared process credential fence', () => {
+    expect(isCredentialVariable('CI_TOKEN')).toBe(true)
   })
 
   it('keeps non-credential variables', () => {

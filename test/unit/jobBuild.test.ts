@@ -1,4 +1,5 @@
-import { mkdtemp, readdir, writeFile } from 'node:fs/promises'
+import { mkdtemp, readdir, realpath, writeFile } from 'node:fs/promises'
+import * as fsPromises from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -9,8 +10,14 @@ import { SHELL_JOB_FOLDER } from '../../src/shared/constants'
 import { readJobSource } from './helpers/jobSource'
 import { removeFolder } from './helpers/temporaryFolders'
 
+vi.mock('node:fs/promises', { spy: true })
+
 const paths = { root: '' }
-afterEach(() => vi.unstubAllEnvs())
+afterEach(() => {
+  vi.unstubAllEnvs()
+  vi.restoreAllMocks()
+  vi.resetAllMocks()
+})
 
 beforeAll(async () => {
   paths.root = await mkdtemp(path.join(tmpdir(), 'muse-job-build-'))
@@ -43,18 +50,44 @@ describe('Windows job helper compilation under load', () => {
       readJobSource,
       storageDir,
       systemRoot: String.raw`C:\Windows`,
-      run: runWithoutAddType,
+      run: async (file, args, env) => {
+        const output = args.find((arg) => arg.startsWith('/out:'))?.slice('/out:'.length)
+        if (output !== undefined)
+          expect(path.dirname(output)).toBe(await realpath(path.join(storageDir, SHELL_JOB_FOLDER)))
+        return await runWithoutAddType(file, args, env)
+      },
       log: (message) => {
         logged.push(message)
       },
     })
     const helper = await ready()
     expect(helper, logged.join('\n')).toBeDefined()
+    expect(helper).toBe(await realpath(helper!))
     expect(await ready()).toBe(helper)
     expect(logged).toEqual([])
     expect(await readdir(path.join(storageDir, SHELL_JOB_FOLDER))).toEqual([
       path.basename(helper ?? ''),
     ])
+  })
+
+  it('refuses a native path resolution that names a different directory identity', async () => {
+    const storageDir = await mkdtemp(path.join(paths.root, 'identity-change-'))
+    const replacement = await mkdtemp(path.join(paths.root, 'replacement-'))
+    vi.spyOn(fsPromises, 'realpath').mockResolvedValue(replacement)
+    const run = vi.fn(runWithoutAddType)
+    const logged: string[] = []
+    const helper = await shellJobAssembly({
+      readJobSource,
+      storageDir,
+      systemRoot: String.raw`C:\Windows`,
+      run,
+      log: (message) => {
+        logged.push(message)
+      },
+    })()
+    expect(helper).toBeUndefined()
+    expect(run).not.toHaveBeenCalled()
+    expect(logged.join('\n')).toContain('native identity changed')
   })
 
   it.skipIf(process.platform !== 'win32')(

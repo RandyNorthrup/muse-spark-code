@@ -1,6 +1,19 @@
 import type { UsageCost } from '../shared/usageJournal'
 import { estimateCostUsd } from '../core/usage/insights'
-import { MODEL_API_PRICED_MODELS } from '../shared/constants'
+import {
+  MODEL_API_PRICED_MODELS,
+  ACP_TOOL_OUTPUT_MAX_CHARS,
+  FILE_EDIT_TOOLS,
+  FILE_READ_TOOLS,
+  IDE_CONTEXT_TAGS,
+  IMAGE_MAKING_TOOLS,
+  MAX_IMAGE_BYTES,
+  MODEL_API_WEB_SEARCH_TOOL,
+  SELECTION_TEXT_MAX_CHARS,
+  SHELL_TOOLS,
+  type PaidFeature,
+  UI_TEXT,
+} from '../shared/constants'
 // What an ACP client sees of a Muse Spark conversation (PLAN.md D62): the
 // panel's AgentEvents become `session/update` notifications, a prompt's
 // content blocks become turn parts, and the backend's approval choices
@@ -35,20 +48,8 @@ import type {
   ItemSnapshot,
   TodoItem,
 } from '../shared/agentEvents'
-import {
-  ACP_TOOL_OUTPUT_MAX_CHARS,
-  FILE_EDIT_TOOLS,
-  FILE_READ_TOOLS,
-  IDE_CONTEXT_TAGS,
-  IMAGE_MAKING_TOOLS,
-  MAX_IMAGE_BYTES,
-  MODEL_API_WEB_SEARCH_TOOL,
-  SELECTION_TEXT_MAX_CHARS,
-  SHELL_TOOLS,
-  type PaidFeature,
-  UI_TEXT,
-} from '../shared/constants'
-import { fill } from '../shared/l10n/text'
+
+import { fill, formatBytes } from '../shared/l10n/text'
 import { formatMention } from '../shared/mentions'
 import { paidFeaturePrice } from '../shared/paid'
 
@@ -259,6 +260,7 @@ export class UpdateTranslator {
   private readonly summaryParts = new Map<string, number>()
   private readonly toolOutput = new Map<string, string>()
   private readonly announced = new Set<string>()
+  private readonly previewing = new Set<string>()
   /** Each item's kind, so a delta is routed by what it belongs to. */
   private readonly kinds = new Map<string, string>()
   private tokens = { inputTokens: 0, outputTokens: 0, cachedTokens: 0 }
@@ -316,7 +318,31 @@ export class UpdateTranslator {
       item.kind === 'subagent'
         ? `${toolName('subagent_spawn')}: ${item.objective ?? item.role ?? ''}`
         : withPrice(toolTitle(tool, args), item.paid)
-    const status = toolStatus(item.status, isCompleted)
+    const preview = item.argumentPreview
+    const wasPreview = this.previewing.has(item.itemId)
+    if (preview === undefined) this.previewing.delete(item.itemId)
+    else this.previewing.add(item.itemId)
+    const status = preview === undefined ? toolStatus(item.status, isCompleted) : 'pending'
+    const previewContent: ToolCallContent[] | undefined =
+      preview === undefined
+        ? undefined
+        : [
+            {
+              type: 'content',
+              content: {
+                type: 'text',
+                text: [
+                  UI_TEXT.toolArgumentPreviewLabel,
+                  preview.text,
+                  preview.frozen === true
+                    ? UI_TEXT.toolArgumentPreviewPreparing
+                    : UI_TEXT.toolArgumentPreviewPending,
+                  ...(preview.bytes === undefined ? [] : [formatBytes(preview.bytes)]),
+                  ...(preview.truncated ? [UI_TEXT.toolArgumentPreviewTruncated] : []),
+                ].join(PART_SEPARATOR),
+              },
+            },
+          ]
     const updates: SessionUpdate[] = []
     if (!this.announced.has(item.itemId)) {
       this.announced.add(item.itemId)
@@ -328,19 +354,24 @@ export class UpdateTranslator {
         status,
         locations: toolLocations(args, this.cwd),
         rawInput: args ?? item.args,
+        ...(previewContent !== undefined && { content: previewContent }),
       })
       if (!isCompleted) {
         return updates
       }
     }
-    const content = isCompleted
-      ? toolContent(item, this.toolOutput.get(item.itemId) ?? '', this.cwd)
-      : undefined
+    let content = previewContent
+    if (content === undefined && isCompleted) {
+      content = toolContent(item, this.toolOutput.get(item.itemId) ?? '', this.cwd)
+    } else if (content === undefined && wasPreview) {
+      content = []
+    }
     updates.push({
       sessionUpdate: 'tool_call_update',
       toolCallId: item.itemId,
       status,
       ...(content !== undefined && { content }),
+      ...(wasPreview && preview === undefined && { rawInput: args ?? item.args, title }),
       ...(item.kind === 'subagent' && item.result !== undefined && { rawOutput: item.result }),
     })
     if (isCompleted) {
@@ -373,7 +404,7 @@ export class UpdateTranslator {
         ) {
           this.cost = {
             certainty: 'computed',
-            usd: (this.cost?.usd ?? 0) + estimateCostUsd(delta, event.modelId),
+            usd: (this.cost?.usd ?? 0) + Number(estimateCostUsd(delta, event.modelId)),
           }
         } else {
           this.hasUnpricedUsage = true
@@ -384,6 +415,9 @@ export class UpdateTranslator {
       }
       case 'itemStarted':
       case 'itemUpdated': {
+        return this.itemUpdates(event.item, false)
+      }
+      case 'toolArgumentPreview': {
         return this.itemUpdates(event.item, false)
       }
       case 'itemCompleted': {

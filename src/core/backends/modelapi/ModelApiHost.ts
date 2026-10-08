@@ -1,8 +1,43 @@
+import type { GitDraftOutputPort } from '../../git/gitText'
+import type * as CodeIntelEntry from './codeIntelEntry'
+import {
+  Usd,
+  type UsdAmount,
+  sumUsd,
+  multiplyUsd,
+  negateUsd,
+  isPositiveUsd,
+} from '../../../shared/usd'
+import {
+  freezePaidQuote,
+  isSamePaidQuote,
+  type PaidQuote,
+  type PaidUseDecision,
+  type SearchSettlement,
+  modelApiPaidTier,
+  type PaidUseRequest,
+  type SubagentTaskConfirmation,
+  type SubagentUsage,
+} from '../../../shared/paid'
+import { redactDiagnosticEvent, redactSecrets } from '../../redact'
+import {
+  sideCallBody,
+  structuredCompaction,
+  type SideCallAttempt,
+  type StructuredOutputDeps,
+} from './structuredOutput'
+import { notify } from '../../events/notify'
+import { isParallelRead, scheduleTools } from './toolScheduler'
+import { RepeatGuard, toolRepeatKey } from './repeatGuard'
 import { recordPaidUse } from '../../paid/paidFeatures'
 import type { RecordedCall, UsageRecording } from '../../usage/recording'
 import type { UsageBudgetRead } from '../../usage/usageService'
-import { redactDiagnosticEvent } from '../../redact'
-import type { PlanUsageRow } from '../../../shared/usage'
+import type { PlanUsageRow, SubscriptionUsage } from '../../../shared/usage'
+import { finishedAgentEvidence } from '../../agent/agentEvidence'
+import type { AgentEvidence } from '../../../shared/agentEvidence'
+import { endedOutcome, agentStopReason } from '../../../shared/agentOutcome'
+import { buildAgentReceipt, agentFilesFromPatch } from '../../../shared/agentReceipt'
+import { continuationNote, recoveryRefusal } from '../../../shared/agentRecovery'
 // The Model API backend (PLAN.md D1, M7): sessions held in this process,
 // each a replayed conversation on `POST /v1/responses` (stateless reasoning
 // replay, `store: false`) with the in-process tool harness, the permission
@@ -11,6 +46,7 @@ import type { PlanUsageRow } from '../../../shared/usage'
 // Sessions live for the host's lifetime (this VS Code window).
 
 import { Buffer } from 'node:buffer'
+import { ArgumentPreview, type ArgumentPreviewCapabilities } from './argumentPreview'
 import { createHash, randomUUID } from 'node:crypto'
 import { mkdir, rm } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
@@ -44,6 +80,7 @@ import {
   type CheckSkip,
   CLARIFICATION_MAX_CHARS,
   CODE_INTEL_MODEL_TEXT,
+  CONVERSATION_MODEL_TEXT,
   CODE_INTEL_TOOLS,
   COMPACTION_SUMMARY_MAX_TOKENS,
   COMPACTION_SUMMARY_WINDOW_FRACTION,
@@ -76,6 +113,7 @@ import {
   type MemoryScope,
   MODEL_API_CLOSE_SETTLE_MS,
   MODEL_API_CONTEXT_BYTES_PER_TOKEN,
+  MODEL_API_CONTINUATIONS_MAX,
   MODEL_API_CONTEXT_WINDOW,
   MODEL_API_HOOK_PROVIDER,
   MODEL_API_LEGACY_CONTEXT_MODELS,
@@ -112,7 +150,9 @@ import {
   SCHEDULE_MAX_PROMPT_CHARS,
   SCHEDULE_MIN_INTERVAL_MS,
   SCHEDULE_POLL_INTERVAL_MS,
-  SEARCHES_PER_PRICE_UNIT,
+  WEB_SEARCH_MAX_PER_REQUEST,
+  WEB_SEARCH_MIN_PER_REQUEST,
+  WEB_SEARCH_MAX_PER_REQUEST_LIMIT,
   SHELL_DEFAULT_TIMEOUT_MS,
   SKILL_FILE_NAME,
   STORED_SESSION_VERSION,
@@ -129,6 +169,7 @@ import {
   THEN_RUN_ARGUMENT,
   TOOL_OUTPUT_CLIP_MARKER,
   TOOL_OUTPUT_MAX_CHARS,
+  TOOL_ARGUMENT_PREVIEW_INTERVAL_MS,
   TOOL_STATUS_INTERRUPTED,
   UI_TEXT,
   USER_SHELL_ITEM_KIND,
@@ -138,16 +179,12 @@ import {
   VERIFY_SHOWN_FILES_MAX,
   VERIFY_TOOLS,
   WEB_FETCH_SUBJECT_KIND,
+  CODEC_IMAGE_WITHOUT_VISION,
+  TEAM_TOOL_NAMES,
 } from '../../../shared/constants'
-import { fill, formatNumber, plural } from '../../../shared/l10n/text'
+import { fill, formatNumber, plural, uiLocale } from '../../../shared/l10n/text'
 import { APPROVAL_MODES, type ApprovalMode } from '../../../shared/permissionModes'
-import {
-  modelApiPaidTier,
-  type PaidUseRequest,
-  type SubagentTaskConfirmation,
-  type SubagentUsage,
-} from '../../../shared/paid'
-import type { SubscriptionUsage } from '../../../shared/usage'
+
 import type { LegalScanRunner } from '../../../shared/legal'
 import {
   scheduleCadenceSchema,
@@ -237,20 +274,12 @@ import type { ModelApiJudgeConnection } from '../../judge/same/modelApiSource'
 import { approvalHost } from '../../web/hostName'
 import { checkPageUrl } from '../../web/pageUrl'
 import { IndexLineStoppedError, type MemoryStore } from '../../memory/memoryStore'
-import { type CodeIntelDeps, CodeIntelRefusal } from '../../codeIntel/codeIntelQuery'
+import type { CodeIntelDeps } from '../../codeIntel/codeIntelQuery'
+import { CodeIntelRefusal } from '../../codeIntel/codeIntelRefusal'
 import { codeIntelToolOf } from '../../codeIntel/definitions'
 import type { LanguageServiceHost } from '../../codeIntel/languageService'
 import type { RenamePlanResult } from '../../codeIntel/rename'
-import { repoMapSection } from '../../codeIntel/repoMap'
-import {
-  applyRename,
-  isProtectedRename,
-  planRenameCall,
-  renameCardPath,
-  renameHookFiles,
-  renameRefused,
-  runCodeIntelRead,
-} from './codeIntelCalls'
+
 import type { PermissionSettings } from '../../permissionSettings'
 import { ReviewBreaker } from './autoReviewer'
 import type {
@@ -287,13 +316,13 @@ import {
 } from './goals'
 import type { GoalRecord } from './goalRecord'
 import { type EnvironmentFacts, instructionsFor, localPromptDate } from './instructions'
-import {
-  type ForeignDispatchContext,
-  type ForeignHookAdapter,
-  type HookDefinition,
-  type HookDispatch,
-  type HookEvent,
-  type HookReplacement,
+import type {
+  ForeignDispatchContext,
+  ForeignHookAdapter,
+  HookDefinition,
+  HookDispatch,
+  HookEvent,
+  HookReplacement,
 } from './hooks'
 import { toolMatcherNames } from './hookNames'
 import {
@@ -312,6 +341,8 @@ import { postModelCallFields, preModelCallFields } from './modelCallHooks'
 import type { HookMcpOutcome, HookModelTurn, HookModelDailyBudget } from './hookHandlers'
 import { ObservationPack, estimatePackTokens } from './observationPack'
 import { nextScheduleFire } from './schedules'
+import { admitResource, inResourceClass } from '../../resources/admission'
+import type { ResourceLease } from '../../resources/launch'
 import {
   type BudgetBase,
   type BudgetReservation,
@@ -322,8 +353,9 @@ import {
   type SessionBudgetClaim,
   SessionBudgetExceededError,
 } from './sessionBudget'
-import { uiLocale } from '../../../shared/l10n/text'
+
 import { formatUsd } from '../../usage/insights'
+
 import { runLegalScanCall } from './legalScanTool'
 import { toolHookInput, toolHookOutput } from './toolHookPayload'
 import {
@@ -349,7 +381,7 @@ import {
 } from './extensionHooks'
 import { type ImagePlan, imageUseRequest, prepareImageCall, runImageCall } from './imageGeneration'
 import { cacheMissTokens, promptCacheKey } from './promptCache'
-import { CODEC_IMAGE_WITHOUT_VISION } from '../../../shared/constants'
+
 import { readImageInfo } from '../../imageDimensions'
 import { resizeImage } from '../../imageResize'
 import type { ModelCapabilities } from '../../providers/capabilities'
@@ -401,7 +433,7 @@ import {
   verdictFor,
 } from './permissions'
 import { describePolicyProblem, type PermissionPolicy, PolicyCache } from './permissionPolicy'
-import { sanitizeImportedSession, type SessionExport } from '../../export/sessionTransfer'
+import type { SessionExport } from '../../export/sessionTransfer'
 import {
   headerOf,
   recordOf,
@@ -480,7 +512,7 @@ import {
   TEAM_BOOTSTRAP_MODEL_TEXT,
   type TeamConversationMode,
 } from '../../../shared/teamConversation'
-import { TEAM_TOOL_NAMES } from '../../../shared/constants'
+
 import type { TeamCommandRecord, TeamCommandRegistry, TeamToolName } from '../../team/teamTools'
 import type { createTeamRuntime } from '../../team/teamEntry'
 import type {
@@ -518,7 +550,11 @@ export interface ModelApiPaidHooks {
   /** Whether a paid feature is on: its machine setting and accepted price. */
   readonly isPaidFeatureOn: (feature: PaidFeature) => boolean
   /** Counts attempts and extra-feature uses for the window. */
-  readonly notePaidUse: (feature: PaidFeature, units: number) => void
+  readonly notePaidUse: (
+    feature: PaidFeature,
+    units: number,
+    searchPriceUsd?: UsdAmount | SearchSettlement,
+  ) => void
   /**
    * The popup before a paid use (M58, PLAN.md D48): true when it is allowed
    * always in this workspace or allowed now. `requiresAsking` asks even then.
@@ -530,7 +566,7 @@ export interface ModelApiPaidHooks {
     request: PaidUseRequest,
     requiresAsking: boolean,
     sessionId: string,
-  ) => Promise<boolean>
+  ) => Promise<PaidUseDecision>
   /** Whether the feature is allowed always in this workspace, asking nothing. */
   readonly isPaidUseRemembered: (feature: PaidFeature) => boolean
   /** Child token cost is a subset of the parent's conversation estimate. */
@@ -546,8 +582,8 @@ export interface ModelApiPaidHooks {
   readonly hookModelDailyBudget?: HookModelDailyBudget | undefined
 }
 
-export interface ModelApiHostDeps extends ModelApiPaidHooks {
-  /** M98: same-model paid source. */
+export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDeps {
+  /** M98: injected same-model source; all paid dispatch admitted by lane A. */
   readonly judge?: JudgeAdvisory | undefined
   readonly client: ProviderClient
   readonly models?: ModelResolver | undefined
@@ -642,13 +678,34 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
   /** Whether a paid feature is on (M33–M35, PLAN.md D30): its setting, and its price accepted. */
   readonly isPaidFeatureOn: (feature: PaidFeature) => boolean
   /** Counts paid uses for the window's tally: searches made, images returned. */
-  readonly notePaidUse: (feature: PaidFeature, units: number) => void
+  readonly notePaidUse: (
+    feature: PaidFeature,
+    units: number,
+    searchPriceUsd?: UsdAmount | SearchSettlement,
+  ) => void
   /** `museSpark.modelApiPromptCacheRetention`, read per request (M56, PLAN.md D43). */
   readonly promptCacheRetention: () => PromptCacheRetention
   /** `museSpark.modelApiSessionBudgetUsd`, read per request; 0 is no cap (M82). */
-  readonly sessionBudgetUsd: () => number
+  readonly sessionBudgetUsd: () => UsdAmount
+  /** M95's selected record, narrowed structurally until its subsystem is integrated. */
+  readonly modelCapabilities?: (modelId: string) =>
+    | {
+        readonly hosted: {
+          readonly webSearch:
+            | { readonly state: 'yes'; readonly value: { readonly tool: string } }
+            | { readonly state: 'no' | 'unknown' }
+          readonly maxToolCalls:
+            { readonly state: 'yes'; readonly value: true } | { readonly state: 'no' | 'unknown' }
+        }
+      }
+    | undefined
+  /** The configured bound is captured once for the session (D86.1). */
+  readonly webSearchMaxPerRequest?: () => number
   /** `museSpark.modelApiReplyUsage`, read per reply (M82). */
   readonly showReplyUsage: () => boolean
+  /** M106 L1: selected M95 record projection; absent/unknown leaves today's stream unchanged. */
+  readonly argumentPreviewCapabilities?:
+    ((modelId: string) => ArgumentPreviewCapabilities | undefined) | undefined
   /**
    * Observation packing (M73, PLAN.md D49): `museSpark.modelApiObservationPacking`,
    * or the M75 eval's `packing` arm. Read when a session is created or
@@ -656,6 +713,18 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks {
    * false packs nothing and offers no `recall_output`.
    */
   readonly observationPacking?: (() => boolean) | undefined
+  /** M106, fixed for the session. Lane W binds modelApiParallelReads in every host. */
+  readonly strictTools?: () => boolean
+  readonly parallelReads?: () => boolean
+  /** Lane W binds the selected M95 record's output.maxTokens; absent keeps the legacy cap. */
+  readonly modelOutputMaxTokens?: (modelId: string) => number | undefined
+  /** Fixed for the session, with an explicit off arm for byte-identical requests. */
+  readonly outputContinuation?: () => boolean
+  /** Trusted host proof of an unchanged complete result, never an MCP annotation. */
+  readonly repeatResultWitness?: {
+    readonly observed: (call: FunctionCallItem, outcome: ToolOutcome) => string | undefined
+    readonly current: (call: FunctionCallItem, signal: AbortSignal) => Promise<string | undefined>
+  }
   /**
    * The shell keeps its directory between calls (M91 lane S, PLAN.md D70):
    * `museSpark.modelApiShellKeepsDirectory`, read per shell call. Absent or
@@ -878,6 +947,9 @@ interface TranscriptItem {
 
 /** One Model API child: a private session with its own replay and transcript. */
 interface ChildRecord {
+  resourceStop?: AbortController | undefined
+  resourceLease?: ResourceLease | undefined
+  evidence: AgentEvidence
   readonly id: string
   readonly role: string
   readonly objective: string
@@ -900,7 +972,7 @@ interface ChildRecord {
   /** The goal active when this child's current turn began, never a later replacement. */
   chargedGoalId: string | undefined
   /** Already displayed cost; the child settles its own resolved provider price. */
-  costUsd: number
+  costUsd: UsdAmount
   readonly waiters: Set<() => void>
   readonly pendingMessages: string[]
   followupAfterStop: string | undefined
@@ -932,9 +1004,20 @@ interface ChildTaskGrant {
    * always in this workspace. A child never asks for itself.
    */
   readonly isWebSearchAllowed: boolean
+  readonly searchQuote?: PaidQuote
+}
+
+interface PreparedGitDraft {
+  readonly attempt: SideCallAttempt
+  readonly signal: AbortSignal
+  readonly model: string
+  readonly revision: number
+  turnId: string | undefined
 }
 
 interface QueuedTurn {
+  readonly resourceClass?: 'foreground' | 'background'
+  readonly draft?: PreparedGitDraft
   readonly turnId: string
   readonly parts: readonly TurnPart[]
   readonly displayText: string | undefined
@@ -963,6 +1046,7 @@ const GOAL_REFUSAL_REASONS: Readonly<Record<GoalRefusal, string>> = {
 const GOAL_WAKING_VERBS: ReadonlySet<GoalCommandVerb> = new Set(['set', 'edit', 'resume'])
 
 interface ActiveTurn {
+  readonly draft?: PreparedGitDraft
   readonly turnId: string
   readonly abort: AbortController
   readonly confirmedRequest?: ConfirmedModelRequest
@@ -991,14 +1075,45 @@ interface HookToolResult {
   readonly stopReason: string | undefined
 }
 
+interface PreparedToolCall {
+  readonly isInteractiveShell: boolean
+  readonly call: FunctionCallItem
+  readonly effectiveCall: FunctionCallItem
+  readonly pre: HookDispatch
+  readonly started: ItemSnapshot
+  readonly startedAt: number
+  readonly selectionReason: string | undefined
+  readonly provisionalSeen: Map<string, string>
+}
+
+interface ExecutedToolCall {
+  readonly isRepeatSuppressed: boolean
+  readonly isRepeatStopped: boolean
+  readonly isParallelExecution: boolean
+  readonly result: CallResult
+  readonly slot: AdmissionSlot
+}
+
 interface StreamedCall {
   readonly calls: readonly FunctionCallItem[]
   readonly goalCommandRevision: number
   readonly postContexts: readonly string[]
+  readonly incompleteReason: string | undefined
+}
+
+/** A quote changed before fetch; refund nonsent claims and obtain current consent. */
+class PaidQuoteChangedError extends Error {
+  public constructor() {
+    super(UI_TEXT.sessionBudgetSearchUnavailable)
+  }
 }
 
 /** A request's budget reservation while it runs (M82). */
 interface OpenReservation extends BudgetReservation {
+  /** Returned search fees share this request's original durable claim. */
+  searchSpentUsd: UsdAmount
+  readonly searchReservedUsd: UsdAmount
+  hasTerminalSearchCount: boolean
   /** The model the body names: a base only while the session still uses it. */
   readonly modelId: string
   /** Any intervening model change invalidates its base, including a switch back. */
@@ -1037,7 +1152,7 @@ interface ReplyUsageTally {
   readonly outputTokens: number
   readonly cachedTokens: number
   readonly reasoningTokens: number
-  readonly costUsd: number | undefined
+  readonly costUsd: UsdAmount | undefined
 }
 
 interface Pending<T> {
@@ -1187,10 +1302,8 @@ interface ChildAdmission {
 }
 
 /** Where a streamed output item stands while its deltas arrive. */
-interface OpenItem {
+interface OpenItemFields {
   readonly ourId: string
-  /** A search (M33) is shown as a tool row, marked paid. */
-  readonly kind: 'agentMessage' | 'reasoning' | 'webSearch'
   text: string
   readonly summary: string[]
   /** In the transcript as completed: a later sight of the item only updates it. */
@@ -1200,6 +1313,17 @@ interface OpenItem {
   /** When the item completed (M87, PLAN.md D66): a reply's recorded time, kept with it. */
   recordedAt?: string
 }
+
+type OpenItem = OpenItemFields &
+  (
+    | { readonly kind: 'agentMessage' | 'reasoning' | 'webSearch' }
+    | {
+        readonly kind: 'argumentPreview'
+        readonly call: FunctionCallItem
+        readonly preview: ArgumentPreview
+        previewAt?: number
+      }
+  )
 
 /** What a search row shows: the query (or page) as its arguments, the results as its output. */
 function searchPresentation(item: WebSearchCallItem): {
@@ -1268,6 +1392,8 @@ const FORWARDED_CHILD_EVENTS: ReadonlySet<AgentEvent['type']> = new Set([
   'approvalRequested',
   'approvalUpdated',
   'approvalResolved',
+  'questionRequested',
+  'questionSettled',
   'elicitationRequested',
   'elicitationSettled',
 ])
@@ -1292,7 +1418,6 @@ const SUMMARY_FIELD_PREFIX = 'summary.'
 const EXPANDED_SLASH_NAME = /^\/([\w:-]+)/
 const TEXT_FIELD = 'text'
 const OUTPUT_TEXT = 'output_text'
-const COMMENTARY_PHASE = 'commentary'
 const PRESSURE_LOW = 'low'
 const PRESSURE_MEDIUM = 'medium'
 const PRESSURE_HIGH = 'high'
@@ -2055,7 +2180,8 @@ function subjectFor(
 /** `work`'s value, or an `AbortedError` as soon as the turn is stopped; `work` runs on. */
 async function unlessStopped<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
   if (signal.aborted) {
-    // The dependency already started; a later rejection must still be observed.
+    // A read can already be in flight when Stop wins admission. Observe its
+    // eventual rejection even though nobody will wait for it.
     void work.catch(NO_UNSUBSCRIBE)
     throw new AbortedError()
   }
@@ -2097,11 +2223,37 @@ function waitFor<T>(signal: AbortSignal, register: (pending: Pending<T>) => void
   })
 }
 
+function modelOutputPage(content: string, request: OutputPageRequest): Promise<OutputPage> {
+  const bytes = Buffer.from(content, MODEL_API_OUTPUT_ENCODING)
+  // Pages start and end on character boundaries, as the CLI serves them (D26):
+  // a character split across two pages would decode as U+FFFD in both.
+  const start = characterStart(bytes, Math.min(request.offsetBytes, bytes.length))
+  let end = characterStart(bytes, Math.min(start + request.lengthBytes, bytes.length))
+  if (end <= start && start < bytes.length) {
+    end = characterEnd(bytes, start)
+  }
+  const slice = bytes.subarray(start, end)
+  return Promise.resolve({
+    content: slice.toString(MODEL_API_OUTPUT_ENCODING),
+    encoding: MODEL_API_OUTPUT_ENCODING,
+    mediaType: MODEL_API_OUTPUT_MEDIA_TYPE,
+    offsetBytes: start,
+    byteLen: slice.length,
+    eof: end >= bytes.length,
+  })
+}
+
 export class ModelApiSession implements AgentSession {
   private lastJudgeBody: CreateResponseBody | undefined
   private readonly listeners = new Set<SessionEventListener>()
   private readonly replay: ReplayItem[] = []
   private readonly transcript: TranscriptItem[] = []
+  /** Display rows only; consumed by runCall, never included in the request body. */
+  private readonly argumentPreviewRows = new Map<string, ItemSnapshot>()
+  private readonly argumentPreviewTimers = new Map<
+    string,
+    { timer: ReturnType<typeof setTimeout>; flush: () => void }
+  >()
   private readonly turnIds: string[] = []
   /** The real last turn summarized by an accepted compaction, not inferred from replay gaps. */
   private compactedThroughTurnId: string | undefined
@@ -2232,7 +2384,9 @@ export class ModelApiSession implements AgentSession {
     ) {
       throw new ChildTaskRefusedError('webSearchOff')
     }
-    this.deps.notePaidUse('subagents', 1)
+    this.notifyUsage(() => {
+      this.deps.notePaidUse('subagents', 1)
+    })
   }
   private active: ActiveTurn | undefined
   /** The actual sent prefix, including media omissions and sticky packed placeholders. */
@@ -2282,6 +2436,12 @@ export class ModelApiSession implements AgentSession {
   private readonly budget: MediaBudget
   /** Packed tool outputs and the savings ledger (M73): undefined unless packing is on. */
   private readonly packing: ObservationPack | undefined
+  private readonly strictTools: boolean
+  private readonly parallelReads: boolean
+  private readonly outputContinuation: boolean
+  private outputFormat: CreateResponseBody['text']
+  private readonly outputCaps = new Map<string, number>()
+  private readonly repeatGuard = new RepeatGuard()
   /**
    * The ledger total a resumed session brought (M73), kept so a save keeps
    * it even where this session does not pack; a packing session's store
@@ -2305,12 +2465,25 @@ export class ModelApiSession implements AgentSession {
   private compacting: AbortController | undefined
   private effort: string = DEFAULT_EFFORT
   private todos: readonly TodoItem[] = []
+  private todoTurnId: string | undefined
+  private outcomeStopReason: AgentEvidence['stopReason']
+  private responseIncomplete = false
   /** The session goal (M45, PLAN.md D38), in Muse Code's own record shape. */
   private goal: GoalRecord | undefined
   /** Accepted user goal commands invalidate goal tools from older requests. */
   private goalCommandRevision = 0
   /** Model calls since the goal last moved: the step probe's count (D38). */
   private goalSteps = 0
+  private resourceAdmissionStop = new AbortController()
+  private scheduledResource:
+    | {
+        readonly id: string
+        readonly generation: number
+        readonly lease: ResourceLease | undefined
+        turnId?: string
+      }
+    | undefined
+  private scheduleResourceGeneration = 0
   /** Local date frozen with the session, across resume and fork (M101). */
   private promptDate: string
   private scheduleTimer: ReturnType<typeof setInterval> | undefined
@@ -2323,19 +2496,20 @@ export class ModelApiSession implements AgentSession {
    * of a request whose response began but never reported. A child session
    * keeps none of its own.
    */
-  private budgetSpentUsd = 0
+  private budgetSpentUsd = Usd.from(0).toAmount()
   /** Settled usage on this session alone, separate from the shared journal. */
-  private usageCostUsd = 0
+  private usageCostUsd = Usd.from(0).toAmount()
   private hasUnknownBudgetCost = false
   private budgetIsFreshFork = false
   private budgetAccountId: string | undefined
   private budgetWrites: Promise<void> = Promise.resolve()
-  private turnCostUsd = 0
+  private turnCostUsd = Usd.from(0).toAmount()
   /** The last reported request, which the next estimate starts from (M82). */
   private budgetBase: BudgetBase | undefined
   private modelRevision = 0
   /** The reservation of the request in flight, until its usage is reported or it ends (M82). */
   private openReservation: OpenReservation | undefined
+  private readonly searchMaxPerRequest: number
   /** What the requests since the last reply line used (M82), for the next line. */
   private unshownUsage: ReplyUsageTally | undefined
   /**
@@ -2346,6 +2520,10 @@ export class ModelApiSession implements AgentSession {
   private sendingContextModel: ContextModel | undefined
   private isSendingCompaction = false
   private previousCacheUsage: { readonly modelId: string; readonly inputTokens: number } | undefined
+  private approvedSearchQuote: PaidQuote | undefined
+  private sendingSearchQuote: PaidQuote | undefined
+  private sendingSearchBound: number | undefined
+  private chargedSearchCalls = 0
   private recordedCall: RecordedCall | undefined
   private wasCallSent = false
   private hasAmbiguousCallAttempt = false
@@ -2411,8 +2589,18 @@ export class ModelApiSession implements AgentSession {
      */
     private readonly extensionHooks: readonly ExtensionHookDefinition[] = [],
   ) {
+    // The existing disposal owner releases authority for every session,
+    // including children restored or forked without a host-map entry.
+    this.onDispose = () => {
+      deps.client.releaseSearchQuotes?.(sessionId)
+      onDispose()
+    }
+    this.strictTools = this.deps.strictTools?.() ?? true
+    this.parallelReads = this.deps.parallelReads?.() ?? true
+    this.outputContinuation = this.deps.outputContinuation?.() ?? true
     this.workspaceEdits.add(this.ledger)
     this.modelId = modelId
+    this.searchMaxPerRequest = deps.webSearchMaxPerRequest?.() ?? WEB_SEARCH_MAX_PER_REQUEST
     this.permissions = new PermissionEngine(approvalMode)
     this.policies = new PolicyCache(
       deps.permissionSettings ?? (() => NO_PERMISSION_SETTINGS),
@@ -2504,14 +2692,22 @@ export class ModelApiSession implements AgentSession {
 
   private emit(event: AgentEvent): void {
     const safe = redactDiagnosticEvent(event)
-    for (const listener of this.listeners) {
-      listener(safe)
-    }
+    notify(this.listeners, safe, this.deps.log, 'modelApi.event', (diagnostic) => {
+      notify(this.listeners, diagnostic, this.deps.log, 'backend.diagnostic')
+    })
+  }
+
+  private notifyUsage(observer: () => void): void {
+    notify([observer], undefined, this.deps.log, 'modelApi.usage', (event) => {
+      this.reportListenerFailure(event)
+    })
   }
 
   private touch(): void {
     this.lastActivityAt = new Date(this.deps.now()).toISOString()
-    this.onChanged()
+    notify([this.onChanged], undefined, this.deps.log, 'modelApi.changed', (event) => {
+      this.emit(event)
+    })
   }
 
   private hookPayload(
@@ -2618,6 +2814,12 @@ export class ModelApiSession implements AgentSession {
    * (`decideAndRunRename`), so a hook never allows one set of files while
    * another is written.
    */
+  private async codeIntelligence(): Promise<typeof CodeIntelEntry> {
+    const entry = await import('./codeIntelEntry.js')
+    entry.installLanguage(UI_TEXT, uiLocale())
+    return entry
+  }
+
   private async preToolInput(
     call: FunctionCallItem,
     signal: AbortSignal,
@@ -2640,6 +2842,7 @@ export class ModelApiSession implements AgentSession {
     ) {
       return toolHookInput(args)
     }
+    const { planRenameCall, renameHookFiles } = await this.codeIntelligence()
     const planning = planRenameCall(call.arguments, deps)
     this.hookRenamePlans.set(call, planning)
     try {
@@ -2732,8 +2935,8 @@ export class ModelApiSession implements AgentSession {
         isNetworkAllowed: () =>
           this.deps.isWorkspaceTrusted() && this.deps.isHookNetworkAllowed?.() === true,
         isHookModelsOn: () => this.deps.isPaidFeatureOn('hookModels'),
-        allowsHookModelUse: (request) =>
-          this.deps.allowsPaidUse(
+        allowsHookModelUse: async (request) =>
+          (await this.deps.allowsPaidUse(
             {
               feature: 'hookModels',
               event: request.event,
@@ -2745,11 +2948,15 @@ export class ModelApiSession implements AgentSession {
             },
             false,
             this.askingSessionId,
-          ),
+          )) === true,
         noteHookModelRun: () => {
-          this.deps.notePaidUse('hookModels', 1)
+          this.notifyUsage(() => {
+            this.deps.notePaidUse('hookModels', 1)
+          })
         },
-        noteHookModelUsage: this.deps.noteHookModelUsage,
+        noteHookModelUsage: (modelId, usage) => {
+          this.notifyUsage(() => this.deps.noteHookModelUsage?.(modelId, usage))
+        },
         modelId: this.modelId,
       },
       adapter,
@@ -3044,6 +3251,7 @@ export class ModelApiSession implements AgentSession {
       return
     }
     try {
+      const { repoMapSection } = await this.codeIntelligence()
       const text = await repoMapSection(deps, signal)
       if (!signal.aborted) {
         this.repoMapTries += 1
@@ -3118,22 +3326,33 @@ export class ModelApiSession implements AgentSession {
    * against the parent's cap (M82 owner decision).
    */
   private budgeted(body: CreateResponseBody): CreateResponseBody {
+    const searchBound = this.webSearchBound()
+    if (
+      searchBound !== undefined &&
+      body.tools.some((tool) => tool.type === MODEL_API_WEB_SEARCH_TOOL)
+    ) {
+      body = { ...body, max_tool_calls: searchBound }
+    }
     this.openReservation = undefined
     if (this.isSubagent || this.deps.client.isPlanModel?.(body.model) === true) return body
     const capUsd = this.currentBudgetCap()
-    if (capUsd <= 0 && this.budgetJournal() === undefined) {
+    if (Usd.from(capUsd).compare(Usd.from(0)) <= 0 && this.budgetJournal() === undefined) {
       return body
     }
     const estimate = estimateInput(requestParts(body), this.budgetBase)
     const maxOutputTokens = body.max_output_tokens
     const selected = this.selectedModel(body.model)
     const reservation =
-      capUsd > 0
+      Usd.from(capUsd).compare(Usd.from(0)) > 0
         ? reserveRequest({
             capUsd,
             spentUsd: this.budgetSpentUsd,
             estimatedInputTokens: estimate.inputTokens,
             modelId: body.model,
+            ...(body.max_tool_calls !== undefined && {
+              maxToolCalls: body.max_tool_calls,
+              searchPriceUsd: this.approvedSearchQuote?.tariffUsd,
+            }),
             maxOutputTokens,
             images: requestImageCount(body),
             ...(body.model.includes('/') && { price: selected.price }),
@@ -3141,22 +3360,35 @@ export class ModelApiSession implements AgentSession {
         : {
             estimatedInputTokens: estimate.inputTokens,
             maxOutputTokens,
-            costUsd:
-              selected.price.reserve({
-                inputTokens: estimate.inputTokens,
-                outputTokens: maxOutputTokens,
-                cachedTokens: 0,
-                images: requestImageCount(body),
-              }) ?? 0,
+            costUsd: sumUsd(
+              Usd.from(
+                selected.price.reserve({
+                  inputTokens: estimate.inputTokens,
+                  outputTokens: maxOutputTokens,
+                  cachedTokens: 0,
+                  images: requestImageCount(body),
+                }) ?? 0,
+              ).toAmount(),
+              multiplyUsd(
+                this.approvedSearchQuote?.tariffUsd ?? Usd.from(0).toAmount(),
+                body.max_tool_calls ?? 0,
+              ),
+            ),
           }
     this.openReservation = {
       ...reservation,
+      searchSpentUsd: Usd.from(0).toAmount(),
+      searchReservedUsd: multiplyUsd(
+        this.approvedSearchQuote?.tariffUsd ?? Usd.from(0).toAmount(),
+        body.max_tool_calls ?? 0,
+      ),
+      hasTerminalSearchCount: false,
       modelId: body.model,
       modelRevision: this.modelRevision,
       goalRevision: this.goalCommandRevision,
       isWorkspaceTrusted: this.deps.isWorkspaceTrusted(),
       paidFeatures: PAID_FEATURES.filter((feature) => this.deps.isPaidFeatureOn(feature)),
-      hasCap: capUsd > 0,
+      hasCap: Usd.from(capUsd).compare(Usd.from(0)) > 0,
       hasUnknownCost:
         selected.policy.pricing.kind === 'unpriced' || selected.policy.pricing.kind === 'plan',
       hasAmbiguousAttempt: false,
@@ -3168,7 +3400,9 @@ export class ModelApiSession implements AgentSession {
       isSent: false,
       isRefused: false,
     }
-    return capUsd > 0 ? { ...body, max_output_tokens: reservation.maxOutputTokens } : body
+    return Usd.from(capUsd).compare(Usd.from(0)) > 0
+      ? { ...body, max_output_tokens: reservation.maxOutputTokens }
+      : body
   }
 
   /**
@@ -3179,6 +3413,9 @@ export class ModelApiSession implements AgentSession {
     this.sendingImageCount = requestImageCount(body)
     this.sendingModel = this.selectedModel(body.model)
     this.sendingModelId = body.model
+    this.sendingSearchQuote = this.approvedSearchQuote
+    this.sendingSearchBound = body.max_tool_calls
+    this.chargedSearchCalls = 0
     this.hasRecordedCall = false
     this.wasCallSent = false
     this.hasAmbiguousCallAttempt = false
@@ -3231,7 +3468,7 @@ export class ModelApiSession implements AgentSession {
     )
     if (this.openReservation !== reservation) {
       // Stop ended this unsent request while its durable claim was pending.
-      await reservation.claim.settle(0, false)
+      await reservation.claim.settle(Usd.from(0).toAmount(), false)
       return
     }
     reservation.isReserved = true
@@ -3244,9 +3481,10 @@ export class ModelApiSession implements AgentSession {
     return this.parentSession?.budgetOwner() ?? this
   }
 
-  private currentBudgetCap(): number {
-    if (this.deps.client.isPlanModel?.(this.modelId) === true) return 0
-    return this.isSubagent ? 0 : (this.deps.budgetScope?.capUsd() ?? this.deps.sessionBudgetUsd())
+  private currentBudgetCap(): UsdAmount {
+    return this.isSubagent
+      ? Usd.from(0).toAmount()
+      : (this.deps.budgetScope?.capUsd() ?? this.deps.sessionBudgetUsd())
   }
 
   private budgetJournal(): SessionStore['budget'] {
@@ -3258,6 +3496,7 @@ export class ModelApiSession implements AgentSession {
   /** Read shared spending before computing any new request's allowance. */
   private async refreshBudgetSpend(): Promise<void> {
     await this.budgetWrites
+    if (this.deps.client.isPlanModel?.(this.modelId) === true) return
     const owner = this.budgetOwner()
     const scope = this.deps.budgetScope
     const accountId = await this.deps.getAccountId()
@@ -3271,7 +3510,7 @@ export class ModelApiSession implements AgentSession {
     owner.budgetAccountId = accountId
     const journal = this.budgetJournal()
     if (journal === undefined) {
-      if (this.currentBudgetCap() > 0) {
+      if (Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0) {
         throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
       }
       return
@@ -3281,7 +3520,10 @@ export class ModelApiSession implements AgentSession {
     }
     const total = await journal.read(scope?.sessionId ?? owner.sessionId, accountId)
     owner.budgetIsFreshFork = false
-    if (this.currentBudgetCap() > 0 && total.hasUnknownHistoricalFees) {
+    if (
+      Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0 &&
+      total.hasUnknownHistoricalFees
+    ) {
       throw new Error(UI_TEXT.sessionBudgetLegacyFeesUnknown)
     }
     this.budgetSpentUsd = total.spentUsd
@@ -3290,11 +3532,12 @@ export class ModelApiSession implements AgentSession {
 
   /** Each charge owns its journal entry; another host's snapshot cannot erase it. */
   private recordBudgetCost(
-    costUsd: number,
+    costUsd: UsdAmount,
     claim: SessionBudgetClaim | undefined,
     hasUnknownCost = false,
+    isFinal = true,
   ): void {
-    if (costUsd === 0 && claim === undefined && !hasUnknownCost) {
+    if (claim === undefined && !hasUnknownCost && !isPositiveUsd(costUsd)) {
       return
     }
     const owner = this.budgetOwner()
@@ -3315,7 +3558,7 @@ export class ModelApiSession implements AgentSession {
               costUsd,
               hasUnknownCost,
             )
-          : await claim.settle(costUsd, hasUnknownCost)
+          : await claim.settle(costUsd, hasUnknownCost, isFinal)
       this.budgetSpentUsd = total.spentUsd
       owner.hasUnknownBudgetCost = total.hasUnknownHistoricalFees
       this.touch()
@@ -3362,6 +3605,8 @@ export class ModelApiSession implements AgentSession {
     this.sendingModelId = undefined
     this.sendingContextModel = undefined
     this.isSendingCompaction = false
+    this.sendingSearchBound = undefined
+    this.sendingSearchQuote = undefined
     this.sendingModel = undefined
     if (reservation === undefined) {
       await this.budgetWrites
@@ -3369,16 +3614,28 @@ export class ModelApiSession implements AgentSession {
     }
     const costUsd =
       reservation.hasAmbiguousAttempt || (reservation.isSent && !reservation.isRefused)
-        ? reservation.costUsd
-        : 0
-    if (costUsd > 0) {
-      this.budgetSpentUsd += reservation.costUsd
+        ? sumUsd(
+            reservation.costUsd,
+            reservation.hasTerminalSearchCount ||
+              Usd.from(
+                sumUsd(reservation.searchSpentUsd, negateUsd(reservation.searchReservedUsd)),
+              ).compare(Usd.from(0)) > 0
+              ? sumUsd(reservation.searchSpentUsd, negateUsd(reservation.searchReservedUsd))
+              : Usd.from(0).toAmount(),
+          )
+        : Usd.from(0).toAmount()
+    if (isPositiveUsd(costUsd)) {
+      this.budgetSpentUsd = sumUsd(
+        this.budgetSpentUsd,
+        costUsd,
+        negateUsd(reservation.searchSpentUsd),
+      )
       this.warnUnknownCharge(costUsd)
       this.deps.log.warn(
-        `Session budget: a response ended without its usage; its reservation of ${String(reservation.costUsd)} USD counts as spent`,
+        `Session budget: a response ended without its usage; its remaining reservation of ${costUsd} USD counts as spent`,
       )
     }
-    this.recordBudgetCost(costUsd, reservation.claim, costUsd > 0 && !reservation.hasCap)
+    this.recordBudgetCost(costUsd, reservation.claim, isPositiveUsd(costUsd) && !reservation.hasCap)
     await this.budgetWrites
     // The on-disk liability is now settled or released, even if this request failed before a frame.
     if (this.deps.budgetScope === undefined) {
@@ -3387,7 +3644,7 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** A conservative liability is visible without presenting it as verified billing. */
-  private warnUnknownCharge(costUsd: number): void {
+  private warnUnknownCharge(costUsd: UsdAmount): void {
     this.emit({
       type: 'backendNotice',
       level: 'warning',
@@ -3432,7 +3689,24 @@ export class ModelApiSession implements AgentSession {
       }
     } finally {
       this.unsettled.delete(id)
+      this.releaseSettledSearchQuotes()
     }
+  }
+
+  private releaseSettledSearchQuotes(): void {
+    const retained: string[] = []
+    // The latest parent token also serves explicitly consented child follow-ups.
+    if (
+      (this.active !== undefined || this.children.size > 0) &&
+      this.approvedSearchQuote !== undefined
+    )
+      retained.push(this.approvedSearchQuote.id)
+    for (const child of this.children.values()) {
+      for (const grant of [child.session.childTaskGrant, child.nextTaskGrant]) {
+        if (grant?.searchQuote !== undefined) retained.push(grant.searchQuote.id)
+      }
+    }
+    this.deps.client.releaseSearchQuotes?.(this.sessionId, this.isDisposed ? [] : retained)
   }
 
   /** What this request may offer: the shell and memory need trust, skills need loading. */
@@ -3514,7 +3788,8 @@ export class ModelApiSession implements AgentSession {
         }),
         tools: withStrictTools(
           tools,
-          this.deps.modelFacts?.(this.modelId)?.capabilities.supportsStrictTools === true,
+          this.strictTools &&
+            this.deps.modelFacts?.(this.modelId)?.capabilities.supportsStrictTools === true,
         ),
       }
     }
@@ -3564,7 +3839,8 @@ export class ModelApiSession implements AgentSession {
       }),
       tools: withStrictTools(
         this.tools(hasShell, flags.hasSkills, hasMemory, this.isSubagent),
-        this.deps.modelFacts?.(this.modelId)?.capabilities.supportsStrictTools === true,
+        this.strictTools &&
+          this.deps.modelFacts?.(this.modelId)?.capabilities.supportsStrictTools === true,
       ),
     }
   }
@@ -3579,7 +3855,19 @@ export class ModelApiSession implements AgentSession {
     )
   }
 
-  private body(): CreateResponseBody {
+  private outputCap(): number {
+    const cached = this.outputCaps.get(this.modelId)
+    if (cached !== undefined) return cached
+    const requested = this.deps.modelOutputMaxTokens?.(this.modelId) ?? MODEL_API_MAX_OUTPUT_TOKENS
+    if (!Number.isSafeInteger(requested) || requested < 1)
+      throw new RangeError('invalid output.maxTokens')
+    const cap = outputLimitFor(this.modelPolicy(), requested)
+    if (!Number.isSafeInteger(cap) || cap < 1) throw new RangeError('invalid output.maxTokens')
+    this.outputCaps.set(this.modelId, cap)
+    return cap
+  }
+
+  private body(shouldFormatDraft = true): CreateResponseBody {
     this.drainChildResults()
     const fitted = this.budget.fit(this.requestReplay().map((entry) => entry.item))
     // Packing projects per request only: the replay keeps the originals, so
@@ -3600,7 +3888,7 @@ export class ModelApiSession implements AgentSession {
         content: [{ type: 'input_text', text: progress }],
       })
     }
-    return this.keyed({
+    const body = this.keyed({
       model: this.modelId,
       input,
       ...this.promptAndTools(this.promptDate),
@@ -3612,8 +3900,20 @@ export class ModelApiSession implements AgentSession {
       stream: true,
       store: false,
       include: this.includes(),
-      max_output_tokens: outputLimitFor(this.modelPolicy(), MODEL_API_MAX_OUTPUT_TOKENS),
+      max_output_tokens: this.outputCap(),
+      ...(this.outputFormat !== undefined && { text: this.outputFormat }),
     })
+    const draft = shouldFormatDraft ? this.active?.draft : undefined
+    if (
+      draft !== undefined &&
+      (draft.signal.aborted ||
+        draft.model !== this.modelId ||
+        draft.revision !== this.modelRevision)
+    )
+      throw new AbortedError()
+    return draft === undefined
+      ? body
+      : this.keyed(sideCallBody(body, draft.attempt, this.deps.forceSideCallTool))
   }
 
   /** Retain only what a completed request carried; History keeps its file chips separately. */
@@ -3795,11 +4095,33 @@ export class ModelApiSession implements AgentSession {
    */
   private isWebSearchOffered(): boolean {
     return (
-      this.modelPolicy().hosted.webSearch.state === 'yes' &&
-      !this.deps.client.hasPaidDailyBudget &&
-      this.currentBudgetCap() <= 0 &&
+      this.canOfferWebSearch() &&
       this.active?.isWebSearchAllowed === true &&
       this.deps.isPaidFeatureOn('webSearch')
+    )
+  }
+
+  private webSearchBound(): number | undefined {
+    const hosted = this.deps.modelCapabilities?.(this.modelId)?.hosted
+    const price = this.deps.client.searchPriceUsd?.(this.modelId)
+    return price !== undefined &&
+      Usd.from(price).compare(Usd.from(0)) >= 0 &&
+      hosted?.webSearch.state === 'yes' &&
+      hosted.webSearch.value.tool === MODEL_API_WEB_SEARCH_TOOL &&
+      hosted.maxToolCalls.state === 'yes' &&
+      Number.isSafeInteger(this.searchMaxPerRequest) &&
+      this.searchMaxPerRequest >= WEB_SEARCH_MIN_PER_REQUEST &&
+      this.searchMaxPerRequest <= WEB_SEARCH_MAX_PER_REQUEST_LIMIT
+      ? this.searchMaxPerRequest
+      : undefined
+  }
+
+  private canOfferWebSearch(): boolean {
+    return (
+      this.webSearchBound() !== undefined ||
+      (this.deps.modelCapabilities === undefined &&
+        !this.deps.client.hasPaidDailyBudget &&
+        Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) <= 0)
     )
   }
 
@@ -3809,27 +4131,87 @@ export class ModelApiSession implements AgentSession {
    * cannot come before each search; Deny sends the prompt without the tool.
    * A child task never asks: its grant carries its parent's answer.
    */
+  private quoteIsCurrent(quote: PaidQuote): boolean {
+    return (
+      quote.provider ===
+        (this.deps.client.providerId?.(this.modelId) ?? this.modelPolicy().identity.provider) &&
+      quote.model === this.modelId &&
+      quote.modelRevision === this.modelRevision &&
+      quote.tariffUsd === this.deps.client.searchPriceUsd?.(this.modelId)
+    )
+  }
+
   private async webSearchConsent(signal: AbortSignal): Promise<boolean> {
-    if (
-      this.modelPolicy().hosted.webSearch.state !== 'yes' ||
-      !this.deps.isPaidFeatureOn('webSearch')
-    ) {
-      return false
-    }
-    if (this.currentBudgetCap() > 0 || this.deps.client.hasPaidDailyBudget) {
-      this.emit({
-        type: 'backendNotice',
-        level: 'warning',
-        text: UI_TEXT.sessionBudgetSearchUnavailable,
+    this.approvedSearchQuote = undefined
+    while (!signal.aborted && this.deps.isPaidFeatureOn('webSearch')) {
+      const priceUsd = this.deps.client.searchPriceUsd?.(this.modelId)
+      if (priceUsd === undefined || !this.canOfferWebSearch()) {
+        this.emit({
+          type: 'backendNotice',
+          level: 'warning',
+          text: UI_TEXT.sessionBudgetSearchUnavailable,
+        })
+        return false
+      }
+      const quote = freezePaidQuote({
+        id: this.deps.newId(),
+        feature: 'webSearch',
+        conversationId: this.sessionId,
+        ...(this.webSearchBound() !== undefined && { maxCalls: this.webSearchBound() }),
+        provider:
+          this.deps.client.providerId?.(this.modelId) ?? this.modelPolicy().identity.provider,
+        model: this.modelId,
+        modelRevision: this.modelRevision,
+        tariffUsd: priceUsd,
+        unit: 'search',
+        capturedAt: this.deps.now(),
       })
-      return false
-    }
-    return this.isSubagent
-      ? this.childTaskGrant?.isWebSearchAllowed === true
-      : await unlessStopped(
-          this.deps.allowsPaidUse({ feature: 'webSearch' }, false, this.askingSessionId),
+      let decision: PaidUseDecision
+      if (this.isSubagent) {
+        const parentQuote = this.childTaskGrant?.searchQuote
+        decision =
+          this.childTaskGrant?.isWebSearchAllowed === true &&
+          parentQuote?.provider === quote.provider &&
+          parentQuote.model === quote.model &&
+          Usd.from(quote.tariffUsd).compare(Usd.from(parentQuote.tariffUsd)) <= 0 &&
+          this.deps.client.inheritSearchQuote?.(parentQuote, quote)
+            ? quote
+            : undefined
+      } else {
+        decision = await unlessStopped(
+          this.deps.allowsPaidUse(
+            {
+              feature: 'webSearch',
+              priceUsd,
+              quote,
+              isCurrent: () =>
+                !signal.aborted &&
+                !this.isDisposed &&
+                !this.isHostClosing() &&
+                this.quoteIsCurrent(quote),
+            },
+            false,
+            this.askingSessionId,
+          ),
           signal,
         )
+      }
+      // A stale answer cannot authorize the new model, even if it switched back.
+      if (!this.quoteIsCurrent(quote)) continue
+      if (typeof decision !== 'object' || !isSamePaidQuote(quote, decision)) return false
+      this.approvedSearchQuote = quote
+      return true
+    }
+    return false
+  }
+
+  private async refreshSearchConsent(signal: AbortSignal): Promise<void> {
+    if (
+      this.active?.isWebSearchAllowed === true &&
+      (this.approvedSearchQuote === undefined || !this.quoteIsCurrent(this.approvedSearchQuote))
+    ) {
+      this.active.isWebSearchAllowed = await this.webSearchConsent(signal)
+    }
   }
 
   /** The IDE tool or MCP server tool a function name is, when it is one (M50). */
@@ -3926,8 +4308,16 @@ export class ModelApiSession implements AgentSession {
       }
       if (
         body.tools.some((tool) => tool.type === MODEL_API_WEB_SEARCH_TOOL) &&
-        !this.isWebSearchOffered()
+        (!this.isWebSearchOffered() ||
+          this.sendingSearchQuote === undefined ||
+          !this.quoteIsCurrent(this.sendingSearchQuote))
       ) {
+        if (
+          this.deps.isPaidFeatureOn('webSearch') &&
+          this.sendingSearchQuote !== undefined &&
+          !this.quoteIsCurrent(this.sendingSearchQuote)
+        )
+          throw new PaidQuoteChangedError()
         throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
       }
       // A cap enabled during key retrieval needs a new durable preflight.
@@ -3936,14 +4326,18 @@ export class ModelApiSession implements AgentSession {
           throw new AbortedError()
         }
         const capUsd = directBudget.scope?.capUsd() ?? this.currentBudgetCap()
-        if (directBudget.claim === undefined && capUsd > 0) {
+        if (directBudget.claim === undefined && Usd.from(capUsd).compare(Usd.from(0)) > 0) {
           throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
         }
-        if (directBudget.isSent && capUsd > 0) {
+        if (directBudget.isSent && Usd.from(capUsd).compare(Usd.from(0)) > 0) {
           throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
         }
         directBudget.claim?.check(capUsd)
-      } else if (reservation === undefined && this.currentBudgetCap() > 0) {
+      } else if (
+        reservation === undefined &&
+        this.deps.client.isPlanModel?.(body.model) !== true &&
+        Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0
+      ) {
         this.active?.abort.abort()
         this.compacting?.abort()
         throw new AbortedError()
@@ -3970,7 +4364,7 @@ export class ModelApiSession implements AgentSession {
         if (reservation.claim === undefined) {
           throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
         }
-        if (reservation.isSent && this.currentBudgetCap() > 0) {
+        if (reservation.isSent && Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0) {
           throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
         }
         reservation.claim.check(this.currentBudgetCap())
@@ -4021,6 +4415,12 @@ export class ModelApiSession implements AgentSession {
       },
       ...(paidFeature !== undefined && { paidFeature }),
       ...(paidEstimatedInputTokens !== undefined && { paidEstimatedInputTokens }),
+      ...(this.sendingSearchQuote !== undefined && { searchQuote: this.sendingSearchQuote }),
+      onSearchesReturned: (settlement: SearchSettlement) => {
+        this.chargeBoundedSearches(settlement)
+        if (reservation !== undefined && settlement.isTerminal)
+          reservation.hasTerminalSearchCount = true
+      },
       onRequestStarted: () => {
         if (!isCompaction && directBudget === undefined) {
           const turnIds = this.replay.map((entry) => entry.turnId)
@@ -4264,7 +4664,7 @@ export class ModelApiSession implements AgentSession {
       cost: usage.provider_cost_usd,
     })
     const hasKnownPrice = cost !== undefined
-    const costUsd = cost ?? this.openReservation?.costUsd ?? 0
+    const costUsd = cost ?? this.openReservation?.costUsd ?? Usd.from(0).toAmount()
     const nextUsage = {
       inputTokens: this.usage.inputTokens + billable.inputTokens,
       outputTokens: this.usage.outputTokens + billable.outputTokens,
@@ -4273,13 +4673,9 @@ export class ModelApiSession implements AgentSession {
         this.usage.reasoningTokens + (usage.output_tokens_details?.reasoning_tokens ?? 0),
     }
     if (
-      [
-        ...Object.values(nextUsage),
-        nextUsage.inputTokens + nextUsage.outputTokens,
-        costUsd,
-        this.budgetSpentUsd + costUsd,
-        this.turnCostUsd + costUsd,
-      ].some((value) => !Number.isFinite(value))
+      [...Object.values(nextUsage), nextUsage.inputTokens + nextUsage.outputTokens].some(
+        (value) => !Number.isFinite(value),
+      )
     ) {
       this.deps.log.warn('Model API usage whose totals or cost are not finite was ignored')
       return
@@ -4300,11 +4696,15 @@ export class ModelApiSession implements AgentSession {
         ...this.recordedCall,
         outcome,
         durationMs: Math.max(0, this.deps.now() - this.recordedCall.startedAt),
-        providerCostUsd: usage.provider_cost_usd,
+        providerCostUsd:
+          usage.provider_cost_usd === undefined
+            ? undefined
+            : Usd.from(usage.provider_cost_usd).toAmount(),
         uncertain: this.hasAmbiguousCallAttempt,
-        retainedLiabilityUsd: this.hasAmbiguousCallAttempt
-          ? this.openReservation?.costUsd
-          : undefined,
+        retainedLiabilityUsd:
+          this.hasAmbiguousCallAttempt && this.openReservation !== undefined
+            ? this.openReservation.costUsd
+            : undefined,
         ...(this.packing !== undefined && {
           packedAvoided: Math.max(0, this.packing.savings() - this.packedBaseline),
         }),
@@ -4313,22 +4713,24 @@ export class ModelApiSession implements AgentSession {
     this.usage = nextUsage
     const reservation = this.openReservation
     const claim = reservation?.claim
-    this.budgetSpentUsd += costUsd
-    this.usageCostUsd += costUsd
+    this.budgetSpentUsd = sumUsd(this.budgetSpentUsd, costUsd)
+    this.usageCostUsd = sumUsd(this.usageCostUsd, costUsd)
     if (hasKnownPrice) {
-      this.turnCostUsd += costUsd
+      this.turnCostUsd = sumUsd(this.turnCostUsd, costUsd)
     }
     this.recordBudgetCost(
-      costUsd,
+      sumUsd(costUsd, reservation?.searchSpentUsd ?? Usd.from(0).toAmount()),
       claim,
       !hasKnownPrice || reservation?.hasAmbiguousAttempt === true,
     )
     this.settleReservation(usage)
     if (this.isSubagent) {
-      this.deps.noteSubagentUsage(this.sendingModelId ?? this.modelId, {
-        inputTokens: billable.inputTokens,
-        outputTokens: billable.outputTokens,
-        cachedTokens: billable.cachedTokens ?? 0,
+      this.notifyUsage(() => {
+        this.deps.noteSubagentUsage(this.sendingModelId ?? this.modelId, {
+          ...billable,
+          cachedTokens: billable.cachedTokens ?? 0,
+          costUsd: cost,
+        })
       })
     } else {
       const shown = this.unshownUsage
@@ -4340,7 +4742,7 @@ export class ModelApiSession implements AgentSession {
           (shown?.reasoningTokens ?? 0) + (usage.output_tokens_details?.reasoning_tokens ?? 0),
         costUsd:
           hasKnownPrice && (shown === undefined || shown.costUsd !== undefined)
-            ? (shown?.costUsd ?? 0) + costUsd
+            ? sumUsd(shown?.costUsd ?? Usd.from(0).toAmount(), costUsd)
             : undefined,
       }
       // Saved now, even while a call waits for its output (M82).
@@ -4348,12 +4750,17 @@ export class ModelApiSession implements AgentSession {
     }
     // An attempt's tally prices the request at the model it was sent to, as the
     // budget does, whatever the session switched to meanwhile (M82).
-    this.deps.noteResponseUsage?.(sentModelId, {
-      ...(sentModelId.includes('/') && { ...billable, costUsd: cost }),
-      inputTokens: billable.inputTokens,
-      outputTokens: billable.outputTokens,
-      cachedTokens: billable.cachedTokens ?? 0,
-    })
+    this.notifyUsage(() =>
+      this.deps.noteResponseUsage?.(sentModelId, {
+        ...(sentModelId.includes('/') && {
+          ...billable,
+          costUsd: cost,
+        }),
+        inputTokens: billable.inputTokens,
+        outputTokens: billable.outputTokens,
+        cachedTokens: billable.cachedTokens ?? 0,
+      }),
+    )
     this.emitUsage()
     this.noteContext(usage.input_tokens + usage.output_tokens)
   }
@@ -4439,11 +4846,12 @@ export class ModelApiSession implements AgentSession {
   private openItem(
     open: Map<string, OpenItem>,
     wireId: string,
-    kind: OpenItem['kind'],
+    kind: Exclude<OpenItem['kind'], 'argumentPreview'>,
     turnId: string,
-  ): OpenItem {
+  ): Exclude<OpenItem, { kind: 'argumentPreview' }> {
     const existing = open.get(wireId)
     if (existing !== undefined) {
+      if (existing.kind === 'argumentPreview') throw new Error(UI_TEXT.modelApiServiceFailure)
       return existing
     }
     const entry: OpenItem = {
@@ -4459,7 +4867,10 @@ export class ModelApiSession implements AgentSession {
     return entry
   }
 
-  private startedSnapshot(entry: OpenItem, turnId: string): ItemSnapshot {
+  private startedSnapshot(
+    entry: Exclude<OpenItem, { kind: 'argumentPreview' }>,
+    turnId: string,
+  ): ItemSnapshot {
     const common = { itemId: entry.ourId, status: IN_PROGRESS, turnId }
     switch (entry.kind) {
       case 'agentMessage': {
@@ -4480,6 +4891,73 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  private showArgumentPreview(
+    entry: Extract<OpenItem, { kind: 'argumentPreview' }>,
+    turnId: string,
+    isForced = false,
+  ) {
+    const now = this.deps.now()
+    const elapsed =
+      entry.previewAt === undefined ? TOOL_ARGUMENT_PREVIEW_INTERVAL_MS : now - entry.previewAt
+    if (!isForced && elapsed < TOOL_ARGUMENT_PREVIEW_INTERVAL_MS) {
+      if (!this.argumentPreviewTimers.has(entry.call.call_id)) {
+        const flush = () => {
+          this.showArgumentPreview(entry, turnId, true)
+        }
+        const timer = setTimeout(flush, TOOL_ARGUMENT_PREVIEW_INTERVAL_MS - elapsed)
+        timer.unref()
+        this.argumentPreviewTimers.set(entry.call.call_id, { timer, flush })
+      }
+      return
+    }
+    this.clearArgumentPreviewTimer(entry.call.call_id)
+    // The bound covers processing even when the snapshot will be deduplicated.
+    entry.previewAt = now
+    const item = {
+      itemId: entry.ourId,
+      turnId,
+      kind: 'toolCall' as const,
+      tool: redactSecrets(entry.call.name),
+      status: IN_PROGRESS,
+      args: '' as const,
+      argumentPreview: entry.preview.snapshot(),
+    }
+    const previous = this.argumentPreviewRows.get(entry.call.call_id)?.argumentPreview
+    if (
+      previous?.text === item.argumentPreview.text &&
+      previous.truncated === item.argumentPreview.truncated &&
+      previous.bytes === item.argumentPreview.bytes &&
+      previous.frozen === item.argumentPreview.frozen
+    )
+      return
+    if (previous === undefined) {
+      this.recordTranscript(turnId, item)
+    } else {
+      this.rerecordTranscript(item)
+    }
+    this.argumentPreviewRows.set(entry.call.call_id, item)
+    this.emit({ type: 'toolArgumentPreview', item })
+  }
+
+  private clearArgumentPreviewTimer(callId: string): void {
+    const timer = this.argumentPreviewTimers.get(callId)
+    if (timer !== undefined) clearTimeout(timer.timer)
+    this.argumentPreviewTimers.delete(callId)
+  }
+
+  /** A failed/abandoned preview has no executable arguments or successful result. */
+  private interruptArgumentPreview(callId: string): void {
+    this.argumentPreviewTimers.get(callId)?.flush()
+    this.clearArgumentPreviewTimer(callId)
+    const preview = this.argumentPreviewRows.get(callId)
+    if (preview === undefined) return
+    this.argumentPreviewRows.delete(callId)
+    const { argumentPreview: _preview, ...row } = preview
+    const item = { ...row, status: TOOL_STATUS_INTERRUPTED }
+    this.rerecordTranscript(item)
+    this.emit({ type: 'itemCompleted', item })
+  }
+
   /** A search's row completed (M33): its query and results, marked paid, and counted. */
   private completeSearch(entry: OpenItem, item: WebSearchCallItem, turnId: string): void {
     const isFailed = item.status === FAILED
@@ -4498,19 +4976,61 @@ export class ModelApiSession implements AgentSession {
     entry.isCompleted = true
     this.emit({ type: 'itemCompleted', item: completed })
     this.recordTranscript(turnId, completed)
-    // A failed search is not counted: Meta bills the queries it ran.
+    if (this.sendingSearchBound !== undefined) {
+      return
+    }
+    // Legacy unbounded requests retain their old tally; bounded requests count returned calls.
     if (isFailed) {
       return
     }
     const units = searchUnits(item)
-    this.deps.notePaidUse('webSearch', units)
-    const costUsd = (units * PAID_PRICES_USD.webSearchPerThousand) / SEARCHES_PER_PRICE_UNIT
-    this.budgetSpentUsd += costUsd
-    this.turnCostUsd += costUsd
+    const price = this.sendingSearchQuote?.tariffUsd
+    if (price === undefined) throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+    this.notifyUsage(() => {
+      this.deps.notePaidUse('webSearch', units, price)
+    })
+    const costUsd = multiplyUsd(price, units)
+    this.budgetSpentUsd = sumUsd(this.budgetSpentUsd, costUsd)
+    this.turnCostUsd = sumUsd(this.turnCostUsd, costUsd)
     this.recordBudgetCost(costUsd, undefined)
   }
 
-  private completedSnapshot(entry: OpenItem, turnId: string): ItemSnapshot {
+  /** Both item events and terminal-only calls count once, before the token claim settles. */
+  private chargeBoundedSearches(settlement: SearchSettlement): void {
+    const count = settlement.returnedCalls
+    if (this.sendingSearchBound === undefined || count <= this.chargedSearchCalls) return
+    const units = count - this.chargedSearchCalls
+    const costUsd = Usd.from(settlement.costUsd)
+      .subtract(Usd.from(multiplyUsd(settlement.quote.tariffUsd, this.chargedSearchCalls)))
+      .toAmount()
+    // Publish returned liability synchronously before any fallible observer or pricing lookup.
+    this.chargedSearchCalls = count
+    const reservation = this.openReservation
+    if (reservation !== undefined) {
+      reservation.searchSpentUsd = settlement.costUsd
+      if (settlement.isTerminal) reservation.hasTerminalSearchCount = true
+    }
+    this.budgetSpentUsd = sumUsd(this.budgetSpentUsd, costUsd)
+    this.turnCostUsd = sumUsd(this.turnCostUsd, costUsd)
+    if (reservation === undefined) {
+      this.recordBudgetCost(costUsd, undefined)
+    } else if (Usd.from(settlement.costUsd).compare(Usd.from(reservation.searchReservedUsd)) > 0) {
+      this.recordBudgetCost(
+        sumUsd(reservation.costUsd, settlement.costUsd, negateUsd(reservation.searchReservedUsd)),
+        reservation.claim,
+        reservation.hasUnknownCost,
+        false,
+      )
+    }
+    this.notifyUsage(() => {
+      this.deps.notePaidUse('webSearch', units, { ...settlement, returnedCalls: units, costUsd })
+    })
+  }
+
+  private completedSnapshot(
+    entry: Exclude<OpenItem, { kind: 'argumentPreview' }>,
+    turnId: string,
+  ): ItemSnapshot {
     return entry.kind === 'agentMessage'
       ? {
           itemId: entry.ourId,
@@ -4530,7 +5050,10 @@ export class ModelApiSession implements AgentSession {
         }
   }
 
-  private completeItem(entry: OpenItem, turnId: string): void {
+  private completeItem(
+    entry: Exclude<OpenItem, { kind: 'argumentPreview' }>,
+    turnId: string,
+  ): void {
     // A reply's time is the moment it completed, as Muse Code records one (M87).
     if (entry.kind === 'agentMessage') {
       entry.recordedAt ??= this.recordedNow()
@@ -4545,7 +5068,11 @@ export class ModelApiSession implements AgentSession {
    * The sources of a completed reply as the whole response has them (M33):
    * Meta's cookbook says citations are complete only once the stream ends.
    */
-  private settleCitations(entry: OpenItem, citations: readonly Citation[], turnId: string): void {
+  private settleCitations(
+    entry: Exclude<OpenItem, { kind: 'argumentPreview' }>,
+    citations: readonly Citation[],
+    turnId: string,
+  ): void {
     if (isSameCitations(entry.citations, citations)) {
       return
     }
@@ -4571,6 +5098,47 @@ export class ModelApiSession implements AgentSession {
           this.openItem(open, wireId, kind, turnId)
         } else if (isWebSearchCallItem(item)) {
           this.openItem(open, wireId, 'webSearch', turnId)
+        } else if (
+          isFunctionCallItem(item) &&
+          this.deps.argumentPreviewCapabilities?.(this.sendingModelId ?? this.modelId)?.tools
+            .streamingArguments.state === 'yes'
+        ) {
+          const entry: OpenItem = {
+            ourId: this.deps.newId(),
+            kind: 'argumentPreview',
+            call: item,
+            preview: new ArgumentPreview(
+              toolDefinitions(this.deps.platform, {
+                hasShell: true,
+                hasSkills: false,
+                hasWebFetch: true,
+              }).find((tool) => tool.name === item.name)?.previewFields,
+            ),
+            text: '',
+            summary: [],
+            isCompleted: false,
+            citations: [],
+          }
+          entry.preview.append(item.arguments)
+          open.set(wireId, entry)
+          this.showArgumentPreview(entry, turnId)
+        }
+        return undefined
+      }
+      case 'response.function_call_arguments.delta':
+      case 'response.function_call_arguments.done': {
+        const entry = open.get(event.item_id)
+        if (entry?.kind === 'argumentPreview') {
+          if (event.type === 'response.function_call_arguments.delta') {
+            entry.preview.append(event.delta)
+          } else {
+            entry.preview.finish(event.arguments)
+          }
+          this.showArgumentPreview(
+            entry,
+            turnId,
+            event.type === 'response.function_call_arguments.done',
+          )
         }
         return undefined
       }
@@ -4603,6 +5171,9 @@ export class ModelApiSession implements AgentSession {
         return event.response
       }
       case 'response.incomplete': {
+        this.responseIncomplete = true
+        if (event.response.incomplete_details?.reason === 'max_output_tokens')
+          this.outcomeStopReason = 'budget'
         this.deps.log.warn(
           `Model API response ${event.response.id} incomplete: ${event.response.incomplete_details?.reason ?? 'no reason'}`,
         )
@@ -4647,7 +5218,10 @@ export class ModelApiSession implements AgentSession {
       if (entry.isCompleted) {
         continue
       }
-      if (entry.kind === 'webSearch') {
+      if (entry.kind === 'argumentPreview') {
+        this.interruptArgumentPreview(entry.call.call_id)
+        entry.isCompleted = true
+      } else if (entry.kind === 'webSearch') {
         entry.isCompleted = true
         const item: ItemSnapshot = {
           ...this.startedSnapshot(entry, turnId),
@@ -4687,6 +5261,12 @@ export class ModelApiSession implements AgentSession {
         entry.summary.splice(0, entry.summary.length, ...summary)
       }
       this.completeItem(entry, turnId)
+    } else if (isFunctionCallItem(item)) {
+      const entry = open.get(wireId)
+      if (entry?.kind === 'argumentPreview') {
+        entry.preview.finish(item.arguments)
+        this.showArgumentPreview(entry, turnId, true)
+      }
     }
   }
 
@@ -4712,8 +5292,18 @@ export class ModelApiSession implements AgentSession {
       } catch (error: unknown) {
         // What a failed attempt showed stays in the history, the last one's
         // too (the review of PR #28); a Stop is the turn's own business.
-        if (!signal.aborted) {
+        if (signal.aborted) {
+          for (const entry of open.values()) {
+            if (entry.kind !== 'argumentPreview') continue
+            this.interruptArgumentPreview(entry.call.call_id)
+            entry.isCompleted = true
+          }
+        } else {
           this.settleCutShort(open, turnId)
+        }
+        if (error instanceof PaidQuoteChangedError && !signal.aborted) {
+          await this.refreshSearchConsent(signal)
+          continue
         }
         if (
           !(error instanceof RetryableStreamError) ||
@@ -4760,6 +5350,7 @@ export class ModelApiSession implements AgentSession {
     // what it carries can change while the hooks run.
     await this.refreshBudgetSpend()
     this.assertContextFits(this.body())
+    await this.refreshSearchConsent(signal)
     await this.beforeModelCall(turnId, this.budgeted(this.body()), requestId, attempt, step, signal)
     const requiredAfterPreHook = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
     if (requiredAfterPreHook !== undefined) {
@@ -4771,6 +5362,10 @@ export class ModelApiSession implements AgentSession {
     const goalCommandRevision = this.goalCommandRevision
     // A retried request is announced in the transcript, as Muse Code's are (D25).
     const onRetry = (notice: RetryNotice) => {
+      if (notice.phase === 'pacing') {
+        this.emit({ type: 'backendNotice', level: 'info', text: notice.reason })
+        return
+      }
       this.allowRateLimitedRetry(notice)
       this.emit({
         type: 'turnRetry',
@@ -4782,6 +5377,7 @@ export class ModelApiSession implements AgentSession {
       })
     }
     await this.refreshBudgetSpend()
+    await this.refreshSearchConsent(signal)
     if (this.modelRevision !== revision || this.modelId !== resolved.ref || !resolved.isCurrent()) {
       throw new AbortedError()
     }
@@ -4885,6 +5481,8 @@ export class ModelApiSession implements AgentSession {
       this.skipCalls(turnId, calls, post.blockedReason)
       throw new HookStoppedError(post.blockedReason)
     }
+    // A cut-short tool reply fails after adoptOutput pairs every refused
+    // call with an error (D86.5); continuation is for text-only replies.
     if (final.status === 'incomplete' && final.output.some((item) => isFunctionCallItem(item))) {
       throw new ModelApiError(
         UI_TEXT.incompleteToolCallsNotRun,
@@ -4893,7 +5491,15 @@ export class ModelApiSession implements AgentSession {
         'response_incomplete',
       )
     }
-    return { calls, goalCommandRevision, postContexts: [...thoughtContexts, ...post.contexts] }
+    return {
+      calls,
+      goalCommandRevision,
+      postContexts: [...thoughtContexts, ...post.contexts],
+      incompleteReason:
+        final.status === 'incomplete'
+          ? (final.incomplete_details?.reason ?? 'response.incomplete')
+          : undefined,
+    }
   }
 
   /**
@@ -4991,11 +5597,11 @@ export class ModelApiSession implements AgentSession {
             // Text before a tool call goes back as commentary: as a final
             // answer before a `function_call` it is a 400 (the docs'
             // conversation structure), and dropping it costs quality.
-            ...(item.phase === COMMENTARY_PHASE && { phase: COMMENTARY_PHASE }),
+            ...(item.phase !== undefined && { phase: item.phase }),
           },
         })
         const entry = open.get(wireId)
-        if (entry?.isCompleted === true) {
+        if (entry?.isCompleted === true && entry.kind !== 'argumentPreview') {
           this.settleCitations(entry, citationsOf(item), turnId)
         }
       } else if (isWebSearchCallItem(item)) {
@@ -5296,6 +5902,13 @@ export class ModelApiSession implements AgentSession {
    * before. A decline, an unreadable answer, a failure and the breaker all
    * come back as an ask with the reason; only the user's Stop throws.
    */
+  private isPaidBudgetAllowed(
+    scope: OwnedSessionBudgetScope | undefined,
+    keyDigest: string | undefined,
+  ): boolean {
+    return scope?.isStillAllowed(keyDigest) ?? !isPositiveUsd(this.deps.sessionBudgetUsd())
+  }
+
   private paidModelObservers(turnId: string) {
     return {
       keyed: (request: Omit<CreateResponseBody, 'prompt_cache_key' | 'prompt_cache_retention'>) =>
@@ -5367,7 +5980,8 @@ export class ModelApiSession implements AgentSession {
     }
     if (
       !isCurrent() ||
-      (budgetScope === undefined && this.deps.sessionBudgetUsd() !== 0) ||
+      (budgetScope === undefined &&
+        Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0) ||
       budgetScope?.isStillAllowed(keyDigest) === false
     ) {
       return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
@@ -5388,7 +6002,7 @@ export class ModelApiSession implements AgentSession {
           this.askingSessionId,
         ),
         signal,
-      ))
+      )) === true
     if (!isAllowed || !isCurrent()) {
       return undefined
     }
@@ -5443,13 +6057,11 @@ export class ModelApiSession implements AgentSession {
           providerId: resolved.policy.identity.provider,
           origin: resolved.origin,
           keyDigest,
-          isStillAllowed: () =>
-            isCurrent() &&
-            (budgetScope === undefined
-              ? this.deps.sessionBudgetUsd() === 0
-              : budgetScope.isStillAllowed(keyDigest)),
+          isStillAllowed: () => isCurrent() && this.isPaidBudgetAllowed(budgetScope, keyDigest),
           onRequestStarted: () => {
-            this.deps.notePaidUse('autoReviewer', 1)
+            this.notifyUsage(() => {
+              this.deps.notePaidUse('autoReviewer', 1)
+            })
           },
         },
         budgetScope,
@@ -5537,9 +6149,11 @@ export class ModelApiSession implements AgentSession {
   ): Promise<boolean> {
     const stopNotifying = this.notifyWhileAsking(call, signal)
     try {
-      return await unlessStopped(
-        this.deps.allowsPaidUse(paid, requiresUserApproval, this.askingSessionId),
-        signal,
+      return (
+        (await unlessStopped(
+          this.deps.allowsPaidUse(paid, requiresUserApproval, this.askingSessionId),
+          signal,
+        )) === true
       )
     } finally {
       stopNotifying()
@@ -5837,6 +6451,7 @@ export class ModelApiSession implements AgentSession {
     }
     this.todos = next
     this.autoCompact.noteTodos(this.todos)
+    this.todoTurnId = turnId
     this.emit({ type: 'todoChanged', items: [...this.todos] })
     const summary = `${String(this.todos.length)} tasks`
     return { output: summary, visibleOutput: summary }
@@ -6280,9 +6895,12 @@ export class ModelApiSession implements AgentSession {
       }
     }
     await this.refreshBudgetSpend()
-    const price = PAID_PRICES_USD.imageGeneration
+    const price = Usd.from(PAID_PRICES_USD.imageGeneration).toAmount()
     const capUsd = this.currentBudgetCap()
-    if (capUsd > 0 && price > capUsd - this.budgetSpentUsd) {
+    if (
+      Usd.from(capUsd).compare(Usd.from(0)) > 0 &&
+      Usd.from(price).compare(Usd.from(capUsd).subtract(Usd.from(this.budgetSpentUsd))) > 0
+    ) {
       throw new SessionBudgetExceededError(
         fill(UI_TEXT.sessionBudgetStopped, {
           estimate: formatUsd(price),
@@ -6311,7 +6929,7 @@ export class ModelApiSession implements AgentSession {
     let hasReturned = false
     let egressRefusal: ToolOutcome | undefined
     try {
-      if (scope === undefined && capUsd > 0) {
+      if (scope === undefined && Usd.from(capUsd).compare(Usd.from(0)) > 0) {
         await this.onPersisted('budget')
       }
       const outcome = await runImageCall(plan, {
@@ -6339,7 +6957,7 @@ export class ModelApiSession implements AgentSession {
             ) {
               throw new AbortedError()
             }
-            if (claim === undefined && this.currentBudgetCap() > 0) {
+            if (claim === undefined && Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0) {
               throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
             }
             claim?.check(this.currentBudgetCap())
@@ -6358,7 +6976,9 @@ export class ModelApiSession implements AgentSession {
         ),
         onBilled: () => {
           imageState.isBilled = true
-          this.deps.notePaidUse('imageGeneration', 1)
+          this.notifyUsage(() => {
+            this.deps.notePaidUse('imageGeneration', 1)
+          })
         },
       })
       hasReturned = true
@@ -6373,12 +6993,14 @@ export class ModelApiSession implements AgentSession {
       throw error
     } finally {
       const charged =
-        imageState.isBilled || (!hasReturned && !isRefused && imageState.isSent) ? price : 0
+        imageState.isBilled || (!hasReturned && !isRefused && imageState.isSent)
+          ? price
+          : Usd.from(0).toAmount()
       if (
         startedAt !== undefined &&
         this.deps.hasExternalPaidRecording !== true &&
         !imageState.isBilled &&
-        charged > 0
+        isPositiveUsd(charged)
       ) {
         recordPaidUse(this.deps.usageRecording, 'imageGeneration', 1, {
           session: this.sessionId,
@@ -6389,10 +7011,10 @@ export class ModelApiSession implements AgentSession {
           retainedLiabilityUsd: charged,
         })
       }
-      this.budgetSpentUsd += charged
+      this.budgetSpentUsd = sumUsd(this.budgetSpentUsd, charged)
       if (imageState.isBilled) {
-        this.turnCostUsd += charged
-      } else if (charged > 0) {
+        this.turnCostUsd = sumUsd(this.turnCostUsd, charged)
+      } else if (Usd.from(charged).compare(Usd.from(0)) > 0) {
         this.warnUnknownCharge(charged)
       }
       this.recordBudgetCost(charged, claim)
@@ -6434,10 +7056,11 @@ export class ModelApiSession implements AgentSession {
       this.deps.platform,
       this.deps.io,
     )
-    if (!resolved.ok) {
+    if (signal.aborted || !resolved.ok) {
       return
     }
     const isChanged = await this.context.touch(resolved.relative)
+    if (isAbortRequested(signal)) return
     if (isChanged) {
       await this.noteLoadedRules(turnId, 'touched-path', signal)
     }
@@ -6642,6 +7265,7 @@ export class ModelApiSession implements AgentSession {
         // Kept whole for observation packing (M101): a packed shell result
         // stays recoverable through `recall_output`.
         wholeShellOutput: this.packing !== undefined,
+        provisionalSeen: new Map(),
         assertCanRun: () => {
           if (stop.signal.aborted || !isAllowed(this.backgroundShells.get(itemId) === stop))
             throw new AbortedError()
@@ -6763,13 +7387,14 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** One read-only tool call of a hook's agent turn; any other name is refused. */
-  private fileToolContext(signal: AbortSignal) {
+  private fileToolContext(signal: AbortSignal, provisionalSeen: Map<string, string>) {
     return {
       workspaceRoot: this.deps.workspaceRoot,
       platform: this.deps.platform,
       io: this.toolWrites()?.io ?? this.deps.io,
       signal,
       seen: this.seenFiles,
+      provisionalSeen,
       files: this.policy().files,
     }
   }
@@ -6794,14 +7419,20 @@ export class ModelApiSession implements AgentSession {
       )
       return outcome.output
     }
-    const context = this.fileToolContext(signal)
-    const outcome = await executeTool(name, argsJson, {
-      ...context,
-      assertCanWrite: () => {
-        throw new AbortedError()
-      },
-    })
-    return outcome.output
+    // A hook agent's private reads never authorize the conversation's writes.
+    const provisionalSeen = new Map<string, string>()
+    try {
+      const outcome = await executeTool(name, argsJson, {
+        ...this.fileToolContext(signal, provisionalSeen),
+        assertCanWrite: () => {
+          throw new AbortedError()
+        },
+      })
+      signal.throwIfAborted()
+      return outcome.output
+    } finally {
+      provisionalSeen.clear()
+    }
   }
 
   /**
@@ -6834,7 +7465,8 @@ export class ModelApiSession implements AgentSession {
     )
     if (
       !isCurrent() ||
-      (budgetScope === undefined && this.deps.sessionBudgetUsd() !== 0) ||
+      (budgetScope === undefined &&
+        Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0) ||
       budgetScope?.isStillAllowed(keyDigest) === false
     ) {
       throw new Error('the hook model call could not start')
@@ -6859,6 +7491,8 @@ export class ModelApiSession implements AgentSession {
       {
         deps: this.deps,
         tools: kind === 'agent' ? this.hookModelTools() : [],
+        table: UI_TEXT,
+        locale: uiLocale(),
         executeReadOnlyTool: async (name, argsJson, toolSignal) =>
           await this.executeHookModelTool(name, argsJson, toolSignal),
         ...this.paidModelObservers(turnId),
@@ -6870,11 +7504,7 @@ export class ModelApiSession implements AgentSession {
       {
         modelId,
         keyDigest,
-        isStillAllowed: () =>
-          isCurrent() &&
-          (budgetScope === undefined
-            ? this.deps.sessionBudgetUsd() === 0
-            : budgetScope.isStillAllowed(keyDigest)),
+        isStillAllowed: () => isCurrent() && this.isPaidBudgetAllowed(budgetScope, keyDigest),
         onRequestStarted: () => {
           // Hook runs are counted by the consenting dispatcher.
         },
@@ -6933,6 +7563,7 @@ export class ModelApiSession implements AgentSession {
       childSessionId: child.session.sessionId,
       depth: SUBAGENT_DEPTH,
       controlStatus: child.state === 'result_ready' ? SUBAGENT_RESULT_READY : child.state,
+      agentEvidence: child.evidence,
       ...(isDone && { durationMs: this.deps.now() - child.startedAt }),
       usage: child.usage,
       paid: 'subagents',
@@ -6981,6 +7612,11 @@ export class ModelApiSession implements AgentSession {
       return
     }
     if (event.type === 'turnStarted') {
+      child.evidence = {
+        attempt: (child.evidence.attempts?.length ?? 0) + 1,
+        attempts: child.evidence.attempts ?? [],
+        inFlight: true,
+      }
       child.chargedGoalId = isGoalActive(this.goal) ? this.goal.goal_id : undefined
     } else if (event.type === 'tokenUsage') {
       const latest = child.session.usage
@@ -6989,7 +7625,9 @@ export class ModelApiSession implements AgentSession {
       const cachedDelta = latest.cachedTokens - child.usage.cachedTokens
       // The child owns its charge in the parent's shared journal. Here its
       // deltas update the parent's displayed totals, without charging twice.
-      const costUsd = child.session.usageCostUsd - child.costUsd
+      const costUsd = Usd.from(child.session.usageCostUsd)
+        .subtract(Usd.from(child.costUsd))
+        .toAmount()
       child.costUsd = child.session.usageCostUsd
       const nextUsage = {
         inputTokens: this.usage.inputTokens + inputDelta,
@@ -6999,21 +7637,18 @@ export class ModelApiSession implements AgentSession {
           this.usage.reasoningTokens + latest.reasoningTokens - child.usage.reasoningTokens,
       }
       if (
-        [
-          ...Object.values(nextUsage),
-          nextUsage.inputTokens + nextUsage.outputTokens,
-          this.budgetSpentUsd + costUsd,
-          this.turnCostUsd + costUsd,
-        ].some((value) => !(Number.isFinite(value) && value >= 0))
+        [...Object.values(nextUsage), nextUsage.inputTokens + nextUsage.outputTokens].some(
+          (value) => !(Number.isFinite(value) && value >= 0),
+        )
       ) {
         this.deps.log.warn('Child usage whose totals or cost are not finite was ignored')
         child.usage = { ...latest }
         return
       }
-      this.budgetSpentUsd += costUsd
+      this.budgetSpentUsd = sumUsd(this.budgetSpentUsd, costUsd)
       this.chargeChildGoal(child, inputDelta + outputDelta)
       if (this.active?.turnId === child.parentTurnId) {
-        this.turnCostUsd += costUsd
+        this.turnCostUsd = sumUsd(this.turnCostUsd, costUsd)
       }
       this.usage = nextUsage
       child.usage = { ...latest }
@@ -7022,12 +7657,16 @@ export class ModelApiSession implements AgentSession {
       return
     }
     if (event.type === 'turnCompleted') {
+      child.resourceLease?.complete(true)
+      child.resourceLease = undefined
+      child.resourceStop = undefined
       child.chargedGoalId = undefined
       child.session.childTaskGrant = undefined
       if (child.nextTaskGrant !== undefined) {
         child.session.childTaskGrant = child.nextTaskGrant
         child.nextTaskGrant = undefined
       }
+      this.releaseSettledSearchQuotes()
       child.terminal = event.terminal
       if (child.state !== 'closed' && child.state !== 'interrupted') {
         child.state = 'result_ready'
@@ -7046,6 +7685,36 @@ export class ModelApiSession implements AgentSession {
         ...(text !== '' && { text: text.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS) }),
         ...(event.errorKind !== undefined && { errorKind: event.errorKind }),
       }
+      if (child.state === 'interrupted') {
+        child.evidence = { ...child.evidence, inFlight: false, waiting: 'interrupted' }
+      } else {
+        const items = child.session.transcript
+          .filter((entry) => entry.turnId === event.turnId)
+          .map((entry) => entry.item)
+        const terminalStop = agentStopReason(event.terminal)
+        const stopReason =
+          child.session.outcomeStopReason ?? (terminalStop === 'unknown' ? 'normal' : terminalStop)
+        const evidence = finishedAgentEvidence(
+          items,
+          child.session.todoTurnId === event.turnId ? child.session.todos : [],
+          stopReason,
+          child.session.checkCommands(),
+        )
+        if (child.session.responseIncomplete) evidence.reportedComplete = false
+        const receipt = buildAgentReceipt(items, evidence, text)
+        child.evidence = {
+          ...evidence,
+          attempt: child.evidence.attempt ?? 1,
+          attempts: [
+            ...(child.evidence.attempts ?? []),
+            {
+              number: child.evidence.attempt ?? 1,
+              outcome: endedOutcome({ status: event.terminal, evidence }),
+              receipt,
+            },
+          ],
+        }
+      }
       this.pendingChildResults.push({
         childId: child.id,
         text: `${MODEL_API_MODEL_TEXT.subagentResult}\n${child.id}: ${JSON.stringify({ ...child.result, summary: modelText.slice(0, SUBAGENT_SUMMARY_MAX_CHARS), text: modelText.slice(0, SUBAGENT_RESULT_TEXT_MAX_CHARS) })}`,
@@ -7061,9 +7730,21 @@ export class ModelApiSession implements AgentSession {
       this.startQueuedChildren()
       return
     }
-    if (FORWARDED_CHILD_EVENTS.has(event.type)) {
-      this.emit(event)
+    if (!FORWARDED_CHILD_EVENTS.has(event.type)) {
+      return
     }
+
+    if (['approvalRequested', 'questionRequested', 'elicitationRequested'].includes(event.type)) {
+      child.evidence = {
+        ...child.evidence,
+        waiting: event.type === 'approvalRequested' ? 'approval' : 'input',
+      }
+      this.updateChild(child)
+    } else if (['approvalResolved', 'questionSettled', 'elicitationSettled'].includes(event.type)) {
+      child.evidence = { ...child.evidence, waiting: undefined }
+      this.updateChild(child)
+    }
+    this.emit(event)
   }
 
   /** A hidden continuation uses the original consent and its remaining request bound. */
@@ -7374,6 +8055,7 @@ export class ModelApiSession implements AgentSession {
       goalId,
       remainingAttempts: SUBAGENT_TASK_MAX_REQUESTS,
       isWebSearchAllowed,
+      ...(this.approvedSearchQuote !== undefined && { searchQuote: this.approvedSearchQuote }),
     }
   }
 
@@ -7524,12 +8206,12 @@ export class ModelApiSession implements AgentSession {
             async () => {
               // "Always" was given for the model the user saw priced: a child
               // on another one (an agent file named it) asks again (M76, D48).
-              const isAllowed = await this.deps.allowsPaidUse(
+              const decision = await this.deps.allowsPaidUse(
                 { feature: 'subagents', task },
                 task.modelId !== this.modelId,
                 this.askingSessionId,
               )
-              return isAllowed ? undefined : childTaskFailure('consentDeclined')
+              return decision === true ? undefined : childTaskFailure('consentDeclined')
             },
           ])
         : { refusal: childTaskFailure(gate) }
@@ -7546,6 +8228,52 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** Starts queued children in spawn order, bounded by the Model API capacity. */
+  private async startResourceChild(child: ChildRecord, task: string): Promise<void> {
+    const stop = new AbortController()
+    child.resourceStop = stop
+    try {
+      const resource = await admitResource('subagent', stop.signal, 'background')
+      const grant = child.session.childTaskGrant
+      if (
+        grant === undefined ||
+        this.isDisposed ||
+        child.state !== 'running' ||
+        stop.signal.aborted ||
+        child.resourceStop !== stop ||
+        this.childGrantRefusal(grant, grant.keyDigest, child.session.modelId) !== undefined
+      ) {
+        resource?.complete(true)
+        throw new Error('Subagent admission expired')
+      }
+      child.resourceLease = resource
+      await inResourceClass(
+        'background',
+        async () =>
+          await child.session.sendTurn(
+            [{ type: 'text', text: `${MODEL_API_MODEL_TEXT.subagentObjective}\n\n${task}` }],
+            task,
+          ),
+      )
+    } catch {
+      if (child.resourceStop !== stop) return
+      child.resourceLease?.complete(true)
+      child.resourceLease = undefined
+      child.resourceStop = undefined
+      if (child.state === 'interrupted' && child.followupAfterStop !== undefined) {
+        child.pendingMessages.push(child.followupAfterStop)
+        child.followupAfterStop = undefined
+        child.state = 'queued'
+        this.startQueuedChildren()
+      }
+      if (child.state === 'running') {
+        child.state = 'closed'
+        child.terminal = CANCELLED
+        this.updateChild(child)
+        this.startQueuedChildren()
+      }
+    }
+  }
+
   private startQueuedChildren(): void {
     if (this.isDisposed) {
       return
@@ -7594,10 +8322,7 @@ export class ModelApiSession implements AgentSession {
       const additions = child.pendingMessages.splice(0)
       const task = this.queuedChildTask(child, additions)
       this.updateChild(child)
-      void child.session.sendTurn(
-        [{ type: 'text', text: `${MODEL_API_MODEL_TEXT.subagentObjective}\n\n${task}` }],
-        task,
-      )
+      void this.startResourceChild(child, task)
     }
   }
 
@@ -7729,11 +8454,12 @@ export class ModelApiSession implements AgentSession {
       session: child,
       startedAt: this.deps.now(),
       state: 'queued',
+      evidence: { attempt: 1, attempts: [] },
       result: undefined,
       terminal: undefined,
       usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 },
       chargedGoalId: undefined,
-      costUsd: 0,
+      costUsd: Usd.from(0).toAmount(),
       waiters: new Set(),
       pendingMessages: [],
       followupAfterStop: undefined,
@@ -7899,6 +8625,7 @@ export class ModelApiSession implements AgentSession {
       if (parsed.data.interrupt === true && child.state === 'running') {
         child.followupAfterStop = parsed.data.message
         child.state = 'interrupted'
+        child.resourceStop?.abort()
         await child.session.cancel()
       } else if (child.state === 'running') {
         const activeTurnId = child.session.activeTurnId
@@ -7945,6 +8672,7 @@ export class ModelApiSession implements AgentSession {
       child.session.childTaskGrant = undefined
       child.terminal ??= CANCELLED
       child.state = 'closed'
+      child.resourceStop?.abort()
       await child.session.cancel()
       this.updateChild(child)
       this.startQueuedChildren()
@@ -8110,6 +8838,7 @@ export class ModelApiSession implements AgentSession {
     admission: Admission,
     turnId: string,
     isInteractiveShell: boolean,
+    provisionalSeen: Map<string, string>,
     childGrant?: ChildTaskGrant,
     approvedTarget?: { readonly absolute: string; readonly checkedAbsolute: string },
     approvedImagePlan?: ImagePlan,
@@ -8198,7 +8927,7 @@ export class ModelApiSession implements AgentSession {
         const formatter = this.formatter(assertCanWrite)
         return {
           outcome: await executeTool(call.name, call.arguments, {
-            ...this.fileToolContext(signal),
+            ...this.fileToolContext(signal, provisionalSeen),
             contextTokens: contextModelFor(this.deps, this.modelId)?.contextTokens,
             wholeShellOutput: this.packing !== undefined,
             assertCanWrite,
@@ -8631,6 +9360,8 @@ export class ModelApiSession implements AgentSession {
         signal,
         undefined,
         assertCanRun,
+        false,
+        'check',
       )
     } catch (error: unknown) {
       return {
@@ -9515,6 +10246,7 @@ export class ModelApiSession implements AgentSession {
       }
       return isReadable
     }
+    const { runCodeIntelRead } = await this.codeIntelligence()
     const outcome = await unlessStopped(
       runCodeIntelRead(tool, call.arguments, { ...deps, canReadFile }, signal),
       signal,
@@ -9536,6 +10268,7 @@ export class ModelApiSession implements AgentSession {
     shouldForceApproval: boolean,
     isAllowed: () => boolean,
     slot: AdmissionSlot,
+    provisionalSeen: Map<string, string>,
   ): Promise<CallResult> {
     const assertFirstWrite = this.editAdmission(call, isAllowed)
     const deps = this.codeIntelDeps()
@@ -9551,6 +10284,14 @@ export class ModelApiSession implements AgentSession {
     // The plan the PreToolUse hooks were shown, if they were: it is the one
     // written, each file checked again for its content after the card. A
     // hook's new arguments are a new call object, planned afresh.
+    const {
+      planRenameCall,
+      renameRefused,
+      isProtectedRename,
+      renameCardPath,
+      applyRename,
+      CodeIntelRefusal,
+    } = await this.codeIntelligence()
     const planning = this.hookRenamePlans.get(call) ?? planRenameCall(call.arguments, deps)
     this.hookRenamePlans.delete(call)
     const planned = await unlessStopped(planning, signal)
@@ -9594,7 +10335,7 @@ export class ModelApiSession implements AgentSession {
         workspaceRoot: this.deps.workspaceRoot,
         platform: this.deps.platform,
         io: this.toolWrites()?.io ?? this.deps.io,
-        seen: this.seenFiles,
+        provisionalSeen,
         signal,
         beforeAccess: (file) => {
           const inPlace = this.inPlaceRefusalFor(call.name)
@@ -9616,7 +10357,7 @@ export class ModelApiSession implements AgentSession {
         },
         onWritten: (file) => {
           hasWritten = true
-          this.noteEdited(file)
+          this.noteEdited(file, provisionalSeen)
         },
       })
       return {
@@ -9643,6 +10384,7 @@ export class ModelApiSession implements AgentSession {
     goalCommandRevision: number,
     slot: AdmissionSlot,
     isInteractiveShell: boolean,
+    provisionalSeen: Map<string, string>,
     shouldForceApproval = false,
   ): Promise<CallResult> {
     if (this.modelPolicy().tools.calling.state !== 'yes') {
@@ -9717,13 +10459,13 @@ export class ModelApiSession implements AgentSession {
         shouldForceApproval,
         isAllowed,
         slot,
+        provisionalSeen,
       )
     }
     if (
       this.isSubagent &&
       (isSubagentTool(call.name) ||
         call.name === MODEL_API_TOOLS.askUser ||
-        call.name === MODEL_API_TOOLS.todoWrite ||
         call.name === MODEL_API_TOOLS.createGoal ||
         call.name === MODEL_API_TOOLS.getGoal ||
         call.name === MODEL_API_TOOLS.updateGoal ||
@@ -9892,6 +10634,7 @@ export class ModelApiSession implements AgentSession {
         admission,
         turnId,
         isInteractiveShell,
+        provisionalSeen,
         childGrant,
         target?.ok === true ? target : undefined,
         approvedImagePlan,
@@ -9905,7 +10648,7 @@ export class ModelApiSession implements AgentSession {
     const isEdited =
       performed.outcome.patch !== undefined && performed.outcome.failureReason === undefined
     if (isEdited) {
-      this.noteEdited(target)
+      this.noteEdited(target, provisionalSeen)
     }
     const thenRunRequest = thenRunOf(call.arguments)
     if (thenRunRequest.kind === 'absent') {
@@ -9946,6 +10689,7 @@ export class ModelApiSession implements AgentSession {
         signal,
         shouldForceApproval,
         isAllowed,
+        provisionalSeen,
       )),
       isRejected: false,
     }
@@ -9956,17 +10700,20 @@ export class ModelApiSession implements AgentSession {
    * after this round, the runs on its earlier state no longer counting, and
    * remembered since the user's input.
    */
-  private noteEdited(target: {
-    readonly relative: string
-    readonly absolute: string
-    readonly canonical: string
-    readonly checkedAbsolute: string
-  }): void {
+  private noteEdited(
+    target: {
+      readonly relative: string
+      readonly absolute: string
+      readonly canonical: string
+      readonly checkedAbsolute: string
+    },
+    provisionalSeen: ReadonlyMap<string, string>,
+  ): void {
     // By the real path and canonical name confinement found at the edit, with
     // what the edit left: nothing later follows a link retargeted since, and
     // the editor reads the file only while it still holds that (the Codex
     // review of PR #54).
-    const fingerprint = this.seenFiles.get(target.absolute)
+    const fingerprint = provisionalSeen.get(target.absolute)
     const file: EditedFile = {
       relative: target.canonical,
       absolute: target.checkedAbsolute,
@@ -10019,6 +10766,7 @@ export class ModelApiSession implements AgentSession {
     signal: AbortSignal,
     isForced: boolean,
     isAllowed: () => boolean,
+    provisionalSeen: ReadonlyMap<string, string>,
   ): Promise<Performed> {
     const effects = newHookEffects()
     // The state a check of the same command would start on, taken before it runs.
@@ -10040,7 +10788,7 @@ export class ModelApiSession implements AgentSession {
               description: THEN_RUN_DESCRIPTION,
               timeoutMs: SHELL_DEFAULT_TIMEOUT_MS,
               isForced,
-              guard: () => this.isAsEdited(target, isAllowed),
+              guard: () => this.isAsEdited(target, isAllowed, provisionalSeen),
             },
             signal,
             effects,
@@ -10115,7 +10863,11 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** Whether the file still holds what the edit left: `then_run`'s guard (M68). */
-  private async isAsEdited(target: FormatTarget, isAllowed: () => boolean): Promise<boolean> {
+  private async isAsEdited(
+    target: FormatTarget,
+    isAllowed: () => boolean,
+    provisionalSeen: ReadonlyMap<string, string>,
+  ): Promise<boolean> {
     if (!isAllowed() || this.policy().files.isDenied([target.relative, target.canonical]))
       return false
     let current: string | undefined
@@ -10129,7 +10881,7 @@ export class ModelApiSession implements AgentSession {
       isAllowed() &&
       !this.policy().files.isDenied([target.relative, target.canonical]) &&
       current !== undefined &&
-      fingerprint(current) === this.seenFiles.get(target.absolute)
+      fingerprint(current) === provisionalSeen.get(target.absolute)
     )
   }
 
@@ -10145,6 +10897,7 @@ export class ModelApiSession implements AgentSession {
     call: FunctionCallItem,
     outcome: ToolOutcome,
     status: string,
+    provisionalSeen?: ReadonlyMap<string, string>,
   ): ReplayItem {
     const { itemId } = started
     const outputRef = outcome.patch === undefined ? undefined : `${OUTPUT_REF_PREFIX}${itemId}`
@@ -10155,6 +10908,13 @@ export class ModelApiSession implements AgentSession {
       ...started,
       status,
       visibleOutput: outcome.visibleOutput,
+      ...(outcome.exitCode !== undefined && { exitCode: outcome.exitCode }),
+      ...(started.recordedAt !== undefined && {
+        durationMs: Math.max(0, this.deps.now() - Date.parse(started.recordedAt)),
+      }),
+      ...(outcome.patch !== undefined && {
+        changedFiles: agentFilesFromPatch(outcome.patch.document),
+      }),
       ...(outcome.failureReason !== undefined && { failureReason: outcome.failureReason }),
       ...(outputRef !== undefined &&
         outcome.patch !== undefined && {
@@ -10164,7 +10924,6 @@ export class ModelApiSession implements AgentSession {
       ...(outcome.verifySummary !== undefined && { verifySummary: outcome.verifySummary }),
       ...(outcome.thenRun !== undefined && { thenRun: outcome.thenRun }),
     }
-    this.emit({ type: 'itemCompleted', item: completed })
     this.rerecordTranscript(completed)
     const replay: ReplayItem = {
       turnId,
@@ -10175,6 +10934,10 @@ export class ModelApiSession implements AgentSession {
       },
     }
     this.replay.push(replay)
+    // No await or observer callback splits publication from its write proof.
+    if (provisionalSeen !== undefined)
+      for (const [absolute, hash] of provisionalSeen) this.seenFiles.set(absolute, hash)
+    this.emit({ type: 'itemCompleted', item: completed })
     const outputImages = outcome.outputParts?.filter((part) => part.type === 'input_image') ?? []
     if (outputImages.length > 0) {
       this.pendingOutputMedia.set(replay, outputImages)
@@ -10266,7 +11029,7 @@ export class ModelApiSession implements AgentSession {
     this.emit({ type: 'backendNotice', level: 'info', text: UI_TEXT.hookOutputReplaced })
   }
 
-  /** Permission check, execution and the transcript row for one tool call. */
+  /** A serial call, including corrections and then_run, takes the same staged path. */
   private async runCall(
     turnId: string,
     givenCall: FunctionCallItem,
@@ -10274,6 +11037,26 @@ export class ModelApiSession implements AgentSession {
     goalCommandRevision: number,
     correctionsUsed = 0,
   ): Promise<HookToolResult> {
+    const prepared = await this.prepareCall(turnId, givenCall, signal)
+    const [result] = await Promise.allSettled([
+      this.executeCall(turnId, prepared, signal, goalCommandRevision),
+    ])
+    return await this.settleCall(
+      turnId,
+      prepared,
+      result,
+      signal,
+      goalCommandRevision,
+      correctionsUsed,
+    )
+  }
+
+  /** PreToolUse runs serially, before any call in a read group starts. */
+  private async prepareCall(
+    turnId: string,
+    givenCall: FunctionCallItem,
+    signal: AbortSignal,
+  ): Promise<PreparedToolCall> {
     // D89.5: capture the command's origin before any hook, approval or directory
     // wait. Native entry rechecks the captured owner's isAllowed admission;
     // a later turn or an idle session cannot grant this command pass-through.
@@ -10288,12 +11071,15 @@ export class ModelApiSession implements AgentSession {
       (tool) => tool.type === 'function' && tool.name === givenCall.name,
     )
     const call =
+      this.strictTools &&
       this.deps.modelFacts?.(this.modelId)?.capabilities.supportsStrictTools === true &&
       definition?.type === 'function'
         ? { ...givenCall, arguments: restoreOptionalToolArguments(givenCall.arguments, definition) }
         : givenCall
-    const itemId = this.deps.newId()
+    const preview = this.argumentPreviewRows.get(call.call_id)
+    const itemId = preview?.itemId ?? this.deps.newId()
     const startedAt = this.deps.now()
+    const provisionalSeen = new Map<string, string>()
     // A BeforeToolSelection hook took this tool away for the turn: the call is
     // refused at admission, before any PreToolUse hook sees it, while the
     // declared tool list stays exactly as the model saw it (M91 lane E).
@@ -10346,13 +11132,126 @@ export class ModelApiSession implements AgentSession {
       turnId,
       tool: call.name,
       args: effectiveCall.arguments,
+      recordedAt: this.recordedNow(),
       ...(paid !== undefined && { paid }),
     }
-    this.recordTranscript(turnId, started)
+    this.clearArgumentPreviewTimer(call.call_id)
+    this.argumentPreviewRows.delete(call.call_id)
+    if (preview === undefined) {
+      this.recordTranscript(turnId, started)
+    } else {
+      this.rerecordTranscript(started)
+    }
     this.emit({ type: 'itemStarted', item: started })
+    return {
+      call,
+      effectiveCall,
+      pre,
+      started,
+      startedAt,
+      selectionReason,
+      provisionalSeen,
+      isInteractiveShell,
+    }
+  }
+
+  /** A hook's question or refusal is a barrier, even for a read-only name. */
+  private canParallelCall(prepared: PreparedToolCall): boolean {
+    const { effectiveCall, pre } = prepared
+    const external = this.externalTool(effectiveCall.name)
+    return (
+      isParallelRead(effectiveCall.name) &&
+      (external === undefined || external.kind === 'ide') &&
+      pre.blockedReason === undefined &&
+      pre.stopReason === undefined &&
+      !pre.forceApproval &&
+      this.judgementWithHook({ toolName: effectiveCall.name, toolClass: 'read' }, false).verdict ===
+        'allow'
+    )
+  }
+
+  private canWitnessRead(call: FunctionCallItem): boolean {
+    return (
+      call.name === MODEL_API_TOOLS.readFile &&
+      this.enabledHooks().length === 0 &&
+      this.enabledExtensionHooks().length === 0
+    )
+  }
+
+  /** Text reads have a fresh proof from the exact confined source, without re-running the tool. */
+  private async currentRepeatWitness(
+    call: FunctionCallItem,
+    signal: AbortSignal,
+  ): Promise<string | undefined> {
+    if (this.deps.repeatResultWitness !== undefined)
+      return await this.deps.repeatResultWitness.current(call, signal)
+    if (!this.canWitnessRead(call)) return undefined
+    const given = pick(argumentsOf(call), 'path')
+    if (given === undefined) return undefined
+    const io = this.toolWrites()?.io ?? this.deps.io
+    const file = await confineWorkspacePath(this.deps.workspaceRoot, given, this.deps.platform, io)
+    if (!file.ok || this.policy().files.isDenied([file.relative, file.canonical])) return undefined
+    signal.throwIfAborted()
+    const raw = await io.readFile(file.checkedAbsolute, file.checkedAbsolute, signal)
+    signal.throwIfAborted()
+    return raw === undefined || this.policy().files.isDenied([file.relative, file.canonical])
+      ? undefined
+      : JSON.stringify([[file.relative, file.canonical], fingerprint(raw)])
+  }
+
+  private observedRepeatWitness(
+    call: FunctionCallItem,
+    outcome: ToolOutcome,
+    provisionalSeen: ReadonlyMap<string, string>,
+  ): string | undefined {
+    if (this.deps.repeatResultWitness !== undefined)
+      return this.deps.repeatResultWitness.observed(call, outcome)
+    const { touched } = outcome
+    const seen = touched?.seen === undefined ? undefined : provisionalSeen.get(touched.seen)
+    return seen !== undefined && outcome.failureReason === undefined && this.canWitnessRead(call)
+      ? JSON.stringify([touched?.names, seen])
+      : undefined
+  }
+
+  private async executeCall(
+    turnId: string,
+    prepared: PreparedToolCall,
+    signal: AbortSignal,
+    goalCommandRevision: number,
+    isParallelExecution = false,
+  ): Promise<ExecutedToolCall> {
+    const { effectiveCall, pre, started } = prepared
+    const itemId = started.itemId
     const slot: AdmissionSlot = {}
     let result: CallResult
     try {
+      if (
+        pre.blockedReason === undefined &&
+        !pre.forceApproval &&
+        pre.stopReason === undefined &&
+        this.repeatGuard.needsWitness(effectiveCall)
+      ) {
+        let witness: string | undefined
+        try {
+          witness = await this.currentRepeatWitness(effectiveCall, signal)
+        } catch {
+          signal.throwIfAborted()
+          // Without proof the call runs.
+        }
+        const action = this.repeatGuard.before(effectiveCall, witness)
+        if (action !== 'run') {
+          return {
+            result: {
+              outcome: { output: MODEL_API_MODEL_TEXT.toolRepeatStopped, visibleOutput: '' },
+              isRejected: true,
+            },
+            slot,
+            isParallelExecution,
+            isRepeatSuppressed: true,
+            isRepeatStopped: action === 'stuck',
+          }
+        }
+      }
       result =
         pre.blockedReason === undefined
           ? await this.decideAndRun(
@@ -10362,19 +11261,14 @@ export class ModelApiSession implements AgentSession {
               signal,
               goalCommandRevision,
               slot,
-              isInteractiveShell,
+              prepared.isInteractiveShell,
+              prepared.provisionalSeen,
               pre.forceApproval,
             )
           : { outcome: toolFailure(pre.blockedReason), isRejected: true }
     } catch (error: unknown) {
+      prepared.provisionalSeen.clear()
       if (error instanceof AbortedError || signal.aborted) {
-        this.finishCall(
-          turnId,
-          started,
-          effectiveCall,
-          toolFailure(MODEL_API_MODEL_TEXT.toolCancelledByStop),
-          CANCELLED,
-        )
         throw new AbortedError()
       }
       // A tool that threw (a disk error, a directory for a file, an MCP
@@ -10382,17 +11276,104 @@ export class ModelApiSession implements AgentSession {
       // about, not the end of the turn.
       result = { outcome: toolFailure(describe(error)), isRejected: false }
     }
+    if (signal.aborted || result.isRejected || result.outcome.failureReason !== undefined)
+      prepared.provisionalSeen.clear()
+    if (isParallelRead(effectiveCall.name) && this.externalTool(effectiveCall.name)?.kind !== 'mcp')
+      signal.throwIfAborted()
+    return { result, slot, isParallelExecution, isRepeatSuppressed: false, isRepeatStopped: false }
+  }
+
+  /** Media admission, replay, packing and PostToolUse settle in call order. */
+  private async settleCall(
+    turnId: string,
+    prepared: PreparedToolCall,
+    executed: PromiseSettledResult<ExecutedToolCall>,
+    signal: AbortSignal,
+    goalCommandRevision: number,
+    correctionsUsed = 0,
+  ): Promise<HookToolResult> {
+    try {
+      return await this.settlePreparedCall(
+        turnId,
+        prepared,
+        executed,
+        signal,
+        goalCommandRevision,
+        correctionsUsed,
+      )
+    } finally {
+      prepared.provisionalSeen.clear()
+    }
+  }
+
+  private async settlePreparedCall(
+    turnId: string,
+    prepared: PreparedToolCall,
+    executed: PromiseSettledResult<ExecutedToolCall>,
+    signal: AbortSignal,
+    goalCommandRevision: number,
+    correctionsUsed: number,
+  ): Promise<HookToolResult> {
+    const { call, effectiveCall, pre, started, startedAt, selectionReason } = prepared
+    const isNativeRead =
+      isParallelRead(effectiveCall.name) && this.externalTool(effectiveCall.name)?.kind !== 'mcp'
+    if (
+      executed.status === 'rejected' ||
+      (signal.aborted && (isNativeRead || executed.value.isParallelExecution))
+    ) {
+      prepared.provisionalSeen.clear()
+      this.finishCall(
+        turnId,
+        started,
+        effectiveCall,
+        toolFailure(MODEL_API_MODEL_TEXT.toolCancelledByStop),
+        CANCELLED,
+      )
+      throw new AbortedError()
+    }
+    const itemId = started.itemId
+    const { result, slot } = executed.value
+    let isCommitted = false
+    const checkStopped = () => {
+      if (isCommitted || !signal.aborted || (!isNativeRead && !executed.value.isParallelExecution))
+        return
+      prepared.provisionalSeen.clear()
+      this.finishCall(
+        turnId,
+        started,
+        effectiveCall,
+        toolFailure(MODEL_API_MODEL_TEXT.toolCancelledByStop),
+        CANCELLED,
+      )
+      throw new AbortedError()
+    }
     // An MCP tool's `path` is its own business, not a workspace file it read.
     if (this.externalTool(effectiveCall.name) === undefined) {
-      await this.touchPath(effectiveCall, turnId, signal)
+      const touched = this.touchPath(effectiveCall, turnId, signal)
+      if (isNativeRead || executed.value.isParallelExecution) {
+        try {
+          await unlessStopped(touched, signal)
+        } catch (error: unknown) {
+          checkStopped()
+          throw error
+        }
+      } else await touched
+      checkStopped()
     }
     const { admission } = slot
     const { isRejected, running, hookEffects } = result
-    // The one point every outcome crosses: no await from here to the model's
-    // replay. A rejection brought nothing back and keeps its own words.
+    // A rejection brought nothing back and keeps its own words. Speculative
+    // reads publish only after all awaited settlement work passes Stop.
     let outcome = isRejected ? result.outcome : this.fencedOutcome(admission, result.outcome)
     let attemptReplay: ReplayItem | undefined
-    if (running === undefined) {
+    const commit = () => {
+      checkStopped()
+      if (!isRejected && executed.value.isParallelExecution)
+        outcome = this.fencedOutcome(admission, outcome)
+      if (running !== undefined) {
+        this.continueInBackground(turnId, started, effectiveCall, outcome, running, admission)
+        return
+      }
       if (!this.canQueueToolMedia(outcome)) {
         outcome = {
           output: `Error: ${MODEL_API_MODEL_TEXT.toolMediaBudgetExceeded}`,
@@ -10404,7 +11385,18 @@ export class ModelApiSession implements AgentSession {
       if (outcome.failureReason !== undefined) {
         status = isRejected ? REJECTED : FAILED
       }
-      attemptReplay = this.finishCall(turnId, started, effectiveCall, outcome, status)
+      attemptReplay = this.finishCall(
+        turnId,
+        started,
+        effectiveCall,
+        outcome,
+        status,
+        outcome.failureReason === undefined && !signal.aborted
+          ? prepared.provisionalSeen
+          : undefined,
+      )
+      prepared.provisionalSeen.clear()
+      isCommitted = true
       if (
         effectiveCall.name === MODEL_API_TOOLS.todoWrite &&
         outcome.failureReason !== undefined &&
@@ -10412,13 +11404,23 @@ export class ModelApiSession implements AgentSession {
       ) {
         throw new HookStoppedError(outcome.failureReason)
       }
-    } else {
-      this.continueInBackground(turnId, started, effectiveCall, outcome, running, admission)
     }
+    if (!executed.value.isParallelExecution) commit()
     if (selectionReason !== undefined) {
       await this.notePermissionDenied(call.name, selectionReason, signal)
+      checkStopped()
     }
     this.appendHookContexts(turnId, [...pre.contexts, ...(hookEffects?.contexts ?? [])])
+    let repeatWitness: string | undefined
+    try {
+      repeatWitness = this.observedRepeatWitness(
+        effectiveCall,
+        outcome,
+        executed.value.isParallelExecution ? prepared.provisionalSeen : this.seenFiles,
+      )
+    } catch {
+      // A failed proof leaves this call eligible to run again.
+    }
     const post = await this.runHooks(
       outcome.failureReason === undefined ? 'PostToolUse' : 'PostToolUseFailure',
       turnId,
@@ -10443,12 +11445,26 @@ export class ModelApiSession implements AgentSession {
       true,
       { fileOperation: fileOperationOf(outcome) },
     )
+    checkStopped()
+    if (executed.value.isParallelExecution) commit()
     if (
       attemptReplay !== undefined &&
       outcome.failureReason === undefined &&
       post.replacement?.target === 'toolResult'
     ) {
       this.replaceOutput(attemptReplay, outcome, post.replacement.value)
+    }
+    if (!executed.value.isRepeatSuppressed) {
+      this.repeatGuard.observe(
+        effectiveCall,
+        post.replacement?.target === 'toolResult'
+          ? post.replacement.value
+          : (outcome.outputParts ?? outcome.output),
+        post.replacement === undefined ? repeatWitness : undefined,
+      )
+    }
+    if (executed.value.isRepeatStopped) {
+      this.emit({ type: 'backendNotice', level: 'warning', text: UI_TEXT.modelApiToolStuck })
     }
     const blocked = [
       ...(post.stopReason === undefined && post.blockedReason !== undefined
@@ -10483,6 +11499,7 @@ export class ModelApiSession implements AgentSession {
         correctionsUsed,
         signal,
       )
+      checkStopped()
       if (correction.ok) {
         this.supersedeReplayOutput(attemptReplay, outcome)
         return await this.runCall(
@@ -10511,7 +11528,9 @@ export class ModelApiSession implements AgentSession {
       },
       // A PreToolUse stop (Amp's tool.call `error`, M91b) refused the call
       // and ends the turn too.
-      stopReason: post.stopReason ?? hookEffects?.stopReason ?? pre.stopReason,
+      stopReason: executed.value.isRepeatStopped
+        ? MODEL_API_MODEL_TEXT.toolRepeatStopped
+        : (post.stopReason ?? hookEffects?.stopReason ?? pre.stopReason),
     }
   }
 
@@ -10707,31 +11726,17 @@ export class ModelApiSession implements AgentSession {
   }
 
   private async drainSteered(turn: ActiveTurn): Promise<void> {
+    if (turn.steered.length > 0) this.repeatGuard.reset()
     // What ended or ran meanwhile first (M46), then what the user added.
     this.settleNotes(turn.turnId)
-    for (const { parts, userMessageId: itemId } of turn.steered.splice(0)) {
-      // Admitted user input (M68): the fix loop, rejections and runs start
-      // afresh; what the conversation wrote stays until the next message. A
-      // subagent's steers come from its parent model, not the user.
-      if (!this.isSubagent) {
-        this.ledger.resetForSteer()
-      }
+    while (turn.steered.length > 0) {
+      const steer = turn.steered[0]
+      if (steer === undefined) break
+      const { parts, userMessageId: itemId } = steer
       const text = typedText(parts)
       const replayStart = this.replay.length
-      this.replay.push({
-        turnId: turn.turnId,
-        userMessageId: itemId,
-        item: {
-          type: 'message',
-          role: 'user',
-          content: [
-            { type: 'input_text', text: MODEL_API_MODEL_TEXT.steeredPrefix },
-            ...(await this.contentParts(parts)),
-          ],
-        },
-      })
       const attachments = attachmentsOf(parts)
-      this.recordTranscript(turn.turnId, {
+      const row: ItemSnapshot = {
         itemId,
         kind: 'userMessage',
         status: COMPLETED,
@@ -10739,8 +11744,46 @@ export class ModelApiSession implements AgentSession {
         text,
         ...(attachments.length > 0 && { attachments }),
         recordedAt: this.recordedNow(),
-      })
-      await this.expandSkillsForHooks(turn.turnId, parts, replayStart, turn.abort.signal)
+      }
+      try {
+        turn.abort.signal.throwIfAborted()
+        this.replay.push({
+          turnId: turn.turnId,
+          userMessageId: itemId,
+          item: {
+            type: 'message',
+            role: 'user',
+            content: [
+              { type: 'input_text', text: MODEL_API_MODEL_TEXT.steeredPrefix },
+              ...(await this.contentParts(parts)),
+            ],
+          },
+        })
+        await this.expandSkillsForHooks(turn.turnId, parts, replayStart, turn.abort.signal)
+        turn.abort.signal.throwIfAborted()
+        // Admitted user input starts the fix loop afresh (M68); a subagent's
+        // steers come from its parent model rather than the user.
+        if (turn.steered[0] === steer && !this.isSubagent) this.ledger.resetForSteer()
+      } catch (error: unknown) {
+        this.replay.splice(replayStart)
+        // Only a definitive refusal consumes the head; every other failure
+        // leaves it and the untouched tail for common finalization promotion.
+        if (error instanceof HookStoppedError && turn.steered[0] === steer) {
+          const refused = { ...row, status: REJECTED, failureReason: describe(error) }
+          this.recordTranscript(turn.turnId, refused)
+          turn.steered.shift()
+          turn.acceptedTextAttachmentBytes -= textAttachmentBytes(parts)
+          this.emit({ type: 'itemCompleted', item: refused })
+        }
+        throw error
+      }
+      // Withdrawal during the hook await owns this message instead.
+      if (turn.steered[0] !== steer) {
+        this.replay.splice(replayStart)
+        continue
+      }
+      this.recordTranscript(turn.turnId, row)
+      turn.steered.shift()
       // It is in the request now (M87): an Edit can no longer take it back.
       if (!this.isSubagent) {
         this.emit({ type: 'messageAdmitted', userMessageId: itemId })
@@ -10749,12 +11792,21 @@ export class ModelApiSession implements AgentSession {
   }
 
   /** Accepted steering that missed this turn's last request becomes user turns. */
-  private queuedSteered(turn: ActiveTurn): QueuedTurn[] {
-    return turn.steered.splice(0).map(({ parts, userMessageId }) => {
-      const turnId = this.deps.newId()
+  private promoteSteered(turn: ActiveTurn): void {
+    const promoted = turn.steered.map(({ parts, userMessageId }) => ({
+      turnId: this.deps.newId(),
+      parts,
+      displayText: undefined,
+      userMessageId,
+      isGoalWake: false,
+    }))
+    // Prepare ids without consuming anything; then transfer all ownership before
+    // any public callback can throw, withdraw a message, or inspect the queues.
+    this.queuedTurns.unshift(...promoted)
+    turn.steered.splice(0, promoted.length)
+    for (const { userMessageId, turnId } of promoted) {
       this.emit({ type: 'userMessageTurnChanged', userMessageId, turnId })
-      return { turnId, parts, displayText: undefined, userMessageId, isGoalWake: false }
-    })
+    }
   }
 
   /** The queued turn `ref` names, out of the queue and withdrawn; undefined once it started. */
@@ -11049,10 +12101,12 @@ export class ModelApiSession implements AgentSession {
   }
 
   private async loop(turn: ActiveTurn): Promise<void> {
+    this.repeatGuard.reset()
     const { signal } = turn.abort
     if (this.teamModeForRequest() === 'team') await this.prepareTeamRuntime()
     let isStopHookActive = false
     let stopContinuations = 0
+    let outputContinuations = 0
     for (let round = 0; round < MODEL_API_MAX_TOOL_ROUNDS; round += 1) {
       if (isAbortRequested(signal)) {
         throw new AbortedError()
@@ -11106,7 +12160,35 @@ export class ModelApiSession implements AgentSession {
       if (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited) {
         this.skipCalls(turn.turnId, calls, MODEL_API_MODEL_TEXT.goalBudgetReached)
         this.appendHookContexts(turn.turnId, postContexts)
-        this.queuedTurns.unshift(...this.queuedSteered(turn))
+        this.promoteSteered(turn)
+        return
+      }
+      if (streamed.incompleteReason !== undefined) {
+        // A completed function item in a cut-short response is still unsafe:
+        // answer every call, never execute it (M101 item 8).
+        this.skipCalls(turn.turnId, calls, `response.incomplete: ${streamed.incompleteReason}`)
+        this.appendHookContexts(turn.turnId, postContexts)
+        if (
+          streamed.incompleteReason === 'max_output_tokens' &&
+          this.outputContinuation &&
+          outputContinuations < MODEL_API_CONTINUATIONS_MAX &&
+          round < MODEL_API_MAX_TOOL_ROUNDS - 1
+        ) {
+          outputContinuations += 1
+          this.emit({ type: 'backendNotice', level: 'info', text: UI_TEXT.modelApiContinuing })
+          this.replay.push({
+            turnId: turn.turnId,
+            item: noteItem(MODEL_API_MODEL_TEXT.continuationPrompt),
+          })
+          continue
+        }
+        if (streamed.incompleteReason === 'max_output_tokens' && this.outputContinuation) {
+          this.emit({
+            type: 'backendNotice',
+            level: 'warning',
+            text: UI_TEXT.modelApiContinuationLimit,
+          })
+        }
         return
       }
       // One more model call without progress toward the goal (the step probe, D38).
@@ -11174,41 +12256,93 @@ export class ModelApiSession implements AgentSession {
         }
         continue
       }
+      const counts = new Map<string, number>()
+      for (const call of calls) {
+        const key = toolRepeatKey(call)
+        counts.set(key, (counts.get(key) ?? 0) + 1)
+      }
       let isRoundComplete = false
       const batch: Readonly<Record<string, unknown>>[] = []
+      let skipReason: string = MODEL_API_MODEL_TEXT.toolCancelledByStop
       try {
-        for (const [index, call] of calls.entries()) {
-          if (isAbortRequested(signal)) {
-            this.skipCalls(turn.turnId, calls.slice(index))
-            throw new AbortedError()
-          }
-          const requiredBeforeCall = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
-          if (requiredBeforeCall !== undefined) {
-            this.skipCalls(
-              turn.turnId,
-              calls.slice(index),
-              MODEL_API_MODEL_TEXT.mcpRequiredUnavailable,
-            )
-            throw requiredBeforeCall
-          }
-          try {
-            const finished = await this.runCall(turn.turnId, call, signal, goalCommandRevision)
-            batch.push(finished.record)
-            if (finished.stopReason !== undefined) {
-              const requiredAfterCall = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
-              if (requiredAfterCall !== undefined) {
-                throw requiredAfterCall
-              }
-              this.skipCalls(turn.turnId, calls.slice(index + 1), finished.stopReason)
-              this.dropUndeliveredMedia(turn.turnId)
-              return
+        const hooks =
+          this.enabledHooks().length === 0 ? undefined : await import('./modelApiHooksEntry.js')
+        const scheduled = await scheduleTools({
+          calls,
+          // A hook can change a later read's source (or an earlier read's
+          // source during preparation). Keep the entire batch serial then.
+          // Extension hooks reached by touched paths can mutate sources too.
+          parallel:
+            this.parallelReads &&
+            this.enabledExtensionHooks().length === 0 &&
+            calls.every((call) =>
+              (['PreToolUse', 'PostToolUse', 'PostToolUseFailure'] as const).every(
+                (event) =>
+                  (hooks?.matchingHooks(this.enabledHooks(), event, toolMatcherNames(call.name))
+                    .length ?? 0) === 0,
+              ),
+            ),
+          isRead: (call) =>
+            isParallelRead(call.name) &&
+            this.externalTool(call.name)?.kind !== 'mcp' &&
+            counts.get(toolRepeatKey(call)) === 1,
+          prepare: async (call) => {
+            if (isAbortRequested(signal)) throw new AbortedError()
+            const required = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
+            if (required !== undefined) {
+              skipReason = MODEL_API_MODEL_TEXT.mcpRequiredUnavailable
+              throw required
             }
-          } catch (error: unknown) {
-            this.skipCalls(turn.turnId, calls.slice(index + 1))
-            throw error
-          }
+            return await this.prepareCall(turn.turnId, call, signal)
+          },
+          canParallel: (prepared) => this.canParallelCall(prepared),
+          run: async (prepared, isParallelExecution) => {
+            const execution = this.executeCall(
+              turn.turnId,
+              prepared,
+              signal,
+              goalCommandRevision,
+              isParallelExecution,
+            )
+            return isParallelRead(prepared.effectiveCall.name) &&
+              this.externalTool(prepared.effectiveCall.name)?.kind !== 'mcp'
+              ? await unlessStopped(execution, signal)
+              : await execution
+          },
+          settle: async (prepared, result) => {
+            const finished = await this.settleCall(
+              turn.turnId,
+              prepared,
+              result,
+              signal,
+              goalCommandRevision,
+            )
+            batch.push(finished.record)
+            if (finished.stopReason === undefined) return true
+            const required = this.requiredMcpFailure(this.deps.mcpServers?.snapshot())
+            if (required !== undefined) throw required
+            skipReason = finished.stopReason
+            return false
+          },
+          skip: (call, prepared) => {
+            if (prepared === undefined) this.skipCalls(turn.turnId, [call], skipReason)
+            else {
+              prepared.provisionalSeen.clear()
+              this.finishCall(
+                turn.turnId,
+                prepared.started,
+                prepared.effectiveCall,
+                toolFailure(skipReason),
+                CANCELLED,
+              )
+            }
+          },
+        })
+        isRoundComplete = scheduled.isComplete
+        if (!isRoundComplete) {
+          this.dropUndeliveredMedia(turn.turnId)
+          return
         }
-        isRoundComplete = true
       } finally {
         // A user message between a function call and its output is invalid
         // replay. Post-model context follows the whole tool batch instead.
@@ -11257,13 +12391,11 @@ export class ModelApiSession implements AgentSession {
     // Input accepted during the last permitted round still needs a request
     // that sees it. Steered messages belonged to this turn, so run them
     // before separately queued messages; a goal cue follows them.
-    const overflow = this.queuedSteered(turn)
     if (turn.goalWakePending && isGoalActive(this.goal)) {
-      overflow.push(this.queuedGoalWake())
+      this.queuedTurns.unshift(this.queuedGoalWake())
     }
-    if (overflow.length > 0) {
-      this.queuedTurns.unshift(...overflow)
-    }
+    this.promoteSteered(turn)
+    this.outcomeStopReason = 'budget'
     throw new Error(`stopped after ${String(MODEL_API_MAX_TOOL_ROUNDS)} tool rounds`)
   }
 
@@ -11327,6 +12459,8 @@ export class ModelApiSession implements AgentSession {
   }
 
   private async runTurn(queued: QueuedTurn): Promise<void> {
+    this.outcomeStopReason = undefined
+    this.responseIncomplete = false
     this.mediaNoticeSent = false
     const turn: ActiveTurn = {
       turnId: queued.turnId,
@@ -11337,6 +12471,7 @@ export class ModelApiSession implements AgentSession {
       goalWakePending: false,
       isWebSearchAllowed: false,
       isReview: queued.isReview === true,
+      ...(queued.draft !== undefined && { draft: queued.draft }),
       ranProcesses: this.hasLiveCommands(),
       ...(queued.confirmedRequest !== undefined && {
         confirmedRequest: queued.confirmedRequest,
@@ -11365,7 +12500,7 @@ export class ModelApiSession implements AgentSession {
     this.settleNotes(turn.turnId)
     this.touch()
     const startedAt = this.deps.now()
-    this.turnCostUsd = 0
+    this.turnCostUsd = Usd.from(0).toAmount()
     // A reply line counts this turn's requests only (M82).
     this.unshownUsage = undefined
     let terminal = COMPLETED
@@ -11494,7 +12629,15 @@ export class ModelApiSession implements AgentSession {
         }
       } else {
         terminal = FAILED
+        if (
+          error instanceof SessionBudgetExceededError ||
+          (error instanceof ChildTaskRefusedError &&
+            (error.kind === 'requestLimit' || error.kind === 'goalEnded'))
+        ) {
+          this.outcomeStopReason = 'budget'
+        }
         reason = error instanceof ChildTaskRefusedError ? error.visible : describe(error)
+        if (this.isSubagent && this.outcomeStopReason === 'budget') terminal = COMPLETED
         if (error instanceof ChildTaskRefusedError) {
           errorKind = `subagent_${error.kind}`
         } else if (error instanceof ContextOverflowError) {
@@ -11541,8 +12684,6 @@ export class ModelApiSession implements AgentSession {
     if (terminal !== COMPLETED) {
       this.dropUndeliveredMedia(turn.turnId)
     }
-    // `loop` returns only with nothing steered left (D26), and `steer` is
-    // refused once `active` is cleared, so no input is lost between the two.
     // A note that arrived during the last reply is kept for the next request (M46).
     this.settleNotes(turn.turnId)
     try {
@@ -11556,13 +12697,23 @@ export class ModelApiSession implements AgentSession {
       )
     }
     this.deps.judge?.discardTurn(this.sessionId, turn.turnId)
+    for (const callId of this.argumentPreviewRows.keys()) {
+      this.interruptArgumentPreview(callId)
+    }
+    // Every exit preserves input the last request did not admit, including
+    // incomplete replies and steering accepted while finalization awaited.
+    this.promoteSteered(turn)
     this.active = undefined
     this.status = IDLE
     this.turnCount += 1
     // The turn's cost against the cap, said once afterwards (M82).
     const budgetCapUsd = this.currentBudgetCap()
     const turnCostUsd = this.turnCostUsd
-    if (budgetCapUsd > 0 && turnCostUsd > 0 && !this.budgetOwner().hasUnknownBudgetCost) {
+    if (
+      Usd.from(budgetCapUsd).compare(Usd.from(0)) > 0 &&
+      isPositiveUsd(turnCostUsd) &&
+      !this.budgetOwner().hasUnknownBudgetCost
+    ) {
       this.emit({
         type: 'backendNotice',
         level: 'info',
@@ -11572,6 +12723,10 @@ export class ModelApiSession implements AgentSession {
           cap: formatUsd(budgetCapUsd),
         }),
       })
+    }
+    if (this.scheduledResource?.turnId === turn.turnId) {
+      this.scheduledResource.lease?.complete(true)
+      this.scheduledResource = undefined
     }
     this.emit({
       type: 'turnCompleted',
@@ -11607,7 +12762,15 @@ export class ModelApiSession implements AgentSession {
         })
         continue
       }
-      this.track(this.runTurn(next), false)
+      this.track(
+        inResourceClass(
+          next.resourceClass ?? (this.isSubagent ? 'background' : 'foreground'),
+          async () => {
+            await this.runTurn(next)
+          },
+        ),
+        false,
+      )
       return
     }
   }
@@ -11728,6 +12891,10 @@ export class ModelApiSession implements AgentSession {
           body,
           signal,
           (notice) => {
+            if (notice.phase === 'pacing') {
+              this.emit({ type: 'backendNotice', level: 'info', text: notice.reason })
+              return
+            }
             if (!attemptState.didSend || isAbortRequested(signal)) return
             const usage = attemptState.usage
             // Consume first: failed accounting must not settle this attempt again in cleanup.
@@ -11931,9 +13098,10 @@ export class ModelApiSession implements AgentSession {
       pricing: {
         kind: 'priced',
         card: {
-          input: card.input / TOKENS_PER_MILLION,
-          cachedInput: card.cachedInput / TOKENS_PER_MILLION,
-          output: card.output / TOKENS_PER_MILLION,
+          // M101's economic heuristic uses approximate rates; admissions remain exact USD.
+          input: Number(Usd.from(card.input).divide(TOKENS_PER_MILLION).toString()),
+          cachedInput: Number(Usd.from(card.cachedInput).divide(TOKENS_PER_MILLION).toString()),
+          output: Number(Usd.from(card.output).divide(TOKENS_PER_MILLION).toString()),
           source: 'catalogue',
         },
       },
@@ -11951,7 +13119,7 @@ export class ModelApiSession implements AgentSession {
       return true
     }
     if (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited) {
-      this.queuedTurns.unshift(...this.queuedSteered(turn))
+      this.promoteSteered(turn)
       return true
     }
     return false
@@ -12152,7 +13320,7 @@ export class ModelApiSession implements AgentSession {
     const wasBudgetLimited = this.goal?.status === GOAL_STATUS.budgetLimited
     let tail: readonly ReplayItem[] = []
     let snapshot = ''
-    const makeBody = (canUseTools: boolean): CreateResponseBody => {
+    const makeBody = (canUseTools: boolean, attempt: SideCallAttempt): CreateResponseBody => {
       // collectText calls again after hooks and budget refresh. Capture all model
       // decisions together, with no await between this projection and reservation.
       const modelId = this.modelId
@@ -12195,7 +13363,8 @@ export class ModelApiSession implements AgentSession {
           Math.floor(windowTokens * COMPACTION_SUMMARY_WINDOW_FRACTION),
         ),
       )
-      const current = this.body()
+      const { text: _answerFormat, ...current } = this.body(false)
+      // Compaction owns its format, including the unformatted text fallback.
       // The last POST supplies cache metadata only. Stop, fitting and hook
       // rewrites can replace replay entries; its saved input is never replayed.
       const cached = canReuse && prefix?.body.model === modelId ? prefix.body : undefined
@@ -12211,29 +13380,56 @@ export class ModelApiSession implements AgentSession {
         tools: canReuse ? (cached?.tools ?? current.tools) : [],
         include: ['reasoning.encrypted_content'],
       })
+      const formatted = this.keyed(sideCallBody(body, attempt, this.deps.forceSideCallTool))
       const reserved = this.budgeted({
-        ...body,
-        max_output_tokens: Math.min(body.max_output_tokens, summaryBudget),
+        ...formatted,
+        max_output_tokens: Math.min(formatted.max_output_tokens, summaryBudget),
       })
       return { ...reserved, max_output_tokens: Math.min(reserved.max_output_tokens, summaryBudget) }
     }
-    let collected = await this.collectText(
-      () => makeBody(true),
+    const postContexts: string[] = []
+    const summary = await structuredCompaction({
+      formats: this.deps.sideCallFormats?.(this.modelId),
       signal,
-      extraAdmission,
-      settleExtra,
-    )
-    if (
-      collected.body.tools.length > 0 &&
-      collected.response.output.some((item) => isFunctionCallItem(item))
-    ) {
-      if (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited)
-        return { status: NOOP, reason: MODEL_API_MODEL_TEXT.goalBudgetReached }
-      collected = await this.collectText(() => makeBody(false), signal, extraAdmission, settleExtra)
-    }
-    if (collected.response.output.some((item) => isFunctionCallItem(item)))
-      throw new Error(UI_TEXT.compactionToolCall)
-    if (collected.text.trim() === '') throw new Error(UI_TEXT.compactionEmpty)
+      isTerminalError: (error) =>
+        error instanceof HookStoppedError || error instanceof SessionBudgetExceededError,
+      notice: (text) => {
+        this.emit({ type: 'backendNotice', level: 'warning', text })
+      },
+      request: async (attempt) => {
+        let collected = await this.collectText(
+          () => makeBody(true, attempt),
+          signal,
+          extraAdmission,
+          settleExtra,
+        )
+        if (
+          attempt.mode !== 'forced_tool' &&
+          collected.body.tools.length > 0 &&
+          collected.response.output.some((item) => isFunctionCallItem(item))
+        ) {
+          if (!wasBudgetLimited && this.goal?.status === GOAL_STATUS.budgetLimited)
+            throw new SessionBudgetExceededError(MODEL_API_MODEL_TEXT.goalBudgetReached)
+          collected = await this.collectText(
+            () => makeBody(false, attempt),
+            signal,
+            extraAdmission,
+            settleExtra,
+          )
+        }
+        postContexts.push(...collected.contexts)
+        if (attempt.mode === 'forced_tool') {
+          const call = collected.response.output.find(
+            (item) => isFunctionCallItem(item) && item.name === attempt.name,
+          )
+          if (call !== undefined && isFunctionCallItem(call)) return call.arguments
+        }
+        if (collected.response.output.some((item) => isFunctionCallItem(item)))
+          throw new Error(UI_TEXT.compactionToolCall)
+        if (collected.text.trim() === '') throw new Error(UI_TEXT.compactionEmpty)
+        return collected.text
+      },
+    })
     if (signal.aborted) throw new AbortedError()
     this.compactedThroughTurnId = this.turnIds.at(-1)
     this.replay.splice(
@@ -12247,7 +13443,7 @@ export class ModelApiSession implements AgentSession {
           content: [
             {
               type: 'input_text',
-              text: `${MODEL_API_MODEL_TEXT.compactionPrefix}\n\n${collected.text}\n\n${snapshot}`,
+              text: `${MODEL_API_MODEL_TEXT.compactionPrefix}\n\n${summary}\n\n${snapshot}`,
             },
           ],
         },
@@ -12261,7 +13457,7 @@ export class ModelApiSession implements AgentSession {
       ),
     )
     this.packing?.reset()
-    this.appendHookContexts(COMPACTION_TURN_ID, collected.contexts)
+    this.appendHookContexts(COMPACTION_TURN_ID, postContexts)
     const item: ItemSnapshot = {
       itemId: this.deps.newId(),
       kind: 'compaction',
@@ -12301,7 +13497,7 @@ export class ModelApiSession implements AgentSession {
             session: this.sessionId,
             outcome: counted === undefined ? 'failed' : 'completed',
             durationMs: Math.max(0, this.deps.now() - startedAt),
-            providerCostUsd: 0,
+            providerCostUsd: Usd.from(0).toAmount(),
           },
         )
       }
@@ -12309,7 +13505,11 @@ export class ModelApiSession implements AgentSession {
       if (countRevision === this.modelRevision) {
         this.noteContext(counted)
       }
-      if (!this.isSubagent && this.currentBudgetCap() > 0 && countRevision === this.modelRevision) {
+      if (
+        !this.isSubagent &&
+        Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0 &&
+        countRevision === this.modelRevision
+      ) {
         this.budgetBase = {
           inputTokens: counted,
           parts: estimateInput(requestParts(countable), undefined).parts,
@@ -12487,6 +13687,39 @@ export class ModelApiSession implements AgentSession {
     occurrenceMs: number,
     confirmed: ScheduleRunConfirmation,
   ): Promise<TurnSubmission> {
+    if (this.isSideChat) throw new Error(UI_TEXT.sideChatPlanOnly)
+    if (confirmed.sessionId !== this.sessionId || confirmed.modelId !== this.modelId)
+      throw new Error(UI_TEXT.scheduleConfirmationExpired)
+    if (!this.deps.isPaidFeatureOn('scheduledPrompts')) throw new Error(UI_TEXT.schedulePaidOff)
+    if (this.isDisposed || this.isScheduleBusy()) throw new Error(UI_TEXT.scheduleBusy)
+    const generation = ++this.scheduleResourceGeneration
+    const resource = await admitResource(
+      'schedule',
+      this.resourceAdmissionStop.signal,
+      'background',
+    )
+    try {
+      return await inResourceClass(
+        'background',
+        async () =>
+          await this.runAdmittedSchedule(id, occurrenceMs, confirmed, resource, generation),
+      )
+    } catch (error: unknown) {
+      resource?.complete(true)
+      if (this.scheduledResource?.id === id && this.scheduledResource.generation === generation) {
+        this.scheduledResource = undefined
+      }
+      throw error
+    }
+  }
+
+  private async runAdmittedSchedule(
+    id: string,
+    occurrenceMs: number,
+    confirmed: ScheduleRunConfirmation,
+    resource: ResourceLease | undefined,
+    generation: number,
+  ): Promise<TurnSubmission> {
     if (this.isSideChat) {
       throw new Error(UI_TEXT.sideChatPlanOnly)
     }
@@ -12523,6 +13756,9 @@ export class ModelApiSession implements AgentSession {
     // The request carries only the confirmed model and a digest of the key.
     // The client checks the actual SecretStorage key just before HTTP.
     const requestFor = (turnId: string): ConfirmedModelRequest => {
+      if (this.scheduledResource?.id === id && this.scheduledResource.generation === generation) {
+        this.scheduledResource.turnId = turnId
+      }
       let hasStarted = false
       return {
         modelId: confirmed.modelId,
@@ -12548,13 +13784,16 @@ export class ModelApiSession implements AgentSession {
           }
           this.recordTranscript(turnId, item)
           this.emit({ type: 'itemCompleted', item })
-          this.deps.notePaidUse('scheduledPrompts', 1)
+          this.notifyUsage(() => {
+            this.deps.notePaidUse('scheduledPrompts', 1)
+          })
           this.touch()
         },
       }
     }
     // No await between this check and sendTurn: a new turn cannot slip in and
     // turn a confirmed scheduled prompt into a silently queued later run.
+    this.scheduledResource = { id, generation, lease: resource }
     const submission = await this.sendTurn(
       [{ type: 'text', text: job.prompt }],
       job.prompt,
@@ -12576,6 +13815,7 @@ export class ModelApiSession implements AgentSession {
     isReview: boolean,
     requestFor?: (turnId: string) => ConfirmedModelRequest,
     isHookContinuation = false,
+    draft?: PreparedGitDraft,
   ): Promise<TurnSubmission> {
     if (this.isDisposed) {
       return Promise.reject(new Error(UI_TEXT.turnStoppedByRestart))
@@ -12587,12 +13827,25 @@ export class ModelApiSession implements AgentSession {
     const turnId = this.isSubagent ? `${this.sessionId}:${this.deps.newId()}` : this.deps.newId()
     const userMessageId = this.deps.newId()
     const confirmedRequest = requestFor?.(turnId)
+    if (draft !== undefined) {
+      if (
+        draft.signal.aborted ||
+        draft.turnId !== undefined ||
+        draft.model !== this.modelId ||
+        draft.revision !== this.modelRevision
+      )
+        return Promise.reject(new Error(UI_TEXT.gitDraftFailed))
+      draft.turnId = turnId
+    }
     const queued: QueuedTurn = {
+      resourceClass:
+        confirmedRequest !== undefined || this.isSubagent ? 'background' : 'foreground',
       turnId,
       parts,
       displayText,
       userMessageId,
       isGoalWake: false,
+      ...(draft !== undefined && { draft }),
       ...(isHookContinuation && { isHookContinuation: true }),
       ...(isReview && { isReview }),
       ...(confirmedRequest !== undefined && { confirmedRequest }),
@@ -12830,14 +14083,35 @@ export class ModelApiSession implements AgentSession {
     return scope
   }
 
+  /** @internal Host observer failures are diagnostics, with no recursive reporting. */
+  public reportListenerFailure(event: AgentEvent): void {
+    notify(this.listeners, event, this.deps.log, 'backend.diagnostic')
+  }
+
   public onEvent(listener: SessionEventListener): () => void {
     this.listeners.add(listener)
     for (const request of this.pendingApprovalEvents.values()) {
-      listener({ ...request, isReplayed: true })
+      notify(
+        [listener],
+        { ...request, isReplayed: true },
+        this.deps.log,
+        'modelApi.replay',
+        (event) => {
+          this.emit(event)
+        },
+      )
     }
     for (const child of this.children.values()) {
       for (const request of child.session.pendingApprovalEvents.values()) {
-        listener({ ...request, isReplayed: true })
+        notify(
+          [listener],
+          { ...request, isReplayed: true },
+          this.deps.log,
+          'modelApi.replay',
+          (event) => {
+            this.emit(event)
+          },
+        )
       }
     }
     return () => {
@@ -12847,6 +14121,78 @@ export class ModelApiSession implements AgentSession {
 
   public get approvalMode(): ApprovalMode {
     return this.permissions.currentMode
+  }
+
+  /** The draft uses the accepted user turn; repairs cannot race another turn or model. */
+  public get gitDraftOutput(): GitDraftOutputPort {
+    let draft: PreparedGitDraft | undefined
+    return {
+      formats: () => this.deps.sideCallFormats?.(this.modelId),
+      prepare: (_kind, attempt, signal) => {
+        if (this.active !== undefined || this.compacting !== undefined || this.isDisposed)
+          throw new Error(UI_TEXT.gitDraftFailed)
+        draft = {
+          attempt,
+          signal,
+          model: this.modelId,
+          revision: this.modelRevision,
+          turnId: undefined,
+        }
+      },
+      submit: (parts, displayText) =>
+        draft === undefined
+          ? Promise.reject(new Error(UI_TEXT.gitDraftFailed))
+          : this.submitTurn(parts, displayText, false, undefined, false, draft),
+      request: async (_kind, attempt, signal) => {
+        await unlessStopped(this.settled(), signal)
+        const binding = draft
+        const check = () => {
+          signal.throwIfAborted()
+          if (
+            binding === undefined ||
+            binding.signal.aborted ||
+            this.isDisposed ||
+            this.active !== undefined ||
+            binding.turnId !== this.latestTurnId() ||
+            binding.model !== this.modelId ||
+            binding.revision !== this.modelRevision
+          )
+            throw new Error(UI_TEXT.gitDraftFailed)
+        }
+        check()
+        if (this.compacting !== undefined) throw new Error(UI_TEXT.gitDraftFailed)
+        const abort = new AbortController()
+        this.compacting = abort
+        const lifetime = AbortSignal.any([signal, abort.signal])
+        const work = (async () => {
+          try {
+            const result = await this.collectText(
+              () => {
+                check()
+                const { text: _answerFormat, ...body } = this.body(false)
+                return this.keyed(
+                  sideCallBody({ ...body, tools: [] }, attempt, this.deps.forceSideCallTool),
+                )
+              },
+              lifetime,
+              check,
+            )
+            check()
+            if (binding?.turnId !== undefined)
+              this.appendHookContexts(binding.turnId, result.contexts)
+            if (result.response.output.some((item) => isFunctionCallItem(item)))
+              throw new Error(UI_TEXT.gitDraftFailed)
+            return result.text
+          } finally {
+            this.compacting = undefined
+            this.touch()
+            this.startNextQueued()
+          }
+        })()
+        this.track(work, true)
+        return await work
+      },
+    }
   }
 
   public sendTurn(
@@ -12919,6 +14265,8 @@ export class ModelApiSession implements AgentSession {
    * is ended with a reason instead of vanishing (D26).
    */
   public cancel(): Promise<void> {
+    this.resourceAdmissionStop.abort()
+    this.resourceAdmissionStop = new AbortController()
     this.deps.judge?.discardSession(this.sessionId)
     for (const dropped of this.queuedTurns.splice(0)) {
       this.emit({
@@ -13183,6 +14531,38 @@ export class ModelApiSession implements AgentSession {
     if (child === undefined) {
       throw new Error(`unknown subagent ${subagentId}`)
     }
+    if (action === 'continue' || action === 'retry') {
+      const isPlan = () => this.permissions.currentMode === 'denyUnmatched'
+      const refusal = recoveryRefusal(
+        {
+          status: child.terminal ?? IN_PROGRESS,
+          controlStatus: child.state,
+          evidence: child.evidence,
+        },
+        action,
+        this.deps.now(),
+      )
+      if (refusal !== undefined) throw new Error(refusal)
+      if (isPlan()) throw new Error(UI_TEXT.subagentPlanMode)
+      const receipt = child.evidence.attempts?.at(-1)?.receipt
+      if (receipt === undefined) throw new Error(UI_TEXT.agentContinueUnavailable)
+      const revision = child.revision
+      const task = continuationNote(receipt, child.objective, MODEL_API_MODEL_TEXT.subagentResume)
+      const grant = await this.confirmOwnerChildTask(child, task)
+      if (isPlan()) throw new Error(UI_TEXT.subagentPlanMode)
+      if (
+        this.isDisposed ||
+        child.revision !== revision ||
+        child.session.activeTurnId !== undefined
+      )
+        throw new Error(UI_TEXT.agentContinueUnavailable)
+      this.installChildGrant(child, grant)
+      child.pendingMessages.push(task)
+      child.state = 'queued'
+      this.updateChild(child)
+      this.startQueuedChildren()
+      return
+    }
     switch (action) {
       case 'readResult': {
         if (child.state !== 'result_ready') {
@@ -13227,6 +14607,7 @@ export class ModelApiSession implements AgentSession {
           throw new Error('subagent is not running')
         }
         child.state = 'interrupted'
+        child.resourceStop?.abort()
         await child.session.cancel()
 
         break
@@ -13241,6 +14622,7 @@ export class ModelApiSession implements AgentSession {
         child.nextTaskGrant = undefined
         child.session.childTaskGrant = undefined
         child.state = 'closed'
+        child.resourceStop?.abort()
         await child.session.cancel()
         this.startQueuedChildren()
       }
@@ -13326,26 +14708,9 @@ export class ModelApiSession implements AgentSession {
 
   public readOutput(request: OutputPageRequest): Promise<OutputPage> {
     const content = this.outputs.get(request.outputRef)
-    if (content === undefined) {
-      return Promise.reject(new Error(`unknown output ${request.outputRef}`))
-    }
-    const bytes = Buffer.from(content, MODEL_API_OUTPUT_ENCODING)
-    // Pages start and end on character boundaries, as the CLI serves them (D26):
-    // a character split across two pages would decode as U+FFFD in both.
-    const start = characterStart(bytes, Math.min(request.offsetBytes, bytes.length))
-    let end = characterStart(bytes, Math.min(start + request.lengthBytes, bytes.length))
-    if (end <= start && start < bytes.length) {
-      end = characterEnd(bytes, start)
-    }
-    const slice = bytes.subarray(start, end)
-    return Promise.resolve({
-      content: slice.toString(MODEL_API_OUTPUT_ENCODING),
-      encoding: MODEL_API_OUTPUT_ENCODING,
-      mediaType: MODEL_API_OUTPUT_MEDIA_TYPE,
-      offsetBytes: start,
-      byteLen: slice.length,
-      eof: end >= bytes.length,
-    })
+    return content === undefined
+      ? Promise.reject(new Error(`unknown output ${request.outputRef}`))
+      : modelOutputPage(content, request)
   }
 
   public async listSkills(): Promise<readonly SkillSummary[]> {
@@ -13442,6 +14807,9 @@ export class ModelApiSession implements AgentSession {
       return
     }
     this.isDisposed = true
+    this.resourceAdmissionStop.abort()
+    this.scheduledResource?.lease?.complete(true)
+    this.scheduledResource = undefined
     if (this.shellSidecarFile !== undefined) {
       // The session's side file goes with it; a tracked call still running
       // reads back "no report" and keeps the previous directory.
@@ -13468,6 +14836,8 @@ export class ModelApiSession implements AgentSession {
       stop.abort()
     }
     for (const child of this.children.values()) {
+      child.resourceStop?.abort()
+      child.resourceLease?.complete(true)
       child.session.disposeAll()
     }
     // Plugin children still running for an imported hook end with it (M91b).
@@ -13475,7 +14845,9 @@ export class ModelApiSession implements AgentSession {
       adapter?.dispose?.()
     })
     this.listeners.clear()
-    this.onDispose()
+    notify([this.onDispose], undefined, this.deps.log, 'modelApi.disposed', (event) => {
+      this.emit(event)
+    })
   }
 
   /** The host is closing: the session goes whoever still holds it. */
@@ -13500,10 +14872,10 @@ export class ModelApiSession implements AgentSession {
       budget: {
         id: this.sessionId,
         kind: 'conversation',
-        capUsd,
-        spentUsd,
-        stopped: capUsd > 0 && spentUsd >= capUsd,
-        ...(total?.uncertainUsd !== undefined && { uncertainUsd: total.uncertainUsd }),
+        capUsd: Number(capUsd),
+        spentUsd: Number(spentUsd),
+        stopped: isPositiveUsd(capUsd) && Usd.from(spentUsd).compare(Usd.from(capUsd)) >= 0,
+        ...(total?.uncertainUsd !== undefined && { uncertainUsd: Number(total.uncertainUsd) }),
       },
     }
   }
@@ -13541,12 +14913,15 @@ export class ModelApiSession implements AgentSession {
 
   /** Everything a window needs to bring this session back (D14). */
   public snapshot(): StoredSession {
-    const budgetSpentUsd =
-      this.budgetSpentUsd +
-      (this.openReservation?.isReserved === true ? this.openReservation.costUsd : 0)
+    const budgetSpentUsd = sumUsd(
+      this.budgetSpentUsd,
+      this.openReservation?.isReserved === true
+        ? this.openReservation.costUsd
+        : Usd.from(0).toAmount(),
+    )
     const freshFork: Pick<StoredSession, 'budgetIsFreshFork' | 'budgetSpentUsd'> = this
       .budgetIsFreshFork
-      ? { budgetIsFreshFork: true, budgetSpentUsd: 0 }
+      ? { budgetIsFreshFork: true, budgetSpentUsd: Usd.from(0).toAmount() }
       : {}
     const packedTokensAvoided = this.packing?.savings() ?? this.restoredPackedTokens
     const replayOutputIds = new Set(
@@ -13601,7 +14976,7 @@ export class ModelApiSession implements AgentSession {
       transcript: [...this.transcript],
       outputs: Object.fromEntries(this.outputs),
       usage: { ...this.usage },
-      ...(budgetSpentUsd > 0 && { budgetSpentUsd }),
+      ...(isPositiveUsd(budgetSpentUsd) && { budgetSpentUsd }),
       ...freshFork,
       ...(packedTokensAvoided !== undefined && { packedTokensAvoided }),
       ...(this.hookTokensAdded > 0 && { hookTokensAdded: this.hookTokensAdded }),
@@ -13630,6 +15005,7 @@ export class ModelApiSession implements AgentSession {
             checkpointRecording: child.session.inheritedRecording(),
           }),
           startedAt: child.startedAt,
+          evidence: child.evidence,
           state: child.state,
           ...(child.result !== undefined && { result: child.result }),
           ...(child.terminal !== undefined && { terminal: child.terminal }),
@@ -13682,7 +15058,7 @@ export class ModelApiSession implements AgentSession {
     this.lastActivityAt = stored.lastActivityAt
     this.turnCount = stored.turnIds.length
     this.usage = { ...stored.usage }
-    this.budgetSpentUsd = stored.budgetSpentUsd ?? 0
+    this.budgetSpentUsd = Usd.from(stored.budgetSpentUsd ?? 0).toAmount()
     this.budgetAccountId = stored.accountId
     // The packing ledger is a session total like the token counts: a
     // session saved before it was kept carries none, so it starts at zero.
@@ -13744,6 +15120,7 @@ export class ModelApiSession implements AgentSession {
         parentTurnId: saved.parentTurnId,
         session,
         startedAt: saved.startedAt,
+        evidence: saved.evidence ?? {},
         state: saved.state === 'running' || saved.state === 'queued' ? 'interrupted' : saved.state,
         result: saved.result,
         terminal: saved.terminal,
@@ -13903,6 +15280,8 @@ export class ModelApiSession implements AgentSession {
     }
     return {
       keyDigest,
+      sideCallFormats: this.deps.sideCallFormats,
+      forceSideCallTool: this.deps.forceSideCallTool,
       source: {
         readMainBody,
         keyPrefix: promptCacheKey,
@@ -13961,7 +15340,40 @@ export class ModelApiSession implements AgentSession {
     }
   }
 
+  public childOutput(
+    sessionId: string,
+    request: OutputPageRequest,
+  ): Promise<OutputPage> | undefined {
+    for (const child of this.children.values()) {
+      if (child.session.sessionId === sessionId) return child.session.readOutput(request)
+    }
+    return undefined
+  }
+
   /** Child transcripts are read through the host, not listed as conversations. */
+  /** Headless schema configuration precedes the first dispatch and never changes its prefix. */
+  public configureOutputSchema(
+    model: string,
+    mode: 'strict_schema' | 'json_schema',
+    schema: Readonly<Record<string, unknown>>,
+  ): void {
+    if (
+      model !== this.modelId ||
+      this.active !== undefined ||
+      this.replay.length > 0 ||
+      this.outputFormat !== undefined
+    )
+      throw new Error(UI_TEXT.execRequestShape)
+    this.outputFormat = {
+      format: {
+        type: 'json_schema',
+        name: 'exec_answer',
+        strict: mode === 'strict_schema',
+        schema: structuredClone(schema),
+      },
+    }
+  }
+
   public childHistory(sessionId: string): SessionHistoryOutcome | undefined {
     for (const child of this.children.values()) {
       if (child.session.sessionId === sessionId) {
@@ -14072,9 +15484,15 @@ export class ModelApiHost implements AgentHost {
   }
 
   private announce(session: ModelApiSession): void {
-    for (const listener of this.listListeners) {
-      listener({ type: 'changed', record: session.record() })
-    }
+    notify<SessionListEvent>(
+      this.listListeners,
+      { type: 'changed', record: session.record() },
+      this.deps.log,
+      'modelApi.list',
+      (event) => {
+        session.reportListenerFailure(event)
+      },
+    )
   }
 
   private assertBudgetHostOpen(): void {
@@ -14386,6 +15804,24 @@ export class ModelApiHost implements AgentHost {
     throw new Error(`session ${sessionId} is not held by this window`)
   }
 
+  private async storedHistorySource(sessionId: string): Promise<StoredSession> {
+    let source: StoredSession
+    if (this.stored.has(sessionId)) {
+      source = await this.storedSession(sessionId)
+    } else {
+      const childMarker = `:${SUBAGENT_ID_PREFIX}`
+      const separator = sessionId.lastIndexOf(childMarker)
+      const parentId = separator === -1 ? sessionId : sessionId.slice(0, separator)
+      const stored = await this.storedSession(parentId)
+      const child = stored.children?.find((entry) => entry.session.sessionId === sessionId)
+      if (child === undefined) {
+        throw new Error(`session ${sessionId} is not held by this window`)
+      }
+      source = child.session
+    }
+    return source
+  }
+
   /** The live session, or the stored one brought back into this window. */
   private async revive(sessionId: string, isSideChatRequired = false): Promise<ModelApiSession> {
     const live = this.sessions.get(sessionId)
@@ -14476,16 +15912,23 @@ export class ModelApiHost implements AgentHost {
     options: { readonly approvalMode: ApprovalMode; readonly modelId: string },
   ): Promise<LoadedSession> {
     await this.requireAccountId()
-    const stored = sanitizeImportedSession(doc, {
-      sessionId: this.deps.newId(),
-      workspaceRoot: this.deps.workspaceRoot,
-      approvalMode: options.approvalMode,
-      modelId: options.modelId,
-      now: new Date(this.deps.now()).toISOString(),
-    })
+    const entry = await import('./foreignHooksEntry.js')
+    const sanitizer: unknown = entry.sanitizeSessionImport
+    if (typeof sanitizer !== 'function') throw new Error('Invalid session import export')
+    const stored = entry.sanitizeSessionImport(
+      doc,
+      {
+        sessionId: this.deps.newId(),
+        workspaceRoot: this.deps.workspaceRoot,
+        approvalMode: options.approvalMode,
+        modelId: options.modelId,
+        now: new Date(this.deps.now()).toISOString(),
+      },
+      { table: UI_TEXT, locale: uiLocale(), modelText: CONVERSATION_MODEL_TEXT },
+    )
     const hooks = await this.sessionHooks()
     const extensionHooks = await this.sessionExtensionHooks()
-    // Loading the hooks may outlast a sign-out or the host closing: both are
+    // Loading the importer or hooks may outlast sign-out or the host closing: both are
     // checked again before the session exists and its SessionStart hook runs
     // (RV84c C1), as every other opening checks them.
     await this.requireAccountId()
@@ -14660,20 +16103,7 @@ export class ModelApiHost implements AgentHost {
         return child
       }
     }
-    let source: StoredSession
-    if (this.stored.has(sessionId)) {
-      source = await this.storedSession(sessionId)
-    } else {
-      const childMarker = `:${SUBAGENT_ID_PREFIX}`
-      const separator = sessionId.lastIndexOf(childMarker)
-      const parentId = separator === -1 ? sessionId : sessionId.slice(0, separator)
-      const stored = await this.storedSession(parentId)
-      const child = stored.children?.find((entry) => entry.session.sessionId === sessionId)
-      if (child === undefined) {
-        throw new Error(`session ${sessionId} is not held by this window`)
-      }
-      source = child.session
-    }
+    const source = await this.storedHistorySource(sessionId)
     return {
       mode: 'inline',
       sideChat: source.sideChat === true,
@@ -14684,7 +16114,24 @@ export class ModelApiHost implements AgentHost {
     }
   }
 
-  /** Extension-owned callers bind only an already loaded, currently owned parent. */
+  /** Inspect output in its owning session without attaching or starting a turn. */
+  public async readSessionOutput(
+    sessionId: string,
+    request: OutputPageRequest,
+  ): Promise<OutputPage> {
+    await this.requireAccountId()
+    const live = this.sessions.get(sessionId)
+    if (live !== undefined) return await live.readOutput(request)
+    for (const parent of this.sessions.values()) {
+      const page = parent.childOutput(sessionId, request)
+      if (page !== undefined) return await page
+    }
+    const source = await this.storedHistorySource(sessionId)
+    const content = source.outputs[request.outputRef]
+    if (content === undefined) throw new Error(`unknown output ${request.outputRef}`)
+    return await modelOutputPage(content, request)
+  }
+
   public async readUsageBudgets(): Promise<UsageBudgetRead[]> {
     const budgets: UsageBudgetRead[] = []
     for (const session of this.sessions.values()) {
@@ -14694,6 +16141,7 @@ export class ModelApiHost implements AgentHost {
     return budgets
   }
 
+  /** Extension-owned callers bind only an already loaded, currently owned parent. */
   public async getOwnedBudgetScope(
     sessionId: string,
   ): Promise<OwnedSessionBudgetScope | undefined> {
@@ -14833,6 +16281,19 @@ export class ModelApiHost implements AgentHost {
 
   public onUsageChanged(_listener: (usage: SubscriptionUsage) => void): () => void {
     return NO_UNSUBSCRIBE
+  }
+
+  /** Only the owning live session can receive its pre-dispatch format. */
+  public configureOutputSchema(
+    sessionId: string,
+    model: string,
+    mode: 'strict_schema' | 'json_schema',
+    schema: Readonly<Record<string, unknown>>,
+  ): boolean {
+    const session = this.sessions.get(sessionId)
+    if (session === undefined) return false
+    session.configureOutputSchema(model, mode, schema)
+    return true
   }
 
   public get sessionCount(): number {

@@ -1,0 +1,214 @@
+{
+  "rig": "win11",
+  "implementationCommit": "71eaccdd07c7bff1226517c8c1755fa77167e86a",
+  "freshClone": true,
+  "npmCi": true,
+  "CI": true,
+  "maxFilesPerRun": 3,
+  "maxWorkers": 3,
+  "testTimeoutOverride": false,
+  "runs": [
+    {
+      "run": 1,
+      "batches": [
+        {
+          "files": [
+            "test/unit/questionApp.test.tsx",
+            "test/unit/attentionDock.test.tsx",
+            "test/unit/QuestionCard.test.tsx"
+          ],
+          "passed": 35,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "files": [
+            "test/unit/deferredQuestionUi.test.tsx",
+            "test/unit/deferredQuestionFailure.test.tsx",
+            "test/unit/elicitationCard.test.tsx"
+          ],
+          "passed": 8,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "files": [
+            "test/unit/toolRows.test.tsx",
+            "test/unit/questionUiState.test.ts",
+            "test/unit/questionStrings.test.ts"
+          ],
+          "passed": 70,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "files": [
+            "test/unit/ReferencePage.test.tsx",
+            "test/unit/referenceGenerator.test.mjs",
+            "test/unit/readmeShots.test.mjs"
+          ],
+          "passed": 151,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "files": [
+            "test/unit/harnessCapture.test.mjs",
+            "test/unit/harnessWaits.test.ts",
+            "test/unit/questionRegistry.test.ts"
+          ],
+          "passed": 44,
+          "skipped": 0,
+          "failed": 0
+        }
+      ],
+      "passed": 308
+    },
+    {
+      "run": 2,
+      "batches": [
+        {
+          "files": [
+            "test/unit/questionApp.test.tsx",
+            "test/unit/attentionDock.test.tsx",
+            "test/unit/QuestionCard.test.tsx"
+          ],
+          "passed": 35,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "files": [
+            "test/unit/deferredQuestionUi.test.tsx",
+            "test/unit/deferredQuestionFailure.test.tsx",
+            "test/unit/elicitationCard.test.tsx"
+          ],
+          "passed": 8,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "files": [
+            "test/unit/toolRows.test.tsx",
+            "test/unit/questionUiState.test.ts",
+            "test/unit/questionStrings.test.ts"
+          ],
+          "passed": 70,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "files": [
+            "test/unit/ReferencePage.test.tsx",
+            "test/unit/referenceGenerator.test.mjs",
+            "test/unit/readmeShots.test.mjs"
+          ],
+          "passed": 151,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "files": [
+            "test/unit/harnessCapture.test.mjs",
+            "test/unit/harnessWaits.test.ts",
+            "test/unit/questionRegistry.test.ts"
+          ],
+          "passed": 44,
+          "skipped": 0,
+          "failed": 0
+        }
+      ],
+      "passed": 308
+    },
+    {
+      "run": 3,
+      "batches": [
+        {
+          "files": [
+            "test/unit/questionApp.test.tsx",
+            "test/unit/attentionDock.test.tsx",
+            "test/unit/QuestionCard.test.tsx"
+          ],
+          "passed": 35,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "files": [
+            "test/unit/deferredQuestionUi.test.tsx",
+            "test/unit/deferredQuestionFailure.test.tsx",
+            "test/unit/elicitationCard.test.tsx"
+          ],
+          "passed": 8,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "files": [
+            "test/unit/toolRows.test.tsx",
+            "test/unit/questionUiState.test.ts",
+            "test/unit/questionStrings.test.ts"
+          ],
+          "passed": 70,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "files": [
+            "test/unit/ReferencePage.test.tsx",
+            "test/unit/referenceGenerator.test.mjs",
+            "test/unit/readmeShots.test.mjs"
+          ],
+          "passed": 151,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "files": [
+            "test/unit/harnessCapture.test.mjs",
+            "test/unit/harnessWaits.test.ts",
+            "test/unit/questionRegistry.test.ts"
+          ],
+          "passed": 44,
+          "skipped": 0,
+          "failed": 0
+        }
+      ],
+      "passed": 308
+    }
+  ],
+  "checks": {
+    "typecheckProjects": 5,
+    "lint": "passed",
+    "format": "passed",
+    "knip": "passed (plain)",
+    "duplicationClones": 0,
+    "productionBuild": "passed",
+    "capsChanged": false,
+    "reference": "current",
+    "localizationProblems": 0,
+    "accessibility": {
+      "pages": 116,
+      "themes": 4,
+      "violatedRules": 0,
+      "undecidedRules": 0,
+      "exempt": 0,
+      "missingResults": 0
+    },
+    "screenshots": 112
+  },
+  "drills": {
+    "duplicateCard": {
+      "exit": 1,
+      "failed": 1,
+      "byteExactRestore": true,
+      "sha256": "53de14bf1e5e0221257a531cfdbaf4c91887d11f87376e0e3cf143672383d0bd"
+    },
+    "controlFocus": {
+      "exit": 1,
+      "failed": 4,
+      "byteExactRestore": true,
+      "sha256": "fd4e5153751442e7192992785416af74eddeb39158662c82eb13e0845fa5957f"
+    }
+  }
+}

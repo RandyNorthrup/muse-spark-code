@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // Team intensity (M96 lane F): each level's running caps, effort steps,
 // task tokens and budgets; custom roles kept; re-apply; Max clamped; the
 // throttle backoff and recovery; each level's cost per hour.
@@ -50,7 +51,7 @@ describe('level table', () => {
       runningPerRole: 1,
       effortSteps: -2,
       tokensPerTask: 100_000,
-      dailyBudgetUsd: 2,
+      dailyBudgetUsd: Usd.from(2).toAmount(),
       dailyBudgetTokens: 1_000_000,
     })
     expect(TEAM_INTENSITY_SPECS.light.runningPerRole).toBe(2)
@@ -60,7 +61,7 @@ describe('level table', () => {
       runningPerRole: 'ceiling',
       effortSteps: 2,
       tokensPerTask: 1_500_000,
-      dailyBudgetUsd: 50,
+      dailyBudgetUsd: Usd.from(50).toAmount(),
       dailyBudgetTokens: 25_000_000,
     })
   })

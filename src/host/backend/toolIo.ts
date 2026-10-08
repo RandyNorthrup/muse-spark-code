@@ -45,6 +45,7 @@ import { isCredentialVariable, withoutCredentials } from '../../core/credentialE
 import { powerShellQuoted } from '../../core/shellQuote'
 import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
+  CLI_OUTPUT_MAX_BYTES,
   BYTES_PER_MIB,
   FILE_REFUSAL_MODEL_TEXT,
   HOOK_OUTPUT_MAX_BYTES,
@@ -64,11 +65,73 @@ import {
 import { canonicalPath } from '../canonicalPath'
 import { foldersMade, writeFileAtomically, writeFileIfUnchanged } from '../fsAtomic'
 import { killTree, type ProcessTreeDeps, type ShellJob, treeSpawnOptions } from '../processTree'
+import { spawnMcpJob } from './mcpJobLaunch'
 import { joinStatement, newShellJob } from './shellJob'
+import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
+import { admitResource, resourceWindowsJob } from '../../core/resources/admission'
+import { observeResourceProcess } from '../resources/resourceAdmission'
+import { holdResourceJob } from '../resources/resourceJobHolder'
+
+/** Short window CLI commands share the shell's admission, native tree and bounded teardown. */
+export async function runResourceCommand(
+  invocation: { readonly command: string; readonly args: readonly string[] },
+  timeoutMs: number,
+  cwd?: string,
+  env?: NodeJS.ProcessEnv,
+  signal?: AbortSignal,
+  assertCanRun?: () => void,
+): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  let resource: ResourceLease | undefined
+  let nativeJob: Awaited<ReturnType<typeof resourceWindowsJob>>
+  const childEnv = env ?? process.env
+  const systemRoot = environmentValue(childEnv, process.platform, 'SystemRoot')
+  try {
+    resource = await admitResource('other', signal, 'foreground')
+    nativeJob =
+      resource !== undefined && process.platform === 'win32'
+        ? await resourceWindowsJob()
+        : undefined
+    assertCanRun?.()
+  } catch (error: unknown) {
+    resource?.complete(true)
+    return {
+      exitCode: -1,
+      stdout: '',
+      stderr: error instanceof Error ? error.message : String(error),
+    }
+  }
+  const result = await runCommand({
+    file: invocation.command,
+    args: invocation.args,
+    cwd: cwd ?? process.cwd(),
+    env: childEnv,
+    timeoutMs,
+    signal,
+    tree: {
+      platform: process.platform,
+      systemRoot,
+      log: () => {
+        /* The caller scrubs and reports the command result. */
+      },
+    },
+    nativeJob,
+    resource,
+    maxOutputBytes: CLI_OUTPUT_MAX_BYTES,
+    maxOutputChars: CLI_OUTPUT_MAX_BYTES,
+  })
+  return {
+    exitCode:
+      result.isTimedOut || result.isCancelled || result.isOutputTooLarge === true
+        ? -1
+        : (result.exitCode ?? -1),
+    stdout: result.stdout,
+    stderr: result.stderr,
+  }
+}
 
 export interface ToolIoDeps {
   readonly platform: NodeJS.Platform
-  readonly listFiles: () => Promise<readonly string[]>
+  readonly listFiles: (signal?: AbortSignal) => Promise<readonly string[]>
   readonly systemRoot: string | undefined
   /** The environment for the next command: read per command, so a changed setting applies. */
   readonly env: () => NodeJS.ProcessEnv
@@ -98,12 +161,11 @@ export function searchOnWorker(
   workerPath: string,
   job: SearchJob,
   timeoutMs: number,
+  signal?: AbortSignal,
 ): Promise<SearchOutcome> {
-  return new Promise<SearchOutcome>((resolve) => {
-    const worker = new Worker(workerPath, {
-      workerData: job,
-      env: withoutCredentials(process.env),
-    })
+  signal?.throwIfAborted()
+  return new Promise<SearchOutcome>((resolve, reject) => {
+    const worker = new Worker(workerPath, { workerData: job, env: withoutCredentials(process.env) })
     const hits: SearchHit[] = []
     let isSettled = false
     const settle = (outcome: SearchOutcome) => {
@@ -112,12 +174,22 @@ export function searchOnWorker(
       }
       isSettled = true
       clearTimeout(timer)
+      signal?.removeEventListener('abort', onAbort)
       resolve(outcome)
+    }
+    const onAbort = () => {
+      if (isSettled) return
+      isSettled = true
+      clearTimeout(timer)
+      signal?.removeEventListener('abort', onAbort)
+      void worker.terminate()
+      reject(new DOMException(undefined, 'AbortError'))
     }
     const timer = setTimeout(() => {
       void worker.terminate()
       settle({ ok: true, hits, isPartial: true })
     }, timeoutMs)
+    signal?.addEventListener('abort', onAbort, { once: true })
     worker.on('message', (message: SearchWorkerMessage) => {
       if (message.type === 'hits') {
         hits.push(...message.hits)
@@ -336,6 +408,7 @@ export function shellArguments(
   platform: NodeJS.Platform,
   command: string,
   job?: ShellJob,
+  isGoverned = false,
 ): readonly string[] {
   return platform === 'win32'
     ? [
@@ -344,7 +417,7 @@ export function shellArguments(
         '-ExecutionPolicy',
         'Bypass',
         '-Command',
-        `${job === undefined ? '' : joinStatement(job)}${WINDOWS_POWERSHELL_UTF8_PREAMBLE}${command}`,
+        `${job === undefined ? '' : joinStatement(job, isGoverned)}${WINDOWS_POWERSHELL_UTF8_PREAMBLE}${command}`,
       ]
     : ['-lc', command]
 }
@@ -414,34 +487,42 @@ async function readBoundedFile(
   expectedCanonicalPath?: string,
   platform?: NodeJS.Platform,
   pdfMaxBytes?: number,
+  signal?: AbortSignal,
 ): Promise<
   | { readonly ok: true; readonly bytes: Buffer; readonly isPdf: boolean }
   | { readonly ok: false; readonly size: number; readonly isPdf: boolean }
 > {
+  signal?.throwIfAborted()
   const file = await open(absolutePath, 'r')
   try {
+    signal?.throwIfAborted()
     if (expectedCanonicalPath !== undefined && platform !== undefined) {
       await checkedOpenedFile(absolutePath, file, expectedCanonicalPath, platform)
+      signal?.throwIfAborted()
     }
     // An explicit position leaves this handle's sequential read at byte zero.
     const header = pdfMaxBytes === undefined ? undefined : Buffer.alloc(PDF_HEADER_WINDOW_BYTES)
     const headerRead =
       header === undefined ? undefined : await file.read(header, 0, header.length, 0)
+    signal?.throwIfAborted()
     const isPdfFile =
       header !== undefined &&
       headerRead !== undefined &&
       isPdf(header.subarray(0, headerRead.bytesRead))
     const limit = isPdfFile ? (pdfMaxBytes ?? maxBytes) : maxBytes
     const { size } = await file.stat()
+    signal?.throwIfAborted()
     if (size > limit) {
       return { ok: false, size, isPdf: isPdfFile }
     }
     const chunks: Buffer[] = []
     let total = 0
     for (;;) {
+      signal?.throwIfAborted()
       const length = Math.min(BOUNDED_FILE_READ_CHUNK_BYTES, limit + 1 - total)
       const chunk = Buffer.allocUnsafe(length)
       const { bytesRead } = await file.read(chunk, 0, length, null)
+      signal?.throwIfAborted()
       if (bytesRead === 0) {
         return { ok: true, bytes: Buffer.concat(chunks, total), isPdf: isPdfFile }
       }
@@ -509,8 +590,22 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
     deps.unsavedFiles().some((open) => isSamePath(open, absolutePath, deps.platform))
   const configuredHookShell = deps.env()['SHELL']
   const hookProgram = hookProgramFor(deps, configuredHookShell)
+  const prepareResourceJob = async (
+    resource: ResourceLease | undefined,
+    job: ShellJob | undefined,
+  ) => {
+    if (resource !== undefined && job !== undefined && deps.systemRoot !== undefined)
+      resource = await holdResourceJob(resource, job, deps.systemRoot)
+    try {
+      deps.assertWorkspaceCurrent?.()
+    } catch (error: unknown) {
+      resource?.complete(true)
+      throw error
+    }
+    return resource
+  }
   return {
-    async readFile(absolutePath, expectedCanonicalPath) {
+    async readFile(absolutePath, expectedCanonicalPath, signal) {
       let bytes: Uint8Array
       try {
         // Refused before it is loaded (M39), including growth after metadata.
@@ -519,6 +614,8 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
           TOOL_FILE_MAX_BYTES,
           expectedCanonicalPath,
           deps.platform,
+          undefined,
+          signal,
         )
         if (!read.ok) {
           const mib = (read.size / BYTES_PER_MIB).toFixed(1)
@@ -535,13 +632,15 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       }
       return decodeText(bytes, absolutePath)
     },
-    async readBytes(absolutePath, maxBytes, expectedCanonicalPath) {
+    async readBytes(absolutePath, maxBytes, expectedCanonicalPath, signal) {
       try {
         const read = await readBoundedFile(
           absolutePath,
           maxBytes,
           expectedCanonicalPath,
           deps.platform,
+          undefined,
+          signal,
         )
         if (!read.ok) {
           throw new Error(
@@ -674,26 +773,50 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
     },
     hasUnsavedChanges,
     unsavedFiles: deps.unsavedFiles,
-    listFiles: deps.listFiles,
-    searchFiles: (job) => searchOnWorker(deps.searchWorkerPath, job, SEARCH_TIMEOUT_MS),
+    async listFiles(signal) {
+      signal?.throwIfAborted()
+      const files = await deps.listFiles(signal)
+      signal?.throwIfAborted()
+      return files
+    },
+    searchFiles: (job, signal) =>
+      searchOnWorker(deps.searchWorkerPath, job, SEARCH_TIMEOUT_MS, signal),
     realPath: canonicalPath,
-    async runShell(command, cwd, timeoutMs, signal, limit, assertCanRun, isInteractive = false) {
+    async runShell(
+      command,
+      cwd,
+      timeoutMs,
+      signal,
+      limit,
+      assertCanRun,
+      isInteractive = false,
+      resourceKind,
+    ) {
       if (interpreter === undefined) {
         const missing = deps.platform === 'win32' ? 'Windows PowerShell' : BASH
         return unstartedShell(`${missing} was not found on the absolute entries of PATH`)
       }
-      const assembly = deps.platform === 'win32' ? await deps.shellJobAssembly?.() : undefined
+      let resource = await admitResource(resourceKind ?? 'toolShell', signal)
+      let assembly: string | undefined
+      try {
+        assembly = deps.platform === 'win32' ? await deps.shellJobAssembly?.() : undefined
+        deps.assertWorkspaceCurrent?.()
+      } catch (error: unknown) {
+        resource?.complete(true)
+        throw error
+      }
       const job = assembly === undefined ? undefined : newShellJob(assembly)
-      deps.assertWorkspaceCurrent?.()
+      resource = await prepareResourceJob(resource, job)
       try {
         assertCanRun?.()
       } catch {
+        resource?.complete(true)
         // No workspace process has started; cancellation is proven at this boundary.
         return refusedShellEntry()
       }
       return await runCommand({
         file: interpreter,
-        args: shellArguments(deps.platform, command, job),
+        args: shellArguments(deps.platform, command, job, resource !== undefined),
         cwd,
         env: shellEnvironment(
           deps.env(),
@@ -706,6 +829,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         limit,
         tree: { platform: deps.platform, systemRoot: deps.systemRoot, log: deps.log },
         job,
+        resource,
       })
     },
     async runHook(command, payload, cwd, timeoutMs, signal, extraEnvNames) {
@@ -720,6 +844,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       }
       const assembly = deps.platform === 'win32' ? await deps.shellJobAssembly?.() : undefined
       const job = assembly === undefined ? undefined : newShellJob(assembly)
+      let resource = await admitResource('hook', signal)
       // On Windows PowerShell joins the job first, then starts cmd.exe with
       // the configured command. The command itself uses cmd, as Muse Code does.
       const args =
@@ -728,9 +853,10 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
               deps.platform,
               `& ${powerShellQuoted(hookProgram)} /D /S /C ${powerShellQuoted(command)}`,
               job,
+              resource !== undefined,
             )
           : ['-c', command]
-      deps.assertWorkspaceCurrent?.()
+      resource = await prepareResourceJob(resource, job)
       return await runCommand({
         file,
         args,
@@ -740,6 +866,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         signal,
         tree: { platform: deps.platform, systemRoot: deps.systemRoot, log: deps.log },
         job,
+        resource,
         stdin: payload,
         maxOutputBytes: HOOK_OUTPUT_MAX_BYTES,
       })
@@ -795,6 +922,9 @@ export class BoundedText {
 }
 
 export interface CommandRun {
+  readonly nativeJob?: Awaited<ReturnType<typeof resourceWindowsJob>>
+  readonly maxOutputChars?: number | undefined
+  readonly resource?: ResourceLease | undefined
   readonly file: string
   readonly args: readonly string[]
   readonly cwd: string
@@ -816,13 +946,28 @@ export interface CommandRun {
 function startProcess(run: CommandRun) {
   try {
     // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the command line is the payload by design: the user approved it on a card, and it runs through the interpreter as an argument array, never a shell string (PLAN.md §8)
-    return spawn(run.file, [...run.args], {
-      cwd: run.cwd,
-      env: run.env,
-      windowsHide: true,
-      stdio: ['pipe', 'pipe', 'pipe'],
-      ...treeSpawnOptions(run.tree.platform),
-    })
+    const child =
+      run.nativeJob === undefined
+        ? spawn(run.file, [...run.args], {
+            cwd: run.cwd,
+            env: resourceEnvironment(run.env, run.resource),
+            windowsHide: true,
+            stdio: ['pipe', 'pipe', 'pipe'],
+            ...treeSpawnOptions(run.tree.platform),
+          })
+        : spawnMcpJob({
+            executablePath: run.nativeJob.executablePath,
+            resourceAssembly: run.nativeJob.assemblyPath,
+            file: run.file,
+            args: run.args,
+            cwd: run.cwd,
+            env: resourceEnvironment(run.env, run.resource),
+            isVerbatim: false,
+            resource: run.resource,
+            log: run.tree.log,
+          })
+    if (run.nativeJob === undefined) observeResourceProcess(run.resource, child, run.job)
+    return child
   } catch (error: unknown) {
     return error instanceof Error ? error : new Error(String(error))
   }
@@ -838,6 +983,7 @@ function startProcess(run: CommandRun) {
 export function runCommand(run: CommandRun): Promise<ShellResult> {
   return new Promise<ShellResult>((resolve) => {
     if (run.signal?.aborted === true) {
+      run.resource?.complete(true)
       resolve({
         stdout: '',
         stderr: '',
@@ -851,14 +997,15 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
     const startedAt = Date.now()
     const child = startProcess(run)
     if (child instanceof Error) {
+      run.resource?.complete(true)
       // spawn itself threw (a command line past the operating system's limit,
       // a NUL in the command): no process was ever created, which is the one
       // local fact that proves none exists to outlive the result.
       resolve(unstartedShell(child.message))
       return
     }
-    const stdout = new BoundedText(SHELL_OUTPUT_MAX_CHARS)
-    const stderr = new BoundedText(SHELL_OUTPUT_MAX_CHARS)
+    const stdout = new BoundedText(run.maxOutputChars ?? SHELL_OUTPUT_MAX_CHARS)
+    const stderr = new BoundedText(run.maxOutputChars ?? SHELL_OUTPUT_MAX_CHARS)
     let isTimedOut = false
     let isCancelled = false
     let isOutputTooLarge = false
@@ -868,7 +1015,13 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
     let drain: NodeJS.Timeout | undefined
     let kill: Promise<void> | undefined
     const stop = () => {
-      kill ??= killTree(child, run.tree, startedAt, run.job)
+      kill ??= (async () => {
+        try {
+          await killTree(child, run.tree, startedAt, run.job, run.resource)
+        } catch (error: unknown) {
+          settle(null, String(error))
+        }
+      })()
     }
     const onAbort = () => {
       isCancelled = true
@@ -880,6 +1033,7 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
     }, run.timeoutMs)
     run.limit?.bind(() => {
       clearTimeout(timer)
+      run.resource?.background()
     })
     const settle = (exitCode: number | null, failure = '', isUnstarted = false) => {
       if (isSettled) {
@@ -901,7 +1055,7 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
         ...(isOutputTooLarge && { isOutputTooLarge }),
         ...(isUnstarted && { isWorkspaceShutdownProven: true }),
       }
-      // killTree never rejects: what it cannot do, it logs.
+      // Registered stop refusal settles as a failure and retains unknown tree occupancy.
       void (kill ?? Promise.resolve()).then(() => {
         resolve(result)
       })

@@ -6,7 +6,8 @@
 // picture a tool read or made, plus the approval or question card when the
 // host is waiting.
 
-import { lazy, Suspense, memo, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, memo, type ReactNode, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+
 import {
   IO_PREVIEW_LINES,
   PATCH_DOCUMENT_MAX_PAGES,
@@ -52,51 +53,44 @@ const TeamWorkerLabel = lazy(async () => {
   return { default: module.TeamWorkerLabel }
 })
 import { Clipped, DiffTable } from './ToolBlocks'
-const GoalBody = deferred(async () => {
-  const module = await import('./ToolBodies')
-  return { default: module.GoalBody }
-})
-const ImageBody = deferred(async () => {
-  const module = await import('./ToolBodies')
-  return { default: module.ImageBody }
-})
-const MemoryBody = deferred(async () => {
-  const module = await import('./ToolBodies')
-  return { default: module.MemoryBody }
-})
-const ScheduleBody = deferred(async () => {
-  const module = await import('./ToolBodies')
-  return { default: module.ScheduleBody }
-})
-const ToolImage = deferred(async () => {
-  const module = await import('./ToolBodies')
-  return { default: module.ToolImage }
-})
-const WebBody = deferred(async () => {
-  const module = await import('./ToolBodies')
-  return { default: module.WebBody }
-})
-const WorkflowBody = deferred(async () => {
-  const module = await import('./ToolBodies')
-  return { default: module.WorkflowBody }
-})
 import { verifySummaryText } from '../../shared/verifyText'
 import { ThenRunBlock, VerifyBody } from './VerifyParts'
 
-const ElicitationCard = deferred(
-  async () => {
-    const module = await import('./ElicitationCard')
-    return { default: module.ElicitationCard }
-  },
-  false,
-  ({ form }) => (
-    <div className="question" role="group" aria-busy="true" aria-label={form.server}>
-      {form.server}: {UI_TEXT.loadingOutput}
-    </div>
-  ),
-)
+const GoalBody = deferred(async () => {
+  const entry = await import('./ToolBodies')
+  return { default: entry.GoalBody }
+}, false)
+const ImageBody = deferred(async () => {
+  const entry = await import('./ToolBodies')
+  return { default: entry.ImageBody }
+}, false)
+const MemoryBody = deferred(async () => {
+  const entry = await import('./ToolBodies')
+  return { default: entry.MemoryBody }
+}, false)
+const ScheduleBody = deferred(async () => {
+  const entry = await import('./ToolBodies')
+  return { default: entry.ScheduleBody }
+}, false)
+const ToolImage = deferred(async () => {
+  const entry = await import('./ToolBodies')
+  return { default: entry.ToolImage }
+}, false)
+const WebBody = deferred(async () => {
+  const entry = await import('./ToolBodies')
+  return { default: entry.WebBody }
+}, false)
+const WorkflowBody = deferred(async () => {
+  const entry = await import('./ToolBodies')
+  return { default: entry.WorkflowBody }
+}, false)
 
 type ToolEntry = Extract<TranscriptEntry, { kind: 'tool' }>
+
+const ToolArgumentPreview = lazy(async () => {
+  const module = await import('./ToolArgumentPreview')
+  return { default: module.ToolArgumentPreview }
+})
 
 export interface ToolRowProps {
   readonly entry: ToolEntry
@@ -396,9 +390,6 @@ function ToolRowView({
   onAnswer,
   onCancelQuestion,
   onClarifyQuestion,
-  onAcceptElicitation,
-  onDeclineElicitation,
-  onCancelElicitation,
   onOpenEditDiff,
   onRevertEdit,
   onOpenFile,
@@ -411,17 +402,24 @@ function ToolRowView({
   quoteMenu,
 }: ToolRowProps) {
   const attention = useAttentionSurface()
-  const presentation = useMemo(() => describeTool(entry.tool, entry.args), [entry.tool, entry.args])
+  const presentation = useMemo(
+    () => describeTool(entry.tool, entry.args, entry.argumentPreview !== undefined),
+    [entry.tool, entry.args, entry.argumentPreview],
+  )
   const imagePaths = imagePathsOf(entry, presentation.imagePath)
   const isQuestionOpen =
     entry.question !== undefined &&
     entry.question.isNoLongerOpen !== true &&
     ['waiting', 'open'].includes(entry.question.state ?? 'waiting')
-  const isWaiting = entry.approval !== undefined || isQuestionOpen
+  const isWaiting =
+    entry.approval !== undefined || isQuestionOpen || entry.elicitation !== undefined
   // Shell and edit rows show their body from the start, as Claude Code's do,
   // and so does a row with a picture (M43); the others open on click (M16).
   const [isOpen, setIsOpen] = useState(
-    presentation.body === 'shell' || presentation.body === 'edit' || imagePaths.length > 0,
+    presentation.body === 'preview' ||
+      presentation.body === 'shell' ||
+      presentation.body === 'edit' ||
+      imagePaths.length > 0,
   )
   // An edit's lines, or a fetched page's size (M69).
   const change =
@@ -523,6 +521,14 @@ function ToolRowView({
   const menu = useRowMenu(items, UI_TEXT.messageActions, quoteMenu)
   let body: ReactNode
   switch (presentation.body) {
+    case 'preview': {
+      body = (
+        <Suspense fallback={null}>
+          <ToolArgumentPreview preview={entry.argumentPreview} />
+        </Suspense>
+      )
+      break
+    }
     case 'shell': {
       body = <ShellBody entry={entry} command={presentation.command} onOpen={openOutput} />
       break
@@ -614,40 +620,20 @@ function ToolRowView({
     entry.elicitationOutcome?.action === 'accept'
       ? UI_TEXT.questionAnswered
       : UI_TEXT.questionDeclined
-  let elicitationCard: ReactNode = null
-  if (entry.elicitation !== undefined) {
-    elicitationCard =
-      attention === undefined ? (
-        <ElicitationCard
-          key={entry.elicitation.elicitationId}
-          form={entry.elicitation}
-          onAccept={onAcceptElicitation}
-          onDecline={onDeclineElicitation}
-          onCancel={onCancelElicitation}
-        />
-      ) : (
-        <button
-          type="button"
-          className="button-secondary elicitation-docked"
-          onClick={() => {
-            if (entry.elicitation !== undefined)
-              attention.selectDockCard({ kind: 'elicitation', id: entry.elicitation.elicitationId })
-          }}
-        >
-          {entry.elicitation.server}: {UI_TEXT.questionAnswer}
-        </button>
-      )
-  }
   const hasBody = body !== null || images.length > 0
   return (
     <li
-      className={`${isWaiting ? 'tool tool-waiting' : 'tool'}${isQuestionOpen ? ' tool-question-open' : ''}`}
+      className={`${isWaiting ? 'tool tool-waiting' : 'tool'}${isQuestionOpen || entry.elicitation !== undefined ? ' tool-question-open' : ''}`}
       data-status={entry.status}
       data-entry-id={entry.id}
       data-role="tool"
       {...menu.rowProps}
     >
-      <div className="tool-header" hidden={entry.question !== undefined} inert={menu.isOpen}>
+      <div
+        className="tool-header"
+        hidden={entry.question !== undefined || entry.elicitation !== undefined}
+        inert={menu.isOpen}
+      >
         <button
           type="button"
           className="tool-toggle"
@@ -735,7 +721,9 @@ function ToolRowView({
           onClarify={onClarifyQuestion}
         />
       )}
-      {elicitationCard}
+      {entry.elicitation === undefined ? null : (
+        <DeferredQuestionCard elicitation={entry.elicitation} />
+      )}
       {entry.elicitationOutcome === undefined ? null : (
         <div className="tool-outcome">
           {entry.elicitationOutcome.action === 'cancel'

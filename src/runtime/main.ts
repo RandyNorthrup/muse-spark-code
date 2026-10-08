@@ -38,9 +38,10 @@ import {
   SETTING_DEFAULTS,
   USAGE_HISTORY_DAYS_DEFAULT,
   UI_TEXT,
+  REFERENCE_BUNDLE_FILE,
 } from '../shared/constants'
 import type { SecretStore } from '../host/auth/credentialStore'
-import { fill, uiLocale } from '../shared/l10n/text'
+import { fill, uiLocale, UI_TEXT as referenceTable } from '../shared/l10n/text'
 import { setUiText as setProviderPolicyText } from '../host/backend/providerPolicyEntry'
 import {
   authClear,
@@ -64,8 +65,7 @@ import { acpSharingCommands } from '../acp/sharing'
 import type { RuntimeSharingPorts } from './sharing/sharingEntry'
 import { formatAcpUsage } from './cliOptions'
 import { referenceLoader } from '../host/referenceLoader'
-import { REFERENCE_BUNDLE_FILE } from '../shared/constants'
-import { UI_TEXT as referenceTable } from '../shared/l10n/text'
+
 import { isProcessAlive } from '../host/checkpoints/windowPresence'
 import type { ReportJournal } from '../host/support/reportJournal'
 import { reportEventsOf } from '../core/support/journalEvents'
@@ -89,8 +89,8 @@ import { loadLegalScanner } from './legal/legalScanner'
 import { runLegalCommand } from './legal/runLegal'
 
 import { runProgram } from '../host/processTree'
-import { lazyUsageAdapter, usageCompanionUrl } from './usage/usageAdapter'
-import type { UsageAdapter } from './usage/usageAdapter'
+import { lazyUsageAdapter, usageCompanionUrl, type UsageAdapter } from './usage/usageAdapter'
+
 import {
   createUsageRecording,
   isUsageWriterBundle,
@@ -104,6 +104,9 @@ import { museSettingsPath } from '../host/backend/museSettings'
 import { walkFiles } from './fileWalk'
 import { shellJobAssembly } from '../host/backend/shellJob'
 import { jobSourceReader } from '../host/backend/jobSource'
+
+import { lazyRuntimeResources } from './resources/load'
+import type { ResourceSettings } from '../shared/resources'
 
 const EXIT_FAILED = 1
 // Keep only presence for reports, before credential variables leave the process.
@@ -353,6 +356,23 @@ async function runtimeFor(
   })
 }
 
+function resourcesFor(log: Logger, overrides?: Partial<ResourceSettings>) {
+  return lazyRuntimeResources({
+    distDir,
+    machineDir: agentDataFolder({
+      platform: process.platform,
+      env: process.env,
+      homeDir: homedir(),
+    }),
+    sleep,
+    log,
+    onError: () => {
+      log.warn(UI_TEXT.resourceUnavailable)
+    },
+    ...(overrides !== undefined && { overrides }),
+  })
+}
+
 /** Explicit trusted Setup runs neither an account probe nor a model request. */
 async function setupHooks(
   options: ServeOptions,
@@ -363,7 +383,7 @@ async function setupHooks(
   const systemRoot = process.env['SystemRoot']
   const io = createToolIo({
     platform: process.platform,
-    listFiles: () => walkFiles(workspaceRoot, 1, log),
+    listFiles: (signal) => walkFiles(workspaceRoot, 1, log, signal),
     systemRoot,
     searchWorkerPath: path.join(distDir, SEARCH_WORKER_FILE),
     env: () => process.env,
@@ -526,6 +546,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
     const runtime = await runtimeFor(options, log, {
       remove: (id) => loadQuestions().removeRuntimeQuestions(directory, id, UI_TEXT, uiLocale()),
     })
+    const resources = resourcesFor(log)
     const usage = usageFor(log, recording, runtime, options.usageHistory ?? true)
     const journal = await reportJournal(log)
     await journal.startup()
@@ -613,6 +634,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
       },
       log,
       usage,
+      resources,
       reportError: (fact) => {
         void journal.record(fact)
       },
@@ -631,6 +653,7 @@ async function serve(options: ServeOptions, log: Logger): Promise<number> {
         }),
       )
       await usage.dispose()
+      resources.dispose()
       await runtime.close()
       await journal.shutdown()
     }
@@ -814,28 +837,34 @@ async function main(): Promise<number> {
           return headlessCode
         }
       }
-      const headless = await import('./exec/runExec')
-      headless.setUiText(UI_TEXT, uiLocale())
-      headlessCode = await headless.runExec(lifecycle, {
-        options: command.options,
-        version: packageVersion(),
-        distDir,
-        platform: process.platform,
-        env: process.env,
-        homeDir: homedir(),
-        processCwd: process.cwd(),
-        stdin: process.stdin,
-        stdout,
-        stderr,
-        storeSecrets: secrets,
-        runGit: processGitRunner(),
-        fetch: globalThis.fetch.bind(globalThis),
-        sleep,
-        now,
-        readFile: readBoundedFile,
-        randomHex: (bytes) => randomBytes(bytes).toString('hex'),
-        log,
-      })
+      const { runHeadless } = await import('./exec/execEntry.js')
+      headlessCode = await runHeadless(
+        lifecycle,
+        {
+          options: command.options,
+          version: packageVersion(),
+          distDir,
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+          processCwd: process.cwd(),
+          stdin: process.stdin,
+          stdout,
+          stderr,
+          storeSecrets: secrets,
+          runGit: processGitRunner(),
+          fetch: globalThis.fetch.bind(globalThis),
+          sleep,
+          now,
+          readFile: readBoundedFile,
+          randomHex: (bytes) => randomBytes(bytes).toString('hex'),
+          log,
+          resourceOverrides: command.resourceOverrides,
+          createResources: (overrides) => resourcesFor(log, overrides),
+        },
+        referenceTable,
+        uiLocale(),
+      )
       return headlessCode
     } catch (error: unknown) {
       log.error(error instanceof Error ? (error.stack ?? error.message) : String(error))
@@ -867,6 +896,18 @@ async function main(): Promise<number> {
   })
   setProviderPolicyText(UI_TEXT, uiLocale())
   switch (command.command) {
+    case 'resources': {
+      const resources = resourcesFor(log)
+      try {
+        writeLine(process.stdout, await resources.command(command.action, command.json))
+        return 0
+      } catch {
+        writeLine(process.stderr, UI_TEXT.resourceUnavailable)
+        return EXIT_FAILED
+      } finally {
+        resources.dispose()
+      }
+    }
     case 'usage': {
       const usage = usageFor(log)
       const lines =

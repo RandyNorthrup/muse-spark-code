@@ -24,7 +24,7 @@ describe('Muse Code journal deltas', () => {
   it('records usage snapshots once per observation and keeps reported window lengths', async () => {
     const t = setup(false)
     const handle = fakeMspHost(fakeInitializeResult)
-    const host = new MuseCodeHost(handle.host, new FakeLogOutputChannel(), undefined, t.port)
+    const host = new MuseCodeHost(handle.host, new FakeLogOutputChannel(), undefined, {}, t.port)
     const usage = {
       observedAtMs: 100,
       tier: 'opaque',
@@ -90,7 +90,7 @@ describe('Muse Code journal deltas', () => {
       session: { sessionId: 'new-session', modelId: params['modelId'], status: 'idle' },
       viewCursor: '',
     }))
-    const host = new MuseCodeHost(handle.host, new FakeLogOutputChannel(), undefined, tap)
+    const host = new MuseCodeHost(handle.host, new FakeLogOutputChannel(), undefined, {}, tap)
     const session = await host.startSession({
       workspaceRoot: '/workspace',
       modelId: 'muse-spark-1.3',

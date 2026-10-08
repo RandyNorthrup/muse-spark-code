@@ -1,0 +1,12 @@
+{
+  "sectionBytes": 12737,
+  "sectionKiB": 12.4384765625,
+  "budgetKiB": 25,
+  "outsideBothStartupClosures": true,
+  "browserAttempt": {
+    "command": "node test/harness/resource-history-check.mjs",
+    "exitCode": 1,
+    "outcome": "installed Chrome exits with SIGTRAP before page creation; minimal about:blank probe also exits 133"
+  },
+  "browserScenesCompleted": 0
+}

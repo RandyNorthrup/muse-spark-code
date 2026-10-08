@@ -7,6 +7,7 @@
 
 import { Buffer } from 'node:buffer'
 import path from 'node:path'
+import type { ResourceKind } from '../../../shared/resources'
 import { setImmediate as yieldToHost } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import {
@@ -81,7 +82,8 @@ import { GOAL_TOOL_DEFINITIONS } from './goals'
 import { MEMORY_TOOL_DEFINITIONS } from './memoryTools'
 
 import type { ToolClass } from './permissions'
-import type { FunctionOutputPart, FunctionToolDefinition } from './schemas'
+import { type FunctionOutputPart, type FunctionToolDefinition, withStrictTools } from './schemas'
+
 import { LEGAL_SCAN_DESCRIPTION, LEGAL_SCAN_PARAMETERS } from './legalScanTool'
 import { RECALL_TOOL_DEFINITION } from './observationPack'
 import { SUBAGENT_TOOL_DEFINITIONS } from './subagentTools'
@@ -165,7 +167,11 @@ export interface ToolIo {
    * decoding it lossily and writing it back would corrupt it (PLAN.md D27).
    */
   /** A canonical proof comes only from trusted workspace confinement, not tool arguments. */
-  readFile(absolutePath: string, expectedCanonicalPath?: string): Promise<string | undefined>
+  readFile(
+    absolutePath: string,
+    expectedCanonicalPath?: string,
+    signal?: AbortSignal,
+  ): Promise<string | undefined>
   /**
    * The file's bytes (M44: an image to edit); undefined when it does not
    * exist. Rejects, before reading, a file larger than `maxBytes`.
@@ -174,6 +180,7 @@ export interface ToolIo {
     absolutePath: string,
     maxBytes: number,
     expectedCanonicalPath?: string,
+    signal?: AbortSignal,
   ): Promise<Uint8Array | undefined>
   /** Replaces the file whole (a temporary file renamed into place), folders created. */
   writeFile(
@@ -225,9 +232,9 @@ export interface ToolIo {
   /** Absolute paths of the files open in an editor with unsaved changes, as the editor names them. */
   unsavedFiles(): readonly string[]
   /** Workspace-relative, forward-slash paths of every listed file. */
-  listFiles(): Promise<readonly string[]>
+  listFiles(signal?: AbortSignal): Promise<readonly string[]>
   /** Evaluates the pattern off the host thread with a time budget (ReDoS containment). */
-  searchFiles(job: SearchJob): Promise<SearchOutcome>
+  searchFiles(job: SearchJob, signal?: AbortSignal): Promise<SearchOutcome>
   /**
    * A timeout or the signal kills the whole process tree (PLAN.md D25);
    * `limit` lets the caller lift the timeout while it runs (M46).
@@ -244,6 +251,7 @@ export interface ToolIo {
     assertCanRun?: () => void,
     /** D89.5: only an interactive top-level shell may use named credential pass-through. */
     isInteractive?: boolean,
+    resourceKind?: ResourceKind,
   ): Promise<ShellResult>
   /** An explicitly enabled M51 hook, with JSON stdin and a cleared environment. */
   runHook?(
@@ -376,7 +384,9 @@ export interface ToolContext {
    * (absolute path to a fingerprint): `write_file` replaces only what the
    * model has seen (D27).
    */
-  readonly seen: Map<string, string>
+  readonly seen: ReadonlyMap<string, string>
+  /** Call-owned fingerprints; the dispatcher commits them with the result. */
+  readonly provisionalSeen: Map<string, string>
   /** Format on edit (M68); present only while it is on. */
   readonly formatter?: EditFormatter
   /** Captured owner admission, rechecked by the actual writer after its awaits. */
@@ -447,6 +457,8 @@ export interface TouchedFiles {
 }
 
 export interface ToolOutcome {
+  /** Owned process exit, retained separately from its human-readable output. */
+  readonly exitCode?: number
   /** What the model receives as the function result. */
   readonly output: string
   /** The result as content parts instead, when it holds pictures (an MCP tool's, M50). */
@@ -579,6 +591,8 @@ const PATH_PROPERTY = { type: 'string', description: 'Workspace-relative path' }
 const SHELL_STOPPED_BY_USER = 'stopped by the user'
 
 export interface ToolDefinitionOptions {
+  /** Session setting AND selected-model support, resolved by the caller before cache-key generation. */
+  readonly shouldUseStrictTools?: boolean
   /** False in Restricted Mode: no shell tool is offered (PLAN.md D13). */
   readonly hasShell: boolean
   /**
@@ -614,11 +628,16 @@ export interface ToolDefinitionOptions {
 
 const DEFAULT_TOOL_OPTIONS: ToolDefinitionOptions = { hasShell: true, hasSkills: false }
 
+interface PreviewToolDefinition extends FunctionToolDefinition {
+  /** Host-only, nonenumerable metadata; never serialized into a request. */
+  readonly previewFields?: readonly string[]
+}
+
 /** The function tools offered to the model (dev.meta.ai/docs/tool-calling). */
 export function toolDefinitions(
   platform: NodeJS.Platform,
   options: ToolDefinitionOptions = DEFAULT_TOOL_OPTIONS,
-): readonly FunctionToolDefinition[] {
+): readonly PreviewToolDefinition[] {
   const shell = shellToolFor(platform)
   // `then_run` needs the shell, so it is offered only with it (M68).
   const thenRun = (options.hasThenRun ?? options.hasShell) ? THEN_RUN_PROPERTY : {}
@@ -629,19 +648,25 @@ export function toolDefinitions(
     description: string,
     properties: Record<string, unknown>,
     required: readonly string[],
-  ): FunctionToolDefinition => ({
-    type: 'function',
-    name,
-    description,
-    parameters: {
-      type: 'object',
-      properties,
-      required: [...required],
-      additionalProperties: false,
-    },
-    strict: false,
-  })
-  return [
+    previewFields?: readonly string[],
+  ): PreviewToolDefinition =>
+    Object.defineProperty(
+      {
+        type: 'function',
+        name,
+        description,
+        parameters: {
+          type: 'object',
+          properties,
+          required: [...required],
+          additionalProperties: false,
+        },
+        strict: false,
+      },
+      'previewFields',
+      { value: previewFields },
+    )
+  const definitions: readonly PreviewToolDefinition[] = [
     define(
       MODEL_API_TOOLS.readFile,
       'Read a file from the workspace. A text file comes back numbered by line (use offset and limit for long files); a PDF or an image (PNG, JPEG, GIF, WebP) comes back whole, for you to see.',
@@ -650,6 +675,7 @@ export function toolDefinitions(
         offset: { type: 'integer', description: '1-based first line to return' },
         limit: { type: 'integer', description: 'Maximum lines to return' },
       },
+      ['path'],
       ['path'],
     ),
     define(
@@ -674,12 +700,14 @@ export function toolDefinitions(
         ...thenRun,
       },
       ['path'],
+      ['path'],
     ),
     define(
       MODEL_API_TOOLS.writeFile,
       'Create or overwrite a file with the given content.',
       { path: PATH_PROPERTY, content: { type: 'string' }, ...thenRun },
       ['path', 'content'],
+      ['path'],
     ),
     define(
       MODEL_API_TOOLS.search,
@@ -695,6 +723,7 @@ export function toolDefinitions(
         },
         max_results: { type: 'integer' },
       },
+      ['pattern'],
       ['pattern'],
     ),
     define(
@@ -717,6 +746,7 @@ export function toolDefinitions(
               },
             },
             ['command', 'description'],
+            ['command'],
           ),
         ]
       : []),
@@ -783,34 +813,36 @@ export function toolDefinitions(
             },
             ['questions'],
           ),
-          define(
-            MODEL_API_TOOLS.todoWrite,
-            'Replace your task list, shown to the user while you work.',
-            {
-              items: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    text: { type: 'string' },
-                    status: { type: 'string', enum: ['pending', 'inProgress', 'completed'] },
-                    activeForm: {
-                      type: 'string',
-                      description: 'Present-tense form shown while in progress',
-                    },
-                  },
-                  required: ['text', 'status'],
-                },
+        ]),
+    define(
+      MODEL_API_TOOLS.todoWrite,
+      'Replace your task list, shown to the user while you work.',
+      {
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              text: { type: 'string' },
+              status: { type: 'string', enum: ['pending', 'inProgress', 'completed'] },
+              activeForm: {
+                type: 'string',
+                description: 'Present-tense form shown while in progress',
               },
             },
-            ['items'],
-          ),
-          // Muse Code's goal tools (M45, PLAN.md D38), offered in every session as
-          // `muse serve` offers them.
-          ...GOAL_TOOL_DEFINITIONS.map((tool) =>
-            define(tool.name, tool.description, tool.properties, tool.required),
-          ),
-        ]),
+            required: ['text', 'status'],
+          },
+        },
+      },
+      ['items'],
+    ),
+    ...(options.isSubagent === true
+      ? []
+      : // Muse Code's goal tools (M45, PLAN.md D38), offered in every session as
+        // `muse serve` offers them.
+        GOAL_TOOL_DEFINITIONS.map((tool) =>
+          define(tool.name, tool.description, tool.properties, tool.required),
+        )),
     ...(options.hasSubagents === true
       ? SUBAGENT_TOOL_DEFINITIONS.map((tool) =>
           define(tool.name, tool.description, tool.properties, tool.required),
@@ -829,7 +861,15 @@ export function toolDefinitions(
     // against the session's store, so it is not in `executeTool`.
     ...(options.hasPackedRecall === true ? [RECALL_TOOL_DEFINITION] : []),
     ...(options.hasWebFetch === true
-      ? [define(MODEL_API_TOOLS.webFetch, WEB_FETCH_DESCRIPTION, WEB_FETCH_PARAMETERS, ['url'])]
+      ? [
+          define(
+            MODEL_API_TOOLS.webFetch,
+            WEB_FETCH_DESCRIPTION,
+            WEB_FETCH_PARAMETERS,
+            ['url'],
+            ['url'],
+          ),
+        ]
       : []),
     ...(options.hasBrowserCheck === true
       ? [
@@ -850,6 +890,7 @@ export function toolDefinitions(
       ? [define(MODEL_API_TOOLS.legalScan, LEGAL_SCAN_DESCRIPTION, LEGAL_SCAN_PARAMETERS, [])]
       : []),
   ]
+  return withStrictTools(definitions, options.shouldUseStrictTools === true)
 }
 
 // --- helpers ---
@@ -1176,6 +1217,7 @@ async function readVisual(
       file.checkedAbsolute,
       kind === 'pdf' ? MAX_DOCUMENT_BYTES : MAX_IMAGE_BYTES,
       file.checkedAbsolute,
+      context.signal,
     )
   } catch (error: unknown) {
     // Stop still belongs to the host's cancellation path, not a file error row.
@@ -1185,6 +1227,7 @@ async function readVisual(
     const modelReason = error instanceof Error ? error.message : String(error)
     return failure(modelReason, fill(UI_TEXT.toolVisualReadFailed, { path: file.relative }))
   }
+  context.signal?.throwIfAborted()
   if (bytes === undefined) {
     return failure(
       `file not found: ${file.relative}`,
@@ -1238,6 +1281,7 @@ async function readFile(
   context: ToolContext,
 ): Promise<ToolOutcome> {
   const resolved = await readablePath(args.path, context)
+  context.signal?.throwIfAborted()
   if (!resolved.ok) {
     return failure(resolved.reason)
   }
@@ -1254,11 +1298,16 @@ async function readFile(
   if (visual !== undefined) {
     return { ...(await readVisual(resolved, visual, context)), touched }
   }
-  const raw = await context.io.readFile(resolved.checkedAbsolute, resolved.checkedAbsolute)
+  const raw = await context.io.readFile(
+    resolved.checkedAbsolute,
+    resolved.checkedAbsolute,
+    context.signal,
+  )
+  context.signal?.throwIfAborted()
   if (raw === undefined) {
     return { ...failure(`file not found: ${resolved.relative}`), touched }
   }
-  context.seen.set(resolved.absolute, fingerprint(raw))
+  context.provisionalSeen.set(resolved.absolute, fingerprint(raw))
   const lines = splitLines(modelText(raw, shapeOf(raw)))
   const start = Math.max((args.offset ?? 1) - 1, 0)
   // An offset past the last line is an error, not an empty read (M101): the
@@ -1395,7 +1444,7 @@ async function publishText(
     writeAdmission(file, context),
   )
   const final = await formatWritten(written, file, context)
-  context.seen.set(file.absolute, fingerprint(final))
+  context.provisionalSeen.set(file.absolute, fingerprint(final))
   return final
 }
 
@@ -1654,7 +1703,8 @@ async function listMatching(
 ): Promise<readonly string[]> {
   // Compiled before the listing, so a refused glob costs no file walk.
   const matches = glob === undefined ? undefined : compileGlob(glob)
-  const files = await context.io.listFiles()
+  const files = await context.io.listFiles(context.signal)
+  context.signal?.throwIfAborted()
   // What the permission settings deny is neither listed nor searched (M78).
   return files.filter(
     (file) => (matches === undefined || matches(file)) && context.files?.isDenied([file]) !== true,
@@ -1693,24 +1743,29 @@ async function search(
   try {
     candidates = await listMatching(context, args.glob)
   } catch (error: unknown) {
+    context.signal?.throwIfAborted()
     return failure(error instanceof Error ? error.message : String(error))
   }
   // A workspace too large to search in the budget is searched in part, and
   // the model is told so rather than handed a silent subset (D27).
   const searched = candidates.slice(0, SEARCH_MAX_CANDIDATES)
-  const outcome = await context.io.searchFiles({
-    pattern: args.pattern,
-    root: context.workspaceRoot,
-    maxFileBytes: SEARCH_MAX_FILE_BYTES,
-    maxHits: SEARCH_MAX_HITS,
-    maxHitChars: SEARCH_HIT_MAX_CHARS,
-    denyRead: context.files?.denyGlobs ?? [],
-    globLimits: GLOB_LIMITS,
-    files: searched.map((relative) => ({
-      relative,
-      absolute: p.join(context.workspaceRoot, ...relative.split('/')),
-    })),
-  })
+  const outcome = await context.io.searchFiles(
+    {
+      pattern: args.pattern,
+      root: context.workspaceRoot,
+      maxFileBytes: SEARCH_MAX_FILE_BYTES,
+      maxHits: SEARCH_MAX_HITS,
+      maxHitChars: SEARCH_HIT_MAX_CHARS,
+      denyRead: context.files?.denyGlobs ?? [],
+      globLimits: GLOB_LIMITS,
+      files: searched.map((relative) => ({
+        relative,
+        absolute: p.join(context.workspaceRoot, ...relative.split('/')),
+      })),
+    },
+    context.signal,
+  )
+  context.signal?.throwIfAborted()
   // Every candidate, searched or not: its name may be in a hit or a count.
   const touched: TouchedFiles = { names: candidates, complete: true }
   if (!outcome.ok) {
@@ -1743,6 +1798,7 @@ async function listFiles(
   try {
     files = await listMatching(context, args.glob)
   } catch (error: unknown) {
+    context.signal?.throwIfAborted()
     return failure(error instanceof Error ? error.message : String(error))
   }
   const shown = files.slice(0, limit)
@@ -1874,6 +1930,7 @@ export function shellOutcome(
   return {
     output: body,
     visibleOutput: shown,
+    ...(result.exitCode !== null && { exitCode: result.exitCode }),
     ...((result.isTimedOut || result.isCancelled) && { failureReason: exit }),
   }
 }

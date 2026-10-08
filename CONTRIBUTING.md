@@ -444,3 +444,26 @@ Every new command, setting or feature updates `src/shared/featureCatalog.ts`
 in the same PR (and the shared CLI table for runtime commands). Run
 `npm run reference:generate`, then `npm run check:reference`; the gate rejects
 missing descriptions, invalid relationships and stale generated references.
+
+## Resource delivery checks
+
+M107 keeps policy in `dist/resourceGovernor.js`, shared process admission in
+`dist/resourceAdmission.js`, and controls/history in independent browser
+entries. Reuse the injected ports when their owning milestone is absent;
+record its binding rather than supplying a fake production implementation.
+The browser entries share the caller's React and installed-language runtime.
+
+Run the affected complete test files with the repository's ordinary timeout
+and at most three files/workers per rig invocation. New size, split, settings
+and package guards need a deliberate red run and byte-exact restoration in
+the [W record](<docs/certification/m107-w-wiring,-docs-and-gates-(last).md>).
+The lead still runs full quality on the final candidate. Neither integration
+handoffs nor a scoped lane receipt reduce the release gates.
+
+M106 keeps optional work behind built entry points. The Model API loads code
+intelligence from `dist/modelApiCodeIntel.js` and MCP transport from
+`dist/mcpPool.js`; schema conversion uses `dist/structuredSchema.js`.
+`dist/exec.js` belongs only to the standalone package and its notices inventory.
+Install the caller's language before using a lazy Node factory. New artifacts
+use their measured size plus 15%, rounded up to 25 KiB; the activation, Model
+API, ACP, startup and original deferred caps stay fixed.

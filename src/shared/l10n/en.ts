@@ -16,6 +16,120 @@
 import { forms } from './forms'
 
 export const EN = {
+  // M107 / D87: resource surfaces and manifest-ready settings text.
+  resourceTitle: 'Resources',
+  resourceHarnessInTree:
+    'Stop paused: the harness is still in this tree. Ownership is retained; retry Stop.',
+  resourceCgroupChanged:
+    'Stop refused: this tree’s cgroup was removed or replaced. Ownership is retained.',
+  resourceNormal: 'Normal',
+  resourceThrottle: 'Throttling',
+  resourceRelocate: 'Relocating',
+  resourcePause: 'Paused',
+  resourceUnknown: 'Unknown',
+  resourceWaiting: 'Waiting: machine busy',
+  resourceResumeNow: 'Resume now',
+  resourceRunNow: 'Run now',
+  resourceShow: 'Show resources',
+  resourceMoveTo: 'Move to {device}',
+  resourceKeepHere: 'Keep here',
+  resourcePauseNotice:
+    'Machine busy: {metric} is {reading} (limit {threshold}). New background work is paused.',
+  resourceOverrideNotice: 'Work resumed until {time}.',
+  resourceRelocatedNotice: 'Queued work moved to {device} because this machine is busy.',
+  resourceRelocationNoRoute:
+    'Relocation is not available yet: it needs a paired device or runner route. Work stays on this machine.',
+  resourceUnavailable: 'This reading is unavailable on this machine.',
+  resourceTransport: 'Transport failures',
+  resourceOsService: 'OS service pressure',
+  resourceCpu: 'CPU use',
+  resourceMemory: 'Memory in use',
+  resourceAvailableMemory: 'Available memory',
+  resourceGpu: 'GPU use',
+  resourceDisk: 'Disk busy',
+  resourceDiskFree: 'Free disk space',
+  resourceDiskWriteRefused: 'Cannot write to {volume}: critically low free disk space.',
+  resourceDiskMinFreeGiBDescription:
+    'Free disk space floor in GiB. The default is 10 GiB or 10% of the volume, whichever is smaller, with a minimum of 2 GiB.',
+  resourceHistory: 'Resource history',
+  resourceHarness: 'Harness work',
+  resourceCpuTime: 'CPU time',
+  resourcePeakMemory: 'Peak memory',
+  resourceHistoryEmpty: 'No resource history recorded yet.',
+  resourceHistoryInvalid: 'Resource history could not be read.',
+  resourceHistoryObserved:
+    'Minute averages and observed harness work. Missing readings stay unknown; unobserved work is not estimated.',
+  resourceHistoryThreshold: 'Limit',
+  resourceHistoryLevel: 'Level',
+  resourceHistoryEvents: 'Resource events',
+  resourceHistoryTime: 'Time',
+  resourceHistoryKind: 'Work kind',
+  resourceHistoryCount: 'Event totals',
+  resourceHistoryLevelChanged: 'Level changed',
+  resourceHistoryDeferred: 'Deferred',
+  resourceHistoryRelocated: 'Relocated',
+  resourceHistoryPaused: 'Paused work',
+  resourceHistoryOverrides: 'Resume override',
+  resourceHistoryOlder: 'Older',
+  resourceHistoryNewer: 'Newer',
+  resourceHistoryPage: 'Page {page} of {pages}',
+  resourceHistoryDetailNotice:
+    'Detail is limited to recent history. Totals include all retained journal records.',
+  resourceMemoryBelowFloor: 'Below the memory floor',
+  resourceMemoryLow: 'Low headroom',
+  resourceMemoryAmple: 'Ample headroom',
+  referenceResources:
+    'Resource, service and transport pressure reduce admission. Each job has observed process and birth limits; cleanup removes only recorded temp roots.',
+  resourceGovernorDescription:
+    'Keep this machine responsive by slowing or deferring work started by the harness. On by default.',
+  resourceCpuMaxPercentDescription:
+    'Throttle when machine CPU use stays above this percentage for 30 seconds.',
+  resourceMemoryMaxPercentDescription:
+    'Throttle when memory in use stays above this percentage for two samples.',
+  resourceMemoryMinFreeGiBDescription:
+    'Minimum available memory in GiB, capped at 15% of this machine’s RAM.',
+  resourceGpuMaxPercentDescription: 'Optional GPU use limit in percent. Unset means no GPU probe.',
+  resourceDiskBusyMaxPercentDescription:
+    'Optional disk busy limit in percent. Unset means no disk probe.',
+  resourceRelocateDescription:
+    'Where queued team tasks and checks may move when this machine is busy. Relocation needs a paired device or runner route and is not available yet, so work stays on this machine.',
+  resourceRelocatePairedDescription:
+    'Use an approved paired device with normal resource load once relocation is available.',
+  resourceRelocateAskDescription: 'Ask before moving queued work.',
+  resourceRelocateOffDescription: 'Keep work on this machine.',
+  // M106: loop previews, structured answers, health and explicit feedback.
+  toolArgumentPreviewLabel: 'Argument preview',
+  toolArgumentPreviewTruncated: 'Preview truncated.',
+  toolArgumentPreviewPending: 'Waiting for complete arguments…',
+  toolArgumentPreviewPreparing: 'Preparing arguments…',
+  modelApiContinuing: 'The output limit was reached. Continuing once…',
+  modelApiContinuationLimit: 'The output limit was reached again. Send a message to continue.',
+  modelApiToolStuck:
+    'The turn stopped because the same tool call kept returning an unchanged result. Send a message to try another approach.',
+  structuredOutputRepair: 'The structured answer was invalid. Retrying once…',
+  structuredOutputFallback:
+    'The structured answer could not be validated. Using the text fallback.',
+  outputSchemaInvalid: 'The output schema is outside the supported strict subset: {detail}',
+  outputSchemaMismatch: 'The final answer does not match the output schema: {detail}',
+  outputSchemaTooComplex: 'Output schema too complex: {count} expanded nodes.',
+  outputSchemaWorkBudget: 'Output schema validation work budget exceeded: {count} steps.',
+  outputSchemaOutsideRefused:
+    'The output schema resolves outside the workspace. Use --output-schema-outside to authorise this read.',
+  outputSchemaOutsideAllowed:
+    'Reading an output schema outside the workspace (--output-schema-outside).',
+  outputSchemaLocalValidation:
+    'Output schema validation: local (the selected model has no structured-output format).',
+  outputSchemaReadFailed: 'Could not read the output schema: {detail}',
+  modelApiPacingTokenLimit:
+    'Fan-out request exceeds the token budget reserved for background work.',
+  modelApiPacingWaiting: 'Waiting for rate limit headroom…',
+  modelApiPacingExpired:
+    'The wait for rate limit headroom expired. Send the message again to retry.',
+  modelApiStatusLabel: 'Meta API status',
+  modelApiStatusUnavailable: 'Status unavailable',
+  modelApiStatusOpen: 'Open service status',
+  modelApiServiceFailure: 'The service returned an error. Check its status or try again.',
+  feedbackFailed: 'Could not submit feedback.',
   // M102: the shared usage page; its full table is a separate lazy family.
   usagePageTitle: 'Usage & cost',
   paletteUsagePage: 'Track cost, tokens and limits across editors.',
@@ -110,9 +224,13 @@ export const EN = {
   referenceProviders:
     'List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.',
   referenceCliOptions: {
+    'resource-governor':
+      '--resource-governor on|off: Keep this machine responsive by throttling or deferring harness work. On by default.',
+    'cpu-max': '--cpu-max <percent>: Throttle when CPU stays above this percentage for 30 seconds.',
+    'memory-max':
+      '--memory-max <percent>: Throttle when used memory stays above this percentage for two samples.',
     'usage-history': '--usage-history: Track cost, tokens and limits across editors.',
-    'no-auto-compaction':
-      '--no-auto-compaction: Automatic compaction is awaiting evaluation and is inactive.',
+
     provider: '--provider: Provider',
     preset: '--preset: Provider',
     as: '--as: Provider',
@@ -168,6 +286,10 @@ export const EN = {
     description: '--description <text>  What was happening, in your own words',
     'no-facts': '--no-facts           Leave the support facts out',
     'no-events': '--no-events          Leave the recent events out',
+    'no-auto-compaction': 'Disable automatic compaction',
+    'output-schema':
+      'Validate the final answer against a bounded JSON schema file (Model API only).',
+    'output-schema-outside': 'Allow the output schema file to resolve outside the workspace.',
   },
   referenceScanSecrets:
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
@@ -226,7 +348,7 @@ export const EN = {
   referenceQuestions:
     'Choose and Submit an answer, explain in your own words, or Cancel. Muse receives submitted answers and explanations in the conversation.',
   referenceQuestionsDeferral:
-    'In the panel, the attention dock pins each question above the composer, and the transcript keeps its card. After museSpark.questions.deferAfterSeconds (60 seconds by default; 0 waits indefinitely), Muse continues work that does not depend on the answer; the card becomes an open question that you can answer later or dismiss. A late answer is your own message and approves nothing. Next open question and Previous open question move between open cards. Scheduled prompts defer at once, and headless exec declines questions. In ACP, --questions-defer-after sets the form deadline, /questions lists open questions and /answer <n> <text> answers one.',
+    'In the panel, each question has one interactive card pinned above the composer. The transcript keeps a compact Open question marker; Answer opens or expands the docked card and focuses its first control, including after deferral. MCP forms follow the same rule. Muse receives submitted answers and explanations in the conversation. After museSpark.questions.deferAfterSeconds (60 seconds by default; 0 waits indefinitely), Muse continues work that does not depend on the answer; the card becomes an open question that you can answer later or dismiss. A late answer is your own message and approves nothing. Next open question and Previous open question move between open cards. Scheduled prompts defer at once, and headless exec declines questions. In ACP, --questions-defer-after sets the form deadline, /questions lists open questions and /answer <n> <text> answers one.',
   referencePermissionLimits:
     'museCode:manual: Muse will ask before running commands; Muse Code edits workspace files without asking\nmuseCode:acceptEdits: On Muse Code, the same as Manual: Muse Code edits workspace files without asking and asks before running commands\nmuseCode:plan: Muse plans first; Muse Code refuses commands, but its file tools can still edit files without asking\nmuseCode:bypassPermissions: Muse will edit files and run commands without asking\nmodelApi:manual: Muse will ask for approval before each edit and each command\nmodelApi:acceptEdits: Muse will edit files without asking and ask before running commands\nmodelApi:plan: Muse will explore the code and present a plan before editing\nmuseCode (museSpark.museCodeAutoReviewer=false): Muse Code runs the commands it judges simple without asking and asks before the rest\nmuseCode (museSpark.museCodeAutoReviewer=true): Muse Code runs the commands it judges simple without asking; a reviewer may allow some others once, and you are asked about the rest\nmodelApi (museSpark.modelApiAutoReviewer=false): Muse will edit files without asking, except protected files, and ask before commands\nmodelApi (museSpark.modelApiAutoReviewer=true): Muse will edit files without asking, except protected files; a paid reviewer may allow some commands once, and you are asked about the rest\nThese Auto descriptions concern requests not settled by rules. The Model API reviewer additionally requires paid consent and budget admission. A declined or failed review leaves the decision to you. Ordinary ACP has neither reviewer.',
   referenceElicitationTitle: 'MCP elicitation',
@@ -264,7 +386,7 @@ export const EN = {
   referencePaidContexts:
     'Interactive Model API extras ask before spending and share the daily budget. Muse Code images and voice need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.',
   referenceAcp:
-    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /compact, /legal, /usage, /questions, /answer, /prompt and /share plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
+    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /compact, /legal, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
   referenceWebFetchTitle: 'Web fetch',
   referenceWebFetchDetail:
     'Fetch public web pages as readable text, with permission and network checks.',
@@ -305,6 +427,13 @@ export const EN = {
   referenceWalkthrough: 'Open the Getting Started walkthrough.',
   referenceRetry: 'Retry preparation of the Windows job for plugin hooks.',
 
+  sessionDeleteConnectionClosed:
+    'The connection closed before deletion was confirmed. The session remains in History.',
+  sessionDeleteHostExited:
+    'Muse Code exited before deletion was confirmed. The session remains in History.',
+  sessionDeleteHostClosed:
+    'The host closed before deletion was confirmed. The session remains in History.',
+  sessionDeleteTimedOut: 'Deletion confirmation timed out. The session remains in History.',
   paidDailyBudgetLine:
     'Shared daily budget for interactive paid extras: {budget}. Tab has its own separate budget.',
   paidDailyLedgerUnavailable:
@@ -2188,6 +2317,44 @@ export const EN = {
   // M46: the header pill while background work runs and no agent is shown.
   backgroundTasksPillTitle: 'Show the background tasks',
   agentMapTitle: 'Agent map',
+  agentActivities: { active: 'Active', waiting: 'Waiting', inactive: 'Inactive' },
+  agentOutcomes: {
+    complete: 'Complete',
+    incomplete: 'Incomplete',
+    failed: 'Failed',
+    cancelled: 'Cancelled',
+    unverified: 'Ended, unverified',
+  },
+  agentWaitingReasons: {
+    approval: 'approval',
+    input: 'input',
+    queued: 'queued',
+    interrupted: 'interrupted',
+    idle: 'no recent activity',
+  },
+  agentStopReasons: {
+    normal: 'Normal end',
+    budget: 'Budget exhausted',
+    error: 'Error',
+    cancelled: 'Stopped by user',
+    unknown: 'Unavailable',
+  },
+  agentContinue: 'Continue',
+  agentRetry: 'Retry',
+  agentReceipt: 'Agent receipt',
+  agentReceiptFiles: 'Changed files',
+  agentReceiptChecks: 'Commands and checks',
+  agentReceiptStop: 'Stop reason',
+  agentReceiptUnfinished: 'Unfinished items',
+  agentReceiptHistory: 'Attempt history',
+  agentReceiptUnavailable: 'This backend did not provide this evidence.',
+  agentReceiptTruncated: 'The receipt reached its size limit; some evidence is omitted.',
+  agentRecoveryConfirm: '{action}: {objective}? The current permissions and budgets apply.',
+  agentRetryUnavailable:
+    'Retry is unavailable: this backend provides no isolated worktree checkpoint. Shared workspace changes are kept.',
+  agentContinueUnavailable: 'Continue is unavailable for this agent or its current state.',
+  referenceAgentOutcomes:
+    'Agents show activity and evidence-backed outcomes. Select an ended agent for its bounded receipt and attempt history. Continue keeps its session and changes after confirmation; Retry requires an isolated checkpoint. Missing evidence is shown as unverified. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.',
   agentMapHint: 'click an agent for details',
   agentMapEmpty: 'No subagents in this conversation.',
   // M96c (D75): scheduler, Traffic, recovery and user-level runners.
@@ -3009,6 +3176,8 @@ export const EN = {
   permissionModeChangeFailed: 'Could not change the permission mode',
   // {action}: the panel's id for a host command, such as `openSettings`.
   hostActionFailed: '{action} failed',
+  backendListenerFailed:
+    'A backend event listener failed. The operation continued; see the log for details.',
   contributorResumeFallbackTo:
     'The resumed conversation was on a contributor-tier model; it now uses {model}.',
   // Edit review's outcomes, per file (M5).
@@ -3340,6 +3509,7 @@ export const EN = {
   paidAllowAlways: 'Allow always in this workspace',
   paidDeny: 'Deny',
   paidUseWebSearchTitle: 'Let Muse search the web for this prompt?',
+  paidSearchQuote: 'Provider: {provider} · Model: {model}.',
   paidUseWebSearchDetail:
     'Muse may search the web while it answers. Each search is billed to your Model API key at {price}, on top of the tokens its results add. Deny sends the prompt without web search.',
   paidUseVoiceTitle: 'Record with Muse Voice?',

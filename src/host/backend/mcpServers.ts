@@ -12,6 +12,7 @@ import { UI_TEXT } from '../../shared/constants'
 import { readTextIfPresent } from '../cliFeatures'
 import type { Logger } from '../logger'
 import { isExistingDirectory, isExistingFile, mcpServerSpawner } from './mcpProcess'
+import { admitResource } from '../../core/resources/admission'
 
 export interface ModelApiMcpDeps {
   /** Awaited before a workspace-capable local stdio process can start. */
@@ -25,6 +26,7 @@ export interface ModelApiMcpDeps {
   readonly platform: NodeJS.Platform
   /** Windows: the compiled M50 job executable; absent means stdio fails closed. */
   readonly jobExecutablePath?: string | undefined
+  readonly shellJobAssembly?: (() => Promise<string | undefined>) | undefined
   readonly env: () => NodeJS.ProcessEnv
   readonly fetch: typeof fetch
   readonly log: Logger
@@ -48,12 +50,23 @@ export function modelApiMcpPoolDeps(deps: ModelApiMcpDeps): McpPoolDeps {
     isWorkspaceTrusted: deps.isWorkspaceTrusted,
     workspaceRoot: deps.workspaceRoot,
     platform: deps.platform,
-    spawn: async (launch, cwd, isCancelled) => {
+    spawn: async (launch, cwd, isCancelled, signal) => {
       await deps.beforeWorkspaceProcessStart()
+      const assembly = await deps.shellJobAssembly?.()
+      const resource = await admitResource('mcpServer', signal)
       if (isCancelled?.() === true || !deps.isWorkspaceTrusted()) {
+        resource?.complete(true)
         throw new Error(UI_TEXT.questionCancelled)
       }
-      return spawn(launch, cwd)
+      try {
+        await deps.beforeWorkspaceProcessStart()
+        if (isCancelled?.() === true || !deps.isWorkspaceTrusted())
+          throw new Error(UI_TEXT.questionCancelled)
+        return spawn(launch, cwd, isCancelled, signal, resource, assembly)
+      } catch (error: unknown) {
+        resource?.complete(true)
+        throw error
+      }
     },
     fetch: deps.fetch,
     clientVersion: deps.clientVersion,

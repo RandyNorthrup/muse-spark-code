@@ -1,3 +1,5 @@
+import { USD_DECIMAL_ZERO } from '../../shared/usdConstants'
+import { Usd, type UsdAmount } from '../../shared/usd'
 // Adaptive autofill (M96 lane F, PLAN.md D75): M96's suggestion kinds
 // for M95's local suggestion engine (`src/core/providers/suggest.ts`),
 // with no telemetry and no model call. Each suggestion is shown as a
@@ -56,7 +58,7 @@ export interface TeamAutofillContext {
   /** Lane R's capability check: whether the model may serve the role. */
   readonly isCapable: (modelRef: string, role: string) => boolean
   /** The team's remaining daily budget in dollars. */
-  readonly remainingDailyBudgetUsd: number
+  readonly remainingDailyBudgetUsd: UsdAmount
 }
 
 /** The tasks a role needs before the record replaces the starting value. */
@@ -227,7 +229,7 @@ function suggestPoolFallback(context: TeamAutofillContext): readonly TeamSuggest
 /** Caps from the budget: day caps that fit the remaining daily budget. */
 function suggestBudgetCaps(context: TeamAutofillContext): readonly TeamSuggestion[] {
   const suggestions: TeamSuggestion[] = []
-  if (context.remainingDailyBudgetUsd <= 0) {
+  if (Usd.from(context.remainingDailyBudgetUsd).compare(Usd.from(0)) <= 0) {
     return suggestions
   }
   for (const role of context.draft.roles) {
@@ -240,12 +242,18 @@ function suggestBudgetCaps(context: TeamAutofillContext): readonly TeamSuggestio
     if (hasDayCap) {
       continue
     }
-    const share = budgetShareFor(
-      role.role,
-      context.draft.roles.map((entry) => entry.role),
-      context.records,
+    const totalWeight = context.draft.roles.reduce(
+      (sum, entry) => sum + typicalUseFor(entry.role, context.records).tokens,
+      0,
     )
-    const amount = Math.floor(context.remainingDailyBudgetUsd * share * 100) / 100
+    const weight = typicalUseFor(role.role, context.records).tokens
+    const cents =
+      totalWeight === 0
+        ? USD_DECIMAL_ZERO
+        : Usd.from(context.remainingDailyBudgetUsd)
+            .times(weight)
+            .floorDivide(Usd.from(totalWeight).divide(100))
+    const amount = Usd.fromUnits(cents, 2).toAmount()
     suggestions.push({
       kind: 'roleBudget',
       role: role.role,
@@ -254,7 +262,7 @@ function suggestBudgetCaps(context: TeamAutofillContext): readonly TeamSuggestio
         amount: formatUsd(amount, 2),
       }),
       modelRef: undefined,
-      amount,
+      amount: Number(amount),
     })
   }
   return suggestions

@@ -100,6 +100,11 @@ beforeAll(async () => {
   writeFileSync(path.join(fixture.root, 'PLAN.md'), 'must not ship')
   for (const file of [
     'dist/extension.js',
+    'dist/resourceGovernor.js',
+    'dist/resourceAdmission.js',
+    'dist/webview/resourceSurface.js',
+    'dist/webview/resourceHistory.js',
+    'dist/webview/resourceHistory.css',
     'dist/validation.js',
     'dist/webview/main.js',
     'dist/webview/main.css',
@@ -112,6 +117,8 @@ beforeAll(async () => {
     'dist/webview/referencePage.js',
     'dist/webview/referencePage.css',
     'dist/webview/chunks/UsageDialog-test.js',
+    'native/linux/x64/muse-created',
+    'native/linux/arm64/muse-created',
     'native/darwin/muse-dictate',
     'l10n/ui.de.json.br',
   ]) {
@@ -303,7 +310,14 @@ describe('VSIX packaging', () => {
     expect(packaged).toEqual(
       expect.arrayContaining([
         'dist/validation.js',
+        'dist/resourceGovernor.js',
+        'dist/resourceAdmission.js',
+        'dist/webview/resourceSurface.js',
+        'dist/webview/resourceHistory.js',
+        'dist/webview/resourceHistory.css',
         'dist/webview/chunks/UsageDialog-test.js',
+        'native/linux/x64/muse-created',
+        'native/linux/arm64/muse-created',
         'native/darwin/muse-dictate',
         'l10n/ui.tables.json.br',
         'dist/runtime.bundles.json.br',
@@ -311,6 +325,21 @@ describe('VSIX packaging', () => {
     )
     expect(packaged).not.toContain('docs/marketplace-readme.md')
   })
+  it.each(['x64', 'arm64'])(
+    'P1 refuses a VSIX with the Linux helper %s absent before replacing its stage',
+    async (arch) => {
+      const file = path.join(fixture.root, 'native', 'linux', arch, 'muse-created')
+      const original = readFileSync(file)
+      try {
+        rmSync(file)
+        await expect(stageVsix(fixture.root, fixture.stage)).rejects.toThrow(
+          'Required Linux created-path helper',
+        )
+      } finally {
+        writeFileSync(file, original)
+      }
+    },
+  )
   it.each(TABLE_LOCALES)('round-trips %s byte-exact and leaves source unchanged', (locale) => {
     const file = `l10n/ui.${locale}.json`
     const source = path.join(fixture.root, file)
@@ -387,15 +416,18 @@ describe('VSIX packaging', () => {
     expect(() => createRequire(damaged)(damaged)).toThrow('Invalid runtime archive member')
   })
 
-  it('retains direct CommonJS named exports through native import and require', () => {
-    execFileSync(
-      process.execPath,
-      [
-        '--input-type=module',
-        '--eval',
-        `
+  it.each([false, true])(
+    'retains direct CommonJS named exports through native import and require, loader hooks: %s',
+    (withHooks) => {
+      execFileSync(
+        process.execPath,
+        [
+          '--input-type=module',
+          '--eval',
+          `
       import assert from 'node:assert/strict';
-      import { createRequire } from 'node:module';
+      import { createRequire, registerHooks } from 'node:module';
+      if (${withHooks}) registerHooks({load(url,context,nextLoad){return nextLoad(url,context);}});
       import { pathToFileURL } from 'node:url';
       const baselineFile=${JSON.stringify(path.join(fixture.root, 'dist/tab.js'))};
       const packagedFile=${JSON.stringify(path.join(fixture.stage, 'dist/tab.js'))};
@@ -407,10 +439,11 @@ describe('VSIX packaging', () => {
       const require=createRequire(packagedFile);
       assert.deepEqual(Object.keys(require(packagedFile)),Object.keys(require(baselineFile)));
     `,
-      ],
-      { env: {} },
-    )
-  })
+        ],
+        { env: {} },
+      )
+    },
+  )
   it('keeps the eager fallback smaller and enumerates keys without loading regions', () => {
     const file = path.join(fixture.stage, 'dist/uiText.js')
     const require = createRequire(file)

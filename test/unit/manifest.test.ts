@@ -24,6 +24,7 @@ import {
   WHATS_NEW_CHANGELOG_URL,
   WHATS_NEW_README_URL,
 } from '../../src/shared/constants'
+import { resourceSettingsSchema } from '../../src/shared/resources'
 import { findBash } from './helpers/shellParsers'
 
 const byText = (a: string, b: string) => a.localeCompare(b)
@@ -121,19 +122,27 @@ describe('package.json manifest', () => {
     }
   })
 
-  it('declares every setting with the default constants.ts uses', () => {
+  it('declares every setting with its runtime default', () => {
     const properties = manifest.contributes.configuration.properties as Record<
       string,
       { default: unknown }
     >
     const declared = Object.keys(properties).map((key) => key.replace(`${SETTINGS_SECTION}.`, ''))
-    expect(new Set(declared)).toEqual(
-      new Set([...Object.keys(SETTING_DEFAULTS), QUESTION_DEFER_SETTING]),
-    )
-    expect(properties[`${SETTINGS_SECTION}.${QUESTION_DEFER_SETTING}`]?.default).toBe(
-      QUESTION_DEFER_DEFAULT_SECONDS,
-    )
-    for (const [key, value] of Object.entries(SETTING_DEFAULTS)) {
+    const resource = resourceSettingsSchema.parse({})
+    const defaults = {
+      ...SETTING_DEFAULTS,
+      [QUESTION_DEFER_SETTING]: QUESTION_DEFER_DEFAULT_SECONDS,
+      resourceGovernor: resource.enabled,
+      resourceCpuMaxPercent: resource.cpuMaxPercent,
+      resourceMemoryMaxPercent: resource.memoryMaxPercent,
+      resourceMemoryMinFreeGiB: resource.memoryMinFreeGiB,
+      resourceGpuMaxPercent: resource.gpuMaxPercent,
+      resourceDiskBusyMaxPercent: resource.diskBusyMaxPercent,
+      resourceDiskMinFreeGiB: resource.diskMinFreeGiB,
+      resourceRelocate: resource.relocate,
+    }
+    expect(new Set(declared)).toEqual(new Set(Object.keys(defaults)))
+    for (const [key, value] of Object.entries(defaults)) {
       expect(properties[`${SETTINGS_SECTION}.${key}`]?.default, key).toEqual(value)
     }
   })
@@ -563,11 +572,24 @@ describe('tiered CI (CIFLOW)', () => {
         .join(' ')}\n`,
     )
     expect(job('unit')).toContain('npx vitest run\n')
-    for (const id of ['coverage', 'accessibility', 'integration', 'native-build', 'packages']) {
+    for (const id of [
+      'coverage',
+      'accessibility',
+      'integration',
+      'native-build',
+      'linux-native-build',
+      'packages',
+    ]) {
       expect(job(id)).toContain('if: ${{ !inputs.fast }}')
     }
     expect(job('accessibility')).toContain('runs-on: ubuntu-latest')
     expect(job('accessibility')).toContain('run: npm run test:a11y\n')
+    expect(job('accessibility')).toContain('run: npm run test:legal-a11y\n')
+    // `npm run quality` runs both accessibility suites CI runs, so the local
+    // gate a commit is proposed on never drops one.
+    expect(manifest.scripts.quality.split(' ')).toEqual(
+      expect.arrayContaining(['run-s', 'quality:gates', 'test:a11y', 'test:legal-a11y']),
+    )
     expect(job('integration')).toContain('os: [ubuntu-latest, windows-latest]')
     expect(job('packages')).toContain('name: muse-spark-code-vsix')
     expect(job('packages')).toContain('name: muse-spark-code-acp')
@@ -604,15 +626,37 @@ describe('tiered CI (CIFLOW)', () => {
     ]) {
       expect(job(id)).toContain(`- ${name}\n`)
     }
-    expect(job(id)).toMatch(
-      /needs:\s+\[checks, unit, coverage, accessibility, integration, native-build, packages, secrets, sast\]/,
-    )
+    expect(
+      /needs:\s+\[([^\]]+)\]/
+        .exec(job(id))?.[1]
+        ?.split(',')
+        .map((value) => value.trim())
+        .filter(Boolean),
+    ).toEqual([
+      'checks',
+      'unit',
+      'coverage',
+      'accessibility',
+      'integration',
+      'native-build',
+      'linux-native-build',
+      'packages',
+      'secrets',
+      'sast',
+    ])
     expect(job(id)).toContain('if: always()')
     for (const key of ['CHECKS', 'UNIT', 'SECRETS', 'SAST']) {
       expect(job(id)).toContain(`          test "$${key}" = success\n`)
     }
     expect(job(id)).toContain('          if [ "$FAST" != true ]; then\n')
-    for (const key of ['COVERAGE', 'ACCESSIBILITY', 'INTEGRATION', 'HELPER', 'PACKAGES']) {
+    for (const key of [
+      'COVERAGE',
+      'ACCESSIBILITY',
+      'INTEGRATION',
+      'HELPER',
+      'LINUX_HELPER',
+      'PACKAGES',
+    ]) {
       expect(job(id)).toContain(`            test "$${key}" = success\n`)
     }
     expect(job(id)).not.toContain('continue-on-error')
@@ -641,7 +685,7 @@ describe('tiered CI (CIFLOW)', () => {
   })
 
   const bash = findBash()
-  // 22 subshells: about 7.5 s on a loaded Windows host, where each one is a
+  // 24 subshells: about 7.5 s on a loaded Windows host, where each one is a
   // new process; well under a second on Linux.
   const BASH_CASES_TIMEOUT_MS = 60_000
   // The aggregate's own step, run the way GitHub runs a bash step (-e, pipefail)
@@ -654,13 +698,25 @@ describe('tiered CI (CIFLOW)', () => {
       // Each step variable and the expression it reads: FAST from the input,
       // the rest from one needed job's result.
       const pairs = Array.from(
-        required.matchAll(/^ {10}([A-Z]+): \$\{\{ (\S+) \}\}$/gm),
+        required.matchAll(/^ {10}([A-Z_]+): \$\{\{ (\S+) \}\}$/gm),
         (match) => [match[2] ?? '', match[1] ?? ''] as const,
       )
       const env = new Map(pairs)
-      const ids = /needs:\s+\[([^\]]+)\]/.exec(required)?.[1]?.split(', ') ?? []
+      const ids =
+        /needs:\s+\[([^\]]+)\]/
+          .exec(required)?.[1]
+          ?.split(',')
+          .map((value) => value.trim())
+          .filter(Boolean) ?? []
       const always = ['checks', 'unit', 'secrets', 'sast']
-      const fullOnly = ['coverage', 'accessibility', 'integration', 'native-build', 'packages']
+      const fullOnly = [
+        'coverage',
+        'accessibility',
+        'integration',
+        'native-build',
+        'linux-native-build',
+        'packages',
+      ]
       expect(ids.toSorted(byText)).toEqual([...always, ...fullOnly].toSorted(byText))
       expect(pairs.map(([expression]) => expression).toSorted(byText)).toEqual(
         ['inputs.fast', ...ids.map((id) => `needs.${id}.result`)].toSorted(byText),

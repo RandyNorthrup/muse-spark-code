@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { EventEmitter } from 'node:events'
 import {
   lstatSync,
@@ -143,8 +144,8 @@ const DEFAULTS: ServeOptions = {
   allowsContributorModels: false,
   paidFeatures: [],
   isVerbose: false,
-  autoCompaction: true,
   questionsDeferAfterSeconds: 60,
+  autoCompaction: true,
 }
 
 function fakeKeyring() {
@@ -480,6 +481,16 @@ describe('login', () => {
 })
 
 describe('walkFiles', () => {
+  it('rejects an aborted directory listing before opening a native directory', async () => {
+    const abort = new AbortController()
+    abort.abort()
+    const log = { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+    await expect(walkFiles(folder(), 10, log, abort.signal)).rejects.toMatchObject({
+      name: 'AbortError',
+    })
+    expect(log.warn).not.toHaveBeenCalled()
+  })
+
   it('lists the tree breadth first, skipping .git, node_modules and links, up to the limit', async () => {
     const root = folder()
     mkdirSync(path.join(root, 'src', 'deep'), { recursive: true })
@@ -940,11 +951,12 @@ describe('createRuntimeBackend', () => {
     mkdirSync(data, { recursive: true })
     writeFileSync(path.join(data, 'settings.json'), '{"paidDailyBudgetUsd":1}')
     const { createRuntimeDailyBudget } = await import('../../src/runtime/runtimeAccountingEntry')
-    await createRuntimeDailyBudget({
+    const daily = createRuntimeDailyBudget({
       dataFolder: data,
-      now: () => Date.now(),
       sleep: () => Promise.resolve(),
-    }).reserve(1, new AbortController().signal)
+      now: Date.now,
+    })
+    await daily.reserve(Usd.from(1).toAmount(), new AbortController().signal)
     const api = fakeModelApi()
     const secrets = memorySecrets()
     secrets.values.set(SECRET_KEYS.modelApiKey, FAKE_MODEL_API_KEY)

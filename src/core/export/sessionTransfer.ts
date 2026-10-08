@@ -582,7 +582,16 @@ function importedTurns(transcript: readonly ItemSnapshot[]): readonly ImportedTu
 }
 
 /** One imported turn as the model reads it: a lead that marks it untrusted, then its items as JSON. */
-function turnForTheModel(turn: ImportedTurn, isFirst: boolean): StoredReplayItem {
+type ImportModelText = Pick<
+  typeof CONVERSATION_MODEL_TEXT,
+  'importedHistoryNote' | 'importedTurnLead'
+>
+
+function turnForTheModel(
+  turn: ImportedTurn,
+  isFirst: boolean,
+  text: ImportModelText,
+): StoredReplayItem {
   const items = turn.items
     .filter((item) => !NOT_FOR_THE_MODEL.has(item.kind))
     .map((item) =>
@@ -591,8 +600,8 @@ function turnForTheModel(turn: ImportedTurn, isFirst: boolean): StoredReplayItem
       ),
     )
   const lead = isFirst
-    ? `${CONVERSATION_MODEL_TEXT.importedHistoryNote}\n\n${CONVERSATION_MODEL_TEXT.importedTurnLead}`
-    : CONVERSATION_MODEL_TEXT.importedTurnLead
+    ? `${text.importedHistoryNote}\n\n${text.importedTurnLead}`
+    : text.importedTurnLead
   return {
     turnId: turn.turnId,
     item: {
@@ -605,8 +614,8 @@ function turnForTheModel(turn: ImportedTurn, isFirst: boolean): StoredReplayItem
   }
 }
 
-function importedReplay(turns: readonly ImportedTurn[]): StoredReplayItem[] {
-  return turns.map((turn, index) => turnForTheModel(turn, index === 0))
+function importedReplay(turns: readonly ImportedTurn[], text: ImportModelText): StoredReplayItem[] {
+  return turns.map((turn, index) => turnForTheModel(turn, index === 0, text))
 }
 
 /** The UTF-8 bytes of the text `replay` hands the model. */
@@ -643,7 +652,9 @@ function oversizeReason(bytes: number): string | undefined {
  * a share file.
  */
 export function importRefusal(doc: SessionExport): string | undefined {
-  return oversizeReason(replayBytes(importedReplay(importedTurns(doc.transcript))))
+  return oversizeReason(
+    replayBytes(importedReplay(importedTurns(doc.transcript), CONVERSATION_MODEL_TEXT)),
+  )
 }
 
 /**
@@ -660,9 +671,10 @@ export function importRefusal(doc: SessionExport): string | undefined {
 export function sanitizeImportedSession(
   doc: SessionExport,
   options: SanitizeImportOptions,
+  text: ImportModelText,
 ): StoredSession {
   const turns = importedTurns(doc.transcript)
-  const replay = importedReplay(turns)
+  const replay = importedReplay(turns, text)
   const refusal = oversizeReason(replayBytes(replay))
   if (refusal !== undefined) {
     throw new Error(refusal)

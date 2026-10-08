@@ -1,5 +1,16 @@
 import type { UsageRecording } from '../../core/usage/recording'
-import { paidWindowOnceFeatures } from '../../shared/paid'
+import {
+  paidWindowOnceFeatures,
+  autoReviewPrice,
+  paidQuoteSchema,
+  modelApiPaidTier,
+  paidFeatureName,
+  paidFeaturePrice,
+  type PaidState,
+  type PaidUseRequest,
+} from '../../shared/paid'
+import { randomUUID } from 'node:crypto'
+import { Usd, legacyUsdSchema, type UsdAmount } from '../../shared/usd'
 // The host side of the paid Model API features (M33–M35, PLAN.md D30): the
 // gate over VS Code's settings, the extension's global state and a modal
 // confirmation naming the price, the popup before each paid use (M58,
@@ -12,6 +23,7 @@ import { PaidUseConsent, type PaidUseAnswer, paidUseQuestion } from '../../core/
 import { PaidFeatureGate, PaidUsage, paidStateOf } from '../../core/paid/paidFeatures'
 import {
   GLOBAL_STATE_KEYS,
+  PAID_APPROVAL_ORDER_DIRECTORY,
   PAID_FEATURE_SETTINGS,
   PAID_FEATURES,
   type PaidFeature,
@@ -21,21 +33,25 @@ import {
   WORKSPACE_STATE_KEYS,
 } from '../../shared/constants'
 import { fill, formatUsd } from '../../shared/l10n/text'
-import {
-  autoReviewPrice,
-  modelApiPaidTier,
-  paidFeatureName,
-  paidFeaturePrice,
-  type PaidState,
-  type PaidUseRequest,
-} from '../../shared/paid'
+
 import type { Logger } from '../logger'
+import {
+  paidAuthorityKey,
+  latestPaidGrant,
+  nextPaidApprovalOrder,
+  type PaidAuthority,
+} from '../../core/paid/paidAuthority'
 
 // What an earlier version (or a hand edit) stored is validated, never trusted.
 const acceptedSchema = z.array(z.enum(PAID_FEATURES))
 // Feature → grant generation; keys that are not a paid feature are ignored.
 const generationsSchema = z.record(z.string(), z.int().check(z.nonnegative()))
-const dailyBudgetSchema = z.number().check(z.gte(0))
+const quoteGrantSchema = z.object({
+  quote: paidQuoteSchema,
+  order: z.optional(z.number().check(z.int(), z.gte(0))),
+  generation: z.string(),
+})
+const dailyBudgetSchema = legacyUsdSchema
 
 /** A feature's grant generation: 0 until its price acceptance first changes. */
 function generationOf(generations: Readonly<Record<string, number>>, feature: PaidFeature): number {
@@ -48,15 +64,17 @@ interface MementoLike {
 }
 
 export interface PaidFeaturesDeps {
+  readonly authority?: PaidAuthority
+  readonly orderDirectory?: string
   readonly usageRecording?: UsageRecording | undefined
   readonly globalState: MementoLike
   /** Where "Allow always in this workspace" is kept (M58). */
-  readonly workspaceState: MementoLike
+  readonly workspaceState: MementoLike & { keys(): readonly string[] }
   /** Whether the feature's setting is on, as the settings reader validated it. */
   readonly isSettingOn: (feature: PaidFeature) => boolean
   readonly isAvailable?: (feature: PaidFeature) => boolean
   readonly isDefaultOn?: (feature: PaidFeature) => boolean
-  readonly dailyBudgetUsd?: (feature?: PaidFeature) => number | undefined
+  readonly dailyBudgetUsd?: (feature?: PaidFeature) => UsdAmount | undefined
   /** Separate from startup review, since subscription judging has no price popup. */
   readonly isJudgeOn?: (() => boolean) | undefined
   /** Whether a Model API key is stored, as last read (M44). */
@@ -64,7 +82,10 @@ export interface PaidFeaturesDeps {
   /** A trusted workspace with a folder open: "always" is offered and kept only there. */
   readonly canRememberPaidUse: () => boolean
   /** Tab's budget and, once its ledger was read, today's cross-window total (M94). */
-  readonly tabDay?: () => { readonly budgetUsd: number; readonly todayUsd: number | undefined }
+  readonly tabDay?: () => {
+    readonly budgetUsd: UsdAmount
+    readonly todayUsd: UsdAmount | undefined
+  }
   readonly log: Logger
 }
 
@@ -129,7 +150,7 @@ async function isTurnOnConfirmed(feature: PaidFeature): Promise<boolean> {
 export async function askPaidUse(
   request: PaidUseRequest,
   canRemember: boolean,
-  dailyBudgetUsd?: number,
+  dailyBudgetUsd?: UsdAmount,
 ): Promise<PaidUseAnswer> {
   // No verified price, nothing to accept (M48, M78): refused before any popup.
   if (
@@ -138,8 +159,7 @@ export async function askPaidUse(
       autoReviewPrice(request.modelId, request.pricing) === undefined) ||
     (request.feature === 'judge' &&
       (autoReviewPrice(request.modelId) === undefined ||
-        !Number.isFinite(request.dailyBudgetUsd) ||
-        request.dailyBudgetUsd < 0))
+        Usd.from(request.dailyBudgetUsd).compare(Usd.from(0)) < 0))
   ) {
     return 'deny'
   }
@@ -153,7 +173,7 @@ export async function askPaidUse(
     if (modelApiPaidTier(request.modelId) === undefined) {
       return 'deny'
     }
-    if (!Number.isFinite(request.budgetUsd) || request.budgetUsd < 0) {
+    if (Usd.from(request.budgetUsd).compare(Usd.from(0)) < 0) {
       return 'deny'
     }
   }
@@ -202,6 +222,11 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     )
     return parsed.success ? parsed.data : {}
   }
+  const quoteGeneration = () =>
+    JSON.stringify([
+      generationOf(readGenerations(), 'webSearch'),
+      deps.workspaceState.get(WORKSPACE_STATE_KEYS.paidQuoteGrants) ?? 0,
+    ])
   const gate = new PaidFeatureGate({
     isSettingOn: (feature) =>
       feature === 'judge'
@@ -247,6 +272,22 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     isWindowFocused: () => vscode.window.state.focused,
     log: deps.log,
   })
+  const readQuoteGrants = () => {
+    const prefix = `${WORKSPACE_STATE_KEYS.paidQuoteGrants}:${PAID_APPROVAL_ORDER_DIRECTORY}:`
+    return deps.workspaceState
+      .keys()
+      .filter((key) => key.startsWith(prefix))
+      .flatMap((key) => {
+        const parsed = quoteGrantSchema.safeParse(deps.workspaceState.get(key))
+        return parsed.success &&
+          parsed.data.generation === quoteGeneration() &&
+          key.startsWith(
+            `${prefix}${paidAuthorityKey(parsed.data.quote)}:${parsed.data.generation}:`,
+          )
+          ? [parsed.data]
+          : []
+      })
+  }
   const consent = new PaidUseConsent({
     isOn: (feature) => gate.isOn(feature),
     // Tab's "Allow once" covers this window until it closes (M94 Q-M94a):
@@ -260,6 +301,39 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     isJudgeEnabled: () => deps.isKeyStored() && (deps.isJudgeOn?.() ?? deps.isSettingOn('judge')),
     acceptJudgePrice: () => gate.acceptJudgePrice(),
     canRemember: deps.canRememberPaidUse,
+    ...(deps.authority !== undefined && { authority: deps.authority }),
+    quoteGeneration,
+    nextQuoteOrder: async () => {
+      if (deps.orderDirectory !== undefined) return nextPaidApprovalOrder(deps.orderDirectory)
+      const current = z
+        .int()
+        .check(z.nonnegative())
+        .parse(deps.globalState.get(GLOBAL_STATE_KEYS.paidApprovalOrder) ?? 0)
+      const order = current + 1
+      await deps.globalState.update(GLOBAL_STATE_KEYS.paidApprovalOrder, order)
+      return order
+    },
+    readQuoteGrant: (quote) =>
+      latestPaidGrant(
+        readQuoteGrants().filter(
+          (grant) => paidAuthorityKey(grant.quote) === paidAuthorityKey(quote),
+        ),
+      ),
+    writeQuoteGrant: async (grant) => {
+      // This record carries the generation captured before the popup. A
+      // delayed update can never become a grant in a later generation.
+      await deps.workspaceState.update(
+        `${WORKSPACE_STATE_KEYS.paidQuoteGrants}:${PAID_APPROVAL_ORDER_DIRECTORY}:${paidAuthorityKey(grant.quote)}:${grant.generation}:${String(grant.order ?? 0)}:${grant.quote.id}`,
+        grant,
+      )
+      if (grant.generation !== quoteGeneration()) return
+      await deps.globalState.update(GLOBAL_STATE_KEYS.paidConfirmations, [
+        ...new Set([...readAccepted(), 'webSearch']),
+      ])
+    },
+    revokeQuoteGrants: async () => {
+      await deps.workspaceState.update(WORKSPACE_STATE_KEYS.paidQuoteGrants, randomUUID())
+    },
     readGrants: () => {
       const parsed = generationsSchema.safeParse(
         deps.workspaceState.get(WORKSPACE_STATE_KEYS.paidWorkspaceGrants) ?? {},
@@ -269,11 +343,12 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
       return new Set(
         PAID_FEATURES.filter(
           (feature) =>
-            grants[feature] !== undefined &&
-            grants[feature] === generationOf(generations, feature) &&
-            (feature !== 'subagents' ||
-              deps.globalState.get(GLOBAL_STATE_KEYS.subagentPriceAcceptance) ===
-                SUBAGENT_PRICE_ACCEPTANCE_VERSION),
+            (feature === 'webSearch' && readQuoteGrants().length > 0) ||
+            (grants[feature] !== undefined &&
+              grants[feature] === generationOf(generations, feature) &&
+              (feature !== 'subagents' ||
+                deps.globalState.get(GLOBAL_STATE_KEYS.subagentPriceAcceptance) ===
+                  SUBAGENT_PRICE_ACCEPTANCE_VERSION)),
         ),
       )
     },
@@ -340,7 +415,7 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
       return await consent.allows({
         feature: 'judge',
         modelId,
-        dailyBudgetUsd: budget.success ? budget.data : 0,
+        dailyBudgetUsd: budget.success ? budget.data : Usd.from(0).toAmount(),
       })
     },
     affects: (event) =>

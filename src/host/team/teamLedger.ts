@@ -1,3 +1,4 @@
+import { legacyUsdSchema } from '../../shared/usd'
 // The team ledger (M96 lane A, PLAN.md D75): the durable record behind the
 // Agent map's live and history views. Every delegation is one row, kept per
 // workspace beside the session store, in an append-only file per local day.
@@ -69,7 +70,7 @@ const teamUsageSchema = z.object({
   outputTokens: z.number().check(z.nonnegative()),
   reasoningTokens: z.number().check(z.nonnegative()),
   calls: z.number().check(z.nonnegative()),
-  costUsd: z.number().check(z.nonnegative()),
+  costUsd: legacyUsdSchema,
   tasks: z.number().check(z.nonnegative()),
   hookTokens: z.number().check(z.nonnegative()),
   paidToolTokens: z.number().check(z.nonnegative()),

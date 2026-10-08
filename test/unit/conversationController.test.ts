@@ -3,6 +3,11 @@ import { FakeQuestionClock } from './helpers/questions/clock'
 import { FakeQuestionStore } from './helpers/questions/store'
 import { questionFixture } from './helpers/questions/fixtures'
 import { QUESTION_CLARIFIED } from './helpers/m46Capture'
+import { metaSideCallFormats } from '../../src/core/backends/modelapi/modelCapabilities'
+import { M106_CAPTURED_META_MODEL } from '../../src/shared/constants'
+import { conversationGitFactory } from '../../src/host/git/conversationGitBundle'
+import * as gitEntry from '../../src/host/git/conversationGitEntry'
+import { Usd } from '../../src/shared/usd'
 import { MspError } from '@muse-code/sdk'
 import { Buffer } from 'node:buffer'
 import { createHash, randomUUID } from 'node:crypto'
@@ -184,6 +189,7 @@ import { pdfFixture } from './helpers/pdfFixture'
 import {
   fakeInitializeResult,
   fakeMspHost,
+  childPatchOutput,
   goalRefusal,
   refusalOf,
   rejectionFor,
@@ -687,7 +693,7 @@ function setup(
     createGit: (gitSurface) => new ConversationGit(gitFake.window, gitSurface),
     onForegroundTasksChanged: vi.fn<() => void>(),
     museVoice: options.museVoice ?? (() => undefined),
-    modelApiSessionBudgetUsd: () => options.modelApiSessionBudgetUsd ?? 0,
+    modelApiSessionBudgetUsd: () => Usd.from(options.modelApiSessionBudgetUsd ?? 0).toAmount(),
     voiceAccountId: options.voiceAccountId ?? (() => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID)),
     ownedVoiceBudgetScope: options.ownedVoiceBudgetScope ?? (() => Promise.resolve(undefined)),
     allowsPaidUse: options.allowsPaidUse ?? (() => Promise.resolve(true)),
@@ -4137,6 +4143,25 @@ function envelope(session: Record<string, unknown>, mode = 'inline') {
   }
 }
 
+function agentRecoveryHistory(status: string) {
+  const value = envelope({ ...storedSession, sessionId: 's1' })
+  return {
+    ...value,
+    history: {
+      ...value.history,
+      items: [
+        {
+          itemId: 'a',
+          kind: 'subagent',
+          status,
+          subagentId: 'sub-1',
+          objective: 'Original objective',
+        },
+      ],
+    },
+  }
+}
+
 async function holdTurnCancel(t: ReturnType<typeof setup>) {
   t.server.silence('turn/cancel')
   const stopping = t.controller.backendStopping(true)
@@ -5554,6 +5579,39 @@ describe('ConversationController: session history (M6)', () => {
     })
   })
 
+  it.each([true, false])(
+    'reads child patches by their owner with parent attached=%s',
+    async (isAttached) => {
+      const t = withHistory()
+      if (isAttached) await t.controller.restoreSession('old')
+      t.server.handle('session/read', (params) => {
+        const value = envelope({ ...storedSession, sessionId: params['sessionId'] })
+        return {
+          ...value,
+          history: {
+            ...value.history,
+            items: [
+              {
+                itemId: 'edit',
+                kind: 'toolCall',
+                status: 'completed',
+                patchRef: { id: 'patch', byteLen: 100 },
+              },
+            ],
+          },
+        }
+      })
+      t.server.handle('item/readOutput', childPatchOutput)
+      await t.controller.handle({ type: 'readChildSession', sessionId: 'child-1' })
+      expect(t.server.requestsFor('item/readOutput')[0]?.params?.['sessionId']).toBe('child-1')
+      expect(t.surface.posted.at(-1)).toMatchObject({
+        type: 'childTranscript',
+        items: [{ changedFiles: [{ path: 'child.ts', added: 0, removed: 0 }] }],
+      })
+      expect(t.server.requestsFor('session/resume')).toHaveLength(isAttached ? 1 : 0)
+    },
+  )
+
   it('does not publish a held child transcript after account stop', async () => {
     const t = withHistory()
     t.server.silence('session/read')
@@ -6904,6 +6962,42 @@ describe('ConversationController question cancel (M16)', () => {
     await t.controller.handle({ type: 'cancelQuestion', userInputId: 'q1' })
     expect(t.server.requestsFor('userInput/cancel')).toEqual([])
   })
+
+  it.each(['continue', 'retry'] as const)(
+    'always confirms %s, including Bypass, and respects a denial',
+    async (action) => {
+      const t = setup({ initialPermissionMode: 'bypassPermissions', confirmsFileAction: false })
+      await t.send('l1', 'hi')
+      t.server.handle('session/read', () => agentRecoveryHistory('failed'))
+      const confirm = vi.spyOn(t.deps, 'confirmFileAction')
+      await t.controller.handle({ type: 'subagentControl', subagentId: 'sub-1', action })
+      expect(confirm).toHaveBeenCalledWith(
+        action === 'continue' ? UI_TEXT.agentContinue : UI_TEXT.agentRetry,
+        expect.stringContaining('Original objective'),
+        expect.any(String),
+      )
+      expect(t.server.requestsFor('subagent/followupTask')).toEqual([])
+      expect(t.server.requestsFor('subagent/resume')).toEqual([])
+    },
+  )
+
+  it('refuses recovery when the agent changed during the owner confirmation', async () => {
+    const t = setup({ confirmsFileAction: true })
+    await t.send('l1', 'hi')
+    let status = 'failed'
+    t.server.handle('session/read', () => agentRecoveryHistory(status))
+    vi.spyOn(t.deps, 'confirmFileAction').mockImplementation(() => {
+      status = 'inProgress'
+      return Promise.resolve(true)
+    })
+    await t.controller.handle({ type: 'subagentControl', subagentId: 'sub-1', action: 'continue' })
+    expect(t.surface.posted.at(-1)).toMatchObject({
+      type: 'notice',
+      level: 'error',
+      text: `${UI_TEXT.agentControlFailed}: ${UI_TEXT.agentContinueUnavailable}`,
+    })
+    expect(t.server.requestsFor('subagent/followupTask')).toEqual([])
+  })
 })
 
 describe('ConversationController chat references (M17)', () => {
@@ -7047,6 +7141,9 @@ const bareHostDeps = {
 function modelApiController(
   t: ReturnType<typeof setup>,
   options: {
+    readonly modelId?: string
+    readonly sideCallFormats?: ModelApiHostDeps['sideCallFormats']
+    readonly createGit?: ConversationDeps['createGit']
     readonly workspaceRoot?: string
     readonly platform?: NodeJS.Platform
     readonly io?: ModelApiHostDeps['io']
@@ -7061,6 +7158,7 @@ function modelApiController(
   const api = fakeModelApi()
   const host = new ModelApiHost({
     client: fakeModelApiClient(api, t.log),
+    ...(options.sideCallFormats !== undefined && { sideCallFormats: options.sideCallFormats }),
     workspaceRoot: options.workspaceRoot ?? '/ws',
     platform: options.platform ?? 'linux',
     io: options.io ?? noopToolIo,
@@ -7074,7 +7172,7 @@ function modelApiController(
     getAccountId: () => Promise.resolve(FAKE_MODEL_API_ACCOUNT_ID),
     ...disabledPaidFeatures,
     promptCacheRetention: () => 'in_memory',
-    sessionBudgetUsd: () => 0,
+    sessionBudgetUsd: () => Usd.from(0).toAmount(),
     showReplyUsage: () => false,
     ...(options.extensionHooks !== undefined && {
       loadExtensionHooks: () => Promise.resolve(options.extensionHooks ?? []),
@@ -7085,6 +7183,8 @@ function modelApiController(
   })
   const controller = new ConversationController({
     ...t.deps,
+    ...(options.modelId !== undefined && { modelId: options.modelId }),
+    ...(options.createGit !== undefined && { createGit: options.createGit }),
     ensureHost: async () => {
       await options.beforeEnsureHost?.()
       return host
@@ -9008,7 +9108,7 @@ function noFolderVoice(
   t.auth.snapshot = { status: 'signedIn', backend: 'modelApi', detail: undefined }
   const controller = new ConversationController({
     ...t.deps,
-    modelApiSessionBudgetUsd: () => state.capUsd,
+    modelApiSessionBudgetUsd: () => Usd.from(state.capUsd).toAmount(),
   })
   const capture = () => {
     const current = captures[0]
@@ -10210,7 +10310,7 @@ describe('ConversationController: scheduled prompts (M52)', () => {
       ...bareHostDeps,
       describeEnvironment: () => Promise.resolve({ git: undefined }),
       promptCacheRetention: () => 'in_memory',
-      sessionBudgetUsd: () => 0,
+      sessionBudgetUsd: () => Usd.from(0).toAmount(),
       showReplyUsage: () => false,
       isPaidFeatureOn: () => isPaidOn,
       notePaidUse: () => undefined,
@@ -10564,6 +10664,127 @@ describe('ConversationController: git and pull requests (M71)', () => {
       expect(boardGit()).toContainEqual(expect.stringContaining('worktree list --porcelain'))
     } finally {
       t.controller.dispose()
+    }
+  })
+
+  it.each(['valid', 'repair', 'fallback'] as const)(
+    'binds the production Git draft to the capable session and its guarded %s path',
+    async (reply) => {
+      const t = setup({
+        git: { repository: fakeRepository({ indexChanges: [change('src/a.ts')] }) },
+      })
+      const { api, host, controller } = modelApiController(t, {
+        modelId: M106_CAPTURED_META_MODEL,
+        sideCallFormats: metaSideCallFormats,
+        createGit: conversationGitFactory(
+          () => gitEntry,
+          () => ({
+            window: t.gitFake.window,
+            openPullRequestInConversation: () => Promise.resolve(),
+          }),
+        ),
+      })
+      api.script(
+        { text: reply === 'valid' ? '{"message":"Fix parser"}' : 'invalid' },
+        ...(reply === 'valid'
+          ? []
+          : [{ text: reply === 'repair' ? '{"message":"Fix parser"}' : 'invalid' }]),
+        ...(reply === 'fallback' ? [{ text: 'Fix parser' }] : []),
+      )
+      try {
+        await controller.handle({
+          type: 'sendMessage',
+          localId: 'git-draft',
+          text: UI_TEXT.gitAskCommitMessage,
+          attachmentIds: [],
+          gitDraft: 'commitMessage',
+        })
+        await vi.waitFor(() => {
+          expect(t.surface.posted).toContainEqual({
+            type: 'gitDraft',
+            draft: { kind: 'commitMessage', message: 'Fix parser' },
+          })
+        })
+        const bodies = api.responseBodies()
+        expect(bodies).toHaveLength({ valid: 1, repair: 2, fallback: 3 }[reply])
+        expect(bodies[0]?.['text']).toMatchObject({
+          format: { name: 'commit_draft', strict: true },
+        })
+        if (reply === 'fallback') expect(bodies[2]).not.toHaveProperty('text')
+        const started = t.surface.posted.filter(
+          (message) => message.type === 'agentEvent' && message.event.type === 'turnStarted',
+        )
+        expect(started).toHaveLength(1)
+        api.script({ text: 'Ordinary answer' })
+        await controller.handle({
+          type: 'sendMessage',
+          localId: 'ordinary',
+          text: 'hello',
+          attachmentIds: [],
+        })
+        await vi.waitFor(() => {
+          expect(api.responseBodies()).toHaveLength(bodies.length + 1)
+        })
+        expect(api.responseBodies().at(-1)).not.toHaveProperty('text')
+      } finally {
+        controller.dispose()
+        t.controller.dispose()
+        await host.close()
+      }
+    },
+  )
+
+  it('keeps the prepared Git format on its own submission while another message overtakes autosave', async () => {
+    const t = setup({
+      isAutosaveEnabled: true,
+      git: { repository: fakeRepository({ indexChanges: [change('src/a.ts')] }) },
+    })
+    const held = Promise.withResolvers<undefined>()
+    t.saveAll.mockImplementationOnce(() => held.promise)
+    let nextId = 0
+    const { api, host, controller } = modelApiController(t, {
+      modelId: M106_CAPTURED_META_MODEL,
+      sideCallFormats: metaSideCallFormats,
+      newId: () => `git-race-${String(++nextId)}`,
+    })
+    api.script({ text: 'Ordinary reply' }, { text: '{"message":"Own draft"}' })
+    try {
+      const draft = controller.handle({
+        type: 'sendMessage',
+        localId: 'draft',
+        text: UI_TEXT.gitAskCommitMessage,
+        attachmentIds: [],
+        gitDraft: 'commitMessage',
+      })
+      await vi.waitFor(() => {
+        expect(t.saveAll).toHaveBeenCalledOnce()
+      })
+      await controller.handle({
+        type: 'sendMessage',
+        localId: 'ordinary-race',
+        text: 'ordinary',
+        attachmentIds: [],
+      })
+      await vi.waitFor(() => {
+        expect(api.responseBodies()).toHaveLength(1)
+      })
+      expect(api.responseBodies()[0]).not.toHaveProperty('text')
+      held.resolve(undefined)
+      await draft
+      await vi.waitFor(() => {
+        expect(t.surface.posted).toContainEqual({
+          type: 'gitDraft',
+          draft: { kind: 'commitMessage', message: 'Own draft' },
+        })
+      })
+      expect(api.responseBodies()[1]?.['text']).toMatchObject({
+        format: { name: 'commit_draft', strict: true },
+      })
+    } finally {
+      held.resolve(undefined)
+      controller.dispose()
+      t.controller.dispose()
+      await host.close()
     }
   })
 
@@ -16870,4 +17091,21 @@ it('requires current sign-in for open answers and dismissals before marking or s
   const saved = await t.questionStore.load('s1')
   expect(saved[0]?.state).toBe('open')
   await t.host.close()
+})
+
+it('shows a fixed Meta service-failure notice with a status action only on that backend', () => {
+  const modelApi = setup()
+  modelApi.auth.snapshot = { status: 'signedIn', backend: 'modelApi', detail: undefined }
+  modelApi.controller.modelApiServiceFailed()
+  expect(modelApi.surface.posted).toContainEqual({
+    type: 'notice',
+    level: 'warning',
+    text: UI_TEXT.modelApiServiceFailure,
+    actions: ['openModelApiStatus'],
+  })
+  const museCode = setup()
+  museCode.controller.modelApiServiceFailed()
+  expect(museCode.surface.posted).not.toContainEqual(
+    expect.objectContaining({ actions: ['openModelApiStatus'] }),
+  )
 })

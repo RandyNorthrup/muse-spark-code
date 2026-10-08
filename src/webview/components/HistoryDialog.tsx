@@ -39,6 +39,8 @@ export interface HistoryDialogProps {
   readonly onSavePrompt?: (sessionId: string) => void
   readonly onResume: (sessionId: string) => void
   readonly onSetArchived: (sessionId: string, isArchived: boolean) => void
+  /** Muse Code only. The host confirms deletion and waits for its terminal notification. */
+  readonly onDelete?: (sessionId: string) => void
   readonly onClose: () => void
 }
 
@@ -87,7 +89,7 @@ const RowView = deferred(async () => {
 export function HistoryDialog(props: HistoryDialogProps) {
   const [menuContainer, setMenuContainer] = useState<HTMLDivElement | null>(null)
   const { sessions, archivedIds, currentSessionId, archiveAfterDays, now } = props
-  const { onResume, onSetArchived, onClose } = props
+  const { onResume, onSetArchived, onDelete, onClose } = props
   const [query, setQuery] = useState('')
   const [isShowingArchived, setIsShowingArchived] = useState(false)
   const search = useRef<HTMLInputElement>(null)
@@ -137,7 +139,11 @@ export function HistoryDialog(props: HistoryDialogProps) {
       // Only on the highlighted row; with text selected, Delete edits it.
       if (activeRow !== undefined && event.currentTarget.value === '') {
         event.preventDefault()
-        onSetArchived(activeRow.sessionId, !archivedIds.includes(activeRow.sessionId))
+        if (onDelete !== undefined && event.shiftKey) {
+          onDelete(activeRow.sessionId)
+        } else {
+          onSetArchived(activeRow.sessionId, !archivedIds.includes(activeRow.sessionId))
+        }
       }
       return
     }
@@ -181,6 +187,7 @@ export function HistoryDialog(props: HistoryDialogProps) {
               onSetArchived={(isRowArchived) => {
                 onSetArchived(entry.row.sessionId, isRowArchived)
               }}
+              onDelete={onDelete}
             />
           ),
         )}

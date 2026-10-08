@@ -15,6 +15,8 @@
 
   "entry": [
     "src/extension.ts",
+    "src/core/resources/resourceGovernorEntry.ts",
+    "src/core/resources/admission.ts",
     "src/runtime/exec/runExec.ts",
     "src/runtime/runtimeAccountingEntry.ts",
     "src/runtime/runtimeEngineEntry.ts",
@@ -31,6 +33,13 @@
     "src/shared/reference/referenceEntry.ts",
     "src/shared/reference/referenceSource.ts",
     "src/shared/wireEntry.ts",
+    // M106 actual production lazy entries, called through their emitted bundles.
+    "src/shared/structuredSchemaEntry.ts",
+    "src/core/backends/modelapi/codeIntelEntry.ts",
+    "src/core/backends/modelapi/mcpPoolEntry.ts",
+    "src/runtime/exec/execEntry.ts",
+    // The help generator bundles this catalog in memory, then imports its export.
+    "src/shared/featureCatalog.ts",
     "src/shared/modelApiBoundariesEntry.ts",
     // Tab's lazy provider, engine and ledger (M94), loaded by path.
     "src/host/tab/tabEntry.ts",
@@ -87,6 +96,8 @@
     "src/host/web/pageWorker.ts",
     "src/core/imageResizeWorker.ts",
     "src/webview/main.tsx",
+    "src/webview/resources/ResourceSurface.tsx",
+    "src/webview/usage/ResourcesSection.tsx",
     // The Models & Agents panel's own entry (M95 lane M), required by path.
     "src/webview/models/models.tsx",
     "src/runtime/main.ts",

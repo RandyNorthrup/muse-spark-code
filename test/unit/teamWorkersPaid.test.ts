@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // The `teamWorkers` paid feature (M96 lane A, PLAN.md D75, acceptance 23):
 // the tally counts started tasks and settles reported usage apart; one
 // `delegate` popup names each model's prices, each task's ceiling and the
@@ -65,7 +66,7 @@ describe('teamWorkers paid use (M96)', () => {
     const request = {
       feature: 'teamWorkers',
       tasks: [{ role: 'engineering', modelId: DEFAULT_MODEL_ID, taskCeilingTokens: 400_000 }],
-      dailyBudgetUsd: 50,
+      dailyBudgetUsd: Usd.from(50).toAmount(),
     } as const
     expect(await consent.allows(request)).toBe(true)
     expect(uses).toBe(1)
@@ -103,11 +104,11 @@ describe('teamWorkers paid use (M96)', () => {
     })
     expect(usage.current.teamWorkerUnknownRequests).toBe(1)
     expect(usage.current.teamWorkerTokens).toBe(4000)
-    expect(usage.current.teamWorkerCostUsd).toBeGreaterThan(0)
+    expect(Number(usage.current.teamWorkerCostUsd)).toBeGreaterThan(0)
     // Cost stays apart from the conversation's token estimate total.
     const tally = usage.current
     expect(paidCostUsd('teamWorkers', tally)).toBe(tally.teamWorkerCostUsd)
-    expect(paidTotalUsd(tally)).toBe(0)
+    expect(paidTotalUsd(tally)).toBe(Usd.from(0).toAmount())
   })
 
   it('refuses usage it cannot price, and invalid counts', () => {
@@ -151,7 +152,7 @@ describe('teamWorkers paid use (M96)', () => {
         { role: 'engineering', modelId: DEFAULT_MODEL_ID, taskCeilingTokens: 400_000 },
         { role: 'code-review', modelId: 'unknown-model', taskCeilingTokens: 200_000 },
       ],
-      50,
+      Usd.from(50).toAmount(),
     )
     expect(price).toContain('engineering')
     expect(price).toContain('400,000')
@@ -159,7 +160,7 @@ describe('teamWorkers paid use (M96)', () => {
     const question = await paidUseQuestion({
       feature: 'teamWorkers',
       tasks: [{ role: 'engineering', modelId: DEFAULT_MODEL_ID, taskCeilingTokens: 400_000 }],
-      dailyBudgetUsd: 50,
+      dailyBudgetUsd: Usd.from(50).toAmount(),
     })
     expect(question.title).toBe('Approve paid team tasks?')
     expect(question.detail).toContain('Billed to your API key for each task’s provider')
@@ -202,7 +203,11 @@ describe('F01 scoped team Always consent', () => {
       ask,
       log: new FakeLogOutputChannel(),
     })
-    const allowed = consent.allows({ feature: 'teamWorkers', tasks: [], dailyBudgetUsd: 1 })
+    const allowed = consent.allows({
+      feature: 'teamWorkers',
+      tasks: [],
+      dailyBudgetUsd: Usd.from(1).toAmount(),
+    })
     isEnabled = false
     expect(await allowed).toBe(false)
     expect(ask).not.toHaveBeenCalled()
@@ -214,7 +219,7 @@ describe('F01 scoped team Always consent', () => {
       const question = await paidUseQuestion({
         feature: 'teamWorkers',
         tasks: [],
-        dailyBudgetUsd: 1,
+        dailyBudgetUsd: Usd.from(1).toAmount(),
       })
       expect(question.title).toBe('Translated team title')
       expect(question.detail).toContain('1,00')
@@ -252,7 +257,7 @@ describe('F01 scoped team Always consent', () => {
     const request = {
       feature: 'teamWorkers' as const,
       tasks: [task],
-      dailyBudgetUsd: 50,
+      dailyBudgetUsd: Usd.from(50).toAmount(),
       dailyBudgetTokens: 25_000_000,
     }
     expect(await consent.allows(request)).toBe(true)
@@ -317,7 +322,11 @@ describe('F01 scoped team Always consent', () => {
       priceTier: 'contributor',
       taskCeilingTokens: 200_000,
     }
-    const request = { feature: 'teamWorkers' as const, tasks: [contributor], dailyBudgetUsd: 50 }
+    const request = {
+      feature: 'teamWorkers' as const,
+      tasks: [contributor],
+      dailyBudgetUsd: Usd.from(50).toAmount(),
+    }
     expect(await consent.allows(request)).toBe(true)
     expect(ask).toHaveBeenCalledTimes(1)
     expect(await new PaidUseConsent(deps).allows(request)).toBe(true)
@@ -362,7 +371,7 @@ describe('F01 scoped team Always consent', () => {
     const request = {
       feature: 'teamWorkers' as const,
       tasks: [{ role: 'engineering', modelId: DEFAULT_MODEL_ID, taskCeilingTokens: 100 }],
-      dailyBudgetUsd: 50,
+      dailyBudgetUsd: Usd.from(50).toAmount(),
     }
     expect(await consent.allows(request)).toBe(true)
     expect(await consent.allows(request)).toBe(true)

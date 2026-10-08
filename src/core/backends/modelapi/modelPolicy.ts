@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../../shared/usd'
 // M95-I's single capability adapter. CAPREC replaces the evidence join here;
 // consumers retain the distinctions between unknown and unsupported. Provider
 // core stays in dist/providers.js, so only its types cross this seam.
@@ -5,16 +6,17 @@ import type { ModelApiClient, ProviderClient } from './client'
 import type { ModelSummary } from '../../agent/agentBackend'
 import type { CreateResponseBody, Usage } from './schemas'
 import { estimateCostUsd } from '../../usage/insights'
-import { MODEL_API_BASE_URL } from '../../../shared/constants'
-import type { ModelCapabilities } from '../../providers/capabilities'
-import type { ModelPricing, PricedUsage } from '../../providers/priceCard'
 import {
-  MODEL_API_MAX_OUTPUT_TOKENS,
+  MODEL_API_BASE_URL,
+  MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
   MODEL_API_PRICES_PER_MILLION,
   MODEL_API_MODEL_PREFIX,
   MODEL_API_CONTEXT_WINDOW,
   TOKENS_PER_MILLION,
 } from '../../../shared/constants'
+import type { ModelCapabilities } from '../../providers/capabilities'
+import type { ModelPricing, PricedUsage } from '../../providers/priceCard'
+
 import { effortLevelsFor } from '../../../shared/effort'
 import { modelApiPaidTier } from '../../../shared/paid'
 
@@ -84,9 +86,11 @@ export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}
         : {
             kind: 'priced',
             card: {
-              input: rates.input / TOKENS_PER_MILLION,
-              cachedInput: rates.cachedInput / TOKENS_PER_MILLION,
-              output: rates.output / TOKENS_PER_MILLION,
+              input: Number(Usd.from(rates.input).divide(TOKENS_PER_MILLION).toAmount()),
+              cachedInput: Number(
+                Usd.from(rates.cachedInput).divide(TOKENS_PER_MILLION).toAmount(),
+              ),
+              output: Number(Usd.from(rates.output).divide(TOKENS_PER_MILLION).toAmount()),
               source: 'catalogue',
             },
           }
@@ -104,7 +108,9 @@ export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}
       effortLevels: levels === undefined ? { state: 'unknown' } : { state: 'yes', value: levels },
       canDisable: knownFlag(isMeta || evidence.canDisableReasoning),
     },
-    output: { maxTokens: isMeta ? MODEL_API_MAX_OUTPUT_TOKENS : evidence.maxOutputTokens },
+    output: {
+      maxTokens: isMeta ? MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS : evidence.maxOutputTokens,
+    },
     hosted: { webSearch: isMeta ? { state: 'yes', value: true } : webSearch },
     pricing,
   }
@@ -160,7 +166,7 @@ export function metaResolvedModel(ref: string, client: ProviderClient): Resolved
     isPlan ? { capabilities: { toolCalling: true }, pricing: { kind: 'plan' } } : {},
   )
   const estimate = (usage: PricedUsage) => {
-    if (isPlan) return 0
+    if (isPlan) return Usd.from(0).toAmount()
     return policy.pricing.kind === 'priced'
       ? estimateCostUsd({ ...usage, cachedTokens: usage.cachedTokens ?? 0 }, ref)
       : undefined
@@ -177,11 +183,11 @@ export function metaResolvedModel(ref: string, client: ProviderClient): Resolved
 }
 
 export interface ModelPricePolicy {
-  readonly reserve: (usage: ModelPricedUsage) => number | undefined
+  readonly reserve: (usage: ModelPricedUsage) => UsdAmount | undefined
   readonly settle: (
     usage: ModelPricedUsage,
     reported?: { readonly cost?: number | undefined; readonly costInUsdTicks?: number | undefined },
-  ) => number | undefined
+  ) => UsdAmount | undefined
 }
 
 /** Structural client seam; ModelApiClient and lane T's ProviderClient both satisfy it. */

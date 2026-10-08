@@ -1011,13 +1011,15 @@ function roundUp(value: number, step: number): number {
 }
 
 function costOf(record: ProbeRecord, modelId: string): number {
-  return estimateCostUsd(
-    {
-      inputTokens: record.inputTokens,
-      outputTokens: record.outputTokens,
-      cachedTokens: record.cachedTokens,
-    },
-    modelId,
+  return Number(
+    estimateCostUsd(
+      {
+        inputTokens: record.inputTokens,
+        outputTokens: record.outputTokens,
+        cachedTokens: record.cachedTokens,
+      },
+      modelId,
+    ),
   )
 }
 

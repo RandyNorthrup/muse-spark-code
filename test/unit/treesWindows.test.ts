@@ -1,0 +1,367 @@
+import { spawn } from 'node:child_process'
+import { once } from 'node:events'
+import { mkdtemp } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { describe, expect, it, vi } from 'vitest'
+import { WindowsResourceTreeReader } from '../../src/core/resources/trees/windows'
+import { ResourceTreeRegistry } from '../../src/core/resources/trees/registry'
+import { joinStatement, newShellJob, shellJobAssembly } from '../../src/host/backend/shellJob'
+import { killTree, windowsPowerShell } from '../../src/host/processTree'
+import { WINDOWS_POWERSHELL_COMMAND_ARGS } from '../../src/shared/constants'
+import type { ResourceProcessIdentity, ResourceTicket } from '../../src/shared/resources'
+import { readJobSource, runJobWithoutAutoload } from './helpers/jobSource'
+import { removeFolder } from './helpers/temporaryFolders'
+
+const ticket: ResourceTicket = {
+  id: 'job-tree',
+  root: { pid: 810, startTime: '134040000000000000' },
+  scope: { type: 'job', name: String.raw`Local\MuseSpark-owned` },
+  kind: 'check',
+  class: 'foreground',
+  sessionId: 'session-1',
+}
+const deps = {
+  systemRoot: String.raw`C:\Windows`,
+  assemblyPath: String.raw`C:\Storage\O'Brien\job.dll`,
+}
+
+function jobReader(members: () => readonly ResourceProcessIdentity[]) {
+  const run = vi.fn((_file: string, args: readonly string[]) =>
+    Promise.resolve(
+      args.at(-1)?.includes('::Contains(')
+        ? 'true'
+        : JSON.stringify({ members: members(), usage: { cpuSeconds: 2, residentBytes: 4096 } }),
+    ),
+  )
+  const reader = new WindowsResourceTreeReader({ ...deps, run })
+  return { run, reader, registry: new ResourceTreeRegistry(reader) }
+}
+
+function pendingJobAnswer(run: ReturnType<typeof jobReader>['run']) {
+  const finish = Promise.withResolvers<string>()
+  run.mockReturnValueOnce(finish.promise)
+  return finish
+}
+
+// These cases compile and drive the real Windows job helper (C#) and real
+// child processes. Hosted Windows runners passed 15 s in PR #140 while the
+// Win11 rig took a few seconds, so the suite has a named deadline.
+// PLAN.md §8 (2026-10-07).
+const REAL_WINDOWS_JOB_TIMEOUT_MS = 60_000
+
+describe('Windows resource job reader', { timeout: REAL_WINDOWS_JOB_TIMEOUT_MS }, () => {
+  it('uses the verified native handle action and validates honest results without a bare job kill', async () => {
+    const run = vi.fn((_file: string, args: readonly string[]) =>
+      Promise.resolve(args.at(-1)?.includes('::Contains(') ? 'true' : '"done"'),
+    )
+    const reader = new WindowsResourceTreeReader({ ...deps, run })
+    const registry = new ResourceTreeRegistry(reader)
+    await registry.register(ticket)
+    expect(await registry.signal(ticket, ticket.root, 'SIGKILL')).toBe('done')
+    expect(run.mock.calls.at(-1)?.[1].at(-1)).toContain('::Signal(')
+    expect(run.mock.calls.at(-1)?.[1].at(-1)).toContain('$true')
+    for (const result of ['gone', 'identity-changed', 'refused']) {
+      run.mockResolvedValueOnce(JSON.stringify(result))
+      expect(await registry.signal(ticket, ticket.root, 'SIGTERM')).toBe(result)
+    }
+    run.mockResolvedValueOnce('"unknown"')
+    expect(await registry.signal(ticket, ticket.root, 'SIGTERM')).toBe('refused')
+    run.mockResolvedValueOnce('"unknown"')
+    expect(await reader.signal(ticket, ticket.root, 'SIGTERM', () => true)).toBe('refused')
+    for (const call of run.mock.calls) expect(call[1].at(-1)).not.toContain('::Terminate(')
+  })
+
+  it('refuses retirement during enumeration before dispatching the Windows action', async () => {
+    const { reader, registry, run } = jobReader(() => [ticket.root])
+    await registry.register(ticket)
+    const finish = pendingJobAnswer(run)
+    const pending = registry.signal(
+      ticket,
+      { pid: 811, startTime: '134040000000000001' },
+      'SIGKILL',
+    )
+    registry.unregister(ticket)
+    finish.resolve(
+      JSON.stringify({
+        members: [ticket.root, { pid: 811, startTime: '134040000000000001' }],
+        usage: { cpuSeconds: 1, residentBytes: 1 },
+      }),
+    )
+    expect(await pending).toBe('refused')
+    expect(reader).toHaveProperty('known.size', 0)
+    expect(run.mock.calls.some((call) => call[1].at(-1)?.includes('::Signal('))).toBe(false)
+  })
+
+  it('snapshots identities and returns gone for an observed job that has ended', async () => {
+    const { registry, run } = jobReader(() => [ticket.root])
+    await registry.register(ticket)
+    run.mockResolvedValueOnce('null').mockResolvedValueOnce('"gone"')
+    expect(await registry.kill(ticket)).toEqual({
+      status: 'gone',
+      members: [{ identity: ticket.root, result: 'gone' }],
+    })
+  })
+
+  it('retains one process handle for creation, exit state, job membership and termination', async () => {
+    const source = await readJobSource('shellJob')
+    const region = source.slice(
+      source.indexOf('// M107 T2 signal region.'),
+      source.indexOf('// End M107 T2 signal region.'),
+    )
+    expect(region).toContain(
+      'OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE, false, pid)',
+    )
+    expect(region).toContain('Creation(process) != expected')
+    expect(region).toContain('!IsAlive(process)')
+    expect(region).toContain('!Member(process, job)')
+    expect(region).toContain('TerminateProcess(process, force ? EXIT_KILLED : EXIT_TERMINATED)')
+    expect(region).toContain('finally { CloseHandle(process); }')
+    expect(region).toContain('finally { CloseHandle(job); }')
+    expect(region).not.toContain('TerminateJobObject(')
+  })
+  it('uses the compiled helper for exact identity, job membership and lifetime CPU / resident memory', async () => {
+    const run = vi.fn((_file: string, args: readonly string[], _env?: NodeJS.ProcessEnv) => {
+      const body = args.at(-1)!
+      if (body.includes('::Identity(')) return Promise.resolve(JSON.stringify(ticket.root))
+      if (body.includes('::Contains(')) return Promise.resolve('true\r\n')
+      return Promise.resolve(
+        JSON.stringify({
+          members: [ticket.root, { pid: 811, startTime: '134040000000000001' }],
+          usage: { cpuSeconds: 12.5, residentBytes: 8192 },
+        }),
+      )
+    })
+    const reader = new WindowsResourceTreeReader({ ...deps, run })
+    expect(run).not.toHaveBeenCalled()
+    const registry = new ResourceTreeRegistry(reader)
+    expect(await reader.identity(810)).toEqual(ticket.root)
+    await registry.register(ticket)
+    expect(await registry.members(ticket)).toHaveLength(2)
+    expect(await registry.usage(ticket)).toEqual({ cpuSeconds: 12.5, residentBytes: 8192 })
+    expect(await registry.contains(ticket, ticket.root)).toBe(true)
+    for (const [file, args, env] of run.mock.calls) {
+      expect(file).toBe(String.raw`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`)
+      expect(args.slice(0, -1)).toEqual(WINDOWS_POWERSHELL_COMMAND_ARGS)
+      expect(args.at(-1)).toContain(String.raw`LoadFrom('C:\Storage\O''Brien\job.dll')`)
+      expect(args.at(-1)).not.toMatch(/Terminate|Stop-Process|SetInformation|Join\(/)
+      expect(env).toEqual({ SystemRoot: String.raw`C:\Windows` })
+    }
+  })
+
+  it('requeries membership for every action, refuses reused identities and validates every answer', async () => {
+    const run = vi.fn((_file: string, _args: readonly string[], _env?: NodeJS.ProcessEnv) =>
+      Promise.resolve('true'),
+    )
+    const reader = new WindowsResourceTreeReader({ ...deps, run })
+    expect(await reader.contains(ticket, ticket.root)).toBe(true)
+    run.mockResolvedValueOnce('false')
+    expect(await reader.contains(ticket, { ...ticket.root, startTime: 'reused' })).toBe(false)
+    expect(run).toHaveBeenCalledTimes(2)
+    run.mockResolvedValueOnce('"true"')
+    expect(await reader.contains(ticket, ticket.root)).toBe(false)
+    run.mockResolvedValueOnce('null')
+    expect(await reader.usage(ticket)).toBeNull()
+    run.mockResolvedValueOnce(
+      JSON.stringify({
+        members: [ticket.root],
+        usage: { cpuSeconds: 0, residentBytes: 0 },
+        command: 'canary',
+      }),
+    )
+    expect(await reader.usage(ticket)).toBeNull()
+    run.mockResolvedValueOnce(
+      JSON.stringify({
+        members: [ticket.root, { pid: -1, startTime: 'invalid' }],
+        usage: { cpuSeconds: 0, residentBytes: 0 },
+      }),
+    )
+    expect(await reader.members(ticket)).toEqual([])
+    run.mockRejectedValueOnce(new Error('access denied'))
+    expect(await reader.usage(ticket)).toBeNull()
+    run.mockResolvedValueOnce(JSON.stringify({ pid: 999, startTime: 'other' }))
+    expect(await reader.identity(810)).toBeNull()
+    expect(await reader.identity(-1)).toBeNull()
+    run.mockResolvedValueOnce('not-json')
+    expect(await reader.identity(810)).toBeNull()
+    expect(
+      await reader.contains({ ...ticket, scope: { type: 'group', pgid: 810 } }, ticket.root),
+    ).toBe(false)
+    expect(await reader.usage({ ...ticket, scope: { type: 'group', pgid: 810 } })).toBeNull()
+    expect(() => new WindowsResourceTreeReader({ ...deps, assemblyPath: 'job.dll' })).toThrow(
+      'absolute',
+    )
+  })
+
+  it('ships the query API with read-only job rights and exact start/membership through the same handle', async () => {
+    const source = await readJobSource('shellJob')
+    expect(source).toContain('public static string Query(string name)')
+    expect(source).toContain('public static string Identity(uint pid)')
+    expect(source).toContain('public static bool Contains(string name, uint pid, string startTime)')
+    const queryRegion = source.slice(
+      source.indexOf('// M107 T query region.'),
+      source.indexOf('// End M107 T query region.'),
+    )
+    expect(queryRegion).toContain('OpenJobObjectW(JOB_OBJECT_QUERY, false, name)')
+    expect(queryRegion).toContain('Creation(process) == expected && Member(process, job)')
+    expect(queryRegion).not.toMatch(
+      /TerminateJobObject|AssignProcessToJobObject|SetInformationJobObject|SuspendThread/,
+    )
+  })
+
+  it('retains an observed orphan job but refuses a reused job name or root identity', async () => {
+    let members = [ticket.root, { pid: 811, startTime: '134040000000000001' }]
+    const { reader } = jobReader(() => members)
+    const observed = await reader.members(ticket)
+    expect(observed).toEqual(members)
+    observed[1]!.startTime = 'forged-copy'
+    expect(await reader.contains(ticket, ticket.root)).toBe(true)
+    members = [members[1]!]
+    expect(await reader.contains(ticket, members[0]!)).toBe(true)
+    members = [{ pid: 900, startTime: '134040000000000002' }]
+    expect(await reader.members(ticket)).toEqual([])
+    expect(await reader.contains(ticket, members[0]!)).toBe(false)
+    expect(await reader.usage(ticket)).toBeNull()
+    members = [{ ...ticket.root, startTime: '134040000000000003' }]
+    expect(await reader.usage(ticket)).toBeNull()
+    members = [ticket.root, { pid: 811, startTime: '134040000000000001' }]
+    expect(await reader.members(ticket)).toEqual(members)
+    reader.forget(ticket)
+    members = [{ pid: 811, startTime: '134040000000000001' }]
+    expect(await reader.members(ticket)).toEqual([])
+  })
+
+  it('keeps the original job through an exact witness when a descendant reuses its departed root PID', async () => {
+    let members = [ticket.root, { pid: 811, startTime: '134040000000000001' }]
+    const { reader } = jobReader(() => members)
+    expect(await reader.members(ticket)).toEqual(members)
+    members = [{ pid: 810, startTime: '134040000000000002' }, members[1]!]
+    expect(await reader.members(ticket)).toEqual(members)
+    members = [members[0]!]
+    expect(await reader.members(ticket)).toEqual(members)
+  })
+
+  it.each(['query', 'root-proof'] as const)(
+    'does not restore Windows witnesses when a pending %s finishes after retirement',
+    async (stage) => {
+      const answer = JSON.stringify({
+        members: [ticket.root],
+        usage: { cpuSeconds: 2, residentBytes: 4096 },
+      })
+      const { run, reader, registry } = jobReader(() => [ticket.root])
+      await registry.register(ticket)
+      const finish = pendingJobAnswer(run)
+      const pending =
+        stage === 'query' ? reader.usage(ticket) : reader.contains(ticket, ticket.root)
+      registry.unregister(ticket)
+      finish.resolve(stage === 'query' ? answer : 'true')
+      if (stage === 'query') expect(await pending).toBeNull()
+      else expect(await pending).toBe(false)
+      expect(registry.tickets()).toEqual([])
+      expect(reader).toHaveProperty('known.size', 0)
+    },
+  )
+
+  it('isolates a new Windows ticket epoch from an old job query', async () => {
+    let members = [ticket.root, { pid: 811, startTime: '134040000000000001' }]
+    const { run, registry } = jobReader(() => members)
+    await registry.register(ticket)
+    const finish = pendingJobAnswer(run)
+    const pending = registry.usage(ticket)
+    registry.unregister(ticket)
+    await registry.register(ticket)
+    expect(await registry.members(ticket)).toEqual(members)
+    finish.resolve(
+      JSON.stringify({
+        members: [{ ...ticket.root, startTime: 'reused' }],
+        usage: { cpuSeconds: 0, residentBytes: 0 },
+      }),
+    )
+    expect(await pending).toBeNull()
+    members = [members[1]!]
+    expect(await registry.members(ticket)).toEqual(members)
+  })
+
+  it.runIf(process.platform === 'win32')(
+    'compiles and queries our real job and refuses the harness and a reused start time',
+    async () => {
+      const folder = await mkdtemp(path.join(tmpdir(), 'm107-t-job-'))
+      const systemRoot = process.env['SystemRoot']!
+      try {
+        const assembly = await shellJobAssembly({
+          storageDir: folder,
+          systemRoot,
+          log: () => undefined,
+          readJobSource,
+        })()
+        expect(assembly).toBeDefined()
+        const job = newShellJob(assembly!)
+        const ps = windowsPowerShell(systemRoot, { SystemRoot: systemRoot })
+        const child = spawn(
+          ps.file,
+          [
+            ...WINDOWS_POWERSHELL_COMMAND_ARGS,
+            `${joinStatement(job)}[Console]::Out.WriteLine('ready'); [Threading.Thread]::Sleep(30000)`,
+          ],
+          { env: ps.env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] },
+        )
+        const death = once(child, 'exit')
+        const startedAt = Date.now()
+        try {
+          await once(child.stdout, 'data')
+          const reader = new WindowsResourceTreeReader({
+            assemblyPath: assembly!,
+            systemRoot,
+            run: runJobWithoutAutoload,
+          })
+          const root = await reader.identity(child.pid!)
+          expect(root).not.toBeNull()
+          expect(await reader.rootOfJob(job.name)).toEqual(root)
+          expect(await reader.jobGone(job.name)).toBe(false)
+          const launch: ResourceTicket = {
+            ...ticket,
+            root: root!,
+            scope: { type: 'job', name: job.name },
+          }
+          const registry = new ResourceTreeRegistry(reader)
+          await registry.register(launch)
+          const members = await registry.members(launch)
+          expect(members).toContainEqual(root)
+          for (const member of members) expect(await registry.contains(launch, member)).toBe(true)
+          const usage = await registry.usage(launch)
+          expect(usage?.cpuSeconds).toBeGreaterThan(0)
+          expect(usage?.residentBytes).toBeGreaterThan(0)
+          const own = await reader.identity(process.pid)
+          expect(await registry.contains(launch, own!)).toBe(false)
+          expect(
+            await reader.contains(launch, {
+              ...root!,
+              startTime: String(BigInt(root!.startTime) + 1n),
+            }),
+          ).toBe(false)
+          expect(
+            await registry.signal(
+              launch,
+              { ...root!, startTime: String(BigInt(root!.startTime) + 1n) },
+              'SIGKILL',
+            ),
+          ).toBe('refused')
+          expect(await registry.kill(launch)).toMatchObject({ status: 'done' })
+          await death
+        } finally {
+          await killTree(
+            child,
+            { platform: 'win32', systemRoot, log: () => undefined },
+            startedAt,
+            job,
+          )
+          await death
+          const reader = new WindowsResourceTreeReader({ assemblyPath: assembly!, systemRoot })
+          expect(await reader.jobGone(job.name)).toBe(true)
+        }
+      } finally {
+        await removeFolder(folder)
+      }
+    },
+  )
+})

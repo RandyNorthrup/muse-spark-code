@@ -1,6 +1,10 @@
-import { MODEL_API_MAX_RETRIES } from '../../shared/constants'
+import { MODEL_API_MAX_RETRIES, UI_TEXT } from '../../shared/constants'
 import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
-import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
+import {
+  type ResponseAttemptGuard,
+  ModelApiClient,
+  type ModelApiClientDeps,
+} from '../../core/backends/modelapi/client'
 // The Model API backend's bundle (M57, PLAN.md D6): esbuild builds this file
 // into dist/modelApi.js, which `ModelApiBackendManager` requires the first
 // time that backend starts, so the host, its tools, hooks and MCP client stay
@@ -10,7 +14,6 @@ import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
 // bundle's table before it builds anything. The English fallback remains
 // available when this backend is loaded outside the extension.
 
-import { ModelApiClient, type ModelApiClientDeps } from '../../core/backends/modelapi/client'
 // T's one request loop and framing API are shared by the lazy provider adapters.
 export {
   RequestTransport,
@@ -27,11 +30,17 @@ export { parseNdjson } from '../../core/backends/modelapi/ndjson'
 export { streamEventSchema, usageSchema } from '../../core/backends/modelapi/schemas'
 export { pinnedHttpsRequest, pinnedPostRequest } from '../web/pinnedRequest'
 import type { ExtensionHookDefinition } from '../../core/backends/modelapi/extensionHooks'
-import { type HookDefinition, type HookLoadDeps } from '../../core/backends/modelapi/hooks'
+import type { HookDefinition, HookLoadDeps } from '../../core/backends/modelapi/hooks'
+import {
+  metaModelFacts,
+  metaSideCallFormats,
+  metaHostedCapabilities,
+} from '../../core/backends/modelapi/modelCapabilities'
+
 import { sparkHooksFiles } from '../../core/backends/modelapi/hookNames'
-import { metaModelFacts } from '../../core/backends/modelapi/modelCapabilities'
+
 import { ModelApiHost } from '../../core/backends/modelapi/ModelApiHost'
-import { UI_TEXT } from '../../shared/constants'
+
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import type { ModelApiBundleDeps } from './modelApiBundle'
@@ -120,6 +129,8 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
   const host = new ModelApiHost({
     ...hostDeps,
     modelFacts: hostDeps.modelFacts ?? metaModelFacts,
+    sideCallFormats: hostDeps.sideCallFormats ?? metaSideCallFormats,
+    modelCapabilities: hostDeps.modelCapabilities ?? metaHostedCapabilities,
     client,
     ...('models' in client && { models: client.models }),
     ...(deps.createProviders !== undefined && {

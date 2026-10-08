@@ -1,0 +1,153 @@
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { copyFileSync, existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
+import { execFile, execFileSync } from 'node:child_process'
+
+vi.mock('node:fs', () => ({
+  copyFileSync: vi.fn(),
+  cpSync: vi.fn(),
+  existsSync: vi.fn(),
+  mkdirSync: vi.fn(),
+  readFileSync: vi.fn(),
+  readdirSync: vi.fn(() => []),
+  rmSync: vi.fn(),
+  statSync: vi.fn(),
+  writeFileSync: vi.fn(),
+}))
+vi.mock('node:child_process', () => ({ execFile: vi.fn(), execFileSync: vi.fn() }))
+vi.mock('../../scripts/check-badges.mjs', () => ({ renderPackageReadme: (text) => text }))
+// Archive contents are exercised by the actual tarball suites; these rows own copy/refusal order.
+vi.mock('../../scripts/lib/packageArchive.mjs', () => ({ packRuntimeArchive: vi.fn() }))
+
+beforeEach(() => {
+  vi.resetModules()
+  vi.clearAllMocks()
+  vi.spyOn(console, 'log').mockImplementation(vi.fn())
+  existsSync.mockReturnValue(true)
+  statSync.mockReturnValue({ isFile: () => true })
+  readdirSync.mockImplementation((folder) =>
+    folder === '.' ? ['package.nls.json', 'package.nls.fr.json'] : [],
+  )
+  readFileSync.mockImplementation((file) => {
+    if (file === 'package.json')
+      return JSON.stringify({
+        version: '0.0.0',
+        license: 'MIT',
+        repository: { url: 'https://example.invalid/project.git' },
+        engines: { node: '>=22' },
+        devDependencies: { '@napi-rs/keyring': '0.0.0' },
+      })
+    if (file.replaceAll('\\', '/') === 'dist/meta/usageWebview.json')
+      return JSON.stringify({
+        outputs: { 'dist/webview/usage.js': {}, 'dist/webview/usage.css': {} },
+      })
+    return file.endsWith('.schema.json') ? '{}' : 'fixture landing page'
+  })
+  execFileSync.mockReturnValue('fixture.tgz')
+  execFile.mockImplementation((_file, _args, _options, callback) => callback(null, '', ''))
+})
+afterEach(() => vi.restoreAllMocks())
+
+it('M107 copies both resource bundles and all three exec schemas into the ACP package before packing', async () => {
+  await import('../../scripts/package-acp.mjs')
+  const normalized = copyFileSync.mock.calls.map(([source, target]) => [
+    source.replaceAll('\\', '/'),
+    target.replaceAll('\\', '/'),
+  ])
+  for (const file of ['resourceGovernor.js', 'resourceAdmission.js'])
+    expect(normalized).toContainEqual([`dist/${file}`, `dist/acp-package/dist/${file}`])
+  for (const file of [
+    'exec-result-v1.schema.json',
+    'exec-event-v1.schema.json',
+    'exec-event-v2.schema.json',
+  ])
+    expect(normalized).toContainEqual([`docs/schemas/${file}`, `dist/acp-package/schemas/${file}`])
+  expect(execFileSync.mock.calls).toContainEqual([
+    'npm',
+    ['pack', '--pack-destination', '..'],
+    expect.objectContaining({ cwd: expect.stringContaining('acp-package') }),
+  ])
+  expect(execFileSync.mock.calls.at(-1).slice(0, 2)).toEqual([
+    process.execPath,
+    ['test/packaging/moduleExports.test.mjs', 'acp', expect.stringContaining('fixture.tgz')],
+  ])
+  expect(execFile.mock.calls.map((call) => call[2].env.LC_ALL)).toEqual(['en', 'fr'])
+})
+
+it('refuses a failed staged Help language before npm pack', async () => {
+  execFile.mockImplementation((_file, _args, _options, callback) =>
+    callback(new Error('Help failed'), '', ''),
+  )
+  await expect(import('../../scripts/package-acp.mjs')).rejects.toThrow('Help failed')
+  expect(execFile.mock.calls).toHaveLength(2)
+  expect(execFileSync.mock.calls.some(([file]) => file === 'npm')).toBe(false)
+})
+
+it.each(['resourceGovernor.js', 'resourceAdmission.js'])(
+  'M107 refuses absent %s before any staging or child process',
+  async (file) => {
+    existsSync.mockImplementation((source) => source.replaceAll('\\', '/') !== `dist/${file}`)
+    await expect(import('../../scripts/package-acp.mjs')).rejects.toThrow(`dist/${file} is missing`)
+    expect(copyFileSync).not.toHaveBeenCalled()
+    expect(execFileSync).not.toHaveBeenCalled()
+  },
+)
+
+it('M107 refuses a non-file or malformed v2 schema before any staging or child process', async () => {
+  statSync.mockImplementation((file) => ({
+    isFile: () => !file.endsWith('exec-event-v2.schema.json'),
+  }))
+  await expect(import('../../scripts/package-acp.mjs')).rejects.toThrow('is not a regular file')
+  expect(copyFileSync).not.toHaveBeenCalled()
+  vi.resetModules()
+  statSync.mockReturnValue({ isFile: () => true })
+  const read = readFileSync.getMockImplementation()
+  readFileSync.mockImplementation((file) =>
+    file.endsWith('exec-event-v2.schema.json') ? 'invalid JSON' : read(file),
+  )
+  await expect(import('../../scripts/package-acp.mjs')).rejects.toThrow()
+  expect(copyFileSync).not.toHaveBeenCalled()
+  expect(execFileSync).not.toHaveBeenCalled()
+})
+
+it('G10 Linux delivery copies both architectures into the ACP package', async () => {
+  await import('../../scripts/package-acp.mjs')
+  for (const arch of ['x64', 'arm64'])
+    expect(
+      copyFileSync.mock.calls.map(([source, target]) => [
+        source.replaceAll('\\', '/'),
+        target.replaceAll('\\', '/'),
+      ]),
+    ).toContainEqual([
+      `native/linux/${arch}/muse-created`,
+      `dist/acp-package/native/linux/${arch}/muse-created`,
+    ])
+})
+it.each(['x64', 'arm64'])(
+  'refuses a missing native Linux helper %s before staging',
+  async (arch) => {
+    statSync.mockImplementation((file) => ({
+      isFile: () => !file.replaceAll('\\', '/').includes(`native/linux/${arch}/muse-created`),
+    }))
+    await expect(import('../../scripts/package-acp.mjs')).rejects.toThrow('Required Linux')
+    expect(copyFileSync).not.toHaveBeenCalled()
+    expect(execFileSync).not.toHaveBeenCalled()
+  },
+)
+
+it('ships the Darwin helper and refuses its absence before staging', async () => {
+  await import('../../scripts/package-acp.mjs')
+  expect(
+    copyFileSync.mock.calls.map(([source, target]) => [
+      source.replaceAll('\\', '/'),
+      target.replaceAll('\\', '/'),
+    ]),
+  ).toContainEqual(['native/darwin/muse-dictate', 'dist/acp-package/native/darwin/muse-dictate'])
+  vi.resetModules()
+  vi.clearAllMocks()
+  existsSync.mockImplementation(
+    (file) => file.replaceAll('\\', '/') !== 'native/darwin/muse-dictate',
+  )
+  await expect(import('../../scripts/package-acp.mjs')).rejects.toThrow('Required Darwin')
+  expect(copyFileSync).not.toHaveBeenCalled()
+  expect(execFileSync).not.toHaveBeenCalled()
+})

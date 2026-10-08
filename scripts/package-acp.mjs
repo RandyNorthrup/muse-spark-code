@@ -39,7 +39,13 @@ const BUNDLES = [
   'acpQuestions.js',
   'runtimeQuestions.js',
   'questionNotes.js',
+  'mcpPool.js',
+  'exec.js',
+  'modelApiCodeIntel.js',
+  'structuredSchema.js',
   'modelApi.js',
+  'resourceAdmission.js',
+  'resourceGovernor.js',
   'modelApiHooks.js',
   'modelApiMcp.js',
   'runtimeAccounting.js',
@@ -82,19 +88,20 @@ const JOB_SOURCES = [
   path.join('native', 'windows', 'MuseSparkJob.cs'),
   path.join('native', 'windows', 'MuseSparkMcpJob.cs'),
 ]
+const DARWIN_HELPER = path.join('native', 'darwin', 'muse-dictate')
+const LINUX_HELPERS = ['x64', 'arm64'].map((arch) =>
+  path.join('native', 'linux', arch, 'muse-created'),
+)
 const NATIVE_DEPENDENCY = '@napi-rs/keyring'
-const PACKAGE_NAME = 'muse-spark-code-acp'
-// The package's landing page (docs/npm-readme.md): npm renders
-// GitHub-flavoured Markdown but does not resolve relative links or images,
-// so every link and image in that file is absolute. docs/acp.md stays the
-// detailed guide and is linked from the landing page instead.
-const README = path.join('docs', 'npm-readme.md')
-const NOTICES = 'THIRD_PARTY_NOTICES.txt'
-const SCHEMAS = ['exec-result-v1.schema.json', 'exec-event-v1.schema.json', 'share-v1.schema.json']
+const SCHEMAS = [
+  'exec-result-v1.schema.json',
+  'exec-event-v1.schema.json',
+  'exec-result-v2.schema.json',
+  'exec-event-v2.schema.json',
+  'share-v1.schema.json',
+]
 // Standalone full Help reads the manifest's labels beside package.json.
 const NLS_FILES = readdirSync('.').filter((file) => /^package\.nls(?:\.[\w-]+)?\.json$/.test(file))
-const HELP_WORKERS = 3
-const runFile = promisify(execFile)
 
 /** The keyring binding's version, as this repository locks it. */
 function lockedVersion(manifest) {
@@ -148,6 +155,18 @@ function usageAssets() {
 const manifest = JSON.parse(readFileSync('package.json', 'utf8'))
 const keyringVersion = lockedVersion(manifest)
 requireBundles()
+if (!existsSync(DARWIN_HELPER) || !statSync(DARWIN_HELPER).isFile())
+  throw new Error(`Required Darwin created-path helper is missing: ${DARWIN_HELPER}`)
+const PACKAGE_NAME = 'muse-spark-code-acp'
+// The package's landing page (docs/npm-readme.md): npm renders
+// GitHub-flavoured Markdown but does not resolve relative links or images,
+// so every link and image in that file is absolute. docs/acp.md stays the
+// detailed guide and is linked from the landing page instead.
+const README = path.join('docs', 'npm-readme.md')
+const NOTICES = 'THIRD_PARTY_NOTICES.txt'
+for (const helper of LINUX_HELPERS)
+  if (!existsSync(helper) || !statSync(helper).isFile())
+    throw new Error(`Required Linux created-path helper is missing: ${helper}`)
 const pageAssets = usageAssets()
 // Every installed display language needs the usage family too (lane L).
 for (const table of readdirSync('l10n')) {
@@ -180,7 +199,7 @@ for (const source of pageAssets) {
   mkdirSync(path.dirname(target), { recursive: true })
   copyFileSync(source, target)
 }
-for (const source of JOB_SOURCES) {
+for (const source of [...JOB_SOURCES, DARWIN_HELPER, ...LINUX_HELPERS]) {
   mkdirSync(path.join(STAGE, path.dirname(source)), { recursive: true })
   copyFileSync(source, path.join(STAGE, source))
 }
@@ -251,6 +270,8 @@ execFileSync(process.execPath, ['scripts/check-badges.mjs', '--packaged-acp', ST
   stdio: 'inherit',
 })
 // Exercise the real staged CLI without credentials, a server or a model call.
+const HELP_WORKERS = 3
+const runFile = promisify(execFile)
 for (let first = 0; first < NLS_FILES.length; first += HELP_WORKERS) {
   // Help checks only read the staged package. Settle each bounded batch so a
   // rejected language does not leave another check running past its failure.

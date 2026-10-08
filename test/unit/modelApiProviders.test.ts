@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import type { UsageRecording } from '../../src/core/usage/recording'
 import { describe, expect, it, vi } from 'vitest'
 import { ModelApiHost, type ModelApiHostDeps } from '../../src/core/backends/modelapi/ModelApiHost'
@@ -150,7 +151,7 @@ describe('registry dispatch through the real host', () => {
     'accounts for %s attached image fees before sending under a hard cap',
     async (count) => {
       const h = await setup(
-        { sessionBudgetUsd: () => 0.09 },
+        { sessionBudgetUsd: () => Usd.from(0.09).toAmount() },
         {
           ...model,
           pricing: { kind: 'priced', card: { input: 0, output: 0, image: 0.05, source: 'user' } },
@@ -172,7 +173,7 @@ describe('registry dispatch through the real host', () => {
         expect(h.provider.responseBodies()).toHaveLength(count === 1 ? 1 : 0)
         const saved = await h.store.load(h.session.sessionId)
         const total = await h.store.budget?.read(h.session.sessionId, saved?.accountId ?? '')
-        expect(total?.spentUsd).toBe(count === 1 ? 0.05 : 0)
+        expect(total?.spentUsd).toBe(Usd.from(count === 1 ? 0.05 : 0).toAmount())
       } finally {
         await h.host.close()
       }
@@ -303,7 +304,10 @@ describe('registry dispatch through the real host', () => {
   it('settles provider-reported cost and rejects unpriced dispatch under a dollar cap', async () => {
     const priced = pricedModel
     const h = await setup(
-      { sessionBudgetUsd: () => 1, getAccountId: () => Promise.resolve('profile-owner') },
+      {
+        sessionBudgetUsd: () => Usd.from(1).toAmount(),
+        getAccountId: () => Promise.resolve('profile-owner'),
+      },
       priced,
     )
     try {
@@ -314,12 +318,12 @@ describe('registry dispatch through the real host', () => {
       await h.send()
       const stored = await h.store.load(h.session.sessionId)
       const total = await h.store.budget?.read(h.session.sessionId, stored?.accountId ?? '')
-      expect(total?.spentUsd).toBe(0.123)
+      expect(total?.spentUsd).toBe(Usd.from(0.123).toAmount())
     } finally {
       await h.host.close()
     }
     const unknown = await setup(
-      { sessionBudgetUsd: () => 1 },
+      { sessionBudgetUsd: () => Usd.from(1).toAmount() },
       { ...model, pricing: { kind: 'unpriced' } },
     )
     try {
@@ -344,7 +348,7 @@ describe('registry dispatch through the real host', () => {
           noteReviewerUsage: () => {
             throw new Error('Legacy observer has no provider tariff')
           },
-          sessionBudgetUsd: () => 1,
+          sessionBudgetUsd: () => Usd.from(1).toAmount(),
           getAccountId: () => Promise.resolve('profile-owner'),
         },
         priced,
@@ -413,7 +417,7 @@ describe('registry dispatch through the real host', () => {
         )
         const stored = await h.store.load(h.session.sessionId)
         const total = await h.store.budget?.read(h.session.sessionId, stored?.accountId ?? '')
-        expect(total?.spentUsd).toBeCloseTo(outcome === 'refused' ? 0.00004 : 0.00006, 8)
+        expect(Number(total?.spentUsd)).toBeCloseTo(outcome === 'refused' ? 0.00004 : 0.00006, 8)
       } finally {
         await h.host.close()
       }
@@ -427,7 +431,7 @@ describe('registry dispatch through the real host', () => {
         usageRecording: recording,
         isPaidFeatureOn: (feature) => feature === 'autoReviewer',
         allowsPaidUse: () => Promise.resolve(true),
-        sessionBudgetUsd: () => 1,
+        sessionBudgetUsd: () => Usd.from(1).toAmount(),
       },
       {
         ...model,
@@ -460,7 +464,7 @@ describe('registry dispatch through the real host', () => {
       const stored = await h.store.load(h.session.sessionId)
       const total = await h.store.budget?.read(h.session.sessionId, stored?.accountId ?? '')
       expect(total?.hasUnknownHistoricalFees).toBe(true)
-      expect(total?.spentUsd).toBeGreaterThan(0)
+      expect(Number(total?.spentUsd)).toBeGreaterThan(0)
       expect(vi.mocked(recording.note).mock.calls[1]?.[0]?.input_tokens_details).toEqual({
         cache_write_tokens: 100,
         cache_write_tokens_1h: 50,

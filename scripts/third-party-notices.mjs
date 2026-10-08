@@ -13,7 +13,7 @@
 //   node scripts/third-party-notices.mjs --write  regenerate it (npm run notices)
 //   node scripts/third-party-notices.mjs --acp <file>
 //                                                 the ACP agent's package (M63,
-//                                                 PLAN.md D62): its four bundles'
+//                                                 PLAN.md D62): its staged bundles'
 //                                                 packages, written to <file>
 //                                                 by scripts/package-acp.mjs
 //
@@ -25,42 +25,12 @@
 
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { contributedPackageDirs, noticePackageDir } from './lib/noticesInput.mjs'
 
 const METAFILE_DIR = path.join('dist', 'meta')
 const ACP_METAFILE_DIR = path.join('dist', 'meta-acp')
-// The ACP agent ships acp.js, the Model API backend's bundle it loads (M57)
-// and the search/page workers (scripts/build.mjs, scripts/package-acp.mjs).
-const ACP_METAFILES = [
-  path.join(ACP_METAFILE_DIR, 'headless.json'),
-  path.join(METAFILE_DIR, 'runtimeEngine.json'),
-  path.join(METAFILE_DIR, 'runtimeAccounting.json'),
-  path.join(METAFILE_DIR, 'providerPolicy.json'),
-  path.join(METAFILE_DIR, 'modelApiHooks.json'),
-  path.join(METAFILE_DIR, 'modelApiMcp.json'),
-  path.join(ACP_METAFILE_DIR, 'acp.json'),
-  path.join('dist', 'meta-acp', 'acpQuestions.json'),
-  path.join('dist', 'meta-acp', 'runtimeQuestions.json'),
-  path.join(METAFILE_DIR, 'questionNotes.json'),
-  path.join(METAFILE_DIR, 'modelApi.json'),
-  path.join(METAFILE_DIR, 'providers.json'),
-  path.join(METAFILE_DIR, 'usageService.json'),
-  path.join(METAFILE_DIR, 'usageCompanion.json'),
-  path.join(METAFILE_DIR, 'usageWebview.json'),
-  path.join(METAFILE_DIR, 'validation.json'),
-  path.join(METAFILE_DIR, 'wire.json'),
-  path.join(METAFILE_DIR, 'legalScan.json'),
-  path.join(METAFILE_DIR, 'reviewer.json'),
-  path.join(METAFILE_DIR, 'team.json'),
-  path.join(METAFILE_DIR, 'teamRunners.json'),
-  path.join(METAFILE_DIR, 'teamScheduler.json'),
-  path.join(METAFILE_DIR, 'foreignHooks.json'),
-  path.join(METAFILE_DIR, 'hookRuntime.json'),
-  path.join(METAFILE_DIR, 'recorder.json'),
-  path.join(METAFILE_DIR, 'searchWorker.json'),
-  path.join(METAFILE_DIR, 'pageWorker.json'),
-]
+const ACP_STAGE = path.join('dist', 'acp-package')
 const ACP_FLAG = '--acp'
-const NODE_MODULES = 'node_modules/'
 const LICENCE_FILE = /^(licen[cs]e|copying)(\.(md|txt|markdown))?$/i
 const NOTICE_FILE = /^notice(\.(md|txt))?$/i
 // Permissive licences whose terms are met by reproducing the notice.
@@ -79,12 +49,12 @@ const HEADER = `THIRD-PARTY SOFTWARE NOTICES
 Muse Spark Code (Unofficial)
 
 The extension's bundles (dist/extension.js, dist/modelApi.js,
-dist/sessionBoard.js, dist/reviewer.js, dist/team.js, dist/teamScheduler.js, dist/teamRunners.js, dist/foreignHooks.js, dist/hookRuntime.js,
+dist/resourceGovernor.js, dist/resourceAdmission.js, dist/sessionBoard.js, dist/reviewer.js, dist/team.js, dist/teamScheduler.js, dist/teamRunners.js, dist/foreignHooks.js, dist/hookRuntime.js,
 dist/pluginHooks.js, dist/planMarkdown.js, dist/checkpointStore.js,
 dist/review.js, dist/agentImport.js, dist/conversationGit.js, dist/codeIntel.js, dist/voice.js, dist/webFetch.js,
 dist/museCodeReviewer.js, dist/browserCheck.js, dist/browserRuntime.js, dist/bundledSkills.js,
 dist/conversation.js, dist/whatsNew.js, dist/report.js, dist/recorder.js, dist/uiText.js, dist/uiTextRuntime.js, dist/uiTextHooks.js, dist/uiTextSurfaces.js, dist/validation.js, dist/wire.js, dist/searchWorker.js, dist/pageWorker.js,
-dist/webview/main.js, its ESM chunks, dist/webview/main.css, dist/webview/whatsNew.js and dist/webview/whatsNew.css)
+dist/webview/main.js, dist/webview/resourceSurface.js, dist/webview/resourceHistory.js, dist/webview/resourceHistory.css, its ESM chunks, dist/webview/main.css, dist/webview/whatsNew.js and dist/webview/whatsNew.css)
 include code from the packages below, each under its own licence,
 reproduced here as the package ships it. The vendored
 high-quality-projects-skill workflow package and the vendored models.dev
@@ -92,6 +62,8 @@ provider catalogue are also included below.
 The macOS dictation helper links
 only Apple's system frameworks and the Windows helper is a PowerShell
 script of this project; neither includes third-party code.
+The Linux created-path helper statically links OpenSSL SHA-256 routines;
+its copyright notices and Apache 2.0 licence follow the package notices.
 
 Generated from the production build by scripts/third-party-notices.mjs;
 "npm run notices" regenerates this file.
@@ -101,21 +73,13 @@ const ACP_HEADER = `THIRD-PARTY SOFTWARE NOTICES
 muse-spark-code-acp, Muse Spark Code (Unofficial) for editors that speak the
 Agent Client Protocol
 
-The agent's bundles (dist/acp.js, dist/acpQuestions.js, dist/runtimeQuestions.js, dist/questionNotes.js, dist/modelApi.js, dist/reviewer.js, dist/team.js, dist/teamScheduler.js, dist/teamRunners.js, dist/foreignHooks.js, dist/hookRuntime.js, dist/recorder.js, dist/uiText.js, dist/uiTextRuntime.js, dist/uiTextHooks.js, dist/uiTextSurfaces.js, dist/validation.js, dist/wire.js, dist/searchWorker.js and
+The agent's bundles (dist/acp.js, dist/acpQuestions.js, dist/runtimeQuestions.js, dist/questionNotes.js, dist/resourceGovernor.js, dist/resourceAdmission.js, dist/modelApi.js, dist/reviewer.js, dist/team.js, dist/teamScheduler.js, dist/teamRunners.js, dist/foreignHooks.js, dist/hookRuntime.js, dist/recorder.js, dist/uiText.js, dist/uiTextRuntime.js, dist/uiTextHooks.js, dist/uiTextSurfaces.js, dist/validation.js, dist/wire.js, dist/searchWorker.js and
 dist/pageWorker.js and dist/legalScan.js) include code from the packages below, each under its
 own licence, reproduced here as the package ships it. The keyring binding (@napi-rs/keyring) is installed
 beside it as a dependency, with its own licence.
 
 Generated from the production build by scripts/third-party-notices.mjs.
 `
-
-/** The package directory of an esbuild input under node_modules (the innermost one). */
-function packageDirOf(input) {
-  const at = input.lastIndexOf(NODE_MODULES) + NODE_MODULES.length
-  const [scopeOrName = '', name = ''] = input.slice(at).split('/', 2)
-  const packageName = scopeOrName.startsWith('@') ? `${scopeOrName}/${name}` : scopeOrName
-  return input.slice(0, at) + packageName
-}
 
 function shippedPackageDirs(metafiles) {
   const missing = metafiles.find((file) => !existsSync(file))
@@ -126,11 +90,9 @@ function shippedPackageDirs(metafiles) {
   for (const file of metafiles) {
     const metafile = JSON.parse(readFileSync(file, 'utf8'))
     for (const output of Object.values(metafile.outputs)) {
-      const packageInputs = Object.keys(output.inputs).filter((input) =>
-        input.includes(NODE_MODULES),
-      )
-      for (const input of packageInputs) {
-        dirs.add(packageDirOf(input))
+      for (const input of Object.keys(output.inputs)) {
+        const directory = noticePackageDir(input)
+        if (directory !== undefined) dirs.add(path.resolve(directory))
       }
     }
   }
@@ -192,8 +154,9 @@ function render(packages, isAcp) {
     const names = group.map((entry) => `${entry.name} (${entry.licence})\n  ${entry.url}`)
     return `${RULE}\n${names.join('\n')}\n${THIN_RULE}\n\n${text}\n`
   })
+  const native = `${RULE}\nOpenSSL (Linux native helper, Apache-2.0)\n${THIN_RULE}\n\n${readFileSync(path.join('native', 'openssl-NOTICE.txt'), 'utf8').trimEnd()}\n`
   const legalData = normalise(readFileSync('src/core/legal/data/NOTICE.md', 'utf8'))
-  return `${header}\n${blocks.join('\n')}\n${RULE}\nSPDX identifier data\n${THIN_RULE}\n\n${legalData}\n`
+  return `${header}\n${native}\n${blocks.join('\n')}\n${RULE}\nSPDX identifier data\n${THIN_RULE}\n\n${legalData}\n`
 }
 
 /** The file `--acp` names; undefined without the flag. */
@@ -210,12 +173,26 @@ function acpOutputFile() {
 }
 
 const acpOutput = acpOutputFile()
+const extensionMeta = readdirSync(METAFILE_DIR).map((file) => path.join(METAFILE_DIR, file))
+if (acpOutput !== undefined && !existsSync(path.join(ACP_STAGE, 'dist', 'acp.js')))
+  throw new Error('ACP bundle stage is missing: stage the package before generating notices')
 const metafiles =
   acpOutput === undefined
-    ? readdirSync(METAFILE_DIR).map((file) => path.join(METAFILE_DIR, file))
-    : ACP_METAFILES
+    ? extensionMeta
+    : [
+        ...extensionMeta,
+        ...readdirSync(ACP_METAFILE_DIR).map((file) => path.join(ACP_METAFILE_DIR, file)),
+      ]
+const directories =
+  acpOutput === undefined
+    ? shippedPackageDirs(extensionMeta)
+    : [
+        ...contributedPackageDirs(metafiles, readFileSync, (file) =>
+          existsSync(path.join(ACP_STAGE, file)),
+        ),
+      ].map((directory) => path.resolve(directory))
 const problems = []
-const packages = shippedPackageDirs(metafiles).map((dir) => describePackage(dir, problems))
+const packages = directories.map((dir) => describePackage(dir, problems))
 if (acpOutput === undefined) {
   packages.push(
     {

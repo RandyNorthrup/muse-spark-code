@@ -1,3 +1,4 @@
+import { Usd } from '../../shared/usd'
 // The Model API session store on disk (PLAN.md D14): one JSON file per
 // session under the workspace storage directory VS Code gives the
 // extension (`context.storageUri`: per user, per workspace, outside the
@@ -272,11 +273,17 @@ export function createFileSessionStore(deps: FileSessionStoreDeps): SessionStore
       const withLegacySpend =
         previousSpend === undefined && incomingSpend === undefined
           ? session
-          : { ...session, budgetSpentUsd: Math.max(previousSpend ?? 0, incomingSpend ?? 0) }
+          : {
+              ...session,
+              budgetSpentUsd:
+                Usd.from(previousSpend ?? 0).compare(Usd.from(incomingSpend ?? 0)) > 0
+                  ? Usd.from(previousSpend ?? 0).toAmount()
+                  : Usd.from(incomingSpend ?? 0).toAmount(),
+            }
       const projected = await budget.project(withLegacySpend)
       if (
         projected.budgetSpentUsd !== undefined &&
-        (!Number.isFinite(projected.budgetSpentUsd) || projected.budgetSpentUsd < 0)
+        Usd.from(projected.budgetSpentUsd).compare(Usd.from(0)) < 0
       ) {
         throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
       }

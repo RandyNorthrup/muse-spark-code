@@ -58,6 +58,7 @@ function fixture() {
       JSON.stringify(path.resolve('test/packaging/moduleExports.test.mjs')),
     )
   writeFileSync(path.join(dir, 'scripts/package-acp.mjs'), script)
+  cpSync('media', path.join(dir, 'media'), { recursive: true })
   cpSync('src/shared', path.join(dir, 'src/shared'), { recursive: true })
   mkdirSync(path.join(dir, 'src/runtime'), { recursive: true })
   cpSync('src/runtime/cliOptions.ts', path.join(dir, 'src/runtime/cliOptions.ts'))
@@ -87,6 +88,12 @@ function fixture() {
     'acpQuestions',
     'runtimeQuestions',
     'questionNotes',
+    'mcpPool',
+    'exec',
+    'modelApiCodeIntel',
+    'structuredSchema',
+    'resourceAdmission',
+    'resourceGovernor',
     'modelApi',
     'modelApiHooks',
     'modelApiMcp',
@@ -123,6 +130,14 @@ function fixture() {
   cpSync(path.join(production, 'dist/legal-data'), path.join(dir, 'dist/legal-data'), {
     recursive: true,
   })
+  for (const platform of ['darwin', 'linux/x64', 'linux/arm64']) {
+    const folder = path.join(dir, 'native', platform)
+    mkdirSync(folder, { recursive: true })
+    writeFileSync(
+      path.join(folder, platform === 'darwin' ? 'muse-dictate' : 'muse-created'),
+      'test-owned inert helper',
+    )
+  }
   cpSync('native/runner', path.join(dir, 'native/runner'), { recursive: true })
   cpSync(path.join(production, 'dist/webview'), path.join(dir, 'dist/webview'), { recursive: true })
   mkdirSync(path.join(dir, 'dist/meta'), { recursive: true })

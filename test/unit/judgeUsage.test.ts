@@ -26,7 +26,7 @@ describe('admitted Judge usage rows', () => {
     expect(rig.usage.current).toMatchObject({
       judgeCalls: 1,
       judgeTokens: 1100,
-      judgeCostUsd: 0.001125,
+      judgeCostUsd: '0.001125',
       judgeUnknownRequests: 0,
     })
     expect(rig.emit).toHaveBeenCalledTimes(2)

@@ -23,6 +23,7 @@ import type {
 } from '../../shared/schedule'
 import type { ApprovalMode } from '../../shared/permissionModes'
 import type { SessionExport } from '../export/sessionTransfer'
+import type { GitDraftOutputPort } from '../git/gitText'
 import type { ExtensionHookDispatch, ExtensionHookEvent } from '../backends/modelapi/extensionHooks'
 
 export type BackendKind = 'museCode' | 'modelApi'
@@ -485,6 +486,8 @@ export interface AgentSession {
    * the prompt, used when the parts carry more than the user typed (M5).
    */
   sendTurn(parts: readonly TurnPart[], displayText?: string): Promise<TurnSubmission>
+  /** Formats and repairs a user-requested Git draft in this session, under its live guards. */
+  readonly gitDraftOutput?: GitDraftOutputPort
   /**
    * A `/review` turn run as the built-in Reviewer, with its own prompt and
    * only the tools that read (M70, PLAN.md D49). The Model API backend has
@@ -621,6 +624,8 @@ export interface AgentHost {
     sessionId: string,
     options?: { readonly recoverGoal?: boolean },
   ): Promise<SessionHistoryOutcome>
+  /** Stored output in its own session, without loading it (M119). */
+  readSessionOutput(sessionId: string, request: OutputPageRequest): Promise<OutputPage>
   resumeSession(
     sessionId: string,
     modelId: string,

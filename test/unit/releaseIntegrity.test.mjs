@@ -1,4 +1,5 @@
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ensureGithubRelease } from '../../scripts/github-release.mjs'
@@ -122,7 +123,7 @@ describe('GitHub Release reruns', () => {
 
 describe('compressed universal VSIX budget', () => {
   it('accepts exactly the measured budget', () => {
-    expect(MAX_VSIX_BYTES).toBe(2_841_600)
+    expect(MAX_VSIX_BYTES).toBe(3_072_000)
     writeFileSync(fixture.artifact, new Uint8Array(MAX_VSIX_BYTES))
     expect(checkVsixSize(fixture.artifact)).toBe(MAX_VSIX_BYTES)
   })
@@ -136,6 +137,16 @@ describe('compressed universal VSIX budget', () => {
 })
 
 describe('bundled extension and ACP CycloneDX inventories', () => {
+  it('refuses a missing ACP package stage before invoking npm', () => {
+    const result = spawnSync(process.execPath, [path.resolve('scripts/release-sbom.mjs')], {
+      cwd: fixture.directory,
+      encoding: 'utf8',
+      // No npm on PATH: the stage refusal must precede inventory dispatch.
+      env: { PATH: path.resolve(fixture.directory) },
+    })
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('ACP package stage is missing')
+  })
   const components = [
     { name: 'zod', version: '4.6.5', 'bom-ref': 'zod' },
     { group: '@napi-rs', name: 'keyring', version: '2.1.0', 'bom-ref': 'keyring' },
@@ -263,6 +274,60 @@ describe('bundled extension and ACP CycloneDX inventories', () => {
           ),
     )
     expect([...bundledPackages(['meta.json'], read)]).toEqual(['zod@4.6.5', '@scope/pkg@1.0.0'])
+    expect(read.mock.calls.some(([file]) => file.includes('eslint'))).toBe(false)
+  })
+  it.each([
+    ['resource-validation:/repo/node_modules/zod/v4/mini/index.js', '/repo/node_modules/zod'],
+    [
+      String.raw`resource-validation:C:\repo\node_modules\zod\v4\mini\index.js`,
+      'C:/repo/node_modules/zod',
+    ],
+  ])('includes the namespaced shipped contribution %s', (input, directory) => {
+    const read = vi.fn((file) => {
+      if (file === 'meta.json')
+        return JSON.stringify({
+          outputs: { bundle: { inputs: { [input]: { bytesInOutput: 1 } } } },
+        })
+      if (file === `${directory}/package.json`)
+        return JSON.stringify({ name: 'zod', version: '4.6.5' })
+      throw new Error(`Unexpected manifest path: ${file}`)
+    })
+    expect([...bundledPackages(['meta.json'], read)]).toEqual(['zod@4.6.5'])
+    expect(read).toHaveBeenCalledWith(`${directory}/package.json`, 'utf8')
+  })
+  it('selects staged lazy and browser outputs, excluding extension-only contributions', () => {
+    const manifests = {
+      'node_modules/@agentclientprotocol/sdk/package.json': {
+        name: '@agentclientprotocol/sdk',
+        version: '1.5.0',
+      },
+      'node_modules/react/package.json': { name: 'react', version: '19.3.0' },
+      'node_modules/eslint/package.json': { name: 'eslint', version: '10.1.0' },
+    }
+    const read = vi.fn((file) => {
+      if (file === 'meta.json')
+        return JSON.stringify({
+          outputs: {
+            'dist\\runtimeEngine.js': {
+              inputs: { 'node_modules/@agentclientprotocol/sdk/index.js': { bytesInOutput: 1 } },
+            },
+            'dist/webview/usage.js': {
+              inputs: { 'node_modules/react/index.js': { bytesInOutput: 1 } },
+            },
+            'dist/webview/main.js': {
+              inputs: { 'node_modules/eslint/index.js': { bytesInOutput: 1 } },
+            },
+          },
+        })
+      const manifest = manifests[file]
+      if (manifest === undefined) throw new Error(`Unexpected manifest path: ${file}`)
+      return JSON.stringify(manifest)
+    })
+    const staged = new Set(['dist/runtimeEngine.js', 'dist/webview/usage.js'])
+    expect([...bundledPackages(['meta.json'], read, (file) => staged.has(file))]).toEqual([
+      '@agentclientprotocol/sdk@1.5.0',
+      'react@19.3.0',
+    ])
     expect(read.mock.calls.some(([file]) => file.includes('eslint'))).toBe(false)
   })
   it('includes every optional native platform and nested runtime dependency from the lock', () => {

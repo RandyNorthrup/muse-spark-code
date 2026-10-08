@@ -1,3 +1,5 @@
+import { legacyUsdSchema } from '../../../shared/usd'
+import type { UsdAmount } from '../../../shared/usd'
 // What a Model API session is when the window is gone (PLAN.md D14): the
 // replayed conversation, the transcript, the patches behind Open diff and
 // Revert, and the row the history list shows. The host keeps one file per
@@ -5,6 +7,11 @@
 // its validation, and the store interface the host implements. Pure.
 
 import * as z from 'zod/mini'
+import {
+  agentEvidenceSchema,
+  agentFileSchema,
+  type AgentEvidence,
+} from '../../../shared/agentEvidence'
 import {
   type ItemSnapshot,
   itemSnapshotFields,
@@ -26,7 +33,6 @@ import type { SessionBudgetJournal } from './sessionBudget'
 import {
   functionCallItemSchema,
   type InputItem,
-  MESSAGE_PHASES,
   reasoningItemSchema,
   webSearchActionSchema,
 } from './schemas'
@@ -56,6 +62,7 @@ export interface StoredUsage {
 }
 
 export interface StoredChild {
+  readonly evidence?: AgentEvidence | undefined
   readonly id: string
   readonly role: string
   readonly objective: string
@@ -126,7 +133,7 @@ export interface StoredSession {
   readonly outputs: Readonly<Record<string, string>>
   readonly usage: StoredUsage
   /** Dollars the session's own requests spent (M82); absent when none. */
-  readonly budgetSpentUsd?: number
+  readonly budgetSpentUsd?: UsdAmount
   /** Controlled first fork snapshot: copied history predates this conversation's zero spend. */
   readonly budgetIsFreshFork?: true
   /**
@@ -216,7 +223,7 @@ const outputTextPartSchema = z.object({ type: z.literal('output_text'), text: z.
 const inputMessageSchema = z.object({
   type: z.literal('message'),
   role: z.enum(['user', 'assistant', 'developer']),
-  phase: z.optional(z.enum(MESSAGE_PHASES)),
+  phase: z.optional(z.nullable(z.string())),
   content: z.array(
     z.union([inputTextPartSchema, inputImagePartSchema, inputFilePartSchema, outputTextPartSchema]),
   ),
@@ -298,8 +305,12 @@ const storedSessionFields = {
       turnId: z.string(),
       item: z.object({
         ...itemSnapshotFields,
+        // Only the disk boundary accepts historical numeric transcript fees.
+
+        agentEvidence: z.optional(agentEvidenceSchema),
+        changedFiles: z.optional(z.array(agentFileSchema)),
         usage: z.optional(storedUsageSchema),
-        costUsd: z.optional(z.number().check(z.nonnegative())),
+        costUsd: z.optional(legacyUsdSchema),
       }),
     }),
   ),
@@ -307,7 +318,7 @@ const storedSessionFields = {
   usage: storedUsageSchema,
   // Optional, so a session saved before M82 still reads; never below zero,
   // which would give the cap room it does not have.
-  budgetSpentUsd: z.optional(z.number().check(z.nonnegative())),
+  budgetSpentUsd: z.optional(legacyUsdSchema),
   budgetIsFreshFork: z.optional(z.literal(true)),
   // Optional, so a session saved before M73 kept its ledger still reads; a
   // corrupt value is dropped before validation (withoutCorruptEstimate).
@@ -328,6 +339,7 @@ export const storedSessionSchema = z.object({
         parentTurnId: z.string(),
         checkpointRecording: z.optional(z.boolean()),
         startedAt: z.number(),
+        evidence: z.optional(agentEvidenceSchema),
         state: z.enum(['queued', 'running', 'interrupted', 'result_ready', 'closed']),
         result: z.optional(
           z.object({

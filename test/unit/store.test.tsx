@@ -259,8 +259,15 @@ describe('the crash screen and its Reload (M25)', () => {
     deliver({ type: 'authState', status: 'signedIn' })
     expect(screen.getByText('Before and after')).toBeInTheDocument()
     expect(
-      await within(screen.getByRole('main')).findByRole('radio', { name: 'Red' }),
+      await within(screen.getByRole('region', { name: 'Open question' })).findByRole('radio', {
+        name: 'Red',
+      }),
     ).toBeInTheDocument()
+    expect(screen.getAllByRole('radio', { name: 'Red' })).toHaveLength(1)
+    expect(
+      within(screen.getByRole('main')).getByRole('button', { name: 'Answer Open question Colour' }),
+    ).toBeInTheDocument()
+    expect(within(screen.getByRole('main')).queryByRole('radio')).toBeNull()
     expect(screen.getByLabelText('Stop')).toBeInTheDocument()
     second.close()
   })

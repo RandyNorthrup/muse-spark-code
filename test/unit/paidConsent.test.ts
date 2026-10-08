@@ -1,11 +1,19 @@
+import { quotedSearch } from './helpers/paidQuote'
+import { freezePaidQuote, type PaidUseRequest } from '../../src/shared/paid'
+import { Usd } from '../../src/shared/usd'
 import { describe, expect, it, vi } from 'vitest'
 import {
   PaidUseConsent,
   paidUseQuestion,
   type PaidUseAnswer,
 } from '../../src/core/paid/paidConsent'
+import {
+  latestPaidGrant,
+  paidAuthorityKey,
+  type PaidGrant,
+} from '../../src/core/paid/paidAuthority'
 import { UI_TEXT, type PaidFeature } from '../../src/shared/constants'
-import type { PaidUseRequest } from '../../src/shared/paid'
+
 import { FakeLogOutputChannel } from './helpers/fakes'
 
 function consentWith(
@@ -35,9 +43,135 @@ function consentWith(
   return { consent, ask, on, writes, grants: () => grants }
 }
 
-const SEARCH: PaidUseRequest = { feature: 'webSearch' }
+/** A search consent over an in-memory quote store whose order or save step can be broken. */
+function quoteConsentWith(store: {
+  nextQuoteOrder?: () => number | Promise<number>
+  writeQuoteGrant?: (grant: PaidGrant) => Promise<void>
+}) {
+  const log = new FakeLogOutputChannel()
+  const kept: PaidGrant[] = []
+  const ask = vi.fn(() => Promise.resolve<PaidUseAnswer>('always'))
+  const consent = new PaidUseConsent({
+    isOn: () => true,
+    canRemember: () => true,
+    readGrants: () => new Set(),
+    writeGrants: () => Promise.resolve(),
+    ask,
+    quoteGeneration: () => 'stored',
+    readQuoteGrant: (quote) =>
+      latestPaidGrant(
+        kept.filter((grant) => paidAuthorityKey(grant.quote) === paidAuthorityKey(quote)),
+      ),
+    nextQuoteOrder: store.nextQuoteOrder ?? (() => Promise.resolve(kept.length + 1)),
+    writeQuoteGrant:
+      store.writeQuoteGrant ??
+      ((grant) => {
+        kept.push(grant)
+        return Promise.resolve()
+      }),
+    log,
+  })
+  const listener = vi.fn()
+  consent.onDidChange(listener)
+  return { consent, ask, log, kept, listener }
+}
+
+const SEARCH: PaidUseRequest = { feature: 'webSearch', priceUsd: Usd.from(0.0025).toAmount() }
+
+describe('paidUseQuestion: verified hosted-search tariffs', () => {
+  it('discloses a positive sub-cent per-thousand search price', async () => {
+    const question = await paidUseQuestion({
+      feature: 'webSearch',
+      priceUsd: Usd.from(0.0000002).toAmount(),
+    })
+    expect(question.detail).toContain('$0.00020 per 1,000 searches')
+  })
+
+  it.each([-1, NaN, Infinity])('refuses an invalid search tariff of %s', async (priceUsd) => {
+    await expect(
+      async () =>
+        await paidUseQuestion({ feature: 'webSearch', priceUsd: Usd.from(priceUsd).toAmount() }),
+    ).rejects.toThrow(/finite decimal|Web search is unavailable/)
+  })
+})
+
+const searchRequest = (tariff: string, provider = 'meta', model = 'muse-spark-1.3') =>
+  ({
+    feature: 'webSearch',
+    priceUsd: Usd.from(tariff).toAmount(),
+    quote: freezePaidQuote({
+      id: tariff + provider + model,
+      feature: 'webSearch',
+      provider,
+      model,
+      modelRevision: 0,
+      tariffUsd: Usd.from(tariff).toAmount(),
+      unit: 'search',
+      capturedAt: 0,
+    }),
+  }) as const
 
 describe('PaidUseConsent (M58)', () => {
+  it('R3 P2-1: Ask again invalidates model B pending Always without restoring model A', async () => {
+    const pending = Promise.withResolvers<PaidUseAnswer>()
+    const t = consentWith({
+      answer: (request) =>
+        request.feature === 'webSearch' && request.quote?.model === 'model-b'
+          ? pending.promise
+          : Promise.resolve('always'),
+    })
+    await t.consent.allows(quotedSearch('0.01'))
+    const oldB = t.consent.allows(quotedSearch('0.01', 'model-b'))
+    await t.consent.forget()
+    pending.resolve('always')
+    expect(await oldB).toBeUndefined()
+    await t.consent.allows(quotedSearch('0.01'))
+    expect(t.ask).toHaveBeenCalledTimes(3)
+  })
+
+  it('binds Always to provider/model and its exact approved tariff ceiling', async () => {
+    const t = consentWith({ answer: () => Promise.resolve('always') })
+    expect(await t.consent.allows(searchRequest('0.0025'))).toMatchObject({
+      tariffUsd: Usd.from('0.0025').toAmount(),
+    })
+    await t.consent.allows(searchRequest('0.0025'))
+    await t.consent.allows(searchRequest('0.001'))
+    expect(t.ask).toHaveBeenCalledOnce()
+    await t.consent.allows(searchRequest('0.01'))
+    expect(t.ask).toHaveBeenCalledTimes(2)
+    await t.consent.allows(searchRequest('0.001', 'another-provider'))
+    await t.consent.allows(searchRequest('0.001', 'meta', 'another-model'))
+    expect(t.ask).toHaveBeenCalledTimes(4)
+  })
+
+  it('refuses an Always answer when its quote became stale while open', async () => {
+    let isCurrent = true
+    const t = consentWith({
+      answer: () => {
+        isCurrent = false
+        return Promise.resolve('always')
+      },
+    })
+    expect(await t.consent.allows({ ...SEARCH, isCurrent: () => isCurrent })).toBeUndefined()
+    expect(t.grants().size).toBe(0)
+  })
+
+  it.each([false, true])(
+    'R5 P2: stale consent releases its request validator (initially current: %s)',
+    async (initial) => {
+      let isCurrent = initial
+      const pending = Promise.withResolvers<PaidUseAnswer>()
+      const t = consentWith({ answer: () => pending.promise })
+      const decision = t.consent.allows({ ...SEARCH, isCurrent: () => isCurrent })
+      expect(t.consent.authority).toHaveProperty('validators.size', initial ? 1 : 0)
+      isCurrent = false
+      pending.resolve('always')
+      expect(await decision).toBeUndefined()
+      expect(t.consent.authority).toHaveProperty('validators.size', 0)
+      expect(t.consent.authority).toHaveProperty('state.quotes.size', 0)
+    },
+  )
+
   it('lets an "always" it cannot keep go ahead once, and says so', async () => {
     const log = new FakeLogOutputChannel()
     const consent = new PaidUseConsent({
@@ -48,31 +182,88 @@ describe('PaidUseConsent (M58)', () => {
       ask: () => Promise.resolve('always'),
       log,
     })
-    await expect(consent.allows(SEARCH)).resolves.toBe(true)
+    await expect(consent.allows(SEARCH)).resolves.toMatchObject({
+      feature: 'webSearch',
+      tariffUsd: Usd.from('0.0025').toAmount(),
+    })
     expect(log.warn).toHaveBeenCalledWith(
       'Paid use of webSearch: "always" could not be kept, so it is allowed once: storage is full',
     )
     expect(log.info).toHaveBeenLastCalledWith('Paid use of webSearch: allowed once')
   })
 
+  describe('a quoted search "always" its store cannot keep (0.16.0 review)', () => {
+    it('keeps a working store’s "always", so the next use asks nothing', async () => {
+      const t = quoteConsentWith({})
+      const first = quotedSearch('0.01')
+      expect(await t.consent.allows(first)).toMatchObject({ id: first.quote.id })
+      expect(t.kept).toHaveLength(1)
+      expect(t.listener).toHaveBeenCalledOnce()
+      const second = quotedSearch('0.01', 'model-a', 'second')
+      expect(await t.consent.allows(second)).toMatchObject({ id: second.quote.id })
+      expect(t.ask).toHaveBeenCalledOnce()
+      expect(t.log.warn).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      [
+        'the approval order is refused',
+        { nextQuoteOrder: () => Promise.reject(new Error('read-only profile')) },
+      ],
+      [
+        'the approval order throws',
+        {
+          nextQuoteOrder: (): number => {
+            throw new Error('read-only profile')
+          },
+        },
+      ],
+      [
+        'the grant cannot be saved',
+        { writeQuoteGrant: () => Promise.reject(new Error('read-only profile')) },
+      ],
+    ])('lets the approved use go ahead once when %s, and asks again', async (_, store) => {
+      const t = quoteConsentWith(store)
+      const first = quotedSearch('0.01')
+      expect(await t.consent.allows(first)).toMatchObject({ id: first.quote.id })
+      expect(t.consent.authority.canSpend(first.quote)).toBe(true)
+      expect(t.log.warn).toHaveBeenCalledExactlyOnceWith(
+        'Paid search quote could not be kept: read-only profile',
+      )
+      expect(t.log.info).toHaveBeenLastCalledWith('Paid use of webSearch: allowed once')
+      expect(t.kept).toEqual([])
+      expect(t.listener).not.toHaveBeenCalled()
+      expect(t.consent.remembered()).toEqual([])
+      const second = quotedSearch('0.01', 'model-a', 'second')
+      expect(await t.consent.allows(second)).toMatchObject({ id: second.quote.id })
+      expect(t.ask).toHaveBeenCalledTimes(2)
+    })
+  })
+
   it('refuses a feature that is off without asking', async () => {
     const t = consentWith({ on: [] })
-    await expect(t.consent.allows(SEARCH)).resolves.toBe(false)
+    await expect(t.consent.allows(SEARCH)).resolves.toBeUndefined()
     expect(t.ask).not.toHaveBeenCalled()
   })
 
   it('asks each time for "once", and nothing is kept', async () => {
     const t = consentWith()
-    await expect(t.consent.allows(SEARCH)).resolves.toBe(true)
-    await expect(t.consent.allows(SEARCH)).resolves.toBe(true)
+    await expect(t.consent.allows(SEARCH)).resolves.toMatchObject({
+      feature: 'webSearch',
+      tariffUsd: Usd.from('0.0025').toAmount(),
+    })
+    await expect(t.consent.allows(SEARCH)).resolves.toMatchObject({
+      feature: 'webSearch',
+      tariffUsd: Usd.from('0.0025').toAmount(),
+    })
     expect(t.ask).toHaveBeenCalledTimes(2)
-    expect(t.ask).toHaveBeenCalledWith(SEARCH, true)
+    expect(t.ask).toHaveBeenCalledWith(expect.objectContaining(SEARCH), true)
     expect(t.writes).toEqual([])
   })
 
   it('refuses on Deny', async () => {
     const t = consentWith({ answer: () => Promise.resolve('deny') })
-    await expect(t.consent.allows(SEARCH)).resolves.toBe(false)
+    await expect(t.consent.allows(SEARCH)).resolves.toBeUndefined()
     expect(t.writes).toEqual([])
   })
 
@@ -80,19 +271,25 @@ describe('PaidUseConsent (M58)', () => {
     const t = consentWith({ answer: () => Promise.resolve('always') })
     const listener = vi.fn()
     t.consent.onDidChange(listener)
-    await expect(t.consent.allows(SEARCH)).resolves.toBe(true)
+    await expect(t.consent.allows(SEARCH)).resolves.toMatchObject({
+      feature: 'webSearch',
+      tariffUsd: Usd.from('0.0025').toAmount(),
+    })
     expect(t.writes).toEqual([['webSearch']])
     expect(listener).toHaveBeenCalledTimes(1)
-    await expect(t.consent.allows(SEARCH)).resolves.toBe(true)
+    await expect(t.consent.allows(SEARCH)).resolves.toMatchObject({
+      feature: 'webSearch',
+      tariffUsd: Usd.from('0.0025').toAmount(),
+    })
     expect(t.ask).toHaveBeenCalledTimes(1)
     expect(t.consent.remembered()).toEqual(['webSearch'])
   })
 
-  it('asks despite "always" when the use demands a question', async () => {
+  it('asks for an unpriced legacy always grant and when the use demands a question', async () => {
     const t = consentWith({ grants: ['webSearch'], answer: () => Promise.resolve('deny') })
-    await expect(t.consent.allows(SEARCH)).resolves.toBe(true)
-    await expect(t.consent.allows(SEARCH, true)).resolves.toBe(false)
-    expect(t.ask).toHaveBeenCalledTimes(1)
+    await expect(t.consent.allows(SEARCH)).resolves.toBeUndefined()
+    await expect(t.consent.allows(SEARCH, true)).resolves.toBeUndefined()
+    expect(t.ask).toHaveBeenCalledTimes(2)
   })
 
   it('refuses a use whose feature was turned off while the popup was open', async () => {
@@ -104,7 +301,7 @@ describe('PaidUseConsent (M58)', () => {
       },
     })
     holder.t = t
-    await expect(t.consent.allows(SEARCH)).resolves.toBe(false)
+    await expect(t.consent.allows(SEARCH)).resolves.toBeUndefined()
     expect(t.writes).toEqual([])
   })
 
@@ -115,8 +312,11 @@ describe('PaidUseConsent (M58)', () => {
       answer: () => Promise.resolve('always'),
     })
     expect(t.consent.isRemembered('webSearch')).toBe(false)
-    await expect(t.consent.allows(SEARCH)).resolves.toBe(true)
-    expect(t.ask).toHaveBeenCalledWith(SEARCH, false)
+    await expect(t.consent.allows(SEARCH)).resolves.toMatchObject({
+      feature: 'webSearch',
+      tariffUsd: Usd.from('0.0025').toAmount(),
+    })
+    expect(t.ask).toHaveBeenCalledWith(expect.objectContaining(SEARCH), false)
     expect(t.writes).toEqual([])
   })
 
@@ -133,7 +333,11 @@ describe('PaidUseConsent (M58)', () => {
   })
 })
 
-const TAB_REQUEST: PaidUseRequest = { feature: 'tab', modelId: 'muse-spark-1.3', budgetUsd: 1 }
+const TAB_REQUEST: PaidUseRequest = {
+  feature: 'tab',
+  modelId: 'muse-spark-1.3',
+  budgetUsd: Usd.from(1).toAmount(),
+}
 
 /** A consent over in-memory settings and grants, with a scripted popup. */
 function tabConsentWith(
@@ -189,7 +393,7 @@ describe('paidUseQuestion: Tab (M94 lane L, PLAN.md D73)', () => {
     const contributor = await paidUseQuestion({
       feature: 'tab',
       modelId: 'muse-spark-1.3-contributor',
-      budgetUsd: 1,
+      budgetUsd: Usd.from(1).toAmount(),
     })
     expect(contributor.detail).toContain('muse-spark-1.3-contributor')
     expect(contributor.detail).toContain('$0.100/1M input')
@@ -200,7 +404,11 @@ describe('paidUseQuestion: Tab (M94 lane L, PLAN.md D73)', () => {
 
   it('has no rate to quote for an unpriced model', async () => {
     await expect(
-      paidUseQuestion({ feature: 'tab', modelId: 'muse-spark-future', budgetUsd: 1 }),
+      paidUseQuestion({
+        feature: 'tab',
+        modelId: 'muse-spark-future',
+        budgetUsd: Usd.from(1).toAmount(),
+      }),
     ).rejects.toThrow(UI_TEXT.subagentTariffUnknown)
   })
 })
@@ -332,4 +540,18 @@ describe('window-scoped Allow once (M94 Q-M94a)', () => {
     expect(same.asked).toHaveLength(0)
     expect(same.consent.isRemembered('tab')).toBe(true)
   })
+})
+
+it('R4 P2-3: same-clock legacy requests receive independent authorization ids', async () => {
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(1)
+  try {
+    const t = consentWith()
+    const [first, second] = await Promise.all([t.consent.allows(SEARCH), t.consent.allows(SEARCH)])
+    if (typeof first !== 'object' || typeof second !== 'object') throw new Error('missing approval')
+    expect(first.id).not.toBe(second.id)
+    expect(t.consent.authority.canSpend(first)).toBe(true)
+    expect(t.consent.authority.canSpend(second)).toBe(true)
+  } finally {
+    clock.mockRestore()
+  }
 })

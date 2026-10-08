@@ -25,6 +25,8 @@ public sealed class MuseSparkMcpLaunchConfig {
   [DataMember(Name = "controlNonce", IsRequired = true)] public string ControlNonce { get; set; }
   // M91b: a plugin child's whole job memory in bytes; absent (0) sets no limit.
   [DataMember(Name = "jobMemoryLimit", IsRequired = false)] public ulong JobMemoryLimit { get; set; }
+  // C1: only the browser's fixed two CDP pipes, never arbitrary inherited descriptors.
+  [DataMember(Name = "debugPipes", IsRequired = false)] public bool DebugPipes { get; set; }
 }
 
 public static class MuseSparkMcpJobEntry {
@@ -51,7 +53,7 @@ public static class MuseSparkMcpJobEntry {
       foreach (var entry in config.Env) pairs.Add(entry.Key + "=" + entry.Value);
       return MuseSparkMcpJob.Run(config.File, config.Args, config.Cwd,
         config.ParentPid, pairs.ToArray(), config.IsVerbatim,
-        config.ControlPipe, config.ControlNonce, config.JobMemoryLimit);
+        config.ControlPipe, config.ControlNonce, config.JobMemoryLimit, config.DebugPipes);
     } catch (Exception error) {
       Exception cause = error.GetBaseException();
       if (cause is Win32Exception) {

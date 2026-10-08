@@ -23,6 +23,9 @@ const { isProviderId } = modelRef
 import type { OpenRouterPrivacy } from '../core/providers/presets'
 import { fill } from '../shared/l10n/text'
 import { parseExec, type ExecOptions } from './exec/execArgs'
+import { resourceFlagOverrides } from './resources/args'
+import type { ResourceSettings } from '../shared/resources'
+import type { ResourceCommandAction } from './resources/port'
 import { parseLegalArgs, type LegalOptions } from './legal/legalArgs'
 import type { UsageQuery } from '../shared/usagePage'
 import type { UsageSection } from './usage/usageAdapter'
@@ -54,9 +57,9 @@ export interface ServeOptions {
   readonly paidFeatures: readonly AcpPaidFeature[]
   /** The finest log detail on stderr. */
   readonly isVerbose: boolean
-  readonly autoCompaction?: boolean | undefined
   /** Interactive ACP questions; no forms still defer at once. */
   readonly questionsDeferAfterSeconds?: number
+  readonly autoCompaction?: boolean | undefined
 }
 
 /** What `report` prints: the scrubbed draft as text, or its exact bytes in a file. */
@@ -93,8 +96,17 @@ export interface ProvidersAddOptions {
 export type RuntimeCommand =
   | { readonly command: 'usage'; readonly options: UsageCommand }
   | { readonly command: 'setup'; readonly options: ServeOptions; readonly maintenance: boolean }
+  | {
+      readonly command: 'exec'
+      readonly options: ExecOptions
+      readonly resourceOverrides: Partial<ResourceSettings>
+    }
+  | {
+      readonly command: 'resources'
+      readonly action: ResourceCommandAction
+      readonly json: boolean
+    }
   | { readonly command: 'chatGptProvider'; readonly action: ChatGptProviderAction }
-  | { readonly command: 'exec'; readonly options: ExecOptions }
   | { readonly command: 'scan-secrets'; readonly file: string; readonly keyFromStdin: boolean }
   | { readonly command: 'report'; readonly options: ReportOptions }
   | { readonly command: 'legal'; readonly options: LegalOptions }
@@ -219,6 +231,9 @@ export function parseCommandLine<T>(
   if (argv[0] === 'exec' && argv[1] === 'legal-scan')
     return parseLegalCommand(['legal', ...argv.slice(2)])
   if (argv[0] === '--usage') return parseUsage(['--json', ...argv.slice(1)])
+  if (argv[0] === 'resources') return parseResources(argv.slice(1))
+  if (argv[0] === 'usage' && argv[1] === 'resources')
+    return parseResources(['history', ...argv.slice(2)])
   if (argv[0] === 'usage') return parseUsage(argv.slice(1))
   if (argv[0] === 'providers' && (argv[2] === 'chatgpt' || argv[2] === 'copilot')) {
     const action = parseChatGptProviderAction(argv)
@@ -285,8 +300,8 @@ export function parseCommandLine<T>(
     allowsContributorModels: values['allow-contributor-models'] === true,
     paidFeatures,
     isVerbose: values.verbose === true,
-    autoCompaction: values['no-auto-compaction'] !== true,
     questionsDeferAfterSeconds,
+    autoCompaction: values['no-auto-compaction'] !== true,
   }
   const [first, second, ...rest] = positionals
   if (first === 'setup' && second === undefined) {
@@ -543,8 +558,16 @@ function parseHeadless(argv: readonly string[]): RuntimeCommand {
             keyFromStdin: values['key-stdin'] === true,
           }
         : { command: 'invalid', reason: UI_TEXT.execScanUsage, exitCode: 2 }
-    const { help: _help, ...options } = values
-    return execOutcome(parseExec(options, positionals))
+    const resourceOverrides = resourceFlagOverrides(values)
+    const options = Object.fromEntries(
+      Object.entries(values).filter(
+        ([key]) => !['help', 'resource-governor', 'cpu-max', 'memory-max'].includes(key),
+      ),
+    )
+    const parsed = parseExec(options, positionals)
+    return parsed.ok
+      ? { command: 'exec', options: parsed.options, resourceOverrides }
+      : { command: 'invalid', reason: parsed.reason, exitCode: 2 }
   } catch (error: unknown) {
     return invalidHeadlessCause(error)
   }
@@ -558,12 +581,6 @@ function invalidHeadlessReason(reason: string): RuntimeCommand {
 /** A `parseArgs` throw as a headless usage refusal (never a prompt). */
 function invalidHeadlessCause(error: unknown): RuntimeCommand {
   return invalidHeadlessReason(error instanceof Error ? error.message : String(error))
-}
-
-function execOutcome(parsed: ReturnType<typeof parseExec>): RuntimeCommand {
-  return parsed.ok
-    ? { command: 'exec', options: parsed.options }
-    : invalidHeadlessReason(parsed.reason)
 }
 
 function legalOutcome(parsed: ReturnType<typeof parseLegalArgs>): RuntimeCommand {
@@ -590,6 +607,25 @@ function parseLegalCommand(argv: readonly string[]): RuntimeCommand {
       : legalOutcome(parseLegalArgs(values, positionals))
   } catch (error: unknown) {
     return invalidHeadlessCause(error)
+  }
+}
+
+function parseResources(argv: readonly string[]): RuntimeCommand {
+  try {
+    const { values, positionals } = parseArgs({
+      args: [...argv],
+      strict: true,
+      allowPositionals: true,
+      options: CLI_OPTION_REGISTRY.resources.options,
+    })
+    if (values.help === true) return { command: 'help' }
+    const action = positionals[0] ?? 'status'
+    return positionals.length > 1 ||
+      (action !== 'status' && action !== 'history' && action !== 'resume')
+      ? { ...invalid(`resources ${positionals.join(' ')}`), exitCode: 2 }
+      : { command: 'resources', action, json: values.json === true }
+  } catch {
+    return { ...invalid('resources'), exitCode: 2 }
   }
 }
 

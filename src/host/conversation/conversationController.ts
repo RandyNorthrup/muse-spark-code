@@ -1,6 +1,7 @@
 import type { UsageRecording } from '../../core/usage/recording'
-import type { ProviderUsageRow } from '../../shared/usage'
+import type { ProviderUsageRow, AccountFacts, SubscriptionUsage } from '../../shared/usage'
 import type { ChatShareSource } from '../../core/sharing/chatShare'
+import { recoveryStamp } from '../../shared/agentRecovery'
 import { QuestionRegistry } from '../../core/questions/registry'
 import type { QuestionAnswerText } from '../../core/questions/lateAnswer'
 import type {
@@ -10,7 +11,16 @@ import type {
   QuestionDeliveryOutcome,
   QuestionStore,
 } from '../../shared/questions'
-import { startApprovalJudge } from '../../core/judge/use'
+import { modelApiStatusSchema } from '../../shared/serviceStatus'
+import { Usd, type UsdAmount } from '../../shared/usd'
+import type {
+  PaidUseDecision,
+  SearchSettlement,
+  PaidUseRequest,
+  SubagentUsage,
+} from '../../shared/paid'
+
+import { startApprovalJudge, type JudgeAdvisory, type JudgeFence } from '../../core/judge/use'
 // One conversation per surface: owns the MSP session for that surface, turns
 // webview requests into backend calls, and streams AgentEvents back. Also the
 // source of truth for the composer settings that outlive a webview reload
@@ -158,20 +168,22 @@ import {
   QUESTION_DEFER_DEFAULT_SECONDS,
   USER_SHELL_ITEM_KIND,
   USER_SHELL_SANDBOX_FAILURE_MARKER,
+  TEAM_MCP_SERVER_NAME,
 } from '../../shared/constants'
 // M96 lane T (LANE-T-SEAM, lane 0): from shared constants at integration.
-import { TEAM_MCP_SERVER_NAME } from '../../shared/constants'
+
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
 import type { AgentEvent, ApprovalChoice, ItemSnapshot, TodoItem } from '../../shared/agentEvents'
-import { fill, plural } from '../../shared/l10n/text'
+import { fill, plural, uiLocale } from '../../shared/l10n/text'
+import type { GitDraftOutputPort } from '../../core/git/gitText'
 import type { GitAction, GitDraftKind } from '../../shared/git'
 import { backendLabel } from '../../shared/palette'
-import type { PaidUseRequest } from '../../shared/paid'
+
 import type { ScheduleCadence, ScheduledPrompt } from '../../shared/schedule'
 import { formatMention, parseSkillInvocation } from '../../shared/mentions'
 import { approvalModeFor, untrustedStartMode } from '../../shared/permissionModes'
 import type { MuseCodeReviewerPort } from '../review/museCodeReviewerBundle'
-import type { JudgeAdvisory, JudgeFence } from '../../core/judge/use'
+
 import type { ReviewedApprovals } from '../review/reviewedApprovals'
 import type {
   ChatReference,
@@ -187,7 +199,7 @@ import type {
   ReviewFile,
   SkillOption,
 } from '../../shared/protocol'
-import type { AccountFacts, SubscriptionUsage } from '../../shared/usage'
+
 import type { UsageInsightsReport } from '../../runtime/usage/traceLogs'
 import type { AuthPort } from '../auth/authService'
 import type { CheckpointPort } from '../checkpoints/checkpointHost'
@@ -223,6 +235,7 @@ export interface GitSurface {
   /** Dynamic program details stay in the panel. */
   say(level: 'warning' | 'error', text: string): void
   sessionId(): string | undefined
+  readonly draftOutput?: () => GitDraftOutputPort | undefined
 }
 
 /** The pull request form as the user pressed Create on it. */
@@ -245,9 +258,9 @@ import {
 } from './exportConversation'
 import type { BestOfNManager } from '../bestOfN/bestOfNManager'
 import type * as SessionBoardBundle from '../sessionBoardEntry'
-import { uiLocale } from '../../shared/l10n/text'
+
 import type { BestOfNRun } from '../../shared/bestOfN'
-import type { SubagentUsage } from '../../shared/paid'
+
 import type { ResponseAttemptGuard } from '../../core/backends/modelapi/client'
 import { type AttentionNotice, attentionNotice, notifyOpenQuestions } from './turnNotifications'
 import { importRefusal, messageCount, type SessionExport } from '../../core/export/sessionTransfer'
@@ -496,6 +509,7 @@ export interface ConversationDeps {
   /** Session history (M6). */
   readonly sessions: SessionMemory
   /** The usage modal's Account section (M14). */
+  readonly readServiceStatus?: (() => Promise<unknown>) | undefined
   readonly accountFacts: (backend: BackendKind) => Promise<AccountFacts>
   /** The usage modal's insights from the CLI's trace logs (M14); undefined without logs. */
   readonly usageInsights: () => Promise<UsageInsightsReport | undefined>
@@ -509,7 +523,7 @@ export interface ConversationDeps {
    * the free engine is.
    */
   readonly museVoice: () => DictationSetup | undefined
-  readonly modelApiSessionBudgetUsd: () => number
+  readonly modelApiSessionBudgetUsd: () => UsdAmount
   /** Digest only; available before a conversation or workspace exists. */
   readonly voiceAccountId: () => Promise<string | undefined>
   readonly ownedVoiceBudgetScope: (
@@ -554,7 +568,7 @@ export interface ConversationDeps {
   readonly confirmScheduledRun?: (job: ScheduledPrompt, modelId: string) => Promise<boolean>
   readonly isScheduledPaidOn?: () => boolean
   /** The paid-use popup (M58, PLAN.md D48): before each Muse Voice recording. */
-  readonly allowsPaidUse: (request: PaidUseRequest) => Promise<boolean>
+  readonly allowsPaidUse: (request: PaidUseRequest) => Promise<PaidUseDecision>
   /** Turn checkpoints (M72): captured around each turn, restored from a user card. */
   readonly checkpoints: CheckpointPort
   /** Files open with unsaved changes, absolute (M72: a restore leaves them). */
@@ -592,7 +606,11 @@ export interface ConversationDeps {
   /** Whether a paid feature's setting is on and its price accepted (M77). */
   readonly isPaidFeatureOn: (feature: PaidFeature) => boolean
   /** Counts a paid use in the window's tally (M77). */
-  readonly notePaidUse: (feature: PaidFeature, units: number) => void
+  readonly notePaidUse: (
+    feature: PaidFeature,
+    units: number,
+    searchPriceUsd?: UsdAmount | SearchSettlement,
+  ) => void
   /** A Model API host rooted in a best-of-N worktree (M77). */
   readonly buildAttemptHost: (
     worktreeRoot: string,
@@ -1093,6 +1111,8 @@ export class ConversationController {
   private revertsInFlight = 0
   private turnSubmissionsInFlight = 0
   private turnStartEpoch = 0
+  private gitDraftSubmission:
+    { readonly session: AgentSession; readonly port: GitDraftOutputPort } | undefined
   private session: AgentSession | undefined
   private readonly questionApprovals = new Set<string>()
   private unsubscribe: (() => void) | undefined
@@ -1437,6 +1457,13 @@ export class ConversationController {
         }
       },
       sessionId: () => this.session?.sessionId,
+      draftOutput: () => {
+        this.gitDraftSubmission = undefined
+        const session = this.session
+        const port = session?.gitDraftOutput
+        if (session !== undefined && port !== undefined) this.gitDraftSubmission = { session, port }
+        return port
+      },
     })
   }
 
@@ -2287,6 +2314,9 @@ export class ConversationController {
   }
 
   private onEvent(event: AgentEvent): void {
+    // Draft parsing reads the original reply before asynchronous display hooks;
+    // its turn can finish while the presentation rewrite is still waiting.
+    this.git.onEvent(event)
     if (event.type === 'itemCompleted' && this.holdForMessageDisplay(event)) {
       return
     }
@@ -2437,7 +2467,6 @@ export class ConversationController {
         : event
     this.forward(shown)
     this.track(shown)
-    this.git.onEvent(shown)
   }
 
   /**
@@ -4308,7 +4337,7 @@ export class ConversationController {
         contextId: () =>
           `${String(this.sendInvalidationEpoch)}:${this.session?.sessionId ?? ''}:${String(this.isDisposed)}`,
         isBestOfNOn: () => this.deps.isPaidFeatureOn('bestOfN'),
-        allowsPaidUse: (request) => this.deps.allowsPaidUse(request),
+        allowsPaidUse: async (request) => (await this.deps.allowsPaidUse(request)) === true,
         notePaidUse: (attempts) => {
           this.deps.notePaidUse('bestOfN', attempts)
         },
@@ -6147,6 +6176,7 @@ export class ConversationController {
     isCurrent: () => boolean,
     dispatchState?: (outcome: QuestionDeliveryOutcome) => void,
     canStartTurn = true,
+    draft?: typeof this.gitDraftSubmission,
   ): Promise<TurnSubmission> {
     const registry = sessionQuestions.get(session)
     const notes = registry === undefined ? undefined : await registry.takeDismissals()
@@ -6164,6 +6194,7 @@ export class ConversationController {
         isCurrent,
         dispatch,
         canStartTurn,
+        draft,
       )
       outcome = 'taken'
       dispatchState?.(outcome)
@@ -6181,6 +6212,7 @@ export class ConversationController {
     isCurrent: () => boolean,
     dispatchState: (outcome: QuestionDeliveryOutcome) => void,
     canStartTurn: boolean,
+    draft?: typeof this.gitDraftSubmission,
   ): Promise<TurnSubmission> {
     if (!isCurrent()) {
       throw new Error(UI_TEXT.turnStoppedByRestart)
@@ -6220,6 +6252,10 @@ export class ConversationController {
     if (!canStartTurn) throw new Error(UI_TEXT.questionDismissFailed)
     dispatchState('uncertain')
     try {
+      if (draft !== undefined) {
+        if (draft.session !== session) throw new Error(UI_TEXT.gitDraftFailed)
+        if (draft.port.submit !== undefined) return await draft.port.submit(parts, displayText)
+      }
       return await session.sendTurn(parts, displayText)
     } catch (error: unknown) {
       if (isSessionNotLoadedError(error)) dispatchState('notTaken')
@@ -6325,7 +6361,8 @@ export class ConversationController {
     let seededSession: AgentSession | undefined
     // The running mark this message's turn takes over (M72), dropped if it is not sent.
     let checkpoint: PendingMark | undefined
-    const gitGeneration = gitDraft === undefined ? undefined : this.git.generationStarting(gitDraft)
+    let gitGeneration: number | undefined
+    let gitSubmission: typeof this.gitDraftSubmission
     let isGitSubmitted = false
     let hasSubmittedHandoff = false
     try {
@@ -6356,6 +6393,11 @@ export class ConversationController {
       }
       if (question !== undefined && question.session !== session)
         throw new Error(UI_TEXT.turnStoppedByRestart)
+      if (gitDraft !== undefined) {
+        gitGeneration = this.git.generationStarting(gitDraft)
+        gitSubmission = this.gitDraftSubmission
+        this.gitDraftSubmission = undefined
+      }
       this.turnSubmissionsInFlight += 1
       isCountedSubmission = true
       let expectedGeneration = this.attachmentGeneration
@@ -6496,7 +6538,9 @@ export class ConversationController {
           current,
           parts,
           displayText,
-          handoff !== undefined || (host.info.kind === 'museCode' && textFileNames.length > 0),
+          gitDraft !== undefined ||
+            handoff !== undefined ||
+            (host.info.kind === 'museCode' && textFileNames.length > 0),
           () =>
             !this.isDisposed &&
             this.sendInvalidationEpoch === sendEpoch &&
@@ -6507,6 +6551,8 @@ export class ConversationController {
             : (outcome) => {
                 question.outcome = outcome
               },
+          true,
+          gitSubmission,
         )
       })
       // A Git form may close while the submitted model call finishes. Its
@@ -8568,6 +8614,14 @@ export class ConversationController {
     this.latestUsage = subscription
     const shown = subscription
     const account = await this.deps.accountFacts(host.info.kind)
+    let serviceStatus
+    if (host.info.kind === 'modelApi' && this.deps.readServiceStatus !== undefined) {
+      try {
+        serviceStatus = modelApiStatusSchema.parse(await this.deps.readServiceStatus())
+      } catch {
+        // Public health is optional; unavailable health never replaces usage or breaks the dialog.
+      }
+    }
     const providers: ProviderUsageRow[] = []
     if (this.deps.usageRecording !== undefined) {
       try {
@@ -8603,6 +8657,7 @@ export class ConversationController {
     }
     this.post({
       type: 'usageReport',
+      ...(serviceStatus !== undefined && { serviceStatus }),
       backend: host.info.kind,
       account,
       ...(providers.length > 0 && { providers }),
@@ -8626,6 +8681,34 @@ export class ConversationController {
       return
     }
     try {
+      if (action === 'continue' || action === 'retry') {
+        const host = await this.deps.ensureHost()
+        const history = await host.readSession(session.sessionId)
+        if (!this.isCurrentSessionAction(session, generation)) return
+        const agent = history.items.findLast((item) => item.subagentId === subagentId)
+        const title = action === 'continue' ? UI_TEXT.agentContinue : UI_TEXT.agentRetry
+        if (
+          !(await this.deps.confirmFileAction(
+            title,
+            fill(UI_TEXT.agentRecoveryConfirm, {
+              action: title,
+              objective: agent?.objective ?? subagentId,
+            }),
+            title,
+          )) ||
+          !this.isCurrentSessionAction(session, generation)
+        )
+          return
+        const latest = await host.readSession(session.sessionId)
+        if (!this.isCurrentSessionAction(session, generation)) return
+        const current = latest.items.findLast((item) => item.subagentId === subagentId)
+        if (recoveryStamp(current) !== recoveryStamp(agent))
+          throw new Error(UI_TEXT.agentContinueUnavailable)
+        if (agent === undefined)
+          throw new Error(
+            action === 'retry' ? UI_TEXT.agentRetryUnavailable : UI_TEXT.agentContinueUnavailable,
+          )
+      }
       await session.controlSubagent(subagentId, action)
     } catch (error: unknown) {
       if (this.isCurrentSessionAction(session, generation)) {
@@ -8883,6 +8966,14 @@ export class ConversationController {
         return
       }
       const history = await host.readSession(sessionId)
+      const { agentReceiptFiles } = await import('../../core/agent/agentReceiptFiles')
+      const items = await agentReceiptFiles(history.items, (request) =>
+        this.outputReadSlots.run(
+          () => host.readSessionOutput(sessionId, request),
+          () => !this.isDisposed && generation === this.sendInvalidationEpoch,
+          () => new Error(UI_TEXT.questionCancelled),
+        ),
+      )
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }
@@ -8890,7 +8981,7 @@ export class ConversationController {
         type: 'childTranscript',
         sessionId,
         ...(history.name !== undefined && { name: history.name }),
-        items: [...history.items],
+        items: [...items],
       })
     } catch (error: unknown) {
       if (generation === this.sendInvalidationEpoch) {
@@ -8912,7 +9003,7 @@ export class ConversationController {
     if (
       museVoice !== undefined &&
       this.voiceIsModelApi() &&
-      this.deps.modelApiSessionBudgetUsd() > 0
+      Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0
     ) {
       return {
         engine: 'museVoice',
@@ -8936,7 +9027,7 @@ export class ConversationController {
     if (!this.voiceIsModelApi()) {
       return undefined
     }
-    if (this.deps.modelApiSessionBudgetUsd() > 0) {
+    if (Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0) {
       throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
     }
     const workspaceRoot = this.deps.workspaceRoot
@@ -9085,7 +9176,7 @@ export class ConversationController {
           throw new Error(UI_TEXT.sessionBudgetVoiceContextChanged)
         }
         if (!isSending) return
-        if (isModelApi && this.deps.modelApiSessionBudgetUsd() > 0) {
+        if (isModelApi && Usd.from(this.deps.modelApiSessionBudgetUsd()).compare(Usd.from(0)) > 0) {
           throw new Error(UI_TEXT.sessionBudgetVoiceUnavailable)
         }
         const current = this.dictationChoice()
@@ -9099,7 +9190,7 @@ export class ConversationController {
       }
       consentFence(accountId, true)
       // Each Muse Voice recording is paid: the popup first (M58, PLAN.md D48).
-      const isAllowed = await this.deps.allowsPaidUse({ feature: 'voice' })
+      const isAllowed = (await this.deps.allowsPaidUse({ feature: 'voice' })) === true
       if (!isAllowed || !isCurrent() || scope?.isStillAllowed(accountId) === false) {
         this.postDictationState()
         return
@@ -10059,6 +10150,18 @@ export class ConversationController {
    * panel on it: restarted already when no turn ran, or, in a panel whose
    * turn runs, the offer to restart it (D26's Restart, which stops the turn).
    */
+  /** A final Meta 5xx has a fixed, translated status action; no service prose. */
+  public modelApiServiceFailed(): void {
+    if ((this.sessionKind ?? this.resumeTarget?.kind ?? this.deps.auth.backend) !== 'modelApi')
+      return
+    this.post({
+      type: 'notice',
+      level: 'warning',
+      text: UI_TEXT.modelApiServiceFailure,
+      actions: ['openModelApiStatus'],
+    })
+  }
+
   public museCodeStoppedAnswering(isRestarted: boolean): void {
     if ((this.sessionKind ?? this.resumeTarget?.kind ?? this.deps.auth.backend) !== 'museCode') {
       return

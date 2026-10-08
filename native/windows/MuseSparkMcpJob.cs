@@ -79,6 +79,8 @@ public static class MuseSparkMcpJob {
     out IntPtr targetHandle, uint access, bool inherit, uint options);
   [DllImport("kernel32.dll", SetLastError = true)]
   static extern bool CloseHandle(IntPtr handle);
+  [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+  static extern void GetStartupInfoW(out STARTUPINFO startup);
 
   const uint CREATE_SUSPENDED = 0x4;
   const uint CREATE_NO_WINDOW = 0x08000000;
@@ -182,16 +184,32 @@ public static class MuseSparkMcpJob {
     ulong jobMemoryLimit) {
 
     return Run(executable, arguments, cwd, parentPid, childEnvironment, verbatimArguments,
-      controlPipe, controlNonce, jobMemoryLimit, null);
+      controlPipe, controlNonce, jobMemoryLimit, false, null);
   }
 
   public static int Run(string executable, string[] arguments, string cwd, uint parentPid,
     string[] childEnvironment, bool verbatimArguments, string controlPipe, string controlNonce,
     ulong jobMemoryLimit, Action<uint, IntPtr> beforeResume) {
+    return Run(executable, arguments, cwd, parentPid, childEnvironment, verbatimArguments,
+      controlPipe, controlNonce, jobMemoryLimit, false, beforeResume);
+  }
+
+  public static int Run(string executable, string[] arguments, string cwd, uint parentPid,
+    string[] childEnvironment, bool verbatimArguments, string controlPipe, string controlNonce,
+    ulong jobMemoryLimit, bool debugPipes) {
+    return Run(executable, arguments, cwd, parentPid, childEnvironment, verbatimArguments,
+      controlPipe, controlNonce, jobMemoryLimit, debugPipes, null);
+  }
+
+  public static int Run(string executable, string[] arguments, string cwd, uint parentPid,
+    string[] childEnvironment, bool verbatimArguments, string controlPipe, string controlNonce,
+    ulong jobMemoryLimit, bool debugPipes, Action<uint, IntPtr> beforeResume) {
     IntPtr job = IntPtr.Zero, input = IntPtr.Zero, output = IntPtr.Zero, error = IntPtr.Zero;
     IntPtr parent = IntPtr.Zero;
     IntPtr attributeList = IntPtr.Zero, handleList = IntPtr.Zero;
     IntPtr environmentBlock = IntPtr.Zero;
+    IntPtr descriptors = IntPtr.Zero;
+    var extraHandles = new List<IntPtr>();
     bool attributesReady = false;
     PROCESS_INFORMATION process = new PROCESS_INFORMATION();
     bool created = false, assigned = false;
@@ -201,7 +219,8 @@ public static class MuseSparkMcpJob {
       if (WaitForSingleObject(parent, 0) != WAIT_TIMEOUT)
         throw new Exception("creating Node process has already exited");
       ConfirmOwner(controlPipe, controlNonce, parent);
-      job = CreateJobObjectW(IntPtr.Zero, "Local\\MuseSparkMcp-" + Guid.NewGuid().ToString("N"));
+      // C1: the private launch pipe also names the job the owner's registry queries.
+      job = CreateJobObjectW(IntPtr.Zero, "Local\\" + controlPipe);
       if (job == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
       var limits = new EXTENDED_LIMITS();
       limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
@@ -221,13 +240,38 @@ public static class MuseSparkMcpJob {
       if (!InitializeProcThreadAttributeList(attributeList, 1, 0, ref attributeSize))
         throw new Win32Exception(Marshal.GetLastWin32Error());
       attributesReady = true;
-      handleList = Marshal.AllocHGlobal(IntPtr.Size * 3);
-      Marshal.WriteIntPtr(handleList, 0, input);
-      Marshal.WriteIntPtr(handleList, IntPtr.Size, output);
-      Marshal.WriteIntPtr(handleList, IntPtr.Size * 2, error);
+      var inherited = new List<IntPtr> { input, output, error };
+      if (debugPipes) {
+        STARTUPINFO incoming;
+        GetStartupInfoW(out incoming);
+        int descriptorBytes = 4 + 5 + 5 * IntPtr.Size;
+        if (incoming.lpReserved2 == IntPtr.Zero || incoming.cbReserved2 != descriptorBytes ||
+            Marshal.ReadInt32(incoming.lpReserved2) != 5)
+          throw new InvalidDataException("invalid CDP descriptor table");
+        descriptors = Marshal.AllocHGlobal(descriptorBytes);
+        Marshal.WriteInt32(descriptors, 5);
+        for (int index = 0; index < 5; index++) {
+          IntPtr handle;
+          if (index < 3) handle = inherited[index];
+          else {
+            IntPtr source = Marshal.ReadIntPtr(incoming.lpReserved2, 9 + index * IntPtr.Size);
+            if (source == IntPtr.Zero || source == new IntPtr(-1))
+              throw new InvalidDataException("missing CDP pipe");
+            if (!DuplicateHandle(GetCurrentProcess(), source, GetCurrentProcess(), out handle,
+                0, true, DUPLICATE_SAME_ACCESS)) throw new Win32Exception(Marshal.GetLastWin32Error());
+            extraHandles.Add(handle);
+            inherited.Add(handle);
+          }
+          Marshal.WriteByte(descriptors, 4 + index, Marshal.ReadByte(incoming.lpReserved2, 4 + index));
+          Marshal.WriteIntPtr(descriptors, 9 + index * IntPtr.Size, handle);
+        }
+      }
+      handleList = Marshal.AllocHGlobal(IntPtr.Size * inherited.Count);
+      for (int index = 0; index < inherited.Count; index++)
+        Marshal.WriteIntPtr(handleList, IntPtr.Size * index, inherited[index]);
       if (!UpdateProcThreadAttribute(attributeList, 0,
         new IntPtr(PROC_THREAD_ATTRIBUTE_HANDLE_LIST), handleList,
-        new IntPtr(IntPtr.Size * 3), IntPtr.Zero, IntPtr.Zero))
+        new IntPtr(IntPtr.Size * inherited.Count), IntPtr.Zero, IntPtr.Zero))
         throw new Win32Exception(Marshal.GetLastWin32Error());
       var startup = new STARTUPINFOEX();
       startup.StartupInfo.cb = (uint)Marshal.SizeOf(typeof(STARTUPINFOEX));
@@ -235,6 +279,10 @@ public static class MuseSparkMcpJob {
       startup.StartupInfo.hStdInput = input;
       startup.StartupInfo.hStdOutput = output;
       startup.StartupInfo.hStdError = error;
+      if (debugPipes) {
+        startup.StartupInfo.cbReserved2 = (ushort)(4 + 5 + 5 * IntPtr.Size);
+        startup.StartupInfo.lpReserved2 = descriptors;
+      }
       startup.lpAttributeList = attributeList;
       environmentBlock = EnvironmentBlock(childEnvironment);
       var command = new StringBuilder(Quote(executable));
@@ -265,6 +313,8 @@ public static class MuseSparkMcpJob {
       if (input != IntPtr.Zero) CloseHandle(input);
       if (output != IntPtr.Zero) CloseHandle(output);
       if (error != IntPtr.Zero) CloseHandle(error);
+      foreach (IntPtr handle in extraHandles) CloseHandle(handle);
+      if (descriptors != IntPtr.Zero) Marshal.FreeHGlobal(descriptors);
       if (attributesReady) DeleteProcThreadAttributeList(attributeList);
       if (attributeList != IntPtr.Zero) Marshal.FreeHGlobal(attributeList);
       if (handleList != IntPtr.Zero) Marshal.FreeHGlobal(handleList);

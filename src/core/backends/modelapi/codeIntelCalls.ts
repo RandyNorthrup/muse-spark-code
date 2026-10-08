@@ -11,7 +11,7 @@
 
 import {
   FILE_REFUSAL_MODEL_TEXT,
-  MODEL_API_MODEL_TEXT,
+  CODE_INTEL_MODEL_TEXT,
   RENAME_CARD_FILES_SHOWN,
   UI_TEXT,
 } from '../../../shared/constants'
@@ -110,8 +110,8 @@ export interface RenameWriteContext {
   readonly workspaceRoot: string
   readonly platform: NodeJS.Platform
   readonly io: ToolIo
-  /** The session's fingerprints of what the model last read or wrote (D27). */
-  readonly seen: Map<string, string>
+  /** Call-owned write fingerprints, committed by the dispatcher with its result. */
+  readonly provisionalSeen: Map<string, string>
   /** The turn's: a Stop before the first write writes nothing. */
   readonly signal: AbortSignal
   /** The Model API's live file policy, before each disk read and write. */
@@ -171,7 +171,7 @@ async function recheck(file: RenameFile, context: RenameWriteContext): Promise<R
     ? { ok: true, key: resolved.absolute }
     : {
         ok: false,
-        outcome: failed(fill(MODEL_API_MODEL_TEXT.renameChanged, { path: file.relative })),
+        outcome: failed(fill(CODE_INTEL_MODEL_TEXT.renameChanged, { path: file.relative })),
         changedPath: file.relative,
       }
 }
@@ -238,13 +238,13 @@ export async function applyRename(
       if (written.length === 0) return result.outcome
       return result.refusalReason === undefined
         ? partial(
-            MODEL_API_MODEL_TEXT.renameChangedPartway,
+            CODE_INTEL_MODEL_TEXT.renameChangedPartway,
             { path: result.changedPath ?? file.relative },
             plan,
             written,
           )
         : partial(
-            MODEL_API_MODEL_TEXT.renamePartial,
+            CODE_INTEL_MODEL_TEXT.renamePartial,
             { path: file.relative, reason: result.refusalReason },
             plan,
             written,
@@ -264,17 +264,17 @@ export async function applyRename(
     } catch (error: unknown) {
       const reason = error instanceof Error ? error.message : String(error)
       return partial(
-        MODEL_API_MODEL_TEXT.renamePartial,
+        CODE_INTEL_MODEL_TEXT.renamePartial,
         { path: file.relative, reason },
         plan,
         written,
       )
     }
     written.push(file)
-    context.seen.set(result.key, fingerprint(file.after))
+    context.provisionalSeen.set(result.key, fingerprint(file.after))
     context.onWritten?.(file)
   }
-  const output = fill(MODEL_API_MODEL_TEXT.renameDone, {
+  const output = fill(CODE_INTEL_MODEL_TEXT.renameDone, {
     from: plan.from,
     to: plan.to,
     edits: String(plan.edits),

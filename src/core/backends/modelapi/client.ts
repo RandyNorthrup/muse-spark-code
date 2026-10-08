@@ -1,8 +1,9 @@
-// A thin, schema-validated client for the four Model API endpoints the
-// backend uses (PLAN.md D2): `GET /models`, `POST /responses/input_tokens`,
-// the streamed `POST /responses` and `POST /images/generations` (M34).
+import { PaidAuthority } from '../../paid/paidAuthority'
+// A thin, schema-validated Model API client (PLAN.md D2, M34, D86.6):
+// models, token counts, streamed responses, generated/edited images and
+// public service health.
 // Errors follow the documented envelope and retry policy
-// (dev.meta.ai/docs/error-handling): 429 / 500 / 503 are
+// (PLAN.md D86.6): 429 / 500 / 502 / 503 / 504 are
 // retried with exponential backoff and jitter, honouring `Retry-After`,
 // before any of the response has been read; everything else surfaces as a
 // `ModelApiError`. `fetch`, the clock and the key are injected.
@@ -12,12 +13,14 @@ import {
   ignoreClosingError,
   ModelApiError,
   parseJsonResponse,
+  readBoundedText,
   redactModelApiError,
   redactStreamDiagnostics,
   type ConfirmedModelRequest,
   type ResponseAttemptGuard,
   type RetryBudget,
   type RetryNotice,
+  retryAfterMs,
 } from './transport'
 export {
   MissingApiKeyError,
@@ -35,15 +38,15 @@ export {
 import type { ProviderClient as TransportProviderClient } from './providerClient'
 import type { PlanUsageRow } from '../../../shared/usage'
 import type { ModelResolver } from './modelPolicy'
-import type { PaidFeature } from '../../../shared/constants'
-import type { SessionBudgetClaim } from './sessionBudget'
-import { estimateCostUsd } from '../../usage/insights'
-
 import {
+  type PaidFeature,
+  MODEL_API_BASE_URL,
   IMAGE_REQUEST_TIMEOUT_MS,
   MODEL_API_REQUEST_TIMEOUT_MS,
   UI_TEXT,
 } from '../../../shared/constants'
+import { estimateInput, requestParts, searchAllowanceUsd } from './sessionBudget'
+
 import type { CoreLogger } from '../../logging'
 import type { NetworkAdvice } from '../../networkFailure'
 import {
@@ -55,16 +58,48 @@ import {
   imagesResponseSchema,
   inputTokensSchema,
   modelListSchema,
+  modelApiStatusSchema,
   type StreamEvent,
   streamEventSchema,
 } from './schemas'
 import { parseSse } from './sse'
+import { estimateCostUsd, formatUsd, type BillableUsage } from '../../usage/insights'
+import { webSearchPriceUsd } from '../../paid/paidFeatures'
+import { modelApiPaidTier, type PaidQuote, type SearchSettlement } from '../../../shared/paid'
+import { Usd, sumUsd, multiplyUsd, usdAmountSchema, type UsdAmount } from '../../../shared/usd'
+
+/** The client needs admission and settlement, not the ledger's internal totals. */
+interface PaidRequestClaim {
+  readonly reservedUsd: UsdAmount
+  check(capUsd: UsdAmount): void
+  settle(actualCostUsd: UsdAmount, hasUnknownCost?: boolean): Promise<unknown>
+}
+
+import { redactSecrets } from '../../redact'
+import { fill } from '../../../shared/l10n/text'
+
+import type { PacingProvider, RequestPacer } from './pacing'
+import { fanOutPacingClass } from './subagentTools'
 
 /** Public transport contract shared by Meta, plan clients and host adapters. */
 export type ProviderClient = Pick<
   ModelApiClient,
-  Exclude<keyof ModelApiClient, 'provider' | 'capabilities'>
+  Exclude<
+    keyof ModelApiClient,
+    | 'provider'
+    | 'capabilities'
+    | 'providerId'
+    | 'searchPriceUsd'
+    | 'inheritSearchQuote'
+    | 'releaseSearchQuotes'
+    | 'readServiceStatus'
+  >
 > & {
+  readonly providerId?: ModelApiClient['providerId']
+  readonly searchPriceUsd?: ModelApiClient['searchPriceUsd']
+  readonly inheritSearchQuote?: ModelApiClient['inheritSearchQuote']
+  readonly releaseSearchQuotes?: ModelApiClient['releaseSearchQuotes']
+  readonly readServiceStatus?: ModelApiClient['readServiceStatus']
   readonly provider?: TransportProviderClient['provider']
   readonly models?: ModelResolver
   readonly modelContextLimit?: (model: string) => number | undefined
@@ -73,13 +108,34 @@ export type ProviderClient = Pick<
 }
 
 export interface ModelApiClientDeps {
+  readonly paidAuthority?: PaidAuthority
+  /** Share across clients for one process; omitted clients own a bucket themselves. */
+  readonly pacing?: RequestPacer
+  /** One owner shares limits across its normal and best-of-N clients. */
+  readonly pacingOwner?: object
+  /** M95 binding: project the selected record's provider and captured header interpreter. */
+  readonly pacingProvider?: (modelId: string | undefined) => PacingProvider
+  /** M101 binding: FormatQuirks.retry's classification, after its quota fences. */
+  readonly isRetryableFailure?: (
+    failure: ModelApiError,
+    retryAfterMs: number | undefined,
+  ) => boolean
+  /** The host presents a 5xx banner with this public link; no response text crosses this port. */
+  readonly onServiceFailure?: (status: number, statusUrl: string) => void
   /** Interactive VS Code extras only; ACP/headless clients omit this port. */
   readonly reservePaidRequest?: (
     body: CreateResponseBody | CreateImageBody,
     feature: PaidFeature,
     estimatedInputTokens?: number,
     signal?: AbortSignal,
-  ) => Promise<SessionBudgetClaim | undefined>
+    /** M106: tokens plus the verified hosted-call allowance, computed in this bundle. */
+    reservationUsd?: UsdAmount,
+  ) => Promise<PaidRequestClaim | undefined>
+  /** M95 integration: a provider's verified hosted-search tariff, never a fallback estimate. */
+  readonly providerId?: ((modelId: string) => string) | undefined
+  readonly webSearchPriceUsd?: (modelId: string) => UsdAmount | undefined
+  /** M95's verified token pricing; an unpriced provider cannot spend under a search cap. */
+  readonly searchTokenCostUsd?: (usage: BillableUsage, modelId: string) => UsdAmount | undefined
   readonly fetch: typeof fetch
   readonly baseUrl: string
   /** Read per request so a key pasted later applies without a restart. */
@@ -90,7 +146,7 @@ export interface ModelApiClientDeps {
   /** 0 ≤ n < 1, for the retry jitter; injected so tests are deterministic. */
   readonly random: () => number
   readonly log: CoreLogger
-  /** How long a reply stream may send nothing; the constant unless a test shortens it. */
+  /** Idle limit for headers and all response-body reads; tests may shorten it. */
   readonly streamIdleMs?: number
   /**
    * Whose settings a request that never reached Meta names (M56): VS Code's
@@ -104,6 +160,7 @@ const EVENT_STREAM_MEDIA_TYPE = 'text/event-stream'
 const SSE_DONE_SENTINEL = '[DONE]'
 
 export class ModelApiClient implements TransportProviderClient {
+  private searchClaimSequence = 0
   private readonly ignoredEventTypes = new Set<string>()
   private readonly transport: RequestTransport
   public readonly provider
@@ -141,6 +198,7 @@ export class ModelApiClient implements TransportProviderClient {
         {
           method: 'POST',
           body,
+          modelId: body.model,
           accept: JSON_MEDIA_TYPE,
           retries: 'rateLimitOnly',
           ...(paid !== undefined && { paid }),
@@ -153,19 +211,76 @@ export class ModelApiClient implements TransportProviderClient {
       const parsed = await parseJsonResponse(result, (json) => imagesResponseSchema.parse(json))
       // The request asks for one image; ambiguous results retain their flat fee.
       if (claim !== undefined) {
-        await claim.settle(parsed.data.length === 0 ? 0 : claim.reservedUsd)
+        await claim.settle(Usd.from(parsed.data.length === 0 ? 0 : claim.reservedUsd).toAmount())
       }
       return parsed
     } finally {
       if (paid?.isSent === false) {
-        await paid.claim.settle(0)
+        await paid.claim.settle(Usd.from(0).toAmount())
       }
     }
+  }
+
+  private searchTokenCostUsd(
+    usage: BillableUsage,
+    modelId: string,
+    unknownChargeUsd?: UsdAmount,
+  ): UsdAmount {
+    const knownCost =
+      modelApiPaidTier(modelId) === undefined ? undefined : estimateCostUsd(usage, modelId)
+    const cost =
+      this.deps.searchTokenCostUsd === undefined
+        ? knownCost
+        : this.deps.searchTokenCostUsd(usage, modelId)
+    if (
+      cost === undefined ||
+      !usdAmountSchema.safeParse(cost).success ||
+      Usd.from(cost).compare(Usd.from(0)) < 0
+    ) {
+      throw new Error(
+        unknownChargeUsd === undefined
+          ? fill(UI_TEXT.sessionBudgetUnpriced, { model: modelId })
+          : fill(UI_TEXT.sessionBudgetUnknownCharge, { amount: formatUsd(unknownChargeUsd) }),
+      )
+    }
+    return Usd.from(cost).toAmount()
+  }
+
+  /** Children inherit their parent's token through the same authority. */
+  public inheritSearchQuote(parent: PaidQuote, quote: PaidQuote): boolean {
+    return this.deps.paidAuthority?.inherit(parent, quote) ?? true
+  }
+
+  public releaseSearchQuotes(
+    conversationId: string,
+    retainedQuoteIds: readonly string[] = [],
+  ): void {
+    this.deps.paidAuthority?.releaseConversation(conversationId, retainedQuoteIds)
   }
 
   /** Whether interactive extras have a finite daily admission port (D78). */
   public get hasPaidDailyBudget(): boolean {
     return this.deps.reservePaidRequest !== undefined
+  }
+
+  public providerId(modelId: string): string {
+    return this.deps.providerId?.(modelId) ?? new URL(this.deps.baseUrl).origin
+  }
+
+  public searchPriceUsd(modelId: string): UsdAmount | undefined {
+    try {
+      const price =
+        this.deps.webSearchPriceUsd === undefined
+          ? webSearchPriceUsd(modelId)
+          : this.deps.webSearchPriceUsd(modelId)
+      return price !== undefined &&
+        usdAmountSchema.safeParse(price).success &&
+        !price.startsWith('-')
+        ? price
+        : undefined
+    } catch {
+      return undefined
+    }
   }
 
   /** Bind a one-use child consent to the stored key without retaining it. */
@@ -195,6 +310,45 @@ export class ModelApiClient implements TransportProviderClient {
     return parsed.data.map((model) => result.redact(model.id))
   }
 
+  /** Public, non-inference health read. The status capture required no authentication. */
+  public async readServiceStatus(
+    signal?: AbortSignal,
+  ): Promise<ReturnType<typeof modelApiStatusSchema.parse>> {
+    if ((this.deps.pacingProvider?.(undefined).identity.provider ?? 'meta') !== 'meta') {
+      throw new Error(UI_TEXT.modelApiStatusUnavailable)
+    }
+    let status = 0
+    let retryAfter: number | undefined
+    try {
+      const response = await this.transport.fetchWithIdleDeadline(`${MODEL_API_BASE_URL}/status`, {
+        method: 'GET',
+        headers: { Accept: JSON_MEDIA_TYPE },
+        signal: AbortSignal.any([
+          AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS),
+          ...(signal === undefined ? [] : [signal]),
+        ]),
+      })
+      status = response.status
+      retryAfter = retryAfterMs(response.headers.get('retry-after'), this.deps.now())
+      if (!response.ok) {
+        void response.body?.cancel().catch(ignoreClosingError)
+        throw new Error(UI_TEXT.modelApiStatusUnavailable)
+      }
+      // Bounded like every other Model API body: an oversized status page is
+      // cancelled at the cap instead of being buffered whole before zod runs.
+      return modelApiStatusSchema.parse(JSON.parse(await readBoundedText(response)))
+    } catch {
+      // Shared scrubber plus an allowlist: provider prose, identifiers, stack and causes never cross.
+      const failure = new ModelApiError(
+        redactSecrets(UI_TEXT.modelApiStatusUnavailable),
+        status,
+        'service_status',
+        undefined,
+      )
+      throw Object.assign(failure, { retryAfterMs: retryAfter })
+    }
+  }
+
   /** Tokens the rendered input would occupy; not billed (dev.meta.ai/docs/token-counting). */
   public async countInputTokens(
     body: Omit<CreateResponseBody, 'stream'>,
@@ -203,7 +357,7 @@ export class ModelApiClient implements TransportProviderClient {
     const deadline = AbortSignal.timeout(MODEL_API_REQUEST_TIMEOUT_MS)
     const result = await this.transport.request(
       '/responses/input_tokens',
-      { method: 'POST', body, accept: JSON_MEDIA_TYPE },
+      { method: 'POST', body, modelId: body.model, accept: JSON_MEDIA_TYPE },
       signal === undefined ? deadline : AbortSignal.any([signal, deadline]),
     )
     return await parseJsonResponse(result, (json) => inputTokensSchema.parse(json).input_tokens)
@@ -257,6 +411,24 @@ export class ModelApiClient implements TransportProviderClient {
     if (feature === undefined && body.tools.some((tool) => tool.type === 'web_search')) {
       feature = 'webSearch'
     }
+    const hasSearch = body.tools.some((tool) => tool.type === 'web_search')
+    const searchQuote = admitAttempt?.searchQuote
+    const searchPrice =
+      searchQuote?.tariffUsd ?? (hasSearch ? this.searchPriceUsd(body.model) : undefined)
+    let reservationUsd: UsdAmount | undefined
+    if (hasSearch && this.hasPaidDailyBudget) {
+      if (body.max_tool_calls === undefined) throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+      const inputTokens =
+        admitAttempt?.paidEstimatedInputTokens ??
+        estimateInput(requestParts(body), undefined).inputTokens
+      reservationUsd = sumUsd(
+        this.searchTokenCostUsd(
+          { inputTokens, outputTokens: body.max_output_tokens, cachedTokens: 0 },
+          body.model,
+        ),
+        searchAllowanceUsd(body.max_tool_calls, searchPrice),
+      )
+    }
     const claim =
       feature === undefined
         ? undefined
@@ -265,12 +437,82 @@ export class ModelApiClient implements TransportProviderClient {
             feature,
             admitAttempt?.paidEstimatedInputTokens,
             signal,
+            reservationUsd,
           )
     const paid = claim === undefined ? undefined : { claim, isSent: false }
+    const authority = this.deps.paidAuthority ?? new PaidAuthority()
+    const claimId =
+      searchQuote === undefined
+        ? undefined
+        : `${searchQuote.id}:${String(this.searchClaimSequence++)}`
+    const searchItems = new Set<string>()
+    let returnedSearches = 0
+    let searchCharge: SearchSettlement | undefined
+    const returnedFees = () =>
+      searchCharge?.costUsd ?? multiplyUsd(searchPrice ?? Usd.from(0).toAmount(), returnedSearches)
+    const returnedLiability = (reservedUsd: UsdAmount, shouldKeepAllowance: boolean) =>
+      sumUsd(
+        reservedUsd,
+        shouldKeepAllowance && returnedSearches <= (body.max_tool_calls ?? 0)
+          ? Usd.from(0).toAmount()
+          : Usd.from(returnedFees())
+              .subtract(
+                Usd.from(
+                  multiplyUsd(searchPrice ?? Usd.from(0).toAmount(), body.max_tool_calls ?? 0),
+                ),
+              )
+              .toAmount(),
+      )
+    const noteReturned = (isTerminal: boolean) => {
+      if (searchQuote === undefined || claimId === undefined) return
+      const effects = authority.dispatch({
+        type: 'settle',
+        claimId,
+        returnedCalls: returnedSearches,
+        isTerminal,
+      })
+      for (const effect of effects) {
+        if (effect.type === 'settled') searchCharge = effect.settlement
+      }
+      if (searchCharge !== undefined) admitAttempt?.onSearchesReturned?.(searchCharge)
+    }
+    let hasTerminal = false
+    let hasTerminalSearchCount = false
+    const noteSearchAnomaly = () => {
+      if (body.max_tool_calls !== undefined && returnedSearches > body.max_tool_calls) {
+        this.deps.log.warn(
+          `Hosted search returned ${String(returnedSearches)} calls above its bound of ${String(body.max_tool_calls)}; all calls are charged`,
+        )
+      }
+    }
     try {
+      if (searchQuote !== undefined && claimId !== undefined) {
+        if (this.deps.paidAuthority === undefined) {
+          const grant = { quote: searchQuote, generation: 'caller' }
+          authority.dispatch({ type: 'quote', ...grant, ask: true })
+          authority.dispatch({ type: 'answer', grant, answer: 'once' })
+        } else if (!authority.canSpend(searchQuote))
+          throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+        authority.dispatch({
+          type: 'reserve',
+          claimId,
+          quote: searchQuote,
+          reservedUsd: claim?.reservedUsd ?? searchAllowanceUsd(body.max_tool_calls, searchPrice),
+        })
+      }
       const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
         '/responses',
-        { body, accept: EVENT_STREAM_MEDIA_TYPE, ...(paid !== undefined && { paid }) },
+        {
+          body,
+          accept: EVENT_STREAM_MEDIA_TYPE,
+          modelId: body.model,
+          pacingClass: admitAttempt?.pacingClass ?? fanOutPacingClass(feature),
+          estimatedTokens:
+            (admitAttempt?.paidEstimatedInputTokens ??
+              new TextEncoder().encode(JSON.stringify([body.input, body.instructions, body.tools]))
+                .length) + body.max_output_tokens,
+          ...(paid !== undefined && { paid }),
+        },
         signal,
         onRetry,
         budget,
@@ -315,15 +557,35 @@ export class ModelApiClient implements TransportProviderClient {
             eventParsed(known.data)
             const event = redactStreamDiagnostics(known.data, redact)
             if (
-              claim !== undefined &&
+              known.data.type === 'response.output_item.done' &&
+              known.data.item.type === 'web_search_call'
+            ) {
+              searchItems.add(
+                known.data.item.id ??
+                  (known.data.output_index === undefined
+                    ? `unidentified:${String(searchItems.size)}`
+                    : `index:${String(known.data.output_index)}`),
+              )
+              returnedSearches = searchItems.size
+              noteReturned(false)
+            }
+            if (
               ['response.completed', 'response.incomplete', 'response.failed'].includes(
                 known.data.type,
               ) &&
               'response' in known.data
             ) {
+              returnedSearches = Math.max(
+                returnedSearches,
+                known.data.response.output.filter((item) => item.type === 'web_search_call').length,
+              )
+              hasTerminalSearchCount = true
+              noteReturned(true)
+              noteSearchAnomaly()
               const usage = known.data.response.usage
               const cached = usage?.input_tokens_details?.cached_tokens ?? 0
               if (
+                claim !== undefined &&
                 usage !== null &&
                 usage !== undefined &&
                 Number.isSafeInteger(usage.input_tokens) &&
@@ -334,17 +596,27 @@ export class ModelApiClient implements TransportProviderClient {
                 cached >= 0 &&
                 cached <= usage.input_tokens
               ) {
+                const billable = {
+                  inputTokens: usage.input_tokens,
+                  outputTokens: usage.output_tokens,
+                  cachedTokens: cached,
+                }
                 await claim.settle(
-                  estimateCostUsd(
-                    {
-                      inputTokens: usage.input_tokens,
-                      outputTokens: usage.output_tokens,
-                      cachedTokens: cached,
-                    },
-                    body.model,
+                  sumUsd(
+                    hasSearch
+                      ? this.searchTokenCostUsd(
+                          billable,
+                          body.model,
+                          returnedLiability(claim.reservedUsd, false),
+                        )
+                      : estimateCostUsd(billable, body.model),
+                    returnedFees(),
                   ),
                 )
+              } else if (claim !== undefined && hasSearch && body.max_tool_calls !== undefined) {
+                await claim.settle(returnedLiability(claim.reservedUsd, false))
               }
+              hasTerminal = true
             }
             yield event
             continue
@@ -376,8 +648,13 @@ export class ModelApiClient implements TransportProviderClient {
         void frames.return(undefined).catch(ignoreClosingError)
       }
     } finally {
-      if (paid?.isSent === false) {
-        await paid.claim.settle(0)
+      if (!hasTerminal) noteSearchAnomaly()
+      if (paid?.isSent === false) await paid.claim.settle(Usd.from(0).toAmount())
+      else if (paid !== undefined && hasSearch && !hasTerminal) {
+        await paid.claim.settle(
+          returnedLiability(paid.claim.reservedUsd, !hasTerminalSearchCount),
+          !hasTerminalSearchCount,
+        )
       }
     }
   }

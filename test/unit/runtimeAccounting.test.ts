@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { fork } from 'node:child_process'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -60,13 +61,11 @@ describe('standalone daily admission', () => {
   it('refuses admission itself when full, before a final dispatch fence', async () => {
     const root = folder()
     writeFileSync(path.join(root, 'settings.json'), '{"paidDailyBudgetUsd":1}')
-    const daily = createRuntimeDailyBudget({
-      dataFolder: root,
-      now: () => Date.now(),
-      sleep: delay,
-    })
-    await daily.reserve(1, new AbortController().signal)
-    await expect(daily.reserve(1, new AbortController().signal)).rejects.toThrow()
+    const daily = dailyBudgetAt(root)
+    await daily.reserve(Usd.from(1).toAmount(), new AbortController().signal)
+    await expect(
+      daily.reserve(Usd.from(1).toAmount(), new AbortController().signal),
+    ).rejects.toThrow()
   })
   it.each([false, true])(
     'settles verified usage and retains unpriced liability (missing usage: %s)',
@@ -84,9 +83,12 @@ describe('standalone daily admission', () => {
       )
       await Array.fromAsync(client.streamResponse(body, new AbortController().signal))
       expect(api.responseBodies()).toHaveLength(1)
-      const next = daily.reserve(4.99, new AbortController().signal)
+      const next = daily.reserve(Usd.from(4.99).toAmount(), new AbortController().signal)
       if (omitUsage) await expect(next).rejects.toThrow()
-      else await expect(next).resolves.toEqual(expect.objectContaining({ reservedUsd: 4.99 }))
+      else
+        await expect(next).resolves.toEqual(
+          expect.objectContaining({ reservedUsd: Usd.from(4.99).toAmount() }),
+        )
     },
   )
   it('rechecks a reduced cap and a changed local day at dispatch', async () => {
@@ -94,12 +96,12 @@ describe('standalone daily admission', () => {
     let now = new Date(2026, 9, 6, 12).getTime()
     writeFileSync(path.join(root, 'settings.json'), '{"paidDailyBudgetUsd":1}')
     const daily = createRuntimeDailyBudget({ dataFolder: root, now: () => now, sleep: delay })
-    const claim = await daily.reserve(1, new AbortController().signal)
+    const claim = await daily.reserve(Usd.from(1).toAmount(), new AbortController().signal)
     writeFileSync(path.join(root, 'settings.json'), '{"paidDailyBudgetUsd":0.5}')
-    expect(() => claim.check(0)).toThrow()
+    expect(() => claim.check(Usd.from(0).toAmount())).toThrow()
     writeFileSync(path.join(root, 'settings.json'), '{"paidDailyBudgetUsd":1}')
     now += 86_400_000
-    expect(() => claim.check(0)).toThrow()
+    expect(() => claim.check(Usd.from(0).toAmount())).toThrow()
   })
   it('serializes two processes racing the last dollar', async () => {
     const root = folder()
@@ -149,12 +151,8 @@ describe('standalone daily admission', () => {
   it('refuses before shared transport dispatch when the daily ledger is full', async () => {
     const root = folder()
     writeFileSync(path.join(root, 'settings.json'), JSON.stringify({ paidDailyBudgetUsd: 1 }))
-    const daily = createRuntimeDailyBudget({
-      dataFolder: root,
-      now: () => Date.now(),
-      sleep: delay,
-    })
-    await daily.reserve(1, new AbortController().signal)
+    const daily = dailyBudgetAt(root)
+    await daily.reserve(Usd.from(1).toAmount(), new AbortController().signal)
     const api = fakeModelApi()
     api.script({ text: 'done' })
     const client = withRuntimeAccounting(fakeModelApiClient(api, new FakeLogOutputChannel()), daily)
@@ -165,14 +163,10 @@ describe('standalone daily admission', () => {
   })
   it('refuses an unaffordable run before dispatch and refunds its daily reservation', async () => {
     const root = folder()
-    const daily = createRuntimeDailyBudget({
-      dataFolder: root,
-      now: () => Date.now(),
-      sleep: delay,
-    })
+    const daily = dailyBudgetAt(root)
     const api = fakeModelApi()
     api.script({ text: 'done' })
-    const ledger = createRunLedger({ capUsd: 0.000001, maxRequests: 1 })
+    const ledger = createRunLedger({ capUsd: Usd.from(0.000001).toAmount(), maxRequests: 1 })
     const refusals: string[] = []
     const client = withRuntimeAccounting(
       fakeModelApiClient(api, new FakeLogOutputChannel()),
@@ -191,8 +185,8 @@ describe('standalone daily admission', () => {
     ).rejects.toThrow()
     expect(refusals).toEqual(['budget'])
     expect(api.responseBodies()).toHaveLength(0)
-    const claim = await daily.reserve(5, new AbortController().signal)
-    expect(claim.check(0).spentUsd).toBe(5)
+    const claim = await daily.reserve(Usd.from(5).toAmount(), new AbortController().signal)
+    expect(claim.check(Usd.from(0).toAmount()).spentUsd).toBe(Usd.from(5).toAmount())
   })
   it('fails closed on malformed runtime settings and an abandoned process lock', async () => {
     const root = folder()
@@ -203,13 +197,21 @@ describe('standalone daily admission', () => {
       sleep: () => Promise.resolve(),
     })
     writeFileSync(path.join(root, 'settings.json'), '{"paidDailyBudgetUsd":0}')
-    await expect(daily.reserve(1, new AbortController().signal)).rejects.toThrow()
+    await expect(
+      daily.reserve(Usd.from(1).toAmount(), new AbortController().signal),
+    ).rejects.toThrow()
     writeFileSync(path.join(root, 'settings.json'), '{"paidDailyBudgetUsd":1}')
     const date = new Date()
     const day = [date.getFullYear(), date.getMonth() + 1, date.getDate()].join('-')
     mkdirSync(path.join(root, 'paid-daily', 'budget-intents', '0'.repeat(64), day + '.lock'), {
       recursive: true,
     })
-    await expect(daily.reserve(1, new AbortController().signal)).rejects.toThrow()
+    await expect(
+      daily.reserve(Usd.from(1).toAmount(), new AbortController().signal),
+    ).rejects.toThrow()
   })
 })
+
+function dailyBudgetAt(dataFolder: string) {
+  return createRuntimeDailyBudget({ dataFolder, now: Date.now, sleep: delay })
+}

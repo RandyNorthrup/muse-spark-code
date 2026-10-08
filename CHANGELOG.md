@@ -7,13 +7,360 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Pending
+
+- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
+  reads and writes, and 1-hour cache writes settle at their own price.
+  The shared retry classifier refuses known quota codes and excessive
+  `Retry-After` waits. Provider-specific retry-table binding remains pending for non-Meta transports;
+  this does not certify endpoint quota refusal.
+  One-shot OAuth callbacks retain every parameter and destroy keep-alive
+  connections on settlement. Custom servers accept validated compatibility
+  overrides. Session saves coalesce into one in-flight write plus the latest;
+  parallel save failures are observed immediately while other sessions drain.
+  History listing validates headers without replay/transcript validation.
+
+- M101 lane P1 (BYO codecs): one bad history item no longer breaks later
+  requests. Blank text is dropped, empty tool results ride as
+  `(no tool output)`, non-JSON tool arguments ride as `{}` (Ollama keeps its
+  documented raw-text fallback), PDFs ride as Anthropic `document` blocks,
+  and images for a model without image input ride as an
+  image-omitted placeholder. Tool-call ids are mapped per target format
+  (Anthropic charset, chat length, Mistral preset 9-alphanumeric even under
+  provider aliases) with unique
+  per-response Gemini fallback ids. Responses replays send the call `id`
+  only for the same model with an `fc_` prefix. Gemini replays thought
+  signatures on text parts (empty ones included), counts omitted usage as
+  zero, sends vision-gated tool-result images inside `functionResponse.parts`
+  and full tool schemas through `parametersJsonSchema` on Gemini 3.
+  Gemini rejects proxy-null usage and explicitly rejects negative usage
+  counters instead of retaining an earlier tally. Signed blank parts replay;
+  late response ids salt fallback call ids; `$ref` siblings stay constrained
+  through `allOf`. The Anthropic decoder tolerates
+  proxy-null usage and tool payloads cut off at `max_tokens`, and thinking
+  requests `display: summarized` so newer models stream thinking text.
+  Lone surrogates are removed from every BYO encoder; parsed JSON retains
+  own `__proto__` keys as data, including Anthropic tool arguments.
+  Fakes only; no live
+  or paid model call.
+
+- Provider-specific retry-table binding remains pending for non-Meta transports;
+  the shared retry classifier does not certify endpoint quota refusal.
+
+## [0.16.0] - 2026-10-07
+
+### Highlights
+
+- **Loop guarantees.** Strict tool contracts, bounded hosted search and streamed
+  argument previews make Model API work easier to follow; read-only calls can
+  run concurrently while results retain their original order.
+- **Keep your machine responsive.** Machine-scoped CPU and memory thresholds
+  throttle, then pause, new background work. Relocation needs a paired device
+  or runner route and is not available yet, so work stays on this machine.
+  <!-- try: setting museSpark.resourceCpuMaxPercent -->
+- **Protect free disk space.** Disk floors hold back disk-heavy launches and
+  refuse critical-volume writes; cleanup requires recorded ownership and proved
+  process-tree exit.
+  <!-- try: setting museSpark.resourceDiskMinFreeGiB -->
+- **Pinned questions.** One interactive question or MCP form stays above the
+  composer; transcript markers open and focus it.
+- **Agent outcomes.** Activity, evidence-backed outcomes and redacted receipts
+  show attempts and unfinished work, with confirmed Continue and guarded Retry.
+
+### Added
+
+- M106 strict tool contracts and parallel reads have machine-scoped switches;
+  previews load on first use, completed calls remain the execution boundary,
+  cut-short tool replies fail without running tools, and repeat/continuation
+  guards bound the loop.
+- Hosted search has a per-request bound, immutable consent quotes and exact
+  decimal USD accounting. Captured rate-limit headers pace background fan-out;
+  transport idle/retry waits remain bounded and cancellable.
+- Structured side calls validate their answers, permit one repair and retain
+  the text fallback. Headless `--output-schema` validates a bounded schema
+  through a held file handle and withholds an invalid final answer.
+- The headless v2 result/event contract carries canonical decimal USD and
+  structured output alongside resource events; frozen v1 schemas stay shipped.
+- Optional Meta status and the Models & Agents panel have independent lazy
+  bundles. SDK 1.4.2 is pinned; native effort, feedback and deletion remain
+  unavailable until their captured feature readers are bound.
+- M107's portable resource governor, machine-scoped settings, process-tree
+  admission and independent lazy control/history artifacts. Active editor,
+  journal, paired-device and native-platform qualifications remain explicit in
+  [the M107 record](docs/certification/m107.md).
+
+- Agent activity and structured outcomes, with bounded redacted receipts and
+  retained Model API attempt history. Continue asks before resuming the same
+  child and keeps its edits. Retry explains when an isolated checkpoint is
+  unavailable. Native ends without completion evidence remain unverified.
+  ACP editors get local `/agents` listing, receipts and confirmed recovery.
+  Model API children can keep their own task list without replacing the parent's.
+
+### Changed
+
+- Deliver Linux resource cleanup helpers in VSIX and ACP packages, including
+  architecture-specific CI builds and missing-helper package refusal.
+- Resource admission now responds to transport failures and OS service pressure;
+  per-job process and observed spawn-rate caps stop only the offending tree.
+- Correct the security guide to reflect the joined disk-registry race repairs.
+
+
+- M107 delivery candidate: eight machine-scoped resource settings and generated
+  Help coverage; independent governor/admission/control/history artifacts with
+  measured budgets, split/package guards and exec-event-v2 schema packaging.
+  Editor/runtime/actuator, native delivery/storage and M96/M96c/M100/M102 bindings remain
+  explicitly pending in the integration certification.
+
+- Native PID-reuse verification bounds discovery to its real fixture processes,
+  retaining all 32 births and native identity, membership and signal checks at
+  the default test deadline.
+
+- Complete M107 verification restores session-board change counts when Git has
+  no filters, keeps resource bundle frames in scrubbed reports, and validates
+  exec v2 resource events in the Action while preserving v1 results. Production
+  and fake-only package checks cover the resource artifacts and all three schemas.
+
+- M107's deferred resource parser preserves the startup size regression;
+  lossless English-key and Node reference packing retain complete content
+  under existing caps. Notices resolve deferred parser package paths on
+  Windows and POSIX without omitting their licences.
+
+- Linux resource Stop retains cgroup and parent descriptors until direct
+  registry kills settle, removes empty scopes through a pinned parent and
+  reports late harness insertion explicitly while thawing safely.
+
+- Resource history keeps known minute readings and merges final tree accounting
+  idempotently after a read-time flush, including the same cached sample timestamp.
+- Resource history rejects dates outside the supported formatter range, including
+  override deadlines. Its shared page and text summary use one date formatter.
+- Resource-history detail retains at most seven recorded days/10,080 minute
+  segments and 1,000 events, with charts and tables paged in groups of 60.
+  Work and event totals still include every retained journal record.
+
+- The staged team/check slot adapter rechecks live governor capacity after
+  local slot waiting. Work remains queued at pause or when throttle is full,
+  releasing unstarted reservations before waiting again.
+- The staged resource relocator rechecks policy and cancellation after the
+  final offer callback, preventing dispatch after synchronous revocation.
+- Its headroom probes run concurrently with a five-second bound, and Keep
+  here cancels discovery without waiting for an unresponsive peer.
+- Automatic relocation rotates among equal-headroom peers across attempts,
+  preserving ample-before-some priority and explicit Move to choices.
+
+- Governed shell, MCP, browser, Git, voice and plugin cleanup uses registered
+  member stops, including descendants after root exit. Refused stops retain
+  unknown occupancy and never fall back to a bare process or job kill.
+- The lazy governor artifact exports both the window and runtime factories
+  and ships with the admission shim in the ACP package.
+
+- Runtime resource settings preserve injected class stores' methods. ACP
+  shows one full pause warning per conversation while continuing level updates.
+- Temp quarantine and restore use native no-replace renames. Manifest
+  publication links without replacement and verifies/rolls back POSIX exchanges;
+  stages and displaced manifests are retained to protect exchanged names.
+  Cleanup rechecks each directory name against its held identity immediately
+  before empty-only removal. Creation rejects an older directory swapped into
+  mkdir/open and binds the marker writer to the native creation identity.
+  The final same-user empty-trash-name window and native delivery/artifact
+  qualifications are recorded in PLAN §9 and the M107 DK certification.
+
+- Temp cleanup now walks identity-checked directory handles on Linux and in
+  the native macOS/Windows helpers, refuses filesystem and Linux mount boundaries
+  (including same-device bind mounts), and removes
+  trash entries empty-only. Interrupted or legacy records without stored
+  identity/marker hash are report-only. Creation requires an empty owned handle;
+  registration cannot adopt existing folders. Manifest stage replacements are
+  retained instead of being unlinked by name.
+
+- Disk cleanup rejects forged or public manifests, requires private-base
+  confinement and an ownership marker, and quarantines roots before removal.
+  Linux pins the base directory during cleanup. Creation intent is saved before
+  mkdir, and a refused root no longer blocks cleanup of other eligible roots.
+  Initial OS temp ancestor aliases resolve to the verified canonical base,
+  supporting macOS temp paths without following those aliases during cleanup.
+- Checkpoint Git checks its storage volume and stays available at critical temp
+  pressure without allocating a temp root. Admission abort/disposal no longer
+  waits for sampling; stalled statfs publishes unknown readings within a bound.
+- Account/sign-in Muse children receive the same owned temp environment as chat
+  children. Nonzero/signal exits and SDK initialization/spawn failures retain
+  their temp roots for 24 hours after proved tree exit.
+
+- Staged disk-space protection samples harness write volumes with `fs.statfs`,
+  uses the existing governor's levels and recovery, and blocks disk-heavy
+  admission before the foreground deadline can bypass it. Owned-tree temp
+  environments and a persisted creation registry provide guarded cleanup
+  after proved exit, with 24-hour retention for failed runs and idempotent
+  cleanup when tree exit and disk pressure coincide. Remaining host/device/platform bindings are
+  tracked in the M107 DK certification.
+
+- Windows Muse Code shutdown stops the verified registered job, bounds all
+  SDK close surfaces, reports forced or unproved shutdown honestly, and
+  disposes session handles even when close reports a failure. The CLI inherits
+  the SDK's stdio handles directly instead of PowerShell's native pipeline.
+- User turns queued behind scheduled work keep foreground admission and its
+  20-second wait bound. Rejected concurrent schedules release only their own
+  lease; completion is matched to the running schedule's generation and turn.
+- Short window CLI commands, including rules initialization and diagnostics,
+  and plugin runtime version probes enter resource admission and register
+  native process trees. CLI commands recheck their owner after admission,
+  preserve argument boundaries and stop their tree on cancellation.
+- Resource-governor recovery uses margins scaled to the configured limit
+  and machine memory, so low GPU/disk limits and small containers can recover.
+  Resume override expiry drains older pending reads and waits for a fresh
+  sample before deciding the level.
+- Windows actuator integration verifies the real job's below-normal/idle
+  priority, 50% CPU cap, birth-identity refusal and exact priority/rate
+  restoration alongside the merged governor and actuator review repairs.
+- Staged resource-governor integration admits the window's tool shells,
+  checks, MCP servers, hooks, browser checks, Git, voice/recording and Muse Code hosts, and the
+  Model API's background attempts, children and scheduled runs. Windows
+  launches register named jobs, including the browser's binary CDP pipes;
+  orphan children retain a queryable job until empty, and failed holders or
+  unproved tree readings retain their reservations. The governor loads in
+  its own bundle on the first governed launch.
+- Resource sampler probes prevent libuv from filling missing Windows
+  environment variables from the parent; Linux resource-tree paths retain
+  POSIX semantics when their complete fixtures run on Windows.
+
+- Resource actuators release controls for members explicitly proved exited,
+  including zombies, so the living tree can recover and retire. Unavailable
+  Linux cgroup controls retry opening on later scans with bounded backoff,
+  preserving usable handles and their original policy snapshots.
+- Resource actuators keep unconfirmed irreversible writes unknown during
+  recovery and retirement, verify confirmed policy again, and require a fresh
+  prior-state reading before attempting another irreversible change.
+
+- Linux resource trees pin their cgroup directory before the workload runs.
+  Stop and accounting refuse a removed or replaced directory, and an empty
+  tree retires automatically after its root exits. Stop also reasserts the
+  harness's pinned home placement before kill or freeze; bounded retry failure
+  keeps ownership with an explicit localized status for a later Stop retry.
+
+- Linux resource trees launch behind a gate in their own delegated cgroup.
+  Stop waits for the kernel's empty-cgroup receipt before cleanup, preventing
+  an outside same-tick PID replacement from inheriting tree authority.
+  Undelegated groups refuse small PID namespaces and recheck identity bounds.
+- Registered resource trees expose verified signal and tree-kill actions, with
+  exact birth checks and honest outcomes. Observed descendants retain authority
+  after reparenting or starting another session; recycled PIDs need new proof.
+- Resource trees use the shipped macOS helper's kernel microsecond identities
+  and classify zombie processes as exited instead of live members.
+- Resource-tree readers revalidate an existing POSIX authority anchor before
+  retaining new witnesses, preventing a mixed-time scan from admitting a
+  process in a reused group. Ticket retirement also invalidates pending reads
+  so they cannot restore accounting or overwrite a newer registration. Linux
+  cgroup scans omit vanished rows while keeping genuine read failures unknown.
+- The staged resource-governor sampler honours cgroup v1 memory capacity
+  and enforced ancestor limits, and rejects noncanonical cgroup paths
+  before walking the mount hierarchy.
+- Its optional probes preserve missing/null Windows counters as unknown
+  and combine Linux DRM and Nvidia readings so the busiest GPU is counted.
+- ACP help and argument errors now use one complete localized usage table,
+  including the Setup hooks command, so the installed package passes the
+  release job's strict English fallback check.
+- Windows shell directory tracking now uses the native long workspace path
+  when starting or resetting a command, so 8.3 aliases keep the correct cwd
+  and workspace-relative directory tail.
+- Production bundle regression tests now build their own compressed English and
+  shared wire fixtures, so macOS CI's test job works without a prior build.
+- Windows CI hook fixtures now use the platform their captured paths describe;
+  Cline discovery exercises both POSIX and Windows path handling on every OS.
+  Deferred-bundle checks load their in-memory builds without requiring stale
+  or pre-existing files in `dist`.
+- Cline hook quoting is checked through native PowerShell on Windows and the
+  POSIX shell on Unix, without requiring a Windows Bash installation.
+- Fake-only headless tests recognize MinGit's verified GNU Bash `sh.exe`, and
+  missing-browser-chunk checks accept Windows filesystem error paths.
+- Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
+  Windows while retaining native-platform parsing and containment checks.
+- Retry after a failed optional panel reloads its complete module graph with
+  the conversation and draft saved. Cold menus respect outside dismissal and
+  late imports cannot take focus; failed menus accept Escape and return focus
+  to their trigger.
+
+- Rebuild 0.16.0 on the complete 0.15.0 candidate, preserving loop guarantees,
+  machine resource controls, provider/team/usage/legal features and prompt sharing.
+  Regenerate the combined reference and localization tables. Remove duplicated
+  headless engine loading and measure the combined deferred bundles with D6's
+  authorized 5% margin rounded to 25 KiB.
+
+- Avoid retaining unused exact-money schemas in unrelated lazy bundles while
+  preserving runtime validation of every used price and schema.
+
+### Fixed
+
+- Windows resource stops avoid cold PowerShell module discovery. Native job
+  helpers use verified long paths even when TEMP has an 8.3 spelling; Windows
+  launch qualification reuses its compiled helper and loads JSON support explicitly.
+- The Muse Code feedback dialog is removed until it can work. Nothing opened it,
+  and Muse Code feedback still refuses before dispatch without a captured receipt
+  reader. Help no longer lists **Send feedback to Muse Code**, and its ten
+  dialog-only strings are gone from every language table.
+- A paid search answered **Always** goes ahead once when the profile store
+  cannot hand out an approval order (read-only or corrupt), instead of being
+  denied; the grant is not kept, the next search asks again, and the same
+  "could not be kept" warning is logged as for a failed save.
+- The Model API service-status body is read under the provider body cap, so
+  an oversized status page is cancelled at the cap instead of buffered whole.
+- `npm run quality` runs the legal accessibility suite again, and the
+  dependency-cycle check covers the 22 entry points a merge had dropped
+  (57 roots, no cycles); a manifest test pins both accessibility suites.
+- The `museSpark.resourceRelocate` setting no longer implies relocation works.
+  No paired-device or runner route is bound in this release, so resource status,
+  the pause notice and `resources status` say relocation is not available yet,
+  and the setting's description says so too.
+- Release CI fixtures retain both resource commands and agent outcomes, staged
+  multilingual Help checks, and the harness's signed-in readiness handshake.
+  Cold bundle tests own a complete build, and exec package fixtures supply
+  the required native helpers without relaxing production packaging guards.
+- Action-check builds the real Darwin and both Linux native helpers before
+  producing its fake-only ACP candidate.
+- Restore the merged Windows job helper's compilation for shell commands,
+  resource controls and team process containment. Resource job holders load
+  the same assembly directly without PowerShell module discovery.
+- Keep Windows resource creation, manifest rotation and cleanup bound to
+  verified native handles, including current-user ownership, missing-root
+  completion and preservation of raced directory replacements.
+- Load packed runtime and English regions through explicit CommonJS requires
+  under Node 22 loader hooks, preserving archive digest checks and fallback.
+
+- Keep the GitHub-only badge authorization spread compliant with the existing
+  lint gate, retaining unauthenticated requests when no job token is supplied.
+
+- Deliver every long-reply harness frame before advancing the stream, keeping
+  readiness pending through completion within its existing deadline. Batch
+  validated deltas between paints and wait for the actual composer before
+  scene actions, preventing startup sign-in races in questions and reports.
+
+- Parse the full changelog in release and artifact test setup so version,
+  Highlights and lossless packing assertions keep their existing deadlines
+  under load.
+
+- Screenshot helpers use the harness's bounded scene readiness instead of a
+  removed idle-delay constant, preserving theme, font, paint and error checks.
+
+- ACP cancellation stops the running model turn while local agent inspection
+  waits, and a late cancelled read preserves newer command preparation.
+- Agent receipts read patch references through the child that owns them and
+  preserve earlier native attempt receipts while a new attempt is running.
+- Child completion evidence belongs to the current turn. Parent Model API
+  request bytes and cache prefixes keep their original tool order.
+- Windows shell credential regressions await the matching background completion
+  before cleanup and probe raw environment values within the default test deadline.
+- Prompt host shutdown awaits mirror merges and other admitted operations
+  before releasing storage, preventing Windows cleanup from racing a sync write.
+- Browser package tests build the chat, Help and What's New pages themselves,
+  so a clean CI shard needs no artifacts from an earlier production build.
+- The installed ACP help check validates its complete localization table,
+  retaining prompt and sharing labels in its exact output comparison.
+- Chat-share HTML encodes markup delimiters in one pass. Privacy regexes have
+  literal-metacharacter controls and documented, specific audit exceptions
+  for their escaped workspace, home and username fragments.
 - Keep every long-reply accessibility delta while yielding through a task port,
   avoiding nested timer throttling within the existing readiness deadline.
 
 - Check every staged ACP help language in bounded parallel batches, keeping
   cold package certification within its existing deadline.
-
-### Fixed
 
 - Start browser harness scenarios after the webview's ready handshake, keeping
   cold bundle loading outside their DOM deadline and exposing bounded browser
@@ -55,9 +402,10 @@ happened, not what was planned; superseded entries are kept.
 - Keep Action reviews and low-budget refusals working for large release diffs
   by retaining only the bounded review prefix before exec.
 
-
-
-### Fixed
+- Keep each waiting or deferred question's interactive card pinned above the
+  composer. Its transcript marker's Answer button reopens and focuses that
+  card, including after deferral; MCP forms use the same compact marker.
+  Refresh Help & Reference and the README question screenshots.
 
 - Search usage-journal newlines in native byte arrays so cold scans retain their
   validation and finish within CI's existing deadline under coverage. Companion
@@ -91,10 +439,56 @@ happened, not what was planned; superseded entries are kept.
   output and repeated cold setup on hosted runners, preserving default deadlines,
   all randomized cases, offline replays and native Windows security checks.
 
-### Pending
+- Keep resource-only English in its independent fallback, removing duplicate
+  deferred-surface bytes while preserving the installed language and size caps.
+- Include all 35 bundled ACP runtime dependencies in its third-party notices,
+  selecting the actual staged shared/lazy bundles and usage browser chunks.
 
-- Provider-specific retry-table binding remains pending for non-Meta transports;
-  the shared retry classifier does not certify endpoint quota refusal.
+- Include esbuild's namespaced resource-validation dependencies in release
+  CycloneDX inventories using normalized POSIX and Windows package paths.
+
+- Inventory ACP's actual staged shared/lazy bundles and usage browser assets,
+  retaining their runtime dependencies and excluding extension-only outputs.
+
+- Separate check-slot uncertainty cases and journal benchmark preparation,
+  retaining default test deadlines and the 300-ms warm-read requirement.
+
+- Run the actual badge/image gate in the ChatGPT package fixture under CI,
+  preserving the prohibition on offline badge overrides.
+
+- Reuse the headless tests' existing fake image transport for every package
+  guard, retaining CI and the real badge validator without an offline override.
+
+- Inspect the Team harness's real package inventory in an owned publication
+  tree, avoiding other test workers' temporary files within the same setup limit.
+
+- Compose exact money ports across the provider, team, usage and headless train;
+  keep subscription Plan turns independent of API budget journals and validate
+  output caps before clamping.
+
+- Ship and require the Darwin helper in ACP archives, retain native cleanup
+  refusals, and load each resource surface's own English fallback within its cap.
+
+- Pass Semgrep's worker option once, preserving the serial scan and every rule
+  and deadline after the release merge.
+
+- Install companion launch recovery labels through DOM text content, keeping
+  translated markup inert before the authenticated app starts.
+
+- Keep paid/reply browser fixtures on canonical decimal USD and wait for the
+  real settled harness when capturing README scenes with lazy imports.
+
+- Remove the obsolete source-map-js audit exception once the locked tree no
+  longer reports its advisory; retain the existing audit policy.
+
+- Restore queued late-question answers before ACP manual compaction, so the
+  next ordinary prompt delivers each answer once.
+
+- Count the shared chat/resource browser graph once in the split guard while
+  preserving independent-graph and model-text leak checks.
+
+- Forward the resource-wrapped headless result exit code after structured-output
+  validation, retaining schema mismatch code 10 and its accounted spend.
 
 ### Documentation
 
@@ -129,6 +523,13 @@ happened, not what was planned; superseded entries are kept.
   rewrite logic); changing the hook itself is left to the owner. The
   playbook placement chapter gains lessons 21–27 covering the same failures,
   still model-agnostic.
+
+- A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
+  what went wrong while a fleet of agents built this project. For each one it
+  gives the rule that prevents it and the milestone that will enforce that
+  rule in the app's own orchestrator (D100).
+
+- Keep paid-usage formatting and agent presentation labels out of chat startup, preserving the existing startup review baseline; pack their complete English fallback losslessly within its existing budget.
 
 ## [0.15.0] - 2026-10-06
 

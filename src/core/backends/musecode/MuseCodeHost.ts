@@ -8,10 +8,12 @@ import type { UsageRecording } from '../../usage/recording'
 // through a fake in-memory transport.
 
 import { Buffer } from 'node:buffer'
+import { observeAgentItem, observeChildReceipt } from '../../agent/agentObservation'
 import { type Connection, MspError, ProtocolError } from '@muse-code/sdk'
 import * as z from 'zod/mini'
 import {
   type AgentEvent,
+  type ItemSnapshot,
   type QuestionAnswer,
   type RequirementRef,
   requirementRefSchema,
@@ -54,35 +56,33 @@ import {
   subscriptionUsageSchema,
   usageReadResultSchema,
 } from '../../../shared/usage'
-import type {
-  AgentHost,
-  AgentSession,
-  ApprovalDecision,
-  CompactOutcome,
-  GoalCommand,
-  GoalCommandOutcome,
-  GoalRefusal,
-  HostExit,
-  HostInfo,
-  ListSessionsOptions,
-  LoadedSession,
-  ModelSummary,
-  MuseCodeFault,
-  OutputPage,
-  OutputPageRequest,
-  QueuedMessageRef,
-  SessionEventListener,
-  SessionHistoryOutcome,
-  SessionListEvent,
-  SessionMcpServer,
-  SessionPage,
-  SkillSummary,
-  StartSessionOptions,
-  TurnPart,
-  TurnSubmission,
-  WithdrawOutcome,
-} from '../../agent/agentBackend'
 import {
+  type AgentHost,
+  type AgentSession,
+  type ApprovalDecision,
+  type CompactOutcome,
+  type GoalCommand,
+  type GoalCommandOutcome,
+  type GoalRefusal,
+  type HostExit,
+  type HostInfo,
+  type ListSessionsOptions,
+  type LoadedSession,
+  type ModelSummary,
+  type MuseCodeFault,
+  type OutputPage,
+  type OutputPageRequest,
+  type QueuedMessageRef,
+  type SessionEventListener,
+  type SessionHistoryOutcome,
+  type SessionListEvent,
+  type SessionMcpServer,
+  type SessionPage,
+  type SkillSummary,
+  type StartSessionOptions,
+  type TurnPart,
+  type TurnSubmission,
+  type WithdrawOutcome,
   DecisionNotAppliedError,
   GoalRefusedError,
   isPromptSettledError,
@@ -92,16 +92,22 @@ import {
   SessionNotLoadedError,
   SteerRefusedError,
 } from '../../agent/agentBackend'
+
 import type { CoreLogger } from '../../logging'
+import { notify } from '../../events/notify'
 import {
   MALFORMED_PARAMS,
   mapNotification,
   type MappedNotification,
+  type MuseCodeLifecycleEvent,
+  type MuseCodeLifecycleReader,
   UNKNOWN_METHOD,
   type WireNotification,
 } from './mapNotification'
 import { failureForLog } from './logText'
+import { redactSecrets } from '../../../shared/redact'
 import { PromptLedger } from './promptLedger'
+import { submitMuseFeedback, type FeedbackOutcomeReader, type FeedbackRequest } from './feedback'
 import {
   historyOutcome,
   sessionClosedSchema,
@@ -123,6 +129,26 @@ export interface MspHost {
 /** The MSP host's identity plus what the extension logs about it. */
 export interface MuseHostInfo extends HostInfo {
   readonly museHome: string
+}
+
+export interface MuseCodeEffortInfo {
+  readonly variants?: readonly string[] | 'unknown'
+  readonly reasoningEffortVariants?: readonly {
+    readonly tier: string
+    readonly description?: string
+  }[]
+  readonly defaultReasoningEffort?: string
+}
+
+export interface MuseCodeModelSummary extends ModelSummary, MuseCodeEffortInfo {}
+
+/** Readers are injected only after their raw frames have captured zod schemas. */
+export interface MuseCodeFeaturePorts {
+  readonly feedback?: FeedbackOutcomeReader
+  readonly lifecycle?: MuseCodeLifecycleReader
+  readonly modelEfforts?: {
+    parseModel(row: unknown): MuseCodeEffortInfo
+  }
 }
 
 const SESSION_LIST_CHANGED = 'session/listChanged'
@@ -235,7 +261,7 @@ function unqueueRefusal(error: unknown): string | undefined {
 
 const modelListResultSchema = z.object({
   models: z.array(
-    z.object({
+    z.looseObject({
       modelId: z.string(),
       displayLabel: z.string(),
       contextLimit: z.nullable(z.number()),
@@ -264,6 +290,21 @@ const readOutputResultSchema = z.object({
   byteLen: z.number(),
   eof: z.boolean(),
 })
+
+function parseOutputPage(result: unknown): OutputPage {
+  const page = readOutputResultSchema.parse(result)
+  if (page.encoding !== BASE64_ENCODING) {
+    return page
+  }
+  // Binary media arrives base64 (tdd SS4.7.4): shown only if it is text after all.
+  let text: string
+  try {
+    text = STRICT_UTF8.decode(Buffer.from(page.content, BASE64_ENCODING))
+  } catch {
+    throw new Error(`${UI_TEXT.outputIsBinary} (${page.mediaType})`)
+  }
+  return { ...page, content: text, encoding: UTF8_ENCODING }
+}
 
 const DEFAULT_DISPOSITION = 'started'
 
@@ -356,6 +397,8 @@ const FRAME_ENVELOPE = { jsonrpc: '2.0', id: Number.MAX_SAFE_INTEGER }
 export interface CommandTimeouts {
   readonly normalMs: number
   readonly longMs: number
+  /** Deletion's admission and terminal notification; defaults to the long command deadline. */
+  readonly deleteTerminalMs?: number
   /** The watchdog's silence (`MSP_UNRESPONSIVE_SILENCE_MS` unless a test shortens it). */
   readonly unresponsiveSilenceMs?: number
 }
@@ -701,6 +744,8 @@ export class MuseUsageDeltas {
 }
 
 export class MuseSession implements AgentSession {
+  private readonly observedAgents = new Map<string, ItemSnapshot>()
+
   private readonly listeners = new Set<SessionEventListener>()
   /** One card per prompt and stage, and the open ones for a late listener (D26). */
   private readonly prompts = new PromptLedger()
@@ -761,16 +806,18 @@ export class MuseSession implements AgentSession {
     this.log.warn(
       `Muse Code reported session ${this.sessionId}'s event log failed (${failureForLog(error)}); the session takes no new message`,
     )
-    for (const listener of this.logDamagedListeners) {
-      listener()
-    }
+    notify(this.logDamagedListeners, undefined, this.log, 'museCode.logDamaged', (event) => {
+      this.reportListenerFailure(event)
+    })
   }
 
   private finishDispose(): void {
     this.isDisposed = true
     this.listeners.clear()
     this.logDamagedListeners.clear()
-    this.onDispose()
+    notify([this.onDispose], undefined, this.log, 'museCode.disposed', (event) => {
+      this.reportListenerFailure(event)
+    })
   }
 
   /**
@@ -943,6 +990,22 @@ export class MuseSession implements AgentSession {
     return error
   }
 
+  /** Merge captured native attempt history for both live updates and local inspection. */
+  public observeAgent(item: ItemSnapshot): ItemSnapshot {
+    if (item.kind !== 'subagent' && item.kind !== 'workflow') return item
+    const observed = observeAgentItem(this.observedAgents.get(item.itemId), item, Date.now())
+    this.observedAgents.set(item.itemId, observed)
+    return observed
+  }
+  public observeChild(sessionId: string, history: SessionHistoryOutcome): void {
+    const observed = new Map(this.observedAgents)
+    for (const item of observed.values()) {
+      if (item.kind !== 'subagent' || item.childSessionId !== sessionId) continue
+      const updated = observeChildReceipt(item, history.items, history.todos)
+      this.emit({ type: 'itemUpdated', item: updated })
+      this.observedAgents.set(item.itemId, updated)
+    }
+  }
   /** Muse Code reported this session's event log failed (`noteLogFault`). */
   public onLogDamaged(listener: () => void): () => void {
     this.logDamagedListeners.add(listener)
@@ -966,7 +1029,15 @@ export class MuseSession implements AgentSession {
     const backlog = this.early ?? this.prompts.open()
     this.early = undefined
     for (const event of backlog) {
-      listener(isPendingPrompt(event) ? { ...event, isReplayed: true } : event)
+      notify(
+        [listener],
+        isPendingPrompt(event) ? { ...event, isReplayed: true } : event,
+        this.log,
+        'museCode.replay',
+        (diagnostic) => {
+          this.reportListenerFailure(diagnostic)
+        },
+      )
     }
     return () => {
       this.listeners.delete(listener)
@@ -991,6 +1062,17 @@ export class MuseSession implements AgentSession {
     if (this.isDisposed) {
       return
     }
+    switch (event.type) {
+      case 'itemStarted':
+      case 'itemUpdated':
+      case 'itemCompleted': {
+        event = { ...event, item: this.observeAgent(event.item) }
+        break
+      }
+      default: {
+        break
+      }
+    }
     const admitted = this.prompts.admit(event)
     if (admitted === undefined) {
       return
@@ -999,9 +1081,14 @@ export class MuseSession implements AgentSession {
       this.early.push(admitted)
       return
     }
-    for (const listener of this.listeners) {
-      listener(admitted)
-    }
+    notify(this.listeners, admitted, this.log, 'museCode.event', (event) => {
+      this.reportListenerFailure(event)
+    })
+  }
+
+  /** @internal Diagnostic delivery cannot recursively report a broken observer. */
+  public reportListenerFailure(event: AgentEvent): void {
+    notify(this.listeners, event, this.log, 'backend.diagnostic')
   }
 
   /** Submit one user turn; queued behind a running turn by host default. */
@@ -1237,6 +1324,11 @@ export class MuseSession implements AgentSession {
 
   /** Captured owner verbs on a child (M18); M48's uncaptured verbs stay unavailable. */
   public async controlSubagent(subagentId: string, action: SubagentAction): Promise<void> {
+    if (action === 'continue' || action === 'retry') {
+      throw new Error(
+        action === 'retry' ? UI_TEXT.agentRetryUnavailable : UI_TEXT.agentContinueUnavailable,
+      )
+    }
     if (action === 'reopen' || action === 'readResult') {
       throw new Error(`subagent/${action}`)
     }
@@ -1282,18 +1374,7 @@ export class MuseSession implements AgentSession {
       offsetBytes: request.offsetBytes,
       lengthBytes: request.lengthBytes,
     })
-    const page = readOutputResultSchema.parse(result)
-    if (page.encoding !== BASE64_ENCODING) {
-      return page
-    }
-    // Binary media arrives base64 (tdd SS4.7.4): shown only if it is text after all.
-    let text: string
-    try {
-      text = STRICT_UTF8.decode(Buffer.from(page.content, BASE64_ENCODING))
-    } catch {
-      throw new Error(`${UI_TEXT.outputIsBinary} (${page.mediaType})`)
-    }
-    return { ...page, content: text, encoding: UTF8_ENCODING }
+    return parseOutputPage(result)
   }
 
   /**
@@ -1354,6 +1435,9 @@ export class MuseCodeHost implements AgentHost {
   private readonly sessions = new Map<string, MuseSession>()
   private readonly exitListeners = new Set<(exit: HostExit) => void>()
   private readonly listListeners = new Set<(event: SessionListEvent) => void>()
+  private readonly lifecycleListeners = new Set<(event: MuseCodeLifecycleEvent) => void>()
+  private readonly deletionTerminalListeners = new Set<(event: MuseCodeLifecycleEvent) => void>()
+  private readonly deletionStopped = new AbortController()
   private readonly usageListeners = new Set<(usage: SubscriptionUsage) => void>()
   /** Set by `close()`: the exit that follows is the extension's, not a crash (D25). */
   private isClosing = false
@@ -1378,6 +1462,7 @@ export class MuseCodeHost implements AgentHost {
     private readonly host: MspHost,
     private readonly log: CoreLogger,
     private readonly timeouts: CommandTimeouts = DEFAULT_TIMEOUTS,
+    private readonly features: MuseCodeFeaturePorts = {},
     private readonly usageRecording = MuseCodeHost.usageRecording,
   ) {
     this.channel = {
@@ -1388,9 +1473,15 @@ export class MuseCodeHost implements AgentHost {
         timeouts.unresponsiveSilenceMs ?? MSP_UNRESPONSIVE_SILENCE_MS,
         log,
         () => {
-          for (const listener of this.unresponsiveListeners) {
-            listener()
-          }
+          notify(
+            this.unresponsiveListeners,
+            undefined,
+            this.log,
+            'museCode.unresponsive',
+            (event) => {
+              this.reportListenerFailure(event)
+            },
+          )
         },
       ),
     }
@@ -1438,6 +1529,7 @@ export class MuseCodeHost implements AgentHost {
     // A connection that ends while the process lives (a framing violation)
     // is as good as dead: the process is closed so the exit is reported.
     void host.connection.closed.then(() => {
+      this.deletionStopped.abort(new Error(UI_TEXT.sessionDeleteConnectionClosed))
       if (this.isClosing) {
         return
       }
@@ -1445,16 +1537,23 @@ export class MuseCodeHost implements AgentHost {
       void this.host.close()
     })
     void host.exited.then((exit) => {
+      this.deletionStopped.abort(new Error(UI_TEXT.sessionDeleteHostExited))
       const described = describeExit(exit, this.isClosing)
       if (described.isExpected) {
         this.log.info(`muse serve exited as asked (${described.description})`)
       } else {
         this.log.warn(`muse serve exited (${described.description})`)
       }
-      for (const listener of this.exitListeners) {
-        listener(described)
-      }
+      notify(this.exitListeners, described, this.log, 'museCode.exit', (event) => {
+        this.reportListenerFailure(event)
+      })
     })
+  }
+
+  private reportListenerFailure(event: AgentEvent): void {
+    for (const session of this.sessions.values()) {
+      session.reportListenerFailure(event)
+    }
   }
 
   /** One notification: a host-level event, or a session's. */
@@ -1560,6 +1659,26 @@ export class MuseCodeHost implements AgentHost {
    * was one of them.
    */
   private dispatchHostEvent(method: string, params: unknown): boolean {
+    if (
+      this.features.lifecycle !== undefined &&
+      (method === 'session/started' || method === 'session/deleteCompleted')
+    ) {
+      const event = this.features.lifecycle.parseNotification({ method, params })
+      if (event.type === 'started') {
+        notify(
+          this.listListeners,
+          { type: 'changed', record: event.record },
+          this.log,
+          'museCode.list',
+        )
+      }
+      if (event.type === 'deleteCompleted' && event.outcome === 'completed') {
+        this.sessions.get(event.sessionId)?.disposeAll()
+      }
+      notify(this.deletionTerminalListeners, event, this.log, 'museCode.deleteTerminal')
+      notify(this.lifecycleListeners, event, this.log, 'museCode.lifecycle')
+      return true
+    }
     if (method === USAGE_CHANGED) {
       const parsed = subscriptionUsageSchema.safeParse(params)
       if (parsed.success) {
@@ -1586,9 +1705,9 @@ export class MuseCodeHost implements AgentHost {
             ],
           })
         }
-        for (const listener of this.usageListeners) {
-          listener(parsed.data)
-        }
+        notify(this.usageListeners, parsed.data, this.log, 'museCode.usage', (event) => {
+          this.reportListenerFailure(event)
+        })
       } else {
         this.warnShape(method)
       }
@@ -1602,9 +1721,9 @@ export class MuseCodeHost implements AgentHost {
       this.warnShape(method)
       return true
     }
-    for (const listener of this.listListeners) {
-      listener(event)
-    }
+    notify(this.listListeners, event, this.log, 'museCode.list', (diagnostic) => {
+      this.reportListenerFailure(diagnostic)
+    })
     return true
   }
 
@@ -1800,6 +1919,87 @@ export class MuseCodeHost implements AgentHost {
     }
   }
 
+  /** Includes every returned deletion outcome; only known terminals settle a command. */
+  public onMuseCodeLifecycleEvent(listener: (event: MuseCodeLifecycleEvent) => void): () => void {
+    this.lifecycleListeners.add(listener)
+    return () => {
+      this.lifecycleListeners.delete(listener)
+    }
+  }
+
+  /** The caller confirms permanent deletion before invoking this operation. */
+  public async deleteSession(sessionId: string): Promise<MuseCodeLifecycleEvent> {
+    const reader = this.features.lifecycle
+    if (reader === undefined) throw new Error(UI_TEXT.memoryDeleteAction)
+    const signal = this.deletionStopped.signal
+    signal.throwIfAborted()
+    const commandId = this.channel.connection.mintCommandId()
+    const deletion: {
+      state:
+        | { phase: 'pending' }
+        | { phase: 'terminalValidated'; event: MuseCodeLifecycleEvent }
+        | { phase: 'reported' }
+    } = { state: { phase: 'pending' } }
+    // Arm before dispatch: the notification can be in the same read as admission.
+    let onTerminal: ((event: MuseCodeLifecycleEvent) => void) | undefined
+    const terminal = new Promise<MuseCodeLifecycleEvent>((resolve) => {
+      onTerminal = (event) => {
+        if (
+          deletion.state.phase !== 'pending' ||
+          event.type !== 'deleteCompleted' ||
+          event.sessionId !== sessionId ||
+          event.commandId !== commandId ||
+          (event.outcome !== 'completed' && event.outcome !== 'failed')
+        ) {
+          return
+        }
+        deletion.state = { phase: 'terminalValidated', event }
+        resolve(event)
+      }
+      this.deletionTerminalListeners.add(onTerminal)
+    })
+    let onAbort: (() => void) | undefined
+    const stopped = new Promise<never>((_resolve, reject) => {
+      onAbort = () => {
+        const reason: unknown = signal.reason
+        reject(reason instanceof Error ? reason : new Error(UI_TEXT.sessionDeleteHostClosed))
+      }
+      signal.addEventListener('abort', onAbort, { once: true })
+    })
+    try {
+      return await withDeadline(
+        Promise.race([
+          (async () => {
+            reader.parseDeleteAdmission(
+              await commandWithin(this.channel, 'session/delete', { sessionId }, commandId),
+              commandId,
+            )
+            return await terminal
+          })(),
+          stopped,
+        ]),
+        this.timeouts.deleteTerminalMs ?? this.timeouts.longMs,
+        UI_TEXT.sessionDeleteTimedOut,
+      )
+    } catch (error: unknown) {
+      // Dispatch validated the terminal before shutdown; async admission may still be resuming.
+      if (deletion.state.phase === 'terminalValidated') return deletion.state.event
+      throw error
+    } finally {
+      deletion.state = { phase: 'reported' }
+      if (onTerminal !== undefined) this.deletionTerminalListeners.delete(onTerminal)
+      if (onAbort !== undefined) signal.removeEventListener('abort', onAbort)
+    }
+  }
+
+  /** Captured item/readOutput also reads a child without loading its session. */
+  public async readSessionOutput(
+    sessionId: string,
+    request: OutputPageRequest,
+  ): Promise<OutputPage> {
+    return parseOutputPage(await this.command('item/readOutput', { sessionId, ...request }))
+  }
+
   /** One page of this workspace's stored sessions, newest activity first. */
   public async listSessions(options: ListSessionsOptions): Promise<SessionPage> {
     const result = await this.command('session/list', {
@@ -1862,7 +2062,13 @@ export class MuseCodeHost implements AgentHost {
       sessionId,
       excludeItems: false,
     })
-    const history = historyOutcome(sessionEnvelopeSchema.parse(result))
+    const read = historyOutcome(sessionEnvelopeSchema.parse(result))
+    const session = this.sessions.get(sessionId)
+    const history = {
+      ...read,
+      items: read.items.map((item) => session?.observeAgent(item) ?? item),
+    }
+    for (const parent of this.sessions.values()) parent.observeChild(sessionId, history)
     return options?.recoverGoal === true && history.goal === undefined
       ? { ...history, goal: await this.goalFromView(sessionId) }
       : history
@@ -1891,7 +2097,7 @@ export class MuseCodeHost implements AgentHost {
   }
 
   /** The visible model catalogue; with a session id the active row is flagged. */
-  public async listModels(sessionId?: string): Promise<readonly ModelSummary[]> {
+  public async listModels(sessionId?: string): Promise<readonly MuseCodeModelSummary[]> {
     const result = await this.command('model/list', {
       ...(sessionId !== undefined && { sessionId }),
     })
@@ -1901,7 +2107,38 @@ export class MuseCodeHost implements AgentHost {
       contextLimit: model.contextLimit ?? undefined,
       isDefault: model.isDefault,
       isActive: model.isActive ?? false,
+      ...this.features.modelEfforts?.parseModel(model),
     }))
+  }
+
+  /** Registered literal secrets remain in the host; only the scrubbed note is previewed. */
+  public previewFeedbackNote(note: string): string {
+    return redactSecrets(note, this.features.feedback?.secretLiterals?.() ?? [])
+  }
+
+  /** The user's confirmed disclosure choices; send once, never replay an upload. */
+  public async submitFeedback(input: FeedbackRequest): Promise<string> {
+    const reader = this.features.feedback
+    if (reader === undefined || !this.info.grantedCapabilities.includes('feedback')) {
+      throw new Error(UI_TEXT.feedbackFailed)
+    }
+    return await submitMuseFeedback(
+      input,
+      {
+        scrubNote: (note) => Promise.resolve(this.previewFeedbackNote(note)),
+        submit: async (request) =>
+          reader.parseOutcome(
+            await requestWithin(this.channel, 'feedback/submit', this.timeouts.normalMs, () => {
+              // The registry may change during the async scrub. Recheck it in
+              // the dispatch tick and send only the preview the person approved.
+              const note = this.previewFeedbackNote(request.note)
+              if (note !== request.note) throw new Error(UI_TEXT.feedbackFailed)
+              return answered(this.channel, 'feedback/submit', { ...request, note })
+            }),
+          ),
+      },
+      input.note,
+    )
   }
 
   public async startSession(options: StartSessionOptions): Promise<MuseSession> {
@@ -1929,11 +2166,15 @@ export class MuseCodeHost implements AgentHost {
   public async close(): Promise<void> {
     // The exit that follows is the extension's own (D25).
     this.isClosing = true
+    this.deletionStopped.abort(new Error(UI_TEXT.sessionDeleteHostClosed))
     // Close the process first: the host emits session/statusChanged for every
     // loaded session on the way down, and those must still find their session.
-    await this.host.close()
-    for (const session of this.sessions.values()) {
-      session.disposeAll()
+    try {
+      await this.host.close()
+    } finally {
+      for (const session of this.sessions.values()) {
+        session.disposeAll()
+      }
     }
   }
 }

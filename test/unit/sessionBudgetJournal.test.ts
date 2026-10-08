@@ -1,10 +1,14 @@
+import { Usd, multiplyUsd } from '../../src/shared/usd'
+import { createPaidDailyBudget } from '../../src/host/paid/paidDailyBudget'
+import { PaidUsage } from '../../src/core/paid/paidFeatures'
+import { paidCostUsd, freezePaidQuote, searchSettlement } from '../../src/shared/paid'
 import { mkdtempSync, realpathSync } from 'node:fs'
 import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import * as fs from 'node:fs/promises'
 import type * as FsPromises from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   parseStoredSession,
   type StoredChild,
@@ -16,8 +20,19 @@ import {
 } from '../../src/host/backend/fileSessionStore'
 import { createSessionBudgetJournal } from '../../src/host/backend/sessionBudgetJournal'
 import { UI_TEXT } from '../../src/shared/constants'
+import {
+  searchAllowanceUsd,
+  type SessionBudgetClaim,
+} from '../../src/core/backends/modelapi/sessionBudget'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { removeFolder } from './helpers/temporaryFolders'
+
+async function expectClosedClaim(claim: SessionBudgetClaim) {
+  await expect(claim.settle(Usd.from('0').toAmount())).rejects.toThrow(
+    UI_TEXT.sessionBudgetStoreUnavailable,
+  )
+  expect(() => claim.check(Usd.from('1').toAmount())).toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
+}
 
 const ACCOUNT = 'a'.repeat(64)
 const OTHER_ACCOUNT = 'b'.repeat(64)
@@ -64,7 +79,7 @@ function snapshot(overrides: SnapshotChanges = {}): StoredSession {
   const { budgetSpentUsd, forkedFrom, ...stored } = session
   return {
     ...stored,
-    ...(budgetSpentUsd !== undefined && { budgetSpentUsd }),
+    ...(budgetSpentUsd !== undefined && { budgetSpentUsd: Usd.from(budgetSpentUsd).toAmount() }),
     ...(forkedFrom !== undefined && { forkedFrom }),
   }
 }
@@ -87,14 +102,17 @@ function budgetOf(store: ReturnType<typeof storeAt>) {
   return store.budget
 }
 
-async function expectSpent(total: Promise<{ readonly spentUsd: number }>, expected: number) {
+async function expectSpent(
+  total: Promise<{ readonly spentUsd: number | string }>,
+  expected: number,
+) {
   const current = await total
-  expect(current.spentUsd).toBeCloseTo(expected)
+  expect(current.spentUsd).toBe(Usd.from(expected).toAmount())
 }
 
 async function expectStoredSpend(store: ReturnType<typeof storeAt>, expected: number) {
   const current = await store.load(SESSION)
-  expect(current?.budgetSpentUsd).toBeCloseTo(expected)
+  expect(current?.budgetSpentUsd).toBe(Usd.from(expected).toAmount())
 }
 
 /** Failure before/after the real rename; permanent mode also rejects the owner's refund. */
@@ -196,43 +214,180 @@ function paidChild(paid: 'webSearch' | 'imageGeneration'): StoredChild {
   }
 }
 
+async function prepareChargeSequence() {
+  const t = await setup()
+  const usage = new PaidUsage(new FakeLogOutputChannel())
+  const daily = createPaidDailyBudget({
+    directory: path.join(t.directory, 'property-daily'),
+    sleep: () => Promise.resolve(),
+    now: () => new Date(2026, 9, 6, 12).getTime(),
+    capUsd: () => Usd.from(0.5).toAmount(),
+    isModelApi: () => true,
+  })
+  let random = 20_261_006
+  let expectedUnits = 0n
+  const tariff = '0.000033750123456789012345'
+  const quote = freezePaidQuote({
+    id: 'property',
+    feature: 'webSearch',
+    provider: 'verified-test',
+    model: 'test-model',
+    modelRevision: 0,
+    tariffUsd: Usd.from(tariff).toAmount(),
+    unit: 'search',
+    capturedAt: 0,
+  })
+  const steps = []
+  for (let index = 0; index < 40; index += 1) {
+    random = (random * 1_664_525 + 1_013_904_223) >>> 0
+    const units = (random % 20) + 1
+    expectedUnits += BigInt(units)
+    const settlement = searchSettlement(quote, units, true)
+    await t.budget.record(SESSION, ACCOUNT, settlement.costUsd)
+    const dailyClaim = await daily.reserveExact(settlement.costUsd)
+    await dailyClaim.settle(settlement.costUsd)
+    usage.add('webSearch', units, settlement)
+    // The oracle uses independent scaled integer arithmetic, never production addition.
+    const expected = String(33_750_123_456_789_012_345n * expectedUnits).padStart(25, '0')
+    const decimal = `${expected.slice(0, -24)}.${expected.slice(-24)}`
+      .replace(/0+$/, '')
+      .replace(/\.$/, '')
+    const sessionTotal = await t.budget.read(SESSION, ACCOUNT)
+    const dailyTotal = await daily.latestDay()
+    steps.push({
+      expected: Usd.from(decimal).toAmount(),
+      session: sessionTotal.spentUsd,
+      daily: dailyTotal.spentUsd,
+      tally: paidCostUsd('webSearch', usage.current),
+    })
+  }
+  return { steps, tariff, expectedUnits, total: paidCostUsd('webSearch', usage.current) }
+}
+
 describe('the real-disk session budget journal (M82)', () => {
+  it('preserves the reviewer tariff product through admission and persistence without binary ports', async () => {
+    const t = await setup()
+    const allowance = searchAllowanceUsd(3, Usd.from('0.12345678901234566').toAmount())
+    expect(allowance).toBe(Usd.from('0.37037036703703698').toAmount())
+    const claim = await t.budget.reserve(SESSION, ACCOUNT, allowance)
+    expect(() => claim.check(Usd.from('0.37037036703703696').toAmount())).toThrow()
+    expect(claim.check(allowance).spentUsd).toBe(allowance)
+    const raw: unknown = JSON.parse(await readFile(claimFile(t.directory, claim.claimId), 'utf8'))
+    expect(raw).toMatchObject({ reservedUsd: allowance })
+  })
+
+  let charges: Awaited<ReturnType<typeof prepareChargeSequence>>
+  // Forty real journal/daily writes are shared setup; assertions retain the default deadline.
+  beforeAll(async () => {
+    charges = await prepareChargeSequence()
+  })
+  it('random charge sequences sum exactly and daily ledger session and tally agree', () => {
+    expect(charges.steps).toHaveLength(40)
+    for (const step of charges.steps) {
+      expect(step.session).toBe(step.expected)
+      expect(step.daily).toBe(step.expected)
+      expect(step.tally).toBe(step.expected)
+    }
+    expect(multiplyUsd(Usd.from(charges.tariff).toAmount(), Number(charges.expectedUnits))).toBe(
+      charges.total,
+    )
+  })
+
+  it('settles 200 search fees to exactly USD 0.50 and admits the last search at the cap', async () => {
+    const t = await setup()
+    const fee = searchAllowanceUsd(1, Usd.from(0.0025).toAmount())
+    for (let search = 0; search < 200; search += 1) {
+      const claim = await t.budget.reserve(SESSION, ACCOUNT, fee)
+      // Only the last admission is the boundary under test; avoid 199 redundant disk scans.
+      if (search === 199) claim.check(Usd.from(0.5).toAmount())
+      await claim.settle(fee)
+    }
+    const total = await t.otherBudget.read(SESSION, ACCOUNT)
+    expect(total.spentUsd).toBe(Usd.from('0.5').toAmount())
+    const refused = await t.otherBudget.reserve(SESSION, ACCOUNT, fee)
+    expect(() => refused.check(Usd.from(0.5).toAmount())).toThrow()
+    await refused.settle(Usd.from(0).toAmount())
+  })
+
+  it('migrates legacy decimal amounts without losing sub-micro precision or rewriting foreign rows', async () => {
+    const t = await setup()
+    const claim = await t.budget.reserve(SESSION, ACCOUNT, Usd.from(0.0025).toAmount())
+    const file = claimFile(t.directory, claim.claimId)
+    const seedFile = path.join(scope(t.directory), 'seed.json')
+    const seed: unknown = JSON.parse(await readFile(seedFile, 'utf8'))
+    const entry: unknown = JSON.parse(await readFile(file, 'utf8'))
+    if (typeof seed !== 'object' || seed === null || typeof entry !== 'object' || entry === null) {
+      throw new Error('Missing fixture rows')
+    }
+    const legacySeed = JSON.stringify({ ...seed, version: 1, spentUsd: 0.000000002 })
+    const legacyClaim = JSON.stringify({ ...entry, version: 1, reservedUsd: 0.0025 })
+    await writeFile(seedFile, legacySeed)
+    await writeFile(file, legacyClaim)
+    const migrated = await t.otherBudget.read(SESSION, ACCOUNT)
+    expect(migrated.spentUsd).toBe(Usd.from('0.002500002').toAmount())
+    expect(await readFile(file, 'utf8')).toBe(legacyClaim)
+    expect(await readFile(seedFile, 'utf8')).toBe(legacySeed)
+    await claim.settle(Usd.from(0.000000002).toAmount())
+    expect(JSON.parse(await readFile(file, 'utf8'))).toMatchObject({
+      version: 2,
+      settledUsd: '0.000000002',
+    })
+    const settled = await t.otherBudget.read(SESSION, ACCOUNT)
+    expect(settled.spentUsd).toBe(Usd.from('0.000000004').toAmount())
+  })
+
+  it('retains an over-bound fee on the original row across restart and closes it once', async () => {
+    const t = await setup()
+    const claim = await t.budget.reserve(SESSION, ACCOUNT, Usd.from(0.1).toAmount())
+    await claim.settle(Usd.from(0.1025).toAmount(), false, false)
+    await expect(t.otherBudget.read(SESSION, ACCOUNT)).resolves.toMatchObject({
+      spentUsd: '0.1025',
+    })
+    expect(await readdir(path.join(scope(t.directory), 'claims'))).toEqual([claim.claimId])
+    await expect(claim.settle(Usd.from(0.1).toAmount(), false, false)).rejects.toThrow()
+    await claim.settle(Usd.from(0.0026).toAmount())
+    await expect(t.otherBudget.read(SESSION, ACCOUNT)).resolves.toMatchObject({
+      spentUsd: '0.0026',
+    })
+    await expect(claim.settle(Usd.from(0.003).toAmount())).rejects.toThrow()
+  })
+
   it('publishes both independent liabilities before either final sum, with no winner election', async () => {
     const t = await setup()
     await t.budget.read(SESSION, ACCOUNT)
     const [one, two] = await Promise.all([
-      t.budget.reserve(SESSION, ACCOUNT, 0.6),
-      t.otherBudget.reserve(SESSION, ACCOUNT, 0.6),
+      t.budget.reserve(SESSION, ACCOUNT, Usd.from(0.6).toAmount()),
+      t.otherBudget.reserve(SESSION, ACCOUNT, Usd.from(0.6).toAmount()),
     ])
     expect(one.claimId).not.toBe(two.claimId)
     expect(JSON.parse(await readFile(claimFile(t.directory, one.claimId), 'utf8'))).toMatchObject({
-      reservedUsd: 0.6,
+      reservedUsd: '0.6',
     })
     expect(JSON.parse(await readFile(claimFile(t.directory, two.claimId), 'utf8'))).toMatchObject({
-      reservedUsd: 0.6,
+      reservedUsd: '0.6',
     })
-    expect(() => one.check(1)).toThrow()
-    expect(() => two.check(1)).toThrow()
+    expect(() => one.check(Usd.from(1).toAmount())).toThrow()
+    expect(() => two.check(Usd.from(1).toAmount())).toThrow()
     await expectSpent(t.otherBudget.read(SESSION, ACCOUNT), 1.2)
-    await one.settle(0)
+    await one.settle(Usd.from(0).toAmount())
     await expectSpent(t.budget.read(SESSION, ACCOUNT), 0.6)
-    await two.settle(0)
-    await expect(t.budget.read(SESSION, ACCOUNT)).resolves.toMatchObject({ spentUsd: 0 })
+    await two.settle(Usd.from(0).toAmount())
+    await expect(t.budget.read(SESSION, ACCOUNT)).resolves.toMatchObject({ spentUsd: '0' })
     expect(await readdir(path.join(scope(t.directory), 'claims'))).toHaveLength(2)
   })
 
   it('keeps the previously admitted request and lets a later owner refund only its own row', async () => {
     const t = await setup()
-    const earlier = await t.budget.reserve(SESSION, ACCOUNT, 0.6)
-    expect(earlier.check(1).spentUsd).toBeCloseTo(0.6)
-    const later = await t.otherBudget.reserve(SESSION, ACCOUNT, 0.6)
-    expect(() => later.check(1)).toThrow()
-    await later.settle(0)
-    expect(earlier.check(1).spentUsd).toBeCloseTo(0.6)
+    const earlier = await t.budget.reserve(SESSION, ACCOUNT, Usd.from(0.6).toAmount())
+    expect(earlier.check(Usd.from(1).toAmount()).spentUsd).toBe(Usd.from('0.6').toAmount())
+    const later = await t.otherBudget.reserve(SESSION, ACCOUNT, Usd.from(0.6).toAmount())
+    expect(() => later.check(Usd.from(1).toAmount())).toThrow()
+    await later.settle(Usd.from(0).toAmount())
+    expect(earlier.check(Usd.from(1).toAmount()).spentUsd).toBe(Usd.from('0.6').toAmount())
     expect(
       JSON.parse(await readFile(claimFile(t.directory, earlier.claimId), 'utf8')),
-    ).toMatchObject({ reservedUsd: 0.6 })
-    await earlier.settle(0.2)
+    ).toMatchObject({ reservedUsd: '0.6' })
+    await earlier.settle(Usd.from(0.2).toAmount())
     await expectSpent(t.otherBudget.read(SESSION, ACCOUNT), 0.2)
   })
 
@@ -250,7 +405,7 @@ describe('the real-disk session budget journal (M82)', () => {
         await rename(from, to)
       },
     })
-    const reserving = budgetOf(held).reserve(SESSION, ACCOUNT, 0.4)
+    const reserving = budgetOf(held).reserve(SESSION, ACCOUNT, Usd.from(0.4).toAmount())
     try {
       await entered.promise
       await expect(t.otherBudget.read(SESSION, ACCOUNT)).rejects.toThrow(
@@ -260,12 +415,12 @@ describe('the real-disk session budget journal (M82)', () => {
       release.resolve(undefined)
     }
     const published = await reserving
-    expect(published.check(1).spentUsd).toBeCloseTo(0.4)
+    expect(published.check(Usd.from(1).toAmount()).spentUsd).toBe(Usd.from('0.4').toAmount())
   })
 
   it('retains an unsettled request across new hosts and raw-session removal', async () => {
     const t = await setup()
-    await t.budget.reserve(SESSION, ACCOUNT, 0.7)
+    await t.budget.reserve(SESSION, ACCOUNT, Usd.from(0.7).toAmount())
     await t.first.remove(SESSION)
     const restarted = budgetOf(storeAt(t.directory))
     await expectSpent(restarted.read(SESSION, ACCOUNT), 0.7)
@@ -274,11 +429,10 @@ describe('the real-disk session budget journal (M82)', () => {
 
   it('settles exactly once, permits the identical retry, and rejects reuse of a closed request', async () => {
     const t = await setup()
-    const claim = await t.budget.reserve(SESSION, ACCOUNT, 0.8)
-    await expectSpent(claim.settle(0.3), 0.3)
-    await expectSpent(claim.settle(0.3), 0.3)
-    await expect(claim.settle(0)).rejects.toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
-    expect(() => claim.check(1)).toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
+    const claim = await t.budget.reserve(SESSION, ACCOUNT, Usd.from(0.8).toAmount())
+    await expectSpent(claim.settle(Usd.from(0.3).toAmount()), 0.3)
+    await expectSpent(claim.settle(Usd.from(0.3).toAmount()), 0.3)
+    await expectClosedClaim(claim)
     await expectSpent(t.otherBudget.read(SESSION, ACCOUNT), 0.3)
   })
 
@@ -297,13 +451,17 @@ describe('the real-disk session budget journal (M82)', () => {
         await rename(from, to)
       },
     })
-    const claim = await budgetOf(held).reserve(SESSION, ACCOUNT, 0.8)
+    const claim = await budgetOf(held).reserve(SESSION, ACCOUNT, Usd.from(0.8).toAmount())
     isSettling = true
-    const closing = claim.settle(0.2)
+    const closing = claim.settle(Usd.from(0.2).toAmount())
     try {
       await entered.promise
-      expect(() => claim.check(1)).toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
-      await expect(claim.settle(0)).rejects.toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
+      expect(() => claim.check(Usd.from(1).toAmount())).toThrow(
+        UI_TEXT.sessionBudgetStoreUnavailable,
+      )
+      await expect(claim.settle(Usd.from(0).toAmount())).rejects.toThrow(
+        UI_TEXT.sessionBudgetStoreUnavailable,
+      )
       await expectSpent(t.otherBudget.read(SESSION, ACCOUNT), 0.8)
     } finally {
       release.resolve(undefined)
@@ -313,7 +471,7 @@ describe('the real-disk session budget journal (M82)', () => {
 
   it('refuses a row whose owner changed, without refunding another owner’s liability', async () => {
     const t = await setup()
-    const claim = await t.budget.reserve(SESSION, ACCOUNT, 0.4)
+    const claim = await t.budget.reserve(SESSION, ACCOUNT, Usd.from(0.4).toAmount())
     const file = claimFile(t.directory, claim.claimId)
     const raw: unknown = JSON.parse(await readFile(file, 'utf8'))
     if (typeof raw !== 'object' || raw === null) {
@@ -323,42 +481,43 @@ describe('the real-disk session budget journal (M82)', () => {
       file,
       JSON.stringify({ ...raw, ownerId: '11111111-1111-4111-8111-111111111111' }),
     )
-    await expect(claim.settle(0)).rejects.toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
-    expect(() => claim.check(1)).toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
+    await expectClosedClaim(claim)
     await expectSpent(t.otherBudget.read(SESSION, ACCOUNT), 0.4)
   })
 
   it('checks the current cap synchronously without removing an owned liability', async () => {
     const t = await setup()
-    const claim = await t.budget.reserve(SESSION, ACCOUNT, 0.6)
-    expect(claim.check(1).spentUsd).toBeCloseTo(0.6)
-    expect(() => claim.check(0.5)).toThrow()
-    expect(claim.check(0).spentUsd).toBeCloseTo(0.6)
+    const claim = await t.budget.reserve(SESSION, ACCOUNT, Usd.from(0.6).toAmount())
+    expect(claim.check(Usd.from(1).toAmount()).spentUsd).toBe(Usd.from('0.6').toAmount())
+    expect(() => claim.check(Usd.from(0.5).toAmount())).toThrow()
+    expect(claim.check(Usd.from(0).toAmount()).spentUsd).toBe(Usd.from('0.6').toAmount())
     await expectSpent(t.otherBudget.read(SESSION, ACCOUNT), 0.6)
   })
 
   it('projects authoritative spend over stale saves, refunds and reported actual overages', async () => {
     const t = await setup(snapshot({ budgetSpentUsd: 2 }))
-    const claim = await t.budget.reserve(SESSION, ACCOUNT, 1)
+    const claim = await t.budget.reserve(SESSION, ACCOUNT, Usd.from(1).toAmount())
     await t.second.save(snapshot({ budgetSpentUsd: 0 }))
-    await expect(t.second.load(SESSION)).resolves.toMatchObject({ budgetSpentUsd: 3 })
-    await claim.settle(1.5)
+    await expect(t.second.load(SESSION)).resolves.toMatchObject({ budgetSpentUsd: '3' })
+    await claim.settle(Usd.from(1.5).toAmount())
     await t.first.save(snapshot({ budgetSpentUsd: 99 }))
-    await expect(readRaw(t.directory)).resolves.toMatchObject({ budgetSpentUsd: 3.5 })
-    await expect(t.budget.read(SESSION, ACCOUNT)).resolves.toMatchObject({ spentUsd: 3.5 })
+    await expect(readRaw(t.directory)).resolves.toMatchObject({ budgetSpentUsd: '3.5' })
+    await expect(t.budget.read(SESSION, ACCOUNT)).resolves.toMatchObject({ spentUsd: '3.5' })
   })
 
   it('seeds fresh legacy spend and unknown fee evidence before a direct stale save erases rows', async () => {
     const t = await setup(snapshot({ budgetSpentUsd: 4, children: [paidChild('imageGeneration')] }))
     await t.second.save(snapshot({ budgetSpentUsd: 1, children: [] }))
     expect(await t.budget.read(SESSION, ACCOUNT)).toEqual({
-      spentUsd: 4,
+      spentUsd: '4',
       hasUnknownHistoricalFees: true,
     })
-    await expect(readRaw(t.directory)).resolves.toMatchObject({ budgetSpentUsd: 4 })
-    const claim = await t.budget.reserve(SESSION, ACCOUNT, 0.1)
-    expect(() => claim.check(10)).toThrow(UI_TEXT.sessionBudgetLegacyFeesUnknown)
-    expect(claim.check(0).hasUnknownHistoricalFees).toBe(true)
+    await expect(readRaw(t.directory)).resolves.toMatchObject({ budgetSpentUsd: '4' })
+    const claim = await t.budget.reserve(SESSION, ACCOUNT, Usd.from(0.1).toAmount())
+    expect(() => claim.check(Usd.from(10).toAmount())).toThrow(
+      UI_TEXT.sessionBudgetLegacyFeesUnknown,
+    )
+    expect(claim.check(Usd.from(0).toAmount()).hasUnknownHistoricalFees).toBe(true)
   })
 
   it('seeds a newly saved account-owned session before its first request', async () => {
@@ -371,10 +530,10 @@ describe('the real-disk session budget journal (M82)', () => {
     ).toMatchObject({
       sessionId: SESSION,
       accountId: ACCOUNT,
-      spentUsd: 0,
+      spentUsd: '0',
     })
     expect(await budgetOf(store).read(SESSION, ACCOUNT)).toEqual({
-      spentUsd: 0,
+      spentUsd: '0',
       hasUnknownHistoricalFees: false,
     })
   })
@@ -406,7 +565,7 @@ describe('the real-disk session budget journal (M82)', () => {
     })
     const recorded = await setup(snapshot({ budgetSpentUsd: 3, usage, children: [tokenChild] }))
     expect(await recorded.budget.read(SESSION, ACCOUNT)).toEqual({
-      spentUsd: 3,
+      spentUsd: '3',
       hasUnknownHistoricalFees: false,
     })
   })
@@ -421,16 +580,16 @@ describe('the real-disk session budget journal (M82)', () => {
     const firstLoad = await t.first.load(SESSION)
     expect(firstLoad?.budgetIsFreshFork).toBeUndefined()
     expect(await t.budget.read(SESSION, ACCOUNT)).toEqual({
-      spentUsd: 0,
+      spentUsd: '0',
       hasUnknownHistoricalFees: false,
     })
-    await t.budget.record(SESSION, ACCOUNT, 0.3)
+    await t.budget.record(SESSION, ACCOUNT, Usd.from(0.3).toAmount())
     await t.second.save(initial)
     await expectStoredSpend(t.second, 0.3)
     const stored = await readRaw(t.directory)
     expect(stored.budgetIsFreshFork).toBeUndefined()
     expect(await t.otherBudget.read(SESSION, ACCOUNT)).toEqual({
-      spentUsd: 0.3,
+      spentUsd: '0.3',
       hasUnknownHistoricalFees: false,
     })
   })
@@ -497,7 +656,7 @@ describe('the real-disk session budget journal (M82)', () => {
         return current
       },
     })
-    await expect(journal.read(SESSION, ACCOUNT)).resolves.toMatchObject({ spentUsd: 5 })
+    await expect(journal.read(SESSION, ACCOUNT)).resolves.toMatchObject({ spentUsd: '5' })
     expect(reads).toBe(2)
   })
 
@@ -505,20 +664,22 @@ describe('the real-disk session budget journal (M82)', () => {
     'fails closed on missing %s without reseeding from a stale snapshot',
     async (missing) => {
       const t = await setup(snapshot({ budgetSpentUsd: 2 }))
-      const claim = await t.budget.reserve(SESSION, ACCOUNT, 0.4)
+      const claim = await t.budget.reserve(SESSION, ACCOUNT, Usd.from(0.4).toAmount())
       const target = missingTarget(t.directory, claim.claimId, missing)
       await removeOwnedTree(t.directory, target)
       await writeRaw(t.directory, snapshot({ budgetSpentUsd: 0 }))
       await expect(t.otherBudget.read(SESSION, ACCOUNT)).rejects.toThrow(
         UI_TEXT.sessionBudgetStoreUnavailable,
       )
-      expect(() => claim.check(10)).toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
+      expect(() => claim.check(Usd.from(10).toAmount())).toThrow(
+        UI_TEXT.sessionBudgetStoreUnavailable,
+      )
     },
   )
 
   it.each(['seed', 'claim'])('fails closed on a corrupt %s payload', async (corrupt) => {
     const t = await setup()
-    const claim = await t.budget.reserve(SESSION, ACCOUNT, 0.2)
+    const claim = await t.budget.reserve(SESSION, ACCOUNT, Usd.from(0.2).toAmount())
     await writeFile(
       corrupt === 'seed'
         ? path.join(scope(t.directory), 'seed.json')
@@ -528,12 +689,12 @@ describe('the real-disk session budget journal (M82)', () => {
     await expect(t.otherBudget.read(SESSION, ACCOUNT)).rejects.toThrow(
       UI_TEXT.sessionBudgetStoreUnavailable,
     )
-    expect(() => claim.check(0)).toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
+    expect(() => claim.check(Usd.from(0).toAmount())).toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
   })
 
   it('fails closed when a payload cannot be read as a file', async () => {
     const t = await setup()
-    const claim = await t.budget.reserve(SESSION, ACCOUNT, 0.2)
+    const claim = await t.budget.reserve(SESSION, ACCOUNT, Usd.from(0.2).toAmount())
     const file = claimFile(t.directory, claim.claimId)
     await rm(file)
     await mkdir(file)
@@ -573,27 +734,29 @@ describe('the real-disk session budget journal (M82)', () => {
         await rename(from, to)
       },
     })
-    const claim = await budgetOf(failing).reserve(SESSION, ACCOUNT, 0.5)
+    const claim = await budgetOf(failing).reserve(SESSION, ACCOUNT, Usd.from(0.5).toAmount())
     isBlocked = true
-    await expect(claim.settle(0)).rejects.toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
+    await expect(claim.settle(Usd.from(0).toAmount())).rejects.toThrow(
+      UI_TEXT.sessionBudgetStoreUnavailable,
+    )
     await expectSpent(t.otherBudget.read(SESSION, ACCOUNT), 0.5)
     isBlocked = false
-    await expect(claim.settle(0)).resolves.toMatchObject({ spentUsd: 0 })
+    await expect(claim.settle(Usd.from(0).toAmount())).resolves.toMatchObject({ spentUsd: '0' })
   })
 
   it.each(['before publication', 'after publication'])(
     'refunds only its known nonsent row when reserve fails %s, while rejecting the call',
     async (when) => {
       const t = await setup()
-      const earlier = await t.budget.reserve(SESSION, ACCOUNT, 0.3)
+      const earlier = await t.budget.reserve(SESSION, ACCOUNT, Usd.from(0.3).toAmount())
       const failing = storeAt(t.directory, {
         rename: publicationFailure(when === 'after publication'),
       })
-      await expect(budgetOf(failing).reserve(SESSION, ACCOUNT, 0.4)).rejects.toThrow(
-        UI_TEXT.sessionBudgetStoreUnavailable,
-      )
+      await expect(
+        budgetOf(failing).reserve(SESSION, ACCOUNT, Usd.from(0.4).toAmount()),
+      ).rejects.toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
       await expectSpent(t.otherBudget.read(SESSION, ACCOUNT), 0.3)
-      expect(earlier.check(1).spentUsd).toBeCloseTo(0.3)
+      expect(earlier.check(Usd.from(1).toAmount()).spentUsd).toBe(Usd.from('0.3').toAmount())
       expect(await readdir(path.join(scope(t.directory), 'claims'))).toHaveLength(2)
     },
   )
@@ -604,9 +767,9 @@ describe('the real-disk session budget journal (M82)', () => {
     const failing = storeAt(t.directory, {
       rename: publicationFailure(false, true),
     })
-    await expect(budgetOf(failing).reserve(SESSION, ACCOUNT, 0.4)).rejects.toThrow(
-      UI_TEXT.sessionBudgetStoreUnavailable,
-    )
+    await expect(
+      budgetOf(failing).reserve(SESSION, ACCOUNT, Usd.from(0.4).toAmount()),
+    ).rejects.toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
     await expect(t.otherBudget.read(SESSION, ACCOUNT)).rejects.toThrow(
       UI_TEXT.sessionBudgetStoreUnavailable,
     )
@@ -624,7 +787,7 @@ describe('the real-disk session budget journal (M82)', () => {
     await expect(
       t.second.save(snapshot({ accountId: OTHER_ACCOUNT, budgetSpentUsd: 0 })),
     ).rejects.toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
-    await expect(readRaw(t.directory)).resolves.toMatchObject({ budgetSpentUsd: 2 })
+    await expect(readRaw(t.directory)).resolves.toMatchObject({ budgetSpentUsd: '2' })
   })
 
   it('never overwrites an existing legacy balance when metadata access is denied', async () => {
@@ -640,74 +803,92 @@ describe('the real-disk session budget journal (M82)', () => {
     } finally {
       denied.mockRestore()
     }
-    await expect(readRaw(t.directory)).resolves.toMatchObject({ budgetSpentUsd: 3 })
+    await expect(readRaw(t.directory)).resolves.toMatchObject({ budgetSpentUsd: '3' })
   })
 
-  it.each([-1, NaN, Infinity])(
-    'refuses an invalid reservation or settlement amount %s',
-    async (cost) => {
-      const t = await setup()
-      await expect(t.budget.reserve(SESSION, ACCOUNT, cost)).rejects.toThrow(
-        UI_TEXT.sessionBudgetStoreUnavailable,
-      )
-      const claim = await t.budget.reserve(SESSION, ACCOUNT, 0.3)
-      await expect(claim.settle(cost)).rejects.toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
-      await expectSpent(t.otherBudget.read(SESSION, ACCOUNT), 0.3)
-    },
-  )
+  it.each([-1])('refuses an invalid reservation or settlement amount %s', async (cost) => {
+    const t = await setup()
+    await expect(t.budget.reserve(SESSION, ACCOUNT, Usd.from(cost).toAmount())).rejects.toThrow(
+      UI_TEXT.sessionBudgetStoreUnavailable,
+    )
+    const claim = await t.budget.reserve(SESSION, ACCOUNT, Usd.from(0.3).toAmount())
+    await expect(claim.settle(Usd.from(cost).toAmount())).rejects.toThrow(
+      UI_TEXT.sessionBudgetStoreUnavailable,
+    )
+    await expectSpent(t.otherBudget.read(SESSION, ACCOUNT), 0.3)
+  })
 
   it('records known fees once per owned entry alongside settled requests', async () => {
     const t = await setup()
-    const claim = await t.budget.reserve(SESSION, ACCOUNT, 0.6)
-    await claim.settle(0.2)
-    await expectSpent(t.otherBudget.record(SESSION, ACCOUNT, 0.4), 0.6)
-    await expectSpent(t.budget.record(SESSION, ACCOUNT, 0.1), 0.7)
+    const claim = await t.budget.reserve(SESSION, ACCOUNT, Usd.from(0.6).toAmount())
+    await claim.settle(Usd.from(0.2).toAmount())
+    await expectSpent(t.otherBudget.record(SESSION, ACCOUNT, Usd.from(0.4).toAmount()), 0.6)
+    await expectSpent(t.budget.record(SESSION, ACCOUNT, Usd.from(0.1).toAmount()), 0.7)
     await expectStoredSpend(t.first, 0.7)
   })
 
   it('keeps an uncapped unknown-model cost marked unknown after stale saves and future capped claims', async () => {
     const t = await setup()
-    expect(await t.budget.record(SESSION, ACCOUNT, 0.2, true)).toEqual({
-      spentUsd: 0.2,
+    expect(await t.budget.record(SESSION, ACCOUNT, Usd.from(0.2).toAmount(), true)).toEqual({
+      spentUsd: '0.2',
       hasUnknownHistoricalFees: true,
     })
     await t.second.save(snapshot({ budgetSpentUsd: 0 }))
-    const claim = await t.otherBudget.reserve(SESSION, ACCOUNT, 0.1)
-    expect(() => claim.check(1)).toThrow(UI_TEXT.sessionBudgetLegacyFeesUnknown)
-    expect(claim.check(0).hasUnknownHistoricalFees).toBe(true)
+    const claim = await t.otherBudget.reserve(SESSION, ACCOUNT, Usd.from(0.1).toAmount())
+    expect(() => claim.check(Usd.from(1).toAmount())).toThrow(
+      UI_TEXT.sessionBudgetLegacyFeesUnknown,
+    )
+    expect(claim.check(Usd.from(0).toAmount()).hasUnknownHistoricalFees).toBe(true)
     await expectStoredSpend(t.first, 0.3)
   })
 
   it('blocks finite admission behind another host’s open uncapped request until known usage settles', async () => {
     const t = await setup()
-    const uncapped = await t.budget.reserve(SESSION, ACCOUNT, 0, { isUnbounded: true })
-    expect(uncapped.check(0)).toEqual({ spentUsd: 0, hasUnknownHistoricalFees: true })
-    const capped = await t.otherBudget.reserve(SESSION, ACCOUNT, 0.1)
-    expect(() => capped.check(1)).toThrow(UI_TEXT.sessionBudgetLegacyFeesUnknown)
-    await uncapped.settle(0.2, false)
-    expect(capped.check(1).hasUnknownHistoricalFees).toBe(false)
+    const uncapped = await t.budget.reserve(SESSION, ACCOUNT, Usd.from(0).toAmount(), {
+      isUnbounded: true,
+    })
+    expect(uncapped.check(Usd.from(0).toAmount())).toEqual({
+      spentUsd: '0',
+      hasUnknownHistoricalFees: true,
+    })
+    const capped = await t.otherBudget.reserve(SESSION, ACCOUNT, Usd.from(0.1).toAmount())
+    expect(() => capped.check(Usd.from(1).toAmount())).toThrow(
+      UI_TEXT.sessionBudgetLegacyFeesUnknown,
+    )
+    await uncapped.settle(Usd.from(0.2).toAmount(), false)
+    expect(capped.check(Usd.from(1).toAmount()).hasUnknownHistoricalFees).toBe(false)
     await expectSpent(t.otherBudget.read(SESSION, ACCOUNT), 0.3)
   })
 
   it('keeps ambiguous retries permanently unknown after the known tail settles', async () => {
     const t = await setup()
-    const claim = await t.budget.reserve(SESSION, ACCOUNT, 0, { isUnbounded: true })
-    await expect(claim.settle(0.2, true)).resolves.toMatchObject({ hasUnknownHistoricalFees: true })
-    await expect(claim.settle(0.2, true)).resolves.toMatchObject({ hasUnknownHistoricalFees: true })
-    await expect(claim.settle(0.2, false)).rejects.toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
-    const next = await t.otherBudget.reserve(SESSION, ACCOUNT, 0.1)
-    expect(() => next.check(1)).toThrow(UI_TEXT.sessionBudgetLegacyFeesUnknown)
+    const claim = await t.budget.reserve(SESSION, ACCOUNT, Usd.from(0).toAmount(), {
+      isUnbounded: true,
+    })
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await expect(claim.settle(Usd.from(0.2).toAmount(), true)).resolves.toMatchObject({
+        hasUnknownHistoricalFees: true,
+      })
+    }
+    await expect(claim.settle(Usd.from(0.2).toAmount(), false)).rejects.toThrow(
+      UI_TEXT.sessionBudgetStoreUnavailable,
+    )
+    const next = await t.otherBudget.reserve(SESSION, ACCOUNT, Usd.from(0.1).toAmount())
+    expect(() => next.check(Usd.from(1).toAmount())).toThrow(UI_TEXT.sessionBudgetLegacyFeesUnknown)
   })
 
   it('clears only a proven nonsent owner’s unbounded uncertainty on its zero refund', async () => {
     const t = await setup()
-    const claim = await t.budget.reserve(SESSION, ACCOUNT, 0, {
+    const claim = await t.budget.reserve(SESSION, ACCOUNT, Usd.from(0).toAmount(), {
       isUnbounded: true,
       hasUnknownCost: true,
     })
-    await claim.settle(0, false)
-    const next = await t.otherBudget.reserve(SESSION, ACCOUNT, 0.1)
-    expect(next.check(1)).toEqual({ spentUsd: 0.1, hasUnknownHistoricalFees: false })
+    await claim.settle(Usd.from(0).toAmount(), false)
+    const next = await t.otherBudget.reserve(SESSION, ACCOUNT, Usd.from(0.1).toAmount())
+    expect(next.check(Usd.from(1).toAmount())).toEqual({
+      spentUsd: '0.1',
+      hasUnknownHistoricalFees: false,
+    })
   })
 
   it('closes a failed uncapped publication as proven nonsent without retaining its unknown flag', async () => {
@@ -717,10 +898,13 @@ describe('the real-disk session budget journal (M82)', () => {
       rename: publicationFailure(false),
     })
     await expect(
-      budgetOf(failing).reserve(SESSION, ACCOUNT, 0, { isUnbounded: true, hasUnknownCost: true }),
+      budgetOf(failing).reserve(SESSION, ACCOUNT, Usd.from(0).toAmount(), {
+        isUnbounded: true,
+        hasUnknownCost: true,
+      }),
     ).rejects.toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
     expect(await t.otherBudget.read(SESSION, ACCOUNT)).toEqual({
-      spentUsd: 0,
+      spentUsd: '0',
       hasUnknownHistoricalFees: false,
     })
   })
@@ -741,9 +925,9 @@ describe('the real-disk session budget journal (M82)', () => {
         })
       },
     })
-    await expect(budgetOf(failing).record(SESSION, ACCOUNT, 0.4)).rejects.toThrow(
-      UI_TEXT.sessionBudgetStoreUnavailable,
-    )
+    await expect(
+      budgetOf(failing).record(SESSION, ACCOUNT, Usd.from(0.4).toAmount()),
+    ).rejects.toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
     await expectSpent(t.otherBudget.read(SESSION, ACCOUNT), 0.4)
   })
 })

@@ -208,6 +208,9 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       bundled skills' Muse Code installer (skills/,
                       dist/bundledSkills.js, loaded on first use),
                       Tab's lazy provider, ledger and menu (dist/tab.js),
+                      shared schema conversion (dist/structuredSchema.js),
+                      Model API code intelligence and MCP pools
+                      (dist/modelApiCodeIntel.js and dist/mcpPool.js),
                       with its status item in the activation shim,
                       commands, auth, settings, mentions,
                       editor tracking, usage trace logs, voice, the IDE tool
@@ -239,6 +242,16 @@ src/core/**           backend-agnostic logic; must not import `vscode`
                       observation packing, Tab's context windows, requests,
                       filters, typing-through cache, scheduler and spend, the flight recorder policy
                       and problem report builder and second scrub)
+src/core/resources/** portable machine sampler, governor, queue, registered-tree
+                      accounting/actions, disk and created-root policy;
+                      dist/resourceGovernor.js loads on first governed use,
+                      dist/resourceAdmission.js is the shared process shim
+src/webview/resources/** shared chip/popover via injected source and lazy loader;
+                      dist/webview/resourceSurface.js shares React/text chunks
+src/webview/usage/**  ResourcesSection and lazy history boundary;
+                      dist/webview/resourceHistory.js plus its CSS; M102 mount
+src/runtime/resources/** machine settings/status/resume, session port and exec-v2
+                      adapter; active spawn/history bindings remain named
 src/acp/**            the ACP agent (D62): the ACP side of a session and the
                       translation of the engine's events, questionDeferral.ts
                       (dist/acpQuestions.js, loaded on the first question,
@@ -246,7 +259,8 @@ src/acp/**            the ACP agent (D62): the ACP side of a session and the
                       local answer/list commands and the registry binding);
                       must not import
                       `vscode`
-src/runtime/exec/**   headless arguments/protocol/egress, stdin key/scanner,
+src/runtime/exec/**   headless arguments/protocol/egress (dist/exec.js, loaded
+                      only by the exec command), stdin key/scanner,
                       bounded lifecycle, ACP client/tap and per-attempt ledger
 src/runtime/**        the agent's process: arguments, backends outside VS Code,
                       the OS credential store (D61), `auth`, `login` and

@@ -37,7 +37,11 @@ import {
   MODEL_API_TOOLS,
   OBS_PACK_PAGE_CHARS,
 } from '../../src/shared/constants'
-import { isToolSchemaGrammarSafe, withStrictTools } from '../../src/core/backends/modelapi/schemas'
+import {
+  isToolSchemaGrammarSafe,
+  restoreOptionalToolArguments,
+  withStrictTools,
+} from '../../src/core/backends/modelapi/schemas'
 import { memoryToolIo } from './helpers/fakeToolIo'
 
 const ROOT = '/ws'
@@ -50,11 +54,18 @@ function context(files: Record<string, string> = {}, platform: NodeJS.Platform =
     isTimedOut: command.includes('hang'),
     isCancelled: command.includes('stop'),
   }))
-  const ctx: ToolContext = { workspaceRoot: ROOT, platform, io, seen: new Map() }
+  const seen = new Map<string, string>()
+  const ctx: ToolContext = { workspaceRoot: ROOT, platform, io, seen, provisionalSeen: new Map() }
   return {
     io,
     ctx,
-    run: (name: string, args: unknown) => executeTool(name, JSON.stringify(args), ctx),
+    run: async (name: string, args: unknown) => {
+      const outcome = await executeTool(name, JSON.stringify(args), ctx)
+      if (outcome.failureReason === undefined)
+        for (const [absolute, hash] of ctx.provisionalSeen) seen.set(absolute, hash)
+      ctx.provisionalSeen.clear()
+      return outcome
+    },
   }
 }
 
@@ -145,7 +156,13 @@ describe('confineWorkspacePath: links (D24)', () => {
 
   it('makes the file tools refuse a linked escape before touching anything', async () => {
     const files = memoryToolIo({ 'a.txt': 'x' }, ROOT, undefined, { linked: '/etc' })
-    const ctx: ToolContext = { workspaceRoot: ROOT, platform: 'linux', io: files, seen: new Map() }
+    const ctx: ToolContext = {
+      workspaceRoot: ROOT,
+      platform: 'linux',
+      io: files,
+      seen: new Map(),
+      provisionalSeen: new Map(),
+    }
     const write = await executeTool(
       'write_file',
       JSON.stringify({ path: 'linked/cron.d/x', content: 'evil' }),
@@ -189,6 +206,7 @@ describe('read_file: retargeted links (M54)', () => {
       platform: 'linux',
       io,
       seen: new Map(),
+      provisionalSeen: new Map(),
     })
     expect(result.output).toContain('inside')
     expect(result.output).not.toContain('outside')
@@ -206,6 +224,7 @@ describe('read_file: retargeted links (M54)', () => {
       platform: 'linux',
       io,
       seen: new Map(),
+      provisionalSeen: new Map(),
     })
     expect(result.visibleFile?.part.base64Data).toBe(inside.toString('base64'))
   })
@@ -340,7 +359,45 @@ describe('read_file: localized visual summaries (M54)', () => {
     io.readBytes = () => Promise.reject(new Error('stopped read'))
     await expect(
       executeTool('read_file', '{"path":"img/stopped.png"}', { ...ctx, signal: abort.signal }),
-    ).rejects.toThrow('stopped read')
+    ).rejects.toMatchObject({ name: 'AbortError' })
+  })
+
+  it('passes the turn signal to native text, image, listing and search and discards late results', async () => {
+    const calls = [
+      { name: 'read_file', args: { path: 'a.txt' } },
+      { name: 'read_file', args: { path: 'a.png' } },
+      { name: 'list_files', args: {} },
+      { name: 'search', args: { pattern: 'late' } },
+    ]
+    for (const call of calls) {
+      const { io, ctx } = context({ 'a.txt': 'late bytes' })
+      const abort = new AbortController()
+      const stop = (signal: AbortSignal | undefined) => {
+        expect(signal).toBe(abort.signal)
+        abort.abort()
+      }
+      io.readFile = (_absolute, _expected, signal) => {
+        stop(signal)
+        return Promise.resolve('late bytes')
+      }
+      io.readBytes = (_absolute, _max, _expected, signal) => {
+        stop(signal)
+        return Promise.resolve(new Uint8Array())
+      }
+      if (call.name === 'list_files')
+        io.listFiles = (signal) => {
+          stop(signal)
+          return Promise.resolve(['late.txt'])
+        }
+      io.searchFiles = (_job, signal) => {
+        stop(signal)
+        return Promise.resolve({ ok: true, hits: [] })
+      }
+      await expect(
+        executeTool(call.name, JSON.stringify(call.args), { ...ctx, signal: abort.signal }),
+      ).rejects.toMatchObject({ name: 'AbortError' })
+      expect(ctx.seen.size).toBe(0)
+    }
   })
 })
 
@@ -375,6 +432,7 @@ describe('write_file and edit_file: retargeted links (M54)', () => {
       platform: 'linux',
       io,
       seen: new Map(),
+      provisionalSeen: new Map(),
     })
     expect(result.failureReason).toBeUndefined()
     expect(base.files.get('/ws/safe/new.txt')).toBe('safe')
@@ -387,7 +445,7 @@ describe('write_file and edit_file: retargeted links (M54)', () => {
     const result = await executeTool(
       'edit_file',
       '{"path":"link/note.txt","find":"before","replace":"after"}',
-      { workspaceRoot: ROOT, platform: 'linux', io, seen: new Map() },
+      { workspaceRoot: ROOT, platform: 'linux', io, seen: new Map(), provisionalSeen: new Map() },
     )
     expect(result.failureReason).toBeUndefined()
     expect(base.files.get('/ws/safe/note.txt')).toBe('after')
@@ -397,9 +455,18 @@ describe('write_file and edit_file: retargeted links (M54)', () => {
   it('replaces the checked text the model read through the requested path', async () => {
     const { base, io } = retargetedWritableIo({ 'safe/note.txt': 'before' })
     base.files.set('/etc/note.txt', 'before')
-    const ctx: ToolContext = { workspaceRoot: ROOT, platform: 'linux', io, seen: new Map() }
+    const seen = new Map<string, string>()
+    const ctx: ToolContext = {
+      workspaceRoot: ROOT,
+      platform: 'linux',
+      io,
+      seen,
+      provisionalSeen: new Map(),
+    }
     const read = await executeTool('read_file', '{"path":"link/note.txt"}', ctx)
     expect(read.output).toContain('before')
+    for (const [absolute, hash] of ctx.provisionalSeen) seen.set(absolute, hash)
+    ctx.provisionalSeen.clear()
     const written = await executeTool(
       'write_file',
       '{"path":"link/note.txt","content":"after"}',
@@ -416,7 +483,7 @@ describe('write_file and edit_file: retargeted links (M54)', () => {
     const result = await executeTool(
       'edit_file',
       '{"path":"link/note.txt","find":"before","replace":"after"}',
-      { workspaceRoot: ROOT, platform: 'linux', io, seen: new Map() },
+      { workspaceRoot: ROOT, platform: 'linux', io, seen: new Map(), provisionalSeen: new Map() },
     )
     expect(result.failureReason).toContain(FILE_REFUSAL_MODEL_TEXT.fileHasUnsavedChanges)
     expect(base.files.get('/ws/safe/note.txt')).toBe('before')
@@ -495,17 +562,59 @@ describe('toolDefinitions / classifyTool', () => {
     }).map((tool) => tool.name)
     expect(child).not.toContain('subagent_spawn')
     expect(child).not.toContain('ask_user')
-    expect(child).not.toContain('todo_write')
+    expect(child).toContain('todo_write')
     expect(child).toContain('read_file')
   })
 })
 
 describe('strict tool schemas and grammar safety (M101 item 24)', () => {
+  it('restores nullable optionals from already rewritten and twice rewritten declarations (M106)', () => {
+    const definitions = toolDefinitions('linux', {
+      hasShell: true,
+      hasSkills: false,
+      shouldUseStrictTools: true,
+    })
+    for (const rewritten of [definitions, withStrictTools(definitions, true)]) {
+      const read = rewritten.find((tool) => tool.name === 'read_file')
+      if (read === undefined) throw new Error('missing read_file')
+      expect(
+        restoreOptionalToolArguments('{"path":"a.txt","offset":null,"limit":null}', read),
+      ).toBe('{"path":"a.txt"}')
+    }
+  })
+
+  it.each(['linux', 'darwin', 'win32'] as const)(
+    'rewrites every harness declaration through the effective strict option on %s (M106)',
+    (platform) => {
+      const options = {
+        hasShell: true,
+        hasSkills: true,
+        hasImageGeneration: true,
+        hasSubagents: true,
+        hasMemory: true,
+        hasPackedRecall: true,
+        hasWebFetch: true,
+        hasBrowserCheck: true,
+        hasCodeIntel: true,
+        checks: [{ name: 'unit', command: 'npm test', changedFiles: false }],
+      }
+      const off = toolDefinitions(platform, { ...options, shouldUseStrictTools: false })
+      expect(JSON.stringify(off)).toBe(JSON.stringify(toolDefinitions(platform, options)))
+      const on = toolDefinitions(platform, { ...options, shouldUseStrictTools: true })
+      expect(on.map((tool) => tool.name)).toEqual(off.map((tool) => tool.name))
+      expect(on.every((tool) => tool.strict)).toBe(true)
+      for (const tool of on) {
+        expect(tool.parameters['required']).toEqual(
+          Object.keys(tool.parameters['properties'] ?? {}),
+        )
+        expect(tool.parameters['additionalProperties']).toBe(false)
+      }
+    },
+  )
+
   it('requires every property and makes optional values nullable recursively (F4)', () => {
     const definitions = toolDefinitions('linux')
-    const read = withStrictTools(definitions, true).find(
-      (tool) => tool.type === 'function' && tool.name === 'read_file',
-    )
+    const read = withStrictTools(definitions, true).find((tool) => tool.name === 'read_file')
     expect(read).toMatchObject({
       strict: true,
       parameters: {
@@ -614,16 +723,13 @@ describe('strict tool schemas and grammar safety (M101 item 24)', () => {
     const strict = withStrictTools(definitions, true)
     expect(strict).not.toBe(definitions)
     for (const tool of strict) {
-      if (tool.type !== 'function') continue
       expect(tool.strict).toBe(true)
       expect(tool.parameters['required']).toEqual(Object.keys(tool.parameters['properties'] ?? {}))
       expect(tool.parameters['additionalProperties']).toBe(false)
     }
     expect(definitions.every((tool) => !tool.strict)).toBe(true)
-    const recall = strict.find(
-      (tool) => tool.type === 'function' && tool.name === MODEL_API_TOOLS.recallOutput,
-    )
-    expect(recall?.type === 'function' && recall.parameters['properties']).toMatchObject({
+    const recall = strict.find((tool) => tool.name === MODEL_API_TOOLS.recallOutput)
+    expect(recall?.parameters['properties']).toMatchObject({
       search: { minLength: 1, maxLength: OBS_PACK_PAGE_CHARS },
     })
   })
@@ -997,6 +1103,7 @@ describe('executeTool: a flood of shell output (D27)', () => {
         platform: 'linux',
         io,
         seen: new Map(),
+        provisionalSeen: new Map(),
       },
     )
     expect(outcome.output.startsWith('start start')).toBe(true)
@@ -1015,7 +1122,13 @@ describe('executeTool: search limits (D27)', () => {
     const io = memoryToolIo({ 'a.ts': 'x\n' }, ROOT)
     io.searchFiles = () =>
       Promise.resolve({ ok: true, hits: [{ file: 'a.ts', line: 1, text: 'x' }], isPartial: true })
-    const ctx: ToolContext = { workspaceRoot: ROOT, platform: 'linux', io, seen: new Map() }
+    const ctx: ToolContext = {
+      workspaceRoot: ROOT,
+      platform: 'linux',
+      io,
+      seen: new Map(),
+      provisionalSeen: new Map(),
+    }
     const partial = await executeTool('search', JSON.stringify({ pattern: 'x' }), ctx)
     expect(partial.output).toContain('a.ts:1: x')
     expect(partial.output).toContain('these results are partial')
@@ -1046,7 +1159,14 @@ describe('a conversation in a worktree (M71)', () => {
   it('cannot read, write or edit the main checkout', async () => {
     const io = memoryToolIo({ 'src/a.ts': 'worktree\n' }, WORKTREE)
     io.files.set(`${MAIN}/src/a.ts`, 'main\n')
-    const ctx: ToolContext = { workspaceRoot: WORKTREE, platform: 'linux', io, seen: new Map() }
+    const seen = new Map<string, string>()
+    const ctx: ToolContext = {
+      workspaceRoot: WORKTREE,
+      platform: 'linux',
+      io,
+      seen,
+      provisionalSeen: new Map(),
+    }
     const run = (name: string, args: unknown) => executeTool(name, JSON.stringify(args), ctx)
     for (const target of ['../../app/src/a.ts', `${MAIN}/src/a.ts`]) {
       expect(await run('read_file', { path: target })).toMatchObject({
@@ -1062,6 +1182,8 @@ describe('a conversation in a worktree (M71)', () => {
     expect(io.files.get(`${MAIN}/src/a.ts`)).toBe('main\n')
     // Its own files are its to change.
     await run('read_file', { path: 'src/a.ts' })
+    for (const [absolute, hash] of ctx.provisionalSeen) seen.set(absolute, hash)
+    ctx.provisionalSeen.clear()
     const written = await run('write_file', { path: 'src/a.ts', content: 'changed\n' })
     expect(written.failureReason).toBeUndefined()
     expect(io.files.get(`${WORKTREE}/src/a.ts`)).toBe('changed\n')
@@ -1242,6 +1364,7 @@ describe('shell output kept whole for packing (M101 item 15)', () => {
       platform: 'linux',
       io,
       seen: new Map(),
+      provisionalSeen: new Map(),
       wholeShellOutput: true,
     }
     const outcome = await executeTool(
@@ -1403,6 +1526,7 @@ describe('FIXM101T tool regressions', () => {
       platform: 'win32',
       io,
       seen: new Map(),
+      provisionalSeen: new Map(),
       files: { extraRoots: ['C:/extra'], isDenied: () => false, denyGlobs: [], isDenyAll: false },
     }
     const allowed = await executeTool('read_file', '{"path":"file:///C:/extra/b.txt"}', ctx)

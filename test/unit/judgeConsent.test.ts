@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import { memento } from './helpers/memento'
 import type * as vscode from 'vscode'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -107,10 +108,16 @@ describe('Judge first-charge consent hook', () => {
 
   it('denies invalid Judge tariffs and budgets at the host boundary without a popup', async () => {
     await expect(
-      askPaidUse({ feature: 'judge', modelId: 'unknown', dailyBudgetUsd: 2 }, true),
+      askPaidUse(
+        { feature: 'judge', modelId: 'unknown', dailyBudgetUsd: Usd.from(2).toAmount() },
+        true,
+      ),
     ).resolves.toBe('deny')
     await expect(
-      askPaidUse({ feature: 'judge', modelId: 'muse-spark-1.3', dailyBudgetUsd: -1 }, true),
+      askPaidUse(
+        { feature: 'judge', modelId: 'muse-spark-1.3', dailyBudgetUsd: Usd.from(-1).toAmount() },
+        true,
+      ),
     ).resolves.toBe('deny')
     expect(modal).not.toHaveBeenCalled()
   })
@@ -135,11 +142,20 @@ describe('Judge first-charge consent hook', () => {
   it('refuses an invalid first-charge budget and an unpriced model before showing a popup', async () => {
     for (const dailyBudgetUsd of [-1, NaN, Infinity]) {
       await expect(
-        paidUseQuestion({ feature: 'judge', modelId: 'muse-spark-1.3', dailyBudgetUsd }),
+        async () =>
+          await paidUseQuestion({
+            feature: 'judge',
+            modelId: 'muse-spark-1.3',
+            dailyBudgetUsd: Usd.from(dailyBudgetUsd).toAmount(),
+          }),
       ).rejects.toThrow()
     }
     await expect(
-      paidUseQuestion({ feature: 'judge', modelId: 'unknown', dailyBudgetUsd: 2 }),
+      paidUseQuestion({
+        feature: 'judge',
+        modelId: 'unknown',
+        dailyBudgetUsd: Usd.from(2).toAmount(),
+      }),
     ).rejects.toThrow()
     expect(modal).not.toHaveBeenCalled()
   })
@@ -173,7 +189,7 @@ describe('Judge usage receipts', () => {
       judgeUnknownRequests: 1,
       judgeTokens: 1100,
     })
-    expect(paidCostUsd('judge', usage.current)).toBeCloseTo(0.001125)
+    expect(Number(paidCostUsd('judge', usage.current))).toBeCloseTo(0.001125)
     const unmatched = new PaidUsage(new FakeLogOutputChannel())
     unmatched.addJudgeUsage('muse-spark-1.3', {
       inputTokens: 1000,

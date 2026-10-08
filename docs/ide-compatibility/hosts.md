@@ -124,8 +124,14 @@ worktrees and the evaluation retain their distinct immediate policies.
 | CodeSandbox, Ona                             | Remote-editor attachment                   | M66       | Planned |
 | Arduino IDE 2, Code::Blocks, CodeLite, Geany | External tool, or a native plugin if asked | M66       | Planned |
 
+## M107 resource feature qualification
+
 ## M118 sharing integration (2026-10-06)
 
+The editor statuses above do not imply M107 resource qualification.
+[The resource matrix](resources.md) records the common governor, each surface
+and its pending binding. This join tests portable policy and shared components
+on Kubuntu; it does not move any editor's status or certify a native bridge.
 The VS Code/shared React bridge binds `sharingAction`, `sharingResult` and
 `openSharing` to the lazy shared prompt/chat core. VS Code derivatives take the
 same VSIX path; this integration does not repeat their installed-host receipts.

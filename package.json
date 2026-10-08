@@ -2,7 +2,7 @@
   "name": "muse-spark-code",
   "displayName": "%displayName%",
   "description": "%description%",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "publisher": "RandyNorthrup",
   "license": "MIT",
   "private": true,
@@ -134,6 +134,11 @@
         "category": "%command.category%"
       },
       {
+        "command": "museSpark.reportProblem",
+        "title": "%command.reportProblem.title%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.newConversation",
         "title": "%command.newConversation.title%",
         "category": "%command.category%"
@@ -199,6 +204,21 @@
         "category": "%command.category%"
       },
       {
+        "command": "museSpark.runSetupHooks",
+        "title": "%command.runSetupHooks.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.runHook",
+        "title": "%command.runHook.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.retryPluginHooks",
+        "title": "%command.retryPluginHooks.title%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.memory",
         "title": "%command.memory.title%",
         "category": "%command.category%"
@@ -239,41 +259,6 @@
         "category": "%command.category%"
       },
       {
-        "command": "museSpark.startWithOwnModel",
-        "title": "%command.startWithOwnModel.title%",
-        "category": "%command.category%"
-      },
-      {
-        "command": "museSpark.modelsAndAgents",
-        "title": "%command.modelsAndAgents.title%",
-        "category": "%command.category%"
-      },
-      {
-        "command": "museSpark.addModelProvider",
-        "title": "%command.addModelProvider.title%",
-        "category": "%command.category%"
-      },
-      {
-        "command": "museSpark.reportProblem",
-        "title": "%command.reportProblem.title%",
-        "category": "%command.category%"
-      },
-      {
-        "command": "museSpark.runSetupHooks",
-        "title": "%command.runSetupHooks.title%",
-        "category": "%command.category%"
-      },
-      {
-        "command": "museSpark.runHook",
-        "title": "%command.runHook.title%",
-        "category": "%command.category%"
-      },
-      {
-        "command": "museSpark.retryPluginHooks",
-        "title": "%command.retryPluginHooks.title%",
-        "category": "%command.category%"
-      },
-      {
         "command": "museSpark.downloadBrowserCheckRuntime",
         "title": "%command.downloadBrowserCheckRuntime.title%",
         "category": "%command.category%"
@@ -282,12 +267,6 @@
         "command": "museSpark.showWhatsNew",
         "title": "%command.showWhatsNew.title%",
         "category": "%command.category%"
-      },
-      {
-        "command": "museSpark.openUsagePage",
-        "title": "%command.openUsagePage.title%",
-        "category": "%command.category%",
-        "icon": "$(graph)"
       },
       {
         "command": "museSpark.tabTurnOn",
@@ -320,21 +299,6 @@
         "category": "%command.category%"
       },
       {
-        "command": "museSpark.legalScan",
-        "title": "%command.legalScan.title%",
-        "category": "%command.category%"
-      },
-      {
-        "command": "museSpark.connectChatGpt",
-        "title": "%command.connectChatGpt%",
-        "category": "%command.category%"
-      },
-      {
-        "command": "museSpark.connectCopilot",
-        "title": "%command.connectCopilot%",
-        "category": "%command.category%"
-      },
-      {
         "command": "museSpark.openHelp",
         "title": "%command.openHelp.title%",
         "category": "%command.category%"
@@ -347,6 +311,42 @@
       {
         "command": "museSpark.previousOpenQuestion",
         "title": "%command.previousOpenQuestion.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.startWithOwnModel",
+        "title": "%command.startWithOwnModel.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.modelsAndAgents",
+        "title": "%command.modelsAndAgents.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.addModelProvider",
+        "title": "%command.addModelProvider.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.openUsagePage",
+        "title": "%command.openUsagePage.title%",
+        "category": "%command.category%",
+        "icon": "$(graph)"
+      },
+      {
+        "command": "museSpark.legalScan",
+        "title": "%command.legalScan.title%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.connectChatGpt",
+        "title": "%command.connectChatGpt%",
+        "category": "%command.category%"
+      },
+      {
+        "command": "museSpark.connectCopilot",
+        "title": "%command.connectCopilot%",
         "category": "%command.category%"
       },
       {
@@ -785,16 +785,32 @@
           "description": "%config.modelApiBestOfN.description%",
           "scope": "machine"
         },
-        "museSpark.modelApiTeamWorkers": {
-          "type": "boolean",
-          "default": true,
-          "description": "%config.modelApiTeamWorkers.description%",
-          "scope": "machine"
-        },
         "museSpark.modelApiHooks": {
           "type": "boolean",
           "default": true,
           "description": "%config.modelApiHooks.description%",
+          "scope": "machine"
+        },
+        "museSpark.modelApiShellKeepsDirectory": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.modelApiShellKeepsDirectory.description%",
+          "scope": "machine"
+        },
+        "museSpark.modelApiHookModels": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.modelApiHookModels.description%",
+          "scope": "machine"
+        },
+        "museSpark.hookHttpAllowedHosts": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          },
+          "description": "%config.hookHttpAllowedHosts.description%",
           "scope": "machine"
         },
         "museSpark.diagnosticsAfterEdits": {
@@ -889,6 +905,12 @@
           "type": "boolean",
           "default": true,
           "description": "%config.bundledSkills.description%",
+          "scope": "machine"
+        },
+        "museSpark.showWhatsNewOnUpdate": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.showWhatsNewOnUpdate.description%",
           "scope": "machine"
         },
         "museSpark.modelApiCommandRules": {
@@ -1081,34 +1103,6 @@
           "description": "%config.museCodeAutoReviewer.description%",
           "scope": "machine"
         },
-        "museSpark.modelApiShellKeepsDirectory": {
-          "type": "boolean",
-          "default": true,
-          "description": "%config.modelApiShellKeepsDirectory.description%",
-          "scope": "machine"
-        },
-        "museSpark.modelApiHookModels": {
-          "type": "boolean",
-          "default": true,
-          "description": "%config.modelApiHookModels.description%",
-          "scope": "machine"
-        },
-        "museSpark.hookHttpAllowedHosts": {
-          "type": "array",
-          "default": [],
-          "items": {
-            "type": "string",
-            "maxLength": 256
-          },
-          "description": "%config.hookHttpAllowedHosts.description%",
-          "scope": "machine"
-        },
-        "museSpark.showWhatsNewOnUpdate": {
-          "type": "boolean",
-          "default": true,
-          "description": "%config.showWhatsNewOnUpdate.description%",
-          "scope": "machine"
-        },
         "museSpark.browserCheckExtraHosts": {
           "type": "array",
           "default": [],
@@ -1152,20 +1146,6 @@
           ],
           "default": "system",
           "description": "%config.dictationEngine.description%",
-          "scope": "machine"
-        },
-        "museSpark.usageHistory": {
-          "type": "boolean",
-          "default": true,
-          "description": "%setting.usageHistory.description%",
-          "scope": "machine"
-        },
-        "museSpark.usageHistoryDays": {
-          "type": "integer",
-          "default": 365,
-          "minimum": 30,
-          "maximum": 1825,
-          "description": "%setting.usageHistoryDays.description%",
           "scope": "machine"
         },
         "museSpark.modelApiTab": {
@@ -1277,6 +1257,92 @@
           "description": "%config.shell.passEnvironmentVariables.description%",
           "scope": "machine"
         },
+        "museSpark.resourceGovernor": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.resourceGovernor.description%",
+          "scope": "machine"
+        },
+        "museSpark.resourceCpuMaxPercent": {
+          "type": "number",
+          "default": 85,
+          "minimum": 30,
+          "maximum": 100,
+          "description": "%config.resourceCpuMaxPercent.description%",
+          "scope": "machine"
+        },
+        "museSpark.resourceMemoryMaxPercent": {
+          "type": "number",
+          "default": 90,
+          "minimum": 40,
+          "maximum": 98,
+          "description": "%config.resourceMemoryMaxPercent.description%",
+          "scope": "machine"
+        },
+        "museSpark.resourceMemoryMinFreeGiB": {
+          "type": "number",
+          "default": 2,
+          "minimum": 0.5,
+          "maximum": 64,
+          "description": "%config.resourceMemoryMinFreeGiB.description%",
+          "scope": "machine"
+        },
+        "museSpark.resourceGpuMaxPercent": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": null,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "%config.resourceGpuMaxPercent.description%",
+          "scope": "machine"
+        },
+        "museSpark.resourceDiskBusyMaxPercent": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": null,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "%config.resourceDiskBusyMaxPercent.description%",
+          "scope": "machine"
+        },
+        "museSpark.resourceDiskMinFreeGiB": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": null,
+          "minimum": 2,
+          "description": "%config.resourceDiskMinFreeGiB.description%",
+          "scope": "machine"
+        },
+        "museSpark.resourceRelocate": {
+          "type": "string",
+          "default": "paired",
+          "enum": [
+            "paired",
+            "ask",
+            "off"
+          ],
+          "description": "%config.resourceRelocate.description%",
+          "scope": "machine",
+          "enumDescriptions": [
+            "%config.resourceRelocate.enumDescriptions.paired%",
+            "%config.resourceRelocate.enumDescriptions.ask%",
+            "%config.resourceRelocate.enumDescriptions.off%"
+          ]
+        },
+        "museSpark.questions.deferAfterSeconds": {
+          "type": "integer",
+          "default": 60,
+          "minimum": 0,
+          "maximum": 3600,
+          "description": "%config.questions.deferAfterSeconds.description%",
+          "scope": "machine"
+        },
         "museSpark.suggestedProvider": {
           "type": "string",
           "default": "",
@@ -1286,6 +1352,46 @@
           "type": "boolean",
           "default": true,
           "description": "%config.modelApiAutoCompaction.description%",
+          "scope": "machine"
+        },
+        "museSpark.modelApiStrictTools": {
+          "type": "boolean",
+          "default": true,
+          "scope": "machine",
+          "description": "%config.modelApiStrictTools.description%"
+        },
+        "museSpark.modelApiParallelReads": {
+          "type": "boolean",
+          "default": true,
+          "scope": "machine",
+          "description": "%config.modelApiParallelReads.description%"
+        },
+        "museSpark.webSearchMaxPerRequest": {
+          "type": "number",
+          "default": 5,
+          "scope": "machine",
+          "description": "%config.webSearchMaxPerRequest.description%",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "museSpark.modelApiTeamWorkers": {
+          "type": "boolean",
+          "default": true,
+          "description": "%config.modelApiTeamWorkers.description%",
+          "scope": "machine"
+        },
+        "museSpark.usageHistory": {
+          "type": "boolean",
+          "default": true,
+          "description": "%setting.usageHistory.description%",
+          "scope": "machine"
+        },
+        "museSpark.usageHistoryDays": {
+          "type": "integer",
+          "default": 365,
+          "minimum": 30,
+          "maximum": 1825,
+          "description": "%setting.usageHistoryDays.description%",
           "scope": "machine"
         },
         "museSpark.legalHeaderPolicy": {
@@ -1314,14 +1420,6 @@
           "default": true,
           "scope": "machine",
           "markdownDescription": "%config.legalExplanation%"
-        },
-        "museSpark.questions.deferAfterSeconds": {
-          "type": "integer",
-          "default": 60,
-          "minimum": 0,
-          "maximum": 3600,
-          "description": "%config.questions.deferAfterSeconds.description%",
-          "scope": "machine"
         },
         "museSpark.syncPromptsAndBookmarks": {
           "type": "boolean",
@@ -1407,6 +1505,7 @@
     "test:a11y": "node scripts/a11y.mjs",
     "check:badges": "node scripts/check-badges.mjs",
     "check:l10n": "node scripts/check-l10n.mjs",
+    "check:reference": "node scripts/gen-reference.mjs --check",
     "check:host-api": "node scripts/check-host-api.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -1421,7 +1520,7 @@
     "typecheck:e2e": "tsc -p test/e2e/tsconfig.json --noEmit",
     "typecheck:integration": "tsc -p test/integration/tsconfig.json --noEmit",
     "deadcode": "knip",
-    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/runtime/runtimeEngineEntry.ts src/host/backend/providerPolicyEntry.ts src/runtime/runtimeAccountingEntry.ts src/core/backends/modelapi/modelApiHooksEntry.ts src/core/backends/modelapi/modelApiMcpEntry.ts src/shared/wireEntry.ts src/shared/modelApiBoundariesEntry.ts src/extension.ts src/host/conversation/conversationEntry.ts src/host/judge/judgeEntry.ts src/host/tab/tabEntry.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/core/backends/modelapi/foreignHooksEntry.ts src/core/backends/modelapi/pluginHooksEntry.ts src/core/backends/modelapi/hookRuntimeEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts src/host/browser/browserCheckEntry.ts src/host/browser/browserRuntimeEntry.ts src/host/whatsNew/whatsNewEntry.ts src/webview/whatsNew/main.ts src/host/git/conversationGitEntry.ts src/host/backend/providersEntry.ts src/shared/validationEntry.ts src/host/models/modelsPanelEntry.ts src/webview/models/models.tsx src/host/teamViewBundle.ts src/core/team/teamEntry.ts src/core/team/teamSchedulerEntry.ts src/host/runners/teamRunnersEntry.ts src/core/legal/entry.ts src/runtime/usage/usageServiceEntry.ts src/runtime/usage/usageCompanionEntry.ts src/host/usage/usagePanelEntry.ts src/webview/usage/usage.tsx src/host/backend/subscriptionsEntry.ts src/host/backend/configuredProvidersEntry.ts src/runtime/exec/runExec.ts src/acp/questionDeferralEntry.ts src/runtime/questions/questionRegistryEntry.ts src/host/prompts/promptEntry.ts src/runtime/sharing/sharingEntry.ts",
+    "cycles": "dpdm --no-warning --no-tree --exit-code circular:1 -T src/runtime/runtimeEngineEntry.ts src/host/backend/providerPolicyEntry.ts src/runtime/runtimeAccountingEntry.ts src/core/backends/modelapi/modelApiHooksEntry.ts src/core/backends/modelapi/modelApiMcpEntry.ts src/shared/wireEntry.ts src/shared/modelApiBoundariesEntry.ts src/extension.ts src/host/conversation/conversationEntry.ts src/host/judge/judgeEntry.ts src/host/tab/tabEntry.ts src/host/backend/modelApiEntry.ts src/host/sessionBoardEntry.ts src/core/backends/modelapi/reviewerEntry.ts src/core/backends/modelapi/foreignHooksEntry.ts src/core/backends/modelapi/pluginHooksEntry.ts src/core/backends/modelapi/hookRuntimeEntry.ts src/host/agentImportEntry.ts src/host/ide/codeIntelEntry.ts src/host/voice/voiceEntry.ts src/host/web/webFetchEntry.ts src/host/planMarkdownEntry.ts src/host/checkpoints/checkpointStoreEntry.ts src/host/review/reviewEntry.ts src/host/review/museCodeReviewerEntry.ts src/host/skills/bundledSkillsEntry.ts src/webview/main.tsx src/runtime/main.ts src/host/browser/browserCheckEntry.ts src/host/browser/browserRuntimeEntry.ts src/host/whatsNew/whatsNewEntry.ts src/webview/whatsNew/main.ts src/host/git/conversationGitEntry.ts src/core/resources/admission.ts src/core/resources/resourceGovernorEntry.ts src/webview/resources/ResourceSurface.tsx src/webview/usage/ResourcesSection.tsx src/host/backend/providersEntry.ts src/shared/validationEntry.ts src/host/models/modelsPanelEntry.ts src/webview/models/models.tsx src/host/teamViewBundle.ts src/core/team/teamEntry.ts src/core/team/teamSchedulerEntry.ts src/host/runners/teamRunnersEntry.ts src/core/legal/entry.ts src/runtime/usage/usageServiceEntry.ts src/runtime/usage/usageCompanionEntry.ts src/host/usage/usagePanelEntry.ts src/webview/usage/usage.tsx src/host/backend/subscriptionsEntry.ts src/host/backend/configuredProvidersEntry.ts src/runtime/exec/runExec.ts src/acp/questionDeferralEntry.ts src/runtime/questions/questionRegistryEntry.ts src/host/prompts/promptEntry.ts src/runtime/sharing/sharingEntry.ts",
     "duplication": "jscpd",
     "test": "run-s test:unit test:integration",
     "test:unit": "vitest run --coverage",
@@ -1442,9 +1541,8 @@
     "prepare": "husky",
     "security:sast": "node scripts/sast.mjs",
     "schema:exec": "node scripts/exec-schema.mjs",
-    "test:legal-a11y": "node scripts/legal-a11y.mjs",
     "reference:generate": "node scripts/gen-reference.mjs",
-    "check:reference": "node scripts/gen-reference.mjs --check"
+    "test:legal-a11y": "node scripts/legal-a11y.mjs"
   },
   "lint-staged": {
     "{*.{ts,tsx,mjs},!(vendor)/**/*.{ts,tsx,mjs}}": [
@@ -1460,7 +1558,7 @@
   "devDependencies": {
     "@agentclientprotocol/sdk": "1.5.0",
     "@eslint/js": "10.0.1",
-    "@muse-code/sdk": "1.3.0",
+    "@muse-code/sdk": "1.4.2",
     "@napi-rs/keyring": "2.1.0",
     "@testing-library/dom": "10.4.2",
     "@testing-library/jest-dom": "7.0.1",
@@ -1510,7 +1608,6 @@
     "highlight.js": "11.12.0",
     "html-encoding-sniffer": "7.0.0",
     "jpeg-js": "0.4.4",
-    "lz-string": "1.5.0",
     "mdast-util-from-markdown": "2.0.3",
     "mdast-util-gfm": "3.1.0",
     "mdast-util-to-markdown": "2.1.3",
@@ -1519,6 +1616,7 @@
     "pngjs": "7.0.0",
     "react-markdown": "10.1.0",
     "remark-gfm": "4.0.1",
-    "smol-toml": "1.9.0"
+    "smol-toml": "1.9.0",
+    "lz-string": "1.5.0"
   }
 }

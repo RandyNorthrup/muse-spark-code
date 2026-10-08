@@ -1,3 +1,4 @@
+import type { UsdAmount } from '../../shared/usd'
 // R's injected seam to J's journal. No filesystem or provider requests here.
 import type { Usage } from '../backends/modelapi/schemas'
 import type { ModelPricing } from '../providers/priceCard'
@@ -11,9 +12,9 @@ export type RecordedCall = Omit<
   'v' | 'id' | 'type' | 'at' | 'day' | 'timezoneOffsetMins' | 'client' | 'tokens' | 'cost'
 > & {
   readonly pricing?: ModelPricing | undefined
-  readonly providerCostUsd?: number | undefined
+  readonly providerCostUsd?: UsdAmount | undefined
   readonly uncertain?: boolean | undefined
-  readonly retainedLiabilityUsd?: number | undefined
+  readonly retainedLiabilityUsd?: UsdAmount | undefined
 }
 
 /** Structurally matches UsageJournal; J validates and settles before writing. */

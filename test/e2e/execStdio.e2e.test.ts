@@ -3,7 +3,12 @@
 // skips only the POSIX signal rows). Fake fetch/keyring injection lives only in
 // a test-owned Node preload, never in a production loader flag. No request can
 // reach the network in this suite.
-import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import {
+  execFileSync,
+  spawn,
+  spawnSync,
+  type ChildProcessWithoutNullStreams,
+} from 'node:child_process'
 import { createHash } from 'node:crypto'
 import {
   chmodSync,
@@ -23,8 +28,13 @@ import * as z from 'zod/mini'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { resolveExecutable } from '../../src/core/executables'
-import { execEventSchema, validateResult } from '../../src/runtime/exec/execProtocol'
-import type { ExecResult } from '../../src/runtime/exec/execProtocol'
+import { withoutCredentials } from '../../src/runtime/credentialVariables'
+import {
+  execEventV2Schema,
+  validateResult,
+  type ExecResult,
+} from '../../src/runtime/exec/execProtocol'
+
 import { TABLE_LOCALES } from '../../src/shared/l10n/locales'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
 import { buildProductionPackage, packageImagePreload } from '../unit/helpers/productionPackage'
@@ -92,6 +102,46 @@ afterAll(async () => {
   await removeFolder(WORK)
 })
 
+beforeAll(() => {
+  // Packaging runs the real badge validator in a child. Its HTTP boundary
+  // needs a fake too: a PR's screenshots do not exist on public main yet.
+  // Only this package process tree receives the preload; CI's independent
+  // public badge gate and the agent's own transport are unchanged.
+  writeFileSync(
+    PACKAGE_PRELOAD,
+    String.raw`
+      const { appendFileSync, readFileSync, readdirSync } = require('node:fs');
+      const path = require('node:path');
+      const root = ${JSON.stringify(ROOT)};
+      const images = ${JSON.stringify(PACKAGE_IMAGES)};
+      globalThis.fetch = async input => {
+        const url = new URL(String(input));
+        appendFileSync(images, JSON.stringify(url.href) + '\n');
+        if (url.href === 'https://api.github.com/repos/RandyNorthrup/muse-spark-code/git/trees/main?recursive=1') {
+          const tree = readdirSync(path.join(root, 'media'), { recursive: true })
+            .filter(file => file.endsWith('.png'))
+            .map(file => ({ path: 'media/' + file.replaceAll('\\', '/'), type: 'blob' }));
+          return Response.json({ truncated: false, tree });
+        }
+        if (url.origin === 'https://raw.githubusercontent.com' &&
+            url.pathname.startsWith('/RandyNorthrup/muse-spark-code/main/media/')) {
+          const file = path.join(root, url.pathname.split('/main/')[1]);
+          return new Response(readFileSync(file), { headers: { 'content-type': 'image/png' } });
+        }
+        if (!['img.shields.io', 'badgen.net', 'github.com'].includes(url.hostname)) {
+          throw new Error('Unexpected package image: ' + url.href);
+        }
+        const text = url.pathname.startsWith('/badge/')
+          ? decodeURIComponent(url.pathname.slice('/badge/'.length)).replace(/-[^-]+$/, '')
+          : 'test-owned badge';
+        return new Response('<svg xmlns="http://www.w3.org/2000/svg"><text>' + text + '</text></svg>', {
+          headers: { 'content-type': 'image/svg+xml' },
+        });
+      };
+    `,
+  )
+})
+
 function command(
   file: string,
   cwd: string,
@@ -105,7 +155,10 @@ function command(
       ...process.env,
       LANG: 'en_US.UTF-8',
       LC_ALL: 'en_US.UTF-8',
-      BADGE_CHECK_SKIP_NETWORK: 'Offline TRAIN15E e2e packaging',
+      BADGE_CHECK_SKIP_NETWORK: undefined,
+      ...(path.basename(file) === 'package-acp.mjs' && {
+        NODE_OPTIONS: `--require ${JSON.stringify(PACKAGE_PRELOAD)}`,
+      }),
       ...env,
     },
     encoding: 'utf8',
@@ -246,7 +299,11 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     'acpQuestions',
     'runtimeQuestions',
     'questionNotes',
+    'exec',
     'modelApi',
+    'mcpPool',
+    'modelApiCodeIntel',
+    'structuredSchema',
     'modelApiHooks',
     'modelApiMcp',
     'runtimeAccounting',
@@ -276,6 +333,8 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     'searchWorker',
     'imageResizeWorker',
     'pageWorker',
+    'resourceGovernor',
+    'resourceAdmission',
     'usageService',
     'usageCompanion',
   ]) {
@@ -292,6 +351,15 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
   for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs']) {
     writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
   }
+  mkdirSync(path.join(dir, 'native', 'darwin'), { recursive: true })
+  writeFileSync(path.join(dir, 'native', 'darwin', 'muse-dictate'), 'test-owned inert helper')
+  for (const arch of ['x64', 'arm64']) {
+    const native = path.join(dir, 'native', 'linux', arch)
+    mkdirSync(native, { recursive: true })
+    // This fixture checks packaging only; it never executes these native bytes.
+    writeFileSync(path.join(native, 'muse-created'), 'test-owned inert Linux helper\n')
+  }
+  cpSync(path.join(ROOT, 'media'), path.join(dir, 'media'), { recursive: true })
   cpSync(path.join(ROOT, 'src/shared'), path.join(dir, 'src/shared'), { recursive: true })
   mkdirSync(path.join(dir, 'src/core/judge'), { recursive: true })
   cpSync(path.join(ROOT, 'src/core/judge/engine.ts'), path.join(dir, 'src/core/judge/engine.ts'))
@@ -438,7 +506,7 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     'refuses %s schema before replacing stage',
     (fault) => {
       const dir = packagingFixture()
-      const schema = path.join(dir, 'docs', 'schemas', 'exec-result-v1.schema.json')
+      const schema = path.join(dir, 'docs', 'schemas', 'exec-result-v2.schema.json')
       rmSync(schema)
       if (fault === 'directory') mkdirSync(schema)
       else if (fault === 'invalid-json') writeFileSync(schema, '{')
@@ -470,8 +538,8 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     expect(
       readFileSync(path.join(dir, 'dist', 'acp-package', 'package.json'), 'utf8'),
     ).not.toContain('exec-test-launcher')
-    expect(readFileSync(path.join(testStage, 'schemas', 'exec-event-v1.schema.json'))).toEqual(
-      readFileSync(path.join(ROOT, 'docs', 'schemas', 'exec-event-v1.schema.json')),
+    expect(readFileSync(path.join(testStage, 'schemas', 'exec-event-v2.schema.json'))).toEqual(
+      readFileSync(path.join(ROOT, 'docs', 'schemas', 'exec-event-v2.schema.json')),
     )
   })
 
@@ -624,18 +692,18 @@ describe('M80 D package guards', { timeout: TIMEOUT }, () => {
     switch (state) {
       case 'schema-drift':
       case 'schema-required': {
-        const schema = path.join(stage, 'schemas', 'exec-result-v1.schema.json')
+        const schema = path.join(stage, 'schemas', 'exec-result-v2.schema.json')
         const original = readFileSync(schema, 'utf8')
         writeFileSync(
           schema,
           state === 'schema-drift'
-            ? original.replace('"const": 1', '"const": 2')
+            ? original.replace('"const": 2', '"const": 3')
             : original.replace('    "status",\n', ''),
         )
         break
       }
       case 'schema-empty': {
-        writeFileSync(path.join(stage, 'schemas', 'exec-event-v1.schema.json'), '{"anyOf":[]}')
+        writeFileSync(path.join(stage, 'schemas', 'exec-event-v2.schema.json'), '{"anyOf":[]}')
         break
       }
     }
@@ -736,7 +804,7 @@ function result(stdout: string): ExecResult {
   const events = stdout
     .trim()
     .split('\n')
-    .map((line) => execEventSchema.parse(JSON.parse(line)))
+    .map((line) => execEventV2Schema.parse(JSON.parse(line)))
   expect(events.map((event) => event.seq)).toEqual(events.map((_, index) => index + 1))
   const finals = events.filter((event) => event.type === 'result')
   expect(finals).toHaveLength(1)
@@ -749,6 +817,26 @@ function result(stdout: string): ExecResult {
 describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
   beforeAll(async () => {
     if (INSTALLED === undefined) {
+      const darwinHelper = path.join(BUILD_ROOT, 'native/darwin/muse-dictate')
+      if (process.platform === 'darwin') {
+        if (!existsSync(darwinHelper))
+          execFileSync(BASH, ['native/darwin/build.sh'], {
+            cwd: BUILD_ROOT,
+            env: withoutCredentials(process.env),
+            stdio: 'pipe',
+            timeout: BUILD_TIMEOUT,
+          })
+      } else {
+        // Package admission needs every platform. Foreign helpers are inert
+        // fixture bytes; only the current platform's real helper can execute.
+        writeFileSync(darwinHelper, 'test-owned inert Darwin helper\n')
+      }
+      for (const arch of ['x64', 'arm64']) {
+        if (process.platform === 'linux' && process.arch === arch) continue
+        const folder = path.join(BUILD_ROOT, 'native/linux', arch)
+        mkdirSync(folder, { recursive: true })
+        writeFileSync(path.join(folder, 'muse-created'), 'test-owned inert Linux helper\n')
+      }
       packageImagePreload(PACKAGE_PRELOAD, BUILD_ROOT, PACKAGE_IMAGES)
       const packed = command(
         path.join(BUILD_ROOT, 'scripts', 'package-acp.mjs'),
@@ -855,16 +943,16 @@ describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
     expect(run.code).toBe(0)
     expect(run.stdout).toContain('exec')
     expect(run.stdout).toContain('scan-secrets')
-    for (const schema of ['exec-result-v1', 'exec-event-v1']) {
+    for (const schema of ['exec-result-v2', 'exec-event-v2']) {
       const parsed: unknown = JSON.parse(
         readFileSync(path.join(PACKAGE, 'schemas', `${schema}.schema.json`), 'utf8'),
       )
-      if (schema === 'exec-result-v1') expect(parsed).toHaveProperty('properties.v.const', 1)
+      if (schema === 'exec-result-v2') expect(parsed).toHaveProperty('properties.v.const', 2)
       else
         expect(parsed).toMatchObject({
           anyOf: expect.arrayContaining([
             expect.objectContaining({
-              properties: expect.objectContaining({ v: expect.objectContaining({ const: 1 }) }),
+              properties: expect.objectContaining({ v: expect.objectContaining({ const: 2 }) }),
             }),
           ]),
         })

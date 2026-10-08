@@ -1,3 +1,4 @@
+import { legacyUsdSchema } from './usd'
 // The Models & Agents panel's wire contract (M95, PLAN.md D74): the
 // host-owned state slices lane K serves and the messages the panel and the
 // host exchange. Both sides validate with these schemas, as protocol.ts
@@ -88,7 +89,7 @@ export const providerTestSchema = z.strictObject({
   /** The models the free check listed. */
   modelCount: z.optional(z.number()),
   /** The one-token request's USD cost, stated and asked before it is sent. */
-  costUsd: z.optional(z.number()),
+  costUsd: z.optional(legacyUsdSchema),
   /** What the provider answered, in its words. */
   detail: z.optional(z.string()),
 })
@@ -228,7 +229,7 @@ export const suggestionSchema = z.discriminatedUnion('kind', [
   }),
   z.strictObject({
     kind: z.literal('sessionBudget'),
-    usd: z.number(),
+    usd: legacyUsdSchema,
     reason: z.string(),
     accepted: z.boolean(),
   }),
@@ -274,7 +275,7 @@ export const panelDraftSchema = z.strictObject({
   /** The private-network question was asked for this address. */
   privateAsked: z.boolean(),
   defaultModel: z.optional(z.string()),
-  sessionBudgetUsd: z.optional(z.number()),
+  sessionBudgetUsd: z.optional(legacyUsdSchema),
   /** The confirm step's summary: what is saved, and who receives the code. */
   summary: z.optional(z.strictObject({ origin: z.string(), lines: z.array(z.string()) })),
   errors: z.array(z.string()),
@@ -322,7 +323,7 @@ export const modelsPanelStateSchema = z.strictObject({
   /** The last choices made (a stated assumption with no history). */
   lastChoices: z.strictObject({
     defaultModelRef: z.optional(z.string()),
-    sessionBudgetUsd: z.optional(z.number()),
+    sessionBudgetUsd: z.optional(legacyUsdSchema),
   }),
   drafts: z.strictObject({
     wizard: z.optional(panelDraftSchema),
@@ -345,7 +346,7 @@ export const prefillFieldsSchema = z.strictObject({
   allowFallbacks: z.optional(z.boolean()),
   privateConfirmed: z.optional(z.boolean()),
   defaultModel: z.optional(z.string()),
-  sessionBudgetUsd: z.optional(z.number()),
+  sessionBudgetUsd: z.optional(legacyUsdSchema),
 })
 export type PrefillFields = z.infer<typeof prefillFieldsSchema>
 
@@ -449,7 +450,7 @@ export const panelToHostMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('suggestions/change'),
     kind: suggestionKindSchema,
     modelRef: z.optional(z.string()),
-    usd: z.optional(z.number()),
+    usd: z.optional(legacyUsdSchema),
   }),
 ])
 export type PanelToHostMessage = z.infer<typeof panelToHostMessageSchema>

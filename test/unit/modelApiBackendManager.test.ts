@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 import type { UsageRecording } from '../../src/core/usage/recording'
 import { watchSessionTurns } from './helpers/sessionTurns'
 import { describe, expect, it, vi } from 'vitest'
@@ -615,7 +616,7 @@ it('records best-of-N requests once with the attempt kind and its own session', 
   const manager = new ModelApiBackendManager(
     fakeManagerDeps(api, new FakeLogOutputChannel(), {
       workspaceRoot: '/ws',
-      sessionBudgetUsd: () => 0,
+      sessionBudgetUsd: () => Usd.from(0).toAmount(),
       usageRecording: recording,
       bundlePath: 'source',
       loadBundle: () => modelApiEntry,

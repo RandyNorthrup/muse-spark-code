@@ -8,7 +8,7 @@ import {
   MODEL_API_MEDIA_PER_REQUEST,
   MODEL_API_PDF_PAGE_IMAGES,
   MODEL_API_CONTEXT_WINDOW,
-  MODEL_API_MAX_OUTPUT_TOKENS,
+  MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
   PROMPT_CACHE_RETENTIONS,
 } from '../../shared/constants'
 import { effortLevelsFor } from '../../shared/effort'
@@ -290,7 +290,7 @@ export function metaCapabilityRecord(nativeModel: string): ModelCapabilityRecord
         },
         limits: { contextTokens: MODEL_API_CONTEXT_WINDOW },
         output: {
-          maxTokens: MODEL_API_MAX_OUTPUT_TOKENS,
+          maxTokens: MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
           acceptsLimit: yes(true),
           formats: yes(['text']),
         },

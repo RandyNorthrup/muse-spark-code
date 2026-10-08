@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../../../shared/usd'
 // M95 lane R: pure Responses encoding and capture-backed SSE decoding.
 // Provider policy is injected by lane P; auth, retries and HTTP errors
 // belong to lane T. The shared WireCodec has not landed on this branch, so
@@ -58,6 +59,8 @@ export type ResponsesCodecQuirks =
  * as same-model.
  */
 export interface ResponsesEncodeOptions {
+  /** Fixed session choice; false preserves canonical non-strict declarations. */
+  readonly shouldUseStrictTools?: boolean | undefined
   readonly model?: string | undefined
   readonly replayOrigins?: Readonly<Record<string, string>> | undefined
 }
@@ -113,7 +116,7 @@ export interface ResponsesOutputCap {
 
 /** xAI's reported cost reaches settlement before canonical consumers read usage. */
 export interface ResponsesDecodeSink {
-  readonly settledCostUsd?: (costUsd: number) => void
+  readonly settledCostUsd?: (costUsd: UsdAmount) => void
   /** Mandatory for the ChatGPT profile, unused by the API-key profile. */
   readonly outputCap?: ResponsesOutputCap
 }
@@ -355,9 +358,13 @@ const settledCostSchema = z.object({
 })
 const nestedErrorEventSchema = z.object({ type: z.literal('error'), ...errorBodySchema.shape })
 
-function settledCostOf(usage: unknown): number | undefined {
+function settledCostOf(usage: unknown): UsdAmount | undefined {
   const parsed = settledCostSchema.safeParse(usage)
-  return parsed.success ? parsed.data.cost_in_usd_ticks * USD_PER_COST_TICK : undefined
+  return parsed.success
+    ? Usd.from(parsed.data.cost_in_usd_ticks)
+        .divide(1 / USD_PER_COST_TICK)
+        .toAmount()
+    : undefined
 }
 
 function withinOutputCap(event: StreamEvent, cap: ResponsesOutputCap | undefined): StreamEvent {
@@ -429,7 +436,10 @@ export function createResponsesCodec(
                 tools: body.tools,
               },
             ]
-          : withStrictTools(body.tools, effective.supportsStrictTools === true),
+          : withStrictTools(
+              body.tools,
+              options?.shouldUseStrictTools !== false && effective.supportsStrictTools === true,
+            ),
 
         tool_choice: body.tool_choice,
         reasoning: body.reasoning,

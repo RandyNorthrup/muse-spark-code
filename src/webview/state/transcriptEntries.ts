@@ -1,3 +1,4 @@
+import { legacyUsdSchema } from '../../shared/usd'
 // The transcript rows the webview keeps, as zod schemas with the types
 // inferred from them (M25, PLAN.md D28). The schemas exist because the rows
 // outlive the document: the panel saves its conversation in VS Code's webview
@@ -8,6 +9,8 @@
 // reducer treats them.
 
 import * as z from 'zod/mini'
+import { agentEvidenceSchema, agentFileSchema } from '../../shared/agentEvidence'
+
 import {
   approvalChoiceSchema,
   approvalSubjectSchema,
@@ -20,6 +23,7 @@ import {
   requirementRefSchema,
   thenRunResultSchema,
   tokenUsageSchema,
+  toolArgumentPreviewSchema,
   verifySummarySchema,
   workflowRunFields,
 } from '../../shared/agentEvents'
@@ -197,7 +201,7 @@ const assistantEntrySchema = z.object({
   citations: z.optional(z.readonly(z.array(citationSchema))),
   /** The response's tokens and dollar estimate (M82, Model API only). */
   usage: z.optional(tokenUsageSchema),
-  costUsd: z.optional(z.number()),
+  costUsd: z.optional(legacyUsdSchema),
   /**
    * When it was received (M87): the backend's recorded time, or the moment
    * it began arriving until that time comes with its completion.
@@ -217,10 +221,14 @@ const reasoningEntrySchema = z.object({
 })
 
 const toolEntrySchema = z.object({
+  exitCode: z.optional(z.number()),
+  durationMs: z.optional(z.number()),
+  changedFiles: z.optional(z.array(agentFileSchema)),
   kind: z.literal('tool'),
   id: z.string(),
   tool: z.string(),
   args: z.string(),
+  argumentPreview: z.optional(toolArgumentPreviewSchema),
   status: z.string(),
   /** Transcript-visible output (`output` deltas / `visibleOutput`). */
   output: z.string(),
@@ -302,6 +310,7 @@ const userShellEntrySchema = z.object({
 })
 
 const subagentEntrySchema = z.object({
+  agentEvidence: z.optional(agentEvidenceSchema),
   /** A native subagent the CLI spawned for this turn (M14). */
   kind: z.literal('subagent'),
   id: z.string(),
@@ -334,6 +343,7 @@ const subagentEntrySchema = z.object({
  * The row keeps previously reported fields within that attempt.
  */
 export const workflowChildSchema = z.object({
+  agentEvidence: z.optional(agentEvidenceSchema),
   childId: z.string(),
   attempt: z.number(),
   status: z.string(),

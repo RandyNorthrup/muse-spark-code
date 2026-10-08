@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
 import { UI_TEXT, TEAM_SCHED_TICK_MS } from '../../shared/constants'
 import { fill, formatNumber, formatUsd } from '../../shared/l10n/text'
 import { type TeamAttempt, type TeamBoard, type TeamBoardTask } from '../../shared/team'
@@ -317,13 +318,13 @@ export interface TeamSelectionSnapshot {
   /** Running tasks per agent key, across every role and conversation. */
   readonly runningByAgent: ReadonlyMap<string, number>
   /** Used amount for an entry's cap: ledger rows in the window plus open reservations. */
-  readonly usedByEntryCap: (entryId: string, cap: TeamCap) => number
+  readonly usedByEntryCap: (entryId: string, cap: TeamCap) => number | UsdAmount
   /** The task's first request, reserved before it is sent (tokens and spend). */
   readonly firstRequest: {
     readonly tokens: number
     readonly inputTokens: number
     readonly outputTokens: number
-    readonly spendUsd: number
+    readonly spendUsd: UsdAmount
   }
   /** Per-agent running limits: each agent's ceiling, lowered where the user did. */
   readonly agentLimit: (agentKey: string) => number
@@ -335,8 +336,8 @@ export interface TeamSelectionSnapshot {
   /** The team's spent day budget, where one binds key and token use. */
   readonly teamBudget:
     | {
-        readonly spendUsedUsd: number
-        readonly spendCapUsd: number
+        readonly spendUsedUsd: UsdAmount
+        readonly spendCapUsd: UsdAmount
         readonly tokensUsed: number
         readonly tokensCap: number
       }
@@ -365,7 +366,7 @@ export type TeamSelection =
 function firstRequestAmount(
   measure: TeamMeasure,
   firstRequest: TeamSelectionSnapshot['firstRequest'],
-): number {
+): number | UsdAmount {
   switch (measure) {
     case 'tokens': {
       return firstRequest.tokens
@@ -454,7 +455,9 @@ function refuseEntry(
   if (snapshot.teamBudget !== undefined && agent.billing === 'key') {
     const budget = snapshot.teamBudget
     if (
-      budget.spendUsedUsd + snapshot.firstRequest.spendUsd > budget.spendCapUsd ||
+      Usd.from(budget.spendUsedUsd)
+        .add(Usd.from(snapshot.firstRequest.spendUsd))
+        .compare(Usd.from(budget.spendCapUsd)) > 0 ||
       budget.tokensUsed + snapshot.firstRequest.tokens > budget.tokensCap
     ) {
       return { entryId: entry.id, reason: 'budget' }
@@ -465,8 +468,12 @@ function refuseEntry(
       continue
     }
     const used = snapshot.usedByEntryCap(entry.id, cap)
-    if (used + firstRequestAmount(cap.measure, snapshot.firstRequest) > cap.amount) {
-      return { entryId: entry.id, reason: 'cap', cap, used }
+    if (
+      Usd.from(used)
+        .add(Usd.from(firstRequestAmount(cap.measure, snapshot.firstRequest)))
+        .compare(Usd.from(cap.amount)) > 0
+    ) {
+      return { entryId: entry.id, reason: 'cap', cap, used: Number(used) }
     }
   }
   return undefined

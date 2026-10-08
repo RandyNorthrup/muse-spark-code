@@ -23,6 +23,28 @@ import {
 } from '../../../shared/constants'
 import { isProtectedFileAccess } from '../../protectedPaths'
 import { toSessionGoal, toSnapshot, wireGoalSchema, wireItemSchema } from './sessionRecords'
+import type { SessionRecord } from '../../agent/agentBackend'
+
+/** Parsed domain values for lane W's captured-frame lifecycle adapter. */
+export type MuseCodeLifecycleEvent =
+  | { readonly type: 'started'; readonly record: SessionRecord }
+  | {
+      readonly type: 'deleteCompleted'
+      readonly sessionId: string
+      readonly commandId: string
+      readonly outcome: string
+      readonly reason?: string
+      readonly physicalChange?: string
+    }
+
+/** No default wire parser: new frames require the missing served captures. */
+export interface MuseCodeLifecycleReader {
+  parseNotification(notification: {
+    readonly method: string
+    readonly params: unknown
+  }): MuseCodeLifecycleEvent
+  parseDeleteAdmission(receipt: unknown, commandId: string): void
+}
 
 export type MappedNotification =
   | { readonly sessionId: string; readonly event: AgentEvent }

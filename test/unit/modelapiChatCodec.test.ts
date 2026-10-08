@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // Lane H (M95): the chat codec's requests and streams, per preset, against
 // the 2026-10-04 wire captures in docs/certification/m95-captures/.
 //
@@ -12,6 +13,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import * as z from 'zod/mini'
 import { customQuirksFor } from '../../src/core/providers/presets'
+import { mcpFunctionDefinition } from '../../src/core/backends/modelapi/mcp/functions'
 import { toolDefinitions } from '../../src/core/backends/modelapi/tools'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText, UI_TEXT } from '../../src/shared/l10n/text'
@@ -641,6 +643,26 @@ describe('chat codec retained-history scenario goldens', () => {
 })
 
 describe('chat codec request goldens', () => {
+  it('preserves each MCP fallback in a mixed strict-capable Chat request (RVM106T F2)', () => {
+    const closed = mcpFunctionDefinition('mcp__s__closed', {
+      name: 'closed',
+      inputSchema: { type: 'object', additionalProperties: false },
+    })
+    const open = mcpFunctionDefinition('mcp__s__open', {
+      name: 'open',
+      inputSchema: { type: 'object', additionalProperties: true },
+    })
+    const body = tinyBody({ tools: [closed.definition, open.definition] })
+    const on = encodeChatRequest(body, 'm', { ...GROQ, supportsStrictTools: true })
+    expect(on.body.tools?.[0]?.function.strict).toBe(true)
+    expect(on.body.tools?.[1]?.function).toMatchObject({
+      strict: false,
+      parameters: open.definition.parameters,
+    })
+    const off = encodeChatRequest(body, 'm', { ...GROQ, supportsStrictTools: false })
+    expect(off.body.tools?.every((tool) => !Object.hasOwn(tool.function, 'strict'))).toBe(true)
+  })
+
   it('rewrites custom strict tools only when supportsStrictTools is on (F4)', () => {
     const body = tinyBody({ tools: toolDefinitions('linux') })
     const compat = customQuirksFor('chat', { supportsStrictTools: true })
@@ -898,7 +920,7 @@ describe('chat codec stream decoding', () => {
       input_tokens_details: { cached_tokens: 64, cache_write_tokens: 0 },
       output_tokens_details: { reasoning_tokens: 9 },
     })
-    expect(decoded.providerCostUsd).toBe(0.00004997)
+    expect(decoded.providerCostUsd).toBe(Usd.from(0.00004997).toAmount())
   })
 
   it('decodes the OpenRouter final answer: text and usage on the finish chunk', () => {
@@ -913,7 +935,7 @@ describe('chat codec stream decoding', () => {
       input_tokens_details: { cached_tokens: 80, cache_write_tokens: 0 },
       output_tokens_details: { reasoning_tokens: 0 },
     })
-    expect(decoded.providerCostUsd).toBe(0.00004909)
+    expect(decoded.providerCostUsd).toBe(Usd.from(0.00004909).toAmount())
   })
 
   it('decodes Groq: a whole call, reasoning with a channel, a choices-less usage chunk', () => {
@@ -1525,7 +1547,7 @@ describe('chat codec guards', () => {
       cached_tokens: 0,
       cache_write_tokens: 1925,
     })
-    expect(decoded.providerCostUsd).toBe(0.0048845)
+    expect(decoded.providerCostUsd).toBe(Usd.from(0.0048845).toAmount())
   })
 
   it('rejects invalid optional usage counts and negative cost', () => {

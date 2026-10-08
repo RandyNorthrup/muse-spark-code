@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
 // Canonical Usage is already normalised by the captured provider codecs.
 // Never add cached input or reasoning output a second time here.
 import {
@@ -37,11 +38,11 @@ export type UsageRecordContext = Omit<
   /** The same model's list card only; never an alias or a user override. */
   readonly apiEquivalentCard?: PriceCard
   readonly priceDate?: string
-  readonly providerCostUsd?: number
+  readonly providerCostUsd?: UsdAmount
   readonly costInUsdTicks?: number
   readonly estimatedTokens?: boolean
   readonly uncertain?: boolean
-  readonly retainedLiabilityUsd?: number
+  readonly retainedLiabilityUsd?: UsdAmount
 }
 
 export function normaliseUsage(
@@ -116,20 +117,22 @@ function hasMetaPrice(context: UsageRecordContext): boolean {
 function metaCost(context: UsageRecordContext, tokens: UsageTokens): number | undefined {
   const billable = pricedUsage(tokens, true)
   return billable !== undefined && hasMetaPrice(context)
-    ? estimateCostUsd({ ...billable, cachedTokens: billable.cachedTokens ?? 0 }, context.model)
+    ? Number(
+        estimateCostUsd({ ...billable, cachedTokens: billable.cachedTokens ?? 0 }, context.model),
+      )
     : undefined
 }
 
 function paidCost(context: UsageRecordContext): number | undefined {
   const units = context.units
   if (context.kind === 'search' && units?.searches !== undefined) {
-    return (units.searches / SEARCHES_PER_PRICE_UNIT) * PAID_PRICES_USD.webSearchPerThousand
+    return (units.searches / SEARCHES_PER_PRICE_UNIT) * Number(PAID_PRICES_USD.webSearchPerThousand)
   }
   if (context.kind === 'image' && units?.images !== undefined) {
-    return units.images * PAID_PRICES_USD.imageGeneration
+    return units.images * Number(PAID_PRICES_USD.imageGeneration)
   }
   return context.kind === 'voice' && units?.audioSeconds !== undefined
-    ? (units.audioSeconds / SECONDS_PER_HOUR) * PAID_PRICES_USD.voicePerHour
+    ? (units.audioSeconds / SECONDS_PER_HOUR) * Number(PAID_PRICES_USD.voicePerHour)
     : undefined
 }
 
@@ -145,13 +148,18 @@ function settleCost(context: UsageRecordContext, tokens: UsageTokens): UsageCost
     return { certainty: 'plan', ...(usd !== undefined && { apiEquivalentUsd: usd }) }
   }
   if (context.uncertain === true || context.kind === 'voice') {
-    const usd = context.retainedLiabilityUsd ?? paidCost(context)
+    const usd =
+      (context.retainedLiabilityUsd === undefined
+        ? undefined
+        : Number(context.retainedLiabilityUsd)) ?? paidCost(context)
     if (usd !== undefined || context.kind === 'voice')
       return { certainty: 'uncertain', ...(usd !== undefined && { usd }) }
   }
   const reported = context.providerCostUsd
   let usd =
-    reported !== undefined && Number.isFinite(reported) && reported >= 0 ? reported : undefined
+    reported !== undefined && Usd.from(reported).compare(Usd.from(0)) >= 0
+      ? Number(reported)
+      : undefined
   if (usd === undefined && context.costInUsdTicks !== undefined) {
     usd = ticksToUsdPerToken(context.costInUsdTicks)
   }

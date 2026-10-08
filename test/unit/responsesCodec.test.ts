@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../src/shared/usd'
 // M95 lane R: live captures are the positive wire fixtures; mutations below
 // exercise malformed/provider-additive frames without making a model call.
 import { readFileSync } from 'node:fs'
@@ -6,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { customQuirksFor, PRESETS, quirksOf } from '../../src/core/providers/presets'
 import { toolDefinitions } from '../../src/core/backends/modelapi/tools'
+import { mcpFunctionDefinition } from '../../src/core/backends/modelapi/mcp/functions'
 import {
   createResponsesCodec,
   ResponsesDecodeError,
@@ -62,7 +64,7 @@ function stream(...parts: readonly string[]): ReadableStream<Uint8Array> {
 
 function collect(
   chunks: AsyncIterable<Uint8Array>,
-  costs: number[] = [],
+  costs: UsdAmount[] = [],
   codec: ResponsesWireCodec = createResponsesCodec(withRetention),
 ): Promise<StreamEvent[]> {
   return Array.fromAsync(
@@ -169,6 +171,63 @@ function golden(name: string): string {
 }
 
 describe('responsesCodec encodeRequest', () => {
+  it('emits the captured U9 strict declaration without changing its schema (M106)', () => {
+    const captured = z
+      .object({
+        request: z.object({
+          tools: z.array(
+            z.object({
+              type: z.literal('function'),
+              name: z.string(),
+              description: z.string(),
+              strict: z.literal(true),
+              parameters: z.record(z.string(), z.unknown()),
+            }),
+          ),
+        }),
+      })
+      .parse(
+        JSON.parse(
+          readFileSync(new URL('../fixtures/m106/u9-strict-stream.json', import.meta.url), 'utf8'),
+        ),
+      )
+    const tools = captured.request.tools.map(
+      (tool) =>
+        mcpFunctionDefinition(tool.name, {
+          name: tool.name,
+          description: tool.description,
+          inputSchema: tool.parameters,
+        }).definition,
+    )
+    const codec = createResponsesCodec({ ...withRetention, supportsStrictTools: true })
+    // Compare the JSON wire: private conversion symbols are not request fields.
+    const serialized = JSON.stringify(codec.encodeRequest({ ...firstTurnBody(), tools })['tools'])
+    const wireTools: unknown = JSON.parse(serialized)
+    expect(wireTools).toEqual(captured.request.tools)
+  })
+
+  it('keeps explicit strict-off bytes with a capable model and gates strict-on by its record (M106)', () => {
+    const body = { ...firstTurnBody(), tools: toolDefinitions('linux') }
+    const before = JSON.stringify(body)
+    for (const supported of [true, false, undefined]) {
+      const codec = createResponsesCodec({ ...withRetention, supportsStrictTools: true }, () => ({
+        ...CONSERVATIVE_CAPABILITIES,
+        supportsStrictTools: supported,
+      }))
+      const off = codec.encodeRequest(body, { shouldUseStrictTools: false })
+      expect(JSON.stringify(off)).toBe(
+        JSON.stringify(
+          createResponsesCodec({ ...withRetention, vision: false }).encodeRequest(body),
+        ),
+      )
+      const on = codec.encodeRequest(body, { shouldUseStrictTools: true })
+      const tools = z.array(z.object({ strict: z.boolean() })).parse(on['tools'])
+      expect(tools.every((tool) => tool.strict === (supported === true))).toBe(true)
+      expect({ ...on, tools: off['tools'] }).toEqual(off)
+      expect(JSON.stringify(body)).toBe(before)
+    }
+  })
+
   it('binds strict request schemas only to the injected supportsStrictTools gate (F4)', () => {
     const body = { ...firstTurnBody(), tools: toolDefinitions('linux') }
     for (const preset of PRESETS) {
@@ -414,7 +473,7 @@ describe('responsesCodec decodeStream', () => {
   })
 
   it('decodes captured xAI single-delta tools, reasoning and settled cost', async () => {
-    const costs: number[] = []
+    const costs: UsdAmount[] = []
     const events = await collect(stream(...xaiTool.map((event) => frame(event))), costs)
     const deltas = events.filter((event) => event.type === 'response.function_call_arguments.delta')
     expect(deltas).toHaveLength(1)
@@ -435,7 +494,7 @@ describe('responsesCodec decodeStream', () => {
         },
       },
     })
-    expect(costs).toEqual([0.0023184])
+    expect(costs).toEqual([Usd.from('0.0023184').toAmount()])
   })
 
   it.each([
@@ -589,7 +648,7 @@ describe('responsesCodec decodeStream', () => {
   ])('rejects invalid usage before reporting a cost: %j', async (usage) => {
     const terminal = xaiTool.at(-1)!
     const response = z.record(z.string(), z.unknown()).parse(terminal['response'])
-    const costs: number[] = []
+    const costs: UsdAmount[] = []
     await expect(
       collect(
         stream(
@@ -605,14 +664,14 @@ describe('responsesCodec decodeStream', () => {
   })
 
   it('reports a settled cost once even if terminal frames repeat', async () => {
-    const costs: number[] = []
+    const costs: UsdAmount[] = []
     await collect(stream(frame(xaiTool.at(-1)!), frame(xaiText.at(-1)!)), costs)
-    expect(costs).toEqual([0.0023184])
+    expect(costs).toEqual([Usd.from('0.0023184').toAmount()])
   })
 
   it('reports cost only after a terminal event', async () => {
     const terminal = xaiTool.at(-1)!
-    const costs: number[] = []
+    const costs: UsdAmount[] = []
     const events = createResponsesCodec(withRetention).decodeStream(
       stream(frame({ ...terminal, type: 'response.in_progress' }), frame(terminal)),
       {
@@ -625,7 +684,7 @@ describe('responsesCodec decodeStream', () => {
       await events.next()
       expect(costs).toEqual([])
       await events.next()
-      expect(costs).toEqual([0.0023184])
+      expect(costs).toEqual([Usd.from('0.0023184').toAmount()])
     } finally {
       await events.return(undefined)
     }
@@ -637,7 +696,7 @@ describe('responsesCodec decodeStream', () => {
       const terminal = xaiTool.at(-1)!
       const response = z.record(z.string(), z.unknown()).parse(terminal['response'])
       const usage = z.record(z.string(), z.unknown()).parse(response['usage'])
-      const costs: number[] = []
+      const costs: UsdAmount[] = []
       await collect(
         stream(
           frame({
@@ -647,7 +706,7 @@ describe('responsesCodec decodeStream', () => {
         ),
         costs,
       )
-      expect(costs).toEqual(ticks === 0 ? [0] : [])
+      expect(costs).toEqual(ticks === 0 ? [Usd.from(0).toAmount()] : [])
     },
   )
 

@@ -1,8 +1,8 @@
 // Refreshes the README's screenshots from the UI harness
 // (test/harness/index.html), one scenario per image as declared in
 // scripts/readme-shots.json. Each scenario opens like harness-shots does —
-// served from the repository, waited through the harness's readiness scan,
-// and captured at the entry's exact viewport size.
+// served from the repository, waited on its real ready result — and is
+// captured at the entry's size.
 // Needs a Chrome install and a dev bundle (`npm run build:dev`).
 //
 // Run it as `node scripts/readme-shots.mjs` (`npm run readme:shots`): the
@@ -36,6 +36,9 @@ export const README_FILE = 'README.md'
 export const DEFAULT_OUT_DIR = 'media/readme'
 export const BUNDLE_PATH = 'dist/webview/main.js'
 export const THEMES = new Set(['dark', 'light', 'hc-dark', 'hc-light'])
+// Keep the screenshot mapping’s existing minimum width; narrow scenarios
+// use the dedicated harness-shot mappings. The exported name stays stable.
+export const MIN_CLI_WIDTH = 500
 const LANG_ID = /^[a-z]{2,3}(?:-[a-z\d]+)*$/
 const SHOT_IMAGE = /^media\/readme\/[^/]+\.png$/
 const README_IMAGE = /media\/readme\/[A-Za-z0-9][\w.-]*\.png/g

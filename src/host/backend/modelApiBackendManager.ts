@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
 import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
 import type { UsageRecording } from '../../core/usage/recording'
 import type { UsageBudgetRead } from '../../core/usage/usageService'
@@ -61,6 +62,7 @@ import {
 } from './modelApiBundle'
 
 export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
+  readonly paidAuthority?: ModelApiClientDeps['paidAuthority']
   readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
   readonly judge?: ModelApiHostDeps['judge']
   readonly createProviderClient?: ModelApiBundleDeps['createProviderClient']
@@ -73,7 +75,10 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly workspaceRoot: string | undefined
   readonly io: ToolIo
   /** Existing file-listing adapter rooted in each actual attempt worktree. */
-  readonly listAttemptFiles: (workspaceRoot: string) => Promise<readonly string[]>
+  readonly listAttemptFiles: (
+    workspaceRoot: string,
+    signal?: AbortSignal,
+  ) => Promise<readonly string[]>
   /** The rules, skills and memory loaders' file access (PLAN.md D27). */
   readonly contextIo: ContextIo
   readonly fetch: typeof fetch
@@ -103,9 +108,29 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   /** `museSpark.modelApiPromptCacheRetention`, read per request (M56, PLAN.md D43). */
   readonly promptCacheRetention: () => PromptCacheRetention
   /** `museSpark.modelApiSessionBudgetUsd`, read per request; 0 is no cap (M82). */
-  readonly sessionBudgetUsd: () => number
+  readonly sessionBudgetUsd: () => UsdAmount
   /** `museSpark.modelApiReplyUsage`, read per reply (M82). */
   readonly showReplyUsage: () => boolean
+  readonly strictTools?: ModelApiHostDeps['strictTools']
+  readonly parallelReads?: ModelApiHostDeps['parallelReads']
+  readonly webSearchMaxPerRequest?: ModelApiHostDeps['webSearchMaxPerRequest']
+  readonly modelFacts?: ModelApiHostDeps['modelFacts']
+  readonly modelCapabilities?: ModelApiHostDeps['modelCapabilities']
+  readonly argumentPreviewCapabilities?: ModelApiHostDeps['argumentPreviewCapabilities']
+  readonly modelOutputMaxTokens?: ModelApiHostDeps['modelOutputMaxTokens']
+  readonly sideCallFormats?: ModelApiHostDeps['sideCallFormats']
+  readonly forceSideCallTool?: ModelApiHostDeps['forceSideCallTool']
+  readonly repeatResultWitness?: ModelApiHostDeps['repeatResultWitness']
+  readonly outputContinuation?: ModelApiHostDeps['outputContinuation']
+  readonly pacingOwner?: object | undefined
+  readonly pacing?: ModelApiClientDeps['pacing']
+  readonly isRetryableFailure?: ModelApiClientDeps['isRetryableFailure']
+  readonly pacingProvider?: ModelApiClientDeps['pacingProvider']
+  readonly onServiceFailure?: ModelApiClientDeps['onServiceFailure']
+  readonly providerId?: ModelApiClientDeps['providerId']
+  readonly webSearchPriceUsd?: ModelApiClientDeps['webSearchPriceUsd']
+  readonly searchTokenCostUsd?: ModelApiClientDeps['searchTokenCostUsd']
+
   readonly hookSettingsPath?: string
   readonly isHooksEnabled?: () => boolean
   /** M91 http hooks (D70): `museSpark.hookHttpAllowedHosts`, read at every dispatch. */
@@ -281,8 +306,25 @@ export class ModelApiBackendManager {
         createProviderClient: this.deps.createProviderClient,
       }),
       client: {
+        ...(this.deps.paidAuthority !== undefined && { paidAuthority: this.deps.paidAuthority }),
         ...(this.deps.reservePaidRequest !== undefined && {
           reservePaidRequest: this.deps.reservePaidRequest,
+        }),
+        pacingOwner: this.deps.pacingOwner ?? this,
+        ...(this.deps.isRetryableFailure !== undefined && {
+          isRetryableFailure: this.deps.isRetryableFailure,
+        }),
+        ...(this.deps.pacing !== undefined && { pacing: this.deps.pacing }),
+        ...(this.deps.pacingProvider !== undefined && { pacingProvider: this.deps.pacingProvider }),
+        ...(this.deps.onServiceFailure !== undefined && {
+          onServiceFailure: this.deps.onServiceFailure,
+        }),
+        ...(this.deps.providerId !== undefined && { providerId: this.deps.providerId }),
+        ...(this.deps.webSearchPriceUsd !== undefined && {
+          webSearchPriceUsd: this.deps.webSearchPriceUsd,
+        }),
+        ...(this.deps.searchTokenCostUsd !== undefined && {
+          searchTokenCostUsd: this.deps.searchTokenCostUsd,
         }),
         fetch: this.deps.fetch,
         ...(this.deps.streamIdleMs !== undefined && { streamIdleMs: this.deps.streamIdleMs }),
@@ -331,6 +373,34 @@ export class ModelApiBackendManager {
         promptCacheRetention: this.deps.promptCacheRetention,
         sessionBudgetUsd: this.deps.sessionBudgetUsd,
         showReplyUsage: this.deps.showReplyUsage,
+        ...(this.deps.strictTools !== undefined && { strictTools: this.deps.strictTools }),
+        ...(this.deps.parallelReads !== undefined && { parallelReads: this.deps.parallelReads }),
+        ...(this.deps.webSearchMaxPerRequest !== undefined && {
+          webSearchMaxPerRequest: this.deps.webSearchMaxPerRequest,
+        }),
+        ...(this.deps.modelFacts !== undefined && { modelFacts: this.deps.modelFacts }),
+        ...(this.deps.modelCapabilities !== undefined && {
+          modelCapabilities: this.deps.modelCapabilities,
+        }),
+        ...(this.deps.argumentPreviewCapabilities !== undefined && {
+          argumentPreviewCapabilities: this.deps.argumentPreviewCapabilities,
+        }),
+        ...(this.deps.modelOutputMaxTokens !== undefined && {
+          modelOutputMaxTokens: this.deps.modelOutputMaxTokens,
+        }),
+        ...(this.deps.sideCallFormats !== undefined && {
+          sideCallFormats: this.deps.sideCallFormats,
+        }),
+        ...(this.deps.forceSideCallTool !== undefined && {
+          forceSideCallTool: this.deps.forceSideCallTool,
+        }),
+        ...(this.deps.repeatResultWitness !== undefined && {
+          repeatResultWitness: this.deps.repeatResultWitness,
+        }),
+        ...(this.deps.outputContinuation !== undefined && {
+          outputContinuation: this.deps.outputContinuation,
+        }),
+
         legalScan: variant.legalScan,
         ideTools: variant.ideTools,
         webFetch: variant.webFetch,
@@ -450,7 +520,10 @@ export class ModelApiBackendManager {
   ): Promise<ModelApiHost> {
     // A finite cap requires the parent's owned journal; a temporary host
     // cannot create another allowance or save its transcript under the parent ID.
-    if (budgetScope === undefined && this.deps.sessionBudgetUsd() !== 0) {
+    if (
+      budgetScope === undefined &&
+      Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0
+    ) {
       throw new Error(UI_TEXT.bestOfNBudgetUnavailable)
     }
     const generation = this.generation
@@ -470,7 +543,7 @@ export class ModelApiBackendManager {
         isRepoMapInPrompt: undefined,
         io: {
           ...this.deps.io,
-          listFiles: () => this.deps.listAttemptFiles(worktreeRoot),
+          listFiles: (signal) => this.deps.listAttemptFiles(worktreeRoot, signal),
           runShell: () => Promise.resolve(unstartedShell(MODEL_TEXT.shellBestOfNAttempt)),
         },
         usageKind: 'bestOfN',
@@ -481,7 +554,8 @@ export class ModelApiBackendManager {
           (keyDigest: string | undefined) => {
             if (
               generation !== this.generation ||
-              (budgetScope === undefined && this.deps.sessionBudgetUsd() !== 0) ||
+              (budgetScope === undefined &&
+                Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0) ||
               budgetScope?.isStillAllowed(keyDigest) === false
             ) {
               throw new Error(UI_TEXT.bestOfNBudgetUnavailable)
@@ -525,7 +599,7 @@ export class ModelApiBackendManager {
     const scope =
       sessionId === undefined ? undefined : await this.host?.getOwnedBudgetScope(sessionId)
     if (generation !== this.generation) throw new BestOfNError('contextChanged')
-    if (scope === undefined && this.deps.sessionBudgetUsd() !== 0)
+    if (scope === undefined && Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0)
       throw new BestOfNError('budgetUnavailable')
     return scope
   }

@@ -6,6 +6,7 @@ import { webviewKey } from '../../../shared/keybindings'
 // picks one, Escape closes.
 
 import { type KeyboardEvent, type ReactNode, useId, useMemo, useState } from 'react'
+
 import { UI_TEXT } from '../../../shared/constants'
 import { scrollRowIntoView, wrapIndex } from '../../listNavigation'
 
@@ -82,16 +83,10 @@ export function SearchableSelect({
     }
   }
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>): void => {
-    if (
-      webviewKey('models.select', event) !== 'next' &&
-      webviewKey('models.select', event) !== 'previous' &&
-      webviewKey('models.select', event) !== 'accept' &&
-      webviewKey('models.select', event) !== 'close'
-    ) {
-      return
-    }
+    const action = webviewKey('models.select', event)
+    if (action === undefined) return
     event.preventDefault()
-    switch (webviewKey('models.select', event)) {
+    switch (action) {
       case 'next': {
         step(1)
         break

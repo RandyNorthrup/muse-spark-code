@@ -97,16 +97,14 @@ describe('MuseCodeBackendManager: known MSP builds (SDK142)', () => {
     expect(log.warn).not.toHaveBeenCalledWith(
       expect.stringContaining('MSP schema fingerprint mismatch'),
     )
-    expect(log.info).toHaveBeenCalledWith(
-      `MSP schema ${fingerprint} is Muse Code ${build}'s, an additive successor of the SDK's ${sdk.EXPECTED_SCHEMA_FINGERPRINT}`,
-    )
+    expect(log.info).not.toHaveBeenCalledWith(expect.stringContaining('MSP schema'))
   })
 
-  it('keeps the 1.3.0-R3401.1 SDK pin outside the successor map and logs no mismatch', async () => {
+  it('uses the captured 1.4.2-R4684.1 SDK pin and logs no mismatch', async () => {
     expect(sdk.EXPECTED_SCHEMA_FINGERPRINT).toBe(
-      'sha256:7469c9e352e67def4a59df7e439984d7194fa351e1c8b7abb34060fd977ced81',
+      'sha256:61afea3112e0906e9dc3a536144278a74cb4b36fc6e20901a91d4432ba3568e2',
     )
-    expect(MSP_KNOWN_SCHEMA_FINGERPRINTS[sdk.EXPECTED_SCHEMA_FINGERPRINT]).toBeUndefined()
+    expect(MSP_KNOWN_SCHEMA_FINGERPRINTS[sdk.EXPECTED_SCHEMA_FINGERPRINT]).toBe('1.4.2-R4684.1')
     const log = await startWithFingerprint(sdk.EXPECTED_SCHEMA_FINGERPRINT)
     expect(log.warn).not.toHaveBeenCalledWith(
       expect.stringContaining('MSP schema fingerprint mismatch'),
@@ -119,6 +117,9 @@ describe('MuseCodeBackendManager: known MSP builds (SDK142)', () => {
   it.each([
     'sha256:unknown-build',
     'sha256:e0e163db6ccf00dbe68402ce55d6319b3edc33c421f31e9583b587b2de8a118f',
+    'sha256:7469c9e352e67def4a59df7e439984d7194fa351e1c8b7abb34060fd977ced81',
+    'sha256:36466f634c8c78a812462ec941187fd4547b232ee06153e5feb2a1482f0d3d7f',
+    'sha256:99a7458c70a670dda3dda45512bdd1e270aba156f46a1324515de45dce95a658',
   ])('still warns for %s', async (fingerprint) => {
     expect(MSP_KNOWN_SCHEMA_FINGERPRINTS[fingerprint]).toBeUndefined()
     const log = await startWithFingerprint(fingerprint)

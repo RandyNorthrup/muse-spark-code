@@ -7,8 +7,9 @@
 import { execFile } from 'node:child_process'
 import { withoutCredentials } from '../../core/credentialEnvironment'
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, readdir, rename, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, realpath, rename, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { sameFile, statIdentity } from '../../core/fs/fileIdentity'
 import { PROCESS_TABLE_TIMEOUT_MS, WINDOWS_FRAMEWORK_RELATIVE_PATH } from '../../shared/constants'
 import type { RunProgram } from '../processTree'
 
@@ -62,6 +63,15 @@ export function jobFileName(build: JobBuild, csharp: string): string {
   return `${build.stem}${digest}${build.extension}`
 }
 
+/** Expand Windows 8.3 names without trusting a different object returned by resolution. */
+export async function nativeJobPath(file: string): Promise<string> {
+  const expected = await statIdentity(file)
+  const resolved = await realpath(file)
+  if (!sameFile(expected, await statIdentity(resolved)))
+    throw new Error('Windows job helper native identity changed')
+  return resolved
+}
+
 /** Compiles `csharp` to `target`. */
 export async function compileJob(
   build: JobBuild,
@@ -70,8 +80,9 @@ export async function compileJob(
   systemRoot: string,
   run: RunProgram = runCompiler,
 ): Promise<void> {
-  const directory = path.dirname(target)
-  await mkdir(directory, { recursive: true })
+  await mkdir(path.dirname(target), { recursive: true })
+  const directory = await nativeJobPath(path.dirname(target))
+  const destination = path.join(directory, path.basename(target))
   // Unique names, so two windows compiling at once never share a file.
   const stem = path.join(directory, randomUUID())
   const source = `${stem}${SOURCE_EXTENSION}`
@@ -95,10 +106,10 @@ export async function compileJob(
       withoutCredentials(process.env),
     )
     try {
-      await rename(output, target)
+      await rename(output, destination)
     } catch (error: unknown) {
       // Another window put the same file in place first.
-      if (!(await build.isPresent(target))) {
+      if (!(await build.isPresent(destination))) {
         throw error
       }
     }

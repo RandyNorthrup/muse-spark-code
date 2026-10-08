@@ -1,3 +1,4 @@
+import { Usd } from '../../shared/usd'
 // M102 / D82: the host supplies journal, live sources and user actions. No
 // editor API, filesystem path from a page, model call or fetch belongs here.
 import {
@@ -164,7 +165,12 @@ export function createUsageService(deps: UsageServiceDeps): UsageService {
         const projection =
           budget.resetsAt === undefined
             ? undefined
-            : usageBurnProjection(budget.spentUsd, firstSpendAt, now, budget.resetsAt)
+            : usageBurnProjection(
+                Usd.from(budget.spentUsd).toAmount(),
+                firstSpendAt,
+                now,
+                budget.resetsAt,
+              )
         return { ...budget, ...(projection !== undefined && { projectedUsd: projection }) }
       }),
       unreportedLimits: deps

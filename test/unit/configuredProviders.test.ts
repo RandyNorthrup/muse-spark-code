@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // Offline composition over the owner's 2026-10-04 Mistral captures.
 // Tool name/arguments alone are adapted to the real harness read_file tool.
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
@@ -301,8 +302,8 @@ describe('configured provider production transport', () => {
     expect(resolved?.client).toBe(meta)
     expect(resolved?.policy.identity.provider).toBe('meta')
     const plan = await services.registry.resolve(REF)
-    expect(plan.price.reserve({ inputTokens: 100, outputTokens: 100 })).toBe(0)
-    expect(plan.price.settle({ inputTokens: 100, outputTokens: 100 })).toBe(0)
+    expect(plan.price.reserve({ inputTokens: 100, outputTokens: 100 })).toBe(Usd.from(0).toAmount())
+    expect(plan.price.settle({ inputTokens: 100, outputTokens: 100 })).toBe(Usd.from(0).toAmount())
     const description = 'A detailed test tool description. '.repeat(4096)
     const count = await plan.client.countInputTokens({
       ...body(),
@@ -377,7 +378,7 @@ describe('configured provider production transport', () => {
         }),
         models: client.models,
         getAccountId: factory.accountId,
-        sessionBudgetUsd: () => 0.000001,
+        sessionBudgetUsd: () => Usd.from(0.000001).toAmount(),
       })
       try {
         const models = await host.listModels()
@@ -634,7 +635,9 @@ describe('configured provider production transport', () => {
       )
       expect(events).toContainEqual(expect.objectContaining({ type: 'response.completed' }))
       expect(received).toEqual(['/v1/chat/completions'])
-      expect(model.price.reserve({ inputTokens: 100, outputTokens: 100 })).toBe(0)
+      expect(model.price.reserve({ inputTokens: 100, outputTokens: 100 })).toBe(
+        Usd.from(0).toAmount(),
+      )
     } finally {
       await new Promise<void>((resolve, reject) =>
         server.close((error) => {

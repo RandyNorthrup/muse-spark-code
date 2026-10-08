@@ -1,0 +1,484 @@
+[
+  {
+    "drill": "live-150-rpm",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "testFile": "test/unit/pacing.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > clamps contradictory remaining counts, rejects zero limits and allows a one-RPM key",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > reads every U12 snapshot, including the streamed response, as reported at 150 RPM",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > refuses malformed limits \"\" without replacing the last snapshot",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > refuses malformed limits \"-1\" without replacing the last snapshot",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > refuses malformed limits \"1.5\" without replacing the last snapshot",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > refuses malformed limits \"1e2\" without replacing the last snapshot",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > refuses malformed limits \"Infinity\" without replacing the last snapshot",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > refuses malformed limits \"NaN\" without replacing the last snapshot",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > refuses malformed limits \"9007199254740992\" without replacing the last snapshot",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > paces subagent against request and token headroom",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > paces bestOfN against request and token headroom",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > paces team against request and token headroom",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > paces judge against request and token headroom",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > paces schedule against request and token headroom",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > wakes simultaneous fan-out in admission order without overspending the bucket"
+    ],
+    "sha256Before": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961",
+    "sha256After": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961"
+  },
+  {
+    "drill": "live-token-limit",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "testFile": "test/unit/pacing.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > reads every U12 snapshot, including the streamed response, as reported at 150 RPM",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > paces subagent against request and token headroom",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > paces bestOfN against request and token headroom",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > paces team against request and token headroom",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > paces judge against request and token headroom",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > paces schedule against request and token headroom",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > refuses an impossible fan-out token request and a stopped request before waiting"
+    ],
+    "sha256Before": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961",
+    "sha256After": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961"
+  },
+  {
+    "drill": "remaining-snapshot",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "testFile": "test/unit/pacing.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > reads every U12 snapshot, including the streamed response, as reported at 150 RPM",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > paces subagent against request and token headroom",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > paces bestOfN against request and token headroom",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > paces team against request and token headroom",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > paces judge against request and token headroom",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > paces schedule against request and token headroom",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > wakes simultaneous fan-out in admission order without overspending the bucket"
+    ],
+    "sha256Before": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961",
+    "sha256After": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961"
+  },
+  {
+    "drill": "header-decimal-validation",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "testFile": "test/unit/pacing.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > refuses malformed limits \"1e2\" without replacing the last snapshot"
+    ],
+    "sha256Before": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961",
+    "sha256After": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961"
+  },
+  {
+    "drill": "remaining-count-clamp",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "testFile": "test/unit/pacing.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > clamps contradictory remaining counts, rejects zero limits and allows a one-RPM key"
+    ],
+    "sha256Before": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961",
+    "sha256After": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961"
+  },
+  {
+    "drill": "startup-allowance",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "testFile": "test/unit/pacing.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > starts conservatively without guessing token limits and isolates providers and keys"
+    ],
+    "sha256Before": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961",
+    "sha256After": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961"
+  },
+  {
+    "drill": "request-admission",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "testFile": "test/unit/pacing.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > clamps contradictory remaining counts, rejects zero limits and allows a one-RPM key",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > starts conservatively without guessing token limits and isolates providers and keys",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > wakes simultaneous fan-out in admission order without overspending the bucket"
+    ],
+    "sha256Before": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961",
+    "sha256After": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961"
+  },
+  {
+    "drill": "token-admission",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "testFile": "test/unit/pacing.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > paces subagent against request and token headroom",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > paces bestOfN against request and token headroom",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > paces team against request and token headroom",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > paces judge against request and token headroom",
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > paces schedule against request and token headroom"
+    ],
+    "sha256Before": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961",
+    "sha256After": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961"
+  },
+  {
+    "drill": "foreground-priority",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "testFile": "test/unit/pacing.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > never queues the foreground behind exhausted or paused fan-out"
+    ],
+    "sha256Before": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961",
+    "sha256After": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961"
+  },
+  {
+    "drill": "retry-after-pause",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "testFile": "test/unit/pacing.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > Retry-After pauses all fan-out even without valid rate headers"
+    ],
+    "sha256Before": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961",
+    "sha256After": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961"
+  },
+  {
+    "drill": "cancelled-pacing",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "testFile": "test/unit/pacing.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > refuses an impossible fan-out token request and a stopped request before waiting"
+    ],
+    "sha256Before": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961",
+    "sha256After": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961"
+  },
+  {
+    "drill": "invalid-token-estimate",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "testFile": "test/unit/pacing.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > refuses an impossible fan-out token request and a stopped request before waiting"
+    ],
+    "sha256Before": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961",
+    "sha256After": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961"
+  },
+  {
+    "drill": "key-after-wait",
+    "file": "src/core/backends/modelapi/client.ts",
+    "testFile": "test/unit/modelApiClient.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > rechecks key after pacing without admitting a stale request"
+    ],
+    "sha256Before": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9",
+    "sha256After": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9"
+  },
+  {
+    "drill": "consent-after-wait",
+    "file": "src/core/backends/modelapi/client.ts",
+    "testFile": "test/unit/modelApiClient.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > Stop promptly ends an actual bucket wait before any request is dispatched",
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > rechecks consent after pacing without admitting a stale request",
+      "FAIL  test/unit/modelApiClient.test.ts > ModelApiClient > refuses a scheduled paid row when final admission aborts synchronously",
+      "FAIL  test/unit/modelApiClient.test.ts > ModelApiClient > does not count a fetch when a final preflight refuses after key retrieval"
+    ],
+    "sha256Before": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9",
+    "sha256After": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9"
+  },
+  {
+    "drill": "header-tap",
+    "file": "src/core/backends/modelapi/client.ts",
+    "testFile": "test/unit/modelApiClient.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > taps captured headers before reading streamed and token-count bodies"
+    ],
+    "sha256Before": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9",
+    "sha256After": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9"
+  },
+  {
+    "drill": "uncaptured-provider",
+    "file": "src/core/backends/modelapi/client.ts",
+    "testFile": "test/unit/modelApiClient.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > refuses a malformed status envelope and an uncaptured provider status endpoint",
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > taps captured headers before reading streamed and token-count bodies",
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > leaves uncaptured vendors uninterpreted and lets their retry capability refuse 504"
+    ],
+    "sha256Before": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9",
+    "sha256After": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9"
+  },
+  {
+    "drill": "429-pauses-at-exhaustion",
+    "file": "src/core/backends/modelapi/client.ts",
+    "testFile": "test/unit/modelApiClient.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > pauses the shared fan-out bucket on 429 even when no retry remains"
+    ],
+    "sha256Before": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9",
+    "sha256After": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9"
+  },
+  {
+    "drill": "504-retry",
+    "file": "src/core/backends/modelapi/client.ts",
+    "testFile": "test/unit/modelApiClient.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > retries 504 with jitter, fresh admission and budget re-reservation before the next fetch",
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > bounds 504 retries and exposes only a status code and the public health link",
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > refuses the next fetch when 504 re-reservation fails"
+    ],
+    "sha256Before": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9",
+    "sha256After": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9"
+  },
+  {
+    "drill": "bounded-retries",
+    "file": "src/core/backends/modelapi/client.ts",
+    "testFile": "test/unit/modelApiClient.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > bounds 504 retries and exposes only a status code and the public health link",
+      "FAIL  test/unit/modelApiClient.test.ts > ModelApiClient > retries 429 / 500 / 503 with backoff honouring Retry-After, then gives up"
+    ],
+    "sha256Before": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9",
+    "sha256After": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9"
+  },
+  {
+    "drill": "retry-reservation",
+    "file": "src/core/backends/modelapi/client.ts",
+    "testFile": "test/unit/modelApiClient.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > retries 504 with jitter, fresh admission and budget re-reservation before the next fetch",
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > refuses the next fetch when 504 re-reservation fails"
+    ],
+    "sha256Before": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9",
+    "sha256After": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9"
+  },
+  {
+    "drill": "paid-ambiguity",
+    "file": "src/core/backends/modelapi/client.ts",
+    "testFile": "test/unit/modelApiClient.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > never retries an ambiguously billed paid 504 or releases its retained liability"
+    ],
+    "sha256Before": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9",
+    "sha256After": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9"
+  },
+  {
+    "drill": "status-validation",
+    "file": "src/core/backends/modelapi/client.ts",
+    "testFile": "test/unit/modelApiClient.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > refuses a malformed status envelope and an uncaptured provider status endpoint"
+    ],
+    "sha256Before": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9",
+    "sha256After": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9"
+  },
+  {
+    "drill": "status-without-key",
+    "file": "src/core/backends/modelapi/client.ts",
+    "testFile": "test/unit/modelApiClient.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > reads the captured public status without retrieving or transmitting a credential",
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > refuses a malformed status envelope and an uncaptured provider status endpoint"
+    ],
+    "sha256Before": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9",
+    "sha256After": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9"
+  },
+  {
+    "drill": "5xx-status-link",
+    "file": "src/core/backends/modelapi/client.ts",
+    "testFile": "test/unit/modelApiClient.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > bounds 504 retries and exposes only a status code and the public health link"
+    ],
+    "sha256Before": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9",
+    "sha256After": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9"
+  },
+  {
+    "drill": "best-of-n-class",
+    "file": "src/core/bestOfN/bestOfNRunner.ts",
+    "testFile": "test/unit/bestOfNRunner.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/bestOfNRunner.test.ts > M106 tags every best-of-N attempt for shared request pacing"
+    ],
+    "sha256Before": "bc8279a076de0a5d6630a0b4a5668a65beb5f43b38ce32972c00d7d5977a82a2",
+    "sha256After": "bc8279a076de0a5d6630a0b4a5668a65beb5f43b38ce32972c00d7d5977a82a2"
+  },
+  {
+    "drill": "usage-status-validation",
+    "file": "src/webview/components/UsageDialog.tsx",
+    "testFile": "test/unit/UsageDialog.test.tsx",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/UsageDialog.test.tsx > UsageDialog > shows unavailable for invalid status instead of trusting an envelope"
+    ],
+    "sha256Before": "263e4432b99974b74b90a4b23f25133b9e84dbcb883e1310e45ebc24cc363aba",
+    "sha256After": "263e4432b99974b74b90a4b23f25133b9e84dbcb883e1310e45ebc24cc363aba"
+  },
+  {
+    "drill": "usage-escaped-prose",
+    "file": "src/webview/components/UsageDialog.tsx",
+    "testFile": "test/unit/UsageDialog.test.tsx",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/UsageDialog.test.tsx > UsageDialog > shows validated service status and opens its public page"
+    ],
+    "sha256Before": "263e4432b99974b74b90a4b23f25133b9e84dbcb883e1310e45ebc24cc363aba",
+    "sha256After": "263e4432b99974b74b90a4b23f25133b9e84dbcb883e1310e45ebc24cc363aba"
+  },
+  {
+    "drill": "usage-stop-on-close",
+    "file": "src/webview/components/UsageDialog.tsx",
+    "testFile": "test/unit/UsageDialog.test.tsx",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/UsageDialog.test.tsx > UsageDialog > shows validated service status and opens its public page"
+    ],
+    "sha256Before": "263e4432b99974b74b90a4b23f25133b9e84dbcb883e1310e45ebc24cc363aba",
+    "sha256After": "263e4432b99974b74b90a4b23f25133b9e84dbcb883e1310e45ebc24cc363aba"
+  },
+  {
+    "drill": "report-fact-allowlist",
+    "file": "src/host/support/reportFacts.ts",
+    "testFile": "test/unit/reportRecorder.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportRecorder.test.ts > the dialog facts > includes captured service health in the report while excluding service prose and unknown entries"
+    ],
+    "sha256Before": "5dd4260bc518d7230698bf2c69382e10b02151c9fe6415a27be216dcb6ebb984",
+    "sha256After": "5dd4260bc518d7230698bf2c69382e10b02151c9fe6415a27be216dcb6ebb984"
+  },
+  {
+    "drill": "impossible-token-request",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "testFile": "test/unit/pacing.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > refuses an impossible fan-out token request and a stopped request before waiting"
+    ],
+    "sha256Before": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961",
+    "sha256After": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961"
+  },
+  {
+    "drill": "one-rpm-admission",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "testFile": "test/unit/pacing.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > clamps contradictory remaining counts, rejects zero limits and allows a one-RPM key"
+    ],
+    "sha256Before": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961",
+    "sha256After": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961"
+  },
+  {
+    "drill": "report-excludes-prose",
+    "file": "src/host/support/reportFacts.ts",
+    "testFile": "test/unit/reportRecorder.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/reportRecorder.test.ts > the dialog facts > includes captured service health in the report while excluding service prose and unknown entries"
+    ],
+    "sha256Before": "5dd4260bc518d7230698bf2c69382e10b02151c9fe6415a27be216dcb6ebb984",
+    "sha256After": "5dd4260bc518d7230698bf2c69382e10b02151c9fe6415a27be216dcb6ebb984"
+  },
+  {
+    "drill": "pacing-port-validation",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "testFile": "test/unit/pacing.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > clamps contradictory remaining counts, rejects zero limits and allows a one-RPM key"
+    ],
+    "sha256Before": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961",
+    "sha256After": "7c366d411435294bd2ec8c50c52cb89fd77f9749dd7785cce8a479f1051c5961"
+  },
+  {
+    "drill": "request-bytes",
+    "file": "src/core/backends/modelapi/client.ts",
+    "testFile": "test/unit/modelApiClient.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > taps captured headers before reading streamed and token-count bodies"
+    ],
+    "sha256Before": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9",
+    "sha256After": "51863639d2093d32781a6ef25571713ab38415dde40f3e36eafb72a3540449b9"
+  },
+  {
+    "drill": "count-model-selection",
+    "file": "src/core/backends/modelapi/client.ts",
+    "testFile": "test/unit/modelApiClient.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/modelApiClient.test.ts > M106 client pacing and retry boundaries > taps captured headers before reading streamed and token-count bodies"
+    ],
+    "sha256Before": "a77c2f13ab4a05b3de7d045190121f1e3a02284bd28f8202e5232620efc1efa0",
+    "sha256After": "a77c2f13ab4a05b3de7d045190121f1e3a02284bd28f8202e5232620efc1efa0"
+  },
+  {
+    "drill": "fake-client-clock",
+    "file": "test/unit/helpers/fakeModelApi.ts",
+    "testFile": "test/unit/pacing.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > shares a progressing fake client clock with pacing instead of sleeping in real time"
+    ],
+    "sha256Before": "8630dd394c4bf2548a73f98b0786b166b416c29f8b0a0f8c60d4e5dcb653e327",
+    "sha256After": "8630dd394c4bf2548a73f98b0786b166b416c29f8b0a0f8c60d4e5dcb653e327"
+  },
+  {
+    "drill": "provider-window",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "testFile": "test/unit/pacing.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > uses a provider capability interpreter's captured window instead of imposing Meta's minute"
+    ],
+    "sha256Before": "aac4b65cee5e27d78329191090106470176c07202ece3846efa1df9d6ed3f089",
+    "sha256After": "aac4b65cee5e27d78329191090106470176c07202ece3846efa1df9d6ed3f089"
+  },
+  {
+    "drill": "provider-window-validation",
+    "file": "src/core/backends/modelapi/pacing.ts",
+    "testFile": "test/unit/pacing.test.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/pacing.test.ts > M106 request and token pacing > uses a provider capability interpreter's captured window instead of imposing Meta's minute"
+    ],
+    "sha256Before": "aac4b65cee5e27d78329191090106470176c07202ece3846efa1df9d6ed3f089",
+    "sha256After": "aac4b65cee5e27d78329191090106470176c07202ece3846efa1df9d6ed3f089"
+  },
+  {
+    "drill": "usage-status-type",
+    "file": "src/webview/components/UsageDialog.tsx",
+    "testFile": "test/unit/UsageDialog.test.tsx",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/UsageDialog.test.tsx > UsageDialog > rejects non-text captured service fields: {\"service_status\":true,\"service_message\":\"\"}"
+    ],
+    "sha256Before": "7db19f9e5deb581583f0e557ab8bef3c82c0d5bb8691b9d5bb921879239ff1d6",
+    "sha256After": "7db19f9e5deb581583f0e557ab8bef3c82c0d5bb8691b9d5bb921879239ff1d6"
+  },
+  {
+    "drill": "usage-message-type",
+    "file": "src/webview/components/UsageDialog.tsx",
+    "testFile": "test/unit/UsageDialog.test.tsx",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/UsageDialog.test.tsx > UsageDialog > rejects non-text captured service fields: {\"service_status\":\"operational\",\"service_message\":{\"text\":\"unsafe\"}}"
+    ],
+    "sha256Before": "7db19f9e5deb581583f0e557ab8bef3c82c0d5bb8691b9d5bb921879239ff1d6",
+    "sha256After": "7db19f9e5deb581583f0e557ab8bef3c82c0d5bb8691b9d5bb921879239ff1d6"
+  }
+]

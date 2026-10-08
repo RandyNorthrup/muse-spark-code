@@ -21,7 +21,6 @@ import { spawnHelper, startRecorder } from '../../src/host/voice/voiceProcesses'
 import { pageConverter } from '../../src/host/web/pageConverter'
 import { readSettings } from '../../src/host/settings'
 import { FakeLogOutputChannel, fakeSettingsSource } from './helpers/fakes'
-import { SEARCH_HIT_MAX_CHARS } from '../../src/shared/constants'
 
 vi.mock('node:child_process', { spy: true })
 vi.mock('node:worker_threads', { spy: true })
@@ -242,7 +241,7 @@ describe('D89.5 native environment snapshots', () => {
     ).toBe('true')
   })
 
-  it('fences browser and voice helpers at the spawn boundary', () => {
+  it('fences browser and voice helpers at the spawn boundary', async () => {
     vi.stubEnv('GH_TOKEN', 'envfence-fake')
     const spawn = vi.spyOn(childProcess, 'spawn').mockImplementation(() => {
       throw new Error('snapshot')
@@ -255,9 +254,21 @@ describe('D89.5 native environment snapshots', () => {
       ),
     ).toThrow('snapshot')
     expect(spawn.mock.calls[0]?.[2]?.env).toEqual({ PATH: '/bin' })
-    expect(() => startRecorder('/recorder', [])).toThrow('snapshot')
+    const recorder = startRecorder('/recorder', [])
+    await expect(
+      new Promise<string>((resolve) => {
+        recorder.onExit(resolve)
+      }),
+    ).resolves.toContain('snapshot')
+    expect(spawn).toHaveBeenCalledTimes(2)
     expect(spawn.mock.calls[1]?.[2]?.env?.['GH_TOKEN']).toBeUndefined()
-    expect(() => spawnHelper({ command: '/helper', args: [] })).toThrow('snapshot')
+    const helper = spawnHelper({ command: '/helper', args: [] })
+    await expect(
+      new Promise<string>((resolve) => {
+        helper.onExit(resolve)
+      }),
+    ).resolves.toContain('snapshot')
+    expect(spawn).toHaveBeenCalledTimes(3)
     expect(spawn.mock.calls[2]?.[2]?.env?.['GH_TOKEN']).toBeUndefined()
   })
 
@@ -275,7 +286,7 @@ describe('D89.5 native environment snapshots', () => {
           files: [],
           maxFileBytes: 100,
           maxHits: 1,
-          maxHitChars: SEARCH_HIT_MAX_CHARS,
+          maxHitChars: 100,
           denyRead: [],
           globLimits: GLOB_LIMITS,
         },

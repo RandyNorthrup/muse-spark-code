@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
 // The local suggestion engine (M95, PLAN.md D74): `suggest(kind, context)`
 // returns `{value, reason}` from local facts only — the vendored or fetched
 // catalogues and the user's own history (M82's local tallies), never the
@@ -22,8 +23,8 @@ export interface SuggestModel {
   readonly toolCalling: boolean
   readonly contextTokens?: number | undefined
   /** USD per token; absent means unpriced (never suggested as cheapest). */
-  readonly inputUsd?: number | undefined
-  readonly outputUsd?: number | undefined
+  readonly inputUsd?: UsdAmount | undefined
+  readonly outputUsd?: UsdAmount | undefined
   readonly recommended?: boolean | undefined
   /** The catalogue marks Together's serverless models; others default so. */
   readonly serverless?: boolean | undefined
@@ -32,7 +33,7 @@ export interface SuggestModel {
 export interface SuggestContext {
   readonly models: readonly SuggestModel[]
   /** The median of the user's own recent sessions, in USD (M82's tallies). */
-  readonly historyMedianUsd?: number | undefined
+  readonly historyMedianUsd?: UsdAmount | undefined
   /** The default chosen last time, when there was one. */
   readonly lastDefaultRef?: string | undefined
 }
@@ -66,7 +67,9 @@ export function suggestDefaultModel(context: SuggestContext): Suggestion<string>
   if (capable.length === 0) {
     return undefined
   }
-  const cheapest = capable.toSorted((a, b) => (a.inputUsd ?? 0) - (b.inputUsd ?? 0))
+  const cheapest = capable.toSorted((a, b) =>
+    Usd.from(a.inputUsd ?? 0).compare(Usd.from(b.inputUsd ?? 0)),
+  )
   const first = cheapest.at(0)
   if (first === undefined) {
     return undefined
@@ -90,7 +93,7 @@ export function suggestDefaultModel(context: SuggestContext): Suggestion<string>
 
 export interface SessionBudgetSuggestion {
   /** The suggested dollar cap for one session, in USD. */
-  readonly usd: number
+  readonly usd: UsdAmount
 }
 
 /**
@@ -100,9 +103,9 @@ export interface SessionBudgetSuggestion {
  */
 export function suggestSessionBudget(
   defaultCard: PriceCard | undefined,
-  historyMedianUsd: number | undefined,
+  historyMedianUsd: UsdAmount | undefined,
 ): Suggestion<SessionBudgetSuggestion> | undefined {
-  if (historyMedianUsd !== undefined && Number.isFinite(historyMedianUsd) && historyMedianUsd > 0) {
+  if (historyMedianUsd !== undefined && Usd.from(historyMedianUsd).compare(Usd.from(0)) > 0) {
     return {
       kind: 'sessionBudget',
       value: { usd: historyMedianUsd },
@@ -120,7 +123,7 @@ export function suggestSessionBudget(
   })
   return {
     kind: 'sessionBudget',
-    value: { usd },
+    value: { usd: Usd.from(usd).toAmount() },
     reason: fill(UI_TEXT.providerText.suggest.reference, { amount: formatUsd(usd, 2) }),
   }
 }

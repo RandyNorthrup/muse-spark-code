@@ -31,7 +31,7 @@ key to the CLI.
 
 [Enjoying Muse Spark Code? A star on GitHub helps other people find it.](https://github.com/RandyNorthrup/muse-spark-code)
 
-**Contents:** [What's new](#whats-new-in-0150) ·
+**Contents:** [What's new](#whats-new-in-0160) ·
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·
@@ -46,7 +46,31 @@ key to the CLI.
 [Troubleshooting](#troubleshooting) ·
 [Reporting a problem](#reporting-a-problem) · [Development](#development)
 
-## What's new in 0.15.0
+## What's new in 0.16.0
+
+- **Loop guarantees.** Strict tool contracts, bounded hosted search and streamed
+  argument previews help you follow Model API tool calls. Independent reads can
+  run concurrently while their results keep call order. The loop bounds
+  continuations, refuses cut-short tool execution and stops repeated unchanged
+  calls. Structured side calls validate answers; headless runs can require a
+  bounded final-answer schema. See [Agent loop guarantees](#agent-loop-guarantees)
+  for capability gates and remaining native-reader qualifications.
+- **CPU and memory thresholds.** Set machine-scoped limits to throttle, then
+  pause, new background work. Relocation needs a paired device or runner route
+  and is not available yet, so work stays on this machine.
+- **Disk floors.** Disk-heavy launches wait below the free-space floor and
+  critical-volume writes refuse with a reason. Temporary cleanup requires
+  recorded ownership and proved tree exit. See
+  [Keeping your machine responsive](#keeping-your-machine-responsive) for the
+  settings, available routes and remaining integration qualifications.
+
+- **Questions stay within reach.** Each question and MCP form has one interactive
+  card pinned above the composer. Its transcript marker opens and focuses that card.
+- **Agent outcomes and receipts.** Inspect agent activity, evidence-backed outcomes
+  and attempt history. Continue asks before resuming the same child; Retry requires
+  an isolated checkpoint. ACP editors can use `/agents` for the same local controls.
+
+### Earlier in 0.15.0
 
 - **Bring your own models.** Add OpenAI, Anthropic and Gemini keys or local
   models in **Models & Agents**. ChatGPT sign-in is a Subscription Sharing
@@ -95,7 +119,7 @@ key to the CLI.
   (`museSpark.questions.deferAfterSeconds`), Muse carries on with work that
   does not need the answer.
 - **Answer later.** An unanswered question becomes an **Open question** you can
-  answer any time from its card or the open-question chip; **Dismiss** closes it
+  answer any time using **Answer** on its transcript marker or the open-question chip; **Dismiss** closes it
   without an answer. A late answer reaches Muse once, as your own message, and
   approves nothing.
 - **Find open questions.** The view badge, tab title and History show how many
@@ -146,7 +170,9 @@ key to the CLI.
   plugins on the Model API backend. Hooks keep their permission and paid-use limits.
 - **Report a problem** (see [Reporting a problem](#reporting-a-problem)). Preview
   the exact scrubbed report, remove items, then copy, save or open an issue.
-  The report is built locally and the extension sends nothing.
+  The draft stays local. On the Model API backend, Account & usage and report
+  preparation also read Meta’s public service status without sending the draft
+  or an API key.
 - **Muse Judge phase 1** (see [Muse Judge](#muse-judge)). The conversation model
   can add uncalibrated caution to an approval; it cannot grant permission.
   Model API Judge asks for paid-use consent and shares the durable daily budget.
@@ -225,6 +251,16 @@ Earlier releases are in the
 
 ## Screenshots
 
+M106 development: the Model API client paces tagged background requests from
+captured Meta request and token limits. Concurrent responses retain local
+charges, and background work reserves half the observed token budget for the
+foreground. A queued request reports that it is waiting for rate-limit
+headroom, with a separate ten-minute admission deadline; provider idle timing
+starts at dispatch. Gateway-timeout retries remain bounded. Public status
+failures expose fixed text and safe status fields. Its service-status read and usage/report
+presentation ports await the integration bindings listed in
+[the lane R certification](docs/certification/m106-r.md).
+
 Rendered from the shipped panel by its own UI harness (`npm run
 readme:shots`, one harness scenario per image) against a scripted session,
 so they match the build.
@@ -240,7 +276,7 @@ so they match the build.
   </tr>
   <tr>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/approval.png" alt="An approval card docked above the message box: Muse wants to Set-Content, step 1 of 2, a feedback box, and Allow once, Always allow in this workspace and Reject, one line each at one height; above it the diff tally, 2 files changed +3 −1 with Review; in the conversation the earlier steps fold into Read a file and edited 2 files, and the PowerShell row says it waits for your approval"><br><sub>An approval card, docked above the message box, with the CLI's own choices</sub></td>
-    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/open-question.png" alt="An Open question in the attention dock: Colour, Blue, Green, Other, Submit and Explain instead; its folded transcript row and the 1 open question chip with Previous and Next controls remain visible"><br><sub>Answer an open question from the dock; its transcript row and navigation chip keep it easy to find</sub></td>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/question.png" alt="A compact Open question marker with Answer in the transcript and one question card pinned above the composer, with Colour and Toppings tabs, choices, Other, Submit and Explain instead"><br><sub>One question card, pinned above the message box; Answer on its transcript marker brings it into focus</sub></td>
   </tr>
   <tr>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/quote.png" alt="A reply right-clicked in its highlighted passage: three blue pills, Copy, Ask about this and Comment on this, fanned out from the pointer"><br><sub>Highlight, right-click: <b>Copy</b>, <b>Ask about this</b> or <b>Comment on this</b></sub></td>
@@ -255,6 +291,7 @@ so they match the build.
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/voice.png" alt="The composer listening: the red microphone and the Listening placeholder over a new conversation with its keyboard tips"><br><sub>Voice dictation: tap or hold, <code>Ctrl+D</code></sub></td>
   </tr>
   <tr>
+    <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/open-question.png" alt="An Open question in the attention dock: Colour, Blue, Green, Other, Submit and Explain instead; its folded transcript row and the 1 open question chip with Previous and Next controls remain visible"><br><sub>Answer an open question from the dock; its transcript row and navigation chip keep it easy to find</sub></td>
     <td align="center"><img src="https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/media/readme/help.png" alt="Help and Reference searched for Next open question, showing question-handling details, the deferral setting, and links to Next and Previous open question"><br><sub>Type <code>/help</code>: search the reference for features, commands, settings and shortcuts</sub></td>
   </tr>
 </table>
@@ -283,7 +320,20 @@ Stop remains in force even if another window's pending raise finishes later.
 Cancelling admission refunds an unsent request; late budget-dialog answers
 cannot change today's policy. Switching backends preserves accepted prices
 and workspace **Allow always** grants; explicitly turning a feature off
-withdraws them. While observation packing is on, Muse can recall packed output.
+withdraws them. Packing adds recall only when a request carries packed output,
+so enabling unused packing keeps the ordinary request and cache key unchanged.
+Hosted-search approvals bind the provider, model and quoted price. A model
+change while the question is open asks again. A higher price also asks again;
+an equal or lower price can use the workspace's approval for that same model
+and provider. **Ask again** invalidates pending answers and saves; saving one
+model cannot restore another model’s approval. The newest Always approval sets
+the tariff ceiling across conversations and windows, including a cheaper price.
+Parallel conversations keep their own approved requests; child tasks inherit the
+parent’s search authorization within its bound and existing budgets. A dispatched
+request settles at its original quote. Accounting
+keeps exact decimal amounts, and paid displays round upward so a positive
+charge is never shown as free. Hosted-search product wiring remains subject
+to the verified billing-bound availability described above.
 Tab's $1/day cap is separate and is never charged into this extras ledger.
 The optional per-conversation cap still applies independently. ACP and
 headless execution retain explicit flags and their hard budget policy.
@@ -645,10 +695,12 @@ through the ACP agent on both backends are recorded in
 [M112's certification](docs/certification/m112.md); installed-editor checks
 remain with the release lead.
 The integrated panel pins agent questions in the attention dock above the
-composer, after approvals, and keeps the same card in the transcript. After
+composer, after approvals, and keeps only a compact marker in the transcript. After
 one minute Muse continues work that does not depend on the answer. The card
-becomes an **Open question**, still answerable from its row or the open-question
-chip. A card with focus or a draft stays expanded. **Dismiss** closes an open
+becomes an **Open question**. Its compact transcript marker keeps the icon,
+title and **Answer** button. Answer reopens the pinned card and focuses its first
+control, even after deferral; the open-question chip also opens it. A card with
+focus or a draft stays expanded. **Dismiss** closes an open
 question without guessing an answer. Approvals still wait for your decision;
 MCP forms keep their five-minute expiry and cannot be answered after expiry.
 
@@ -1125,6 +1177,33 @@ lock, so two agents updating the same note or index in the same instant could
 lose one of the writes.
 The `.muse-memory.lock` file can remain after its owner exits; its presence
 or stored PID alone does not show that a write is in progress.
+
+### Agent outcomes
+
+The Agent map separates **Active**, **Waiting** (approval, input, queued or
+interrupted) and **Inactive** from an ended agent's outcome: **Complete**,
+**Incomplete**, **Failed**, **Cancelled**, or **Ended, unverified**. Completion
+needs structured evidence. Budget limits, unfinished task lists and missing
+required checks are incomplete; failed final checks are failed. Final-message
+prose never certifies success. An ordinary native end without proof remains
+unverified.
+
+Select an ended agent for its redacted, size-limited receipt: reported file
+changes and line counts, commands/checks with supplied exits and durations,
+stop reason, final message, and observed attempt history. Missing evidence is
+labelled unavailable. **Continue** asks first, keeps the same child session and
+workspace edits, and sends failure/unfinished items followed by the original
+objective. Current permissions, paid-use consent and budgets still apply.
+**Retry** asks first and refuses when no isolated checkpoint is available.
+Today's children share the workspace or provide no captured checkpoint; shared
+changes are kept. Native ended-child recovery remains unavailable until its
+preservation guarantees are captured; interrupted Resume is unchanged.
+
+Other editors use ACP's local commands without a model request:
+`/agents`, `/agents receipt ID`, `/agents continue ID`, and `/agents retry ID`.
+Recovery asks through the editor's permission prompt even in Bypass. Workflow
+children and background tasks appear too; missing per-agent evidence and
+unsupported recovery are explicit.
 
 ### Custom agents
 
@@ -1719,6 +1798,39 @@ also unavailable while a pull request worktree is held.
   pickers, discard confirmations and native metadata waits.
 - **Restricted Mode.** None of this runs there, and the panel says why:
   git can run programs a repository's configuration names.
+
+<!-- reference: streamed-argument-previews -->
+
+## Streamed argument previews
+
+On the Model API backend, a selected model with verified streamed-argument
+support can show an **Argument preview** in its tool row. The implementation
+is available in the shared panel and ACP; enabling it in production still
+requires the capability binding described in the M106 certification record.
+The preview shows only declared top-level string fields after their closing
+quote validates: file paths, shell commands, search patterns and fetch URLs.
+These values pass through the existing credential scrubber before display.
+File content, edits, nested values and other fields stay hidden. Tools with
+no preview declaration, including MCP and foreign tools, show a received
+byte count only.
+
+An unfinished string never appears. Malformed JSON, duplicate keys,
+non-string values for declared fields or excessive nesting freeze the last
+safe display with **Preparing arguments…** until valid complete arguments
+arrive. Retained input and display text are bounded at 16,000 characters;
+the byte count continues after that bound. Updates coalesce every 100 ms,
+with a final safe flush before interruption. A preview does not execute a
+tool, request approval or run a hook; only the existing completed-response
+path admits execution. Previews never enter model replay.
+
+Completion, promotion and interruption clear a call's preview. Reloading
+the panel clears saved previews even while the same turn continues, because
+a turn ID cannot prove a tool is still pending. A fresh update restores an
+active preview to its original call row. Recognized credential patterns
+and registered literals are scrubbed; arbitrary unregistered secrets in a
+declared field remain outside that scrubber's contract.
+
+<!-- /reference: streamed-argument-previews -->
 
 ## Code intelligence
 
@@ -4460,8 +4572,8 @@ unsigned and pinned by digest; a registry install checks npm 11.19.0's verified
 bundles and the signer identity.
 
 `npm run schema:exec` regenerates the
-[result](docs/schemas/exec-result-v1.schema.json) and
-[event](docs/schemas/exec-event-v1.schema.json) schemas, and `-- --check`
+[result](docs/schemas/exec-result-v2.schema.json) and
+[event](docs/schemas/exec-event-v2.schema.json) schemas, and `-- --check`
 compares the committed bytes; both ship in the package's `schemas/`.
 After the production build, `node scripts/package-acp.mjs` packs the ACP
 tarball and `node scripts/package-acp-test.mjs` packs the private fake-only
@@ -4477,6 +4589,78 @@ the contributor model and a hard $0.25 budget.
 See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
 [M80 record](docs/certification/m80.md) for tests, deliberate breaks, platform
 results and what is still open.
+
+## Keeping your machine responsive
+
+M107's integration candidate adds one portable governor per harness process.
+It is on by default and loads on the first governed launch. It delays new
+background work when the machine is busy; running work continues. The governor
+never kills or suspends a process, never imposes a hard memory limit, and never
+controls your own terminals, editor or other applications. Model requests,
+Tab, approvals, paid consent and Stop do not wait for it. It does not change
+provider capabilities, permissions, paid consent or budgets.
+
+These settings are machine-scoped; workspace values are ignored. Settings
+names below start with `museSpark.`.
+
+| Setting                      | Default  | Range or meaning                                                                                       |
+| ---------------------------- | -------- | ------------------------------------------------------------------------------------------------------ |
+| `resourceGovernor`           | `true`   | Enable this machine's governor                                                                         |
+| `resourceCpuMaxPercent`      | `85`     | 30–100%; sustained for 30 seconds                                                                      |
+| `resourceMemoryMaxPercent`   | `90`     | 40–98% in use                                                                                          |
+| `resourceMemoryMinFreeGiB`   | `2`      | 0.5–64 GiB; effective floor at most 15% of RAM                                                         |
+| `resourceGpuMaxPercent`      | `null`   | 1–100%; no GPU probe until configured                                                                  |
+| `resourceDiskBusyMaxPercent` | `null`   | 1–100%; no disk-busy probe until configured                                                            |
+| `resourceDiskMinFreeGiB`     | `null`   | Adaptive floor: smaller of 10 GiB and 10% of the volume, at least 2 GiB; explicit floor at least 2 GiB |
+| `resourceRelocate`           | `paired` | `paired`, `ask` or `off`; needs a paired device or runner route, not available yet                     |
+
+Levels are **normal**, **throttle**, **relocate** and **pause**. At throttle,
+background capacity narrows to one per kind; at pause, new background work
+waits. This release binds no paired-device or runner route, so sustained
+pressure goes from throttle to pause and never to relocate; resource status
+and the pause notice say relocation is not available yet. Foreground work has a twenty-second maximum wait at pause. **Run now**
+releases that wait; **Resume now** overrides pressure for fifteen minutes,
+without turning on an explicitly disabled governor. Unknown readings are shown
+as unknown: they neither trip nor clear a level. Recovery has hysteresis and a
+minimum dwell, so near-threshold readings do not flicker between levels.
+
+Free disk space is sampled even with the optional disk-busy probe unset.
+Disk-heavy launches wait below the floor; critical-volume writes refuse with a
+reason. The temporary-root registry confines cleanup to recorded harness roots,
+requires fresh exit and ownership proof, and retains failed-run roots for 24
+hours. Native cleanup and all-volume watch bindings still need qualification;
+the integration record names the remaining native delivery and storage qualifications.
+
+The CLI accepts `muse-spark-code-acp resources status --json` and
+`muse-spark-code-acp resources resume --json`. Status describes that command
+process, rather than another running session's queue. Resume writes the
+machine's bounded marker, read by loaded runtime hosts on their next refresh.
+`resources history` and `usage resources` report unavailable until the durable
+journal is supplied. ACP's shared command adapter provides `/resources`,
+`/resources resume` and `/usage resources` through its injected runtime port.
+See the [ACP guide](docs/acp.md#resource-status-and-resume) and
+[CI guide](docs/ci.md#resource-governor-in-headless-runs).
+
+The shared chip/popover and usage-history section ship as separate artifacts.
+Their window/native/companion mounts, actuator lifecycle, runtime spawn binding,
+M96/M96c slots and M100 paired-device dispatch remain explicit integration
+handoffs. Once those routes join, relocation will move only eligible queued
+tasks/checks, or a running check after explicit **Move to** and proven
+retirement. Pairing, offers,
+repository mapping, receiver permissions and paid consent remain required;
+headless relocation is refused. **Keep here** cancels before receiver admission.
+The [M107 integration record](docs/certification/m107.md) and
+[editor resource matrix](docs/ide-compatibility/resources.md) distinguish
+component receipts from installed-editor acceptance.
+
+## Development
+
+Resource admission is shared through `dist/resourceAdmission.js`; sampler,
+queue, tree accounting and disk policy stay in lazy `dist/resourceGovernor.js`.
+The controls and history have their own closure budgets, including history CSS,
+without raising the 900 KiB startup or original 50 KiB deferred caps. The split
+and packaging gates cover both VSIX and ACP delivery. See
+[W's gate-fire record](<docs/certification/m107-w-wiring,-docs-and-gates-(last).md>).
 
 ## Sharing
 
@@ -4567,6 +4751,10 @@ surfaces in Chrome against a fake host: no startup requests, first-use loading
 under the shared CSP, and recovery from actual failed entry/static-dependency
 fetches. Retry reloads the panel with its saved conversation and draft. Cold
 menus remain dismissible and cannot take focus after dismissal.
+The generated [feature reference](docs/reference.md) takes its entries from
+`src/shared/featureCatalog.ts` and the marked README sections. Run
+`node scripts/gen-reference.mjs` after updating an entry, and
+`npm run check:reference` to check that it is current.
 The legal report and review comment form use the same loading and retry path.
 Optional surfaces also load their shared English text on first use; startup
 keeps first-paint text and the complete translated-table validation contract.
@@ -4645,6 +4833,12 @@ its own installed-language state. The webview is React 19 bundled to one IIFE wi
 its stylesheet; `zod/mini` validates every host ⇄ webview message; the voice
 helpers are Windows PowerShell and Swift with no dependencies.
 
+The macOS helper also serves the internal, read-only `proc-identity <pid…>`
+mode. Resource-tree launchers use its exact kernel start microseconds, parent,
+group and exited state before authorizing process actions; this mode runs
+before any audio or privacy setup. Native tests build and sign the production
+helper in private fixtures, so they work in a clean checkout.
+
 The session board and best-of-N implementation loads on its first action
 from `dist/sessionBoard.js`. Paid Auto reviewer execution loads only after
 consent from `dist/reviewer.js`, also shipped with the ACP agent. Ordinary
@@ -4711,7 +4905,7 @@ DEFLATE compression after `vsce` creates the archive. Python 3 (`python3`,
 are skipped, including Windows' Microsoft Store aliases. The step preserves
 entry paths, metadata, every UI JSON value and all other uncompressed bytes.
 Only packaged translation JSON whitespace is compacted; source tables stay
-unchanged and malformed JSON refuses publication. The 2775 KiB universal VSIX budget covers the 0.15.0 feature set; individual bundle caps stay fixed.
+unchanged and malformed JSON refuses publication. The 3000 KiB universal VSIX budget covers the measured 0.16.0 combined train plus D6's margin; individual bundle caps follow their recorded measurements.
 The legal scanner's pinned data is embedded in its lazy bundle, with separate
 notice/provenance files in both packages.
 
@@ -4825,6 +5019,12 @@ and every pull request until the queue is on) runs the full tier:
   packages the ACP agent with every locale table, and writes both CycloneDX
   inventories (the `muse-spark-code-sboms` artifact).
 
+The ACP inventory and third-party notices follow the package's staged shared/lazy bundles and usage
+browser assets, including code kept in the runtime archive. It excludes
+extension-only outputs and retains the locked optional native dependencies.
+`node scripts/release-sbom.mjs` requires the ACP package stage produced by
+`node scripts/package-acp.mjs`.
+
 The seven required checks keep their names on both tiers (CONTRIBUTING.md,
 "CI tiers and required checks").
 
@@ -4894,6 +5094,14 @@ Meta models use the owner's confirmed strict capability. Unknown or explicitly
 false records keep strict mode off.
 
 ## How this extension is built
+
+The portable Linux resource-tree launcher pins its private cgroup before
+starting the workload. Stop reports a removed or replaced cgroup explicitly.
+If the harness has been moved into the workload's tree, Stop moves it home
+and retries up to three times; exhaustion keeps ownership and returns a
+localized status row asking the caller to retry Stop. Empty trees retire
+automatically after their root exits. The governor's all-spawn/editor wiring
+remains an M107 integration task; these are the launch port's guarantees.
 
 The conversation implementation loads when the first chat surface needs it. The
 first opening includes that local load; commands and backend restart handling
@@ -5001,6 +5209,72 @@ The shared production Node English fallback uses the same built-in compression.
 The conversation implementation loads when the first chat surface needs it. The
 first opening includes that local load; commands and backend restart handling
 remain registered at activation.
+
+Linux builds compile the resource cleanup helper from the reviewed native source
+with `/usr/bin/cc` and OpenSSL development headers/static archive. Released VSIX
+and ACP packaging requires both x64 and arm64 helpers from the CI build matrix;
+users need no compiler or OpenSSL installation. A local build compiles its
+current architecture; packaging also needs the other architecture's build
+artifact. Linux runtime compatibility still depends on the builder's libc
+baseline. Transport failures and OS pressure stalls also reduce admission.
+The fake-only Action-check job builds and downloads those same Linux helpers
+and the universal Darwin helper before producing its private test candidate;
+the real ACP packager keeps all native-file requirements.
+Per-job tree limits stop an offending job at more than 128 observed processes
+or 64 observed births in 15 seconds; unrelated jobs keep their own leases.
+
+### Agent loop guarantees
+
+Model API strict tool declarations and safe parallel reads are on by default.
+`museSpark.modelApiStrictTools` and `museSpark.modelApiParallelReads` are
+machine-scoped switches; each conversation snapshots the choice. Strict
+schemas require the selected model's known support. Turning strict schemas
+off preserves the previous declarations. Safe reads run at most four at a
+time; writes and other tools retain their order. An output-limit continuation
+is bounded to one request for text-only replies. A cut-short reply containing
+tool calls runs none of them and fails the turn; replay retains their error
+results. Repeated unchanged tool results stop the turn.
+
+`museSpark.webSearchMaxPerRequest` bounds hosted searches to 1–20 (default 5)
+where the selected model supports that bound. The first paid use presents the
+existing Allow once / Always in this workspace / Deny choices, its price and
+`museSpark.paidDailyBudgetUsd`. Allow once covers hosted search in this window;
+Always remains revocable. Unknown prices cannot spend under a dollar cap.
+Charges and durable claims use exact decimal USD, and uncertain dispatches
+retain liability.
+
+Argument previews use a separate lazy chunk and are available only with
+recorded streaming-argument support. Structured side calls prefer a captured
+schema format, allow one repair and retain the text fallback. Git commit and
+pull-request drafts apply this contract to the user's own turn, with repairs
+under the session's hooks and budget. Judge uses the selected model's captured
+format. Compaction applies its own summary contract even when a headless final
+answer schema is active. Retry waits,
+idle deadlines and fan-out pacing are bounded and Stop aborts the wait.
+
+The SDK is pinned to 1.4.2. Its effort, manual feedback and permanent deletion
+ports are present, but this integration does not yet have the recorded MSP
+feature frames needed to enable them. No receipt or terminal parser is
+inferred from SDK declarations. Until those readers are bound, current model
+effort controls and History archive behavior continue; feedback and permanent
+deletion refuse before dispatch. This release is unofficial.
+
+### Models and providers
+
+The Models & Agents panel and Start with my own model command are supplied by
+the provider lane. Provider capability records and captured transport bindings
+remain required before an agent-loop enhancement is enabled for a non-Meta
+model. A single-model setup retains its current selection and controls.
+
+### Headless runs
+
+The headless parser accepts `--output-schema <file>` and the explicit
+`--output-schema-outside` opt-in. The bounded strict-subset compiler and final
+answer validator preserve accounting, withhold an invalid answer and record
+only the schema digest. The captured Meta contributor model uses its strict schema format; unknown
+models use the explicitly reported local validator. Provider formats can be
+bound through the selected-record port. Schema mismatches exit with code 10. See
+[the ACP guide](docs/acp.md) and [the CI contract](docs/ci.md).
 Legal scanner limits: 20,000 files/directory entries, 1,000,000 UTF-8 bytes per
 file, 10,000,000 bytes per scan, 100 findings per rule (500 total), and 120
 seconds. Reaching a limit is reported as incomplete. License title and clause

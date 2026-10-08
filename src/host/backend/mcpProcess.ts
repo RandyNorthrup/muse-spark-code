@@ -18,6 +18,7 @@
 
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process'
 import { statSync } from 'node:fs'
+import { stopResourceTree } from '../../core/resources/admission'
 import path from 'node:path'
 import type { Readable, Writable } from 'node:stream'
 import { environmentValue, setEnvironmentVariable } from '../../core/backends/musecode/launch'
@@ -28,6 +29,8 @@ import { redactSecrets } from '../../core/redact'
 import { MCP_STDIO_ENV_ALLOWLIST, TREE_EXIT_WAIT_MS } from '../../shared/constants'
 import { killTree, sweepExitedTree, type TreeRoot, treeSpawnOptions } from '../processTree'
 import { spawnMcpJob } from './mcpJobLaunch'
+import { resourceEnvironment, type ResourceLease } from '../../core/resources/launch'
+import { observeResourceProcess } from '../resources/resourceAdmission'
 
 export interface McpSpawnDeps {
   readonly platform: NodeJS.Platform
@@ -244,6 +247,7 @@ export function observeMcpProcess(
   deps: McpSpawnDeps,
   startedAt: number,
   isJobLauncher = false,
+  resource?: ResourceLease,
 ): McpChildProcess {
   const exitListeners = new Set<(how: string) => void>()
   let exit: string | undefined
@@ -266,7 +270,12 @@ export function observeMcpProcess(
     processSignal = signal
     // A server that exits by itself can still leave a child. Start the
     // identity-checked sweep now; stdout may still have a final MCP frame.
-    if (!isJobLauncher) {
+    if (resource !== undefined) {
+      treeCleanup ??= stopResourceTree(resource)
+      void treeCleanup.catch(() => {
+        deps.log('an exited MCP server has an unproved registered tree stop')
+      })
+    } else if (!isJobLauncher) {
       treeCleanup ??= queueExitedSweep(child.pid, startedAt, Date.now(), deps)
     }
   })
@@ -303,6 +312,10 @@ export function observeMcpProcess(
       }
     },
     kill: () => {
+      if (resource !== undefined) {
+        treeCleanup ??= stopResourceTree(resource)
+        return treeCleanup
+      }
       if (isJobLauncher) {
         if (exit !== undefined) {
           return Promise.resolve()
@@ -346,12 +359,22 @@ export function observeMcpProcess(
 /** The pool's spawner (McpPoolDeps.spawn); throws with the reason a server cannot start. */
 export function mcpServerSpawner(
   deps: McpSpawnDeps,
-): (launch: McpStdioLaunch, cwd: string) => McpChildProcess {
-  return (launch, cwd) => {
+): (
+  launch: McpStdioLaunch,
+  cwd: string,
+  isCancelled?: () => boolean,
+  signal?: AbortSignal,
+  resource?: ResourceLease,
+  assembly?: string,
+) => McpChildProcess {
+  return (launch, cwd, _isCancelled, _signal, resource, assembly) => {
     if (!deps.isExistingDirectory(cwd)) {
       throw new Error(`its working directory ${cwd} does not exist`)
     }
-    const env = mcpServerEnvironment(deps.env(), launch.env, deps.platform)
+    const env = resourceEnvironment(
+      mcpServerEnvironment(deps.env(), launch.env, deps.platform),
+      resource,
+    )
     const file = resolveServerCommand(launch.command, cwd, env, deps)
     const line = spawnLine(file, launch.args, deps)
     const startedAt = Date.now()
@@ -367,8 +390,10 @@ export function mcpServerSpawner(
         cwd,
         env,
         log: deps.log,
+        resource,
+        resourceAssembly: assembly,
       })
-      return observeMcpProcess(nodeProcessHandle(child), deps, startedAt, true)
+      return observeMcpProcess(nodeProcessHandle(child), deps, startedAt, true, resource)
     }
     // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- the server the user configured in Muse Code's settings, started only in a trusted workspace, with an absolute resolved command and a fixed argument array (PLAN.md §8).
     const child = spawn(line.file, [...line.args], {
@@ -378,7 +403,8 @@ export function mcpServerSpawner(
       windowsHide: true,
       ...treeSpawnOptions(deps.platform),
     })
-    return observeMcpProcess(nodeProcessHandle(child), deps, startedAt)
+    observeResourceProcess(resource, child)
+    return observeMcpProcess(nodeProcessHandle(child), deps, startedAt, false, resource)
   }
 }
 

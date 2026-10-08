@@ -3,7 +3,18 @@
 import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
+import path from 'node:path'
+import { tmpdir } from 'node:os'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { chromium } from 'playwright-core'
 import { findChrome } from '../../scripts/lib/chrome.mjs'
@@ -23,14 +34,39 @@ const REAL_HARNESS_WAIT_TIMEOUT_MS = 8000
 const HARNESS_DIAGNOSTIC_LIMIT = 8192
 const HARNESS_BODY_DIAGNOSTIC_LIMIT = 4096
 const HARNESS_ERROR_DIAGNOSTIC_LIMIT = 1024
-const rig = { browser: undefined, server: undefined, origin: '', packagedFiles: [] }
+const rig = {
+  browser: undefined,
+  server: undefined,
+  origin: '',
+  packagedFiles: [],
+  inventory: undefined,
+}
 beforeAll(async () => {
   execFileSync(process.execPath, ['scripts/build.mjs', '--production'], { stdio: 'pipe' })
   execFileSync(process.execPath, ['scripts/pseudo-l10n.mjs'], { stdio: 'pipe' })
+  mkdirSync('temp', { recursive: true })
+  rig.inventory = mkdtempSync(path.resolve('temp/team-inventory-'))
+  // VSCE traverses before filtering. Keep its unchanged policy over real
+  // publication roots, without walking other workers' changing fixture trees.
+  const roots = new Set(
+    readFileSync('.vscodeignore', 'utf8')
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith('!'))
+      .map((line) => line.slice(1).split('/', 1)[0]),
+  )
+  for (const entry of readdirSync('.')) {
+    if (
+      [...roots].some(
+        (root) => entry === root || (root.includes('*') && entry.startsWith(root.split('*', 1)[0])),
+      )
+    )
+      cpSync(entry, path.join(rig.inventory, entry), { recursive: true })
+  }
+  cpSync('.vscodeignore', path.join(rig.inventory, '.vscodeignore'))
   rig.packagedFiles = execFileSync(
     process.execPath,
-    ['node_modules/@vscode/vsce/vsce', 'ls', '--no-dependencies'],
-    { encoding: 'utf8' },
+    [path.resolve('node_modules/@vscode/vsce/vsce'), 'ls', '--no-dependencies'],
+    { cwd: rig.inventory, encoding: 'utf8' },
   ).split('\n')
   const serving = await serveRepo(process.cwd())
   rig.server = serving.server
@@ -42,10 +78,20 @@ beforeAll(async () => {
     executablePath,
     headless: true,
   })
+  // Warm the browser, server and bundle once, inside the setup deadline, so the
+  // first case's bounded wait measures the scene and not a cold start.
+  const warm = await rig.browser.newPage()
+  try {
+    await warm.goto(`${rig.origin}/test/harness/index.html?scenario=team-tree&theme=light`)
+    await warm.locator('.team-tree').waitFor({ timeout: REAL_HARNESS_PREPARE_TIMEOUT_MS })
+  } finally {
+    await warm.close()
+  }
 }, REAL_HARNESS_PREPARE_TIMEOUT_MS)
 afterAll(async () => {
   await rig.browser?.close()
   if (rig.server !== undefined) await new Promise((resolve) => rig.server.close(resolve))
+  if (rig.inventory !== undefined) rmSync(rig.inventory, { recursive: true, force: true })
 })
 
 async function harness(scenario, theme, lang, run, prepare) {
@@ -218,23 +264,33 @@ describe('RVM96B browser regressions', { timeout: REAL_HARNESS_CASE_TIMEOUT_MS }
         ([, output]) => output.entryPoint === 'src/webview/components/TeamUi.tsx',
       ) ?? []
     expect(chunk).toBeDefined()
-    const original = readFileSync(chunk)
+    const fixture = mkdtempSync(path.join(tmpdir(), 'team-budget-'))
+    cpSync('dist', path.join(fixture, 'dist'), { recursive: true })
+    cpSync('docs/schemas', path.join(fixture, 'docs/schemas'), { recursive: true })
+    mkdirSync(path.join(fixture, 'scripts'), { recursive: true })
+    cpSync('scripts/check-bundle-size.mjs', path.join(fixture, 'scripts/check-bundle-size.mjs'))
+    cpSync('scripts/lib', path.join(fixture, 'scripts/lib'), { recursive: true })
+    const target = path.join(fixture, chunk)
+    const original = readFileSync(target)
     const sha = createHash('sha256').update(original).digest('hex')
     try {
-      writeFileSync(chunk, Buffer.concat([original, Buffer.alloc(900 * 1024, ' ')]))
+      writeFileSync(target, Buffer.concat([original, Buffer.alloc(900 * 1024, ' ')]))
       const red = spawnSync(process.execPath, ['scripts/check-bundle-size.mjs'], {
         encoding: 'utf8',
+        cwd: fixture,
       })
       expect(red.status).toBe(1)
       expect(red.stdout).toContain('OVER dist/webview team UI')
     } finally {
-      writeFileSync(chunk, original)
+      writeFileSync(target, original)
     }
-    expect(createHash('sha256').update(readFileSync(chunk)).digest('hex')).toBe(sha)
+    expect(createHash('sha256').update(readFileSync(target)).digest('hex')).toBe(sha)
     const green = spawnSync(process.execPath, ['scripts/check-bundle-size.mjs'], {
       encoding: 'utf8',
+      cwd: fixture,
     })
-    expect(green.status, green.stderr).toBe(0)
+    rmSync(fixture, { recursive: true, force: true })
+    expect(green.status, `${green.stderr}\n${green.stdout}`).toBe(0)
   })
 
   it('23 loads neither team UI module for a single-model page, then imports tree and cards under the unchanged nonce CSP', async () => {

@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
 import * as z from 'zod/mini'
 import {
   EXEC_MAX_BUDGET_USD,
@@ -13,9 +14,9 @@ import {
 import type { LastResponse, LedgerTotals, Refusal, TokenTotals } from './execProtocol'
 
 export interface TierPrice {
-  readonly input: number
-  readonly cachedInput: number
-  readonly output: number
+  readonly input: UsdAmount
+  readonly cachedInput: UsdAmount
+  readonly output: UsdAmount
 }
 export interface ResponseTicket {
   readonly contextTokens?: number | undefined
@@ -23,7 +24,7 @@ export interface ResponseTicket {
   readonly kind: 'responses'
   readonly model: string
   readonly maxOutputTokens: number
-  readonly reserveUsd: number
+  readonly reserveUsd: UsdAmount
   readonly price: TierPrice
 }
 export interface ImageTicket {
@@ -31,7 +32,7 @@ export interface ImageTicket {
   readonly kind: 'image'
   readonly endpoint: 'images.generations' | 'images.edits'
   readonly units: 1
-  readonly reserveUsd: number
+  readonly reserveUsd: UsdAmount
 }
 export type ResponseSettlement =
   | {
@@ -56,7 +57,7 @@ export type ImageSettlement =
   | { kind: 'unparsable' }
 export interface SettlementResult {
   outcome: 'priced' | 'full-reservation'
-  chargedUsd: number
+  chargedUsd: UsdAmount
   latch?: 'accounting_invalid' | 'breach'
 }
 export interface RunLedger {
@@ -65,13 +66,13 @@ export interface RunLedger {
     maxOutputTokens: number
     price: TierPrice
     readonly contextTokens?: number | undefined
-    readonly reserveUsd?: number | undefined
+    readonly reserveUsd?: UsdAmount | undefined
   }): ResponseTicket | { refused: Refusal }
   admitImage(endpoint: 'images.generations' | 'images.edits'): ImageTicket | { refused: Refusal }
   settleResponse(
     ticket: ResponseTicket,
     outcome: ResponseSettlement,
-    pricing?: { readonly costUsd: number | undefined },
+    pricing?: { readonly costUsd: UsdAmount | undefined },
   ): SettlementResult
   settleImage(ticket: ImageTicket, outcome: ImageSettlement): SettlementResult
   close(): void
@@ -93,18 +94,14 @@ const usageSchema = z.object({
   ),
 })
 
-// The incoming budget string was parsed by A. Recover only an exact display
-// conversion here; every admission, charge and identity below uses integers.
-function units(usd: number): bigint {
-  if (!Number.isFinite(usd) || usd < 0) throw new Error(UI_TEXT.execNumberInvalid)
-  const decimal = usd.toFixed(EXEC_USD_DECIMALS)
-  if (Number(decimal) !== usd) throw new Error(UI_TEXT.execNumberInvalid)
-  const value = BigInt(decimal.replace('.', ''))
-  if (value > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error(UI_TEXT.execNumberInvalid)
+function units(amount: UsdAmount): bigint {
+  const value = Usd.from(amount).units(EXEC_USD_DECIMALS)
+  if (value < ZERO || value > BigInt(Number.MAX_SAFE_INTEGER))
+    throw new Error(UI_TEXT.execNumberInvalid)
   return value
 }
-function usd(value: bigint): number {
-  return Number(value) / EXEC_USD_UNITS
+function usd(value: bigint): UsdAmount {
+  return Usd.fromUnits(value, EXEC_USD_DECIMALS).toAmount()
 }
 function ceiling(value: bigint): bigint {
   return (value + UNIT - ONE) / UNIT
@@ -117,11 +114,11 @@ function charge(price: TierPrice, input: number, output: number, cached = 0): bi
   )
 }
 
-export function createRunLedger(input: { capUsd: number; maxRequests: number }): RunLedger {
+export function createRunLedger(input: { capUsd: UsdAmount; maxRequests: number }): RunLedger {
   const cap = units(input.capUsd)
   if (
     cap <= ZERO ||
-    cap > units(EXEC_MAX_BUDGET_USD) ||
+    cap > units(Usd.from(EXEC_MAX_BUDGET_USD).toAmount()) ||
     !Number.isSafeInteger(input.maxRequests) ||
     input.maxRequests < 1 ||
     input.maxRequests > EXEC_MAX_REQUESTS
@@ -192,12 +189,15 @@ export function createRunLedger(input: { capUsd: number; maxRequests: number }):
         return refuse('request_shape')
       let amount: bigint
       try {
-        if (request.reserveUsd === undefined && price.cachedInput > price.input)
+        if (
+          request.reserveUsd === undefined &&
+          Usd.from(price.cachedInput).compare(Usd.from(price.input)) > 0
+        )
           return refuse('unpriced')
         amount =
           request.reserveUsd === undefined
             ? charge(price, MODEL_API_CONTEXT_WINDOW - m, m)
-            : units(request.reserveUsd)
+            : units(Usd.from(request.reserveUsd).toAmount())
       } catch {
         return refuse('unpriced')
       }
@@ -214,7 +214,7 @@ export function createRunLedger(input: { capUsd: number; maxRequests: number }):
       return active
     },
     admitImage(endpoint) {
-      const amount = units(PAID_PRICES_USD.imageGeneration)
+      const amount = units(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
       const rejected = admit(amount)
       if (rejected !== undefined) return rejected
       imageAttempts += 1

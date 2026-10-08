@@ -458,8 +458,7 @@ extension's state; ACP ChatGPT tallies currently live for the process lifetime.
     this workspace); a due prompt never runs on its own.
 
 The extension itself has **no telemetry**, no analytics, no automatic crash
-reporting and no hosted server of its own. **Report a problem** contacts
-nothing: it builds a draft that leaves only through an export you choose
+reporting and no hosted server of its own. **Report a problem** builds a local draft that leaves only through an export you choose
 (see [Reporting a problem](#reporting-a-problem)). It contacts Meta when you send a message,
 sign in, dictate with Muse Voice, use a paid feature, run a scheduled prompt
 with **Run now**, or open a panel while signed in (to list models; that request
@@ -800,8 +799,10 @@ hands it and what its tools read or run, the same way the extension does:
 The panel reaches the same dialog from the palette's **Report an issue…**,
 from **Report this** on a recorded error notice or failed turn, and from
 **Report a problem** on the panel's crash screen. The extension never posts
-or uploads the report and calls no network service or model for it; there
-is no telemetry and no GitHub access.
+or uploads the report and makes no model call for it. On the Model API backend,
+preparing facts reads Meta’s public service-status endpoint without authorization
+or report content; only the alive flag and an allowlisted operational word enter
+the draft. Read failure omits that fact. There is no telemetry or GitHub access.
 
 - **The flight recorder.** Each VS Code window keeps its own journal in the
   extension's global storage, `reports/journal-<window>.jsonl`, with an
@@ -952,13 +953,28 @@ LR remain open. Read
 [CI guide](ci.md) and [M80 receipts](certification/m80.md) for exact flow,
 retention/cleanup bounds, platform limits and support claims.
 
+## Resource governor (M107 integration candidate)
+
 ## Prompt and chat sharing
 
+Machine readings and thresholds stay in the harness process. Tree identity
+(PID and birth, job/cgroup/group membership) exists only for local ownership
+proof; resource status, events and history schemas exclude it. The governor
+neither inspects command lines nor inventories the person's own processes.
+Ordinary existing child environment/credential filtering is preserved.
 Sharing is local and starts only from an explicit action. A preview holds the
 exact scrubbed bytes in memory; only its final confirmation permits copy,
 file save or local browser opening. No hosted destination is implemented.
 Confidential workspaces, or unavailable policy, refuse sharing.
 
+The optional retained journal is a separate M102 binding: per-minute CPU and
+memory percentages, available-memory buckets, optional GPU/disk readings,
+level, configured thresholds, aggregate counts by kind, override events,
+CPU-seconds and peak memory. No process identities, commands, paths, process
+names or environment go into its records. The shared history section and
+portable text summary validate the same aggregates; no durable resource
+journal is installed by this W join. M102 consent, retention, scoped reads and
+rollups must be applied before persistence.
 Conversation-only shares contain user and assistant text. Full shares may
 contain portable tool arguments and outputs, commands, outcomes, shown
 reasoning and approval decisions. Code blocks and attachment names are
@@ -966,6 +982,14 @@ optional. Diffs and explicitly selected attachment text require separate
 options; history that retains only metadata cannot supply attachment bytes.
 No live handles, replay credentials or arbitrary backend objects are exported.
 
+Relocation's planned peer status is only `level` and the headroom bucket
+`ample`, `some` or `none`. It does not send raw machine readings, processes or
+paths. A dispatch still uses the user's approved pairing, repository mapping,
+base snapshot and receiver permission/paid consent. Resource policy creates no
+new network authorization. Local disk watch paths and temporary-root manifests
+are ownership evidence; public status/history exposes no path. Disk cleanup
+review and installed-host acceptance remain open in
+[M107's record](certification/m107.md).
 Every string, including identifiers, titles, names and chosen contents, goes
 through the credential/account/path scrub. Registered values are refreshed
 before preview and confirmation in the editor. Workspace paths become

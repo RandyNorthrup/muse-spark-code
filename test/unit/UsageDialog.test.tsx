@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -131,10 +132,58 @@ function providersReport(): Partial<UsageDialogProps> {
 }
 
 describe('UsageDialog', () => {
+  it('shows validated service status and opens its public page', async () => {
+    const readServiceStatus = vi.fn((_signal: AbortSignal) =>
+      Promise.resolve({
+        is_alive: true,
+        service_status: 'operational',
+        service_message: '<img src=x onerror=alert(1)>',
+        updated_at: '',
+        model_statuses: [],
+      }),
+    )
+    const view = await renderDialog({ readServiceStatus })
+    expect(await screen.findByText('operational')).toBeVisible()
+    expect(screen.getByText('<img src=x onerror=alert(1)>')).toBeVisible()
+    expect(screen.getByRole('dialog').querySelector('img')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: EN.modelApiStatusOpen }))
+    expect(view.onOpenExternal).toHaveBeenCalledWith('https://api.meta.ai/v1/status')
+    view.unmount()
+    expect(readServiceStatus.mock.calls[0]?.[0]).toMatchObject({ aborted: true })
+  })
+
+  it.each(['invalid', 'offline'])(
+    'shows unavailable for %s status instead of trusting an envelope',
+    async (failure) => {
+      await renderDialog({
+        readServiceStatus: () =>
+          failure === 'invalid'
+            ? Promise.resolve({ service_status: 'operational' })
+            : Promise.reject(new Error('offline')),
+      })
+      expect(await screen.findByText(EN.modelApiStatusUnavailable)).toBeVisible()
+      expect(screen.queryByText('operational')).toBeNull()
+    },
+  )
+
+  it.each([
+    { service_status: true, service_message: '' },
+    { service_status: 'operational', service_message: { text: 'unsafe' } },
+  ])('rejects non-text captured service fields: %j', async (value) => {
+    await renderDialog({ readServiceStatus: () => Promise.resolve(value) })
+    expect(await screen.findByText(EN.modelApiStatusUnavailable)).toBeVisible()
+    expect(screen.queryByText('operational')).toBeNull()
+  })
+
+  it('keeps the service row absent without a selected-provider status port', async () => {
+    await renderDialog()
+    expect(screen.queryByText(EN.modelApiStatusLabel)).toBeNull()
+  })
+
   it('opens the usage page through the injected host callback', async () => {
     const onOpenUsagePage = vi.fn()
     await renderDialog({ onOpenUsagePage })
-    fireEvent.click(screen.getByRole('button', { name: 'Open usage page' }))
+    fireEvent.click(screen.getByRole('button', { name: EN.openUsagePage }))
     expect(onOpenUsagePage).toHaveBeenCalledOnce()
   })
 
@@ -606,7 +655,7 @@ describe('UsageDialog: paid features (M33, PLAN.md D30)', () => {
           scheduledRuns: 0,
           autoReviews: 3,
           autoReviewTokens: 3000,
-          autoReviewCostUsd: 0.0042,
+          autoReviewCostUsd: Usd.from(0.0042).toAmount(),
         },
         isKeyStored: true,
         alwaysAllowed: ['autoReviewer'],
@@ -792,12 +841,12 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
           tabUnknownRequests: 0,
           tabTokens: 45_000,
           tabCachedTokens: 3000,
-          tabCostUsd: 0.12,
+          tabCostUsd: Usd.from(0.12).toAmount(),
         },
         isKeyStored: true,
         alwaysAllowed: [],
         // Another window spent too: the ledger's day is not this window's cost.
-        tab: { budgetUsd: 1, todayUsd: 0.62 },
+        tab: { budgetUsd: Usd.from(1).toAmount(), todayUsd: Usd.from(0.62).toAmount() },
       },
     })
     const dialog = screen.getByRole('dialog')
@@ -826,12 +875,12 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
           tabUnknownRequests: 0,
           tabTokens: 900,
           tabCachedTokens: 0,
-          tabCostUsd: 0.01,
+          tabCostUsd: Usd.from(0.01).toAmount(),
         },
         isKeyStored: true,
         alwaysAllowed: [],
         // The ledger has not been read in this window yet.
-        tab: { budgetUsd: 5 },
+        tab: { budgetUsd: Usd.from(5).toAmount() },
       },
     })
     const dialog = screen.getByRole('dialog')
@@ -855,7 +904,7 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
           tabRequests: 1,
           tabTokens: 1200,
           tabCachedTokens: 400,
-          tabCostUsd: 0.004,
+          tabCostUsd: Usd.from(0.004).toAmount(),
         },
         isKeyStored: true,
         alwaysAllowed: [],
@@ -880,7 +929,7 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
           tabUnknownRequests: 2,
           tabTokens: 900,
           tabCachedTokens: 0,
-          tabCostUsd: 0.001,
+          tabCostUsd: Usd.from(0.001).toAmount(),
         },
         isKeyStored: true,
         alwaysAllowed: [],
@@ -918,7 +967,7 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
           tabRequests: 3,
           tabTokens: 9000,
           tabCachedTokens: 1000,
-          tabCostUsd: 0.02,
+          tabCostUsd: Usd.from(0.02).toAmount(),
         },
         isKeyStored: true,
         alwaysAllowed: [],
@@ -944,7 +993,7 @@ describe('UsageDialog: Tab completions row (M94 lane U, PLAN.md D73)', () => {
           tabRequests: 2,
           tabTokens: 2000,
           tabCachedTokens: 500,
-          tabCostUsd: 0.005,
+          tabCostUsd: Usd.from(0.005).toAmount(),
         },
         isKeyStored: true,
         alwaysAllowed: ['tab'],
@@ -969,7 +1018,7 @@ describe('M98 Judge usage row', () => {
           judgeCalls: 2,
           judgeUnknownRequests: 1,
           judgeTokens: 1100,
-          judgeCostUsd: 0.001125,
+          judgeCostUsd: Usd.from(0.001125).toAmount(),
         },
       },
     })

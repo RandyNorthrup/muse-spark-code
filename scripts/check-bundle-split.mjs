@@ -79,13 +79,17 @@ import {
   DEFERRED,
   ON_FIRST_USE,
   DEFERRED_ONLY,
+  MODEL_API_OPTIONAL_ONLY,
   FOREIGN_HOOKS_ONLY,
   HOOK_RUNTIME_ONLY,
   PLUGIN_HOOKS_ONLY,
   checkDeferredBundles,
+  checkResourceBundles,
 } from './lib/deferredBundles.mjs'
 import {
   ADDITIONAL_WEBVIEW_BUDGETS,
+  RESOURCE_WEBVIEW_ENTRIES,
+  checkResourceWebview,
   DEFERRED_WEBVIEW_SURFACES,
   webviewStartupOutputs,
   webviewTeamOutputs,
@@ -129,11 +133,17 @@ const ACTIVATION_ALLOWED = new Map([
 const LAZY_ONLY = [
   // TRAIN14A: stored-key image/Tab HTTP calls load the same client on first use.
   'client.ts',
+  'pacing.ts',
+  'repeatGuard.ts',
+  'toolScheduler.ts',
   'transport.ts',
   'sse.ts',
   'ndjson.ts',
   'ModelApiHost.ts',
+  // M106: side answers load with the backend, reviewer, judge or Git action.
+  'structuredOutput.ts',
   'modelCapabilities.ts',
+  'argumentPreview.ts',
   // M78: command policy and the paid, read-only Auto reviewer load with the backend.
   'autoReviewer.ts',
   'commandRules.ts',
@@ -141,7 +151,6 @@ const LAZY_ONLY = [
   'permissionPolicy.ts',
   'shellSyntax.ts',
   // M67: the code intelligence tools' Model API side (reads and the rename's write).
-  'codeIntelCalls.ts',
   'glob.ts',
   'goals.ts',
   'hooks.ts',
@@ -188,12 +197,17 @@ function inputsOf({ output, metafile }) {
     throw new Error(`${metafile} is missing: run "node scripts/build.mjs --production" first`)
   }
   const parsed = JSON.parse(readFileSync(metafile, 'utf8'))
-  const bundle = parsed.outputs[output]
+  const bundle = Object.entries(parsed.outputs).find(
+    ([file]) => file.replaceAll('\\', '/') === output,
+  )?.[1]
   if (bundle === undefined) {
     throw new Error(`${metafile} does not describe ${output}`)
   }
   return new Map(
-    Object.entries(bundle.inputs).map(([input, { bytesInOutput }]) => [input, bytesInOutput]),
+    Object.entries(bundle.inputs).map(([input, { bytesInOutput }]) => [
+      input.replaceAll('\\', '/'),
+      bytesInOutput,
+    ]),
   )
 }
 
@@ -205,16 +219,7 @@ function backendFiles() {
 }
 
 const problems = []
-const EXTRA_ONLY = new Set([
-  'modelApiHooksEntry.ts',
-  'modelApiMcpEntry.ts',
-  'hookHandlers.ts',
-  'mcp/connection.ts',
-  'mcp/http.ts',
-  'mcp/pool.ts',
-  'mcp/servers.ts',
-  'mcp/stdio.ts',
-])
+const EXTRA_ONLY = new Set(['modelApiHooksEntry.ts', 'modelApiMcpEntry.ts'])
 const CONFIGURED_ONLY = ['authSource.ts', 'providerClient.ts']
 const PROVIDER_ONLY = []
 const onDisk = new Set(backendFiles())
@@ -229,6 +234,7 @@ for (const name of onDisk) {
     Number(EXTRA_ONLY.has(name)) +
     Number(PROVIDER_ONLY.includes(name)) +
     Number(DEFERRED_ONLY.includes(name)) +
+    Number(MODEL_API_OPTIONAL_ONLY.includes(name)) +
     Number(name.startsWith('codecs/')) +
     Number(FOREIGN_HOOKS_ONLY.includes(name)) +
     Number(HOOK_RUNTIME_ONLY.includes(name)) +
@@ -248,6 +254,7 @@ for (const name of [
   ...EXTRA_ONLY,
   ...PROVIDER_ONLY,
   ...DEFERRED_ONLY,
+  ...MODEL_API_OPTIONAL_ONLY,
   ...FOREIGN_HOOKS_ONLY,
   ...HOOK_RUNTIME_ONLY,
   ...PLUGIN_HOOKS_ONLY,
@@ -598,6 +605,8 @@ for (const bundle of [
   }
   const { outputs } = JSON.parse(readFileSync(bundle.metafile, 'utf8'))
   if (
+    bundle.uiText !== false &&
+    bundle.output !== 'dist/structuredSchema.js' &&
     outputs[bundle.output].imports.every((entry) => entry.path !== './uiText.js' || !entry.external)
   ) {
     problems.push(`${bundle.output} no longer loads the shared English table`)
@@ -909,11 +918,14 @@ function shippedBundles() {
   )
 }
 const SHIPPED = shippedBundles()
-// Each page's reachable ESM graph includes its shared and lazy chunks.
-// Only the chat graph may carry the ReviewPane's comment template.
+problems.push(...checkResourceBundles(inputsOf, SHIPPED))
+// The chat ESM graph carries the review template in a shared chunk. Models
+// is a separate graph and may also use constants, but never this template.
+// textOf(main) checks every chunk in its graph; require its actual reader.
 const webviewReview = SHIPPED.filter(
   ({ output, metafile }) =>
     output.startsWith('dist/webview/') &&
+    (metafile !== 'dist/meta/webview.json' || output === 'dist/webview/main.js') &&
     Object.hasOwn(
       JSON.parse(readFileSync(metafile, 'utf8')).inputs,
       'src/webview/components/ReviewPane.tsx',
@@ -934,7 +946,7 @@ const TEXT_BLOCKS = [
   {
     block: 'MCP_POOL_MODEL_TEXT',
     sentinels: ['mcpArgumentsNotObject', 'mcpToolUnavailable'],
-    readers: ['dist/modelApi.js', 'dist/modelApiMcp.js'],
+    readers: ['dist/modelApi.js', 'dist/modelApiMcp.js', 'dist/mcpPool.js'],
   },
   {
     block: 'TEAM_MODEL_TEXT',
@@ -994,12 +1006,12 @@ const TEXT_BLOCKS = [
   {
     block: 'MODEL_API_MODEL_TEXT',
     sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyUncheckedCodeLoading'],
-    readers: [BUNDLES.modelApi.output, 'dist/modelApiMcp.js'],
+    readers: [BUNDLES.modelApi.output, 'dist/mcpPool.js', 'dist/modelApiMcp.js'],
   },
   {
     block: 'CODE_INTEL_MODEL_TEXT',
     sentinels: ['codeIntelNoSymbolNamed', 'repoMapBudgetTooSmall'],
-    readers: ['dist/codeIntel.js', BUNDLES.modelApi.output],
+    readers: ['dist/codeIntel.js', BUNDLES.modelApi.output, 'dist/modelApiCodeIntel.js'],
   },
   {
     block: 'CHECKPOINT_MODEL_TEXT',
@@ -1167,6 +1179,22 @@ for (const key of modelTextKeys) {
 // All optional surfaces must remain behind dynamic imports. Every
 // emitted JS chunk must be reachable and packaged; stale output is refused.
 const webviewMeta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
+webviewMeta.outputs = Object.fromEntries(
+  Object.entries(webviewMeta.outputs).map(([file, output]) => [
+    file.replaceAll('\\', '/'),
+    {
+      ...output,
+      entryPoint: output.entryPoint?.replaceAll('\\', '/'),
+      inputs: Object.fromEntries(
+        Object.entries(output.inputs).map(([source, details]) => [
+          source.replaceAll('\\', '/'),
+          details,
+        ]),
+      ),
+      imports: output.imports.map((item) => ({ ...item, path: item.path.replaceAll('\\', '/') })),
+    },
+  ]),
+)
 const eagerWebview = new Set(webviewStartupOutputs(webviewMeta))
 for (const file of eagerWebview) {
   const sources = Object.keys(webviewMeta.outputs[file].inputs)
@@ -1187,11 +1215,13 @@ const visitWebview = (file) => {
   for (const imported of output.imports) if (!imported.external) visitWebview(imported.path)
 }
 visitWebview('dist/webview/main.js')
-
+problems.push(...checkResourceWebview(webviewMeta))
+for (const file of Object.keys(RESOURCE_WEBVIEW_ENTRIES)) visitWebview(file)
 const deferredWebviewSources = [
   ...DEFERRED_WEBVIEW_SURFACES.map((surface) => `src/webview/components/${surface}.tsx`),
   ...ADDITIONAL_WEBVIEW_BUDGETS.flatMap(({ entries }) => entries),
   'src/webview/highlightRuntime.ts',
+  'src/webview/components/ToolArgumentPreview.tsx',
   'src/webview/components/TeamUi.tsx',
   'src/webview/components/TeamTree.tsx',
   'src/webview/components/TeamCards.tsx',
@@ -1199,7 +1229,7 @@ const deferredWebviewSources = [
 ]
 for (const source of deferredWebviewSources) {
   const outputs = Object.entries(webviewMeta.outputs).filter(([, output]) =>
-    Object.hasOwn(output.inputs, source),
+    Object.keys(output.inputs).some((input) => input.replaceAll('\\', '/') === source),
   )
   if (outputs.length !== 1 || eagerWebview.has(outputs[0]?.[0])) {
     problems.push(`${source} must occur in exactly one deferred webview chunk`)
@@ -1211,10 +1241,10 @@ for (const [file, output] of Object.entries(webviewMeta.outputs)) {
     problems.push(`Unreachable or missing webview chunk ${file}`)
   if (
     output.entryPoint &&
-    output.entryPoint !== 'src/webview/main.tsx' &&
-    output.entryPoint !== 'src/webview/models/models.tsx' &&
-    output.entryPoint !== 'src/webview/usage/usage.tsx' &&
-    !deferredWebviewSources.includes(output.entryPoint)
+    output.entryPoint.replaceAll('\\', '/') !== 'src/webview/main.tsx' &&
+    output.entryPoint.replaceAll('\\', '/') !== 'src/webview/models/models.tsx' &&
+    output.entryPoint.replaceAll('\\', '/') !== 'src/webview/usage/usage.tsx' &&
+    !deferredWebviewSources.includes(output.entryPoint.replaceAll('\\', '/'))
   ) {
     problems.push(`Unlisted deferred webview surface ${output.entryPoint}`)
   }
@@ -1291,10 +1321,12 @@ const nodeMetafiles = readdirSync('dist/meta')
       ![
         'validation.json',
         'webview.json',
-        'modelsWebview.json',
         'whatsNewPage.json',
-        'usageWebview.json',
         'referencePage.json',
+        'modelsWebview.json',
+        'usageWebview.json',
+        'resourceSurface.json',
+        'resourceHistory.json',
       ].includes(name),
   )
   .map((name) => `dist/meta/${name}`)

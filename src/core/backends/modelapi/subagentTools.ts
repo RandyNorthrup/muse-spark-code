@@ -10,7 +10,30 @@ import {
   SUBAGENT_WAIT_DEFAULT_MS,
   SUBAGENT_WAIT_MAX_MS,
   SUBAGENT_WAIT_MIN_MS,
+  type PaidFeature,
 } from '../../../shared/constants'
+import type { PacingClass } from './pacing'
+
+/** Existing paid admission tags also identify background request owners (D86.6). */
+export function fanOutPacingClass(feature: PaidFeature | undefined): PacingClass {
+  switch (feature) {
+    case 'subagents': {
+      return 'subagent'
+    }
+    case 'bestOfN': {
+      return 'bestOfN'
+    }
+    case 'scheduledPrompts': {
+      return 'schedule'
+    }
+    case 'judge': {
+      return 'judge'
+    }
+    default: {
+      return 'foreground'
+    }
+  }
+}
 
 /** A child's state as the tools report it (Muse Code's snake_case vocabulary). */
 const SUBAGENT_STATES = ['queued', 'running', 'interrupted', 'result_ready', 'closed'] as const

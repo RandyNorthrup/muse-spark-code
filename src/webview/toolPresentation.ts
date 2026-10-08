@@ -27,6 +27,7 @@ import { parseWebPageHeader } from '../shared/webPage'
 import type { PatchSummary } from './state/transcriptEntries'
 
 export type ToolBody =
+  | 'preview'
   | 'shell'
   | 'edit'
   | 'read'
@@ -243,9 +244,16 @@ function otherPresentation(
   }
 }
 
-export function describeTool(tool: string, args: string): ToolPresentation {
+export function describeTool(
+  tool: string,
+  args: string,
+  isArgumentPreview = false,
+): ToolPresentation {
   const parsed = parseArgs(args)
   const label = toolLabel(tool) ?? mcpLabel(tool) ?? tool
+  if (isArgumentPreview) {
+    return { label, summary: '', body: 'preview', command: undefined, imagePath: undefined }
+  }
   const imagePath =
     IMAGE_PREVIEW_TOOLS.has(tool) && parsed.path !== undefined && isImagePath(parsed.path)
       ? parsed.path

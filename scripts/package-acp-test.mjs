@@ -23,8 +23,15 @@ if (
 }
 for (const file of [
   LAUNCHER,
+  ...(process.platform === 'linux'
+    ? [path.join(SOURCE, 'native', 'linux', process.arch, 'muse-created')]
+    : []),
   ...[
     'acp.js',
+    'mcpPool.js',
+    'exec.js',
+    'modelApiCodeIntel.js',
+    'structuredSchema.js',
     'modelApi.js',
     'recorder.js',
     'uiText.js',
@@ -33,11 +40,16 @@ for (const file of [
     'uiTextSurfaces.js',
     'validation.js',
     'wire.js',
+    'resourceGovernor.js',
+    'resourceAdmission.js',
     'runtime.bundles.json.br',
   ].map((name) => path.join(SOURCE, 'dist', name)),
-  ...['exec-result-v1.schema.json', 'exec-event-v1.schema.json'].map((name) =>
-    path.join(SOURCE, 'schemas', name),
-  ),
+  ...[
+    'exec-result-v1.schema.json',
+    'exec-event-v1.schema.json',
+    'exec-result-v2.schema.json',
+    'exec-event-v2.schema.json',
+  ].map((name) => path.join(SOURCE, 'schemas', name)),
 ]) {
   if (!statSync(file).isFile()) {
     throw new Error('the test launcher and production bundles/schemas must be regular files')

@@ -8,8 +8,8 @@ import { ModelApiHost } from '../../src/core/backends/modelapi/ModelApiHost'
 import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import { modelPolicyFor } from '../../src/core/backends/modelapi/modelPolicy'
 import {
-  reserveRequestUsd,
-  settleUsageUsd,
+  reserveRequestAmount,
+  settleUsageAmount,
   type PriceCard,
 } from '../../src/core/providers/priceCard'
 import { createUsageRecording } from '../../src/core/usage/recording'
@@ -124,8 +124,8 @@ describe('M102 integrated surfaces', () => {
             origin: 'https://fake.invalid',
             policy: modelPolicyFor(ref, { pricing: { kind: 'priced', card } }),
             price: {
-              reserve: (usage) => reserveRequestUsd(card, usage),
-              settle: (usage) => settleUsageUsd(card, usage),
+              reserve: (usage) => reserveRequestAmount(card, usage),
+              settle: (usage) => settleUsageAmount(card, usage),
             },
             isCurrent: () => true,
           }),
@@ -159,7 +159,7 @@ describe('M102 integrated surfaces', () => {
       disposition: 'started',
       startedNewTurn: true,
     }))
-    const muse = new MuseCodeHost(msp.host, log, undefined, recording)
+    const muse = new MuseCodeHost(msp.host, log, undefined, {}, recording)
     try {
       const session = await muse.startSession({
         workspaceRoot: '/workspace',

@@ -1,3 +1,4 @@
+import { Usd, type UsdAmount } from '../../shared/usd'
 // Cap validation (M96 lane F, PLAN.md D75): inline validation, as the
 // user types, over each entry's caps. Each case D75 lists refuses or warns
 // with its own reason. Pure; no `vscode` import.
@@ -37,7 +38,7 @@ export interface TeamCapBudgets {
   /** The entry's global concurrency ceiling (lane A computes it). */
   readonly maxConcurrent: number
   /** The team's daily budget in dollars (`museSpark.teamDailyBudgetUsd`). */
-  readonly teamDailyBudgetUsd: number
+  readonly teamDailyBudgetUsd: UsdAmount
   readonly teamDailyBudgetTokens: number
 }
 
@@ -103,14 +104,19 @@ export function validateCap(
       message: UI_TEXT.teamCapDollarUnpriced,
     })
   }
-  const dayBudget =
-    cap.measure === 'spendUsd' ? budgets.teamDailyBudgetUsd : budgets.teamDailyBudgetTokens
-  if (cap.window === 'day' && cap.measure !== 'tasks' && cap.amount > dayBudget) {
+  const isOverBudget =
+    cap.measure === 'spendUsd'
+      ? Usd.from(cap.amount).compare(Usd.from(budgets.teamDailyBudgetUsd)) > 0
+      : cap.amount > budgets.teamDailyBudgetTokens
+  if (isOverBudget && cap.window === 'day' && cap.measure !== 'tasks') {
     issues.push({
       code: 'dayAboveBudget',
       severity: 'error',
       message: fill(UI_TEXT.teamCapDayAboveBudgetDetail, {
-        budget: cap.measure === 'spendUsd' ? formatUsd(dayBudget, 2) : formatNumber(dayBudget),
+        budget:
+          cap.measure === 'spendUsd'
+            ? formatUsd(budgets.teamDailyBudgetUsd, 2)
+            : formatNumber(budgets.teamDailyBudgetTokens),
       }),
     })
   }

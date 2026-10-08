@@ -74,6 +74,33 @@ describe('the code-derived reference gate', () => {
     pkg.contributes.configuration.properties['museSpark.undocumented'].description = 'Description'
     expect(() => build(pkg)).toThrow('No feature covers museSpark.undocumented')
   })
+  it('M107 validates resource defaults, nullable bounds and machine scope against the runtime reader', () => {
+    const settings = manifest.contributes.configuration.properties
+    const resources = Object.keys(settings).filter((id) => id.startsWith('museSpark.resource'))
+    expect(resources).toHaveLength(8)
+    expect(build().features.find((row) => row.id === 'resources').settings).toEqual(resources)
+    for (const [id, field, value, message] of [
+      ['museSpark.resourceGovernor', 'scope', 'window', 'Resource setting is not machine-scoped'],
+      ['museSpark.resourceCpuMaxPercent', 'default', 80, 'Runtime default mismatch'],
+      ['museSpark.resourceGpuMaxPercent', 'minimum', 0, 'Runtime bound mismatch'],
+      [
+        'museSpark.resourceRelocate',
+        'enum',
+        ['paired', 'ask', 'off', 'always'],
+        'Runtime value mismatch',
+      ],
+    ]) {
+      const pkg = globalThis.structuredClone(manifest)
+      pkg.contributes.configuration.properties[id][field] = value
+      expect(() => build(pkg)).toThrow(`${message}: ${id}`)
+    }
+    for (const key of [
+      'resourceGpuMaxPercent',
+      'resourceDiskBusyMaxPercent',
+      'resourceDiskMinFreeGiB',
+    ])
+      expect(settings[`museSpark.${key}`].default).toBeNull()
+  })
   it('rejects unknown feature links and empty descriptions', () => {
     const features = globalThis.structuredClone(source.featureCatalog())
     features[0].settings.push('museSpark.missing')
@@ -1091,6 +1118,7 @@ describe('RVHELPREF2 runtime truth regressions', () => {
       'shell-sandbox': 'off',
       cwd: '/tmp',
       'prompt-file': '/tmp/prompt',
+      'output-schema': '/tmp/answer.json',
       'untrusted-file': '/tmp/data',
       'permission-mode': 'acceptEdits',
       model: 'muse-spark-1.3',
@@ -1099,6 +1127,9 @@ describe('RVHELPREF2 runtime truth regressions', () => {
       'max-budget-usd': '1',
       'max-requests': '2',
       timeout: '10',
+      'resource-governor': 'on',
+      'cpu-max': '85',
+      'memory-max': '90',
       'questions-defer-after': '60',
       out: '/tmp/report',
       description: 'description',
@@ -1131,6 +1162,8 @@ describe('RVHELPREF2 runtime truth regressions', () => {
           )
           if (!['muse-binary', 'shell-sandbox'].includes(name)) args.push('--max-budget-usd', '1')
           if (name === 'image-generation') args.push('--permission-mode', 'acceptEdits')
+          else if (name === 'output-schema-outside')
+            args.push('--output-schema', '/tmp/answer.json')
         }
         args.push(...flag)
         if (route === 'exec' && name !== 'prompt-file') args.push('prompt')

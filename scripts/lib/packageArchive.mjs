@@ -83,7 +83,7 @@ export async function packRuntimeArchive(root, stage, files, tables) {
     codeArchive.bundles[path.basename(file)] = source
     writeFileSync(
       path.join(stage, file),
-      `${declarations}\nmodule._compile((require('./uiText.js'),require.cache[require.resolve('./uiText.js')].readPackedRuntime('bundles',${JSON.stringify(path.basename(file))},'${digest(source)}')),__filename);\n`,
+      `${declarations}\nconst packedRequire=require('node:module').createRequire(__filename);\nmodule._compile((packedRequire('./uiText.js'),packedRequire.cache[packedRequire.resolve('./uiText.js')].readPackedRuntime('bundles',${JSON.stringify(path.basename(file))},'${digest(source)}')),__filename);\n`,
     )
   }
   for (const region of UI_TEXT_REGIONS) {
@@ -103,7 +103,7 @@ export async function packRuntimeArchive(root, stage, files, tables) {
     if (EAGER.has(path.basename(region.output))) continue
     writeFileSync(
       path.join(stage, region.output),
-      `try{exports.EN=JSON.parse((require('./uiText.js'),require.cache[require.resolve('./uiText.js')].readPackedRuntime('english','${region.name}','${digest(english)}')));}catch{\n${source}\n}\n`,
+      `try{const packedRequire=require('node:module').createRequire(__filename);exports.EN=JSON.parse((packedRequire('./uiText.js'),packedRequire.cache[packedRequire.resolve('./uiText.js')].readPackedRuntime('english','${region.name}','${digest(english)}')));}catch{\n${source}\n}\n`,
     )
   }
   const text = JSON.stringify(archive)

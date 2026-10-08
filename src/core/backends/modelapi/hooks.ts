@@ -42,13 +42,9 @@ import {
 import { type ContextIo, decodeContextText } from '../../context/contextFiles'
 import { confineWorkspacePath } from '../../workspacePath'
 import { unlessAborted } from '../../timeouts'
+import { HOOK_MODEL_EVENTS } from './hookNames'
 import type { ShellResult, ToolIo } from './tools'
-import {
-  HOOK_MODEL_EVENTS,
-  type HookHandlerType,
-  type TypedHookAnswer,
-  type TypedHookHandlers,
-} from './hookHandlers'
+import type { HookHandlerType, TypedHookAnswer, TypedHookHandlers } from './hookHandlers'
 
 export const HOOK_EVENTS = [
   'SessionStart',
@@ -1153,7 +1149,7 @@ export function matchingHooks(
   })
 }
 
-export { sparkHooksFiles, toolMatcherNames } from './hookNames'
+export { toolMatcherNames } from './hookNames'
 
 /** A hook's answer; an imported hook's may carry a documented replacement (M91 lane W). */
 export type HookAnswer = TypedHookAnswer & {

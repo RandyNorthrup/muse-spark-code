@@ -1,9 +1,21 @@
-// M95-T: the existing retry/admission loop, shared by Meta and injected codecs.
-import { createHash } from 'node:crypto'
+import { notify } from '../../events/notify'
+import type { PaidAuthority } from '../../paid/paidAuthority'
+import type { PaidQuote, SearchSettlement } from '../../../shared/paid'
+import { Usd, type UsdAmount } from '../../../shared/usd'
 import {
+  ModelApiPacing,
+  metaPacingLimits,
+  type PacingClass,
+  type PacingProvider,
+  type RequestPacer,
+} from './pacing'
+import {
+  MODEL_API_BASE_URL,
+  PACING_ADMISSION_TIMEOUT_MS,
   MODEL_API_MAX_RETRIES,
   HTTP_TOO_MANY_REQUESTS,
   HTTP_STATUS,
+  PROVIDER_RETRY_HTTP_STATUS,
   MODEL_API_RETRY_BASE_MS,
   MODEL_API_RETRY_JITTER_MS,
   MODEL_API_RETRY_MAX_MS,
@@ -11,9 +23,16 @@ import {
   UI_TEXT,
   PROVIDER_HTTP_BODY_MAX_BYTES,
   MODEL_API_STREAM_IDLE_MS,
+  type PaidFeature,
 } from '../../../shared/constants'
-import type { PaidFeature } from '../../../shared/constants'
-import type { SessionBudgetClaim } from './sessionBudget'
+// M95-T: the existing retry/admission loop, shared by Meta and injected codecs.
+import { createHash } from 'node:crypto'
+
+interface PaidRequestClaim {
+  readonly reservedUsd: UsdAmount
+  check(capUsd: UsdAmount): void
+  settle(actualCostUsd: UsdAmount, hasUnknownCost?: boolean): Promise<unknown>
+}
 import { fill } from '../../../shared/l10n/text'
 import { classifyRetry, RETRY_TABLES } from '../../../shared/retryPolicy'
 import type { CoreLogger } from '../../logging'
@@ -24,8 +43,8 @@ import {
 } from '../../networkFailure'
 import { redactSecrets } from '../../redact'
 export { redactSecrets } from '../../redact'
-import { errorBodySchema } from './schemas'
-import type { StreamEvent } from './schemas'
+import { errorBodySchema, type StreamEvent } from './schemas'
+
 import {
   USAGE_HEADER_ALLOW_LIST,
   usageHeadersSchema,
@@ -35,6 +54,16 @@ import type { AuthHeaders, AuthSource } from './authSource'
 import { DeadlineError, withDeadline } from '../../timeouts'
 
 export interface TransportDeps {
+  readonly streamIdleMs?: number
+  readonly pacing?: RequestPacer
+  readonly pacingOwner?: object
+  readonly pacingProvider?: (modelId: string | undefined) => PacingProvider
+  readonly paidAuthority?: PaidAuthority
+  readonly onServiceFailure?: (status: number, statusUrl: string) => void
+  readonly isRetryableFailure?: (
+    failure: ModelApiError,
+    retryAfterMs: number | undefined,
+  ) => boolean
   readonly fetch: typeof fetch
   readonly baseUrl: string
   readonly apiKey?: () => Promise<string | undefined>
@@ -243,7 +272,8 @@ async function describeFailure(
     body = JSON.parse(await readBoundedText(response), (_key, value: unknown) =>
       typeof value === 'string' ? redact(value) : value,
     )
-  } catch {
+  } catch (error: unknown) {
+    if (error instanceof ModelApiError && error.status === NETWORK_FAILURE_STATUS) throw error
     body = undefined
   }
   if (parseError !== undefined) {
@@ -293,6 +323,7 @@ export function retryAfterMs(header: string | null, now: number): number | undef
 
 /** One retry the client is about to make, for the transcript's notice. */
 export interface RetryNotice {
+  readonly phase?: 'pacing'
   readonly attempt: number
   readonly maxAttempts: number
   readonly delayMs: number
@@ -340,6 +371,10 @@ export function rateLimitHeaders(headers: Headers): UsageHeaders {
 }
 
 export interface ResponseAttemptGuard {
+  readonly pacingClass?: PacingClass
+  readonly searchQuote?: PaidQuote
+  readonly onSearchesReturned?: (settlement: SearchSettlement) => void
+  readonly prepareRetry?: (keyDigest: string, signal: AbortSignal) => Promise<void>
   /** Durable admission before the synchronous credential/gate fence. */
   readonly prepare?: () => Promise<void>
   readonly paidFeature?: PaidFeature
@@ -376,9 +411,17 @@ function whenAborted(signal: AbortSignal): { readonly promise: Promise<never>; d
   }
 }
 
+const ownerPacers = new WeakMap<object, RequestPacer>()
+
 export class RequestTransport {
   private static hasLoggedObservationFailure = false
+  private readonly pacing: RequestPacer
   public constructor(private readonly deps: TransportDeps) {
+    this.pacing =
+      deps.pacing ??
+      (deps.pacingOwner === undefined ? undefined : ownerPacers.get(deps.pacingOwner)) ??
+      new ModelApiPacing({ now: deps.now, wait: (ms, signal) => this.pause(ms, signal) })
+    if (deps.pacingOwner !== undefined) ownerPacers.set(deps.pacingOwner, this.pacing)
     if (deps.auth !== undefined && deps.verifyEndpoint === undefined) {
       throw new ModelApiError(
         fill(UI_TEXT.webFetchNetwork, { detail: 'endpoint_verifier_required' }),
@@ -415,6 +458,71 @@ export class RequestTransport {
     }
   }
 
+  /** Bound headers and every body read, without timing local admission, backoff or consumers. */
+  public async fetchWithIdleDeadline(url: string, init: RequestInit): Promise<Response> {
+    const idleMs = this.deps.streamIdleMs ?? MODEL_API_STREAM_IDLE_MS
+    const stalled = fill(UI_TEXT.modelApiStalled, {
+      seconds: Math.round(idleMs / MILLISECONDS_PER_SECOND),
+    })
+    const stall = new AbortController()
+    const active = AbortSignal.any([
+      stall.signal,
+      ...(init.signal === undefined || init.signal === null ? [] : [init.signal]),
+    ])
+    const within = async <T>(waiting: Promise<T>): Promise<T> => {
+      if (active.aborted) {
+        void waiting.catch(ignoreClosingError)
+        throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
+      }
+      const aborted = whenAborted(active)
+      try {
+        return await withDeadline(Promise.race([waiting, aborted.promise]), idleMs, stalled)
+      } catch (error: unknown) {
+        if (error instanceof DeadlineError) {
+          stall.abort()
+          throw new ModelApiError(stalled, NETWORK_FAILURE_STATUS, undefined, undefined)
+        }
+        throw error
+      } finally {
+        aborted.dispose()
+      }
+    }
+    const response = await within(this.deps.fetch(url, { ...init, signal: active }))
+    if (response.body === null) return response
+    const reader: ReadableStreamDefaultReader<Uint8Array> = response.body.getReader()
+    const cancel = (reason: unknown) => {
+      stall.abort()
+      void reader.cancel(reason).catch(ignoreClosingError)
+      reader.releaseLock()
+    }
+    const body = new ReadableStream<Uint8Array>(
+      {
+        async pull(controller) {
+          try {
+            const next = await within(reader.read())
+            if (next.done) {
+              reader.releaseLock()
+              controller.close()
+            } else {
+              controller.enqueue(next.value)
+            }
+          } catch (error: unknown) {
+            controller.error(error)
+            cancel(error)
+          }
+        },
+        cancel,
+      },
+      // Read only when a consumer asks; local event handling has no provider idle timer.
+      { highWaterMark: 0 },
+    )
+    return new Response(body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+    })
+  }
+
   /** The retry delay, cut short by the turn's Stop. */
   public async pause(ms: number, signal: AbortSignal | undefined): Promise<void> {
     if (signal === undefined) {
@@ -443,8 +551,11 @@ export class RequestTransport {
     init: {
       readonly body: unknown
       readonly headers?: Readonly<Record<string, string>>
+      readonly modelId?: string
+      readonly pacingClass?: PacingClass
+      readonly estimatedTokens?: number
       readonly accept: string
-      readonly paid?: { readonly claim: SessionBudgetClaim; isSent: boolean }
+      readonly paid?: { readonly claim: PaidRequestClaim; isSent: boolean }
     },
     signal: AbortSignal,
     onRetry?: (notice: RetryNotice) => void,
@@ -459,30 +570,14 @@ export class RequestTransport {
     const message = fill(UI_TEXT.modelApiStalled, {
       seconds: Math.round(idleMs / MILLISECONDS_PER_SECOND),
     })
-    const within = async <T>(work: Promise<T>): Promise<T> => {
-      const aborted = whenAborted(combined)
-      try {
-        return await withDeadline(Promise.race([work, aborted.promise]), idleMs, message)
-      } catch (error: unknown) {
-        if (error instanceof DeadlineError) {
-          stall.abort()
-          throw new ModelApiError(message, 0, undefined, undefined)
-        }
-        throw error
-      } finally {
-        aborted.dispose()
-      }
-    }
-    const result = await within(
-      this.request(
-        path,
-        { method: 'POST', ...init },
-        combined,
-        onRetry,
-        budget,
-        admitAttempt,
-        confirmed,
-      ),
+    const result = await this.request(
+      path,
+      { method: 'POST', ...init },
+      combined,
+      onRetry,
+      budget,
+      admitAttempt,
+      confirmed,
     )
     const { response } = result
     if (response.body === null) {
@@ -586,6 +681,9 @@ export class RequestTransport {
     init: {
       readonly method: 'GET' | 'POST'
       readonly body?: unknown
+      readonly modelId?: string
+      readonly pacingClass?: PacingClass
+      readonly estimatedTokens?: number
       readonly accept: string
       /**
        * `rateLimitOnly` for a request that bills per call (M34, the review
@@ -595,7 +693,7 @@ export class RequestTransport {
        */
       readonly headers?: Readonly<Record<string, string>>
       readonly retries?: 'all' | 'rateLimitOnly'
-      readonly paid?: { readonly claim: SessionBudgetClaim; isSent: boolean }
+      readonly paid?: { readonly claim: PaidRequestClaim; isSent: boolean }
     },
     signal: AbortSignal | undefined,
     onRetry?: (notice: RetryNotice) => void,
@@ -603,6 +701,12 @@ export class RequestTransport {
     admitAttempt?: ResponseAttemptGuard,
     confirmed?: ConfirmedModelRequest,
   ): Promise<TransportResponse> {
+    const provider = this.deps.pacingProvider?.(init.modelId) ?? {
+      identity: { provider: 'meta' },
+      readLimits: metaPacingLimits,
+    }
+    const isGoverned = path === '/responses' && init.modelId !== undefined
+    const shouldObserveLimits = isGoverned || path === '/responses/input_tokens'
     const isRateLimitOnly = init.retries === 'rateLimitOnly' || init.paid !== undefined
     const url = `${this.deps.baseUrl}${path}`
     if (!path.startsWith('/') || new URL(url).origin !== new URL(this.deps.baseUrl).origin) {
@@ -656,6 +760,37 @@ export class RequestTransport {
       ) {
         throw new Error(UI_TEXT.scheduleConfirmationExpired)
       }
+      const account = `${provider.identity.provider}:${this.deps.baseUrl}:${credentials.keyDigest}`
+      const kind = init.pacingClass ?? 'foreground'
+      if (isGoverned) {
+        const admission = new AbortController()
+        try {
+          await withDeadline(
+            this.pacing.acquire(
+              account,
+              kind,
+              init.estimatedTokens ?? 0,
+              AbortSignal.any([signal ?? new AbortController().signal, admission.signal]),
+              (delayMs) =>
+                onRetry?.({
+                  phase: 'pacing',
+                  attempt,
+                  maxAttempts: MODEL_API_MAX_RETRIES + 1,
+                  delayMs,
+                  reason: UI_TEXT.modelApiPacingWaiting,
+                }),
+            ),
+            PACING_ADMISSION_TIMEOUT_MS,
+            UI_TEXT.modelApiPacingExpired,
+          )
+        } finally {
+          admission.abort()
+        }
+        if (kind !== 'foreground' && credentials.keyDigest !== (await this.currentKeyDigest()))
+          throw new Error(UI_TEXT.notSignedInReason)
+      }
+      if (isAborted(signal))
+        throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
       // Local consent refusal is outside the transport retry catch: it never
       // becomes another billable attempt.
       await admitAttempt?.prepare?.()
@@ -663,8 +798,14 @@ export class RequestTransport {
         if (init.paid.isSent) {
           throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
         }
-        init.paid.claim.check(0)
+        init.paid.claim.check(Usd.from(0).toAmount())
       }
+      if (
+        admitAttempt?.searchQuote !== undefined &&
+        this.deps.paidAuthority !== undefined &&
+        !this.deps.paidAuthority.canSpend(admitAttempt.searchQuote)
+      )
+        throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
       admitAttempt?.(credentials.keyDigest)
       if (isAborted(signal)) {
         throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
@@ -704,9 +845,10 @@ export class RequestTransport {
       if (init.paid !== undefined) {
         init.paid.isSent = true
       }
+      const sent = this.pacing.snapshot(account)
       let response: Response
       try {
-        response = await this.deps.fetch(url, requestInit)
+        response = await this.fetchWithIdleDeadline(url, requestInit)
       } catch (error: unknown) {
         if (error instanceof ModelApiError || signal?.aborted === true) {
           throw error instanceof ModelApiError
@@ -737,6 +879,16 @@ export class RequestTransport {
         await retry(attempt, delay, reason)
         continue
       }
+      if (shouldObserveLimits)
+        this.pacing.observe(
+          account,
+          provider.readLimits?.(response.headers),
+          response.status === HTTP_TOO_MANY_REQUESTS
+            ? (retryAfterMs(response.headers.get(RETRY_AFTER_HEADER), this.deps.now()) ??
+                Math.min(MODEL_API_RETRY_BASE_MS * 2 ** attempt, MODEL_API_RETRY_MAX_MS))
+            : undefined,
+          sent,
+        )
       this.observe(admitAttempt, {
         headers: rateLimitHeaders(response.headers),
         ...(!response.ok && { rateLimited: response.status === HTTP_TOO_MANY_REQUESTS }),
@@ -786,15 +938,33 @@ export class RequestTransport {
       }
       const isRetryable =
         !this.deps.isTerminalError?.(failure) &&
-        decision.retry &&
+        (this.deps.isRetryableFailure?.(failure, waitMs) ?? decision.retry) &&
         (!isRateLimitOnly || response.status === HTTP_TOO_MANY_REQUESTS)
       if (!isRetryable || attempt >= MODEL_API_MAX_RETRIES) {
+        if (
+          response.status >= HTTP_STATUS.internalServerError &&
+          provider.identity.provider === 'meta'
+        )
+          notify(
+            [() => this.deps.onServiceFailure?.(response.status, `${MODEL_API_BASE_URL}/status`)],
+            undefined,
+            this.deps.log,
+            'modelApi.serviceFailure',
+          )
         throw failure
       }
       const delay = this.backoffMs(attempt, waitMs)
       this.deps.log.warn(
         `Model API answered ${String(response.status)} (${failure.message}); retrying in ${String(delay)} ms`,
       )
+      if (
+        response.status === PROVIDER_RETRY_HTTP_STATUS.gatewayTimeout &&
+        admitAttempt?.prepareRetry !== undefined
+      )
+        await admitAttempt.prepareRetry(
+          credentials.keyDigest,
+          signal ?? new AbortController().signal,
+        )
       await retry(attempt, delay, `HTTP ${String(response.status)}: ${failure.message}`)
     }
   }

@@ -1,10 +1,15 @@
 **
 !dist/extension.js
+!dist/resourceAdmission.js
+!dist/resourceGovernor.js
 !dist/questionNotes.js
 !dist/conversation.js
 !dist/tab.js
 !dist/prompts.js
 !dist/modelApi.js
+!dist/modelApiCodeIntel.js
+!dist/mcpPool.js
+!dist/structuredSchema.js
 !dist/modelApiBoundaries.js
 !dist/providers.js
 !dist/providerPolicy.js
@@ -54,6 +59,9 @@
 !dist/recorder.js
 !dist/reference.js
 !dist/webview/main.js
+!dist/webview/resourceSurface.js
+!dist/webview/resourceHistory.js
+!dist/webview/resourceHistory.css
 !dist/webview/referencePage.js
 !dist/webview/referencePage.css
 !dist/webview/chunks/*.js
@@ -74,6 +82,8 @@
 !native/windows/MuseSparkMcpJob.cs
 !native/windows/MuseSparkJob.cs
 !native/windows/MuseSparkMcpLauncher.cs
+!native/linux/x64/muse-created
+!native/linux/arm64/muse-created
 !native/darwin/muse-dictate
 !package.json
 !package.nls.json

@@ -443,7 +443,7 @@ describe('normalized capability record', () => {
   it('Meta constants preserve legacy policy', () => {
     const meta = metaCapabilityRecord('muse-spark-1.3')
     expect(meta.limits.contextTokens).toBe(1_048_576)
-    expect(meta.output.maxTokens).toBe(32_768)
+    expect(meta.output.maxTokens).toBe(131_072)
     expect(capabilityEffortLevels(metaCapabilityRecord('muse-spark-1.3-contributor'))).toEqual(
       capabilityEffortLevels(meta),
     )

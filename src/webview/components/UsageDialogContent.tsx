@@ -1,3 +1,5 @@
+import { USD_DECIMAL_ZERO } from '../../shared/usdConstants'
+import { Usd, type UsdAmount } from '../../shared/usd'
 // The Account & Usage modal (M8, rebuilt in D17 after Claude Code's): the
 // account (sign-in method, plan, backend, CLI version, model), the
 // subscription windows Muse Code last observed (the current block and the
@@ -8,7 +10,7 @@
 // usage row, `/usage` and `/cost`; centred over the transcript with the
 // chat dimmed behind it.
 
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import {
   META_DASHBOARD_URL,
   MODEL_API_PRICES_VERIFIED_ON,
@@ -35,10 +37,10 @@ import {
 } from '../../shared/usage'
 import { estimateCostUsd, formatUsd, percentOf } from '../../core/usage/insights'
 import type { TeamUsageSummary } from '../../shared/teamView'
-import type { ContextSummary, UsageReport, UsageSummary } from '../state/uiState'
-import type { UiState } from '../state/uiState'
-import type { SignInMethod, WebviewToHostMessage } from '../../shared/protocol'
-import type { ModelOption } from '../../shared/protocol'
+import type { ContextSummary, UsageReport, UsageSummary, UiState } from '../state/uiState'
+
+import type { SignInMethod, WebviewToHostMessage, ModelOption } from '../../shared/protocol'
+
 const AccountSection = lazy(async () => {
   const module = await import('./UsageProviderSections')
   return { default: module.AccountSection }
@@ -65,7 +67,14 @@ const TeamSection = lazy(async () => {
   return { default: module.TeamSection }
 })
 
+import type { ServiceStatusReader } from './ServiceStatusRow'
+const ServiceStatusRow = lazy(async () => {
+  const module = await import('./ServiceStatusRow')
+  return { default: module.ServiceStatusRow }
+})
+
 export interface UsageDialogProps {
+  readonly readServiceStatus?: ServiceStatusReader
   readonly models?: readonly ModelOption[]
   /** undefined while the host has not answered `readUsage`. */
   readonly report: UsageReport | undefined
@@ -198,15 +207,19 @@ function contextValueOf(context: ContextSummary | undefined): string | undefined
  */
 function cacheSavings(
   usage: UsageSummary,
-  costUsd: number,
+  costUsd: UsdAmount,
   modelId: string,
-): { readonly amount: number; readonly percent: number } {
+): { readonly amount: UsdAmount; readonly percent: number } {
   const uncached = estimateCostUsd(
     { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, cachedTokens: 0 },
     modelId,
   )
-  const amount = uncached - costUsd
-  return { amount, percent: uncached > 0 ? percentOf(amount, uncached) : 0 }
+  const amount = Usd.from(uncached).subtract(Usd.from(costUsd)).toAmount()
+  const ratio =
+    Usd.from(uncached).compare(Usd.from(0)) > 0
+      ? Usd.from(amount).times(100).floorDivide(Usd.from(uncached))
+      : USD_DECIMAL_ZERO
+  return { amount, percent: Number(ratio) }
 }
 
 /** Keep absent token facts absent while sharing their number formatting. */
@@ -223,7 +236,7 @@ function TokensSection({
 }: {
   readonly usage: UsageSummary | undefined
   readonly context: ContextSummary | undefined
-  readonly costUsd: number | undefined
+  readonly costUsd: UsdAmount | undefined
   readonly modelId: string | undefined
   /** The current model lost its price card (M95): tokens only, said so. */
   readonly pricing: ModelPricing | undefined
@@ -232,7 +245,7 @@ function TokensSection({
     return <p className={ROW_META_CLASS}>{UI_TEXT.usageNoSession}</p>
   }
   // A local model shows cost 0; an unpriced one counts tokens only (M95).
-  const cost = costUsd ?? (pricing === 'local' ? 0 : undefined)
+  const cost = costUsd ?? (pricing === 'local' ? Usd.from(0).toAmount() : undefined)
   const contextValue = contextValueOf(context)
   const savings =
     usage !== undefined && cost !== undefined && modelId !== undefined && costUsd !== undefined
@@ -359,6 +372,7 @@ function InsightsSection({
 }
 
 export function UsageDialogContent({
+  readServiceStatus,
   models = [],
   report,
   usage,
@@ -409,6 +423,18 @@ export function UsageDialogContent({
           modelId,
         )
       : undefined
+  const statusReader = useMemo(
+    () =>
+      readServiceStatus ??
+      (report?.backend === 'modelApi'
+        ? () => {
+            if (report.serviceStatus === undefined)
+              throw new Error(UI_TEXT.modelApiStatusUnavailable)
+            return Promise.resolve(report.serviceStatus)
+          }
+        : undefined),
+    [readServiceStatus, report],
+  )
   const paidFeatures = listedPaidFeatures(
     usablePaidFeatures(report?.backend, paid.isKeyStored),
     paid.tally,
@@ -432,6 +458,11 @@ export function UsageDialogContent({
             provider={provider}
           />
         </Suspense>
+        {statusReader === undefined ? null : (
+          <Suspense fallback={<p role="status">{UI_TEXT.usageLoading}</p>}>
+            <ServiceStatusRow read={statusReader} onOpenExternal={onOpenExternal} />
+          </Suspense>
+        )}
         <h3 className="usage-heading">{UI_TEXT.usageHeading}</h3>
         {report.subscription === undefined ? (
           <p className="usage-row-meta">{usageNote}</p>

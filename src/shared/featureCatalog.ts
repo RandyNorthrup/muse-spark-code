@@ -1,7 +1,7 @@
 import { PAID_USE_REGISTRY } from './paid'
 // HELPREF: reviewed feature relationships. The generator validates every id
 // against the manifest and reuses its translated text and the palette's tips.
-import { COMMAND_IDS, type SETTING_DEFAULTS } from './constants'
+import { COMMAND_IDS, type SETTING_DEFAULTS, PROMPT_COMMAND_IDS, UI_TEXT } from './constants'
 import type { UiText } from './l10n/en'
 
 type PlainReferenceText =
@@ -27,6 +27,8 @@ const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
+  resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
+  resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold',
   providerOpenRouterServices: 'openRouterServices=absent',
   referenceSandbox: 'platform=win32&shellSandbox',
   autoCompactionAwaitingEvaluation: 'autoCompactionEvaluation',
@@ -45,12 +47,26 @@ const UI_CONDITIONS: Readonly<
 }
 const NLS_CONDITIONS: Readonly<Partial<Record<string, string>>> = {
   'config.backend.enumDescriptions.auto': 'backendAvailability',
+  'config.resourceRelocate.enumDescriptions.paired': 'resourceRelocation',
   'config.browserCheckRuntime.enumDescriptions.download': 'browserRuntimeAcquisition',
   'config.tabMultiline.enumDescriptions.auto': 'multilineMode',
   'config.tabTrigger.enumDescriptions.onInvoke': 'tabTrigger',
   'config.judge.engine.enumDescriptions.auto': 'judgeEngine',
 }
-const SETTING_CONDITIONS: Readonly<Partial<Record<keyof typeof SETTING_DEFAULTS, string>>> = {
+const SETTING_CONDITIONS: Readonly<
+  Partial<
+    Record<
+      | keyof typeof SETTING_DEFAULTS
+      | 'resourceCpuMaxPercent'
+      | 'resourceMemoryMaxPercent'
+      | 'resourceGpuMaxPercent'
+      | 'resourceDiskBusyMaxPercent'
+      | 'resourceDiskMinFreeGiB'
+      | 'resourceRelocate',
+      string
+    >
+  >
+> = {
   preferredLocation: 'activeConversation',
   archiveInactiveSessions: 'sessionIdle',
   cleanupPeriodDays: 'sessionList',
@@ -58,14 +74,24 @@ const SETTING_CONDITIONS: Readonly<Partial<Record<keyof typeof SETTING_DEFAULTS,
   browserCheckExtraHosts: 'browserNetworkAdmission',
   notifyOnBackgroundTurn: 'turnState&windowFocus',
   modelApiSessionBudgetUsd: 'sessionBudget',
-  modelApiAutoCompaction: 'autoCompactionEvaluation&modelCapability',
+
   modelApiObservationPacking: 'conversationStart',
+  modelApiAutoCompaction: 'conversationStart&modelPricing',
+  modelApiStrictTools: 'conversationStart&tools.strict',
+  modelApiParallelReads: 'conversationStart',
+  webSearchMaxPerRequest: 'conversationStart&hosted.webSearch',
   showWhatsNewOnUpdate: 'releaseHighlights',
   modelApiPermissionProfile: 'permissionProfile',
   tabLanguages: 'language',
   tabMultiline: 'multilineMode',
   tabTrigger: 'tabTrigger',
   'shell.passEnvironmentVariables': 'backend=modelApi&shellOrigin=interactive',
+  resourceCpuMaxPercent: 'resourceThreshold',
+  resourceMemoryMaxPercent: 'resourceThreshold',
+  resourceGpuMaxPercent: 'resourceThreshold',
+  resourceDiskBusyMaxPercent: 'resourceThreshold',
+  resourceDiskMinFreeGiB: 'resourceDiskThreshold',
+  resourceRelocate: 'resourceRelocation',
   modelApiVoice: 'voiceAdmission',
   bundledSkills: 'backend&skillInstallation',
 }
@@ -80,6 +106,11 @@ export function referenceDescription(text: ReferenceText): ReferenceText {
   else if ('setting' in text) when = settingConditions[text.setting]
   else if ('cli' in text) {
     switch (text.cli) {
+      case 'cpu-max':
+      case 'memory-max': {
+        when = 'resourceThreshold'
+        break
+      }
       case 'fail-on-denial': {
         when = 'permission=denied'
         break
@@ -124,9 +155,6 @@ interface CommandReference {
 }
 
 export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> = {
-  startWithOwnModel: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
-  modelsAndAgents: { description: { ui: 'modelsPanelTitle' }, canRun: true },
-  addModelProvider: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
   openUsagePage: { description: { ui: 'paletteUsagePage' }, canRun: true },
   legalScan: { description: { ui: 'legalScanItemDetail' }, canRun: false },
   connectChatGpt: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
@@ -174,6 +202,9 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   tabMenu: { description: { ui: 'referenceTabMenu' }, canRun: false },
   tabLanguages: { description: { ui: 'referenceTabLanguages' }, canRun: false },
   openPullRequestInConversation: { description: { ui: 'gitCheckoutItemDetail' }, canRun: false },
+  startWithOwnModel: { description: { command: COMMAND_IDS.startWithOwnModel }, canRun: false },
+  modelsAndAgents: { description: { command: COMMAND_IDS.modelsAndAgents }, canRun: true },
+  addModelProvider: { description: { command: COMMAND_IDS.addModelProvider }, canRun: false },
   savePrompt: { description: { ui: 'promptSecretsNote' }, canRun: false },
   useSavedPrompt: { description: { ui: 'promptRun' }, canRun: false },
   promptLibrary: { description: { ui: 'promptLibrary' }, canRun: true },
@@ -215,6 +246,37 @@ function feature(
 
 export function featureCatalog(): readonly Feature[] {
   return [
+    feature(
+      'resources',
+      { ui: 'resourceTitle' },
+      { ui: 'referenceResources' },
+      [],
+      [
+        'resourceGovernor',
+        'resourceCpuMaxPercent',
+        'resourceMemoryMaxPercent',
+        'resourceMemoryMinFreeGiB',
+        'resourceGpuMaxPercent',
+        'resourceDiskBusyMaxPercent',
+        'resourceDiskMinFreeGiB',
+        'resourceRelocate',
+      ],
+      'keeping-your-machine-responsive',
+      undefined,
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'agent-outcomes',
+      { ui: 'agentReceipt' },
+      { ui: 'referenceAgentOutcomes' },
+      [],
+      [],
+      'agent-outcomes',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
     feature(
       'providers',
       { ui: 'modelsPanelTitle' },
@@ -352,6 +414,99 @@ export function featureCatalog(): readonly Feature[] {
       [],
       'the-panel',
     ),
+    feature(
+      'strict-tools',
+      { setting: 'modelApiStrictTools' },
+      { setting: 'modelApiStrictTools' },
+      [],
+      ['modelApiStrictTools'],
+      'agent-loop-guarantees',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'parallel-reads',
+      { setting: 'modelApiParallelReads' },
+      { setting: 'modelApiParallelReads' },
+      [],
+      ['modelApiParallelReads'],
+      'agent-loop-guarantees',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'auto-compaction',
+      { setting: 'modelApiAutoCompaction' },
+      { setting: 'modelApiAutoCompaction' },
+      [],
+      ['modelApiAutoCompaction'],
+      'agent-loop-guarantees',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'argument-preview',
+      { ui: 'toolArgumentPreviewLabel' },
+      { ui: 'toolArgumentPreviewPending' },
+      [],
+      [],
+      'agent-loop-guarantees',
+      ['modelApi'],
+    ),
+    feature(
+      'cut-short-tools',
+      { ui: 'incompleteToolCallsNotRun' },
+      { ui: 'incompleteToolCallsNotRun' },
+      [],
+      [],
+      'agent-loop-guarantees',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'structured-side-calls',
+      { ui: 'structuredOutputRepair' },
+      { ui: 'structuredOutputFallback' },
+      [],
+      [],
+      'agent-loop-guarantees',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    feature(
+      'output-schema',
+      { cli: 'output-schema' },
+      { cli: 'output-schema' },
+      [],
+      [],
+      'headless-runs',
+      ['modelApi'],
+      false,
+      ['acp'],
+    ),
+    feature(
+      'service-status',
+      { ui: 'modelApiStatusLabel' },
+      { ui: 'modelApiStatusOpen' },
+      [],
+      [],
+      'agent-loop-guarantees',
+      ['modelApi'],
+    ),
+    feature(
+      'native-deletion',
+      { ui: 'memoryDeleteAction' },
+      { ui: 'historyLabel' },
+      [],
+      [],
+      'agent-loop-guarantees',
+      ['museCode'],
+    ),
     feature('effort', { ui: 'effortItem' }, { tip: 'effort' }, [], [], 'the-panel'),
     feature(
       'custom-agents',
@@ -374,7 +529,7 @@ export function featureCatalog(): readonly Feature[] {
     feature(
       'questions',
       { ui: 'questionSubmit' },
-      { ui: 'referenceQuestions' },
+      { ui: 'referenceQuestionsDeferral' },
       ['nextOpenQuestion', 'previousOpenQuestion'],
       ['questions.deferAfterSeconds'],
       'questions',
@@ -663,7 +818,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'paidWebSearchName' },
       { tip: 'paid:webSearch' },
       [],
-      ['modelApiWebSearch'],
+      ['modelApiWebSearch', 'webSearchMaxPerRequest'],
       'paid-features',
       ['modelApi'],
       true,
@@ -842,6 +997,9 @@ const REFERENCE_DETAILS: Readonly<
   browser: ['referenceBrowser'],
   images: ['referencePaidContexts'],
   search: ['referencePaidContexts'],
+  git: ['structuredOutputRepair', 'structuredOutputFallback'],
+  judge: ['structuredOutputRepair', 'structuredOutputFallback'],
+  'structured-side-calls': ['structuredOutputRepair', 'structuredOutputFallback'],
   budget: ['referenceBudget'],
   voice: ['referencePaidContexts'],
   auto: ['referencePaidContexts'],
@@ -853,8 +1011,6 @@ const REFERENCE_DETAILS: Readonly<
   'conversation-actions': ['referenceWindowsSessions'],
   questions: ['referenceQuestionsDeferral'],
 }
-
-import { PROMPT_COMMAND_IDS, UI_TEXT } from './constants'
 
 /** Runtime localized inventory for M118; the reference generator uses the English fallback. */
 export function sharingFeatures(table: UiText = UI_TEXT) {

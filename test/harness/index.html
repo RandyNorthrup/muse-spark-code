@@ -158,6 +158,7 @@
       // after the settle time the scenarios have always given, then every
       // 50 ms. One that never renders throws, naming it, so the accessibility
       // gate fails the page instead of scanning a half-played scenario.
+      const LONG_STREAM_BATCH_DELTAS = 20
       const SETTLE_MS = 300
       const FIND_INTERVAL_MS = 50
       const FIND_TIMEOUT_MS = 3000
@@ -1403,7 +1404,7 @@
       }
       // `?scenario=<name>` drives the UI without a human, for headless shots.
       const scenario = new URLSearchParams(location.search).get('scenario')
-      const textarea = () => document.querySelector('textarea')
+      const textarea = () => document.querySelector('.composer textarea')
       const setValue = (element, prototype, text) => {
         const setter = Object.getOwnPropertyDescriptor(prototype, 'value').set
         setter.call(element, text)
@@ -3003,7 +3004,7 @@
               scheduledRuns: 0,
               judgeCalls: 2,
               judgeTokens: 1100,
-              judgeCostUsd: 0.001125,
+              judgeCostUsd: '0.001125',
               judgeUnknownRequests: 1,
             },
           }
@@ -3207,51 +3208,60 @@
           window.harnessSilent = true
           setDraft('Explain the whole codebase')
           key({ key: 'Enter' })
-          event({
-            type: 'itemStarted',
-            item: { itemId: 'long', kind: 'agentMessage', status: 'inProgress', text: '' },
-          })
           const chunks = longReply().match(/[\s\S]{1,100}/g)
           let index = 0
-          // Zero-delay timers clamp nested continuations to at least 4 ms.
-          // A port task still yields between every delta without that throttle.
+          // Preserve every frame, but let React paint a bounded batch rather
+          // than the growing reply after each individual window task.
           const continuation = new MessageChannel()
           const close = () => {
             continuation.port1.close()
             continuation.port2.close()
           }
-          const pump = () => {
-            const chunk = chunks[index]
-            index += 1
-            if (chunk === undefined) {
-              event({
-                type: 'itemCompleted',
-                item: { itemId: 'long', kind: 'agentMessage', status: 'completed' },
-              })
-              report(`long: ${String(chunks.length)} deltas rendered`)
-              close()
-              return
-            }
-            event({ type: 'textDelta', itemId: 'long', field: 'text', delta: chunk })
-            pendingScenarioEvents += 1
-            continuation.port2.postMessage(null)
-          }
-          const run = () => {
+          const deliver = (payload) =>
+            window.dispatchEvent(
+              new MessageEvent('message', { data: { type: 'agentEvent', event: payload } }),
+            )
+          const runBatch = () => {
             try {
-              pump()
+              for (let frame = 0; frame < LONG_STREAM_BATCH_DELTAS; frame += 1) {
+                const chunk = chunks[index]
+                index += 1
+                if (chunk === undefined) {
+                  deliver({
+                    type: 'itemCompleted',
+                    item: { itemId: 'long', kind: 'agentMessage', status: 'completed' },
+                  })
+                  pendingScenarioEvents -= 1
+                  report(`long: ${String(chunks.length)} deltas rendered`)
+                  close()
+                  return
+                }
+                deliver({ type: 'textDelta', itemId: 'long', field: 'text', delta: chunk })
+              }
+              continuation.port2.postMessage(null)
             } catch (error) {
+              pendingScenarioEvents -= 1
               close()
               throw error
             }
           }
-          continuation.port1.onmessage = () => {
-            try {
-              run()
-            } finally {
-              pendingScenarioEvents -= 1
-            }
+          const beginStream = ({ data }) => {
+            if (
+              data?.type !== 'agentEvent' ||
+              data.event?.type !== 'itemStarted' ||
+              data.event.item?.itemId !== 'long'
+            )
+              return
+            window.removeEventListener('message', beginStream)
+            runBatch()
           }
-          run()
+          continuation.port1.onmessage = runBatch
+          pendingScenarioEvents += 1
+          window.addEventListener('message', beginStream)
+          event({
+            type: 'itemStarted',
+            item: { itemId: 'long', kind: 'agentMessage', status: 'inProgress', text: '' },
+          })
         },
         focus: () => {
           send({ type: 'settingsChanged', settings: { ...settings, focusView: true } })
@@ -3564,6 +3574,95 @@
           steps.agents()
           whenFound('.agent-node-clickable', (node) => node.click())
         },
+        ...Object.fromEntries(
+          [
+            'active',
+            'approval',
+            'input',
+            'queued',
+            'interrupted',
+            'complete',
+            'incomplete',
+            'failed',
+            'cancelled',
+            'unverified',
+          ].map((state) => [
+            `agent-${state}`,
+            () => {
+              window.harnessBackend = 'modelApi'
+              send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
+              transcriptFixture()
+              const waiting = ['approval', 'input', 'queued', 'interrupted'].includes(state)
+              const ended = !waiting && state !== 'active'
+              const evidence = {
+                stopReason:
+                  state === 'incomplete'
+                    ? 'budget'
+                    : state === 'failed'
+                      ? 'error'
+                      : state === 'cancelled'
+                        ? 'cancelled'
+                        : state === 'unverified'
+                          ? 'unknown'
+                          : 'normal',
+                reportedComplete: state === 'complete' ? true : undefined,
+                unfinished: state === 'incomplete' ? ['Run the final checks'] : [],
+                worktree: 'shared',
+                finalCheck: 'passed',
+                attempt: 1,
+                ...(waiting && { waiting: state }),
+                ...(state === 'active' && { inFlight: true }),
+              }
+              if (ended)
+                evidence.attempts = [
+                  {
+                    number: 1,
+                    outcome: state,
+                    receipt: {
+                      files: [{ path: 'src/parser.ts', added: 7, removed: 2 }],
+                      checks: [
+                        {
+                          command: 'npm test',
+                          exitCode: state === 'failed' ? 1 : 0,
+                          durationMs: 1400,
+                        },
+                      ],
+                      stopReason: evidence.stopReason,
+                      unfinished: evidence.unfinished,
+                      finalMessage: 'The parser change was reviewed.',
+                      truncated: false,
+                    },
+                  },
+                ]
+              event({
+                type: 'itemUpdated',
+                item: {
+                  itemId: 'outcome-agent',
+                  kind: 'subagent',
+                  status: ended
+                    ? state === 'failed'
+                      ? 'failed'
+                      : state === 'cancelled'
+                        ? 'cancelled'
+                        : 'completed'
+                    : 'inProgress',
+                  subagentId: 'outcome-agent',
+                  objective: 'Verify the parser change',
+                  role: 'verifier',
+                  controlStatus: ended
+                    ? 'resultReady'
+                    : state === 'queued' || state === 'interrupted'
+                      ? state
+                      : 'running',
+                  agentEvidence: evidence,
+                  result: ended ? { summary: 'The parser change was reviewed.' } : undefined,
+                },
+              })
+              whenFound('.agents-pill[title]', (pill) => pill.click())
+              if (ended) whenFound('.agent-node-clickable', (node) => node.click())
+            },
+          ]),
+        ),
         'agents-result': () => {
           window.harnessBackend = 'modelApi'
           send({ type: 'authState', status: 'signedIn', backend: 'modelApi' })
@@ -3733,7 +3832,7 @@
                 cachedTokens: 18_000,
                 reasoningTokens: 240,
               },
-              costUsd: 0.0133,
+              costUsd: '0.0133',
             },
           })
           // The controller posts a backend's notices as its own (D26).
@@ -3940,7 +4039,7 @@
               subagentRequests: 2,
               subagentUnknownRequests: 1,
               subagentTokens: 1100000,
-              subagentCostUsd: 1.455,
+              subagentCostUsd: '1.455',
             },
             isKeyStored: true,
             alwaysAllowed: [],
@@ -4000,7 +4099,7 @@
               scheduledRuns: 0,
               autoReviews: 1,
               autoReviewTokens: 1180,
-              autoReviewCostUsd: 0.0016,
+              autoReviewCostUsd: '0.0016',
             },
             isKeyStored: true,
             alwaysAllowed: [],
@@ -4118,7 +4217,7 @@
               tabUnknownRequests: 1,
               tabTokens: 45000,
               tabCachedTokens: 3000,
-              tabCostUsd: 0.12,
+              tabCostUsd: '0.12',
             },
             isKeyStored: true,
             alwaysAllowed: [],
@@ -6030,11 +6129,9 @@
           steps[name]()
         }
       }
-      // A scenario starts once the panel has drawn its surface: the composer,
-      // a sign-in or install gate, or the crash screen. Start its bounded DOM
-      // wait after loading and the webview's ready handshake: DOMContentLoaded
-      // does not wait for the dynamic import above, so a cold bundle can still
-      // be loading when parsing finishes.
+      // A scenario starts after the fake signed-in host has drawn its composer
+      // or tasks surface. A transient initial sign-in gate is not readiness. Start its bounded DOM
+      // wait after loading and the webview ready handshake, so loading does not spend that budget.
       // A fixed delay raced the first render
       // on a loaded machine (M40: `agents` and `dictation` found no composer).
       let hasPlayedScenario = false
@@ -6049,9 +6146,7 @@
           return
         hasPlayedScenario = true
         const surface =
-          harnessBundle === 'models'
-            ? '.models-panel section'
-            : 'textarea, .gate, .todo-surface, [role="alert"]'
+          harnessBundle === 'models' ? '.models-panel section' : '.composer textarea, .todo-surface'
         whenFound(surface, () => steps[scenario]())
       }
       let hasPageLoaded = false
@@ -6264,6 +6359,26 @@
         'prompt-menu-narrow': () =>
           document.querySelector('.popover-pointer [role="menuitem"]') !== null,
         'prompt-menu-toolbar': () => document.querySelector('.popover [role="menuitem"]') !== null,
+        ...Object.fromEntries(
+          [
+            'active',
+            'approval',
+            'input',
+            'queued',
+            'interrupted',
+            'complete',
+            'incomplete',
+            'failed',
+            'cancelled',
+            'unverified',
+          ].map((state) => [
+            `agent-${state}`,
+            () =>
+              ['complete', 'incomplete', 'failed', 'cancelled', 'unverified'].includes(state)
+                ? document.querySelector('.agent-details h4') !== null
+                : document.querySelector('.agent-node-clickable .agent-node-meta') !== null,
+          ]),
+        ),
         'prompt-library': () => document.querySelector('.prompt-library li') !== null,
         'prompt-library-narrow': () => document.querySelector('.prompt-library li') !== null,
         'chat-sharing': () => document.querySelector('.chat-share-preview') !== null,

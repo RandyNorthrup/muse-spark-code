@@ -1,0 +1,136 @@
+[
+  {
+    "name": "round2-terminal-final",
+    "file": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/museCodeSdk142.test.ts",
+    "mutation": {
+      "from": "      if (deletion.state.phase === 'terminalValidated') return deletion.state.event",
+      "to": "      void deletion.state"
+    },
+    "exitCode": 1,
+    "failures": [
+      "Muse Code 1.4.2 feature ports preserves a validated completed deletion terminal racing connection close",
+      "Muse Code 1.4.2 feature ports preserves a validated completed deletion terminal racing host exit",
+      "Muse Code 1.4.2 feature ports preserves a validated completed deletion terminal racing host close",
+      "Muse Code 1.4.2 feature ports preserves a validated failed deletion terminal racing connection close",
+      "Muse Code 1.4.2 feature ports preserves a validated failed deletion terminal racing host exit",
+      "Muse Code 1.4.2 feature ports preserves a validated failed deletion terminal racing host close",
+      "Muse Code 1.4.2 feature ports keeps the first validated deletion terminal when a later terminal disagrees"
+    ],
+    "originalSha256": "0e063226556124555126120b7afc85cbad443b7f1350dacc47d16dfaf0417484",
+    "restoredSha256": "0e063226556124555126120b7afc85cbad443b7f1350dacc47d16dfaf0417484"
+  },
+  {
+    "name": "round2-terminal-stored",
+    "file": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/museCodeSdk142.test.ts",
+    "mutation": {
+      "from": "        deletion.state = { phase: 'terminalValidated', event }",
+      "to": "        void event"
+    },
+    "exitCode": 1,
+    "failures": [
+      "Muse Code 1.4.2 feature ports preserves a validated completed deletion terminal racing connection close",
+      "Muse Code 1.4.2 feature ports preserves a validated completed deletion terminal racing host exit",
+      "Muse Code 1.4.2 feature ports preserves a validated completed deletion terminal racing host close",
+      "Muse Code 1.4.2 feature ports preserves a validated failed deletion terminal racing connection close",
+      "Muse Code 1.4.2 feature ports preserves a validated failed deletion terminal racing host exit",
+      "Muse Code 1.4.2 feature ports preserves a validated failed deletion terminal racing host close",
+      "Muse Code 1.4.2 feature ports keeps the first validated deletion terminal when a later terminal disagrees"
+    ],
+    "originalSha256": "0e063226556124555126120b7afc85cbad443b7f1350dacc47d16dfaf0417484",
+    "restoredSha256": "0e063226556124555126120b7afc85cbad443b7f1350dacc47d16dfaf0417484"
+  },
+  {
+    "name": "round2-terminal-monotonic",
+    "file": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/museCodeSdk142.test.ts",
+    "mutation": {
+      "from": "          deletion.state.phase !== 'pending' ||\n",
+      "to": ""
+    },
+    "exitCode": 1,
+    "failures": [
+      "Muse Code 1.4.2 feature ports keeps the first validated deletion terminal when a later terminal disagrees"
+    ],
+    "originalSha256": "0e063226556124555126120b7afc85cbad443b7f1350dacc47d16dfaf0417484",
+    "restoredSha256": "0e063226556124555126120b7afc85cbad443b7f1350dacc47d16dfaf0417484"
+  },
+  {
+    "name": "round2-session-completion",
+    "file": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/MuseCodeHost.test.ts",
+    "mutation": {
+      "from": "    notify(this.listeners, admitted, this.log, 'MSP')",
+      "to": "    for (const listener of this.listeners) listener(admitted)"
+    },
+    "exitCode": 1,
+    "failures": [
+      "MuseCodeHost delivers a validated completion to the remaining session observer",
+      "MuseCodeHost: prompts, receipts and resume (D26) keeps private notification failure text out of the CLI log"
+    ],
+    "originalSha256": "0e063226556124555126120b7afc85cbad443b7f1350dacc47d16dfaf0417484",
+    "restoredSha256": "0e063226556124555126120b7afc85cbad443b7f1350dacc47d16dfaf0417484"
+  },
+  {
+    "name": "round2-session-recovery",
+    "file": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/MuseCodeHost.test.ts",
+    "mutation": {
+      "from": "    notify(this.logDamagedListeners, undefined, this.log, 'MSP')",
+      "to": "    for (const listener of this.logDamagedListeners) listener()"
+    },
+    "exitCode": 1,
+    "failures": [
+      "MuseCodeHost: a slow or wedged Muse Code (CLI recovery, 2026-10-03) delivers log-damage recovery to the remaining session observer and preserves the MSP failure"
+    ],
+    "originalSha256": "0e063226556124555126120b7afc85cbad443b7f1350dacc47d16dfaf0417484",
+    "restoredSha256": "0e063226556124555126120b7afc85cbad443b7f1350dacc47d16dfaf0417484"
+  },
+  {
+    "name": "round2-session-replay",
+    "file": "src/core/backends/musecode/MuseCodeHost.ts",
+    "test": "test/unit/MuseCodeHost.test.ts",
+    "mutation": {
+      "from": "      notify(\n        [listener],\n        isPendingPrompt(event) ? { ...event, isReplayed: true } : event,\n        this.log,\n        'MSP',\n      )",
+      "to": "      listener(isPendingPrompt(event) ? { ...event, isReplayed: true } : event)"
+    },
+    "exitCode": 1,
+    "failures": [
+      "MuseCodeHost returns an unsubscribe and replays the remaining early events after an observer throws",
+      "MuseCodeHost returns an unsubscribe and replays the remaining open prompts after an observer throws"
+    ],
+    "originalSha256": "0e063226556124555126120b7afc85cbad443b7f1350dacc47d16dfaf0417484",
+    "restoredSha256": "0e063226556124555126120b7afc85cbad443b7f1350dacc47d16dfaf0417484"
+  },
+  {
+    "name": "round2-shared-observer-guard",
+    "file": "src/core/events/notify.ts",
+    "test": "test/unit/notify.test.ts",
+    "mutation": {
+      "from": "    try {\n      listener(value)\n    } catch (error: unknown) {\n      // Only the caller's fixed site is logged; observer errors may contain secrets.\n      log.error(`${site} observer failed`)\n      try {\n        report?.(error)\n      } catch {\n        log.error(`${site} observer failure reporter failed`)\n      }\n    }",
+      "to": "    listener(value)"
+    },
+    "exitCode": 1,
+    "failures": [
+      "notify isolates an observer failure, logs fixed words and reports the original error once",
+      "notify keeps delivering when the optional failure reporter throws",
+      "notify keeps delivering when no failure reporter is installed"
+    ],
+    "originalSha256": "410d153a9bb40d1198177979363c74dbd889f0ac2ea9d5ffd8196827e6566447",
+    "restoredSha256": "410d153a9bb40d1198177979363c74dbd889f0ac2ea9d5ffd8196827e6566447"
+  },
+  {
+    "name": "round2-reporter-guard",
+    "file": "src/core/events/notify.ts",
+    "test": "test/unit/notify.test.ts",
+    "mutation": {
+      "from": "      try {\n        report?.(error)\n      } catch {\n        log.error(`${site} observer failure reporter failed`)\n      }",
+      "to": "      report?.(error)"
+    },
+    "exitCode": 1,
+    "failures": ["notify keeps delivering when the optional failure reporter throws"],
+    "originalSha256": "410d153a9bb40d1198177979363c74dbd889f0ac2ea9d5ffd8196827e6566447",
+    "restoredSha256": "410d153a9bb40d1198177979363c74dbd889f0ac2ea9d5ffd8196827e6566447"
+  }
+]

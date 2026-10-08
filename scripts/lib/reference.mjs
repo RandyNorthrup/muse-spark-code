@@ -128,7 +128,7 @@ export async function referenceSources(root) {
   const result = await esbuild.build({
     stdin: {
       contents:
-        "export * from './src/shared/reference/referenceSource'; export { readSettings } from './src/host/settings'; export { parseCommandLine } from './src/runtime/cliArgs'; export { parseLoopPrompt } from './src/core/backends/modelapi/schedules'; export { locateDictationHelper, locateCaptureHelper } from './src/core/voice/helperLocation'",
+        "export * from './src/shared/reference/referenceSource'; export { readSettings } from './src/host/settings'; export { readResourceSettings, resourceSettingsSchema } from './src/shared/resources'; export { parseCommandLine } from './src/runtime/cliArgs'; export { parseLoopPrompt } from './src/core/backends/modelapi/schedules'; export { locateDictationHelper, locateCaptureHelper } from './src/core/voice/helperLocation'",
       resolveDir: root,
       sourcefile: 'reference-tooling.ts',
     },
@@ -562,18 +562,53 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     )
       errors.push(`Paid registry identity is missing or duplicated: ${feature}`)
   }
+  // Resource settings intentionally use their separate inspected-machine reader.
+  const resourceFields = {
+    resourceGovernor: 'enabled',
+    resourceCpuMaxPercent: 'cpuMaxPercent',
+    resourceMemoryMaxPercent: 'memoryMaxPercent',
+    resourceMemoryMinFreeGiB: 'memoryMinFreeGiB',
+    resourceGpuMaxPercent: 'gpuMaxPercent',
+    resourceDiskBusyMaxPercent: 'diskBusyMaxPercent',
+    resourceDiskMinFreeGiB: 'diskMinFreeGiB',
+    resourceRelocate: 'relocate',
+  }
+  const resourceDefaults = source.resourceSettingsSchema.parse({})
+  const runtimeSetting = (key, value, log) => {
+    const field = resourceFields[key]
+    if (field === undefined)
+      return source.readSettings(
+        { get: (requested) => (requested === key ? value : undefined) },
+        log,
+      )[key]
+    try {
+      return source.readResourceSettings((requested) =>
+        requested === key ? { globalValue: value } : undefined,
+      )[field]
+    } catch {
+      return
+    }
+  }
+  const moneySettings = new Set([
+    'modelApiSessionBudgetUsd',
+    'paidDailyBudgetUsd',
+    'tabDailyBudgetUsd',
+  ])
+  const isSameSetting = (key, actual, expected) =>
+    moneySettings.has(key)
+      ? source.Usd.from(actual).compare(source.Usd.from(expected)) === 0
+      : JSON.stringify(actual) === JSON.stringify(expected)
   for (const [id, schema] of Object.entries(properties)) {
     const key = id.slice('museSpark.'.length)
-    const canonical = source.SETTING_DEFAULTS[key]
+    const field = resourceFields[key]
+    if (field !== undefined && schema.scope !== 'machine')
+      errors.push(`Resource setting is not machine-scoped: ${id}`)
+    const canonical = field === undefined ? source.SETTING_DEFAULTS[key] : resourceDefaults[field]
     if (JSON.stringify(canonical) !== JSON.stringify(schema.default))
       errors.push(`Runtime default mismatch: ${id}`)
     for (const value of [schema.default, ...(schema.enum ?? [])]) {
-      const actual = source.readSettings(
-        { get: (requested) => (requested === key ? value : undefined) },
-        silentLog,
-      )[key]
-      if (JSON.stringify(actual) !== JSON.stringify(value))
-        errors.push(`Runtime value mismatch: ${id}`)
+      const actual = runtimeSetting(key, value, silentLog)
+      if (!isSameSetting(key, actual, value)) errors.push(`Runtime value mismatch: ${id}`)
     }
   }
 
@@ -583,23 +618,22 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       /* Invalid probes are expected; they are not reference errors. */
     },
   }
-  const readSetting = (key, value) =>
-    source.readSettings({ get: (requested) => (requested === key ? value : undefined) }, probeLog)[
-      key
-    ]
+  const readSetting = (key, value) => runtimeSetting(key, value, probeLog)
   for (const [id, schema] of Object.entries(properties)) {
-    if (!['number', 'integer'].includes(schema.type)) continue
+    if ([schema.type].flat().every((type) => !['number', 'integer'].includes(type))) continue
     const key = id.slice('museSpark.'.length)
     for (const value of [schema.minimum, schema.maximum]) {
       if (value === undefined) continue
-      if (readSetting(key, value) !== value) errors.push(`Runtime bound mismatch: ${id}`)
+      if (!isSameSetting(key, readSetting(key, value), value))
+        errors.push(`Runtime bound mismatch: ${id}`)
     }
     for (const value of [
       schema.minimum === undefined ? undefined : schema.minimum - 1,
       schema.maximum === undefined ? undefined : schema.maximum + 1,
     ]) {
       if (value === undefined) continue
-      if (readSetting(key, value) === value) errors.push(`Runtime bound mismatch: ${id}`)
+      if (isSameSetting(key, readSetting(key, value), value))
+        errors.push(`Runtime bound mismatch: ${id}`)
     }
   }
   const duplicateChecks = [

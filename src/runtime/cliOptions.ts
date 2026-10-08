@@ -4,7 +4,17 @@ import { fill } from '../shared/l10n/text'
 
 /** Compact CLI help, also checked against the installed package's tables. */
 export function formatAcpUsage(table: UiText, command: string): string {
-  return `${fill(table.acpUsage, { command })}\n${fill(table.acpChatGpt.usage, { command })}\n${table.helpReferenceTitle}: ${command} help --all\n${sharingHelp(table)}`
+  return [
+    fill(table.acpUsage, { command }),
+    fill(table.acpChatGpt.usage, { command }),
+    sharingHelp(table),
+    `${command} resources [status|history|resume] [--json]`,
+    `${command} usage resources [--json]`,
+    ...(['resource-governor', 'cpu-max', 'memory-max'] as const).map(
+      (flag) => table.referenceCliOptions[flag],
+    ),
+    `${table.helpReferenceTitle}: ${command} help --all`,
+  ].join('\n')
 }
 
 // One parseArgs definition per runtime route, also read by the lazy reference.
@@ -30,9 +40,10 @@ const PROVIDER_OPTIONS = {
 const COMMON_OPTIONS = {
   ...PROVIDER_OPTIONS,
   'usage-history': { type: 'string' },
-  'no-auto-compaction': { type: 'boolean' },
+
   provider: { type: 'string' },
   backend: { type: 'string' },
+  'no-auto-compaction': { type: 'boolean' },
   'trust-workspace': { type: 'boolean' },
   maintenance: { type: 'boolean' },
   'muse-binary': { type: 'string' },
@@ -49,10 +60,13 @@ const COMMON_OPTIONS = {
 
 const EXEC_OPTIONS = {
   provider: { type: 'string' },
-  'no-auto-compaction': { type: 'boolean' },
+
   backend: { type: 'string' },
+  'no-auto-compaction': { type: 'boolean' },
   cwd: { type: 'string' },
   'prompt-file': { type: 'string' },
+  'output-schema': { type: 'string' },
+  'output-schema-outside': { type: 'boolean' },
   'untrusted-file': { type: 'string', multiple: true },
   'permission-mode': { type: 'string' },
   model: { type: 'string' },
@@ -72,6 +86,9 @@ const EXEC_OPTIONS = {
   'trust-workspace': { type: 'boolean' },
   'allow-dangerously-skip-permissions': { type: 'boolean' },
   'web-search': { type: 'boolean' },
+  'resource-governor': { type: 'string' },
+  'cpu-max': { type: 'string' },
+  'memory-max': { type: 'string' },
   help: { type: 'boolean', short: 'h' },
 } as const satisfies CliParserOptions
 
@@ -121,13 +138,14 @@ export const CLI_OPTION_REGISTRY = {
   exec: { options: EXEC_OPTIONS },
   'scan-secrets': { options: SCAN_OPTIONS },
   report: { options: REPORT_OPTIONS },
+  resources: { options: { json: { type: 'boolean' }, help: { type: 'boolean', short: 'h' } } },
 } as const
 
 // The description map is exhaustive over the parser's option names. It never
 // chooses an English usage line or a failure message by matching its contents.
 export const CLI_OPTION_TEXT = {
   'usage-history': 'usage-history',
-  'no-auto-compaction': 'no-auto-compaction',
+
   provider: 'provider',
   preset: 'preset',
   as: 'as',
@@ -139,11 +157,12 @@ export const CLI_OPTION_TEXT = {
   by: 'by',
   from: 'from',
   to: 'to',
-  json: 'json',
+
   csv: 'csv',
   stdio: 'stdio',
   registry: 'registry',
   backend: 'backend',
+  'no-auto-compaction': 'no-auto-compaction',
   'trust-workspace': 'trust-workspace',
   maintenance: 'maintenance',
   'muse-binary': 'muse-binary',
@@ -158,6 +177,8 @@ export const CLI_OPTION_TEXT = {
   version: 'version',
   cwd: 'cwd',
   'prompt-file': 'prompt-file',
+  'output-schema': 'output-schema',
+  'output-schema-outside': 'output-schema-outside',
   'untrusted-file': 'untrusted-file',
   'permission-mode': 'permission-mode',
   model: 'model',
@@ -169,6 +190,10 @@ export const CLI_OPTION_TEXT = {
   'fail-on-denial': 'fail-on-denial',
   ephemeral: 'ephemeral',
   'key-stdin': 'key-stdin',
+  'resource-governor': 'resource-governor',
+  'cpu-max': 'cpu-max',
+  'memory-max': 'memory-max',
+  json: 'json',
   out: 'out',
   description: 'description',
   'no-facts': 'no-facts',

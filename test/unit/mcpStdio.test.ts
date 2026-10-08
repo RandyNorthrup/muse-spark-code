@@ -203,6 +203,16 @@ describe('McpStdioTransport (M50)', () => {
     expect(t.kill).toHaveBeenCalledOnce()
   })
 
+  it('handles refused cleanup after a framing fault without an unhandled rejection', async () => {
+    const t = transport('content_length')
+    t.kill.mockRejectedValue(new Error('private-stop-canary'))
+    t.out('Content-Length: invalid\r\n\r\n')
+    await vi.waitFor(() => {
+      expect(countLogged(t.log, 'unproved tree stop')).toBe(1)
+    })
+    expect(countLogged(t.log, 'private-stop-canary')).toBe(0)
+  })
+
   it('closes a server that leaves when its input ends and reaps its children', async () => {
     const t = transport()
     const closing = t.stdio.close()

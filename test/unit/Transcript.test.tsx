@@ -1,3 +1,4 @@
+import { Usd } from '../../src/shared/usd'
 // @vitest-environment jsdom
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -8,6 +9,7 @@ import { OUTPUT_PREVIEW_CHARS, UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { segment, Transcript } from '../../src/webview/components/Transcript'
+import { QuestionSurface } from '../../src/webview/components/QuestionSurface'
 import type { TranscriptEntry } from '../../src/webview/state/uiState'
 import {
   mountTranscript,
@@ -155,7 +157,7 @@ describe('Transcript', () => {
       text: 'done',
       isStreaming: false,
       usage: { inputTokens: 12_300, outputTokens: 678, cachedTokens: 10_000, reasoningTokens: 0 },
-      costUsd: 0.018,
+      costUsd: Usd.from(0.018).toAmount(),
     }
     const { rerender } = mountTranscript([reply])
     expect(screen.queryByText('12.3K in · 678 out · estimated $0.0180')).toBeNull()
@@ -365,7 +367,9 @@ describe('Transcript', () => {
     // Focus view folds a single step too, as before, now under its summary (M87).
     const summaries = screen.getAllByRole('button', { name: 'Read a file' })
     expect(summaries).toHaveLength(2)
-    expect(screen.getByRole('radio', { name: 'Red' })).toBeInTheDocument()
+    const marker = screen.getByRole('button', { name: 'Answer Open question Colour' })
+    expect(marker.closest('.steps')).toBeNull()
+    expect(screen.queryByRole('radio')).toBeNull()
     fireEvent.click(summaries[0]!)
     expect(summaries[0]).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getAllByText('Read')).toHaveLength(1)
@@ -963,33 +967,25 @@ describe('Transcript rows (M25)', () => {
     expect(screen.queryByRole('button', { name: 'Reject' })).toBeNull()
   })
 
-  it('locks a question card once it was answered or cancelled', async () => {
-    renderTranscript([
-      tool({
-        id: 'q',
-        tool: 'request_user_input',
-        status: 'inProgress',
-        question: {
-          userInputId: 'u1',
-          isSubmitted: true,
-          questions: [
-            {
-              id: 'c',
-              header: 'Colour',
-              question: 'Which?',
-              selection: { mode: 'single' },
-              options: [{ label: 'Red' }],
-            },
-          ],
-        },
-      }),
-    ])
+  it('locks the transcript Answer marker while an answer or cancellation is submitted', async () => {
+    const row = waitingQuestion()
+    const mount = (isSubmitted: boolean) => (
+      <QuestionSurface sessionId="s1" navigation={undefined} onDismiss={vi.fn()}>
+        <Transcript
+          {...transcriptProps([{ ...row, question: { ...row.question!, isSubmitted } }], {})}
+        />
+      </QuestionSurface>
+    )
+    const view = render(mount(false))
     await act(async () => {
       await import('../../src/webview/components/QuestionUi')
     })
-    expect(screen.getByRole('radio', { name: 'Red' })).toBeDisabled()
-    expect(screen.getByText('Submit')).toBeDisabled()
-    expect(screen.getByText('Cancel')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Answer Open question Colour' })).toBeEnabled()
+    view.rerender(mount(true))
+    expect(screen.getByRole('button', { name: 'Answer Open question Colour' })).toBeDisabled()
+    expect(screen.queryByRole('radio')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Submit' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull()
   })
 })
 
@@ -1210,7 +1206,9 @@ describe('Transcript: the step summary in the default view (M87, PLAN.md D66)', 
     ])
     renderTranscript(entries)
     expect(screen.getByRole('button', { name: 'Read 2 files' })).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: 'Red' })).toBeInTheDocument()
+    const marker = screen.getByRole('button', { name: 'Answer Open question Colour' })
+    expect(marker.closest('.steps')).toBeNull()
+    expect(screen.queryByRole('radio')).toBeNull()
     expect(document.querySelector('.tool-dot-running')).not.toBeNull()
     // Two finished steps and nothing else: a run of thoughts alone reads as a thought.
     const thoughts: TranscriptEntry[] = [
