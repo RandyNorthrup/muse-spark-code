@@ -19867,6 +19867,10 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 - [x] Prove the new unit and browser regressions fail on purpose; record
       repro rates before and after (at least 20 runs after) in
       docs/certification/flake-team-merge-wait.md; commit with hooks.
+- [x] Review RVTEAMFLAKE P2: count awaited native events (`whenEvent`) and
+      awaited promises (`track`), withdraw the mark while new work runs and
+      for good on failure, and guard every scene and host reply against
+      uncounted asynchronous work; jump-scroll regressions and a red drill.
 
 Scope is the browser harness and its owning tests. No push; the lead pushes.
 

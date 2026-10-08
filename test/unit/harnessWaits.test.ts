@@ -102,6 +102,102 @@ function delayedDom(html: string): string[] {
   return failures
 }
 
+// The counted primitives: `later`, `whenFound`, `whenEvent` and `track` keep a
+// scene unplayed until their work settles (`readinessLater` is readiness only).
+const COUNTED_HELPERS = new Set(['later', 'readinessLater', 'whenFound', 'whenEvent', 'track'])
+// Registrations whose callback runs after the step that made them returned.
+const ASYNC_CALLS = new Set([
+  'addEventListener',
+  'then',
+  'catch',
+  'finally',
+  'fetch',
+  'requestAnimationFrame',
+  'setTimeout',
+  'setInterval',
+  'queueMicrotask',
+])
+const COUNTED_REASON = /\/\/ counted: \S[^\n]*/
+
+/**
+ * Asynchronous work a scene (every `steps` entry, and the fake host's
+ * `postMessage` replies) starts outside the counted helpers, following the
+ * named helpers it calls. Such work could still be running when the page
+ * says the scene was played; a `// counted: <reason>` comment before the
+ * statement records work the scene counts by hand.
+ */
+function uncountedAsync(html: string): string[] {
+  const trees = Array.from(html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g), (script) =>
+    ts.createSourceFile('harness.js', script[1]!, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS),
+  )
+  const helpers = new Map<string, ts.Node>()
+  const roots: ts.Node[] = []
+  const collect = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
+      if (node.name.text === 'steps') roots.push(node.initializer)
+      if (ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer)) {
+        helpers.set(node.name.text, node.initializer)
+      }
+    } else if (ts.isFunctionDeclaration(node) && node.name !== undefined) {
+      helpers.set(node.name.text, node)
+    } else if (
+      ts.isPropertyAssignment(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === 'postMessage' &&
+      (ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))
+    ) {
+      roots.push(node.initializer)
+    }
+    ts.forEachChild(node, collect)
+  }
+  for (const tree of trees) collect(tree)
+  const failures: string[] = []
+  const seen = new Set<ts.Node>()
+  const isCounted = (node: ts.Node) => {
+    let statement: ts.Node = node
+    while (!ts.isStatement(statement) && !ts.isSourceFile(statement)) statement = statement.parent
+    const tree = statement.getSourceFile()
+    return COUNTED_REASON.test(tree.text.slice(statement.getFullStart(), statement.getStart(tree)))
+  }
+  const flag = (node: ts.Node, what: string) => {
+    if (!isCounted(node)) failures.push(`${what}: ${node.getText().split('\n', 1)[0]!}`)
+  }
+  const calleeName = (callee: ts.Expression) => {
+    if (ts.isIdentifier(callee)) return callee.text
+    return ts.isPropertyAccessExpression(callee) ? callee.name.text : undefined
+  }
+  const visit = (node: ts.Node): void => {
+    if (seen.has(node)) return
+    seen.add(node)
+    if (ts.isCallExpression(node)) {
+      const callee = node.expression
+      const name = calleeName(callee)
+      // A tracked promise is counted whole, its own chain included.
+      if (name === 'track' && ts.isIdentifier(callee)) return
+      if (name !== undefined && ASYNC_CALLS.has(name)) flag(node, `uncounted ${name}`)
+    } else if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+      ts.isPropertyAccessExpression(node.left) &&
+      /^on[a-z]+$/.test(node.left.name.text)
+    ) {
+      flag(node, `uncounted ${node.left.name.text}`)
+    } else if (
+      ts.isNewExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === 'Promise'
+    ) {
+      flag(node, 'uncounted Promise')
+    } else if (ts.isIdentifier(node) && !COUNTED_HELPERS.has(node.text)) {
+      const helper = helpers.get(node.text)
+      if (helper !== undefined) visit(helper)
+    }
+    ts.forEachChild(node, visit)
+  }
+  for (const root of roots) visit(root)
+  return failures
+}
+
 interface ScheduledEvent {
   delay: number
   run: () => void
@@ -139,14 +235,14 @@ function scenarioClock() {
   }
 }
 
-/** The scheduling helpers on a page whose controls are the `rendered` selectors. */
-function playedScene(rendered: ReadonlySet<string>) {
+/** The scheduling helpers on a page whose controls `find` returns (null: not rendered). */
+function playedScene(find: (selector: string) => unknown) {
   const { timers, context } = scenarioClock()
   const dataset: Record<string, string> = {}
   const page = {
     ...context,
     document: {
-      querySelector: (selector: string) => (rendered.has(selector) ? {} : null),
+      querySelector: find,
       documentElement: { dataset },
     },
   }
@@ -155,6 +251,64 @@ function playedScene(rendered: ReadonlySet<string>) {
     timers,
     dataset,
     page,
+  }
+}
+
+/** Runs every scheduled step, returning the failures as the page's error text. */
+function drain(timers: ScheduledEvent[]): string[] {
+  const errors: string[] = []
+  while (timers.length > 0) {
+    try {
+      runNext(timers)
+    } catch (error) {
+      // The page's own Error, from another realm: compare its text.
+      errors.push(String(error))
+    }
+  }
+  return errors
+}
+
+function jumpSource(): string {
+  const html = readFileSync(new URL('../harness/index.html', import.meta.url), 'utf8')
+  const source = /jump: (\(\) => \{[\s\S]*?\n {8}\}),\n {8}\/\/ --- M16:/.exec(html)?.[1]
+  if (source === undefined) throw new Error('The jump fixture is missing')
+  return source
+}
+
+/** The real `jump` scene on the real helpers, claimed and started; scroll is native. */
+function jumpScene() {
+  const source = jumpSource()
+  const main = new EventTarget()
+  let top = 0
+  Object.defineProperty(main, 'scrollTop', {
+    get: () => top,
+    set: (value: number) => {
+      top = value
+    },
+  })
+  let isMainRendered = true
+  const scene = playedScene((selector) => {
+    if (selector === 'main') return isMainRendered ? main : null
+    return ['[data-entry-id="long"] .hljs-keyword', '.jump-latest'].includes(selector) ? {} : null
+  })
+  const messages: unknown[] = []
+  Object.assign(scene.page, {
+    window: {},
+    setDraft: () => undefined,
+    key: () => undefined,
+    longReply: () => '',
+    event: (message: unknown) => {
+      messages.push(message)
+    },
+  })
+  runInNewContext(`${scene.source}\n playingScenario = 'jump'; (${source})()`, scene.page)
+  return {
+    scene,
+    main,
+    messages,
+    unmountMain: () => {
+      isMainRendered = false
+    },
   }
 }
 
@@ -215,7 +369,7 @@ function longStream() {
   const report = vi.fn()
   const context = {
     pendingScenarioEvents: 0,
-    hasScenarioFailed: false,
+    failScene: vi.fn(),
     notePlayed: vi.fn(),
     window,
     setDraft: vi.fn(),
@@ -270,7 +424,7 @@ describe('harness scenario event readiness', () => {
     expect(fixture.report).toHaveBeenCalledWith('long: 21 deltas rendered')
     // The stream ends outside `later`, so it reports the scene played itself.
     expect(fixture.context.notePlayed).toHaveBeenCalledOnce()
-    expect(fixture.context.hasScenarioFailed).toBe(false)
+    expect(fixture.context.failScene).not.toHaveBeenCalled()
     expect(fixture.window.removeEventListener).toHaveBeenCalledOnce()
     expect(fixture.port1.close).toHaveBeenCalledOnce()
     expect(fixture.port2.close).toHaveBeenCalledOnce()
@@ -308,7 +462,7 @@ describe('harness scenario event readiness', () => {
       runNext(fixture.timers)
     }).toThrow('stream delta failed')
     expect(fixture.context.pendingScenarioEvents).toBe(0)
-    expect(fixture.context.hasScenarioFailed).toBe(true)
+    expect(fixture.context.failScene).toHaveBeenCalledOnce()
     expect(fixture.context.notePlayed).not.toHaveBeenCalled()
     expect(fixture.timers).toHaveLength(0)
     expect(fixture.report).not.toHaveBeenCalled()
@@ -360,7 +514,7 @@ describe('harness scenario event readiness', () => {
 
   it('reports a scene played only once its nested waits and events have run', () => {
     const rendered = new Set(['surface'])
-    const scene = playedScene(rendered)
+    const scene = playedScene((selector) => (rendered.has(selector) ? {} : null))
     runInNewContext(
       `${scene.source}\n playingScenario = 'example'; whenFound('surface', () => { later(50, () => { whenFound('pill', () => {}) }) })`,
       scene.page,
@@ -376,25 +530,77 @@ describe('harness scenario event readiness', () => {
   })
 
   it('never reports a scene played once one of its steps has failed', () => {
-    const scene = playedScene(new Set())
+    const scene = playedScene(() => null)
     runInNewContext(
       `${scene.source}\n playingScenario = 'example'; whenFound('missing', () => {})`,
       scene.page,
     )
-    const errors: string[] = []
-    while (scene.timers.length > 0) {
-      try {
-        runNext(scene.timers)
-      } catch (error) {
-        // The page's own Error, from another realm: compare its text.
-        errors.push(String(error))
-      }
-    }
-    expect(errors).toEqual(['Error: never rendered: missing'])
+    expect(drain(scene.timers)).toEqual(['Error: never rendered: missing'])
     // Nothing is pending any more; only the failure keeps the scene unplayed.
     runInNewContext('later(10, () => {})', scene.page)
     runNext(scene.timers)
     expect(scene.dataset).toEqual({})
+  })
+
+  it('withdraws the played mark while new work runs, and for good once that work fails', () => {
+    const scene = playedScene(() => ({}))
+    runInNewContext(
+      `${scene.source}\n playingScenario = 'example'; whenFound('surface', () => {})`,
+      scene.page,
+    )
+    runNext(scene.timers)
+    expect(scene.dataset).toEqual({ scenarioPlayed: 'example' })
+    runInNewContext('later(10, () => {})', scene.page)
+    expect(scene.dataset).toEqual({})
+    runNext(scene.timers)
+    expect(scene.dataset).toEqual({ scenarioPlayed: 'example' })
+    runInNewContext("later(10, () => { throw new Error('late failure') })", scene.page)
+    expect(drain(scene.timers)).toEqual(['Error: late failure'])
+    expect(scene.dataset).toEqual({})
+    runInNewContext('later(10, () => {})', scene.page)
+    runNext(scene.timers)
+    expect(scene.dataset).toEqual({})
+  })
+
+  it('keeps a scene unplayed while a tracked promise is pending, and fails it on rejection', async () => {
+    const scene = playedScene(() => ({}))
+    runInNewContext(`${scene.source}\n playingScenario = 'example'`, scene.page)
+    const track = runInNewContext('track', scene.page) as <T>(promise: Promise<T>) => Promise<T>
+    const reply = Promise.withResolvers<string>()
+    const tracked = track(reply.promise)
+    runInNewContext('notePlayed()', scene.page)
+    expect(scene.dataset).toEqual({})
+    reply.resolve('reply sent')
+    await expect(tracked).resolves.toBe('reply sent')
+    expect(scene.dataset).toEqual({ scenarioPlayed: 'example' })
+    await expect(track(Promise.reject(new Error('reply failed')))).rejects.toThrow('reply failed')
+    expect(scene.dataset).toEqual({})
+    runInNewContext('later(10, () => {})', scene.page)
+    runNext(scene.timers)
+    expect(scene.dataset).toEqual({})
+  })
+
+  it('keeps the jump scene unplayed until its awaited scroll has run its steps', () => {
+    const jump = jumpScene()
+    expect(drain(jump.scene.timers)).toEqual([])
+    // Every timer and wait has run; only the native scroll is outstanding.
+    expect(jump.messages).toEqual([expect.objectContaining({ type: 'itemCompleted' })])
+    expect(jump.scene.dataset).toEqual({})
+    jump.main.dispatchEvent(new Event('scroll'))
+    expect(drain(jump.scene.timers)).toEqual([])
+    expect(jump.messages).toHaveLength(3)
+    expect(jump.scene.dataset).toEqual({ scenarioPlayed: 'jump' })
+  })
+
+  it('never reports the jump scene played when a step after its scroll fails', () => {
+    const jump = jumpScene()
+    expect(drain(jump.scene.timers)).toEqual([])
+    expect(jump.scene.dataset).toEqual({})
+    jump.unmountMain()
+    jump.main.dispatchEvent(new Event('scroll'))
+    expect(drain(jump.scene.timers)).toEqual(['Error: never rendered: main'])
+    expect(jump.messages).toHaveLength(1)
+    expect(jump.scene.dataset).toEqual({})
   })
 
   it('holds readiness until scheduled events finish, then still waits for both paints', async () => {
@@ -506,9 +712,7 @@ describe('harness scenes wait for the controls they touch', () => {
   ])(
     'waits for a native scroll before new content ($initialTop, repin $isRepinned)',
     ({ initialTop, isRepinned }) => {
-      const html = readFileSync(new URL('../harness/index.html', import.meta.url), 'utf8')
-      const source = /jump: (\(\) => \{[\s\S]*?\n {8}\}),\n {8}\/\/ --- M16:/.exec(html)?.[1]
-      if (source === undefined) throw new Error('The jump fixture is missing')
+      const source = jumpSource()
       const main = new EventTarget()
       let top = initialTop
       let hasQueuedScroll = false
@@ -547,6 +751,9 @@ describe('harness scenes wait for the controls they touch', () => {
             run(main)
           })
         },
+        whenEvent: (target: EventTarget, type: string, run: () => void) => {
+          target.addEventListener(type, run, { once: true })
+        },
       })
       paintControls()
       expect(messages).toEqual([expect.objectContaining({ type: 'itemCompleted' })])
@@ -578,6 +785,35 @@ describe('harness scenes wait for the controls they touch', () => {
   it('keeps every timer explained and DOM interactions behind whenFound', () => {
     const html = readFileSync(new URL('../harness/index.html', import.meta.url), 'utf8')
     expect(delayedDom(html)).toEqual([])
+  })
+
+  it('counts every native event and promise a scene or the fake host awaits', () => {
+    const html = readFileSync(new URL('../harness/index.html', import.meta.url), 'utf8')
+    expect(uncountedAsync(html)).toEqual([])
+  })
+
+  it.each([
+    ['a native listener', 'main.addEventListener("scroll", () => send(1))', 'addEventListener'],
+    ['a promise chain', 'fetch("x").then(() => send(1))', 'fetch'],
+    ['a port callback', 'port.onmessage = () => send(1)', 'onmessage'],
+    ['a frame callback', 'requestAnimationFrame(() => send(1))', 'requestAnimationFrame'],
+    ['work in a helper', 'scrollUp()', 'addEventListener'],
+  ])('catches %s a scene starts outside the counted helpers', (_kind, code, name) => {
+    const html = `<script>const scrollUp = () => window.addEventListener("scroll", () => {})
+      const steps = { scene: () => { ${code} } }</script>`
+    expect(uncountedAsync(html)).toContainEqual(expect.stringContaining(`uncounted ${name}:`))
+  })
+
+  it('accepts counted helpers, a tracked promise and a recorded reason', () => {
+    expect(
+      uncountedAsync(`<script>const postMessage = 0
+        const host = { postMessage: () => { void track(fetch("x").then(() => send(1))) } }
+        const steps = { scene: () => {
+          whenEvent(main, "scroll", () => send(1))
+          // counted: the stream holds one pending event until it completes.
+          port.onmessage = () => send(1)
+        } }</script>`),
+    ).toEqual([])
   })
 
   it.each([...DOM_METHODS])('catches a delayed %s call', (method) => {

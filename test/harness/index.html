@@ -143,32 +143,74 @@
         window.postMessage(message, '*')
       }
       let pendingScenarioEvents = 0
-      // A scenario has been played once its steps, and every wait and event
-      // they scheduled, have run: <html data-scenario-played> then names it.
-      // A test starts the deadline for what those steps render there, not at
-      // page load (the merge card's wait used to cover the cold bundle too).
-      // A step that throws leaves it unset; its error names the step.
+      // <html data-scenario-played="<name>"> is present exactly while the
+      // claimed scene has nothing outstanding: no `later` step, `whenFound`
+      // wait, awaited native event (`whenEvent`) or host promise (`track`),
+      // the page's theme included. New counted work removes it until that work
+      // settles; a failed step removes it for good, and its error names the
+      // step. A test starts the deadline for what the scene renders there, not
+      // at page load (the merge card's wait used to cover the cold bundle too).
       let playingScenario
       let hasScenarioFailed = false
       const notePlayed = () => {
         if (playingScenario === undefined || hasScenarioFailed) return
         if (pendingScenarioEvents > 0 || pendingFinds > 0) return
         document.documentElement.dataset.scenarioPlayed = playingScenario
-        playingScenario = undefined
       }
-      const later = (ms, fn) => {
+      const noteBusy = () => {
+        if (playingScenario !== undefined) delete document.documentElement.dataset.scenarioPlayed
+      }
+      const failScene = () => {
+        hasScenarioFailed = true
+        noteBusy()
+      }
+      // One counted unit of scene work: started now, settled when fn has run.
+      const beginStep = () => {
         pendingScenarioEvents += 1
-        return setTimeout(() => {
+        noteBusy()
+        return (fn) => {
           try {
             fn()
           } catch (error) {
-            hasScenarioFailed = true
+            failScene()
             throw error
           } finally {
             pendingScenarioEvents -= 1
           }
           notePlayed()
+        }
+      }
+      const later = (ms, fn) => {
+        const settle = beginStep()
+        return setTimeout(() => {
+          settle(fn)
         }, ms)
+      }
+      // Runs fn on target's next `type` event; until then the scene is not played.
+      const whenEvent = (target, type, fn) => {
+        const settle = beginStep()
+        target.addEventListener(
+          type,
+          (nativeEvent) => {
+            settle(() => fn(nativeEvent))
+          },
+          { once: true },
+        )
+      }
+      // A promise the page or the fake host awaits counts until it settles.
+      const track = (promise) => {
+        const settle = beginStep()
+        return promise.then(
+          (value) => {
+            settle(() => undefined)
+            return value
+          },
+          (error) => {
+            settle(() => {
+              throw error
+            })
+          },
+        )
       }
       const readinessLater = (ms, fn) => setTimeout(fn, ms)
       // Runs fn with the first element matching selector once one renders:
@@ -579,17 +621,18 @@
               break
             }
             case 'readReference': {
-              Promise.all([
-                fetch('../../src/shared/reference/reference.generated.json').then((response) =>
-                  response.json(),
-                ),
-                fetch(
-                  harnessL10n.lang === undefined || harnessL10n.lang === 'pseudo'
-                    ? '../../package.nls.json'
-                    : `../../package.nls.${harnessL10n.lang}.json`,
-                ).then((response) => response.json()),
-              ])
-                .then(([model, nls]) =>
+              // The scene is not played until the reference reply has been sent.
+              void track(
+                Promise.all([
+                  fetch('../../src/shared/reference/reference.generated.json').then((response) =>
+                    response.json(),
+                  ),
+                  fetch(
+                    harnessL10n.lang === undefined || harnessL10n.lang === 'pseudo'
+                      ? '../../package.nls.json'
+                      : `../../package.nls.${harnessL10n.lang}.json`,
+                  ).then((response) => response.json()),
+                ]).then(([model, nls]) =>
                   send({
                     type: 'referenceValues',
                     model: JSON.stringify(model),
@@ -603,10 +646,8 @@
                       ]),
                     ),
                   }),
-                )
-                .catch((error) => {
-                  throw error
-                })
+                ),
+              )
               break
             }
             case 'tasksReady': {
@@ -3258,7 +3299,7 @@
               }
               continuation.port2.postMessage(null)
             } catch (error) {
-              hasScenarioFailed = true
+              failScene()
               pendingScenarioEvents -= 1
               close()
               throw error
@@ -3274,8 +3315,11 @@
             window.removeEventListener('message', beginStream)
             runBatch()
           }
+          // counted: the stream holds one pending event from here until runBatch
+          // dispatches its completion frame or a frame fails.
           continuation.port1.onmessage = runBatch
           pendingScenarioEvents += 1
+          // counted: the same pending event covers the wait for the stream's start.
           window.addEventListener('message', beginStream)
           event({
             type: 'itemStarted',
@@ -4414,34 +4458,30 @@
             whenFound('main', (main) => {
               const scrollUp = () => {
                 // A native scroll must record the old transcript before new content arrives.
-                main.addEventListener(
-                  'scroll',
-                  () => {
-                    whenFound('main', () => {
-                      if (main.scrollTop !== 0) {
-                        scrollUp()
-                        return
-                      }
-                      event({
-                        type: 'itemStarted',
-                        item: {
-                          itemId: 'more',
-                          kind: 'agentMessage',
-                          status: 'inProgress',
-                          text: '',
-                        },
-                      })
-                      event({
-                        type: 'textDelta',
+                whenEvent(main, 'scroll', () => {
+                  whenFound('main', () => {
+                    if (main.scrollTop !== 0) {
+                      scrollUp()
+                      return
+                    }
+                    event({
+                      type: 'itemStarted',
+                      item: {
                         itemId: 'more',
-                        field: 'text',
-                        delta: 'One more thing: the folder also holds a hidden .git directory.',
-                      })
-                      whenFound('.jump-latest', () => {})
+                        kind: 'agentMessage',
+                        status: 'inProgress',
+                        text: '',
+                      },
                     })
-                  },
-                  { once: true },
-                )
+                    event({
+                      type: 'textDelta',
+                      itemId: 'more',
+                      field: 'text',
+                      delta: 'One more thing: the folder also holds a hidden .git directory.',
+                    })
+                    whenFound('.jump-latest', () => {})
+                  })
+                })
                 // Queue the native event even if the lazy reply already left main at zero.
                 if (main.scrollTop === 0) main.scrollTop = 1
                 main.scrollTop = 0
@@ -6506,7 +6546,10 @@
           document.removeEventListener('visibilitychange', onVisibility)
         }
       }
-      const themed = params.has('theme') ? applyTheme(params.get('theme')) : Promise.resolve()
+      // A scene is not played on a page whose theme is still loading.
+      const themed = params.has('theme')
+        ? track(applyTheme(params.get('theme')))
+        : Promise.resolve()
       if (params.get('axe') === '1') {
         themed
           .then(() => whenReady(params.get('scenario') ?? 'none'))

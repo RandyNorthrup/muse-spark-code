@@ -108,10 +108,17 @@ Use this order for a candidate branch:
   polling, with a `// kept-timing: <reason>` comment immediately before it.
   The source guard in `test/unit/harnessWaits.test.ts` checks every timer,
   including DOM work through helpers. Axe waits for outstanding control
-  waits before scanning. Once a scene's steps and every wait they scheduled
-  have run, `<html>` carries `data-scenario-played="<name>"`; a browser test
-  starts the deadline for what the scene renders there, not at page load
-  (`test/unit/teamHarness.test.mjs`). The M87 scenarios:
+  waits before scanning. `<html data-scenario-played="<name>">` is present
+  only while the scene has nothing outstanding: no `later` step, `whenFound`
+  wait, native event awaited with `whenEvent(target, type, fn)` or promise
+  counted with `track(promise)`, the page's theme included. New counted work
+  withdraws it until that work settles; a failed step withdraws it for good.
+  Scenes await native events only through `whenEvent`. Any other listener,
+  port callback or promise a scene or the fake host starts needs its own
+  count and a `// counted: <reason>` comment, which the same guard file
+  enforces. A browser test starts the deadline for what the scene renders
+  at that mark, not at page load (`test/unit/teamHarness.test.mjs`). The M87
+  scenarios:
   `context-meter`, `context-meter-warning`, `context-meter-full`,
   `palette-tips`, `slash-tips`, `stop-running`, `tool-io`,
   `tool-io-expanded`, `status-heartbeat`, `status-heartbeat-narrow`,

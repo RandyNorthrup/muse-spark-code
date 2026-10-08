@@ -49,13 +49,14 @@ fresh browsers on the idle VM kept the phases above every time.
 
 ## Repair
 
-`test/harness/index.html`: `playScenario` claims the scene by name, and
-`later` notes when the claimed scene's steps, every `whenFound` and every
-scheduled event have run; the page then carries
-`<html data-scenario-played="<name>">`. A step that throws (including a
-control that never rendered) marks the scene failed, so the attribute is
-never set after a failure. The long-stream scene, which ends outside `later`,
-reports itself.
+`test/harness/index.html`: `playScenario` claims the scene by name. The page
+carries `<html data-scenario-played="<name>">` exactly while the claimed
+scene has nothing outstanding: no `later` step, `whenFound` wait, native event
+awaited through `whenEvent` or promise counted by `track`, the page's theme
+included. All four share one counted step (`beginStep`). New counted work
+withdraws the mark until it settles; a step that throws (including a control
+that never rendered) withdraws it for good. The long-stream scene, which
+counts its stream by hand, reports itself.
 
 `test/unit/teamHarness.test.mjs`: navigation and playback share the existing
 `REAL_HARNESS_WAIT_TIMEOUT_MS` (8 s), measured from before navigation; the
@@ -80,6 +81,63 @@ The first three drills restored the sources byte for byte (SHA-256
 `test/unit/teamHarness.test.mjs` `c16968d7c809aa54b90931918a285641d0758a88a87345d3c7748feac300c754`).
 The new browser regression holds the real team UI chunk until the harness
 reports the scene played, then checks no card exists yet.
+
+## Review RVTEAMFLAKE (Codex, P2): awaited native events
+
+Finding: the `jump` scene registered a raw `scroll` listener. Its last
+`whenFound` returned, both counters reached zero and the page read
+`data-scenario-played="jump"` before the scroll ran its nested
+`whenFound('main', …)`, sent the new-message frames or waited for
+`.jump-latest`; a failure after the scroll left the mark in place.
+
+Repair at the root: one counted step (`beginStep`) behind `later`, the new
+`whenEvent(target, type, fn)` for awaited native events and `track(promise)`
+for awaited promises. The mark is withheld while any of them is outstanding,
+withdrawn when new counted work starts, and withdrawn for good when a step
+fails (`failScene`). A source guard in `harnessWaits.test.ts` follows every
+`steps` entry and the fake host's `postMessage` replies through the helpers
+they call and fails on any listener, `on…` callback, `then`/`catch`/
+`finally`, `fetch`, `new Promise`, frame, timer or microtask started outside
+the counted helpers, unless a `// counted: <reason>` comment records a count
+kept by hand.
+
+Audit of every listener, callback and promise chain in the harness:
+
+| Site                                                                                                                | Before                                  | Now                                                       |
+| ------------------------------------------------------------------------------------------------------------------- | --------------------------------------- | --------------------------------------------------------- |
+| `jump`: native `scroll` on `main`                                                                                   | raw listener, uncounted                 | `whenEvent`                                               |
+| Fake host `readReference`: two fetches, then `referenceValues` (Help scenes)                                        | promise chain, uncounted                | `track`, until the reply is sent                          |
+| Page theme (`?theme=`): fetch and apply                                                                             | promise, uncounted                      | `track`                                                   |
+| `long`: `MessageChannel` continuation and the window `message` listener                                             | one event counted by hand               | unchanged count, `// counted:`; failure calls `failScene` |
+| Fake host replies and scene polls through `later` and `whenFound`                                                   | counted                                 | counted (now through `beginStep`)                         |
+| Traffic harness: `import().then(mount)` and the `traffic-outgoing` listener                                         | own `data-traffic-ready` signal         | not a claimed scene; unchanged                            |
+| `DOMContentLoaded` (starts `playScenario`), window `error` (harness errors)                                         | page setup and reporting                | unchanged                                                 |
+| Accessibility scan: `loadAxe` load/error, `whenReady` frames and timers, `blur`/visibility, the `themed.then` chain | readiness for the scan, after the scene | unchanged                                                 |
+
+Messages a scene posts are still delivered to the webview after the mark;
+the target's own wait covers their handling and rendering.
+
+Regressions (`harnessWaits.test.ts`): the jump scene stays unplayed until its
+scroll has run its steps (premature completion); it never reads played when
+a step after the scroll fails (failure after the event); the mark is withdrawn
+while new work runs and for good after a later failure; a tracked promise
+holds the scene and its rejection fails it; the guard passes on the harness
+and catches a raw listener, a promise chain, a port callback, a frame
+callback and work inside a called helper.
+
+| Drill                                                                | Result                                                                                                                                                                      |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| New `harnessWaits.test.ts` against the harness of `de4b2f552`        | exit 1, 6 failures: both jump regressions (`expected { scenarioPlayed: 'jump' } to deeply equal {}`), the guard, withdraw-on-new-work, tracked promise, long-stream failure |
+| Red drill: `jump` back to a raw `main.addEventListener('scroll', …)` | exit 1, 6 failures: the guard (`uncounted addEventListener: main.addEventListener('scroll', …`), both jump regressions and the three native-scroll cases                    |
+
+Both restored the harness byte for byte (SHA-256
+`fe1e1cfd93974a931d81e3c57f16bd086cd4cf43cc7f6889efdfe80344843078`).
+
+Review gates, repository deadlines: `harnessWaits.test.ts` (44),
+`teamHarness.test.mjs` (24) and `harnessCapture.test.mjs` (7) passed 75/75
+three times on Kubuntu and three times on the Win11 VM; `typecheck:unit`,
+ESLint `--max-warnings=0` and Prettier on the changed files and jscpd (0
+clones) all exit 0.
 
 ## Before and after under starvation
 
