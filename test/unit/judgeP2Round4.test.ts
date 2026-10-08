@@ -1,12 +1,12 @@
-import { execFileSync } from 'node:child_process'
 import path from 'node:path'
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { judgeFeaturesLoader } from '../../src/runtime/judge/judgeBundle'
 import { createLogger } from '../../src/host/logger'
 import type { JudgeReviewInput } from '../../src/host/judge/uses'
 import { EN } from '../../src/shared/l10n/en'
 import { BASE_LOCALE, setUiText } from '../../src/shared/l10n/text'
 import { FakeLogOutputChannel } from './helpers/fakes'
+import { builtJudgeFactories } from './helpers/judgeFactoryBundles'
 import {
   useAction,
   useOutput,
@@ -15,16 +15,14 @@ import {
   useRequest,
 } from './helpers/judgeUsesFixture'
 
-beforeAll(() => {
-  execFileSync(process.execPath, ['scripts/build.mjs', '--production'], { stdio: 'pipe' })
-})
+const built = builtJudgeFactories()
 afterEach(() => {
   setUiText(EN, BASE_LOCALE)
 })
 
 function features() {
   return judgeFeaturesLoader({
-    bundlePath: path.resolve('dist/judgeP2.js'),
+    bundlePath: path.join(built.folder, 'judgeP2.js'),
     log: createLogger(new FakeLogOutputChannel()),
   })()
 }

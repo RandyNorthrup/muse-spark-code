@@ -4,6 +4,7 @@
 // way the extension does, with Node's own `require`.
 
 import path from 'node:path'
+import { writeFileSync } from 'node:fs'
 import { build, type Plugin } from 'esbuild'
 import { MODEL_API_BUNDLE_FILE, PAGE_WORKER_FILE } from '../../../src/shared/constants'
 
@@ -28,8 +29,10 @@ export async function buildHostBundles(
   folder: string,
   entries: Readonly<Record<string, string>>,
   external: readonly string[] = [],
+  metafile?: string,
+  plugins: readonly Plugin[] = [],
 ): Promise<void> {
-  await build({
+  const built = await build({
     entryPoints: { ...entries, uiText: path.resolve('src/shared/l10n/en.ts') },
     outdir: folder,
     bundle: true,
@@ -37,10 +40,14 @@ export async function buildHostBundles(
     format: 'cjs',
     // The extension host of the floor, VS Code 1.99 (scripts/build.mjs, PLAN.md M62).
     target: 'node20.18',
-    plugins: [sharedUiText],
+    plugins: [sharedUiText, ...plugins],
     logLevel: 'silent',
     external: ['./reviewerEntry.js', ...external],
+    metafile: metafile !== undefined,
   })
+  if (metafile === undefined) return
+  if (built.metafile === undefined) throw new Error('host-bundle-metafile-unavailable')
+  writeFileSync(metafile, JSON.stringify(built.metafile))
 }
 
 /**

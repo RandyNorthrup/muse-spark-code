@@ -1,6 +1,5 @@
 import { spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, realpathSync } from 'node:fs'
-import { copyFile, mkdir } from 'node:fs/promises'
+import { mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
@@ -809,28 +808,35 @@ describe('createGitProcess (M72)', () => {
   })
 
   it('ends a running command when the window closes, and starts none after', async () => {
-    // A stand-in `git` on its own PATH: this Node, which sleeps when asked.
+    // Resolve a stand-in git, then run the real Node without copying its binary.
     const bin = path.join(base, 'fake-git-bin')
-    await mkdir(bin, { recursive: true })
     const fake = path.join(bin, process.platform === 'win32' ? 'git.exe' : 'git')
-    await copyFile(process.execPath, fake)
+    const processRunner = { spawn }
+    const launch = vi
+      .spyOn(processRunner, 'spawn')
+      .mockImplementation((_file, ...args) => spawn(process.execPath, ...args))
     const sleeper = createGitProcess({
       platform: process.platform,
       env: { PATH: bin },
-      fileExists: existsSync,
-      spawn,
+      fileExists: (file) => file === fake,
+      spawn: processRunner.spawn,
     })
     const stopping = new AbortController()
-    const running = sleeper(['-e', 'setTimeout(() => {}, 60000)'], {
+    const ready = vi.fn((chunk: Buffer) => {
+      expect(chunk.toString('utf8')).toBe('ready')
+      stopping.abort()
+      return Promise.resolve()
+    })
+    const running = sleeper(['-e', "process.stdout.write('ready'); setInterval(() => {}, 60000)"], {
       cwd: base,
       env: process.env,
       timeoutMs: 60_000,
       signal: stopping.signal,
+      onStdout: ready,
     })
-    setTimeout(() => {
-      stopping.abort()
-    }, 200)
     await expect(running).rejects.toThrow(/window is closing/)
+    expect(ready).toHaveBeenCalledExactlyOnceWith(Buffer.from('ready'))
+    expect(launch).toHaveBeenCalledExactlyOnceWith(fake, expect.any(Array), expect.any(Object))
     await expect(
       sleeper(['-e', '0'], {
         cwd: base,
@@ -839,5 +845,6 @@ describe('createGitProcess (M72)', () => {
         signal: stopping.signal,
       }),
     ).rejects.toThrow(/not started/)
+    expect(launch).toHaveBeenCalledTimes(1)
   })
 })

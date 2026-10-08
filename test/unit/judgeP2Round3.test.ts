@@ -1,8 +1,7 @@
-import { execFileSync } from 'node:child_process'
 import { copyFileSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { beforeAll, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { judgeFeaturesLoader } from '../../src/runtime/judge/judgeBundle'
 import { createLogger } from '../../src/host/logger'
 import { buildForeignStdin } from '../../src/core/backends/modelapi/hookFormats'
@@ -12,14 +11,13 @@ import { command, io, source } from './judgeCliFixtures'
 import { fill, UI_TEXT } from '../../src/shared/l10n/text'
 import { removeFolder } from './helpers/temporaryFolders'
 import { PAYLOAD, hookDeps, riskOutcome } from './judgeHookCliFixtures'
+import { builtJudgeFactories } from './helpers/judgeFactoryBundles'
 
-beforeAll(() => {
-  execFileSync(process.execPath, ['scripts/build.mjs', '--production'], { stdio: 'pipe' })
-})
+const built = builtJudgeFactories()
 
 function features() {
   return judgeFeaturesLoader({
-    bundlePath: path.resolve('dist/judgeP2.js'),
+    bundlePath: path.join(built.folder, 'judgeP2.js'),
     log: createLogger(new FakeLogOutputChannel()),
   })()
 }
@@ -38,7 +36,7 @@ describe('round-3 production judge factories', () => {
             'validation.js',
             'modelApiBoundaries.js',
           ]) {
-            copyFileSync(path.resolve('dist', file), path.join(folder, file))
+            copyFileSync(path.join(built.folder, file), path.join(folder, file))
           }
           if (isMalformed)
             writeFileSync(
@@ -68,7 +66,7 @@ describe('round-3 production judge factories', () => {
           expect(() => {
             void load()
           }).toThrow(fill(UI_TEXT.judgeNoAnswer, { reason: 'source-unavailable' }))
-          copyFileSync(path.resolve('dist', child), path.join(folder, child))
+          copyFileSync(path.join(built.folder, child), path.join(folder, child))
           await expect(load()).resolves.toBeDefined()
         } finally {
           await removeFolder(folder)

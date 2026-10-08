@@ -17,6 +17,10 @@ happened, not what was planned; superseded entries are kept.
   Include the source child in the support report's shipped-frame inventory.
   Keep Judge projection and presentation outside chat's initial wire graph
   to preserve the existing startup review baseline.
+  Build the parser/factory test's real entries in a private fixture so its
+  setup keeps the existing deadline without rebuilding unrelated surfaces.
+  Synchronize the Git cancellation fixture with child readiness instead of
+  copying Node and waiting for a timer.
 
 
 - Keep every long-reply accessibility delta while yielding through a task port,
