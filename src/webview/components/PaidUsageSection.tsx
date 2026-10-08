@@ -1,13 +1,20 @@
 import {
   PAID_PRICES_VERIFIED_ON,
+  MILLISECONDS_PER_SECOND,
   TAB_DAILY_BUDGET_DEFAULT_USD,
   type PaidFeature,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, formatNumber, plural } from '../../shared/l10n/text'
-import { paidCostUsd, paidFeatureName, paidTotalUsd, type PaidState } from '../../shared/paid'
+import {
+  paidCostUsd,
+  paidFeatureName,
+  paidTotalUsd,
+  type PaidState,
+  type PaidTally,
+} from '../../shared/paid'
 import { formatUsd } from '../../core/usage/insights'
-import { paidUseText } from '../agentFormat'
+import { formatDurationMs } from '../agentFormat'
 
 /**
  * The paid features this backend uses (D30 rule 5; on Muse Code, the key's
@@ -178,4 +185,26 @@ function PaidRow({ feature, paid }: { readonly feature: PaidFeature; readonly pa
       </dd>
     </>
   )
+}
+
+function paidUseText(feature: PaidFeature, tally: PaidTally): string {
+  if (feature === 'legalExplanation') return formatNumber(tally.legalExplanations ?? 0)
+  if (feature === 'voice')
+    return fill(UI_TEXT.usagePaidAudio, {
+      duration: formatDurationMs(tally.voiceSeconds * MILLISECONDS_PER_SECOND),
+    })
+  const counts = {
+    webSearch: [UI_TEXT.usagePaidSearches, tally.webSearches],
+    imageGeneration: [UI_TEXT.usagePaidImages, tally.images],
+    scheduledPrompts: [UI_TEXT.usagePaidScheduled, tally.scheduledRuns],
+    subagents: [UI_TEXT.usagePaidSubagentRequests, tally.subagentRequests ?? 0],
+    autoReviewer: [UI_TEXT.usagePaidAutoReviews, tally.autoReviews ?? 0],
+    teamWorkers: [UI_TEXT.usagePaidTeamTasks, tally.teamWorkerRequests ?? 0],
+    bestOfN: [UI_TEXT.usagePaidBestOfNAttempts, tally.bestOfNAttempts ?? 0],
+    tab: [UI_TEXT.usagePaidTabRequests, tally.tabRequests ?? 0],
+    hookModels: [UI_TEXT.usagePaidHookModelRuns, tally.hookModelRuns ?? 0],
+    judge: [UI_TEXT.usagePaidJudgeCalls, tally.judgeCalls ?? 0],
+  } as const
+  const [forms, count] = counts[feature]
+  return plural(forms, count)
 }

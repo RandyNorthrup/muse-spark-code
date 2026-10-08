@@ -1,4 +1,4 @@
-import type { AgentReceipt, AgentAttempt } from '../../shared/agentOutcome'
+import type { AgentReceipt, AgentAttempt } from '../../shared/agentEvidence'
 import { useState } from 'react'
 import { UI_TEXT } from '../../shared/constants'
 import { fill, formatNumber } from '../../shared/l10n/text'

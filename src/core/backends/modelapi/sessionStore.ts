@@ -11,7 +11,7 @@ import {
   agentEvidenceSchema,
   agentFileSchema,
   type AgentEvidence,
-} from '../../../shared/agentOutcome'
+} from '../../../shared/agentEvidence'
 import {
   type ItemSnapshot,
   itemSnapshotFields,

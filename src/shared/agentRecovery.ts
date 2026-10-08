@@ -1,4 +1,5 @@
-import { endedOutcome, agentActivity, type AgentSignals, type AgentReceipt } from './agentOutcome'
+import type { AgentReceipt } from './agentEvidence'
+import { endedOutcome, agentActivity, type AgentSignals } from './agentOutcome'
 import { UI_TEXT } from './constants'
 import type { ItemSnapshot } from './agentEvents'
 

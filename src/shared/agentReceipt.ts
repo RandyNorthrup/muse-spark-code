@@ -1,5 +1,5 @@
 import type { ItemSnapshot } from './agentEvents'
-import type { AgentEvidence, AgentReceipt } from './agentOutcome'
+import type { AgentEvidence, AgentReceipt } from './agentEvidence'
 import { AGENT_RECEIPT_MAX_ROWS, AGENT_RECEIPT_MAX_CHARS } from './constants'
 import { redactSecrets } from './redact'
 import * as z from 'zod/mini'

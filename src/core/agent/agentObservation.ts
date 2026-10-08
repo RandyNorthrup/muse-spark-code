@@ -1,11 +1,7 @@
 // Keep outcomes we observed; absence in a later native snapshot never erases history.
 import type { ItemSnapshot, TodoItem } from '../../shared/agentEvents'
-import {
-  agentActivity,
-  endedOutcome,
-  agentStopReason,
-  type AgentEvidence,
-} from '../../shared/agentOutcome'
+import type { AgentEvidence } from '../../shared/agentEvidence'
+import { agentActivity, endedOutcome, agentStopReason } from '../../shared/agentOutcome'
 import { buildAgentReceipt } from '../../shared/agentReceipt'
 import { listedAgents } from './agentListing'
 import { finishedAgentEvidence } from './agentEvidence'

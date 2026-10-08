@@ -480,6 +480,8 @@ happened, not what was planned; superseded entries are kept.
   gives the rule that prevents it and the milestone that will enforce that
   rule in the app's own orchestrator (D100).
 
+- Keep paid-usage formatting and agent presentation labels out of chat startup, preserving the existing startup review baseline.
+
 ## [0.15.0] - 2026-10-06
 
 ### Highlights

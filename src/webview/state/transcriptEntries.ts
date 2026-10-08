@@ -9,7 +9,8 @@ import { legacyUsdSchema } from '../../shared/usd'
 // reducer treats them.
 
 import * as z from 'zod/mini'
-import { agentEvidenceSchema, agentFileSchema } from '../../shared/agentOutcome'
+import { agentEvidenceSchema, agentFileSchema } from '../../shared/agentEvidence'
+
 import {
   approvalChoiceSchema,
   approvalSubjectSchema,

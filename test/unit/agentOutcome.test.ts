@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import {
-  agentActivity,
-  endedOutcome,
-  agentStateText,
-  type AgentEvidence,
-} from '../../src/shared/agentOutcome'
+import type { AgentEvidence } from '../../src/shared/agentEvidence'
+import { agentActivity, endedOutcome, agentStateText } from '../../src/shared/agentOutcome'
 import { buildAgentReceipt, agentFilesFromPatch } from '../../src/shared/agentReceipt'
 import { continuationNote, recoveryRefusal, recoveryStamp } from '../../src/shared/agentRecovery'
 import { finishedAgentEvidence } from '../../src/core/agent/agentEvidence'

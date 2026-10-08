@@ -1,5 +1,5 @@
 import type { ItemSnapshot, TodoItem } from '../../shared/agentEvents'
-import type { AgentEvidence } from '../../shared/agentOutcome'
+import type { AgentEvidence } from '../../shared/agentEvidence'
 import { agentCommandOf } from '../../shared/agentReceipt'
 import { AGENT_CHECK_COMMAND_WORDS } from '../../shared/constants'
 

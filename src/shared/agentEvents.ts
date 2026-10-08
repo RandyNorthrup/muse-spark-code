@@ -7,7 +7,8 @@ import { nonnegativeUsdSchema } from './usd'
 // Shared by host and webview: no `vscode`, Node, or DOM imports.
 
 import * as z from 'zod/mini'
-import { agentEvidenceSchema, agentFileSchema } from './agentOutcome'
+import { agentEvidenceSchema, agentFileSchema } from './agentEvidence'
+
 import { scheduleViewSchema } from './schedule'
 import {
   CHECK_OUTCOMES,

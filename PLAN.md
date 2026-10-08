@@ -53142,3 +53142,17 @@ and shared keys. The browser fallback regression must load Help before resources
 prove resource-only English remains deferred, then verify every English value
 and the installed language after both loaders. Prove the duplicate-selection
 mutation fails and restore bytes; no budget or localization contract changes.
+
+**REL0160B startup-baseline composition repair (2026-10-07).** The final
+whole-file startup regression exceeds its unchanged 733.8 KiB baseline. Keep
+usage-only count formatting with the lazy paid-usage surface and separate
+agent evidence schemas from runtime presentation readers, so source-based
+English discovery does not pull optional surface labels into chat startup.
+Preserve event validation, behavior and every size threshold; rerun the owning
+bundle, outcome and UI tests at their normal deadlines.
+
+**REL0160B lead amendment (17:10, 2026-10-07).** The shared rig brief now
+requires a further `--no-ff` merge of `main-0150` at `18dc73651`, because
+`c22be5d0d` was already merged. Retain its harness readiness repair, bounded
+readiness diagnostics and Windows repository default deadlines; keep the owned
+publication inventory and run the affected harness tests without CLI overrides.
