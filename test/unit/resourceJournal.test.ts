@@ -261,8 +261,12 @@ describe('M107 J/M102 durable resource journal', () => {
     // a wrong clock dated ahead is not shown.
     await store.append(minute(NOW - RESOURCE_HISTORY_RETENTION_MS - 1))
     await store.append(minute(NOW + RESOURCE_JOURNAL_FUTURE_SKEW_MS + 60_000))
-    expect(await readAt(store)).toEqual([NOW - RESOURCE_HISTORY_RETENTION_MS + 60_000, NOW])
-    // A day later the oldest minute falls out of the seven-day window on read.
+    // An hour before the next day's seven-day edge, inside a folder that day still reads.
+    const edge = NOW - 6 * MILLISECONDS_PER_DAY - 3_600_000
+    await store.append(minute(edge))
+    expect(await readAt(store)).toEqual([NOW - RESOURCE_HISTORY_RETENTION_MS + 60_000, edge, NOW])
+    // A day later both older minutes fall out of the seven-day window on read,
+    // including the one whose day folder is still inside it.
     now = NOW + MILLISECONDS_PER_DAY
     expect(await readAt(store)).toEqual([NOW])
     // Folders that are not ours, or are future-dated, are not read.

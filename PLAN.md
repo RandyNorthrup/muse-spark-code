@@ -40436,6 +40436,25 @@ quality/coverage and non-Linux native receipts remain the lead's release gate.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**M107 W-history (2026-10-08, for the combined 0.17 release).** PR #140's
+review found `LazyResourcesSection` never mounted and no durable journal. This
+lane binds J to production. One flushed, append-only journal per machine at
+`usage/v1/resources/<UTC day>/<collector>.<generation>.jsonl` in the agent data
+folder (the usage page's **Delete history** clears it). The VS Code window's
+governor (via `resourceGovernorEntry`'s existing `onSample`/event streams and
+the launch host's cached tree readings, `treeUsage()`) and the ACP agent (a
+narrow `onSample` option on the runtime host) record; one-shot CLI and headless
+runs only read. Consent is the usage-history setting/flag plus the shared
+usage-history file. Bounds: 4 MiB per file (excess dropped once, reported),
+32 MiB per read, seven recorded days; expired day folders removed; out-of-range
+dates never stored or shown. A torn final line is ignored; any other unreadable
+line refuses the read. Cumulative snapshots are replaced per collector
+(`aggregateResources` sources). `UsagePageState.resources` is strict
+(absent: no journal port; null: unavailable). UsageApp mounts the lazy section;
+`resources history`, `usage resources` and ACP `/usage resources` print the
+same aggregate text (`--json`: the aggregate). Records in
+`docs/certification/m107-w-history.md`.
+
 **FIXM107J review repair (2026-10-06, Kubuntu).** Repair both RVM107J P2s
 and its P3 inside J's collector, aggregate, history boundary and shared view.
 Read-time flushes retain the active minute and its per-tree CPU baselines;
@@ -50175,6 +50194,14 @@ The harness-placement dispatch and PID/tick assumptions below remain unchanged.
   tree identities, and failed appends remain explicit/retryable. Follow-up:
   W/M102 performs and certifies that complete join; no reviewed P2/P3 is
   silently left as an accepted residual.
+  **Closed by M107 W-history (2026-10-08)** for consent, durable
+  idempotent append, collector-scoped reads, final tree readings, the usage
+  page mount and the ACP/CLI text routes; see `docs/certification/m107-w-history.md`.
+  Still open: resource rows have no monthly rollup (detail only, seven days,
+  by design of the cap); the open minute is appended when it closes, so the
+  page can lag by up to a minute; the runtime host binds no registered trees,
+  so the ACP agent records no harness-work rows; installed-editor browser
+  scenes (four themes, 320/690 px) remain the lead's rig run.
 - **FIXM118X / RVM118X (2026-10-06).** All four reviewed P2 adapter
   findings are fixed; no P1/P2/P3 finding is deferred. Regression failures,
   byte-exact red drills and bounded Kubuntu checks are recorded in

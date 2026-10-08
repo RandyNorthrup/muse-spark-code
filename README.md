@@ -4635,14 +4635,24 @@ The CLI accepts `muse-spark-code-acp resources status --json` and
 `muse-spark-code-acp resources resume --json`. Status describes that command
 process, rather than another running session's queue. Resume writes the
 machine's bounded marker, read by loaded runtime hosts on their next refresh.
-`resources history` and `usage resources` report unavailable until the durable
-journal is supplied. ACP's shared command adapter provides `/resources`,
-`/resources resume` and `/usage resources` through its injected runtime port.
+`resources history` and `usage resources` print the machine's resource
+history, the same summary the usage page's **Resources** section shows
+(`--json` gives the validated aggregate). The VS Code window's governor and
+the ACP agent record minute readings, level and override events and the
+harness's own CPU time into a local journal under the usage folder, with the
+usage-history setting as consent. It keeps seven recorded days (at most 10,080
+minute readings and 1,000 events); the usage page's **Delete history** clears
+it too. One-shot commands and headless runs only read it. An unreadable
+journal is reported as such, never shown as empty history. ACP's shared
+command adapter provides `/resources`, `/resources resume` and
+`/usage resources` through its injected runtime port.
 See the [ACP guide](docs/acp.md#resource-status-and-resume) and
 [CI guide](docs/ci.md#resource-governor-in-headless-runs).
 
 The shared chip/popover and usage-history section ship as separate artifacts.
-Their window/native/companion mounts, actuator lifecycle, runtime spawn binding,
+The usage page (VS Code, the companion page and native hosts' embedded page)
+mounts the history section lazily from the usage service's validated state.
+The chip's window/native/companion mounts, actuator lifecycle, runtime spawn binding,
 M96/M96c slots and M100 paired-device dispatch remain explicit integration
 handoffs. Once those routes join, relocation will move only eligible queued
 tasks/checks, or a running check after explicit **Move to** and proven

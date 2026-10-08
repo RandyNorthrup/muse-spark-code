@@ -7,6 +7,17 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Resource history now shows real data. The VS Code window's governor and the
+  ACP agent record their minute readings, level, override and deferral events
+  and the harness's own CPU time into one local, flushed journal per machine,
+  under the usage-history setting. The usage page's **Resources** section,
+  `resources history`, `usage resources` and ACP `/usage resources` read it.
+  It keeps seven recorded days, bounds each file and every read, ignores a
+  torn final line after a crash and reports any other unreadable line as
+  unavailable rather than as empty history. **Delete history** clears it.
+
 ### Pending
 
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
