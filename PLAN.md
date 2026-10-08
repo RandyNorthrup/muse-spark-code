@@ -277,6 +277,14 @@ quality`) and as a CI job.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**INT0180B (2026-10-07, linuxlt).** Optional account/developer English gets
+its own generated first-use region, loaded and installed before lazy factories
+resolve, with the existing accessible failure/retry handling. Measured 3,559 bytes; +15%, rounded up to 25 KiB, gives its 25 KiB cap. Original surface
+English retains 25 KiB (24.0 KiB measured); startup retains 751,411 bytes and
+all existing deferred caps stay fixed. Whole-table translation shape and slots
+remain unchanged and tested against every canonical key. No VSIX/account cap
+increase is made without the prescribed universal measurement.
+
 **TRAIN15H (2026-10-06, win11; lead startup decision).** Compare the train's
 production startup inputs against main `61d8647c2`, recording emitted bytes
 and milestone owners. Move optional train UI behind the existing deferred
@@ -19063,6 +19071,16 @@ fabricated native artifacts.
       first-use region. Existing startup and deferred caps remain unchanged.
 - [ ] Repair every remaining test, vault-default and SAST failure by cause;
       add failing-before/passing-after regressions and byte-exact guard drills.
+      The boolean vault parent hides its children in VS Code: move its public
+      setting to `vault.enabled`, retain explicitly configured legacy booleans
+      unless the new flag is explicitly set, and verify both editor versions.
+      Restore request fixtures byte-for-byte from accepted main-0150 captures:
+      the prior integration combined incompatible captures into retry sequences.
+      Optimize scrub automaton scanning without changing encodings, streaming
+      semantics or the 50 MB/s floor.
+      SAST repairs replace SSH wildcard regex construction with direct matching,
+      restrict estimator pointer traversal to own data properties, and reuse
+      the existing one-pass HTML encoder. No suppression or scanner downgrade.
 - [ ] Recover startup through first-use chunks and deduplication, retaining
       its 751,411-byte regression cap. Shrink VSIX/account closure first;
       only their caps may use measured universal bytes +5%, rounded up to

@@ -142,6 +142,7 @@ const SKIP = new RegExp(
 /** Broker/feeder only: the trie holds code-point edges, no retained plaintext strings. */
 export class VaultScrubber {
   private readonly nodes: Node[] = [{ edges: new Map(), fail: 0, length: 0, depth: 0 }]
+  private starts: RegExp | undefined
   private maxLength = 0
   private isDisposed = false
 
@@ -174,6 +175,17 @@ export class VaultScrubber {
           child.length = Math.max(child.length, this.nodes[child.fail]?.length ?? 0)
         }
       }
+      const escape = (code: number): string => String.raw`\u{${code.toString(HEX_RADIX)}}`
+      const prefixes = [...(this.nodes[0]?.edges.entries() ?? [])].map(([code, next]) => {
+        const child = this.nodes[next]
+        const first = escape(code)
+        if (child === undefined || child.length > 0) return first
+        const seconds = Array.from(child.edges.keys(), (code) => escape(code)).join('')
+        // Decoration may separate the pair; an end-of-input prefix remains
+        // eligible so the ordinary scanner decides whether it is complete.
+        return String.raw`${first}(?=[${seconds}\r\n\u{1B}\u{7}]|$)`
+      })
+      this.starts = new RegExp(prefixes.length === 0 ? '(?!)' : prefixes.join('|'), 'gu')
       for (const node of this.nodes) {
         if (node.depth > 2) continue
         node.dense = new Uint32Array(ASCII_LIMIT)
@@ -228,6 +240,24 @@ export class VaultScrubber {
     let node = nodes[0]
     const spans: { start: number; end: number }[] = []
     for (let at = 0; at < source.length; at += 1) {
+      if (retain === 0 && state === 0 && this.starts !== undefined) {
+        // Native search skips impossible starts only at the root. Streaming
+        // still visits every normalized character to retain its exact suffix.
+        this.starts.lastIndex = at
+        let start = this.starts.exec(source)
+        while (start !== null && skip !== null && skip.index < start.index) {
+          const end = skip.index + skip[0].length
+          skip = SKIP.exec(source)
+          if (!(start.index < end)) {
+            continue
+          }
+
+          this.starts.lastIndex = end
+          start = this.starts.exec(source)
+        }
+        if (start === null) break
+        at = start.index
+      }
       if (skip !== null && skip.index === at) {
         at += skip[0].length - 1
         skip = SKIP.exec(source)
@@ -328,6 +358,7 @@ export class VaultScrubber {
     }
     this.nodes.length = 0
     this.maxLength = 0
+    this.starts = undefined
   }
 }
 

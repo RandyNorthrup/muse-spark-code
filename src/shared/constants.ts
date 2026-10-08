@@ -586,7 +586,7 @@ export const SETTING_DEFAULTS = {
   legalExplanation: true,
   // M109 (PLAN.md D89): the per-user credential vault, shared by every
   // editor. All five are machine-scoped, so no workspace can change them.
-  vault: true,
+  'vault.enabled': true,
   'vault.protection': 'auto' as VaultProtectionMode,
   'vault.agentFence': true,
   'vault.lockAfterIdleMinutes': 240,

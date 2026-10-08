@@ -27,6 +27,22 @@ function printableForms(value: string): string[] {
 }
 
 describe('vault scrub', () => {
+  it('keeps root-prefix skipping outside ANSI decoration and retains decorated matches', () => {
+    const value = generated()
+    const bytes = Buffer.from(value)
+    const scrub = new VaultScrubber([bytes])
+    try {
+      const decoration = `\u{1B}[3v${value.slice(1)}`
+      expect(scrub.scrub(decoration)).toBe(decoration)
+      expect(scrub.scrub(`ordinary ${value.slice(0, 1)}\n${value.slice(1)} after`)).toBe(
+        `ordinary ${REDACTED_MARK} after`,
+      )
+      expect(scrub.scrub(`\u{1B}[3v${value} after`)).toBe(`\u{1B}[3v${REDACTED_MARK} after`)
+    } finally {
+      bytes.fill(0)
+      scrub.dispose()
+    }
+  })
   it('catches literal, JSON, percent and hex forms without altering unrelated text', () => {
     const value = generated(),
       bytes = Buffer.from(value),

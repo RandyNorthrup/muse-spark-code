@@ -1601,7 +1601,7 @@
       "description": { "ui": "referenceVaultPanel" },
       "commands": ["museSpark.vault", "museSpark.lockVault"],
       "settings": [
-        "museSpark.vault",
+        "museSpark.vault.enabled",
         "museSpark.vault.protection",
         "museSpark.vault.agentFence",
         "museSpark.vault.lockAfterIdleMinutes",
@@ -3587,8 +3587,8 @@
       "schema": { "type": "boolean", "default": false }
     },
     {
-      "id": "museSpark.vault",
-      "name": "museSpark.vault",
+      "id": "museSpark.vault.enabled",
+      "name": "museSpark.vault.enabled",
       "description": "Enable the per-user credential vault shared by editors.",
       "descriptionKey": "config.vault.description",
       "type": "boolean",

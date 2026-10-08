@@ -4691,7 +4691,8 @@ vault. No value is ever logged, and no handle is substituted into a command,
 a file or the model's text.
 
 Settings (all machine-scoped, so no workspace can change them):
-`museSpark.vault` (on), `museSpark.vault.protection` (`auto` is available
+`museSpark.vault.enabled` (on; an explicitly stored legacy `museSpark.vault`
+boolean remains effective until the new flag is explicitly configured), `museSpark.vault.protection` (`auto` is available
 hardware plus the OS store, with the recovery code offered at setup),
 `museSpark.vault.agentFence` (on), `museSpark.vault.lockAfterIdleMinutes`
 (240) and `museSpark.vault.lockOnScreenLock` (on). The Secure Enclave

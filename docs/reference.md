@@ -1429,7 +1429,7 @@ Open the per-user credential vault. Values never print; the broker holds them.
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.vault`, `museSpark.lockVault`. Settings: `museSpark.vault`, `museSpark.vault.protection`, `museSpark.vault.agentFence`, `museSpark.vault.lockAfterIdleMinutes`, `museSpark.vault.lockOnScreenLock`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-vault)
+Commands: `museSpark.vault`, `museSpark.lockVault`. Settings: `museSpark.vault.enabled`, `museSpark.vault.protection`, `museSpark.vault.agentFence`, `museSpark.vault.lockAfterIdleMinutes`, `museSpark.vault.lockOnScreenLock`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#the-vault)
 
 ## Slash commands
 
@@ -3062,7 +3062,7 @@ Type: `"boolean"`. Default: `false`. Scope: `machine`.
 }
 ```
 
-### museSpark.vault
+### museSpark.vault.enabled
 
 Enable the per-user credential vault shared by editors.
 

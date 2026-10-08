@@ -1428,7 +1428,7 @@
           "description": "%config.accounts.severalOnThisDevice.description%",
           "scope": "machine"
         },
-        "museSpark.vault": {
+        "museSpark.vault.enabled": {
           "type": "boolean",
           "default": true,
           "description": "%config.vault.description%",

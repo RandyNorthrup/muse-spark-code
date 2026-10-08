@@ -7,6 +7,10 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Vault settings use `museSpark.vault.enabled` so VS Code exposes their nested
+  defaults; existing explicit vault opt-outs remain effective. Request baseline
+  fixtures retain the accepted release captures rather than mixed retry traces.
+
 - Keep every long-reply accessibility delta while yielding through a task port,
   avoiding nested timer throttling within the existing readiness deadline.
 

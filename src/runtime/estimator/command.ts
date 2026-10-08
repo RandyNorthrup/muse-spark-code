@@ -1,3 +1,4 @@
+import { escapeHtml } from '../../core/htmlText'
 import { ESTIMATE_OPTIONS } from './options'
 import {
   estimateRequestSchema,
@@ -214,14 +215,6 @@ function limitingLabel(kind: EstimateSection['limitingResource']['kind']): strin
       return UI_TEXT.estimateCriticalPath
     }
   }
-}
-function escapeHtml(text: string): string {
-  return text
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;')
 }
 function escapeMarkdown(text: string): string {
   return text.replaceAll(/([\\`*_{}[\]<>#+.!|])/g, String.raw`\$1`).replaceAll('\n', ' ')

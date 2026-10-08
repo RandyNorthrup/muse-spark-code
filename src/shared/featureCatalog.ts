@@ -838,7 +838,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'referenceVaultPanel' },
       ['vault', 'lockVault'],
       [
-        'vault',
+        'vault.enabled',
         'vault.protection',
         'vault.agentFence',
         'vault.lockAfterIdleMinutes',

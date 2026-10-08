@@ -16,11 +16,32 @@ function isPatternMatch(pattern: string, host: string): boolean {
       timingSafeEqual(expected, digest)
     )
   }
-  const escaped = pattern
-    .replaceAll(/[.+^${}()|[\]\\]/gu, String.raw`\$&`)
-    .replaceAll('*', '.*')
-    .replaceAll('?', '.')
-  return new RegExp(`^${escaped}$`, 'iu').test(host)
+  // Match glob tokens directly: regex metacharacters are literal, and a
+  // wildcard never creates a regex with attacker-controlled backtracking.
+  const tokens = pattern.toLowerCase().match(/[\s\S]/gu) ?? []
+  const chars = host.toLowerCase().match(/[\s\S]/gu) ?? []
+  let token = 0
+  let char = 0
+  let star = -1
+  let restart = 0
+  while (char < chars.length) {
+    if (tokens[token] === '?' || tokens[token] === chars[char]) {
+      token += 1
+      char += 1
+    } else if (tokens[token] === '*') {
+      star = token
+      token += 1
+      restart = char
+    } else if (star === -1) {
+      return false
+    } else {
+      token = star + 1
+      restart += 1
+      char = restart
+    }
+  }
+  while (tokens[token] === '*') token += 1
+  return token === tokens.length
 }
 function isEntryMatch(patterns: string, host: string): boolean {
   let hasMatch = false

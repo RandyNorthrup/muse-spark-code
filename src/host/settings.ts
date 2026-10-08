@@ -171,7 +171,7 @@ export interface ExtensionSettings extends SettingsSnapshot {
   /** D88 amendment b2: several accounts of one provider on this PC; off by default. */
   readonly 'accounts.severalOnThisDevice': boolean
   /** The per-user credential vault, shared by every editor (M109, PLAN.md D89). */
-  readonly vault: boolean
+  readonly 'vault.enabled': boolean
   /** How the vault key is protected; `auto` is hardware plus the OS store. */
   readonly 'vault.protection': VaultProtectionMode
   /** Fence agent processes from ambient credential routes. */
@@ -189,6 +189,15 @@ export interface ExtensionSettings extends SettingsSnapshot {
  */
 export interface SettingsSource {
   get(section: string): unknown
+  inspect?(
+    section: string,
+  ):
+    | {
+        readonly globalValue?: unknown
+        readonly workspaceValue?: unknown
+        readonly workspaceFolderValue?: unknown
+      }
+    | undefined
 }
 
 const environmentVariableSchema = z.object({ name: z.string(), value: z.string() })
@@ -279,7 +288,7 @@ const settingSchemas = {
   accountSwap: z.boolean(),
   accountParallel: z.boolean(),
   'accounts.severalOnThisDevice': z.boolean(),
-  vault: z.boolean(),
+  'vault.enabled': z.boolean(),
   'vault.protection': z.enum(VAULT_PROTECTION_MODES),
   'vault.agentFence': z.boolean(),
   'vault.lockAfterIdleMinutes': z.int().check(z.nonnegative()),
@@ -307,7 +316,22 @@ function readSetting<K extends SettingKey>(
   key: K,
   log: Logger,
 ): ExtensionSettings[K] {
-  const raw = config.get(key)
+  let raw = config.get(key)
+  if (key === 'vault.enabled') {
+    const configured = config.inspect?.(key)
+    const hasExplicit =
+      configured === undefined
+        ? raw !== undefined
+        : [configured.globalValue, configured.workspaceValue, configured.workspaceFolderValue].some(
+            (value) => value !== undefined,
+          )
+    if (!hasExplicit) {
+      // A legacy scalar collides with the new group defaults, so inspect its
+      // stored value rather than relying on VS Code's merged group object.
+      const legacy = config.inspect?.('vault')?.globalValue ?? config.get('vault')
+      if (typeof legacy === 'boolean') raw = legacy
+    }
+  }
   const fallback = SETTING_DEFAULTS[key] as ExtensionSettings[K]
   if (raw === undefined) {
     return fallback
@@ -404,7 +428,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     accountSwap: readSetting(config, 'accountSwap', log),
     accountParallel: readSetting(config, 'accountParallel', log),
     'accounts.severalOnThisDevice': readSetting(config, 'accounts.severalOnThisDevice', log),
-    vault: readSetting(config, 'vault', log),
+    'vault.enabled': readSetting(config, 'vault.enabled', log),
     'vault.protection': readSetting(config, 'vault.protection', log),
     'vault.agentFence': readSetting(config, 'vault.agentFence', log),
     'vault.lockAfterIdleMinutes': readSetting(config, 'vault.lockAfterIdleMinutes', log),

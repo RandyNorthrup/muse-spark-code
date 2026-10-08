@@ -239,4 +239,20 @@ describe('vault SSH keys and RFC 9987 boundary', () => {
       expect(() => resolveKnownHost(text ?? '', blob, host)).toThrow()
     expect(() => resolveKnownHost(`host.example ${key}`, other, 'host.example')).toThrow()
   })
+
+  it('treats regex punctuation literally while matching case-insensitive wildcard code points', () => {
+    const blob = publicBlob(generateKeyPairSync('ed25519').publicKey)
+    const key = `ssh-ed25519 ${blob.toString('base64')}`
+    expect(resolveKnownHost(`host+[id].example ${key}`, blob, 'HOST+[ID].example')).toBe(
+      'host+[id].example',
+    )
+    expect(() => resolveKnownHost(`host+[id].example ${key}`, blob, 'hostid.example')).toThrow()
+    expect(resolveKnownHost(`??.example ${key}`, blob, '🦄x.example')).toBe('🦄x.example')
+    expect(resolveKnownHost(`*a*b*.example,!bad*.example ${key}`, blob, 'aaabz.example')).toBe(
+      'aaabz.example',
+    )
+    expect(() =>
+      resolveKnownHost(`*a*b*.example,!bad*.example ${key}`, blob, 'badab.example'),
+    ).toThrow()
+  })
 })

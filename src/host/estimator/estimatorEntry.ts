@@ -89,7 +89,7 @@ function atPath(value: unknown, path: string): unknown {
   let current: unknown = value
   for (const segment of segments) {
     if (current === null || typeof current !== 'object') return undefined
-    current = (current as Record<string, unknown>)[segment]
+    current = Object.getOwnPropertyDescriptor(current, segment)?.value
   }
   return current
 }
