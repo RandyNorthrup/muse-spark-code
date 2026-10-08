@@ -659,3 +659,50 @@ under `/tmp/m100p2a-drills-*` on this rig.
   on a second invocation: one prompt, typed `presence-unverified`, no admission.
   The VMs use the simulator/local-confirm port when biometric hardware is
   missing. These prompts were requested for qualification, never triggered here.
+
+### Final committed-code fresh-clone receipt
+
+Implementation commit `baacf40aee6afc8177d424f77089c41fa7c0145f`, cloned
+directly from this worktree to `/tmp/m100p2a-final-verify-nir7cqqo`. Node
+**24.18.0**, npm **12.0.1**; `CI=true npm ci` exited **0**. The committed
+source, worktree and clone have the exact action-grants SHA-256 recorded above.
+Final receipt logs are `/tmp/m100p2a-verification-receipts/` on this rig.
+
+- Three consecutive `CI=true npx vitest run test/unit/actionGrants.test.ts
+test/unit/devicePresenceRelay.test.ts --maxWorkers=3` runs: **59 passed
+  each**, repository default deadlines, no `--testTimeout` override. Vitest
+  durations **2.95 s / 5.99 s / 3.23 s** (whole runs, not individual tests).
+- Fresh-clone receiver/channel regressions (`deviceReceiver.test.ts`,
+  `channel.test.ts`, `deviceMultiplexedChannel.test.ts`, at most three
+  files/workers): **92 passed**, no timeout override. Restored worktree's
+  owning files plus receiver regression: **108 passed** before committing.
+- Focused V8 coverage on `src/core/devices/actionGrants.ts`, with the
+  unchanged repository thresholds: **97.32% statements, 95.95% branches,
+  100% functions, 100% lines**; owning **59 passed**, exit **0**.
+- `npm run typecheck`: exit **0**, all five projects (host, webview, unit,
+  e2e, integration). Fresh-clone `npm run lint`: exit **0**, full JavaScript/
+  TypeScript and CSS; PowerShell reports its expected Linux platform skip.
+  Changed-file ESLint and Prettier passed before commit;
+  commit hooks ran ESLint/Prettier and Gitleaks successfully, no leaks.
+- Fresh-clone Prettier on all seven changed files, plain `npx knip`,
+  duplication (**0 clones**), `check:reference` (**18 Devices entries**),
+  `check:l10n` (**14 UI tables, 0 problems**) and cycles: exit **0**.
+- `npm run build`: exit **0**, caps, splits, host globals and notices
+  unchanged and green: Devices **82.5/100 KiB**, activation **462.8/600 KiB**,
+  Model API **456.0/475 KiB**, ACP entry **155.3/850 KiB**, original deferred
+  webview **31.9/50 KiB**. Notices cover **88 packages**. W must still measure
+  the joined bundle after wiring the admission and presence factories.
+- **Host API inventory: exit 1, requires W's owned generated-file update.**
+  `npm run check:host-api` reports exactly two stale Node import-reader counts
+  in `docs/ide-compatibility/host-api.md`: `node:crypto` **93 → 94** and
+  `node:path` **125 → 126**, from this lane's exact-payload hashing and portable
+  path normalization. VS Code API count (**366**), importing files (**43**)
+  and unique Node built-ins (**28**) are unchanged. Per the explicit ownership
+  rule, this lane did not edit W's record or weaken the gate. W should run
+  `npm run check:host-api -- --write`, review these two rows (plus other joined
+  lanes' readers), and rerun the gate before the integration is proposed.
+
+All four lane acceptance bullets have implementation, tests and red drills.
+Aggregate `npm run quality`, the generated host inventory, product wiring,
+real native prompts and installed-host/physical qualification remain W's
+explicit responsibilities; this record does not claim them passed.
