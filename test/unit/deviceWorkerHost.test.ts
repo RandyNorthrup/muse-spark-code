@@ -1,17 +1,24 @@
-import { readFile, mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { readFile, readdir, mkdtemp, mkdir, realpath, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, expect, it, vi } from 'vitest'
+import * as z from 'zod/mini'
 import {
   DeviceWorkerHost,
   DeviceWorkerHostError,
+  type DeviceWorkerAttempt,
   type DeviceWorkerHostDeps,
   type DeviceWorkerJob,
 } from '../../src/host/devices/deviceWorkerHost'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { deviceWorkerNative } from '../../src/host/backend/deviceWorkerNative'
+import type { RunProgram } from '../../src/host/processTree'
+import type { DeviceDispatch } from '../../src/shared/devices'
+import { AttemptJournal } from '../../src/core/devices/attemptJournal'
+import { DeviceReceiver } from '../../src/host/devices/deviceReceiver'
 import { deviceCheck, deviceGrant } from './helpers/deviceFixtures'
+import { executionProtection, signedDispatch } from './helpers/deviceExecutionFixtures'
 
 const usage = {
   settlementId: 'a'.repeat(32),
@@ -86,6 +93,77 @@ function fixture(platform: NodeJS.Platform = 'win32') {
   return { deps, host: new DeviceWorkerHost(deps), retired, job, reservation }
 }
 const success = { exitCode: 0, failure: 'none', stdout: JSON.stringify({ usage }) }
+function admittedRequest(attemptDigit: string, processes: number): DeviceDispatch {
+  return {
+    ...request,
+    identity: { ...request.identity, attemptId: attemptDigit.repeat(32) },
+    caps: { ...request.caps, processes },
+  }
+}
+function attemptOf(sent: DeviceDispatch): DeviceWorkerAttempt {
+  return { identity: sent.identity, caps: sent.caps }
+}
+const fakeCompile: RunProgram = async (_file, args) => {
+  const output = args.find((arg) => arg.startsWith('/out:'))
+  if (output !== undefined) await writeFile(output.slice('/out:'.length), 'fake test helper')
+  return ''
+}
+const selfTestAnswer = { jobProbe: true, query: true, power: 'unknown', scheduler: 'untested' }
+/** The real Windows driver over a fake compiled helper: compile and self-test succeed. */
+function fakeHelperDriver(
+  directory: string,
+  respond: (args: readonly string[]) => Promise<string>,
+) {
+  const run: RunProgram = (_file, args) =>
+    args[0] === '--self-test' ? Promise.resolve(JSON.stringify(selfTestAnswer)) : respond(args)
+  return nativeDriver(directory, run, fakeCompile)
+}
+function nativeDriver(directory: string, run: RunProgram, compile?: RunProgram) {
+  return deviceWorkerNative({
+    storageDir: directory,
+    systemRoot: '',
+    sourceFile: path.resolve('native/windows/MuseSparkDeviceWorker.cs'),
+    environment: {},
+    run,
+    ...(compile !== undefined && { compile }),
+  })
+}
+/** The real phase-1 receiver and journal over this host. */
+async function throughReceiver(
+  host: DeviceWorkerHost,
+  body: (receiver: DeviceReceiver, journal: AttemptJournal) => Promise<void>,
+): Promise<void> {
+  const parent = await realpath(await mkdtemp(path.join(tmpdir(), 'm100-worker-receiver-')))
+  try {
+    const journal = await AttemptJournal.create(
+      path.join(parent, 'durable'),
+      { assertOwner: () => Promise.resolve() },
+      executionProtection,
+    )
+    const grant = deviceGrant('a'.repeat(32))
+    const receiver = await DeviceReceiver.open(grant.offer.receiverIncarnationId, journal, host, {
+      currentGrant: () => Promise.resolve(grant),
+      assertAllowed: () => Promise.resolve(),
+      approve: () => Promise.resolve(true),
+      paidGate: { isOn: () => true },
+      paidConsent: { allows: () => Promise.resolve(true) },
+      assertPaidBinding: () => Promise.resolve(),
+    })
+    receiver.resumeQueue()
+    await body(receiver, journal)
+  } finally {
+    await rm(parent, { recursive: true, force: true })
+  }
+}
+async function inStorage(body: (directory: string) => Promise<void>): Promise<void> {
+  const directory = await mkdtemp(path.join(tmpdir(), 'm100-worker-caps-'))
+  try {
+    await body(directory)
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+}
+const helperRequestSchema = z.object({ cwd: z.string(), maxProcesses: z.number() })
 
 describe('M100/H worker host', () => {
   it.each(['win32', 'linux', 'darwin'] as const)(
@@ -160,7 +238,11 @@ describe('M100/H worker host', () => {
     expect(recorded).not.toHaveProperty('NODE_OPTIONS')
     expect(recorded).not.toHaveProperty('SSH_AUTH_SOCK')
     expect(recorded).not.toHaveProperty('RANDOM_UNAPPROVED')
-    expect(f.deps.driver.launch).toHaveBeenCalledWith(expect.anything(), recorded)
+    expect(f.deps.driver.launch).toHaveBeenCalledWith(
+      expect.anything(),
+      recorded,
+      attemptOf(request),
+    )
     f.retired.resolve(success)
     await attempt.retirement
   })
@@ -175,7 +257,8 @@ describe('M100/H worker host', () => {
     await expect(attempt.start(boundary)).rejects.toMatchObject({ detail: 'preflight' })
     expect(f.deps.driver.launch).not.toHaveBeenCalled()
     expect(f.deps.recordEnvironment).not.toHaveBeenCalled()
-    await attempt.retirement
+    // Nothing ran: the reservation settles as refused, never as retired work.
+    expect(await attempt.retirement).toEqual({ refused: true, usage })
   })
   it('rejects an unverified hook tool before start', async () => {
     const f = fixture()
@@ -188,6 +271,7 @@ describe('M100/H worker host', () => {
     const attempt = await f.host.admit(request)
     await expect(attempt.start(boundary)).rejects.toMatchObject({ detail: 'preflight' })
     expect(f.deps.driver.launch).not.toHaveBeenCalled()
+    expect(await attempt.retirement).toEqual({ refused: true, usage })
   })
   it('refuses launches after a failed helper self-test without fallback', async () => {
     const f = fixture()
@@ -195,6 +279,7 @@ describe('M100/H worker host', () => {
     const attempt = await f.host.admit(request)
     await expect(attempt.start(boundary)).rejects.toMatchObject({ detail: 'helper' })
     expect(f.deps.driver.launch).not.toHaveBeenCalled()
+    expect(await attempt.retirement).toEqual({ refused: true, usage })
   })
   it('does not treat cancellation or direct-parent exit as retirement', async () => {
     const f = fixture()
@@ -269,7 +354,7 @@ describe('M100/H worker host', () => {
     const f = fixture()
     const attempt = await f.host.admit(request)
     await attempt.cancel()
-    await attempt.retirement
+    expect(await attempt.retirement).toEqual({ refused: true, usage })
     await attempt.release()
     await expect(attempt.start(boundary)).rejects.toBeInstanceOf(DeviceWorkerHostError)
     expect(f.deps.driver.launch).not.toHaveBeenCalled()
@@ -298,6 +383,7 @@ describe('M100/H worker host', () => {
         ],
       }),
       expect.anything(),
+      attemptOf(request),
     )
     f.retired.resolve(success)
     await attempt.retirement
@@ -344,15 +430,13 @@ describe('M100/H worker host', () => {
           mkdir(path.join(root, String(index))),
         ),
       )
-      const native = deviceWorkerNative({
-        storageDir: directory,
-        systemRoot: '',
-        sourceFile: path.resolve('native/windows/MuseSparkDeviceWorker.cs'),
-        environment: {},
-        run,
-      })
+      const native = nativeDriver(directory, run)
       await expect(
-        native.launch({ executable: 'worker', args: [], cwd: directory, requiredTools: [] }, {}),
+        native.launch(
+          { executable: 'worker', args: [], cwd: directory, requiredTools: [] },
+          {},
+          attemptOf(request),
+        ),
       ).rejects.toMatchObject({ reason: 'capacity' })
       expect(run).not.toHaveBeenCalled()
     } finally {
@@ -364,31 +448,21 @@ describe('M100/H worker host', () => {
     let launches = 0
     vi.useFakeTimers()
     try {
-      const native = deviceWorkerNative({
-        storageDir: directory,
-        systemRoot: '',
-        sourceFile: path.resolve('native/windows/MuseSparkDeviceWorker.cs'),
-        environment: {},
-        run: async (_file, args) => {
-          const output = args.find((arg) => arg.startsWith('/out:'))
-          if (output !== undefined) {
-            await writeFile(output.slice('/out:'.length), 'fake test helper')
-            return ''
-          }
-          if (args[0] === '--self-test')
-            return JSON.stringify({ launch: true, query: true, power: 'unknown' })
-          if (args[0] === '--launch') {
-            launches += 1
-            return ''
-          }
-          return args[0] === '--task-state'
+      const native = fakeHelperDriver(directory, (args) => {
+        if (args[0] === '--launch') {
+          launches += 1
+          return Promise.resolve('')
+        }
+        return Promise.resolve(
+          args[0] === '--task-state'
             ? JSON.stringify({ state: 'unknown', lastExitCode: Number('0xc0000142') })
-            : ''
-        },
+            : '',
+        )
       })
       const launch = native.launch(
         { executable: 'worker', args: [], cwd: directory, requiredTools: [] },
         {},
+        attemptOf(request),
       )
       const refused = expect(launch).rejects.toMatchObject({
         detail: 'desktop-heap',
@@ -404,5 +478,192 @@ describe('M100/H worker host', () => {
       vi.useRealTimers()
       await rm(directory, { recursive: true, force: true })
     }
+  })
+  it('passes each simultaneous attempt only its own validated identity and caps', async () => {
+    const f = fixture()
+    const narrow = admittedRequest('1', 1)
+    const wide = admittedRequest('2', DEVICE_LIMITS.processes)
+    const second = Promise.withResolvers<unknown>()
+    vi.mocked(f.deps.driver.launch)
+      .mockResolvedValueOnce(f.job)
+      .mockResolvedValueOnce({ ...f.job, retirement: second.promise })
+    const attempts = await Promise.all([f.host.admit(narrow), f.host.admit(wide)])
+    await Promise.all(attempts.map((attempt) => attempt.start(boundary)))
+    // The fake driver records every launch's third argument.
+    const launched = vi.mocked(f.deps.driver.launch).mock.calls.map((call) => call[2])
+    expect(launched).toHaveLength(2)
+    for (const sent of [narrow, wide])
+      expect(
+        launched.filter((attempt) => attempt.identity.attemptId === sent.identity.attemptId),
+      ).toStrictEqual([attemptOf(sent)])
+    for (const attempt of launched) {
+      expect(Object.isFrozen(attempt)).toBe(true)
+      expect(Object.isFrozen(attempt.identity)).toBe(true)
+      expect(Object.isFrozen(attempt.caps)).toBe(true)
+    }
+    f.retired.resolve(success)
+    second.resolve(success)
+    expect(await Promise.all(attempts.map((attempt) => attempt.retirement))).toEqual([
+      { usage },
+      { usage },
+    ])
+  })
+  it('the Windows driver bounds each simultaneous job at its own admitted cap', async () => {
+    await inStorage(async (directory) => {
+      const written = new Map<string, number>()
+      const native = fakeHelperDriver(directory, async (args) => {
+        const [verb, operand] = args
+        if (verb === '--launch' && operand !== undefined) {
+          const sent = helperRequestSchema.parse(JSON.parse(await readFile(operand, 'utf8')))
+          written.set(sent.cwd, sent.maxProcesses)
+          await writeFile(path.join(path.dirname(operand), 'ready.json'), JSON.stringify(query))
+        }
+        if (verb === '--stop' && operand !== undefined)
+          await writeFile(
+            path.join(directory, 'device-workers', operand, 'result.json'),
+            JSON.stringify({ exitCode: 1, stdout: '', failure: 'none' }),
+          )
+        return ''
+      })
+      const launch = (cwd: string, sent: DeviceDispatch) =>
+        native.launch(
+          { executable: 'worker', args: [], cwd, requiredTools: [] },
+          {},
+          attemptOf(sent),
+        )
+      const jobs = await Promise.all([
+        launch('narrow', admittedRequest('1', 1)),
+        launch('wide', admittedRequest('2', DEVICE_LIMITS.processes)),
+      ])
+      expect(Object.fromEntries(written)).toEqual({ narrow: 1, wide: DEVICE_LIMITS.processes })
+      for (const job of jobs) {
+        await job.cancel()
+        await job.retirement
+        await job.remove()
+      }
+      expect(await readdir(path.join(directory, 'device-workers'))).toEqual([])
+    })
+  })
+  it.each([0, DEVICE_LIMITS.processes + 1])(
+    'the Windows driver refuses an admitted process cap of %s before any helper call',
+    async (processes) => {
+      await inStorage(async (directory) => {
+        const run = vi.fn(() => Promise.resolve(''))
+        const native = nativeDriver(directory, run)
+        await expect(
+          native.launch(
+            { executable: 'worker', args: [], cwd: directory, requiredTools: [] },
+            {},
+            { identity: request.identity, caps: { ...request.caps, processes } },
+          ),
+        ).rejects.toMatchObject({ reason: 'unsupported-host', detail: 'preflight' })
+        expect(run).not.toHaveBeenCalled()
+        expect(await readdir(directory)).toEqual([])
+      })
+    },
+  )
+  it('an admitted zero-process attempt is refused before launch or activation', async () => {
+    await inStorage(async (directory) => {
+      const f = fixture()
+      const verbs: string[] = []
+      const driver = fakeHelperDriver(directory, (args) => {
+        verbs.push(args[0] ?? '')
+        return Promise.resolve(args[0] === '--query' ? JSON.stringify(query) : '')
+      })
+      const attempt = await new DeviceWorkerHost({ ...f.deps, driver }).admit(
+        admittedRequest('1', 0),
+      )
+      await expect(attempt.start(boundary)).rejects.toMatchObject({
+        reason: 'unsupported-host',
+        message: UI_TEXT.devices.unsupportedHost,
+      })
+      expect(verbs).toEqual(['--query'])
+      expect(await attempt.retirement).toEqual({ refused: true, usage })
+    })
+  })
+  it.each([
+    [
+      'a failed helper self-test',
+      0,
+      (f: ReturnType<typeof fixture>) => {
+        vi.mocked(f.deps.driver.selfTest).mockResolvedValue(false)
+      },
+    ],
+    [
+      'a failed hook preflight',
+      0,
+      (f: ReturnType<typeof fixture>) => {
+        vi.mocked(f.deps.resolveTool!).mockImplementation((name) =>
+          name === 'gitleaks'
+            ? Promise.reject(new DeviceWorkerHostError('preflight'))
+            : Promise.resolve(name),
+        )
+      },
+    ],
+    [
+      'a scheduler startup heap failure at launch',
+      1,
+      (f: ReturnType<typeof fixture>) => {
+        vi.mocked(f.deps.driver.launch).mockRejectedValue(new DeviceWorkerHostError('desktop-heap'))
+      },
+    ],
+    [
+      'an unenforceable admitted cap at launch',
+      1,
+      (f: ReturnType<typeof fixture>) => {
+        vi.mocked(f.deps.driver.launch).mockRejectedValue(new DeviceWorkerHostError('preflight'))
+      },
+    ],
+  ])(
+    'the receiver journals %s as refused not-run work and releases it once',
+    async (_failure, launches, inject) => {
+      const f = fixture()
+      inject(f)
+      await throughReceiver(f.host, async (receiver, journal) => {
+        const signed = signedDispatch(request)
+        // A late failure cannot claim that admission never happened; the journal says what ran.
+        const reply = await receiver.dispatch(signed)
+        expect(reply.body).toEqual({ kind: 'failure', reason: 'uncertain' })
+        await vi.waitFor(() => {
+          expect(f.reservation.release).toHaveBeenCalledOnce()
+        })
+        const occupied = Object.fromEntries(Object.keys(request.caps).map((name) => [name, 0]))
+        expect(await journal.lookup(signed.identity)).toMatchObject({
+          kind: 'receiver-record',
+          outcome: { state: 'refused', occupied, usage },
+        })
+        expect(f.deps.driver.launch).toHaveBeenCalledTimes(launches)
+        expect(f.job.activate).not.toHaveBeenCalled()
+        const [reconciled] = await receiver.reconcile([signed.identity])
+        expect(reconciled?.body).toMatchObject({
+          kind: 'reconciled',
+          outcomes: [{ state: 'refused', usage }],
+        })
+      })
+    },
+  )
+  it.each([
+    [{ launch: true, query: true, power: 'unknown' }, false],
+    [{ ...selfTestAnswer, scheduler: 'qualified' }, false],
+    [selfTestAnswer, true],
+  ])('a helper self-test answer of %j is accepted: %s', async (answer, isAccepted) => {
+    const run: RunProgram = (_file, args) =>
+      Promise.resolve(args[0] === '--self-test' ? JSON.stringify(answer) : '')
+    await inStorage(async (directory) => {
+      // Only the in-process job probe is claimed; the scheduler is never reported as tested.
+      expect(await nativeDriver(directory, run, fakeCompile).selfTest()).toBe(isAccepted)
+    })
+  })
+  it("compiles with compileJob's own runner, never the frame-deadline helper runner", async () => {
+    await inStorage(async (directory) => {
+      const run = vi.fn<RunProgram>(() => Promise.resolve(JSON.stringify(selfTestAnswer)))
+      // No compiler at this system root: the default compiler fails closed without `run`.
+      expect(await nativeDriver(directory, run).selfTest()).toBe(false)
+      expect(run).not.toHaveBeenCalled()
+      const compile = vi.fn(fakeCompile)
+      expect(await nativeDriver(directory, run, compile).selfTest()).toBe(true)
+      expect(compile).toHaveBeenCalledOnce()
+      expect(run.mock.calls.map((call) => call[1][0])).toEqual(['--self-test'])
+    })
   })
 })

@@ -74,13 +74,30 @@ export interface DeviceWorkerJob {
   /** Remove only this attempt's task/unit/job after observed retirement. */
   remove(): Promise<void>
 }
+/** Only the host's validated request: never a peer-supplied unit, task or job property. */
+export type DeviceWorkerAttempt = Readonly<Pick<DeviceDispatch, 'identity' | 'caps'>>
+/** The admitted process ceiling an OS job/unit enforces; outside 1..protocol max is refused. */
+export function admittedProcessLimit(attempt: DeviceWorkerAttempt): number {
+  const limit = attempt.caps.processes
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > DEVICE_LIMITS.processes)
+    throw new DeviceWorkerHostError('preflight')
+  return limit
+}
 export interface DeviceWorkerDriver {
   readonly platform: NodeJS.Platform
+  /** The helper's containment probe passed; this is not a scheduler/service qualification. */
   selfTest(): Promise<boolean>
   query(): Promise<unknown>
+  /**
+   * Bounds the OS job/unit at `attempt.caps.processes`, refusing before activation when it cannot.
+   * Other caps travel for drivers that can enforce them; a driver given a cap it cannot enforce
+   * refuses with typed `unsupported-host`, never ignoring it. CPU and memory are not caps: the
+   * receiver's M107 resource governor owns them.
+   */
   launch(
     command: DeviceWorkerCommand,
     env: Readonly<Record<string, string>>,
+    attempt: DeviceWorkerAttempt,
   ): Promise<DeviceWorkerJob>
 }
 export interface DeviceWorkerReservation {
@@ -286,7 +303,12 @@ export class DeviceWorkerHost implements DeviceReceiverExecution {
           await this.deps.recordEnvironment(request, env)
           await boundary.beforeAction()
           if (isCancelled()) throw new DeviceWorkerHostError('helper')
-          job = await this.deps.driver.launch({ ...command, executable, args }, env)
+          // Each attempt's own validated identity and admitted caps; copies, so no driver edits them.
+          const attempt = Object.freeze({
+            identity: Object.freeze({ ...request.identity }),
+            caps: Object.freeze({ ...request.caps }),
+          })
+          job = await this.deps.driver.launch({ ...command, executable, args }, env, attempt)
           if (isCancelled()) throw new DeviceWorkerHostError('helper')
           const query = querySchema.parse(job.query)
           if (
@@ -309,8 +331,9 @@ export class DeviceWorkerHost implements DeviceReceiverExecution {
           if (error instanceof DeviceWorkerHostError && error.detail === 'desktop-heap')
             this.deps.pressure('desktop-heap')
           if (job === undefined) {
+            // No job/unit ever existed, so nothing ran: settle as refused, never as retired work.
             isObserved = true
-            retired.resolve({ usage: reservation.usage })
+            retired.resolve({ refused: true, usage: reservation.usage })
           } else {
             observation ??= observe(job)
             await job.cancel()
@@ -325,7 +348,7 @@ export class DeviceWorkerHost implements DeviceReceiverExecution {
         if (job !== undefined) await job.cancel()
         else if (!isStarted) {
           isObserved = true
-          retired.resolve({ usage: reservation.usage })
+          retired.resolve({ refused: true, usage: reservation.usage })
         }
       },
       release: async () => {

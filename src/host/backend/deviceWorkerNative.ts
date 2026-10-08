@@ -9,6 +9,7 @@ import { DEVICE_LIMITS, POSIX_TREE_EXIT_POLL_MS, SHELL_JOB_FOLDER } from '../../
 import { workerEnvironment } from '../../core/team/refFence'
 import { compileJob, jobFileName, type JobBuild } from './jobBuild'
 import {
+  admittedProcessLimit,
   DeviceWorkerHostError,
   parseDeviceWorkerQuery,
   type DeviceWorkerDriver,
@@ -31,10 +32,13 @@ const build: JobBuild = {
     }
   },
 }
+// The in-process job probe only: Task Scheduler launch and the session/station refusal are
+// exercised by each real launch, so the helper reports the scheduler as untested here.
 const selfTestSchema = z.strictObject({
-  launch: z.literal(true),
+  jobProbe: z.literal(true),
   query: z.literal(true),
   power: z.enum(['ac', 'battery', 'unknown']),
+  scheduler: z.literal('untested'),
 })
 const taskStateSchema = z.strictObject({
   state: z.enum(['running', 'unknown']),
@@ -72,7 +76,10 @@ export interface DeviceWorkerNativeDeps {
   readonly systemRoot: string
   readonly sourceFile: string
   readonly environment: NodeJS.ProcessEnv
+  /** Helper calls, bounded by the frame deadline. */
   readonly run?: RunProgram
+  /** The compiler; omitted, compileJob's own runner and its longer compiler deadline. */
+  readonly compile?: RunProgram
 }
 
 async function readBounded(file: string): Promise<unknown> {
@@ -116,7 +123,7 @@ export function deviceWorkerNative(deps: DeviceWorkerNativeDeps): DeviceWorkerDr
       const source = await readFile(deps.sourceFile, 'utf8')
       const target = path.join(deps.storageDir, SHELL_JOB_FOLDER, jobFileName(build, source))
       if (!(await build.isPresent(target)))
-        await compileJob(build, target, source, deps.systemRoot, deps.run)
+        await compileJob(build, target, source, deps.systemRoot, deps.compile)
       const answer: unknown = JSON.parse(await invoke(target, ['--self-test'], env))
       selfTestSchema.parse(answer)
       executable = target
@@ -146,7 +153,9 @@ export function deviceWorkerNative(deps: DeviceWorkerNativeDeps): DeviceWorkerDr
       }
       return total
     },
-    launch: async (command, environment): Promise<DeviceWorkerJob> => {
+    launch: async (command, environment, attempt): Promise<DeviceWorkerJob> => {
+      // Before any helper call or directory: the job's ActiveProcessLimit is this attempt's ceiling.
+      const maxProcesses = admittedProcessLimit(attempt)
       const id = randomUUID().replaceAll('-', '')
       const root = path.join(deps.storageDir, 'device-workers')
       const directory = path.join(root, id)
@@ -160,7 +169,7 @@ export function deviceWorkerNative(deps: DeviceWorkerNativeDeps): DeviceWorkerDr
         cwd: command.cwd,
         environment,
         outputBytes: DEVICE_LIMITS.frameBytes,
-        maxProcesses: DEVICE_LIMITS.processes,
+        maxProcesses,
         readyTimeoutMs: DEVICE_LIMITS.frameDeadlineMs,
         pollMs: POSIX_TREE_EXIT_POLL_MS,
       }

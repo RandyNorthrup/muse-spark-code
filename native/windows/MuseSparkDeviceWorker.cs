@@ -233,7 +233,8 @@ public static class MuseSparkDeviceWorker {
       Accounting info;
       do { Thread.Sleep(20); Check(QueryInformationJobObject(job, 1, out info, Marshal.SizeOf(typeof(Accounting)), IntPtr.Zero)); } while (info.Active != 0);
       uint code; Check(GetExitCodeProcess(child.Process, out code)); Check(code == 0);
-      Query(job, false); Console.WriteLine(Json.Serialize(new { launch = true, query = true, power = Power() }));
+      // Claims only this in-process job probe; the scheduler path is qualified per real launch.
+      Query(job, false); Console.WriteLine(Json.Serialize(new { jobProbe = true, query = true, power = Power(), scheduler = "untested" }));
     } finally {
       if (created && !assigned) TerminateProcess(child.Process, 3);
       if (child.Thread != IntPtr.Zero) CloseHandle(child.Thread);
