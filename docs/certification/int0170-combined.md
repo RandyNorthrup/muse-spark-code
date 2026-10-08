@@ -790,3 +790,90 @@ No `--testTimeout` on any verification run. At most 3 test files per run
 with `--maxWorkers=3`. Every gate above also ran in a fresh clone under
 `$TMPDIR` (`npm ci`, `CI=true`) with identical receipts; the clone was
 removed afterwards.
+
+## Paid consent (CONSENT017D)
+
+Linux rig, `rel017/consent4`, base `c7566e09b` (CONSENT017C tip). Final
+round per RVCONSENT017C: the **store port gives atomic operations**, so
+wiring `AccountPaidUseConsent` later is safe. `AccountPaidUseConsentDeps`
+(`src/core/paid/paidConsent.ts:860`) now declares `advanceEpoch(binding,
+expected)` (`:887`: compare-and-set to `expected + 1`, else
+`StaleEpochError`), `saveGrantIf(binding, epoch, grants)` (`:896`) and
+`saveQuoteGrantIf(binding, epoch, grant)` (`:921`), each with a JSDoc
+contract requiring the future production store to serialize them per
+binding (with the clears). Conflict failures throw exactly
+`StaleEpochError` (`:853`); any other failure keeps the previous behaviour
+(Allow once, honest revoke error). Consent code never reads-then-writes an
+epoch.
+
+- P2 #1 (`paidConsent.ts`, ask capture and final fence). The ask wrapper
+  captures the durable epoch before each popup into `askEpochs` (`:987`,
+  `:1134`); `rememberGrant` saves binding features under that epoch
+  (`:1117`) and every quote save uses the epoch its generation carries
+  (`:1068`). If the conditional save fails on a meanwhile revocation,
+  nothing is stored, and `allows()` fences the final decision against the
+  captured epoch (`:1158`), so no Allow-once downgrade approves after a
+  revocation.
+- P2 #2 (`:1167`). `revoke()` advances with `advanceEpoch` and retries only
+  by re-reading, so concurrent revokes produce strictly increasing epochs
+  and a delayed writer can never move the epoch backwards or republish an
+  older value. Its clear uses `saveGrantIf` under the new epoch; a
+  concurrent newer revoke owns the grants then. A failed clear still leaves
+  every older grant invalid.
+- P2 #3 (`:943`, `src/shared/constants.ts:114`). Durable quote generations
+  use `{ v: 2, epoch, hostGeneration }` (`ACCOUNT_QUOTE_GRANT_VERSION`);
+  `quoteGrantEpoch` accepts only that schema, so old `[counter,
+hostGeneration]` grants are refused as stale and asked again, and can
+  never match a durable epoch.
+- P3 (`test/unit/accountPaidConsent.test.ts:498`). The successful-clear
+  restart scenario approves on the same instance that revoked
+  (`approveSearchAndVoice(t, request, a)`).
+
+### Tests
+
+`test/unit/accountPaidConsent.test.ts` (28 tests: 23 kept, 1 fixed, 4
+new), all through the shared in-memory store with atomic check-and-write
+(no await between check and set) and simulated restarts. New: the held
+voice answer refused with nothing approved stored; the held voice write
+refused with nothing approved stored (covers the Allow-once downgrade);
+concurrent revokes with a delayed writer ending at epoch 2 with a restart
+asking and Deny honoured; the legacy-generation upgrade refused and asked
+again. Redundant race tails share `heldAnswerRevoked` and
+`expectRaceStoredNothing`, so jscpd reports only its two inherited clones.
+
+Red drills (default timeouts, `--maxWorkers=3`, reverted byte-exact via
+`git checkout`, tree verified clean and green after each): (A)
+read-then-write epoch (`rememberGrant` re-reads at save) — 1 failed / 27
+passed (the held-answer test); (B) no final-epoch fence — 2 failed / 26
+passed (both non-search race tests, proving the downgrade guard); (C)
+legacy array encoding restored — 1 failed / 27 passed (the legacy test
+only); (D) instance-local epoch (`durableEpoch()` returns
+`this.generation`) against the final test source — 6 failed / 22 passed,
+including the fixed same-instance restart test.
+
+### Gates (fresh clone under `$TMPDIR`, `npm ci`, `CI=true`)
+
+| Gate                                                 | Exit   | Receipt                                                                                                                                           |
+| ---------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `accountPaidConsent`                                 | 0      | 28 passed                                                                                                                                         |
+| `paidConsent`, `paidAuthority`                       | 0      | 52 passed                                                                                                                                         |
+| `paidDailyBudget`, `paidHookModels`, `paidHost`      | 0      | 87 passed                                                                                                                                         |
+| `paidMoneyPorts`, `paidPortBoundaries`, `acpPaid`    | 0      | 73 passed                                                                                                                                         |
+| `paidFeatures`, `schedulePaid`, `accountUsd`         | 0      | 62 passed                                                                                                                                         |
+| `accountHomes`, `accountFakes`, `accountHost`        | 0      | 73 passed                                                                                                                                         |
+| `accountPolicy`, `accountSecrets`, `accountStore`    | 0      | 110 passed                                                                                                                                        |
+| `accountUsage`, `accountUsageText`, `accounts`       | 0      | 44 passed                                                                                                                                         |
+| `accountsCommand`, `accountsPanelHost`               | 0      | 43 passed                                                                                                                                         |
+| `accountsPanel`, `accountsPanel.a11y`                | 0      | 26 passed, 34 skipped (Chrome launches, axe cases skip: no usable browser on this rig)                                                            |
+| `accountUsageBundle`                                 | 1      | 1 failed, the inherited `src/shared/usd.ts` static-graph case; fails identically on base `c7566e09b` in the same clone, so unrelated to this lane |
+| Five typechecks                                      | 0 each | host, webview, unit, e2e, integration                                                                                                             |
+| eslint `--max-warnings=0`, prettier on changed files | 0      |                                                                                                                                                   |
+| Plain knip                                           | 0      | configuration hints only                                                                                                                          |
+| Full jscpd                                           | 1      | exactly the two inherited clones, zero threshold unchanged                                                                                        |
+| `check:l10n`                                         | 0      | zero problems                                                                                                                                     |
+
+No `--testTimeout` was used on any run. At most 3 test files per run with
+`--maxWorkers=3`. The worktree shows identical receipts; the clone was
+removed afterwards. No `check:reference` change (no reference surface
+touched). The store-port contract was added to PLAN §9's lane P
+prerequisites (FIXM108P-PROFILE-OWNER).
