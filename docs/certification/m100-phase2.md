@@ -1863,16 +1863,26 @@ lifecycle selection is **97 passed** at repository deadlines. The existing
 live-membership and identity-substitution proofs remain intact. No timeout,
 assertion, cap, ignore or gate was weakened.
 
-| Base / guard-fire proof                                                                 | Receipt                                                                                                                                                                                                                     |
-| --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Final lifecycle and native bootstrap regressions with production bytes from `78e72664f` | **Exit 1: 88 failed, 10 passed, 356 filtered**, **8.85 s**. All 7 focused lifecycle regressions and the native regression fail; 80/90 table cells fail. The 10 passing cells preserve behavior already correct on the base. |
-| Expanded base proof, including every spawn-table cleanup/query assertion                | **Exit 1: 171 failed, 239 passed, 44 filtered**. Lifecycle table **80 failed / 10 passed**; spawn table **83 failed / 229 passed**; focused lifecycle/native regressions **8 failed**.                                      |
-| Infer pre-ready reclamation from `ready.json` again                                     | **Exit 1: 1 failed, 453 filtered**, **0.867 s**; bootstrap-pressure recovery leaves the original attempt.                                                                                                                   |
-| Let query visit a non-running record                                                    | **Exit 1: 1 failed, 453 filtered**, **0.890 s**; pending pre-ready query reads an ineligible attempt.                                                                                                                       |
-| Map print 113 back to helper                                                            | **Exit 1: 1 failed, 453 filtered**, **0.967 s**; absent running-service query rejects instead of reporting absence.                                                                                                         |
+| Base / guard-fire proof                                                           | Receipt                                                                                                                                                                                                                     |
+| --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lifecycle and native bootstrap regressions with production bytes from `78e72664f` | **Exit 1: 88 failed, 10 passed, 356 filtered**, **8.85 s**. All 7 focused lifecycle regressions and the native regression fail; 80/90 table cells fail. The 10 passing cells preserve behavior already correct on the base. |
+| Expanded base proof, including every spawn-table cleanup/query assertion          | **Exit 1: 171 failed, 239 passed, 44 filtered**, **39.34 s wall**. Lifecycle table **80 failed / 10 passed**; spawn table **83 failed / 229 passed**; focused lifecycle/native regressions **8 failed**.                    |
+| Infer pre-ready reclamation from `ready.json` again                               | **Exit 1: 1 failed, 453 filtered**, **1.610 s wall**; bootstrap-pressure recovery leaves the original attempt.                                                                                                              |
+| Let query visit a non-running record                                              | **Exit 1: 1 failed, 453 filtered**, **1.577 s wall**; pending pre-ready query reads an ineligible attempt.                                                                                                                  |
+| Map print 113 back to helper                                                      | **Exit 1: 1 failed, 453 filtered**, **1.638 s wall**; absent running-service query rejects instead of reporting absence.                                                                                                    |
 
-Every mutation was restored in finally, byte-exact SHA-256:
-`45d17e19439080d7ae8bd9f3e39a2728db41873d861532cccab880064f0875cf`.
+The shared spawn-errno table generates the native helper's C capacity predicate.
+The filesystem ETIMEDOUT classification therefore lives only in `attemptFailure`,
+as a typed retryable timeout. Final source's shared errno table and complete
+helper template compare byte-exact to `78e72664f`; no generated native behavior
+changes. The timeout-kind regression against checkpoint `62166126b` exits **1**:
+**8 failed, 10 passed, 436 filtered**, **3.16 s wall**. All eight filesystem timeout
+cells see the wrong spawn kind on that checkpoint. Restored final lifecycle
+selection: **exit 0, 97 passed, 357 filtered**, **11.20 s**. The final-source native
+bootstrap/count-pressure/lifecycle selection is **100 passed** at default deadlines.
+
+Final-source mutations were restored in finally, byte-exact SHA-256:
+`a2c379d200c61a3021eacb41488d353c0618fa8edd9138635cc2a8c70f742178`.
 Local host/unit compiler projects, changed-source ESLint and plain jscpd pass;
 jscpd reports zero clones after sharing native pressure-fixture construction.
 Full quality and installed cross-platform qualification remain W's required

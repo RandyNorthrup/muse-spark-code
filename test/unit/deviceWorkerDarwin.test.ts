@@ -512,6 +512,8 @@ describe('M100/H attempt lifecycle', () => {
           error:
             site === 'retirement-print' ? { reason: 'uncertain', cause: { detail } } : { detail },
         })
+        if (isFilesystem && failure.delivery === 'timeout')
+          expect(outcome).toMatchObject({ error: { kind: 'timeout', isRetryable: true } })
         fixture.disableFailure()
         const isRetryable = kind === 'ordinary' || failure.retryable || site === 'retirement-print'
         if (isRetryable) {

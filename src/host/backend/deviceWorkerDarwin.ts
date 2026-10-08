@@ -33,7 +33,6 @@ import {
 const spawnErrnos: Readonly<Record<string, 'capacity' | 'helper' | undefined>> = {
   EAGAIN: 'capacity',
   ENOMEM: 'capacity',
-  ETIMEDOUT: 'capacity',
   EMFILE: 'capacity',
   ENFILE: 'capacity',
   ENOENT: 'helper',
@@ -310,9 +309,12 @@ function attemptFailure(error: unknown): DeviceWorkerHostError {
   if (error instanceof DeviceWorkerHostError) return error
   // Filesystem errno carries retry evidence; a generic validation/preflight
   // exception does not establish transient OS pressure.
-  return typeof error === 'object' && error !== null && 'code' in error
-    ? spawnFailure(error)
-    : new DeviceWorkerHostError('helper')
+  if (typeof error === 'object' && error !== null && 'code' in error) {
+    return error.code === 'ETIMEDOUT'
+      ? new DarwinProgramError('timeout', 'capacity', true)
+      : spawnFailure(error)
+  }
+  return new DeviceWorkerHostError('helper')
 }
 
 /** The driver's only process-start boundary, including the early Aqua reader. */
