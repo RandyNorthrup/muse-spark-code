@@ -350,9 +350,21 @@ failures are exactly the new/strengthened status tests (the switch-path
 pair, the session-publish test, the first-announcement status assertion);
 every pre-existing test passes on the base.
 
-### Verification (fresh clone, `npm ci`, `CI=true`, default timeouts)
+### Verification (fresh clone `/tmp/fixm100d3-verify`, `npm ci`, `CI=true`, default timeouts)
 
-Recorded after the final commit below; same gate list as round 2.
+- Owning `deviceQrInvite`, `deviceMdns`, `deviceDiscoverySwitch` three
+  times: 30 passed each time. Neighbors `deviceStore`, `deviceDiscovery`,
+  `devicePairingAdapter` (worktree): 78 passed.
+- `npm run typecheck` (host, webview, unit, e2e, integration): exit 0.
+- `npm run lint:js` (full tree, `--max-warnings=0`): exit 0.
+- `npx prettier --check` on all seven changed files: clean.
+- Plain `knip`: exit 0 (two pre-existing configuration hints only).
+  `jscpd`: 0 clones.
+- `npm run check:reference`: current (Devices reference 18 entries).
+  `node scripts/check-l10n.mjs`: 14 tables, 0 problems. `node
+scripts/check-host-api.mjs`: 0 problems.
+- `npm run build`: `dist/devices.js` 88.9 KiB against its 100 KiB cap,
+  caps otherwise unchanged.
 
 ## Lane 0 re-review (RVM100P2L0B): the byte cap counts UTF-8 bytes
 
