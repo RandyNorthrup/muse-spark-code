@@ -194,7 +194,7 @@ describe('report history', () => {
       if (process.platform === 'win32') {
         const commands = vi
           .mocked(ResourceAdmission.execResourceFile)
-          .mock.calls.flatMap((call) => call[1])
+          .mock.calls.flatMap((call) => call[2])
           .join(' ')
         expect(commands).toContain('[Diagnostics.Process]::GetProcessById')
       }

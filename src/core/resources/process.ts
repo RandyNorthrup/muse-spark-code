@@ -74,7 +74,24 @@ function admitProfile(
   return admitResource('other', signal, profile === 'handoff' ? 'background' : undefined)
 }
 
-/** Observe the root's exit; abort stops what the profile owns. */
+/** Cancel or deadline stops what the profile owns, until the root's `until` event. */
+function stopOnAbort(
+  child: ChildProcess,
+  resource: ResourceLease,
+  signal: AbortSignal | undefined,
+  stop: () => Promise<void>,
+  until: 'exit' | 'close',
+): void {
+  const abort = () => {
+    resource.failed?.()
+    void stop().catch(() => resource.failed?.())
+  }
+  signal?.addEventListener('abort', abort, { once: true })
+  child.once(until, () => signal?.removeEventListener('abort', abort))
+  if (signal?.aborted === true) abort()
+}
+
+/** Observe a root-only profile's exit; abort stops that root. */
 function observe(
   child: ChildProcess,
   resource: ResourceLease,
@@ -90,13 +107,7 @@ function observe(
     resource.failed?.()
     resource.complete(isTreeGoneAtExit || child.pid === undefined)
   })
-  const abort = () => {
-    resource.failed?.()
-    void stop().catch(() => resource.failed?.())
-  }
-  signal?.addEventListener('abort', abort, { once: true })
-  child.once('exit', () => signal?.removeEventListener('abort', abort))
-  if (signal?.aborted === true) abort()
+  stopOnAbort(child, resource, signal, stop, 'exit')
 }
 
 function spawnInteractive(
@@ -237,13 +248,7 @@ async function spawnPiped(
     child.once('exit', () => {
       void stop().catch(() => resource.failed?.())
     })
-    const abort = () => {
-      resource.failed?.()
-      void stop().catch(() => resource.failed?.())
-    }
-    signal?.addEventListener('abort', abort, { once: true })
-    child.once('close', () => signal?.removeEventListener('abort', abort))
-    if (signal?.aborted === true) abort()
+    stopOnAbort(child, resource, signal, stop, 'close')
   }
   const { stdin, stdout, stderr } = child
   if (stdin === null || stdout === null || stderr === null) {

@@ -4901,7 +4901,13 @@ results and what is still open.
 
 M107's integration candidate adds one portable governor per harness process.
 It is on by default and loads on the first governed launch. It delays new
-background work when the machine is busy; running work continues. The governor
+background work when the machine is busy; running work continues. At pause, new
+background launches and containment-helper builds are refused at once with
+`Resources: Paused`, the words `muse-spark-code-acp resources status` prints.
+Every launch names its lifetime: `login` runs in your terminal; browser and
+clipboard hand-offs wait up to ten seconds for the OS adapter, discard its
+output and never stop the browser it opened; CLI shutdown stops the work it
+started. As policy, the governor
 never kills or suspends a process, never imposes a hard memory limit, and never
 controls your own terminals, editor or other applications. Model requests,
 Tab, approvals, paid consent and Stop do not wait for it. It does not change

@@ -14,18 +14,23 @@ import { removeFolder } from './helpers/temporaryFolders'
 
 vi.mock('node:child_process', { spy: true })
 
+/** Binds global process admission to the fixture's runtime queue, as `run()` does. */
+function bindRuntime(host: Awaited<ReturnType<typeof runtimeResources>>['host']) {
+  return lazyRuntimeResources({
+    distDir: path.resolve('dist'),
+    machineDir: process.cwd(),
+    sleep: () => Promise.resolve(),
+    log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    onError: vi.fn(),
+    loadBundle: () => ({ createResources: () => Promise.resolve(host) }),
+  })
+}
+
 describe('runtime global admission', () => {
   it('uses the runtime queue for process work and refuses heavy bootstrap work at pause', async () => {
     const fixture = await runtimeResources()
     const admits = vi.spyOn(fixture.host, 'admit')
-    const resources = lazyRuntimeResources({
-      distDir: path.resolve('dist'),
-      machineDir: process.cwd(),
-      sleep: () => Promise.resolve(),
-      log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-      onError: vi.fn(),
-      loadBundle: () => ({ createResources: () => Promise.resolve(fixture.host) }),
-    })
+    const resources = bindRuntime(fixture.host)
     try {
       const lease = await admitBootstrap()
       expect(admits).toHaveBeenCalledWith(
@@ -110,14 +115,7 @@ describe('runtime global admission', () => {
       .spyOn(fixture.sampler, 'sample')
       .mockImplementation(() => Promise.withResolvers<never>().promise)
     const admits = vi.spyOn(fixture.host, 'admit')
-    const resources = lazyRuntimeResources({
-      distDir: path.resolve('dist'),
-      machineDir: process.cwd(),
-      sleep: () => Promise.resolve(),
-      log: { trace: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-      onError: vi.fn(),
-      loadBundle: () => ({ createResources: () => Promise.resolve(fixture.host) }),
-    })
+    const resources = bindRuntime(fixture.host)
     const signal = AbortSignal.timeout(100)
     try {
       await expect(admitBootstrap(signal)).rejects.toMatchObject({ name: 'TimeoutError' })

@@ -301,7 +301,7 @@ const conversationOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const sharingRuntimeOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, sharedWire, sharedResourceAdmission],
   entryPoints: [SHARING_RUNTIME_ENTRY],
   outfile: SHARING_RUNTIME_OUTFILE,
   platform: 'node',

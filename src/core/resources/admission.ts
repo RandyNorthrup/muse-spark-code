@@ -4,7 +4,6 @@ import type {
   ResourceLaunchProfile,
   ResourceProcessOptions,
   ResourceInteractiveProcess,
-  ResourceHandoffProcess,
   ResourcePipedProcess,
 } from './launch'
 import type { ResourceLaunchHost } from './launchHost'
@@ -20,19 +19,16 @@ const state: {
   isDisposed: boolean
 } = { isDisposed: false }
 
-/** Portable process launch lives in the existing first-use governor bundle. */
+/**
+ * Portable process launch lives in the existing first-use governor bundle.
+ * Hand-offs go through handoffResourceFile, the one hand-off entry point.
+ */
 export async function spawnResourceProcess(
   profile: 'interactive',
   file: string,
   args: readonly string[],
   options: ResourceProcessOptions,
 ): Promise<ResourceInteractiveProcess>
-export async function spawnResourceProcess(
-  profile: 'handoff',
-  file: string,
-  args: readonly string[],
-  options: ResourceProcessOptions,
-): Promise<ResourceHandoffProcess>
 export async function spawnResourceProcess(
   profile: 'contained' | 'bootstrap',
   file: string,
@@ -41,16 +37,14 @@ export async function spawnResourceProcess(
   extraDescriptors?: readonly number[],
 ): Promise<ResourcePipedProcess>
 export async function spawnResourceProcess(
-  profile: ResourceLaunchProfile,
+  profile: Exclude<ResourceLaunchProfile, 'handoff'>,
   file: string,
   args: readonly string[],
   options: ResourceProcessOptions,
   extraDescriptors: readonly number[] = [],
-): Promise<ResourceInteractiveProcess | ResourceHandoffProcess | ResourcePipedProcess> {
+): Promise<ResourceInteractiveProcess | ResourcePipedProcess> {
   const bundle = await import('./resourceGovernorEntry.js')
-  if (profile === 'interactive')
-    return await bundle.spawnResourceProcess(profile, file, args, options)
-  return profile === 'handoff'
+  return profile === 'interactive'
     ? await bundle.spawnResourceProcess(profile, file, args, options)
     : await bundle.spawnResourceProcess(profile, file, args, options, extraDescriptors)
 }

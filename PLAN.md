@@ -1,5 +1,21 @@
 # PLAN — Muse Spark for VS Code (unofficial)
 
+**SPAWN017C redesign (2026-10-08, win11).** Replace implicit portable launch
+lifetime with explicit contained, handoff, interactive and bootstrap profiles.
+Contained work owns its tree through shutdown; handoff owns only its OS
+adapter (ten-second named deadline, output to the null device, root-only
+stop); interactive work inherits the terminal and remains in its session.
+Pause refuses bootstrap/background admission immediately with the governor's
+status words, without compiler fallback or a second vault attempt. The
+caller deadline includes runtime sampling without cancelling the shared
+sample. A checked-in, mechanically checked inventory covers all source
+process sites and proves test-only reachability. Qualify regressions against
+fb0b12aa3, four red drills and scoped gates at repository timeouts; record
+receipts in int0170-combined.md and the threat model. Git ref
+reading/created-file publication belongs to another lane.
+Aggregate quality and unrelated bundle caps remain with the lead; no hook,
+threshold, dependency, merge, push, credential or live-model changes.
+
 **SPAWN017B cold-probe finding (2026-10-08).** The third complete-file idle
 replay fails before lock admission because PowerShell's Get-Process discovery
 consumes the unchanged birth-probe bound. Read the same OS birth identity

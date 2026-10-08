@@ -9,6 +9,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Every governed launch names its lifetime: contained work, OS hand-offs
+  (browser openers, clipboard programs, now including `share` and
+  `prompts share`), terminal `login` and helper builds. CLI shutdown stops the
+  work it started; a hand-off waits up to ten seconds for the OS adapter and
+  never stops the browser it opened; `login` runs in your terminal, so Ctrl+C
+  reaches it. At resource pause, helper builds and background launches are
+  refused at once with `Resources: Paused` instead of waiting out a deadline,
+  and the first Windows shell command no longer falls back to "job objects
+  unavailable". Admission deadlines now include machine sampling. A source
+  guard fails on any process launch missing from the checked-in inventory.
+
 - Containment-helper compilation uses heavy bootstrap admission, bounded
   output and whole-tree deadline/cancellation. Runtime commands bind global
   admission; login and browser processes use governed launch. Windows report

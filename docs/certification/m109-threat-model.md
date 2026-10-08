@@ -18,6 +18,44 @@ as documented in processTree.ts; compiled payload helpers use jobs instead.
 
 Research: [82-source recheck and corrections](m109-research-check.md).
 
+SPAWN017C makes launch lifetime explicit: every governed launch names one
+profile (`src/core/resources/process.ts`), and no call site chooses
+`detached`, `stdio` or `shell`.
+
+- `contained` (payloads, tools, helpers): pipes, its own POSIX process group
+  (session) or a Windows job. Cancel, deadline, root exit and host disposal
+  stop the whole tree; disposal kills, it never only releases the lease.
+- `handoff` (OS openers and clipboard programs): background admission, so a
+  pause refuses it at once. Its output goes to the null device, so nothing is
+  buffered and a browser the OS starts never holds the CLI's pipes. It gets
+  the caller's environment, never the lease's temporary root, which is
+  cleaned up after the lease while the browser lives on. The
+  RESOURCE_HANDOFF_TIMEOUT_MS deadline covers admission and the adapter's
+  run; at the deadline only the adapter root is killed. It is waited for by
+  its own exit; what it opened belongs to the user and is never stopped.
+- `interactive` (`muse login`): inherited stdio in the terminal's own
+  session, group and TTY, so Ctrl+C and the terminal reach it; its exit is
+  observed and the root is killed if the CLI shuts down first.
+- `bootstrap` (compilers that build the containment helpers, and the
+  governor's own fixed, bounded, credential-free probes and emergency
+  terminators): these cannot be admitted through the helpers they build or
+  verify, nor queue behind the pause they must outlast. Compilers keep heavy
+  background admission, pipes, a deadline, one combined output cap and OS
+  whole-tree termination.
+
+Pause refuses bootstrap and background admission immediately with the
+governor's own status words (`Resources: Paused`). The shell's job helper
+and the vault builder pass that refusal on: neither treats it as "job
+objects unavailable", falls back to taskkill, or tries a second vault
+storage location. The runtime admission deadline is armed before the bundle
+load, settings read and sampler refresh; the caller's signal ends its own
+wait without cancelling the shared sample. The inventory guard
+(`spawnInventory.test.mjs`) parses every source file, aliases, delegated
+calls and embedded supervisor code; a site missing from
+`spawn-inventory.json` fails it, and each `test-only` entry is proved
+unreachable from production, transitively. Receipts are in the combined
+certification; the POSIX session/group/TTY proof ran on Kubuntu.
+
 ## Trust boundaries
 
 The model and its tool arguments are untrusted. The host registers only
