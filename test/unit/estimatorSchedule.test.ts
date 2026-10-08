@@ -19,6 +19,16 @@ function runSample(duration: number, lane = scheduleLane('A')) {
   )
 }
 
+function ciLanes(ids: readonly string[]) {
+  return ids.map((id) => {
+    const lane = scheduleLane(id)
+    lane.resources.ciId = 'ci-1'
+    lane.resources.ciJobs = amount(1)
+    lane.resources.ciMinutes = amount(10)
+    return lane
+  })
+}
+
 /** A single-slot fleet whose only account quota expired long ago. */
 function expiredQuotaFleet(): FleetSnapshot {
   const fleet = scheduleFleet(1)
@@ -211,12 +221,7 @@ describe('M117 resource list scheduling', () => {
   })
 
   it('reserves CI jobs including occupied jobs and refuses an exhausted minutes budget', () => {
-    const lanes = [scheduleLane('A'), scheduleLane('B')]
-    for (const lane of lanes) {
-      lane.resources.ciId = 'ci-1'
-      lane.resources.ciJobs = amount(1)
-      lane.resources.ciMinutes = amount(10)
-    }
+    const lanes = ciLanes(['A', 'B'])
     const fleet = scheduleFleet()
     fleet.ci[0]!.occupiedJobs = 1
     expect(prepareEstimateSchedule(lanes, fleet).run().finishHours).toBe(2)
@@ -236,12 +241,7 @@ describe('M117 resource list scheduling', () => {
   })
 
   it('refreshes failed-placement boundaries after every assignment and sampled run', () => {
-    const lanes = ['A', 'B', 'C'].map((id) => scheduleLane(id))
-    for (const lane of lanes) {
-      lane.resources.ciId = 'ci-1'
-      lane.resources.ciJobs = amount(1)
-      lane.resources.ciMinutes = amount(10)
-    }
+    const lanes = ciLanes(['A', 'B', 'C'])
     const fleet = scheduleFleet()
     fleet.ci[0]!.occupiedJobs = 1
     const scheduler = prepareEstimateSchedule(lanes, fleet)

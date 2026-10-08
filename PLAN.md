@@ -19140,6 +19140,9 @@ before completion. No push, rebase, model calls or fabricated native artifacts.
       Maintain the same maximum assigned end incrementally and reuse a single
       date for the existing overflow checks. Preserve gap, quota and date guards
       and verify the complete resource scheduler alongside the performance suite.
+      The fresh static job catches a duplicated seven-line CI fixture in the
+      new regression; share that test-only lane setup, retaining every input,
+      assertion and the unchanged zero-duplication threshold.
       The standalone accounts accessibility build still pulls the complete
       Models panel, vault, team and keybinding schemas through its account slice
       import (78.6 / 25 KiB). Move the existing captured account projection into
