@@ -127,18 +127,7 @@ export const EN = {
   modelApiStatusUnavailable: 'Status unavailable',
   modelApiStatusOpen: 'Open service status',
   modelApiServiceFailure: 'The service returned an error. Check its status or try again.',
-  feedbackTitle: 'Send feedback to Muse Code',
-  feedbackClassification: 'Classification',
-  feedbackNote: 'Note',
-  feedbackWithFiles: 'Include files',
-  feedbackAttachSessionRecord: 'Include session record',
-  feedbackPrivacy:
-    'Muse Code uploads your classification and note. Files and the session record are included only when selected.',
-  feedbackSend: 'Send feedback',
-  feedbackSending: 'Sending feedback…',
-  feedbackSubmitted: 'Feedback submitted.',
   feedbackFailed: 'Could not submit feedback.',
-  feedbackResult: 'Muse Code returned: {result}',
   // M102: the shared usage page; its full table is a separate lazy family.
   usagePageTitle: 'Usage & cost',
   paletteUsagePage: 'Track cost, tokens and limits across editors.',

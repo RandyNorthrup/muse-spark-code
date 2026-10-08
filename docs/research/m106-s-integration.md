@@ -95,6 +95,15 @@ document that separately from remote uploads. Captured privacy notes should
 be shown if the receipt supplies them; no private bundle path needs to
 leave the host. This is a manual feedback action, not a paid model call.
 
+**0.16.0 review (FIX0160RVA, 2026-10-07).** No production module mounted the
+dialog and S1's receipt reader is still absent, so `FeedbackDialog.tsx`, its
+test, its ten dialog-only strings and Help's **Send feedback to Muse Code**
+entry were removed. `feedback.ts`, `MuseCodeHost.submitFeedback`/
+`previewFeedbackNote` and `feedbackFailed` remain and still refuse before
+dispatch. S3 restores the dialog from `54f5f9d06` together with its lazy
+turn-menu entry, the zod bridge, the strings in every table, the classification
+labels and the Help entry, and only after S1 supplies the captured reader.
+
 ## S4 — Bind History deletion and terminal refresh
 
 Supply `HistoryDialog.onDelete` only for Muse Code with the lifecycle

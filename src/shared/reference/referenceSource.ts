@@ -72,10 +72,7 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
     id,
     ['vscode:modelApi'],
   ]),
-  ...['native-feedback', 'native-deletion'].map((id): [string, readonly string[]] => [
-    id,
-    ['vscode:museCode'],
-  ]),
+  ['native-deletion', ['vscode:museCode']],
   ['output-schema', ['acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['usage', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],

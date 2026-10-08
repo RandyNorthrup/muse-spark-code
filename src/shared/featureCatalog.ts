@@ -26,7 +26,6 @@ export type ReferenceText =
 const UI_CONDITIONS: Readonly<
   Partial<Record<Extract<PlainReferenceText, { ui: unknown }>['ui'], string>>
 > = {
-  feedbackPrivacy: 'feedbackCapture&feedbackCapability',
   referenceNativeAgentsConditions: 'run.subagent_delegation_mode',
   resourceCpuMaxPercentDescription: 'resourceCpuThreshold',
   resourceMemoryMaxPercentDescription: 'resourceMemoryThreshold',
@@ -498,15 +497,6 @@ export function featureCatalog(): readonly Feature[] {
       [],
       'agent-loop-guarantees',
       ['modelApi'],
-    ),
-    feature(
-      'native-feedback',
-      { ui: 'feedbackTitle' },
-      { ui: 'feedbackPrivacy' },
-      [],
-      [],
-      'agent-loop-guarantees',
-      ['museCode'],
     ),
     feature(
       'native-deletion',
