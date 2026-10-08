@@ -5246,3 +5246,48 @@ Files changed: `src/host/devices/deviceWorkerHost.ts`,
 `DeviceWorkerLaunch`; only `DeviceWorkerHost` should call it. Carry an
 Unreleased CHANGELOG line that a failed device-worker launch is now refused only
 with proof and otherwise held as uncertain until its driver reclaims it.
+
+### RVM100JFIX Linux repairs (2026-10-08)
+
+Codex review RVM100JFIX of `a4007f56c..c828a76f0` found no P1 and confirmed the
+host/receiver contract and fixtures. Its two P2s, both in
+`src/host/backend/deviceWorkerLinux.ts`, are fixed in **`cc7d17b62`**. Model
+attempts **0**, inference spend **0**; no push.
+
+1. **An uncertain launch lost its slot through the retirement observer.** The
+   observer starts before launch completes. When the final query failed and
+   cleanup could not prove the worker unit gone, releasing the inhibitor
+   rejected the observer, whose catch called `releaseSlot()`; 129 unresolved
+   attempts were admitted against the 128 cap. The slot now belongs to the
+   attempt's lifecycle: only `remove()` after observed retirement, or a proved
+   refusal in `failed()` (`:419`, which also drops the unit from `jobs`, `:426`),
+   releases it. The observer's catch no longer does (`:554`). A launched job
+   whose retirement is unproved keeps its slot until local recovery, like any
+   other unresolved attempt.
+2. **Absent units were taken as reclamation while the launcher could still
+   submit its unit.** A failed launch now stops the worker's `systemd-run`
+   client without activating it, observes it closed and exited (or never
+   spawned) within the frame deadline (`isLauncherTerminal`, `:498`;
+   `hasLauncherEnded`, `:502`), and only then asks the manager whether both
+   units are gone (`:600`). Until both hold, the launch is `uncertain` and keeps
+   its slot.
+
+| Regression (`deviceWorkerLinux.test.ts`)                                                    | Proves                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `:385` a never-activated unit left unproved (before / after its retirement observer exists) | The reviewer's 129-launch probe: readiness passes, the final query cannot read `cgroup.procs`, Stop is refused. All 128 results are `uncertain` with no `reclaimed`; the 129th is refused for capacity before any start. The earlier table row keeps the pre-observer case. |
+| `:406` absent units after a failed readiness query                                          | The reviewer's stream and manager probe: the first readiness query fails, Stop is refused, the manager then shows both units gone. With the launcher still running the result is `uncertain`; once it ends, `refused`. No activation is sent in either case.                |
+
+| Base proof and drills (Windows host, `--maxWorkers=3`, default timeouts, file restored byte-exact) | Result                                                                                                                                                                                              |
+| -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Driver from `c828a76f0` under the new tests                                                        | **Exit 1, 3 failed**: the 129th launch is admitted (`uncertain`), the stuck launcher gives `refused`, and the control never stops its launcher. The pre-observer row still passes, as on that base. |
+| Observer releases the slot again                                                                   | **Exit 1, 1 failed**: the post-observer slot case.                                                                                                                                                  |
+| Absence refused without the launcher proof                                                         | **Exit 1, 2 failed**: the stuck launcher is refused, and the control never stops its launcher.                                                                                                      |
+| Restored final source                                                                              | **Exit 0**, 4 passed.                                                                                                                                                                               |
+
+Kubuntu rig, natively: `deviceWorkerLinux`, `deviceWorkerHostNative` and
+`deviceWorkerHost` **exit 0, 90 passed, 7 Windows-only skipped**, all **13
+native Linux** cases included; the final committed tree again **34/34** for
+`deviceWorkerLinux`. Production build there **exit 0**, `dist/devices.js`
+**102.5 / 125 KiB**. On the committed tree: host and unit typechecks, plain
+knip, cycles and `check:host-api` **exit 0**; ESLint `--max-warnings=0`,
+Prettier and jscpd (**0 clones**) **exit 0**; the installed hooks passed.
