@@ -278,6 +278,13 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     'pageWorker',
     'usageService',
     'usageCompanion',
+    'judgeP2',
+    'judgeSources',
+    'judgeLint',
+    'judgeHook',
+    'judgeLocal',
+    'judgeUses',
+    'validationSchema',
   ]) {
     cpSync(path.join(BUILD_ROOT, 'dist', `${bundle}.js`), path.join(dir, 'dist', `${bundle}.js`))
   }
@@ -289,8 +296,13 @@ for (const file of ['acp.js', 'modelApi.js', 'modelApiBoundaries.js', 'team.js',
     path.join(BUILD_ROOT, 'dist/providerCatalog.js'),
     path.join(dir, 'dist/providerCatalog.js'),
   )
-  for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs']) {
+  for (const file of ['MuseSparkJob.cs', 'MuseSparkMcpJob.cs', 'MuseSparkLocalJudgePeer.cs']) {
     writeFileSync(path.join(dir, 'native', 'windows', file), '// test-owned native fixture\n')
+  }
+  for (const file of ['linux/MuseSparkLocalJudgePeer.c', 'darwin/muse-local-judge-peer']) {
+    const destination = path.join(dir, 'native', file)
+    mkdirSync(path.dirname(destination), { recursive: true })
+    writeFileSync(destination, '// test-owned native fixture\n')
   }
   cpSync(path.join(ROOT, 'src/shared'), path.join(dir, 'src/shared'), { recursive: true })
   mkdirSync(path.join(dir, 'src/core/judge'), { recursive: true })
@@ -749,6 +761,14 @@ function result(stdout: string): ExecResult {
 describe('M80 E1-E7 built exec', { timeout: TIMEOUT }, () => {
   beforeAll(async () => {
     if (INSTALLED === undefined) {
+      // These headless rows never start a local judge. Supply its inactive
+      // macOS package member only in this private fixture; native peer suites
+      // own the compiled helper, and real packaging still requires that artifact.
+      const inactivePeer = path.join(BUILD_ROOT, 'native/darwin/muse-local-judge-peer')
+      if (!existsSync(inactivePeer)) {
+        mkdirSync(path.dirname(inactivePeer), { recursive: true })
+        writeFileSync(inactivePeer, 'test-owned inactive local judge fixture\n')
+      }
       packageImagePreload(PACKAGE_PRELOAD, BUILD_ROOT, PACKAGE_IMAGES)
       const packed = command(
         path.join(BUILD_ROOT, 'scripts', 'package-acp.mjs'),
