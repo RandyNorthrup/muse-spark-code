@@ -75,3 +75,113 @@ The re-review confirmed the six fixes and found one P2: `deviceCapabilitySchema`
 - Test: "counts the byte cap in UTF-8 bytes, not string length" (string length under the cap, UTF-8 bytes over it, parse refused); the existing fixture check now measures UTF-8 bytes.
 - Drill: with the previous schema the new test fails (1 failed, 35 passed); with the fix 36 passed. `devicePhase2Contracts` and `devices` together: 130 passed.
 - ESLint (`--max-warnings=0`), Prettier and `tsc -p tsconfig.json` clean on the host, 2026-10-07.
+
+## Lane C — multiplexed channel (M100P2C, 2026-10-07)
+
+Kubuntu, worktree `/home/randy/lanes/M100P2C`, branch `m100/p2-c`,
+base `81f07067497a9edcd750a3f6aabf505a0a0909e9`. Read the rig brief,
+`M100P2-common.md`, the phase-2 PLAN ownership/acceptance section, the
+planning record and the threat model. Changed only lane C's core/host files,
+its owning tests/helper, and this section. No upstream wire shape was added:
+these are product-owned channel packets, exercised with fakes and an actual
+mutually authenticated TLS exchange on `127.0.0.1`. Model attempts **0**;
+inference spend **0**; real-device pairing **0**.
+
+### Acceptance mapping — all lane C items implemented, tested and drilled
+
+| Acceptance                                                                                    | Implementation                                                                                                                                                                                                                                               | Owning test                                                                                                                                                                                                   | Red drill                                              |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| One long-lived authenticated channel per pair                                                 | `src/host/devices/deviceChannel.ts:678`: `PacedDeviceChannels.request`, `connect`, `accept`; `isAuthenticatedChannel` checks mutual TLS 1.3, no reused ticket, saved SHA-256 leaf pin and current pairing                                                    | `channel.test.ts`: memoizes a pair while callers race; shares one authenticated ready channel; inbound duplicate refused; `deviceMultiplexedChannel.test.ts`: real loopback TLS and each authentication guard | one-pair-channel; saved-tls-pin                        |
+| Control over status/events over logs over bulk; bulk and approval waits never starve Stop     | `src/core/devices/channel.ts:314`: `streamFor`, `enqueue`, `nextPacket`; grant requests/dispatch use events; separate running control/data drains; socket false-write waits for drain                                                                        | preempts fragmented bulk; reserves control capacity; socket backpressure prioritizes Stop; held log/grant request; real TLS held log                                                                          | priority; queue-reserve; grant-approval-stop           |
+| At most three pending handshakes per host; jittered exponential backoff capped at ten minutes | `src/host/devices/deviceChannel.ts:570`: `PacedDeviceChannels.pump/run` calls lane 0's `canOpenHandshake` and `handshakeBackoffMs`; incoming TLS starts only inside an admitted factory; abort does not free a slot until the factory settles                | queues a handshake burst past pendingHandshakes under backoff (threat-table test); mixed inbound/outbound factories; all eight backoff boundaries; late socket destroyed                                      | handshake-burst; mixed-handshake-burst; jitter-backoff |
+| Refusal is throttled/unknown, never down; no port probes; health is authenticated ready       | `src/host/devices/deviceChannel.ts:338`: typed `DeviceThrottled` facts and `unknown` failures; `openMultiplexedDeviceChannel.health` sends a parsed ready request, matches its reply and observes absolute deadlines; periodic ready calls retain the socket | authenticated-ready-only health with a TCP-probe spy; silence is unknown; periodic health; reconnect backoff; absolute incomplete-message time                                                                | no-port-probe; absolute-deadline                       |
+| One authentication failure stops and asks; second attempt needs explicit user consent         | `src/host/devices/deviceChannel.ts:774`: typed `DeviceChannelDialFailure('authentication')`, `canRetryAuth`, `authenticationRequired`, `retryAuthentication(pairId, isConfirmed)`; a repeated connect preserves the lockout                                  | stops after one failed authentication and asks; false consent does nothing; confirmed consent admits exactly the next request                                                                                 | auth-lockout                                           |
+
+Framing is canonical newline-delimited JSON with strict zod parsing of both
+packet and inner lane-0 envelope. Each packet, including newline, is at most
+`channelFrameBytes` (4096 UTF-8 bytes); reassembly and fragment allocations
+observe `frameBytes` and `frameFragments`. Duplicate keys (outer and inner),
+unknown fields, malformed UTF-8, wrong versions, foreign pair/incarnation,
+sequence gaps and impossible acknowledgements refuse before application
+use. Separate 32-item control and data reserves include queued, partial,
+running and unacknowledged work. An acknowledgement releases transport
+capacity only after the application handler settles; it is not an execution
+retirement or a durable result settlement. Disconnect never changes a
+journal, grant, attempt owner or spending liability. The phase-1
+`openDeviceChannel` interface and its 25 regressions remain intact.
+
+### Intentional failures and byte-exact restoration
+
+Each command was `npx vitest run <owning-file> --maxWorkers=3 -t <test-name>`
+with the repository's default timeout; no `--testTimeout` was used. Every
+mutation below produced an assertion failure and exit **1**, then the source
+was restored byte-exact. Final source hashes, verified before and after
+every corresponding mutation:
+
+- `src/core/devices/channel.ts`:
+  `17cad84f4aa53d9c5dfcbcb75ad1511df1228e04bfe50983aab4d60794571147`.
+- `src/host/devices/deviceChannel.ts`:
+  `a65052371f48a24f9f04bc6d938785f7c99c9c403970d266f7827814ee17498e`.
+
+| Drill                 | Deliberate break                                                      | Failing assertion                                                               |
+| --------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| priority              | Reverse outgoing stream priority                                      | expected 'bulk' to be 'control' // Object.is equality                           |
+| queue-reserve         | Remove outgoing occupancy guard                                       | expected true to be false // Object.is equality                                 |
+| packet-byte-cap       | Remove packet byte guard                                              | expected [Function] to throw an error                                           |
+| ack-sequence          | Accept an acknowledgement beyond the last fully sent sequence         | expected [Function] to throw an error                                           |
+| inner-duplicate       | Remove inner canonical-JSON check                                     | expected [Function] to throw an error                                           |
+| mixed-handshake-burst | Bypass shared handshake admission for incoming/outgoing factories     | expected "vi.fn()" to not be called at all, but actually been called 1 times    |
+| handshake-burst       | Bypass pending-handshake admission                                    | expected "vi.fn()" to be called 3 times, but got 5 times                        |
+| jitter-backoff        | Halve the shared jittered backoff delay in the host                   | expected "vi.fn()" to be called 1 times, but got 2 times                        |
+| no-port-probe         | Add a raw TCP connect to health (test spy supplies the socket)        | expected "connect" to not be called at all, but actually been called 2 times    |
+| auth-lockout          | Forget the authentication failure on the next connect without consent | expected "vi.fn()" to be called once, but got 2 times                           |
+| saved-tls-pin         | Remove the saved leaf fingerprint comparison                          | expected [Function] to throw an error                                           |
+| one-pair-channel      | Bypass the pair cache lookup                                          | expected "vi.fn()" to be called once, but got 2 times                           |
+| grant-approval-stop   | Put a waiting grant request on control                                | expected "vi.fn()" to be called 2 times, but got 1 times                        |
+| absolute-deadline     | Remove the monotonic incomplete-message deadline check                | expected false to be true // Object.is equality                                 |
+| ready-publication     | Remove the post-ready closed/deadline/active-pair check               | Missing handshake-backoff notification; a closed channel was published as ready |
+
+The corrected inbound retry test advances the second failure's shared
+30-second backoff, rather than waiting with an incorrectly assumed
+15-second delay. Its timeout was never raised; the final test run is
+64 passed at the repository default.
+
+### Local restored-tree checks
+
+- Owning core/host tests plus phase-1 `deviceChannel.test.ts`: **64 passed**.
+- Focused V8 coverage on the two implementation files with the unchanged
+  repository thresholds: **95.11% statements, 93.22% branches, 94.11%
+  functions, 96.80% lines**; exit 0.
+- Phase-1 transport/boundary plus phase-2 contracts: **122 passed**.
+- Host and unit typechecks, changed-file ESLint/Prettier, plain knip,
+  duplication (0 clones), reference and localization: clean in this lane.
+- Host API: 0 problems. Production build/sizes/splits/host globals/notices:
+  clean before the final inbound-factory addition; exact committed-tree
+  results follow in the fresh-clone receipt below. No cap or gate was changed.
+
+### Requests to the lead / lane W (outside lane C ownership)
+
+- Bind one `PacedDeviceChannels` per host to the existing address-policy and
+  pairing authorities. Both outbound `connect` and inbound `accept` factories
+  must perform TLS only after admission, honor `AbortSignal` and close a
+  rejected TCP socket. Classify certificate/pin/credential failures with
+  `DeviceChannelDialFailure('authentication')`; network resets are transport
+  failures. Do not feed the phase-1 transport's generic normalized error into
+  this distinction. Select one connection initiator per pair and reuse an
+  accepted channel for all local callers.
+- The shared `DeviceReady` input requires the current receiver incarnation.
+  R/W must bind it from an authenticated exchange before opening carriage,
+  rather than synthesize an id or adopt an old attempt. Lane 0 should settle
+  an initial-incarnation bootstrap/negotiation contract if the joined driver
+  cannot supply this input; that shared-file change is deliberately not made
+  by C. The new product-owned packet/message schemas are in `channel.ts` for
+  review; no lane-0 cap, pacing helper or version literal was redefined.
+- R binds durable receive/ack/result handlers and reconnect resends. Transport
+  acknowledgements are per-stream/channel; epochs, application deduplication,
+  result settlement and liability stay in R's durable authorities.
+- W connects pressure/unknown/authentication facts to the existing localized
+  UI and an explicit consent action before `retryAuthentication(..., true)`,
+  updates CHANGELOG/feature reference/docs in its owned regions, measures the
+  fully wired lazy bundle and runs the joined-tree `npm run quality`,
+  coverage, installed-host and packaged qualification. This lane makes no
+  new installed-host support claim.
