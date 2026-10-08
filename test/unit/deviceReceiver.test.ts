@@ -90,8 +90,9 @@ describe('receiver admission and local authority', () => {
   it.each(['separate', 'Stop-first-overflow', 'data-before-Stop-overflow'])(
     'RVM100E2-P2-1 reaches the live local cancellation port with saturated data (%s)',
     async (input) => {
-      const { receiver, request, policy, lease } = fixture()
+      const { receiver, request, policy, lease, observeOutcome } = fixture()
       await receiver.dispatch(request)
+      const uncertain = observeOutcome('uncertain')
       const second = otherDispatch(request)
       const approval = deferred<boolean>()
       policy.approve.mockReturnValueOnce(approval.promise)
@@ -112,13 +113,23 @@ describe('receiver admission and local authority', () => {
       expect(lease.cancel).toHaveBeenCalledOnce()
       expect(lease.release).not.toHaveBeenCalled()
       approval.resolve(false)
+      await uncertain
       await receiver.reconcile([request.identity])
     },
   )
   it.each(['same-chunk', 'later-chunk'])(
     'RVM100E3-P2 corrupt framing before Stop resets and stops every live attempt (%s)',
     async (timing) => {
-      const { receiver, request, execution, policy, lease, journal, fixture: counts } = fixture()
+      const {
+        receiver,
+        request,
+        execution,
+        policy,
+        lease,
+        journal,
+        observeOutcome,
+        fixture: counts,
+      } = fixture()
       await receiver.dispatch(request)
       const second = otherDispatch(request)
       const secondLease = {
@@ -131,6 +142,10 @@ describe('receiver admission and local authority', () => {
       }
       execution.admit.mockResolvedValueOnce(secondLease)
       await receiver.dispatch(second)
+      const uncertain = Promise.all([
+        observeOutcome('uncertain'),
+        observeOutcome('uncertain', second.identity),
+      ])
       const pending = signedDispatch({
         ...request,
         identity: { ...request.identity, attemptId: '1'.repeat(32) },
@@ -167,6 +182,7 @@ describe('receiver admission and local authority', () => {
       expect(
         port.receive.mock.calls.filter(([frame]) => frame.body.kind === 'cancel'),
       ).toHaveLength(0)
+      await uncertain
       await receiver.reconcile([request.identity, second.identity])
       expect(await journal.cancellations()).toEqual(
         expect.arrayContaining([request.identity, second.identity, pending.identity]),
@@ -180,7 +196,7 @@ describe('receiver admission and local authority', () => {
     },
   )
   it('RVM100E3-P2 resets only the channel pair and preserves the live identity over a changed queued retry', async () => {
-    const { receiver, request, lease, policy, execution, journal } = fixture()
+    const { receiver, request, lease, policy, execution, journal, observeOutcome } = fixture()
     await receiver.dispatch(request)
     receiver.disconnect('invalid-frame', 'f'.repeat(32))
     expect(lease.cancel).not.toHaveBeenCalled()
@@ -195,19 +211,22 @@ describe('receiver admission and local authority', () => {
     const retry = receiver.dispatch(
       signedDispatch({ ...request, identity: { ...request.identity, taskId: 'f'.repeat(32) } }),
     )
+    const uncertain = observeOutcome('uncertain')
     receiver.disconnect('invalid-frame', request.identity.pairId)
     expect(lease.cancel).toHaveBeenCalledOnce()
     approval.resolve(true)
     await held
     await retry
+    await uncertain
     await receiver.reconcile([request.identity])
     expect(await journal.cancellations()).toContainEqual(request.identity)
     expect(execution.admit).toHaveBeenCalledOnce()
     expect(lease.release).not.toHaveBeenCalled()
   })
   it('RVM100E3-P2 reset starts Stop despite a stalled journal and held cancellation confirmation', async () => {
-    const { receiver, request, lease, journal } = fixture()
+    const { receiver, request, lease, journal, observeOutcome } = fixture()
     await receiver.dispatch(request)
+    const uncertain = observeOutcome('uncertain')
     const confirmation = deferred<undefined>()
     const persistence = deferred<undefined>()
     lease.cancel.mockReturnValueOnce(confirmation.promise)
@@ -221,7 +240,12 @@ describe('receiver admission and local authority', () => {
     expect(lease.release).not.toHaveBeenCalled()
     persistence.resolve(undefined)
     confirmation.resolve(undefined)
-    await receiver.reconcile([request.identity])
+    await uncertain
+    const reconciled = await receiver.reconcile([request.identity])
+    expect(reconciled[0]?.body).toMatchObject({
+      kind: 'reconciled',
+      outcomes: [{ state: 'uncertain', occupied: request.caps }],
+    })
   })
   it('RVM100E2-P2-2 remembers Stop overtaking dispatch B behind held approval A', async () => {
     const { request, policy, lease, journal } = fixture()
@@ -251,7 +275,7 @@ describe('receiver admission and local authority', () => {
   it.each(['coalesced', 'later'])(
     'RVM100E2-P2-4 retains cancellation through an identical %s retry',
     async (timing) => {
-      const { request, policy, lease, receiver } = fixture()
+      const { request, policy, lease, receiver, journal } = fixture()
       const { socket, send } = liveChannel()
       const dispatch = encodeDeviceFrame(incoming({ kind: 'dispatch', dispatch: request }))
       const cancel = encodeDeviceFrame(incoming({ kind: 'cancel', identity: request.identity }))
@@ -274,6 +298,7 @@ describe('receiver admission and local authority', () => {
       })
       expect(lease.start).not.toHaveBeenCalled()
       expect(policy.approve).not.toHaveBeenCalled()
+      expect(await journal.cancellations()).toContainEqual(request.identity)
     },
   )
   it.each([
@@ -410,7 +435,7 @@ describe('receiver admission and local authority', () => {
   it.each(['approval', 'start-confirmation'])(
     'RVM100E-P2-2 delivers Stop while dispatch waits for %s on the same channel',
     async (wait) => {
-      const { request, policy, lease, receiver, fixture: counts } = fixture()
+      const { request, policy, lease, receiver, observeOutcome, fixture: counts } = fixture()
       const approval = deferred<boolean>()
       const confirmation = deferred<undefined>()
       if (wait === 'approval') policy.approve.mockReturnValueOnce(approval.promise)
@@ -425,6 +450,7 @@ describe('receiver admission and local authority', () => {
         if (wait === 'approval') expect(policy.approve).toHaveBeenCalledOnce()
         else expect(counts.launches).toBe(1)
       })
+      const uncertain = wait === 'start-confirmation' ? observeOutcome('uncertain') : undefined
       try {
         socket.emit(
           'data',
@@ -444,7 +470,7 @@ describe('receiver admission and local authority', () => {
       } finally {
         approval.resolve(true)
         confirmation.resolve(undefined)
-        await Promise.resolve()
+        await uncertain
       }
       if (wait !== 'approval') return
       await receiver.reconcile([request.identity])
@@ -452,7 +478,7 @@ describe('receiver admission and local authority', () => {
     },
   )
   it('RVM100E-P2-2 cancels a coalesced dispatch before approval or reservation', async () => {
-    const { request, policy, lease, execution } = fixture()
+    const { request, policy, lease, execution, journal } = fixture()
     const { socket, port, send } = liveChannel()
     socket.emit(
       'data',
@@ -470,10 +496,12 @@ describe('receiver admission and local authority', () => {
     expect(policy.approve).not.toHaveBeenCalled()
     expect(execution.admit).not.toHaveBeenCalled()
     expect(lease.start).not.toHaveBeenCalled()
+    expect(await journal.cancellations()).toContainEqual(request.identity)
   })
   it('RVM100E-P2-2 cancels an existing lease while another dispatch waits for approval', async () => {
-    const { receiver, request, policy, lease } = fixture()
+    const { receiver, request, policy, lease, observeOutcome } = fixture()
     await receiver.dispatch(request)
+    const uncertain = observeOutcome('uncertain')
     const approval = deferred<boolean>()
     policy.approve.mockReturnValueOnce(approval.promise)
     const second = otherDispatch(request)
@@ -494,6 +522,7 @@ describe('receiver admission and local authority', () => {
       expect(lease.release).not.toHaveBeenCalled()
     } finally {
       approval.resolve(false)
+      await uncertain
       await receiver.reconcile([request.identity])
     }
   })

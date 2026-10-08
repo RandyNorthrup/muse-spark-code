@@ -4907,3 +4907,114 @@ removing the guard at `deviceBundle.ts:112` now fails that test (1 failed, 38
 passed). It was restored from a backup, with SHA-256 identical before and after.
 No other test added on this branch asserts inside a callback whose error is
 discarded.
+
+## Lane E — receiver test teardown race (FIXE3RACE, 2026-10-08)
+
+Kubuntu rig, `/home/randy/lanes/FIXE3RACE`, branch `m100/p2-e3race`,
+base `2a0636760`. Test-only repair; no production changes, model attempts
+**0**, inference spend **0**. Shared rules:
+`/home/randy/lanes/_ctx/codex/M100P2-common.md`, with the direct-rig,
+default-timeout, eight-busy-loop and 40-minute scope in `FIXE3RACE.rig.md`.
+
+### Cause, repair and audit of both owning files
+
+The held cancellation confirmation resolves before its asynchronous
+`record-uncertain` effect enters the receiver's ordered queue. An immediate
+reconciliation can therefore finish with `running`, while the later durable
+write overlaps fixture directory removal (`ENOTEMPTY` on macmini).
+
+`test/unit/helpers/deviceExecutionFixtures.ts:59` exposes a narrow
+`observeOutcome` promise. It arms before the triggering event, delegates to
+the real journal `advance`, and resolves only after that write completes for
+the requested attempt and state. This observes the next completion even when
+an earlier write already stored `uncertain`; it adds no polling or deadline.
+The spy is installed only in tests that request the observer.
+
+The reset test at `test/unit/deviceReceiver.test.ts:226` awaits that durable
+completion at line 243 before reconciliation and verifies the returned
+`uncertain` state and retained occupancy. All original assertions about
+immediate Stop, held persistence/confirmation, framing failure and no release
+remain. The same completion barrier covers saturated Stop, both corrupt-frame
+timings (both live attempts), pair-scoped reset with a queued retry, channel
+Stop during held start confirmation, and Stop beside another held approval.
+Cancel-before-reservation/coalesced retry cases await the journal's existing
+`cancellations()` operation so their asynchronous tombstone writes finish.
+
+Recovery now waits for the new durable write after retirement-proof rejection,
+including the case whose prior cancellation already persisted `uncertain`.
+A rejected local cancellation also drains its concurrent tombstone write.
+Every remaining resolve/reject/disconnect case in both files was inspected:
+awaited cancellation already joins its effects; terminal-release waits occur
+after durable retirement; late confirmation/pause replies after retirement
+cannot write; ordinary disconnect pause does not write the journal; and
+late-reservation confirmation while still reserved does not write uncertainty.
+Their original assertions remain unchanged.
+
+### Baseline, red drill and restored-tree gates
+
+Each full run uses `npx vitest run test/unit/deviceReceiver.test.ts
+test/unit/deviceRecovery.test.ts --maxWorkers=3`, repository default timeouts
+and no retries. Node **24.18.0**, npm **12.0.1**. Load is exactly eight owned
+Python `while True: pass` processes, stopped after the phase.
+
+- Unmodified `2a0636760`: **30 idle runs, 0 failed; 30 loaded runs, 0 failed**,
+  86 tests per run. The macmini filesystem flake did not reproduce on this rig.
+- Fixed commit `bb5f7f508`: **30 idle runs, 0 failed; 30 loaded runs, 0 failed**,
+  86 tests per run. Both full files run every time: **120 complete runs / 10,320
+  passing test executions** across the before/after phases. All logs were checked
+  for the full 86-test pass count, not just their process exit code.
+- Red drill: remove only the reset test's `await uncertain`; three loaded
+  targeted runs each exit **1**, **1 failed / 48 skipped**. Every reconciliation
+  returns `running` instead of `uncertain`, directly proving the same ordering
+  race before relying on filesystem cleanup timing. No `ENOTEMPTY` occurred
+  in these drill runs. Restore the entire mutated file byte-exact: SHA-256
+  `6219d9dafccb2b282e4f197eea5033b23cf906576fd231763a3218b39234119e`
+  both before and after.
+- Restored full owning run: **86 passed**, exit **0**.
+- `npm run typecheck:unit`: **0**. Changed-file ESLint with
+  `--max-warnings=0`: **0**. Changed-file Prettier: **0**.
+  `npm run duplication` (`jscpd`): **0**, **0 clones**, thresholds unchanged.
+
+Receipts and the loop/drill drivers are under
+`$TMPDIR/e3race-proof` (`/var/tmp/l-FIXE3RACE/e3race-proof`), outside the repo.
+Aggregate `npm run quality`, joined CHANGELOG/help and installed-host/four-device
+qualification remain with the lead/lane W under the phase-2 ownership table;
+this lane changes no runtime feature, command, setting, dependency or gate.
+
+### Final committed-code fresh-clone receipt
+
+Verified `bb5f7f508b468cc2fa28d5dc02c5622699be4848`, cloned directly from
+the worktree into `$TMPDIR/e3race-proof/verify`. `CI=true npm ci` exited
+**0**. Three consecutive complete owning runs at default timeouts and
+`--maxWorkers=3` each passed **86 tests**. Shared-fixture neighbours
+`attemptJournal.test.ts`, `actionGrants.test.ts` and `deviceReconnect.test.ts`
+passed **126 tests** in one three-file batch at the same defaults.
+
+| Fresh-clone gate                                           | Exit | Result                                                                                       |
+| ---------------------------------------------------------- | ---- | -------------------------------------------------------------------------------------------- |
+| `npm run typecheck`                                        | 0    | All five projects, including `typecheck:unit`                                                |
+| `npm run lint`                                             | 0    | Full ESLint and CSS lint, zero warnings; PowerShell analyzer reports its Linux platform skip |
+| Prettier on the three changed tests/helper and this record | 0    | Clean                                                                                        |
+| Plain `npx knip`                                           | 0    | Only inherited `vendor/**` and `axe-core` configuration hints                                |
+| `npm run duplication`                                      | 0    | Zero clones; no threshold or ignore changes                                                  |
+| `npm run check:reference`                                  | 0    | Current, 18 Devices entries                                                                  |
+| `node scripts/check-l10n.mjs`                              | 0    | 14 UI tables, 14 usage tables, zero problems                                                 |
+| `npm run check:host-api`                                   | 0    | Zero problems                                                                                |
+| `npm run build`                                            | 0    | All production size, split, host-global and notices checks pass; caps unchanged              |
+| `git status --short` after all checks                      | 0    | Empty; clone clean                                                                           |
+
+Final source SHA-256 (worktree and clone match):
+
+- `test/unit/deviceReceiver.test.ts`:
+  `6219d9dafccb2b282e4f197eea5033b23cf906576fd231763a3218b39234119e`.
+- `test/unit/deviceRecovery.test.ts`:
+  `2f78ebe398cc4f8f36023ac792e27c1287e6cfef772a5e50d188c19b652328f0`.
+- `test/unit/helpers/deviceExecutionFixtures.ts`:
+  `fa5bca785336cd1ea8b0f16e5e911abb97b7fd10fd7c8225eeed78c6adbbb8b4`.
+
+The initial fix commit passed ESLint/Prettier and Gitleaks hooks; its staged
+and committed diff was reread and source hashes checked after the hooks.
+The final follow-up changes only this certification record. The temporary
+clone is removed after verification; the receipts remain under
+`$TMPDIR/e3race-proof`. No push, merge, paid call or live model
+call was made. Work finished within the brief's 40-minute time box.
