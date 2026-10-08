@@ -305,4 +305,7 @@ on all 29 changed TypeScript files. Normal pre-commit lint/format and gitleaks
 exited 0; no source/test byte changed in the hook (compared with the tested
 fresh-clone snapshot). Staged and committed differences were re-read.
 Implementation commit: `006738760842e15ce90457ea4416ac0280f5dfa2`.
-The private verification clone and scratch receipts are removed at delivery.
+Cleanup was attempted with both a checked resolved path and its verified literal
+path. Automatic approval review rejected both recursive removals as blocked by
+policy, without a more specific reason. The private clone and scratch receipts
+remain at C:/Users/Randy/AppData/Local/Temp/l-SPAWN017.
