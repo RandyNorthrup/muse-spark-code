@@ -3,7 +3,6 @@
 // and the status item load with dist/resourceGovernor.js at the first governed
 // spawn (or an explicit Show resources / Resume now), never at activation.
 
-import type * as VSCode from 'vscode'
 import type { ResourceWindowHost } from '../../core/resources/admission'
 import {
   COMMAND_IDS,
@@ -15,6 +14,7 @@ import {
 import { fill, formatDateTime } from '../../shared/l10n/text'
 import type { HostToWebviewMessage, WebviewToHostMessage } from '../../shared/protocol'
 import type { ResourceStatus } from '../../shared/resources'
+import type { VsCodeStatusBar } from './resourceStatus'
 
 type ResourceAction = Extract<WebviewToHostMessage, { type: 'resourceAction' }>['action']
 
@@ -23,11 +23,22 @@ interface ResourceSurface {
   reveal(): void
 }
 
-export interface ResourceWindowDeps {
-  readonly vscode: Pick<
-    typeof VSCode,
-    'window' | 'commands' | 'workspace' | 'StatusBarAlignment' | 'ThemeColor'
-  >
+/** The slice of VS Code's namespace the window uses; the real one is injected. */
+type WindowApi<Alignment> = VsCodeStatusBar<Alignment> & {
+  readonly window: {
+    showInformationMessage(message: string, ...items: string[]): PromiseLike<string | undefined>
+    showWarningMessage(message: string, ...items: string[]): PromiseLike<string | undefined>
+  }
+  readonly commands: { executeCommand(command: string, ...rest: unknown[]): PromiseLike<unknown> }
+  readonly workspace: {
+    onDidChangeConfiguration(
+      listener: (event: { affectsConfiguration(section: string): boolean }) => void,
+    ): { dispose(): unknown }
+  }
+}
+
+export interface ResourceWindowDeps<Alignment> {
+  readonly vscode: WindowApi<Alignment>
   /** admission.ts: attach when the host loads; registering imports nothing. */
   readonly onLoad: (attach: (window: ResourceWindowHost) => void) => () => void
   /** admission.ts: load the host for an explicit command. */
@@ -55,7 +66,9 @@ export interface ResourceWindow {
   dispose(): void
 }
 
-export function createResourceWindow(deps: ResourceWindowDeps): ResourceWindow {
+export function createResourceWindow<Alignment>(
+  deps: ResourceWindowDeps<Alignment>,
+): ResourceWindow {
   const { vscode } = deps
   let latest: string | undefined
   let isOpenPending = false
