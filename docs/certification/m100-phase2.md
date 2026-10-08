@@ -861,3 +861,118 @@ gate-threshold change, and no model call. The commit was sent only to the
 Win11 rig's private gate repository for the native runs. Linux and macOS
 drivers, scheduler-specific qualification and installed-host checks remain
 open as mapped above.
+
+### Linux continuation — M100P2HL (2026-10-07): contract blocker
+
+Worktree `/home/randy/lanes/M100P2HL`, branch `m100/p2-h-linux`, base
+`f4f6f3008`, on linuxlt. Read the rig brief, phase-2 shared rules, original
+H brief, PLAN ownership/acceptance, planning record, threat model, Windows
+driver and host port. This continuation changes this certification section
+only. No Linux implementation or support claim is made.
+
+The continuation brief explicitly requires **resource limits from the attempt**
+and says: **"if the platform port needs a contract change, stop and write a
+lead request instead."** That condition is met:
+
+- `DeviceDispatch.caps` carries the admitted process ceiling
+  (`src/shared/devices.ts`, `deviceCapsSchema` and `dispatchCommon`).
+- `DeviceWorkerDriver.launch` accepts only `DeviceWorkerCommand` and the
+  recorded environment (`deviceWorkerHost.ts:77`). The command contains an
+  executable, arguments, cwd and required tools; neither input contains caps.
+- The host has the validated request, but its sole launch call drops the
+  request/caps (`deviceWorkerHost.ts:289`). The reservation also exposes no
+  execution limits. Two otherwise identical commands with different admitted
+  process ceilings are indistinguishable to this port.
+- The Windows driver uses the global `DEVICE_LIMITS.processes`
+  (`deviceWorkerNative.ts:163`). Copying that into a Linux unit would bound it
+  at the protocol maximum, not at the admitted attempt's limit. Inferring limits
+  from argv/environment or an ambient mutable map would bypass the typed port.
+
+#### Lead request — pass admitted limits through the platform port
+
+Approve and land a local, typed launch input carrying the validated attempt's
+identity and caps, for example a third `launch` argument of
+`Pick<DeviceDispatch, 'identity' | 'caps'>`, supplied directly by the host's
+existing launch call. Update both platform implementations and portable tests
+together; prove simultaneous attempts receive their own caps. Keep shared
+protocol ceilings unchanged and forbid peer-supplied unit properties.
+
+The existing caps schema has no CPU or memory limit. If "resource limits"
+also means `CPUQuota`/`MemoryMax`, specify their locally admitted source and
+units in the same port decision rather than guessing new protocol fields.
+The Linux implementation can then apply the approved process/task limit to
+its transient unit and refuse an unenforceable limit before activation.
+
+#### Plan and Linux acceptance mapping
+
+1. Contract review complete; implementation stopped at the brief's explicit
+   contract-change boundary. Lead request above is the next dependency.
+2. After that contract lands, implement the exclusive Linux driver and smallest
+   host selection change, with unchanged M96 environment/preflight/result rules.
+3. Run real unit/descendant/inhibitor receipts, unavailable-manager injection,
+   red drills with byte-exact restoration, and committed fresh-clone gates.
+
+| Brief item              | Linux status and next proof                                                                                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1. Own context          | Blocked before implementation. Prove a unique collected transient user unit with admitted limits, never a transport child/plain-spawn fallback.                          |
+| 2. Host pressure        | Not implemented. Reuse H's typed capacity/unsupported-host recovery text; prove no silent retry or cap change.                                                           |
+| 3. Recorded environment | Existing portable host records canonical M96 environment and verifies PATH/hook binaries before launch. Linux activation and actual environment receipt remain untested. |
+| 4. Structured result    | Existing portable host validates exit code and JSON stdout. Linux closed stdin, bounded stdout/stderr and banner isolation remain unimplemented.                         |
+| 5. Sleep and power      | Not implemented. Prove sleep:idle inhibitor held through observed whole-cgroup exit and released; power read errors remain unknown.                                      |
+| 6. Factory self-test    | Not implemented. Prove real launch/query/retirement and clean typed refusal without a user manager.                                                                      |
+
+Battery policy is the lead's supplied decision: retain already admitted work
+on battery; ask locally before admitting new heavy checks on battery or unknown
+power. Linux supplies facts; W owns the admission prompt. No policy was invented
+or implemented in this documentation-only continuation.
+
+#### Native receipts, drills and verification
+
+`systemctl --user show --property=Version --value` succeeded with **257.9-0ubuntu2.5**;
+the real user manager is available. `systemd-run --version` reported **257**.
+This is a rig availability observation, **not** a native worker receipt.
+No unit, descendant or inhibitor was created. No Linux native test or red drill
+ran because the required launch contract is blocked; Windows skips on this
+Linux rig must not be counted as native passes.
+
+No code, dependencies, lockfile, strings, tests, gate thresholds or shared
+ownership regions changed. No push, merge, rebase, manual stash, paid/model call,
+credential inspection or OS policy change.
+
+#### Committed fresh-clone checks
+
+Documentation/lead-request commit **f23dca109**, with hooks enabled. Re-read
+the index after the hook and the resulting committed diff; the worktree was
+clean. Hook formatting and staged gitleaks both exited **0**. The normal
+lint-staged hook created and cleaned its temporary backup; no manual stash
+command was run.
+
+Fresh local clone `/tmp/m100p2hl-verify-iEA319` at **f23dca109**, Node
+**24.21.0**, npm **11.19.0**. Every command below ran with `CI=true`.
+`npm ci` exited **0** and reported the unchanged dependency tree's 11 audit
+findings (2 low, 9 high); no audit fix or dependency change was made.
+
+| Check                                                                                                                     | Exit | Result                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------- | ---- | --------------------------------------------------------------------------------------------------------- |
+| Owning files: `npx vitest run test/unit/deviceWorkerHost.test.ts test/unit/deviceWorkerHostNative.test.ts --maxWorkers=3` | 0 ×3 | **22 passed, 6 Windows cases skipped** each run; **1.16 / 2.13 / 1.63 s**. Default timeouts, no override. |
+| `npm run typecheck`                                                                                                       | 0    | All five projects: host, webview, unit, e2e, integration.                                                 |
+| `npm run lint`                                                                                                            | 0    | Full JS and CSS lint pass. Repository PowerShell lint reports its Windows-only skip on Linux.             |
+| `npx prettier --check docs/certification/m100-phase2.md`                                                                  | 0    | Only changed file formatted.                                                                              |
+| Plain `npx knip`                                                                                                          | 0    | No dead-code failures; two existing non-fatal configuration hints.                                        |
+| `npx jscpd`                                                                                                               | 0    | Zero clones.                                                                                              |
+| `npm run check:reference`                                                                                                 | 0    | Current; 18 Devices entries.                                                                              |
+| `npm run check:l10n`                                                                                                      | 0    | 14 UI and 14 usage tables; zero problems.                                                                 |
+| `npm run check:host-api`                                                                                                  | 1    | The same inherited stale Node import counts already recorded above; W owns regeneration.                  |
+| `npm run build`                                                                                                           | 0    | Production sizes, splits, host globals and notices pass; every cap unchanged.                             |
+
+Build sizes: activation **462.8/600 KiB**, Devices **81.7/100 KiB**, Model API
+**456.0/475 KiB**. These measure the unchanged Windows-base implementation,
+not a Linux driver. Host, Windows driver and C# helper SHA-256 values match
+H's final-source hashes above. The clone remained clean after checks.
+
+The host API failure is precisely the earlier six row differences:
+`child_process` **16→17**, `crypto` **93→94**, `fs` **44→45**,
+`fs/promises` **74→76**, `path` **125→127**, `timers/promises` **15→16**.
+This continuation does not edit W's generated inventory. Full joined quality,
+coverage and installed-host qualification remain W's work under the shared
+lane rules. No passing Linux native receipt or drill is claimed.
