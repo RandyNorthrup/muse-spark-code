@@ -19642,6 +19642,13 @@ suites and fresh-clone CI static gates certify this lane; unrelated integrated
 bundle caps and full quality remain with the lead. Record receipts under
 `docs/certification/int0170-combined.md`, Money and schedule ledger (MONEY017).
 
+Implemented: the three schedule failures were expectation ports; its durable
+ledger is unchanged. Media transfers its daily claim to the schedule, retains
+frozen-tariff settlement and hosted allowance, and records checked native source
+and replay provenance. Account consent now carries exact decimal budgets.
+Eight deliberate guard/precision/provenance drills fired and restored byte-exact;
+fresh-clone receipts and lead-owned integrated gates are in that record.
+
 ### INT0180B — Complete the 0.18.0 integration (2026-10-07, linuxlt)
 
 **Status 2026-10-07: built.** Linux receipts in `docs/certification/int0180.md`; the package job stays red without genuine macOS artifacts.

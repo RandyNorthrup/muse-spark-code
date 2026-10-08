@@ -481,7 +481,7 @@ async function checkedOpenedFile(
   file: FileHandle,
   expectedCanonicalPath: string | undefined,
   platform: NodeJS.Platform,
-): Promise<FileIdentity> {
+): Promise<BigIntStats> {
   const held = await handleIdentity(file)
   // Node exposes inode identity, not a final path by handle. This catches
   // observed swaps; rapid adversarial ABA swaps remain outside the guarantee.
@@ -646,7 +646,7 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
     return resource
   }
   return {
-    async readMedia(absolutePath, maxBytes, expectedCanonicalPath, signal) {
+    async readMedia(absolutePath, maxBytes, expectedCanonicalPath, signal, observeSource) {
       if (
         !Number.isSafeInteger(maxBytes) ||
         maxBytes <= 0 ||
@@ -728,6 +728,14 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
         const hash = createHash('sha256')
         for await (const chunk of chunks(file, signal)) hash.update(chunk)
         const sha256 = hash.digest('hex')
+        observeSource?.({
+          kind: 'file',
+          contentHash: sha256,
+          file: {
+            path: expectedCanonicalPath.replaceAll('\\', '/'),
+            ...fileReadIdentity(identity),
+          },
+        })
         return {
           info: sniffed.info,
           sha256,

@@ -185,6 +185,46 @@ supersedes the common file's historical merge/full-quality instructions.
   and PLAN §8 row: both constructors reject it, so constructing it in the test
   would bypass the production defenses the two assertions exercise.
 
-Money-port fixes were seen red in the initial run and restored green at the
-repository's default timeouts. Scheduled-media regressions and fresh-clone
-static gate receipts follow below when complete.
+The account consent binding now uses canonical `UsdAmount`, including an exact
+`0.00000000010000000001` budget passed unchanged to consent. Display uses the
+shared conservative significant-digit formatter; it never changes the budget.
+
+Scheduled media replaces its original shared-day claim with the schedule's
+shared-day claim before dispatch. Admission uses the complete frozen media
+amount plus any bounded hosted-search allowance, checks both schedule caps and
+the shared budget, and settles once through media's admitted tariff snapshot.
+Missing usage retains uncertain liability. Cap refusal refunds unsent claims
+and makes no HTTP request. The existing durable reservation ledger is unchanged.
+
+The checked native media handle reports its SHA-256, normalized canonical path
+and native read identity through `observeSource`. The scheduled adapter records
+that source against the workspace decision; media receipts and their replay
+projection carry closed provenance into the next request. A read completed
+after Stop is discarded before its source is recorded or another call starts.
+No model wire shape was invented: regressions use existing fake-only fixtures.
+
+Initial new-media run: six failures proving missing schedule admission,
+source observation and replay proof. Restored money/ledger/schedule/media sweep:
+59 files / 1,046 tests passed at repository deadlines, max three files and
+three workers per invocation. Two additional final regressions cover exact
+sub-nano account consent and hosted fees; final fresh-clone totals follow below.
+The pre-existing 10,000-fire journal test retains its named 240-second deadline;
+no command supplied `--testTimeout`.
+
+Each deliberate drill below exited 1; original source bytes were restored and
+SHA-256 compared before continuing. These are drill-time hashes, before later
+formatting. Normal restored runs pass; no assertion or gate was weakened.
+
+| Drill | Failing / passing tests | Source SHA-256 before = after |
+| ----- | ----------------------- | ----------------------------- |
+
+| `account_budget_precision` | 1 failed | 12 passed (13) | `73cd8cc955fd359cf61304a8c509c3d88f31ffdb7003e7146559d71bbfb007c7` |
+| `hosted_media_allowance` | 1 failed | 21 passed (22) | `d7fa9258af6d70ff8d9db4f3b3c2e8f180c338e7e544b21bf3fe0adb0c732e09` |
+| `exact_media_amount` | 4 failed | 18 passed (22) | `73cd8cc955fd359cf61304a8c509c3d88f31ffdb7003e7146559d71bbfb007c7` |
+| `daily_refund` | 4 failed | 18 passed (22) | `2f23168f674ca283010f723f134762937aeab21fc84ae65bf7e81e96b1c87950` |
+| `daily_transfer_guard` | 1 failed | 14 passed (15) | `2f23168f674ca283010f723f134762937aeab21fc84ae65bf7e81e96b1c87950` |
+| `media_source_observer` | 1 failed | 8 passed (9) | `c36d2ecfe7fc8e9927d57ad13ead24bec35c749d0ba45402193c4c9b6a465ebf` |
+| `media_replay_proof` | 1 failed | 19 passed (20) | `d72648dbc435bab5675066634714ab0c59d3c827f2656cfda3d16eb2f0e8e16b` |
+| `stopped_media_read` | 1 failed | 19 passed (20) | `d72648dbc435bab5675066634714ab0c59d3c827f2656cfda3d16eb2f0e8e16b` |
+
+Fresh-clone gate receipts are recorded below after verification.

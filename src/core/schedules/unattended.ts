@@ -1,3 +1,4 @@
+import type { UsdAmount } from '../../shared/usd'
 import type { AgentSession, TurnPart, TurnSubmission } from '../agent/agentBackend'
 import type { AgentEvent } from '../../shared/agentEvents'
 import { UI_TEXT, type PaidFeature } from '../../shared/constants'
@@ -57,6 +58,7 @@ export interface ScheduleRunDeps {
       body: CreateResponseBody | CreateImageBody,
       estimatedInputTokens: number | undefined,
       signal: AbortSignal,
+      reservationUsd?: UsdAmount,
     ): Promise<SessionBudgetClaim>
   }
 }
@@ -72,7 +74,7 @@ export class UnattendedRun {
   }[] = []
   /** The sole paid reservation port for this fire, shared by every modality. */
   public readonly reservePaidRequest: NonNullable<ModelApiClientDeps['reservePaidRequest']> =
-    async (body, feature, tokens, signal = new AbortController().signal) => {
+    async (body, feature, tokens, signal = new AbortController().signal, reservationUsd) => {
       try {
         if (
           !this.allowsPaid(feature) ||
@@ -82,7 +84,7 @@ export class UnattendedRun {
             !this.allowsPaid('webSearch'))
         )
           throw new Error(this.modelText.paidRefused)
-        return await this.paid.reserve(body, tokens, signal)
+        return await this.paid.reserve(body, tokens, signal, reservationUsd)
       } catch (error: unknown) {
         this.refuse(
           {

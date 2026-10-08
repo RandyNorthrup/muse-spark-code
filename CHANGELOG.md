@@ -9,6 +9,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Scheduled media requests claim against both schedule and shared daily caps,
+  settle the admitted media tariff once, and retain uncertain liabilities.
+  Media read-file references carry their checked source into the run ledger;
+  stopped reads cannot publish a new proof.
+
 - The 0.17.0 integration's daily-budget and durable schedule tests now assert
   exact decimal money, including entered limits below nano precision, while
   account consent fixtures persist quote ceilings and retain account refusal.

@@ -7,7 +7,6 @@ import {
 } from '../../src/core/paid/paidConsent'
 import type { PaidFeature } from '../../src/shared/constants'
 import type { PaidUseRequest } from '../../src/shared/paid'
-import { parseUsd } from '../../src/shared/accountUsd'
 import { FakeLogOutputChannel } from './helpers/fakes'
 import { Usd } from '../../src/shared/usd'
 import { paidAuthorityKey, type PaidGrant } from '../../src/core/paid/paidAuthority'
@@ -18,7 +17,7 @@ const BINDING: PaidAccountBinding = {
   provider: 'meta',
   account: 'a',
   price: '$5 per 1,000 searches',
-  dailyBudgetUsd: parseUsd(5),
+  dailyBudgetUsd: Usd.from(5).toAmount(),
 }
 function rig() {
   const grants = new Map<string, ReadonlySet<PaidFeature>>()
@@ -53,6 +52,19 @@ function holdFirstWrite(t: ReturnType<typeof rig>) {
 }
 
 describe('M108 account-bound paid use consent', () => {
+  it('passes an exact sub-nano budget through consent without rounding its digits', async () => {
+    const t = rig()
+    const dailyBudgetUsd = Usd.from('0.00000000010000000001').toAmount()
+    const request = quotedSearch('0.0025', 'muse-spark-1.3')
+    expect(await t.create({ dailyBudgetUsd }).allows(request)).toBe(true)
+    expect(t.deps.ask).toHaveBeenCalledExactlyOnceWith(
+      request,
+      { ...BINDING, dailyBudgetUsd },
+      true,
+    )
+    expect(paidAccountQuestion({ ...BINDING, dailyBudgetUsd })).toContain('$0.00000000011')
+  })
+
   it('merges concurrent Always answers inside the account owner and fences queued revocation', async () => {
     const t = rig(),
       a = t.create()
@@ -254,12 +266,12 @@ describe('M108 account-bound paid use consent', () => {
       { provider: '../secret' },
       { account: 'USER' },
       { price: '' },
-      { dailyBudgetUsd: -1n },
+      { dailyBudgetUsd: Usd.from(-1).toAmount() },
     ])
       expect(() => t.create(patch)).toThrow()
-    expect(paidAccountQuestion({ ...BINDING, dailyBudgetUsd: parseUsd('0.123') })).toContain(
-      '$0.13',
-    )
+    expect(
+      paidAccountQuestion({ ...BINDING, dailyBudgetUsd: Usd.from('0.123').toAmount() }),
+    ).toContain('$0.13')
   })
 
   it('keeps consent off until every concurrent revocation has finished', async () => {

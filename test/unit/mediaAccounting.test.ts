@@ -72,6 +72,30 @@ function holdSettlement(claim: ReturnType<typeof setup>['daily']['claim']) {
 }
 
 describe('media request accounting', () => {
+  it('refuses dispatch and a second daily transfer while the original refund is held', async () => {
+    const t = setup()
+    const reservation = await reserveMediaRequest(t.request)
+    const held = holdSettlement(t.daily.claim)
+    const reserve = vi.fn(() => Promise.resolve(t.session.claim))
+    const transfer = reservation.rebindDaily(reserve)
+    await held.entered
+    try {
+      expect(() => {
+        reservation.check()
+      }).toThrow('retry')
+      expect(() => {
+        reservation.started()
+      }).toThrow('retry')
+      await expect(reservation.rebindDaily(reserve)).rejects.toThrow('retry')
+      expect(reserve).not.toHaveBeenCalled()
+    } finally {
+      held.release()
+      await transfer
+    }
+    expect(t.daily.claim.settle).toHaveBeenCalledExactlyOnceWith('0')
+    expect(reserve).toHaveBeenCalledOnce()
+  })
+
   it('coalesces concurrent settle and finish calls while a ledger write is held', async () => {
     const t = setup()
     const reservation = await reserveMediaRequest(t.request)

@@ -50,11 +50,6 @@ import {
   type ScheduleFireRecord,
 } from '../../shared/scheduleV2'
 import { unlessAborted } from '../timeouts'
-import {
-  formatUsd as formatExactUsd,
-  parseUsd,
-  type Usd as AccountUsd,
-} from '../../shared/accountUsd'
 
 async function paidTeamRuntime() {
   const entry = await import('../team/teamEntry')
@@ -203,6 +198,7 @@ export function createSchedulePaidScope(deps: {
       body: CreateResponseBody | CreateImageBody,
       inputTokens: number | undefined,
       signal: AbortSignal,
+      reservationUsd?: UsdAmount,
     ): Promise<SessionBudgetClaim> => {
       signal.throwIfAborted()
       if (
@@ -211,7 +207,7 @@ export function createSchedulePaidScope(deps: {
       )
         throw new Error(UI_TEXT.scheduleV2.messages.changedConsent)
       const feature = 'input' in body ? 'scheduledPrompts' : 'imageGeneration'
-      const costUsd = deps.estimate(body, inputTokens)
+      const costUsd = reservationUsd ?? deps.estimate(body, inputTokens)
       if (Usd.from(costUsd).compare(Usd.from(0)) <= 0)
         throw new Error(UI_TEXT.paidDailyLedgerUnavailable)
       const claim = await deps.reserve(deps.schedule, costUsd, signal)
@@ -831,7 +827,7 @@ export interface PaidAccountBinding {
   readonly provider: string
   readonly account: string
   readonly price: string
-  readonly dailyBudgetUsd: AccountUsd
+  readonly dailyBudgetUsd: UsdAmount
 }
 export interface AccountPaidUseConsentDeps extends Omit<
   PaidUseConsentDeps,
@@ -858,7 +854,7 @@ export function paidAccountQuestion(binding: PaidAccountBinding): string {
     provider: binding.provider,
     account: binding.account,
     price: binding.price,
-    budget: formatExactUsd(binding.dailyBudgetUsd, 2),
+    budget: formatUsd(binding.dailyBudgetUsd, 2),
   })
 }
 
@@ -881,7 +877,7 @@ export class AccountPaidUseConsent {
       !ACCOUNT_ID_PATTERN.test(binding.provider) ||
       !ACCOUNT_ID_PATTERN.test(binding.account) ||
       binding.price.trim() === '' ||
-      binding.dailyBudgetUsd < parseUsd(0)
+      Usd.from(binding.dailyBudgetUsd).compare(Usd.from(0)) < 0
     )
       throw new Error(UI_TEXT.accounts.invalidAccount)
     this.binding = Object.freeze({ ...binding })

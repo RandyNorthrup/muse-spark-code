@@ -27,6 +27,12 @@ import {
 import type { MediaModelCapabilities } from '../../src/core/media/modalityGate'
 import { buildSessionExport } from '../../src/core/export/sessionTransfer'
 import { vaultProvenance } from '../../src/core/vault/taint'
+import { Usd } from '../../src/shared/usd'
+import type { ToolIo } from '../../src/core/backends/modelapi/tools'
+import { ProvenanceLedger, type ContentSource } from '../../src/core/schedules/provenance'
+import { fakeRunContext, fakeSchedule } from './helpers/schedules/fixtures'
+import { unattendedRun } from './helpers/schedules/unattended'
+import { FAKE_MODEL_API_ACCOUNT_ID } from './helpers/fakeModelApi'
 import { MEDIA_FILE_ID_MIN_BYTES } from '../../src/shared/constants'
 
 function isTestMissingFile(error: unknown): boolean {
@@ -35,6 +41,7 @@ function isTestMissingFile(error: unknown): boolean {
 
 async function setup(
   options: {
+    scheduled?: boolean
     model?: (id: string) => MediaModelCapabilities
     authorize?: () => Promise<void>
     media?: StoredMediaPart
@@ -52,6 +59,7 @@ async function setup(
   const deps: ModelApiHostDeps = {
     ...fakeModelApiHostDeps({ client, log, io, workspaceRoot: '/ws' }),
     store,
+    ...(options.scheduled === true && { isPaidFeatureOn: () => true }),
     createMediaReplay: (sessionId) =>
       new ReplayMedia(sessionId, {
         ...rig.deps,
@@ -83,6 +91,84 @@ async function sendMediaTurn(h: Awaited<ReturnType<typeof setup>>): Promise<void
 }
 
 describe('Model API media integration through injected ports', () => {
+  it.each([false, true])(
+    'records scheduled media in its fire ledger and refuses a stopped read (Stop=%s)',
+    async (isStopped) => {
+      const h = await setup({ scheduled: true })
+      const media = videoMedia()
+      const source: Extract<ContentSource, { kind: 'file' }> = {
+        kind: 'file',
+        contentHash: media.sha256,
+        file: { path: '/ws/clip.mp4', dev: '1', ino: '2', size: media.info.sizeBytes, mtime: '3' },
+      }
+      const readMedia: NonNullable<ToolIo['readMedia']> = async (
+        _path,
+        _max,
+        _expected,
+        _signal,
+        observe,
+      ) => {
+        observe?.(source)
+        if (isStopped) await h.session.cancel()
+        return { info: media.info, sha256: media.sha256, source: await h.rig.source() }
+      }
+      Object.assign(h.deps.io, { readMedia })
+      const reserve = vi.fn(() =>
+        Promise.resolve({
+          claimId: 'media-fire',
+          reservedUsd: Usd.from('0.001').toAmount(),
+          check: () => ({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
+          settle: () =>
+            Promise.resolve({ spentUsd: Usd.from(0).toAmount(), hasUnknownHistoricalFees: false }),
+        }),
+      )
+      const { run } = unattendedRun({
+        workspaceRoot: '/ws',
+        io: h.deps.io,
+        context: fakeRunContext(
+          fakeSchedule({ grant: { rules: [], destinationIds: [], paidCapUsd: 1 } }),
+        ),
+        paid: {
+          modelId: 'muse-spark-1.3',
+          accountId: FAKE_MODEL_API_ACCOUNT_ID,
+          allows: () => true,
+          reserve,
+        },
+      })
+      const proofs = vi.spyOn(ProvenanceLedger.prototype, 'decidedSource')
+      try {
+        h.api.script(
+          {
+            calls: [
+              { name: 'read_file', arguments: '{"path":"clip.mp4"}', callId: 'scheduled_read' },
+            ],
+          },
+          { text: 'Scheduled clip read.' },
+        )
+        const done = h.turnDone()
+        await h.session.sendScheduledTurn([{ type: 'text', text: 'Read clip.mp4' }], run)
+        await done
+        expect(h.events.findLast((event) => event.type === 'turnCompleted')).toMatchObject({
+          terminal: isStopped ? 'cancelled' : 'completed',
+        })
+        expect(reserve).toHaveBeenCalledTimes(isStopped ? 1 : 2)
+        expect(
+          proofs.mock.calls.some(
+            ([captured]) => JSON.stringify(captured) === JSON.stringify(source),
+          ),
+        ).toBe(!isStopped)
+        if (isStopped) expect(h.api.responseBodies()).toHaveLength(1)
+        else
+          expect(JSON.stringify(h.api.responseBodies()[1])).toContain(
+            'test-upload:file-clip:video/mp4:',
+          )
+      } finally {
+        proofs.mockRestore()
+        await h.host.close()
+      }
+    },
+  )
+
   it('preserves restored undelivered media ahead of newer delivered history during host fitting', async () => {
     const h = await setup()
     try {

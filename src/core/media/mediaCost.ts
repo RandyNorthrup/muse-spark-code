@@ -218,6 +218,7 @@ export interface MediaRequestAccounting {
   check(): void
   started(): void
   refused(): void
+  rebindDaily(reserve: () => Promise<MediaCostClaim>): Promise<void>
   settle(usage: Usage): Promise<void>
   finish(): Promise<void>
 }
@@ -278,6 +279,7 @@ export async function reserveMediaRequest(request: {
     throw error
   }
   let wasSent = false
+  let isRebinding = false
   const closed = new Set<MediaCostClaim>()
   // Selecting the terminal outcome is synchronous. Every settle/finish caller
   // then shares its write; a failed ledger write retries only unclosed claims.
@@ -328,14 +330,29 @@ export async function reserveMediaRequest(request: {
     maxOutputTokens: request.maxOutputTokens,
     inputTokens,
     reservedUsd,
+    async rebindDaily(reserve) {
+      // The schedule replaces the shared-day claim; retaining both would double charge.
+      if (wasSent || settled !== undefined || isRebinding || closed.has(daily))
+        throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+      isRebinding = true
+      try {
+        await daily.settle(Usd.from(0).toAmount())
+        closed.add(daily)
+        daily = await reserve()
+      } finally {
+        isRebinding = false
+      }
+    },
     check() {
       // An uncertain first dispatch never spends the same claims on a retry.
-      if (wasSent || settled !== undefined) throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+      if (wasSent || settled !== undefined || isRebinding || closed.has(daily))
+        throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
       session.check()
       daily.check()
     },
     started() {
-      if (wasSent || settled !== undefined) throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
+      if (wasSent || settled !== undefined || isRebinding || closed.has(daily))
+        throw new Error(UI_TEXT.sessionBudgetRetryUnavailable)
       wasSent = true
     },
     refused() {

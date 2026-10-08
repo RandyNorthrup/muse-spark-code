@@ -176,6 +176,7 @@ export interface ToolIo {
     maxBytes: number,
     expectedCanonicalPath: string,
     signal?: AbortSignal,
+    observeSource?: (source: Extract<ContentSource, { kind: 'file' }>) => void,
   ) => Promise<
     | ReadMediaFile
     | { readonly kind: 'other'; readonly reason: string; readonly isPdf?: boolean }
