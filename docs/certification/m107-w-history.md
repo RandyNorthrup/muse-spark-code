@@ -61,20 +61,79 @@ validated `ResourceHistory` aggregate.
 
 ## Tests
 
-Kubuntu rig, repository default timeouts, `rig-test.sh kubuntu … 2`:
-12 files, **152 passed** (new: `resourceJournal` 8, `resourceHistoryWiring` 4,
-`UsageAppResources` 3, launch host `treeUsage` 1; updated `acpResources`,
-`runtimeResources`, `ResourcesSection`).
+Kubuntu rig, repository default timeouts, `rig-test.sh kubuntu … 2`.
+New: `resourceJournal` 8, `resourceHistoryWiring` 4, `UsageAppResources` 3,
+launch host `treeUsage` 1. Updated: `acpResources`, `runtimeResources`,
+`ResourcesSection` and `execResources` (the built CLI now prints the journal).
+
+| Run | Files                                                                                                                  | Result                                              |
+| --- | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| 1   | resource/usage owners (12 files)                                                                                       | 152 passed                                          |
+| 2   | run 1 + `cliUsage`, `execResources`                                                                                    | 168 passed, 1 failed (old CLI expectation, updated) |
+| 3   | `execResources`, CLI usage, deferred bundles, delivery, disk, relocation, usage panel/rollup/text/integration, journal | 225 passed, 10 skipped (Windows-only launch file)   |
 
 ## Red drills
 
 Byte-exact mutation, owning test, byte-identical restore (hash checked):
 
-DRILLS
+| Drill | Guard                                                                    | Owning test (failed while mutated)                                   |
+| ----- | ------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| D1    | Unparseable line refuses (`throw` → `continue`)                          | `resourceJournal`: torn final line vs unreadable line                |
+| D2    | Collector-scoped snapshot key (`[source, atMs]` → `['', atMs]`)          | `resourceJournal`: concurrent collectors                             |
+| D3    | Per-file byte bound (cap → `Number.MAX_SAFE_INTEGER`)                    | `resourceJournal`: bounds                                            |
+| D4    | Whole-read byte bound                                                    | `resourceJournal`: bounds                                            |
+| D5    | Fresh generation after a failed write (`generation += 1` removed)        | `resourceJournal`: failed write                                      |
+| D6    | Consent (`isEnabled` check removed)                                      | `resourceJournal`: consent                                           |
+| D7    | Seven-day record filter on read (removed)                                | `resourceJournal`: retention (Kubuntu, after adding the edge record) |
+| D8    | Unavailable is `null`, never an empty aggregate                          | `resourceHistoryWiring`: unreadable journal                          |
+| D9    | Strict `resources` state field (`resourceHistorySchema` → `z.unknown()`) | `resourceHistoryWiring`: strict field (Kubuntu, 295 ms)              |
+| D10   | Retired tree's final reading (push removed)                              | `resourceLaunchHost`: J history work source                          |
+| D11   | Agent records its governor samples (`recorder.sample` removed)           | `resourceHistoryWiring`: records and serves                          |
+| D12   | UsageApp mounts the lazy section (mount → `null`)                        | `UsageAppResources` (Kubuntu)                                        |
+
+D1–D6, D8, D10 and D11 ran on the host; D7, D9 and D12 on Kubuntu slot 2.
+D7 first passed while mutated: the day-folder filter hid the record filter.
+The test gained a record inside a still-read folder but past seven days, and
+then failed while mutated. D9's host run hit the default deadline, so it was
+repeated on Kubuntu, where it failed on the assertion. Every restore was
+hash-checked byte-identical.
 
 ## Gates
 
-GATES
+Host, on the final source: `npm run typecheck` (all five projects) **0**;
+ESLint `--max-warnings=0` on every changed source/test/script **0**;
+Prettier `--check` on every changed file **0**; plain `knip` **0**;
+`duplication` (jscpd) **0**; `cycles` **0**; `check:l10n` **0** (0 problems);
+`check:reference` **0** (current); `npm run build` **0** (size, split,
+host-globals and notices). `check:host-api` first exited **1** for the two new
+importers (`node:crypto` 92 → 93 from `runtime/resources/history.ts`,
+`node:path` 139 → 140 from `runtime/usage/usageSettingsFile.ts`); the record
+was regenerated with `--write`, reviewed, and the recheck exited **0**.
+
+| Artifact / closure                | Before KiB | After KiB | Cap KiB |
+| --------------------------------- | ---------: | --------: | ------: |
+| `dist/resourceGovernor.js`        |       93.2 |     110.5 |     125 |
+| `dist/usageService.js`            |       84.4 |      88.8 |     100 |
+| `dist/usagePanel.js`              |       67.3 |      71.8 |      75 |
+| `dist/usageCompanion.js`          |       38.8 |      43.3 |      50 |
+| `dist/webview/usage.js` + static  |      342.7 |     376.8 |     500 |
+| `dist/webview/usage.css`          |        7.4 |       9.1 |      25 |
+| Usage body (lazy)                 |       35.8 |      36.2 |      50 |
+| Resource history closure          |       44.5 |      44.4 |      50 |
+| `dist/webview/resourceHistory.js` |        8.5 |       7.2 |      25 |
+| Surface English (deferred table)  |       24.8 |      24.8 |      25 |
+| Webview startup + static chunks   |      732.4 |     732.6 |     900 |
+| `dist/extension.js`               |      509.4 |     509.7 |     600 |
+
+The history section stays lazy: UsageApp's `LazyResourcesSection` loads the
+shared `ResourcesSection` chunk on first mount, and its CSS joins `usage.css`.
+The page's strict state schema puts J's history parser in the usage page
+bundle, not in chat startup. The first build exceeded the 25 KiB surface
+English table by 0.1 KiB: the usage page now reaches the history root, whose
+English is installed by its own `browser-resource-english` import. The
+key-collection walk now stops at the independent resource roots
+(`scripts/lib/uiTextRegions.mjs`), so those keys are not duplicated; no cap
+changed; the table is back at the release base's 24.8 KiB.
 
 ## Not done here
 
