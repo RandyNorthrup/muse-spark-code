@@ -4203,5 +4203,6 @@
   "judgeAutoUntested": "Stesso modello: la fonte separata non è stata verificata",
   "judgeAutoNoProfiles": "Stesso modello: mancano i profili adattati",
   "judgeAutoNoEvidence": "Stesso modello: mancano le prove di valutazione appaiata su dati riservati",
+  "judgeEmbedNoLabels": "La scorciatoia di embedding richiede centinaia di etichette indipendenti per questa famiglia; nessuna ancora registrata, quindi viene eseguito il giudice completo.",
   "paidConfirmJudgeEmbedding": "Una richiesta di embedding a {model} costa al massimo {price}, addebitato alla tua chiave del fornitore. Il budget giornaliero condiviso è {budget}. Il tuo abbonamento non paga questa richiesta. Consenti una volta copre questa finestra; passare da una fonte gratuita o cambiare prezzo richiede un nuovo consenso."
 }

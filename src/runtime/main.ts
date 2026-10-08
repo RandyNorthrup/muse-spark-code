@@ -38,7 +38,18 @@ import {
   SETTING_DEFAULTS,
   USAGE_HISTORY_DAYS_DEFAULT,
   UI_TEXT,
+  JUDGE_CALIBRATION_LIMITS,
+  JUDGE_CRITERIA_VERSION,
+  JUDGE_MIN_READY_RATE,
+  JUDGE_PROMPT_VERSION,
+  JUDGE_RISK_FAMILY,
 } from '../shared/constants'
+import {
+  cliEvidenceRoot,
+  createPhase2Binding,
+  type Phase2EvidenceStore,
+} from '../core/judge/binding'
+import { filePhase2EvidenceStore } from '../host/judge/judgeBinding'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill, uiLocale } from '../shared/l10n/text'
 import { setUiText as setProviderPolicyText } from '../host/backend/providerPolicyEntry'
@@ -723,7 +734,51 @@ async function main(): Promise<number> {
     try {
       // Available source/offline/surface adapters are required before those
       // commands can succeed; missing dependencies retain explicit refusals.
-      const code = await loadJudge().runJudgeCommand(
+      const features = loadJudge()
+      const evidenceRoot = cliEvidenceRoot({
+        evidenceDir: process.env['MUSE_JUDGE_EVIDENCE_DIR'],
+        configHome: process.env['XDG_CONFIG_HOME'] ?? path.join(homedir(), '.config'),
+      })
+      const store: Phase2EvidenceStore = filePhase2EvidenceStore({ root: evidenceRoot })
+      // Production phase-2 binding (M98 P2B), shared with the window and
+      // MCP: explicit modes bypass only the automatic readiness default,
+      // never consent, confidentiality, provenance or admission. Live C/E/J
+      // clients land in their own lanes; until then a configured id
+      // reports its gap instead of silently staying phase-1.
+      const commandDeps = await features.createCommandDeps({
+        binding: () =>
+          createPhase2Binding({
+            engine: command.options.engine,
+            separateId: command.options.separate,
+            separateConfigured: true,
+            store,
+            options: {
+              family: JUDGE_RISK_FAMILY,
+              promptVersion: JUDGE_PROMPT_VERSION,
+              criteriaVersion: JUDGE_CRITERIA_VERSION,
+              highStakes: true,
+            },
+            limits: JUDGE_CALIBRATION_LIMITS,
+            context: {
+              // The CLI names no provider; adoption stays unverified until
+              // a provider client identifies it (a C/E lane owns that).
+              providerId: '',
+              modelId: command.options.model ?? '',
+              ownerId: '',
+              confidential: false,
+              sourceAvailable: command.options.model !== undefined,
+              paidConsent: 'not-required',
+              readyRate: undefined,
+              minReadyRate: JUDGE_MIN_READY_RATE,
+            },
+            billing: 'free',
+            adoptionCheck: (record, adoptionContext) =>
+              features.hasJudgeAdoptionEvidence(record, adoptionContext),
+          }),
+        billing: 'free',
+        worstCaseUsd: () => 0,
+      })
+      const code = await features.runJudgeCommand(
         command,
         { stdin: process.stdin, stdout, stderr },
         {
@@ -734,6 +789,7 @@ async function main(): Promise<number> {
             // read above before the lazy command renders its first response.
             loadJudge()
           },
+          ...commandDeps,
         },
         controller.signal,
       )

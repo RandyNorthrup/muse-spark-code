@@ -4203,5 +4203,6 @@
   "judgeAutoUntested": "Même modèle : la source distincte n’a pas été vérifiée",
   "judgeAutoNoProfiles": "Même modèle : les profils ajustés manquent",
   "judgeAutoNoEvidence": "Même modèle : les preuves d’évaluation appariée sur des données réservées manquent",
+  "judgeEmbedNoLabels": "Le raccourci d’embedding nécessite des centaines de libellés indépendants pour cette famille ; aucun enregistré pour l’instant, donc le juge complet s’exécute à la place.",
   "paidConfirmJudgeEmbedding": "Une demande d’embedding à {model} coûte au maximum {price}, facturé à votre clé fournisseur. Le budget quotidien partagé est de {budget}. Votre abonnement ne paie pas cette demande. Autoriser une fois couvre cette fenêtre ; passer d’une source gratuite ou modifier le prix demande un nouveau consentement."
 }

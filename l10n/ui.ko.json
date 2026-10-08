@@ -3915,5 +3915,6 @@
   "judgeAutoUntested": "같은 모델: 별도 소스가 검증되지 않았습니다",
   "judgeAutoNoProfiles": "같은 모델: 적합된 프로필이 없습니다",
   "judgeAutoNoEvidence": "같은 모델: 보류 데이터의 쌍별 평가 증거가 없습니다",
+  "judgeEmbedNoLabels": "임베딩 바로 가기는 이 패밀리에 대한 수백 개의 독립 레이블이 필요합니다. 아직 기록된 것이 없으므로 대신 전체 심사가 실행됩니다.",
   "paidConfirmJudgeEmbedding": "{model} 임베딩 요청의 비용은 최대 {price}이며 공급자 키로 청구됩니다. 공유 일일 예산은 {budget}입니다. 구독으로는 결제되지 않습니다. 한 번 허용은 이 창에 적용되며 무료 소스에서 전환하거나 가격이 바뀌면 다시 묻습니다."
 }

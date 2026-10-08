@@ -3819,6 +3819,8 @@ export const EN = {
   judgeAutoUntested: 'Same model: separate source has not been verified',
   judgeAutoNoProfiles: 'Same model: fitted profiles are missing',
   judgeAutoNoEvidence: 'Same model: held-out paired evaluation evidence is missing',
+  judgeEmbedNoLabels:
+    'The embedding shortcut needs hundreds of independent labels for this family; none recorded yet, so the full judge runs instead',
 
   judgeStatusOff: 'Off',
   judgeStatusUnavailable: 'Off: source unavailable or standing allow rules',

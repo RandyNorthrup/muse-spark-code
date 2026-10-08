@@ -933,6 +933,32 @@ export const JUDGE_MIN_CACHED_PREFIX_TOKENS = 1024
 // written to disk.
 export const JUDGE_RESULT_CACHE_MAX = 64
 export const JUDGE_BUNDLE_FILE = 'judge.js'
+// The Auto risk advisory's judged family and wording versions (M98 P2B).
+// Fitted profiles and adoption receipts are recorded against exactly these,
+// so a measurement taken under other wording cannot enable a mode.
+export const JUDGE_RISK_FAMILY = 'risk.destructive'
+export const JUDGE_PROMPT_VERSION = '1'
+export const JUDGE_CRITERIA_VERSION = '1'
+export const JUDGE_P2_BUNDLE_FILE = 'judgeP2.js'
+// Recorded phase-2 evidence (PLAN M98 2b/2i, P2B measurement plan) lives in
+// owner storage under this directory: the host's global storage, the
+// CLI/MCP data directory beside the credential file. Never in the VSIX.
+export const JUDGE_EVIDENCE_DIRNAME = 'judge'
+// The one calibration bound set the production binding and the measurement
+// lane share (M98 P2B): fitted profiles and adoption receipts are parsed
+// with exactly these limits, so a measurement taken under other bounds
+// cannot enable a mode. `isotonicMinimumLabels` repeats D77's fixed floor.
+export const JUDGE_CALIBRATION_LIMITS = {
+  maxSamples: 2000,
+  maxIdentifierLength: 256,
+  maxBins: 20,
+  isotonicMinimumLabels: JUDGE_ISOTONIC_MIN_LABELS,
+  probabilityEpsilon: 1e-6,
+  maxIterations: 100,
+  convergenceTolerance: 1e-8,
+  regularization: 1e-6,
+  weightFloor: 1e-6,
+} as const
 export const JUDGE_STATED_OUTPUT_TOKENS = 256
 export const JUDGE_TOKEN_DIRECTORY_PREFIX = 'muse-judge-'
 export const JUDGE_TEMP_PREFIX = 'muse-spark-judge-'

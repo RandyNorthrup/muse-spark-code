@@ -4059,5 +4059,6 @@
   "judgeAutoUntested": "Aynı model: ayrı kaynak doğrulanmadı",
   "judgeAutoNoProfiles": "Aynı model: uyarlanmış profiller eksik",
   "judgeAutoNoEvidence": "Aynı model: ayrılmış verilerde eşli değerlendirme kanıtı eksik",
+  "judgeEmbedNoLabels": "Gömme kısayolu bu aile için yüzlerce bağımsız etiket gerektirir; henüz hiçbiri kaydedilmedi, bu yüzden tam Muse Judge çalışır.",
   "paidConfirmJudgeEmbedding": "{model} için bir gömme isteği en fazla {price} tutar ve sağlayıcı anahtarınıza faturalandırılır. Paylaşılan günlük bütçe {budget} tutarındadır. Aboneliğiniz bu isteği ödemez. Bir kez izin ver bu pencereyi kapsar; ücretsiz kaynaktan geçiş veya fiyat değişikliği yeniden onay ister."
 }

@@ -23,6 +23,15 @@ export interface JudgeWindowDeps {
         readonly createRuntime: (deps: JudgeRuntimeDeps) => Promise<JudgeRuntime>
       }
     | undefined
+  /**
+   * Production phase-2 inputs (M98 P2B). When `phase2` is absent but these
+   * are present, the window builds the production binding itself inside
+   * the lazy judge bundle; otherwise the window keeps phase-1 behaviour.
+   * All fields are plain data: activation passes no new code.
+   */
+  readonly separateId?: (() => string) | undefined
+  readonly evidenceRoot?: string | undefined
+  readonly judgeP2BundlePath?: string | undefined
   readonly dailyBudgetUsd?: () => number
   readonly engine: () => JudgeEngine
   readonly context: (action: JudgeEntryParts) =>

@@ -46,7 +46,9 @@ export function JudgeStatusLine({ status }: { readonly status: JudgeStatus | und
         <>
           {' '}
           · {UI_TEXT.judgePanel.techniques.embedding}:{' '}
-          {fill(UI_TEXT.judgeNoAnswer, { reason: status.embeddingReason })}
+          {status.embeddingReason === 'labels-missing'
+            ? UI_TEXT.judgeEmbedNoLabels
+            : fill(UI_TEXT.judgeNoAnswer, { reason: status.embeddingReason })}
         </>
       )}
     </p>

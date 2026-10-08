@@ -272,6 +272,8 @@ import {
   VOICE_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_BUNDLE_FILE,
   JUDGE_BUNDLE_FILE,
+  JUDGE_EVIDENCE_DIRNAME,
+  JUDGE_P2_BUNDLE_FILE,
   MUSE_CODE_REVIEWER_DIR,
   EXTENSION_HOOKS_BUNDLE_FILE,
   MODEL_API_SCHEDULES_DIR,
@@ -1132,6 +1134,13 @@ async function activateWindow(
     ledger: dailyPaid.judgeLedger,
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', JUDGE_BUNDLE_FILE).fsPath,
     engine: () => currentSettings()['judge.engine'],
+    // Production phase-2 inputs (M98 P2B): plain data only. The window
+    // builds the binding inside its lazy bundle; without a configured
+    // separate id it keeps phase-1 behaviour.
+    separateId: () => currentSettings()['judge.separate'],
+    evidenceRoot: path.join(context.globalStorageUri.fsPath, JUDGE_EVIDENCE_DIRNAME),
+    judgeP2BundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', JUDGE_P2_BUNDLE_FILE)
+      .fsPath,
     context: (action) => {
       if (!isProjectTrusted()) return
       for (const controller of controllers.values()) {

@@ -1,0 +1,497 @@
+// Production phase-2 binding construction (M98 P2B).
+//
+// The window, CLI and MCP factories accept a `JudgeRuntimeBinding`; before
+// this module nothing in the product built one, so every surface kept
+// phase-1 behaviour. This module builds that binding from real parts:
+//
+// - the real C/E/J separate sides, adapted from the merged lanes' runtime
+//   constructors (`createSystemOneJudge`, `createByoJudge`,
+//   `createLocalJudgeSource`) through `cascadeSideFromRuntime`;
+// - recorded adoption receipts and fitted profiles, read through the
+//   injected `Phase2EvidenceStore` (PLAN 2b/2i: fitted weights live in
+//   owner storage — the extension host's global storage, the CLI/MCP data
+//   directory — never in the VSIX).
+//
+// Nothing is invented here: a profile the store does not hold stays
+// missing, an unverified source stays unverified, and the resolver turns
+// each gap into the translated status that names it (`source-unavailable`,
+// `source-untested`, `profile-missing`, `evidence-missing`) instead of a
+// silent phase-1 fallback. The binding exists whenever a phase-2 engine
+// mode with a configured separate source is selected; it is `undefined`
+// only for true single-model setups (`same`, `off`, or no separate source
+// configured), which keep phase-1 behaviour by design.
+//
+// Two-stage validation is deliberate. The binding reports what is
+// *recorded* (a profile file exists, a receipt file exists); the runtime
+// inside `dist/judgeP2.js` then *validates* (identity match, independent
+// evidence, grouped held-out lineage, cascade metrics) before dispatch.
+// A recorded-but-unsuitable artifact still refuses, with the same named
+// reason.
+//
+// Value imports stay clear of the lazy judge bundles on purpose: only
+// `schema.ts` (the shared contract) is read at run time. Calibration
+// parsing, adoption checking, cascade combination and source dispatch stay
+// inside `dist/judgeP2.js` and its children, so the bundle-split guard
+// keeps passing. Everything here is pure and synchronous; file access
+// belongs to the surface-supplied store reader.
+
+import type { JudgeRuntime } from './engine'
+import type { JudgeCascadeSide, JudgeCascadeOptions } from './cascade'
+import type { JudgeAdoptionContext } from './adoption'
+import type { CalibrationLimits } from './calibration/schema'
+import type { JudgeRuntimeBinding } from './runtime'
+import type { JudgeModeContext } from './resolve'
+import { JUDGE_EVIDENCE_DIRNAME } from '../../shared/constants'
+import { judgeCapabilitySchema, type JudgeCapability, type JudgeOutcome } from './schema'
+
+/** Where recorded phase-2 evidence lives under a surface's storage root. */
+export const PHASE2_EVIDENCE_DIR = JUDGE_EVIDENCE_DIRNAME
+
+/** B's fitted calibration profiles, one JSON file per side identity. */
+export const PHASE2_PROFILE_BASENAME = 'profiles'
+/** Held-out paired M75 adoption records, one JSON file per family. */
+export const PHASE2_ADOPTION_BASENAME = 'adoption'
+/** L98P2-EMBED heads and manifests, one JSON file per family. */
+export const PHASE2_EMBEDDING_BASENAME = 'embedding'
+
+/** Identity fields that select one recorded fitted profile. */
+export interface Phase2ProfileQuery {
+  readonly providerId: string
+  readonly model: string
+  readonly modelVersion: string
+  readonly endpoint: string
+  readonly source: 'same' | 'separate'
+  readonly technique: string
+  readonly family: string
+  readonly promptVersion: string
+  readonly criteriaVersion: string
+  readonly fitVersion: string
+}
+
+/** Identity fields that select one recorded adoption receipt. */
+export interface Phase2AdoptionQuery {
+  readonly providerId: string
+  readonly modelId: string
+  readonly family: string
+  readonly promptVersion: string
+  readonly criteriaVersion: string
+}
+
+/** Identity fields that select one recorded embedding head/manifest pair. */
+export interface Phase2EmbeddingQuery {
+  readonly providerId: string
+  readonly model: string
+  readonly modelVersion: string
+  readonly endpoint: string
+  readonly source: string
+  readonly family: string
+  readonly promptVersion: string
+  readonly criteriaVersion: string
+  readonly fitVersion: string
+  readonly dimension: number
+}
+
+/**
+ * Recorded evidence, read from owner storage. Every method returns
+ * `undefined` when nothing is recorded; an unreadable or malformed entry
+ * is also `undefined`, never a guessed profile. Surfaces implement this
+ * over files (`phase2EvidenceFile` builds the path); tests use memory.
+ */
+export interface Phase2EvidenceStore {
+  readProfile(query: Phase2ProfileQuery): unknown
+  readAdoptionRecord(query: Phase2AdoptionQuery): unknown
+  readEmbeddingHead(query: Phase2EmbeddingQuery): unknown
+  readEmbeddingManifest(query: Phase2EmbeddingQuery): unknown
+}
+
+/** Nothing is recorded: every reader reports the gap instead of a guess. */
+const NO_RECORDED_EVIDENCE: unknown = undefined
+
+/** A store with nothing recorded: every phase-2 mode reports its gap. */
+export function emptyPhase2EvidenceStore(): Phase2EvidenceStore {
+  return {
+    readProfile: () => NO_RECORDED_EVIDENCE,
+    readAdoptionRecord: () => NO_RECORDED_EVIDENCE,
+    readEmbeddingHead: () => NO_RECORDED_EVIDENCE,
+    readEmbeddingManifest: () => NO_RECORDED_EVIDENCE,
+  }
+}
+
+/** Slug parts are file-name safe, never paths. */
+const MAX_SLUG_PART_LENGTH = 96
+
+function sanitizeSlugPart(value: string): string {
+  const cleaned = value
+    .normalize('NFC')
+    .replaceAll(/[^a-zA-Z0-9._-]+/g, '-')
+    .replaceAll(/^-+|-+$/g, '')
+  return cleaned === '' ? 'unknown' : cleaned.slice(0, MAX_SLUG_PART_LENGTH)
+}
+
+/**
+ * File name for one recorded artifact. Parts are sanitized so model ids
+ * containing `/` or `:` cannot escape their directory on any platform.
+ */
+export function phase2EvidenceSlug(parts: readonly string[]): string {
+  return parts.map((part) => sanitizeSlugPart(part)).join('__')
+}
+
+/**
+ * Storage path for one recorded artifact, with `/` separators on every
+ * platform (callers must normalise before comparing: CI runs on Windows).
+ * The measurement lane writes these exact paths; the binding reads them.
+ */
+export function phase2EvidenceFile(
+  root: string,
+  kind: 'profile' | 'adoption' | 'embedding',
+  slug: string,
+): string {
+  const bases = {
+    profile: PHASE2_PROFILE_BASENAME,
+    adoption: PHASE2_ADOPTION_BASENAME,
+    embedding: PHASE2_EMBEDDING_BASENAME,
+  }
+  const base = bases[kind]
+  const rootSlash = root.replaceAll('\\', '/').replaceAll(/\/+$/g, '')
+  return `${rootSlash}/${PHASE2_EVIDENCE_DIR}/${base}/${slug}.json`
+}
+
+/** Slug for one side's fitted profile file. */
+export function phase2ProfileSlug(query: Phase2ProfileQuery): string {
+  return phase2EvidenceSlug([
+    query.providerId,
+    query.model,
+    query.modelVersion,
+    query.endpoint,
+    query.source,
+    query.technique,
+    query.family,
+    query.promptVersion,
+    query.criteriaVersion,
+    query.fitVersion,
+  ])
+}
+
+/** Slug for one family's adoption receipt file. */
+export function phase2AdoptionSlug(query: Phase2AdoptionQuery): string {
+  return phase2EvidenceSlug([
+    query.providerId,
+    query.modelId,
+    query.family,
+    query.promptVersion,
+    query.criteriaVersion,
+  ])
+}
+
+/** Slug for one family's embedding head/manifest files. */
+export function phase2EmbeddingSlug(query: Phase2EmbeddingQuery): string {
+  return phase2EvidenceSlug([
+    query.providerId,
+    query.model,
+    query.modelVersion,
+    query.endpoint,
+    query.source,
+    query.family,
+    query.promptVersion,
+    query.criteriaVersion,
+    query.fitVersion,
+    String(query.dimension),
+  ])
+}
+
+/**
+ * Default CLI/MCP evidence root: the Muse config directory's `judge`
+ * folder, with an explicit `MUSE_JUDGE_EVIDENCE_DIR` override. Pure so
+ * tests can pin every branch, including Windows separators.
+ */
+export function cliEvidenceRoot(input: {
+  readonly evidenceDir: string | undefined
+  readonly configHome: string
+}): string {
+  const override = input.evidenceDir?.trim() ?? ''
+  return override === ''
+    ? `${input.configHome.replaceAll('\\', '/').replaceAll(/\/+$/g, '')}/muse/judge`
+    : override
+}
+
+/** One real separate judge source (C, E or J) with its verification proof. */
+export interface Phase2SeparateSource {
+  /** The lane's runtime, built by the surface from live clients. */
+  readonly runtime: JudgeRuntime
+  /** Exact source identity; malformed capabilities fail closed. */
+  readonly capability: JudgeCapability
+  /**
+   * The profile version this selection approved. The store is read for
+   * exactly this version; a rotated fit never inherits an old approval.
+   */
+  readonly fitVersion: string
+  /** The source passed its verification gates (a C, E or J source). */
+  readonly verified: boolean
+  /** Remote, verified-local or unverified-local; gates confidential use. */
+  readonly locality: 'remote' | 'verified-local' | 'unverified-local'
+  /**
+   * Ledger-backed costs for an answered outcome. Defaults to zero (free
+   * local sources); a paid side supplies its reservation reader. Usage
+   * accounting itself stays with the side's own ledger settlement.
+   */
+  readonly costsOf?:
+    ((outcome: Extract<JudgeOutcome, { outcome: 'answered' }>) => Phase2SideCosts) | undefined
+}
+
+/** A separate source that is configured but has no live client yet. */
+export function unavailablePhase2SeparateSource(): Pick<Phase2SeparateSource, 'runtime'> {
+  return {
+    runtime: {
+      judge: () => Promise.resolve({ outcome: 'no-answer', reason: 'source-unavailable' }),
+    },
+  }
+}
+
+export interface Phase2SideCosts {
+  readonly reservedCostUsd: number
+  readonly settledCostUsd: number
+  readonly uncertainCostUsd: number
+}
+
+function zeroCosts(): Phase2SideCosts {
+  return { reservedCostUsd: 0, settledCostUsd: 0, uncertainCostUsd: 0 }
+}
+
+/**
+ * Adapt one merged-lane runtime (C, E or J) into a cascade side. The
+ * runtime owns dispatch; `costsOf` is the surface's cost reader for an
+ * answered outcome. A refused outcome passes through as the cascade's
+ * failed side; a malformed capability or empty fit version refuses the
+ * side before dispatch.
+ */
+export function cascadeSideFromRuntime(deps: {
+  readonly runtime: JudgeRuntime
+  readonly capability: JudgeCapability
+  readonly profile: unknown
+  readonly fitVersion: string
+  readonly limits: CalibrationLimits
+  readonly costsOf?:
+    ((outcome: Extract<JudgeOutcome, { outcome: 'answered' }>) => Phase2SideCosts) | undefined
+}): JudgeCascadeSide | undefined {
+  if (!judgeCapabilitySchema.safeParse(deps.capability).success) return undefined
+  if (typeof deps.fitVersion !== 'string' || deps.fitVersion.length === 0) return undefined
+  const costsOf = deps.costsOf ?? (() => zeroCosts())
+  return {
+    capability: deps.capability,
+    profile: deps.profile,
+    fitVersion: deps.fitVersion,
+    limits: deps.limits,
+    run: async (request, signal) => {
+      const outcome = await deps.runtime.judge(request, signal)
+      return outcome.outcome === 'answered'
+        ? { ...costsOf(outcome), outcome }
+        : { ...zeroCosts(), outcome }
+    },
+  }
+}
+
+/** Technique guess for a side's profile lookup, from its capability. */
+export function phase2SideTechnique(capability: JudgeCapability): string {
+  if (capability.systemone) return 'systemone'
+  return capability.stated ? 'stated' : 'logprob'
+}
+
+export interface Phase2BindingContext {
+  readonly providerId: string
+  readonly modelId: string
+  readonly endpoint?: string | undefined
+  readonly profileId?: string | undefined
+  readonly ownerId?: string | undefined
+  readonly turn?: string | number | undefined
+  readonly confidential: boolean
+  readonly sourceAvailable: boolean
+  readonly paidConsent: JudgeModeContext['paidConsent']
+  readonly readyRate: number | undefined
+  readonly minReadyRate: number
+}
+
+export interface Phase2BindingRequest {
+  /** Raw `museSpark.judge.engine` (CLI `--engine`); parsed by the resolver. */
+  readonly engine: unknown
+  /** Raw `museSpark.judge.separate` (CLI `--separate`); empty means single-model. */
+  readonly separateId: string | undefined
+  /** The real same-model side, when the surface has one at request level. */
+  readonly same?: JudgeCascadeSide | undefined
+  /** The real separate source with its verification proof. */
+  readonly separate?: Phase2SeparateSource | undefined
+  /**
+   * A separate source id is configured but resolves to no live source yet
+   * (its C/E/J client lane has not landed). The binding still exists so
+   * the status names the gap instead of silently staying phase-1.
+   */
+  readonly separateConfigured?: boolean
+  readonly store: Phase2EvidenceStore
+  readonly options: JudgeCascadeOptions
+  readonly limits: CalibrationLimits
+  readonly context: Phase2BindingContext
+  readonly billing?: JudgeRuntimeBinding['billing']
+  readonly attemptCostUsd?: JudgeRuntimeBinding['attemptCostUsd']
+  /**
+   * Adoption check. The production runtime (`dist/judgeP2.js`) and the CLI
+   * supply `hasJudgeAdoptionEvidence`; tests pass it directly. Injectable
+   * so this module never pulls calibration code into the host/CLI bundles.
+   * Without it, `auto` cannot reach `both`: recorded evidence stays
+   * unverified and the status says so.
+   */
+  readonly adoptionCheck?: ((record: unknown, context: JudgeAdoptionContext) => boolean) | undefined
+  /**
+   * An embedding transport is configured (capable or opted-in) but no head
+   * is recorded for this family. Reported in the status line in plain
+   * words; the full judge runs instead. Unset while no embedding source
+   * is configured, in which case nothing is missing for the chosen mode.
+   */
+  readonly embeddingAwaitingLabels?: boolean
+}
+
+/**
+ * Build the production binding, or `undefined` for a true single-model
+ * setup. With a binding present, every evidence gap (unverified source,
+ * missing profiles, missing adoption receipt, missing embedding labels)
+ * reaches the translated status line through the 2a resolver; without one
+ * the surfaces keep exact phase-1 behaviour.
+ */
+export function createPhase2Binding(
+  request: Phase2BindingRequest,
+): JudgeRuntimeBinding | undefined {
+  const engine = request.engine
+  if (engine === 'off' || engine === 'same') return undefined
+  const separateId = request.separateId?.trim() ?? ''
+  const isConfigured = request.separate !== undefined || request.separateConfigured === true
+  if (separateId === '' || !isConfigured) return undefined
+  const { store, options, limits } = request
+  // A malformed separate spec is a surface bug, not missing evidence: it
+  // reports the same gap as a clientless source instead of vanishing.
+  const separate =
+    request.separate !== undefined &&
+    judgeCapabilitySchema.safeParse(request.separate.capability).success &&
+    request.separate.fitVersion.length > 0
+      ? request.separate
+      : undefined
+
+  const withProfile = (
+    side: JudgeCascadeSide | undefined,
+    source: 'same' | 'separate',
+    technique: string,
+    fitVersion: string,
+  ): JudgeCascadeSide | undefined => {
+    if (side === undefined) return undefined
+    const parsed = judgeCapabilitySchema.safeParse(side.capability)
+    if (!parsed.success) return undefined
+    const recorded = store.readProfile({
+      providerId: parsed.data.providerId,
+      model: parsed.data.model,
+      modelVersion: parsed.data.modelVersion,
+      endpoint: parsed.data.endpoint,
+      source,
+      technique,
+      family: options.family,
+      promptVersion: options.promptVersion,
+      criteriaVersion: options.criteriaVersion,
+      fitVersion,
+    })
+    return { ...side, profile: recorded }
+  }
+
+  const same =
+    request.same === undefined
+      ? undefined
+      : withProfile(
+          request.same,
+          'same',
+          phase2SideTechnique(request.same.capability),
+          request.same.fitVersion,
+        )
+  const adaptedSeparate =
+    separate === undefined
+      ? undefined
+      : cascadeSideFromRuntime({
+          runtime: separate.runtime,
+          capability: separate.capability,
+          profile: undefined,
+          fitVersion: separate.fitVersion,
+          limits,
+          ...(separate.costsOf !== undefined && { costsOf: separate.costsOf }),
+        })
+  const separateSide =
+    adaptedSeparate === undefined || separate === undefined
+      ? undefined
+      : withProfile(
+          adaptedSeparate,
+          'separate',
+          phase2SideTechnique(separate.capability),
+          separate.fitVersion,
+        )
+
+  const adoptionQuery: Phase2AdoptionQuery = {
+    providerId: request.context.providerId,
+    modelId: request.context.modelId,
+    family: options.family,
+    promptVersion: options.promptVersion,
+    criteriaVersion: options.criteriaVersion,
+  }
+  const record = store.readAdoptionRecord(adoptionQuery)
+  const adoption =
+    record === undefined
+      ? undefined
+      : {
+          record,
+          ...(request.adoptionCheck !== undefined && { check: request.adoptionCheck }),
+          context: {
+            providerId: request.context.providerId,
+            modelId: request.context.modelId,
+            limits,
+            ...(same?.profile !== undefined && { sameProfile: same.profile }),
+            ...(separateSide?.profile !== undefined && {
+              separateProfile: separateSide.profile,
+            }),
+          },
+        }
+
+  // Recorded, not yet validated: the runtime re-checks identity,
+  // independent evidence and grouped lineage before any dispatch. A
+  // configured-but-clientless source has no sides, so nothing dispatches
+  // and the resolver names the gap instead of silently staying phase-1.
+  const hasRecordedProfiles = same?.profile !== undefined && separateSide?.profile !== undefined
+
+  const context: JudgeModeContext = {
+    engine,
+    paidConsent: request.context.paidConsent,
+    readyRate: request.context.readyRate,
+    minReadyRate: request.context.minReadyRate,
+    sourceAvailable: request.context.sourceAvailable,
+    providerId: request.context.providerId,
+    modelId: request.context.modelId,
+    confidential: request.context.confidential,
+    ...(request.context.endpoint !== undefined && { endpoint: request.context.endpoint }),
+    ...(request.context.profileId !== undefined && { profileId: request.context.profileId }),
+    ...(request.context.ownerId !== undefined && { ownerId: request.context.ownerId }),
+    ...(request.context.turn !== undefined && { turn: request.context.turn }),
+    separate:
+      separate === undefined
+        ? { available: false, verified: false, profilesReady: false, adoption }
+        : {
+            available: true,
+            verified: separate.verified,
+            profilesReady: hasRecordedProfiles,
+            adoption,
+          },
+  }
+
+  return {
+    ...(request.attemptCostUsd !== undefined && { attemptCostUsd: request.attemptCostUsd }),
+    ...(request.billing !== undefined && { billing: request.billing }),
+    context,
+    options,
+    ...(same !== undefined && { same }),
+    ...(separateSide !== undefined && { separate: separateSide }),
+    separateVerified: separate?.verified ?? false,
+    // Unknown locality reports remote so confidential workspaces refuse.
+    separateLocality: separate?.locality ?? 'remote',
+    ...(request.embeddingAwaitingLabels === true && { embeddingNote: 'labels-missing' }),
+  }
+}

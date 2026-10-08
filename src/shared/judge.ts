@@ -6,7 +6,9 @@ export const judgeStatusSchema = z.object({
   mode: z.enum(['same', 'separate', 'both', 'off']),
   modelId: z.string(),
   billing: z.enum(['subscription', 'modelApi', 'free']),
-  embeddingReason: z.optional(z.enum(JUDGE_PANEL_REASONS)),
+  // `labels-missing` is window-only: a configured embedding transport with
+  // no recorded head yet (L98P2-EMBED). It never comes from the panel wire.
+  embeddingReason: z.optional(z.enum([...JUDGE_PANEL_REASONS, 'labels-missing'])),
   reason: z.enum([
     ...JUDGE_PANEL_REASONS,
     'auto-same',

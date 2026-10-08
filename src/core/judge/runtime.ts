@@ -29,6 +29,13 @@ export interface JudgeRuntimeBinding {
   readonly separateVerified: boolean
   readonly separateLocality: 'remote' | 'verified-local' | 'unverified-local'
   readonly embedding?: JudgeEmbeddingBinding | undefined
+  /**
+   * A configured embedding transport has no recorded head for this
+   * family's labels yet (L98P2-EMBED). The full judge runs instead and
+   * the window names the gap in the status line. Unset while no
+   * embedding source is configured.
+   */
+  readonly embeddingNote?: 'labels-missing' | undefined
 }
 
 export interface JudgeRuntimeDeps {
@@ -63,32 +70,35 @@ function isMatchingProfile(
 /** The current source proof and pinned profiles qualify readiness; recorded evidence qualifies auto. */
 export function judgeRuntimeContext(binding: JudgeRuntimeBinding): JudgeModeContext {
   const { context, same, separate, options } = binding
+  // Without sides nothing dispatches (each runner refuses an absent side),
+  // so a configured-but-clientless binding keeps the precise gap the
+  // factory reported instead of collapsing to a silent phase-1 `same`.
+  // A binding with no separate block at all keeps the old phase-1 mapping.
+  if (separate === undefined)
+    return { ...context, sourceAvailable: context.sourceAvailable && same !== undefined }
   const isAllowedSeparate = !context.confidential || binding.separateLocality === 'verified-local'
   return {
     ...context,
     sourceAvailable: context.sourceAvailable && same !== undefined,
-    separate:
-      separate === undefined
-        ? undefined
-        : {
-            available: isAllowedSeparate,
-            verified: binding.separateVerified,
-            profilesReady: isMatchingProfile(same, options) && isMatchingProfile(separate, options),
-            adoption:
-              same === undefined || context.separate?.adoption === undefined
-                ? undefined
-                : {
-                    record: context.separate.adoption.record,
-                    check: hasJudgeAdoptionEvidence,
-                    context: {
-                      providerId: context.providerId,
-                      modelId: context.modelId,
-                      limits: same.limits,
-                      sameProfile: same.profile,
-                      separateProfile: separate.profile,
-                    },
-                  },
-          },
+    separate: {
+      available: isAllowedSeparate,
+      verified: binding.separateVerified,
+      profilesReady: isMatchingProfile(same, options) && isMatchingProfile(separate, options),
+      adoption:
+        same === undefined || context.separate?.adoption === undefined
+          ? undefined
+          : {
+              record: context.separate.adoption.record,
+              check: hasJudgeAdoptionEvidence,
+              context: {
+                providerId: context.providerId,
+                modelId: context.modelId,
+                limits: same.limits,
+                sameProfile: same.profile,
+                separateProfile: separate.profile,
+              },
+            },
+    },
   }
 }
 
@@ -122,7 +132,7 @@ export function createJudgeRuntime(deps: JudgeRuntimeDeps): JudgeRuntime {
           separateFit: current.separate?.fitVersion,
           embedding:
             current.embedding === undefined
-              ? undefined
+              ? (current.embeddingNote ?? undefined)
               : {
                   source: { ...current.embedding.source, embed: undefined },
                   head: current.embedding.head,
@@ -132,6 +142,7 @@ export function createJudgeRuntime(deps: JudgeRuntimeDeps): JudgeRuntime {
                   capable: current.embedding.capable,
                   price: current.embedding.priceFingerprint,
                   epoch: current.embedding.consentEpoch(),
+                  note: current.embeddingNote ?? undefined,
                 },
         })
       const identity = identityOf(binding)

@@ -125,4 +125,17 @@ describe('Judge card note and status', () => {
     view.rerender(<JudgeStatusLine status={undefined} />)
     expect(screen.queryByRole('status')).toBeNull()
   })
+
+  it('names missing embedding labels in plain words instead of a reason code', () => {
+    const view = render(
+      <JudgeStatusLine status={{ ...STATUS, embeddingReason: 'labels-missing' }} />,
+    )
+    expect(screen.getByRole('status')).toHaveTextContent(UI_TEXT.judgeEmbedNoLabels)
+    expect(screen.getByRole('status')).not.toHaveTextContent('labels-missing')
+    view.rerender(
+      <JudgeStatusLine status={{ ...STATUS, embeddingReason: 'capability-unavailable' }} />,
+    )
+    expect(screen.getByRole('status')).toHaveTextContent('capability-unavailable')
+    view.unmount()
+  })
 })

@@ -19,20 +19,37 @@ import { JudgeResultCache } from '../../core/judge/same/resultCache'
 import type { JudgeUse } from '../../core/judge/use'
 import {
   JUDGE_ADVISORY_THRESHOLD,
+  JUDGE_CALIBRATION_LIMITS,
+  JUDGE_CRITERIA_VERSION,
+  JUDGE_MIN_READY_RATE,
   JUDGE_MODEL_TEXT,
   JUDGE_MAX_STATE_TOKENS,
+  JUDGE_PROMPT_VERSION,
+  JUDGE_RISK_FAMILY,
   JUDGE_TEMP_PREFIX,
   MODEL_API_MAX_OUTPUT_TOKENS,
 } from '../../shared/constants'
 import type { TokenUsage } from '../../shared/agentEvents'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
+import { createHostPhase2 } from './judgeBinding'
 import { createJudgeUse } from './judgeUse'
 import { JudgeUsageRows } from './judgeUsage'
 import { MuseCodeSameJudge } from './museCodeSameJudge'
 import { ModelApiSameJudge } from './modelApiSameJudge'
 import { admittedModelApiJudge } from './judgeTransport'
 import type { JudgeWindowDeps, JudgeWindowPort } from './judgeBundle'
+import type { Phase2BindingContext } from '../../core/judge/binding'
+
+/** First-charge consent as the production binding sees it before any popup. */
+function windowPaidConsent(
+  backend: 'museCode' | 'modelApi',
+  hasLedger: boolean,
+  hasGrant: boolean,
+): 'granted' | 'unasked' | 'not-required' {
+  if (backend === 'museCode' || !hasLedger) return 'not-required'
+  return hasGrant ? 'granted' : 'unasked'
+}
 
 /** Window-owned cache; each action gets its own current-policy reader and abort lifetime. */
 export function createWindowJudge(
@@ -41,6 +58,66 @@ export function createWindowJudge(
   locale: string,
 ): JudgeWindowPort {
   setUiText(table, locale)
+  // Production phase-2 binding (M98 P2B): an explicitly injected `phase2`
+  // (tests, future surfaces) wins; otherwise the window builds the
+  // production binding from the new inputs when all three are present.
+  // Anything else keeps exact phase-1 behaviour.
+  const phase2 =
+    deps.phase2 ??
+    (deps.separateId === undefined ||
+    deps.evidenceRoot === undefined ||
+    deps.judgeP2BundlePath === undefined
+      ? undefined
+      : createHostPhase2({
+          judgeP2BundlePath: deps.judgeP2BundlePath,
+          log: deps.log,
+          engine: deps.engine,
+          separateId: deps.separateId,
+          evidenceRoot: deps.evidenceRoot,
+          limits: JUDGE_CALIBRATION_LIMITS,
+          options: () => ({
+            family: JUDGE_RISK_FAMILY,
+            promptVersion: JUDGE_PROMPT_VERSION,
+            criteriaVersion: JUDGE_CRITERIA_VERSION,
+            highStakes: true,
+          }),
+          // Live C/E/J clients land in their own lanes; until then a
+          // configured id reports its gap instead of silently staying
+          // phase-1.
+          separateConfigured: true,
+          sources: () => ({}),
+          context: (action): Phase2BindingContext | undefined => {
+            const current = deps.context(action)
+            if (current === undefined) return undefined
+            const backend = current.backend
+            return {
+              providerId: current.providerId ?? backend,
+              modelId: current.modelId,
+              ...(current.endpoint !== undefined && { endpoint: current.endpoint }),
+              ...(current.profileId !== undefined && { profileId: current.profileId }),
+              ownerId: current.ownerId,
+              turn: action.turnId,
+              confidential: current.confidential,
+              sourceAvailable:
+                backend === 'museCode'
+                  ? readSettings()
+                  : deps.ledger !== undefined &&
+                    current.contextLimit !== undefined &&
+                    deps.modelApi(action) !== undefined,
+              paidConsent: windowPaidConsent(
+                backend,
+                deps.ledger !== undefined,
+                deps.paid.consent.remembered().includes('judge'),
+              ),
+              readyRate: deps.readyRate?.(backend),
+              minReadyRate: JUDGE_MIN_READY_RATE,
+            }
+          },
+          billing: (action) => {
+            const current = deps.context(action)
+            return current?.backend === 'modelApi' ? 'modelApi' : 'subscription'
+          },
+        }))
   const cache = new JudgeResultCache()
   const paidGrants = new Set<string>()
   const sideSessions = new Set<string>()
@@ -53,7 +130,7 @@ export function createWindowJudge(
     const engine = deps.engine()
     const isBound = JSON.stringify(current) === panel.identity
     const price = status.billing === 'modelApi' ? judgePriceOf(status.modelId) : undefined
-    const selected = deps.phase2?.binding(panel.action)
+    const selected = phase2?.binding(panel.action)
     const canUseMode =
       status.mode !== 'off' &&
       (engine === 'auto' || engine === status.mode) &&
@@ -145,17 +222,15 @@ export function createWindowJudge(
               initial.contextLimit !== undefined &&
               deps.modelApi(action) !== undefined
         const context = () => ({
-          ...deps.phase2?.binding(action)?.context,
+          ...phase2?.binding(action)?.context,
           engine: deps.engine(),
           modelId: initial.modelId,
           providerId:
-            deps.phase2?.binding(action)?.context.providerId ??
-            initial.providerId ??
-            initial.backend,
-          endpoint: deps.phase2?.binding(action)?.context.endpoint ?? initial.endpoint,
-          profileId: deps.phase2?.binding(action)?.context.profileId ?? initial.profileId,
-          ownerId: deps.phase2?.binding(action)?.context.ownerId ?? initial.ownerId,
-          turn: deps.phase2?.binding(action)?.context.turn ?? action.turnId,
+            phase2?.binding(action)?.context.providerId ?? initial.providerId ?? initial.backend,
+          endpoint: phase2?.binding(action)?.context.endpoint ?? initial.endpoint,
+          profileId: phase2?.binding(action)?.context.profileId ?? initial.profileId,
+          ownerId: phase2?.binding(action)?.context.ownerId ?? initial.ownerId,
+          turn: phase2?.binding(action)?.context.turn ?? action.turnId,
           confidential: initial.confidential,
           readyRate: deps.readyRate?.(initial.backend),
           paidConsent:
@@ -164,9 +239,9 @@ export function createWindowJudge(
               : consent,
           sourceAvailable:
             isCurrent() &&
-            (deps.phase2?.binding(action) === undefined
+            (phase2?.binding(action) === undefined
               ? isPhase1SourceAvailable()
-              : deps.phase2.binding(action)?.context.sourceAvailable === true),
+              : phase2.binding(action)?.context.sourceAvailable === true),
         })
         const binding = (signal: AbortSignal): JudgeAdmissionBinding => {
           const current = deps.context(action)
@@ -193,7 +268,7 @@ export function createWindowJudge(
         const use = createJudgeUse({
           backend: initial.backend,
           billing: () =>
-            deps.phase2?.binding(action)?.billing ??
+            phase2?.binding(action)?.billing ??
             (initial.backend === 'museCode' ? 'subscription' : 'modelApi'),
           context,
           allowsPaidJudge: async (model) => {
@@ -222,7 +297,6 @@ export function createWindowJudge(
             deps.notice(text)
           },
           createRunner: (entries, _action, lifetime) => {
-            const phase2 = deps.phase2
             if (phase2?.binding(action) !== undefined) {
               const embeddingId = randomUUID()
               const embeddingRows = new JudgeUsageRows({
@@ -243,9 +317,12 @@ export function createWindowJudge(
                       paidGrants,
                       embeddingStatus: (status) => {
                         if (panel?.action !== action) return
+                        // A configured transport with no recorded head names
+                        // its missing labels in plain words (L98P2-EMBED).
+                        const note = phase2.binding(action)?.embeddingNote
                         const next = {
                           ...panel.status,
-                          embeddingReason: status.available ? undefined : status.reason,
+                          embeddingReason: status.available ? undefined : (note ?? status.reason),
                         }
                         panel = { ...panel, status: next }
                         deps.status(action, next)
