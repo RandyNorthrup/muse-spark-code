@@ -1,8 +1,8 @@
 // M108 D's receiver admission is shared by native bridges and runtime hosts.
 // No vscode import or transport implementation belongs in this fragment.
 import {
-  AccountPool,
-  type AccountPoolDeps,
+  AccountPoolStoppedError,
+  type AccountPool,
   type AccountPoolRequest,
 } from '../../core/accounts/pool'
 import type { AccountPolicyDecision } from '../../core/accounts/policyGate'
@@ -16,16 +16,34 @@ import { accountHeadroomSchema, deviceAccountHeadroomSchema } from '../../shared
 import type { Usd } from '../../shared/accountUsd'
 
 export class DeviceAccountAdmissionError extends Error {
+  public readonly code: 'recovery' | 'cancel' | 'ownCapsOnly' | 'routeUnavailable'
   public constructor(public readonly decision?: AccountPolicyDecision) {
-    super(UI_TEXT.accounts.routeUnavailable)
+    let code: DeviceAccountAdmissionError['code'] = 'routeUnavailable'
+    if (decision?.kind === 'recovery') code = 'recovery'
+    else if (
+      decision?.kind === 'stop' &&
+      (decision.reason === 'cancel' || decision.reason === 'ownCapsOnly')
+    )
+      code = decision.reason
+    let message = UI_TEXT.accounts.routeUnavailable
+    if (decision?.kind === 'recovery')
+      message =
+        decision.recovery === 'chatgptPlan'
+          ? UI_TEXT.accounts.chatgptRecovery
+          : UI_TEXT.accounts.museCodeRecovery
+    else if (code === 'cancel' || code === 'ownCapsOnly') message = UI_TEXT.accounts[code]
+    super(message)
+    this.code = code
     this.name = 'DeviceAccountAdmissionError'
   }
 }
 
 export interface DeviceAccountReceiverDeps {
   readonly providers: () => readonly string[]
-  /** One receiver-owned provider/product lifecycle, never a sender's policy or gate. */
-  readonly pool: (provider: string) => AccountPoolDeps | undefined
+  /** The existing local provider owner; admission and journal are shared with local sends. */
+  readonly pool: (provider: string) => AccountPool | undefined
+  /** Receiver's selected model and projection for its provider offer. */
+  readonly offerRequest: (provider: string) => AccountPoolRequest
   readonly isPinnedHere: (provider: string, account: string) => boolean
   /** Capture the local placement owner's generation, including away/back changes. */
   readonly placementFence: () => Promise<() => void>
@@ -39,49 +57,41 @@ export interface DeviceAccountReceiverDeps {
 }
 
 export class DeviceAccountReceiver {
-  private readonly pools = new Map<
-    string,
-    { readonly source: AccountPoolDeps; readonly pool: AccountPool }
-  >()
   public constructor(private readonly deps: DeviceAccountReceiverDeps) {}
 
-  private pool(provider: string) {
-    const source = this.deps.pool(provider)
-    if (source?.provider !== provider) throw new DeviceAccountAdmissionError()
-    const existing = this.pools.get(provider)
-    if (existing?.source === source) return existing
-    const owned = {
-      source,
-      pool: new AccountPool({
-        ...source,
-        accounts: () =>
-          source.accounts().filter((account) => this.deps.isPinnedHere(provider, account.id)),
-        canUseModel: (account, request) =>
-          this.deps.isPinnedHere(provider, account.id) && source.canUseModel(account, request),
-      }),
+  private bucket(
+    provider: string,
+    pool: AccountPool | undefined,
+    request: AccountPoolRequest,
+  ): 'ample' | 'some' | 'none' {
+    const source = pool?.deps
+    const policy = source?.policy()
+    let bucket: 'ample' | 'some' | 'none' = 'none'
+    if (
+      source !== undefined &&
+      policy?.isCredentialHeld === true &&
+      policy.pooling !== 'notOffered'
+    ) {
+      for (const account of source.accounts()) {
+        if (
+          !this.deps.isPinnedHere(provider, account.id) ||
+          pool?.hasRoom(account, request) !== true
+        )
+          continue
+        const headroom = accountHeadroomSchema.parse(this.deps.headroom(provider, account.id))
+        if (headroom === 'ample' || (headroom === 'some' && bucket === 'none')) bucket = headroom
+      }
     }
-    this.pools.set(provider, owned)
-    return owned
+    return bucket
   }
 
   public offer(): Readonly<Record<string, 'ample' | 'some' | 'none'>> {
-    const buckets = this.deps.providers().map((provider) => {
-      const source = this.deps.pool(provider)
-      const policy = source?.policy()
-      let bucket: 'ample' | 'some' | 'none' = 'none'
-      if (
-        source !== undefined &&
-        policy?.isCredentialHeld === true &&
-        policy.pooling !== 'notOffered'
-      ) {
-        for (const account of source.accounts()) {
-          if (!this.deps.isPinnedHere(provider, account.id)) continue
-          const headroom = accountHeadroomSchema.parse(this.deps.headroom(provider, account.id))
-          if (headroom === 'ample' || (headroom === 'some' && bucket === 'none')) bucket = headroom
-        }
-      }
-      return [provider, bucket]
-    })
+    const buckets = this.deps
+      .providers()
+      .map((provider) => [
+        provider,
+        this.bucket(provider, this.deps.pool(provider), this.deps.offerRequest(provider)),
+      ])
     return deviceAccountHeadroomSchema.parse(Object.fromEntries(buckets))
   }
 
@@ -97,7 +107,9 @@ export class DeviceAccountReceiver {
     const fragment = Object.freeze(deviceAccountRequestSchema.parse(raw))
     if (fragment.trigger !== undefined) Object.freeze(fragment.trigger)
     const checkPlacement = await this.deps.placementFence()
-    const { source, pool } = this.pool(fragment.provider)
+    const pool = this.deps.pool(fragment.provider)
+    if (pool?.deps.provider !== fragment.provider) throw new DeviceAccountAdmissionError()
+    const source = pool.deps
     const local = this.deps.request(fragment)
     const request = Object.freeze({ ...local, estimate: Object.freeze({ ...local.estimate }) })
     if (request.modelId !== fragment.modelId) throw new DeviceAccountAdmissionError()
@@ -117,29 +129,49 @@ export class DeviceAccountReceiver {
       if (decision.kind !== 'allow') throw new DeviceAccountAdmissionError(decision)
       const check = () => {
         checkPlacement()
-        if (this.deps.pool(fragment.provider) !== source || !decision.isCurrent(source.policy()))
+        if (this.deps.pool(fragment.provider) !== pool || !decision.isCurrent(source.policy()))
           throw new DeviceAccountAdmissionError()
         claim.check()
       }
       check()
-      const result = await pool.run(request, async (admission) => {
-        const beforeSend = () => {
-          check()
-          admission.beforeSend()
-          outcome = 'uncertain'
-        }
-        return await dispatch({
-          ...admission,
-          check: () => {
+      let bucket: 'ample' | 'some' | 'none' | undefined
+      const result = await pool.run(
+        request,
+        async (admission) => {
+          const beforeSend = () => {
             check()
-            admission.check()
-          },
-          beforeSend,
-        })
-      })
+            admission.beforeSend()
+            outcome = 'uncertain'
+          }
+          return await dispatch({
+            ...admission,
+            check: () => {
+              check()
+              admission.check()
+            },
+            beforeSend,
+          })
+        },
+        (account) => {
+          // First evaluation runs inside the existing pool's admission queue.
+          // Later fences check the same capacity class after credential waits.
+          bucket ??= this.bucket(fragment.provider, pool, request)
+          return (
+            bucket !== 'none' &&
+            this.deps.isPinnedHere(fragment.provider, account.id) &&
+            source.canUseModel(account, request) &&
+            accountHeadroomSchema.parse(this.deps.headroom(fragment.provider, account.id)) ===
+              bucket
+          )
+        },
+      )
       if (!hasSent()) throw new DeviceAccountAdmissionError()
       outcome = 'returned'
       return result
+    } catch (error) {
+      if (error instanceof AccountPoolStoppedError && error.decision !== undefined)
+        throw new DeviceAccountAdmissionError(error.decision)
+      throw error
     } finally {
       await claim.finish(outcome)
     }

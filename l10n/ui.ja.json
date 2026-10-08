@@ -4156,7 +4156,9 @@
     "usageUnavailable": "現在の使用状況データはありません。",
     "placementConflict": "{device} にはすでに {provider} のアカウントがあります。別のデバイスを選択するか、onePerDevicePerProvider をオフにしてください。",
     "sendToDevice": "{device} に送信",
-    "routeUnavailable": "選択したデバイスには利用可能なアカウントがないか、作業の転送が許可されていません。"
+    "routeUnavailable": "選択したデバイスには利用可能なアカウントがないか、作業の転送が許可されていません。",
+    "missingDevice": "選択したデバイスは利用できません。",
+    "ownerBusy": "この会話では既にプロンプトを実行中です。"
   },
   "developer": {
     "title": "開発者向けオプション",

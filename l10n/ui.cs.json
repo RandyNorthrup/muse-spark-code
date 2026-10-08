@@ -4594,7 +4594,9 @@
     "usageUnavailable": "Aktuální údaje o využití nejsou k dispozici.",
     "placementConflict": "{provider} už má na zařízení {device} účet. Vyberte jiné zařízení nebo vypněte onePerDevicePerProvider.",
     "sendToDevice": "Odeslat na {device}",
-    "routeUnavailable": "Vybrané zařízení nemá dostupný účet nebo oprávnění ke směrování."
+    "routeUnavailable": "Vybrané zařízení nemá dostupný účet nebo oprávnění ke směrování.",
+    "missingDevice": "Vybrané zařízení není dostupné.",
+    "ownerBusy": "Pro tuto konverzaci už běží jiný prompt."
   },
   "developer": {
     "title": "Možnosti pro vývojáře",

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  AccountPoolBusyError,
   AccountPoolStoppedError,
   accountColdCacheEstimate,
   accountReplay,
@@ -8,6 +9,7 @@ import {
 } from '../../src/core/accounts/pool'
 import { AccountThresholdExceededError } from '../../src/core/accounts/thresholds'
 import { parseUsd } from '../../src/shared/accountUsd'
+import { UI_TEXT } from '../../src/shared/constants'
 import { poolRig, poolRequest, POOL_NOW } from './helpers/accounts/pool'
 
 const RESET = new Date(POOL_NOW + 60_000).toISOString()
@@ -479,7 +481,11 @@ describe('M108 account pool request boundaries', () => {
       await finish.promise
       return { value: 'done', actualUsd: parseUsd(0) }
     })
-    await expect(t.run()).rejects.toThrow()
+    await expect(t.run()).rejects.toMatchObject({ code: 'busyOwner', name: 'AccountPoolBusyError' })
+    await expect(t.run()).rejects.toThrow('A prompt is already running for this conversation.')
+    expect(UI_TEXT.accounts.ownerBusy).toBe('A prompt is already running for this conversation.')
+    expect(new AccountPoolBusyError().message).toBe(UI_TEXT.accounts.ownerBusy)
+    expect(new AccountPoolBusyError().message).not.toBe(UI_TEXT.acpPromptBusy)
     finish.resolve(undefined)
     expect(await first).toBe('done')
     expect(t.claims[0]!.actual).toBe(parseUsd(0))

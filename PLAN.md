@@ -19070,8 +19070,9 @@ before completion. No push, rebase, model calls or fabricated native artifacts.
       Intl without admission arithmetic; estimator envelopes share the lazy
       estimate-contract bundle; optional account English gets a measured
       first-use region. Existing startup and deferred caps remain unchanged.
-- [ ] Merge accepted `m108/w-fix4`, preserving the durable limit-block redesign;
-      resolve by meaning and rerun the owning tests of conflicted files.
+- [x] Merge accepted `m108/w-fix4`, preserving the durable limit-block redesign;
+      pool test import retains integration's account-USD namespace and the new
+      localized error assertions. Pool/remote/receiver owning suites: 89 passed.
 - [ ] Merge `main-latest` (PR #139 harness readiness and bounded scheduling),
       retain both harness behaviors and rerun owning tests for conflicts.
       Restart the fresh-clone workflow on the resulting committed source.
@@ -38096,6 +38097,40 @@ Each joins when its dependency merges, and none blocks the others.
 ---
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
+
+**FIXM108DX3 (2026-10-07):** replace the remote pool's transient vendor-limit
+filter with one durable, sender-local block per provider and conversation/worker
+owner. Capture the blocked account, its group and the effective scope from the
+same `src/core/providers/accountPolicy.ts` policy port as the local pool; use the
+reported reset or a named, bounded default. Retain a live block across subsequent
+triggers, named destinations, sticky moves and deletion; expiry permits a new
+block. Preserve deleted sticky metadata long enough to capture its group. Every
+overlapping vendor limit on a different eligible account conservatively fences
+the provider for this owner until the later reset, within that same record;
+one record must never forget an earlier group in order to remember another.
+Retry a failed durable publication before any later admission. Every
+admission and send/retry uses one eligibility function shared with the local
+pool. The required owner-store port persists the record before admission and
+restores it on first use after restart; it never travels in a device frame.
+Profile create, remove and Reset audit the initiating surface. Correct stale
+round-one certification pointers. Prove all review scenarios against `e459939be`,
+drill the new guards, and repeat the owning files three times in a fresh clone
+with `npm ci`, `CI=true`, default timeouts and unchanged static/build gates.
+Aggregate quality and live/paid calls remain prohibited by the shared lane rules.
+
+**FIXM108DX (2026-10-07):** verify the previously unrouted D/X reports in
+`M108-findings.md` against `9f608e58e` and fix every remaining finding.
+Receiver admission uses the existing provider pool owner, retaining its full
+group scan while restricting dispatch to local pins with advertised capacity.
+Triggers replace the live sticky route; removed sticky ids are discarded.
+Refusals retain typed reasons. Unknown profile removal has no side effects.
+Disable, expiry and Reset stop resources before persistence; restore reconciles
+durable revocations after failed state publication. Audit the initiating surface
+and release a stale launch's prepared slot. Use fake-only baseline regressions,
+default-timeout complete-file runs and byte-exact guard drills. Certify a fresh
+clone of committed work with three owning-suite repetitions and the brief's
+static/build gates; aggregate quality and live/paid calls remain prohibited by
+the shared lane rules and lead-owned. No caps, timeouts or guards are weakened.
 
 **M108W final continuation (2026-10-07):** retain the existing startup,
 deferred and help caps. Split browser account/developer/help English into a

@@ -15,6 +15,7 @@ export const ACCOUNT_LABEL_MAX_LENGTH = 128
 export const ACCOUNT_MAX_PER_PROVIDER = 64
 export const ACCOUNT_POLICY_RECHECK_DAYS = 90
 export const ACCOUNT_DAY_MS = 86_400_000
+export const ACCOUNT_REMOTE_LIMIT_DEFAULT_MS = 60_000
 export const ACCOUNT_DEFAULTS = { isSwapOn: true, isParallelOn: true } as const
 export const ACCOUNT_POLICY_VERSION = '2026-10-05.1'
 

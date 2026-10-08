@@ -5249,6 +5249,8 @@ export const EN = {
       '{provider} already has an account on {device}. Choose another device or turn off onePerDevicePerProvider.',
     sendToDevice: 'Send to {device}',
     routeUnavailable: 'The selected device has no available account or routing permission.',
+    missingDevice: 'The selected device is unavailable.',
+    ownerBusy: 'A prompt is already running for this conversation.',
     multipleAllowed: 'Several accounts allowed',
     multipleConditions: 'Several accounts with conditions',
     multipleOnePerson: 'One account per person',

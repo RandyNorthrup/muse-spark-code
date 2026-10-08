@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   mkdtemp,
   readFile,
@@ -9,9 +9,11 @@ import {
   rm,
   link,
   readdir,
+  rename,
 } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import type * as FsPromises from 'node:fs/promises'
 import { DeveloperLocalFiles } from '../../src/runtime/developer/localFiles'
 import {
   DEVELOPER_AUDIT_MAX_BYTES,
@@ -20,6 +22,11 @@ import {
   DEVELOPER_UNLOCK_MS,
 } from '../../src/shared/constants'
 import type { DeveloperAudit, DeveloperState } from '../../src/shared/developerOptions'
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const fs = await importOriginal<typeof FsPromises>()
+  return { ...fs, rename: vi.fn(fs.rename) }
+})
 
 const roots: string[] = []
 afterEach(async () => {
@@ -46,6 +53,21 @@ const state: DeveloperState = {
 const audit: DeveloperAudit = { v: 1, time: 100, action: 'unlock', source: 'palette' }
 
 describe('private local Developer state and audit files', () => {
+  it.each(['disable', 'expire', 'reset'] as const)(
+    'restores off after a failed %s state rename',
+    async (action) => {
+      const h = await files()
+      const enabled = { ...state, isMultipleAccountsOn: true }
+      await h.store.commit(enabled, { ...audit, action: 'enable' })
+      vi.mocked(rename).mockRejectedValueOnce(new Error('rename failed'))
+      await expect(h.store.commit({ ...state }, { ...audit, action })).rejects.toThrow(
+        'rename failed',
+      )
+      expect(JSON.parse(await readFile(h.statePath, 'utf8'))).toEqual(enabled)
+      expect(await new DeveloperLocalFiles(path.dirname(h.statePath)).read()).toEqual(state)
+    },
+  )
+
   it('atomically persists validated state and a credential-free authorization audit', async () => {
     const h = await files()
     expect(await h.store.read()).toBeUndefined()
@@ -80,6 +102,15 @@ describe('private local Developer state and audit files', () => {
     await expect(
       h.store.commit({ ...state, isMultipleAccountsOn: true }, { ...audit, action: 'enable' }),
     ).rejects.toThrow()
+    expect(await h.store.read()).toEqual(state)
+  })
+
+  it('publishes revocation even when the audit append fails', async () => {
+    const h = await files()
+    await h.store.commit({ ...state, isMultipleAccountsOn: true }, { ...audit, action: 'enable' })
+    await rm(h.auditPath)
+    await mkdir(h.auditPath)
+    await expect(h.store.commit(state, { ...audit, action: 'disable' })).rejects.toThrow()
     expect(await h.store.read()).toEqual(state)
   })
 

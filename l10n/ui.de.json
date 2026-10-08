@@ -4302,7 +4302,9 @@
     "usageUnavailable": "Keine aktuellen Nutzungsdaten.",
     "placementConflict": "Für {provider} gibt es auf {device} bereits ein Konto. Wählen Sie ein anderes Gerät oder deaktivieren Sie onePerDevicePerProvider.",
     "sendToDevice": "An {device} senden",
-    "routeUnavailable": "Das ausgewählte Gerät hat kein verfügbares Konto oder keine Berechtigung zur Weiterleitung."
+    "routeUnavailable": "Das ausgewählte Gerät hat kein verfügbares Konto oder keine Berechtigung zur Weiterleitung.",
+    "missingDevice": "Das ausgewählte Gerät ist nicht verfügbar.",
+    "ownerBusy": "Für diese Konversation läuft bereits ein Prompt."
   },
   "developer": {
     "title": "Entwickleroptionen",

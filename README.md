@@ -730,6 +730,10 @@ Testing mode is badged and audited, expires, and Reset stops and removes only
 its recorded profiles. The visible several-account option has no developer
 badge or expiry. Profile start and cleanup report unavailable until their
 resource owner is bound; no successful cleanup is claimed in its absence.
+Revoking testing authority closes admission immediately and attempts to stop
+recorded profiles before saving. Persistence failures are reported; a durable
+revocation audit prevents restoring the previous enabled grant. Removing an
+unknown profile reports an error without changing the current grant.
 
 The [policy record](docs/certification/m108-policy.md), checked 2026-10-05,
 lists every provider's pooling decision with its clause, source and date.

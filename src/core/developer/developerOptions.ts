@@ -15,8 +15,10 @@ import {
 import type { DeveloperProfileResources } from './localProfiles'
 
 export interface DeveloperStore {
+  /** Restore must apply durable revocations even when state publication failed. */
   read(): Promise<unknown>
-  /** Persist the authorization audit before replacing state; failure rejects.
+  /** Audit before enabling; revoke state even after audit failure where possible.
+   * Durable revocations take precedence over an older enabled state on restore.
    * The single machine owner serializes calls, including other editor clients. */
   commit(state: DeveloperState, audit: DeveloperAudit): Promise<void>
 }
@@ -74,7 +76,7 @@ export class DeveloperOptions {
           await deps.resources.start(profile, current)
         }
       } catch (error) {
-        await owner.setMultiple(false)
+        await owner.setMultiple(false, 'lifecycle')
         throw error
       }
     }
@@ -227,21 +229,27 @@ export class DeveloperOptions {
     return await this.unlock('version')
   }
 
-  public async setMultiple(isEnabled: boolean): Promise<DeveloperSnapshot> {
+  public async setMultiple(
+    isEnabled: boolean,
+    source: DeveloperAudit['source'] = 'page',
+  ): Promise<DeveloperSnapshot> {
     if (!isEnabled) this.invalidate()
     const generation = this.generation
     return await this.serialize(async () => {
       if (generation !== this.generation) throw new DeveloperOptionsError('locked')
       if (!isEnabled) {
-        await this.save({ ...this.state, isMultipleAccountsOn: false }, 'disable', 'page')
-        await this.stopAll()
+        try {
+          await this.stopAll()
+        } finally {
+          await this.save({ ...this.state, isMultipleAccountsOn: false }, 'disable', source)
+        }
       } else if (!this.isMultipleAccountsOn()) {
         if (!this.isUnlocked()) throw new DeveloperOptionsError('locked')
         const isAllowed = await this.deps.confirm('multiple')
         if (generation !== this.generation || !this.isUnlocked())
           throw new DeveloperOptionsError('locked')
         if (isAllowed) {
-          await this.save({ ...this.state, isMultipleAccountsOn: true }, 'enable', 'page')
+          await this.save({ ...this.state, isMultipleAccountsOn: true }, 'enable', source)
           const current = this.fence()
           try {
             for (const profile of this.state.profiles) {
@@ -251,8 +259,15 @@ export class DeveloperOptions {
             }
           } catch (error) {
             this.invalidate()
-            await this.save({ ...this.state, isMultipleAccountsOn: false }, 'disable', 'lifecycle')
-            await this.stopAll()
+            try {
+              await this.stopAll()
+            } finally {
+              await this.save(
+                { ...this.state, isMultipleAccountsOn: false },
+                'disable',
+                'lifecycle',
+              )
+            }
             throw error
           }
         }
@@ -261,7 +276,11 @@ export class DeveloperOptions {
     })
   }
 
-  public async addProfile(provider: string, account: string): Promise<DeveloperSnapshot> {
+  public async addProfile(
+    provider: string,
+    account: string,
+    source: DeveloperAudit['source'] = 'page',
+  ): Promise<DeveloperSnapshot> {
     const current = this.fence()
     return await this.serialize(async () => {
       this.assertCurrent(current)
@@ -278,7 +297,7 @@ export class DeveloperOptions {
       this.assertCurrent(current)
       // Record ownership before creating resources; failed starts remain
       // visible/removable and never become an unrecorded cleanup target.
-      await this.save(next, 'create', 'page', profile.id)
+      await this.save(next, 'create', source, profile.id)
       this.assertCurrent(current)
       await this.deps.resources.start(profile, current)
       this.assertCurrent(current)
@@ -286,18 +305,26 @@ export class DeveloperOptions {
     })
   }
 
-  public async removeProfile(id: string): Promise<DeveloperSnapshot> {
+  public async removeProfile(
+    id: string,
+    source: DeveloperAudit['source'] = 'page',
+  ): Promise<DeveloperSnapshot> {
+    if (this.state.profiles.every((row) => row.id !== id))
+      throw new DeveloperOptionsError('invalidRequest')
     this.invalidate()
     return await this.serialize(async () => {
       const profile = this.state.profiles.find((row) => row.id === id)
       if (profile === undefined) throw new DeveloperOptionsError('invalidRequest')
-      await this.save({ ...this.state, isMultipleAccountsOn: false }, 'disable', 'lifecycle')
-      await this.stopAll()
+      try {
+        await this.stopAll()
+      } finally {
+        await this.save({ ...this.state, isMultipleAccountsOn: false }, 'disable', 'lifecycle')
+      }
       await this.deps.resources.remove(profile)
       await this.save(
         { ...this.state, profiles: this.state.profiles.filter((row) => row.id !== id) },
         'remove',
-        'page',
+        source,
         id,
       )
       return this.snapshot()
@@ -308,27 +335,34 @@ export class DeveloperOptions {
   public async refresh(): Promise<DeveloperSnapshot> {
     if (this.state.expiresAt !== null && !this.isUnlocked()) {
       this.invalidate()
+      this.state = { ...this.state, unlockedAt: null, expiresAt: null }
       await this.serialize(async () => {
-        await this.save({ ...this.state, unlockedAt: null, expiresAt: null }, 'expire', 'lifecycle')
-        await this.stopAll()
+        try {
+          await this.stopAll()
+        } finally {
+          await this.save(this.state, 'expire', 'lifecycle')
+        }
       })
     }
     return this.snapshot()
   }
 
-  public async reset(): Promise<DeveloperSnapshot> {
+  public async reset(source: DeveloperAudit['source'] = 'page'): Promise<DeveloperSnapshot> {
     // Reset revokes pending work as soon as requested, even while its
     // destructive cleanup confirmation is pending or denied.
     this.invalidate()
     return await this.serialize(async () => {
-      await this.save({ ...this.state, isMultipleAccountsOn: false }, 'disable', 'lifecycle')
-      await this.stopAll()
+      try {
+        await this.stopAll()
+      } finally {
+        await this.save({ ...this.state, isMultipleAccountsOn: false }, 'disable', 'lifecycle')
+      }
       if (await this.deps.confirm('reset')) {
         for (const profile of this.state.profiles) await this.deps.resources.remove(profile)
         await this.save(
           { ...this.state, unlockedAt: null, expiresAt: null, profiles: [] },
           'reset',
-          'page',
+          source,
         )
       }
       return this.snapshot()

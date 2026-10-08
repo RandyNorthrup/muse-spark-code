@@ -94,6 +94,29 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Remote vendor limits persist one sender-local block per owner and provider
+  through sticky moves, named sends, account deletion and restart. Group and
+  global exclusions share the local pool's eligibility rule; reset or a bounded
+  default expires the block. Overlapping limits conservatively stop that owner
+  until the later reset. Device frames carry no account or group metadata.
+- Developer profile create/remove and Reset audit the caller's real surface,
+  including terminal commands. M108's sticky/retry/busy certification pointers
+  now follow their owning regressions.
+
+- Device account admission shares its local pool's queue, checks the complete
+  vendor limit group and uses the advertised capacity. Later thresholds move
+  the live sticky route; deleted accounts no longer wedge it. Refusals
+  distinguish recovery, cancellation, own caps, busy owners and missing devices.
+- Remote vendor-limit routing skips the blocked account's whole limit group
+  instead of only that account, decided sender-side from the local pool rows
+  with no account or group data in device frames. A busy owner reports "A
+  prompt is already running for this conversation." instead of the session
+  message, translated in all fourteen tables.
+- Developer options reject unknown profile removal without changing authority.
+  Revocation stops profiles before saving and failed state publication cannot
+  restore an audited revoked grant. Enable/disable record their actual surface;
+  stale launches return a typed error and release their prepared credential slot.
+
 - Account, developer and help English load with their optional surfaces,
   keeping chat startup and the original deferred group within their
   existing size baselines. Translated tables still validate every key,

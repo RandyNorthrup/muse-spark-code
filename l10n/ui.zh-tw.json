@@ -4156,7 +4156,9 @@
     "usageUnavailable": "暫無目前使用情況資料。",
     "placementConflict": "{device} 上已有 {provider} 的帳戶。請選擇其他裝置或關閉 onePerDevicePerProvider。",
     "sendToDevice": "傳送至 {device}",
-    "routeUnavailable": "所選裝置沒有可用帳戶或沒有接收轉送工作的權限。"
+    "routeUnavailable": "所選裝置沒有可用帳戶或沒有接收轉送工作的權限。",
+    "missingDevice": "所選裝置無法使用。",
+    "ownerBusy": "此交談中已有提示正在執行。"
   },
   "developer": {
     "title": "開發人員選項",

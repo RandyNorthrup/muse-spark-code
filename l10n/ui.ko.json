@@ -4156,7 +4156,9 @@
     "usageUnavailable": "현재 사용량 데이터가 없습니다.",
     "placementConflict": "{device}에 이미 {provider} 계정이 있습니다. 다른 기기를 선택하거나 onePerDevicePerProvider를 끄세요.",
     "sendToDevice": "{device}(으)로 보내기",
-    "routeUnavailable": "선택한 기기에 사용 가능한 계정이 없거나 작업 전달 권한이 없습니다."
+    "routeUnavailable": "선택한 기기에 사용 가능한 계정이 없거나 작업 전달 권한이 없습니다.",
+    "missingDevice": "선택한 기기를 사용할 수 없습니다.",
+    "ownerBusy": "이 대화에서 이미 프롬프트가 실행 중입니다."
   },
   "developer": {
     "title": "개발자 옵션",

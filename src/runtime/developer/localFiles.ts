@@ -76,56 +76,25 @@ export class DeveloperLocalFiles implements DeveloperStore, ProfileFolders {
     }
   }
 
-  public async read(): Promise<unknown> {
-    await this.initialize()
-    const target = path.join(this.root, DEVELOPER_FILES.state)
+  private async readText(target: string, maxBytes: number): Promise<string | undefined> {
     if (!(await this.regularFile(target))) return undefined
     const file = await open(target, constants.O_RDONLY | constants.O_NOFOLLOW)
     try {
       const info = await file.stat()
-      if (!info.isFile() || info.nlink !== 1 || info.size > DEVELOPER_STATE_MAX_BYTES)
+      if (!info.isFile() || info.nlink !== 1 || info.size > maxBytes)
         throw new Error(UI_TEXT.developer.unavailable)
-      const buffer = Buffer.alloc(DEVELOPER_STATE_MAX_BYTES + 1)
+      const buffer = Buffer.alloc(maxBytes + 1)
       const { bytesRead } = await file.read(buffer, 0, buffer.length, 0)
-      if (bytesRead > DEVELOPER_STATE_MAX_BYTES) throw new Error(UI_TEXT.developer.unavailable)
-      return JSON.parse(buffer.toString('utf8', 0, bytesRead))
+      if (bytesRead > maxBytes) throw new Error(UI_TEXT.developer.unavailable)
+      return buffer.toString('utf8', 0, bytesRead)
     } finally {
       await file.close()
     }
   }
 
-  public async commit(value: DeveloperState, event: DeveloperAudit): Promise<void> {
-    const state = developerStateSchema.parse(value)
-    const audit = developerAuditSchema.parse(event)
-    await this.initialize()
+  private async publishState(state: DeveloperState): Promise<void> {
     const statePath = path.join(this.root, DEVELOPER_FILES.state)
     await this.regularFile(statePath)
-    const auditPath = path.join(this.root, DEVELOPER_FILES.audit)
-    const row = `${JSON.stringify(audit)}\n`
-    if (await this.regularFile(auditPath)) {
-      const info = await stat(auditPath)
-      if (info.size + Buffer.byteLength(row) > DEVELOPER_AUDIT_MAX_BYTES) {
-        const previous = `${auditPath}.previous`
-        await this.regularFile(previous)
-        await rename(auditPath, previous)
-      }
-    }
-    const journal = await open(
-      auditPath,
-      constants.O_APPEND | constants.O_CREAT | constants.O_WRONLY | constants.O_NOFOLLOW,
-      DEVELOPER_FILE_MODE,
-    )
-    try {
-      const info = await journal.stat()
-      if (!info.isFile() || info.nlink !== 1) throw new Error(UI_TEXT.developer.unavailable)
-      await journal.chmod(DEVELOPER_FILE_MODE)
-      await journal.writeFile(row)
-      await journal.sync()
-    } finally {
-      await journal.close()
-    }
-    // Authorization precedes state publication. A failed audit append can
-    // never enable developer access, and failed state writes remain errors.
     const temporary = path.join(this.root, `${DEVELOPER_FILES.state}.${randomUUID()}`)
     try {
       const file = await open(temporary, 'wx', DEVELOPER_FILE_MODE)
@@ -139,6 +108,71 @@ export class DeveloperLocalFiles implements DeveloperStore, ProfileFolders {
     } finally {
       await this.discard(temporary)
     }
+  }
+
+  public async read(): Promise<unknown> {
+    await this.initialize()
+    const text = await this.readText(
+      path.join(this.root, DEVELOPER_FILES.state),
+      DEVELOPER_STATE_MAX_BYTES,
+    )
+    if (text === undefined) return undefined
+    const state = developerStateSchema.parse(JSON.parse(text))
+    if (!state.isMultipleAccountsOn) return state
+    // A durable revocation wins even if replacing developer.json failed. Never
+    // infer an enabled grant from missing/truncated audit history.
+    const auditPath = path.join(this.root, DEVELOPER_FILES.audit)
+    for (const target of [auditPath, `${auditPath}.previous`]) {
+      const audit = await this.readText(target, DEVELOPER_AUDIT_MAX_BYTES)
+      if (audit === undefined) continue
+      const rows = audit
+        .trim()
+        .split('\n')
+        .map((row) => developerAuditSchema.parse(JSON.parse(row)))
+      const authority = rows.findLast((row) => row.action !== 'create' && row.action !== 'remove')
+      if (authority !== undefined)
+        return { ...state, isMultipleAccountsOn: authority.action === 'enable' }
+    }
+    return { ...state, isMultipleAccountsOn: false }
+  }
+
+  public async commit(value: DeveloperState, event: DeveloperAudit): Promise<void> {
+    const state = developerStateSchema.parse(value)
+    const audit = developerAuditSchema.parse(event)
+    await this.initialize()
+    await this.regularFile(path.join(this.root, DEVELOPER_FILES.state))
+    try {
+      const auditPath = path.join(this.root, DEVELOPER_FILES.audit)
+      const row = `${JSON.stringify(audit)}\n`
+      if (await this.regularFile(auditPath)) {
+        const info = await stat(auditPath)
+        if (info.size + Buffer.byteLength(row) > DEVELOPER_AUDIT_MAX_BYTES) {
+          const previous = `${auditPath}.previous`
+          await this.regularFile(previous)
+          await rename(auditPath, previous)
+        }
+      }
+      const journal = await open(
+        auditPath,
+        constants.O_APPEND | constants.O_CREAT | constants.O_WRONLY | constants.O_NOFOLLOW,
+        DEVELOPER_FILE_MODE,
+      )
+      try {
+        const info = await journal.stat()
+        if (!info.isFile() || info.nlink !== 1) throw new Error(UI_TEXT.developer.unavailable)
+        await journal.chmod(DEVELOPER_FILE_MODE)
+        await journal.writeFile(row)
+        await journal.sync()
+      } finally {
+        await journal.close()
+      }
+    } catch (error) {
+      // Failure to append cannot grant authority. Revocation still attempts
+      // state publication, and the caller receives the persistence failure.
+      if (!state.isMultipleAccountsOn) await this.publishState(state)
+      throw error
+    }
+    await this.publishState(state)
   }
 
   public async prepare(id: string): Promise<string> {

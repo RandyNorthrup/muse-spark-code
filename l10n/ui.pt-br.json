@@ -4448,7 +4448,9 @@
     "usageUnavailable": "Não há dados de uso atuais.",
     "placementConflict": "{provider} já tem uma conta em {device}. Escolha outro dispositivo ou desative onePerDevicePerProvider.",
     "sendToDevice": "Enviar para {device}",
-    "routeUnavailable": "O dispositivo selecionado não tem uma conta disponível ou não permite o encaminhamento de trabalho."
+    "routeUnavailable": "O dispositivo selecionado não tem uma conta disponível ou não permite o encaminhamento de trabalho.",
+    "missingDevice": "O dispositivo selecionado está indisponível.",
+    "ownerBusy": "Já há um prompt em andamento para esta conversa."
   },
   "developer": {
     "title": "Opções do desenvolvedor",
