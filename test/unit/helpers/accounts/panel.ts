@@ -1,3 +1,4 @@
+import { usdInputSchema } from '../../../../src/shared/usdSchema'
 import { accountPolicyFor } from '../../../../src/core/providers/accountPolicy'
 import type {
   AccountsPolicyQuestion,
@@ -28,7 +29,7 @@ export function panelSlice(overrides: Partial<ModelsAccountsSlice> = {}): Models
         id: 'work',
         label: 'Work',
         order: 0,
-        thresholds: { spendUsd: { day: 0.3 }, requests: { day: 2 } },
+        thresholds: { spendUsd: { day: usdInputSchema.parse('0.3') }, requests: { day: 2 } },
       },
       { id: 'personal', label: 'Personal', order: 1, limitGroup: 'team', thresholds: {} },
     ],

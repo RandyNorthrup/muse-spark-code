@@ -8,6 +8,7 @@ import {
   type AccountPoolDeps,
 } from '../../src/core/accounts/pool'
 import { AccountThresholdExceededError } from '../../src/core/accounts/thresholds'
+import { usdInputSchema } from '../../src/shared/usdSchema'
 import { parseUsd } from '../../src/shared/accountUsd'
 import { UI_TEXT } from '../../src/shared/constants'
 import { poolRig, poolRequest, POOL_NOW } from './helpers/accounts/pool'
@@ -123,7 +124,7 @@ describe('M108 account pool request boundaries', () => {
 
   it('swaps in configured order at a user cap and stays on the new account', async () => {
     const t = poolRig()
-    t.rows[0]!.thresholds = { spendUsd: { day: 1 } }
+    t.rows[0]!.thresholds = { spendUsd: { day: usdInputSchema.parse('1') } }
     t.settled.set('a', parseUsd(1))
     t.rows[1]!.order = 2
     t.rows[2]!.order = 1
@@ -296,14 +297,14 @@ describe('M108 account pool request boundaries', () => {
     expect(t.events[0]).toMatchObject({ type: 'swap', coldCacheUsd: 0.2 })
     const capped = poolRig()
     capped.rows[0]!.thresholds = { requests: { day: 0 } }
-    capped.rows[1]!.thresholds = { spendUsd: { day: 0.11 } }
+    capped.rows[1]!.thresholds = { spendUsd: { day: usdInputSchema.parse('0.11') } }
     expect(await capped.run()).toBe('c')
   })
 
   it('never resets the original shared budget at a swap, and refunds a known nonsend', async () => {
     const t = poolRig()
     t.settled.set('a', parseUsd('0.7'))
-    t.rows[0]!.thresholds = { spendUsd: { day: 0.7 } }
+    t.rows[0]!.thresholds = { spendUsd: { day: usdInputSchema.parse('0.7') } }
     t.cap.value = parseUsd('0.8')
     await expect(t.run()).rejects.toThrow('shared budget exceeded')
     expect(t.dispatch).not.toHaveBeenCalled()

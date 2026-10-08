@@ -1,4 +1,5 @@
 import { vi } from 'vitest'
+import { usdInputSchema } from '../../../src/shared/usdSchema'
 import type { Account, AccountEvent } from '../../../src/shared/accounts'
 import type { AccountsReply } from '../../../src/shared/hostApi/accounts'
 import type { AccountsSessionPort } from '../../../src/acp/accounts'
@@ -55,7 +56,12 @@ export function commandAccountsRig() {
 
 export function sessionAccountsRig() {
   const rows: Account[] = [
-    { id: 'default', label: 'Default', order: 0, thresholds: { spendUsd: { day: 1 } } },
+    {
+      id: 'default',
+      label: 'Default',
+      order: 0,
+      thresholds: { spendUsd: { day: usdInputSchema.parse('1') } },
+    },
     { id: 'work', label: 'Work', order: 1, thresholds: { requests: { day: 2 } } },
   ]
   let current = 'default'
@@ -110,8 +116,8 @@ export function accountSwap(): AccountEvent {
       kind: 'userCap',
       metric: 'spendUsd',
       period: 'day',
-      value: 1,
-      threshold: 1,
+      value: usdInputSchema.parse('1'),
+      threshold: usdInputSchema.parse('1'),
       resetAt: '2026-10-07T00:00:00Z',
     },
   }

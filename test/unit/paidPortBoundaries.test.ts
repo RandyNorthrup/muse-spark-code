@@ -37,7 +37,7 @@ describe('PORTS017 boundary precision and historical reads', () => {
     expect(
       evaluateAccountThresholds({
         provider: 'meta',
-        account: { id: 'work', thresholds: { spendUsd: { day: 0.10000000001 } } },
+        account: { id: 'work', thresholds: { spendUsd: { day: usd('0.10000000001') } } },
         now: Date.parse('2026-10-08T12:00:00Z'),
         journal: { read: () => ({ ...zero, settledUsd: usd('0.1') }) },
         request: { ...zero, reservedUsd: usd('0.00000000001') },

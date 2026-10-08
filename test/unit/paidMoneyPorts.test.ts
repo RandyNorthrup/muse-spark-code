@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 const ports = [
   'acp/agent.ts',
   'acp/schedules.ts',
+  'core/accounts/thresholds.ts',
   'core/estimator/recommend.ts',
   'core/paid/paidConsent.ts',
   'core/reporting/sources/types.ts',

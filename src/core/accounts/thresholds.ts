@@ -161,27 +161,38 @@ export function evaluateAccountThresholds(deps: {
       sumExactUsd(request.data.settledUsd, request.data.reservedUsd, request.data.uncertainUsd),
     )
     for (const metric of metrics) {
-      const threshold = thresholds[metric]?.[period]
-      if (threshold === undefined) continue
-      const isReached =
-        metric === 'spendUsd'
-          ? spend.compare(Usd.from(threshold)) >= 0 ||
-            spend.add(pendingSpend).compare(Usd.from(threshold)) > 0
-          : totals[metric] >= threshold || totals[metric] + request.data[metric] > threshold
-      const projected =
-        metric === 'spendUsd'
-          ? spend.add(pendingSpend).toAmount()
-          : totals[metric] + request.data[metric]
-      if (metric !== 'spendUsd' && !Number.isSafeInteger(projected)) unavailable()
-      if (isReached && !Number.isFinite(Number(projected))) unavailable()
+      if (metric === 'spendUsd') {
+        const cap = thresholds.spendUsd?.[period]
+        if (cap === undefined) continue
+        // Equality admits the last request; a reached cap cannot admit another.
+        const isReached =
+          spend.compare(Usd.from(cap)) >= 0 || spend.add(pendingSpend).compare(Usd.from(cap)) > 0
+        const projected = spend.add(pendingSpend).toAmount()
+        if (isReached && !Number.isFinite(Number(projected))) unavailable()
+        if (isReached)
+          triggers.push({
+            kind: 'userCap',
+            metric,
+            period,
+            value: projected,
+            threshold: cap,
+            resetAt: range.end,
+          })
+        continue
+      }
+      const cap = thresholds[metric]?.[period]
+      if (cap === undefined) continue
+      const projected = totals[metric] + request.data[metric]
+      if (!Number.isSafeInteger(projected)) unavailable()
+      const isReached = totals[metric] >= cap || projected > cap
+      if (isReached && !Number.isFinite(projected)) unavailable()
       if (isReached)
         triggers.push({
           kind: 'userCap',
           metric,
           period,
-          // Trigger values are the existing numeric reporting projection, never admission input.
-          value: Number(projected),
-          threshold,
+          value: projected,
+          threshold: cap,
           resetAt: range.end,
         })
     }

@@ -71,7 +71,9 @@ describe('M108 J account aggregation', () => {
         uncertainUsd: PortUsd.from(0).toAmount(),
       }),
     )
-    f.catalog[0]!.accounts[0] = usageAccount('default', { spendUsd: { day: 0.3000000009 } })
+    f.catalog[0]!.accounts[0] = usageAccount('default', {
+      spendUsd: { day: PortUsd.from(0.3000000009).toAmount() },
+    })
     expect(f.report().accounts[0]?.meters[0]).toMatchObject({ threshold: '0.3', isReached: true })
     f.records.push(usageRecord({ requests: Number.MAX_SAFE_INTEGER }))
     expect(f.report).toThrow('spend ledger')
@@ -97,7 +99,11 @@ describe('M108 J account aggregation', () => {
   it('uses half-open local calendar periods for selected totals and each threshold meter', () => {
     const f = usageFixture()
     f.catalog[0]!.accounts[0] = usageAccount('default', {
-      spendUsd: { day: 10, week: 10, month: 10 },
+      spendUsd: {
+        day: PortUsd.from(10).toAmount(),
+        week: PortUsd.from(10).toAmount(),
+        month: PortUsd.from(10).toAmount(),
+      },
       inputTokens: { day: 100 },
       outputTokens: { month: 100 },
       requests: { week: 100 },
@@ -195,7 +201,13 @@ describe('M108 J account aggregation', () => {
         [new Date(2026, 11, 31, 23, 59), new Date(2027, 0, 1, 0, 1)],
       ] as const) {
         const f = usageFixture()
-        const account = usageAccount('default', { spendUsd: { day: 1, week: 1, month: 1 } })
+        const account = usageAccount('default', {
+          spendUsd: {
+            day: PortUsd.from(1).toAmount(),
+            week: PortUsd.from(1).toAmount(),
+            month: PortUsd.from(1).toAmount(),
+          },
+        })
         f.catalog[0]!.accounts[0] = account
         const old = usageRecord({
           account: undefined,
@@ -551,12 +563,16 @@ describe('M108 J account aggregation', () => {
         label: provider,
         accounts: [
           usageAccount('default', {
-            spendUsd: { day: 0.3, week: 0.4, month: 1 },
+            spendUsd: {
+              day: PortUsd.from(0.3).toAmount(),
+              week: PortUsd.from(0.4).toAmount(),
+              month: PortUsd.from(1).toAmount(),
+            },
             inputTokens: { day: 100, month: 1000 },
             outputTokens: { day: 20, month: 200 },
             requests: { day: 10 },
           }),
-          usageAccount('personal', { spendUsd: { day: 0.3 } }),
+          usageAccount('personal', { spendUsd: { day: PortUsd.from(0.3).toAmount() } }),
         ],
       })
     let seed = 108

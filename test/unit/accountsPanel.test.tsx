@@ -11,6 +11,7 @@ import type { AccountsSectionPort } from '../../src/webview/models/sections/acco
 import { ThresholdEditor } from '../../src/webview/models/sections/accounts/ThresholdEditor'
 import { App } from '../../src/webview/App'
 import { UI_TEXT } from '../../src/shared/constants'
+import { usdInputSchema } from '../../src/shared/usdSchema'
 import { panelQuestion, panelSlice } from './helpers/accounts/panel'
 import { initialUiState } from '../../src/webview/state/uiState'
 import { createUiStore } from '../../src/webview/state/store'
@@ -250,7 +251,7 @@ describe('M108 Accounts section', () => {
     value.accounts[0] = {
       ...value.accounts[0]!,
       label: 'New account',
-      thresholds: { spendUsd: { day: 0.7 } },
+      thresholds: { spendUsd: { day: usdInputSchema.parse('0.7') } },
     }
     h.rerender(<AccountsSection value={value} port={h.port} />)
     expect(screen.getByLabelText(UI_TEXT.accounts.label)).toHaveValue('New account')
@@ -262,7 +263,7 @@ describe('M108 Accounts section', () => {
       type: 'accounts/thresholds',
       provider: 'other',
       account: 'work',
-      thresholds: { spendUsd: { day: 0.7 } },
+      thresholds: { spendUsd: { day: '0.7' } },
     })
     await click(screen.getByRole('button', { name: UI_TEXT.accounts.add }))
     fireEvent.change(screen.getByLabelText(UI_TEXT.accounts.id), { target: { value: 'old-draft' } })
@@ -289,7 +290,10 @@ describe('M108 threshold editor', () => {
     const save = vi.fn()
     render(
       <ThresholdEditor
-        value={{ spendUsd: { day: 0.3 }, planWindowPercent: { weekly: 75 } }}
+        value={{
+          spendUsd: { day: usdInputSchema.parse('0.3') },
+          planWindowPercent: { weekly: 75 },
+        }}
         capabilities={{ planWindows: ['five-hour'], hasRateHeadroom: true }}
         isPending={false}
         onSave={save}
@@ -304,7 +308,7 @@ describe('M108 threshold editor', () => {
     }
     await click(screen.getByRole('button', { name: UI_TEXT.goalEditSave }))
     expect(save).toHaveBeenCalledWith({
-      spendUsd: { day: 0.100000001, week: 0.100000001, month: 0.100000001 },
+      spendUsd: { day: '0.100000001', week: '0.100000001', month: '0.100000001' },
       inputTokens: { day: 42, week: 42, month: 42 },
       outputTokens: { day: 42, week: 42, month: 42 },
       requests: { day: 42, week: 42, month: 42 },
@@ -511,8 +515,8 @@ describe('M108 picker, transcript and policy question', () => {
       kind: 'userCap',
       metric: 'spendUsd',
       period: 'day',
-      value: 0.3,
-      threshold: 0.3,
+      value: usdInputSchema.parse('0.3'),
+      threshold: usdInputSchema.parse('0.3'),
       resetAt: '2026-10-07T00:00:00Z',
     }
     render(

@@ -77,8 +77,38 @@ describe('M108 T account thresholds', () => {
             }),
           },
         }),
-      ).toEqual([expect.objectContaining({ kind: 'userCap', period, value: 0.8, threshold: 0.8 })])
+      ).toEqual([
+        expect.objectContaining({ kind: 'userCap', period, value: '0.8', threshold: '0.8' }),
+      ])
     }
+  })
+
+  it('carries an exact projected spend past binary precision on the reached cap trigger', () => {
+    const triggers = evaluateAccountThresholds({
+      provider: 'meta',
+      account: {
+        id: 'work',
+        thresholds: { spendUsd: { day: PortUsd.from(0.1).toAmount() } },
+      },
+      now: NOW,
+      journal: {
+        read: () => ({ ...EMPTY, settledUsd: PortUsd.from('0.1000000000000000001').toAmount() }),
+      },
+    })
+    expect(triggers).toEqual([
+      expect.objectContaining({
+        kind: 'userCap',
+        metric: 'spendUsd',
+        period: 'day',
+        value: '0.1000000000000000001',
+        threshold: '0.1',
+      }),
+    ])
+    const trigger = triggers[0]
+    if (trigger?.kind !== 'userCap' || trigger.metric !== 'spendUsd')
+      throw new Error('Regression needs a spend userCap trigger')
+    expect(typeof trigger.value).toBe('string')
+    expect(accountTriggerSchema.parse(trigger)).toEqual(trigger)
   })
 
   it('matches independent exact cap comparison for seeded nano-USD reservations', () => {
@@ -101,7 +131,10 @@ describe('M108 T account thresholds', () => {
       )
       const result = evaluateAccountThresholds({
         provider: 'meta',
-        account: { id: 'work', thresholds: { spendUsd: { day: capUsd } } },
+        account: {
+          id: 'work',
+          thresholds: { spendUsd: { day: PortUsd.from(capUsd).toAmount() } },
+        },
         now: NOW,
         journal: { read: () => asTotals(current) },
         request: asTotals(pending),
@@ -170,8 +203,8 @@ describe('M108 T account thresholds', () => {
             kind: 'userCap',
             metric,
             period,
-            value: threshold,
-            threshold,
+            value: metric === 'spendUsd' ? PortUsd.from(threshold).toAmount() : threshold,
+            threshold: metric === 'spendUsd' ? PortUsd.from(threshold).toAmount() : threshold,
           })
           expect(accountTriggerSchema.safeParse(trigger).success).toBe(true)
           const below = setup({ [metric]: { [period]: threshold } })
@@ -183,7 +216,7 @@ describe('M108 T account thresholds', () => {
   )
 
   it('keeps provider and account spend isolated, including outstanding and uncertain liability', () => {
-    const subject = setup({ spendUsd: { day: 6 } })
+    const subject = setup({ spendUsd: { day: PortUsd.from(6).toAmount() } })
     subject.append({
       settledUsd: PortUsd.from(1).toAmount(),
       reservedUsd: PortUsd.from(2).toAmount(),
@@ -191,10 +224,10 @@ describe('M108 T account thresholds', () => {
     })
     subject.append({ settledUsd: PortUsd.from(100).toAmount() }, 'work', 'openai')
     subject.append({ settledUsd: PortUsd.from(100).toAmount() }, 'personal')
-    expect(subject.evaluate()[0]).toMatchObject({ value: 6, threshold: 6 })
+    expect(subject.evaluate()[0]).toMatchObject({ value: '6', threshold: '6' })
     expect(subject.evaluate('unused')).toEqual([])
     expect(subject.evaluate('work', 'other')).toEqual([])
-    expect(subject.evaluate()[0]).toMatchObject({ value: 6 })
+    expect(subject.evaluate()[0]).toMatchObject({ value: '6' })
   })
 
   it('queries each configured period once, with local half-open calendar boundaries', () => {
@@ -205,7 +238,11 @@ describe('M108 T account thresholds', () => {
       account: {
         id: 'work',
         thresholds: {
-          spendUsd: { day: 0, week: 0, month: 0 },
+          spendUsd: {
+            day: PortUsd.from(0).toAmount(),
+            week: PortUsd.from(0).toAmount(),
+            month: PortUsd.from(0).toAmount(),
+          },
           inputTokens: { day: 0 },
         },
       },
@@ -385,13 +422,16 @@ describe('M108 T account thresholds', () => {
       expect(evaluateAccountThresholds({ ...base, request: { ...EMPTY, [field]: 2 } })).toEqual([])
       expect(
         evaluateAccountThresholds({ ...base, request: { ...EMPTY, [field]: 3 } })[0],
-      ).toMatchObject({ value: 11, threshold: 10 })
+      ).toMatchObject({
+        value: metric === 'spendUsd' ? '11' : 11,
+        threshold: metric === 'spendUsd' ? '10' : 10,
+      })
       expect(
         evaluateAccountThresholds({
           ...base,
           journal: { read: () => ({ ...EMPTY, [field]: 10 }) },
         })[0],
-      ).toMatchObject({ value: 10 })
+      ).toMatchObject({ value: metric === 'spendUsd' ? '10' : 10 })
       expect(() =>
         evaluateAccountThresholds({ ...base, request: { ...EMPTY, [field]: -1 } }),
       ).toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
@@ -469,7 +509,10 @@ describe('M108 T account thresholds', () => {
       expect(() =>
         evaluateAccountThresholds({
           ...base,
-          account: { id: 'work', thresholds: { spendUsd: { day: 1 } } },
+          account: {
+            id: 'work',
+            thresholds: { spendUsd: { day: PortUsd.from(1).toAmount() } },
+          },
           journal: { read: () => ({ ...EMPTY, ...update }) },
         }),
       ).toThrow(UI_TEXT.sessionBudgetStoreUnavailable)
