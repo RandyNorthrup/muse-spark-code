@@ -1190,7 +1190,62 @@ failures, exit 1. Source restored byte-exact, SHA-256
 `c6985867937e9a03e1ff80bc8e94fce0b980e55404fb1b96c7e446a23067e3eb`.
 Restored owning-file run: 24 passed, default timeout, exit 0.
 
-**P2 host-loss containment/recovery: in progress.** Bind worker lifetime to
-the pipe-owned inhibitor; encode journal identities and PID/start identity;
-stop dead-host units before receiver retention. Native SIGKILL and restart
-receipts, journal honesty, drills and committed-clone gates follow here.
+**P2 host-loss containment/recovery: fixed.** Worker transient units have
+`BindsTo` and `After` on the pipe-owned inhibitor. When the host is SIGKILLed,
+pipe EOF ends the inhibitor and systemd stops the whole worker cgroup without
+any callback in the dead host. Unit names encode PID/kernel starttime, the
+receiver incarnation, the already-journaled attempt ID, and a launch nonce.
+Those journal keys identify the original attempt without a new shared schema.
+First manager access discovers matching units, checks `/proc/<pid>/stat`
+(including PID reuse and zombie/dead states), stops only dead-host units and
+confirms inactive/empty manager state. Live hosts remain untouched; unreadable
+ownership or unproved Stop blocks startup. A collected unit racing Stop is
+accepted only after the same empty-state observation.
+
+`DeviceWorkerHost.retain` performs this Linux query before restoring local
+occupancy. The unchanged `DeviceReceiver.open` then journals original
+nonterminal attempts as `uncertain`; cleanup never supplies a success result,
+paid settlement, artifact or occupancy release. The durable regression uses
+the real AttemptJournal/DeviceReceiver and asserts the old identity, caps and
+retained liability survive. Shared contracts and lane R's files are untouched.
+
+Native crash cases bundle the real driver once in beforeAll and launch a
+separate owning Node process, real worker unit and real inhibitor. SIGKILL of
+that process alone makes both units inactive/collected within the default
+bounded poll. The second case seeds an unbound unit carrying the killed host's
+identity, confirms it is still active, then a fresh driver removes it before
+query returns. All thirteen Linux native cases run; seven Windows cases remain
+unrun on Linux. Cleanup verifies every named unit is not-found/inactive with
+an empty ControlGroup, including units left by deliberate base/drill failures.
+The native manager/proc/cgroup observations are real, not invented model wire
+frames; model calls/spend remain **0 / $0**.
+
+Combined regression run on **625d95ecb**: exit **1**, **7 failed**, **42
+nonselected** across two files. Two churn cases fail at launch 129 (256 helper
+starts); both SIGKILL cases observe an active worker after host death; dead
+owner/PID-reuse cleanup cases send no Stop; durable recovery fails because
+cleanup did not precede retention. Restored local owning run: **78 passed,
+7 Windows skipped**, three files, default deadlines. Receiver/recovery:
+**86 passed**, two files, exit **0**.
+
+Seven final guard drills, default deadlines, all exit **1**:
+
+| Drill            | Deliberate break                | Failing regressions                                |
+| ---------------- | ------------------------------- | -------------------------------------------------- |
+| Slot release     | Initialize slot ownership false | 2 churn cases fail at launch 129.                  |
+| Host bind        | Remove worker BindsTo           | 2 native SIGKILL cases still see an active worker. |
+| Orphan discovery | Skip recovery                   | 3 dead/reused/durable recovery cases fail.         |
+| Live owner       | Stop live owners too            | Live-host preservation fails.                      |
+| Unreadable owner | Treat EACCES as absent          | Ownership refusal fails.                           |
+| Empty proof      | Omit inactive/empty check       | New launch succeeds after unproved Stop.           |
+| Journal order    | Omit Linux query before retain  | Durable cleanup-before-retain assertion fails.     |
+
+Every mutation restored byte-exact in finally. Final SHA-256:
+
+- Linux driver: `95021905a67aa843bb77062e3f62dd1bc477629319886d2a080f8713b087a900`.
+- Host: `78bbee1ebcedb4118025748fd063922509023b9faa1a1896ae646856c909beeb`.
+
+Fresh committed-clone qualification follows. W continues to own production
+binding, README/CHANGELOG/reference integration, joined quality and installed
+hosts. No dependency, translated text, setting, command, shared contract,
+escape hatch or policy change was added.

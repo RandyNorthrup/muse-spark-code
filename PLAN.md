@@ -35996,7 +35996,7 @@ execution beyond phase 1 is implemented or certified by this record.
     which its owner must repair before W binds the selector. Full joined
     quality, coverage, production/doc binding and installed hosts remain W's
     responsibility; this lane does not claim shipped Linux support.
-    **Linux review M100P2HL3 (2026-10-08), in progress.** Fix both
+    **Linux review M100P2HL3 (2026-10-08), implementation verified.** Fix both
     RVM100P2HL P2 findings without changing the shared receiver contracts:
     attempt-owned launch slots release exactly once on every failed path;
     worker units bind to their pipe-owned inhibitor with BindsTo/After.
@@ -36008,6 +36008,13 @@ execution beyond phase 1 is implemented or certified by this record.
     repository deadlines; run base regressions and byte-exact red drills.
     Commit finished fixes, then qualify a fresh CI clone with owning tests
     three times, receiver/recovery, five typechecks and unchanged gates/caps.
+    Both fixes pass: readiness churn reaches launch 201; two native SIGKILL
+    cases prove bound-worker Stop and fresh-host orphan cleanup. Seven base
+    regressions and seven intentional guard drills fail as expected; receiver
+    recovery records the original attempts as uncertain without releasing
+    occupancy or liability. Local owning tests pass 78 cases (13 native Linux),
+    with seven Windows cases unrun; receiver/recovery passes 86. Fresh-clone
+    qualification is pending in docs/certification/m100-phase2.md.
   - **Lane A.** Every admission binds the sender's role/mode ceiling to the
     receiver's repository grant, role/tools, workspace trust, protected
     paths and current approval policy under an explicit receiver-side
@@ -46190,6 +46197,17 @@ aggregate certification record.
 - **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
 
 ## 7. Gates
+
+**M100P2HL3 scoped gate delegation (2026-10-08, linuxlt).** The rig brief
+and M100P2-common.md require owning files in batches of at most three, all
+native Linux cases, receiver/recovery, five typechecks, lint/format, plain
+knip, duplication, reference/localization/host-API and unchanged production
+caps in a fresh committed CI clone. Aggregate quality and full-suite coverage,
+production binding, README/CHANGELOG/reference integration and installed-host
+qualification remain W's exclusive responsibility. The inherited stale
+W-owned host API inventory is recorded, never weakened or silently refreshed
+here. No reviewed finding is deferred. Receipts:
+docs/certification/m100-phase2.md, Linux review M100P2HL3 subsection.
 
 **FLAKETH20 scoped gate delegation (2026-10-07, win11).** The shared lane
 rules forbid aggregate `npm run quality` and leave full-suite coverage and

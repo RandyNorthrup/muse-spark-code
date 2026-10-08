@@ -194,8 +194,13 @@ export class DeviceWorkerHost implements DeviceReceiverExecution {
       return { power: 'unknown', sleepInhibited: false }
     }
   }
-  public retain(records: readonly DeviceJournalRecord[]): Promise<void> {
-    return this.deps.retain(records.map((record) => deviceJournalRecordSchema.parse(record)))
+  public async retain(records: readonly DeviceJournalRecord[]): Promise<void> {
+    const validated = records.map((record) => deviceJournalRecordSchema.parse(record))
+    // Linux's first manager query stops dead-host units before journal occupancy is restored.
+    // The receiver still records uncertainty: cleanup supplies no result or paid settlement.
+    if (this.deps.driver.platform === 'linux')
+      parseDeviceWorkerQuery(await this.deps.driver.query())
+    await this.deps.retain(validated)
   }
   public async admit(input: DeviceDispatch): Promise<DeviceLocalAttempt> {
     const request = deviceDispatchSchema.parse(input)

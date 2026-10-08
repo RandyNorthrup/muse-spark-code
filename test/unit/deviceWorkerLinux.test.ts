@@ -5,12 +5,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { deviceWorkerLinux } from '../../src/host/backend/deviceWorkerLinux'
 import {
   deviceWorkerDriverForPlatform,
+  DeviceWorkerHost,
   type DeviceWorkerJob,
 } from '../../src/host/devices/deviceWorkerHost'
 import { workerEnvironment } from '../../src/core/team/refFence'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
 import { deviceCheck, deviceGrant } from './helpers/deviceFixtures'
+import { DeviceReceiver } from '../../src/host/devices/deviceReceiver'
+import { executionUsage, useExecutionFixture } from './helpers/deviceExecutionFixtures'
 
 const request = deviceCheck(deviceGrant('a'.repeat(32)))
 const environment: Record<string, string> = {}
@@ -61,6 +64,7 @@ function instantChild(isInhibitor: boolean): ChildProcessWithoutNullStreams {
 }
 function fixture(isInstant = false) {
   const supplies: string[] = []
+  const units: string[] = []
   const state = {
     isEmpty: false,
     tasksMax: request.caps.processes,
@@ -71,6 +75,12 @@ function fixture(isInstant = false) {
     result: 'success',
     kernelLimit: request.caps.processes,
     transport: '/transport.scope',
+    units,
+    isOrphanStopped: false,
+    canStopOrphan: true,
+    isOwnerAlive: false,
+    isOwnerReused: false,
+    isOwnerUnreadable: false,
   }
   const calls: { file: string; args: readonly string[]; env: NodeJS.ProcessEnv }[] = []
   let worker: ChildProcessWithoutNullStreams | undefined
@@ -101,14 +111,32 @@ function fixture(isInstant = false) {
   })
   const run = vi.fn((_file: string, args: readonly string[]) => {
     if (state.isManagerLost) return Promise.reject(new Error('manager lost'))
+    if (args.includes('list-units'))
+      return Promise.resolve(JSON.stringify(state.units.map((unit) => ({ unit }))))
+    if (
+      state.canStopOrphan &&
+      args.includes('stop') &&
+      args.some((arg) => state.units.includes(arg))
+    )
+      state.isOrphanStopped = true
     if (args.includes('stop')) worker?.kill()
     return args.includes('--property=Version')
       ? Promise.resolve('257\n')
       : Promise.resolve(
-          `LoadState=loaded\nActiveState=active\nSubState=running\nControlGroup=${state.group}\nTasksMax=${String(state.tasksMax)}\nResult=${state.result}\n`,
+          `LoadState=loaded\nActiveState=${state.isOrphanStopped ? 'inactive' : 'active'}\nSubState=${state.isOrphanStopped ? 'dead' : 'running'}\nControlGroup=${state.isOrphanStopped ? '' : state.group}\nTasksMax=${String(state.tasksMax)}\nResult=${state.result}\n`,
         )
   })
   const read = vi.fn((file: string) => {
+    if (file.endsWith('/stat') && file.startsWith('/proc/')) {
+      if (file !== '/proc/self/stat' && state.isOwnerUnreadable)
+        return Promise.reject(Object.assign(new Error('unreadable owner'), { code: 'EACCES' }))
+      if (file !== '/proc/self/stat' && !state.isOwnerAlive)
+        return Promise.reject(Object.assign(new Error('dead owner'), { code: 'ENOENT' }))
+      const fields = Array.from({ length: 20 }, () => '0')
+      fields[0] = 'S'
+      fields[19] = state.isOwnerReused ? '124' : '123'
+      return Promise.resolve(`1 (node ) name) ${fields.join(' ')}`)
+    }
     if (state.failRead && file.startsWith('/sys/class/power_supply/'))
       return Promise.reject(new Error('unreadable'))
     if (file.endsWith('cgroup.events'))
@@ -189,6 +217,18 @@ describe('M100/H Linux platform port (fake manager/cgroup/inhibitor)', () => {
     expect(f.calls[0]?.args).toEqual(
       expect.arrayContaining(['--what=sleep:idle', '--mode=block', '--no-ask-password']),
     )
+    const inhibitorUnit = f.calls[0]?.args
+      .find((arg) => arg.startsWith('--unit='))
+      ?.slice('--unit='.length)
+    expect(f.calls[1]?.args).toEqual(
+      expect.arrayContaining([
+        `--property=BindsTo=${inhibitorUnit ?? ''}`,
+        `--property=After=${inhibitorUnit ?? ''}`,
+      ]),
+    )
+    const unit = f.calls[1]?.args.find((arg) => arg.startsWith('--unit=')) ?? ''
+    expect(unit).toContain(request.identity.receiverIncarnationId)
+    expect(unit).toContain(request.identity.attemptId)
     expect(f.calls[1]?.env['META_API_KEY']).toBeUndefined()
     expect(job.query).toMatchObject({
       context: { station: 'systemd-user', desktop: '/user.slice/test.service' },
@@ -431,5 +471,92 @@ describe('M100/H Linux platform port (fake manager/cgroup/inhibitor)', () => {
       reason: 'unsupported-host',
     })
     expect(load).toHaveBeenCalledOnce()
+  })
+})
+
+const orphanUnit = `muse-spark-device-987654-123-${request.identity.receiverIncarnationId}-${request.identity.attemptId}-${'c'.repeat(32)}.service`
+describe('M100/H dead Linux host recovery', () => {
+  it.each(['dead', 'reused'])(
+    'stops %s host units before a fresh host query completes',
+    async (owner) => {
+      const f = fixture(true)
+      f.state.units.push(orphanUnit, orphanUnit.replace('.service', '-inhibit.service'))
+      f.state.isOwnerAlive = owner === 'reused'
+      f.state.isOwnerReused = owner === 'reused'
+      await f.driver.query()
+      for (const unit of f.state.units)
+        expect(f.run.mock.calls).toContainEqual([
+          '/usr/bin/systemctl',
+          ['--user', 'stop', unit],
+          expect.anything(),
+        ])
+      expect(f.start).not.toHaveBeenCalled()
+    },
+  )
+  it('keeps another live host and unrelated unit untouched', async () => {
+    const f = fixture(true)
+    f.state.units.push(orphanUnit, 'unrelated.service')
+    f.state.isOwnerAlive = true
+    await f.driver.query()
+    expect(f.run.mock.calls.some(([, args]) => args.includes('stop'))).toBe(false)
+  })
+  it('unreadable host ownership refuses recovery without assuming death', async () => {
+    const f = fixture(true)
+    f.state.units.push(orphanUnit)
+    f.state.isOwnerUnreadable = true
+    await expect(f.driver.query()).rejects.toThrow('unreadable owner')
+    expect(f.run.mock.calls.some(([, args]) => args.includes('stop'))).toBe(false)
+    expect(f.start).not.toHaveBeenCalled()
+  })
+  it('an orphan stop acknowledgement without observed emptiness blocks all new launches', async () => {
+    const f = fixture(true)
+    f.state.units.push(orphanUnit)
+    f.state.canStopOrphan = false
+    await expect(f.driver.launch(command, environment, request)).rejects.toMatchObject({
+      reason: 'uncertain',
+    })
+    expect(f.start).not.toHaveBeenCalled()
+  })
+  const durable = useExecutionFixture('check')
+  it('cleans orphan units before retaining occupancy and journals original attempts as uncertain', async () => {
+    const f = fixture(true)
+    const { journal, request: original, policy, lease } = durable()
+    await journal.admit(original, executionUsage, Date.now())
+    await journal.advance(
+      original.identity,
+      (previous) => ({ ...previous, revision: previous.revision + 1, state: 'launch-intent' }),
+      Date.now(),
+    )
+    const unit = `muse-spark-device-987654-123-${original.identity.receiverIncarnationId}-${original.identity.attemptId}-${'c'.repeat(32)}.service`
+    f.state.units.push(unit)
+    const retain = vi.fn(() => {
+      expect(f.state.isOrphanStopped).toBe(true)
+      return Promise.resolve()
+    })
+    const host = new DeviceWorkerHost({
+      driver: f.driver,
+      environment: {},
+      retain,
+      reserve: () =>
+        Promise.resolve({ usage: executionUsage, pause: lease.pause, release: lease.release }),
+      command: () => Promise.reject(new Error('recovery must never launch')),
+      recordEnvironment: () => Promise.resolve(),
+      pressure: () => undefined,
+    })
+    await DeviceReceiver.open('f'.repeat(32), journal, host, policy)
+    const records = await journal.records()
+    expect(records).toHaveLength(1)
+    expect(records[0]).toMatchObject({
+      kind: 'receiver-record',
+      outcome: {
+        identity: original.identity,
+        state: 'uncertain',
+        occupied: original.caps,
+        usage: executionUsage,
+      },
+    })
+    expect(retain).toHaveBeenCalledOnce()
+    expect(lease.release).not.toHaveBeenCalled()
+    expect(f.start).not.toHaveBeenCalled()
   })
 })

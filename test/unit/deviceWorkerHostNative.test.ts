@@ -17,6 +17,9 @@ import {
 } from '../../src/host/devices/deviceWorkerHost'
 import { deviceCheck, deviceGrant } from './helpers/deviceFixtures'
 import { spawn } from 'node:child_process'
+import { once } from 'node:events'
+import { createInterface } from 'node:readline'
+import { build } from 'esbuild'
 import { deviceWorkerLinux } from '../../src/host/backend/deviceWorkerLinux'
 import { workerEnvironment } from '../../src/core/team/refFence'
 
@@ -351,6 +354,31 @@ describe.skipIf(process.platform !== 'linux' || process.env['XDG_RUNTIME_DIR'] =
   () => {
     beforeAll(async () => {
       linux.directory = await mkdtemp(path.join(tmpdir(), 'm100-linux-native-'))
+      await build({
+        entryPoints: ['src/host/backend/deviceWorkerLinux.ts'],
+        outfile: path.join(linux.directory, 'driver.cjs'),
+        bundle: true,
+        platform: 'node',
+        format: 'cjs',
+        logLevel: 'silent',
+      })
+      const source = String.raw`const {deviceWorkerLinux}=require('./driver.cjs');
+const {workerEnvironment}=require('./environment.cjs');
+(async()=>{
+ const driver=deviceWorkerLinux({environment:process.env});
+ const job=await driver.launch({executable:'/bin/sh',args:['-c',process.argv[2]],cwd:process.cwd(),requiredTools:[]},workerEnvironment(process.env,'linux'),${JSON.stringify(admitted(DEVICE_LIMITS.processes))});
+ await job.activate();process.stdout.write(JSON.stringify(job.query)+'\n');
+ setInterval(()=>{},100);
+})().catch(()=>{process.stderr.write('parent launch failed');process.exit(1)});`
+      await build({
+        entryPoints: ['src/core/team/refFence.ts'],
+        outfile: path.join(linux.directory, 'environment.cjs'),
+        bundle: true,
+        platform: 'node',
+        format: 'cjs',
+        logLevel: 'silent',
+      })
+      await writeFile(path.join(linux.directory, 'crash-parent.cjs'), source)
     })
     afterAll(async () => {
       try {
@@ -377,6 +405,120 @@ describe.skipIf(process.platform !== 'linux' || process.env['XDG_RUNTIME_DIR'] =
         await rm(linux.directory, { recursive: true, force: true })
       }
     })
+
+    it.each([false, true])(
+      'SIGKILL of the owning host stops its worker; fresh host cleans leftover=%s',
+      async (leaveOrphan) => {
+        const marker = path.join(linux.directory, `crash-ready-${String(leaveOrphan)}`)
+        const parent = spawn(
+          process.execPath,
+          [
+            path.join(linux.directory, 'crash-parent.cjs'),
+            `printf ready > '${marker}'; exec sleep 100`,
+          ],
+          {
+            cwd: linux.directory,
+            env: linuxControlEnvironment(),
+            stdio: 'pipe',
+          },
+        )
+        const exited = once(parent, 'close')
+        const lines = createInterface({ input: parent.stdout })
+        let orphan: string | undefined
+        try {
+          const [line] = await Promise.race([
+            once(lines, 'line'),
+            (async () => {
+              await exited
+              throw new Error('parent exited before ready')
+            })(),
+          ])
+          const ready = parseDeviceWorkerQuery(JSON.parse(String(line)))
+          const unit = path.posix.basename(ready.context.desktop)
+          const inhibitor = unit.replace('.service', '-inhibit.service')
+          linux.units.add(unit)
+          linux.units.add(inhibitor)
+          await expect.poll(() => isPresent(marker)).toBe(true)
+          const active = await runProgram(
+            '/usr/bin/systemctl',
+            ['--user', 'show', unit, '--property=ActiveState,BindsTo,After'],
+            linuxControlEnvironment(),
+          )
+          expect(active).toContain('ActiveState=active')
+          // Seed a separate unbound unit from this incarnation, simulating an old/crashed launch.
+          if (leaveOrphan) {
+            orphan = unit.replace(/-[a-f0-9]{32}\.service$/, () => `-${'d'.repeat(32)}.service`)
+            linux.units.add(orphan)
+            await runProgram(
+              '/usr/bin/systemd-run',
+              ['--user', '--quiet', '--collect', `--unit=${orphan}`, '/bin/sleep', '100'],
+              linuxControlEnvironment(),
+            )
+          }
+          parent.kill('SIGKILL')
+          await exited
+          await expect
+            .poll(
+              async () =>
+                await runProgram(
+                  '/usr/bin/systemctl',
+                  ['--user', 'show', unit, '--property=ActiveState,ControlGroup'],
+                  linuxControlEnvironment(),
+                ),
+            )
+            .toContain('ActiveState=inactive')
+          await expect
+            .poll(
+              async () =>
+                await runProgram(
+                  '/usr/bin/systemctl',
+                  ['--user', 'show', inhibitor, '--property=ActiveState'],
+                  linuxControlEnvironment(),
+                ),
+            )
+            .toContain('ActiveState=inactive')
+          if (orphan !== undefined) {
+            expect(
+              await runProgram(
+                '/usr/bin/systemctl',
+                ['--user', 'show', orphan, '--property=ActiveState'],
+                linuxControlEnvironment(),
+              ),
+            ).toContain('ActiveState=active')
+            await linuxDriver().query()
+          }
+          for (const owned of [unit, inhibitor, ...(orphan === undefined ? [] : [orphan])]) {
+            await expect
+              .poll(
+                async () =>
+                  await runProgram(
+                    '/usr/bin/systemctl',
+                    ['--user', 'show', owned, '--property=LoadState,ActiveState,ControlGroup'],
+                    linuxControlEnvironment(),
+                  ),
+              )
+              .toContain('LoadState=not-found')
+          }
+          const remaining = await runProgram(
+            '/usr/bin/systemctl',
+            [
+              '--user',
+              'list-units',
+              '--all',
+              '--no-legend',
+              `muse-spark-device-${String(parent.pid ?? 0)}-*.service`,
+            ],
+            linuxControlEnvironment(),
+          )
+          expect(remaining.trim()).toBe('')
+        } finally {
+          lines.close()
+          parent.kill('SIGKILL')
+          await exited
+          // afterAll cleans every named unit, including a deliberately unbound orphan.
+        }
+      },
+    )
     it('runs in the real service cgroup, with closed stdin, canonical environment and stdout JSON despite stderr', async () => {
       const native = linuxDriver()
       const script = `read -r input && exit 1; [ -z "$NODE_OPTIONS$META_API_KEY$SSH_AUTH_SOCK" ] || exit 1; printf warning >&2; printf '${JSON.stringify({ usage })}'`

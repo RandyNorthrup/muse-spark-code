@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto'
 import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import { UI_TEXT } from '../../shared/l10n/text'
+import { deviceAttemptIdentitySchema } from '../../shared/devices'
 import { workerEnvironment } from '../../core/team/refFence'
 import {
   DEVICE_LIMITS,
@@ -36,6 +37,20 @@ const unitSchema = z.strictObject({
 })
 
 type UnitState = z.infer<typeof unitSchema>
+const listedUnitsSchema = z.array(z.looseObject({ unit: z.string() }))
+// Linux proc(5): starttime is field 22, after the final ')' of the comm field.
+function processIdentity(text: string) {
+  const fields = text
+    .slice(text.lastIndexOf(')') + 2)
+    .trim()
+    .split(/\s+/)
+  return z
+    .strictObject({
+      state: z.string().check(z.regex(/^[A-Za-z]$/)),
+      start: z.string().check(z.regex(/^[1-9]\d*$/)),
+    })
+    .parse({ state: fields[0], start: fields[19] })
+}
 
 export interface DeviceWorkerLinuxDeps {
   readonly environment: NodeJS.ProcessEnv
@@ -155,6 +170,45 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
       throw new DeviceWorkerHostError('capacity')
     return text
   }
+  let hostStart: string | undefined
+  const recoverOrphans = async () => {
+    hostStart = processIdentity(await boundedRead('/proc/self/stat')).start
+    const listed = listedUnitsSchema.parse(
+      JSON.parse(
+        await invoke(
+          '/usr/bin/systemctl',
+          ['--user', 'list-units', '--all', '--output=json', 'muse-spark-device-*.service'],
+          env,
+        ),
+      ),
+    )
+    for (const { unit } of listed) {
+      // Receiver incarnation/attempt are already durable in the receiver journal.
+      // PID plus kernel starttime distinguishes live hosts even after PID reuse.
+      const owner =
+        /^muse-spark-device-([1-9]\d*)-([1-9]\d*)-[a-f0-9]{32}-[a-f0-9]{32}-[a-f0-9]{32}(?:-inhibit)?\.service$/.exec(
+          unit,
+        )
+      if (owner === null) continue
+      let isAlive = false
+      try {
+        const identity = processIdentity(await boundedRead(`/proc/${owner[1] ?? ''}/stat`))
+        isAlive =
+          identity.start === owner[2] &&
+          identity.state !== 'Z' &&
+          identity.state.toUpperCase() !== 'X'
+      } catch (error) {
+        if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') throw error
+      }
+      if (isAlive) continue
+      // Another restarting host can collect it after listing. Only observed emptiness counts.
+      await ignoreFailure(invoke('/usr/bin/systemctl', ['--user', 'stop', unit], env))
+      const observed = await state(unit)
+      if (observed.ActiveState !== 'inactive' || observed.ControlGroup !== '')
+        throw new DeviceWorkerHostError('result')
+    }
+  }
+  let recovering: Promise<void> | undefined
   const manager = async () => {
     if (runtime === undefined || !path.posix.isAbsolute(runtime) || runtime.includes('\0'))
       throw new DeviceWorkerHostError('helper')
@@ -169,6 +223,7 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
       throw new DeviceWorkerHostError('helper')
     }
     if (version.trim() === '') throw new DeviceWorkerHostError('helper')
+    await (recovering ??= recoverOrphans())
   }
   const state = async (unit: string): Promise<UnitState> => {
     const text = await invoke(
@@ -322,13 +377,15 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
     const canonical = workerEnvironment(environment, 'linux')
     if (JSON.stringify(canonical) !== JSON.stringify(environment))
       throw new DeviceWorkerHostError('preflight')
-    const unit = `muse-spark-device-${randomUUID().replaceAll('-', '')}.service`
-    slots.add(unit)
+    const identity = deviceAttemptIdentitySchema.parse(attempt.identity)
+    const slotId = `${identity.attemptId}-${randomUUID().replaceAll('-', '')}`
+    const unit = `muse-spark-device-${String(process.pid)}-${hostStart ?? ''}-${identity.receiverIncarnationId}-${slotId}.service`
+    slots.add(slotId)
     let hasSlot = true
     const releaseSlot = () => {
       if (!hasSlot) return
       hasSlot = false
-      slots.delete(unit)
+      slots.delete(slotId)
     }
     let hold: Awaited<ReturnType<typeof inhibit>>
     try {
@@ -372,6 +429,8 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
           '--expand-environment=no',
           '--property=ExitType=cgroup',
           '--property=KillMode=control-group',
+          `--property=BindsTo=${unit.replace(/\.service$/, '-inhibit.service')}`,
+          `--property=After=${unit.replace(/\.service$/, '-inhibit.service')}`,
           '--property=SendSIGKILL=yes',
           `--property=TimeoutStopSec=${String(DEVICE_LIMITS.frameDeadlineMs / MILLISECONDS_PER_SECOND)}s`,
           `--property=TasksMax=${String(maxProcesses)}`,
