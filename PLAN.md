@@ -20374,6 +20374,11 @@ success/failure/cancelled/skipped visual assertion. The lane uses the existing
 dated milestone status grammar. The fixture source edit
 also requires real README screenshot replay before refreshing its input digest.
 
+The real 18-image README replay is reviewed under LEFT017 Linux (2026-10-08):
+seven captures remain byte-identical and eleven current renders replace stale
+combined-tree media. Refresh the existing input digest only after that capture;
+keep its failure guard, the 2 MiB curated budget and the blocked full M114 map.
+
 Accessibility follow-up: the fresh full matrix has all 1,068 pages ready, no
 violations and four undecided contrast checks on the plan-usage request count.
 Render its request counts with the existing localized singular/plural request

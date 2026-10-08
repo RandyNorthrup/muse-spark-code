@@ -270,3 +270,34 @@ contributed command ID. Model traffic is fake-only. Activation is 587,451 of
 10,000-fire store still reports 10,000 fires, a bounded audit and fenced old
 identities. Final-row journal: 53 operations / 24,662 bytes; total storage
 2,404,304 bytes. No deadlines or validation assertions changed.
+
+README current-render review **LEFT017 Linux, 2026-10-08**: render inputs
+match committed `41fde362144fbfab6ec5889edba6d97a82abf28b`; all 18 declared shots rendered successfully
+with the real ready handshake and were compared with their prior captures.
+Seven remain byte-identical. Eleven reviewed current captures replace stale
+combined-tree screenshots; question controls, current usage status and Help
+prose are visible. Help alt text describes its visible detail. No crop,
+synthetic image, tolerance or PNG-budget change. Global input SHA-256:
+`a399a86f2147dad3ffd381ce980882e5e90280bd09f9f8a4b9f93448f2e6d3d4`. Curated media total: 1,139,781 / 2,097,152 bytes.
+The complete M114 map and manifest remain blocked separately.
+
+| Curated image            | Dimensions | Bytes  | SHA-256                                                            |
+| ------------------------ | ---------- | ------ | ------------------------------------------------------------------ |
+| agents.png               | 690 × 760  | 63107  | `d3ada1d94ec7dd2a67c02c8cda3d0a62166d49b0971aa4901c05342dc365a569` |
+| approval.png             | 690 × 760  | 55704  | `5b5f115860a493444f46846669373dbd33dbf37aa4fa7341d8abdf35d6b7b16a` |
+| question.png             | 690 × 760  | 50009  | `576085cd213fda4ac33da2deb21dab2a7accf2b62d32a46a303b3a5b63405e90` |
+| history.png              | 690 × 760  | 70158  | `e39a860074461075400b7d812054cf2592a7cdc919254e9ddd89058e77efc7f0` |
+| languages.png            | 690 × 760  | 73506  | `45752b079a7932bcd2153f037116d646074c37d7a940bf84fb200473ac2f8d73` |
+| modes.png                | 690 × 760  | 83896  | `bc517ea0c1348535b482e1a1d7af8c54331871d647661b43e48e75d4db96b9ee` |
+| paid.png                 | 690 × 760  | 33999  | `c16aae671a561aff3c08de0273cdfcfc4ebeb24f35078eb829cd5bb1b2492b0b` |
+| paid-always.png          | 690 × 1000 | 107122 | `5c26bb4d062d0aff5255280f23f2c7b7158faa741993af8f56e732d042115cb9` |
+| palette.png              | 690 × 760  | 51269  | `bf9da19fc6191d6fd2dd40076b7185ed01af13096d2ff2022a323e47ea3309a6` |
+| quote.png                | 690 × 760  | 35098  | `f3d4fd22cd258d17f0a6984629a8850efbe6c6888e6eee6c9b799cd804211e1d` |
+| rewind.png               | 690 × 760  | 45082  | `a559dd2434f1c978d467a7e6e699b0a926b100949ca203b880bd582a1eb805b9` |
+| slash-commands.png       | 690 × 760  | 76462  | `48957d67c987c89f4f57ebff432562032014086e1aab9b13fbbe4dd485ab153e` |
+| turn.png                 | 690 × 760  | 53323  | `78a64d44b5a354db100e21244395af8c888b6e6ae56579c55ec0a50a361a76fc` |
+| usage.png                | 690 × 760  | 66454  | `2ff06969d626f5acd123234bfc58e2244694e43c366e18a91527e26775237886` |
+| voice.png                | 690 × 760  | 56642  | `b28b6b298004e807e54ab4223d42b7083411695f9b11b753bda68bb1edcf266d` |
+| open-question.png        | 690 × 760  | 47703  | `b3301bbf4f78b5eb5dcbbd36c30b29ae76548559371090d219e57eb295afeb01` |
+| help.png                 | 1000 × 760 | 116134 | `39b5625d156a4c256ac209814703f0710509fd14e24e9cc68bb7aef36f555558` |
+| deterministic-report.png | 690 × 760  | 54113  | `25a14e0a51c9018c7011daeab68a88020394323e8938babdb77c911396b79891` |

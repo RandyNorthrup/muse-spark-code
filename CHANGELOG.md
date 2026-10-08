@@ -14,6 +14,7 @@ happened, not what was planned; superseded entries are kept.
 - Resolve visual replay fixtures from the running gate when historical render sources predate them, and guard Help document IDs against duplication.
 - Prepare browser-English probe scratch space in fresh clones and include the merged Linux helper job in the visual CI test fixture.
 - Give plan-usage request counts localized singular/plural text so contrast checks can measure their visible content.
+- Refresh reviewed README captures from the combined UI and its real ready handshake, retaining the curated media budget.
 - Name and exercise report-root literal regex escaping across all operators and Windows separators.
 
 - Share ACP preparation cancellation and exact USD display helpers; align merged paid-ledger tests with the exact decimal contract.
